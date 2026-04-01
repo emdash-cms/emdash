@@ -4,10 +4,10 @@
 	// Custom entrypoint that exports EmDashPreviewDB
 	"main": "./src/worker.ts",
 	"compatibility_date": "2026-01-14",
-	"compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
-	"assets": {
-		"directory": "./dist",
-	},
+	"compatibility_flags": [
+		"nodejs_compat",
+		"disable_nodejs_process_v2"
+	],
 	// Durable Object for preview databases
 	"durable_objects": {
 		"bindings": [
@@ -21,7 +21,9 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["EmDashPreviewDB"],
+			"new_sqlite_classes": [
+				"EmDashPreviewDB"
+			],
 		},
 	],
 	"observability": {

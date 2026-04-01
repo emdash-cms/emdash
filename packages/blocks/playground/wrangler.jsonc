@@ -1,7 +1,4 @@
 {
 	"name": "emdash-blocks",
 	"compatibility_date": "2026-02-25",
-	"assets": {
-		"directory": "./dist",
-	},
 }

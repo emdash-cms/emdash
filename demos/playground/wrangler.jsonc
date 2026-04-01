@@ -2,12 +2,11 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "emdash-playground",
 	"compatibility_date": "2026-02-24",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	// Custom entrypoint that exports EmDashPreviewDB
 	"main": "./src/worker.ts",
-	"assets": {
-		"directory": "./dist",
-	},
 	"durable_objects": {
 		"bindings": [
 			{
@@ -19,7 +18,9 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["EmDashPreviewDB"],
+			"new_sqlite_classes": [
+				"EmDashPreviewDB"
+			],
 		},
 	],
 	"observability": {

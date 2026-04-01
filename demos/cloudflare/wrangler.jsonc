@@ -5,11 +5,11 @@
 	"compatibility_date": "2026-01-14",
 	// disable_nodejs_process_v2 needed until unenv fix lands in Pages
 	// See: https://github.com/withastro/astro/issues/14511
-	"compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
+	"compatibility_flags": [
+		"nodejs_compat",
+		"disable_nodejs_process_v2"
+	],
 	// Static assets served from dist/
-	"assets": {
-		"directory": "./dist",
-	},
 	"routes": [
 		{
 			"pattern": "demo.emdashcms.com",
