@@ -187,11 +187,17 @@ export function GutenbergEditor({
 		onChangeRef.current = onChange;
 	}, [onChange]);
 
-	const [initialized, setInitialized] = React.useState(gutenbergInitialized);
-	React.useEffect(() => {
+	const [initialized, setInitialized] = React.useState(() => {
 		initializeGutenberg();
-		setInitialized(true);
-	}, []);
+		return true;
+	});
+	// Fallback if the synchronous init above didn't run (SSR guard)
+	React.useEffect(() => {
+		if (!initialized) {
+			initializeGutenberg();
+			setInitialized(true);
+		}
+	}, [initialized]);
 
 	// Media upload handler for Gutenberg's image/file blocks.
 	// This bridges Gutenberg's mediaUpload API to EmDash's media upload endpoint.
