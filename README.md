@@ -159,7 +159,7 @@ EmDash is in **beta preview**. We welcome contributions, feedback, plugins, them
 npm create emdash@latest
 ```
 
-See the [documentation](https://docs.emdashcms.com) for guides, API reference, and plugin development.
+See the [documentation[(https://github.com/emdash-cms/emdash/tree/main/docs)] for guides, API reference, and plugin development.
 
 ## Development
 
