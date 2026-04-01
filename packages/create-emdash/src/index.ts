@@ -6,9 +6,12 @@
  * Usage: npm create emdash@latest
  */
 
-import { execSync } from "node:child_process";
+import { exec } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { promisify } from "node:util";
+
+const execAsync = promisify(exec);
 
 import * as p from "@clack/prompts";
 import { downloadTemplate } from "giget";
@@ -251,10 +254,7 @@ async function main() {
 		if (shouldInstall) {
 			s.start(`Installing dependencies with ${pc.cyan(pm)}...`);
 			try {
-				execSync(installCmd, {
-					cwd: projectDir,
-					stdio: "ignore",
-				});
+				await execAsync(installCmd, { cwd: projectDir });
 				s.stop("Dependencies installed!");
 			} catch {
 				s.stop("Failed to install dependencies");
