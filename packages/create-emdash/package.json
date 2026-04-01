@@ -1,6 +1,6 @@
 {
   "name": "create-emdash",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Create a new EmDash CMS project",
   "type": "module",
   "bin": "./dist/index.mjs",

@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-forms",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "Forms plugin for EmDash CMS - build forms, collect submissions, send notifications",
 	"type": "module",
 	"main": "src/index.ts",
@@ -11,7 +11,9 @@
 		"./client": "./src/client/index.ts",
 		"./styles": "./src/styles/forms.css"
 	},
-	"files": ["src"],
+	"files": [
+		"src"
+	],
 	"keywords": [
 		"emdash",
 		"cms",
