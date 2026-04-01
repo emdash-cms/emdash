@@ -4,6 +4,9 @@ A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudfla
 
 ## Get Started
 
+> [!IMPORTANT]
+> In its early life, EmDash is currently dependent on Dynamic Worker Loaders, a Workers Paid feature, to run sandboxed plugins. To run Ecliptic without sandboxed plugins on a free account you must comment out the `worker_loaders` block of the `wrangler.jsonc` configuration file. This will cause errors with sandboxed plugins.
+
 ```bash
 npm create emdash@latest
 ```
