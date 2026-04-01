@@ -23,6 +23,7 @@ import { registerCoreBlocks } from "@wordpress/block-library";
 import { SlotFillProvider, Popover } from "@wordpress/components";
 import * as React from "react";
 
+import { uploadMedia } from "../lib/api";
 import { cn } from "../lib/utils";
 import {
 	portableTextToGutenberg,
@@ -192,6 +193,46 @@ export function GutenbergEditor({
 		setInitialized(true);
 	}, []);
 
+	// Media upload handler for Gutenberg's image/file blocks.
+	// This bridges Gutenberg's mediaUpload API to EmDash's media upload endpoint.
+	const mediaUpload = React.useCallback(
+		({
+			filesList,
+			onFileChange,
+			onError,
+		}: {
+			filesList: File[];
+			onFileChange: (media: Array<Record<string, unknown>>) => void;
+			onError: (message: string) => void;
+		}) => {
+			const uploads = Array.from(filesList).map(async (file) => {
+				try {
+					const item = await uploadMedia(file);
+					return {
+						id: item.id,
+						url: item.url,
+						alt: item.alt || item.filename,
+						caption: "",
+						width: item.width,
+						height: item.height,
+						mime: item.mimeType,
+					};
+				} catch (err) {
+					onError(err instanceof Error ? err.message : "Upload failed");
+					return null;
+				}
+			});
+
+			void Promise.all(uploads).then((results) => {
+				const uploaded = results.filter(Boolean) as Array<Record<string, unknown>>;
+				if (uploaded.length > 0) {
+					onFileChange(uploaded);
+				}
+			});
+		},
+		[],
+	);
+
 	// Convert Portable Text to Gutenberg blocks on mount
 	const [blocks, setBlocks] = React.useState<BlockInstance[]>(() => {
 		if (!value || value.length === 0) return [];
@@ -244,6 +285,7 @@ export function GutenbergEditor({
 					settings={{
 						hasFixedToolbar: true,
 						bodyPlaceholder: _placeholder,
+						mediaUpload,
 					} as Record<string, unknown>}
 				>
 					<div className="gutenberg-editor-layout flex">
