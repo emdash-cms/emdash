@@ -53,5 +53,10 @@
 			"esbuild",
 			"workerd"
 		]
+	},
+	"dependencies": {
+		"@wordpress/block-editor": "^15.16.0",
+		"@wordpress/block-library": "^9.43.0",
+		"@wordpress/components": "^32.5.0"
 	}
 }

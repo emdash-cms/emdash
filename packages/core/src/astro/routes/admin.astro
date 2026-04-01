@@ -6,6 +6,12 @@
  * AdminWrapper imports plugin admin modules and passes them to AdminApp.
  */
 import "@emdash-cms/admin/styles.css";
+import "@wordpress/components/build-style/style.css";
+import "@wordpress/block-editor/build-style/style.css";
+import "@wordpress/block-editor/build-style/content.css";
+import "@wordpress/block-library/build-style/style.css";
+import "@wordpress/block-library/build-style/editor.css";
+import "@wordpress/block-library/build-style/theme.css";
 // Use package-qualified import so Astro generates a proper module URL
 // (relative imports resolve to absolute paths which break client hydration)
 import AdminWrapper from "emdash/routes/PluginRegistry";

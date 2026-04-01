@@ -4,10 +4,6 @@
  * Wraps the WordPress Gutenberg block editor (@wordpress/block-editor) to work
  * within EmDash's admin UI. Content is stored as Portable Text internally, and
  * this component handles the conversion to/from Gutenberg's block format.
- *
- * This provides a much richer editing experience compared to a basic WYSIWYG
- * editor, with support for blocks, drag-and-drop, and the full WordPress
- * block editing paradigm.
  */
 
 import {
@@ -35,7 +31,7 @@ import {
 } from "./editor/gutenberg-portable-text";
 
 // Track initialization state
-let coreBlocksRegistered = false;
+let gutenbergInitialized = false;
 
 // Allowed core block types for content editing
 const ALLOWED_BLOCKS = [
@@ -58,8 +54,88 @@ const ALLOWED_BLOCKS = [
 	"core/freeform",
 ];
 
+/**
+ * Inject custom CSS overrides for the Gutenberg editor within EmDash.
+ * The base WordPress stylesheets are imported via admin.astro.
+ */
+function injectCustomStyles() {
+	if (typeof document === "undefined") return;
+	if (document.getElementById("gutenberg-emdash-overrides")) return;
+
+	const style = document.createElement("style");
+	style.id = "gutenberg-emdash-overrides";
+	style.textContent = `
+		.gutenberg-editor-wrapper {
+			font-family: inherit;
+			line-height: 1.6;
+			position: relative;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-writing-flow {
+			padding: 16px;
+			min-height: 200px;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-block-list__layout {
+			padding: 0;
+		}
+
+		.gutenberg-editor-wrapper .components-popover {
+			z-index: 100;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-default-block-appender {
+			margin: 0;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-block-list__block {
+			margin: 0;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-block-toolbar {
+			border: 1px solid #e2e8f0;
+			border-radius: 6px;
+			background: white;
+		}
+
+		.gutenberg-editor-sidebar {
+			font-size: 13px;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-inserter__toggle {
+			background: transparent;
+			border: 1px dashed #cbd5e1;
+			border-radius: 4px;
+			padding: 4px;
+			cursor: pointer;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-inserter__toggle:hover {
+			border-color: #94a3b8;
+			background: #f8fafc;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-block-list__block.wp-block {
+			margin-top: 0;
+			margin-bottom: 0;
+			max-width: none;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-default-block-appender .block-editor-default-block-appender__content {
+			color: #94a3b8;
+		}
+
+		.gutenberg-editor-wrapper .is-selected > .block-editor-block-list__block-edit::after {
+			border-color: #3b82f6;
+		}
+	`;
+	document.head.appendChild(style);
+}
+
 function initializeGutenberg() {
-	if (coreBlocksRegistered) return;
+	if (gutenbergInitialized) return;
+
+	injectCustomStyles();
 
 	try {
 		registerCoreBlocks();
@@ -83,7 +159,7 @@ function initializeGutenberg() {
 		// Block types may not be available yet
 	}
 
-	coreBlocksRegistered = true;
+	gutenbergInitialized = true;
 }
 
 export interface GutenbergEditorProps {
@@ -110,9 +186,10 @@ export function GutenbergEditor({
 		onChangeRef.current = onChange;
 	}, [onChange]);
 
-	// Initialize Gutenberg core blocks once
+	const [initialized, setInitialized] = React.useState(gutenbergInitialized);
 	React.useEffect(() => {
 		initializeGutenberg();
+		setInitialized(true);
 	}, []);
 
 	// Convert Portable Text to Gutenberg blocks on mount
@@ -141,6 +218,14 @@ export function GutenbergEditor({
 			}
 		}
 	}, []);
+
+	if (!initialized) {
+		return (
+			<div className={cn("border rounded-lg", className)}>
+				<div className="p-4 text-kumo-subtle">Loading editor...</div>
+			</div>
+		);
+	}
 
 	return (
 		<div
