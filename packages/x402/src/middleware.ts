@@ -15,7 +15,8 @@ import x402Config from "virtual:x402/config";
 import { createEnforcer } from "./enforcer.js";
 import type { X402Config } from "./types.js";
 
-const config = x402Config as X402Config;
+// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- virtual module import has no type info
+const config: X402Config = x402Config as X402Config;
 const enforcer = createEnforcer(config);
 
 export const onRequest = defineMiddleware(async (context, next) => {

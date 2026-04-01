@@ -81,9 +81,12 @@ async function getResourceServer(config: X402Config): Promise<x402ResourceServer
  */
 function isBot(request: Request, threshold: number): boolean {
 	// Cloudflare Workers expose cf properties on the request
-	const cf = (request as unknown as { cf?: { botManagement?: { score?: number } } }).cf;
-	const score = cf?.botManagement?.score;
-	if (score == null) return false;
+	const cf: unknown = Reflect.get(request, "cf");
+	if (cf == null || typeof cf !== "object") return false;
+	const bm: unknown = Reflect.get(cf, "botManagement");
+	if (bm == null || typeof bm !== "object") return false;
+	const score: unknown = Reflect.get(bm, "score");
+	if (typeof score !== "number") return false;
 	return score < threshold;
 }
 
