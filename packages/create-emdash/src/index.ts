@@ -7,43 +7,84 @@
  */
 
 import { execSync } from "node:child_process";
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import * as p from "@clack/prompts";
 import { downloadTemplate } from "giget";
 import pc from "picocolors";
 
-type Template = "blog" | "cloudflare" | "blank";
-
 const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
 
-const TEMPLATES = {
+const GITHUB_REPO = "emdash-cms/templates";
+
+type Platform = "node" | "cloudflare";
+
+interface TemplateConfig {
+	name: string;
+	description: string;
+	/** Directory name in the templates repo */
+	dir: string;
+}
+
+const NODE_TEMPLATES = {
 	blog: {
 		name: "Blog",
-		description: "A blog with posts and pages (Node.js + SQLite)",
+		description: "A blog with posts, pages, and authors",
 		dir: "blog",
-		repo: "github:emdash-cms/emdash/templates/blog",
 	},
-	cloudflare: {
-		name: "Cloudflare",
-		description: "A blog on Cloudflare Workers (D1 + R2)",
-		dir: "cloudflare",
-		repo: "github:emdash-cms/emdash/templates/cloudflare",
+	starter: {
+		name: "Starter",
+		description: "A general-purpose starter with posts and pages",
+		dir: "starter",
+	},
+	marketing: {
+		name: "Marketing",
+		description: "A marketing site with landing pages and CTAs",
+		dir: "marketing",
+	},
+	portfolio: {
+		name: "Portfolio",
+		description: "A portfolio site with projects and case studies",
+		dir: "portfolio",
 	},
 	blank: {
 		name: "Blank",
-		description: "A minimal starter project",
+		description: "A minimal starter with no content or styling",
 		dir: "blank",
-		repo: "github:emdash-cms/emdash/templates/blank",
 	},
-} as const;
+} as const satisfies Record<string, TemplateConfig>;
+
+const CLOUDFLARE_TEMPLATES = {
+	blog: {
+		name: "Blog",
+		description: "A blog with posts, pages, and authors",
+		dir: "blog-cloudflare",
+	},
+	starter: {
+		name: "Starter",
+		description: "A general-purpose starter with posts and pages",
+		dir: "starter-cloudflare",
+	},
+	marketing: {
+		name: "Marketing",
+		description: "A marketing site with landing pages and CTAs",
+		dir: "marketing-cloudflare",
+	},
+	portfolio: {
+		name: "Portfolio",
+		description: "A portfolio site with projects and case studies",
+		dir: "portfolio-cloudflare",
+	},
+} as const satisfies Record<string, TemplateConfig>;
+
+type NodeTemplate = keyof typeof NODE_TEMPLATES;
+type CloudflareTemplate = keyof typeof CLOUDFLARE_TEMPLATES;
 
 /** Build select options from a config object, preserving literal key types */
 function selectOptions<K extends string>(
 	obj: Readonly<Record<K, Readonly<{ name: string; description: string }>>>,
 ): { value: K; label: string; hint: string }[] {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Object.keys returns string[]; narrowed to K which is the known key union
 	return (Object.keys(obj) as K[]).map((key) => ({
 		value: key,
 		label: obj[key].name,
@@ -51,26 +92,10 @@ function selectOptions<K extends string>(
 	}));
 }
 
-function findMonorepoRoot(): string | null {
-	let dir = process.cwd();
-	while (true) {
-		if (existsSync(resolve(dir, "pnpm-workspace.yaml")) && existsSync(resolve(dir, "templates"))) {
-			return dir;
-		}
-		const parent = resolve(dir, "..");
-		if (parent === dir) return null;
-		dir = parent;
-	}
-}
-
-const useRemote = process.argv.includes("--remote");
-
 async function main() {
 	console.clear();
 
-	const monorepoRoot = useRemote ? null : findMonorepoRoot();
-
-	p.intro(`— ${pc.bgCyan(pc.black(" create-emdash "))}`);
+	p.intro(`${pc.bgCyan(pc.black(" create-emdash "))}`);
 
 	const projectName = await p.text({
 		message: "Project name?",
@@ -89,13 +114,11 @@ async function main() {
 		process.exit(0);
 	}
 
-	const projectDir = monorepoRoot
-		? resolve(monorepoRoot, "demos", projectName)
-		: resolve(process.cwd(), projectName);
+	const projectDir = resolve(process.cwd(), projectName);
 
 	if (existsSync(projectDir)) {
 		const overwrite = await p.confirm({
-			message: `Directory ${monorepoRoot ? `demos/${projectName}` : projectName} already exists. Overwrite?`,
+			message: `Directory ${projectName} already exists. Overwrite?`,
 			initialValue: false,
 		});
 
@@ -103,36 +126,63 @@ async function main() {
 			p.cancel("Operation cancelled.");
 			process.exit(0);
 		}
-
-		rmSync(projectDir, { recursive: true, force: true });
 	}
 
-	const template = await p.select<Template>({
-		message: "Which template?",
-		options: selectOptions(TEMPLATES),
-		initialValue: "blog",
+	// Step 1: pick platform
+	const platform = await p.select<Platform>({
+		message: "Where will you deploy?",
+		options: [
+			{
+				value: "node",
+				label: "Node.js",
+				hint: "SQLite + local file storage",
+			},
+			{
+				value: "cloudflare",
+				label: "Cloudflare Workers",
+				hint: "D1 + R2",
+			},
+		],
+		initialValue: "node",
 	});
 
-	if (p.isCancel(template)) {
+	if (p.isCancel(platform)) {
 		p.cancel("Operation cancelled.");
 		process.exit(0);
 	}
+
+	// Step 2: pick template
+	const templateKey =
+		platform === "node"
+			? await p.select<NodeTemplate>({
+					message: "Which template?",
+					options: selectOptions(NODE_TEMPLATES),
+					initialValue: "blog",
+				})
+			: await p.select<CloudflareTemplate>({
+					message: "Which template?",
+					options: selectOptions(CLOUDFLARE_TEMPLATES),
+					initialValue: "blog",
+				});
+
+	if (p.isCancel(templateKey)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+
+	const templateConfig =
+		platform === "node"
+			? NODE_TEMPLATES[templateKey as NodeTemplate]
+			: CLOUDFLARE_TEMPLATES[templateKey as CloudflareTemplate];
 
 	const s = p.spinner();
 	s.start("Creating project...");
 
 	try {
-		const templateConfig = TEMPLATES[template];
-
-		if (monorepoRoot) {
-			const templateDir = resolve(monorepoRoot, "templates", templateConfig.dir);
-			cpSync(templateDir, projectDir, { recursive: true });
-		} else {
-			await downloadTemplate(templateConfig.repo, {
-				dir: projectDir,
-				force: true,
-			});
-		}
+		await downloadTemplate(`github:${GITHUB_REPO}/${templateConfig.dir}`, {
+			dir: projectDir,
+			force: true,
+		});
 
 		// Set project name in package.json
 		const pkgPath = resolve(projectDir, "package.json");
@@ -140,12 +190,12 @@ async function main() {
 			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 			pkg.name = projectName;
 
-			// Add emdash config for CLI commands (init reads seed path from here)
-			const hasSeed = existsSync(resolve(projectDir, ".emdash", "seed.json"));
-			if (hasSeed) {
+			// Add emdash config if template has seed data
+			const seedPath = resolve(projectDir, "seed", "seed.json");
+			if (existsSync(seedPath)) {
 				pkg.emdash = {
 					label: templateConfig.name,
-					seed: ".emdash/seed.json",
+					seed: "seed/seed.json",
 				};
 			}
 
@@ -157,25 +207,18 @@ async function main() {
 		s.start("Installing dependencies...");
 		try {
 			execSync("pnpm install", {
-				cwd: monorepoRoot ?? projectDir,
+				cwd: projectDir,
 				stdio: "ignore",
 			});
 			s.stop("Dependencies installed!");
 		} catch {
 			s.stop("Failed to install dependencies");
-			p.log.warn(
-				monorepoRoot
-					? `Run ${pc.cyan("pnpm install")} from the repo root manually`
-					: `Run ${pc.cyan(`cd ${projectName} && pnpm install`)} manually`,
-			);
+			p.log.warn(`Run ${pc.cyan(`cd ${projectName} && pnpm install`)} manually`);
 		}
 
-		const filterOrCd = monorepoRoot ? `pnpm --filter ${projectName}` : `cd ${projectName}\nnpm`;
+		p.note(`cd ${projectName}\npnpm run bootstrap\npnpm run dev`, "Next steps");
 
-		p.note(`${filterOrCd} run bootstrap\n${filterOrCd} run dev`, "Next steps");
-
-		const displayPath = monorepoRoot ? `demos/${projectName}` : projectName;
-		p.outro(`${pc.green("Done!")} Your EmDash project is ready at ${pc.cyan(displayPath)}`);
+		p.outro(`${pc.green("Done!")} Your EmDash project is ready at ${pc.cyan(projectName)}`);
 	} catch (error) {
 		s.stop("Failed to create project");
 		p.log.error(error instanceof Error ? error.message : String(error));

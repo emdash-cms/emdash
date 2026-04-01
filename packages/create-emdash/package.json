@@ -14,10 +14,11 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.10.0",
-    "picocolors": "^1.1.1",
-    "giget": "^1.2.3"
+    "giget": "^1.2.3",
+    "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"
   },
@@ -33,7 +34,5 @@
     "type": "git",
     "url": "git+https://github.com/emdash-cms/emdash.git",
     "directory": "packages/create-emdash"
-  },
-  "peerDependencies": {},
-  "optionalDependencies": {}
+  }
 }
