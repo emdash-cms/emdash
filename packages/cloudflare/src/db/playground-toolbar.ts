@@ -11,12 +11,12 @@
  */
 
 export interface PlaygroundToolbarConfig {
-  /** When the playground was created (ISO string) */
-  createdAt: string;
-  /** TTL in seconds */
-  ttl: number;
-  /** Whether edit mode is currently active */
-  editMode: boolean;
+	/** When the playground was created (ISO string) */
+	createdAt: string;
+	/** TTL in seconds */
+	ttl: number;
+	/** Whether edit mode is currently active */
+	editMode: boolean;
 }
 
 const RE_AMP = /&/g;
@@ -25,9 +25,9 @@ const RE_LT = /</g;
 const RE_GT = />/g;
 
 export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string {
-  const { createdAt, ttl, editMode } = config;
+	const { createdAt, ttl, editMode } = config;
 
-  return `
+	return `
 <!-- EmDash Playground Toolbar -->
 <div id="emdash-playground-toolbar" data-created-at="${escapeAttr(createdAt)}" data-ttl="${ttl}" data-edit-mode="${editMode}">
   <div class="ec-pg-inner">
@@ -333,9 +333,9 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
 }
 
 function escapeAttr(str: string): string {
-  return str
-    .replace(RE_AMP, "&amp;")
-    .replace(RE_QUOT, "&quot;")
-    .replace(RE_LT, "&lt;")
-    .replace(RE_GT, "&gt;");
+	return str
+		.replace(RE_AMP, "&amp;")
+		.replace(RE_QUOT, "&quot;")
+		.replace(RE_LT, "&lt;")
+		.replace(RE_GT, "&gt;");
 }
