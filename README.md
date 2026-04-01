@@ -24,6 +24,8 @@ EmDash ships with three starter templates:
 
 ### Blog
 
+<a href="assets/templates/blog/latest/"><img src="assets/templates/blog/latest/homepage-light-desktop.jpg" alt="Blog template" width="100%"></a>
+
 A classic blog with sidebar widgets, search, and RSS.
 
 - Categories & tags
@@ -32,12 +34,12 @@ A classic blog with sidebar widgets, search, and RSS.
 - RSS feed
 - Dark / light mode
 
-<a href="assets/templates/blog/latest/"><img src="assets/templates/blog/latest/homepage-light-desktop.jpg" alt="Blog template" width="100%"></a>
-
 </td>
 <td width="33%" valign="top">
 
 ### Marketing
+
+<a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
 
 A conversion-focused landing page with pricing and contact form.
 
@@ -47,12 +49,12 @@ A conversion-focused landing page with pricing and contact form.
 - FAQ and contact form
 - Dark / light mode
 
-<a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
-
 </td>
 <td width="33%" valign="top">
 
 ### Portfolio
+
+<a href="assets/templates/portfolio/latest/"><img src="assets/templates/portfolio/latest/work-light-desktop.jpg" alt="Portfolio template" width="100%"></a>
 
 A visual portfolio for showcasing creative work.
 
@@ -61,9 +63,7 @@ A visual portfolio for showcasing creative work.
 - Case study pages
 - RSS feed
 - Dark / light mode
-
-<a href="assets/templates/portfolio/latest/"><img src="assets/templates/portfolio/latest/work-light-desktop.jpg" alt="Portfolio template" width="100%"></a>
-
+<br /><br />
 </td>
 </tr>
 </table>
