@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/admin",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Admin UI for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",

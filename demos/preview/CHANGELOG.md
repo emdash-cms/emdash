@@ -1,5 +1,13 @@
 # @emdash-cms/demo-preview
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`3c319ed`](https://github.com/emdash-cms/emdash/commit/3c319ed6411a595e6974a86bc58c2a308b91c214)]:
+  - emdash@0.0.3
+  - @emdash-cms/cloudflare@0.0.3
+
 ## 0.0.2
 
 ### Patch Changes
