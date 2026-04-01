@@ -30,9 +30,9 @@ A classic blog with sidebar widgets, search, and RSS.
 
 - Categories & tags
 - Full-text search
-- RSS feed
 - Comment-ready
-- Dark/light mode
+- RSS feed
+- Dark / light mode
 
 </td>
 <td width="33%" valign="top">
@@ -46,8 +46,8 @@ A conversion-focused landing page with pricing and contact form.
 - Hero with CTAs
 - Feature grid
 - Pricing cards
-- FAQ accordion
-- Contact form
+- FAQ and contact form
+- Dark / light mode
 
 </td>
 <td width="33%" valign="top">
@@ -62,7 +62,7 @@ A visual portfolio for showcasing creative work.
 - Tag filtering
 - Case study pages
 - RSS feed
-- Dark/light mode
+- Dark / light mode
 <br /><br />
 </td>
 </tr>
