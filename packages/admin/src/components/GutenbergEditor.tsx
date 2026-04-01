@@ -93,6 +93,20 @@ function injectCustomStyles() {
 			margin: 0;
 		}
 
+		.gutenberg-editor-wrapper h1.wp-block { font-size: 2.5em; font-weight: 700; }
+		.gutenberg-editor-wrapper h2.wp-block { font-size: 2em; font-weight: 700; }
+		.gutenberg-editor-wrapper h3.wp-block { font-size: 1.75em; font-weight: 600; }
+		.gutenberg-editor-wrapper h4.wp-block { font-size: 1.5em; font-weight: 600; }
+		.gutenberg-editor-wrapper h5.wp-block { font-size: 1.25em; font-weight: 600; }
+		.gutenberg-editor-wrapper h6.wp-block { font-size: 1.1em; font-weight: 600; }
+		.gutenberg-editor-wrapper [data-type="core/heading"] { margin-top: 0.5em; margin-bottom: 0.25em; }
+		.gutenberg-editor-wrapper .rich-text[aria-level="1"] { font-size: 2.5em; font-weight: 700; }
+		.gutenberg-editor-wrapper .rich-text[aria-level="2"] { font-size: 2em; font-weight: 700; }
+		.gutenberg-editor-wrapper .rich-text[aria-level="3"] { font-size: 1.75em; font-weight: 600; }
+		.gutenberg-editor-wrapper .rich-text[aria-level="4"] { font-size: 1.5em; font-weight: 600; }
+		.gutenberg-editor-wrapper .rich-text[aria-level="5"] { font-size: 1.25em; font-weight: 600; }
+		.gutenberg-editor-wrapper .rich-text[aria-level="6"] { font-size: 1.1em; font-weight: 600; }
+
 		.gutenberg-editor-wrapper .block-editor-block-toolbar {
 			border: 1px solid #e2e8f0;
 			border-radius: 6px;

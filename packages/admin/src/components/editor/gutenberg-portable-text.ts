@@ -49,6 +49,8 @@ interface PortableTextImageBlock {
 	caption?: string;
 	width?: number;
 	height?: number;
+	displayWidth?: number;
+	displayHeight?: number;
 }
 
 interface PortableTextCodeBlock {
@@ -142,8 +144,12 @@ export function portableTextToGutenberg(blocks: PortableTextBlock[]): BlockInsta
 					url,
 					alt: imageBlock.alt || "",
 					caption: imageBlock.caption || "",
-					width: imageBlock.width,
-					height: imageBlock.height,
+					// Use display dimensions if set, otherwise original
+					width: imageBlock.displayWidth || imageBlock.width,
+					height: imageBlock.displayHeight || imageBlock.height,
+					// Store originals as custom attributes for round-trip
+					emdashOriginalWidth: imageBlock.width,
+					emdashOriginalHeight: imageBlock.height,
 				}),
 			);
 			i++;
@@ -357,6 +363,13 @@ function convertGutenbergBlock(
 
 		case "core/image": {
 			const attrs = block.attributes;
+			const originalWidth = typeof attrs.emdashOriginalWidth === "number" ? attrs.emdashOriginalWidth : undefined;
+			const originalHeight = typeof attrs.emdashOriginalHeight === "number" ? attrs.emdashOriginalHeight : undefined;
+			const currentWidth = typeof attrs.width === "number" ? attrs.width : undefined;
+			const currentHeight = typeof attrs.height === "number" ? attrs.height : undefined;
+
+			// If we have originals and current differs, the user resized
+			const wasResized = originalWidth && currentWidth && originalWidth !== currentWidth;
 			return {
 				_type: "image",
 				_key: generateKey(),
@@ -366,8 +379,10 @@ function convertGutenbergBlock(
 				},
 				alt: String(attrs.alt || ""),
 				caption: String(attrs.caption || ""),
-				width: typeof attrs.width === "number" ? attrs.width : undefined,
-				height: typeof attrs.height === "number" ? attrs.height : undefined,
+				width: originalWidth || currentWidth,
+				height: originalHeight || currentHeight,
+				displayWidth: wasResized ? currentWidth : undefined,
+				displayHeight: wasResized ? currentHeight : undefined,
 			};
 		}
 
