@@ -55,6 +55,16 @@ let runtimeInitializing = false;
 let i18nInitialized = false;
 
 /**
+ * Whether we've verified the database has been set up.
+ * On a fresh deployment the first request may hit a public page, bypassing
+ * runtime init. Without this check, template helpers like getSiteSettings()
+ * would query an empty database and crash. Once verified (or once the runtime
+ * has initialized via an admin/API request), this stays true for the worker's
+ * lifetime.
+ */
+let setupVerified = false;
+
+/**
  * Get EmDash configuration from virtual module
  */
 function getConfig(): EmDashConfig | null {
@@ -190,6 +200,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 		const sessionUser = await context.session?.get("user");
 		if (!sessionUser && !playgroundDb) {
+			// On a fresh deployment the database may be completely empty.
+			// Public pages call getSiteSettings() / getMenu() via getDb(), which
+			// bypasses runtime init and would crash with "no such table: options".
+			// Do a one-time lightweight probe using the same getDb() instance the
+			// page will use: if the migrations table doesn't exist, no migrations
+			// have ever run -- redirect to the setup wizard.
+			if (!setupVerified) {
+				try {
+					const { getDb } = await import("../loader.js");
+					const db = await getDb();
+					await db
+						.selectFrom("_emdash_migrations" as keyof Database)
+						.selectAll()
+						.limit(1)
+						.execute();
+					setupVerified = true;
+				} catch {
+					// Table doesn't exist -> fresh database, redirect to setup
+					return context.redirect("/_emdash/admin/setup");
+				}
+			}
+
 			const response = await next();
 			setBaselineSecurityHeaders(response);
 			return response;
@@ -209,6 +241,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		try {
 			// Get or create runtime
 			const runtime = await getRuntime(config);
+
+			// Runtime init runs migrations, so the DB is guaranteed set up
+			setupVerified = true;
 
 			// Get manifest (cached after first call)
 			const manifest = await runtime.getManifest();
