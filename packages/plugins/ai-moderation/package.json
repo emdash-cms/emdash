@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-ai-moderation",
-	"version": "0.0.3",
+	"version": "1.0.0",
 	"description": "AI-powered comment moderation plugin for EmDash CMS using Cloudflare Workers AI (Llama Guard)",
 	"type": "module",
 	"main": "src/descriptor.ts",
