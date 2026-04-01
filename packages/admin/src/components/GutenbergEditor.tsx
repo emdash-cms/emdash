@@ -243,11 +243,34 @@ export function GutenbergEditor({
 		}
 	});
 
+	// Track whether the user has made edits (to avoid overwriting with stale prop)
+	const userEditedRef = React.useRef(false);
+
+	// Re-sync blocks when value changes from outside (e.g. async data load).
+	// Skip if the user has already been editing to avoid clobbering their work.
+	const valueFingerprintRef = React.useRef(JSON.stringify(value));
+	React.useEffect(() => {
+		const newFingerprint = JSON.stringify(value);
+		if (newFingerprint === valueFingerprintRef.current) return;
+		valueFingerprintRef.current = newFingerprint;
+
+		if (userEditedRef.current) return;
+		if (!value || value.length === 0) return;
+
+		try {
+			setBlocks(portableTextToGutenberg(value));
+		} catch {
+			// Conversion failed — keep current blocks
+		}
+	}, [value]);
+
 	const handleInput = React.useCallback((newBlocks: BlockInstance[]) => {
+		userEditedRef.current = true;
 		setBlocks(newBlocks);
 	}, []);
 
 	const handleChange = React.useCallback((newBlocks: BlockInstance[]) => {
+		userEditedRef.current = true;
 		setBlocks(newBlocks);
 		const cb = onChangeRef.current;
 		if (cb) {
