@@ -1,6 +1,6 @@
 # @emdash-cms/plugin-ai-moderation
 
-## 1.0.0
+## 0.1.0
 
 ### Minor Changes
 
