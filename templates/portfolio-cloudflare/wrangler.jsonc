@@ -2,9 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "my-portfolio-site",
 	"compatibility_date": "2026-02-24",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
+	"compatibility_flags": ["nodejs_compat"],
 	"d1_databases": [
 		{
 			"binding": "DB",
