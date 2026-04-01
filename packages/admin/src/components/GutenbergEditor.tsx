@@ -21,6 +21,8 @@ import {
 } from "@wordpress/blocks";
 // @ts-ignore - @wordpress/block-library does not ship types
 import { registerCoreBlocks } from "@wordpress/block-library";
+// @ts-ignore - registers Bold, Italic, Link, etc. format types
+import "@wordpress/format-library";
 import { SlotFillProvider, Popover } from "@wordpress/components";
 import * as React from "react";
 
@@ -170,6 +172,51 @@ function injectCustomStyles() {
 		/* Ensure the BlockTools container doesn't clip popovers */
 		.gutenberg-editor-wrapper .block-editor-block-tools {
 			position: relative;
+		}
+
+		/* Layout support: flex (Row/Stack blocks) */
+		.gutenberg-editor-wrapper .is-layout-flex {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.5em;
+		}
+
+		.gutenberg-editor-wrapper .is-layout-flex > * {
+			flex-shrink: 1;
+			min-width: 0;
+		}
+
+		.gutenberg-editor-wrapper .is-layout-flex.is-vertical {
+			flex-direction: column;
+		}
+
+		.gutenberg-editor-wrapper .is-layout-flex:not(.is-vertical) {
+			flex-direction: row;
+		}
+
+		/* Columns block */
+		.gutenberg-editor-wrapper .wp-block-columns {
+			display: flex;
+			gap: 1em;
+		}
+
+		.gutenberg-editor-wrapper .wp-block-column {
+			flex: 1;
+			min-width: 0;
+		}
+
+		/* Images inside flex/columns should respect container */
+		.gutenberg-editor-wrapper .is-layout-flex .wp-block-image,
+		.gutenberg-editor-wrapper .wp-block-columns .wp-block-image {
+			flex: 1;
+			min-width: 0;
+		}
+
+		.gutenberg-editor-wrapper .is-layout-flex .wp-block-image img,
+		.gutenberg-editor-wrapper .wp-block-columns .wp-block-image img {
+			max-width: 100%;
+			height: auto;
 		}
 	`;
 	document.head.appendChild(style);
@@ -362,8 +409,9 @@ export function GutenbergEditor({
 						hasFixedToolbar: false,
 						bodyPlaceholder: _placeholder,
 						mediaUpload,
-						// Enable drag-and-drop for blocks
 						__unstableIsPreviewMode: false,
+						// Enable layout support (flex/flow/grid) for blocks
+						supportsLayout: true,
 					} as Record<string, unknown>}
 				>
 					<div className="gutenberg-editor-layout flex">
