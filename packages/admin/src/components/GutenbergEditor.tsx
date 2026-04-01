@@ -10,8 +10,9 @@ import {
 	BlockEditorProvider,
 	BlockList,
 	BlockInspector,
+	// @ts-ignore - BlockTools is exported but not in the type definitions
+	BlockTools,
 	WritingFlow,
-	ObserveTyping,
 } from "@wordpress/block-editor";
 import {
 	unregisterBlockType,
@@ -90,7 +91,7 @@ function injectCustomStyles() {
 		}
 
 		.gutenberg-editor-wrapper .block-editor-block-list__block {
-			margin: 0;
+			margin: 0.5em 0 !important;
 		}
 
 		.gutenberg-editor-wrapper h1.wp-block { font-size: 2.5em; font-weight: 700; }
@@ -131,8 +132,6 @@ function injectCustomStyles() {
 		}
 
 		.gutenberg-editor-wrapper .block-editor-block-list__block.wp-block {
-			margin-top: 0;
-			margin-bottom: 0;
 			max-width: none;
 		}
 
@@ -142,6 +141,35 @@ function injectCustomStyles() {
 
 		.gutenberg-editor-wrapper .is-selected > .block-editor-block-list__block-edit::after {
 			border-color: #3b82f6;
+		}
+
+		/* Block toolbar popover */
+		.gutenberg-editor-wrapper .block-editor-block-contextual-toolbar {
+			border: 1px solid #e2e8f0;
+			border-radius: 6px;
+			background: white;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+		}
+
+		/* Between-block inserter */
+		.gutenberg-editor-wrapper .block-editor-block-list__insertion-point {
+			z-index: 6;
+		}
+
+		.gutenberg-editor-wrapper .block-editor-block-list__insertion-point-inserter {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		/* Block movers / drag handle */
+		.gutenberg-editor-wrapper .block-editor-block-mover {
+			display: flex;
+		}
+
+		/* Ensure the BlockTools container doesn't clip popovers */
+		.gutenberg-editor-wrapper .block-editor-block-tools {
+			position: relative;
 		}
 	`;
 	document.head.appendChild(style);
@@ -196,6 +224,7 @@ export function GutenbergEditor({
 	"aria-labelledby": ariaLabelledby,
 	minimal = false,
 }: GutenbergEditorProps) {
+	const contentRef = React.useRef<HTMLDivElement>(null);
 	const onChangeRef = React.useRef(onChange);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
@@ -236,6 +265,9 @@ export function GutenbergEditor({
 						width: item.width,
 						height: item.height,
 						mime: item.mimeType,
+						// Preserve original dimensions for resize detection
+						emdashOriginalWidth: item.width,
+						emdashOriginalHeight: item.height,
 					};
 				} catch (err) {
 					onError(err instanceof Error ? err.message : "Upload failed");
@@ -327,19 +359,27 @@ export function GutenbergEditor({
 					onInput={handleInput}
 					onChange={handleChange}
 					settings={{
-						hasFixedToolbar: true,
+						hasFixedToolbar: false,
 						bodyPlaceholder: _placeholder,
 						mediaUpload,
+						// Enable drag-and-drop for blocks
+						__unstableIsPreviewMode: false,
 					} as Record<string, unknown>}
 				>
 					<div className="gutenberg-editor-layout flex">
-						<div className="gutenberg-editor-content flex-1 min-h-[300px]">
-							<WritingFlow>
-								<ObserveTyping>
-									<BlockList />
-								</ObserveTyping>
+						<BlockTools
+							__unstableContentRef={contentRef}
+							className="gutenberg-editor-content flex-1 min-h-[300px]"
+							style={{ position: "relative" }}
+						>
+							<WritingFlow
+								ref={contentRef}
+								className="editor-styles-wrapper"
+								style={{ padding: 16, minHeight: 200 }}
+							>
+								<BlockList />
 							</WritingFlow>
-						</div>
+						</BlockTools>
 						{!minimal && editable && (
 							<div className="gutenberg-editor-sidebar w-[280px] border-l bg-kumo-tint/30 p-4 overflow-y-auto max-h-[600px]">
 								<BlockInspector />

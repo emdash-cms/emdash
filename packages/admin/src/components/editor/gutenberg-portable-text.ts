@@ -70,6 +70,19 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+/**
+ * Parse a Gutenberg attribute that may be a number, a string like "298px", or "auto".
+ * Returns the numeric value or undefined.
+ */
+function parseNumericAttr(value: unknown): number | undefined {
+	if (typeof value === "number" && !Number.isNaN(value)) return value;
+	if (typeof value === "string") {
+		const parsed = parseFloat(value);
+		if (!Number.isNaN(parsed) && parsed > 0) return Math.round(parsed);
+	}
+	return undefined;
+}
+
 // --- Portable Text → Gutenberg Blocks ---
 
 export function portableTextToGutenberg(blocks: PortableTextBlock[]): BlockInstance[] {
@@ -139,19 +152,25 @@ export function portableTextToGutenberg(blocks: PortableTextBlock[]): BlockInsta
 		if (block._type === "image") {
 			const imageBlock = block as PortableTextImageBlock;
 			const url = imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`;
-			result.push(
-				createBlock("core/image", {
-					url,
-					alt: imageBlock.alt || "",
-					caption: imageBlock.caption || "",
-					// Use display dimensions if set, otherwise original
-					width: imageBlock.displayWidth || imageBlock.width,
-					height: imageBlock.displayHeight || imageBlock.height,
-					// Store originals as custom attributes for round-trip
-					emdashOriginalWidth: imageBlock.width,
-					emdashOriginalHeight: imageBlock.height,
-				}),
-			);
+			const hasDisplaySize = imageBlock.displayWidth || imageBlock.displayHeight;
+			const imgAttrs: Record<string, unknown> = {
+				url,
+				alt: imageBlock.alt || "",
+				caption: imageBlock.caption || "",
+				emdashOriginalWidth: imageBlock.width,
+				emdashOriginalHeight: imageBlock.height,
+			};
+			if (hasDisplaySize && imageBlock.width && imageBlock.height) {
+				// Gutenberg uses "Npx" strings and aspectRatio for resized images
+				const dw = imageBlock.displayWidth || imageBlock.width;
+				imgAttrs.width = `${dw}px`;
+				imgAttrs.height = "auto";
+				imgAttrs.aspectRatio = String(imageBlock.width / imageBlock.height);
+			} else {
+				imgAttrs.width = imageBlock.width;
+				imgAttrs.height = imageBlock.height;
+			}
+			result.push(createBlock("core/image", imgAttrs));
 			i++;
 			continue;
 		}
@@ -363,13 +382,30 @@ function convertGutenbergBlock(
 
 		case "core/image": {
 			const attrs = block.attributes;
-			const originalWidth = typeof attrs.emdashOriginalWidth === "number" ? attrs.emdashOriginalWidth : undefined;
-			const originalHeight = typeof attrs.emdashOriginalHeight === "number" ? attrs.emdashOriginalHeight : undefined;
-			const currentWidth = typeof attrs.width === "number" ? attrs.width : undefined;
-			const currentHeight = typeof attrs.height === "number" ? attrs.height : undefined;
+			const currentWidth = parseNumericAttr(attrs.width);
+			const currentHeight = parseNumericAttr(attrs.height);
 
-			// If we have originals and current differs, the user resized
-			const wasResized = originalWidth && currentWidth && originalWidth !== currentWidth;
+			// Gutenberg stores aspectRatio when resizing; use it to compute
+			// the missing dimension if only one is set (e.g. height="auto")
+			const aspectRatio = typeof attrs.aspectRatio === "string"
+				? parseFloat(attrs.aspectRatio)
+				: typeof attrs.aspectRatio === "number" ? attrs.aspectRatio : undefined;
+
+			let resolvedWidth = currentWidth;
+			let resolvedHeight = currentHeight;
+			if (resolvedWidth && !resolvedHeight && aspectRatio) {
+				resolvedHeight = Math.round(resolvedWidth / aspectRatio);
+			} else if (resolvedHeight && !resolvedWidth && aspectRatio) {
+				resolvedWidth = Math.round(resolvedHeight * aspectRatio);
+			}
+
+			// Store original dimensions from our custom attributes (if available)
+			const originalWidth = parseNumericAttr(attrs.emdashOriginalWidth);
+			const originalHeight = parseNumericAttr(attrs.emdashOriginalHeight);
+
+			// Always store resolved dimensions as displayWidth/displayHeight
+			// so the frontend renders at the user-chosen size.
+			// width/height store the original (full-size) image dimensions.
 			return {
 				_type: "image",
 				_key: generateKey(),
@@ -379,10 +415,10 @@ function convertGutenbergBlock(
 				},
 				alt: String(attrs.alt || ""),
 				caption: String(attrs.caption || ""),
-				width: originalWidth || currentWidth,
-				height: originalHeight || currentHeight,
-				displayWidth: wasResized ? currentWidth : undefined,
-				displayHeight: wasResized ? currentHeight : undefined,
+				width: originalWidth,
+				height: originalHeight,
+				displayWidth: resolvedWidth,
+				displayHeight: resolvedHeight,
 			};
 		}
 
