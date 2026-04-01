@@ -11,6 +11,30 @@
 	"linked": [],
 	"access": "public",
 	"baseBranch": "main",
-	"updateInternalDependencies": "patch",
-	"bumpVersionsWithWorkspaceProtocolOnly": true
+	"updateInternalDependencies": "minor",
+	"bumpVersionsWithWorkspaceProtocolOnly": true,
+	"ignore": [
+		"@emdash-cms/blocks-playground",
+		"@emdash-cms/demo-cloudflare",
+		"@emdash-cms/demo-postgres",
+		"@emdash-cms/demo-preview",
+		"@emdash-cms/marketplace",
+		"@emdash-cms/playground",
+		"@emdash-cms/plugin-api-test",
+		"@emdash-cms/plugin-marketplace-test",
+		"@emdash-cms/plugin-sandboxed-test",
+		"@emdash-cms/template-blank",
+		"@emdash-cms/template-blog",
+		"@emdash-cms/template-blog-cloudflare",
+		"@emdash-cms/template-marketing",
+		"@emdash-cms/template-marketing-cloudflare",
+		"@emdash-cms/template-portfolio",
+		"@emdash-cms/template-portfolio-cloudflare",
+		"@emdash-cms/template-starter",
+		"@emdash-cms/template-starter-cloudflare",
+		"docs",
+		"emdash-demo",
+		"emdash-e2e-fixture",
+		"emdash-plugins-demo"
+	]
 }
