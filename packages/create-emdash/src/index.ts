@@ -264,7 +264,7 @@ async function main() {
 
 		const steps = [`cd ${projectName}`];
 		if (!shouldInstall) steps.push(installCmd);
-		steps.push(runCmd("bootstrap"), runCmd("dev"));
+		steps.push(runCmd("dev"));
 
 		p.note(steps.join("\n"), "Next steps");
 

@@ -13,8 +13,8 @@
 		{
 			"binding": "DB",
 			"database_name": "emdash-marketplace",
-			"database_id": "e07c5b3b-c3e0-4cec-be3b-1ae0bb87da35"
-		}
+			"database_id": "e07c5b3b-c3e0-4cec-be3b-1ae0bb87da35",
+		},
 	],
 	"r2_buckets": [
 		{
