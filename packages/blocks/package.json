@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/blocks",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Declarative plugin UI blocks for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",

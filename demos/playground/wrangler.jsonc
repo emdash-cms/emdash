@@ -5,9 +5,6 @@
 	"compatibility_flags": ["nodejs_compat"],
 	// Custom entrypoint that exports EmDashPreviewDB
 	"main": "./src/worker.ts",
-	"assets": {
-		"directory": "./dist",
-	},
 	"durable_objects": {
 		"bindings": [
 			{

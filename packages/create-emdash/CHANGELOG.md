@@ -1,5 +1,17 @@
 # create-emdash
 
+## 0.1.0
+
+### Minor Changes
+
+- [#14](https://github.com/emdash-cms/emdash/pull/14) [`755b501`](https://github.com/emdash-cms/emdash/commit/755b5017906811f97f78f4c0b5a0b62e67b52ec4) Thanks [@ascorbic](https://github.com/ascorbic)! - First beta release
+
+### Patch Changes
+
+- [#12](https://github.com/emdash-cms/emdash/pull/12) [`9db4c2c`](https://github.com/emdash-cms/emdash/commit/9db4c2cba24d5202fba630ac366ae42cf721390f) Thanks [@ascorbic](https://github.com/ascorbic)! - Remove manual bootstrap step from CLI output
+
+  The create-emdash CLI no longer suggests running `bootstrap` as a manual step, since EmDash now auto-bootstraps on first run.
+
 ## 0.0.4
 
 ### Patch Changes
