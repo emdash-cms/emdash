@@ -25,7 +25,7 @@ describe("renderPlaygroundToolbar", () => {
 	it("renders the deploy CTA link", () => {
 		const html = renderPlaygroundToolbar(BASE_CONFIG);
 		expect(html).toContain("Deploy your own");
-		expect(html).toContain("docs.emdashcms.com/getting-started");
+		expect(html).toContain("github.com/emdash-cms/emdash");
 	});
 
 	it("renders reset and dismiss buttons", () => {

@@ -134,7 +134,9 @@ function normalizeCacheKey(url: URL): string {
  */
 function resolveEnvValue(explicit: string | undefined, envVarName: string): string | undefined {
 	if (explicit) return explicit;
-	return (env as Record<string, unknown>)[envVarName] as string | undefined;
+	if (!(envVarName in env)) return undefined;
+	const value: unknown = Reflect.get(env, envVarName);
+	return typeof value === "string" ? value : undefined;
 }
 
 /**

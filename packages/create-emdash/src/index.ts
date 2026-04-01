@@ -99,11 +99,37 @@ type CloudflareTemplate = keyof typeof CLOUDFLARE_TEMPLATES;
 function selectOptions<K extends string>(
 	obj: Readonly<Record<K, Readonly<{ name: string; description: string }>>>,
 ): { value: K; label: string; hint: string }[] {
-	return (Object.keys(obj) as K[]).map((key) => ({
+	const keys: K[] = Object.keys(obj).filter((k): k is K => k in obj);
+	return keys.map((key) => ({
 		value: key,
 		label: obj[key].name,
 		hint: obj[key].description,
 	}));
+}
+
+async function selectTemplate(platform: Platform): Promise<TemplateConfig> {
+	if (platform === "node") {
+		const key = await p.select<NodeTemplate>({
+			message: "Which template?",
+			options: selectOptions(NODE_TEMPLATES),
+			initialValue: "blog",
+		});
+		if (p.isCancel(key)) {
+			p.cancel("Operation cancelled.");
+			process.exit(0);
+		}
+		return NODE_TEMPLATES[key];
+	}
+	const key = await p.select<CloudflareTemplate>({
+		message: "Which template?",
+		options: selectOptions(CLOUDFLARE_TEMPLATES),
+		initialValue: "blog",
+	});
+	if (p.isCancel(key)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+	return CLOUDFLARE_TEMPLATES[key];
 }
 
 async function main() {
@@ -158,7 +184,7 @@ async function main() {
 				hint: "SQLite + local file storage",
 			},
 		],
-		initialValue: "node",
+		initialValue: "cloudflare",
 	});
 
 	if (p.isCancel(platform)) {
@@ -167,28 +193,7 @@ async function main() {
 	}
 
 	// Step 2: pick template
-	const templateKey =
-		platform === "node"
-			? await p.select<NodeTemplate>({
-					message: "Which template?",
-					options: selectOptions(NODE_TEMPLATES),
-					initialValue: "blog",
-				})
-			: await p.select<CloudflareTemplate>({
-					message: "Which template?",
-					options: selectOptions(CLOUDFLARE_TEMPLATES),
-					initialValue: "blog",
-				});
-
-	if (p.isCancel(templateKey)) {
-		p.cancel("Operation cancelled.");
-		process.exit(0);
-	}
-
-	const templateConfig =
-		platform === "node"
-			? NODE_TEMPLATES[templateKey as NodeTemplate]
-			: CLOUDFLARE_TEMPLATES[templateKey as CloudflareTemplate];
+	const templateConfig = await selectTemplate(platform);
 
 	// Step 3: pick package manager
 	const detectedPm = detectPackageManager();
