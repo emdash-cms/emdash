@@ -18,6 +18,17 @@ const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
 
 const GITHUB_REPO = "emdash-cms/templates";
 
+type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
+
+/** Detect which package manager invoked us, or fall back to npm */
+function detectPackageManager(): PackageManager {
+	const agent = process.env.npm_config_user_agent ?? "";
+	if (agent.startsWith("pnpm")) return "pnpm";
+	if (agent.startsWith("yarn")) return "yarn";
+	if (agent.startsWith("bun")) return "bun";
+	return "npm";
+}
+
 type Platform = "node" | "cloudflare";
 
 interface TemplateConfig {
@@ -95,7 +106,8 @@ function selectOptions<K extends string>(
 async function main() {
 	console.clear();
 
-	p.intro(`${pc.bgCyan(pc.black(" create-emdash "))}`);
+	console.log(`\n  ${pc.bold(pc.cyan("— E M D A S H —"))}\n`);
+	p.intro("Create a new EmDash project");
 
 	const projectName = await p.text({
 		message: "Project name?",
@@ -133,14 +145,14 @@ async function main() {
 		message: "Where will you deploy?",
 		options: [
 			{
-				value: "node",
-				label: "Node.js",
-				hint: "SQLite + local file storage",
-			},
-			{
 				value: "cloudflare",
 				label: "Cloudflare Workers",
 				hint: "D1 + R2",
+			},
+			{
+				value: "node",
+				label: "Node.js",
+				hint: "SQLite + local file storage",
 			},
 		],
 		initialValue: "node",
@@ -175,6 +187,38 @@ async function main() {
 			? NODE_TEMPLATES[templateKey as NodeTemplate]
 			: CLOUDFLARE_TEMPLATES[templateKey as CloudflareTemplate];
 
+	// Step 3: pick package manager
+	const detectedPm = detectPackageManager();
+	const pm = await p.select<PackageManager>({
+		message: "Which package manager?",
+		options: [
+			{ value: "pnpm", label: "pnpm" },
+			{ value: "npm", label: "npm" },
+			{ value: "yarn", label: "yarn" },
+			{ value: "bun", label: "bun" },
+		],
+		initialValue: detectedPm,
+	});
+
+	if (p.isCancel(pm)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+
+	// Step 4: install dependencies?
+	const shouldInstall = await p.confirm({
+		message: "Install dependencies?",
+		initialValue: true,
+	});
+
+	if (p.isCancel(shouldInstall)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+
+	const installCmd = `${pm} install`;
+	const runCmd = (script: string) => (pm === "npm" ? `npm run ${script}` : `${pm} ${script}`);
+
 	const s = p.spinner();
 	s.start("Creating project...");
 
@@ -204,19 +248,25 @@ async function main() {
 
 		s.stop("Project created!");
 
-		s.start("Installing dependencies...");
-		try {
-			execSync("pnpm install", {
-				cwd: projectDir,
-				stdio: "ignore",
-			});
-			s.stop("Dependencies installed!");
-		} catch {
-			s.stop("Failed to install dependencies");
-			p.log.warn(`Run ${pc.cyan(`cd ${projectName} && pnpm install`)} manually`);
+		if (shouldInstall) {
+			s.start(`Installing dependencies with ${pc.cyan(pm)}...`);
+			try {
+				execSync(installCmd, {
+					cwd: projectDir,
+					stdio: "ignore",
+				});
+				s.stop("Dependencies installed!");
+			} catch {
+				s.stop("Failed to install dependencies");
+				p.log.warn(`Run ${pc.cyan(`cd ${projectName} && ${installCmd}`)} manually`);
+			}
 		}
 
-		p.note(`cd ${projectName}\npnpm run bootstrap\npnpm run dev`, "Next steps");
+		const steps = [`cd ${projectName}`];
+		if (!shouldInstall) steps.push(installCmd);
+		steps.push(runCmd("bootstrap"), runCmd("dev"));
+
+		p.note(steps.join("\n"), "Next steps");
 
 		p.outro(`${pc.green("Done!")} Your EmDash project is ready at ${pc.cyan(projectName)}`);
 	} catch (error) {

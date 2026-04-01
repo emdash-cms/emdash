@@ -1,32 +1,37 @@
 {
-  "name": "@emdash-cms/plugin-api-test",
-  "private": true,
-  "version": "0.0.2",
-  "description": "Test plugin that exercises all EmDash plugin APIs",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./admin": "./src/admin.tsx"
-  },
-  "files": [
-    "src"
-  ],
-  "keywords": [
-    "emdash",
-    "cms",
-    "plugin",
-    "test",
-    "api"
-  ],
-  "author": "Matt Kane",
-  "license": "MIT",
-  "peerDependencies": {
-    "emdash": "workspace:*",
-    "react": "^18.0.0 || ^19.0.0",
-    "@phosphor-icons/react": "^2.1.10"
-  },
-  "dependencies": {},
-  "devDependencies": {},
-  "optionalDependencies": {}
+	"name": "@emdash-cms/plugin-api-test",
+	"private": true,
+	"version": "0.0.2",
+	"description": "Test plugin that exercises all EmDash plugin APIs",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./admin": "./src/admin.tsx"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"test",
+		"api"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*",
+		"react": "^18.0.0 || ^19.0.0",
+		"@phosphor-icons/react": "^2.1.10"
+	},
+	"dependencies": {},
+	"devDependencies": {},
+	"optionalDependencies": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/api-test"
+	}
 }

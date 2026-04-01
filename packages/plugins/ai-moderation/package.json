@@ -1,43 +1,48 @@
 {
-  "name": "@emdash-cms/plugin-ai-moderation",
-  "version": "0.0.2",
-  "description": "AI-powered comment moderation plugin for EmDash CMS using Cloudflare Workers AI (Llama Guard)",
-  "type": "module",
-  "main": "src/descriptor.ts",
-  "exports": {
-    ".": "./src/descriptor.ts",
-    "./plugin": "./src/index.ts",
-    "./admin": "./src/admin.tsx"
-  },
-  "files": [
-    "src"
-  ],
-  "keywords": [
-    "emdash",
-    "cms",
-    "plugin",
-    "ai",
-    "moderation",
-    "comments",
-    "llama-guard"
-  ],
-  "author": "Matt Kane",
-  "license": "MIT",
-  "peerDependencies": {
-    "emdash": "workspace:*",
-    "react": "^18.0.0 || ^19.0.0",
-    "@phosphor-icons/react": "^2.1.10",
-    "@cloudflare/kumo": "^1.0.0"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250224.0",
-    "@types/react": "catalog:",
-    "vitest": "catalog:"
-  },
-  "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsgo --noEmit"
-  },
-  "dependencies": {},
-  "optionalDependencies": {}
+	"name": "@emdash-cms/plugin-ai-moderation",
+	"version": "0.0.2",
+	"description": "AI-powered comment moderation plugin for EmDash CMS using Cloudflare Workers AI (Llama Guard)",
+	"type": "module",
+	"main": "src/descriptor.ts",
+	"exports": {
+		".": "./src/descriptor.ts",
+		"./plugin": "./src/index.ts",
+		"./admin": "./src/admin.tsx"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"ai",
+		"moderation",
+		"comments",
+		"llama-guard"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*",
+		"react": "^18.0.0 || ^19.0.0",
+		"@phosphor-icons/react": "^2.1.10",
+		"@cloudflare/kumo": "^1.0.0"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20250224.0",
+		"@types/react": "catalog:",
+		"vitest": "catalog:"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {},
+	"optionalDependencies": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/ai-moderation"
+	}
 }
