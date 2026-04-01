@@ -5,13 +5,14 @@
  * It's a standalone page for initial site configuration.
  *
  * Steps:
- * 1. Site Configuration (title, tagline, sample content)
- * 2. Admin Account (email, name)
- * 3. Passkey Registration
+ * 1. Site configuration (title, tagline, sample content)
+ * 2. Admin account (email, name)
+ * 3. Security setup (passkey, email code/link, or authenticator app)
  */
 
 import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { toDataURL } from "qrcode";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../lib/api/client";
@@ -32,6 +33,7 @@ interface SetupStatusResponse {
 	};
 	/** Auth mode - "cloudflare-access" or "passkey" */
 	authMode?: "cloudflare-access" | "passkey";
+	emailConfigured?: boolean;
 }
 
 interface SetupSiteRequest {
@@ -67,7 +69,78 @@ interface SetupAdminResponse {
 	options?: unknown; // WebAuthn registration options
 }
 
+interface SetupTwoFactorStartResponse {
+	secret: string;
+	otpAuthUrl: string;
+}
+
+interface SetupTwoFactorVerifyResponse {
+	success: boolean;
+	error?: string;
+}
+
+interface SetupEmailAuthResponse {
+	success: boolean;
+	emailSent: boolean;
+	message: string;
+}
+
 type WizardStep = "site" | "admin" | "passkey";
+type SecurityMethod = "passkey" | "email" | "authenticator";
+
+interface OtpQrCodeProps {
+	value: string;
+}
+
+function OtpQrCode({ value }: OtpQrCodeProps) {
+	const [qrDataUrl, setQrDataUrl] = React.useState<string | null>(null);
+	const [qrError, setQrError] = React.useState<string | null>(null);
+
+	React.useEffect(() => {
+		let active = true;
+		setQrDataUrl(null);
+		setQrError(null);
+
+		void (async () => {
+			try {
+				const url = await toDataURL(value, {
+					width: 208,
+					margin: 1,
+					errorCorrectionLevel: "M",
+				});
+				if (active) {
+					setQrDataUrl(url);
+				}
+			} catch {
+				if (active) {
+					setQrError("No se pudo generar el QR en este navegador.");
+				}
+			}
+		})();
+
+		return () => {
+			active = false;
+		};
+	}, [value]);
+
+	if (qrError) {
+		return <p className="text-xs text-kumo-subtle">{qrError}</p>;
+	}
+
+	if (!qrDataUrl) {
+		return <p className="text-xs text-kumo-subtle">Generando QR...</p>;
+	}
+
+	return (
+		<div className="flex justify-center">
+			<img
+				src={qrDataUrl}
+				alt="QR para configurar 2FA"
+				className="h-52 w-52 rounded border border-kumo-tint bg-white p-2"
+			/>
+		</div>
+	);
+}
 
 // ============================================================================
 // API Functions
@@ -96,6 +169,41 @@ async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminRes
 	});
 
 	return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin");
+}
+
+async function executeTwoFactorSetupStart(): Promise<SetupTwoFactorStartResponse> {
+	const response = await apiFetch("/_emdash/api/setup/admin/2fa/start", {
+		method: "POST",
+	});
+
+	return parseApiResponse<SetupTwoFactorStartResponse>(
+		response,
+		"Failed to start 2FA setup",
+	);
+}
+
+async function executeTwoFactorSetupVerify(code: string): Promise<SetupTwoFactorVerifyResponse> {
+	const response = await apiFetch("/_emdash/api/setup/admin/2fa/verify", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+
+	return parseApiResponse<SetupTwoFactorVerifyResponse>(
+		response,
+		"Failed to verify 2FA setup",
+	);
+}
+
+async function executeEmailAuthSetup(): Promise<SetupEmailAuthResponse> {
+	const response = await apiFetch("/_emdash/api/setup/admin/email", {
+		method: "POST",
+	});
+
+	return parseApiResponse<SetupEmailAuthResponse>(
+		response,
+		"Failed to finish email auth setup",
+	);
 }
 
 // ============================================================================
@@ -260,6 +368,20 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 interface PasskeyStepProps {
 	adminData: SetupAdminRequest;
 	onBack: () => void;
+	method: SecurityMethod;
+	onMethodChange: (method: SecurityMethod) => void;
+	emailConfigured: boolean;
+	twoFactorSetup: SetupTwoFactorStartResponse | null;
+	twoFactorCode: string;
+	onTwoFactorCodeChange: (code: string) => void;
+	onCompleteEmailSetup: () => void;
+	onStartTwoFactor: () => void;
+	onVerifyTwoFactor: () => void;
+	isCompletingEmailSetup: boolean;
+	isStartingTwoFactor: boolean;
+	isVerifyingTwoFactor: boolean;
+	error?: string;
+	onPasskeyError: (message: string) => void;
 }
 
 function handlePasskeySuccess() {
@@ -267,39 +389,174 @@ function handlePasskeySuccess() {
 	window.location.href = "/_emdash/admin";
 }
 
-function PasskeyStep({ adminData, onBack }: PasskeyStepProps) {
+function PasskeyStep({
+	adminData,
+	onBack,
+	method,
+	onMethodChange,
+	emailConfigured,
+	twoFactorSetup,
+	twoFactorCode,
+	onTwoFactorCodeChange,
+	onCompleteEmailSetup,
+	onStartTwoFactor,
+	onVerifyTwoFactor,
+	isCompletingEmailSetup,
+	isStartingTwoFactor,
+	isVerifyingTwoFactor,
+	error,
+	onPasskeyError,
+}: PasskeyStepProps) {
+	const emailRequiredHint = (
+		<p className="text-xs text-kumo-subtle">
+			This option needs email delivery configured in your EmDash environment.
+		</p>
+	);
+
 	return (
 		<div className="space-y-6">
-			<div className="text-center">
-				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4">
-					<svg
-						className="w-8 h-8 text-kumo-brand"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-						/>
-					</svg>
-				</div>
-				<h3 className="text-lg font-medium">Set up your passkey</h3>
-				<p className="text-sm text-kumo-subtle mt-1">
-					Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or
-					security key to sign in.
+			<div className="text-center space-y-2">
+				<h3 className="text-lg font-medium">Choose how you'll sign in</h3>
+				<p className="text-sm text-kumo-subtle">
+					Pick one of these three methods: biometric passkey, email sign-in code/link, or
+					 Google Authenticator-style app codes.
 				</p>
 			</div>
 
-			<PasskeyRegistration
-				optionsEndpoint="/_emdash/api/setup/admin"
-				verifyEndpoint="/_emdash/api/setup/admin/verify"
-				onSuccess={handlePasskeySuccess}
-				buttonText="Create Passkey"
-				additionalData={{ ...adminData }}
-			/>
+			<div className="grid gap-3 md:grid-cols-3">
+				<button
+					type="button"
+					onClick={() => onMethodChange("passkey")}
+					className={`rounded-lg border p-4 text-left transition-colors ${
+						method === "passkey"
+							? "border-kumo-brand bg-kumo-brand/5"
+							: "border-kumo-tint hover:border-kumo-brand/50"
+					}`}
+				>
+					<p className="text-sm font-medium">Huella / Passkey</p>
+					<p className="mt-1 text-xs text-kumo-subtle">
+						Use Touch ID, Face ID, Windows Hello, or a security key.
+					</p>
+				</button>
+
+				<button
+					type="button"
+					onClick={() => onMethodChange("email")}
+					disabled={!emailConfigured}
+					className={`rounded-lg border p-4 text-left transition-colors ${
+						method === "email"
+							? "border-kumo-brand bg-kumo-brand/5"
+							: "border-kumo-tint hover:border-kumo-brand/50"
+					} ${!emailConfigured ? "cursor-not-allowed opacity-60" : ""}`}
+				>
+					<p className="text-sm font-medium">Codigo/Link por email</p>
+					<p className="mt-1 text-xs text-kumo-subtle">
+						Receive a one-time sign-in email each time you log in.
+					</p>
+				</button>
+
+				<button
+					type="button"
+					onClick={() => onMethodChange("authenticator")}
+					disabled={!emailConfigured}
+					className={`rounded-lg border p-4 text-left transition-colors ${
+						method === "authenticator"
+							? "border-kumo-brand bg-kumo-brand/5"
+							: "border-kumo-tint hover:border-kumo-brand/50"
+					} ${!emailConfigured ? "cursor-not-allowed opacity-60" : ""}`}
+				>
+					<p className="text-sm font-medium">Google Auth App</p>
+					<p className="mt-1 text-xs text-kumo-subtle">
+						Use Google Authenticator, Authy, 1Password, or similar TOTP apps.
+					</p>
+				</button>
+			</div>
+
+			{!emailConfigured && emailRequiredHint}
+
+			{error && (
+				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div>
+			)}
+
+			{method === "passkey" ? (
+				<>
+					<div className="text-center text-sm text-kumo-subtle">
+						Use your device biometrics, PIN, or security key to sign in.
+					</div>
+					<PasskeyRegistration
+						optionsEndpoint="/_emdash/api/setup/admin"
+						verifyEndpoint="/_emdash/api/setup/admin/verify"
+						onSuccess={handlePasskeySuccess}
+						onError={(err) => onPasskeyError(err.message)}
+						buttonText="Create Passkey"
+						additionalData={{ ...adminData }}
+					/>
+				</>
+			) : method === "email" ? (
+				<div className="space-y-4 rounded-lg border border-kumo-tint p-4">
+					<p className="text-sm text-kumo-subtle">
+						You'll sign in with a one-time email message each time. This is the easiest
+						 option if you don't want to use biometrics or authenticator apps.
+					</p>
+					<Button
+						type="button"
+						loading={isCompletingEmailSetup}
+						onClick={onCompleteEmailSetup}
+						disabled={!emailConfigured}
+					>
+						Finish setup with email code/link
+					</Button>
+				</div>
+			) : (
+				<div className="space-y-4">
+					<p className="text-sm text-kumo-subtle">
+						Google Authenticator-style 2FA uses 6-digit rolling codes from your app.
+						 You'll sign in with email first, then confirm with the authenticator code.
+					</p>
+
+					{twoFactorSetup ? (
+						<div className="space-y-4 rounded-lg border border-kumo-tint p-4">
+							<p className="text-sm">
+								Scan this QR with Google Authenticator (or similar) and enter the generated
+								 code.
+							</p>
+							<OtpQrCode value={twoFactorSetup.otpAuthUrl} />
+							<div className="rounded bg-kumo-tint p-3 font-mono text-sm break-all">
+								{twoFactorSetup.secret}
+							</div>
+							<a href={twoFactorSetup.otpAuthUrl} className="text-sm text-kumo-brand hover:underline">
+								Open in authenticator app
+							</a>
+							<Input
+								label="Verification code"
+								type="text"
+								value={twoFactorCode}
+								onChange={(e) => onTwoFactorCodeChange(e.target.value)}
+								placeholder="123456"
+								autoComplete="one-time-code"
+								disabled={isVerifyingTwoFactor}
+							/>
+							<Button
+								type="button"
+								loading={isVerifyingTwoFactor}
+								disabled={!twoFactorCode || isVerifyingTwoFactor}
+								onClick={onVerifyTwoFactor}
+							>
+								Verify Google Auth code and finish
+							</Button>
+						</div>
+					) : (
+						<Button
+							type="button"
+							loading={isStartingTwoFactor}
+							disabled={!emailConfigured}
+							onClick={onStartTwoFactor}
+						>
+							Start Google Auth setup
+						</Button>
+					)}
+				</div>
+			)}
 
 			<Button type="button" variant="ghost" onClick={onBack} className="w-full">
 				← Back
@@ -324,7 +581,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 		: ([
 				{ key: "site", label: "Site" },
 				{ key: "admin", label: "Account" },
-				{ key: "passkey", label: "Passkey" },
+				{ key: "passkey", label: "Security" },
 			] as const);
 
 	const currentIndex = steps.findIndex((s) => s.key === currentStep);
@@ -386,6 +643,9 @@ export function SetupWizard() {
 	const [currentStep, setCurrentStep] = React.useState<WizardStep>("site");
 	const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null);
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
+	const [securityMethod, setSecurityMethod] = React.useState<SecurityMethod>("passkey");
+	const [twoFactorSetup, setTwoFactorSetup] = React.useState<SetupTwoFactorStartResponse | null>(null);
+	const [twoFactorCode, setTwoFactorCode] = React.useState("");
 	const [error, setError] = React.useState<string | undefined>();
 
 	// Check setup status
@@ -425,7 +685,44 @@ export function SetupWizard() {
 		mutationFn: executeAdminSetup,
 		onSuccess: () => {
 			setError(undefined);
+			setSecurityMethod("passkey");
+			setTwoFactorSetup(null);
+			setTwoFactorCode("");
 			setCurrentStep("passkey");
+		},
+		onError: (err: Error) => {
+			setError(err.message);
+		},
+	});
+
+	const twoFactorStartMutation = useMutation({
+		mutationFn: executeTwoFactorSetupStart,
+		onSuccess: (data) => {
+			setError(undefined);
+			setTwoFactorSetup(data);
+			setTwoFactorCode("");
+		},
+		onError: (err: Error) => {
+			setError(err.message);
+		},
+	});
+
+	const twoFactorVerifyMutation = useMutation({
+		mutationFn: executeTwoFactorSetupVerify,
+		onSuccess: () => {
+			setError(undefined);
+			window.location.href = "/_emdash/admin";
+		},
+		onError: (err: Error) => {
+			setError(err.message);
+		},
+	});
+
+	const emailSetupMutation = useMutation({
+		mutationFn: executeEmailAuthSetup,
+		onSuccess: () => {
+			setError(undefined);
+			window.location.href = "/_emdash/admin";
 		},
 		onError: (err: Error) => {
 			setError(err.message);
@@ -442,6 +739,18 @@ export function SetupWizard() {
 	const handleAdminNext = (data: SetupAdminRequest) => {
 		setAdminData(data);
 		adminMutation.mutate(data);
+	};
+
+	const handleTwoFactorStart = () => {
+		twoFactorStartMutation.mutate();
+	};
+
+	const handleTwoFactorVerify = () => {
+		twoFactorVerifyMutation.mutate(twoFactorCode);
+	};
+
+	const handleEmailSetup = () => {
+		emailSetupMutation.mutate();
 	};
 
 	// Redirect if setup already complete
@@ -485,7 +794,7 @@ export function SetupWizard() {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && "Set up your site"}
 						{currentStep === "admin" && "Create your account"}
-						{currentStep === "passkey" && "Secure your account"}
+						{currentStep === "passkey" && "Choose your sign-in method"}
 					</h1>
 					{useAccessAuth && currentStep === "site" && (
 						<p className="text-sm text-kumo-subtle mt-2">You're signed in via Cloudflare Access</p>
@@ -521,8 +830,33 @@ export function SetupWizard() {
 					{currentStep === "passkey" && adminData && (
 						<PasskeyStep
 							adminData={adminData}
+							method={securityMethod}
+							emailConfigured={status?.emailConfigured === true}
+							onMethodChange={(method) => {
+								if (twoFactorSetup && method !== "authenticator") {
+									setError(
+										"Authenticator setup already started. Finish this flow or go back to restart setup.",
+									);
+									return;
+								}
+								setError(undefined);
+								setSecurityMethod(method);
+							}}
+							twoFactorSetup={twoFactorSetup}
+							twoFactorCode={twoFactorCode}
+							onTwoFactorCodeChange={setTwoFactorCode}
+							onCompleteEmailSetup={handleEmailSetup}
+							onStartTwoFactor={handleTwoFactorStart}
+							onVerifyTwoFactor={handleTwoFactorVerify}
+							isCompletingEmailSetup={emailSetupMutation.isPending}
+							isStartingTwoFactor={twoFactorStartMutation.isPending}
+							isVerifyingTwoFactor={twoFactorVerifyMutation.isPending}
+							error={error}
+							onPasskeyError={(message) => setError(message)}
 							onBack={() => {
 								setError(undefined);
+								setTwoFactorSetup(null);
+								setTwoFactorCode("");
 								setCurrentStep("admin");
 							}}
 						/>

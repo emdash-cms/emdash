@@ -5,19 +5,33 @@
  * is configured, this page shows an informational message instead.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Input } from "@cloudflare/kumo";
 import { Shield, Plus, CheckCircle, WarningCircle, ArrowLeft, Info } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchPasskeys, renamePasskey, deletePasskey, fetchManifest } from "../../lib/api";
+import {
+	beginTwoFactorSetup,
+	disableTwoFactorAuth,
+	enableTwoFactorAuth,
+	fetchManifest,
+	fetchPasskeys,
+	fetchTwoFactorStatus,
+	renamePasskey,
+	deletePasskey,
+} from "../../lib/api";
 import { PasskeyRegistration } from "../auth/PasskeyRegistration";
 import { PasskeyList } from "./PasskeyList";
 
 export function SecuritySettings() {
 	const queryClient = useQueryClient();
 	const [isAdding, setIsAdding] = React.useState(false);
+	const [twoFactorCode, setTwoFactorCode] = React.useState("");
+	const [twoFactorSetup, setTwoFactorSetup] = React.useState<{
+		secret: string;
+		otpAuthUrl: string;
+	} | null>(null);
 	const [saveStatus, setSaveStatus] = React.useState<{
 		type: "success" | "error";
 		message: string;
@@ -39,6 +53,16 @@ export function SecuritySettings() {
 	} = useQuery({
 		queryKey: ["passkeys"],
 		queryFn: fetchPasskeys,
+		enabled: !isExternalAuth && !manifestLoading,
+	});
+
+	const {
+		data: twoFactorStatus,
+		isLoading: isTwoFactorLoading,
+		error: twoFactorError,
+	} = useQuery({
+		queryKey: ["two-factor", "status"],
+		queryFn: fetchTwoFactorStatus,
 		enabled: !isExternalAuth && !manifestLoading,
 	});
 
@@ -96,7 +120,63 @@ export function SecuritySettings() {
 		setSaveStatus({ type: "success", message: "Passkey added successfully" });
 	};
 
-	if (manifestLoading || isLoading) {
+	const setupTwoFactorMutation = useMutation({
+		mutationFn: beginTwoFactorSetup,
+		onSuccess: (data) => {
+			setTwoFactorSetup(data);
+			setTwoFactorCode("");
+			setSaveStatus({ type: "success", message: "Two-factor setup initialized" });
+			void queryClient.invalidateQueries({ queryKey: ["two-factor", "status"] });
+		},
+		onError: (mutationError) => {
+			setSaveStatus({
+				type: "error",
+				message:
+					mutationError instanceof Error
+						? mutationError.message
+						: "Failed to initialize two-factor setup",
+			});
+		},
+	});
+
+	const enableTwoFactorMutation = useMutation({
+		mutationFn: (code: string) => enableTwoFactorAuth(code),
+		onSuccess: () => {
+			setTwoFactorSetup(null);
+			setTwoFactorCode("");
+			setSaveStatus({ type: "success", message: "Two-factor authentication enabled" });
+			void queryClient.invalidateQueries({ queryKey: ["two-factor", "status"] });
+		},
+		onError: (mutationError) => {
+			setSaveStatus({
+				type: "error",
+				message:
+					mutationError instanceof Error
+						? mutationError.message
+						: "Failed to enable two-factor authentication",
+			});
+		},
+	});
+
+	const disableTwoFactorMutation = useMutation({
+		mutationFn: (code: string) => disableTwoFactorAuth(code),
+		onSuccess: () => {
+			setTwoFactorCode("");
+			setSaveStatus({ type: "success", message: "Two-factor authentication disabled" });
+			void queryClient.invalidateQueries({ queryKey: ["two-factor", "status"] });
+		},
+		onError: (mutationError) => {
+			setSaveStatus({
+				type: "error",
+				message:
+					mutationError instanceof Error
+						? mutationError.message
+						: "Failed to disable two-factor authentication",
+			});
+		},
+	});
+
+	if (manifestLoading || isLoading || isTwoFactorLoading) {
 		return (
 			<div className="space-y-6">
 				<h1 className="text-2xl font-bold">Security Settings</h1>
@@ -132,13 +212,17 @@ export function SecuritySettings() {
 		);
 	}
 
-	if (error) {
+	if (error || twoFactorError) {
 		return (
 			<div className="space-y-6">
 				<h1 className="text-2xl font-bold">Security Settings</h1>
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6">
 					<p className="text-kumo-danger">
-						{error instanceof Error ? error.message : "Failed to load passkeys"}
+						{error instanceof Error
+							? error.message
+							: twoFactorError instanceof Error
+								? twoFactorError.message
+								: "Failed to load security settings"}
 					</p>
 				</div>
 			</div>
@@ -166,6 +250,104 @@ export function SecuritySettings() {
 					<span>{saveStatus.message}</span>
 				</div>
 			)}
+
+			{/* Two-factor authentication section */}
+			<div className="rounded-lg border bg-kumo-base p-6">
+				<div className="flex items-center gap-2 mb-4">
+					<Shield className="h-5 w-5 text-kumo-subtle" />
+					<h2 className="text-lg font-semibold">Two-factor authentication (2FA)</h2>
+				</div>
+
+				{twoFactorStatus?.enabled ? (
+					<div className="space-y-4">
+						<p className="text-sm text-kumo-subtle">
+							2FA is enabled. Use your authenticator app code plus your sign-in method to access
+							the admin.
+						</p>
+						<Input
+							label="Authenticator code"
+							type="text"
+							value={twoFactorCode}
+							onChange={(e) => setTwoFactorCode(e.target.value)}
+							placeholder="123456"
+							autoComplete="one-time-code"
+							disabled={disableTwoFactorMutation.isPending}
+						/>
+						<Button
+							variant="outline"
+							disabled={!twoFactorCode || disableTwoFactorMutation.isPending}
+							loading={disableTwoFactorMutation.isPending}
+							onClick={() => disableTwoFactorMutation.mutate(twoFactorCode)}
+						>
+							Disable 2FA
+						</Button>
+					</div>
+				) : (
+					<div className="space-y-4">
+						<p className="text-sm text-kumo-subtle">
+							Add a second factor with an authenticator app (Google Authenticator, 1Password,
+							Authy, etc.).
+						</p>
+
+						{twoFactorSetup ? (
+							<div className="space-y-4 rounded-lg border border-kumo-tint p-4">
+								<p className="text-sm">
+									Scan your app with this secret, then enter a generated code to confirm.
+								</p>
+								<div className="rounded bg-kumo-tint p-3 font-mono text-sm break-all">
+									{twoFactorSetup.secret}
+								</div>
+								<a
+									href={twoFactorSetup.otpAuthUrl}
+									className="text-sm text-kumo-brand hover:underline"
+								>
+									Open in authenticator app
+								</a>
+								<Input
+									label="Verification code"
+									type="text"
+									value={twoFactorCode}
+									onChange={(e) => setTwoFactorCode(e.target.value)}
+									placeholder="123456"
+									autoComplete="one-time-code"
+									disabled={enableTwoFactorMutation.isPending}
+								/>
+								<div className="flex gap-3">
+									<Button
+										loading={enableTwoFactorMutation.isPending}
+										disabled={!twoFactorCode || enableTwoFactorMutation.isPending}
+										onClick={() => enableTwoFactorMutation.mutate(twoFactorCode)}
+									>
+										Enable 2FA
+									</Button>
+									<Button
+										variant="outline"
+										onClick={() => {
+											setTwoFactorSetup(null);
+											setTwoFactorCode("");
+										}}
+									>
+										Cancel
+									</Button>
+								</div>
+							</div>
+						) : (
+							<Button
+								onClick={() => setupTwoFactorMutation.mutate()}
+								loading={setupTwoFactorMutation.isPending}
+							>
+								Set up 2FA
+							</Button>
+						)}
+
+						{twoFactorStatus?.hasPendingSetup && !twoFactorSetup && (
+							<p className="text-xs text-kumo-subtle">
+								A previous 2FA setup is pending. Start setup again to get a fresh secret.
+							</p>
+						)}
+					</div>
+				)}
+			</div>
 
 			{/* Passkeys Section */}
 			<div className="rounded-lg border bg-kumo-base p-6">

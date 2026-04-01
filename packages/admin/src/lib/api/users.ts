@@ -172,6 +172,23 @@ export interface PasskeyInfo {
 	lastUsedAt: string;
 }
 
+export interface TwoFactorStatus {
+	enabled: boolean;
+	hasPendingSetup: boolean;
+	enabledAt: string | null;
+}
+
+export interface TwoFactorSetupResult {
+	secret: string;
+	otpAuthUrl: string;
+}
+
+export interface TwoFactorPendingStatus {
+	pending: boolean;
+	expiresAt?: number;
+	expiresInMs?: number;
+}
+
 /**
  * List all passkeys for the current user
  */
@@ -208,6 +225,69 @@ export async function deletePasskey(id: string): Promise<void> {
 		method: "DELETE",
 	});
 	if (!response.ok) await throwResponseError(response, "Failed to delete passkey");
+}
+
+export async function fetchTwoFactorStatus(): Promise<TwoFactorStatus> {
+	const response = await apiFetch(`${API_BASE}/auth/2fa/status`);
+	return parseApiResponse<TwoFactorStatus>(response, "Failed to fetch two-factor status");
+}
+
+export async function fetchTwoFactorPendingStatus(): Promise<TwoFactorPendingStatus> {
+	const response = await apiFetch(`${API_BASE}/auth/2fa/pending`);
+	return parseApiResponse<TwoFactorPendingStatus>(
+		response,
+		"Failed to fetch pending two-factor status",
+	);
+}
+
+export async function beginTwoFactorSetup(): Promise<TwoFactorSetupResult> {
+	const response = await apiFetch(`${API_BASE}/auth/2fa/setup`, {
+		method: "POST",
+	});
+	return parseApiResponse<TwoFactorSetupResult>(
+		response,
+		"Failed to start two-factor setup",
+	);
+}
+
+export async function enableTwoFactorAuth(code: string): Promise<{ success: boolean; enabled: boolean }> {
+	const response = await apiFetch(`${API_BASE}/auth/2fa/enable`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+	return parseApiResponse<{ success: boolean; enabled: boolean }>(
+		response,
+		"Failed to enable two-factor authentication",
+	);
+}
+
+export async function disableTwoFactorAuth(
+	code: string,
+): Promise<{ success: boolean; enabled: boolean }> {
+	const response = await apiFetch(`${API_BASE}/auth/2fa/disable`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+	return parseApiResponse<{ success: boolean; enabled: boolean }>(
+		response,
+		"Failed to disable two-factor authentication",
+	);
+}
+
+export async function verifyTwoFactorLogin(
+	code: string,
+): Promise<{ success: boolean; user: UserListItem }> {
+	const response = await apiFetch(`${API_BASE}/auth/2fa/verify`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+	return parseApiResponse<{ success: boolean; user: UserListItem }>(
+		response,
+		"Failed to verify two-factor code",
+	);
 }
 
 // =============================================================================

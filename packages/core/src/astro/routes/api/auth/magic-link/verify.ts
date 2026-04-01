@@ -14,6 +14,9 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
 import { apiError } from "#api/error.js";
 import { isSafeRedirect } from "#api/redirect.js";
+import { isTwoFactorEnabled } from "#auth/two-factor.js";
+
+const TWO_FACTOR_PENDING_MS = 5 * 60 * 1000;
 
 export const GET: APIRoute = async ({ url, locals, session, redirect }) => {
 	const { emdash } = locals;
@@ -47,6 +50,20 @@ export const GET: APIRoute = async ({ url, locals, session, redirect }) => {
 		// Validate redirect is a safe local path (prevent open redirect via //evil.com or /\evil.com)
 		const rawRedirect = url.searchParams.get("redirect");
 		const redirectUrl = isSafeRedirect(rawRedirect) ? rawRedirect : "/_emdash/admin";
+
+		if (isTwoFactorEnabled(user)) {
+			if (session) {
+				session.set("pendingTwoFactor", {
+					userId: user.id,
+					expiresAt: Date.now() + TWO_FACTOR_PENDING_MS,
+				});
+			}
+
+			const loginUrl = new URL("/_emdash/admin/login", url.origin);
+			loginUrl.searchParams.set("two_factor", "required");
+			loginUrl.searchParams.set("redirect", redirectUrl);
+			return redirect(loginUrl.toString());
+		}
 
 		// Redirect to admin dashboard or original URL
 		return redirect(redirectUrl);
