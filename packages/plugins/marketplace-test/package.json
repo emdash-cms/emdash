@@ -1,7 +1,7 @@
 {
 	"name": "@emdash-cms/plugin-marketplace-test",
 	"private": true,
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Test plugin for end-to-end marketplace publishing and audit workflow testing",
 	"type": "module",
 	"main": "dist/index.mjs",

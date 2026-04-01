@@ -1,5 +1,11 @@
 # create-emdash
 
+## 0.0.4
+
+### Patch Changes
+
+- [#7](https://github.com/emdash-cms/emdash/pull/7) [`2022b77`](https://github.com/emdash-cms/emdash/commit/2022b773414a34de05677c776f4f4324f43a54e2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix spinner hanging during dependency installation by using async exec instead of execSync, which was blocking the event loop and preventing the spinner animation from updating.
+
 ## 0.0.3
 
 ### Patch Changes
