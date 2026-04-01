@@ -14,6 +14,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	// References entries in ec_* tables by collection + entry_id
 	await db.schema
 		.createTable("revisions")
+		.ifNotExists()
 		.addColumn("id", "text", (col) => col.primaryKey())
 		.addColumn("collection", "text", (col) => col.notNull()) // e.g., 'posts'
 		.addColumn("entry_id", "text", (col) => col.notNull()) // ID in the ec_* table
@@ -24,6 +25,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	await db.schema
 		.createIndex("idx_revisions_entry")
+		.ifNotExists()
 		.on("revisions")
 		.columns(["collection", "entry_id"])
 		.execute();
@@ -31,6 +33,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	// Taxonomies
 	await db.schema
 		.createTable("taxonomies")
+		.ifNotExists()
 		.addColumn("id", "text", (col) => col.primaryKey())
 		.addColumn("name", "text", (col) => col.notNull())
 		.addColumn("slug", "text", (col) => col.notNull())
@@ -43,11 +46,17 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		)
 		.execute();
 
-	await db.schema.createIndex("idx_taxonomies_name").on("taxonomies").column("name").execute();
+	await db.schema
+		.createIndex("idx_taxonomies_name")
+		.ifNotExists()
+		.on("taxonomies")
+		.column("name")
+		.execute();
 
 	// Content-Taxonomy junction - references entries in ec_* tables
 	await db.schema
 		.createTable("content_taxonomies")
+		.ifNotExists()
 		.addColumn("collection", "text", (col) => col.notNull()) // e.g., 'posts'
 		.addColumn("entry_id", "text", (col) => col.notNull()) // ID in the ec_* table
 		.addColumn("taxonomy_id", "text", (col) => col.notNull())
@@ -64,6 +73,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	// Media
 	await db.schema
 		.createTable("media")
+		.ifNotExists()
 		.addColumn("id", "text", (col) => col.primaryKey())
 		.addColumn("filename", "text", (col) => col.notNull())
 		.addColumn("mime_type", "text", (col) => col.notNull())
@@ -80,6 +90,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	await db.schema
 		.createIndex("idx_media_content_hash")
+		.ifNotExists()
 		.on("media")
 		.column("content_hash")
 		.execute();
@@ -87,6 +98,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	// Users
 	await db.schema
 		.createTable("users")
+		.ifNotExists()
 		.addColumn("id", "text", (col) => col.primaryKey())
 		.addColumn("email", "text", (col) => col.notNull().unique())
 		.addColumn("password_hash", "text", (col) => col.notNull())
@@ -97,11 +109,17 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
 		.execute();
 
-	await db.schema.createIndex("idx_users_email").on("users").column("email").execute();
+	await db.schema
+		.createIndex("idx_users_email")
+		.ifNotExists()
+		.on("users")
+		.column("email")
+		.execute();
 
 	// Options (key-value store)
 	await db.schema
 		.createTable("options")
+		.ifNotExists()
 		.addColumn("name", "text", (col) => col.primaryKey())
 		.addColumn("value", "text", (col) => col.notNull())
 		.execute();
@@ -109,6 +127,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	// Audit logs (security events)
 	await db.schema
 		.createTable("audit_logs")
+		.ifNotExists()
 		.addColumn("id", "text", (col) => col.primaryKey())
 		.addColumn("timestamp", "text", (col) => col.defaultTo(currentTimestamp(db)))
 		.addColumn("actor_id", "text")
@@ -120,9 +139,24 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("status", "text")
 		.execute();
 
-	await db.schema.createIndex("idx_audit_actor").on("audit_logs").column("actor_id").execute();
-	await db.schema.createIndex("idx_audit_action").on("audit_logs").column("action").execute();
-	await db.schema.createIndex("idx_audit_timestamp").on("audit_logs").column("timestamp").execute();
+	await db.schema
+		.createIndex("idx_audit_actor")
+		.ifNotExists()
+		.on("audit_logs")
+		.column("actor_id")
+		.execute();
+	await db.schema
+		.createIndex("idx_audit_action")
+		.ifNotExists()
+		.on("audit_logs")
+		.column("action")
+		.execute();
+	await db.schema
+		.createIndex("idx_audit_timestamp")
+		.ifNotExists()
+		.on("audit_logs")
+		.column("timestamp")
+		.execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {

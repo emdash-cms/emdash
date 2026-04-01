@@ -10,8 +10,8 @@
 		{
 			"binding": "DB",
 			"database_name": "my-marketing-site",
-			// Run `wrangler d1 create my-marketing-site` and paste the ID here
-			"database_id": "",
+			// Run `wrangler d1 create my-marketing-site` and paste the real ID here for deploy
+			"database_id": "local",
 		},
 	],
 	"r2_buckets": [

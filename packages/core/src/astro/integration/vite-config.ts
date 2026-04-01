@@ -269,6 +269,13 @@ export function createViteConfig(
 					// Vite discovers them one-by-one on first request, causing workerd
 					// to enter "worker cancelled" state on cold cache.
 					optimizeDeps: {
+						// Exclude EmDash virtual modules from esbuild's dependency
+						// scan. These are resolved by the Vite plugin at transform time,
+						// but esbuild encounters them when crawling emdash's dist files
+						// during pre-bundling and can't resolve them. Vite's exclude
+						// uses prefix matching (id.startsWith(m + "/")), so
+						// "virtual:emdash" matches all "virtual:emdash/*" imports.
+						exclude: ["virtual:emdash"],
 						include: [
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
@@ -322,7 +329,7 @@ export function createViteConfig(
 			include: useSource
 				? ["@astrojs/react/client.js"]
 				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
-			exclude: cloudflare ? [] : NODE_NATIVE_EXTERNALS,
+			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
 	};
 }
