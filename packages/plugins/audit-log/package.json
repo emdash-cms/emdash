@@ -1,33 +1,38 @@
 {
-  "name": "@emdash-cms/plugin-audit-log",
-  "version": "0.0.2",
-  "description": "Audit logging plugin for EmDash CMS - tracks content changes",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./sandbox": "./src/sandbox-entry.ts"
-  },
-  "files": [
-    "src"
-  ],
-  "keywords": [
-    "emdash",
-    "cms",
-    "plugin",
-    "audit",
-    "logging",
-    "history"
-  ],
-  "author": "Matt Kane",
-  "license": "MIT",
-  "dependencies": {},
-  "peerDependencies": {
-    "emdash": "workspace:*"
-  },
-  "devDependencies": {},
-  "scripts": {
-    "typecheck": "tsgo --noEmit"
-  },
-  "optionalDependencies": {}
+	"name": "@emdash-cms/plugin-audit-log",
+	"version": "0.0.2",
+	"description": "Audit logging plugin for EmDash CMS - tracks content changes",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"audit",
+		"logging",
+		"history"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"dependencies": {},
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"devDependencies": {},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"optionalDependencies": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/audit-log"
+	}
 }

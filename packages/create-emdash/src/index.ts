@@ -145,14 +145,14 @@ async function main() {
 		message: "Where will you deploy?",
 		options: [
 			{
-				value: "node",
-				label: "Node.js",
-				hint: "SQLite + local file storage",
-			},
-			{
 				value: "cloudflare",
 				label: "Cloudflare Workers",
 				hint: "D1 + R2",
+			},
+			{
+				value: "node",
+				label: "Node.js",
+				hint: "SQLite + local file storage",
 			},
 		],
 		initialValue: "node",

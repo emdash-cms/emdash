@@ -36,5 +36,10 @@
 	},
 	"scripts": {
 		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/forms"
 	}
 }

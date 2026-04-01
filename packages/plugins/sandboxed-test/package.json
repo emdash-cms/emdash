@@ -1,41 +1,46 @@
 {
-  "name": "@emdash-cms/plugin-sandboxed-test",
-  "private": true,
-  "version": "0.0.2",
-  "description": "Test plugin for sandboxed plugin system",
-  "type": "module",
-  "main": "dist/index.mjs",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
-    },
-    "./sandbox": "./dist/sandbox-entry.mjs"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
-    "dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
-    "typecheck": "tsgo --noEmit"
-  },
-  "keywords": [
-    "emdash",
-    "cms",
-    "plugin",
-    "test",
-    "sandbox"
-  ],
-  "author": "Matt Kane",
-  "license": "MIT",
-  "dependencies": {
-    "emdash": "workspace:*"
-  },
-  "devDependencies": {
-    "tsdown": "catalog:",
-    "typescript": "catalog:"
-  },
-  "peerDependencies": {},
-  "optionalDependencies": {}
+	"name": "@emdash-cms/plugin-sandboxed-test",
+	"private": true,
+	"version": "0.0.2",
+	"description": "Test plugin for sandboxed plugin system",
+	"type": "module",
+	"main": "dist/index.mjs",
+	"exports": {
+		".": {
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.mts"
+		},
+		"./sandbox": "./dist/sandbox-entry.mjs"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
+		"dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
+		"typecheck": "tsgo --noEmit"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"test",
+		"sandbox"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"dependencies": {
+		"emdash": "workspace:*"
+	},
+	"devDependencies": {
+		"tsdown": "catalog:",
+		"typescript": "catalog:"
+	},
+	"peerDependencies": {},
+	"optionalDependencies": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/sandboxed-test"
+	}
 }
