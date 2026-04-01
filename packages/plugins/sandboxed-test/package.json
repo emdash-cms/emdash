@@ -1,7 +1,7 @@
 {
   "name": "@emdash-cms/plugin-sandboxed-test",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Test plugin for sandboxed plugin system",
   "type": "module",
   "main": "dist/index.mjs",

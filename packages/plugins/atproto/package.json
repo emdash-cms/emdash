@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-atproto",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "AT Protocol / standard.site syndication plugin for EmDash CMS",
 	"type": "module",
 	"main": "src/index.ts",
@@ -8,7 +8,9 @@
 		".": "./src/index.ts",
 		"./sandbox": "./src/sandbox-entry.ts"
 	},
-	"files": ["src"],
+	"files": [
+		"src"
+	],
 	"keywords": [
 		"emdash",
 		"cms",
