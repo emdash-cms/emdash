@@ -284,12 +284,7 @@ export function GutenbergEditor({
 		}
 	}, [value]);
 
-	const handleInput = React.useCallback((newBlocks: BlockInstance[]) => {
-		userEditedRef.current = true;
-		setBlocks(newBlocks);
-	}, []);
-
-	const handleChange = React.useCallback((newBlocks: BlockInstance[]) => {
+	const propagateChange = React.useCallback((newBlocks: BlockInstance[]) => {
 		userEditedRef.current = true;
 		setBlocks(newBlocks);
 		const cb = onChangeRef.current;
@@ -302,6 +297,12 @@ export function GutenbergEditor({
 			}
 		}
 	}, []);
+
+	// Gutenberg calls onInput for transient changes (typing, resizing) and
+	// onChange for persistent changes (block add/remove, attribute commit).
+	// Both must propagate to the parent so the form detects dirty state.
+	const handleInput = propagateChange;
+	const handleChange = propagateChange;
 
 	if (!initialized) {
 		return (
