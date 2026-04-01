@@ -258,9 +258,7 @@ async function main() {
 				s.stop("Dependencies installed!");
 			} catch {
 				s.stop("Failed to install dependencies");
-				p.log.warn(
-					`Run ${pc.cyan(`cd ${projectName} && ${installCmd}`)} manually`,
-				);
+				p.log.warn(`Run ${pc.cyan(`cd ${projectName} && ${installCmd}`)} manually`);
 			}
 		}
 
