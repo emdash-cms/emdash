@@ -533,7 +533,7 @@ export function ContentEditor({
 					{!isNew && (
 						<>
 							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-								<Dialog.Root disablePointerDismissal>
+								<Dialog.Root>
 									<Dialog.Trigger
 										render={(p) => (
 											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
