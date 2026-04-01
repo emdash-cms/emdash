@@ -12,6 +12,5 @@
 	"access": "public",
 	"baseBranch": "main",
 	"updateInternalDependencies": "patch",
-	"bumpVersionsWithWorkspaceProtocolOnly": true,
-	"ignore": ["@demo/*"]
+	"bumpVersionsWithWorkspaceProtocolOnly": true
 }
