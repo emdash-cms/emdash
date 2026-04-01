@@ -46,7 +46,7 @@
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"
 	},
-	"packageManager": "pnpm@10.28.0",
+	"packageManager": "pnpm@10.28.0+sha256.9b0b04e6e79945566917f8411bb6f65fd2f3e1590426904e8500e1acc4b33561",
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"better-sqlite3",

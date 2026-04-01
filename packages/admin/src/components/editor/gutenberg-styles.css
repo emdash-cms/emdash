@@ -1,0 +1,58 @@
+/*
+ * Gutenberg editor styles for EmDash integration.
+ * Imports the required WordPress stylesheets and provides overrides
+ * to blend Gutenberg's UI with EmDash's admin theme.
+ */
+
+@import "@wordpress/components/build-style/style.css";
+@import "@wordpress/block-editor/build-style/style.css";
+@import "@wordpress/block-library/build-style/style.css";
+@import "@wordpress/block-library/build-style/editor.css";
+@import "@wordpress/block-library/build-style/theme.css";
+
+/* Scope Gutenberg styles to avoid leaking into the rest of the admin UI */
+.gutenberg-editor-wrapper {
+	/* Reset font to match EmDash */
+	font-family: inherit;
+	line-height: 1.6;
+
+	/* Ensure the editor canvas has proper sizing */
+	.block-editor-writing-flow {
+		padding: 1rem;
+		min-height: 200px;
+	}
+
+	/* Block list container */
+	.block-editor-block-list__layout {
+		padding: 0;
+	}
+
+	/* Override WordPress component z-index to work within EmDash's layering */
+	.components-popover {
+		z-index: 100;
+	}
+
+	/* Make block toolbar blend with EmDash theme */
+	.block-editor-block-toolbar {
+		border-color: var(--kumo-line, #e2e8f0);
+	}
+
+	/* Sidebar inspector styles */
+	.gutenberg-editor-sidebar {
+		.components-panel__header {
+			padding: 0.5rem 0;
+			border-bottom: 1px solid var(--kumo-line, #e2e8f0);
+		}
+
+		.components-panel__body-title {
+			font-size: 0.875rem;
+		}
+	}
+
+	/* Dark mode support */
+	@media (prefers-color-scheme: dark) {
+		.block-editor-writing-flow {
+			color: var(--kumo-default, #e2e8f0);
+		}
+	}
+}

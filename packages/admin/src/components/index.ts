@@ -13,6 +13,7 @@ export { Settings } from "./Settings";
 
 // Rich text editor
 export { PortableTextEditor, type PortableTextEditorProps } from "./PortableTextEditor";
+export { GutenbergEditor, type GutenbergEditorProps } from "./GutenbergEditor";
 
 // Buttons
 export { SaveButton, type SaveButtonProps } from "./SaveButton";

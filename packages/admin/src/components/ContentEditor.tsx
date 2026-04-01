@@ -64,6 +64,7 @@ import {
 	type PluginBlockDef,
 	type BlockSidebarPanel,
 } from "./PortableTextEditor";
+import { GutenbergEditor } from "./GutenbergEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
@@ -1062,16 +1063,12 @@ function FieldRenderer({
 							{label}
 						</span>
 					)}
-					<PortableTextEditor
+					<GutenbergEditor
 						value={Array.isArray(value) ? value : []}
 						onChange={handleChange}
 						placeholder={`Enter ${label.toLowerCase()}...`}
 						aria-labelledby={labelId}
-						pluginBlocks={pluginBlocks}
-						onEditorReady={onEditorReady}
 						minimal={minimal}
-						onBlockSidebarOpen={onBlockSidebarOpen}
-						onBlockSidebarClose={onBlockSidebarClose}
 					/>
 				</div>
 			);
