@@ -12,6 +12,7 @@ import {
 } from "@emdash-cms/cloudflare";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
 import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+import { workerMailerPlugin } from "@emdash-cms/plugin-worker-mailer";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 
@@ -71,6 +72,10 @@ export default defineConfig({
 			],
 			// Trusted plugins (run in host worker)
 			plugins: [
+				// SMTP delivery from the host Worker. Configure credentials in the
+				// plugin settings page or seed defaults here. Workers requires an
+				// SMTP endpoint that starts already secure (implicit TLS / SMTPS).
+				workerMailerPlugin(),
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
 			],

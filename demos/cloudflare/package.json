@@ -13,14 +13,15 @@
     "db:reset:remote": "./scripts/reset-db.sh",
     "typecheck": "astro check"
   },
-  "dependencies": {
-    "@astrojs/cloudflare": "catalog:",
-    "@astrojs/react": "catalog:",
-    "@emdash-cms/cloudflare": "workspace:*",
-    "@emdash-cms/plugin-forms": "workspace:*",
-    "@emdash-cms/plugin-webhook-notifier": "workspace:*",
-    "@tanstack/react-query": "catalog:",
-    "@tanstack/react-router": "catalog:",
+	"dependencies": {
+		"@astrojs/cloudflare": "catalog:",
+		"@astrojs/react": "catalog:",
+		"@emdash-cms/cloudflare": "workspace:*",
+		"@emdash-cms/plugin-forms": "workspace:*",
+		"@emdash-cms/plugin-worker-mailer": "workspace:*",
+		"@emdash-cms/plugin-webhook-notifier": "workspace:*",
+		"@tanstack/react-query": "catalog:",
+		"@tanstack/react-router": "catalog:",
     "astro": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",
