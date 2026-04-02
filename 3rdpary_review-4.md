@@ -113,6 +113,31 @@ Three categories of risk were addressed:
    - no negative stock from partial writes
 3. Monitor for `commerce.finalize.inventory_failed` and `commerce.finalize.token_rejected` logs.
 
+### Clear review path for a 3rd-party evaluator
+
+1. **Start with context**
+   - `3rdpary_review-4.md` (this document)
+   - `COMMERCE_REVIEW_OPTION_A_PLAN.md`
+   - `COMMERCE_REVIEW_OPTION_A_EXECUTION_NOTES.md`
+2. **Inspect runtime contracts**
+   - `packages/plugins/commerce/src/index.ts`
+   - `packages/plugins/commerce/src/handlers/webhooks-stripe.ts`
+   - `packages/plugins/commerce/src/orchestration/finalize-payment.ts`
+3. **Inspect constraints and storage model**
+   - `packages/plugins/commerce/src/storage.ts`
+4. **Validate test coverage**
+   - `packages/plugins/commerce/src/orchestration/finalize-payment.test.ts`
+   - `packages/plugins/commerce/src/handlers/webhooks-stripe.test.ts`
+5. **Validate behavior against this matrix**
+   - `WEBHOOK_SIGNATURE_INVALID` on bad/missing signatures
+   - duplicate events produce replay or controlled terminal conflict semantics
+   - insufficient stock/version mismatch remains non-partial
+   - deterministic payment attempt selection
+   - no duplicate movement rows for duplicate SKUs
+6. **Finalize decision**
+   - Confirm residual concurrent-race risk is acceptable for current scale
+   - Decide whether a stronger CAS/lock path should be phase-2 scope
+
 ## Artifacts this review package is optimized for
 
 - Implementation plan and status:
