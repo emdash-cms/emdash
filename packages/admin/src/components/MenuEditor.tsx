@@ -15,7 +15,7 @@ import {
 	X,
 	File as FileIcon,
 } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -27,6 +27,7 @@ import {
 	reorderMenuItems,
 	type MenuItem,
 } from "../lib/api";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -42,10 +43,11 @@ export function MenuEditor() {
 	const [addError, setAddError] = React.useState<string | null>(null);
 	const [editError, setEditError] = React.useState<string | null>(null);
 
-	const { data: menu, isLoading } = useQuery({
+	const { data: menu, isLoading } = useCachedQuery({
 		queryKey: ["menu", name],
 		queryFn: () => fetchMenu(name),
 		staleTime: Infinity,
+		cache: { store: "menus", key: name },
 	});
 
 	// Sync local items with fetched data

@@ -7,11 +7,12 @@
 import { Button, Dialog, Input, Toast, buttonVariants } from "@cloudflare/kumo";
 import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchMenus, createMenu, deleteMenu } from "../lib/api";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -23,9 +24,10 @@ export function MenuList() {
 	const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null);
 	const [createError, setCreateError] = React.useState<string | null>(null);
 
-	const { data: menus, isLoading } = useQuery({
+	const { data: menus, isLoading } = useCachedQuery({
 		queryKey: ["menus"],
 		queryFn: fetchMenus,
+		cache: { store: "singletons", key: "menus" },
 	});
 
 	const createMutation = useMutation({

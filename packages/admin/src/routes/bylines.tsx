@@ -1,5 +1,5 @@
 import { Button, Input, InputArea, Loader, Switch } from "@cloudflare/kumo";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
@@ -13,6 +13,7 @@ import {
 	type BylineSummary,
 	type UserListItem,
 } from "../lib/api";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 
 interface BylineFormState {
 	slug: string;
@@ -59,7 +60,7 @@ export function BylinesPage() {
 	const [allItems, setAllItems] = React.useState<BylineSummary[]>([]);
 	const [nextCursor, setNextCursor] = React.useState<string | undefined>(undefined);
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error } = useCachedQuery({
 		queryKey: ["bylines", search, guestFilter],
 		queryFn: () =>
 			fetchBylines({
@@ -67,6 +68,11 @@ export function BylinesPage() {
 				isGuest: guestFilter === "all" ? undefined : guestFilter === "guest",
 				limit: 50,
 			}),
+		cache: {
+			store: "bylines",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	// Reset accumulated items when filters change
@@ -77,9 +83,14 @@ export function BylinesPage() {
 		}
 	}, [data]);
 
-	const { data: usersData } = useQuery({
+	const { data: usersData } = useCachedQuery({
 		queryKey: ["users", "byline-linking"],
 		queryFn: () => fetchUsers({ limit: 100 }),
+		cache: {
+			store: "users",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const users = usersData?.items ?? [];

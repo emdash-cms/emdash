@@ -229,9 +229,10 @@ function ContentListPage() {
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const i18n = manifest?.i18n;
@@ -239,12 +240,22 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error } = useCachedQuery({
 		queryKey: ["content", collection, { locale: activeLocale }],
 		queryFn: () => fetchContentList(collection, { locale: activeLocale }),
+		cache: {
+			store: "content",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items, nextCursor: undefined }),
+			index: { name: "type", value: collection },
+			extra: (item) => ({
+				type: collection,
+				updatedAt: (item as Record<string, string>).updatedAt,
+			}),
+		},
 	});
 
-	// Fetch trashed items
+	// Fetch trashed items -- not cached (volatile, small dataset)
 	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
 		queryKey: ["content", collection, "trash"],
 		queryFn: () => fetchTrashedContent(collection),
@@ -377,9 +388,10 @@ function ContentNewPage() {
 	const queryClient = useQueryClient();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const createMutation = useMutation({
@@ -399,9 +411,14 @@ function ContentNewPage() {
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
-	const { data: bylinesData } = useQuery({
+	const { data: bylinesData } = useCachedQuery({
 		queryKey: ["bylines"],
 		queryFn: () => fetchBylines({ limit: 100 }),
+		cache: {
+			store: "bylines",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const createBylineMutation = useMutation({
@@ -484,16 +501,18 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const i18n = manifest?.i18n;
 
-	const { data: rawItem, isLoading } = useQuery({
+	const { data: rawItem, isLoading } = useCachedQuery({
 		queryKey: ["content", collection, id],
 		queryFn: () => fetchContent(collection, id),
+		cache: { store: "content", key: id },
 	});
 
 	// Fetch translations when i18n is enabled
@@ -547,16 +566,26 @@ function ContentEditPage() {
 	});
 
 	// Fetch users list for author selector (only if user is editor+)
-	const { data: usersData } = useQuery({
+	const { data: usersData } = useCachedQuery({
 		queryKey: ["users"],
 		queryFn: () => fetchUsers({ limit: 100 }),
 		enabled: !!currentUser && currentUser.role >= ROLE_EDITOR,
 		staleTime: 5 * 60 * 1000,
+		cache: {
+			store: "users",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
-	const { data: bylinesData } = useQuery({
+	const { data: bylinesData } = useCachedQuery({
 		queryKey: ["bylines"],
 		queryFn: () => fetchBylines({ limit: 100 }),
+		cache: {
+			store: "bylines",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const createBylineMutation = useMutation({
@@ -854,9 +883,14 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error } = useCachedQuery({
 		queryKey: ["media"],
 		queryFn: () => fetchMediaList(),
+		cache: {
+			store: "media",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const uploadMutation = useMutation({
@@ -901,9 +935,10 @@ function CommentsPage() {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	// Current user for ADMIN check (hard delete)
@@ -1123,9 +1158,10 @@ const pluginManagerRoute = createRoute({
 });
 
 function PluginManagerPage() {
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 	return <PluginManager manifest={manifest} />;
 }

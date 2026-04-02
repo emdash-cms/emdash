@@ -17,7 +17,7 @@ import {
 	FileArrowDown,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -28,6 +28,7 @@ import {
 	type Section,
 	type SectionSource,
 } from "../lib/api";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 import { slugify } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -71,13 +72,18 @@ export function Sections() {
 		}
 	}, [isCreateOpen]);
 
-	const { data: sectionsData, isLoading: sectionsLoading } = useQuery({
+	const { data: sectionsData, isLoading: sectionsLoading } = useCachedQuery({
 		queryKey: ["sections", { source: selectedSource, search: searchQuery }],
 		queryFn: () =>
 			fetchSections({
 				source: selectedSource || undefined,
 				search: searchQuery || undefined,
 			}),
+		cache: {
+			store: "sections",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 	const sections = sectionsData?.items ?? [];
 
