@@ -1799,3 +1799,57 @@ Return **429** with `retryAfter` seconds when exceeded. Log with `correlationId`
 - Plugin routes remain under `/_emdash/api/plugins/emdash-commerce/...`. When
   breaking request/response shapes are needed, introduce **`v2/` route prefix** or
   new route names; keep v1 stable for storefronts pinned to older Astro builds.
+
+---
+
+## 21. Platform alignment (EmDash product + Cloudflare Workers)
+
+This section records constraints from EmDash’s public positioning and Cloudflare’s
+Workers binding model. It does **not** change locked commerce semantics (§15); it
+**reinforces** why several earlier choices exist.
+
+### 21.1 EmDash: sandbox, capabilities, marketplace
+
+- Third-party plugins are intended to run in **isolates** with **declared
+  capabilities** — matching our split: **native commerce core** + **standard
+  provider plugins** with narrow grants (`network:fetch` + `allowedHosts`).
+- **License and distribution** are decoupled from the core repo; payment provider
+  packages can stay proprietary while the core stays MIT-aligned with the host
+  project.
+- **x402** is a first-class EmDash primitive for *HTTP-native, pay-per-access
+  content*. It is **complementary** to cart checkout, not a replacement: use x402
+  for gated content or micropayments; use commerce for SKUs, carts, and fulfillment
+  workflows. Avoid folding cart totals into x402 in v1.
+
+### 21.2 Workers: bindings, SSRF, and `fetch`
+
+- Workers **environment bindings** are live objects (KV, D1, service bindings),
+  not opaque connection strings. The commerce plan’s insistence on **`ctx.storage`
+  / `ctx.kv` / `ctx.http`** (and no ad-hoc DB clients in kernel code) matches that
+  philosophy: fewer string secrets in application code, clearer attachment of
+  permissions at deploy time.
+- **SSRF:** User-controlled URLs must never drive `fetch()` to internal or
+  same-zone origins. Commerce already restricts outbound calls to **payment /
+  shipping / tax hosts** via capability rules; do not add “callback URL” fields that
+  accept arbitrary URLs without validation.
+- **Legacy caveat (Worker in front of an origin):** global `fetch()` to URLs under
+  the site’s own zone may reach the **origin** directly. If a deployment uses that
+  pattern, any bug that passes user input into `fetch` is an SSRF risk against the
+  origin. Mitigation: keep using **explicit host allowlists** and never treat
+  `CF-Worker` (or similar) as **authorization** — Cloudflare documents it for abuse
+  attribution, not auth.
+
+### 21.3 Subrequests, CPU, and provider execution
+
+- Sandboxed plugins face **tight subrequest and CPU budgets**. Prefer **in-process
+  payment adapters** for first-party gateways (§4) so one checkout does not chain
+  “core → HTTP → sandbox provider → Stripe” unless marketplace isolation requires
+  it.
+- Keep **webhook handlers short** (§20.5): validate signature, dedupe, call
+  `finalizePayment`, return 2xx — no unbounded fan-out inside the handler.
+
+### 21.4 Observability
+
+- Platforms that understand bindings can attribute resource use to workers;
+  commerce should still emit **correlation IDs and structured order events** (§19)
+  so merchant-visible timelines do not depend solely on host metrics.
