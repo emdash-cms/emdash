@@ -11,7 +11,7 @@ permissions:
 jobs:
   check-pr:
     name: Validate PR
-    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' && github.actor != 'emdashbot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Check PR template
