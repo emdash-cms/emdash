@@ -132,6 +132,16 @@ export interface AdminManifest {
 		locales: string[];
 	};
 	/**
+	 * Taxonomy definitions for the admin sidebar.
+	 */
+	taxonomies?: Array<{
+		name: string;
+		label: string;
+		labelSingular?: string;
+		hierarchical: boolean;
+		collections: string[];
+	}>;
+	/**
 	 * Marketplace registry URL. Present when `marketplace` is configured
 	 * in the EmDash integration. Enables marketplace features in the UI.
 	 */
