@@ -1,10 +1,11 @@
 {
 	"name": "@emdash-cms/plugin-commerce",
-	"version": "0.0.1",
-	"description": "EmDash commerce kernel (contracts + pure helpers; plugin wiring comes later)",
+	"version": "0.1.0",
+	"description": "EmDash commerce — checkout + idempotent webhook finalize (kernel-first)",
 	"type": "module",
-	"private": true,
+	"main": "src/index.ts",
 	"exports": {
+		".": "./src/index.ts",
 		"./kernel/errors": "./src/kernel/errors.ts",
 		"./kernel/api-errors": "./src/kernel/api-errors.ts",
 		"./kernel/finalize-decision": "./src/kernel/finalize-decision.ts",
@@ -13,12 +14,23 @@
 		"./kernel/provider-policy": "./src/kernel/provider-policy.ts",
 		"./kernel/rate-limit-window": "./src/kernel/rate-limit-window.ts"
 	},
+	"files": ["src"],
 	"scripts": {
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},
+	"dependencies": {
+		"ulidx": "^2.4.1"
+	},
+	"peerDependencies": {
+		"astro": ">=6.0.0-beta.0",
+		"emdash": "workspace:*"
+	},
 	"devDependencies": {
+		"astro": "catalog:",
+		"emdash": "workspace:*",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
-	}
+	},
+	"private": true
 }

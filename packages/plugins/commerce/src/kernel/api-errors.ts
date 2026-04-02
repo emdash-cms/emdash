@@ -1,7 +1,7 @@
 import {
 	COMMERCE_ERRORS,
+	type CommerceErrorCode,
 	type CommerceWireErrorCode,
-	CommerceErrorCode,
 	commerceErrorCodeToWire,
 } from "./errors.js";
 

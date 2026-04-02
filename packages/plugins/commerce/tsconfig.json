@@ -1,8 +1,20 @@
 {
-	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
+		"target": "ES2022",
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"moduleDetection": "force",
+		"verbatimModuleSyntax": true,
+		"strict": true,
 		"noEmit": true,
-		"rootDir": "."
+		"skipLibCheck": true,
+		"rootDir": "src",
+		"lib": ["es2022", "DOM", "DOM.Iterable"],
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"esModuleInterop": true
 	},
 	"include": ["src/**/*.ts"]
 }
