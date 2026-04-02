@@ -24,6 +24,18 @@ This is a pre-release project. Do not add backwards compatibility or legacy patt
 
 **TDD for bugs.** Write a failing test -> fix the bug -> verify the test passes. A bug without a reproducing test is not fixed.
 
+## Contribution Rules (for AI agents and human contributors)
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
+
+- **Features require a prior approved Discussion.** Do not open a feature PR without one. It will be closed. Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) in the Ideas category first.
+- **Bug fixes and docs** can be PRed directly.
+- **Fill out the PR template completely.** Every section. Check every applicable checkbox. PRs with empty or skipped templates will be closed.
+- **Check the AI disclosure box** in the PR template if any part of the code was AI-generated.
+- **Do not make bulk/spray changes** (e.g., "fix all lint warnings", "add types everywhere", "improve error handling across codebase"). If you see a systemic issue, open a Discussion.
+- **Do not touch code outside the scope of your change.** No drive-by refactors, no "while I'm here" improvements, no added comments or logging in unrelated files.
+- **All CI checks must pass.** Typecheck, lint, format, and tests. No exceptions.
+
 ## Workflow
 
 ### Before Starting
@@ -47,7 +59,7 @@ You verified linting and types were clean before starting. If they're failing no
 1. All tests pass: `pnpm test`
 2. Full lint suite clean: `pnpm --silent lint:json | jq '.diagnostics | length'`. Returns JSON with stderr piped to /dev/null, so it won't break parsers. Fix any issues.
 3. Format with `pnpm format` (oxfmt with tabs for indentation, configured in `.prettierrc`).
-4. Open the PR with the `pr` skill
+4. Open the PR with the `pr` skill. Fill out every section of the PR template. Check the AI disclosure box.
 
 ### Dev Servers
 
