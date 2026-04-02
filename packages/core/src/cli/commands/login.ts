@@ -29,6 +29,7 @@ import {
 	resolveCredentialKey,
 	saveCredentials,
 } from "../credentials.js";
+import { configureOutputMode } from "../output.js";
 
 // ---------------------------------------------------------------------------
 // Types for discovery + device flow responses
@@ -423,6 +424,7 @@ export const whoamiCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		const baseUrl = args.url || "http://localhost:4321";
 
 		// Resolve token: --token flag > EMDASH_TOKEN env > stored credentials
