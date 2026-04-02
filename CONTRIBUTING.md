@@ -189,13 +189,13 @@ Your site will use `workspace:*` links to the local packages, so any changes you
 
 ### What we accept
 
-| Type | Process |
-| --- | --- |
-| **Bug fixes** | Open a PR directly. Include a failing test that reproduces the bug. |
-| **Docs / typos** | Open a PR directly. |
-| **Features** | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first. Wait for approval before writing code. |
-| **Refactors** | Open a Discussion first. Refactors are opinionated and need alignment. |
-| **Performance** | Open a Discussion first with benchmarks showing the improvement. |
+| Type             | Process                                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                                  |
+| **Docs / typos** | Open a PR directly.                                                                                                                  |
+| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first. Wait for approval before writing code. |
+| **Refactors**    | Open a Discussion first. Refactors are opinionated and need alignment.                                                               |
+| **Performance**  | Open a Discussion first with benchmarks showing the improvement.                                                                     |
 
 **PRs that add features without a prior approved Discussion will be closed.** This isn't about gatekeeping — it's about not wasting your time on work that might not align with the project's direction. Talk to us first and we'll figure out the right approach together.
 
