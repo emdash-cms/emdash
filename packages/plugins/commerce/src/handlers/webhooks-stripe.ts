@@ -1,9 +1,10 @@
 /**
- * Stripe webhook entrypoint (signature verification lands with the real Stripe adapter).
- * Today accepts a structured JSON body so finalize + replay tests can run without Stripe.
+ * Stripe webhook entrypoint with in-route signature verification.
+ * The route still accepts the typed JSON body for deterministic plugin tests.
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { requirePost } from "../lib/require-post.js";
@@ -21,6 +22,76 @@ import type {
 } from "../types.js";
 
 const MAX_WEBHOOK_BODY_BYTES = 65_536;
+const STRIPE_SIGNATURE_HEADER = "Stripe-Signature";
+const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
+
+function parseStripeSignatureHeader(raw: string | null): ParsedStripeSignature | null {
+	if (!raw) return null;
+	const sigParts = raw.split(",");
+	let timestamp: number | null = null;
+	const signatures: string[] = [];
+
+	for (const part of sigParts) {
+		const [key, value] = part.split("=").map((entry) => entry.trim());
+		if (!key || !value) continue;
+		if (key === "t") {
+			const parsed = Number.parseInt(value, 10);
+			if (Number.isNaN(parsed)) return null;
+			timestamp = parsed;
+			continue;
+		}
+		if (key === "v1") {
+			signatures.push(value);
+		}
+	}
+	if (timestamp === null || signatures.length === 0) return null;
+	return { timestamp, signatures };
+}
+
+function hashWithSecret(secret: string, timestamp: number, rawBody: string): string {
+	return createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
+}
+
+function constantTimeCompareHex(aHex: string, bHex: string): boolean {
+	if (aHex.length !== bHex.length) return false;
+	const a = Buffer.from(aHex, "hex");
+	const b = Buffer.from(bHex, "hex");
+	return timingSafeEqual(a, b);
+}
+
+function isWebhookSignatureValid(secret: string, rawBody: string, rawSignature: string | null): boolean {
+	const parsed = parseStripeSignatureHeader(rawSignature);
+	if (!parsed) return false;
+	const now = Date.now() / 1000;
+	if (Math.abs(now - parsed.timestamp) > STRIPE_SIGNATURE_TOLERANCE_SECONDS) return false;
+
+	const expected = hashWithSecret(secret, parsed.timestamp, rawBody);
+	return parsed.signatures.some((sig) => constantTimeCompareHex(sig, expected));
+}
+
+async function ensureValidStripeWebhookSignature(ctx: RouteContext<StripeWebhookInput>): Promise<void> {
+	const secret = await ctx.kv.get("settings:stripeWebhookSecret");
+	if (typeof secret !== "string" || secret.length === 0) {
+		throwCommerceApiError({
+			code: "PROVIDER_UNAVAILABLE",
+			message: "Missing Stripe webhook signature secret",
+		});
+	}
+
+	const rawBody = await ctx.request.clone().text();
+	const rawSig = ctx.request.headers.get(STRIPE_SIGNATURE_HEADER);
+	if (!isWebhookSignatureValid(secret, rawBody, rawSig)) {
+		throwCommerceApiError({
+			code: "WEBHOOK_SIGNATURE_INVALID",
+			message: "Invalid Stripe webhook signature",
+		});
+	}
+}
+
+type ParsedStripeSignature = {
+	timestamp: number;
+	signatures: string[];
+};
 
 function asCollection<T>(raw: unknown): StorageCollection<T> {
 	return raw as StorageCollection<T>;
@@ -28,9 +99,6 @@ function asCollection<T>(raw: unknown): StorageCollection<T> {
 
 export async function stripeWebhookHandler(ctx: RouteContext<StripeWebhookInput>) {
 	requirePost(ctx);
-
-	// Future: verify `Stripe-Signature` with `request.text()` + `ctx.kv.get("settings:stripeWebhookSecret")`.
-
 	const cl = ctx.request.headers.get("content-length");
 	if (cl !== null && cl !== "") {
 		const n = Number(cl);
@@ -41,6 +109,7 @@ export async function stripeWebhookHandler(ctx: RouteContext<StripeWebhookInput>
 			});
 		}
 	}
+	await ensureValidStripeWebhookSignature(ctx);
 
 	const nowMs = Date.now();
 	const ip = ctx.requestMeta.ip ?? "unknown";
@@ -87,3 +156,5 @@ export async function stripeWebhookHandler(ctx: RouteContext<StripeWebhookInput>
 	}
 	return { ok: true as const, orderId: result.orderId };
 }
+
+export { hashWithSecret, isWebhookSignatureValid, parseStripeSignatureHeader };

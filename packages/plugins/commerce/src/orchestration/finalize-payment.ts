@@ -2,7 +2,7 @@
  * Storage-backed payment finalization (webhook path).
  *
  * Ordering follows architecture §20.5: claim a `webhookReceipts` row (`pending`) →
- * finalize inventory + order → mark receipt `processed`.
+ * preflight inventory + stock/ledger mutation + order status update.
  *
  * `decidePaymentFinalize` interprets the read model only; this module performs writes.
  *
@@ -12,8 +12,6 @@
  * + `finalizeTokenHash` reduce *cross-order* abuse; duplicate concurrent same-event remains
  * a documented residual risk.
  */
-
-import { ulid } from "ulidx";
 
 import type { CommerceErrorCode } from "../kernel/errors.js";
 import {
@@ -38,6 +36,13 @@ type FinalizeQueryPage<T> = {
 	cursor?: string;
 };
 
+type FinalizeQueryOptions<T> = {
+	where?: Record<string, unknown>;
+	limit?: number;
+	orderBy?: Partial<Record<keyof T, "asc" | "desc">>;
+	cursor?: string;
+};
+
 export type FinalizeLogPort = {
 	info(message: string, data?: unknown): void;
 	warn(message: string, data?: unknown): void;
@@ -49,16 +54,20 @@ export type FinalizeCollection<T> = {
 	put(id: string, data: T): Promise<void>;
 };
 
+export type QueryableCollection<T> = FinalizeCollection<T> & {
+	query(options?: FinalizeQueryOptions<T>): Promise<FinalizeQueryPage<T>>;
+};
+
 export type FinalizePaymentAttemptCollection = FinalizeCollection<StoredPaymentAttempt> & {
-	query(options?: { where?: Record<string, unknown>; limit?: number }): Promise<FinalizeQueryPage<StoredPaymentAttempt>>;
+	query(options?: FinalizeQueryOptions<StoredPaymentAttempt>): Promise<FinalizeQueryPage<StoredPaymentAttempt>>;
 };
 
 export type FinalizePaymentPorts = {
 	orders: FinalizeCollection<StoredOrder>;
 	webhookReceipts: FinalizeCollection<StoredWebhookReceipt>;
 	paymentAttempts: FinalizePaymentAttemptCollection;
-	inventoryLedger: FinalizeCollection<StoredInventoryLedgerEntry>;
-	inventoryStock: FinalizeCollection<StoredInventoryStock>;
+	inventoryLedger: QueryableCollection<StoredInventoryLedgerEntry>;
+	inventoryStock: QueryableCollection<StoredInventoryStock>;
 	log?: FinalizeLogPort;
 };
 
@@ -158,29 +167,39 @@ function verifyFinalizeToken(order: StoredOrder, token: string | undefined): Fin
 	return null;
 }
 
-async function applyInventoryForOrder(
-	ports: FinalizePaymentPorts,
-	order: StoredOrder,
+type InventoryMutation = {
+	line: OrderLineItem;
+	stockId: string;
+	currentStock: StoredInventoryStock;
+	nextStock: StoredInventoryStock;
+	ledgerId: string;
+};
+
+function inventoryLedgerEntryId(orderId: string, productId: string, variantId: string): string {
+	return `line:${sha256Hex(`${orderId}\n${productId}\n${variantId}`)}`;
+}
+
+function normalizeInventoryMutations(
 	orderId: string,
+	lineItems: OrderLineItem[],
+	stockRows: Map<string, StoredInventoryStock>,
 	nowIso: string,
-): Promise<void> {
+): InventoryMutation[] {
 	let merged: OrderLineItem[];
 	try {
-		merged = mergeLineItemsBySku(order.lineItems);
+		merged = mergeLineItemsBySku(lineItems);
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
 	}
 
-	for (const line of merged) {
+	return merged.map((line) => {
 		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
-		const stock = await ports.inventoryStock.get(stockId);
+		const stock = stockRows.get(stockId);
 		if (!stock) {
-			throw new InventoryFinalizeError(
-				"PRODUCT_UNAVAILABLE",
-				`No inventory record for product ${line.productId}`,
-				{ productId: line.productId },
-			);
+			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", `No inventory record for product ${line.productId}`, {
+				productId: line.productId,
+			});
 		}
 		if (stock.version !== line.inventoryVersion) {
 			throw new InventoryFinalizeError(
@@ -196,26 +215,105 @@ async function applyInventoryForOrder(
 				{ productId: line.productId, requested: line.quantity, available: stock.quantity },
 			);
 		}
+		const variantId = line.variantId ?? "";
+		return {
+			line,
+			stockId,
+			currentStock: stock,
+			nextStock: {
+				...stock,
+				version: stock.version + 1,
+				quantity: stock.quantity - line.quantity,
+				updatedAt: nowIso,
+			},
+			ledgerId: inventoryLedgerEntryId(orderId, line.productId, variantId),
+		};
+	});
+}
 
-		const ledgerId = ulid();
+async function readCurrentStockRows(
+	inventoryStock: QueryableCollection<StoredInventoryStock>,
+	lines: OrderLineItem[],
+): Promise<Map<string, StoredInventoryStock>> {
+	const out = new Map<string, StoredInventoryStock>();
+	for (const line of lines) {
+		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
+		const stock = await inventoryStock.get(stockId);
+		if (!stock) {
+			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", `No inventory record for product ${line.productId}`, {
+				productId: line.productId,
+			});
+		}
+		out.set(stockId, stock);
+	}
+	return out;
+}
+
+function mapInventoryErrorToApiCode(code: CommerceErrorCode): CommerceErrorCode {
+	return code === "PRODUCT_UNAVAILABLE" || code === "INSUFFICIENT_STOCK" ? "PAYMENT_CONFLICT" : code;
+}
+
+async function applyInventoryMutations(
+	ports: FinalizePaymentPorts,
+	orderId: string,
+	nowIso: string,
+	stockRows: Map<string, StoredInventoryStock>,
+	orderLines: OrderLineItem[],
+): Promise<void> {
+	const planned = normalizeInventoryMutations(orderId, orderLines, stockRows, nowIso);
+	const existing = await ports.inventoryLedger.query({
+		where: { referenceType: "order", referenceId: orderId },
+		limit: 1000,
+	});
+	const seen = new Set(existing.items.map((row) => row.id));
+
+	for (const mutation of planned) {
+		if (seen.has(mutation.ledgerId)) {
+			continue;
+		}
+		const latest = await ports.inventoryStock.get(mutation.stockId);
+		if (!latest) {
+			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", `No inventory record for product ${mutation.line.productId}`, {
+				productId: mutation.line.productId,
+			});
+		}
+		if (latest.version !== mutation.currentStock.version) {
+			throw new InventoryFinalizeError("INVENTORY_CHANGED", "Inventory changed between preflight and write", {
+				productId: mutation.line.productId,
+				expectedVersion: mutation.currentStock.version,
+				currentVersion: latest.version,
+			});
+		}
+		if (latest.quantity < mutation.line.quantity) {
+			throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
+				productId: mutation.line.productId,
+				requested: mutation.line.quantity,
+				available: latest.quantity,
+			});
+		}
+
 		const entry: StoredInventoryLedgerEntry = {
-			productId: line.productId,
-			variantId: line.variantId ?? "",
-			delta: -line.quantity,
+			productId: mutation.line.productId,
+			variantId: mutation.line.variantId ?? "",
+			delta: -mutation.line.quantity,
 			referenceType: "order",
 			referenceId: orderId,
 			createdAt: nowIso,
 		};
-		await ports.inventoryLedger.put(ledgerId, entry);
-
-		const next: StoredInventoryStock = {
-			...stock,
-			version: stock.version + 1,
-			quantity: stock.quantity - line.quantity,
-			updatedAt: nowIso,
-		};
-		await ports.inventoryStock.put(stockId, next);
+		await ports.inventoryLedger.put(mutation.ledgerId, entry);
+		await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
+		seen.add(mutation.ledgerId);
 	}
+}
+
+async function applyInventoryForOrder(
+	ports: FinalizePaymentPorts,
+	order: StoredOrder,
+	orderId: string,
+	nowIso: string,
+): Promise<void> {
+	const stockRows = await readCurrentStockRows(ports.inventoryStock, order.lineItems);
+	await applyInventoryMutations(ports, orderId, nowIso, stockRows, order.lineItems);
 }
 
 async function markPaymentAttemptSucceeded(
@@ -225,11 +323,11 @@ async function markPaymentAttemptSucceeded(
 	nowIso: string,
 ): Promise<void> {
 	const res = await ports.paymentAttempts.query({
-		where: { orderId, status: "pending" },
-		limit: 20,
+		where: { orderId, providerId, status: "pending" },
+		orderBy: { createdAt: "asc" },
+		limit: 1,
 	});
-	const match =
-		res.items.find((row) => row.data.providerId === providerId) ?? res.items[0];
+	const match = res.items[0];
 	if (!match) return;
 
 	const next: StoredPaymentAttempt = {
@@ -334,10 +432,7 @@ export async function finalizePaymentFromWebhook(
 				status: "error",
 				updatedAt: nowIso,
 			});
-			const apiCode: CommerceErrorCode =
-				err.code === "PRODUCT_UNAVAILABLE" || err.code === "INSUFFICIENT_STOCK"
-					? "PAYMENT_CONFLICT"
-					: err.code;
+			const apiCode = mapInventoryErrorToApiCode(err.code);
 			ports.log?.warn("commerce.finalize.inventory_failed", {
 				orderId: input.orderId,
 				code: apiCode,

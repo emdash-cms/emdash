@@ -47,6 +47,7 @@ export type CommerceStorage = PluginStorageConfig & {
 			["productId", "createdAt"],
 			["variantId", "createdAt"],
 		];
+		uniqueIndexes: [["referenceType", "referenceId", "productId", "variantId"]];
 	};
 	/** Materialized per SKU stock + monotonic version for finalize-time checks. */
 	inventoryStock: {
@@ -98,6 +99,7 @@ export const COMMERCE_STORAGE_CONFIG = {
 			["productId", "createdAt"],
 			["variantId", "createdAt"],
 		] as const,
+		uniqueIndexes: [["referenceType", "referenceId", "productId", "variantId"]] as const,
 	},
 	inventoryStock: {
 		indexes: ["productId", "variantId", "updatedAt", ["productId", "variantId"]] as const,

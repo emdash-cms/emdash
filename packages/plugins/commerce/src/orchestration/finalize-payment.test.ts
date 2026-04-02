@@ -22,6 +22,13 @@ const FINALIZE_HASH = sha256Hex(FINALIZE_RAW);
 type MemQueryOptions = {
 	where?: Record<string, string | number | boolean | null>;
 	limit?: number;
+	cursor?: string;
+	orderBy?: Partial<
+		Record<
+			"createdAt" | "orderId" | "providerId" | "status",
+			"asc" | "desc"
+		>
+	>;
 };
 
 type MemPaginated<T> = { items: T[]; hasMore: boolean; cursor?: string };
@@ -41,13 +48,30 @@ class MemColl<T extends object> {
 	async query(options?: MemQueryOptions): Promise<MemPaginated<{ id: string; data: T }>> {
 		const where = options?.where ?? {};
 		const limit = Math.min(options?.limit ?? 50, 100);
+		const orderBy = options?.orderBy;
 		const items: Array<{ id: string; data: T }> = [];
 		for (const [id, data] of this.rows) {
 			const ok = Object.entries(where).every(([k, v]) => (data as Record<string, unknown>)[k] === v);
 			if (ok) items.push({ id, data: structuredClone(data) });
-			if (items.length >= limit) break;
 		}
-		return { items, hasMore: false };
+		if (orderBy && Object.keys(orderBy).length > 0) {
+			items.sort((a, b) => {
+				for (const [field, dir] of Object.entries(orderBy) as Array<
+					["createdAt" | "orderId" | "providerId" | "status", "asc" | "desc"]
+				>) {
+					if (field !== "createdAt" && field !== "orderId" && field !== "providerId" && field !== "status")
+						continue;
+					const av = a.data[field];
+					const bv = b.data[field];
+					if (av === bv) continue;
+					if (dir === "desc") return String(av).localeCompare(String(bv)) * -1;
+					return String(av).localeCompare(String(bv));
+				}
+				return a.id.localeCompare(b.id);
+			});
+		}
+		const trimmed = items.slice(0, limit);
+		return { items: trimmed, hasMore: false };
 	}
 }
 
@@ -216,6 +240,164 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(ledger.items[0]!.data.delta).toBe(-2);
 		const stock = await ports.inventoryStock.get(stockId);
 		expect(stock?.quantity).toBe(8);
+	});
+
+	it("chooses the earliest pending provider-specific payment attempt", async () => {
+		const orderId = "order_attempts";
+		const stockId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [
+							{
+								productId: "p1",
+								quantity: 1,
+								inventoryVersion: 3,
+								unitPriceMinor: 500,
+							},
+						],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"attempt_newest",
+					{
+						orderId,
+						providerId: "stripe",
+						status: "pending",
+						createdAt: "2026-04-02T12:00:02.000Z",
+						updatedAt: "2026-04-02T12:00:02.000Z",
+					},
+				],
+				[
+					"attempt_earliest",
+					{
+						orderId,
+						providerId: "stripe",
+						status: "pending",
+						createdAt: "2026-04-02T12:00:00.000Z",
+						updatedAt: "2026-04-02T12:00:00.000Z",
+					},
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					stockId,
+					{
+						productId: "p1",
+						variantId: "",
+						version: 3,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+
+		const ports = portsFromState(state);
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: "evt_attempts",
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "completed", orderId });
+
+		const chosen = await ports.paymentAttempts.get("attempt_earliest");
+		const ignored = await ports.paymentAttempts.get("attempt_newest");
+		expect(chosen?.status).toBe("succeeded");
+		expect(ignored?.status).toBe("pending");
+	});
+
+	it("does not partially apply stock if preflight catches an invalid line", async () => {
+		const orderId = "order_partial_fail";
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [
+							{
+								productId: "p1",
+								quantity: 1,
+								inventoryVersion: 3,
+								unitPriceMinor: 500,
+							},
+							{
+								productId: "p2",
+								variantId: "v1",
+								quantity: 9,
+								inventoryVersion: 3,
+								unitPriceMinor: 250,
+							},
+						],
+						totalMinor: 7250,
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					inventoryStockDocId("p1", ""),
+					{
+						productId: "p1",
+						variantId: "",
+						version: 3,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+				[
+					inventoryStockDocId("p2", "v1"),
+					{
+						productId: "p2",
+						variantId: "v1",
+						version: 3,
+						quantity: 2,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+		const ports = portsFromState(state);
+		const extId = "evt_partial_fail";
+		const result = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(result).toMatchObject({
+			kind: "api_error",
+			error: { code: "PAYMENT_CONFLICT" },
+		});
+
+		const firstStock = await ports.inventoryStock.get(inventoryStockDocId("p1", ""));
+		expect(firstStock?.quantity).toBe(10);
+		const firstVersion = firstStock?.version;
+		const secondStock = await ports.inventoryStock.get(inventoryStockDocId("p2", "v1"));
+		expect(secondStock?.quantity).toBe(2);
+		expect(secondStock?.version).toBe(3);
+		expect(firstVersion).toBe(3);
+
+		const ledger = await ports.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(0);
+		const order = await ports.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("payment_conflict");
+		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("error");
 	});
 
 	it("rejects finalize when token is missing but order requires one", async () => {

@@ -79,10 +79,16 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		});
 	}
 	for (const line of cart.lineItems) {
-		if (line.quantity < 1 || line.quantity > COMMERCE_LIMITS.maxLineItemQty) {
+		if (!Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > COMMERCE_LIMITS.maxLineItemQty) {
 			throw PluginRouteError.badRequest(
 				`Line item quantity must be between 1 and ${COMMERCE_LIMITS.maxLineItemQty}`,
 			);
+		}
+		if (!Number.isInteger(line.inventoryVersion) || line.inventoryVersion < 0) {
+			throw PluginRouteError.badRequest("Line item inventory version must be a non-negative integer");
+		}
+		if (!Number.isInteger(line.unitPriceMinor) || line.unitPriceMinor < 0) {
+			throw PluginRouteError.badRequest("Line item unit price must be a non-negative integer");
 		}
 	}
 
