@@ -73,8 +73,18 @@ export default defineConfig({
 			// Trusted plugins (run in host worker)
 			plugins: [
 				// SMTP delivery from the host Worker. Configure credentials in the
-				// plugin settings page or seed defaults here. Workers requires an
+				// plugin settings page or seed defaults in code. Workers requires an
 				// SMTP endpoint that starts already secure (implicit TLS / SMTPS).
+				// Example:
+				// workerMailerPlugin({
+				// 	host: "smtp.example.com",
+				// 	port: 465,
+				// 	authType: "plain",
+				// 	username: "smtp-user",
+				// 	password: "smtp-password",
+				// 	fromEmail: "no-reply@example.com",
+				// 	fromName: "EmDash Demo",
+				// }),
 				workerMailerPlugin(),
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
