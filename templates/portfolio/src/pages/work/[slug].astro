@@ -4,7 +4,8 @@ import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
 
-const { slug } = Astro.params;
+const { slug: rawSlug } = Astro.params;
+const slug = rawSlug ? decodeURIComponent(rawSlug) : undefined;
 
 if (!slug) {
 	return Astro.redirect("/404");

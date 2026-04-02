@@ -4,7 +4,8 @@ import Base from "../../layouts/Base.astro";
 import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
-const { slug } = Astro.params;
+const { slug: rawSlug } = Astro.params;
+const slug = rawSlug ? decodeURIComponent(rawSlug) : undefined;
 const term = slug ? await getTerm("category", slug) : null;
 
 if (!term) {

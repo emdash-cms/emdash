@@ -3,7 +3,8 @@ import { getTerm, getEmDashCollection } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
-const { slug } = Astro.params;
+const { slug: rawSlug } = Astro.params;
+const slug = rawSlug ? decodeURIComponent(rawSlug) : undefined;
 const term = slug ? await getTerm("tag", slug) : null;
 
 if (!term) {
