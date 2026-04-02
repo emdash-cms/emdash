@@ -245,9 +245,14 @@ function ContentListPage() {
 	} = useInfiniteQuery({
 		queryKey: ["content", collection, { locale: activeLocale }],
 		queryFn: ({ pageParam }) =>
-			fetchContentList(collection, { locale: activeLocale, cursor: pageParam as string | undefined }),
+			fetchContentList(collection, {
+				locale: activeLocale,
+				cursor: pageParam as string | undefined,
+				limit: 100,
+			}),
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.nextCursor,
+		enabled: !!manifest,
 	});
 
 	// Fetch trashed items
