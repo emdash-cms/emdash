@@ -185,10 +185,41 @@ Your site will use `workspace:*` links to the local packages, so any changes you
 4. Check authorization with `requirePerm()` on all state-changing routes.
 5. Register the route in `packages/core/src/astro/integration/routes.ts`.
 
+## Contribution Policy
+
+### What we accept
+
+| Type             | Process                                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                                  |
+| **Docs / typos** | Open a PR directly.                                                                                                                  |
+| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first. Wait for approval before writing code. |
+| **Refactors**    | Open a Discussion first. Refactors are opinionated and need alignment.                                                               |
+| **Performance**  | Open a Discussion first with benchmarks showing the improvement.                                                                     |
+
+**PRs that add features without a prior approved Discussion will be closed.** This isn't about gatekeeping — it's about not wasting your time on work that might not align with the project's direction. Talk to us first and we'll figure out the right approach together.
+
+### AI-generated PRs
+
+We welcome AI-assisted contributions. They are held to the same quality bar as any other PR:
+
+- The submitter is responsible for the code's correctness, not the AI tool.
+- AI-generated PRs must pass all CI checks, follow the project's code patterns, and include tests.
+- The PR template has an AI disclosure checkbox — please check it. This isn't punitive; it helps reviewers know to pay extra attention to edge cases that AI tools commonly miss.
+- Bulk/spray PRs across the repo (e.g., "fix all lint warnings", "add types everywhere") will be closed. If you see a pattern worth fixing, open a Discussion first.
+
+### What we don't accept
+
+- **Drive-by feature additions.** If there's no Discussion, there's no PR.
+- **Speculative refactors** that don't solve a concrete problem.
+- **Dependency upgrades** outside of Renovate/Dependabot. We manage these centrally.
+- **"Improvements"** to code you haven't been asked to change (added logging, extra error handling, style changes in unrelated files).
+
 ## Commits and PRs
 
 - Branch from `main`.
 - Commit messages: describe _why_, not just _what_.
+- Fill out the PR template completely. PRs with an empty template will be closed.
 - Ensure `pnpm typecheck` and `pnpm --silent lint:json` pass before pushing.
 - Run relevant tests.
 

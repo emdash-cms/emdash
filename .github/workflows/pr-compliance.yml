@@ -1,0 +1,74 @@
+name: PR Compliance
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check-pr:
+    name: Validate PR
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR template
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+
+            const errors = [];
+
+            // Must have a description (not just the raw template placeholder)
+            const descriptionSection = body.match(/## What does this PR do\?\s*\n([\s\S]*?)(?=\n## )/);
+            const description = descriptionSection?.[1]?.replace(/<!--[\s\S]*?-->/g, '').trim() || '';
+            if (!description || description === 'Closes #') {
+              errors.push('Fill out the "What does this PR do?" section with a description of your change.');
+            }
+
+            // Must check at least one type
+            const typeChecks = [
+              /- \[x\] Bug fix/i,
+              /- \[x\] Feature/i,
+              /- \[x\] Refactor/i,
+              /- \[x\] Documentation/i,
+              /- \[x\] Performance/i,
+              /- \[x\] Tests/i,
+              /- \[x\] Chore/i,
+            ];
+            const hasType = typeChecks.some(re => re.test(body));
+            if (!hasType) {
+              errors.push('Check at least one "Type of change" checkbox.');
+            }
+
+            // If Feature is checked, require a discussion link
+            const isFeature = /- \[x\] Feature/i.test(body);
+            if (isFeature) {
+              const hasDiscussionLink = /github\.com\/emdash-cms\/emdash\/discussions\/\d+/.test(body);
+              if (!hasDiscussionLink) {
+                errors.push('Feature PRs require a link to an approved Discussion (https://github.com/emdash-cms/emdash/discussions/categories/ideas). Open a Discussion first, get approval, then link it in the PR.');
+              }
+            }
+
+            // Must check the "I have read CONTRIBUTING.md" box
+            const hasReadContributing = /- \[x\] I have read \[CONTRIBUTING\.md\]/i.test(body);
+            if (!hasReadContributing) {
+              errors.push('Check the "I have read CONTRIBUTING.md" checkbox.');
+            }
+
+            if (errors.length > 0) {
+              const message = [
+                '## PR template validation failed',
+                '',
+                'Please fix the following issues by editing your PR description:',
+                '',
+                ...errors.map(e => `- ${e}`),
+                '',
+                'See [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) for the full contribution policy.',
+              ].join('\n');
+
+              core.setFailed(message);
+            }
