@@ -162,6 +162,22 @@ export interface ContentEditorProps {
 	onTranslate?: (locale: string) => void;
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];
+	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+	editorStyles?: Array<{
+		type: "button" | "dropdown";
+		label: string;
+		icon?: string;
+		scope?: "inline" | "block";
+		classes?: string;
+		nodes?: string[];
+		items?: Array<{
+			type?: "separator";
+			label?: string;
+			scope?: "inline" | "block";
+			classes?: string;
+			nodes?: string[];
+		}>;
+	}>;
 	/** Whether this collection has SEO fields enabled */
 	hasSeo?: boolean;
 	/** Callback when SEO fields change */
@@ -214,6 +230,7 @@ export function ContentEditor({
 	translations,
 	onTranslate,
 	pluginBlocks,
+	editorStyles,
 	hasSeo = false,
 	onSeoChange,
 	manifest,
@@ -704,6 +721,7 @@ export function ContentEditor({
 										}
 										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
+										editorStyles={editorStyles}
 										onBlockSidebarOpen={
 											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
 										}
@@ -1037,6 +1055,22 @@ interface FieldRendererProps {
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];
+	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+	editorStyles?: Array<{
+		type: "button" | "dropdown";
+		label: string;
+		icon?: string;
+		scope?: "inline" | "block";
+		classes?: string;
+		nodes?: string[];
+		items?: Array<{
+			type?: "separator";
+			label?: string;
+			scope?: "inline" | "block";
+			classes?: string;
+			nodes?: string[];
+		}>;
+	}>;
 	/** Callback when a block node requests sidebar space */
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
@@ -1056,6 +1090,7 @@ function FieldRenderer({
 	onEditorReady,
 	minimal,
 	pluginBlocks,
+	editorStyles,
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
@@ -1180,6 +1215,7 @@ function FieldRenderer({
 						placeholder={t`Enter ${label.toLowerCase()}...`}
 						aria-labelledby={labelId}
 						pluginBlocks={pluginBlocks}
+						editorStyles={editorStyles}
 						onEditorReady={onEditorReady}
 						minimal={minimal}
 						onBlockSidebarOpen={onBlockSidebarOpen}

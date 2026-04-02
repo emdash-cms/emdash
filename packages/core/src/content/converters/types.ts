@@ -43,6 +43,8 @@ export interface PortableTextTextBlock {
 	level?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
+	/** Custom CSS classes applied at the block level */
+	cssClasses?: string;
 }
 
 /**

@@ -83,7 +83,10 @@ import { createPortal } from "react-dom";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
+import { BlockStyleExtension } from "./editor/BlockStyleExtension";
+import { CssClassMark } from "./editor/CssClassMark";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { EditorStyleToolbar } from "./editor/EditorStyleToolbar";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {
@@ -119,6 +122,7 @@ interface PortableTextTextBlock {
 	level?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
+	cssClasses?: string;
 }
 
 interface PortableTextImageBlock {
@@ -187,6 +191,27 @@ function prosemirrorToPortableText(doc: {
 }
 
 function convertPMNode(node: {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: unknown[];
+	marks?: unknown[];
+	text?: string;
+}): PortableTextBlock | PortableTextBlock[] | null {
+	const result = convertPMNodeInner(node);
+	// Apply cssClasses from any node type — one place, all blocks covered
+	if (!result) return null;
+	const cssClasses = typeof node.attrs?.cssClasses === "string" ? node.attrs.cssClasses : undefined;
+	if (!cssClasses) return result;
+	if (Array.isArray(result)) {
+		if (result.length > 0) {
+			result[0] = { ...result[0], cssClasses } as PortableTextBlock;
+		}
+		return result;
+	}
+	return { ...result, cssClasses } as PortableTextBlock;
+}
+
+function convertPMNodeInner(node: {
 	type: string;
 	attrs?: Record<string, unknown>;
 	content?: unknown[];
@@ -288,12 +313,15 @@ function convertPMNode(node: {
 			};
 		}
 
-		case "horizontalRule":
+		case "horizontalRule": {
+			const hrVariant = typeof node.attrs?.variant === "string" ? node.attrs.variant : undefined;
 			return {
 				_type: "break",
 				_key: generateKey(),
 				style: "lineBreak",
+				...(hrVariant ? { variant: hrVariant } : {}),
 			};
+		}
 
 		case "pluginBlock": {
 			const { blockType, id: pluginId, data } = node.attrs ?? {};
@@ -432,6 +460,22 @@ function convertMark(
 			markDefMap.set(href, key);
 			return key;
 		}
+		case "cssClass": {
+			const classes = (typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "") || "";
+			if (!classes) return null;
+			const dedupeKey = `cssClass:${classes}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
+			}
+			const key = generateKey();
+			markDefs.push({
+				_type: "cssClass",
+				_key: key,
+				classes,
+			});
+			markDefMap.set(dedupeKey, key);
+			return key;
+		}
 		default:
 			return mark.type;
 	}
@@ -499,6 +543,18 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 }
 
 function convertPTBlock(block: PortableTextBlock): unknown {
+	const node = convertPTBlockInner(block);
+	if (!node || typeof node !== "object") return node;
+	const cssClasses =
+		typeof (block as Record<string, unknown>).cssClasses === "string"
+			? (block as Record<string, unknown>).cssClasses
+			: undefined;
+	if (!cssClasses) return node;
+	const n = node as Record<string, unknown>;
+	return { ...n, attrs: { ...(n.attrs as Record<string, unknown> | undefined), cssClasses } };
+}
+
+function convertPTBlockInner(block: PortableTextBlock): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -566,8 +622,16 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 			};
 		}
 
-		case "break":
-			return { type: "horizontalRule" };
+		case "break": {
+			const breakVariant =
+				typeof (block as Record<string, unknown>).variant === "string"
+					? (block as Record<string, unknown>).variant
+					: undefined;
+			return {
+				type: "horizontalRule",
+				attrs: breakVariant ? { variant: breakVariant } : undefined,
+			};
+		}
 
 		default: {
 			// Treat unknown block types as plugin blocks (embeds)
@@ -677,14 +741,23 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 				break;
 			default: {
 				const markDef = markDefs.get(mark);
-				if (markDef && markDef._type === "link") {
-					pmMarks.push({
-						type: "link",
-						attrs: {
-							href: markDef.href,
-							target: markDef.blank ? "_blank" : null,
-						},
-					});
+				if (markDef) {
+					if (markDef._type === "link") {
+						pmMarks.push({
+							type: "link",
+							attrs: {
+								href: markDef.href,
+								target: markDef.blank ? "_blank" : null,
+							},
+						});
+					} else if (markDef._type === "cssClass") {
+						pmMarks.push({
+							type: "cssClass",
+							attrs: {
+								classes: markDef.classes,
+							},
+						});
+					}
 				}
 				break;
 			}
@@ -1683,6 +1756,22 @@ export interface PortableTextEditorProps {
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
 	onBlockSidebarClose?: () => void;
+	/** Editor toolbar styles — plugin-declared buttons and dropdowns for CSS class toggles */
+	editorStyles?: Array<{
+		type: "button" | "dropdown";
+		label: string;
+		icon?: string;
+		scope?: "inline" | "block";
+		classes?: string;
+		nodes?: string[];
+		items?: Array<{
+			type?: "separator";
+			label?: string;
+			scope?: "inline" | "block";
+			classes?: string;
+			nodes?: string[];
+		}>;
+	}>;
 }
 
 /**
@@ -1702,6 +1791,7 @@ export function PortableTextEditor({
 	minimal = false,
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
+	editorStyles = [],
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
 
@@ -1857,6 +1947,8 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CssClassMark,
+			BlockStyleExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2095,7 +2187,12 @@ export function PortableTextEditor({
 			aria-labelledby={ariaLabelledby}
 		>
 			{!minimal && (
-				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
+				<EditorToolbar
+					editor={editor}
+					focusMode={focusMode}
+					onFocusModeChange={setFocusMode}
+					editorStyles={editorStyles}
+				/>
 			)}
 			<EditorBubbleMenu editor={editor} />
 			<div className="relative overflow-visible">
@@ -2325,10 +2422,12 @@ function EditorToolbar({
 	editor,
 	focusMode,
 	onFocusModeChange,
+	editorStyles = [],
 }: {
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
+	editorStyles?: PortableTextEditorProps["editorStyles"];
 }) {
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
@@ -2589,6 +2688,16 @@ function EditorToolbar({
 				</ToolbarButton>
 			</ToolbarGroup>
 
+			{/* Plugin editor styles */}
+			{editorStyles.length > 0 && (
+				<>
+					<ToolbarSeparator />
+					<ToolbarGroup>
+						<EditorStyleToolbar editor={editor} styles={editorStyles} />
+					</ToolbarGroup>
+				</>
+			)}
+
 			<ToolbarSeparator />
 
 			{/* Insert */}
@@ -2684,7 +2793,7 @@ function EditorToolbar({
 
 			<ToolbarSeparator aria-hidden="true" />
 
-			{/* Focus mode */}
+			{/* Focus mode & code mode */}
 			<ToolbarGroup>
 				<ToolbarButton
 					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
