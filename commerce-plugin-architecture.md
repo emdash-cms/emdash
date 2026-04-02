@@ -759,6 +759,11 @@ these events. The same events power the AI agent's observability stream.
 
 ## 11. AI and Agent Integration Strategy
 
+**Implemented contracts in-tree:** `packages/plugins/commerce/AI-EXTENSIBILITY.md`
+summarizes vector/catalog boundaries, the stub `recommendations` route, error-code
+discipline for LLMs, and MCP packaging expectations. `HANDOVER.md` links this
+work to the current execution stage.
+
 This is the primary competitive differentiator against WooCommerce and all
 legacy commerce platforms. AI is not bolted on — it is an **assumed actor** in
 the system design.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { sha256Hex } from "../hash.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -13,6 +14,10 @@ import {
 	receiptToView,
 	webhookReceiptDocId,
 } from "./finalize-payment.js";
+
+/** Raw finalize token matching `FINALIZE_HASH` on test orders. */
+const FINALIZE_RAW = "unit_test_finalize_secret_ok____________";
+const FINALIZE_HASH = sha256Hex(FINALIZE_RAW);
 
 type MemQueryOptions = {
 	where?: Record<string, string | number | boolean | null>;
@@ -78,6 +83,7 @@ function baseOrder(overrides: Partial<StoredOrder> = {}): StoredOrder {
 			},
 		],
 		totalMinor: 1000,
+		finalizeTokenHash: FINALIZE_HASH,
 		createdAt: now,
 		updatedAt: now,
 		...overrides,
@@ -125,6 +131,7 @@ describe("finalizePaymentFromWebhook", () => {
 			providerId: "stripe",
 			externalEventId: ext,
 			correlationId: "cid-1",
+			finalizeToken: FINALIZE_RAW,
 			nowIso: now,
 		});
 
@@ -150,13 +157,121 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(pa?.status).toBe("succeeded");
 	});
 
+	it("merges duplicate SKU lines into one inventory movement", async () => {
+		const orderId = "order_merge";
+		const stockId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [
+							{
+								productId: "p1",
+								quantity: 1,
+								inventoryVersion: 3,
+								unitPriceMinor: 500,
+							},
+							{
+								productId: "p1",
+								quantity: 1,
+								inventoryVersion: 3,
+								unitPriceMinor: 500,
+							},
+						],
+						totalMinor: 1000,
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					stockId,
+					{
+						productId: "p1",
+						variantId: "",
+						version: 3,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+
+		const ports = portsFromState(state);
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: "evt_merge_lines",
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res.kind).toBe("completed");
+		const ledger = await ports.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+		expect(ledger.items[0]!.data.delta).toBe(-2);
+		const stock = await ports.inventoryStock.get(stockId);
+		expect(stock?.quantity).toBe(8);
+	});
+
+	it("rejects finalize when token is missing but order requires one", async () => {
+		const orderId = "order_1";
+		const state = {
+			orders: new Map([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+
+		const res = await finalizePaymentFromWebhook(portsFromState(state), {
+			orderId,
+			providerId: "stripe",
+			externalEventId: "evt_no_tok",
+			correlationId: "cid",
+			nowIso: now,
+		});
+
+		expect(res).toMatchObject({
+			kind: "api_error",
+			error: { code: "WEBHOOK_SIGNATURE_INVALID" },
+		});
+	});
+
+	it("rejects finalize when token does not match", async () => {
+		const orderId = "order_1";
+		const state = {
+			orders: new Map([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+
+		const res = await finalizePaymentFromWebhook(portsFromState(state), {
+			orderId,
+			providerId: "stripe",
+			externalEventId: "evt_bad_tok",
+			correlationId: "cid",
+			finalizeToken: "wrong_token___________________________",
+			nowIso: now,
+		});
+
+		expect(res).toMatchObject({
+			kind: "api_error",
+			error: { code: "WEBHOOK_SIGNATURE_INVALID" },
+		});
+	});
+
 	it("duplicate externalEventId replay returns replay (200-class semantics)", async () => {
 		const orderId = "order_1";
 		const ext = "evt_dup";
 		const rid = webhookReceiptDocId("stripe", ext);
 		const state = {
-			// Order still `payment_pending` exercises the receipt-processed branch first
-			// (`order_already_paid` is checked before receipt state in the kernel).
 			orders: new Map([[orderId, baseOrder()]]),
 			webhookReceipts: new Map<string, StoredWebhookReceipt>([
 				[
@@ -276,6 +391,7 @@ describe("finalizePaymentFromWebhook", () => {
 			providerId: "stripe",
 			externalEventId: ext,
 			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
 			nowIso: now,
 		});
 
@@ -288,6 +404,46 @@ describe("finalizePaymentFromWebhook", () => {
 		const rid = webhookReceiptDocId("stripe", ext);
 		const rec = await ports.webhookReceipts.get(rid);
 		expect(rec?.status).toBe("error");
+	});
+
+	it("legacy orders without finalizeTokenHash still finalize when token omitted", async () => {
+		const orderId = "order_legacy";
+		const stockId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						finalizeTokenHash: undefined,
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					stockId,
+					{
+						productId: "p1",
+						variantId: "",
+						version: 3,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+
+		const res = await finalizePaymentFromWebhook(portsFromState(state), {
+			orderId,
+			providerId: "stripe",
+			externalEventId: "evt_legacy_ok",
+			correlationId: "cid",
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "completed", orderId });
 	});
 
 	it("receiptToView maps storage rows for the kernel", () => {

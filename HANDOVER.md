@@ -40,15 +40,23 @@ The architecture has been documented in depth in `commerce-plugin-architecture.m
 
 Several review rounds have already happened and the important feedback has been integrated. `emdash-commerce-final-review-plan.md` tightened the project around a **small, correctness-first kernel** and a **single real payment slice** before broader scope. `emdash-commerce-deep-evaluation.md` added useful pressure on architecture-to-code consistency and feature-fit, especially around bundle complexity and variant swatches. Historical context is preserved in `high-level-plan.md`, `3rdpary_review.md`, `3rdpary_review_2.md`, and the latest external-review summary `3rdpary_review_3.md`.
 
-There is now an initial `packages/plugins/commerce` package in-tree. It is **not** a working plugin yet. It is a small kernel scaffold with pure helpers and tests:
+There is now a `packages/plugins/commerce` package with a **stage-1 vertical slice**:
+storage-backed checkout, Stripe-shaped webhook finalize orchestration, kernel tests,
+and plugin wiring (`createPlugin()` / `definePlugin`). See package `src/` for handlers,
+orchestration, and schemas.
 
-- `src/kernel/finalize-decision.ts` + test
-- `src/kernel/errors.ts`
-- `src/kernel/limits.ts`
-- `src/kernel/idempotency-key.ts` + test
-- `src/kernel/provider-policy.ts`
-- `src/kernel/rate-limit-window.ts` + test
-- `src/kernel/api-errors.ts` + test
+Kernel and shared helpers still live under `src/kernel/` (`finalize-decision`, errors,
+limits, idempotency, rate-limit window, `api-errors`, etc.).
+
+**AI / vector / MCP readiness** (contracts and stub route, not a full MCP server):
+
+- `packages/plugins/commerce/AI-EXTENSIBILITY.md` — operational rules: embeddings on
+  catalog, stable IDs on line items, read-only recommendations, planned
+  `@emdash-cms/plugin-commerce-mcp`.
+- `src/catalog-extensibility.ts` — `CommerceCatalogProductSearchFields` and reserved
+  extension hook name constants.
+- `recommendations` route — public POST stub (`strategy: "stub"`) for future vector or
+  external recommender integration; must not mutate carts or orders.
 
 Tests were run successfully from `packages/plugins/commerce` using:
 
@@ -61,7 +69,11 @@ The repository also contains `commerce-vs-x402-merchants.md`, which is a one-pag
 
 ## Failures, open issues, and lessons learned
 
-The biggest current reality: **the architecture is ahead of the code**. The project has a strong design and a small tested kernel scaffold, but it does **not** yet have plugin wiring, storage adapters, checkout routes, Stripe integration, admin pages, or a working storefront checkout flow. Treat the current codebase as **pre-vertical-slice**.
+The architecture still runs ahead of **storefront UI, Stripe live wiring, and MCP**.
+The commerce package **does** include plugin wiring, storage config, `checkout` and
+`webhooks/stripe` routes, and finalize orchestration with tests. Treat anything beyond
+that slice (bundles, shipping, rich admin, **commerce MCP tools**) as **future work**
+unless explicitly scoped.
 
 Resolved / encoded in code:
 
@@ -82,7 +94,7 @@ The next technical risk is not UI. It is the **storage mutation choreography**: 
 - idempotent finalize completion
 - `payment_conflict` handling
 
-Lesson learned from external reviews: do **not** broaden scope until the first Stripe flow survives duplicate webhooks, stale carts, and inventory-change conflicts. Do **not** introduce broad provider ecosystems, bundle complexity, MCP surfaces, or rich UI faster than the finalization path and tests.
+Lesson learned from external reviews: do **not** broaden scope until the first Stripe flow survives duplicate webhooks, stale carts, and inventory-change conflicts. **MCP and LLM surfaces** may add **read-only contracts and documentation** early (see `AI-EXTENSIBILITY.md`); avoid **mutating** or **shortcutting** finalize/checkout via agents until the core path is proven.
 
 ## Files changed, key insights, and gotchas
 
@@ -165,7 +177,7 @@ Build the first **real** vertical slice in this order:
 - Finalization is blocked by explicit receipt/order state checks and emits canonical API error payloads.
 - Tests cover duplicate, pending, and failed receipt pathways.
 
-Do not expand to bundles, shipping/tax, advanced storefront UI, or MCP/AI operations until that slice is correct and repeatable.
+Do not expand to bundles, shipping/tax, or advanced storefront UI until that slice is correct and repeatable. **Read-only AI contracts** (stub `recommendations`, catalog embedding boundaries) are documented in `AI-EXTENSIBILITY.md`; **agent-driven mutations** and a full **commerce MCP** package remain out of scope until finalize replay safety is production-grade.
 
 ## Quality constraints for next developer
 

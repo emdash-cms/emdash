@@ -5,6 +5,12 @@
  * finalize inventory + order → mark receipt `processed`.
  *
  * `decidePaymentFinalize` interprets the read model only; this module performs writes.
+ *
+ * **Concurrency:** Plugin storage has no multi-document transactions and `put` upserts on id
+ * only. Two concurrent deliveries of the *same* gateway event can still double-apply
+ * inventory until the platform exposes insert-if-not-exists or conditional writes. Receipt
+ * + `finalizeTokenHash` reduce *cross-order* abuse; duplicate concurrent same-event remains
+ * a documented residual risk.
  */
 
 import { ulid } from "ulidx";
@@ -14,13 +20,15 @@ import {
 	decidePaymentFinalize,
 	type WebhookReceiptView,
 } from "../kernel/finalize-decision.js";
-import { sha256Hex } from "../hash.js";
+import { equalSha256HexDigest, sha256Hex } from "../hash.js";
+import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
 	StoredOrder,
 	StoredPaymentAttempt,
 	StoredWebhookReceipt,
+	OrderLineItem,
 } from "../types.js";
 import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
 
@@ -28,6 +36,11 @@ type FinalizeQueryPage<T> = {
 	items: Array<{ id: string; data: T }>;
 	hasMore: boolean;
 	cursor?: string;
+};
+
+export type FinalizeLogPort = {
+	info(message: string, data?: unknown): void;
+	warn(message: string, data?: unknown): void;
 };
 
 /** Narrow storage surface for tests and `ctx.storage` (structural match). */
@@ -46,6 +59,7 @@ export type FinalizePaymentPorts = {
 	paymentAttempts: FinalizePaymentAttemptCollection;
 	inventoryLedger: FinalizeCollection<StoredInventoryLedgerEntry>;
 	inventoryStock: FinalizeCollection<StoredInventoryStock>;
+	log?: FinalizeLogPort;
 };
 
 export type FinalizeWebhookInput = {
@@ -53,6 +67,8 @@ export type FinalizeWebhookInput = {
 	providerId: string;
 	externalEventId: string;
 	correlationId: string;
+	/** Required when `StoredOrder.finalizeTokenHash` is set. */
+	finalizeToken?: string;
 	/** Inject clock in tests. */
 	nowIso?: string;
 };
@@ -117,13 +133,46 @@ function noopConflictMessage(reason: string): string {
 	}
 }
 
+function verifyFinalizeToken(order: StoredOrder, token: string | undefined): FinalizeWebhookResult | null {
+	const expected = order.finalizeTokenHash;
+	if (!expected) return null;
+	if (!token) {
+		return {
+			kind: "api_error",
+			error: {
+				code: "WEBHOOK_SIGNATURE_INVALID",
+				message: "finalizeToken is required to finalize this order",
+			},
+		};
+	}
+	const digest = sha256Hex(token);
+	if (!equalSha256HexDigest(digest, expected)) {
+		return {
+			kind: "api_error",
+			error: {
+				code: "WEBHOOK_SIGNATURE_INVALID",
+				message: "Invalid finalize token for this order",
+			},
+		};
+	}
+	return null;
+}
+
 async function applyInventoryForOrder(
 	ports: FinalizePaymentPorts,
 	order: StoredOrder,
 	orderId: string,
 	nowIso: string,
 ): Promise<void> {
-	for (const line of order.lineItems) {
+	let merged: OrderLineItem[];
+	try {
+		merged = mergeLineItemsBySku(order.lineItems);
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
+	}
+
+	for (const line of merged) {
 		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
 		const stock = await ports.inventoryStock.get(stockId);
 		if (!stock) {
@@ -146,16 +195,6 @@ async function applyInventoryForOrder(
 				"Not enough stock to finalize order",
 				{ productId: line.productId, requested: line.quantity, available: stock.quantity },
 			);
-		}
-	}
-
-	for (const line of order.lineItems) {
-		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
-		const stock = await ports.inventoryStock.get(stockId);
-		if (!stock) {
-			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", "Inventory disappeared during finalize", {
-				productId: line.productId,
-			});
 		}
 
 		const ledgerId = ulid();
@@ -227,7 +266,18 @@ export async function finalizePaymentFromWebhook(
 	});
 
 	if (decision.action === "noop") {
+		ports.log?.info("commerce.finalize.noop", {
+			orderId: input.orderId,
+			externalEventId: input.externalEventId,
+			reason: decision.reason,
+		});
 		return noopToResult(decision, input.orderId);
+	}
+
+	const tokenErr = verifyFinalizeToken(order, input.finalizeToken);
+	if (tokenErr) {
+		ports.log?.warn("commerce.finalize.token_rejected", { orderId: input.orderId });
+		return tokenErr;
 	}
 
 	const pendingReceipt: StoredWebhookReceipt = {
@@ -288,6 +338,11 @@ export async function finalizePaymentFromWebhook(
 				err.code === "PRODUCT_UNAVAILABLE" || err.code === "INSUFFICIENT_STOCK"
 					? "PAYMENT_CONFLICT"
 					: err.code;
+			ports.log?.warn("commerce.finalize.inventory_failed", {
+				orderId: input.orderId,
+				code: apiCode,
+				details: err.details,
+			});
 			return {
 				kind: "api_error",
 				error: {
@@ -314,6 +369,12 @@ export async function finalizePaymentFromWebhook(
 	});
 
 	await markPaymentAttemptSucceeded(ports, input.orderId, input.providerId, nowIso);
+
+	ports.log?.info("commerce.finalize.completed", {
+		orderId: input.orderId,
+		externalEventId: input.externalEventId,
+		correlationId: input.correlationId,
+	});
 
 	return { kind: "completed", orderId: input.orderId };
 }

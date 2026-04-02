@@ -8,6 +8,10 @@ import type { OrderPaymentPhase } from "./kernel/finalize-decision.js";
 export type { OrderPaymentPhase };
 
 export interface CartLineItem {
+	/**
+	 * Stable catalog reference. Human-readable titles and `shortDescription` for
+	 * embeddings live on the product document, not on this row.
+	 */
 	productId: string;
 	/** Empty string when the catalog does not use variants. */
 	variantId?: string;
@@ -24,6 +28,7 @@ export interface StoredCart {
 }
 
 export interface OrderLineItem {
+	/** Catalog id; avoid duplicating canonical product copy on the order snapshot. */
 	productId: string;
 	variantId?: string;
 	quantity: number;
@@ -37,6 +42,11 @@ export interface StoredOrder {
 	currency: string;
 	lineItems: OrderLineItem[];
 	totalMinor: number;
+	/**
+	 * Present for orders created after checkout hardening. Webhook finalize must present
+	 * the matching raw token (e.g. copied from PaymentIntent metadata) or verification fails.
+	 */
+	finalizeTokenHash?: string;
 	createdAt: string;
 	updatedAt: string;
 }

@@ -6,8 +6,14 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
-import { sha256Hex } from "../hash.js";
+import { randomFinalizeTokenHex, sha256Hex } from "../hash.js";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
+import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
+import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import { requirePost } from "../lib/require-post.js";
+import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutInput } from "../schemas.js";
@@ -27,6 +33,11 @@ function asCollection<T>(raw: unknown): StorageCollection<T> {
 }
 
 export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
+	requirePost(ctx);
+
+	const nowMs = Date.now();
+	const nowIso = new Date(nowMs).toISOString();
+
 	const headerKey = ctx.request.headers.get("Idempotency-Key")?.trim();
 	const bodyKey = ctx.input.idempotencyKey?.trim();
 	const idempotencyKey = bodyKey ?? headerKey;
@@ -37,13 +48,20 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		);
 	}
 
-	const keyHash = sha256Hex(`${CHECKOUT_ROUTE}|${ctx.input.cartId}|${idempotencyKey}`);
-	const idempotencyDocId = `idemp:${keyHash}`;
-
-	const idempotencyKeys = asCollection<StoredIdempotencyKey>(ctx.storage.idempotencyKeys);
-	const cached = await idempotencyKeys.get(idempotencyDocId);
-	if (cached) {
-		return cached.responseBody;
+	const ip = ctx.requestMeta.ip ?? "unknown";
+	const ipHash = sha256Hex(ip).slice(0, 32);
+	const allowed = await consumeKvRateLimit({
+		kv: ctx.kv,
+		keySuffix: `checkout:ip:${ipHash}`,
+		limit: COMMERCE_LIMITS.defaultCheckoutPerIpPerWindow,
+		windowMs: COMMERCE_LIMITS.defaultRateWindowMs,
+		nowMs,
+	});
+	if (!allowed) {
+		throwCommerceApiError({
+			code: "RATE_LIMITED",
+			message: "Too many checkout attempts; try again shortly",
+		});
 	}
 
 	const carts = asCollection<StoredCart>(ctx.storage.carts);
@@ -53,6 +71,31 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	}
 	if (cart.lineItems.length === 0) {
 		throwCommerceApiError({ code: "CART_EMPTY", message: "Cart has no line items" });
+	}
+	if (cart.lineItems.length > COMMERCE_LIMITS.maxCartLineItems) {
+		throwCommerceApiError({
+			code: "PAYLOAD_TOO_LARGE",
+			message: `Cart exceeds maximum of ${COMMERCE_LIMITS.maxCartLineItems} line items`,
+		});
+	}
+	for (const line of cart.lineItems) {
+		if (line.quantity < 1 || line.quantity > COMMERCE_LIMITS.maxLineItemQty) {
+			throw PluginRouteError.badRequest(
+				`Line item quantity must be between 1 and ${COMMERCE_LIMITS.maxLineItemQty}`,
+			);
+		}
+	}
+
+	const fingerprint = cartContentFingerprint(cart.lineItems);
+	const keyHash = sha256Hex(
+		`${CHECKOUT_ROUTE}|${ctx.input.cartId}|${cart.updatedAt}|${fingerprint}|${idempotencyKey}`,
+	);
+	const idempotencyDocId = `idemp:${keyHash}`;
+
+	const idempotencyKeys = asCollection<StoredIdempotencyKey>(ctx.storage.idempotencyKeys);
+	const cached = await idempotencyKeys.get(idempotencyDocId);
+	if (cached && isIdempotencyRecordFresh(cached.createdAt, nowMs)) {
+		return cached.responseBody;
 	}
 
 	const inventoryStock = asCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
@@ -73,17 +116,28 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		}
 	}
 
-	const orderLineItems: OrderLineItem[] = cart.lineItems.map((l) => ({
-		productId: l.productId,
-		variantId: l.variantId,
-		quantity: l.quantity,
-		inventoryVersion: l.inventoryVersion,
-		unitPriceMinor: l.unitPriceMinor,
-	}));
+	let orderLineItems: OrderLineItem[];
+	try {
+		orderLineItems = mergeLineItemsBySku(
+			cart.lineItems.map((l) => ({
+				productId: l.productId,
+				variantId: l.variantId,
+				quantity: l.quantity,
+				inventoryVersion: l.inventoryVersion,
+				unitPriceMinor: l.unitPriceMinor,
+			})),
+		);
+	} catch {
+		throw PluginRouteError.badRequest(
+			"Cart has duplicate SKUs with conflicting price or inventory version snapshots",
+		);
+	}
 
 	const totalMinor = orderLineItems.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
-	const now = new Date().toISOString();
 	const orderId = ulid();
+
+	const finalizeToken = randomFinalizeTokenHex();
+	const finalizeTokenHash = sha256Hex(finalizeToken);
 
 	const order: StoredOrder = {
 		cartId: ctx.input.cartId,
@@ -91,8 +145,9 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		currency: cart.currency,
 		lineItems: orderLineItems,
 		totalMinor,
-		createdAt: now,
-		updatedAt: now,
+		finalizeTokenHash,
+		createdAt: nowIso,
+		updatedAt: nowIso,
 	};
 
 	const paymentAttemptId = ulid();
@@ -100,12 +155,18 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		orderId,
 		providerId: "stripe",
 		status: "pending",
-		createdAt: now,
-		updatedAt: now,
+		createdAt: nowIso,
+		updatedAt: nowIso,
 	};
 
-	await asCollection<StoredOrder>(ctx.storage.orders).put(orderId, order);
-	await asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts).put(paymentAttemptId, attempt);
+	const orders = asCollection<StoredOrder>(ctx.storage.orders);
+	const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
+	await orders.putMany([
+		{ id: orderId, data: order },
+	]);
+	await attempts.putMany([
+		{ id: paymentAttemptId, data: attempt },
+	]);
 
 	const responseBody = {
 		orderId,
@@ -113,6 +174,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		paymentAttemptId,
 		totalMinor,
 		currency: cart.currency,
+		finalizeToken,
 	};
 
 	await idempotencyKeys.put(idempotencyDocId, {
@@ -120,7 +182,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		keyHash,
 		httpStatus: 200,
 		responseBody,
-		createdAt: now,
+		createdAt: nowIso,
 	});
 
 	return responseBody;
