@@ -6,6 +6,27 @@ This repository is an EmDash-based effort to design and build a **native commerc
 
 The commerce design assumes EmDash’s actual platform constraints: native plugins are required for rich React admin, Astro storefront components, and Portable Text blocks; standard/sandboxed plugins remain the right shape for narrower third-party providers. The architecture is intentionally **kernel-first** and **correctness-first**. The active design decision is to prefer **payment-first inventory finalization** and one **authoritative finalize path** rather than WooCommerce-style stock reservation in cart/session.
 
+## New developer onboarding (start here)
+
+If you are new to this repository, start with this sequence:
+
+1. Read `commerce-plugin-architecture.md` first (authoritative design document).
+2. Read this handover (`HANDOVER.md`) next.
+3. Read in this order:
+   - `3rdpary_review_3.md`
+   - `emdash-commerce-final-review-plan.md`
+   - `emdash-commerce-deep-evaluation.md`
+4. Review kernel entry points in `packages/plugins/commerce/src/kernel`.
+5. Before coding, align on next-step milestone and do not add scope.
+
+## Onboarding mindset
+
+Goal for the next engineer is not completeness, it is a repeatable, correct Stripe slice:
+
+- storage-backed idempotent finalize orchestration first,
+- webhook replay/conflict correctness before extra features,
+- route contracts before integrations.
+
 ## Completed work and outcomes
 
 The architecture has been documented in depth in `commerce-plugin-architecture.md`. That document is now the **authoritative blueprint**. It includes the plugin model, product/cart/order data model, provider execution model, phased plan, state machines, storage schema, error catalog, cart merge rules, observability requirements, robustness/scalability rules, and platform-alignment notes for EmDash and Cloudflare Workers.
@@ -20,6 +41,7 @@ There is now an initial `packages/plugins/commerce` package in-tree. It is **not
 - `src/kernel/idempotency-key.ts` + test
 - `src/kernel/provider-policy.ts`
 - `src/kernel/rate-limit-window.ts` + test
+- `src/kernel/api-errors.ts` + test
 
 Tests were run successfully from `packages/plugins/commerce` using:
 
@@ -36,8 +58,10 @@ The biggest current reality: **the architecture is ahead of the code**. The proj
 
 Resolved / encoded in code:
 
-1. **Internal vs wire error codes:** Kernel uses **UPPER_SNAKE** keys on `COMMERCE_ERRORS`. Public APIs must emit **snake_case** via `COMMERCE_ERROR_WIRE_CODES` / `commerceErrorCodeToWire()` in `packages/plugins/commerce/src/kernel/errors.ts`. Route handlers own serialization; do not leak internal keys over HTTP.
-2. **Rate limit semantics:** The helper is **fixed-window**; docs and tests match. If sliding-window is required later, change the implementation deliberately.
+1. **Internal vs wire error codes:** Kernel uses **UPPER_SNAKE** keys on `COMMERCE_ERRORS`. Public APIs must emit **snake_case** via `COMMERCE_ERROR_WIRE_CODES` / `commerceErrorCodeToWire()` in `packages/plugins/commerce/src/kernel/errors.ts`. Route handlers own serialization and should use `toCommerceApiError()` from `packages/plugins/commerce/src/kernel/api-errors.ts`.
+2. **Route-level API contract:** The API payload contract is centralized in `src/kernel/api-errors.ts`; it returns wire-safe codes and includes retry metadata from canonical metadata.
+3. **Rate limit semantics:** The helper is **fixed-window**; docs and tests match. If sliding-window is required later, change the implementation deliberately.
+4. **Rate-limit guardrail:** Invalid limiter inputs now fail closed (`allowed: false`) instead of silently disabling protection.
 
 Third-party review (2026): next high-value work is **storage-backed orchestration** (orders, payment attempts, webhook receipts with uniqueness, inventory version/ledger, idempotent finalize, Stripe webhook integration tests)—not further kernel-only polish unless it unblocks that slice.
 
@@ -107,11 +131,28 @@ The main gotchas to avoid:
 
 Build the first **real** vertical slice in this order:
 
-1. storage-backed order/cart/payment persistence
-2. Stripe provider adapter
-3. checkout route + webhook route
-4. `finalizePayment` orchestration
-5. replay/conflict tests
-6. minimal admin order visibility
+1. Add explicit storage schema and transactional persistence for:
+   - `orders`
+   - `cart` state
+   - `payment_attempts`
+   - `webhook_receipts` (unique constraint strategy)
+   - `idempotency_keys`
+   - `inventory_ledger`
+2. Add `checkout` route and webhook route with a shared contract adapter (`toCommerceApiError()`).
+3. Implement idempotent finalize orchestration, including receipt replay detection.
+4. Add replay/conflict tests that prove:
+   - duplicate webhook handling is deterministic,
+   - stale/invalid states return structured NOOP/RETRY outcomes,
+   - no inventory mutation occurs when finalization is denied.
+5. Implement Stripe adapter and wire it into finalize orchestration.
+6. Ship minimal admin order visibility only after slice repeatability and replay safety are proven.
 
 Do not expand to bundles, shipping/tax, advanced storefront UI, or MCP/AI operations until that slice is correct and repeatable.
+
+## Quality constraints for next developer
+
+- Keep kernel pure and effect-free; routing and persistence belong in orchestration layers.
+- Use `toCommerceApiError()` for every public error payload in route handlers.
+- Preserve explicit state transitions; avoid broad enums for unresolved future use cases.
+- Do not weaken `decidePaymentFinalize()` behavior without adding tests.
+- Treat config as untrusted input in rate-limit/idempotency boundaries and fail safely.

@@ -41,4 +41,26 @@ describe("nextRateLimitState", () => {
 		expect(second.allowed).toBe(true);
 		expect(second.bucket).toEqual({ count: 1, windowStartMs: windowMs });
 	});
+
+	it("blocks when window config is invalid", () => {
+		const denied = nextRateLimitState(
+			{ count: 1, windowStartMs: 1_000 },
+			2_000,
+			0,
+			windowMs,
+		);
+		expect(denied.allowed).toBe(false);
+		expect(denied.bucket).toEqual({ count: 1, windowStartMs: 1_000 });
+	});
+
+	it("blocks when window size config is invalid", () => {
+		const denied = nextRateLimitState(
+			{ count: 1, windowStartMs: 1_000 },
+			2_000,
+			2,
+			-1,
+		);
+		expect(denied.allowed).toBe(false);
+		expect(denied.bucket).toEqual({ count: 1, windowStartMs: 1_000 });
+	});
 });

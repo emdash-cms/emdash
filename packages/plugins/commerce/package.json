@@ -6,6 +6,7 @@
 	"private": true,
 	"exports": {
 		"./kernel/errors": "./src/kernel/errors.ts",
+		"./kernel/api-errors": "./src/kernel/api-errors.ts",
 		"./kernel/finalize-decision": "./src/kernel/finalize-decision.ts",
 		"./kernel/limits": "./src/kernel/limits.ts",
 		"./kernel/idempotency-key": "./src/kernel/idempotency-key.ts",
