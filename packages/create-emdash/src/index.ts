@@ -7,7 +7,7 @@
  */
 
 import { exec } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -18,6 +18,9 @@ import { downloadTemplate } from "giget";
 import pc from "picocolors";
 
 const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
+const NEWLINE_REGEX = /\r?\n/;
+const SQLITE_IMPORT_REGEX = /import\s+\{\s*sqlite\s*\}\s+from\s+"emdash\/db";/;
+const SQLITE_DATABASE_CONFIG_REGEX = /database:\s*sqlite\(\{[^}]*\}\),/m;
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -32,7 +35,9 @@ function detectPackageManager(): PackageManager {
 	return "npm";
 }
 
-type Platform = "node" | "cloudflare";
+type Platform = "node" | "bun" | "cloudflare";
+type RuntimeDatabase = "sqlite" | "postgres" | "mongodb";
+type DatabaseChoice = RuntimeDatabase | "d1";
 
 interface TemplateConfig {
 	name: string;
@@ -108,7 +113,7 @@ function selectOptions<K extends string>(
 }
 
 async function selectTemplate(platform: Platform): Promise<TemplateConfig> {
-	if (platform === "node") {
+	if (platform === "node" || platform === "bun") {
 		const key = await p.select<NodeTemplate>({
 			message: "Which template?",
 			options: selectOptions(NODE_TEMPLATES),
@@ -130,6 +135,105 @@ async function selectTemplate(platform: Platform): Promise<TemplateConfig> {
 		process.exit(0);
 	}
 	return CLOUDFLARE_TEMPLATES[key];
+}
+
+function ensureEnvVar(projectDir: string, name: string, value: string): void {
+	const envPath = resolve(projectDir, ".env.example");
+	const nextLine = `${name}=${value}`;
+
+	if (!existsSync(envPath)) {
+		writeFileSync(envPath, `${nextLine}\n`);
+		return;
+	}
+
+	const current = readFileSync(envPath, "utf-8");
+	const lines = current.split(NEWLINE_REGEX);
+	if (lines.some((line) => line.startsWith(`${name}=`))) return;
+
+	const suffix = current.endsWith("\n") ? "" : "\n";
+	writeFileSync(envPath, `${current}${suffix}${nextLine}\n`);
+}
+
+function normalizeStringMap(value: unknown): Record<string, string> {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+	const output: Record<string, string> = {};
+	for (const [key, entry] of Object.entries(value)) {
+		if (typeof entry === "string") output[key] = entry;
+	}
+	return output;
+}
+
+function normalizePackageJson(value: unknown): Record<string, unknown> {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+	const pkg: Record<string, unknown> = { ...value };
+	pkg.dependencies = normalizeStringMap(Reflect.get(pkg, "dependencies"));
+	pkg.scripts = normalizeStringMap(Reflect.get(pkg, "scripts"));
+	return pkg;
+}
+
+function configureDatabase(projectDir: string, database: DatabaseChoice): string[] {
+	if (database === "d1" || database === "sqlite") return [];
+
+	const notes: string[] = [];
+	const pkgPath = resolve(projectDir, "package.json");
+	const pkg = normalizePackageJson(JSON.parse(readFileSync(pkgPath, "utf-8")));
+	const dependencies = normalizeStringMap(Reflect.get(pkg, "dependencies"));
+	pkg.dependencies = dependencies;
+
+	if (database === "postgres") {
+		const astroConfigPath = resolve(projectDir, "astro.config.mjs");
+		if (existsSync(astroConfigPath)) {
+			let astroConfig = readFileSync(astroConfigPath, "utf-8");
+			astroConfig = astroConfig.replace(SQLITE_IMPORT_REGEX, 'import { postgres } from "emdash/db";');
+			astroConfig = astroConfig.replace(
+				SQLITE_DATABASE_CONFIG_REGEX,
+				"database: postgres({\n\t\t\t\tconnectionString: process.env.DATABASE_URL,\n\t\t\t}),",
+			);
+			writeFileSync(astroConfigPath, astroConfig);
+		}
+
+		dependencies.pg = dependencies.pg ?? "^8.16.0";
+		delete dependencies["better-sqlite3"];
+		ensureEnvVar(projectDir, "DATABASE_URL", "postgres://user:password@localhost:5432/emdash");
+		notes.push("Database: PostgreSQL configured (set DATABASE_URL in .env)");
+	}
+
+	if (database === "mongodb") {
+		dependencies.mongodb = dependencies.mongodb ?? "^6.18.0";
+		ensureEnvVar(projectDir, "MONGODB_URL", "mongodb://localhost:27017/emdash");
+
+		const libDir = resolve(projectDir, "src", "lib");
+		mkdirSync(libDir, { recursive: true });
+		const mongoHelperPath = resolve(libDir, "mongodb.ts");
+		if (!existsSync(mongoHelperPath)) {
+			writeFileSync(
+				mongoHelperPath,
+				`import { MongoClient } from "mongodb";
+
+let client: MongoClient | null = null;
+
+export async function getMongoClient(): Promise<MongoClient> {
+	if (client) return client;
+
+	const url = process.env.MONGODB_URL;
+	if (!url) {
+		throw new Error("MONGODB_URL is not set");
+	}
+
+	client = new MongoClient(url);
+	await client.connect();
+	return client;
+}
+`,
+			);
+		}
+
+		notes.push("MongoDB helper added at src/lib/mongodb.ts for custom app data");
+		notes.push("EmDash core content storage remains SQL-based (SQLite by default)");
+	}
+
+	writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+	return notes;
 }
 
 async function main() {
@@ -183,6 +287,11 @@ async function main() {
 				label: "Node.js",
 				hint: "SQLite + local file storage",
 			},
+			{
+				value: "bun",
+				label: "Bun Runtime",
+				hint: "Node adapter running on Bun",
+			},
 		],
 		initialValue: "cloudflare",
 	});
@@ -195,7 +304,42 @@ async function main() {
 	// Step 2: pick template
 	const templateConfig = await selectTemplate(platform);
 
-	// Step 3: pick package manager
+	// Step 3: pick database
+	const database: DatabaseChoice =
+		platform === "cloudflare"
+			? "d1"
+			: await (async () => {
+				const selected = await p.select<RuntimeDatabase>({
+					message: "Which database setup?",
+					options: [
+						{
+							value: "sqlite",
+							label: "SQLite",
+							hint: "Simplest local setup",
+						},
+						{
+							value: "postgres",
+							label: "PostgreSQL",
+							hint: "Production relational database",
+						},
+						{
+							value: "mongodb",
+							label: "MongoDB (companion)",
+							hint: "Adds MongoDB helper for custom app data",
+						},
+					],
+					initialValue: "sqlite",
+				});
+
+				if (p.isCancel(selected)) {
+					p.cancel("Operation cancelled.");
+					process.exit(0);
+				}
+
+				return selected;
+			})();
+
+	// Step 4: pick package manager
 	const detectedPm = detectPackageManager();
 	const pm = await p.select<PackageManager>({
 		message: "Which package manager?",
@@ -205,7 +349,7 @@ async function main() {
 			{ value: "yarn", label: "yarn" },
 			{ value: "bun", label: "bun" },
 		],
-		initialValue: detectedPm,
+		initialValue: platform === "bun" ? "bun" : detectedPm,
 	});
 
 	if (p.isCancel(pm)) {
@@ -213,7 +357,7 @@ async function main() {
 		process.exit(0);
 	}
 
-	// Step 4: install dependencies?
+	// Step 5: install dependencies?
 	const shouldInstall = await p.confirm({
 		message: "Install dependencies?",
 		initialValue: true,
@@ -225,7 +369,11 @@ async function main() {
 	}
 
 	const installCmd = `${pm} install`;
-	const runCmd = (script: string) => (pm === "npm" ? `npm run ${script}` : `${pm} ${script}`);
+	const runCmd = (script: string) => {
+		if (pm === "npm") return `npm run ${script}`;
+		if (pm === "bun") return `bun run ${script}`;
+		return `${pm} ${script}`;
+	};
 
 	const s = p.spinner();
 	s.start("Creating project...");
@@ -238,9 +386,17 @@ async function main() {
 
 		// Set project name in package.json
 		const pkgPath = resolve(projectDir, "package.json");
+		let configNotes: string[] = [];
 		if (existsSync(pkgPath)) {
 			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 			pkg.name = projectName;
+
+			if (platform === "bun") {
+				pkg.scripts = pkg.scripts || {};
+				if (!pkg.scripts["start:bun"]) {
+					pkg.scripts["start:bun"] = "bun ./dist/server/entry.mjs";
+				}
+			}
 
 			// Add emdash config if template has seed data
 			const seedPath = resolve(projectDir, "seed", "seed.json");
@@ -252,6 +408,15 @@ async function main() {
 			}
 
 			writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+			configNotes = configureDatabase(projectDir, database);
+
+			if (platform === "bun") {
+				configNotes.push("Runtime: Bun selected (use bun run dev / bun run build)");
+			}
+
+			if (configNotes.length > 0) {
+				p.note(configNotes.join("\n"), "Configuration");
+			}
 		}
 
 		s.stop("Project created!");
