@@ -28,6 +28,11 @@
 			"zone_name": "emdashcms.com",
 			"custom_domain": true,
 		},
+		{
+			"pattern": "www.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
 	],
 	// No R2 -- media uploads are blocked in playground mode
 	// No D1 -- database is inside the Durable Object

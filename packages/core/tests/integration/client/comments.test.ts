@@ -15,7 +15,6 @@ import type { TestServerContext } from "../server.js";
 import { assertNodeVersion, createTestServer } from "../server.js";
 
 const PORT = 4396;
-const TIMEOUT = 60_000;
 
 /** Helper: raw fetch with auth headers */
 async function adminFetch(
@@ -88,7 +87,7 @@ describe("Comments Integration", () => {
 			const body = await res.text().catch(() => "");
 			throw new Error(`Failed to enable comments on posts (${res.status}): ${body}`);
 		}
-	}, TIMEOUT);
+	});
 
 	afterAll(async () => {
 		await ctx?.cleanup();
