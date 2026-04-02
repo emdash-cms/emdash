@@ -4,6 +4,9 @@ A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudfla
 
 ## Get Started
 
+> [!IMPORTANT]
+> EmDash depends on Dynamic Workers to run secure sandboxed plugins. Dynamic Workers are currently only available on paid accounts. [Upgrade your account](https://www.cloudflare.com/plans/developer-platform/) (starting at $5/mo) or comment out the `worker_loaders` block of your `wrangler.jsonc` configuration file to disable plugins.
+
 ```bash
 npm create emdash@latest
 ```
