@@ -197,34 +197,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// available to getDb() and the runtime's db getter via the correct ALS instance.
 	const playgroundDb = locals.__playgroundDb;
 
-	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
-		const sessionUser = await context.session?.get("user");
-		if (!sessionUser && !playgroundDb) {
-			// On a fresh deployment the database may be completely empty.
-			// Public pages call getSiteSettings() / getMenu() via getDb(), which
-			// bypasses runtime init and would crash with "no such table: options".
-			// Do a one-time lightweight probe using the same getDb() instance the
-			// page will use: if the migrations table doesn't exist, no migrations
-			// have ever run -- redirect to the setup wizard.
-			if (!setupVerified) {
-				try {
-					const { getDb } = await import("../loader.js");
-					const db = await getDb();
-					await db
-						.selectFrom("_emdash_migrations" as keyof Database)
-						.selectAll()
-						.limit(1)
-						.execute();
-					setupVerified = true;
-				} catch {
-					// Table doesn't exist -> fresh database, redirect to setup
-					return context.redirect("/_emdash/admin/setup");
-				}
-			}
-
-			const response = await next();
-			setBaselineSecurityHeaders(response);
-			return response;
+	// On a fresh deployment the database may be completely empty.
+	// Do a one-time lightweight probe: if the migrations table doesn't exist,
+	// no migrations have ever run -- redirect to the setup wizard.
+	// This check is cached for the worker's lifetime after first success.
+	if (!setupVerified && !isEmDashRoute) {
+		try {
+			const { getDb } = await import("../loader.js");
+			const db = await getDb();
+			await db
+				.selectFrom("_emdash_migrations" as keyof Database)
+				.selectAll()
+				.limit(1)
+				.execute();
+			setupVerified = true;
+		} catch {
+			// Table doesn't exist -> fresh database, redirect to setup
+			return context.redirect("/_emdash/admin/setup");
 		}
 	}
 
@@ -233,6 +222,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		console.error("EmDash: No configuration found");
 		return next();
 	}
+
+	// Determine whether this is an anonymous public page request.
+	// Anonymous requests still need the runtime (for plugin page hooks) but
+	// skip the manifest query since public pages don't need collection metadata.
+	const isAnonymousPublic =
+		!isEmDashRoute &&
+		!isPublicRuntimeRoute &&
+		!hasEditCookie &&
+		!hasPreviewToken &&
+		!playgroundDb &&
+		!(await context.session?.get("user"));
 
 	// In playground mode, wrap the entire runtime init + request handling in
 	// runWithContext so that getDatabase() and all init queries use the real
@@ -245,11 +245,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// Runtime init runs migrations, so the DB is guaranteed set up
 			setupVerified = true;
 
-			// Get manifest (cached after first call)
-			const manifest = await runtime.getManifest();
-
-			// Attach to locals for route handlers
-			locals.emdashManifest = manifest;
+			// Load manifest for admin/authenticated routes (skipped for anonymous
+			// public pages -- getManifest() queries the DB for all collections/fields
+			// and anonymous pages don't need it)
+			if (!isAnonymousPublic) {
+				const manifest = await runtime.getManifest();
+				locals.emdashManifest = manifest;
+			}
 			locals.emdash = {
 				// Content handlers
 				handleContentList: runtime.handleContentList.bind(runtime),
@@ -297,6 +299,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Media provider methods
 				getMediaProvider: runtime.getMediaProvider.bind(runtime),
 				getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
+
+				// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+				collectPageFragments: runtime.collectPageFragments.bind(runtime),
 
 				// Direct access (for advanced use cases)
 				storage: runtime.storage,
