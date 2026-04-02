@@ -113,6 +113,7 @@ export const GET: APIRoute = async ({ locals }) => {
 			needsSetup: true,
 			step,
 			seedInfo,
+			emailConfigured: emdash.email?.isAvailable() ?? false,
 			// Tell the wizard which auth mode is active
 			authMode: useExternalAuth ? authMode.providerType : "passkey",
 		});

@@ -18,7 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { apiFetch, fetchManifest } from "../lib/api";
+import { apiFetch, fetchManifest, fetchTwoFactorPendingStatus, verifyTwoFactorLogin } from "../lib/api";
 import { sanitizeRedirectUrl } from "../lib/url";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
 
@@ -31,7 +31,7 @@ interface LoginPageProps {
 	redirectUrl?: string;
 }
 
-type LoginMethod = "passkey" | "magic-link";
+type LoginMethod = "passkey" | "magic-link" | "two-factor";
 
 interface OAuthProvider {
 	id: string;
@@ -97,6 +97,16 @@ const OAUTH_PROVIDERS: OAuthProvider[] = [
 
 interface MagicLinkFormProps {
 	onBack: () => void;
+}
+
+interface TwoFactorFormProps {
+	onBack: () => void;
+	onSuccess: () => void;
+}
+
+function needsTwoFactor(response: unknown): response is { requiresTwoFactor: true } {
+	if (!response || typeof response !== "object" || Array.isArray(response)) return false;
+	return "requiresTwoFactor" in response && response.requiresTwoFactor === true;
 }
 
 function MagicLinkForm({ onBack }: MagicLinkFormProps) {
@@ -205,6 +215,60 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 	);
 }
 
+function TwoFactorForm({ onBack, onSuccess }: TwoFactorFormProps) {
+	const [code, setCode] = React.useState("");
+	const [isLoading, setIsLoading] = React.useState(false);
+	const [error, setError] = React.useState<string | null>(null);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setError(null);
+		setIsLoading(true);
+		try {
+			await verifyTwoFactorLogin(code);
+			onSuccess();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to verify code");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	return (
+		<form onSubmit={handleSubmit} className="space-y-4">
+			<Input
+				label="Authenticator code"
+				type="text"
+				value={code}
+				onChange={(e) => setCode(e.target.value)}
+				placeholder="123456"
+				autoComplete="one-time-code"
+				disabled={isLoading}
+				autoFocus
+				required
+			/>
+
+			{error && (
+				<div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{error}</div>
+			)}
+
+			<Button
+				type="submit"
+				className="w-full justify-center"
+				variant="primary"
+				loading={isLoading}
+				disabled={!code}
+			>
+				{isLoading ? "Verifying..." : "Verify code"}
+			</Button>
+
+			<Button type="button" variant="ghost" className="w-full justify-center" onClick={onBack}>
+				Back to sign in
+			</Button>
+		</form>
+	);
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -226,6 +290,13 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		queryFn: fetchManifest,
 	});
 
+	const { data: twoFactorPending, isLoading: twoFactorPendingLoading } = useQuery({
+		queryKey: ["auth", "two-factor", "pending"],
+		queryFn: fetchTwoFactorPendingStatus,
+		retry: false,
+		refetchOnWindowFocus: true,
+	});
+
 	// Redirect to admin when using external auth (authentication is handled externally)
 	React.useEffect(() => {
 		if (manifest?.authMode && manifest.authMode !== "passkey") {
@@ -233,11 +304,22 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		}
 	}, [manifest, safeRedirectUrl]);
 
+	React.useEffect(() => {
+		if (twoFactorPending?.pending) {
+			setMethod("two-factor");
+		}
+	}, [twoFactorPending?.pending]);
+
 	// Check for error in URL (from OAuth redirect)
 	React.useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
 		const error = params.get("error");
 		const message = params.get("message");
+		const pendingTwoFactor = params.get("two_factor") === "required";
+
+		if (pendingTwoFactor) {
+			setMethod("two-factor");
+		}
 
 		if (error) {
 			setUrlError(message || `Authentication error: ${error}`);
@@ -246,13 +328,22 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		}
 	}, []);
 
-	const handleSuccess = () => {
+	const handleSuccess = (response?: unknown) => {
+		if (needsTwoFactor(response)) {
+			setMethod("two-factor");
+			return;
+		}
+
 		// Redirect after successful login
 		window.location.href = safeRedirectUrl;
 	};
 
 	// Show loading state while checking auth mode
-	if (manifestLoading || (manifest?.authMode && manifest.authMode !== "passkey")) {
+	if (
+		manifestLoading ||
+		twoFactorPendingLoading ||
+		(manifest?.authMode && manifest.authMode !== "passkey")
+	) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 				<div className="text-center">
@@ -272,6 +363,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{method === "passkey" && "Sign in to your site"}
 						{method === "magic-link" && "Sign in with email"}
+						{method === "two-factor" && "Verify your second factor"}
 					</h1>
 				</div>
 
@@ -333,13 +425,19 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					)}
 
 					{method === "magic-link" && <MagicLinkForm onBack={() => setMethod("passkey")} />}
+
+					{method === "two-factor" && (
+						<TwoFactorForm onBack={() => setMethod("passkey")} onSuccess={() => handleSuccess()} />
+					)}
 				</div>
 
 				{/* Help text */}
 				<p className="text-center mt-6 text-sm text-kumo-subtle">
 					{method === "passkey"
 						? "Use your registered passkey to sign in securely."
-						: "We'll send you a link to sign in without a password."}
+						: method === "magic-link"
+							? "We'll send you a link to sign in without a password."
+							: "Enter the current code from your authenticator app."}
 				</p>
 
 				{/* Signup link — only shown when self-signup is enabled */}

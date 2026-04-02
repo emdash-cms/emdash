@@ -692,6 +692,21 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/setup/admin/email",
+		entrypoint: resolveRoute("api/setup/admin-email.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/setup/admin/2fa/start",
+		entrypoint: resolveRoute("api/setup/admin-2fa-start.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/setup/admin/2fa/verify",
+		entrypoint: resolveRoute("api/setup/admin-2fa-verify.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/setup/dev-bypass",
 		entrypoint: resolveRoute("api/setup/dev-bypass.ts"),
 	});
@@ -760,6 +775,37 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/auth/passkey/[id]",
 		entrypoint: resolveRoute("api/auth/passkey/[id].ts"),
+	});
+
+	// Two-factor routes
+	injectRoute({
+		pattern: "/_emdash/api/auth/2fa/status",
+		entrypoint: resolveRoute("api/auth/2fa/status.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/2fa/setup",
+		entrypoint: resolveRoute("api/auth/2fa/setup.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/2fa/enable",
+		entrypoint: resolveRoute("api/auth/2fa/enable.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/2fa/disable",
+		entrypoint: resolveRoute("api/auth/2fa/disable.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/2fa/pending",
+		entrypoint: resolveRoute("api/auth/2fa/pending.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/2fa/verify",
+		entrypoint: resolveRoute("api/auth/2fa/verify.ts"),
 	});
 
 	injectRoute({
