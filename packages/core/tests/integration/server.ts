@@ -16,7 +16,7 @@
  */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -161,12 +161,12 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 
 	// Ensure node_modules symlink exists in the fixture dir.
 	// Multiple test suites may race to create this — handle EEXIST gracefully.
+	// The symlink is intentionally never removed: it's shared across concurrent
+	// test suites and gitignored, so cleanup of one suite must not break others.
 	const fixtureNodeModules = join(FIXTURE_DIR, "node_modules");
-	let createdSymlink = false;
 	if (!existsSync(fixtureNodeModules)) {
 		try {
 			symlinkSync(DONOR_NODE_MODULES, fixtureNodeModules);
-			createdSymlink = true;
 		} catch (err: unknown) {
 			if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
 		}
@@ -215,13 +215,6 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 
 		// Remove temp data directory
 		rmSync(tempDataDir, { recursive: true, force: true });
-
-		// Remove symlink if we created it
-		if (createdSymlink && existsSync(fixtureNodeModules)) {
-			try {
-				unlinkSync(fixtureNodeModules);
-			} catch {}
-		}
 	}
 
 	try {
