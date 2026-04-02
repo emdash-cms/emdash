@@ -107,6 +107,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { useCachedQuery } from "./lib/cache/cached-query.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -169,12 +170,14 @@ function RootComponent() {
 		data: manifest,
 		isLoading,
 		error,
-	} = useQuery({
+		isFromCache,
+	} = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
-	if (isLoading) {
+	if (isLoading && !isFromCache) {
 		return <LoadingScreen />;
 	}
 
@@ -198,9 +201,10 @@ const dashboardRoute = createRoute({
 });
 
 function DashboardPage() {
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	if (!manifest) return null;
@@ -532,13 +536,14 @@ function ContentEditPage() {
 	}, [rawItem, draftRevision]);
 
 	// Fetch current user for permission checks
-	const { data: currentUser } = useQuery({
+	const { data: currentUser } = useCachedQuery({
 		queryKey: ["currentUser"],
 		queryFn: async (): Promise<{ id: string; role: number }> => {
 			const response = await apiFetch("/_emdash/api/auth/me");
 			return parseApiResponse<{ id: string; role: number }>(response, "Failed to fetch user");
 		},
 		staleTime: 5 * 60 * 1000,
+		cache: { store: "singletons", key: "currentUser" },
 	});
 
 	// Fetch users list for author selector (only if user is editor+)
@@ -902,13 +907,14 @@ function CommentsPage() {
 	});
 
 	// Current user for ADMIN check (hard delete)
-	const { data: currentUser } = useQuery({
+	const { data: currentUser } = useCachedQuery({
 		queryKey: ["currentUser"],
 		queryFn: async (): Promise<{ id: string; role: number }> => {
 			const response = await apiFetch("/_emdash/api/auth/me");
 			return parseApiResponse<{ id: string; role: number }>(response, "Failed to fetch user");
 		},
 		staleTime: 5 * 60 * 1000,
+		cache: { store: "singletons", key: "currentUser" },
 	});
 
 	// Filter state

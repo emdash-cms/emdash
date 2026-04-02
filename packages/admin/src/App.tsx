@@ -14,6 +14,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
+import { CacheProvider } from "./lib/cache/cache-context.js";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { createAdminRouter } from "./router";
 
@@ -48,11 +49,13 @@ export function AdminApp({ pluginAdmins = EMPTY_PLUGINS }: AdminAppProps) {
 	return (
 		<ThemeProvider>
 			<Toasty>
-				<PluginAdminProvider pluginAdmins={pluginAdmins}>
-					<QueryClientProvider client={queryClient}>
-						<RouterProvider router={router} />
-					</QueryClientProvider>
-				</PluginAdminProvider>
+				<CacheProvider>
+					<PluginAdminProvider pluginAdmins={pluginAdmins}>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</PluginAdminProvider>
+				</CacheProvider>
 			</Toasty>
 		</ThemeProvider>
 	);
