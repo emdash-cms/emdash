@@ -212,6 +212,15 @@ export interface SeedContentEntry {
 	/** Publication status */
 	status?: "published" | "draft";
 
+	/** Imported creation timestamp (ISO 8601) */
+	createdAt?: string;
+
+	/** Imported last-update timestamp (ISO 8601) */
+	updatedAt?: string;
+
+	/** Imported publication timestamp (ISO 8601) */
+	publishedAt?: string;
+
 	/** Content data (field slug -> value) */
 	data: Record<string, unknown>;
 

@@ -86,6 +86,26 @@ describe("ContentRepository", () => {
 			expect(content.authorId).toBe("author-1");
 		});
 
+		it("should create content with explicit chronology", async () => {
+			const createdAt = "2024-01-02T03:04:05.000Z";
+			const updatedAt = "2024-02-03T04:05:06.000Z";
+			const publishedAt = "2024-03-04T05:06:07.000Z";
+
+			const content = await repo.create({
+				type: "post",
+				slug: "chronology-post",
+				data: { title: "Chronology Post" },
+				status: "published",
+				publishedAt,
+				createdAt,
+				updatedAt,
+			} as any);
+
+			expect(content.createdAt).toBe(createdAt);
+			expect(content.updatedAt).toBe(updatedAt);
+			expect(content.publishedAt).toBe(publishedAt);
+		});
+
 		it("should throw validation error when type is missing", async () => {
 			await expect(
 				repo.create({
@@ -483,6 +503,26 @@ describe("ContentRepository", () => {
 				publishedAt,
 			});
 
+			expect(updated.publishedAt).toBe(publishedAt);
+		});
+
+		it("should update explicit chronology", async () => {
+			const created = await repo.create({
+				type: "post",
+				data: { title: "Test" },
+			});
+
+			const createdAt = "2024-01-02T03:04:05.000Z";
+			const updatedAt = "2024-02-03T04:05:06.000Z";
+			const publishedAt = "2024-03-04T05:06:07.000Z";
+			const updated = await repo.update("post", created.id, {
+				createdAt,
+				updatedAt,
+				publishedAt,
+			} as any);
+
+			expect(updated.createdAt).toBe(createdAt);
+			expect(updated.updatedAt).toBe(updatedAt);
 			expect(updated.publishedAt).toBe(publishedAt);
 		});
 

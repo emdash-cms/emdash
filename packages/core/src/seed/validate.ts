@@ -11,6 +11,7 @@ const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const REDIRECT_TYPES = new Set([301, 302, 307, 308]);
 const CRLF_PATTERN = /[\r\n]/;
+const ISO_TIMEZONE_PATTERN = /(Z|[+-]\d{2}:\d{2})$/;
 
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,6 +27,31 @@ function isValidRedirectPath(path: string): boolean {
 		return !decodeURIComponent(path).split("/").includes("..");
 	} catch {
 		return false;
+	}
+}
+
+function validateOptionalTimestamp(
+	value: unknown,
+	prefix: string,
+	errors: string[],
+	warnings: string[],
+): void {
+	if (value === undefined) {
+		return;
+	}
+
+	if (typeof value !== "string") {
+		errors.push(`${prefix}: must be an ISO 8601 string`);
+		return;
+	}
+
+	if (Number.isNaN(Date.parse(value))) {
+		errors.push(`${prefix}: must be a valid ISO 8601 date`);
+		return;
+	}
+
+	if (!ISO_TIMEZONE_PATTERN.test(value)) {
+		warnings.push(`${prefix}: missing timezone designator; prefer UTC or explicit offset`);
 	}
 }
 
@@ -497,6 +523,10 @@ export function validateSeed(data: unknown): ValidationResult {
 					if (!entry.data || typeof entry.data !== "object") {
 						errors.push(`${prefix}: data must be an object`);
 					}
+
+					validateOptionalTimestamp(entry.createdAt, `${prefix}.createdAt`, errors, warnings);
+					validateOptionalTimestamp(entry.updatedAt, `${prefix}.updatedAt`, errors, warnings);
+					validateOptionalTimestamp(entry.publishedAt, `${prefix}.publishedAt`, errors, warnings);
 
 					// Validate i18n fields
 					if (entry.translationOf) {

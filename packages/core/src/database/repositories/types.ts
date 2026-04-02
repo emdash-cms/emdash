@@ -9,6 +9,8 @@ export interface CreateContentInput {
 	primaryBylineId?: string | null;
 	locale?: string;
 	translationOf?: string;
+	createdAt?: string | null;
+	updatedAt?: string | null;
 	publishedAt?: string | null;
 }
 
@@ -16,6 +18,8 @@ export interface UpdateContentInput {
 	data?: Record<string, unknown>;
 	status?: string;
 	slug?: string | null;
+	createdAt?: string | null;
+	updatedAt?: string | null;
 	publishedAt?: string | null;
 	scheduledAt?: string | null;
 	authorId?: string | null;

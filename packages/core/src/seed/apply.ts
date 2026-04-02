@@ -370,6 +370,10 @@ export async function applySeed(
 						await contentRepo.update(collectionSlug, existing.id, {
 							status,
 							data: resolvedData,
+							createdAt: entry.createdAt,
+							updatedAt: entry.updatedAt,
+							publishedAt:
+								entry.publishedAt ?? (status === "published" ? existing.publishedAt : null),
 						});
 
 						seedIdMap.set(entry.id, existing.id);
@@ -419,8 +423,9 @@ export async function applySeed(
 					data: resolvedData,
 					locale: entry.locale,
 					translationOf,
-					// Set published_at for published content so RSS/Archives work correctly
-					publishedAt: status === "published" ? new Date().toISOString() : null,
+					createdAt: entry.createdAt,
+					updatedAt: entry.updatedAt,
+					publishedAt: entry.publishedAt ?? (status === "published" ? new Date().toISOString() : null),
 				});
 
 				seedIdMap.set(entry.id, created.id);
