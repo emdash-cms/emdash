@@ -1,7 +1,19 @@
 /**
- * Pure decision step for payment finalization idempotency.
- * Storage is responsible for inserting `webhookReceipts` with a unique
- * `externalEventId`; this module only interprets the read model.
+ * Pure decision step: **may this finalize attempt proceed** given the current
+ * read model (order phase + webhook receipt row view).
+ *
+ * This is **not** the full payment-reconciliation or HTTP error surface.
+ * Signature verification, provider errors, inventory conflicts, and ledger
+ * writes live in orchestration and storage; they may introduce additional
+ * codes and outcomes beyond `FinalizeNoopCode`.
+ *
+ * `FinalizeNoopCode` stays intentionally narrow: only outcomes this helper
+ * can emit today. Do not overload `ORDER_STATE_CONFLICT` for unrelated
+ * domains here—extend orchestration or add dedicated decision helpers when
+ * those paths exist.
+ *
+ * Storage must insert `webhookReceipts` with a unique `externalEventId`;
+ * this module only interprets the read model passed in.
  */
 
 export type OrderPaymentPhase =
@@ -16,10 +28,26 @@ export type OrderPaymentPhase =
 	| "refunded"
 	| "canceled";
 
+/**
+ * Minimal receipt state for idempotent finalize. **Semantics to pin before
+ * persistence ships:**
+ *
+ * - **processed** — this `externalEventId` was fully handled; side effects
+ *   (e.g. order transition) completed successfully.
+ * - **duplicate** — redundant relative to storage rules: same
+ *   `(providerId, externalEventId)` re-delivered, or an event deduped as
+ *   equivalent to one already processed. Not necessarily byte-identical to
+ *   `processed` in forensic terms, but **finalize must not run again** for
+ *   either; both yield the same noop here until a stricter product need splits
+ *   them.
+ * - **pending** — row exists but processing not complete (retry later / 409).
+ * - **error** — terminal failure for this receipt row (do not proceed).
+ */
 export type WebhookReceiptView =
 	| { exists: false }
 	| { exists: true; status: "processed" | "duplicate" | "error" | "pending" };
 
+/** Internal ids; at HTTP boundary use `commerceErrorCodeToWire()` from `./errors`. */
 export type FinalizeNoopCode = "WEBHOOK_REPLAY_DETECTED" | "ORDER_STATE_CONFLICT";
 export type FinalizeNoopReason =
 	| "order_already_paid"

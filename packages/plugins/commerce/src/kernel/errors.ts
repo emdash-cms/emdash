@@ -1,6 +1,11 @@
 /**
- * Canonical error metadata for commerce routes (kernel layer exports this contract data only).
- * Route handlers map these entries to client/API responses.
+ * Canonical error metadata for commerce (kernel).
+ *
+ * **Internal vs wire:** `COMMERCE_ERRORS` keys are **internal** identifiers
+ * (`UPPER_SNAKE`, stable for TypeScript and kernel branches). Public HTTP/API
+ * payloads must use **wire** codes: `snake_case` strings from
+ * `COMMERCE_ERROR_WIRE_CODES` / `commerceErrorCodeToWire()`. Route handlers are
+ * responsible for that mapping; the kernel does not emit HTTP.
  */
 export const COMMERCE_ERRORS = {
 	// Inventory
@@ -46,3 +51,37 @@ export const COMMERCE_ERRORS = {
 } as const satisfies Record<string, { httpStatus: number; retryable: boolean }>;
 
 export type CommerceErrorCode = keyof typeof COMMERCE_ERRORS;
+
+/** Wire-level / public API error code (snake_case), stable across versions. */
+export const COMMERCE_ERROR_WIRE_CODES = {
+	INVENTORY_CHANGED: "inventory_changed",
+	INSUFFICIENT_STOCK: "insufficient_stock",
+	PRODUCT_UNAVAILABLE: "product_unavailable",
+	VARIANT_UNAVAILABLE: "variant_unavailable",
+	CART_NOT_FOUND: "cart_not_found",
+	CART_EXPIRED: "cart_expired",
+	CART_EMPTY: "cart_empty",
+	ORDER_NOT_FOUND: "order_not_found",
+	ORDER_STATE_CONFLICT: "order_state_conflict",
+	PAYMENT_CONFLICT: "payment_conflict",
+	PAYMENT_INITIATION_FAILED: "payment_initiation_failed",
+	PAYMENT_CONFIRMATION_FAILED: "payment_confirmation_failed",
+	PAYMENT_ALREADY_PROCESSED: "payment_already_processed",
+	PROVIDER_UNAVAILABLE: "provider_unavailable",
+	WEBHOOK_SIGNATURE_INVALID: "webhook_signature_invalid",
+	WEBHOOK_REPLAY_DETECTED: "webhook_replay_detected",
+	INVALID_DISCOUNT: "invalid_discount",
+	DISCOUNT_EXPIRED: "discount_expired",
+	FEATURE_NOT_ENABLED: "feature_not_enabled",
+	CURRENCY_MISMATCH: "currency_mismatch",
+	SHIPPING_REQUIRED: "shipping_required",
+	RATE_LIMITED: "rate_limited",
+	PAYLOAD_TOO_LARGE: "payload_too_large",
+} as const satisfies Record<CommerceErrorCode, string>;
+
+export type CommerceWireErrorCode =
+	(typeof COMMERCE_ERROR_WIRE_CODES)[CommerceErrorCode];
+
+export function commerceErrorCodeToWire(code: CommerceErrorCode): CommerceWireErrorCode {
+	return COMMERCE_ERROR_WIRE_CODES[code];
+}

@@ -1579,9 +1579,11 @@ Rules:
 - `PAYMENT_CONFLICT` is used when payment captured but inventory finalize failed.
   It is distinct from `INSUFFICIENT_STOCK` because money has moved.
 - Wire-level / API error codes should be **snake_case strings**, stable across
-  versions; never remove a code, only add. The current kernel scaffold still uses
-  uppercase internal constant keys and must normalize them before route handlers
-  start returning public error payloads.
+  versions; never remove a code, only add. The kernel keeps **internal** keys as
+  `UPPER_SNAKE` on `COMMERCE_ERRORS` and exports an explicit map
+  `COMMERCE_ERROR_WIRE_CODES` plus `commerceErrorCodeToWire()` in
+  `packages/plugins/commerce/src/kernel/errors.ts`. Route handlers must emit wire
+  codes in JSON; do not expose internal keys to clients.
 
 ---
 

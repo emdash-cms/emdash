@@ -10,7 +10,7 @@ The commerce design assumes EmDash’s actual platform constraints: native plugi
 
 The architecture has been documented in depth in `commerce-plugin-architecture.md`. That document is now the **authoritative blueprint**. It includes the plugin model, product/cart/order data model, provider execution model, phased plan, state machines, storage schema, error catalog, cart merge rules, observability requirements, robustness/scalability rules, and platform-alignment notes for EmDash and Cloudflare Workers.
 
-Several review rounds have already happened and the important feedback has been integrated. `emdash-commerce-final-review-plan.md` tightened the project around a **small, correctness-first kernel** and a **single real payment slice** before broader scope. `emdash-commerce-deep-evaluation.md` added useful pressure on architecture-to-code consistency and feature-fit, especially around bundle complexity and variant swatches. Historical context is preserved in `high-level-plan.md`, `3rdpary_review.md`, and the current external-review packet `3rdpary_review_2.md`.
+Several review rounds have already happened and the important feedback has been integrated. `emdash-commerce-final-review-plan.md` tightened the project around a **small, correctness-first kernel** and a **single real payment slice** before broader scope. `emdash-commerce-deep-evaluation.md` added useful pressure on architecture-to-code consistency and feature-fit, especially around bundle complexity and variant swatches. Historical context is preserved in `high-level-plan.md`, `3rdpary_review.md`, `3rdpary_review_2.md`, and the latest external-review summary `3rdpary_review_3.md`.
 
 There is now an initial `packages/plugins/commerce` package in-tree. It is **not** a working plugin yet. It is a small kernel scaffold with pure helpers and tests:
 
@@ -34,10 +34,12 @@ The repository also contains `commerce-vs-x402-merchants.md`, which is a one-pag
 
 The biggest current reality: **the architecture is ahead of the code**. The project has a strong design and a small tested kernel scaffold, but it does **not** yet have plugin wiring, storage adapters, checkout routes, Stripe integration, admin pages, or a working storefront checkout flow. Treat the current codebase as **pre-vertical-slice**.
 
-There are two documentation-to-code mismatches already identified and preserved for the next developer:
+Resolved / encoded in code:
 
-1. The architecture wants **snake_case wire-level error codes**, but `packages/plugins/commerce/src/kernel/errors.ts` still uses **uppercase internal constant keys**. The architecture doc now states this explicitly. Before public route handlers ship, normalize the exported API error shape.
-2. The architecture originally described **sliding-window** rate limiting, but the implemented helper is a **fixed-window** counter. The architecture doc has been corrected to match the code. If a true sliding-window algorithm is required later, change the code deliberately rather than drifting the docs again.
+1. **Internal vs wire error codes:** Kernel uses **UPPER_SNAKE** keys on `COMMERCE_ERRORS`. Public APIs must emit **snake_case** via `COMMERCE_ERROR_WIRE_CODES` / `commerceErrorCodeToWire()` in `packages/plugins/commerce/src/kernel/errors.ts`. Route handlers own serialization; do not leak internal keys over HTTP.
+2. **Rate limit semantics:** The helper is **fixed-window**; docs and tests match. If sliding-window is required later, change the implementation deliberately.
+
+Third-party review (2026): next high-value work is **storage-backed orchestration** (orders, payment attempts, webhook receipts with uniqueness, inventory version/ledger, idempotent finalize, Stripe webhook integration tests)—not further kernel-only polish unless it unblocks that slice.
 
 The next technical risk is not UI. It is the **storage mutation choreography**: proving that EmDash storage can enforce the planned invariants cleanly. The first serious implementation milestone should therefore be a storage-backed path for:
 
@@ -55,7 +57,7 @@ Lesson learned from external reviews: do **not** broaden scope until the first S
 
 The most important file is `commerce-plugin-architecture.md`. It supersedes `high-level-plan.md`. If there is a conflict between documents, **follow `commerce-plugin-architecture.md`** unless a newer handoff or review file explicitly says otherwise.
 
-`3rdpary_review.md` is now marked as **historical**. `3rdpary_review_2.md` is the current external-review packet. `emdash-commerce-final-review-plan.md` and `emdash-commerce-deep-evaluation.md` are not authoritative specs, but they contain high-value critique that shaped the current plan and should be treated as review context, not ignored.
+`3rdpary_review.md` is **historical**. `3rdpary_review_2.md` and `3rdpary_review_3.md` are external-review packets (newer iterations add scope and post-feedback notes). `emdash-commerce-final-review-plan.md` and `emdash-commerce-deep-evaluation.md` are not authoritative specs, but they contain high-value critique that shaped the current plan and should be treated as review context, not ignored.
 
 The architecture has already chosen some important product constraints:
 
@@ -80,7 +82,7 @@ The main gotchas to avoid:
 - `HANDOVER.md` — this handoff
 - `emdash-commerce-final-review-plan.md` — review-driven refinement toward kernel-first execution
 - `emdash-commerce-deep-evaluation.md` — latest deep evaluation, useful critique and feature-fit analysis
-- `3rdpary_review_2.md` — current third-party review packet
+- `3rdpary_review_2.md`, `3rdpary_review_3.md` — third-party review packets
 - `3rdpary_review.md` — historical review packet
 - `high-level-plan.md` — original short plan, retained for history
 - `commerce-vs-x402-merchants.md` — merchant-facing positioning note
