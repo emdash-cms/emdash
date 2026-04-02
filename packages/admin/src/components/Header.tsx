@@ -55,7 +55,7 @@ export function Header() {
 				{/* User menu */}
 				<Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
 					<Popover.Trigger asChild>
-						<Button variant="ghost" size="sm" className="gap-2">
+						<Button variant="ghost" size="sm" className="gap-2 py-1 h-auto">
 							{user?.avatarUrl ? (
 								<img src={user.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
 							) : (
