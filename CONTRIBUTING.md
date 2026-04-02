@@ -16,6 +16,8 @@ pnpm install
 pnpm build          # build all packages (required before first run)
 ```
 
+> **Note:** If you need to run CLI commands like `emdash seed` or `emdash init`, run `pnpm install` again after the build. The CLI bin (`packages/core/dist/cli/index.mjs`) doesn't exist until after the build, and pnpm only links bins during install.
+
 ### Run the Demo
 
 The `demos/simple/` app is the primary development target. It is kept in sync with `templates/blog/` and uses Node.js + SQLite — no Cloudflare account needed.
