@@ -48,13 +48,31 @@ export function MenuList() {
 
 	const deleteMutation = useMutation({
 		mutationFn: deleteMenu,
+		async onMutate(name: string) {
+			await queryClient.cancelQueries({ queryKey: ["menus"] });
+			const previous = queryClient.getQueryData<unknown[]>(["menus"]);
+			if (previous) {
+				queryClient.setQueryData(
+					["menus"],
+					previous.filter((m) => (m as { name: string }).name !== name),
+				);
+			}
+			return { previous };
+		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["menus"] });
 			setDeleteMenuName(null);
 			toastManager.add({
 				title: "Menu deleted",
 				description: "The menu has been deleted.",
 			});
+		},
+		onError: (_error, _name, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(["menus"], context.previous);
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["menus"] });
 		},
 	});
 

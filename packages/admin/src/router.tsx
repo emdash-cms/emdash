@@ -108,6 +108,7 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { useCachedQuery } from "./lib/cache/cached-query.js";
+import { optimisticDelete } from "./lib/cache/optimistic-mutation.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -261,18 +262,29 @@ function ContentListPage() {
 		queryFn: () => fetchTrashedContent(collection),
 	});
 
+	const contentListKey = ["content", collection, { locale: activeLocale }];
+
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteContent(collection, id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
-		},
-		onError: (mutationError) => {
+		...optimisticDelete({
+			queryClient,
+			queryKey: contentListKey,
+			store: "content",
+		}),
+		onError(mutationError, _id, context) {
+			// Rollback optimistic update
+			if (context?.previous) {
+				queryClient.setQueryData(contentListKey, context.previous);
+			}
 			toastManager.add({
 				title: "Failed to delete",
 				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
 				type: "error",
 			});
+		},
+		onSettled() {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 		},
 	});
 
@@ -654,12 +666,28 @@ function ContentEditPage() {
 
 	const publishMutation = useMutation({
 		mutationFn: () => publishContent(collection, id),
+		async onMutate() {
+			const contentKey = ["content", collection, id];
+			await queryClient.cancelQueries({ queryKey: contentKey });
+			const previous = queryClient.getQueryData(contentKey);
+			if (previous && typeof previous === "object") {
+				queryClient.setQueryData(contentKey, {
+					...(previous as Record<string, unknown>),
+					status: "published",
+					publishedAt: new Date().toISOString(),
+				});
+			}
+			return { previous };
+		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: "Published", description: "Content is now live" });
 		},
-		onError: (error) => {
+		onError: (error, _vars, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(["content", collection, id], context.previous);
+			}
 			toastManager.add({
 				title: "Failed to publish",
 				description: error instanceof Error ? error.message : "An error occurred",
@@ -670,12 +698,27 @@ function ContentEditPage() {
 
 	const unpublishMutation = useMutation({
 		mutationFn: () => unpublishContent(collection, id),
+		async onMutate() {
+			const contentKey = ["content", collection, id];
+			await queryClient.cancelQueries({ queryKey: contentKey });
+			const previous = queryClient.getQueryData(contentKey);
+			if (previous && typeof previous === "object") {
+				queryClient.setQueryData(contentKey, {
+					...(previous as Record<string, unknown>),
+					status: "draft",
+				});
+			}
+			return { previous };
+		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: "Unpublished", description: "Content removed from public view" });
 		},
-		onError: (error) => {
+		onError: (error, _vars, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(["content", collection, id], context.previous);
+			}
 			toastManager.add({
 				title: "Failed to unpublish",
 				description: error instanceof Error ? error.message : "An error occurred",
@@ -902,9 +945,11 @@ function MediaPage() {
 
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteMedia(id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-		},
+		...optimisticDelete({
+			queryClient,
+			queryKey: ["media"],
+			store: "media",
+		}),
 	});
 
 	if (error) {

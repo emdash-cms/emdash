@@ -101,12 +101,32 @@ export function Sections() {
 		},
 	});
 
+	const sectionQueryKey = ["sections", { source: selectedSource, search: searchQuery }];
+
 	const deleteMutation = useMutation({
 		mutationFn: deleteSection,
+		async onMutate(slug: string) {
+			await queryClient.cancelQueries({ queryKey: sectionQueryKey });
+			const previous = queryClient.getQueryData<{ items: Section[] }>(sectionQueryKey);
+			if (previous?.items) {
+				queryClient.setQueryData(sectionQueryKey, {
+					...previous,
+					items: previous.items.filter((s) => s.slug !== slug),
+				});
+			}
+			return { previous };
+		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			setDeleteSlug(null);
 			toastManager.add({ title: "Section deleted" });
+		},
+		onError: (_error, _slug, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(sectionQueryKey, context.previous);
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 		},
 	});
 

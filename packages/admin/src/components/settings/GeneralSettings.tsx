@@ -5,7 +5,7 @@
  * (posts per page, date format, timezone).
  */
 
-import { Button, Input, Label } from "@cloudflare/kumo";
+import { Button, Input, Label, Toast } from "@cloudflare/kumo";
 import {
 	ArrowLeft,
 	FloppyDisk,
@@ -13,12 +13,14 @@ import {
 	WarningCircle,
 	Upload,
 	X,
+	Trash,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import { useCacheActions } from "../../lib/cache/cache-context.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 
 export function GeneralSettings() {
@@ -296,6 +298,9 @@ export function GeneralSettings() {
 				</div>
 			</form>
 
+			{/* Cache Management */}
+			<CacheManagementSection />
+
 			{/* Media Picker Modals */}
 			<MediaPickerModal
 				open={logoPickerOpen}
@@ -311,6 +316,50 @@ export function GeneralSettings() {
 				mimeTypeFilter="image/"
 				title="Select Favicon"
 			/>
+		</div>
+	);
+}
+
+function CacheManagementSection() {
+	const { clearCache } = useCacheActions();
+	const toastManager = Toast.useToastManager();
+	const [isClearing, setIsClearing] = React.useState(false);
+
+	async function handleClearCache() {
+		setIsClearing(true);
+		try {
+			await clearCache();
+			toastManager.add({
+				title: "Cache cleared",
+				description: "Local cache has been cleared. Data will be refreshed from the server.",
+			});
+		} catch {
+			toastManager.add({
+				title: "Failed to clear cache",
+				description: "Could not clear the local cache. Try refreshing the page.",
+				type: "error",
+			});
+		} finally {
+			setIsClearing(false);
+		}
+	}
+
+	return (
+		<div className="mt-8 border-t pt-6">
+			<h3 className="text-lg font-semibold mb-2">Local Cache</h3>
+			<p className="text-sm text-kumo-subtle mb-4">
+				EmDash caches data locally for faster page loads. Clear the cache if you're experiencing
+				stale data or display issues.
+			</p>
+			<Button
+				type="button"
+				variant="outline"
+				icon={<Trash />}
+				disabled={isClearing}
+				onClick={handleClearCache}
+			>
+				{isClearing ? "Clearing..." : "Clear Local Cache"}
+			</Button>
 		</div>
 	);
 }
