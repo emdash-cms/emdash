@@ -140,13 +140,30 @@ FulfillmentProviderContract
 
 - **No class inheritance.** Extension plugins implement a structural interface.
 - **No PHP-style filters.** Extensions cannot mutate core data mid-flow.
-- **HTTP-native.** Provider calls are plain `fetch` — testable, observable,
-  replaceable.
 - **Type-safe contracts.** The SDK package exports Zod schemas matching the
   interfaces. Extension plugin authors get compile-time safety.
 - **Multiple providers, one active.** The registry supports multiple registered
   providers per type. The merchant selects the active one in admin settings.
   Fallback behavior is defined per type.
+
+### Provider execution model — two modes, one contract
+
+The contract interface is identical in both modes. **Execution mode** depends on
+how the provider plugin is installed:
+
+| Mode | When | How the core calls the provider |
+|------|------|---------------------------------|
+| **In-process adapter** | Plugin installed as trusted (in-process, `plugins: []`) | Direct TypeScript function call. No HTTP. No subrequest. |
+| **Route delegation** | Plugin installed as sandboxed (`sandboxed: []`) or across isolate boundary | Core calls `ctx.http.fetch` to the provider's plugin route. Required by the EmDash sandbox model — the only permitted cross-isolate boundary. |
+
+**Default rule:** First-party provider plugins (Stripe, Authorize.net) run as
+trusted in-process adapters. External API calls (to Stripe/Authorize.net APIs)
+happen **inside** the provider adapter using `ctx.http.fetch` — not in the core
+checkout path. Route delegation is reserved for genuinely sandboxed or
+marketplace-distributed extensions.
+
+This preserves the contract model, removes unnecessary faux-network indirection
+from the core checkout path, and keeps local dev and testing simple.
 
 ---
 
@@ -181,18 +198,23 @@ interface ProductBase {
   name: string;
   slug: string;                          // URL-safe, unique
   status: "draft" | "active" | "archived";
+  publishedAt?: string;                  // When first made active; null = never published
   descriptionBlocks?: unknown[];          // Portable Text
-  shortDescription?: string;             // Plain text summary (for AI/search)
+  shortDescription?: string;             // Plain text summary (for AI/search/embeddings)
+  searchText?: string;                   // Denormalized: name + sku + tags for full-text queries
   basePrice: number;                     // Cents / smallest currency unit
   compareAtPrice?: number;               // Strike-through price
   currency: string;                      // ISO 4217
   mediaIds: string[];                    // References to ctx.media
   categoryIds: string[];
   tags: string[];
+  requiresShipping: boolean;             // false for digital, gift cards; affects checkout flow
+  taxCategory?: string;                  // For tax module: "standard" | "reduced" | "zero" | custom
+  defaultVariantId?: string;             // For variable products: pre-selected variant on product page
   seoTitle?: string;
   seoDescription?: string;
   typeData: Record<string, unknown>;     // Validated per type in handlers
-  meta: Record<string, unknown>;         // Extension plugins store data here
+  meta: Record<string, unknown>;         // Extension plugins store data here; not a junk drawer
   createdAt: string;
   updatedAt: string;
 }
@@ -259,6 +281,7 @@ interface ProductVariant {
   compareAtPrice?: number;
   stockQty: number;
   stockPolicy: "track" | "ignore" | "backorder";
+  inventoryVersion: number;              // Monotonic counter; used in finalize-time optimistic check
   mediaIds: string[];
   active: boolean;
   sortOrder: number;
@@ -296,7 +319,12 @@ interface ProductAttribute {
 ### Cart
 
 ```typescript
-type CartStatus = "active" | "checkout" | "abandoned" | "converted" | "expired";
+type CartStatus =
+  | "active"      // In use; items can be added/removed
+  | "merged"      // Anonymous cart merged into a logged-in user's cart on login
+  | "abandoned"   // No activity for configured TTL; cron marks it; triggers recovery flow
+  | "converted"   // Checkout completed; order created from this cart
+  | "expired";    // Past expiresAt without conversion or abandonment action
 
 interface Cart {
   cartToken: string;                     // Opaque, used in Cookie / Authorization header
@@ -329,41 +357,60 @@ interface CartItem {
 
 ### Order state machine
 
+Allowed transitions only. Handlers must reject any transition not in this table.
+
 ```
-pending
-  ↓ (checkout.create called, payment session initiated)
+draft
+  ↓  checkout.create called
 payment_pending
-  ↓ (payment provider webhook: authorized)
+  ↓  gateway webhook: authorized (auth-only flow, e.g. Authorize.net)
 authorized
-  ↓ (payment captured — may be immediate for card, delayed for bank)
+  ↓  gateway webhook: captured (immediate for Stripe card; delayed for bank ACH)
+  ↓  (from payment_pending direct, for gateways with no separate auth step)
 paid
-  ↓ (merchant/agent marks as processing)
+  ↓  merchant/agent marks processing
 processing
-  ↓ (fulfillment provider webhook or manual mark)
+  ↓  fulfillment webhook or manual mark
 fulfilled
-  ↘ (at any point before fulfilled)
-canceled ← refunded (from fulfilled/paid)
+
+From any pre-fulfilled state:
+  → canceled      (before payment_pending: no gateway action needed)
+  → canceled      (from authorized: void must be called on gateway first)
+
+From paid / fulfilled:
+  → refund_pending  (refund initiated, awaiting gateway confirmation)
+  → refunded        (gateway confirmed full refund)
+  → partial_refund  (gateway confirmed partial refund)
+
+Exceptional:
+  → payment_conflict  (payment succeeded at gateway but inventory finalize failed;
+                       requires manual resolution or auto-void/refund)
 ```
 
 ```typescript
 type OrderStatus =
-  | "pending"
-  | "payment_pending"
-  | "authorized"
-  | "paid"
-  | "processing"
-  | "fulfilled"
-  | "canceled"
-  | "refunded"
-  | "partial_refund";
+  | "draft"             // Order record created; payment not yet initiated
+  | "payment_pending"   // Payment session initiated; awaiting gateway event
+  | "authorized"        // Payment authorized but not yet captured (auth+capture flows)
+  | "paid"              // Payment captured; inventory decremented
+  | "processing"        // Paid; merchant/fulfillment is preparing the shipment
+  | "fulfilled"         // Shipped or delivered; order complete
+  | "canceled"          // Canceled before/without successful payment
+  | "refund_pending"    // Refund initiated; awaiting gateway confirmation
+  | "refunded"          // Fully refunded
+  | "partial_refund"    // Partially refunded
+  | "payment_conflict"; // Payment succeeded but finalization failed; needs resolution
 
 type PaymentStatus =
-  | "pending"
-  | "authorized"
-  | "captured"
-  | "failed"
-  | "refunded"
-  | "partial_refund";
+  | "requires_action"   // Awaiting customer action (3DS, redirect, bank confirmation)
+  | "pending"           // Submitted to gateway; no confirmation yet
+  | "authorized"        // Authorized but not captured
+  | "captured"          // Funds captured (equivalent to "paid" at payment level)
+  | "failed"            // Gateway rejected or timed out
+  | "voided"            // Authorization canceled before capture
+  | "refund_pending"    // Refund in flight
+  | "refunded"          // Fully refunded
+  | "partial_refund";   // Partially refunded
 
 interface Order {
   orderNumber: string;                   // Human-readable, unique: ORD-2026-00001
@@ -508,13 +555,56 @@ export const COMMERCE_STORAGE_CONFIG = {
     ] as const,
     uniqueIndexes: ["providerId"] as const,
   },
+
+  // Append-only ledger of every inventory movement. stockQty is derived from this.
+  // Never update or delete rows; always insert a new record.
+  inventoryLedger: {
+    indexes: [
+      "productId",
+      "variantId",
+      "referenceType",
+      "referenceId",
+      "createdAt",
+      ["productId", "createdAt"],
+      ["variantId", "createdAt"],
+    ] as const,
+  },
+
+  // One record per payment attempt, regardless of outcome.
+  paymentAttempts: {
+    indexes: [
+      "orderId",
+      "providerId",
+      "status",
+      "createdAt",
+      ["orderId", "status"],
+      ["providerId", "createdAt"],
+    ] as const,
+  },
+
+  // Deduplicated log of every inbound webhook. Used for idempotency and replay detection.
+  webhookReceipts: {
+    indexes: [
+      "providerId",
+      "externalEventId",
+      "orderId",
+      "status",
+      "createdAt",
+      ["providerId", "externalEventId"],
+    ] as const,
+    uniqueIndexes: ["externalEventId"] as const,
+  },
+
 } satisfies PluginStorageConfig;
 ```
 
-Note: `orderItems` and `orderEvents` are embedded in their parent order document
-or kept as separate collections depending on expected query patterns. The schema
-above treats `orderEvents` as a collection. `lineItems` are embedded in the
-order document — they are immutable snapshots and are never queried independently.
+### Storage design notes
+
+- `lineItems` are **embedded** in the order document — immutable snapshots, never queried independently.
+- `orderEvents` is a **separate collection** — append-only; supports order timeline queries.
+- `inventoryLedger` is **append-only**. The `stockQty` field on `products`/`productVariants` is a materialized cache updated atomically with each ledger insert. Never mutate stock directly — always write a ledger record and derive the new count.
+- `webhookReceipts.externalEventId` is the provider's event/charge/transfer ID. The unique index is the deduplication guard; insert fails if already seen → idempotency enforced at storage layer.
+- `paymentAttempts` enables refund reconciliation, retry auditing, and support escalation without relying solely on the payment provider's dashboard.
 
 ---
 
@@ -757,97 +847,141 @@ buy-button          ← standalone "Add to cart" button
 
 ## 13. Phased Implementation Plan
 
-### Phase 0 — Foundation (Step 1, detailed below)
+The original phase plan was too broad too early. The revised plan below:
+- Freezes dangerous semantics before coding starts (Phase 0)
+- Proves one complete real flow before expanding (Phases 1–3)
+- Validates the provider abstraction with a second gateway before growing the ecosystem (Phase 4)
+- Expands UI, AI tooling, and extensions only after correctness is proven (Phases 5–7)
 
-Package scaffold, TypeScript type definitions, storage schema, KV key namespace,
-route contract interfaces, provider interface contracts. No business logic yet.
-This is the contracts milestone — the thing all subsequent work builds on.
+### Phase 0 — Semantic hardening + contracts (Step 1 spec, see Section 14)
 
-**Exit criteria:** `packages/plugins/commerce` builds with TypeScript and exports
-all types. No runtime code yet.
+Package scaffold. TypeScript types. Storage schema. KV namespace. Route contracts
+(Zod schemas). Provider interface contracts. State machine constants. Error
+catalog constants. **No business logic yet.**
 
-### Phase 1 — Product catalog
+**Exit criteria:**
+- `packages/plugins/commerce` builds with TypeScript; exports all types and schemas.
+- State machine transition tables are in code as constants (not just docs).
+- Error catalog is in code as a typed `const` object.
+- Inventory ledger, payment attempt, and webhook receipt types are defined.
+- No runtime logic exists yet; this milestone is purely contracts.
 
-Public product read routes (`products/list`, `products/get`, `products/variants`).
-Admin CRUD routes for products and variants. Block Kit admin pages for product
-list and create/edit. Inventory adjust route. Basic search/filter on list.
+### Phase 1 — Commerce kernel (Layer A, no UI)
 
-**Exit criteria:** Merchant can create a simple product with variants and an
-image via admin. Product is readable via public API. Inventory decrements on
-direct adjustment.
+Pure domain logic with no admin, no Astro, no React, no MCP. Enforced by
+directory structure (`src/kernel/`). All business functions are pure or take
+explicit I/O dependencies via injection — no direct `ctx.*` calls inside kernel.
 
-### Phase 2 — Cart engine
+Scope:
+- Simple product domain rules and validation.
+- Cart service: create, add item, update qty, remove, totals, expiry.
+- Inventory service: `adjustStock(delta, reason, referenceType, referenceId)` — writes ledger + updates qty atomically.
+- Order snapshot creation from cart.
+- `finalizePayment(orderId, paymentRef)` — the single authoritative finalization path:
+  1. Check idempotency (`webhookReceipts.externalEventId`).
+  2. Verify order is in `payment_pending` or `authorized`.
+  3. Read variant `inventoryVersion` at time of cart snapshot vs current — if changed and stock now insufficient, transition order to `payment_conflict` and return `insufficient_stock`.
+  4. Decrement stock, insert ledger row.
+  5. Transition order to `paid`, payment to `captured`.
+  6. Emit side effects (email, events) **after** the above succeeds.
+- Error types using the catalog (Section 16).
+- Domain event records for `orderEvents`.
 
-`CartService` module (pure business logic, no I/O). Cart token strategy (signed
-opaque token in cookie). All cart API routes. Cart expiry cron job. Quantity
-limit validation. Price freeze on add-to-cart. Discount code validation stub.
+**Exit criteria:**
+- All kernel functions are pure / injected; zero `ctx.*` imports inside `src/kernel/`.
+- `finalizePayment` is idempotent (calling twice with same `externalEventId` is a no-op).
+- Tests cover: duplicate finalize, stock-change conflict, stale cart, state transition guards.
 
-**Exit criteria:** Frontend app can create a cart, add/update/remove items, and
-retrieve totals. Cart expires after configurable TTL. Cart token round-trips
-cleanly.
+### Phase 2 — One real vertical slice (Stripe + EmDash plugin wrapper)
 
-### Phase 3 — Provider registry
+One complete purchase flow, end-to-end:
+- View a simple product (public `products/get` route).
+- Add to cart, view cart, update/remove items (cart routes).
+- Checkout start: create `draft` order, initiate Stripe Payment Intent.
+- Stripe webhook: verify signature → idempotency check → call `finalizePayment`.
+- Order visible in admin (Block Kit order list page).
+- Order timeline (`orderEvents`) visible in admin for debugging.
+- Order confirmation email.
 
-`providers/register` and `providers/unregister` routes. Provider resolution
-logic (select active provider per type). Stub provider implementations for local
-testing (static shipping rates, flat tax rate, mock payment). Settings admin
-page for provider selection.
+EmDash plugin wrapper (`src/plugin/`): descriptor, `definePlugin`, routes wiring
+into kernel, `ctx.storage` as the I/O layer, `ctx.kv`, `ctx.email`, `ctx.http`.
 
-**Exit criteria:** Multiple payment providers can be registered and one selected
-as active. The checkout flow calls the active provider. Local dev works with
-stub providers.
+Storefront: one minimal Astro page per step (product, cart, checkout, confirmation).
+No `<CartDrawer>` component library yet — that is Phase 5. Goal: prove the flow,
+not ship a UI framework.
 
-### Phase 4 — Checkout and order creation
+**Exit criteria:**
+- A test customer can buy a real simple product in Stripe test mode, end to end.
+- Order finalizes correctly. Inventory decrements. Email sends.
+- Duplicate Stripe webhook does not double-decrement stock.
+- Inventory conflict path returns structured `payment_conflict` order + initiates auto-void.
 
-`checkout/create` route: validate cart → freeze price snapshot → create
-`payment_pending` order → call active payment provider `initiate` route →
-return payment session to frontend. `checkout/webhook` route: verify signature
-→ deduplicate via KV → update order status → decrement inventory → send order
-confirmation email. Order state machine guards. Idempotency on all transitions.
+### Phase 3 — Hardening before features
 
-**Exit criteria:** Full checkout flow completes end-to-end with stub payment
-provider. Real order is created, inventory decremented, confirmation email sent.
+No new features. Pressure-test Phase 2 against expected failure cases:
 
-### Phase 5 — Payment providers (Stripe + Authorize.net)
+Required tests added in this phase:
+- Duplicate webhook (same `externalEventId`).
+- Retry after webhook timeout (second delivery after first partially processed).
+- Inventory changed between cart creation and finalize.
+- Cart expired before checkout.create.
+- Payment success + inventory failure → `payment_conflict` → auto-void triggered.
+- Order finalization idempotency (repeated callback replay).
+- Cancellation and refund state transition guards (invalid transitions rejected).
+- Stale cart reuse after TTL.
 
-Two standard plugins, both implementing `PaymentProviderContract` and registering
-on `plugin:activate`:
+If the architecture bends under these tests, fix it before Phase 4.
 
-- `@emdash-cms/plugin-commerce-stripe`
-- `@emdash-cms/plugin-commerce-authorize-net`
+**Exit criteria:** All failure cases above have passing tests. No architectural
+regressions from fixing them.
 
-Routes per plugin: `initiate`, `confirm`, `refund`, `webhook` (shape as required
-by each gateway). Merchant selects the active payment provider in settings.
+### Phase 4 — Authorize.net (validate provider abstraction)
 
-**Exit criteria:** Test-mode checkout completes with **each** provider. Order
-transitions to `paid`. Refund route works for each. The shared contract is proven
-by two implementations, not one.
+Add `@emdash-cms/plugin-commerce-authorize-net` as a second in-process provider
+adapter. The goal is not feature breadth — it is to prove that the
+`PaymentProviderContract` is truly gateway-agnostic.
 
-### Phase 6 — React admin and Astro frontend
+Authorize.net introduces explicit auth/capture separation, which is why `authorized`
+is a required order state (and was not removed from the state machine despite the
+reviewer's suggestion).
 
-Upgrade admin from Block Kit to React (native plugin `adminEntry`). Rich product
-editor (variant builder, drag-and-drop media, pricing rules). Order management
-table with status transitions and refund flow. Dashboard analytics widget.
-Astro components for frontend (`<ProductCard>`, `<CartDrawer>`, etc.). PT blocks
-for product embeds.
+**Exit criteria:**
+- Test-mode checkout completes with Authorize.net.
+- Auth-only flow (authorize → captured later) works through the existing state machine.
+- No branching in kernel code for Stripe vs Authorize.net — all differences are in adapters.
+- Refund route works for both gateways.
 
-**Exit criteria:** Full admin experience. Site can render a complete product
-page and checkout flow using shipped Astro components.
+### Phase 5 — Admin UX expansion
 
-### Phase 7 — MCP and AI tooling
+Replace Block Kit admin with React (native plugin `adminEntry`):
+- Rich product editor (variant builder, image upload, pricing).
+- Order management table with status transitions, notes, refund flow.
+- Merchant settings page (provider selection, store config).
+- KPI dashboard widget (revenue, open orders, low stock).
+- Logged-in user purchase history page.
 
-`@emdash-cms/plugin-commerce-mcp` standard plugin. All MCP tools listed above.
-`ai/draft-product` route in commerce core. Merchant can use an AI agent to
-create products, manage orders, and pull reports.
+**Exit criteria:** Merchant can perform all common operations (product CRUD,
+order management, refund) without touching the API directly.
 
-**Exit criteria:** All listed MCP tools return correct structured data. An AI
-agent can complete a product import task autonomously.
+### Phase 6 — Storefront and extensions
 
-### Phase 8 — Ecosystem extensions
+After correctness is proven and admin is stable:
+- Full Astro component library (`<ProductCard>`, `<CartDrawer>`, `<CheckoutForm>`, etc.).
+- Portable Text blocks for product embeds.
+- Variable product support (variant selector).
+- Shipping/tax module (separate plugin family; see §15 decisions).
+- Abandoned cart cron + email recovery.
+- Digital product downloads.
 
-Shipping provider plugin (flat rate). Tax provider plugin (simple percentage,
-by country/region). Reviews plugin. Wishlist plugin. Abandoned cart cron +
-email automation.
+### Phase 7 — AI/MCP surfaces
+
+`@emdash-cms/plugin-commerce-mcp` standard plugin. `ai/draft-product` route.
+All MCP tools from Section 11. Merchant can use an AI agent for product import,
+order management, inventory management, and reporting.
+
+**Do not do this before Phase 3 hardening is complete.** AI agent reliability
+depends on consistent structured errors and idempotent operations — those must
+be proven before surfaces are exposed.
 
 ---
 
@@ -1349,3 +1483,200 @@ through Step 1, keep scrolling to the file end to reach Section 15.
   document id) unless you prefer opaque IDs for customer-facing URLs.
 - **Tax display when tax module is off:** N/A — tax lines appear only when a tax
   provider/module is active.
+
+---
+
+## 16. Error Catalog
+
+Every route error must use this structure:
+
+```typescript
+interface CommerceError {
+  code: CommerceErrorCode;       // Machine-stable; safe for AI branching
+  message: string;               // Human-readable; safe to display
+  httpStatus: number;
+  retryable: boolean;            // Whether the client may safely retry
+  details?: Record<string, unknown>; // Structured context (e.g. which itemId, which field)
+}
+```
+
+### Canonical error codes
+
+```typescript
+export const COMMERCE_ERRORS = {
+  // Inventory
+  INVENTORY_CHANGED:          { httpStatus: 409, retryable: false },
+  INSUFFICIENT_STOCK:         { httpStatus: 409, retryable: false },
+
+  // Product / catalog
+  PRODUCT_UNAVAILABLE:        { httpStatus: 404, retryable: false },
+  VARIANT_UNAVAILABLE:        { httpStatus: 404, retryable: false },
+
+  // Cart
+  CART_NOT_FOUND:             { httpStatus: 404, retryable: false },
+  CART_EXPIRED:               { httpStatus: 410, retryable: false },
+  CART_EMPTY:                 { httpStatus: 422, retryable: false },
+
+  // Order
+  ORDER_NOT_FOUND:            { httpStatus: 404, retryable: false },
+  ORDER_STATE_CONFLICT:       { httpStatus: 409, retryable: false },
+  PAYMENT_CONFLICT:           { httpStatus: 409, retryable: false },
+
+  // Payment
+  PAYMENT_INITIATION_FAILED:  { httpStatus: 502, retryable: true },
+  PAYMENT_CONFIRMATION_FAILED:{ httpStatus: 502, retryable: false },
+  PAYMENT_ALREADY_PROCESSED:  { httpStatus: 409, retryable: false },
+  PROVIDER_UNAVAILABLE:       { httpStatus: 503, retryable: true },
+
+  // Webhooks
+  WEBHOOK_SIGNATURE_INVALID:  { httpStatus: 401, retryable: false },
+  WEBHOOK_REPLAY_DETECTED:    { httpStatus: 200, retryable: false }, // 200 — tell provider we got it
+
+  // Discounts / coupons
+  INVALID_DISCOUNT:           { httpStatus: 422, retryable: false },
+  DISCOUNT_EXPIRED:           { httpStatus: 410, retryable: false },
+
+  // Features / config
+  FEATURE_NOT_ENABLED:        { httpStatus: 501, retryable: false },
+  CURRENCY_MISMATCH:          { httpStatus: 422, retryable: false },
+  SHIPPING_REQUIRED:          { httpStatus: 422, retryable: false },
+} as const satisfies Record<string, { httpStatus: number; retryable: boolean }>;
+
+export type CommerceErrorCode = keyof typeof COMMERCE_ERRORS;
+```
+
+Rules:
+- `WEBHOOK_REPLAY_DETECTED` returns **200** (not 4xx) so that payment gateways do
+  not retry the delivery — they treat non-2xx as failures and retry aggressively.
+- `PAYMENT_CONFLICT` is used when payment captured but inventory finalize failed.
+  It is distinct from `INSUFFICIENT_STOCK` because money has moved.
+- All codes are **snake_case strings**, stable across versions; never remove a
+  code, only add.
+
+---
+
+## 17. Cart Merge Rules
+
+Applies when a user with an anonymous `cartToken` logs in and may have a
+pre-existing server-side cart linked to their `userId`.
+
+### Guest checkout policy
+
+Guest checkout (purchase without creating an account) is **supported**. Orders
+are linked to `userId: null` and the `customer.email` is the only persistent
+identifier. Guest orders can be associated with a new/existing account by email
+match — see below.
+
+### Merge algorithm on login
+
+1. **Identify carts**: Look up the anonymous cart by `cartToken` (source) and any
+   `active` or `abandoned` cart owned by `userId` (target).
+
+2. **If no target cart exists**: Claim the anonymous cart by setting `userId` on
+   it. Status stays `active`. No merge needed.
+
+3. **If both carts exist and both have items**:
+   - For each item in the source cart:
+     - If the same `productId` + `variantId` already exists in target: **add quantities** (source qty + target qty), capped at product `maxQty` or 999.
+     - If the item does not exist in target: **copy item** into target.
+   - Validate all merged items against current availability (product `active`, variant
+     `active`, price not drastically changed). Items that fail validation are removed
+     and reported back to the caller in the merge response so the frontend can show a
+     notice.
+   - Transition source cart to `merged`.
+
+4. **If source cart is empty**: Discard it (transition to `expired`); use target.
+
+5. **If target cart is empty**: Claim the source cart (set `userId`; transition
+   source cart to active under the user). Discard empty target.
+
+### Invalid merged items
+
+If a merged line item references an unavailable product or variant, it is silently
+removed with an entry in the merge response under `removedItems: [{ productId, reason }]`.
+The frontend should display a notice.
+
+### Past orders ↔ account association
+
+If a guest places an order and later creates an account with the same email:
+- The `orders/list` route, when called by an authenticated user, also queries
+  for guest orders matching `customer.email`. These are returned in purchase
+  history with a flag `guestOrder: true`.
+- **We do not automatically rewrite `order.userId`** on the historical record.
+  Association is read-time only, so there is no risk of corrupting audit trails.
+
+---
+
+## 18. Layer Boundaries
+
+Code must be organized into four layers. **No layer may import from a higher
+layer.** Violations should be caught by lint rules (e.g. `eslint-plugin-import`
+`no-restricted-paths`).
+
+```
+Layer A — Commerce Kernel   (src/kernel/)
+  ↑ no dependencies on B, C, D
+  Pure domain: types, state machines, error catalog, cart service,
+  inventory service, order service, finalization function, totals.
+  No ctx.*, no HTTP, no React, no Astro.
+
+Layer B — EmDash Plugin Wrapper   (src/plugin/)
+  ↑ depends on A only
+  Plugin descriptor (index.ts), definePlugin (sandbox-entry.ts),
+  route handlers, ctx.* wiring, storage adapters, hook handlers.
+
+Layer C — Admin UI   (src/admin/)
+  ↑ depends on B (via route calls or SDK) and A (for types)
+  React components, Block Kit JSON builders, admin pages, widgets.
+  No direct ctx.* access.
+
+Layer D — Storefront UI   (src/astro/)
+  ↑ depends on A (for types), calls Layer B routes via HTTP
+  Astro components, page templates, checkout flow UI.
+  No kernel imports except shared types.
+```
+
+**Practical rule for v1:** A single `packages/plugins/commerce` package is
+acceptable. Enforce the layers through **directory structure and enforced import
+rules**, not separate npm packages (that can come later when needed).
+
+---
+
+## 19. Observability Requirements
+
+Observability is not a post-launch concern. The first gateway integration must
+be debuggable from day one.
+
+### Mandatory from Phase 2
+
+- **Correlation ID**: Every request that enters the checkout flow generates a
+  `correlationId` (uuid). It is threaded through every `ctx.log.*` call, every
+  `orderEvent` record, and every `paymentAttempt` record. It is returned in error
+  responses under `details.correlationId`.
+
+- **Order timeline**: Every state transition appends a record to `orderEvents`
+  with: `eventType`, `fromState`, `toState`, `actor`, `correlationId`, `createdAt`,
+  and optional `payload` (non-sensitive context only — no card numbers, no secrets).
+
+- **Provider call log**: Every outbound call to a payment gateway or provider route
+  appends a `paymentAttempt` record with: `providerId`, `action`
+  (initiate/confirm/refund/webhook), `status`, `durationMs`, `correlationId`,
+  `createdAt`. Sensitive fields (raw payload, response body) are **redacted** —
+  store only a hash or omit entirely.
+
+- **Webhook receipt log**: Every inbound webhook appends a `webhookReceipt` record
+  with: `providerId`, `externalEventId`, `orderId`, `status`
+  (processed/duplicate/invalid_signature/error), `createdAt`. Raw body is **not
+  stored** — only the normalized, validated facts.
+
+- **Inventory mutation log**: Every stock change is a row in `inventoryLedger`.
+  `reason` and `referenceType`/`referenceId` are mandatory — never allow `reason:
+  "unknown"`.
+
+- **Actor attribution**: Every `orderEvent` records `actor` as one of:
+  `"customer"` | `"merchant"` | `"system"` | `"agent"`. AI agent operations are
+  always tagged `"agent"` so audit trails distinguish machine from human actions.
+
+- **Structured log levels**: Use `ctx.log.info / warn / error` with a consistent
+  shape: `{ correlationId, orderId?, cartId?, event, ...context }`. Never log
+  secrets, PII beyond email, or raw payment payloads.
