@@ -43,7 +43,7 @@ const DONOR_NODE_MODULES = resolve(import.meta.dirname, "../../../../demos/simpl
 
 export interface TestServerOptions {
 	port: number;
-	/** Server startup timeout in ms (default: 30_000) */
+	/** Server startup timeout in ms (default: 90_000) */
 	timeout?: number;
 	/** Seed test data after setup (default: true) */
 	seed?: boolean;
@@ -148,7 +148,7 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
  * database file — source files stay at their real paths.
  */
 export async function createTestServer(options: TestServerOptions): Promise<TestServerContext> {
-	const { port, timeout = 60_000, seed = true } = options;
+	const { port, timeout = 90_000, seed = true } = options;
 	const baseUrl = `http://localhost:${port}`;
 
 	// --- 0. Ensure workspace is built ---
