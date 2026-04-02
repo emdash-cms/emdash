@@ -110,6 +110,22 @@ export interface AdminManifest {
 				placeholder?: string;
 				fields?: Element[];
 			}>;
+			/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+			editorStyles?: Array<{
+				type: "button" | "dropdown";
+				label: string;
+				icon?: string;
+				scope?: "inline" | "block";
+				classes?: string;
+				nodes?: string[];
+				items?: Array<{
+					type?: "separator";
+					label?: string;
+					scope?: "inline" | "block";
+					classes?: string;
+					nodes?: string[];
+				}>;
+			}>;
 		}
 	>;
 	/**
