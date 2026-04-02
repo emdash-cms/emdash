@@ -649,7 +649,7 @@ export const KV_KEYS = {
   // Optional hot-path cache only — authoritative dedupe remains `webhookReceipts` in storage.
   webhookDedupe: (eventId: string) => `state:webhook:dedupe:${eventId}`,
 
-  // Rate limits (sliding window counters; values are JSON { count, windowStart })
+  // Rate limits (fixed-window counters; values are JSON { count, windowStart })
   rateLimit: {
     checkoutPerIp: (ipHash: string) => `state:ratelimit:checkout:ip:${ipHash}`,
     cartMutatePerToken: (tokenHash: string) => `state:ratelimit:cart:token:${tokenHash}`,
@@ -1578,8 +1578,10 @@ Rules:
   not retry the delivery — they treat non-2xx as failures and retry aggressively.
 - `PAYMENT_CONFLICT` is used when payment captured but inventory finalize failed.
   It is distinct from `INSUFFICIENT_STOCK` because money has moved.
-- All codes are **snake_case strings**, stable across versions; never remove a
-  code, only add.
+- Wire-level / API error codes should be **snake_case strings**, stable across
+  versions; never remove a code, only add. The current kernel scaffold still uses
+  uppercase internal constant keys and must normalize them before route handlers
+  start returning public error payloads.
 
 ---
 
@@ -1725,7 +1727,7 @@ This section tightens production behavior without reopening locked product decis
 - **Product list** — always **cursor-based** pagination; default limit capped (e.g. 50);
   never unbounded `limit` query params.
 
-### 20.2 Rate limiting (KV sliding window)
+### 20.2 Rate limiting (KV fixed window)
 
 Apply before expensive work:
 

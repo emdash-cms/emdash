@@ -1,8 +1,10 @@
 # Third-party technical review — EmDash-native commerce plugin
 
+> Historical review packet. Superseded by `3rdpary_review_2.md` for the current project state.
+
 **Document purpose:** Give an external developer enough context to judge whether the proposed **e-commerce / cart plugin for [EmDash CMS](https://github.com/emdash-cms/emdash)** is on a sound, optimal path—especially regarding extensibility, platform fit, and operational risk—**before** substantial implementation begins.
 
-**Status:** Architecture and phased plan are written; **no commerce plugin package exists in-tree yet** (Step 1 in the architecture doc is “contracts-only” scaffolding). This review is intentionally **design-first**.
+**Status:** Historical snapshot from before `packages/plugins/commerce` was added. Keep this file only for context on how the plan evolved.
 
 **How to use this file:** Read this overview, then the bundled documents (see **Review bundle** below). Answer the questions in **What we want from you** with concrete suggestions, risks, and alternatives.
 
