@@ -1086,6 +1086,50 @@ export interface FieldWidgetConfig {
 }
 
 /**
+ * A style item that toggles CSS classes on inline text or block elements.
+ * Used inside both button entries and dropdown menus.
+ */
+export interface EditorStyleItem {
+	/** Display label */
+	label: string;
+	/** "inline" = mark on selected text, "block" = attribute on containing block */
+	scope: "inline" | "block";
+	/** Space-separated CSS class string to apply */
+	classes: string;
+	/**
+	 * Restrict block styles to specific node types (e.g., ["heading", "horizontalRule"]).
+	 * Omit to apply to any block. Ignored for inline scope.
+	 */
+	nodes?: string[];
+}
+
+/** A visual separator in a dropdown */
+export interface EditorStyleSeparator {
+	type: "separator";
+}
+
+/** A standalone toggle button in the toolbar */
+export interface EditorStyleButton extends EditorStyleItem {
+	type: "button";
+	/** Icon key (e.g., "highlighter", "textAa"). Resolves via icon map. */
+	icon: string;
+}
+
+/** A dropdown menu grouping multiple style items */
+export interface EditorStyleDropdown {
+	type: "dropdown";
+	/** Dropdown button label */
+	label: string;
+	/** Icon key for the dropdown trigger button */
+	icon: string;
+	/** Items inside the dropdown */
+	items: Array<EditorStyleItem | EditorStyleSeparator>;
+}
+
+/** Top-level editor style entry — either a button or a dropdown */
+export type EditorStyleEntry = EditorStyleButton | EditorStyleDropdown;
+
+/**
  * Admin configuration
  */
 export interface PluginAdminConfig {
@@ -1101,6 +1145,8 @@ export interface PluginAdminConfig {
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types this plugin provides */
 	fieldWidgets?: FieldWidgetConfig[];
+	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+	editorStyles?: EditorStyleEntry[];
 }
 
 /**

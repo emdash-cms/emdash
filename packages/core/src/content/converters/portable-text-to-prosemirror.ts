@@ -87,9 +87,41 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 }
 
 /**
+ * Extract cssClasses from any PT block. The property exists on text blocks
+ * but can appear on any block type via .passthrough() schema.
+ */
+function getCssClasses(block: PortableTextBlock): string | undefined {
+	if ("cssClasses" in block && typeof block.cssClasses === "string") {
+		return block.cssClasses;
+	}
+	return undefined;
+}
+
+/**
+ * Apply cssClasses from a PT block onto a converted ProseMirror node's attrs.
+ */
+function applyCssClasses(
+	block: PortableTextBlock,
+	node: ProseMirrorNode | null,
+): ProseMirrorNode | null {
+	if (!node) return null;
+	const cssClasses = getCssClasses(block);
+	if (!cssClasses) return node;
+	return {
+		...node,
+		attrs: { ...node.attrs, cssClasses },
+	};
+}
+
+/**
  * Convert a single Portable Text block to ProseMirror node
  */
 function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
+	const node = convertBlockInner(block);
+	return applyCssClasses(block, node);
+}
+
+function convertBlockInner(block: PortableTextBlock): ProseMirrorNode | null {
 	if (isTextBlock(block)) {
 		return convertTextBlock(block);
 	}
@@ -100,7 +132,14 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 		return convertCodeBlock(block);
 	}
 	if (block._type === "break") {
-		return { type: "horizontalRule" };
+		const variant =
+			typeof (block as Record<string, unknown>).variant === "string"
+				? (block as Record<string, unknown>).variant
+				: undefined;
+		return {
+			type: "horizontalRule",
+			attrs: variant ? { variant } : undefined,
+		};
 	}
 	// Unknown block - wrap in a div or preserve as placeholder
 	return {
@@ -152,11 +191,12 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 			};
 
 		case "normal":
-		default:
+		default: {
 			return {
 				type: "paragraph",
 				content: content.length > 0 ? content : undefined,
 			};
+		}
 	}
 }
 
@@ -333,6 +373,13 @@ function convertMarks(
 							attrs: {
 								href: markDef.href,
 								target: markDef.blank ? "_blank" : null,
+							},
+						});
+					} else if (markDef._type === "cssClass") {
+						pmMarks.push({
+							type: "cssClass",
+							attrs: {
+								classes: markDef.classes,
 							},
 						});
 					} else {

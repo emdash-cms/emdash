@@ -1215,6 +1215,21 @@ export class EmDashRuntime {
 					fieldTypes: string[];
 					elements?: Element[];
 				}>;
+				editorStyles?: Array<{
+					type: "button" | "dropdown";
+					label: string;
+					icon?: string;
+					scope?: "inline" | "block";
+					classes?: string;
+					nodes?: string[];
+					items?: Array<{
+						type?: "separator";
+						label?: string;
+						scope?: "inline" | "block";
+						classes?: string;
+						nodes?: string[];
+					}>;
+				}>;
 			}
 		> = {};
 
@@ -1241,6 +1256,7 @@ export class EmDashRuntime {
 				dashboardWidgets: plugin.admin?.widgets,
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
+				editorStyles: plugin.admin?.editorStyles,
 			};
 		}
 

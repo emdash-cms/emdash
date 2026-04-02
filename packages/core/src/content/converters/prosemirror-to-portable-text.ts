@@ -48,9 +48,36 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 }
 
 /**
+ * Apply cssClasses from ProseMirror node attrs to converted PT block(s).
+ * Handles both single blocks and arrays (e.g., lists, blockquotes).
+ */
+function applyCssClasses(
+	node: ProseMirrorNode,
+	result: PortableTextBlock | PortableTextBlock[] | null,
+): PortableTextBlock | PortableTextBlock[] | null {
+	if (!result) return null;
+	const cssClasses = typeof node.attrs?.cssClasses === "string" ? node.attrs.cssClasses : undefined;
+	if (!cssClasses) return result;
+
+	if (Array.isArray(result)) {
+		// Apply to first block in array (e.g., blockquote paragraphs, list items)
+		if (result.length > 0) {
+			result[0] = { ...result[0], cssClasses } as PortableTextBlock;
+		}
+		return result;
+	}
+	return { ...result, cssClasses } as PortableTextBlock;
+}
+
+/**
  * Convert a single ProseMirror node to Portable Text block(s)
  */
 function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlock[] | null {
+	const result = convertNodeInner(node);
+	return applyCssClasses(node, result);
+}
+
+function convertNodeInner(node: ProseMirrorNode): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph":
 			return convertParagraph(node);
@@ -73,12 +100,15 @@ function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlo
 		case "image":
 			return convertImage(node);
 
-		case "horizontalRule":
+		case "horizontalRule": {
+			const variant = typeof node.attrs?.variant === "string" ? node.attrs.variant : undefined;
 			return {
 				_type: "break",
 				_key: generateKey(),
 				style: "lineBreak",
+				...(variant ? { variant } : {}),
 			};
+		}
 
 		default:
 			// Preserve unknown blocks
@@ -402,6 +432,27 @@ function convertMark(
 				blank: mark.attrs?.target === "_blank",
 			});
 			markDefMap.set(href, key);
+
+			return key;
+		}
+
+		case "cssClass": {
+			const classes = (typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "") || "";
+			if (!classes) return null;
+
+			// Deduplicate: reuse existing markDef with same classes
+			const dedupeKey = `cssClass:${classes}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
+			}
+
+			const key = generateKey();
+			markDefs.push({
+				_type: "cssClass",
+				_key: key,
+				classes,
+			});
+			markDefMap.set(dedupeKey, key);
 
 			return key;
 		}
