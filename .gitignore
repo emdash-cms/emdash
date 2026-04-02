@@ -69,3 +69,6 @@ examples/wp-theme-unit-test/
 
 # Local WooCommerce source copy (reference only; not part of EmDash)
 woocommerce/
+
+# Archives (e.g. review bundles); keep local only
+*.zip
