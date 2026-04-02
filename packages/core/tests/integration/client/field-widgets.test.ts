@@ -17,7 +17,6 @@ import type { TestServerContext } from "../server.js";
 import { assertNodeVersion, createTestServer } from "../server.js";
 
 const PORT = 4397;
-const TIMEOUT = 90_000;
 
 describe("Field Widgets Integration", () => {
 	let ctx: TestServerContext;
@@ -25,7 +24,7 @@ describe("Field Widgets Integration", () => {
 	beforeAll(async () => {
 		assertNodeVersion();
 		ctx = await createTestServer({ port: PORT });
-	}, TIMEOUT);
+	});
 
 	afterAll(async () => {
 		await ctx?.cleanup();
