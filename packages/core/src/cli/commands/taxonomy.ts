@@ -8,7 +8,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
-import { output } from "../output.js";
+import { configureOutputMode, output } from "../output.js";
 
 /** Pattern to replace whitespace with hyphens for slug generation */
 const WHITESPACE_PATTERN = /\s+/g;
@@ -22,6 +22,7 @@ const listCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const taxonomies = await client.taxonomies();
@@ -56,6 +57,7 @@ const termsCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const result = await client.terms(args.name, {
@@ -97,6 +99,7 @@ const addTermCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const label = args.name;

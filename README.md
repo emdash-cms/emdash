@@ -4,6 +4,9 @@ A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudfla
 
 ## Get Started
 
+> [!IMPORTANT]
+> EmDash depends on Dynamic Workers to run secure sandboxed plugins. Dynamic Workers are currently only available on paid accounts. [Upgrade your account](https://www.cloudflare.com/plans/developer-platform/) (starting at $5/mo) or comment out the `worker_loaders` block of your `wrangler.jsonc` configuration file to disable plugins.
+
 ```bash
 npm create emdash@latest
 ```
@@ -70,7 +73,7 @@ A visual portfolio for showcasing creative work.
 
 ## Why EmDash?
 
-**WordPress was built for a different era.** Running WordPress today means managing PHP alongside JavaScript, layering caches to get acceptable performance, and knowing that [96% of WordPress security vulnerabilities come from plugins](https://patchstack.com/whitepaper/the-state-of-wordpress-security-in-2024/). EmDash is what WordPress would look like if you started from scratch with today's tools.
+**WordPress was built for a different era.** Running WordPress today means managing PHP alongside JavaScript, layering caches to get acceptable performance, and knowing that [96% of WordPress security vulnerabilities come from plugins](https://patchstack.com/whitepaper/state-of-wordpress-security-in-2024/). EmDash is what WordPress would look like if you started from scratch with today's tools.
 
 **Sandboxed plugins.** WordPress plugins have full access to the database, filesystem, and user data. A single vulnerable plugin can compromise the entire site. EmDash plugins run in isolated [Worker sandboxes](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/) via Dynamic Worker Loaders, each with a declared capability manifest. A plugin that requests `read:content` and `email:send` can do exactly that and nothing else.
 
@@ -159,7 +162,7 @@ EmDash is in **beta preview**. We welcome contributions, feedback, plugins, them
 npm create emdash@latest
 ```
 
-See the [documentation[(https://github.com/emdash-cms/emdash/tree/main/docs)] for guides, API reference, and plugin development.
+See the [documentation](https://github.com/emdash-cms/emdash/tree/main/docs) for guides, API reference, and plugin development.
 
 ## Development
 
