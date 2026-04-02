@@ -14,6 +14,16 @@ describe("decidePaymentFinalize", () => {
 		).toEqual({ action: "proceed", correlationId: cid });
 	});
 
+	it("proceeds when order is authorized and no receipt exists", () => {
+		expect(
+			decidePaymentFinalize({
+				orderStatus: "authorized",
+				receipt: { exists: false },
+				correlationId: cid,
+			}),
+		).toEqual({ action: "proceed", correlationId: cid });
+	});
+
 	it("noop when order already paid (gateway retry)", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "paid",
@@ -36,7 +46,7 @@ describe("decidePaymentFinalize", () => {
 		});
 		expect(d).toEqual({
 			action: "noop",
-			reason: "webhook_already_processed",
+			reason: "webhook_receipt_processed",
 			httpStatus: 200,
 			code: "WEBHOOK_REPLAY_DETECTED",
 		});
@@ -50,7 +60,7 @@ describe("decidePaymentFinalize", () => {
 		});
 		expect(d).toMatchObject({
 			action: "noop",
-			reason: "webhook_already_processed",
+			reason: "webhook_receipt_duplicate",
 			httpStatus: 200,
 			code: "WEBHOOK_REPLAY_DETECTED",
 		});
@@ -101,6 +111,20 @@ describe("decidePaymentFinalize", () => {
 	it("conflict when order is in draft", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "draft",
+			receipt: { exists: false },
+			correlationId: cid,
+		});
+		expect(d).toMatchObject({
+			action: "noop",
+			reason: "order_not_finalizable",
+			httpStatus: 409,
+			code: "ORDER_STATE_CONFLICT",
+		});
+	});
+
+	it("conflict when order is canceled", () => {
+		const d = decidePaymentFinalize({
+			orderStatus: "canceled",
 			receipt: { exists: false },
 			correlationId: cid,
 		});

@@ -28,5 +28,29 @@ describe("toCommerceApiError", () => {
 		expect(error.details).toEqual({ orderId: "ord_123", phase: "canceled" });
 		expect(error.code).toBe("order_state_conflict");
 	});
+
+	it("preserves retryable metadata for retryable errors", () => {
+		const error = toCommerceApiError({
+			code: "PROVIDER_UNAVAILABLE",
+			message: "Provider timed out",
+		});
+
+		expect(error.code).toBe("provider_unavailable");
+		expect(error.retryable).toBe(true);
+		expect(error.httpStatus).toBe(COMMERCE_ERRORS.PROVIDER_UNAVAILABLE.httpStatus);
+	});
+
+	it("preserves retryable metadata for non-retryable errors", () => {
+		const error = toCommerceApiError({
+			code: "WEBHOOK_SIGNATURE_INVALID",
+			message: "Invalid webhook signature",
+		});
+
+		expect(error.code).toBe("webhook_signature_invalid");
+		expect(error.retryable).toBe(false);
+		expect(error.httpStatus).toBe(
+			COMMERCE_ERRORS.WEBHOOK_SIGNATURE_INVALID.httpStatus,
+		);
+	});
 });
 

@@ -8,16 +8,18 @@ The commerce design assumes EmDash’s actual platform constraints: native plugi
 
 ## New developer onboarding (start here)
 
-If you are new to this repository, start with this sequence:
+If you are new to this repository, this file is the only required starting point:
 
-1. Read `commerce-plugin-architecture.md` first (authoritative design document).
-2. Read this handover (`HANDOVER.md`) next.
-3. Read in this order:
-   - `3rdpary_review_3.md`
-   - `emdash-commerce-final-review-plan.md`
-   - `emdash-commerce-deep-evaluation.md`
-4. Review kernel entry points in `packages/plugins/commerce/src/kernel`.
-5. Before coding, align on next-step milestone and do not add scope.
+1. Read this handover completely.
+2. Review kernel entry points in `packages/plugins/commerce/src/kernel`.
+3. Execute only the "Immediate next-step target" phase order below.
+
+Optional context (for orientation only):
+
+- `commerce-plugin-architecture.md`
+- `3rdpary_review_3.md`
+- `emdash-commerce-final-review-plan.md`
+- `emdash-commerce-deep-evaluation.md`
 
 ## Onboarding mindset
 
@@ -27,9 +29,14 @@ Goal for the next engineer is not completeness, it is a repeatable, correct Stri
 - webhook replay/conflict correctness before extra features,
 - route contracts before integrations.
 
+## One-document rule for this stage
+
+For stage-1 execution, `HANDOVER.md` is the only document you must follow to
+start coding. Use other documents for historical context after implementation begins.
+
 ## Completed work and outcomes
 
-The architecture has been documented in depth in `commerce-plugin-architecture.md`. That document is now the **authoritative blueprint**. It includes the plugin model, product/cart/order data model, provider execution model, phased plan, state machines, storage schema, error catalog, cart merge rules, observability requirements, robustness/scalability rules, and platform-alignment notes for EmDash and Cloudflare Workers.
+The architecture has been documented in depth in `commerce-plugin-architecture.md` for reference. This handover now drives the execution sequence for stage-1.
 
 Several review rounds have already happened and the important feedback has been integrated. `emdash-commerce-final-review-plan.md` tightened the project around a **small, correctness-first kernel** and a **single real payment slice** before broader scope. `emdash-commerce-deep-evaluation.md` added useful pressure on architecture-to-code consistency and feature-fit, especially around bundle complexity and variant swatches. Historical context is preserved in `high-level-plan.md`, `3rdpary_review.md`, `3rdpary_review_2.md`, and the latest external-review summary `3rdpary_review_3.md`.
 
@@ -79,9 +86,12 @@ Lesson learned from external reviews: do **not** broaden scope until the first S
 
 ## Files changed, key insights, and gotchas
 
-The most important file is `commerce-plugin-architecture.md`. It supersedes `high-level-plan.md`. If there is a conflict between documents, **follow `commerce-plugin-architecture.md`** unless a newer handoff or review file explicitly says otherwise.
+For this stage, the most important file is this `HANDOVER.md`.
 
-`3rdpary_review.md` is **historical**. `3rdpary_review_2.md` and `3rdpary_review_3.md` are external-review packets (newer iterations add scope and post-feedback notes). `emdash-commerce-final-review-plan.md` and `emdash-commerce-deep-evaluation.md` are not authoritative specs, but they contain high-value critique that shaped the current plan and should be treated as review context, not ignored.
+`commerce-plugin-architecture.md` is supporting architecture context and should be consulted only after the stage handoff flow is set.
+
+`3rdpary_review.md` and earlier review artifacts are historical context.
+`3rdpary_review_3.md`, `emdash-commerce-final-review-plan.md`, and `emdash-commerce-deep-evaluation.md` are optional review context only.
 
 The architecture has already chosen some important product constraints:
 
@@ -98,13 +108,12 @@ The main gotchas to avoid:
 - Do not treat x402 as a replacement for cart commerce. Use `commerce-vs-x402-merchants.md` if product confusion starts.
 - Do not trust `CF-Worker`-style headers or user-provided URLs for authorization or routing. The platform-alignment section in `commerce-plugin-architecture.md` already calls out SSRF and binding constraints.
 
-## Key files and directories
+## Optional reference files and code context
 
-### Authoritative architecture and reviews
+### Reference context (not required to start)
 
 - `commerce-plugin-architecture.md` — authoritative architecture and phased plan
 - `HANDOVER.md` — this handoff
-- `emdash-commerce-final-review-plan.md` — review-driven refinement toward kernel-first execution
 - `emdash-commerce-deep-evaluation.md` — latest deep evaluation, useful critique and feature-fit analysis
 - `3rdpary_review_2.md`, `3rdpary_review_3.md` — third-party review packets
 - `3rdpary_review.md` — historical review packet
@@ -142,10 +151,19 @@ Build the first **real** vertical slice in this order:
 3. Implement idempotent finalize orchestration, including receipt replay detection.
 4. Add replay/conflict tests that prove:
    - duplicate webhook handling is deterministic,
+   - `processed` vs `duplicate` receipt semantics remain explicit in storage/orchestration,
    - stale/invalid states return structured NOOP/RETRY outcomes,
    - no inventory mutation occurs when finalization is denied.
 5. Implement Stripe adapter and wire it into finalize orchestration.
 6. Ship minimal admin order visibility only after slice repeatability and replay safety are proven.
+
+### Execution acceptance criteria (required to move past this stage)
+
+- Checkout/webhook flows are backed by durable storage and idempotent keys.
+- Finalize orchestration is deterministic for duplicate/replay deliveries.
+- No inventory movement occurs unless finalize action succeeds.
+- Finalization is blocked by explicit receipt/order state checks and emits canonical API error payloads.
+- Tests cover duplicate, pending, and failed receipt pathways.
 
 Do not expand to bundles, shipping/tax, advanced storefront UI, or MCP/AI operations until that slice is correct and repeatable.
 

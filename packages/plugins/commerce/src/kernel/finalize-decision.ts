@@ -29,19 +29,19 @@ export type OrderPaymentPhase =
 	| "canceled";
 
 /**
- * Minimal receipt state for idempotent finalize. **Semantics to pin before
- * persistence ships:**
+ * Minimal receipt state for idempotent finalize. **Storage-facing semantics to
+ * pin before persistence ships:**
  *
  * - **processed** — this `externalEventId` was fully handled; side effects
- *   (e.g. order transition) completed successfully.
- * - **duplicate** — redundant relative to storage rules: same
- *   `(providerId, externalEventId)` re-delivered, or an event deduped as
- *   equivalent to one already processed. Not necessarily byte-identical to
- *   `processed` in forensic terms, but **finalize must not run again** for
- *   either; both yield the same noop here until a stricter product need splits
- *   them.
- * - **pending** — row exists but processing not complete (retry later / 409).
- * - **error** — terminal failure for this receipt row (do not proceed).
+ *   (e.g. order transition) completed successfully. Terminal.
+ * - **duplicate** — derived duplicate classification from storage/orchestration:
+ *   a delivery must not execute finalize again because it is redundant relative
+ *   to an already-known receipt. Retry is not useful here.
+ * - **pending** — receipt row exists but processing is incomplete. Retry may be
+ *   valid once that row resolves.
+ * - **error** — terminal failure recorded for this receipt row. Do not proceed
+ *   from this helper; orchestration must decide whether a later recovery path
+ *   exists.
  */
 export type WebhookReceiptView =
 	| { exists: false }
@@ -51,7 +51,8 @@ export type WebhookReceiptView =
 export type FinalizeNoopCode = "WEBHOOK_REPLAY_DETECTED" | "ORDER_STATE_CONFLICT";
 export type FinalizeNoopReason =
 	| "order_already_paid"
-	| "webhook_already_processed"
+	| "webhook_receipt_processed"
+	| "webhook_receipt_duplicate"
 	| "webhook_error"
 	| "webhook_pending"
 	| "order_not_finalizable";
@@ -84,10 +85,19 @@ export function decidePaymentFinalize(input: {
 	}
 
 	if (receipt.exists) {
-		if (receipt.status === "processed" || receipt.status === "duplicate") {
+		if (receipt.status === "processed") {
 			return {
 				action: "noop",
-				reason: "webhook_already_processed",
+				reason: "webhook_receipt_processed",
+				httpStatus: 200,
+				code: "WEBHOOK_REPLAY_DETECTED",
+			};
+		}
+
+		if (receipt.status === "duplicate") {
+			return {
+				action: "noop",
+				reason: "webhook_receipt_duplicate",
 				httpStatus: 200,
 				code: "WEBHOOK_REPLAY_DETECTED",
 			};
