@@ -34,4 +34,11 @@ describe("nextRateLimitState", () => {
 		expect(fresh.allowed).toBe(true);
 		expect(fresh.bucket.count).toBe(1);
 	});
+
+	it("resets exactly at window boundary", () => {
+		const first = nextRateLimitState(null, 0, 1, windowMs).bucket;
+		const second = nextRateLimitState(first, windowMs, 1, windowMs);
+		expect(second.allowed).toBe(true);
+		expect(second.bucket).toEqual({ count: 1, windowStartMs: windowMs });
+	});
 });

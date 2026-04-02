@@ -24,24 +24,91 @@ describe("decidePaymentFinalize", () => {
 		if (d.action === "noop") {
 			expect(d.httpStatus).toBe(200);
 			expect(d.code).toBe("WEBHOOK_REPLAY_DETECTED");
+			expect(d.reason).toBe("order_already_paid");
 		}
 	});
 
-	it("noop when receipt already processed even if order still pending (should not happen if impl is correct)", () => {
+	it("noop when webhook was already processed", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "payment_pending",
 			receipt: { exists: true, status: "processed" },
 			correlationId: cid,
 		});
-		expect(d.action).toBe("noop");
+		expect(d).toEqual({
+			action: "noop",
+			reason: "webhook_already_processed",
+			httpStatus: 200,
+			code: "WEBHOOK_REPLAY_DETECTED",
+		});
 	});
 
-	it("conflict when order in draft", () => {
+	it("noop when webhook is duplicate", () => {
+		const d = decidePaymentFinalize({
+			orderStatus: "payment_pending",
+			receipt: { exists: true, status: "duplicate" },
+			correlationId: cid,
+		});
+		expect(d).toMatchObject({
+			action: "noop",
+			reason: "webhook_already_processed",
+			httpStatus: 200,
+			code: "WEBHOOK_REPLAY_DETECTED",
+		});
+	});
+
+	it("order paid takes precedence over pending webhook row state", () => {
+		const d = decidePaymentFinalize({
+			orderStatus: "paid",
+			receipt: { exists: true, status: "pending" },
+			correlationId: cid,
+		});
+		expect(d).toMatchObject({
+			action: "noop",
+			reason: "order_already_paid",
+			httpStatus: 200,
+			code: "WEBHOOK_REPLAY_DETECTED",
+		});
+	});
+
+	it("conflict when webhook is pending", () => {
+		const d = decidePaymentFinalize({
+			orderStatus: "authorized",
+			receipt: { exists: true, status: "pending" },
+			correlationId: cid,
+		});
+		expect(d).toMatchObject({
+			action: "noop",
+			reason: "webhook_pending",
+			httpStatus: 409,
+			code: "ORDER_STATE_CONFLICT",
+		});
+	});
+
+	it("conflict when webhook is error", () => {
+		const d = decidePaymentFinalize({
+			orderStatus: "payment_pending",
+			receipt: { exists: true, status: "error" },
+			correlationId: cid,
+		});
+		expect(d).toMatchObject({
+			action: "noop",
+			reason: "webhook_error",
+			httpStatus: 409,
+			code: "ORDER_STATE_CONFLICT",
+		});
+	});
+
+	it("conflict when order is in draft", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "draft",
 			receipt: { exists: false },
 			correlationId: cid,
 		});
-		expect(d).toMatchObject({ action: "noop", code: "ORDER_STATE_CONFLICT" });
+		expect(d).toMatchObject({
+			action: "noop",
+			reason: "order_not_finalizable",
+			httpStatus: 409,
+			code: "ORDER_STATE_CONFLICT",
+		});
 	});
 });

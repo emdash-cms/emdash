@@ -10,6 +10,10 @@ export type OrderPaymentPhase =
 	| "authorized"
 	| "paid"
 	| "payment_conflict"
+	| "processing"
+	| "fulfilled"
+	| "refund_pending"
+	| "refunded"
 	| "canceled";
 
 export type WebhookReceiptView =
@@ -17,12 +21,18 @@ export type WebhookReceiptView =
 	| { exists: true; status: "processed" | "duplicate" | "error" | "pending" };
 
 export type FinalizeNoopCode = "WEBHOOK_REPLAY_DETECTED" | "ORDER_STATE_CONFLICT";
+export type FinalizeNoopReason =
+	| "order_already_paid"
+	| "webhook_already_processed"
+	| "webhook_error"
+	| "webhook_pending"
+	| "order_not_finalizable";
 
 export type FinalizeDecision =
 	| { action: "proceed"; correlationId: string }
 	| {
 			action: "noop";
-			reason: "order_already_paid" | "webhook_already_processed" | "order_not_finalizable";
+			reason: FinalizeNoopReason;
 			httpStatus: number;
 			code: FinalizeNoopCode;
 	  };
@@ -45,12 +55,21 @@ export function decidePaymentFinalize(input: {
 		};
 	}
 
-	if (receipt.exists && receipt.status === "processed") {
+	if (receipt.exists) {
+		if (receipt.status === "processed" || receipt.status === "duplicate") {
+			return {
+				action: "noop",
+				reason: "webhook_already_processed",
+				httpStatus: 200,
+				code: "WEBHOOK_REPLAY_DETECTED",
+			};
+		}
+
 		return {
 			action: "noop",
-			reason: "webhook_already_processed",
-			httpStatus: 200,
-			code: "WEBHOOK_REPLAY_DETECTED",
+			reason: receipt.status === "pending" ? "webhook_pending" : "webhook_error",
+			httpStatus: 409,
+			code: "ORDER_STATE_CONFLICT",
 		};
 	}
 
