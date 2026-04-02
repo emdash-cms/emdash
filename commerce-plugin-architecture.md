@@ -583,6 +583,7 @@ export const COMMERCE_STORAGE_CONFIG = {
   },
 
   // Deduplicated log of every inbound webhook. Used for idempotency and replay detection.
+  // Composite unique: event IDs are only guaranteed unique per provider, not globally.
   webhookReceipts: {
     indexes: [
       "providerId",
@@ -591,8 +592,20 @@ export const COMMERCE_STORAGE_CONFIG = {
       "status",
       "createdAt",
       ["providerId", "externalEventId"],
+      ["orderId", "createdAt"],
     ] as const,
-    uniqueIndexes: ["externalEventId"] as const,
+    uniqueIndexes: [["providerId", "externalEventId"]] as const,
+  },
+
+  // Server-side idempotency for mutating routes (e.g. checkout.create).
+  // Survives restarts; TTL enforced by cron deleting rows older than N hours.
+  idempotencyKeys: {
+    indexes: [
+      "route",
+      "createdAt",
+      ["keyHash", "route"],
+    ] as const,
+    uniqueIndexes: [["keyHash", "route"]] as const,
   },
 
 } satisfies PluginStorageConfig;
@@ -603,7 +616,8 @@ export const COMMERCE_STORAGE_CONFIG = {
 - `lineItems` are **embedded** in the order document — immutable snapshots, never queried independently.
 - `orderEvents` is a **separate collection** — append-only; supports order timeline queries.
 - `inventoryLedger` is **append-only**. The `stockQty` field on `products`/`productVariants` is a materialized cache updated atomically with each ledger insert. Never mutate stock directly — always write a ledger record and derive the new count.
-- `webhookReceipts.externalEventId` is the provider's event/charge/transfer ID. The unique index is the deduplication guard; insert fails if already seen → idempotency enforced at storage layer.
+- `webhookReceipts`: unique on **`(providerId, externalEventId)`** — never assume event IDs are globally unique across gateways.
+- `idempotencyKeys`: stores a **hash** of the client `Idempotency-Key` + route name + optional `userId` scope, plus a short JSON pointer to the prior successful response (`orderId`, etc.). Prevents duplicate orders when the client retries `checkout.create` after a network timeout. Suggested fields: `keyHash`, `route`, `userId?`, `httpStatus`, `responseRef` (e.g. `{ orderId }`), `createdAt`.
 - `paymentAttempts` enables refund reconciliation, retry auditing, and support escalation without relying solely on the payment provider's dashboard.
 
 ---
@@ -632,11 +646,21 @@ export const KV_KEYS = {
     orderNumberCounter: "state:order:numberCounter",            // monotonic counter
   },
 
-  // Idempotency / webhook deduplication (TTL-keyed)
+  // Optional hot-path cache only — authoritative dedupe remains `webhookReceipts` in storage.
   webhookDedupe: (eventId: string) => `state:webhook:dedupe:${eventId}`,
+
+  // Rate limits (sliding window counters; values are JSON { count, windowStart })
+  rateLimit: {
+    checkoutPerIp: (ipHash: string) => `state:ratelimit:checkout:ip:${ipHash}`,
+    cartMutatePerToken: (tokenHash: string) => `state:ratelimit:cart:token:${tokenHash}`,
+    webhookPerProvider: (providerId: string) => `state:ratelimit:webhook:prov:${providerId}`,
+  },
 
   // Provider cache (invalidated when providers/register is called)
   activeProviderCache: "state:providers:cache",
+
+  // Circuit breaker: after N failures in window, short-circuit outbound provider calls
+  providerCircuit: (providerId: string) => `state:circuit:provider:${providerId}`,
 } as const;
 ```
 
@@ -1540,6 +1564,10 @@ export const COMMERCE_ERRORS = {
   FEATURE_NOT_ENABLED:        { httpStatus: 501, retryable: false },
   CURRENCY_MISMATCH:          { httpStatus: 422, retryable: false },
   SHIPPING_REQUIRED:          { httpStatus: 422, retryable: false },
+
+  // Abuse / limits
+  RATE_LIMITED:               { httpStatus: 429, retryable: true },
+  PAYLOAD_TOO_LARGE:          { httpStatus: 413, retryable: false },
 } as const satisfies Record<string, { httpStatus: number; retryable: boolean }>;
 
 export type CommerceErrorCode = keyof typeof COMMERCE_ERRORS;
@@ -1680,3 +1708,94 @@ be debuggable from day one.
 - **Structured log levels**: Use `ctx.log.info / warn / error` with a consistent
   shape: `{ correlationId, orderId?, cartId?, event, ...context }`. Never log
   secrets, PII beyond email, or raw payment payloads.
+
+---
+
+## 20. Robustness and scalability
+
+This section tightens production behavior without reopening locked product decisions
+(§15). Implement during Phase 2–3 alongside the first gateway.
+
+### 20.1 Bounded payloads and abuse resistance
+
+- **Cart line item cap** (e.g. 50 lines per cart) and **per-line qty cap** (e.g. 999)
+  — reject with `ORDER_STATE_CONFLICT` or a dedicated `PAYLOAD_TOO_LARGE` once added
+  to the error catalog.
+- **Checkout.create body size** — validate JSON depth/size before parsing.
+- **Product list** — always **cursor-based** pagination; default limit capped (e.g. 50);
+  never unbounded `limit` query params.
+
+### 20.2 Rate limiting (KV sliding window)
+
+Apply before expensive work:
+
+| Surface | Key basis | Purpose |
+|---------|-----------|---------|
+| `checkout.create` | Hashed client IP + optional `userId` | Slow brute-force / card testing |
+| Cart mutations | Hashed `cartToken` | Scraping / bot add-to-cart |
+| Inbound webhooks | `providerId` + source IP hash | Flood protection (still verify signature first when cheap) |
+
+Return **429** with `retryAfter` seconds when exceeded. Log with `correlationId` only.
+
+### 20.3 Client idempotency (`Idempotency-Key`)
+
+- For **`checkout.create`** (and later `refund`), accept header or body field
+  `Idempotency-Key` (16–128 printable ASCII).
+- Normalize to **hash + `(keyHash, route)` unique** row in `idempotencyKeys`.
+- On duplicate key within TTL (e.g. 24h): return **the same HTTP status and body**
+  as the first successful completion (replay-safe for clients).
+- Cron: delete `idempotencyKeys` older than TTL to bound collection growth.
+
+### 20.4 Provider outbound calls
+
+- **Timeouts** per call type (initiate vs refund): fail fast; rely on webhook for
+  eventual consistency where the gateway supports it.
+- **Retries**: only for **idempotent** outbound reads or explicit idempotent retry
+  tokens from the gateway — never blind double-POST captures.
+- **Circuit breaker** (KV): after `N` consecutive failures in window `W`, fail open
+  with `PROVIDER_UNAVAILABLE` and log; half-open probe after cool-down. Prevents
+  stampedes when a gateway region is down.
+
+### 20.5 Webhook processing
+
+- Verify signature **before** heavy work; reject early with 401 on bad signature.
+- **Storage-first dedupe**: insert `webhookReceipts` row in `pending` → process →
+  mark `processed` (or rely on unique constraint + catch conflict for “already seen”).
+- Respond **2xx** for duplicates and successful idempotent replays so gateways stop
+  retrying (per §16).
+- For **Worker CPU wall-time** limits: keep finalize path lean; avoid unbounded
+  loops over line items (batch size is capped by §20.1).
+
+### 20.6 Inventory under concurrency
+
+- **`inventoryVersion`** on variant: increment on every successful stock mutation.
+- **Finalize path**: compare snapshot version (stored on order line or cart line at
+  checkout.create) to current variant version; mismatch → `inventory_changed` /
+  `payment_conflict` flow already defined.
+- **Single writer** per variant per finalize: storage layer should reject lost updates
+  if you add conditional writes later; until then, serialize via “read version →
+  write only if version matches” in one handler path.
+
+### 20.7 Hot rows and read scaling
+
+- **One active cart per `userId`** (or merge policy) avoids unbounded cart rows per user.
+- **Product reads** are cache-friendly: public `products/list` / `get` may use
+  `Cache-Control` on the **site** (Astro/data layer); cart/checkout responses are
+  **never** cached at CDN.
+- **Order admin list** uses composite indexes already declared; add **cursor** not
+  offset for large stores.
+
+### 20.8 Operational recovery
+
+- **`payment_conflict` queue**: admin filter + optional cron job that lists orders
+  in `payment_conflict` older than X minutes for human or automated void/refund
+  (gateway-specific adapter).
+- **Metrics** (when platform allows): counters for `checkout_started`, `finalize_ok`,
+  `finalize_conflict`, `webhook_duplicate`, `provider_timeout` — even log-based
+  metrics beat nothing.
+
+### 20.9 API versioning
+
+- Plugin routes remain under `/_emdash/api/plugins/emdash-commerce/...`. When
+  breaking request/response shapes are needed, introduce **`v2/` route prefix** or
+  new route names; keep v1 stable for storefronts pinned to older Astro builds.

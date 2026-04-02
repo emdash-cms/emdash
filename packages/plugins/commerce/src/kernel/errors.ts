@@ -8,6 +8,8 @@ export const COMMERCE_ERROR_META = {
 	ORDER_STATE_CONFLICT: { httpStatus: 409 as const, retryable: false as const },
 	INSUFFICIENT_STOCK: { httpStatus: 409 as const, retryable: false as const },
 	PAYMENT_CONFLICT: { httpStatus: 409 as const, retryable: false as const },
+	RATE_LIMITED: { httpStatus: 429 as const, retryable: true as const },
+	PAYLOAD_TOO_LARGE: { httpStatus: 413 as const, retryable: false as const },
 } as const;
 
 export type CommerceErrorCode = keyof typeof COMMERCE_ERROR_META;

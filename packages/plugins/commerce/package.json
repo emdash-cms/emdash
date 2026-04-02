@@ -6,7 +6,11 @@
 	"private": true,
 	"exports": {
 		"./kernel/errors": "./src/kernel/errors.ts",
-		"./kernel/finalize-decision": "./src/kernel/finalize-decision.ts"
+		"./kernel/finalize-decision": "./src/kernel/finalize-decision.ts",
+		"./kernel/limits": "./src/kernel/limits.ts",
+		"./kernel/idempotency-key": "./src/kernel/idempotency-key.ts",
+		"./kernel/provider-policy": "./src/kernel/provider-policy.ts",
+		"./kernel/rate-limit-window": "./src/kernel/rate-limit-window.ts"
 	},
 	"scripts": {
 		"test": "vitest run",
