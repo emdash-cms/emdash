@@ -1,0 +1,19 @@
+{
+	"name": "@emdash-cms/plugin-commerce",
+	"version": "0.0.1",
+	"description": "EmDash commerce kernel (contracts + pure helpers; plugin wiring comes later)",
+	"type": "module",
+	"private": true,
+	"exports": {
+		"./kernel/errors": "./src/kernel/errors.ts",
+		"./kernel/finalize-decision": "./src/kernel/finalize-decision.ts"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
+}
