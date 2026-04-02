@@ -87,7 +87,7 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 				</p>
 
 				<PasskeyRegistration
-					optionsEndpoint="/_emdash/api/setup/admin"
+					optionsEndpoint="/_emdash/api/auth/invite/register-options"
 					verifyEndpoint="/_emdash/api/auth/invite/complete"
 					onSuccess={handleInviteSuccess}
 					buttonText="Create Account"

@@ -783,6 +783,11 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/auth/invite/complete.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/auth/invite/register-options",
+		entrypoint: resolveRoute("api/auth/invite/register-options.ts"),
+	});
+
 	// Magic link routes
 	injectRoute({
 		pattern: "/_emdash/api/auth/magic-link/send",
