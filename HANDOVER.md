@@ -73,8 +73,8 @@ For stage-1 execution, use this file as the authoritative guide. Use other files
 
 ## Handover archive
 
-- `emDash-handover-20260402-212820.zip`
-- SHA-256: `8cc4ae3d40f77f82be3f0ad65b7399b18c6adc3281759a3fa94267bfabb6f9f1`
+- `emDash-handover-20260402-214800.zip`
+- SHA-256: `85b0cebbefd2d1ed37ab49d8be664477705583d5ed98196094bd9ce6d4cfafc8`
 
 The archive includes all tracked repo files and selected review context files (`3rdpary_review_3.md`, `CHANGELOG_REVIEW_NOTES.md`, `latest-code_3_review_instructions.md`), and excludes `.git`, `node_modules`, and build artifacts.
 
