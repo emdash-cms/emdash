@@ -1001,7 +1001,7 @@ export interface PluginDashboardWidget {
 /**
  * Settings field types (for admin UI generation)
  */
-export type SettingFieldType = "string" | "number" | "boolean" | "select" | "secret";
+export type SettingFieldType = "string" | "number" | "boolean" | "select" | "secret" | "url" | "email";
 
 export interface BaseSettingField {
 	type: SettingFieldType;
@@ -1035,6 +1035,18 @@ export interface SelectSettingField extends BaseSettingField {
 
 export interface SecretSettingField extends BaseSettingField {
 	type: "secret";
+
+export interface UrlSettingField extends BaseSettingField {
+	type: "url";
+	default?: string;
+	placeholder?: string;
+}
+
+export interface EmailSettingField extends BaseSettingField {
+	type: "email";
+	default?: string;
+	placeholder?: string;
+}
 }
 
 export type SettingField =
@@ -1042,7 +1054,9 @@ export type SettingField =
 	| NumberSettingField
 	| BooleanSettingField
 	| SelectSettingField
-	| SecretSettingField;
+		| SecretSettingFiel
+	| UrlSettingField
+	| EmailSettingField;
 
 /**
  * Block Kit element for block editing fields.
