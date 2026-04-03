@@ -468,7 +468,9 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
-	validateSearch: (search: { field?: string }) => search,
+	validateSearch: (search) => ({
+		...(typeof search.field === "string" && { field: search.field }),
+	}),
 });
 
 // Editor role level from @emdash-cms/auth
@@ -478,17 +480,16 @@ function ContentEditPage() {
 	const { collection, id } = useParams({
 		from: "/_admin/content/$collection/$id",
 	});
-	const { field: focusField, ...preservedSearch } = useSearch({
+	const { field, ...preservedSearch } = useSearch({
 		from: "/_admin/content/$collection/$id",
 	});
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	useElementReady(focusField && `#field-${focusField}`, (el) => {
+	useElementReady(field && `#field-${field}`, (el) => {
 		el.scrollIntoView({ behavior: "smooth", block: "center" });
-		const focusTarget = el.querySelector<HTMLElement>(".ProseMirror") ?? el;
-		focusTarget.focus();
+		el.focus();
 		void navigate({ search: preservedSearch as never, replace: true });
 	});
 

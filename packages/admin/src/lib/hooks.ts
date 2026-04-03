@@ -36,13 +36,16 @@ export function useElementReady(
 	onReady: (el: HTMLElement) => void,
 ) {
 	const stableOnReady = useStableCallback(onReady);
+	const selectorRef = React.useRef(selector);
+	selectorRef.current = selector;
 
 	React.useEffect(() => {
-		if (!selector) return;
+		const currentSelector = selectorRef.current;
+		if (!currentSelector) return;
 		let frame: number;
 		let attempts = 0;
 		const poll = () => {
-			const el = document.querySelector<HTMLElement>(selector);
+			const el = document.querySelector<HTMLElement>(currentSelector);
 			if (el) {
 				stableOnReady(el);
 				return;
@@ -53,5 +56,5 @@ export function useElementReady(
 		};
 		frame = requestAnimationFrame(poll);
 		return () => cancelAnimationFrame(frame);
-	}, [selector, stableOnReady]);
+	}, [stableOnReady]);
 }
