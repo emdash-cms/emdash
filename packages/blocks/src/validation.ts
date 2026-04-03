@@ -31,7 +31,11 @@ const ELEMENT_TYPES = new Set([
 
 const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "code"]);
 
-const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
+const CODE_LANGUAGES = new Set([
+	"ts", "tsx", "jsonc", "bash", "css",
+	// Aliases accepted by the renderer's normalizeLang():
+	"json", "javascript", "typescript", "js", "sh", "shell",
+]);
 
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);

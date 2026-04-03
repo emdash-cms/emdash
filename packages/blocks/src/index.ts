@@ -47,6 +47,7 @@ export type {
 	ColumnsBlock,
 	ChartBlock,
 	CodeBlock,
+	CodeLanguage,
 	BannerBlock,
 	MeterBlock,
 	Block,
