@@ -4,7 +4,7 @@
  * Admin-only route for managing users, roles, and invites.
  */
 
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
@@ -25,6 +25,7 @@ import {
 	inviteUser,
 	type UpdateUserInput,
 } from "../lib/api";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 
 /**
  * Debounce hook for search input
@@ -71,10 +72,11 @@ export function UsersPage() {
 		getNextPageParam: (lastPage) => lastPage.nextCursor,
 	});
 
-	const userDetailQuery = useQuery({
+	const userDetailQuery = useCachedQuery({
 		queryKey: ["users", selectedUserId],
 		queryFn: () => fetchUser(selectedUserId!),
 		enabled: !!selectedUserId,
+		cache: { store: "users", key: selectedUserId ?? "" },
 	});
 
 	// Mutations

@@ -11,6 +11,7 @@ import {
 	fetchProviderMedia,
 	uploadToProvider,
 } from "../lib/api";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 import { providerItemToMediaItem, getFileIcon, formatFileSize } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
@@ -50,10 +51,10 @@ export function MediaLibrary({
 	>({});
 
 	// Fetch available providers
-	const { data: providers } = useQuery({
+	const { data: providers } = useCachedQuery({
 		queryKey: ["media-providers"],
 		queryFn: fetchMediaProviders,
-		placeholderData: [],
+		cache: { store: "singletons", key: "media-providers" },
 	});
 
 	// Fetch provider media when a non-local provider is selected

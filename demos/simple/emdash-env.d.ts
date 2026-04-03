@@ -11,6 +11,8 @@ export interface Page {
   status: string;
   title: string;
   content?: PortableTextBlock[];
+  excerpt?: string;
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -31,9 +33,49 @@ export interface Post {
   bylines?: ContentBylineCredit[];
 }
 
+export interface Review {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  content?: PortableTextBlock[];
+  excerpt?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface Sdfs {
+  id: string;
+  slug: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface Service {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  content?: PortableTextBlock[];
+  excerpt?: string;
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
 declare module "emdash" {
   interface EmDashCollections {
     pages: Page;
     posts: Post;
+    review: Review;
+    sdfss: Sdfs;
+    services: Service;
   }
 }

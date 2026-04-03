@@ -87,7 +87,8 @@
 				"packages/plugins/**/*.ts",
 				"packages/plugins/**/*.tsx",
 				"packages/blocks/**/*.tsx",
-				"packages/admin/**/*.tsx"
+				"packages/admin/**/*.tsx",
+				"packages/admin/**/cache/**/*.ts"
 			],
 			"rules": {
 				"typescript/no-unsafe-type-assertion": "off"

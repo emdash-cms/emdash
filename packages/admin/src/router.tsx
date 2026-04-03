@@ -107,6 +107,8 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { useCachedQuery } from "./lib/cache/cached-query.js";
+import { optimisticDelete } from "./lib/cache/optimistic-mutation.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -169,12 +171,14 @@ function RootComponent() {
 		data: manifest,
 		isLoading,
 		error,
-	} = useQuery({
+		isFromCache,
+	} = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
-	if (isLoading) {
+	if (isLoading && !isFromCache) {
 		return <LoadingScreen />;
 	}
 
@@ -198,9 +202,10 @@ const dashboardRoute = createRoute({
 });
 
 function DashboardPage() {
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	if (!manifest) return null;
@@ -225,9 +230,10 @@ function ContentListPage() {
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const i18n = manifest?.i18n;
@@ -235,29 +241,50 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error } = useCachedQuery({
 		queryKey: ["content", collection, { locale: activeLocale }],
 		queryFn: () => fetchContentList(collection, { locale: activeLocale }),
+		cache: {
+			store: "content",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items, nextCursor: undefined }),
+			index: { name: "type", value: collection },
+			extra: (item) => ({
+				type: collection,
+				updatedAt: (item as Record<string, string>).updatedAt,
+			}),
+		},
 	});
 
-	// Fetch trashed items
+	// Fetch trashed items -- not cached (volatile, small dataset)
 	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
 		queryKey: ["content", collection, "trash"],
 		queryFn: () => fetchTrashedContent(collection),
 	});
 
+	const contentListKey = ["content", collection, { locale: activeLocale }];
+
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteContent(collection, id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
-		},
-		onError: (mutationError) => {
+		...optimisticDelete({
+			queryClient,
+			queryKey: contentListKey,
+			store: "content",
+		}),
+		onError(mutationError, _id, context) {
+			// Rollback optimistic update
+			if (context?.previous) {
+				queryClient.setQueryData(contentListKey, context.previous);
+			}
 			toastManager.add({
 				title: "Failed to delete",
 				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
 				type: "error",
 			});
+		},
+		onSettled() {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 		},
 	});
 
@@ -373,9 +400,10 @@ function ContentNewPage() {
 	const queryClient = useQueryClient();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const createMutation = useMutation({
@@ -395,9 +423,14 @@ function ContentNewPage() {
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
-	const { data: bylinesData } = useQuery({
+	const { data: bylinesData } = useCachedQuery({
 		queryKey: ["bylines"],
 		queryFn: () => fetchBylines({ limit: 100 }),
+		cache: {
+			store: "bylines",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const createBylineMutation = useMutation({
@@ -480,16 +513,18 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const i18n = manifest?.i18n;
 
-	const { data: rawItem, isLoading } = useQuery({
+	const { data: rawItem, isLoading } = useCachedQuery({
 		queryKey: ["content", collection, id],
 		queryFn: () => fetchContent(collection, id),
+		cache: { store: "content", key: id },
 	});
 
 	// Fetch translations when i18n is enabled
@@ -532,26 +567,37 @@ function ContentEditPage() {
 	}, [rawItem, draftRevision]);
 
 	// Fetch current user for permission checks
-	const { data: currentUser } = useQuery({
+	const { data: currentUser } = useCachedQuery({
 		queryKey: ["currentUser"],
 		queryFn: async (): Promise<{ id: string; role: number }> => {
 			const response = await apiFetch("/_emdash/api/auth/me");
 			return parseApiResponse<{ id: string; role: number }>(response, "Failed to fetch user");
 		},
 		staleTime: 5 * 60 * 1000,
+		cache: { store: "singletons", key: "currentUser" },
 	});
 
 	// Fetch users list for author selector (only if user is editor+)
-	const { data: usersData } = useQuery({
+	const { data: usersData } = useCachedQuery({
 		queryKey: ["users"],
 		queryFn: () => fetchUsers({ limit: 100 }),
 		enabled: !!currentUser && currentUser.role >= ROLE_EDITOR,
 		staleTime: 5 * 60 * 1000,
+		cache: {
+			store: "users",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
-	const { data: bylinesData } = useQuery({
+	const { data: bylinesData } = useCachedQuery({
 		queryKey: ["bylines"],
 		queryFn: () => fetchBylines({ limit: 100 }),
+		cache: {
+			store: "bylines",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const createBylineMutation = useMutation({
@@ -620,12 +666,28 @@ function ContentEditPage() {
 
 	const publishMutation = useMutation({
 		mutationFn: () => publishContent(collection, id),
+		async onMutate() {
+			const contentKey = ["content", collection, id];
+			await queryClient.cancelQueries({ queryKey: contentKey });
+			const previous = queryClient.getQueryData(contentKey);
+			if (previous && typeof previous === "object") {
+				queryClient.setQueryData(contentKey, {
+					...(previous as Record<string, unknown>),
+					status: "published",
+					publishedAt: new Date().toISOString(),
+				});
+			}
+			return { previous };
+		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: "Published", description: "Content is now live" });
 		},
-		onError: (error) => {
+		onError: (error, _vars, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(["content", collection, id], context.previous);
+			}
 			toastManager.add({
 				title: "Failed to publish",
 				description: error instanceof Error ? error.message : "An error occurred",
@@ -636,12 +698,27 @@ function ContentEditPage() {
 
 	const unpublishMutation = useMutation({
 		mutationFn: () => unpublishContent(collection, id),
+		async onMutate() {
+			const contentKey = ["content", collection, id];
+			await queryClient.cancelQueries({ queryKey: contentKey });
+			const previous = queryClient.getQueryData(contentKey);
+			if (previous && typeof previous === "object") {
+				queryClient.setQueryData(contentKey, {
+					...(previous as Record<string, unknown>),
+					status: "draft",
+				});
+			}
+			return { previous };
+		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: "Unpublished", description: "Content removed from public view" });
 		},
-		onError: (error) => {
+		onError: (error, _vars, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(["content", collection, id], context.previous);
+			}
 			toastManager.add({
 				title: "Failed to unpublish",
 				description: error instanceof Error ? error.message : "An error occurred",
@@ -849,9 +926,14 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error } = useCachedQuery({
 		queryKey: ["media"],
 		queryFn: () => fetchMediaList(),
+		cache: {
+			store: "media",
+			extractItems: (result) => result.items,
+			reconstructList: (items) => ({ items }),
+		},
 	});
 
 	const uploadMutation = useMutation({
@@ -863,9 +945,11 @@ function MediaPage() {
 
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteMedia(id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-		},
+		...optimisticDelete({
+			queryClient,
+			queryKey: ["media"],
+			store: "media",
+		}),
 	});
 
 	if (error) {
@@ -896,19 +980,21 @@ function CommentsPage() {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	// Current user for ADMIN check (hard delete)
-	const { data: currentUser } = useQuery({
+	const { data: currentUser } = useCachedQuery({
 		queryKey: ["currentUser"],
 		queryFn: async (): Promise<{ id: string; role: number }> => {
 			const response = await apiFetch("/_emdash/api/auth/me");
 			return parseApiResponse<{ id: string; role: number }>(response, "Failed to fetch user");
 		},
 		staleTime: 5 * 60 * 1000,
+		cache: { store: "singletons", key: "currentUser" },
 	});
 
 	// Filter state
@@ -1117,9 +1203,10 @@ const pluginManagerRoute = createRoute({
 });
 
 function PluginManagerPage() {
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 	return <PluginManager manifest={manifest} />;
 }

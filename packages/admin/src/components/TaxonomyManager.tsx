@@ -7,7 +7,7 @@
 
 import { Button, Checkbox, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
 import { Plus, Pencil, Trash, X } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchManifest } from "../lib/api/client.js";
@@ -20,6 +20,7 @@ import {
 	updateTerm,
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
+import { useCachedQuery } from "../lib/cache/cached-query.js";
 import { slugify } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -322,9 +323,10 @@ function CreateTaxonomyDialog({
 	const [autoName, setAutoName] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 
-	const { data: manifest } = useQuery({
+	const { data: manifest } = useCachedQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
+		cache: { store: "singletons", key: "manifest" },
 	});
 
 	const collectionEntries = manifest
@@ -527,14 +529,16 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
 	const [createTaxonomyOpen, setCreateTaxonomyOpen] = React.useState(false);
 
-	const { data: taxonomyDef, isLoading: defLoading } = useQuery({
+	const { data: taxonomyDef, isLoading: defLoading } = useCachedQuery({
 		queryKey: ["taxonomy-def", taxonomyName],
 		queryFn: () => fetchTaxonomyDef(taxonomyName),
+		cache: { store: "singletons", key: `taxonomy-def-${taxonomyName}` },
 	});
 
-	const { data: terms = [], isLoading: termsLoading } = useQuery({
+	const { data: terms = [], isLoading: termsLoading } = useCachedQuery({
 		queryKey: ["taxonomy-terms", taxonomyName],
 		queryFn: () => fetchTerms(taxonomyName),
+		cache: { store: "singletons", key: `taxonomy-terms-${taxonomyName}` },
 	});
 
 	const deleteMutation = useMutation({
