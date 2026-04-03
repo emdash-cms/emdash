@@ -20,7 +20,7 @@ A **prepared archive** (see §8) contains this folder **without** `node_modules`
 
 - **EmDash** is an Astro-native CMS with a **plugin model**: plugins declare **capabilities**, **storage collections**, **routes**, and optional **admin settings**; handlers receive a **sandboxed context** (`storage`, `kv`, `request`, etc.).
 - The CMS and plugin APIs are **still evolving** (early / beta). Do **not** infer guarantees from WooCommerce or WordPress plugin patterns.
-- This plugin targets **Cloudflare-style** deployment assumptions in places (e.g. Workers); some handlers use **`node:crypto`** for Stripe webhook HMAC — runtime compatibility is an explicit review dimension.
+- This plugin targets **Cloudflare-style** deployment assumptions in places (e.g. Workers); runtime compatibility is an explicit review dimension across the async crypto adapter and remaining sync crypto helpers.
 
 Authoritative high-level product context (optional reading if you clone the full repo):
 
@@ -38,6 +38,7 @@ packages/plugins/commerce/
 ├── tsconfig.json
 ├── vitest.config.ts
 ├── COMMERCE_DOCS_INDEX.md    # Doc index for this package
+├── COMMERCE_EXTENSION_SURFACE.md # Extension contracts + closed-kernel invariants
 ├── AI-EXTENSIBILITY.md       # Future LLM / MCP notes (non-normative for stage-1)
 ├── PAID_BUT_WRONG_STOCK_RUNBOOK*.md
 └── src/
@@ -48,9 +49,10 @@ packages/plugins/commerce/
     ├── settings-keys.ts      # KV key naming for admin settings
     ├── route-errors.ts
     ├── hash.ts
-    ├── handlers/             # cart, checkout, checkout-get-order, webhooks-stripe, cron, recommendations
+    ├── handlers/             # cart, checkout, checkout-get-order, webhooks-stripe, cron, recommendations, webhook-handler
+    ├── services/             # extension seam builders and seam-level contract tests
     ├── kernel/               # errors, idempotency key, finalize decision, limits, rate-limit window, api-errors
-    ├── lib/                  # cart-owner-token, cart-lines, cart-fingerprint, cart-validation, merge-line-items, rate-limit-kv, etc.
+    ├── lib/                  # cart-owner-token, cart-lines, cart-fingerprint, cart-validation, merge-line-items, rate-limit-kv, crypto-adapter
     ├── orchestration/        # finalize-payment.ts (webhook-driven side effects)
     └── catalog-extensibility.ts
 ```
@@ -70,7 +72,7 @@ Base pattern (confirm in host app docs if needed):
 | `checkout` | POST | Idempotent checkout; requires `ownerToken` when cart has `ownerTokenHash`; `Idempotency-Key` header or body |
 | `checkout/get-order` | POST | Order snapshot; requires `finalizeToken` when order has `finalizeTokenHash` |
 | `webhooks/stripe` | POST | Stripe signature verify → `finalizePaymentFromWebhook` |
-| `recommendations` | POST | Disabled stub (`enabled: false`) for UIs |
+| `recommendations` | POST | Disabled stub (`enabled: false`) for UIs; enables a pluggable recommendation resolver via plugin options/seam route factory |
 
 All mutating/list routes use **`requirePost`** (reject GET/HEAD).
 
@@ -108,8 +110,8 @@ pnpm typecheck
 1. **Correctness:** Cart → checkout → finalize invariants; idempotency replay; inventory ledger vs stock reconciliation.
 2. **Security:** Token requirements on cart read, cart mutate, checkout, order read; webhook signature path; information leaked via error messages or timing.
 3. **Concurrency / partial failure:** Documented races; `pending` vs `processed` receipt semantics; operator runbooks.
-4. **API design:** POST-only routes, wire error codes (`COMMERCE_ERROR_WIRE_CODES`), versioning of stored documents.
-5. **Platform fit:** `PluginDescriptor` vs `definePlugin` storage typing (`commercePlugin()` uses a cast — intentional); `node:crypto` / `Buffer` in Workers.
+4. **API design:** POST-only routes, wire error codes (`COMMERCE_ERROR_WIRE_CODES`), versioning of stored documents, and extension contract boundaries.
+5. **Platform fit:** `PluginDescriptor` vs `definePlugin` storage typing (`commercePlugin()` uses a cast — intentional); async webhook path through `handlePaymentWebhook`, plus dedicated seam exports in `services/` for third-party provider integration; production request paths now use `lib/crypto-adapter.ts`, while `hash.ts` is retained for explicit sync Node-only helpers and tests.
 6. **Maintainability:** DRY vs duplication (e.g. validation at boundary + kernel); clarity of comments vs behavior.
 7. **Documentation:** `HANDOVER.md`, `COMMERCE_DOCS_INDEX.md`, and code comments — consistency with implementation.
 

@@ -21,7 +21,7 @@
 import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 
-import { randomFinalizeTokenHex, sha256Hex } from "../hash.js";
+import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
@@ -67,7 +67,7 @@ export async function cartUpsertHandler(
 	let ownerTokenHash: string | undefined = existing?.ownerTokenHash;
 
 	if (existing) {
-		assertCartOwnerToken(existing, ctx.input.ownerToken, "mutate");
+		await assertCartOwnerToken(existing, ctx.input.ownerToken, "mutate");
 	}
 
 	// --- Legacy migration ---
@@ -77,20 +77,21 @@ export async function cartUpsertHandler(
 	const isLegacy = existing !== null && existing.ownerTokenHash === undefined;
 	const rateLimitByCartId = !existing || (isLegacy && !ctx.input.ownerToken);
 	if (!existing) {
-		ownerToken = randomFinalizeTokenHex(24);
-		ownerTokenHash = sha256Hex(ownerToken);
+		ownerToken = randomHex(24);
+		ownerTokenHash = await sha256HexAsync(ownerToken);
 	} else if (isLegacy) {
 		if (ctx.input.ownerToken) {
-			ownerTokenHash = sha256Hex(ctx.input.ownerToken);
+			ownerTokenHash = await sha256HexAsync(ctx.input.ownerToken);
 		} else {
-			ownerToken = randomFinalizeTokenHex(24);
-			ownerTokenHash = sha256Hex(ownerToken);
+			ownerToken = randomHex(24);
+			ownerTokenHash = await sha256HexAsync(ownerToken);
 		}
 	}
 
 	// --- Rate limit: keyed by cartId for first-time/new carts, token hash thereafter ---
+	const cartIdHash = await sha256HexAsync(ctx.input.cartId);
 	const rateLimitKey = rateLimitByCartId
-		? `cart:id:${sha256Hex(ctx.input.cartId).slice(0, 32)}`
+		? `cart:id:${cartIdHash.slice(0, 32)}`
 		: `cart:token:${ownerTokenHash!.slice(0, 32)}`;
 
 	const allowed = await consumeKvRateLimit({
@@ -164,7 +165,7 @@ export async function cartGetHandler(ctx: RouteContext<CartGetInput>): Promise<C
 		throwCommerceApiError({ code: "CART_NOT_FOUND", message: "Cart not found" });
 	}
 
-	assertCartOwnerToken(cart, ctx.input.ownerToken, "read");
+	await assertCartOwnerToken(cart, ctx.input.ownerToken, "read");
 
 	return {
 		cartId: ctx.input.cartId,

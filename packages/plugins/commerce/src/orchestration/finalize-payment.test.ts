@@ -813,6 +813,53 @@ describe("finalizePaymentFromWebhook", () => {
 		});
 	});
 
+	it("marks pending receipt as error when order disappears between reads", async () => {
+		const orderId = "order_disappears";
+		const ext = "evt_disappears";
+		const rid = webhookReceiptDocId("stripe", ext);
+		const state = {
+			orders: new Map<string, StoredOrder>([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+
+		const basePorts = portsFromState(state);
+		let orderReadCount = 0;
+		const disappearingOrders: MemColl<StoredOrder> = {
+			...basePorts.orders,
+			get: async (id: string) => {
+				const row = await basePorts.orders.get(id);
+				orderReadCount += 1;
+				if (id === orderId && orderReadCount >= 2) {
+					basePorts.orders.rows.delete(id);
+					return null;
+				}
+				return row;
+			},
+		} as MemColl<StoredOrder>;
+
+		const ports = { ...basePorts, orders: disappearingOrders } as FinalizePaymentPorts;
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: ext,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(res).toMatchObject({
+			kind: "api_error",
+			error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
+		});
+
+		const receipt = await basePorts.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("error");
+		const order = await basePorts.orders.get(orderId);
+		expect(order).toBeNull();
+	});
+
 	it("inventory version mismatch sets payment_conflict and returns INVENTORY_CHANGED", async () => {
 		const orderId = "order_1";
 		const stockId = inventoryStockDocId("p1", "");

@@ -7,7 +7,7 @@
 
 import type { RouteContext, StorageCollection } from "emdash";
 
-import { equalSha256HexDigest, sha256Hex } from "../hash.js";
+import { equalSha256HexDigestAsync, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutGetOrderInput } from "../schemas.js";
@@ -49,8 +49,8 @@ export async function checkoutGetOrderHandler(
 			message: "finalizeToken is required to read this order",
 		});
 	}
-	const digest = sha256Hex(token);
-	if (!equalSha256HexDigest(digest, expectedHash)) {
+	const digest = await sha256HexAsync(token);
+	if (!(await equalSha256HexDigestAsync(digest, expectedHash))) {
 		throwCommerceApiError({
 			code: "ORDER_TOKEN_INVALID",
 			message: "Invalid finalize token for this order",

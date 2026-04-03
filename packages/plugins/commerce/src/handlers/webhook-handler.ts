@@ -9,8 +9,8 @@
 import type { RouteContext, StorageCollection } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
-import { sha256Hex } from "../hash.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import {
@@ -101,7 +101,7 @@ export async function handlePaymentWebhook<TInput>(
 
 	const nowMs = Date.now();
 	const ip = ctx.requestMeta.ip ?? "unknown";
-	const ipHash = sha256Hex(ip).slice(0, 32);
+	const ipHash = (await sha256HexAsync(ip)).slice(0, 32);
 	const allowed = await consumeKvRateLimit({
 		kv: ctx.kv,
 		keySuffix: `webhook:${adapter.buildRateLimitSuffix(ctx)}:${ipHash}`,

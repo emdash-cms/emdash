@@ -13,7 +13,7 @@
  * a documented residual risk.
  */
 
-import { equalSha256HexDigest, sha256Hex } from "../hash.js";
+import { equalSha256HexDigestAsync, sha256HexAsync } from "../lib/crypto-adapter.js";
 import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
 import type { CommerceErrorCode } from "../kernel/errors.js";
 import { decidePaymentFinalize, type WebhookReceiptView } from "../kernel/finalize-decision.js";
@@ -120,11 +120,11 @@ class InventoryFinalizeError extends Error {
 
 /** Stable document id for a webhook receipt (primary-key dedupe per event). */
 export function webhookReceiptDocId(providerId: string, externalEventId: string): string {
-	return `wr:${sha256Hex(`${providerId}\n${externalEventId}`)}`;
+	return `wr:${encodeURIComponent(providerId)}:${encodeURIComponent(externalEventId)}`;
 }
 
 export function inventoryStockDocId(productId: string, variantId: string): string {
-	return `stock:${sha256Hex(`${productId}\n${variantId}`)}`;
+	return `stock:${encodeURIComponent(productId)}:${encodeURIComponent(variantId)}`;
 }
 
 export function receiptToView(stored: StoredWebhookReceipt | null): WebhookReceiptView {
@@ -149,13 +149,13 @@ function noopToResult(
 	};
 }
 
-function buildFinalizationDecision(
+async function buildFinalizationDecision(
 	order: StoredOrder,
 	existingReceipt: StoredWebhookReceipt | null,
 	correlationId: string,
 	orderId: string,
 	inputFinalizeToken: string | undefined,
-): FinalizeFlowDecision {
+): Promise<FinalizeFlowDecision> {
 	const decision = decidePaymentFinalize({
 		orderStatus: order.paymentPhase,
 		receipt: receiptToView(existingReceipt),
@@ -164,7 +164,7 @@ function buildFinalizationDecision(
 	if (decision.action === "noop") {
 		return { kind: "noop", result: noopToResult(decision, orderId), reason: decision.reason };
 	}
-	const tokenErr = verifyFinalizeToken(order, inputFinalizeToken);
+	const tokenErr = await verifyFinalizeToken(order, inputFinalizeToken);
 	if (tokenErr) {
 		return { kind: "invalid_token", result: tokenErr };
 	}
@@ -216,10 +216,10 @@ function noopConflictMessage(reason: string): string {
 	}
 }
 
-function verifyFinalizeToken(
+async function verifyFinalizeToken(
 	order: StoredOrder,
 	token: string | undefined,
-): FinalizeWebhookResult | null {
+): Promise<FinalizeWebhookResult | null> {
 	const expected = order.finalizeTokenHash;
 	if (!expected) return null;
 	if (!token) {
@@ -231,8 +231,8 @@ function verifyFinalizeToken(
 			},
 		};
 	}
-	const digest = sha256Hex(token);
-	if (!equalSha256HexDigest(digest, expected)) {
+	const digest = await sha256HexAsync(token);
+	if (!(await equalSha256HexDigestAsync(digest, expected))) {
 		return {
 			kind: "api_error",
 			error: {
@@ -299,7 +299,9 @@ async function applyInventoryMutation(
 }
 
 function inventoryLedgerEntryId(orderId: string, productId: string, variantId: string): string {
-	return `line:${sha256Hex(`${orderId}\n${productId}\n${variantId}`)}`;
+	return `line:${encodeURIComponent(orderId)}:${encodeURIComponent(productId)}:${encodeURIComponent(
+		variantId,
+	)}`;
 }
 
 function normalizeInventoryMutations(
@@ -536,7 +538,7 @@ export async function finalizePaymentFromWebhook(
 	}
 
 	const existingReceipt = await ports.webhookReceipts.get(receiptId);
-	const decision = buildFinalizationDecision(
+	const decision = await buildFinalizationDecision(
 		order,
 		existingReceipt,
 		input.correlationId,

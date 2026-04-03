@@ -11,6 +11,7 @@
 - `HANDOVER.md` — current execution handoff and stage context
 - `commerce-plugin-architecture.md` — canonical architecture summary
 - `COMMERCE_EXTENSION_SURFACE.md` — extension contract and closed-kernel rules
+- `FINALIZATION_REVIEW_AUDIT.md` — pending receipt state transitions and replay safety audit
 
 ## Plugin code references
 

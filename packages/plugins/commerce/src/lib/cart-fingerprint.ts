@@ -4,10 +4,9 @@
  */
 
 import type { CartLineItem } from "../types.js";
-import { sha256Hex } from "../hash.js";
 import { projectCartLineItemsForFingerprint } from "./cart-lines.js";
 
 export function cartContentFingerprint(lines: CartLineItem[]): string {
 	const normalized = projectCartLineItemsForFingerprint(lines);
-	return sha256Hex(JSON.stringify(normalized));
+	return JSON.stringify(normalized);
 }

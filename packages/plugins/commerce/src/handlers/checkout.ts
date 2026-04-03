@@ -6,7 +6,7 @@
 import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 
-import { randomFinalizeTokenHex, sha256Hex } from "../hash.js";
+import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
@@ -111,13 +111,14 @@ async function restorePendingCheckout(
 ): Promise<CheckoutResponse> {
 	const existingOrder = await orders.get(pending.orderId);
 	if (!existingOrder) {
+		const finalizeTokenHash = await sha256HexAsync(pending.finalizeToken);
 		await orders.put(pending.orderId, {
 			cartId: pending.cartId,
 			paymentPhase: pending.paymentPhase,
 			currency: pending.currency,
 			lineItems: pending.lineItems,
 			totalMinor: pending.totalMinor,
-			finalizeTokenHash: sha256Hex(pending.finalizeToken),
+			finalizeTokenHash,
 			createdAt: pending.createdAt,
 			updatedAt: nowIso,
 		});
@@ -203,7 +204,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentP
 	}
 
 	const ip = ctx.requestMeta.ip ?? "unknown";
-	const ipHash = sha256Hex(ip).slice(0, 32);
+	const ipHash = (await sha256HexAsync(ip)).slice(0, 32);
 	const allowed = await consumeKvRateLimit({
 		kv: ctx.kv,
 		keySuffix: `checkout:ip:${ipHash}`,
@@ -223,7 +224,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentP
 	if (!cart) {
 		throwCommerceApiError({ code: "CART_NOT_FOUND", message: "Cart not found" });
 	}
-	assertCartOwnerToken(cart, ctx.input.ownerToken, "checkout");
+	await assertCartOwnerToken(cart, ctx.input.ownerToken, "checkout");
 	if (cart.lineItems.length === 0) {
 		throwCommerceApiError({ code: "CART_EMPTY", message: "Cart has no line items" });
 	}
@@ -239,7 +240,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentP
 	}
 
 	const fingerprint = cartContentFingerprint(cart.lineItems);
-	const keyHash = sha256Hex(
+	const keyHash = await sha256HexAsync(
 		`${CHECKOUT_ROUTE}|${ctx.input.cartId}|${cart.updatedAt}|${fingerprint}|${idempotencyKey}`,
 	);
 	const idempotencyDocId = `idemp:${keyHash}`;
@@ -254,7 +255,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentP
 			case "cached_completed":
 				return decision.response;
 			case "cached_pending":
-				return restorePendingCheckout(
+				return await restorePendingCheckout(
 					idempotencyDocId,
 					cached,
 					decision.pending,
@@ -301,8 +302,8 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentP
 	const totalMinor = orderLineItems.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
 	const orderId = deterministicOrderId(keyHash);
 
-	const finalizeToken = randomFinalizeTokenHex();
-	const finalizeTokenHash = sha256Hex(finalizeToken);
+	const finalizeToken = randomHex(24);
+	const finalizeTokenHash = await sha256HexAsync(finalizeToken);
 
 	const order: StoredOrder = {
 		cartId: ctx.input.cartId,
