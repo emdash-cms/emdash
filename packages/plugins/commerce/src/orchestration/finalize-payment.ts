@@ -13,10 +13,10 @@
  * a documented residual risk.
  */
 
-import { equalSha256HexDigestAsync, sha256HexAsync } from "../lib/crypto-adapter.js";
 import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
 import type { CommerceErrorCode } from "../kernel/errors.js";
 import { decidePaymentFinalize, type WebhookReceiptView } from "../kernel/finalize-decision.js";
+import { equalSha256HexDigestAsync, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import type {
 	StoredInventoryLedgerEntry,
@@ -562,6 +562,11 @@ export async function finalizePaymentFromWebhook(
 	}
 
 	const pendingReceipt = createPendingReceipt(input, decision.existingReceipt, nowIso);
+	ports.log?.info("commerce.finalize.receipt_pending", {
+		...logContext,
+		stage: "pending_receipt_written",
+		priorReceiptStatus: decision.existingReceipt?.status,
+	});
 	await ports.webhookReceipts.put(receiptId, pendingReceipt);
 
 	const freshOrder = await ports.orders.get(input.orderId);
@@ -616,7 +621,15 @@ export async function finalizePaymentFromWebhook(
 		}
 
 		try {
+			ports.log?.info("commerce.finalize.inventory_reconcile", {
+				...logContext,
+				paymentPhase: freshOrder.paymentPhase,
+			});
 			await applyInventoryForOrder(ports, freshOrder, input.orderId, nowIso);
+			ports.log?.info("commerce.finalize.inventory_applied", {
+				...logContext,
+				orderId: input.orderId,
+			});
 		} catch (err) {
 			if (err instanceof InventoryFinalizeError) {
 				const apiCode = mapInventoryErrorToApiCode(err.code);
@@ -639,6 +652,11 @@ export async function finalizePaymentFromWebhook(
 	}
 
 	if (freshOrder.paymentPhase !== "paid") {
+		ports.log?.info("commerce.finalize.order_settlement_attempt", {
+			...logContext,
+			orderId: input.orderId,
+			paymentPhase: freshOrder.paymentPhase,
+		});
 		const paidOrder: StoredOrder = {
 			...freshOrder,
 			paymentPhase: "paid",
@@ -663,6 +681,11 @@ export async function finalizePaymentFromWebhook(
 	}
 
 	try {
+		ports.log?.info("commerce.finalize.payment_attempt_update_attempt", {
+			...logContext,
+			orderId: input.orderId,
+			providerId: input.providerId,
+		});
 		await markPaymentAttemptSucceeded(ports, input.orderId, input.providerId, nowIso);
 	} catch (err) {
 		ports.log?.warn("commerce.finalize.attempt_update_failed", {
@@ -685,6 +708,10 @@ export async function finalizePaymentFromWebhook(
 	 * retry is safe and expected to complete this final write.
 	 */
 	try {
+		ports.log?.info("commerce.finalize.receipt_processed", {
+			...logContext,
+			stage: "finalize",
+		});
 		await ports.webhookReceipts.put(receiptId, {
 			...pendingReceipt,
 			status: "processed",
@@ -700,6 +727,7 @@ export async function finalizePaymentFromWebhook(
 
 	ports.log?.info("commerce.finalize.completed", {
 		...logContext,
+		stage: "completed",
 	});
 
 	return { kind: "completed", orderId: input.orderId };
@@ -713,6 +741,8 @@ export async function finalizePaymentFromWebhook(
  * Does not modify any state.
  */
 export type FinalizationStatus = {
+	/** Raw webhook-receipt status for quick runbook triage. */
+	receiptStatus: "missing" | "pending" | "processed" | "error" | "duplicate";
 	/** At least one inventory ledger row exists for this order. */
 	isInventoryApplied: boolean;
 	/** Order paymentPhase is "paid". */
@@ -721,7 +751,45 @@ export type FinalizationStatus = {
 	isPaymentAttemptSucceeded: boolean;
 	/** Webhook receipt for this event is "processed". */
 	isReceiptProcessed: boolean;
+	/**
+	 * Human-readable resume state for operations that consume this helper as a
+	 * status surface (MCP, support tooling, runbooks).
+	 * `event_unknown` means the order/attempt/ledger already indicate completion
+	 * but no receipt row exists for this external event id.
+	 */
+	resumeState:
+		| "not_started"
+		| "replay_processed"
+		| "replay_duplicate"
+		| "error"
+		| "event_unknown"
+		| "pending_inventory"
+		| "pending_order"
+		| "pending_attempt"
+		| "pending_receipt";
 };
+
+function deriveFinalizationResumeState(input: {
+	receiptStatus: FinalizationStatus["receiptStatus"];
+	isInventoryApplied: boolean;
+	isOrderPaid: boolean;
+	isPaymentAttemptSucceeded: boolean;
+	isReceiptProcessed: boolean;
+}): FinalizationStatus["resumeState"] {
+	if (input.receiptStatus === "processed" || input.isReceiptProcessed) return "replay_processed";
+	if (input.receiptStatus === "duplicate") return "replay_duplicate";
+	if (input.receiptStatus === "error") return "error";
+	if (input.receiptStatus === "missing") {
+		if (input.isInventoryApplied && input.isOrderPaid && input.isPaymentAttemptSucceeded) {
+			return "event_unknown";
+		}
+		return "not_started";
+	}
+	if (!input.isInventoryApplied) return "pending_inventory";
+	if (!input.isOrderPaid) return "pending_order";
+	if (!input.isPaymentAttemptSucceeded) return "pending_attempt";
+	return "pending_receipt";
+}
 
 export async function queryFinalizationStatus(
 	ports: FinalizePaymentPorts,
@@ -733,13 +801,20 @@ export async function queryFinalizationStatus(
 	const [order, receipt, ledgerPage, attemptPage] = await Promise.all([
 		ports.orders.get(orderId),
 		ports.webhookReceipts.get(receiptId),
-		ports.inventoryLedger.query({ where: { referenceType: "order", referenceId: orderId }, limit: 1 }),
+		ports.inventoryLedger.query({
+			where: { referenceType: "order", referenceId: orderId },
+			limit: 1,
+		}),
 		ports.paymentAttempts.query({ where: { orderId, providerId, status: "succeeded" }, limit: 1 }),
 	]);
-	return {
+	const status: FinalizationStatus = {
+		receiptStatus: receipt?.status ?? "missing",
 		isInventoryApplied: ledgerPage.items.length > 0,
 		isOrderPaid: order?.paymentPhase === "paid",
 		isPaymentAttemptSucceeded: attemptPage.items.length > 0,
 		isReceiptProcessed: receipt?.status === "processed",
+		resumeState: "not_started",
 	};
+	status.resumeState = deriveFinalizationResumeState(status);
+	return status;
 }

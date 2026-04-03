@@ -487,7 +487,9 @@ describe("finalizePaymentFromWebhook", () => {
 				],
 			]),
 		};
-		const basePorts = portsFromState(state);
+		const basePorts = portsFromState(state) as FinalizePaymentPorts & {
+			orders: MemColl<StoredOrder>;
+		};
 		const ports = {
 			...basePorts,
 			orders: withOneTimePutFailure(basePorts.orders as unknown as MemColl<StoredOrder>),
@@ -829,7 +831,9 @@ describe("finalizePaymentFromWebhook", () => {
 			inventoryStock: new Map<string, StoredInventoryStock>(),
 		};
 
-		const basePorts = portsFromState(state);
+		const basePorts = portsFromState(state) as FinalizePaymentPorts & {
+			orders: MemColl<StoredOrder>;
+		};
 		let orderReadCount = 0;
 		const disappearingOrders: MemColl<StoredOrder> = {
 			...basePorts.orders,
@@ -1045,11 +1049,13 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(ledgerAfterRetry.items).toHaveLength(1); // no duplicate ledger row
 
 		const status = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
-		expect(status).toEqual({
+		expect(status).toMatchObject({
 			isInventoryApplied: true,
 			isOrderPaid: true,
 			isPaymentAttemptSucceeded: true,
 			isReceiptProcessed: true,
+			receiptStatus: "processed",
+			resumeState: "replay_processed",
 		});
 	});
 
@@ -1129,11 +1135,60 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(second).toEqual({ kind: "completed", orderId });
 
 		const finalStatus = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
-		expect(finalStatus).toEqual({
+		expect(finalStatus).toMatchObject({
 			isInventoryApplied: true,
 			isOrderPaid: true,
 			isPaymentAttemptSucceeded: true,
 			isReceiptProcessed: true,
+			receiptStatus: "processed",
+			resumeState: "replay_processed",
+		});
+	});
+
+	it("reports event_unknown when order is fully settled but receipt row is missing", async () => {
+		const orderId = "order_event_unknown";
+		const extId = "evt_missing_receipt";
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						paymentPhase: "paid",
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_event_unknown",
+					{ orderId, providerId: "stripe", status: "succeeded", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>([
+				[
+					"ledger_event_unknown",
+					{
+						productId: "p1",
+						variantId: "",
+						delta: -2,
+						referenceType: "order",
+						referenceId: orderId,
+						createdAt: now,
+					},
+				],
+			]),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+
+		const ports = portsFromState(state);
+		const status = await queryFinalizationStatus(ports, orderId, "stripe", extId);
+		expect(status).toMatchObject({
+			receiptStatus: "missing",
+			isInventoryApplied: true,
+			isOrderPaid: true,
+			isPaymentAttemptSucceeded: true,
+			isReceiptProcessed: false,
+			resumeState: "event_unknown",
 		});
 	});
 
@@ -1250,7 +1305,7 @@ describe("finalizePaymentFromWebhook", () => {
 		};
 
 		const results = await Promise.all(
-			Array.from({ length: 8 }, () => finalizePaymentFromWebhook(ports, input)),
+			Array.from({ length: 8 }, (_index) => finalizePaymentFromWebhook(ports, input)),
 		);
 		expect(results).toHaveLength(8);
 		for (const result of results) {

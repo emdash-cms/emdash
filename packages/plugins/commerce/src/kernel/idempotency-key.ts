@@ -9,7 +9,10 @@ const PRINTABLE_ASCII = /^[\x21-\x7E]+$/;
 export function validateIdempotencyKey(key: string | undefined): key is string {
 	if (key === undefined || key === "") return false;
 	const len = key.length;
-	if (len < COMMERCE_LIMITS.minIdempotencyKeyLength || len > COMMERCE_LIMITS.maxIdempotencyKeyLength) {
+	if (
+		len < COMMERCE_LIMITS.minIdempotencyKeyLength ||
+		len > COMMERCE_LIMITS.maxIdempotencyKeyLength
+	) {
 		return false;
 	}
 	return PRINTABLE_ASCII.test(key);

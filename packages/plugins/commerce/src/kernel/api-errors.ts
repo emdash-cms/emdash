@@ -36,4 +36,3 @@ export function toCommerceApiError(input: CommerceApiErrorInput): CommerceApiErr
 
 	return payload;
 }
-

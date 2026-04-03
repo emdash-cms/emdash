@@ -27,13 +27,26 @@ Use this quick checklist if a merchant or customer support agent reports, “The
    - Ledger rows should exist if stock was already decremented.
    - Compare with current stock quantity.
 
+### Optional status helper path
+
+- Open `queryFinalizationState` when available and map `resumeState`:
+  - `pending_inventory` → retry begins by resolving inventory application.
+  - `pending_order` → retry continues with order transition.
+  - `pending_attempt` → retry continues with payment-attempt transition.
+  - `pending_receipt` → retry should finalize the receipt only.
+- `event_unknown` → no event row exists; confirm order/payment/attempt are already consistent and do not retry.
+  - `replay_processed` / `replay_duplicate` → no retry; treat as already handled.
+  - `error` → investigate and escalate before retrying.
+
 ## Decision: what to do
 
 ### Case A: Ledger and stock look correct, order already paid
+
 - Do **not** change stock.
 - Send confirmation back: this is a reconciliation pass with no manual change needed.
 
 ### Case B: Receipt is pending and order is not fully finalized
+
 - Retry finalization **once**.
 - Re-check:
   - order now says `paid`
@@ -41,6 +54,7 @@ Use this quick checklist if a merchant or customer support agent reports, “The
   - receipt now says `processed`
 
 ### Case C: Ledger says stock changed but stock still old, or data looks inconsistent
+
 - Retry once if the receipt is `pending` and the order is not fully final.
 - If retry does not complete or state remains inconsistent, do **not** keep retrying; escalate to engineering for manual investigation.
 

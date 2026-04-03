@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { COMMERCE_ERRORS } from "./errors.js";
+
 import { toCommerceApiError } from "./api-errors.js";
+import { COMMERCE_ERRORS } from "./errors.js";
 
 describe("toCommerceApiError", () => {
 	it("maps internal error code to wire code and metadata", () => {
@@ -11,9 +12,7 @@ describe("toCommerceApiError", () => {
 
 		expect(error.code).toBe("payment_already_processed");
 		expect(error.httpStatus).toBe(COMMERCE_ERRORS.PAYMENT_ALREADY_PROCESSED.httpStatus);
-		expect(error.retryable).toBe(
-			COMMERCE_ERRORS.PAYMENT_ALREADY_PROCESSED.retryable,
-		);
+		expect(error.retryable).toBe(COMMERCE_ERRORS.PAYMENT_ALREADY_PROCESSED.retryable);
 		expect(error.message).toBe("Payment already captured");
 		expect(error.details).toBeUndefined();
 	});
@@ -48,9 +47,6 @@ describe("toCommerceApiError", () => {
 
 		expect(error.code).toBe("webhook_signature_invalid");
 		expect(error.retryable).toBe(false);
-		expect(error.httpStatus).toBe(
-			COMMERCE_ERRORS.WEBHOOK_SIGNATURE_INVALID.httpStatus,
-		);
+		expect(error.httpStatus).toBe(COMMERCE_ERRORS.WEBHOOK_SIGNATURE_INVALID.httpStatus);
 	});
 });
-

@@ -4,8 +4,9 @@
  */
 
 import type { RouteContext } from "emdash";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CartGetInput, CartUpsertInput, CheckoutInput } from "../schemas.js";
@@ -18,6 +19,12 @@ import type {
 } from "../types.js";
 import { cartGetHandler, cartUpsertHandler } from "./cart.js";
 import { checkoutHandler } from "./checkout.js";
+
+const consumeKvRateLimit = vi.fn(async (_opts?: unknown) => true);
+vi.mock("../lib/rate-limit-kv.js", () => ({
+	__esModule: true,
+	consumeKvRateLimit: (opts: unknown) => consumeKvRateLimit(opts),
+}));
 
 // ---------------------------------------------------------------------------
 // Shared test infrastructure (mirrors checkout.test.ts pattern)
@@ -63,10 +70,7 @@ function upsertCtx(
 	} as unknown as RouteContext<CartUpsertInput>;
 }
 
-function getCtx(
-	input: CartGetInput,
-	carts: MemColl<StoredCart>,
-): RouteContext<CartGetInput> {
+function getCtx(input: CartGetInput, carts: MemColl<StoredCart>): RouteContext<CartGetInput> {
 	return {
 		request: new Request("https://example.test/cart/get", { method: "POST" }),
 		input,
@@ -109,6 +113,49 @@ const LINE = {
 // ---------------------------------------------------------------------------
 
 describe("cartUpsertHandler", () => {
+	beforeEach(() => {
+		consumeKvRateLimit.mockResolvedValue(true);
+	});
+
+	it("requires POST method", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		const ctx = {
+			request: new Request("https://example.test/cart/upsert", { method: "GET" }),
+			input: { cartId: "c_method", currency: "USD", lineItems: [LINE] },
+			storage: { carts },
+			requestMeta: { ip: "127.0.0.1" },
+			kv,
+		} as unknown as RouteContext<CartUpsertInput>;
+		await expect(cartUpsertHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
+	});
+
+	it("enforces cart line item cap", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		const tooMany = Array.from({ length: COMMERCE_LIMITS.maxCartLineItems + 1 }, (_, i) => ({
+			...LINE,
+			productId: `p-${i}`,
+		}));
+		await expect(
+			cartUpsertHandler(
+				upsertCtx({ cartId: "c_caps", currency: "USD", lineItems: tooMany }, carts, kv),
+			),
+		).rejects.toMatchObject({ code: "payload_too_large" });
+	});
+
+	it("rate-limits cart mutation bursts", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		consumeKvRateLimit.mockResolvedValueOnce(false);
+
+		await expect(
+			cartUpsertHandler(
+				upsertCtx({ cartId: "c_rate", currency: "USD", lineItems: [LINE] }, carts, kv),
+			),
+		).rejects.toMatchObject({ code: "rate_limited" });
+	});
+
 	it("creates a cart and returns an ownerToken on first upsert", async () => {
 		const carts = new MemColl<StoredCart>();
 		const kv = new MemKv();
@@ -135,7 +182,12 @@ describe("cartUpsertHandler", () => {
 
 		const second = await cartUpsertHandler(
 			upsertCtx(
-				{ cartId: "c2", currency: "USD", lineItems: [LINE, { ...LINE, productId: "p2" }], ownerToken: token },
+				{
+					cartId: "c2",
+					currency: "USD",
+					lineItems: [LINE, { ...LINE, productId: "p2" }],
+					ownerToken: token,
+				},
 				carts,
 				kv,
 			),
@@ -211,9 +263,7 @@ describe("cartUpsertHandler", () => {
 
 		// PluginRouteError stores the wire code (snake_case), not the internal code.
 		await expect(
-			cartUpsertHandler(
-				upsertCtx({ cartId: "c3", currency: "USD", lineItems: [] }, carts, kv),
-			),
+			cartUpsertHandler(upsertCtx({ cartId: "c3", currency: "USD", lineItems: [] }, carts, kv)),
 		).rejects.toMatchObject({ code: "cart_token_required" });
 	});
 
@@ -301,6 +351,29 @@ describe("cartUpsertHandler", () => {
 // ---------------------------------------------------------------------------
 
 describe("cartGetHandler", () => {
+	beforeEach(() => {
+		consumeKvRateLimit.mockResolvedValue(true);
+	});
+
+	it("requires POST method", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		await carts.put("g_method", {
+			currency: "USD",
+			lineItems: [LINE],
+			createdAt: "2026-04-03T12:00:00.000Z",
+			updatedAt: "2026-04-03T12:00:00.000Z",
+		});
+		const ctx = {
+			request: new Request("https://example.test/cart/get", { method: "GET" }),
+			input: { cartId: "g_method" },
+			storage: { carts },
+			requestMeta: { ip: "127.0.0.1" },
+			kv,
+		} as unknown as RouteContext<CartGetInput>;
+		await expect(cartGetHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
+	});
+
 	it("returns cart contents for a known cartId when ownerToken matches", async () => {
 		const carts = new MemColl<StoredCart>();
 		const kv = new MemKv();
@@ -321,9 +394,9 @@ describe("cartGetHandler", () => {
 	it("returns CART_NOT_FOUND for unknown cartId", async () => {
 		const carts = new MemColl<StoredCart>();
 		// PluginRouteError stores the wire code (snake_case).
-		await expect(
-			cartGetHandler(getCtx({ cartId: "missing" }, carts)),
-		).rejects.toMatchObject({ code: "cart_not_found" });
+		await expect(cartGetHandler(getCtx({ cartId: "missing" }, carts))).rejects.toMatchObject({
+			code: "cart_not_found",
+		});
 	});
 
 	it("does not expose ownerTokenHash in the response", async () => {
@@ -463,9 +536,7 @@ describe("cart → checkout integration chain", () => {
 		);
 		const kv = new MemKv();
 
-		await cartUpsertHandler(
-			upsertCtx({ cartId, currency: "USD", lineItems: [LINE] }, carts, kv),
-		);
+		await cartUpsertHandler(upsertCtx({ cartId, currency: "USD", lineItems: [LINE] }, carts, kv));
 
 		await expect(
 			checkoutHandler(

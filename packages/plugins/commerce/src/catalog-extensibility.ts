@@ -70,6 +70,39 @@ export const COMMERCE_RECOMMENDATION_HOOKS = {
 	...COMMERCE_EXTENSION_HOOKS,
 } as const;
 
+export const COMMERCE_EXTENSION_SEAM_DOCS = {
+	recommendations: {
+		name: "createRecommendationsRoute",
+		role: "read-only",
+		readonlyInputs: ["productId", "variantId", "cartId", "limit"],
+		mutability: "No commerce writes are allowed.",
+	},
+	webhooks: {
+		name: "createPaymentWebhookRoute",
+		role: "provider-adapter",
+		requiredAdapterMethods: [
+			"verifyRequest",
+			"buildFinalizeInput",
+			"buildCorrelationId",
+			"buildRateLimitSuffix",
+		],
+		mutability:
+			"Implementations may only emit events; only finalizePaymentFromWebhook writes payment state.",
+	},
+	diagnostics: {
+		name: "queryFinalizationState",
+		role: "read-model",
+		output: [
+			"isInventoryApplied",
+			"isOrderPaid",
+			"isPaymentAttemptSucceeded",
+			"receiptStatus",
+			"resumeState",
+		],
+		mutability: "Read-only query surface for MCP/operations tooling.",
+	},
+} as const;
+
 /**
  * Kernel invariants exposed to third-party integrators.
  *

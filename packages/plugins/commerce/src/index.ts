@@ -16,10 +16,16 @@
 import type { PluginDescriptor, RouteContext } from "emdash";
 import { definePlugin } from "emdash";
 
-import { handleIdempotencyCleanup } from "./handlers/cron.js";
+import {
+	COMMERCE_EXTENSION_HOOKS,
+	COMMERCE_KERNEL_RULES,
+	COMMERCE_RECOMMENDATION_HOOKS,
+	type CommerceRecommendationResolver,
+} from "./catalog-extensibility.js";
 import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
+import { handleIdempotencyCleanup } from "./handlers/cron.js";
 import { stripeWebhookHandler } from "./handlers/webhooks-stripe.js";
 import {
 	cartGetInputSchema,
@@ -29,15 +35,8 @@ import {
 	recommendationsInputSchema,
 	stripeWebhookInputSchema,
 } from "./schemas.js";
-import {
-	COMMERCE_EXTENSION_HOOKS,
-	COMMERCE_KERNEL_RULES,
-	COMMERCE_RECOMMENDATION_HOOKS,
-	type CommerceRecommendationResolver,
-} from "./catalog-extensibility.js";
-import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 import { createRecommendationsRoute } from "./services/commerce-extension-seams.js";
-
+import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 
 /**
  * The EmDash `definePlugin` route handler type requires handlers typed against
@@ -182,7 +181,11 @@ export type * from "./types.js";
 export type { CommerceStorage } from "./storage.js";
 export { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 export { COMMERCE_SETTINGS_KEYS } from "./settings-keys.js";
-export { COMMERCE_EXTENSION_HOOKS, COMMERCE_RECOMMENDATION_HOOKS, COMMERCE_KERNEL_RULES } from "./catalog-extensibility.js";
+export {
+	COMMERCE_EXTENSION_HOOKS,
+	COMMERCE_RECOMMENDATION_HOOKS,
+	COMMERCE_KERNEL_RULES,
+} from "./catalog-extensibility.js";
 export {
 	finalizePaymentFromWebhook,
 	webhookReceiptDocId,
@@ -190,9 +193,7 @@ export {
 	inventoryStockDocId,
 } from "./orchestration/finalize-payment.js";
 export { throwCommerceApiError } from "./route-errors.js";
-export type {
-	CommerceCatalogProductSearchFields,
-} from "./catalog-extensibility.js";
+export type { CommerceCatalogProductSearchFields } from "./catalog-extensibility.js";
 export {
 	createRecommendationsRoute,
 	createPaymentWebhookRoute,
@@ -202,7 +203,10 @@ export {
 	type CommerceMcpOperationContext,
 } from "./services/commerce-extension-seams.js";
 export type { RecommendationsHandlerOptions } from "./handlers/recommendations.js";
-export type { CommerceWebhookAdapter, WebhookFinalizeResponse } from "./handlers/webhook-handler.js";
+export type {
+	CommerceWebhookAdapter,
+	WebhookFinalizeResponse,
+} from "./handlers/webhook-handler.js";
 export type { RecommendationsResponse } from "./handlers/recommendations.js";
 export type { CheckoutGetOrderResponse } from "./handlers/checkout-get-order.js";
 export type { CartUpsertResponse, CartGetResponse } from "./handlers/cart.js";

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { createRecommendationsRoute, queryFinalizationState } from "./commerce-extension-seams.js";
+import * as rateLimitKv from "../lib/rate-limit-kv.js";
 import { webhookReceiptDocId } from "../orchestration/finalize-payment.js";
 import type {
 	StoredInventoryLedgerEntry,
@@ -9,6 +9,7 @@ import type {
 	StoredPaymentAttempt,
 	StoredWebhookReceipt,
 } from "../types.js";
+import { createRecommendationsRoute, queryFinalizationState } from "./commerce-extension-seams.js";
 
 interface StoredCollection<T> {
 	get(id: string): Promise<T | null>;
@@ -16,6 +17,27 @@ interface StoredCollection<T> {
 		where?: Record<string, unknown>;
 		limit?: number;
 	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
+}
+
+class MemKv {
+	store = new Map<string, unknown>();
+
+	async get<T>(key: string): Promise<T | null> {
+		const row = this.store.get(key);
+		return row === undefined ? null : (row as T);
+	}
+
+	async set(key: string, value: unknown): Promise<void> {
+		this.store.set(key, value);
+	}
+
+	async delete(key: string): Promise<boolean> {
+		return this.store.delete(key);
+	}
+
+	async list(): Promise<Array<{ key: string; value: unknown }>> {
+		return [...this.store.entries()].map(([key, value]) => ({ key, value }));
+	}
 }
 
 class MemCollection<T extends object> implements StoredCollection<T> {
@@ -31,7 +53,9 @@ class MemCollection<T extends object> implements StoredCollection<T> {
 		const limit = options?.limit ?? 50;
 		const items = [...this.rows]
 			.filter(([_, row]) =>
-				Object.entries(where).every(([field, value]) => (row as Record<string, unknown>)[field] === value),
+				Object.entries(where).every(
+					([field, value]) => (row as Record<string, unknown>)[field] === value,
+				),
 			)
 			.slice(0, limit)
 			.map(([id, data]) => ({ id, data: structuredClone(data) }));
@@ -129,7 +153,9 @@ describe("queryFinalizationState", () => {
 		const attempts = new MemCollection(new Map([["a1", paymentAttempt]]));
 		const inventoryLedger = new MemCollection(new Map([["l1", ledgerEntry]]));
 		const inventoryStock = new MemCollection(new Map([["s1", stock]]));
-		const webhookReceipts = new MemCollection(new Map([[webhookReceiptDocId("stripe", "evt_1"), receipt]]));
+		const webhookReceipts = new MemCollection(
+			new Map([[webhookReceiptDocId("stripe", "evt_1"), receipt]]),
+		);
 
 		const out = await queryFinalizationState(
 			{
@@ -142,6 +168,7 @@ describe("queryFinalizationState", () => {
 					webhookReceipts,
 				},
 				requestMeta: { ip: "127.0.0.1" },
+				kv: new MemKv(),
 				log: {
 					info: () => undefined,
 					warn: () => undefined,
@@ -155,11 +182,134 @@ describe("queryFinalizationState", () => {
 				externalEventId: "evt_1",
 			},
 		);
-		expect(out).toEqual({
+		expect(out).toMatchObject({
 			isInventoryApplied: true,
 			isOrderPaid: true,
 			isPaymentAttemptSucceeded: true,
 			isReceiptProcessed: true,
+			receiptStatus: "processed",
+			resumeState: "replay_processed",
 		});
+	});
+
+	it("rate-limits finalization diagnostics per IP", async () => {
+		const orders = new MemCollection(new Map([["order_1", order]]));
+		const attempts = new MemCollection(new Map([["a1", paymentAttempt]]));
+		const inventoryLedger = new MemCollection(new Map([["l1", ledgerEntry]]));
+		const inventoryStock = new MemCollection(new Map([["s1", stock]]));
+		const webhookReceipts = new MemCollection(
+			new Map([[webhookReceiptDocId("stripe", "evt_1"), receipt]]),
+		);
+		const ctxBase = {
+			request: new Request("https://example.test/diagnostics", { method: "POST" }),
+			storage: {
+				orders,
+				paymentAttempts: attempts,
+				inventoryLedger,
+				inventoryStock,
+				webhookReceipts,
+			},
+			requestMeta: { ip: "127.0.0.1" },
+			kv: new MemKv(),
+			log: {
+				info: () => undefined,
+				warn: () => undefined,
+				error: () => undefined,
+				debug: () => undefined,
+			},
+		} as never;
+
+		const spy = vi.spyOn(rateLimitKv, "consumeKvRateLimit").mockResolvedValueOnce(false);
+		await expect(
+			queryFinalizationState(ctxBase, {
+				orderId: "order_1",
+				providerId: "stripe",
+				externalEventId: "evt_1",
+			}),
+		).rejects.toMatchObject({ code: "rate_limited" });
+		spy.mockRestore();
+	});
+
+	it("coalesces concurrent identical diagnostics reads (single storage pass)", async () => {
+		const orders = new MemCollection(new Map([["order_1", order]]));
+		const attempts = new MemCollection(new Map([["a1", paymentAttempt]]));
+		const inventoryLedger = new MemCollection(new Map([["l1", ledgerEntry]]));
+		const inventoryStock = new MemCollection(new Map([["s1", stock]]));
+		const webhookReceipts = new MemCollection(
+			new Map([[webhookReceiptDocId("stripe", "evt_1"), receipt]]),
+		);
+		const getSpy = vi.spyOn(orders, "get");
+
+		const ctxBase = {
+			request: new Request("https://example.test/diagnostics", { method: "POST" }),
+			storage: {
+				orders,
+				paymentAttempts: attempts,
+				inventoryLedger,
+				inventoryStock,
+				webhookReceipts,
+			},
+			requestMeta: { ip: "10.0.0.2" },
+			kv: new MemKv(),
+			log: {
+				info: () => undefined,
+				warn: () => undefined,
+				error: () => undefined,
+				debug: () => undefined,
+			},
+		} as never;
+
+		const input = {
+			orderId: "order_1",
+			providerId: "stripe",
+			externalEventId: "evt_1",
+		};
+
+		await Promise.all([queryFinalizationState(ctxBase, input), queryFinalizationState(ctxBase, input)]);
+
+		expect(getSpy.mock.calls.filter((c) => c[0] === "order_1").length).toBe(1);
+		getSpy.mockRestore();
+	});
+
+	it("serves fresh-enough cached diagnostics without re-querying storage", async () => {
+		const orders = new MemCollection(new Map([["order_1", order]]));
+		const attempts = new MemCollection(new Map([["a1", paymentAttempt]]));
+		const inventoryLedger = new MemCollection(new Map([["l1", ledgerEntry]]));
+		const inventoryStock = new MemCollection(new Map([["s1", stock]]));
+		const webhookReceipts = new MemCollection(
+			new Map([[webhookReceiptDocId("stripe", "evt_1"), receipt]]),
+		);
+		const getSpy = vi.spyOn(orders, "get");
+
+		const ctxBase = {
+			request: new Request("https://example.test/diagnostics", { method: "POST" }),
+			storage: {
+				orders,
+				paymentAttempts: attempts,
+				inventoryLedger,
+				inventoryStock,
+				webhookReceipts,
+			},
+			requestMeta: { ip: "10.0.0.3" },
+			kv: new MemKv(),
+			log: {
+				info: () => undefined,
+				warn: () => undefined,
+				error: () => undefined,
+				debug: () => undefined,
+			},
+		} as never;
+
+		const input = {
+			orderId: "order_1",
+			providerId: "stripe",
+			externalEventId: "evt_1",
+		};
+
+		await queryFinalizationState(ctxBase, input);
+		await queryFinalizationState(ctxBase, input);
+
+		expect(getSpy.mock.calls.filter((c) => c[0] === "order_1").length).toBe(1);
+		getSpy.mockRestore();
 	});
 });

@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import { PluginRouteError } from "emdash";
+import { describe, expect, it } from "vitest";
 
 import { requirePost } from "./require-post.js";
 

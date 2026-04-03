@@ -5,16 +5,10 @@
 
 import type { RouteContext } from "emdash";
 
-import {
-	hmacSha256HexAsync,
-	constantTimeEqualHexAsync,
-} from "../lib/crypto-adapter.js";
+import { hmacSha256HexAsync, constantTimeEqualHexAsync } from "../lib/crypto-adapter.js";
 import { throwCommerceApiError } from "../route-errors.js";
-import {
-	handlePaymentWebhook,
-	type CommerceWebhookAdapter,
-} from "./webhook-handler.js";
 import type { StripeWebhookInput } from "../schemas.js";
+import { handlePaymentWebhook, type CommerceWebhookAdapter } from "./webhook-handler.js";
 
 const MAX_WEBHOOK_BODY_BYTES = 65_536;
 const STRIPE_SIGNATURE_HEADER = "Stripe-Signature";
@@ -52,7 +46,11 @@ function isWebhookBodyWithinSizeLimit(rawBody: string): boolean {
 	return new TextEncoder().encode(rawBody).byteLength <= MAX_WEBHOOK_BODY_BYTES;
 }
 
-async function isWebhookSignatureValid(secret: string, rawBody: string, rawSignature: string | null): Promise<boolean> {
+async function isWebhookSignatureValid(
+	secret: string,
+	rawBody: string,
+	rawSignature: string | null,
+): Promise<boolean> {
 	const parsed = parseStripeSignatureHeader(rawSignature);
 	if (!parsed) return false;
 	const now = Date.now() / 1000;
@@ -65,7 +63,9 @@ async function isWebhookSignatureValid(secret: string, rawBody: string, rawSigna
 	return false;
 }
 
-async function ensureValidStripeWebhookSignature(ctx: RouteContext<StripeWebhookInput>): Promise<void> {
+async function ensureValidStripeWebhookSignature(
+	ctx: RouteContext<StripeWebhookInput>,
+): Promise<void> {
 	const secret = await ctx.kv.get("settings:stripeWebhookSecret");
 	if (typeof secret !== "string" || secret.length === 0) {
 		throwCommerceApiError({

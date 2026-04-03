@@ -18,6 +18,7 @@ export type CommerceStorage = PluginStorageConfig & {
 			"status",
 			"createdAt",
 			["orderId", "status"],
+			["orderId", "providerId", "status"],
 			["providerId", "createdAt"],
 		];
 	};
@@ -46,6 +47,7 @@ export type CommerceStorage = PluginStorageConfig & {
 			"createdAt",
 			["productId", "createdAt"],
 			["variantId", "createdAt"],
+			["referenceType", "referenceId"],
 		];
 		uniqueIndexes: [["referenceType", "referenceId", "productId", "variantId"]];
 	};
@@ -70,6 +72,7 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"status",
 			"createdAt",
 			["orderId", "status"],
+			["orderId", "providerId", "status"],
 			["providerId", "createdAt"],
 		] as const,
 	},
@@ -98,6 +101,7 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"createdAt",
 			["productId", "createdAt"],
 			["variantId", "createdAt"],
+			["referenceType", "referenceId"],
 		] as const,
 		uniqueIndexes: [["referenceType", "referenceId", "productId", "variantId"]] as const,
 	},

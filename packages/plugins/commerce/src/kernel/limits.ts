@@ -11,6 +11,13 @@ export const COMMERCE_LIMITS = {
 	defaultCheckoutPerIpPerWindow: 30,
 	defaultCartMutationsPerTokenPerWindow: 120,
 	defaultWebhookPerIpPerWindow: 120,
+	/**
+	 * Finalization diagnostics (`queryFinalizationState`) per client IP per window.
+	 * Tuned for moderate dashboard/MCP polling without hammering plugin storage.
+	 */
+	defaultFinalizationDiagnosticsPerIpPerWindow: 60,
+	/** Short KV read-through TTL for finalization diagnostics (Option B). */
+	finalizationDiagnosticsCacheTtlMs: 10_000,
 	/** Bound attacker-controlled strings on webhook JSON (before Stripe raw body lands). */
 	maxWebhookFieldLength: 512,
 	/** Cap on `recommendations` route `limit` query/body field. */

@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import { PluginRouteError } from "emdash";
+import { describe, expect, it } from "vitest";
 
 import type { RecommendationsInput } from "../schemas.js";
 import { recommendationsHandler } from "./recommendations.js";

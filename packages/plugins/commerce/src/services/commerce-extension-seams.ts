@@ -7,8 +7,17 @@
 
 import type { RouteContext, StorageCollection } from "emdash";
 
-import { handlePaymentWebhook, type CommerceWebhookAdapter, type WebhookFinalizeResponse } from "../handlers/webhook-handler.js";
-import { createRecommendationsHandler, type RecommendationsHandlerOptions, type RecommendationsResponse } from "../handlers/recommendations.js";
+import {
+	createRecommendationsHandler,
+	type RecommendationsHandlerOptions,
+	type RecommendationsResponse,
+} from "../handlers/recommendations.js";
+import {
+	handlePaymentWebhook,
+	type CommerceWebhookAdapter,
+	type WebhookFinalizeResponse,
+} from "../handlers/webhook-handler.js";
+import { readFinalizationStatusWithGuards } from "../lib/finalization-diagnostics-readthrough.js";
 import {
 	queryFinalizationStatus,
 	type FinalizationStatus,
@@ -40,11 +49,7 @@ function buildFinalizePorts(ctx: RouteContext<unknown>): FinalizePaymentPorts {
 	};
 }
 
-export type {
-	FinalizationStatus,
-	CommerceWebhookAdapter,
-	RecommendationsResponse,
-};
+export type { FinalizationStatus, CommerceWebhookAdapter, RecommendationsResponse };
 
 export const COMMERCE_MCP_ACTORS = {
 	system: "system",
@@ -80,9 +85,24 @@ export type FinalizationStatusInput = {
 	externalEventId: string;
 };
 
+/**
+ * Stable read-only status helper for MCP/tooling and operational diagnostics.
+ * Returned state includes both binary checkpoints and a resumability hint so
+ * callers can drive a controlled retry policy from one query.
+ *
+ * Serverless Option B: per-IP KV rate limit, short KV read-through cache, and
+ * in-isolate in-flight coalescing for identical keys (warm Workers/processes).
+ */
 export async function queryFinalizationState(
 	ctx: RouteContext<unknown>,
 	input: FinalizationStatusInput,
 ): Promise<FinalizationStatus> {
-	return queryFinalizationStatus(buildFinalizePorts(ctx), input.orderId, input.providerId, input.externalEventId);
+	return readFinalizationStatusWithGuards(ctx, input, () =>
+		queryFinalizationStatus(
+			buildFinalizePorts(ctx),
+			input.orderId,
+			input.providerId,
+			input.externalEventId,
+		),
+	);
 }

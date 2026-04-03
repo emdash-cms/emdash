@@ -18,11 +18,16 @@ Implementation guardrails:
 - `src/index.ts` route table is the source of truth for shipped HTTP capabilities.
 - `COMMERCE_EXTENSION_SURFACE.md` tracks stable extension seams and kernel closure rules.
 - `src/catalog-extensibility.ts` defines export-level contracts for third-party providers.
+- `commerce-extension-seams` helpers (`createRecommendationsRoute`,
+  `createPaymentWebhookRoute`, `queryFinalizationState`) are the only MCP-facing
+  extension surfaces for this stage.
 
 ## Errors and observability
 
 - Public errors should continue to expose **machine-readable `code`** values (see kernel `COMMERCE_ERROR_WIRE_CODES` and `toCommerceApiError()`). LLMs and MCP tools should branch on `code`, not on free-form `message` text.
 - Future `orderEvents`-style logs should record an **`actor`** (`system` | `merchant` | `agent` | `customer`) for audit trails; see architecture Section 11.
+- For this stage, replay diagnostics should consume the enriched `queryFinalizationStatus`
+  state shape (`receiptStatus` + `resumeState`) rather than inspecting storage manually.
 
 ## MCP
 
@@ -32,10 +37,10 @@ Implementation guardrails:
 
 ## Related files
 
-| Item | Location |
-|------|----------|
-| Disabled recommendations route | `src/handlers/recommendations.ts` |
-| Catalog/search field contract | `src/catalog-extensibility.ts` |
-| Extension seams and invariants | `COMMERCE_EXTENSION_SURFACE.md` |
+| Item                                     | Location                              |
+| ---------------------------------------- | ------------------------------------- |
+| Disabled recommendations route           | `src/handlers/recommendations.ts`     |
+| Catalog/search field contract            | `src/catalog-extensibility.ts`        |
+| Extension seams and invariants           | `COMMERCE_EXTENSION_SURFACE.md`       |
 | Architecture (MCP tool list, principles) | `commerce-plugin-architecture.md` §11 |
-| Execution handoff | `HANDOVER.md` |
+| Execution handoff                        | `HANDOVER.md`                         |

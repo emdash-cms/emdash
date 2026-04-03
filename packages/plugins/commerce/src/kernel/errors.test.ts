@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
 	COMMERCE_ERRORS,
 	COMMERCE_ERROR_WIRE_CODES,
@@ -28,11 +29,7 @@ describe("commerceErrorCodeToWire", () => {
 	});
 
 	it("returns known mappings for representative codes", () => {
-		expect(commerceErrorCodeToWire("WEBHOOK_REPLAY_DETECTED")).toBe(
-			"webhook_replay_detected",
-		);
-		expect(commerceErrorCodeToWire("ORDER_STATE_CONFLICT")).toBe(
-			"order_state_conflict",
-		);
+		expect(commerceErrorCodeToWire("WEBHOOK_REPLAY_DETECTED")).toBe("webhook_replay_detected");
+		expect(commerceErrorCodeToWire("ORDER_STATE_CONFLICT")).toBe("order_state_conflict");
 	});
 });

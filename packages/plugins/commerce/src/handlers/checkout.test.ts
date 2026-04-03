@@ -1,6 +1,7 @@
 import type { RouteContext } from "emdash";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CheckoutInput } from "../schemas.js";
@@ -12,6 +13,12 @@ import type {
 	StoredPaymentAttempt,
 } from "../types.js";
 import { checkoutHandler } from "./checkout.js";
+
+const consumeKvRateLimit = vi.fn(async (_opts?: unknown) => true);
+vi.mock("../lib/rate-limit-kv.js", () => ({
+	__esModule: true,
+	consumeKvRateLimit: (opts: unknown) => consumeKvRateLimit(opts),
+}));
 
 type MemCollection<T extends object> = {
 	get(id: string): Promise<T | null>;
@@ -262,9 +269,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const ownerSecret = "owner-secret-for-checkout-1";
 		const cart: StoredCart = {
 			currency: "USD",
-			lineItems: [
-				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
-			],
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
 			ownerTokenHash: await sha256HexAsync(ownerSecret),
 			createdAt: now,
 			updatedAt: now,
@@ -304,9 +309,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const ownerSecret = "correct-owner-token-12345";
 		const cart: StoredCart = {
 			currency: "USD",
-			lineItems: [
-				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
-			],
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
 			ownerTokenHash: await sha256HexAsync(ownerSecret),
 			createdAt: now,
 			updatedAt: now,
@@ -348,9 +351,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const now = "2026-04-02T12:00:00.000Z";
 		const cart: StoredCart = {
 			currency: "USD",
-			lineItems: [
-				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
-			],
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
 			ownerTokenHash: await sha256HexAsync("correct-owner-token-12345"),
 			createdAt: now,
 			updatedAt: now,
@@ -390,9 +391,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const now = "2026-04-02T12:00:00.000Z";
 		const cart: StoredCart = {
 			currency: "USD",
-			lineItems: [
-				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
-			],
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -424,5 +423,130 @@ describe("checkout idempotency persistence recovery", () => {
 		const out = await checkoutHandler(ctx);
 		expect(out.paymentPhase).toBe("payment_pending");
 		expect(out.currency).toBe("USD");
+	});
+});
+
+describe("checkout route guardrails", () => {
+	beforeEach(() => {
+		consumeKvRateLimit.mockClear();
+		consumeKvRateLimit.mockResolvedValue(true);
+	});
+
+	it("requires POST method", async () => {
+		const cartId = "cart_method";
+		const now = "2026-04-02T12:00:00.000Z";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			inventoryStock: new MemColl(),
+			kv: new MemKv(),
+			idempotencyKey: "idem-key-strong-16",
+			cartId,
+			requestMethod: "GET",
+		});
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
+	});
+
+	it("validates cart content bounds before processing", async () => {
+		const cartId = "cart_caps";
+		const now = "2026-04-02T12:00:00.000Z";
+		const tooMany = Array.from({ length: COMMERCE_LIMITS.maxCartLineItems + 1 }, (_, i) => ({
+			productId: `p-${i}`,
+			quantity: 1,
+			inventoryVersion: 1,
+			unitPriceMinor: 100,
+		}));
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(
+				new Map([
+					[
+						cartId,
+						{
+							currency: "USD",
+							lineItems: tooMany,
+							createdAt: now,
+							updatedAt: now,
+						},
+					],
+				]),
+			),
+			inventoryStock: new MemColl(),
+			kv: new MemKv(),
+			idempotencyKey: "idem-key-strong-17",
+			cartId,
+		});
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "payload_too_large" });
+	});
+
+	it("blocks checkout when rate limit is exceeded", async () => {
+		const cartId = "cart_rate";
+		const now = "2026-04-02T12:00:00.000Z";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
+			createdAt: now,
+			updatedAt: now,
+		};
+		const idempotencyKey = "idem-key-strong-r8";
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			inventoryStock: new MemColl(),
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+		});
+
+		consumeKvRateLimit.mockResolvedValueOnce(false);
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "rate_limited" });
+		expect(consumeKvRateLimit).toHaveBeenCalledTimes(1);
+	});
+
+	it("rejects mismatched header/body idempotency input", async () => {
+		const cartId = "cart_conflict";
+		const now = "2026-04-02T12:00:00.000Z";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
+			createdAt: now,
+			updatedAt: now,
+		};
+		const req = new Request("https://example.local/checkout", {
+			method: "POST",
+			headers: new Headers({ "Idempotency-Key": "header-key-16chars" }),
+		});
+		const ctx = {
+			request: req as Request & { headers: Headers },
+			input: {
+				cartId,
+				idempotencyKey: "body-key-16chars",
+			},
+			storage: {
+				idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+				orders: new MemColl<StoredOrder>(),
+				paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+				carts: new MemColl(new Map([[cartId, cart]])),
+				inventoryStock: new MemColl(),
+			},
+			requestMeta: { ip: "127.0.0.1" },
+			kv: new MemKv(),
+		} as unknown as RouteContext<CheckoutInput>;
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 });

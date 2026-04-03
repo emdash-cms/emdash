@@ -12,13 +12,13 @@ import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { requirePost } from "../lib/require-post.js";
-import { throwCommerceApiError } from "../route-errors.js";
 import {
 	finalizePaymentFromWebhook,
 	type FinalizeWebhookInput,
 	type FinalizeWebhookResult,
 	type FinalizePaymentPorts,
 } from "../orchestration/finalize-payment.js";
+import { throwCommerceApiError } from "../route-errors.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -87,9 +87,18 @@ export async function handlePaymentWebhook<TInput>(
 	requirePost(ctx);
 
 	const contentLength = ctx.request.headers.get("content-length");
-	if (contentLength !== null && contentLength !== "") {
-		const n = Number(contentLength);
-		if (Number.isFinite(n) && n > COMMERCE_LIMITS.maxWebhookBodyBytes) {
+	const n = contentLength !== null && contentLength !== "" ? Number(contentLength) : Number.NaN;
+	if (Number.isFinite(n)) {
+		if (n > COMMERCE_LIMITS.maxWebhookBodyBytes) {
+			throwCommerceApiError({
+				code: "PAYLOAD_TOO_LARGE",
+				message: "Webhook body is too large",
+			});
+		}
+	} else {
+		const bodyText = await ctx.request.clone().text();
+		const bodyBytes = new TextEncoder().encode(bodyText).byteLength;
+		if (bodyBytes > COMMERCE_LIMITS.maxWebhookBodyBytes) {
 			throwCommerceApiError({
 				code: "PAYLOAD_TOO_LARGE",
 				message: "Webhook body is too large",

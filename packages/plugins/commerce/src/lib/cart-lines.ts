@@ -17,7 +17,9 @@ type CartFingerprintLine = {
 };
 
 type SortableCartFingerprintLineItems = Array<CartFingerprintLine> & {
-	toSorted: (compareFn?: (left: CartFingerprintLine, right: CartFingerprintLine) => number) => CartFingerprintLine[];
+	toSorted: (
+		compareFn?: (left: CartFingerprintLine, right: CartFingerprintLine) => number,
+	) => CartFingerprintLine[];
 };
 
 export function projectCartLineItemsForStorage(

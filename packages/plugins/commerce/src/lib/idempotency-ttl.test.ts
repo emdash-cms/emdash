@@ -9,7 +9,9 @@ describe("isIdempotencyRecordFresh", () => {
 	});
 
 	it("returns false when older than TTL", () => {
-		const old = new Date(Date.now() - COMMERCE_LIMITS.idempotencyRecordTtlMs - 60_000).toISOString();
+		const old = new Date(
+			Date.now() - COMMERCE_LIMITS.idempotencyRecordTtlMs - 60_000,
+		).toISOString();
 		expect(isIdempotencyRecordFresh(old, Date.now())).toBe(false);
 	});
 

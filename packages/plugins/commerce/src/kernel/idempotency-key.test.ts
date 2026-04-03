@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { validateIdempotencyKey } from "./idempotency-key.js";
 
 describe("validateIdempotencyKey", () => {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { projectCartLineItemsForFingerprint, projectCartLineItemsForStorage } from "./cart-lines.js";
+import {
+	projectCartLineItemsForFingerprint,
+	projectCartLineItemsForStorage,
+} from "./cart-lines.js";
 
 describe("cart line item projections", () => {
 	it("projects only stable cart line fields for storage", () => {

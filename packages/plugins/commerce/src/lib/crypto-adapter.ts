@@ -23,9 +23,7 @@ const subtle: SubtleCrypto | undefined =
 async function sha256HexWebCrypto(input: string): Promise<string> {
 	const encoded = new TextEncoder().encode(input);
 	const buf = await subtle!.digest("SHA-256", encoded);
-	return Array.from(new Uint8Array(buf))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+	return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function sha256HexNode(input: string): string {
@@ -83,7 +81,10 @@ export async function equalSha256HexDigestAsync(a: string, b: string): Promise<b
 
 export function randomHex(byteLength = 24): string {
 	const buf = new Uint8Array(byteLength);
-	if (typeof globalThis !== "undefined" && typeof (globalThis as { crypto?: Crypto }).crypto?.getRandomValues === "function") {
+	if (
+		typeof globalThis !== "undefined" &&
+		typeof (globalThis as { crypto?: Crypto }).crypto?.getRandomValues === "function"
+	) {
 		(globalThis as { crypto: Crypto }).crypto.getRandomValues(buf);
 	} else {
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -91,9 +92,7 @@ export function randomHex(byteLength = 24): string {
 		const nodeBuf = randomBytes(byteLength);
 		buf.set(nodeBuf);
 	}
-	return Array.from(buf)
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+	return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ---------------------------------------------------------------------------
@@ -110,9 +109,7 @@ async function hmacSha256HexWebCrypto(secret: string, message: string): Promise<
 		["sign"],
 	);
 	const sig = await subtle!.sign("HMAC", key, new TextEncoder().encode(message));
-	return Array.from(new Uint8Array(sig))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+	return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function hmacSha256HexNode(secret: string, message: string): string {

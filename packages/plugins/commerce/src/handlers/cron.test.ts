@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-
 import type { PluginContext } from "emdash";
+import { describe, expect, it, vi } from "vitest";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import type { StoredIdempotencyKey } from "../types.js";
@@ -19,7 +18,8 @@ class MemIdemp {
 		const lt = (where.createdAt as { lt?: string } | undefined)?.lt;
 		const items: Array<{ id: string; data: StoredIdempotencyKey }> = [];
 		for (const [id, data] of this.rows) {
-			if (lt !== undefined && typeof data.createdAt === "string" && !(data.createdAt < lt)) continue;
+			if (lt !== undefined && typeof data.createdAt === "string" && !(data.createdAt < lt))
+				continue;
 			items.push({ id, data: { ...data } });
 			if (items.length >= (opts.limit ?? 100)) break;
 		}
@@ -37,7 +37,9 @@ class MemIdemp {
 
 describe("handleIdempotencyCleanup", () => {
 	it("deletes rows older than TTL", async () => {
-		const old = new Date(Date.now() - COMMERCE_LIMITS.idempotencyRecordTtlMs - 86_400_000).toISOString();
+		const old = new Date(
+			Date.now() - COMMERCE_LIMITS.idempotencyRecordTtlMs - 86_400_000,
+		).toISOString();
 		const recent = new Date().toISOString();
 		const mem = new MemIdemp();
 		mem.rows.set("a", {

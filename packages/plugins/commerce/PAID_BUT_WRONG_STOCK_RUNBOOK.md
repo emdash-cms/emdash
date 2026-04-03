@@ -26,6 +26,18 @@ Use this if a merchant reports: **“customer is marked paid, but stock is wrong
   - `succeeded` means payment attempt did finalize.
   - `pending` means finalization likely interrupted.
 
+## 2b) Optional status helper check (if tooling is available)
+
+- Use `queryFinalizationState` and map:
+  - `resumeState: not_started` → no event-side writes yet.
+  - `pending_inventory` → inventory application missing/partial.
+  - `pending_order` → order has not been set to `paid`.
+  - `pending_attempt` → payment attempt still `pending`.
+  - `pending_receipt` → order+attempt done, waiting on receipt write.
+- `event_unknown` → order/payment/attempt indicators are already complete but this event id has no receipt row.
+  - `replay_processed`/`replay_duplicate` → terminal replay paths.
+  - `error` → investigate before retrying.
+
 ## 3) Check stock/ledger consistency
 
 - Open inventory ledger rows with:
@@ -36,6 +48,7 @@ Use this if a merchant reports: **“customer is marked paid, but stock is wrong
 ## 4) Decision tree (do only one path)
 
 ### A. Ledger has order entry **and** stock looks decremented correctly
+
 - If order is not yet `paid` (or attempt still `pending`) and receipt is `pending`:
   - Retry finalize once.
   - Re-check that order is `paid`, attempt is `succeeded`, receipt is `processed`.
@@ -44,11 +57,13 @@ Use this if a merchant reports: **“customer is marked paid, but stock is wrong
   - Report as successful reconciliation.
 
 ### B. Ledger exists but stock did not move
+
 - If receipt is `pending`, retry finalize once. `pending` captures partial-write cases such as ledger write success before stock write.
 - Re-check that receipt moves to `processed` and stock/attempt are corrected.
 - If the single retry does not resolve, escalate to engineering with all captured evidence.
 
 ### C. Ledger missing and stock not moved, but order is `paid`
+
 - Do **not** force stock edits in product admin on your own.
 - Escalate immediately for manual reconciliation.
 
@@ -74,6 +89,7 @@ Retries should be run only when evidence says the order was likely in partial-wr
 ## 7) Alerting recommendation
 
 Enable alerting if the same order/retry pattern happens repeatedly:
+
 - 2+ finalize retries in 10 minutes for the same order, or
 - Same event ID repeatedly ending in `order_update_failed` / `attempt_update_failed`.
 

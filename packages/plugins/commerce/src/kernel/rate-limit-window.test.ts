@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { nextRateLimitState } from "./rate-limit-window.js";
 
 describe("nextRateLimitState", () => {
@@ -43,23 +44,13 @@ describe("nextRateLimitState", () => {
 	});
 
 	it("blocks when window config is invalid", () => {
-		const denied = nextRateLimitState(
-			{ count: 1, windowStartMs: 1_000 },
-			2_000,
-			0,
-			windowMs,
-		);
+		const denied = nextRateLimitState({ count: 1, windowStartMs: 1_000 }, 2_000, 0, windowMs);
 		expect(denied.allowed).toBe(false);
 		expect(denied.bucket).toEqual({ count: 1, windowStartMs: 1_000 });
 	});
 
 	it("blocks when window size config is invalid", () => {
-		const denied = nextRateLimitState(
-			{ count: 1, windowStartMs: 1_000 },
-			2_000,
-			2,
-			-1,
-		);
+		const denied = nextRateLimitState({ count: 1, windowStartMs: 1_000 }, 2_000, 2, -1);
 		expect(denied.allowed).toBe(false);
 		expect(denied.bucket).toEqual({ count: 1, windowStartMs: 1_000 });
 	});

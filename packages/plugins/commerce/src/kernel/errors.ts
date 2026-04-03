@@ -91,8 +91,7 @@ export const COMMERCE_ERROR_WIRE_CODES = {
 	PAYLOAD_TOO_LARGE: "payload_too_large",
 } as const satisfies Record<CommerceErrorCode, string>;
 
-export type CommerceWireErrorCode =
-	(typeof COMMERCE_ERROR_WIRE_CODES)[CommerceErrorCode];
+export type CommerceWireErrorCode = (typeof COMMERCE_ERROR_WIRE_CODES)[CommerceErrorCode];
 
 export function commerceErrorCodeToWire(code: CommerceErrorCode): CommerceWireErrorCode {
 	return COMMERCE_ERROR_WIRE_CODES[code];

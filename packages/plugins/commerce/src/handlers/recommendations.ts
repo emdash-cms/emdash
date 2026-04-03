@@ -7,10 +7,13 @@
 
 import type { RouteContext } from "emdash";
 
+import type { CommerceRecommendationResolver } from "../catalog-extensibility.js";
+import type {
+	CommerceRecommendationResult,
+	CommerceRecommendationInput,
+} from "../catalog-extensibility.js";
 import { requirePost } from "../lib/require-post.js";
 import type { RecommendationsInput } from "../schemas.js";
-import type { CommerceRecommendationResolver } from "../catalog-extensibility.js";
-import type { CommerceRecommendationResult, CommerceRecommendationInput } from "../catalog-extensibility.js";
 
 export interface RecommendationsResponseBase {
 	ok: true;
@@ -31,7 +34,9 @@ export interface RecommendationsEnabledResponse extends RecommendationsResponseB
 	providerId?: string;
 }
 
-export type RecommendationsResponse = RecommendationsDisabledResponse | RecommendationsEnabledResponse;
+export type RecommendationsResponse =
+	| RecommendationsDisabledResponse
+	| RecommendationsEnabledResponse;
 
 export type RecommendationsHandlerOptions = {
 	resolver?: CommerceRecommendationResolver;
@@ -95,7 +100,9 @@ function buildProviderResponse(
 export function createRecommendationsHandler(
 	options: RecommendationsHandlerOptions = {},
 ): (ctx: RouteContext<RecommendationsInput>) => Promise<RecommendationsResponse> {
-	return async function recommendationsHandler(ctx: RouteContext<RecommendationsInput>): Promise<RecommendationsResponse> {
+	return async function handleRecommendations(
+		ctx: RouteContext<RecommendationsInput>,
+	): Promise<RecommendationsResponse> {
 		requirePost(ctx);
 		const input = toInput(ctx.input);
 		if (!options.resolver) {

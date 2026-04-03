@@ -6,16 +6,16 @@
 import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 
-import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
-import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
+import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
+import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
+import { validateCartLineItems } from "../lib/cart-validation.js";
+import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
-import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
-import { validateCartLineItems } from "../lib/cart-validation.js";
 import { requirePost } from "../lib/require-post.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -179,7 +179,10 @@ function deterministicPaymentAttemptId(keyHash: string): string {
 	return `checkout-attempt:${keyHash}`;
 }
 
-export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentProviderId?: string) {
+export async function checkoutHandler(
+	ctx: RouteContext<CheckoutInput>,
+	paymentProviderId?: string,
+) {
 	requirePost(ctx);
 	const resolvedPaymentProviderId = resolvePaymentProviderId(paymentProviderId);
 
@@ -290,9 +293,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentP
 
 	let orderLineItems: OrderLineItem[];
 	try {
-		orderLineItems = mergeLineItemsBySku(
-			projectCartLineItemsForStorage(cart.lineItems),
-		);
+		orderLineItems = mergeLineItemsBySku(projectCartLineItemsForStorage(cart.lineItems));
 	} catch {
 		throw PluginRouteError.badRequest(
 			"Cart has duplicate SKUs with conflicting price or inventory version snapshots",

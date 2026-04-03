@@ -19,20 +19,17 @@ export const cartLineItemSchema = z.object({
 		.number()
 		.int()
 		.min(1, "Quantity must be at least 1")
-		.max(COMMERCE_LIMITS.maxLineItemQty, `Quantity must not exceed ${COMMERCE_LIMITS.maxLineItemQty}`),
+		.max(
+			COMMERCE_LIMITS.maxLineItemQty,
+			`Quantity must not exceed ${COMMERCE_LIMITS.maxLineItemQty}`,
+		),
 	/**
 	 * Snapshot of the inventory version at the time the item was added to the cart.
 	 * Used for optimistic concurrency during finalize.
 	 */
-	inventoryVersion: z
-		.number()
-		.int()
-		.min(0, "Inventory version must be a non-negative integer"),
+	inventoryVersion: z.number().int().min(0, "Inventory version must be a non-negative integer"),
 	/** Price in the smallest currency unit (e.g. cents). Must be non-negative. */
-	unitPriceMinor: z
-		.number()
-		.int()
-		.min(0, "Unit price must be a non-negative integer"),
+	unitPriceMinor: z.number().int().min(0, "Unit price must be a non-negative integer"),
 });
 
 export type CartLineItemInput = z.infer<typeof cartLineItemSchema>;
@@ -110,12 +107,7 @@ export const recommendationsInputSchema = z.object({
 	productId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
 	variantId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
 	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
-	limit: z.coerce
-		.number()
-		.int()
-		.min(1)
-		.max(COMMERCE_LIMITS.maxRecommendationsLimit)
-		.optional(),
+	limit: z.coerce.number().int().min(1).max(COMMERCE_LIMITS.maxRecommendationsLimit).optional(),
 });
 
 export type RecommendationsInput = z.infer<typeof recommendationsInputSchema>;
