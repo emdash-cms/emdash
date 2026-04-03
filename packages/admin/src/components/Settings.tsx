@@ -4,6 +4,7 @@ import {
 	MagnifyingGlass,
 	Shield,
 	Globe,
+	GlobeSimple,
 	Key,
 	Envelope,
 	CaretRight,
@@ -11,7 +12,20 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
+import { useTranslation } from "../i18n/index.js";
 import { fetchManifest } from "../lib/api";
+import { cn } from "../lib/utils.js";
+
+const SUPPORTED_LOCALES = [
+	{ code: "en", label: "English" },
+	{ code: "fr", label: "Français" },
+];
+
+function setLocale(code: string) {
+	const secure = window.location.protocol === "https:" ? "; Secure" : "";
+	document.cookie = `emdash-locale=${code}; Path=/_emdash; SameSite=Lax; Max-Age=31536000${secure}`;
+	window.location.reload();
+}
 
 interface SettingsLinkProps {
 	to: string;
@@ -47,6 +61,7 @@ export function Settings() {
 		queryFn: fetchManifest,
 	});
 
+	const { locale } = useTranslation();
 	const showSecuritySettings = manifest?.authMode === "passkey";
 
 	return (
@@ -107,6 +122,37 @@ export function Settings() {
 					title="Email"
 					description="View email provider status and send test emails"
 				/>
+			</div>
+
+			{/* Language */}
+			<div className="space-y-2">
+				<div className="flex items-center justify-between p-4 rounded-lg border bg-kumo-base">
+					<div className="flex items-center gap-3">
+						<div className="text-kumo-subtle">
+							<GlobeSimple className="h-5 w-5" />
+						</div>
+						<div>
+							<div className="font-medium">Language</div>
+							<div className="text-sm text-kumo-subtle">Choose your preferred admin language</div>
+						</div>
+					</div>
+					<div className="flex gap-1">
+						{SUPPORTED_LOCALES.map((l) => (
+							<button
+								key={l.code}
+								onClick={() => setLocale(l.code)}
+								className={cn(
+									"rounded-md px-3 py-1.5 text-sm transition-colors",
+									l.code === locale
+										? "bg-kumo-brand/10 text-kumo-brand font-medium"
+										: "hover:bg-kumo-tint",
+								)}
+							>
+								{l.label}
+							</button>
+						))}
+					</div>
+				</div>
 			</div>
 		</div>
 	);
