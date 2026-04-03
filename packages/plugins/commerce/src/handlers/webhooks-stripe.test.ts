@@ -22,7 +22,9 @@ describe("stripe webhook signature helpers", () => {
 
 	it("validates a matching v1 signature", () => {
 		const sig = `t=${timestamp},v1=${hashWithSecret(secret, timestamp, rawBody)}`;
+		const restore = vi.spyOn(Date, "now").mockReturnValue(timestamp * 1000);
 		expect(isWebhookSignatureValid(secret, rawBody, sig)).toBe(true);
+		restore.mockRestore();
 	});
 
 	it("rejects mismatched secret", () => {
@@ -38,10 +40,10 @@ describe("stripe webhook signature helpers", () => {
 	it("rejects stale signatures", () => {
 		const oldTimestamp = timestamp - 360;
 		const sig = `t=${oldTimestamp},v1=${hashWithSecret(secret, oldTimestamp, rawBody)}`;
-		const mockNow = oldTimestamp + 10; // very stale in seconds
-		const restore = vi.spyOn(Date, "now").mockReturnValue(mockNow * 1000);
+		// Tolerance is 300s; advance wall clock well beyond that vs signature timestamp.
+		const mockNowSeconds = oldTimestamp + 400;
+		const restore = vi.spyOn(Date, "now").mockReturnValue(mockNowSeconds * 1000);
 		expect(isWebhookSignatureValid(secret, rawBody, sig)).toBe(false);
 		restore.mockRestore();
 	});
 });
-

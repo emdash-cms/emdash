@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { decidePaymentFinalize } from "./finalize-decision.js";
 
 describe("decidePaymentFinalize", () => {
@@ -24,7 +25,7 @@ describe("decidePaymentFinalize", () => {
 		).toEqual({ action: "proceed", correlationId: cid });
 	});
 
-	it("noop when order already paid (gateway retry)", () => {
+	it("noop when order already paid and webhook receipt already processed (replay)", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "paid",
 			receipt: { exists: true, status: "processed" },
@@ -34,7 +35,7 @@ describe("decidePaymentFinalize", () => {
 		if (d.action === "noop") {
 			expect(d.httpStatus).toBe(200);
 			expect(d.code).toBe("WEBHOOK_REPLAY_DETECTED");
-			expect(d.reason).toBe("order_already_paid");
+			expect(d.reason).toBe("webhook_receipt_processed");
 		}
 	});
 
@@ -66,32 +67,31 @@ describe("decidePaymentFinalize", () => {
 		});
 	});
 
-	it("order paid takes precedence over pending webhook row state", () => {
+	it("resumes finalization when webhook row is pending and order is already paid", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "paid",
 			receipt: { exists: true, status: "pending" },
 			correlationId: cid,
 		});
-		expect(d).toMatchObject({
-			action: "noop",
-			reason: "order_already_paid",
-			httpStatus: 200,
-			code: "WEBHOOK_REPLAY_DETECTED",
-		});
+		expect(d).toEqual({ action: "proceed", correlationId: cid });
 	});
 
-	it("conflict when webhook is pending", () => {
+	it("continues when webhook row is pending and payment is still in progress", () => {
+		const d = decidePaymentFinalize({
+			orderStatus: "payment_pending",
+			receipt: { exists: true, status: "pending" },
+			correlationId: cid,
+		});
+		expect(d).toEqual({ action: "proceed", correlationId: cid });
+	});
+
+	it("continues when webhook row is pending while still authorized", () => {
 		const d = decidePaymentFinalize({
 			orderStatus: "authorized",
 			receipt: { exists: true, status: "pending" },
 			correlationId: cid,
 		});
-		expect(d).toMatchObject({
-			action: "noop",
-			reason: "webhook_pending",
-			httpStatus: 409,
-			code: "ORDER_STATE_CONFLICT",
-		});
+		expect(d).toEqual({ action: "proceed", correlationId: cid });
 	});
 
 	it("conflict when webhook is error", () => {

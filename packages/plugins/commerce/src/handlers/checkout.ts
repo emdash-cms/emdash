@@ -4,7 +4,6 @@
 
 import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
-import { ulid } from "ulidx";
 
 import { randomFinalizeTokenHex, sha256Hex } from "../hash.js";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
@@ -12,8 +11,8 @@ import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
-import { requirePost } from "../lib/require-post.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
+import { requirePost } from "../lib/require-post.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutInput } from "../schemas.js";
@@ -27,9 +26,86 @@ import type {
 } from "../types.js";
 
 const CHECKOUT_ROUTE = "checkout";
+const CHECKOUT_PENDING_KIND = "checkout_pending";
+
+type CheckoutPendingState = {
+	kind: typeof CHECKOUT_PENDING_KIND;
+	orderId: string;
+	paymentAttemptId: string;
+	cartId: string;
+	paymentPhase: "payment_pending";
+	finalizeToken: string;
+	totalMinor: number;
+	currency: string;
+	lineItems: OrderLineItem[];
+	createdAt: string;
+};
+
+type CheckoutResponse = {
+	orderId: string;
+	paymentPhase: "payment_pending";
+	paymentAttemptId: string;
+	totalMinor: number;
+	currency: string;
+	finalizeToken: string;
+};
 
 function asCollection<T>(raw: unknown): StorageCollection<T> {
 	return raw as StorageCollection<T>;
+}
+
+function isObjectLike(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function isCheckoutCompletedResponse(value: unknown): value is CheckoutResponse {
+	if (!isObjectLike(value)) return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		candidate.orderId != null &&
+		typeof candidate.orderId === "string" &&
+		candidate.paymentPhase === "payment_pending" &&
+		candidate.paymentAttemptId != null &&
+		typeof candidate.paymentAttemptId === "string" &&
+		typeof candidate.totalMinor === "number" &&
+		typeof candidate.currency === "string" &&
+		typeof candidate.finalizeToken === "string"
+	);
+}
+
+function isCheckoutPendingState(value: unknown): value is CheckoutPendingState {
+	if (!isObjectLike(value)) return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		candidate.kind === CHECKOUT_PENDING_KIND &&
+		typeof candidate.orderId === "string" &&
+		typeof candidate.paymentAttemptId === "string" &&
+		typeof candidate.cartId === "string" &&
+		candidate.paymentPhase === "payment_pending" &&
+		typeof candidate.finalizeToken === "string" &&
+		typeof candidate.totalMinor === "number" &&
+		typeof candidate.currency === "string" &&
+		Array.isArray(candidate.lineItems)
+	);
+}
+
+function checkoutResponseFromPendingState(state: CheckoutPendingState): CheckoutResponse {
+	return {
+		orderId: state.orderId,
+		paymentPhase: "payment_pending",
+		paymentAttemptId: state.paymentAttemptId,
+		totalMinor: state.totalMinor,
+		currency: state.currency,
+		finalizeToken: state.finalizeToken,
+	};
+}
+
+function deterministicOrderId(keyHash: string): string {
+	return `checkout-order:${keyHash}`;
+}
+
+function deterministicPaymentAttemptId(keyHash: string): string {
+	return `checkout-attempt:${keyHash}`;
 }
 
 export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
@@ -79,13 +155,19 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		});
 	}
 	for (const line of cart.lineItems) {
-		if (!Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > COMMERCE_LIMITS.maxLineItemQty) {
+		if (
+			!Number.isInteger(line.quantity) ||
+			line.quantity < 1 ||
+			line.quantity > COMMERCE_LIMITS.maxLineItemQty
+		) {
 			throw PluginRouteError.badRequest(
 				`Line item quantity must be between 1 and ${COMMERCE_LIMITS.maxLineItemQty}`,
 			);
 		}
 		if (!Number.isInteger(line.inventoryVersion) || line.inventoryVersion < 0) {
-			throw PluginRouteError.badRequest("Line item inventory version must be a non-negative integer");
+			throw PluginRouteError.badRequest(
+				"Line item inventory version must be a non-negative integer",
+			);
 		}
 		if (!Number.isInteger(line.unitPriceMinor) || line.unitPriceMinor < 0) {
 			throw PluginRouteError.badRequest("Line item unit price must be a non-negative integer");
@@ -101,7 +183,45 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	const idempotencyKeys = asCollection<StoredIdempotencyKey>(ctx.storage.idempotencyKeys);
 	const cached = await idempotencyKeys.get(idempotencyDocId);
 	if (cached && isIdempotencyRecordFresh(cached.createdAt, nowMs)) {
-		return cached.responseBody;
+		if (isCheckoutCompletedResponse(cached.responseBody)) {
+			return cached.responseBody;
+		}
+		if (isCheckoutPendingState(cached.responseBody)) {
+			const pending = cached.responseBody;
+			const orders = asCollection<StoredOrder>(ctx.storage.orders);
+			const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
+			const existingOrder = await orders.get(pending.orderId);
+			if (!existingOrder) {
+				await orders.put(pending.orderId, {
+					cartId: pending.cartId,
+					paymentPhase: pending.paymentPhase,
+					currency: pending.currency,
+					lineItems: pending.lineItems,
+					totalMinor: pending.totalMinor,
+					finalizeTokenHash: sha256Hex(pending.finalizeToken),
+					createdAt: pending.createdAt,
+					updatedAt: nowIso,
+				});
+			}
+
+			const existingAttempt = await attempts.get(pending.paymentAttemptId);
+			if (!existingAttempt) {
+				await attempts.put(pending.paymentAttemptId, {
+					orderId: pending.orderId,
+					providerId: "stripe",
+					status: "pending",
+					createdAt: pending.createdAt,
+					updatedAt: nowIso,
+				});
+			}
+
+			await idempotencyKeys.put(idempotencyDocId, {
+				...cached,
+				httpStatus: 200,
+				responseBody: checkoutResponseFromPendingState(pending),
+			});
+			return checkoutResponseFromPendingState(pending);
+		}
 	}
 
 	const inventoryStock = asCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
@@ -140,7 +260,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	}
 
 	const totalMinor = orderLineItems.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
-	const orderId = ulid();
+	const orderId = deterministicOrderId(keyHash);
 
 	const finalizeToken = randomFinalizeTokenHex();
 	const finalizeTokenHash = sha256Hex(finalizeToken);
@@ -156,7 +276,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		updatedAt: nowIso,
 	};
 
-	const paymentAttemptId = ulid();
+	const paymentAttemptId = deterministicPaymentAttemptId(keyHash);
 	const attempt: StoredPaymentAttempt = {
 		orderId,
 		providerId: "stripe",
@@ -165,14 +285,31 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		updatedAt: nowIso,
 	};
 
+	const pendingState: CheckoutPendingState = {
+		kind: CHECKOUT_PENDING_KIND,
+		orderId,
+		paymentAttemptId,
+		cartId: ctx.input.cartId,
+		paymentPhase: "payment_pending",
+		finalizeToken,
+		totalMinor,
+		currency: cart.currency,
+		lineItems: orderLineItems,
+		createdAt: nowIso,
+	};
+
+	await idempotencyKeys.put(idempotencyDocId, {
+		route: CHECKOUT_ROUTE,
+		keyHash,
+		httpStatus: 202,
+		responseBody: pendingState,
+		createdAt: nowIso,
+	});
+
 	const orders = asCollection<StoredOrder>(ctx.storage.orders);
 	const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
-	await orders.putMany([
-		{ id: orderId, data: order },
-	]);
-	await attempts.putMany([
-		{ id: paymentAttemptId, data: attempt },
-	]);
+	await orders.put(orderId, order);
+	await attempts.put(paymentAttemptId, attempt);
 
 	const responseBody = {
 		orderId,

@@ -10,6 +10,7 @@ import type {
 } from "../types.js";
 import {
 	finalizePaymentFromWebhook,
+	type FinalizePaymentPorts,
 	inventoryStockDocId,
 	receiptToView,
 	webhookReceiptDocId,
@@ -20,21 +21,16 @@ const FINALIZE_RAW = "unit_test_finalize_secret_ok____________";
 const FINALIZE_HASH = sha256Hex(FINALIZE_RAW);
 
 type MemQueryOptions = {
-	where?: Record<string, string | number | boolean | null>;
+	where?: Record<string, unknown>;
 	limit?: number;
 	cursor?: string;
-	orderBy?: Partial<
-		Record<
-			"createdAt" | "orderId" | "providerId" | "status",
-			"asc" | "desc"
-		>
-	>;
+	orderBy?: Partial<Record<"createdAt" | "orderId" | "providerId" | "status", "asc" | "desc">>;
 };
 
 type MemPaginated<T> = { items: T[]; hasMore: boolean; cursor?: string };
 
 class MemColl<T extends object> {
-	constructor(private readonly rows = new Map<string, T>()) {}
+	constructor(public readonly rows = new Map<string, T>()) {}
 
 	async get(id: string): Promise<T | null> {
 		const row = this.rows.get(id);
@@ -51,7 +47,9 @@ class MemColl<T extends object> {
 		const orderBy = options?.orderBy;
 		const items: Array<{ id: string; data: T }> = [];
 		for (const [id, data] of this.rows) {
-			const ok = Object.entries(where).every(([k, v]) => (data as Record<string, unknown>)[k] === v);
+			const ok = Object.entries(where).every(
+				([k, v]) => (data as Record<string, unknown>)[k] === v,
+			);
 			if (ok) items.push({ id, data: structuredClone(data) });
 		}
 		if (orderBy && Object.keys(orderBy).length > 0) {
@@ -59,10 +57,17 @@ class MemColl<T extends object> {
 				for (const [field, dir] of Object.entries(orderBy) as Array<
 					["createdAt" | "orderId" | "providerId" | "status", "asc" | "desc"]
 				>) {
-					if (field !== "createdAt" && field !== "orderId" && field !== "providerId" && field !== "status")
+					if (
+						field !== "createdAt" &&
+						field !== "orderId" &&
+						field !== "providerId" &&
+						field !== "status"
+					)
 						continue;
-					const av = a.data[field];
-					const bv = b.data[field];
+					const rowA = a.data as Record<string, unknown>;
+					const rowB = b.data as Record<string, unknown>;
+					const av = rowA[field];
+					const bv = rowB[field];
 					if (av === bv) continue;
 					if (dir === "desc") return String(av).localeCompare(String(bv)) * -1;
 					return String(av).localeCompare(String(bv));
@@ -75,20 +80,38 @@ class MemColl<T extends object> {
 	}
 }
 
+function withOneTimePutFailure<T extends object>(collection: MemColl<T>): MemColl<T> {
+	let shouldFail = true;
+	return {
+		get rows() {
+			return collection.rows;
+		},
+		get: (id: string) => collection.get(id),
+		query: (options?: MemQueryOptions) => collection.query(options),
+		put: async (id: string, data: T): Promise<void> => {
+			if (shouldFail) {
+				shouldFail = false;
+				throw new Error("simulated storage write failure");
+			}
+			await collection.put(id, data);
+		},
+	} as MemColl<T>;
+}
+
 function portsFromState(state: {
 	orders: Map<string, StoredOrder>;
 	webhookReceipts: Map<string, StoredWebhookReceipt>;
 	paymentAttempts: Map<string, StoredPaymentAttempt>;
 	inventoryLedger: Map<string, StoredInventoryLedgerEntry>;
 	inventoryStock: Map<string, StoredInventoryStock>;
-}) {
+}): FinalizePaymentPorts {
 	return {
 		orders: new MemColl(state.orders),
 		webhookReceipts: new MemColl(state.webhookReceipts),
 		paymentAttempts: new MemColl(state.paymentAttempts),
 		inventoryLedger: new MemColl(state.inventoryLedger),
 		inventoryStock: new MemColl(state.inventoryStock),
-	};
+	} as FinalizePaymentPorts;
 }
 
 const now = "2026-04-02T12:00:00.000Z";
@@ -395,9 +418,162 @@ describe("finalizePaymentFromWebhook", () => {
 		const ledger = await ports.inventoryLedger.query({ limit: 10 });
 		expect(ledger.items).toHaveLength(0);
 		const order = await ports.orders.get(orderId);
-		expect(order?.paymentPhase).toBe("payment_conflict");
+		expect(order?.paymentPhase).toBe("payment_pending");
 		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
-		expect(receipt?.status).toBe("error");
+		expect(receipt?.status).toBe("pending");
+	});
+
+	it("resumes safely when order persistence fails after inventory write", async () => {
+		const orderId = "order_resume_order_fail";
+		const extId = "evt_order_fail";
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [
+							{
+								productId: "p1",
+								quantity: 1,
+								inventoryVersion: 3,
+								unitPriceMinor: 500,
+							},
+						],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					inventoryStockDocId("p1", ""),
+					{
+						productId: "p1",
+						variantId: "",
+						version: 3,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+		const basePorts = portsFromState(state);
+		const ports = {
+			...basePorts,
+			orders: withOneTimePutFailure(basePorts.orders as unknown as MemColl<StoredOrder>),
+		};
+
+		const first = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(first).toMatchObject({ kind: "api_error", error: { code: "ORDER_STATE_CONFLICT" } });
+
+		const stock = await basePorts.inventoryStock.get(inventoryStockDocId("p1", ""));
+		expect(stock?.quantity).toBe(9);
+		const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+
+		const second = await finalizePaymentFromWebhook(basePorts, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(second).toEqual({ kind: "completed", orderId });
+
+		const paidOrder = await basePorts.orders.get(orderId);
+		expect(paidOrder?.paymentPhase).toBe("paid");
+		const receipt = await basePorts.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("processed");
+	});
+
+	it("retries safely when payment-attempt finalization fails", async () => {
+		const orderId = "order_resume_attempt_fail";
+		const extId = "evt_attempt_fail";
+		const state = {
+			orders: new Map([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_retry",
+					{
+						orderId,
+						providerId: "stripe",
+						status: "pending",
+						createdAt: now,
+						updatedAt: now,
+					},
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					inventoryStockDocId("p1", ""),
+					{
+						productId: "p1",
+						variantId: "",
+						version: 3,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+		const ports = portsFromState(state);
+		const basePorts = {
+			...ports,
+			paymentAttempts: withOneTimePutFailure(
+				ports.paymentAttempts as unknown as MemColl<StoredPaymentAttempt>,
+			),
+		} as typeof ports;
+
+		const first = await finalizePaymentFromWebhook(basePorts, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(first).toMatchObject({ kind: "api_error", error: { code: "ORDER_STATE_CONFLICT" } });
+
+		const paidOrder = await ports.orders.get(orderId);
+		expect(paidOrder?.paymentPhase).toBe("paid");
+
+		const pendingAttempt = await ports.paymentAttempts.query({
+			where: { orderId: orderId, providerId: "stripe", status: "pending" },
+			limit: 5,
+		});
+		expect(pendingAttempt.items).toHaveLength(1);
+
+		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("pending");
+
+		const second = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(second).toEqual({ kind: "completed", orderId });
+
+		const succeededAttempt = await ports.paymentAttempts.query({
+			where: { orderId: orderId, providerId: "stripe", status: "succeeded" },
+			limit: 5,
+		});
+		expect(succeededAttempt.items).toHaveLength(1);
+		const retryReceipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(retryReceipt?.status).toBe("processed");
 	});
 
 	it("rejects finalize when token is missing but order requires one", async () => {
@@ -506,7 +682,75 @@ describe("finalizePaymentFromWebhook", () => {
 		if (res.kind === "replay") expect(res.reason).toBe("order_already_paid");
 	});
 
-	it("pending receipt yields api_error ORDER_STATE_CONFLICT", async () => {
+	it("resumes completion for a paid order with a pending webhook receipt", async () => {
+		const orderId = "order_paid_pending";
+		const ext = "evt_paid_pending";
+		const rid = webhookReceiptDocId("stripe", ext);
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						paymentPhase: "paid",
+						lineItems: [
+							{
+								productId: "p1",
+								quantity: 2,
+								inventoryVersion: 3,
+								unitPriceMinor: 500,
+							},
+						],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>([
+				[
+					rid,
+					{
+						providerId: "stripe",
+						externalEventId: ext,
+						orderId,
+						status: "pending",
+						createdAt: now,
+						updatedAt: now,
+					},
+				],
+			]),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_paid",
+					{
+						orderId,
+						providerId: "stripe",
+						status: "pending",
+						createdAt: now,
+						updatedAt: now,
+					},
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+		const ports = portsFromState(state);
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: ext,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "completed", orderId });
+		const paidOrder = await ports.orders.get(orderId);
+		expect(paidOrder?.paymentPhase).toBe("paid");
+		const receipt = await ports.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("processed");
+		const attempt = await ports.paymentAttempts.get("pa_paid");
+		expect(attempt?.status).toBe("succeeded");
+	});
+
+	it("pending receipt still requires finalize token", async () => {
 		const orderId = "order_1";
 		const ext = "evt_pending";
 		const rid = webhookReceiptDocId("stripe", ext);
@@ -540,7 +784,7 @@ describe("finalizePaymentFromWebhook", () => {
 
 		expect(res).toMatchObject({
 			kind: "api_error",
-			error: { code: "ORDER_STATE_CONFLICT" },
+			error: { code: "WEBHOOK_SIGNATURE_INVALID" },
 		});
 	});
 
@@ -582,10 +826,10 @@ describe("finalizePaymentFromWebhook", () => {
 			error: { code: "INVENTORY_CHANGED" },
 		});
 		const order = await ports.orders.get(orderId);
-		expect(order?.paymentPhase).toBe("payment_conflict");
+		expect(order?.paymentPhase).toBe("payment_pending");
 		const rid = webhookReceiptDocId("stripe", ext);
 		const rec = await ports.webhookReceipts.get(rid);
-		expect(rec?.status).toBe("error");
+		expect(rec?.status).toBe("pending");
 	});
 
 	it("legacy orders without finalizeTokenHash still finalize when token omitted", async () => {

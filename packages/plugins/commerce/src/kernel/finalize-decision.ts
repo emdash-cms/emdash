@@ -75,16 +75,24 @@ export function decidePaymentFinalize(input: {
 }): FinalizeDecision {
 	const { orderStatus, receipt, correlationId } = input;
 
-	if (orderStatus === "paid") {
-		return {
-			action: "noop",
-			reason: "order_already_paid",
-			httpStatus: 200,
-			code: "WEBHOOK_REPLAY_DETECTED",
-		};
-	}
-
 	if (receipt.exists) {
+		if (receipt.status === "pending") {
+			if (
+				orderStatus === "payment_pending" ||
+				orderStatus === "authorized" ||
+				orderStatus === "paid"
+			) {
+				return { action: "proceed", correlationId };
+			}
+
+			return {
+				action: "noop",
+				reason: "webhook_pending",
+				httpStatus: 409,
+				code: "ORDER_STATE_CONFLICT",
+			};
+		}
+
 		if (receipt.status === "processed") {
 			return {
 				action: "noop",
@@ -105,9 +113,18 @@ export function decidePaymentFinalize(input: {
 
 		return {
 			action: "noop",
-			reason: receipt.status === "pending" ? "webhook_pending" : "webhook_error",
+			reason: "webhook_error",
 			httpStatus: 409,
 			code: "ORDER_STATE_CONFLICT",
+		};
+	}
+
+	if (orderStatus === "paid") {
+		return {
+			action: "noop",
+			reason: "order_already_paid",
+			httpStatus: 200,
+			code: "WEBHOOK_REPLAY_DETECTED",
 		};
 	}
 

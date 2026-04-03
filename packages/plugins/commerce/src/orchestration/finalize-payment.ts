@@ -13,12 +13,10 @@
  * a documented residual risk.
  */
 
-import type { CommerceErrorCode } from "../kernel/errors.js";
-import {
-	decidePaymentFinalize,
-	type WebhookReceiptView,
-} from "../kernel/finalize-decision.js";
 import { equalSha256HexDigest, sha256Hex } from "../hash.js";
+import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
+import type { CommerceErrorCode } from "../kernel/errors.js";
+import { decidePaymentFinalize, type WebhookReceiptView } from "../kernel/finalize-decision.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import type {
 	StoredInventoryLedgerEntry,
@@ -28,7 +26,6 @@ import type {
 	StoredWebhookReceipt,
 	OrderLineItem,
 } from "../types.js";
-import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
 
 type FinalizeQueryPage<T> = {
 	items: Array<{ id: string; data: T }>;
@@ -59,7 +56,9 @@ export type QueryableCollection<T> = FinalizeCollection<T> & {
 };
 
 export type FinalizePaymentAttemptCollection = FinalizeCollection<StoredPaymentAttempt> & {
-	query(options?: FinalizeQueryOptions<StoredPaymentAttempt>): Promise<FinalizeQueryPage<StoredPaymentAttempt>>;
+	query(
+		options?: FinalizeQueryOptions<StoredPaymentAttempt>,
+	): Promise<FinalizeQueryPage<StoredPaymentAttempt>>;
 };
 
 export type FinalizePaymentPorts = {
@@ -142,7 +141,10 @@ function noopConflictMessage(reason: string): string {
 	}
 }
 
-function verifyFinalizeToken(order: StoredOrder, token: string | undefined): FinalizeWebhookResult | null {
+function verifyFinalizeToken(
+	order: StoredOrder,
+	token: string | undefined,
+): FinalizeWebhookResult | null {
 	const expected = order.finalizeTokenHash;
 	if (!expected) return null;
 	if (!token) {
@@ -197,9 +199,13 @@ function normalizeInventoryMutations(
 		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
 		const stock = stockRows.get(stockId);
 		if (!stock) {
-			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", `No inventory record for product ${line.productId}`, {
-				productId: line.productId,
-			});
+			throw new InventoryFinalizeError(
+				"PRODUCT_UNAVAILABLE",
+				`No inventory record for product ${line.productId}`,
+				{
+					productId: line.productId,
+				},
+			);
 		}
 		if (stock.version !== line.inventoryVersion) {
 			throw new InventoryFinalizeError(
@@ -209,11 +215,11 @@ function normalizeInventoryMutations(
 			);
 		}
 		if (stock.quantity < line.quantity) {
-			throw new InventoryFinalizeError(
-				"INSUFFICIENT_STOCK",
-				"Not enough stock to finalize order",
-				{ productId: line.productId, requested: line.quantity, available: stock.quantity },
-			);
+			throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock to finalize order", {
+				productId: line.productId,
+				requested: line.quantity,
+				available: stock.quantity,
+			});
 		}
 		const variantId = line.variantId ?? "";
 		return {
@@ -240,9 +246,13 @@ async function readCurrentStockRows(
 		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
 		const stock = await inventoryStock.get(stockId);
 		if (!stock) {
-			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", `No inventory record for product ${line.productId}`, {
-				productId: line.productId,
-			});
+			throw new InventoryFinalizeError(
+				"PRODUCT_UNAVAILABLE",
+				`No inventory record for product ${line.productId}`,
+				{
+					productId: line.productId,
+				},
+			);
 		}
 		out.set(stockId, stock);
 	}
@@ -250,7 +260,9 @@ async function readCurrentStockRows(
 }
 
 function mapInventoryErrorToApiCode(code: CommerceErrorCode): CommerceErrorCode {
-	return code === "PRODUCT_UNAVAILABLE" || code === "INSUFFICIENT_STOCK" ? "PAYMENT_CONFLICT" : code;
+	return code === "PRODUCT_UNAVAILABLE" || code === "INSUFFICIENT_STOCK"
+		? "PAYMENT_CONFLICT"
+		: code;
 }
 
 async function applyInventoryMutations(
@@ -260,29 +272,92 @@ async function applyInventoryMutations(
 	stockRows: Map<string, StoredInventoryStock>,
 	orderLines: OrderLineItem[],
 ): Promise<void> {
-	const planned = normalizeInventoryMutations(orderId, orderLines, stockRows, nowIso);
 	const existing = await ports.inventoryLedger.query({
 		where: { referenceType: "order", referenceId: orderId },
 		limit: 1000,
 	});
 	const seen = new Set(existing.items.map((row) => row.id));
 
+	let merged: OrderLineItem[];
+	try {
+		merged = mergeLineItemsBySku(orderLines);
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
+	}
+
+	/** Lines without a ledger row yet; skip lines already finalized before a failed `orders.put`. */
+	const linesNeedingWork: OrderLineItem[] = [];
+	for (const line of merged) {
+		const variantId = line.variantId ?? "";
+		const ledgerId = inventoryLedgerEntryId(orderId, line.productId, variantId);
+		if (seen.has(ledgerId)) continue;
+		linesNeedingWork.push(line);
+	}
+
+	const planned = normalizeInventoryMutations(orderId, linesNeedingWork, stockRows, nowIso);
+
 	for (const mutation of planned) {
 		if (seen.has(mutation.ledgerId)) {
+			const latest = await ports.inventoryStock.get(mutation.stockId);
+			if (!latest) {
+				throw new InventoryFinalizeError(
+					"PRODUCT_UNAVAILABLE",
+					`No inventory record for product ${mutation.line.productId}`,
+					{
+						productId: mutation.line.productId,
+					},
+				);
+			}
+			if (
+				latest.version === mutation.nextStock.version &&
+				latest.quantity === mutation.nextStock.quantity
+			) {
+				// Retry after partial ledger write failure: stock already reflects this line.
+				continue;
+			}
+			if (latest.version !== mutation.currentStock.version) {
+				throw new InventoryFinalizeError(
+					"INVENTORY_CHANGED",
+					"Inventory changed between preflight and write",
+					{
+						productId: mutation.line.productId,
+						expectedVersion: mutation.currentStock.version,
+						currentVersion: latest.version,
+					},
+				);
+			}
+			if (latest.quantity < mutation.line.quantity) {
+				throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
+					productId: mutation.line.productId,
+					requested: mutation.line.quantity,
+					available: latest.quantity,
+				});
+			}
+			await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
 			continue;
 		}
+
 		const latest = await ports.inventoryStock.get(mutation.stockId);
 		if (!latest) {
-			throw new InventoryFinalizeError("PRODUCT_UNAVAILABLE", `No inventory record for product ${mutation.line.productId}`, {
-				productId: mutation.line.productId,
-			});
+			throw new InventoryFinalizeError(
+				"PRODUCT_UNAVAILABLE",
+				`No inventory record for product ${mutation.line.productId}`,
+				{
+					productId: mutation.line.productId,
+				},
+			);
 		}
 		if (latest.version !== mutation.currentStock.version) {
-			throw new InventoryFinalizeError("INVENTORY_CHANGED", "Inventory changed between preflight and write", {
-				productId: mutation.line.productId,
-				expectedVersion: mutation.currentStock.version,
-				currentVersion: latest.version,
-			});
+			throw new InventoryFinalizeError(
+				"INVENTORY_CHANGED",
+				"Inventory changed between preflight and write",
+				{
+					productId: mutation.line.productId,
+					expectedVersion: mutation.currentStock.version,
+					currentVersion: latest.version,
+				},
+			);
 		}
 		if (latest.quantity < mutation.line.quantity) {
 			throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
@@ -291,7 +366,6 @@ async function applyInventoryMutations(
 				available: latest.quantity,
 			});
 		}
-
 		const entry: StoredInventoryLedgerEntry = {
 			productId: mutation.line.productId,
 			variantId: mutation.line.variantId ?? "",
@@ -402,68 +476,89 @@ export async function finalizePaymentFromWebhook(
 		};
 	}
 
-	if (freshOrder.paymentPhase !== "payment_pending" && freshOrder.paymentPhase !== "authorized") {
-		await ports.webhookReceipts.put(receiptId, {
-			...pendingReceipt,
-			status: "error",
+	const shouldApplyInventory = freshOrder.paymentPhase !== "paid";
+	if (shouldApplyInventory) {
+		if (freshOrder.paymentPhase !== "payment_pending" && freshOrder.paymentPhase !== "authorized") {
+			return {
+				kind: "api_error",
+				error: {
+					code: "ORDER_STATE_CONFLICT",
+					message: "Order is not in a finalizable payment state",
+					details: { paymentPhase: freshOrder.paymentPhase },
+				},
+			};
+		}
+
+		try {
+			await applyInventoryForOrder(ports, freshOrder, input.orderId, nowIso);
+		} catch (err) {
+			if (err instanceof InventoryFinalizeError) {
+				const apiCode = mapInventoryErrorToApiCode(err.code);
+				ports.log?.warn("commerce.finalize.inventory_failed", {
+					orderId: input.orderId,
+					code: apiCode,
+					details: err.details,
+				});
+				return {
+					kind: "api_error",
+					error: {
+						code: apiCode,
+						message: err.message,
+						details: err.details,
+					},
+				};
+			}
+			throw err;
+		}
+	}
+
+	if (freshOrder.paymentPhase !== "paid") {
+		const paidOrder: StoredOrder = {
+			...freshOrder,
+			paymentPhase: "paid",
 			updatedAt: nowIso,
+		};
+		try {
+			await ports.orders.put(input.orderId, paidOrder);
+		} catch (err) {
+			ports.log?.warn("commerce.finalize.order_update_failed", {
+				orderId: input.orderId,
+				details: err instanceof Error ? err.message : String(err),
+			});
+			return {
+				kind: "api_error",
+				error: {
+					code: "ORDER_STATE_CONFLICT",
+					message: "Failed to persist order finalization",
+					details: { orderId: input.orderId },
+				},
+			};
+		}
+	}
+
+	try {
+		await markPaymentAttemptSucceeded(ports, input.orderId, input.providerId, nowIso);
+	} catch (err) {
+		ports.log?.warn("commerce.finalize.attempt_update_failed", {
+			orderId: input.orderId,
+			providerId: input.providerId,
+			details: err instanceof Error ? err.message : String(err),
 		});
 		return {
 			kind: "api_error",
 			error: {
 				code: "ORDER_STATE_CONFLICT",
-				message: "Order is not in a finalizable payment state",
-				details: { paymentPhase: freshOrder.paymentPhase },
+				message: "Failed to persist payment attempt finalization",
+				details: { orderId: input.orderId },
 			},
 		};
 	}
-
-	try {
-		await applyInventoryForOrder(ports, freshOrder, input.orderId, nowIso);
-	} catch (err) {
-		if (err instanceof InventoryFinalizeError) {
-			await ports.orders.put(input.orderId, {
-				...freshOrder,
-				paymentPhase: "payment_conflict",
-				updatedAt: nowIso,
-			});
-			await ports.webhookReceipts.put(receiptId, {
-				...pendingReceipt,
-				status: "error",
-				updatedAt: nowIso,
-			});
-			const apiCode = mapInventoryErrorToApiCode(err.code);
-			ports.log?.warn("commerce.finalize.inventory_failed", {
-				orderId: input.orderId,
-				code: apiCode,
-				details: err.details,
-			});
-			return {
-				kind: "api_error",
-				error: {
-					code: apiCode,
-					message: err.message,
-					details: err.details,
-				},
-			};
-		}
-		throw err;
-	}
-
-	const paidOrder: StoredOrder = {
-		...freshOrder,
-		paymentPhase: "paid",
-		updatedAt: nowIso,
-	};
-	await ports.orders.put(input.orderId, paidOrder);
 
 	await ports.webhookReceipts.put(receiptId, {
 		...pendingReceipt,
 		status: "processed",
 		updatedAt: nowIso,
 	});
-
-	await markPaymentAttemptSucceeded(ports, input.orderId, input.providerId, nowIso);
 
 	ports.log?.info("commerce.finalize.completed", {
 		orderId: input.orderId,
