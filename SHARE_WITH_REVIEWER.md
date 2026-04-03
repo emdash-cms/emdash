@@ -14,11 +14,25 @@ state via:
 ```
 
 That archive contains:
-- full `packages/plugins/commerce/` source tree (excluding build artifacts),
-- all `*.md` files in the repository except files excluded by `node_modules`/`.git`,
-- without any nested `*.zip` artifacts.
+- full `packages/plugins/commerce/` source tree (excluding `node_modules` and `.vite`),
+- all review packet files required for onboarding:
+  - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+  - `external_review.md`
+  - `HANDOVER.md`
+  - `commerce-plugin-architecture.md`
+  - `3rd-party-checklist.md`
+- no nested `*.zip` artifacts.
 
 For local verification, confirm the archive metadata in your message:
 - File path: `./commerce-plugin-external-review.zip`
 - Generator script: `scripts/build-commerce-external-review-zip.sh`
+- Build anchor: commit `bda8b75` (generated 2026-04-03)
+
+`SHARE_WITH_REVIEWER.md` is intentionally shared outside the zip because it is the
+single-file handoff companion and should be included directly in the reviewer message.
+
+Ask reviewers to focus on:
+- same-event concurrent webhook delivery as the main residual production risk,
+- `pending` receipt semantics as a replay/resume correctness boundary,
+- duplicate delivery, partial-write recovery, and cart ownership edge cases over broad architecture suggestions.
 

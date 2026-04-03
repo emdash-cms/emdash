@@ -23,9 +23,13 @@ For one-line onboarding:
 ## Reviewer guidance
 
 - Treat `@THIRD_PARTY_REVIEW_PACKAGE.md` as the only current entrypoint.
-- Treat older `review`/`plan`/`instructions` files at the repo root as historical context unless this file links to them explicitly.
 - The main residual production caveat is the documented same-event concurrency limit of the underlying storage model.
+- Spend most review time on the failure-heavy paths: duplicate webhook delivery, replay/resume behavior, partial inventory writes, and cart ownership checks.
+- Treat receipt `pending` as a correctness boundary, not a cosmetic state: it is both the resumable claim marker and the replay control surface for finalization.
 
-`externa_review.md` is kept as a legacy alias; the correctly spelled primary file is
-`external_review.md`.
+## Scope note
+
+The current package is intentionally narrow: this is a Stage-1 commerce kernel,
+not a generalized provider platform. Evaluate correctness, replay safety, and
+boundary discipline before asking for broader architecture.
 

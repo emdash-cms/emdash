@@ -2,7 +2,7 @@
 
 ## Operations and support
 
-For a quick reviewer entrypoint: `external_review.md` → `SHARE_WITH_REVIEWER.md`.
+For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_review.md` → `SHARE_WITH_REVIEWER.md`.
 
 - [Paid order but stock is wrong (technical)](./PAID_BUT_WRONG_STOCK_RUNBOOK.md)
 - [Paid order but stock is wrong (support playbook)](./PAID_BUT_WRONG_STOCK_RUNBOOK_SUPPORT.md)
