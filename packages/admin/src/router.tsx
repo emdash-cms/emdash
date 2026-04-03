@@ -164,6 +164,12 @@ const adminLayoutRoute = createRoute({
 	component: RootComponent,
 });
 
+// Isomorphic requestIdleCallback polyfill
+if (typeof window !== "undefined" && typeof window.requestIdleCallback === "undefined") {
+	window.requestIdleCallback = (cb) => setTimeout(cb, 50);
+	window.cancelIdleCallback = (id) => clearTimeout(id);
+}
+
 function RootComponent() {
 	const {
 		data: manifest,
@@ -479,7 +485,7 @@ function ContentEditPage() {
 	const { collection, id } = useParams({
 		from: "/_admin/content/$collection/$id",
 	});
-	const { field, ...preservedSearch } = useSearch({
+	const searchParams = useSearch({
 		from: "/_admin/content/$collection/$id",
 	});
 	const queryClient = useQueryClient();
@@ -498,18 +504,20 @@ function ContentEditPage() {
 		queryFn: () => fetchContent(collection, id),
 	});
 
-	const hasScrolled = React.useRef(false);
 	React.useEffect(() => {
-		if (typeof field !== "string" || isLoading || hasScrolled.current) return;
+		if (typeof searchParams.field !== "string" || isLoading) return;
 
-		const el = document.getElementById(`field-${field}`);
-		if (el) {
-			hasScrolled.current = true;
-			el.scrollIntoView({ behavior: "smooth", block: "center" });
-			el.focus();
-			void navigate({ search: preservedSearch as never, replace: true });
-		}
-	}, [field, isLoading, navigate, preservedSearch]);
+		const timeoutId = requestIdleCallback(() => {
+			const el = document.getElementById(`field-${searchParams.field}`);
+			if (el) {
+				el.scrollIntoView({ behavior: "smooth", block: "center" });
+				el.focus();
+				const { field: _, ...preservedSearch } = searchParams;
+				void navigate({ search: preservedSearch as never, replace: true });
+			}
+		});
+		return () => cancelIdleCallback(timeoutId);
+	}, [searchParams, isLoading, navigate]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
