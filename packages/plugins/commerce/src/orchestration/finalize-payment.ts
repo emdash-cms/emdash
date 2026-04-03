@@ -146,7 +146,7 @@ function buildFinalizationDecision(
 		correlationId,
 	});
 	if (decision.action === "noop") {
-		return { kind: "noop", result: noopToResult(decision, order.id ?? orderId), reason: decision.reason };
+		return { kind: "noop", result: noopToResult(decision, orderId), reason: decision.reason };
 	}
 	const tokenErr = verifyFinalizeToken(order, inputFinalizeToken);
 	if (tokenErr) {
@@ -219,60 +219,6 @@ type InventoryMutation = {
 	nextStock: StoredInventoryStock;
 	ledgerId: string;
 };
-
-type InventoryMutationState =
-	| { kind: "reconcile_existing"; mutation: InventoryMutation }
-	| { kind: "apply_new"; mutation: InventoryMutation };
-
-function classifyInventoryMutationState(
-	mutation: InventoryMutation,
-	existingLedgerIds: Set<string>,
-): InventoryMutationState {
-	return existingLedgerIds.has(mutation.ledgerId)
-		? { kind: "reconcile_existing", mutation }
-		: { kind: "apply_new", mutation };
-}
-
-async function reconcileExistingInventoryMutation(
-	ports: FinalizePaymentPorts,
-	mutation: InventoryMutation,
-): Promise<void> {
-	const latest = await ports.inventoryStock.get(mutation.stockId);
-	if (!latest) {
-		throw new InventoryFinalizeError(
-			"PRODUCT_UNAVAILABLE",
-			`No inventory record for product ${mutation.line.productId}`,
-			{
-				productId: mutation.line.productId,
-			},
-		);
-	}
-	if (
-		latest.version === mutation.nextStock.version &&
-		latest.quantity === mutation.nextStock.quantity
-	) {
-		return;
-	}
-	if (latest.version !== mutation.currentStock.version) {
-		throw new InventoryFinalizeError(
-			"INVENTORY_CHANGED",
-			"Inventory changed between preflight and write",
-			{
-				productId: mutation.line.productId,
-				expectedVersion: mutation.currentStock.version,
-				currentVersion: latest.version,
-			},
-		);
-	}
-	if (latest.quantity < mutation.line.quantity) {
-		throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
-			productId: mutation.line.productId,
-			requested: mutation.line.quantity,
-			available: latest.quantity,
-		});
-	}
-	await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
-}
 
 async function applyInventoryMutation(
 	ports: FinalizePaymentPorts,
@@ -429,21 +375,19 @@ async function applyInventoryMutations(
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
 	}
 
-	const planned = normalizeInventoryMutations(orderId, merged, stockRows, nowIso);
-	const mutationStates = planned.map((mutation) => classifyInventoryMutationState(mutation, seen));
+	const linesNeedingWork: OrderLineItem[] = [];
+	for (const line of merged) {
+		const variantId = line.variantId ?? "";
+		const ledgerId = inventoryLedgerEntryId(orderId, line.productId, variantId);
+		if (seen.has(ledgerId)) continue;
+		linesNeedingWork.push(line);
+	}
 
-	for (const state of mutationStates) {
-		switch (state.kind) {
-			case "reconcile_existing":
-				await reconcileExistingInventoryMutation(ports, state.mutation);
-				break;
-			case "apply_new":
-				await applyInventoryMutation(ports, orderId, nowIso, state.mutation);
-				seen.add(state.mutation.ledgerId);
-				break;
-			default:
-				break;
-		}
+	const planned = normalizeInventoryMutations(orderId, linesNeedingWork, stockRows, nowIso);
+
+	for (const mutation of planned) {
+		await applyInventoryMutation(ports, orderId, nowIso, mutation);
+		seen.add(mutation.ledgerId);
 	}
 }
 
