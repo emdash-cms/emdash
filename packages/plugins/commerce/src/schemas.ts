@@ -16,6 +16,14 @@ export const checkoutInputSchema = z.object({
 
 export type CheckoutInput = z.infer<typeof checkoutInputSchema>;
 
+/** Same possession proof as webhook finalize when the order stores `finalizeTokenHash`. */
+export const checkoutGetOrderInputSchema = z.object({
+	orderId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
+	finalizeToken: z.string().min(16).max(256).optional(),
+});
+
+export type CheckoutGetOrderInput = z.infer<typeof checkoutGetOrderInputSchema>;
+
 export const stripeWebhookInputSchema = z.object({
 	orderId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	externalEventId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),

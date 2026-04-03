@@ -12,12 +12,12 @@ import type { RecommendationsInput } from "../schemas.js";
 
 export interface RecommendationsResponse {
 	ok: true;
-	/** Identifies response shape for clients and future MCP tools. */
-	strategy: "stub";
-	/** Product ids to show; empty until a recommender is wired. */
-	productIds: string[];
-	/** Machine-oriented note for integrators (not shown to shoppers). */
-	integrationNote: string;
+	/** When false, storefronts should hide recommendation UI entirely. */
+	enabled: false;
+	strategy: "disabled";
+	productIds: [];
+	/** Stable machine reason; branch on this, not on free-form copy. */
+	reason: "no_recommender_configured";
 }
 
 export async function recommendationsHandler(
@@ -29,9 +29,9 @@ export async function recommendationsHandler(
 
 	return {
 		ok: true,
-		strategy: "stub",
+		enabled: false,
+		strategy: "disabled",
 		productIds: [],
-		integrationNote:
-			"Stub route: wire catalog + vector search or an external recommender; keep responses read-only.",
+		reason: "no_recommender_configured",
 	};
 }

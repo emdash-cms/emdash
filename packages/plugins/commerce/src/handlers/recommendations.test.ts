@@ -16,13 +16,14 @@ function ctx(
 }
 
 describe("recommendationsHandler", () => {
-	it("returns stub payload on POST", async () => {
+	it("returns disabled payload on POST", async () => {
 		const out = await recommendationsHandler(ctx("POST", { limit: 5 }));
 		expect(out).toEqual({
 			ok: true,
-			strategy: "stub",
+			enabled: false,
+			strategy: "disabled",
 			productIds: [],
-			integrationNote: expect.stringContaining("Stub route"),
+			reason: "no_recommender_configured",
 		});
 	});
 
