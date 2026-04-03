@@ -215,6 +215,86 @@ We welcome AI-assisted contributions. They are held to the same quality bar as a
 - **Dependency upgrades** outside of Renovate/Dependabot. We manage these centrally.
 - **"Improvements"** to code you haven't been asked to change (added logging, extra error handling, style changes in unrelated files).
 
+## Changesets
+
+Every PR that changes the behavior of a published package needs a **changeset** — a small Markdown file that describes the change for the CHANGELOG and determines the version bump. Without a changeset, the change won't trigger a package release.
+
+### When you need one
+
+- Bug fixes, features, refactors, or any other change that affects a published package's behavior or API.
+- Changes that span multiple packages need one changeset listing all affected packages.
+
+### When you don't
+
+- Docs-only changes, test-only changes, CI/tooling changes, or changes to demo apps and templates (these are in the changeset ignore list).
+
+### How to add one
+
+Run from the repo root:
+
+```bash
+pnpm changeset
+```
+
+This walks you through selecting the affected package(s), the semver bump type, and a description. It creates a randomly-named `.md` file in `.changeset/`.
+
+You can also create one manually — see the existing files in `.changeset/` for the format.
+
+### Writing the description
+
+Start with a present-tense verb describing what the change does, as if completing "This PR...":
+
+- **Adds** — a new feature or capability
+- **Fixes** — a bug fix
+- **Updates** — an enhancement to existing behavior
+- **Removes** — removed functionality
+- **Refactors** — internal restructuring with no behavior change
+
+Focus on how the change affects someone **using** the package, not implementation details. The description ends up in the CHANGELOG, which people read once during upgrades.
+
+**Patch** (bug fixes, refactors, small improvements):
+
+```markdown
+---
+"emdash": patch
+---
+
+Fixes CLI `--json` flag so JSON output is clean. Log messages now go to stderr when `--json` is set.
+```
+
+**Minor** (new features, non-breaking additions):
+
+```markdown
+---
+"emdash": minor
+---
+
+Adds `scheduled_at` field to content entries, enabling scheduled publishing via the admin UI.
+```
+
+**Major** (breaking changes) — include migration guidance:
+
+```markdown
+---
+"emdash": major
+---
+
+Removes the `legacyAuth` option from the integration config. All sites must use passkey authentication.
+
+To migrate, remove `legacyAuth: true` from your `emdash()` config in `astro.config.mjs`.
+```
+
+### Which packages?
+
+Only published packages need changesets. Demos, templates, docs, and test fixtures are excluded. The main packages are:
+
+- `emdash` (core)
+- `@emdash-cms/admin`, `@emdash-cms/auth`, `@emdash-cms/cloudflare`, `@emdash-cms/blocks`
+- `create-emdash`
+- First-party plugins (`@emdash-cms/plugin-*`)
+
+When in doubt, run `pnpm changeset` and it will only show packages that aren't ignored.
+
 ## Commits and PRs
 
 - Branch from `main`.
