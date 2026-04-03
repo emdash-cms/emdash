@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import * as rateLimitKv from "../lib/rate-limit-kv.js";
 import { webhookReceiptDocId } from "../orchestration/finalize-payment.js";
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -220,7 +221,15 @@ describe("queryFinalizationState", () => {
 			},
 		} as never;
 
-		const spy = vi.spyOn(rateLimitKv, "consumeKvRateLimit").mockResolvedValueOnce(false);
+		const consumeSpy = vi
+			.spyOn(rateLimitKv, "consumeKvRateLimit")
+			.mockImplementation(async (options) => {
+				expect(options.limit).toBe(COMMERCE_LIMITS.defaultFinalizationDiagnosticsPerIpPerWindow);
+				expect(options.windowMs).toBe(COMMERCE_LIMITS.defaultRateWindowMs);
+				expect(options.keySuffix.startsWith("finalize_diag:ip:")).toBe(true);
+				return false;
+			});
+		const getSpy = vi.spyOn(orders, "get");
 		await expect(
 			queryFinalizationState(ctxBase, {
 				orderId: "order_1",
@@ -228,7 +237,10 @@ describe("queryFinalizationState", () => {
 				externalEventId: "evt_1",
 			}),
 		).rejects.toMatchObject({ code: "rate_limited" });
-		spy.mockRestore();
+		expect(consumeSpy).toHaveBeenCalledTimes(1);
+		expect(getSpy).toHaveBeenCalledTimes(0);
+		consumeSpy.mockRestore();
+		getSpy.mockRestore();
 	});
 
 	it("coalesces concurrent identical diagnostics reads (single storage pass)", async () => {

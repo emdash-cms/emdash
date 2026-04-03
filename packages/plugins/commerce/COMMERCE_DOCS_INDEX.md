@@ -16,6 +16,24 @@ For a quick reviewer entrypoint: `external_review.md` → `SHARE_WITH_REVIEWER.m
 - `FINALIZATION_REVIEW_AUDIT.md` — pending receipt state transitions and replay safety audit
 - `CI_REGRESSION_CHECKLIST.md` — regression gates for follow-on tickets
 
+### Strategy A (Contract Drift Hardening) status
+
+**Strategy A metadata**
+
+- Last updated: 2026-04-03
+- Owner: emDash Commerce plugin lead (handoff-ready docs update)
+- Current phase owner: Strategy A follow-up only
+
+- Scope: **active for this iteration only** and **testable without new provider runtime**.
+- Goal: keep `checkout`/`webhook` behavior unchanged while reducing contract drift across payment adapters.
+- Constraint: no broader provider runtime refactor yet.
+- Activation guardrail: defer provider- and MCP-command architecture work until either:
+  - a second payment provider is actively onboarded, or
+  - an `@emdash-cms/plugin-commerce-mcp` command surface is shipped.
+- Relevant files:
+  - `src/services/commerce-provider-contracts.ts`
+  - `src/services/commerce-provider-contracts.test.ts`
+
 ## Plugin code references
 
 - `package.json` — package scripts and dependencies
@@ -24,6 +42,21 @@ For a quick reviewer entrypoint: `external_review.md` → `SHARE_WITH_REVIEWER.m
 - `src/handlers/` — route handlers (cart, checkout, webhooks)
 - `src/orchestration/` — finalize orchestration and inventory/attempt updates
 - `src/catalog-extensibility.ts` — kernel rules + extension seam contracts
+
+### Ticket starter: Strategy A (contract hardening)
+
+Use this when opening follow-up work:
+
+1) Set scope to Strategy A only (contract drift hardening, no topology change).
+2) Execute the Strategy A checklist in `CI_REGRESSION_CHECKLIST.md` sections 0–4.
+3) Confirm docs updates are in scope:
+   - `COMMERCE_DOCS_INDEX.md`
+   - `COMMERCE_EXTENSION_SURFACE.md`
+   - `AI-EXTENSIBILITY.md`
+   - `HANDOVER.md`
+4) Run proof commands:
+   - `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts`
+   - `pnpm --filter @emdash-cms/plugin-commerce test`
 
 ## Plugin HTTP routes
 

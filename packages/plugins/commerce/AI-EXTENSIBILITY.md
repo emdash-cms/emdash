@@ -22,6 +22,22 @@ Implementation guardrails:
   `createPaymentWebhookRoute`, `queryFinalizationState`) are the only MCP-facing
   extension surfaces for this stage.
 
+### Strategy A acceptance guidance (contract hardening only)
+
+**Strategy A metadata**
+
+- Last updated: 2026-04-03
+- Owner: emDash Commerce/AI integration owner
+- Scope owner: contract hardening only (no AI/MCP command expansion)
+
+- This stage is intentionally limited to **contract hardening**: keep all payment path runtime semantics unchanged.
+- Contract consolidation and shape consistency are owned in `src/services/commerce-provider-contracts.ts` with matching tests in `src/services/commerce-provider-contracts.test.ts`.
+- No provider registry routing, provider switching UI, or MCP command surface is introduced yet.
+- Runtime gateway path remains `webhooks/stripe` until a second provider is actively enabled.
+- Defer broader AI/MCP command expansions until:
+  - the provider ecosystem reaches a second active payment adapter, and
+  - a scoped commerce MCP command package is deployed.
+
 ## Errors and observability
 
 - Public errors should continue to expose **machine-readable `code`** values (see kernel `COMMERCE_ERROR_WIRE_CODES` and `toCommerceApiError()`). LLMs and MCP tools should branch on `code`, not on free-form `message` text.

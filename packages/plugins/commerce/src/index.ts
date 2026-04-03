@@ -202,6 +202,13 @@ export {
 	type CommerceMcpActor,
 	type CommerceMcpOperationContext,
 } from "./services/commerce-extension-seams.js";
+export { PAYMENT_DEFAULTS } from "./services/commerce-provider-contracts.js";
+export type {
+	CommerceProviderDescriptor,
+	CommerceProviderType,
+	CommerceWebhookInput,
+	CommerceWebhookFinalizeResponse,
+} from "./services/commerce-provider-contracts.js";
 export type { RecommendationsHandlerOptions } from "./handlers/recommendations.js";
 export type {
 	CommerceWebhookAdapter,

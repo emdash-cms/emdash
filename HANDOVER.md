@@ -19,7 +19,8 @@ Crypto is unified under `src/lib/crypto-adapter.ts`; legacy Node-only hashing (`
 Rate-limit identity extraction was centralized in `src/lib/rate-limit-identity.ts` and reused across checkout, webhook handler, and finalization diagnostics.
 Docs were cleaned to an EmDash-native canonical review path (`@THIRD_PARTY_REVIEW_PACKAGE.md`, `HANDOVER.md`, `commerce-plugin-architecture.md`, `COMMERCE_DOCS_INDEX.md`, and related packet files).
 Recent validation:
-- `pnpm test` passed for `@emdash-cms/plugin-commerce` (`21` files, `122` tests).
+- `pnpm --filter @emdash-cms/plugin-commerce test` passed (`24` files, `143` tests).
+- `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts` passed (`3` tests).
 - Workspace `pnpm test` previously passed in full.
 - Full workspace `pnpm typecheck` currently passes.
 - `pnpm --silent lint:quick` passes after lint fixes.
@@ -42,6 +43,8 @@ Key files touched in the current handoff window that matter for next development
 - `packages/plugins/commerce/src/orchestration/finalize-payment.test.ts`
 - `packages/plugins/commerce/src/handlers/checkout.ts`
 - `packages/plugins/commerce/src/handlers/webhook-handler.ts`
+- `packages/plugins/commerce/src/services/commerce-provider-contracts.ts`
+- `packages/plugins/commerce/src/services/commerce-provider-contracts.test.ts`
 - `packages/plugins/commerce/src/lib/finalization-diagnostics-readthrough.ts`
 - `packages/plugins/commerce/src/lib/rate-limit-identity.ts`
 - `packages/plugins/commerce/src/contracts/commerce-kernel-invariants.test.ts`
@@ -55,12 +58,15 @@ Gotchas:
 - For finalization errors, terminal inventory conditions intentionally move receipt state to `error` to avoid indefinite replay.
 - For review/debugging quality, use the first task below before implementing new feature areas.
 
+**Strategy A handoff metadata**
+
+- Last updated: 2026-04-03
+- Owner: emDash Commerce lead
+- Scope steward: contract hardening only, no runtime topology work
+
 Initial next-step task:
-- Review large/monolithic files for size and cohesion issues, then map extension seams for future modules (discounts, shipping, taxation, recommendations, gateway additions).
-- Identify candidate extractions in:
-  - `src/handlers/checkout.ts`
-  - `src/orchestration/finalize-payment.ts`
-  - any files that blend route orchestration, validation, and storage orchestration.
+- Strategy A only: complete contract hardening acceptance (provider constants, adapter contract shapes, seam exports) and keep behavior unchanged.
+- Defer broader extension architecture work (provider registry/routing, MCP command surface, second-provider multiplexing) until a second provider or MCP command channel is actively in scope.
 
 ## 5) Key files and directories
 

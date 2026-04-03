@@ -12,6 +12,11 @@ import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { buildRateLimitActorKey } from "../lib/rate-limit-identity.js";
 import { requirePost } from "../lib/require-post.js";
+import type {
+	CommerceWebhookAdapter,
+	CommerceWebhookFinalizeResponse,
+	CommerceWebhookInput,
+} from "../services/commerce-provider-contracts.js";
 import {
 	finalizePaymentFromWebhook,
 	type FinalizeWebhookInput,
@@ -33,30 +38,11 @@ function asCollection<T>(raw: unknown): Col<T> {
 	return raw as Col<T>;
 }
 
-export type WebhookProviderInput = Omit<FinalizeWebhookInput, "providerId" | "correlationId">;
+export type WebhookProviderInput = CommerceWebhookInput;
 
-export interface CommerceWebhookAdapter<TInput> {
-	/**
-	 * Canonical provider id for this adapter (`stripe`, `paypal`, etc.).
-	 * It is the value written to payment attempts and receipt rows for this route.
-	 */
-	providerId: string;
-	/** Verifies provider signature / replay claims. Should throw via `throwCommerceApiError`. */
-	verifyRequest(ctx: RouteContext<TInput>): Promise<void>;
-	/** Build finalize payload from raw route input (without providerId/correlationId). */
-	buildFinalizeInput(ctx: RouteContext<TInput>): WebhookProviderInput;
-	/** Correlation id used for logs and decision traces. */
-	buildCorrelationId(ctx: RouteContext<TInput>): string;
-	/**
-	 * Rate-limit key suffix for this provider.
-	 * Keep this provider-scoped (`ip:<hash>`, `provider:<id>` etc.).
-	 */
-	buildRateLimitSuffix(ctx: RouteContext<TInput>): string;
-}
+export type WebhookFinalizeResponse = CommerceWebhookFinalizeResponse;
 
-export type WebhookFinalizeResponse =
-	| { ok: true; replay: true; reason: string }
-	| { ok: true; replay: false; orderId: string };
+export type { CommerceWebhookAdapter } from "../services/commerce-provider-contracts.js";
 
 function buildFinalizePorts(ctx: RouteContext<unknown>): FinalizePaymentPorts {
 	return {

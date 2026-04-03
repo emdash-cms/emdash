@@ -49,6 +49,21 @@ Adapters MUST NOT perform commerce writes (`orders`, `paymentAttempts`,
 `webhookReceipts`, `inventoryLedger`, `inventoryStock`). All mutation decisions
 must pass through `finalizePaymentFromWebhook`.
 
+#### Strategy A (contract drift hardening): active scope only
+
+**Strategy A metadata**
+
+- Last updated: 2026-04-03
+- Owner: emDash Commerce platform/core team
+- Scope owner: contract layer only, no behavior change
+
+- Keep all checkout/webhook runtime behavior unchanged.
+- Consolidate provider defaults, adapter shape, and MCP actor constants in a shared contract module (`src/services/commerce-provider-contracts.ts`).
+- Do not introduce provider registry/routing multiplexing yet.
+- Do not introduce an MCP command surface yet.
+- Leave runtime gateway behavior on `webhooks/stripe` until a second provider is enabled.
+- Continue to enforce read-only rules for diagnostics via `queryFinalizationState`.
+
 ### Read-only MCP service seam
 
 - `queryFinalizationState()` exposes a read-only status query path for MCP tooling.

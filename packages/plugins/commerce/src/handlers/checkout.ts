@@ -29,155 +29,19 @@ import type {
 	StoredInventoryStock,
 	OrderLineItem,
 } from "../types.js";
-
-const CHECKOUT_ROUTE = "checkout";
-const CHECKOUT_PENDING_KIND = "checkout_pending";
-const DEFAULT_PAYMENT_PROVIDER_ID = "stripe";
-
-function resolvePaymentProviderId(value: string | undefined): string {
-	const normalized = value?.trim() ?? "";
-	return normalized.length > 0 ? normalized : DEFAULT_PAYMENT_PROVIDER_ID;
-}
-
-type CheckoutPendingState = {
-	kind: typeof CHECKOUT_PENDING_KIND;
-	orderId: string;
-	paymentAttemptId: string;
-	providerId?: string;
-	cartId: string;
-	paymentPhase: "payment_pending";
-	finalizeToken: string;
-	totalMinor: number;
-	currency: string;
-	lineItems: OrderLineItem[];
-	createdAt: string;
-};
-
-type CheckoutResponse = {
-	orderId: string;
-	paymentPhase: "payment_pending";
-	paymentAttemptId: string;
-	totalMinor: number;
-	currency: string;
-	finalizeToken: string;
-};
-
-type CheckoutReplayDecision =
-	| { kind: "cached_completed"; response: CheckoutResponse }
-	| { kind: "cached_pending"; pending: CheckoutPendingState }
-	| { kind: "not_cached" };
+import {
+	CheckoutPendingState,
+	CHECKOUT_PENDING_KIND,
+	CHECKOUT_ROUTE,
+	decideCheckoutReplayState,
+	deterministicOrderId,
+	deterministicPaymentAttemptId,
+	restorePendingCheckout,
+	resolvePaymentProviderId,
+} from "./checkout-state.js";
 
 function asCollection<T>(raw: unknown): StorageCollection<T> {
 	return raw as StorageCollection<T>;
-}
-
-function isObjectLike(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function isCheckoutCompletedResponse(value: unknown): value is CheckoutResponse {
-	if (!isObjectLike(value)) return false;
-	const candidate = value as Record<string, unknown>;
-	return (
-		candidate.orderId != null &&
-		typeof candidate.orderId === "string" &&
-		candidate.paymentPhase === "payment_pending" &&
-		candidate.paymentAttemptId != null &&
-		typeof candidate.paymentAttemptId === "string" &&
-		typeof candidate.totalMinor === "number" &&
-		typeof candidate.currency === "string" &&
-		typeof candidate.finalizeToken === "string"
-	);
-}
-
-function decideCheckoutReplayState(response: StoredIdempotencyKey | null): CheckoutReplayDecision {
-	if (!response) return { kind: "not_cached" };
-	if (isCheckoutCompletedResponse(response.responseBody)) {
-		return { kind: "cached_completed", response: response.responseBody };
-	}
-	if (isCheckoutPendingState(response.responseBody)) {
-		return { kind: "cached_pending", pending: response.responseBody };
-	}
-	return { kind: "not_cached" };
-}
-
-async function restorePendingCheckout(
-	idempotencyDocId: string,
-	cached: StoredIdempotencyKey,
-	pending: CheckoutPendingState,
-	nowIso: string,
-	idempotencyKeys: StorageCollection<StoredIdempotencyKey>,
-	orders: StorageCollection<StoredOrder>,
-	attempts: StorageCollection<StoredPaymentAttempt>,
-): Promise<CheckoutResponse> {
-	const existingOrder = await orders.get(pending.orderId);
-	if (!existingOrder) {
-		const finalizeTokenHash = await sha256HexAsync(pending.finalizeToken);
-		await orders.put(pending.orderId, {
-			cartId: pending.cartId,
-			paymentPhase: pending.paymentPhase,
-			currency: pending.currency,
-			lineItems: pending.lineItems,
-			totalMinor: pending.totalMinor,
-			finalizeTokenHash,
-			createdAt: pending.createdAt,
-			updatedAt: nowIso,
-		});
-	}
-
-	const existingAttempt = await attempts.get(pending.paymentAttemptId);
-	if (!existingAttempt) {
-		await attempts.put(pending.paymentAttemptId, {
-			orderId: pending.orderId,
-			providerId: resolvePaymentProviderId(pending.providerId),
-			status: "pending",
-			createdAt: pending.createdAt,
-			updatedAt: nowIso,
-		});
-	}
-
-	const response = checkoutResponseFromPendingState(pending);
-	await idempotencyKeys.put(idempotencyDocId, {
-		...cached,
-		httpStatus: 200,
-		responseBody: response,
-	});
-	return response;
-}
-
-function isCheckoutPendingState(value: unknown): value is CheckoutPendingState {
-	if (!isObjectLike(value)) return false;
-	const candidate = value as Record<string, unknown>;
-	return (
-		candidate.kind === CHECKOUT_PENDING_KIND &&
-		typeof candidate.orderId === "string" &&
-		typeof candidate.paymentAttemptId === "string" &&
-		typeof candidate.cartId === "string" &&
-		candidate.paymentPhase === "payment_pending" &&
-		typeof candidate.finalizeToken === "string" &&
-		typeof candidate.totalMinor === "number" &&
-		typeof candidate.currency === "string" &&
-		Array.isArray(candidate.lineItems)
-	);
-}
-
-function checkoutResponseFromPendingState(state: CheckoutPendingState): CheckoutResponse {
-	return {
-		orderId: state.orderId,
-		paymentPhase: "payment_pending",
-		paymentAttemptId: state.paymentAttemptId,
-		totalMinor: state.totalMinor,
-		currency: state.currency,
-		finalizeToken: state.finalizeToken,
-	};
-}
-
-function deterministicOrderId(keyHash: string): string {
-	return `checkout-order:${keyHash}`;
-}
-
-function deterministicPaymentAttemptId(keyHash: string): string {
-	return `checkout-attempt:${keyHash}`;
 }
 
 export async function checkoutHandler(

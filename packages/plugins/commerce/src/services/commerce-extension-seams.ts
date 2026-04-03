@@ -17,6 +17,7 @@ import {
 	type CommerceWebhookAdapter,
 	type WebhookFinalizeResponse,
 } from "../handlers/webhook-handler.js";
+import { COMMERCE_MCP_ACTORS, type CommerceMcpActor, type CommerceMcpOperationContext } from "./commerce-provider-contracts.js";
 import { readFinalizationStatusWithGuards } from "../lib/finalization-diagnostics-readthrough.js";
 import {
 	queryFinalizationStatus,
@@ -51,21 +52,8 @@ function buildFinalizePorts(ctx: RouteContext<unknown>): FinalizePaymentPorts {
 
 export type { FinalizationStatus, CommerceWebhookAdapter, RecommendationsResponse };
 
-export const COMMERCE_MCP_ACTORS = {
-	system: "system",
-	merchant: "merchant",
-	agent: "agent",
-	customer: "customer",
-} as const;
-
-export type CommerceMcpActor = keyof typeof COMMERCE_MCP_ACTORS;
-
-export type CommerceMcpOperationContext = {
-	actor: CommerceMcpActor;
-	actorId?: string;
-	requestId?: string;
-	traceId?: string;
-};
+export { COMMERCE_MCP_ACTORS };
+export type { CommerceMcpActor, CommerceMcpOperationContext };
 
 export function createRecommendationsRoute(
 	options: RecommendationsHandlerOptions = {},
