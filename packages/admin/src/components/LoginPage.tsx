@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useTranslation } from "../i18n/index.js";
 import { apiFetch, fetchManifest } from "../lib/api";
 import { sanitizeRedirectUrl } from "../lib/url";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
@@ -210,6 +211,17 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 // Main Component
 // ============================================================================
 
+const SUPPORTED_LOCALES = [
+	{ code: "en", label: "English" },
+	{ code: "fr", label: "Français" },
+];
+
+function setLocale(code: string) {
+	const secure = window.location.protocol === "https:" ? "; Secure" : "";
+	document.cookie = `emdash-locale=${code}; Path=/_emdash; SameSite=Lax; Max-Age=31536000${secure}`;
+	window.location.reload();
+}
+
 function handleOAuthClick(providerId: string) {
 	// Redirect to OAuth endpoint
 	window.location.href = `/_emdash/api/auth/oauth/${providerId}`;
@@ -218,6 +230,7 @@ function handleOAuthClick(providerId: string) {
 export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	// Defense-in-depth: sanitize even if the caller already validated
 	const safeRedirectUrl = sanitizeRedirectUrl(redirectUrl);
+	const { locale } = useTranslation();
 	const [method, setMethod] = React.useState<LoginMethod>("passkey");
 	const [urlError, setUrlError] = React.useState<string | null>(null);
 
@@ -352,6 +365,25 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 						</Link>
 					</p>
 				)}
+
+				{/* Language selector */}
+				<div className="mt-6 flex justify-center gap-2 text-xs text-kumo-subtle">
+					{SUPPORTED_LOCALES.map((l, i) => (
+						<React.Fragment key={l.code}>
+							{i > 0 && <span>·</span>}
+							<button
+								onClick={() => setLocale(l.code)}
+								className={
+									l.code === locale
+										? "font-medium text-kumo-default"
+										: "hover:text-kumo-default transition-colors"
+								}
+							>
+								{l.label}
+							</button>
+						</React.Fragment>
+					))}
+				</div>
 			</div>
 		</div>
 	);
