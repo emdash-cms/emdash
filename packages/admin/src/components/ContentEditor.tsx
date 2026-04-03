@@ -1,6 +1,7 @@
 import {
 	Badge,
 	Button,
+	Checkbox,
 	Dialog,
 	Input,
 	InputArea,
@@ -1108,6 +1109,33 @@ function FieldRenderer({
 						</Select.Option>
 					))}
 				</Select>
+			);
+		}
+
+		case "multiSelect": {
+			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
+			return (
+				<fieldset>
+					<Label className={labelClass}>{label}</Label>
+					<div className="mt-1 space-y-1">
+						{field.options?.map((opt) => {
+							const isChecked = selected.includes(opt.value);
+							return (
+								<Checkbox
+									key={opt.value}
+									label={opt.label}
+									checked={isChecked}
+									onCheckedChange={(checked) => {
+										const next = checked
+											? [...selected, opt.value]
+											: selected.filter((v) => v !== opt.value);
+										handleChange(next);
+									}}
+								/>
+							);
+						})}
+					</div>
+				</fieldset>
 			);
 		}
 
