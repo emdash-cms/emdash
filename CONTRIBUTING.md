@@ -223,6 +223,7 @@ Every PR that changes the behavior of a published package needs a **changeset** 
 
 - Bug fixes, features, refactors, or any other change that affects a published package's behavior or API.
 - Changes that span multiple packages need one changeset listing all affected packages.
+- If a PR makes more than one distinct change, add a separate changeset for each. Each one becomes its own CHANGELOG entry.
 
 ### When you don't
 
