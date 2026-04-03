@@ -32,23 +32,23 @@ export function useDebouncedValue<T>(value: T, delay: number): T {
 
 const MAX_POLL_ATTEMPTS = 20;
 /**
- * Polls for a DOM element by ID via requestAnimationFrame and invokes
+ * Polls for a DOM element by CSS selector via requestAnimationFrame and invokes
  * `onReady` exactly once when found. Useful for elements that render
  * after async data loads. The callback is stabilized internally so
  * changes to its identity don't restart the polling cycle.
  */
-export function useElementReady(elementId: string | undefined, onReady: (el: HTMLElement) => void) {
+export function useElementReady(selector: string | undefined | false, onReady: (el: HTMLElement) => void) {
 	const onReadyRef = React.useRef(onReady);
 	React.useLayoutEffect(() => {
 		onReadyRef.current = onReady;
 	});
 
 	React.useEffect(() => {
-		if (!elementId) return;
+		if (!selector) return;
 		let frame: number;
 		let attempts = 0;
 		const poll = () => {
-			const el = document.getElementById(elementId);
+			const el = document.querySelector<HTMLElement>(selector);
 			if (el) {
 				onReadyRef.current(el);
 				return;
@@ -59,5 +59,5 @@ export function useElementReady(elementId: string | undefined, onReady: (el: HTM
 		};
 		frame = requestAnimationFrame(poll);
 		return () => cancelAnimationFrame(frame);
-	}, [elementId]);
+	}, [selector]);
 }

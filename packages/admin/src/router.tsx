@@ -485,9 +485,10 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	useElementReady(focusField && `field-${focusField}`, (el) => {
+	useElementReady(focusField && `#field-${focusField}`, (el) => {
 		el.scrollIntoView({ behavior: "smooth", block: "center" });
-		el.focus();
+		const focusTarget = el.querySelector<HTMLElement>(".ProseMirror") ?? el;
+		focusTarget.focus();
 		void navigate({ search: preservedSearch as never, replace: true });
 	});
 
