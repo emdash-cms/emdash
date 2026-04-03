@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { mergeLineItemsBySku } from "./merge-line-items.js";
 
+const INVENTORY_VERSION_CONFLICT_PATTERN = /inventoryVersion/;
+
 describe("mergeLineItemsBySku", () => {
 	it("sums quantities for identical SKU snapshots", () => {
 		const out = mergeLineItemsBySku([
@@ -40,6 +42,6 @@ describe("mergeLineItemsBySku", () => {
 					unitPriceMinor: 100,
 				},
 			]),
-		).toThrow(/inventoryVersion/);
+		).toThrow(INVENTORY_VERSION_CONFLICT_PATTERN);
 	});
 });

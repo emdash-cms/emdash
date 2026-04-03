@@ -18,8 +18,8 @@ describe("commerceErrorCodeToWire", () => {
 	});
 
 	it("COMMERCE_ERROR_WIRE_CODES has exactly the same keys as COMMERCE_ERRORS", () => {
-		expect(Object.keys(COMMERCE_ERROR_WIRE_CODES).sort()).toEqual(
-			Object.keys(COMMERCE_ERRORS).sort(),
+		expect(Object.keys(COMMERCE_ERROR_WIRE_CODES).toSorted()).toEqual(
+			Object.keys(COMMERCE_ERRORS).toSorted(),
 		);
 	});
 
