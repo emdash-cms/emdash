@@ -11,10 +11,48 @@ import "@emdash-cms/admin/styles.css";
 import AdminWrapper from "emdash/routes/PluginRegistry";
 
 export const prerender = false;
+
+// ── i18n locale resolution ──────────────────────────────────────────
+const SUPPORTED_LOCALES = ["en", "fr"] as const;
+type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
+function isSupportedLocale(value: string): value is SupportedLocale {
+	return (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
+
+/**
+ * Parse Accept-Language header and return the first supported locale.
+ * Accept-Language is a weighted list: "fr-FR,fr;q=0.9,en;q=0.8"
+ */
+function parseAcceptLanguage(header: string): SupportedLocale | null {
+	const candidates = header
+		.split(",")
+		.map((entry) => entry.split(";")[0]!.trim())
+		.map((tag) => tag.split("-")[0]!.toLowerCase());
+
+	for (const candidate of candidates) {
+		if (isSupportedLocale(candidate)) return candidate;
+	}
+	return null;
+}
+
+const cookieHeader = Astro.request.headers.get("cookie") ?? "";
+const cookieMatch = cookieHeader.match(/(?:^|;\s*)emdash-locale=([^;]+)/);
+const cookieLocale = cookieMatch?.[1]?.trim() ?? "";
+
+const acceptLang = Astro.request.headers.get("accept-language") ?? "";
+const resolvedLocale: SupportedLocale =
+	isSupportedLocale(cookieLocale)
+		? cookieLocale
+		: parseAcceptLanguage(acceptLang) ?? "en";
+
+const translations = (
+	await import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/common.json`)
+).default;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={resolvedLocale}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -75,7 +113,7 @@ export const prerender = false;
 					<p>Loading EmDash...</p>
 				</div>
 			</div>
-			<AdminWrapper client:only="react" />
+			<AdminWrapper client:only="react" locale={resolvedLocale} translations={translations} />
 		</div>
 	</body>
 </html>
