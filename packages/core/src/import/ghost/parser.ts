@@ -97,15 +97,30 @@ function hasStringKey(record: Record<string, unknown>, key: string): boolean {
 }
 
 function isGhostPost(value: unknown): value is GhostPost {
-	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "slug") && hasStringKey(value, "type");
+	return (
+		isRecord(value) &&
+		hasStringKey(value, "id") &&
+		hasStringKey(value, "slug") &&
+		hasStringKey(value, "type")
+	);
 }
 
 function isGhostTag(value: unknown): value is GhostTag {
-	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "name") && hasStringKey(value, "slug");
+	return (
+		isRecord(value) &&
+		hasStringKey(value, "id") &&
+		hasStringKey(value, "name") &&
+		hasStringKey(value, "slug")
+	);
 }
 
 function isGhostPostTag(value: unknown): value is GhostPostTag {
-	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id") && hasStringKey(value, "tag_id");
+	return (
+		isRecord(value) &&
+		hasStringKey(value, "id") &&
+		hasStringKey(value, "post_id") &&
+		hasStringKey(value, "tag_id")
+	);
 }
 
 function isGhostUser(value: unknown): value is GhostUser {
@@ -113,7 +128,12 @@ function isGhostUser(value: unknown): value is GhostUser {
 }
 
 function isGhostPostAuthor(value: unknown): value is GhostPostAuthor {
-	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id") && hasStringKey(value, "author_id");
+	return (
+		isRecord(value) &&
+		hasStringKey(value, "id") &&
+		hasStringKey(value, "post_id") &&
+		hasStringKey(value, "author_id")
+	);
 }
 
 function isGhostSetting(value: unknown): value is GhostSetting {
@@ -125,7 +145,12 @@ function isGhostPostMeta(value: unknown): value is GhostPostMeta {
 }
 
 function isGhostPostProduct(value: unknown): value is GhostPostProduct {
-	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id") && hasStringKey(value, "product_id");
+	return (
+		isRecord(value) &&
+		hasStringKey(value, "id") &&
+		hasStringKey(value, "post_id") &&
+		hasStringKey(value, "product_id")
+	);
 }
 
 function getArray<T>(

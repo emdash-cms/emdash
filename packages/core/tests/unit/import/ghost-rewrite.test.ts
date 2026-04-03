@@ -10,7 +10,7 @@ import {
 describe("Ghost rewrite helpers", () => {
 	it("rewrites media, post links, and portal links while stripping unsafe tags", () => {
 		const input = [
-			'<style>.bad{display:none}</style>',
+			"<style>.bad{display:none}</style>",
 			'<script>alert("nope")</script>',
 			'<a href="#/portal/signup">Subscribe</a>',
 			'<a href="https://masonjames.com/hello/">Hello</a>',

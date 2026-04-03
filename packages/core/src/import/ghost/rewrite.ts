@@ -87,7 +87,10 @@ export function stripGhostHtml(html: string): string {
 		.trim();
 }
 
-export function normalizeGhostMediaUrl(url: string | null | undefined, mediaBaseUrl?: string): string | undefined {
+export function normalizeGhostMediaUrl(
+	url: string | null | undefined,
+	mediaBaseUrl?: string,
+): string | undefined {
 	const value = String(url || "").trim();
 	if (!value) {
 		return undefined;
@@ -105,13 +108,20 @@ export function normalizeGhostMediaUrl(url: string | null | undefined, mediaBase
 		return `${fileBase}${value.replace(RELATIVE_GHOST_FILE_PATH_PATTERN, "")}`;
 	}
 
-	return value.replace(GHOST_IMAGE_URL_PATTERN, imageBase).replace(GHOST_FILE_URL_PATTERN, fileBase);
+	return value
+		.replace(GHOST_IMAGE_URL_PATTERN, imageBase)
+		.replace(GHOST_FILE_URL_PATTERN, fileBase);
 }
 
 export function buildGhostExcerpt(post: Partial<GhostPost>, rewrittenHtml: string): string {
 	const candidate =
-		post.custom_excerpt || post.excerpt || post.plaintext || stripGhostHtml(rewrittenHtml).slice(0, 200);
-	const normalized = String(candidate || "").replace(WHITESPACE_PATTERN, " ").trim();
+		post.custom_excerpt ||
+		post.excerpt ||
+		post.plaintext ||
+		stripGhostHtml(rewrittenHtml).slice(0, 200);
+	const normalized = String(candidate || "")
+		.replace(WHITESPACE_PATTERN, " ")
+		.trim();
 
 	return normalized || `Notes on: ${post.title || post.slug || "Untitled"}`;
 }

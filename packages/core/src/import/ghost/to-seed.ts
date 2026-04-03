@@ -1,15 +1,16 @@
-import type {
-	SeedContentEntry,
-	SeedRedirect,
-	SeedTaxonomy,
-} from "../../seed/types.js";
+import type { SeedContentEntry, SeedRedirect, SeedTaxonomy } from "../../seed/types.js";
 import type { GhostExportData, GhostPost } from "./parser.js";
 import {
 	buildGhostPostMetaByPostId,
 	buildGhostTagSlugsByPostId,
 	sortGhostPostsByPublishedDate,
 } from "./parser.js";
-import { buildGhostExcerpt, normalizeGhostMediaUrl, rewriteGhostHtml, stripGhostHtml } from "./rewrite.js";
+import {
+	buildGhostExcerpt,
+	normalizeGhostMediaUrl,
+	rewriteGhostHtml,
+	stripGhostHtml,
+} from "./rewrite.js";
 
 export interface GhostToSeedConfig {
 	mediaBaseUrl?: string;
@@ -122,26 +123,26 @@ export function buildGhostSeedFragment(
 			data:
 				post.type === "page"
 					? {
-						title: post.title ?? post.slug,
-						description: summary,
-						body_html: rewrittenHtml,
-						body_text: bodyText,
-						featured_image_url: featuredImageUrl,
-						feature_image_alt: meta?.feature_image_alt ?? undefined,
-						feature_image_caption: meta?.feature_image_caption ?? undefined,
-						visibility: post.visibility ?? "public",
-					}
+							title: post.title ?? post.slug,
+							description: summary,
+							body_html: rewrittenHtml,
+							body_text: bodyText,
+							featured_image_url: featuredImageUrl,
+							feature_image_alt: meta?.feature_image_alt ?? undefined,
+							feature_image_caption: meta?.feature_image_caption ?? undefined,
+							visibility: post.visibility ?? "public",
+						}
 					: {
-						title: post.title ?? post.slug,
-						excerpt: summary,
-						body_html: rewrittenHtml,
-						body_text: bodyText,
-						featured_image_url: featuredImageUrl,
-						feature_image_alt: meta?.feature_image_alt ?? undefined,
-						feature_image_caption: meta?.feature_image_caption ?? undefined,
-						visibility: post.visibility ?? "public",
-						source_path: buildSourcePath(post),
-					},
+							title: post.title ?? post.slug,
+							excerpt: summary,
+							body_html: rewrittenHtml,
+							body_text: bodyText,
+							featured_image_url: featuredImageUrl,
+							feature_image_alt: meta?.feature_image_alt ?? undefined,
+							feature_image_caption: meta?.feature_image_caption ?? undefined,
+							visibility: post.visibility ?? "public",
+							source_path: buildSourcePath(post),
+						},
 		};
 
 		if (post.type === "page") {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGhostSeedFragment } from "../../../src/import/ghost/to-seed.js";
 import type { GhostExportData } from "../../../src/import/ghost/parser.js";
+import { buildGhostSeedFragment } from "../../../src/import/ghost/to-seed.js";
 
 const ghostData: GhostExportData = {
 	posts: [

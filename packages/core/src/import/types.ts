@@ -183,7 +183,7 @@ export interface PostTypeAnalysis {
 
 /** Attachment/media info */
 export interface AttachmentInfo {
-	id?: number;
+	id?: number | string;
 	title?: string;
 	url?: string;
 	filename?: string;

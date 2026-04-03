@@ -39,14 +39,14 @@ function createGhostExportJson(): string {
 							email: "mason@example.com",
 						},
 					],
-					posts_authors: [
-						{ id: "pa-1", post_id: "post-1", author_id: "user-1", sort_order: 0 },
-					],
+					posts_authors: [{ id: "pa-1", post_id: "post-1", author_id: "user-1", sort_order: 0 }],
 					settings: [
 						{ id: "setting-1", key: "title", value: "Ghost Site", group: "site", type: "string" },
 					],
 					posts_meta: [{ id: "meta-1", post_id: "post-1", feature_image_alt: "Alt text" }],
-					posts_products: [{ id: "pp-1", post_id: "post-1", product_id: "product-1", sort_order: 0 }],
+					posts_products: [
+						{ id: "pp-1", post_id: "post-1", product_id: "product-1", sort_order: 0 },
+					],
 				},
 			},
 		],
