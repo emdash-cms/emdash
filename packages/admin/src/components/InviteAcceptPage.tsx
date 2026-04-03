@@ -1,5 +1,5 @@
 /**
- * Invite Accept Page - Complete registration for invited users
+ * Invite Accept Page - Complete registration for invited user
  *
  * This component is NOT wrapped in the admin Shell.
  * It's a standalone public page for completing invite registration.
