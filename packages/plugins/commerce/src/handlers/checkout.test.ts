@@ -1,7 +1,7 @@
 import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
-import { sha256Hex } from "../hash.js";
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CheckoutInput } from "../schemas.js";
 import type {
@@ -265,7 +265,7 @@ describe("checkout idempotency persistence recovery", () => {
 			lineItems: [
 				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
 			],
-			ownerTokenHash: sha256Hex(ownerSecret),
+			ownerTokenHash: await sha256HexAsync(ownerSecret),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -307,7 +307,7 @@ describe("checkout idempotency persistence recovery", () => {
 			lineItems: [
 				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
 			],
-			ownerTokenHash: sha256Hex(ownerSecret),
+			ownerTokenHash: await sha256HexAsync(ownerSecret),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -351,7 +351,7 @@ describe("checkout idempotency persistence recovery", () => {
 			lineItems: [
 				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
 			],
-			ownerTokenHash: sha256Hex("correct-owner-token-12345"),
+			ownerTokenHash: await sha256HexAsync("correct-owner-token-12345"),
 			createdAt: now,
 			updatedAt: now,
 		};

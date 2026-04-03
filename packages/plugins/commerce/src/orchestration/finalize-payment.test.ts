@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { sha256Hex } from "../hash.js";
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -19,7 +19,11 @@ import {
 
 /** Raw finalize token matching `FINALIZE_HASH` on test orders. */
 const FINALIZE_RAW = "unit_test_finalize_secret_ok____________";
-const FINALIZE_HASH = sha256Hex(FINALIZE_RAW);
+let FINALIZE_HASH = "";
+
+beforeAll(async () => {
+	FINALIZE_HASH = await sha256HexAsync(FINALIZE_RAW);
+});
 
 type MemQueryOptions = {
 	where?: Record<string, unknown>;

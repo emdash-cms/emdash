@@ -6,6 +6,11 @@
  * and webhook-path code must prefer the async runtime adapter in
  * `./lib/crypto-adapter.js` so Workers / edge runtimes stay portable.
  *
+ * Legacy/compatibility guidance:
+ * - New feature code should not import this file.
+ * - Keep production request-path code on `crypto-adapter`.
+ * - This module exists only as an internal Node-only fallback/legacy helper.
+ *
  * For Workers / edge runtimes that lack `node:crypto`, use the async
  * equivalents exported from `./lib/crypto-adapter.js` instead:
  *   - `sha256HexAsync`
@@ -16,16 +21,24 @@
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
+/**
+ * @deprecated Node-only legacy sync helper. Prefer `sha256HexAsync` from
+ * `./lib/crypto-adapter.js`.
+ */
 export function sha256Hex(input: string): string {
 	return createHash("sha256").update(input, "utf8").digest("hex");
 }
 
+/** @deprecated Node-only legacy sync helper. Prefer `randomHex` from `./lib/crypto-adapter.js`. */
 /** Opaque server-issued finalize secret (store only `sha256Hex` on the order). */
 export function randomFinalizeTokenHex(byteLength = 24): string {
 	return randomBytes(byteLength).toString("hex");
 }
 
-/** Constant-time compare for two 64-char hex SHA-256 digests. */
+/**
+ * @deprecated Node-only legacy sync helper. Prefer `equalSha256HexDigestAsync`
+ * from `./lib/crypto-adapter.js`.
+ */
 export function equalSha256HexDigest(a: string, b: string): boolean {
 	if (a.length !== 64 || b.length !== 64) return false;
 	try {

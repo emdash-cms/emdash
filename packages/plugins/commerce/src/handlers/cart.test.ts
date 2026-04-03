@@ -6,7 +6,7 @@
 import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
-import { sha256Hex } from "../hash.js";
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CartGetInput, CartUpsertInput, CheckoutInput } from "../schemas.js";
 import type {
@@ -169,7 +169,7 @@ describe("cartUpsertHandler", () => {
 
 		expect(result.ownerToken).toBeDefined();
 		const stored = await carts.get("legacy");
-		expect(stored!.ownerTokenHash).toBe(sha256Hex(result.ownerToken!));
+		expect(stored!.ownerTokenHash).toBe(await sha256HexAsync(result.ownerToken!));
 		expect(stored!.updatedAt).toBeDefined();
 	});
 
@@ -199,7 +199,7 @@ describe("cartUpsertHandler", () => {
 
 		expect(result.ownerToken).toBeUndefined();
 		const stored = await carts.get("legacy-existing");
-		expect(stored!.ownerTokenHash).toBe(sha256Hex(ownerToken));
+		expect(stored!.ownerTokenHash).toBe(await sha256HexAsync(ownerToken));
 	});
 
 	it("rejects mutation without ownerToken when cart has one", async () => {
@@ -291,7 +291,7 @@ describe("cartUpsertHandler", () => {
 			upsertCtx({ cartId: "c8", currency: "USD", lineItems: [LINE] }, carts, kv),
 		);
 		const stored = await carts.get("c8");
-		expect(stored!.ownerTokenHash).toBe(sha256Hex(result.ownerToken!));
+		expect(stored!.ownerTokenHash).toBe(await sha256HexAsync(result.ownerToken!));
 		expect(stored!.ownerTokenHash).not.toBe(result.ownerToken);
 	});
 });

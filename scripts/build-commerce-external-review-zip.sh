@@ -10,17 +10,22 @@ mkdir -p .review-staging/packages/plugins
 rsync -a --exclude 'node_modules' --exclude '.vite' \
   packages/plugins/commerce/ .review-staging/packages/plugins/commerce/
 
-find . -type f -name '*.md' \
-  ! -path './node_modules/*' \
-  ! -path '*/node_modules/*' \
-  ! -path './.git/*' \
-  ! -path './.review-staging/*' \
-  -print0 | while IFS= read -r -d '' f; do
-    rel="${f#./}"
-    dest=".review-staging/$rel"
-    mkdir -p "$(dirname "$dest")"
-    cp "$f" "$dest"
-  done
+REVIEW_FILES=(
+  "README_REVIEW.md"
+  "@THIRD_PARTY_REVIEW_PACKAGE.md"
+  "externa_review.md"
+  "external_review.md"
+  "HANDOVER.md"
+  "commerce-plugin-architecture.md"
+  "3rd-party-checklist.md"
+)
+
+for file in "${REVIEW_FILES[@]}"; do
+  if [ -f "$file" ]; then
+    mkdir -p ".review-staging/$(dirname "$file")"
+    cp "$file" ".review-staging/$file"
+  fi
+done
 
 find .review-staging -type f -name '*.zip' -delete
 

@@ -1,7 +1,7 @@
 import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
-import { sha256Hex } from "../hash.js";
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import type { CheckoutGetOrderInput } from "../schemas.js";
 import type { StoredOrder } from "../types.js";
 import { checkoutGetOrderHandler } from "./checkout-get-order.js";
@@ -57,7 +57,7 @@ describe("checkoutGetOrderHandler", () => {
 		const orderId = "ord_1";
 		const order: StoredOrder = {
 			...orderBase,
-			finalizeTokenHash: sha256Hex(token),
+			finalizeTokenHash: await sha256HexAsync(token),
 		};
 		const mem = new MemCollImpl(new Map([[orderId, order]]));
 		const out = await checkoutGetOrderHandler({
@@ -79,7 +79,7 @@ describe("checkoutGetOrderHandler", () => {
 
 	it("rejects missing token when order requires one", async () => {
 		const orderId = "ord_2";
-		const order: StoredOrder = { ...orderBase, finalizeTokenHash: sha256Hex(token) };
+		const order: StoredOrder = { ...orderBase, finalizeTokenHash: await sha256HexAsync(token) };
 		const mem = new MemCollImpl(new Map([[orderId, order]]));
 		await expect(
 			checkoutGetOrderHandler({
