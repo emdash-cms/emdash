@@ -1098,20 +1098,19 @@ function FieldRenderer({
 				selectItems[opt.value] = opt.label;
 			}
 			return (
-				<div id={id}>
-					<Select
-						label={label}
-						value={typeof value === "string" ? value : ""}
-						onValueChange={(v) => handleChange(v ?? "")}
-						items={selectItems}
-					>
-						{field.options?.map((opt) => (
-							<Select.Option key={opt.value} value={opt.value}>
-								{opt.label}
-							</Select.Option>
-						))}
-					</Select>
-				</div>
+				<Select
+					id={id}
+					label={label}
+					value={typeof value === "string" ? value : ""}
+					onValueChange={(v) => handleChange(v ?? "")}
+					items={selectItems}
+				>
+					{field.options?.map((opt) => (
+						<Select.Option key={opt.value} value={opt.value}>
+							{opt.label}
+						</Select.Option>
+					))}
+				</Select>
 			);
 		}
 
