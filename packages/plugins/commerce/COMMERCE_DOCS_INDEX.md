@@ -2,6 +2,8 @@
 
 ## Operations and support
 
+For a quick reviewer entrypoint: `external_review.md` → `SHARE_WITH_REVIEWER.md`.
+
 - [Paid order but stock is wrong (technical)](./PAID_BUT_WRONG_STOCK_RUNBOOK.md)
 - [Paid order but stock is wrong (support playbook)](./PAID_BUT_WRONG_STOCK_RUNBOOK_SUPPORT.md)
 
@@ -18,7 +20,7 @@
 
 - `package.json` — package scripts and dependencies
 - `tsconfig.json` — TypeScript config
-- `src/kernel/` — checkout/finalize error and idempotency logic
+- `src/services/` and `src/orchestration/` — extension seams and finalize logic
 - `src/handlers/` — route handlers (cart, checkout, webhooks)
 - `src/orchestration/` — finalize orchestration and inventory/attempt updates
 - `src/catalog-extensibility.ts` — kernel rules + extension seam contracts
