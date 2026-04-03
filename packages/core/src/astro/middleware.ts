@@ -192,47 +192,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
 	const hasPreviewToken = url.searchParams.has("_preview");
 
-	// Playground mode: the playground middleware stashes the per-session DO database
-	// on locals.__playgroundDb. When present, use runWithContext() to make it
-	// available to getDb() and the runtime's db getter via the correct ALS instance.
-	const playgroundDb = locals.__playgroundDb;
-
-	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
-		const sessionUser = await context.session?.get("user");
-		if (!sessionUser && !playgroundDb) {
-			// On a fresh deployment the database may be completely empty.
-			// Public pages call getSiteSettings() / getMenu() via getDb(), which
-			// bypasses runtime init and would crash with "no such table: options".
-			// Do a one-time lightweight probe using the same getDb() instance the
-			// page will use: if the migrations table doesn't exist, no migrations
-			// have ever run -- redirect to the setup wizard.
-			if (!setupVerified) {
-				try {
-					const { getDb } = await import("../loader.js");
-					const db = await getDb();
-					await db
-						.selectFrom("_emdash_migrations" as keyof Database)
-						.selectAll()
-						.limit(1)
-						.execute();
-					setupVerified = true;
-				} catch {
-					// Table doesn't exist -> fresh database, redirect to setup
-					return context.redirect("/_emdash/admin/setup");
-				}
-			}
-
-			const response = await next();
-			setBaselineSecurityHeaders(response);
-			return response;
-		}
-	}
-
 	const config = getConfig();
 	if (!config) {
 		console.error("EmDash: No configuration found");
 		return next();
 	}
+
+	// Playground mode: the playground middleware stashes the per-session DO database
+	// on locals.__playgroundDb. When present, use runWithContext() to make it
+	// available to getDb() and the runtime's db getter via the correct ALS instance.
+	const playgroundDb = locals.__playgroundDb;
 
 	// In playground mode, wrap the entire runtime init + request handling in
 	// runWithContext so that getDatabase() and all init queries use the real
@@ -264,6 +233,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				handleContentPermanentDelete: runtime.handleContentPermanentDelete.bind(runtime),
 				handleContentCountTrashed: runtime.handleContentCountTrashed.bind(runtime),
 				handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
+
+				// Page Contributions
+				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+				collectPageFragments: runtime.collectPageFragments.bind(runtime),
 
 				// Duplicate handler
 				handleContentDuplicate: runtime.handleContentDuplicate.bind(runtime),
