@@ -125,7 +125,7 @@ class MemKv {
 	}
 
 	async list(): Promise<Array<{ key: string; value: unknown }>> {
-		return [...this.store.entries()].map(([key, value]) => ({ key, value }));
+		return Array.from(this.store.entries(), ([key, value]) => ({ key, value }));
 	}
 }
 
