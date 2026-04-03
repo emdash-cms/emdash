@@ -20,7 +20,7 @@ Use this if a merchant reports: **“customer is marked paid, but stock is wrong
   - If `paymentPhase` is still `payment_pending`/`authorized`, a finalization retry may still be needed.
 - Open webhook receipt row for the event:
   - `processed` = finalize already completed for this event.
-  - `pending` = retry path may be needed.
+  - `pending` = partial finalization happened and retry may continue safely.
   - `error`/missing = inspect logs before retrying.
 - Open payment attempt rows for this order/provider:
   - `succeeded` means payment attempt did finalize.
@@ -44,8 +44,9 @@ Use this if a merchant reports: **“customer is marked paid, but stock is wrong
   - Report as successful reconciliation.
 
 ### B. Ledger exists but stock did not move
-- Do **not** repeatedly retry finalize.
-- Escalate to engineering immediately; this indicates storage inconsistency.
+- If receipt is `pending`, retry finalize once. `pending` captures partial-write cases such as ledger write success before stock write.
+- Re-check that receipt moves to `processed` and stock/attempt are corrected.
+- If the single retry does not resolve, escalate to engineering with all captured evidence.
 
 ### C. Ledger missing and stock not moved, but order is `paid`
 - Do **not** force stock edits in product admin on your own.

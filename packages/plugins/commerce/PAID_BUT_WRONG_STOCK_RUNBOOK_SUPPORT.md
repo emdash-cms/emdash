@@ -16,7 +16,7 @@ Use this quick checklist if a merchant or customer support agent reports, “The
 
 2. Open webhook receipt status for that event.
    - `processed` = this event was already handled.
-   - `pending` = event still needs one retry.
+   - `pending` = event is in partial-finalization recovery and may be safely retried once.
    - `error` or missing = do not retry blindly; escalate.
 
 3. Open payment attempt rows for the order.
@@ -41,8 +41,8 @@ Use this quick checklist if a merchant or customer support agent reports, “The
   - receipt now says `processed`
 
 ### Case C: Ledger says stock changed but stock still old, or data looks inconsistent
-- Do **not** keep retrying.
-- Escalate to engineering for manual investigation.
+- Retry once if the receipt is `pending` and the order is not fully final.
+- If retry does not complete or state remains inconsistent, do **not** keep retrying; escalate to engineering for manual investigation.
 
 ## When to escalate immediately
 

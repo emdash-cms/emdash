@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
 	hashWithSecret,
+	isWebhookBodyWithinSizeLimit,
 	isWebhookSignatureValid,
 	parseStripeSignatureHeader,
 } from "./webhooks-stripe.js";
@@ -45,5 +46,13 @@ describe("stripe webhook signature helpers", () => {
 		const restore = vi.spyOn(Date, "now").mockReturnValue(mockNowSeconds * 1000);
 		expect(isWebhookSignatureValid(secret, rawBody, sig)).toBe(false);
 		restore.mockRestore();
+	});
+
+	it("accepts raw webhook bodies inside byte-size limit", () => {
+		expect(isWebhookBodyWithinSizeLimit("a".repeat(65_536))).toBe(true);
+	});
+
+	it("rejects raw webhook bodies over byte-size limit", () => {
+		expect(isWebhookBodyWithinSizeLimit("a".repeat(65_537))).toBe(false);
 	});
 });

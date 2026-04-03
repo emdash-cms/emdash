@@ -59,6 +59,10 @@ function constantTimeCompareHex(aHex: string, bHex: string): boolean {
 	return timingSafeEqual(a, b);
 }
 
+function isWebhookBodyWithinSizeLimit(rawBody: string): boolean {
+	return Buffer.byteLength(rawBody, "utf8") <= MAX_WEBHOOK_BODY_BYTES;
+}
+
 function isWebhookSignatureValid(secret: string, rawBody: string, rawSignature: string | null): boolean {
 	const parsed = parseStripeSignatureHeader(rawSignature);
 	if (!parsed) return false;
@@ -79,6 +83,12 @@ async function ensureValidStripeWebhookSignature(ctx: RouteContext<StripeWebhook
 	}
 
 	const rawBody = await ctx.request.clone().text();
+	if (!isWebhookBodyWithinSizeLimit(rawBody)) {
+		throwCommerceApiError({
+			code: "PAYLOAD_TOO_LARGE",
+			message: "Webhook body is too large",
+		});
+	}
 	const rawSig = ctx.request.headers.get(STRIPE_SIGNATURE_HEADER);
 	if (!isWebhookSignatureValid(secret, rawBody, rawSig)) {
 		throwCommerceApiError({
@@ -157,4 +167,9 @@ export async function stripeWebhookHandler(ctx: RouteContext<StripeWebhookInput>
 	return { ok: true as const, orderId: result.orderId };
 }
 
-export { hashWithSecret, isWebhookSignatureValid, parseStripeSignatureHeader };
+export {
+	hashWithSecret,
+	isWebhookBodyWithinSizeLimit,
+	isWebhookSignatureValid,
+	parseStripeSignatureHeader,
+};

@@ -24,9 +24,16 @@ Validated commands:
 
 ```bash
 cd packages/plugins/commerce
-pnpm test -- handlers/checkout.test.ts orchestration/finalize-payment.test.ts
+pnpm --filter "./packages/plugins/commerce" test -- src/handlers/checkout.test.ts src/orchestration/finalize-payment.test.ts
 pnpm typecheck
 ```
+
+Latest hardening pass validation (applies to webhook raw-body enforcement + finalize logging + runbook updates):
+
+- `pnpm --filter "./packages/plugins/commerce" test -- src/handlers/checkout.test.ts src/orchestration/finalize-payment.test.ts`
+  - `14 test files, 68 tests passed`
+- `pnpm --filter "./packages/plugins/commerce" typecheck`
+  - `tsc --noEmit` success
 
 ## 3) Failures, open issues, and lessons learned
 

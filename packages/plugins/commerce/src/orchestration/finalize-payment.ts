@@ -91,6 +91,22 @@ type FinalizeFlowDecision =
 	| { kind: "invalid_token"; result: FinalizeWebhookResult }
 	| { kind: "proceed"; existingReceipt: StoredWebhookReceipt | null };
 
+type FinalizeLogContext = {
+	orderId: string;
+	providerId: string;
+	externalEventId: string;
+	correlationId: string;
+};
+
+function buildFinalizeLogContext(input: FinalizeWebhookInput): FinalizeLogContext {
+	return {
+		orderId: input.orderId,
+		providerId: input.providerId,
+		externalEventId: input.externalEventId,
+		correlationId: input.correlationId,
+	};
+}
+
 class InventoryFinalizeError extends Error {
 	constructor(
 		public code: CommerceErrorCode,
@@ -500,6 +516,7 @@ export async function finalizePaymentFromWebhook(
 	input: FinalizeWebhookInput,
 ): Promise<FinalizeWebhookResult> {
 	const nowIso = input.nowIso ?? new Date().toISOString();
+	const logContext = buildFinalizeLogContext(input);
 	const receiptId = webhookReceiptDocId(input.providerId, input.externalEventId);
 
 	const order = await ports.orders.get(input.orderId);
@@ -521,13 +538,12 @@ export async function finalizePaymentFromWebhook(
 	switch (decision.kind) {
 		case "noop":
 			ports.log?.info("commerce.finalize.noop", {
-				orderId: input.orderId,
-				externalEventId: input.externalEventId,
+				...logContext,
 				reason: decision.reason,
 			});
 			return decision.result;
 		case "invalid_token":
-			ports.log?.warn("commerce.finalize.token_rejected", { orderId: input.orderId });
+			ports.log?.warn("commerce.finalize.token_rejected", logContext);
 			return decision.result;
 		case "proceed":
 			break;
@@ -570,7 +586,7 @@ export async function finalizePaymentFromWebhook(
 			if (err instanceof InventoryFinalizeError) {
 				const apiCode = mapInventoryErrorToApiCode(err.code);
 				ports.log?.warn("commerce.finalize.inventory_failed", {
-					orderId: input.orderId,
+					...logContext,
 					code: apiCode,
 					details: err.details,
 				});
@@ -597,7 +613,7 @@ export async function finalizePaymentFromWebhook(
 			await ports.orders.put(input.orderId, paidOrder);
 		} catch (err) {
 			ports.log?.warn("commerce.finalize.order_update_failed", {
-				orderId: input.orderId,
+				...logContext,
 				details: err instanceof Error ? err.message : String(err),
 			});
 			return {
@@ -615,8 +631,7 @@ export async function finalizePaymentFromWebhook(
 		await markPaymentAttemptSucceeded(ports, input.orderId, input.providerId, nowIso);
 	} catch (err) {
 		ports.log?.warn("commerce.finalize.attempt_update_failed", {
-			orderId: input.orderId,
-			providerId: input.providerId,
+			...logContext,
 			details: err instanceof Error ? err.message : String(err),
 		});
 		return {
@@ -636,9 +651,7 @@ export async function finalizePaymentFromWebhook(
 	});
 
 	ports.log?.info("commerce.finalize.completed", {
-		orderId: input.orderId,
-		externalEventId: input.externalEventId,
-		correlationId: input.correlationId,
+		...logContext,
 	});
 
 	return { kind: "completed", orderId: input.orderId };
