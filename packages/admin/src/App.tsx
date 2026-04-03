@@ -49,13 +49,13 @@ export function AdminApp({ pluginAdmins = EMPTY_PLUGINS }: AdminAppProps) {
 	return (
 		<ThemeProvider>
 			<Toasty>
-				<CacheProvider>
-					<PluginAdminProvider pluginAdmins={pluginAdmins}>
-						<QueryClientProvider client={queryClient}>
+				<QueryClientProvider client={queryClient}>
+					<CacheProvider>
+						<PluginAdminProvider pluginAdmins={pluginAdmins}>
 							<RouterProvider router={router} />
-						</QueryClientProvider>
-					</PluginAdminProvider>
-				</CacheProvider>
+						</PluginAdminProvider>
+					</CacheProvider>
+				</QueryClientProvider>
 			</Toasty>
 		</ThemeProvider>
 	);
