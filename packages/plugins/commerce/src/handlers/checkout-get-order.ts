@@ -1,7 +1,8 @@
 /**
  * Read-only order snapshot for storefront SSR (Astro) and form posts.
- * When `finalizeTokenHash` exists on the order, the raw `finalizeToken` from
- * checkout must be supplied (same rules as webhook finalize).
+ * Every order must carry `finalizeTokenHash` (checkout always sets it); the raw
+ * `finalizeToken` from checkout must be supplied — `orderId` alone is never sufficient.
+ * Legacy rows without a hash are not exposed (404) so IDs cannot be enumerated.
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -37,21 +38,23 @@ export async function checkoutGetOrderHandler(
 	}
 
 	const expectedHash = order.finalizeTokenHash;
-	if (expectedHash) {
-		const token = ctx.input.finalizeToken?.trim();
-		if (!token) {
-			throwCommerceApiError({
-				code: "WEBHOOK_SIGNATURE_INVALID",
-				message: "finalizeToken is required to read this order",
-			});
-		}
-		const digest = sha256Hex(token);
-		if (!equalSha256HexDigest(digest, expectedHash)) {
-			throwCommerceApiError({
-				code: "WEBHOOK_SIGNATURE_INVALID",
-				message: "Invalid finalize token for this order",
-			});
-		}
+	if (!expectedHash) {
+		throwCommerceApiError({ code: "ORDER_NOT_FOUND", message: "Order not found" });
+	}
+
+	const token = ctx.input.finalizeToken?.trim();
+	if (!token) {
+		throwCommerceApiError({
+			code: "WEBHOOK_SIGNATURE_INVALID",
+			message: "finalizeToken is required to read this order",
+		});
+	}
+	const digest = sha256Hex(token);
+	if (!equalSha256HexDigest(digest, expectedHash)) {
+		throwCommerceApiError({
+			code: "WEBHOOK_SIGNATURE_INVALID",
+			message: "Invalid finalize token for this order",
+		});
 	}
 
 	return { order: toPublicOrder(order) };

@@ -58,6 +58,11 @@ export type CartUpsertInput = z.infer<typeof cartUpsertInputSchema>;
 
 export const cartGetInputSchema = z.object({
 	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
+	/**
+	 * Required when the cart has `ownerTokenHash` (same secret returned once from `cart/upsert`).
+	 * Omitted for legacy carts that have not been migrated yet.
+	 */
+	ownerToken: z.string().min(16).max(256).optional(),
 });
 
 export type CartGetInput = z.infer<typeof cartGetInputSchema>;
@@ -70,7 +75,10 @@ export const checkoutInputSchema = z.object({
 
 export type CheckoutInput = z.infer<typeof checkoutInputSchema>;
 
-/** Same possession proof as webhook finalize when the order stores `finalizeTokenHash`. */
+/**
+ * Possession proof for order read: must match checkout's `finalizeToken` for this `orderId`.
+ * Optional in schema; handler rejects missing/invalid token (and legacy orders without a hash).
+ */
 export const checkoutGetOrderInputSchema = z.object({
 	orderId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	finalizeToken: z.string().min(16).max(256).optional(),

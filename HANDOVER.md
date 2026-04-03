@@ -14,7 +14,7 @@ Stage-1 commerce lives in `packages/plugins/commerce` with Vitest coverage (curr
 - **Finalize** ([`src/orchestration/finalize-payment.ts`](packages/plugins/commerce/src/orchestration/finalize-payment.ts)): centralized orchestration; `queryFinalizationStatus(...)` for diagnostics; inventory reconcile when ledger wrote but stock did not; explicit logging on core paths; intentional bubble on final receipt→`processed` write (retry-safe).
 - **Decisions** ([`src/kernel/finalize-decision.ts`](packages/plugins/commerce/src/kernel/finalize-decision.ts)): receipt semantics documented (`pending` = resumable; `error` = narrow terminal when order disappears mid-run).
 - **Stripe webhook** ([`src/handlers/webhooks-stripe.ts`](packages/plugins/commerce/src/handlers/webhooks-stripe.ts)): signature verification; raw body byte cap before verify; rate limit.
-- **Order read for SSR** ([`src/handlers/checkout-get-order.ts`](packages/plugins/commerce/src/handlers/checkout-get-order.ts)): `POST checkout/get-order` returns a public order snapshot; requires `finalizeToken` when `finalizeTokenHash` exists on the order.
+- **Order read for SSR** ([`src/handlers/checkout-get-order.ts`](packages/plugins/commerce/src/handlers/checkout-get-order.ts)): `POST checkout/get-order` returns a public order snapshot; requires `finalizeToken` whenever the order has `finalizeTokenHash` (checkout always sets it). Rows without a hash are not returned (`ORDER_NOT_FOUND`).
 - **Recommendations** ([`src/handlers/recommendations.ts`](packages/plugins/commerce/src/handlers/recommendations.ts)): returns `enabled: false` and stable `reason`—storefronts should hide the block until a recommender exists.
 
 Operational docs: [`packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md`](packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md), support variant alongside, [`COMMERCE_DOCS_INDEX.md`](packages/plugins/commerce/COMMERCE_DOCS_INDEX.md).
@@ -66,9 +66,9 @@ Lesson: expand features only after negative-path tests and incident semantics st
 | Route | Role |
 |-------|------|
 | `cart/upsert` | Create or update a `StoredCart`; issues `ownerToken` on first creation |
-| `cart/get` | Read-only cart snapshot (no auth required) |
+| `cart/get` | Read-only cart snapshot; `ownerToken` required when cart has `ownerTokenHash` (guest possession proof) |
 | `checkout` | Create `payment_pending` order + attempt; idempotency |
-| `checkout/get-order` | Read-only order snapshot (token when required) |
+| `checkout/get-order` | Read-only order snapshot; `finalizeToken` required — `orderId` alone is never enough |
 | `webhooks/stripe` | Verify signature → finalize |
 | `recommendations` | Disabled contract for UIs |
 
@@ -119,14 +119,14 @@ Do not add speculative abstractions or cross-scope features (shipping, tax, swat
 **Explicit non-goals for this MVP:**
 
 - No new product/catalog collections inside the plugin.
-- No session/auth for carts (cart id is the bearer surface for now).
+- No EmDash user session for carts yet (anonymous guest uses `cartId` + `ownerToken` as possession proof; logged-in cart retention is a future slice).
 - No auto-creating inventory rows from cart upsert (keeps inventory semantics honest).
 - No changes to `finalizePaymentFromWebhook` except if a **proven** regression appears (then follow §6).
 
 **Acceptance criteria (checklist):**
 
 - [x] `cart/upsert` persists a `StoredCart` readable by `checkout` for the same `cartId`.
-- [x] `cart/get` returns 404-class semantics for missing cart (`CART_NOT_FOUND` family).
+- [x] `cart/get` returns 404-class semantics for missing cart (`CART_NOT_FOUND` family) and requires `ownerToken` when the cart has `ownerTokenHash`.
 - [x] Invalid line items fail at cart boundary with same invariants as checkout would enforce.
 - [x] `pnpm test` and `pnpm typecheck` pass in `packages/plugins/commerce` (84/84 tests, 0 type errors).
 - [x] At least one test chains cart → checkout without manual storage pokes in production code paths.

@@ -24,9 +24,9 @@
 | Route | Role |
 |-------|------|
 | `cart/upsert` | Create or update a `StoredCart`; issues `ownerToken` on first creation |
-| `cart/get` | Read-only cart snapshot (no auth required) |
+| `cart/get` | Read-only cart snapshot; `ownerToken` when cart has `ownerTokenHash` |
 | `checkout` | Create `payment_pending` order + attempt; idempotency |
-| `checkout/get-order` | Read-only order snapshot (token when required) |
+| `checkout/get-order` | Read-only order snapshot; always requires matching `finalizeToken` |
 | `webhooks/stripe` | Verify signature → finalize |
 | `recommendations` | Disabled contract for UIs |
 

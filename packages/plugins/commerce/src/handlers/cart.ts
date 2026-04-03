@@ -6,7 +6,7 @@
  * On first creation the server issues an opaque `ownerToken` (random hex, 24 bytes).
  * Only the SHA-256 hash is stored on the cart document (`ownerTokenHash`).
  * The raw token is returned once in the creation response and must be presented
- * by the caller on all subsequent mutations.
+ * by the caller on all subsequent reads (`cart/get`) and mutations (`cart/upsert`).
  *
  * This is intentionally the same pattern as `finalizeToken`/`finalizeTokenHash`
  * on orders — it gives us a future-proof ownership surface without requiring a
@@ -21,9 +21,11 @@
 import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 
-import { equalSha256HexDigest, randomFinalizeTokenHex, sha256Hex } from "../hash.js";
+import { randomFinalizeTokenHex, sha256Hex } from "../hash.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
+import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -64,22 +66,8 @@ export async function cartUpsertHandler(
 	let ownerToken: string | undefined;
 	let ownerTokenHash: string | undefined = existing?.ownerTokenHash;
 
-	// --- Ownership check ---
-	if (existing?.ownerTokenHash) {
-		const presented = ctx.input.ownerToken;
-		if (!presented) {
-			throwCommerceApiError({
-				code: "CART_TOKEN_REQUIRED",
-				message: "An owner token is required to modify this cart",
-			});
-		}
-		const presentedHash = sha256Hex(presented);
-		if (!equalSha256HexDigest(presentedHash, existing.ownerTokenHash)) {
-			throwCommerceApiError({
-				code: "CART_TOKEN_INVALID",
-				message: "Owner token is invalid",
-			});
-		}
+	if (existing) {
+		assertCartOwnerToken(existing, ctx.input.ownerToken, "mutate");
 	}
 
 	// --- Legacy migration ---
@@ -134,13 +122,7 @@ export async function cartUpsertHandler(
 	// --- Persist ---
 	const cart: StoredCart = {
 		currency: ctx.input.currency,
-		lineItems: ctx.input.lineItems.map((l) => ({
-			productId: l.productId,
-			variantId: l.variantId,
-			quantity: l.quantity,
-			inventoryVersion: l.inventoryVersion,
-			unitPriceMinor: l.unitPriceMinor,
-		})),
+		lineItems: projectCartLineItemsForStorage(ctx.input.lineItems),
 		ownerTokenHash,
 		createdAt: existing?.createdAt ?? nowIso,
 		updatedAt: nowIso,
@@ -181,6 +163,8 @@ export async function cartGetHandler(ctx: RouteContext<CartGetInput>): Promise<C
 	if (!cart) {
 		throwCommerceApiError({ code: "CART_NOT_FOUND", message: "Cart not found" });
 	}
+
+	assertCartOwnerToken(cart, ctx.input.ownerToken, "read");
 
 	return {
 		cartId: ctx.input.cartId,

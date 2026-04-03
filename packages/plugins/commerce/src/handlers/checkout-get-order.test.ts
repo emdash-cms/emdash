@@ -89,14 +89,15 @@ describe("checkoutGetOrderHandler", () => {
 		).rejects.toMatchObject({ code: "webhook_signature_invalid" });
 	});
 
-	it("allows legacy orders without finalizeTokenHash using orderId only", async () => {
+	it("does not expose legacy orders without finalizeTokenHash (orderId alone is insufficient)", async () => {
 		const orderId = "ord_legacy";
 		const order: StoredOrder = { ...orderBase };
 		const mem = new MemCollImpl(new Map([[orderId, order]]));
-		const out = await checkoutGetOrderHandler({
-			...ctxFor(orderId),
-			storage: { orders: mem },
-		} as unknown as RouteContext<CheckoutGetOrderInput>);
-		expect(out.order.paymentPhase).toBe("payment_pending");
+		await expect(
+			checkoutGetOrderHandler({
+				...ctxFor(orderId),
+				storage: { orders: mem },
+			} as unknown as RouteContext<CheckoutGetOrderInput>),
+		).rejects.toMatchObject({ code: "order_not_found" });
 	});
 });

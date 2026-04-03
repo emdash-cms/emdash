@@ -26,7 +26,7 @@ export interface StoredCart {
 	lineItems: CartLineItem[];
 	/**
 	 * SHA-256 hex of the owner token issued at cart creation.
-	 * Mutations (upsert on existing cart) must present the matching raw token.
+	 * Reads (`cart/get`) and mutations (`cart/upsert`) must present the matching raw token.
 	 * Absent on legacy carts created before this field was introduced.
 	 */
 	ownerTokenHash?: string;

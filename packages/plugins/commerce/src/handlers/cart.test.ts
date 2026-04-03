@@ -301,14 +301,16 @@ describe("cartUpsertHandler", () => {
 // ---------------------------------------------------------------------------
 
 describe("cartGetHandler", () => {
-	it("returns cart contents for a known cartId", async () => {
+	it("returns cart contents for a known cartId when ownerToken matches", async () => {
 		const carts = new MemColl<StoredCart>();
 		const kv = new MemKv();
-		await cartUpsertHandler(
+		const created = await cartUpsertHandler(
 			upsertCtx({ cartId: "g1", currency: "EUR", lineItems: [LINE] }, carts, kv),
 		);
 
-		const result = await cartGetHandler(getCtx({ cartId: "g1" }, carts));
+		const result = await cartGetHandler(
+			getCtx({ cartId: "g1", ownerToken: created.ownerToken }, carts),
+		);
 
 		expect(result.cartId).toBe("g1");
 		expect(result.currency).toBe("EUR");
@@ -327,13 +329,54 @@ describe("cartGetHandler", () => {
 	it("does not expose ownerTokenHash in the response", async () => {
 		const carts = new MemColl<StoredCart>();
 		const kv = new MemKv();
-		await cartUpsertHandler(
+		const created = await cartUpsertHandler(
 			upsertCtx({ cartId: "g2", currency: "USD", lineItems: [LINE] }, carts, kv),
 		);
 
-		const result = await cartGetHandler(getCtx({ cartId: "g2" }, carts));
+		const result = await cartGetHandler(
+			getCtx({ cartId: "g2", ownerToken: created.ownerToken }, carts),
+		);
 
 		expect(result).not.toHaveProperty("ownerTokenHash");
+	});
+
+	it("rejects read without ownerToken when cart has ownerTokenHash", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		await cartUpsertHandler(
+			upsertCtx({ cartId: "g3", currency: "USD", lineItems: [LINE] }, carts, kv),
+		);
+
+		await expect(cartGetHandler(getCtx({ cartId: "g3" }, carts))).rejects.toMatchObject({
+			code: "cart_token_required",
+		});
+	});
+
+	it("rejects read with wrong ownerToken", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		await cartUpsertHandler(
+			upsertCtx({ cartId: "g4", currency: "USD", lineItems: [LINE] }, carts, kv),
+		);
+
+		await expect(
+			cartGetHandler(getCtx({ cartId: "g4", ownerToken: "b".repeat(32) }, carts)),
+		).rejects.toMatchObject({ code: "cart_token_invalid" });
+	});
+
+	it("allows read of legacy cart without ownerToken until migrated", async () => {
+		const carts = new MemColl<StoredCart>();
+		carts.rows.set("legacy-read", {
+			currency: "USD",
+			lineItems: [LINE],
+			createdAt: "2026-04-03T12:00:00.000Z",
+			updatedAt: "2026-04-03T12:00:00.000Z",
+		});
+
+		const result = await cartGetHandler(getCtx({ cartId: "legacy-read" }, carts));
+
+		expect(result.cartId).toBe("legacy-read");
+		expect(result.lineItems).toHaveLength(1);
 	});
 });
 
