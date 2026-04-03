@@ -1,5 +1,6 @@
 /**
  * Checkout: cart → `payment_pending` order + `pending` payment attempt (Stripe session in a later slice).
+ * When the cart has `ownerTokenHash`, `ownerToken` must match (same possession proof as `cart/get`).
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -8,6 +9,7 @@ import { PluginRouteError } from "emdash";
 import { randomFinalizeTokenHex, sha256Hex } from "../hash.js";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
@@ -206,6 +208,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	if (!cart) {
 		throwCommerceApiError({ code: "CART_NOT_FOUND", message: "Cart not found" });
 	}
+	assertCartOwnerToken(cart, ctx.input.ownerToken, "checkout");
 	if (cart.lineItems.length === 0) {
 		throwCommerceApiError({ code: "CART_EMPTY", message: "Cart has no line items" });
 	}

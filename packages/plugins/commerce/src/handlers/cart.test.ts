@@ -416,10 +416,10 @@ describe("cart → checkout integration chain", () => {
 		);
 		expect(upsertResult.ownerToken).toBeDefined();
 
-		// Step 2: checkout against the upserted cart
+		// Step 2: checkout against the upserted cart (possession proof matches cart/get/upsert)
 		const checkoutResult = await checkoutHandler(
 			checkoutCtx(
-				{ cartId, idempotencyKey },
+				{ cartId, idempotencyKey, ownerToken: upsertResult.ownerToken },
 				carts,
 				orders,
 				paymentAttempts,
@@ -436,6 +436,50 @@ describe("cart → checkout integration chain", () => {
 		expect(typeof checkoutResult.finalizeToken).toBe("string");
 		expect(orders.rows.size).toBe(1);
 		expect(paymentAttempts.rows.size).toBe(1);
+	});
+
+	it("rejects checkout without ownerToken after cart upsert established possession", async () => {
+		const cartId = "chain-cart-no-token";
+		const idempotencyKey = "chain-idemp-key-no-tok-1";
+		const now = "2026-04-03T12:00:00.000Z";
+
+		const carts = new MemColl<StoredCart>();
+		const orders = new MemColl<StoredOrder>();
+		const paymentAttempts = new MemColl<StoredPaymentAttempt>();
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+		const inventoryStock = new MemColl<StoredInventoryStock>(
+			new Map([
+				[
+					inventoryStockDocId("p1", ""),
+					{
+						productId: "p1",
+						variantId: "",
+						version: 1,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		);
+		const kv = new MemKv();
+
+		await cartUpsertHandler(
+			upsertCtx({ cartId, currency: "USD", lineItems: [LINE] }, carts, kv),
+		);
+
+		await expect(
+			checkoutHandler(
+				checkoutCtx(
+					{ cartId, idempotencyKey },
+					carts,
+					orders,
+					paymentAttempts,
+					idempotencyKeys,
+					inventoryStock,
+					kv,
+				),
+			),
+		).rejects.toMatchObject({ code: "cart_token_required" });
 	});
 
 	it("checkout is idempotent for the same cart and key", async () => {
@@ -463,12 +507,12 @@ describe("cart → checkout integration chain", () => {
 		);
 		const kv = new MemKv();
 
-		await cartUpsertHandler(
+		const upserted = await cartUpsertHandler(
 			upsertCtx({ cartId, currency: "USD", lineItems: [LINE] }, carts, kv),
 		);
 
 		const ctx = checkoutCtx(
-			{ cartId, idempotencyKey },
+			{ cartId, idempotencyKey, ownerToken: upserted.ownerToken },
 			carts,
 			orders,
 			paymentAttempts,

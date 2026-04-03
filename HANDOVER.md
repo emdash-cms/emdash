@@ -10,7 +10,7 @@ This repository hosts an EmDash-native commerce plugin with a narrow stage-1 sco
 
 Stage-1 commerce lives in `packages/plugins/commerce` with Vitest coverage (currently **15 files / 71 tests** in that package).
 
-- **Checkout** ([`src/handlers/checkout.ts`](packages/plugins/commerce/src/handlers/checkout.ts)): deterministic idempotency; recovers order/attempt from pending idempotency records; validates cart line items and stock preflight.
+- **Checkout** ([`src/handlers/checkout.ts`](packages/plugins/commerce/src/handlers/checkout.ts)): deterministic idempotency; recovers order/attempt from pending idempotency records; validates cart line items and stock preflight; requires `ownerToken` when the cart has `ownerTokenHash` (same as `cart/get` / `cart/upsert`).
 - **Finalize** ([`src/orchestration/finalize-payment.ts`](packages/plugins/commerce/src/orchestration/finalize-payment.ts)): centralized orchestration; `queryFinalizationStatus(...)` for diagnostics; inventory reconcile when ledger wrote but stock did not; explicit logging on core paths; intentional bubble on final receipt→`processed` write (retry-safe).
 - **Decisions** ([`src/kernel/finalize-decision.ts`](packages/plugins/commerce/src/kernel/finalize-decision.ts)): receipt semantics documented (`pending` = resumable; `error` = narrow terminal when order disappears mid-run).
 - **Stripe webhook** ([`src/handlers/webhooks-stripe.ts`](packages/plugins/commerce/src/handlers/webhooks-stripe.ts)): signature verification; raw body byte cap before verify; rate limit.
@@ -67,7 +67,7 @@ Lesson: expand features only after negative-path tests and incident semantics st
 |-------|------|
 | `cart/upsert` | Create or update a `StoredCart`; issues `ownerToken` on first creation |
 | `cart/get` | Read-only cart snapshot; `ownerToken` required when cart has `ownerTokenHash` (guest possession proof) |
-| `checkout` | Create `payment_pending` order + attempt; idempotency |
+| `checkout` | Create `payment_pending` order + attempt; idempotency; `ownerToken` when cart has `ownerTokenHash` |
 | `checkout/get-order` | Read-only order snapshot; `finalizeToken` required — `orderId` alone is never enough |
 | `webhooks/stripe` | Verify signature → finalize |
 | `recommendations` | Disabled contract for UIs |
@@ -130,7 +130,7 @@ Do not add speculative abstractions or cross-scope features (shipping, tax, swat
 - [x] Invalid line items fail at cart boundary with same invariants as checkout would enforce.
 - [x] `pnpm test` and `pnpm typecheck` pass in `packages/plugins/commerce` (84/84 tests, 0 type errors).
 - [x] At least one test chains cart → checkout without manual storage pokes in production code paths.
-- [x] Cart ownership model: `ownerToken` issued on creation, hash stored, required on subsequent mutations.
+- [x] Cart ownership model: `ownerToken` issued on creation, hash stored, required on subsequent reads, mutations, and checkout.
 
 **After MVP:** wire `demos/simple` (or your site) with HTML-first forms/SSR calling plugin URLs; Playwright e2e can wait until a minimal storefront page exists.
 

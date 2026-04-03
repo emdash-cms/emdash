@@ -25,7 +25,7 @@
 |-------|------|
 | `cart/upsert` | Create or update a `StoredCart`; issues `ownerToken` on first creation |
 | `cart/get` | Read-only cart snapshot; `ownerToken` when cart has `ownerTokenHash` |
-| `checkout` | Create `payment_pending` order + attempt; idempotency |
+| `checkout` | Create `payment_pending` order + attempt; idempotency; `ownerToken` if cart has `ownerTokenHash` |
 | `checkout/get-order` | Read-only order snapshot; always requires matching `finalizeToken` |
 | `webhooks/stripe` | Verify signature → finalize |
 | `recommendations` | Disabled contract for UIs |

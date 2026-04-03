@@ -11,7 +11,7 @@ This document aligns the **stage-1 commerce kernel** with future **LLM**, **vect
 ## Checkout and agents
 
 - **Checkout, webhooks, and finalize** remain **deterministic** and **mutation-authoritative**. Agents must not replace those flows with fuzzy reasoning.
-- **Recommendation** and **search** are **read-only** surfaces. The `recommendations` plugin route is currently a **stub** (`strategy: "stub"`) reserved for wiring vector search or an external recommender.
+- **Recommendation** and **search** are **read-only** surfaces. The `recommendations` plugin route is currently **disabled** (`strategy: "disabled"`, `reason: "no_recommender_configured"`) until vector search or an external recommender is wired; storefronts should hide the block when `enabled` is false.
 
 ## Errors and observability
 
@@ -27,7 +27,7 @@ This document aligns the **stage-1 commerce kernel** with future **LLM**, **vect
 
 | Item | Location |
 |------|----------|
-| Stub recommendations route | `src/handlers/recommendations.ts` |
+| Disabled recommendations route | `src/handlers/recommendations.ts` |
 | Catalog/search field contract | `src/catalog-extensibility.ts` |
 | Architecture (MCP tool list, principles) | `commerce-plugin-architecture.md` §11 |
 | Execution handoff | `HANDOVER.md` |

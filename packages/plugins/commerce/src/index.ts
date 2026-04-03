@@ -1,15 +1,15 @@
 /**
  * EmDash commerce plugin — kernel-first checkout + webhook finalize (Stripe wiring follows).
  *
- * Batch writes: checkout uses `putMany` per collection where two documents are created
- * together; cron cleanup uses `deleteMany` for idempotency TTL. Finalize keeps interleaved
+ * Persistence: checkout writes the order and payment attempt as separate `put` calls;
+ * cron cleanup uses `deleteMany` on idempotency keys. Finalize uses interleaved
  * ledger + stock `put`s per SKU to avoid inconsistent partial batches.
  *
  * @example
  * ```ts
  * // live.config.ts
- * import { commercePlugin } from "@emdash-cms/plugin-commerce";
- * export default defineConfig({ plugins: [commercePlugin()] });
+ * import { createPlugin } from "@emdash-cms/plugin-commerce";
+ * export default defineConfig({ plugins: [createPlugin()] });
  * ```
  */
 
@@ -35,6 +35,10 @@ import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 /** Outbound Stripe API (`api.stripe.com`, `connect.stripe.com`, etc.). */
 const STRIPE_ALLOWED_HOSTS = ["*.stripe.com"] as const;
 
+/**
+ * Manifest-style descriptor; uses the same storage declaration as {@link createPlugin}.
+ * Cast matches `PluginDescriptor`’s simplified typing; composite indexes match runtime config.
+ */
 export function commercePlugin(): PluginDescriptor {
 	return {
 		id: "emdash-commerce",
@@ -42,25 +46,7 @@ export function commercePlugin(): PluginDescriptor {
 		entrypoint: "@emdash-cms/plugin-commerce",
 		capabilities: ["network:fetch"],
 		allowedHosts: [...STRIPE_ALLOWED_HOSTS],
-		storage: {
-			orders: { indexes: ["paymentPhase", "createdAt", "cartId"] },
-			carts: { indexes: ["updatedAt"] },
-			paymentAttempts: {
-				indexes: ["orderId", "providerId", "status", "createdAt"],
-			},
-			webhookReceipts: {
-				indexes: ["providerId", "externalEventId", "orderId", "status", "createdAt"],
-			},
-			idempotencyKeys: {
-				indexes: ["route", "createdAt", "keyHash"],
-			},
-			inventoryLedger: {
-				indexes: ["productId", "variantId", "referenceType", "referenceId", "createdAt"],
-			},
-			inventoryStock: {
-				indexes: ["productId", "variantId", "updatedAt"],
-			},
-		},
+		storage: COMMERCE_STORAGE_CONFIG as unknown as PluginDescriptor["storage"],
 	};
 }
 

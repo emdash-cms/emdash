@@ -71,6 +71,11 @@ export const checkoutInputSchema = z.object({
 	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	/** Optional when `Idempotency-Key` header is set. */
 	idempotencyKey: z.string().optional(),
+	/**
+	 * Required when the cart has `ownerTokenHash` (same value as `cart/get` and `cart/upsert`).
+	 * Omitted for legacy carts not yet migrated.
+	 */
+	ownerToken: z.string().min(16).max(256).optional(),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutInputSchema>;

@@ -1,6 +1,7 @@
 import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
+import { sha256Hex } from "../hash.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CheckoutInput } from "../schemas.js";
 import type {
@@ -73,6 +74,7 @@ function contextFor({
 	kv,
 	idempotencyKey,
 	cartId,
+	ownerToken,
 	requestMethod = "POST",
 	ip = "127.0.0.1",
 }: {
@@ -84,6 +86,7 @@ function contextFor({
 	kv: MemKv;
 	idempotencyKey: string;
 	cartId: string;
+	ownerToken?: string;
 	requestMethod?: string;
 	ip?: string;
 }): RouteContext<CheckoutInput> {
@@ -96,6 +99,7 @@ function contextFor({
 		input: {
 			cartId,
 			idempotencyKey,
+			...(ownerToken !== undefined ? { ownerToken } : {}),
 		},
 		storage: {
 			idempotencyKeys,
@@ -249,5 +253,176 @@ describe("checkout idempotency persistence recovery", () => {
 		expect(second).toEqual(first);
 		expect(orders.rows.size).toBe(1);
 		expect(paymentAttempts.rows.size).toBe(1);
+	});
+
+	it("requires ownerToken when cart has ownerTokenHash", async () => {
+		const cartId = "cart_owned";
+		const idempotencyKey = "idem-key-owned-16ch";
+		const now = "2026-04-02T12:00:00.000Z";
+		const ownerSecret = "owner-secret-for-checkout-1";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
+			],
+			ownerTokenHash: sha256Hex(ownerSecret),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			inventoryStock: new MemColl(
+				new Map([
+					[
+						inventoryStockDocId("p1", ""),
+						{
+							productId: "p1",
+							variantId: "",
+							version: 1,
+							quantity: 10,
+							updatedAt: now,
+						},
+					],
+				]),
+			),
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+		});
+
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "cart_token_required" });
+	});
+
+	it("completes checkout when ownerToken matches cart ownerTokenHash", async () => {
+		const cartId = "cart_owned_ok";
+		const idempotencyKey = "idem-key-owned-ok16";
+		const now = "2026-04-02T12:00:00.000Z";
+		const ownerSecret = "correct-owner-token-12345";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
+			],
+			ownerTokenHash: sha256Hex(ownerSecret),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			inventoryStock: new MemColl(
+				new Map([
+					[
+						inventoryStockDocId("p1", ""),
+						{
+							productId: "p1",
+							variantId: "",
+							version: 1,
+							quantity: 10,
+							updatedAt: now,
+						},
+					],
+				]),
+			),
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+			ownerToken: ownerSecret,
+		});
+
+		const out = await checkoutHandler(ctx);
+		expect(out.paymentPhase).toBe("payment_pending");
+		expect(out.totalMinor).toBe(100);
+	});
+
+	it("rejects checkout with wrong ownerToken when cart has ownerTokenHash", async () => {
+		const cartId = "cart_owned_2";
+		const idempotencyKey = "idem-key-owned-16c2";
+		const now = "2026-04-02T12:00:00.000Z";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
+			],
+			ownerTokenHash: sha256Hex("correct-owner-token-12345"),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			inventoryStock: new MemColl(
+				new Map([
+					[
+						inventoryStockDocId("p1", ""),
+						{
+							productId: "p1",
+							variantId: "",
+							version: 1,
+							quantity: 10,
+							updatedAt: now,
+						},
+					],
+				]),
+			),
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+			ownerToken: "wrong-owner-token-123456789012",
+		});
+
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "cart_token_invalid" });
+	});
+
+	it("allows checkout without ownerToken for legacy cart without ownerTokenHash", async () => {
+		const cartId = "cart_legacy_co";
+		const idempotencyKey = "idem-key-legacy-16";
+		const now = "2026-04-02T12:00:00.000Z";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 },
+			],
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			inventoryStock: new MemColl(
+				new Map([
+					[
+						inventoryStockDocId("p1", ""),
+						{
+							productId: "p1",
+							variantId: "",
+							version: 1,
+							quantity: 10,
+							updatedAt: now,
+						},
+					],
+				]),
+			),
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+		});
+
+		const out = await checkoutHandler(ctx);
+		expect(out.paymentPhase).toBe("payment_pending");
+		expect(out.currency).toBe("USD");
 	});
 });

@@ -2,11 +2,11 @@ import { equalSha256HexDigest, sha256Hex } from "../hash.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { StoredCart } from "../types.js";
 
-export type CartOwnerTokenOperation = "read" | "mutate";
+export type CartOwnerTokenOperation = "read" | "mutate" | "checkout";
 
 /**
  * When `ownerTokenHash` is set, the raw `ownerToken` must be presented and match.
- * Legacy carts without a hash skip this check (readable/mutable until migrated).
+ * Legacy carts without a hash skip this check (readable/mutable/checkoutable until migrated).
  */
 export function assertCartOwnerToken(
 	cart: StoredCart,
@@ -17,12 +17,14 @@ export function assertCartOwnerToken(
 
 	const presented = ownerToken?.trim();
 	if (!presented) {
+		const messages: Record<CartOwnerTokenOperation, string> = {
+			read: "An owner token is required to read this cart",
+			mutate: "An owner token is required to modify this cart",
+			checkout: "An owner token is required to check out this cart",
+		};
 		throwCommerceApiError({
 			code: "CART_TOKEN_REQUIRED",
-			message:
-				op === "read"
-					? "An owner token is required to read this cart"
-					: "An owner token is required to modify this cart",
+			message: messages[op],
 		});
 	}
 	const presentedHash = sha256Hex(presented);
