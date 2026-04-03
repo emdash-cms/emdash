@@ -25,3 +25,7 @@ export {
 	type PluginAdminModule,
 	type PluginAdmins,
 } from "./lib/plugin-context";
+
+// i18n
+export { I18nProvider, useTranslation } from "./i18n/index.js";
+export type { Translations, I18nProviderProps } from "./i18n/index.js";
