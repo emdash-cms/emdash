@@ -24,6 +24,7 @@ Closes #
 - [ ] `pnpm test` passes (or targeted tests for my change)
 - [ ] `pnpm format` has been run
 - [ ] I have added/updated tests for my changes (if applicable)
+- [ ] I have added a [changeset](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#changesets) (if this PR changes a published package)
 - [ ] New features link to an approved Discussion: https://github.com/emdash-cms/emdash/discussions/...
 
 ## AI-generated code disclosure
