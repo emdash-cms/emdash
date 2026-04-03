@@ -131,6 +131,7 @@ The main gotchas to avoid:
 - `3rdpary_review.md` — historical review packet
 - `high-level-plan.md` — original short plan, retained for history
 - `commerce-vs-x402-merchants.md` — merchant-facing positioning note
+- `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md` — commerce docs and support runbook index
 
 ### Commerce package (current code)
 
