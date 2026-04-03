@@ -5,5 +5,6 @@ export default defineConfig({
 	format: ["esm"],
 	dts: true,
 	clean: true,
+	inlineOnly: false,
 	external: ["astro:middleware", "virtual:x402/config"],
 });
