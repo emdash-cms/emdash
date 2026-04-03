@@ -55,16 +55,6 @@ let runtimeInitializing = false;
 let i18nInitialized = false;
 
 /**
- * Whether we've verified the database has been set up.
- * On a fresh deployment the first request may hit a public page, bypassing
- * runtime init. Without this check, template helpers like getSiteSettings()
- * would query an empty database and crash. Once verified (or once the runtime
- * has initialized via an admin/API request), this stays true for the worker's
- * lifetime.
- */
-let setupVerified = false;
-
-/**
  * Get EmDash configuration from virtual module
  */
 function getConfig(): EmDashConfig | null {
@@ -175,22 +165,8 @@ function setBaselineSecurityHeaders(response: Response): void {
 	}
 }
 
-/** Public routes that require the runtime (sitemap, robots.txt, etc.) */
-const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-
 export const onRequest = defineMiddleware(async (context, next) => {
-	const { request, locals, cookies } = context;
-	const url = context.url;
-
-	// Process /_emdash routes and public routes with an active session
-	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
-	const isEmDashRoute = url.pathname.startsWith("/_emdash");
-	const isPublicRuntimeRoute = PUBLIC_RUNTIME_ROUTES.has(url.pathname);
-
-	// Check for edit mode cookie - editors viewing public pages need the runtime
-	// so auth middleware can verify their session for visual editing
-	const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
-	const hasPreviewToken = url.searchParams.has("_preview");
+	const { request, locals } = context;
 
 	const config = getConfig();
 	if (!config) {
@@ -210,9 +186,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		try {
 			// Get or create runtime
 			const runtime = await getRuntime(config);
-
-			// Runtime init runs migrations, so the DB is guaranteed set up
-			setupVerified = true;
 
 			// Get manifest (cached after first call)
 			const manifest = await runtime.getManifest();
