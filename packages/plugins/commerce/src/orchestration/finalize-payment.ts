@@ -75,8 +75,8 @@ export type FinalizeWebhookInput = {
 	providerId: string;
 	externalEventId: string;
 	correlationId: string;
-	/** Required when `StoredOrder.finalizeTokenHash` is set. */
-	finalizeToken?: string;
+	/** Required for all orders. */
+	finalizeToken: string;
 	/** Inject clock in tests. */
 	nowIso?: string;
 };
@@ -221,7 +221,6 @@ async function verifyFinalizeToken(
 	token: string | undefined,
 ): Promise<FinalizeWebhookResult | null> {
 	const expected = order.finalizeTokenHash;
-	if (!expected) return null;
 	if (!token) {
 		return {
 			kind: "api_error",

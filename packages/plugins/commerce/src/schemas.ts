@@ -45,7 +45,7 @@ export const cartUpsertInputSchema = z.object({
 			`Cart must not exceed ${COMMERCE_LIMITS.maxCartLineItems} line items`,
 		),
 	/**
-	 * Required when mutating an existing cart (i.e. the cart already has an ownerTokenHash).
+	 * Required when mutating an existing cart.
 	 * Absent on first creation — the server issues a fresh token and returns it once.
 	 */
 	ownerToken: z.string().min(16).max(256).optional(),
@@ -56,10 +56,9 @@ export type CartUpsertInput = z.infer<typeof cartUpsertInputSchema>;
 export const cartGetInputSchema = z.object({
 	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	/**
-	 * Required when the cart has `ownerTokenHash` (same secret returned once from `cart/upsert`).
-	 * Omitted for legacy carts that have not been migrated yet.
+	 * Required to prove ownership for reads.
 	 */
-	ownerToken: z.string().min(16).max(256).optional(),
+	ownerToken: z.string().min(16).max(256),
 });
 
 export type CartGetInput = z.infer<typeof cartGetInputSchema>;
@@ -69,21 +68,19 @@ export const checkoutInputSchema = z.object({
 	/** Optional when `Idempotency-Key` header is set. */
 	idempotencyKey: z.string().optional(),
 	/**
-	 * Required when the cart has `ownerTokenHash` (same value as `cart/get` and `cart/upsert`).
-	 * Omitted for legacy carts not yet migrated.
+	 * Required for checkout to verify cart ownership.
 	 */
-	ownerToken: z.string().min(16).max(256).optional(),
+	ownerToken: z.string().min(16).max(256),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutInputSchema>;
 
 /**
  * Possession proof for order read: must match checkout's `finalizeToken` for this `orderId`.
- * Optional in schema; handler rejects missing/invalid token (and legacy orders without a hash).
  */
 export const checkoutGetOrderInputSchema = z.object({
 	orderId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
-	finalizeToken: z.string().min(16).max(256).optional(),
+	finalizeToken: z.string().min(16).max(256),
 });
 
 export type CheckoutGetOrderInput = z.infer<typeof checkoutGetOrderInputSchema>;
@@ -95,9 +92,8 @@ export const stripeWebhookInputSchema = z.object({
 	correlationId: z.string().min(1).max(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
 	/**
 	 * Must match the secret returned from `checkout` (also embedded in gateway metadata).
-	 * Required whenever the order document carries `finalizeTokenHash`.
 	 */
-	finalizeToken: z.string().min(16).max(256).optional(),
+	finalizeToken: z.string().min(16).max(256),
 });
 
 export type StripeWebhookInput = z.infer<typeof stripeWebhookInputSchema>;

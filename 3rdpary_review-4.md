@@ -1,5 +1,10 @@
 # Third-Party Evaluation Brief — Commerce Finalize Hardening (Option A execution)
 
+> Historical review packet (Option A). Canonical current entrypoint is:
+> - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+> - `external_review.md`
+> - `SHARE_WITH_REVIEWER.md`
+
 ## Executive summary
 
 This review package covers the Option A hardening pass for the EmDash Commerce plugin, focused on webhook-driven payment finalize integrity.  

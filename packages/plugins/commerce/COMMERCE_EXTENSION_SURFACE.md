@@ -95,8 +95,8 @@ If you regularly see sustained saturation even after these knobs:
 
 ### Environment adapter checklist for `queryFinalizationState`
 
-For EmDash integrations (Next.js route handlers, Firebase HTTPS functions, or any
-custom host), adapter code should preserve the shared semantics by passing a
+For EmDash-native integrations (HTTP routes, cron workers, and any EmDash-hosted
+tooling surface), adapter code should preserve the shared semantics by passing a
 single coherent `RouteContext` into the seam:
 
 - Build a stable `Request` object and set `request.method` explicitly (the seam

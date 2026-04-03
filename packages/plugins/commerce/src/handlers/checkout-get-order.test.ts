@@ -40,6 +40,7 @@ describe("checkoutGetOrderHandler", () => {
 		cartId: "cart_1",
 		paymentPhase: "payment_pending",
 		currency: "USD",
+		finalizeTokenHash: "placeholder-finalize-token-hash",
 		lineItems: [
 			{
 				productId: "p1",
@@ -89,15 +90,4 @@ describe("checkoutGetOrderHandler", () => {
 		).rejects.toMatchObject({ code: "order_token_required" });
 	});
 
-	it("does not expose legacy orders without finalizeTokenHash (orderId alone is insufficient)", async () => {
-		const orderId = "ord_legacy";
-		const order: StoredOrder = { ...orderBase };
-		const mem = new MemCollImpl(new Map([[orderId, order]]));
-		await expect(
-			checkoutGetOrderHandler({
-				...ctxFor(orderId),
-				storage: { orders: mem },
-			} as unknown as RouteContext<CheckoutGetOrderInput>),
-		).rejects.toMatchObject({ code: "order_not_found" });
-	});
 });

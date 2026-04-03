@@ -1,5 +1,10 @@
 # Third-party technical review (round 2) — EmDash-native commerce
 
+> Historical review packet (round 2). Current canonical review entrypoint is:
+> - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+> - `external_review.md`
+> - `SHARE_WITH_REVIEWER.md`
+
 **Document purpose:** Give an external developer enough context to assess whether the **EmDash e-commerce / cart plugin** program is on a sound, optimal path **after** architecture hardening, a first internal review, platform alignment notes, and a small **kernel code** scaffold—not just paper design.
 
 **How to use this file:** Read §1–3, then the files listed in **§4 Review bundle** (inside `latest-code_2.zip`) in order. Answer **§5** with concrete risks, alternatives, and section references.

@@ -1,3 +1,8 @@
 # External developer review — pointer
 
-The full briefing for reviewers is **[`externa_review.md`](./externa_review.md)** (handoff filename). Regenerating **`commerce-plugin-external-review.zip`** copies every repo `*.md` (see §8 there) plus the commerce plugin sources; zip files are not included in the bundle.
+The full briefing for reviewers is **[`external_review.md`](./external_review.md)**.  
+
+Use `@THIRD_PARTY_REVIEW_PACKAGE.md` as the canonical entrypoint.
+
+Regenerating **`commerce-plugin-external-review.zip`** copies the canonical review
+packets plus the commerce plugin sources. Zip files are not included in the bundle.

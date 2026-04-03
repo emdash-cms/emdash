@@ -5,15 +5,19 @@ import type { StoredCart } from "../types.js";
 export type CartOwnerTokenOperation = "read" | "mutate" | "checkout";
 
 /**
- * When `ownerTokenHash` is set, the raw `ownerToken` must be presented and match.
- * Legacy carts without a hash skip this check (readable/mutable/checkoutable until migrated).
+ * The raw `ownerToken` must be presented and match `ownerTokenHash` for all carts.
  */
 export async function assertCartOwnerToken(
 	cart: StoredCart,
 	ownerToken: string | undefined,
 	op: CartOwnerTokenOperation,
 ): Promise<void> {
-	if (!cart.ownerTokenHash) return;
+	if (!cart.ownerTokenHash) {
+		throwCommerceApiError({
+			code: "CART_TOKEN_REQUIRED",
+			message: "Cart ownership token is required but not configured",
+		});
+	}
 
 	const presented = ownerToken?.trim();
 	if (!presented) {

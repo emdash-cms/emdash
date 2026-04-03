@@ -1,5 +1,20 @@
 # EmDash Ecommerce/Cart Plugin — High-Level Plan
 
+## Current status (2026-04-03)
+
+### Implemented and validated
+
+- Stage-1 kernel route set exists for carts, checkout, secure order readback, and Stripe webhook entry (`packages/plugins/commerce`).
+- Token-based possession and idempotency semantics are enforced and covered by tests.
+- Inventory ledgering, payment finalization bookkeeping, and webhook replay/conflict behavior are implemented.
+- Core contract surfaces and route handlers are in place and passing full package test + typecheck.
+
+### In progress / deferred
+
+- EmDash-native storefront/admin extensions are the next growth area after kernel hardening.
+- taxes/shipping/discounts, fulfillment abstractions, and broad storefront feature coverage remain out-of-scope for v1.
+- multiple gateway comparison remains intentionally deferred until the first vertical slice is stable.
+
 ## 1) Recommended architecture
 
 Implement this as a **trusted plugin** initially.

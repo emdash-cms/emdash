@@ -56,6 +56,9 @@ class MemKv {
 	}
 }
 
+type CartGetInputForTest = Omit<CartGetInput, "ownerToken"> & { ownerToken?: string };
+type CheckoutInputForTest = Omit<CheckoutInput, "ownerToken"> & { ownerToken?: string };
+
 function upsertCtx(
 	input: CartUpsertInput,
 	carts: MemColl<StoredCart>,
@@ -70,10 +73,13 @@ function upsertCtx(
 	} as unknown as RouteContext<CartUpsertInput>;
 }
 
-function getCtx(input: CartGetInput, carts: MemColl<StoredCart>): RouteContext<CartGetInput> {
+function getCtx(input: CartGetInputForTest, carts: MemColl<StoredCart>): RouteContext<CartGetInput> {
 	return {
 		request: new Request("https://example.test/cart/get", { method: "POST" }),
-		input,
+		input: {
+			cartId: input.cartId,
+			...(input.ownerToken !== undefined ? { ownerToken: input.ownerToken } : {}),
+		},
 		storage: { carts },
 		requestMeta: { ip: "127.0.0.1" },
 		kv: new MemKv(),
@@ -81,7 +87,7 @@ function getCtx(input: CartGetInput, carts: MemColl<StoredCart>): RouteContext<C
 }
 
 function checkoutCtx(
-	input: CheckoutInput,
+	input: CheckoutInputForTest,
 	carts: MemColl<StoredCart>,
 	orders: MemColl<StoredOrder>,
 	paymentAttempts: MemColl<StoredPaymentAttempt>,
@@ -94,7 +100,11 @@ function checkoutCtx(
 			method: "POST",
 			headers: new Headers({ "Idempotency-Key": input.idempotencyKey ?? "" }),
 		}),
-		input,
+		input: {
+			cartId: input.cartId,
+			idempotencyKey: input.idempotencyKey,
+			...(input.ownerToken !== undefined ? { ownerToken: input.ownerToken } : {}),
+		},
 		storage: { carts, orders, paymentAttempts, idempotencyKeys, inventoryStock },
 		requestMeta: { ip: "127.0.0.1" },
 		kv,
@@ -195,63 +205,6 @@ describe("cartUpsertHandler", () => {
 
 		expect(second.ownerToken).toBeUndefined();
 		expect(second.lineItemCount).toBe(2);
-	});
-
-	it("migrates legacy carts and returns a token when one was not provided", async () => {
-		const carts = new MemColl<StoredCart>();
-		const kv = new MemKv();
-		carts.rows.set("legacy", {
-			currency: "USD",
-			lineItems: [LINE],
-			createdAt: "2026-04-03T12:00:00.000Z",
-			updatedAt: "2026-04-03T12:00:00.000Z",
-		});
-
-		const result = await cartUpsertHandler(
-			upsertCtx(
-				{
-					cartId: "legacy",
-					currency: "USD",
-					lineItems: [{ ...LINE, quantity: 2 }],
-				},
-				carts,
-				kv,
-			),
-		);
-
-		expect(result.ownerToken).toBeDefined();
-		const stored = await carts.get("legacy");
-		expect(stored!.ownerTokenHash).toBe(await sha256HexAsync(result.ownerToken!));
-		expect(stored!.updatedAt).toBeDefined();
-	});
-
-	it("accepts a caller-provided token when migrating a legacy cart", async () => {
-		const carts = new MemColl<StoredCart>();
-		const kv = new MemKv();
-		carts.rows.set("legacy-existing", {
-			currency: "USD",
-			lineItems: [LINE],
-			createdAt: "2026-04-03T12:00:00.000Z",
-			updatedAt: "2026-04-03T12:00:00.000Z",
-		});
-
-		const ownerToken = "legacy-migration-token-1234567890";
-		const result = await cartUpsertHandler(
-			upsertCtx(
-				{
-					cartId: "legacy-existing",
-					currency: "USD",
-					lineItems: [LINE],
-					ownerToken,
-				},
-				carts,
-				kv,
-			),
-		);
-
-		expect(result.ownerToken).toBeUndefined();
-		const stored = await carts.get("legacy-existing");
-		expect(stored!.ownerTokenHash).toBe(await sha256HexAsync(ownerToken));
 	});
 
 	it("rejects mutation without ownerToken when cart has one", async () => {
@@ -361,6 +314,7 @@ describe("cartGetHandler", () => {
 		await carts.put("g_method", {
 			currency: "USD",
 			lineItems: [LINE],
+		ownerTokenHash: "owner-hash-method",
 			createdAt: "2026-04-03T12:00:00.000Z",
 			updatedAt: "2026-04-03T12:00:00.000Z",
 		});
@@ -437,20 +391,6 @@ describe("cartGetHandler", () => {
 		).rejects.toMatchObject({ code: "cart_token_invalid" });
 	});
 
-	it("allows read of legacy cart without ownerToken until migrated", async () => {
-		const carts = new MemColl<StoredCart>();
-		carts.rows.set("legacy-read", {
-			currency: "USD",
-			lineItems: [LINE],
-			createdAt: "2026-04-03T12:00:00.000Z",
-			updatedAt: "2026-04-03T12:00:00.000Z",
-		});
-
-		const result = await cartGetHandler(getCtx({ cartId: "legacy-read" }, carts));
-
-		expect(result.cartId).toBe("legacy-read");
-		expect(result.lineItems).toHaveLength(1);
-	});
 });
 
 // ---------------------------------------------------------------------------
@@ -599,4 +539,5 @@ describe("cart → checkout integration chain", () => {
 		expect(orders.rows.size).toBe(1);
 		expect(paymentAttempts.rows.size).toBe(1);
 	});
+
 });

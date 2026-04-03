@@ -127,6 +127,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const cartId = "cart_1";
 		const idempotencyKey = "idem-key-strong-16";
 		const now = "2026-04-02T12:00:00.000Z";
+	const ownerToken = "owner-token-for-idempotent-retry";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [
@@ -137,6 +138,7 @@ describe("checkout idempotency persistence recovery", () => {
 					unitPriceMinor: 500,
 				},
 			],
+		ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -173,6 +175,7 @@ describe("checkout idempotency persistence recovery", () => {
 			kv,
 			idempotencyKey,
 			cartId,
+			ownerToken,
 		});
 
 		await expect(checkoutHandler(failingCtx)).rejects.toThrow(
@@ -193,6 +196,7 @@ describe("checkout idempotency persistence recovery", () => {
 			kv,
 			idempotencyKey,
 			cartId,
+			ownerToken,
 		});
 		const secondResult = await checkoutHandler(retryCtx);
 
@@ -210,6 +214,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const cartId = "cart_2";
 		const idempotencyKey = "idem-key-strong-2";
 		const now = "2026-04-02T12:00:00.000Z";
+	const ownerToken = "owner-token-for-idempotent-replay";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [
@@ -220,6 +225,7 @@ describe("checkout idempotency persistence recovery", () => {
 					unitPriceMinor: 200,
 				},
 			],
+		ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -252,6 +258,7 @@ describe("checkout idempotency persistence recovery", () => {
 			kv,
 			idempotencyKey,
 			cartId,
+			ownerToken,
 		});
 
 		const first = await checkoutHandler(baseCtx);
@@ -385,45 +392,6 @@ describe("checkout idempotency persistence recovery", () => {
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "cart_token_invalid" });
 	});
 
-	it("allows checkout without ownerToken for legacy cart without ownerTokenHash", async () => {
-		const cartId = "cart_legacy_co";
-		const idempotencyKey = "idem-key-legacy-16";
-		const now = "2026-04-02T12:00:00.000Z";
-		const cart: StoredCart = {
-			currency: "USD",
-			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
-			createdAt: now,
-			updatedAt: now,
-		};
-
-		const ctx = contextFor({
-			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
-			orders: new MemColl<StoredOrder>(),
-			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
-			carts: new MemColl(new Map([[cartId, cart]])),
-			inventoryStock: new MemColl(
-				new Map([
-					[
-						inventoryStockDocId("p1", ""),
-						{
-							productId: "p1",
-							variantId: "",
-							version: 1,
-							quantity: 10,
-							updatedAt: now,
-						},
-					],
-				]),
-			),
-			kv: new MemKv(),
-			idempotencyKey,
-			cartId,
-		});
-
-		const out = await checkoutHandler(ctx);
-		expect(out.paymentPhase).toBe("payment_pending");
-		expect(out.currency).toBe("USD");
-	});
 });
 
 describe("checkout route guardrails", () => {
@@ -435,9 +403,11 @@ describe("checkout route guardrails", () => {
 	it("requires POST method", async () => {
 		const cartId = "cart_method";
 		const now = "2026-04-02T12:00:00.000Z";
+		const ownerToken = "owner-token-method-123456";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -452,6 +422,7 @@ describe("checkout route guardrails", () => {
 			idempotencyKey: "idem-key-strong-16",
 			cartId,
 			requestMethod: "GET",
+			ownerToken,
 		});
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
 	});
@@ -459,6 +430,7 @@ describe("checkout route guardrails", () => {
 	it("validates cart content bounds before processing", async () => {
 		const cartId = "cart_caps";
 		const now = "2026-04-02T12:00:00.000Z";
+		const ownerToken = "owner-token-bounds";
 		const tooMany = Array.from({ length: COMMERCE_LIMITS.maxCartLineItems + 1 }, (_, i) => ({
 			productId: `p-${i}`,
 			quantity: 1,
@@ -477,6 +449,7 @@ describe("checkout route guardrails", () => {
 						{
 							currency: "USD",
 							lineItems: tooMany,
+						ownerTokenHash: await sha256HexAsync(ownerToken),
 							createdAt: now,
 							updatedAt: now,
 						},
@@ -487,6 +460,7 @@ describe("checkout route guardrails", () => {
 			kv: new MemKv(),
 			idempotencyKey: "idem-key-strong-17",
 			cartId,
+			ownerToken,
 		});
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "payload_too_large" });
 	});
@@ -494,9 +468,11 @@ describe("checkout route guardrails", () => {
 	it("blocks checkout when rate limit is exceeded", async () => {
 		const cartId = "cart_rate";
 		const now = "2026-04-02T12:00:00.000Z";
+		const ownerToken = "owner-token-rate-limit";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -511,6 +487,7 @@ describe("checkout route guardrails", () => {
 			kv: new MemKv(),
 			idempotencyKey,
 			cartId,
+			ownerToken,
 		});
 
 		consumeKvRateLimit.mockResolvedValueOnce(false);
@@ -521,9 +498,11 @@ describe("checkout route guardrails", () => {
 	it("rejects mismatched header/body idempotency input", async () => {
 		const cartId = "cart_conflict";
 		const now = "2026-04-02T12:00:00.000Z";
+		const ownerToken = "owner-token-conflict";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 1, unitPriceMinor: 100 }],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};

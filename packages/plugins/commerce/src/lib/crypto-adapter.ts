@@ -16,6 +16,16 @@ const subtle: SubtleCrypto | undefined =
 		? (globalThis as { crypto: Crypto }).crypto.subtle
 		: undefined;
 
+type NodeCryptoModule = typeof import("node:crypto");
+let nodeCryptoModulePromise: Promise<NodeCryptoModule | null> | null = null;
+
+async function nodeCryptoModule(): Promise<NodeCryptoModule | null> {
+	if (!nodeCryptoModulePromise) {
+		nodeCryptoModulePromise = import("node:crypto").catch(() => null);
+	}
+	return nodeCryptoModulePromise;
+}
+
 // ---------------------------------------------------------------------------
 // SHA-256 hex digest
 // ---------------------------------------------------------------------------
@@ -26,11 +36,12 @@ async function sha256HexWebCrypto(input: string): Promise<string> {
 	return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function sha256HexNode(input: string): string {
-	// Dynamic require so bundlers targeting Workers can tree-shake this branch.
-	// eslint-disable-next-line @typescript-eslint/no-require-imports
-	const { createHash } = require("node:crypto") as typeof import("node:crypto");
-	return createHash("sha256").update(input, "utf8").digest("hex");
+async function sha256HexNode(input: string): Promise<string> {
+	const nodeCrypto = await nodeCryptoModule();
+	if (!nodeCrypto) {
+		throw new Error("Node crypto module unavailable for SHA-256 fallback");
+	}
+	return nodeCrypto.createHash("sha256").update(input, "utf8").digest("hex");
 }
 
 export async function sha256HexAsync(input: string): Promise<string> {
@@ -59,12 +70,12 @@ async function equalSha256HexDigestWebCrypto(a: string, b: string): Promise<bool
 	return diff === 0;
 }
 
-function equalSha256HexDigestNode(a: string, b: string): boolean {
+async function equalSha256HexDigestNode(a: string, b: string): Promise<boolean> {
 	if (a.length !== 64 || b.length !== 64) return false;
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { timingSafeEqual } = require("node:crypto") as typeof import("node:crypto");
-		return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+		const nodeCrypto = await nodeCryptoModule();
+		if (!nodeCrypto) return false;
+		return nodeCrypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 	} catch {
 		return false;
 	}
@@ -79,7 +90,7 @@ export async function equalSha256HexDigestAsync(a: string, b: string): Promise<b
 // Random bytes → hex string
 // ---------------------------------------------------------------------------
 
-export function randomHex(byteLength = 24): string {
+export async function randomHex(byteLength = 24): Promise<string> {
 	const buf = new Uint8Array(byteLength);
 	if (
 		typeof globalThis !== "undefined" &&
@@ -87,9 +98,11 @@ export function randomHex(byteLength = 24): string {
 	) {
 		(globalThis as { crypto: Crypto }).crypto.getRandomValues(buf);
 	} else {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { randomBytes } = require("node:crypto") as typeof import("node:crypto");
-		const nodeBuf = randomBytes(byteLength);
+		const nodeCrypto = await nodeCryptoModule();
+		if (!nodeCrypto) {
+			throw new Error("Node crypto module unavailable for random fallback");
+		}
+		const nodeBuf = nodeCrypto.randomBytes(byteLength);
 		buf.set(nodeBuf);
 	}
 	return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -112,10 +125,12 @@ async function hmacSha256HexWebCrypto(secret: string, message: string): Promise<
 	return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function hmacSha256HexNode(secret: string, message: string): string {
-	// eslint-disable-next-line @typescript-eslint/no-require-imports
-	const { createHmac } = require("node:crypto") as typeof import("node:crypto");
-	return createHmac("sha256", secret).update(message).digest("hex");
+async function hmacSha256HexNode(secret: string, message: string): Promise<string> {
+	const nodeCrypto = await nodeCryptoModule();
+	if (!nodeCrypto) {
+		throw new Error("Node crypto module unavailable for HMAC fallback");
+	}
+	return nodeCrypto.createHmac("sha256", secret).update(message).digest("hex");
 }
 
 export async function hmacSha256HexAsync(secret: string, message: string): Promise<string> {
@@ -140,9 +155,9 @@ export async function constantTimeEqualHexAsync(a: string, b: string): Promise<b
 		return diff === 0;
 	}
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { timingSafeEqual } = require("node:crypto") as typeof import("node:crypto");
-		return timingSafeEqual(Buffer.from(aBytes), Buffer.from(bBytes));
+		const nodeCrypto = await nodeCryptoModule();
+		if (!nodeCrypto) return false;
+		return nodeCrypto.timingSafeEqual(Buffer.from(aBytes), Buffer.from(bBytes));
 	} catch {
 		return false;
 	}

@@ -1,5 +1,10 @@
 # 3rd Party Technical Review Request Pack
 
+> Historical review packet. For the current external review entrypoint, use:
+> - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+> - `external_review.md`
+> - `SHARE_WITH_REVIEWER.md`
+
 ## Executive Summary
 
 This workspace is implementing a first-party **EmDash commerce plugin** as a correctness-first, kernel-centric slice before broader platform expansion. The objective is to avoid the complexity and fragility that comes with external CMS integrations (for example WooCommerce parity work) by owning the commerce core in EmDash with a provider-first abstraction that supports a pragmatic path to additional providers.

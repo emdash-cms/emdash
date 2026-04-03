@@ -303,7 +303,7 @@ export async function checkoutHandler(
 	const totalMinor = orderLineItems.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
 	const orderId = deterministicOrderId(keyHash);
 
-	const finalizeToken = randomHex(24);
+	const finalizeToken = await randomHex(24);
 	const finalizeTokenHash = await sha256HexAsync(finalizeToken);
 
 	const order: StoredOrder = {

@@ -46,7 +46,7 @@ export type CartUpsertResponse = {
 	lineItemCount: number;
 	updatedAt: string;
 	/**
-	 * Present on first creation and returned when a legacy cart is migrated.
+	 * Present on first creation for newly provisioned carts.
 	 * The caller must store this token — it is never returned again.
 	 * Required for all subsequent mutations.
 	 */
@@ -64,35 +64,22 @@ export async function cartUpsertHandler(
 	const carts = asCollection<StoredCart>(ctx.storage.carts);
 	const existing = await carts.get(ctx.input.cartId);
 	let ownerToken: string | undefined;
-	let ownerTokenHash: string | undefined = existing?.ownerTokenHash;
+	let ownerTokenHash: string;
 
 	if (existing) {
 		await assertCartOwnerToken(existing, ctx.input.ownerToken, "mutate");
-	}
-
-	// --- Legacy migration ---
-	// Existing carts without an ownerTokenHash are legacy carts; this migration
-	// binds future mutations to an owner token, either provided by the caller or
-	// generated and returned.
-	const isLegacy = existing !== null && existing.ownerTokenHash === undefined;
-	const rateLimitByCartId = !existing || (isLegacy && !ctx.input.ownerToken);
-	if (!existing) {
-		ownerToken = randomHex(24);
+		ownerTokenHash = existing.ownerTokenHash;
+	} else {
+		ownerToken = await randomHex(24);
 		ownerTokenHash = await sha256HexAsync(ownerToken);
-	} else if (isLegacy) {
-		if (ctx.input.ownerToken) {
-			ownerTokenHash = await sha256HexAsync(ctx.input.ownerToken);
-		} else {
-			ownerToken = randomHex(24);
-			ownerTokenHash = await sha256HexAsync(ownerToken);
-		}
 	}
 
 	// --- Rate limit: keyed by cartId for first-time/new carts, token hash thereafter ---
+	const rateLimitByCartId = !existing;
 	const cartIdHash = await sha256HexAsync(ctx.input.cartId);
 	const rateLimitKey = rateLimitByCartId
 		? `cart:id:${cartIdHash.slice(0, 32)}`
-		: `cart:token:${ownerTokenHash!.slice(0, 32)}`;
+		: `cart:token:${ownerTokenHash.slice(0, 32)}`;
 
 	const allowed = await consumeKvRateLimit({
 		kv: ctx.kv,

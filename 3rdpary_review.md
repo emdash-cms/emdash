@@ -1,6 +1,10 @@
 # Third-party technical review — EmDash-native commerce plugin
 
 > Historical review packet. Superseded by `3rdpary_review_2.md` for the current project state.
+> Canonical current review path:
+> - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+> - `external_review.md`
+> - `SHARE_WITH_REVIEWER.md`
 
 **Document purpose:** Give an external developer enough context to judge whether the proposed **e-commerce / cart plugin for [EmDash CMS](https://github.com/emdash-cms/emdash)** is on a sound, optimal path—especially regarding extensibility, platform fit, and operational risk—**before** substantial implementation begins.
 

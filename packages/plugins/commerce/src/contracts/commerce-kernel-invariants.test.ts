@@ -29,6 +29,7 @@ function makeCollections() {
 		paymentPhase: "paid",
 		currency: "USD",
 		lineItems: [],
+		finalizeTokenHash: "placeholder-finalize-token-hash",
 		totalMinor: 1000,
 		createdAt: "2026-04-03T12:00:00.000Z",
 		updatedAt: "2026-04-03T12:00:00.000Z",

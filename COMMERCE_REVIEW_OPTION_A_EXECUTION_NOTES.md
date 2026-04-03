@@ -3,7 +3,8 @@
 This document is archived historical context for **Option A** execution.
 Use the current canonical packet in:
 
-- `README_REVIEW.md`
-- `externa_review.md`
+- `@THIRD_PARTY_REVIEW_PACKAGE.md`
+- `external_review.md`
+- `HANDOVER.md`
 - `3rd-party-checklist.md`
 - `packages/plugins/commerce/FINALIZATION_REVIEW_AUDIT.md`

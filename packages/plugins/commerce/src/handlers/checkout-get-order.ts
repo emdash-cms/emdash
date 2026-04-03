@@ -1,8 +1,7 @@
 /**
  * Read-only order snapshot for storefront SSR (Astro) and form posts.
- * Every order must carry `finalizeTokenHash` (checkout always sets it); the raw
- * `finalizeToken` from checkout must be supplied — `orderId` alone is never sufficient.
- * Legacy rows without a hash are not exposed (404) so IDs cannot be enumerated.
+ * Every order carries `finalizeTokenHash` (checkout always sets it), and callers
+ * must present the raw `finalizeToken` to read it.
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -39,7 +38,7 @@ export async function checkoutGetOrderHandler(
 
 	const expectedHash = order.finalizeTokenHash;
 	if (!expectedHash) {
-		throwCommerceApiError({ code: "ORDER_NOT_FOUND", message: "Order not found" });
+		throwCommerceApiError({ code: "ORDER_NOT_FOUND", message: "Order token missing from storage" });
 	}
 
 	const token = ctx.input.finalizeToken?.trim();

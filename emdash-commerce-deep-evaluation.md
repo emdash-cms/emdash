@@ -13,9 +13,33 @@ I reviewed the current project bundle, including:
 - `packages/plugins/forms/*` reference files
 - `packages/plugins/commerce/*` current kernel scaffold and tests
 
+## Current status update (2026-04-03)
+
+The codebase has now moved from architecture-only recommendation to a validated v1 kernel slice:
+
+- core handlers and finalize path are implemented and covered by passing package tests,
+- idempotency, webhook replay, and inventory ledger behavior are in place,
+- token-guarded possession is strict for cart and order access,
+- zero-legacy strict token contracts are now enforced in typed domain models,
+- and full suite checks are green at package and workspace level.
+
+Design decisions locked since the original review:
+
+- keep the kernel narrow and correctness-first,
+- prefer local provider adapters over internal HTTP delegation for v1,
+- keep one authoritative finalization path, and
+- defer broad feature breadth (shipping/tax/discounts/adaptive bundles) until after first slice correctness is proven.
+
 ---
 
 ## Executive verdict
+
+> **Note:** The material that follows reflects the historical deep review snapshot.
+> The latest project posture is captured in:
+> - `Current status update (2026-04-03)` above
+> - `emdash-commerce-final-review-plan.md`
+> - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+> - `external_review.md`.
 
 The project is **architecturally promising and materially better than a WooCommerce-style clone**, but it is **still not yet a validated commerce system**. Today it is best described as:
 
@@ -109,18 +133,18 @@ The architecture may be right. It may also still contain hidden awkwardness that
 These are not fatal, but they are signals.
 
 ### A. Error-code naming is inconsistent
-The architecture document says error codes should be stable **snake_case strings**, but `src/kernel/errors.ts` currently exports uppercase constant keys like:
+At the time of this historical evaluation pass, the architecture document said error codes should be stable **snake_case strings**, but `src/kernel/errors.ts` exported uppercase internal keys.
 
 - `WEBHOOK_REPLAY_DETECTED`
 - `PAYMENT_ALREADY_PROCESSED`
 - `ORDER_STATE_CONFLICT`
 
-That mismatch should be corrected now, before error semantics escape into handlers, tests, and clients.
+That mismatch was corrected in the later zero-legacy hardening pass; subsequent sections and current runbooks track the updated status.
 
 ### B. Rate-limit terminology is inconsistent
 The architecture talks about **KV sliding-window** rate limits, but `rate-limit-window.ts` implements a **fixed-window counter**.
 
-A fixed window may be perfectly acceptable for v1. But the docs and code should agree. If fixed-window is the intended behavior, say so. If sliding-window is required, the helper must change.
+A fixed window may be perfectly acceptable for v1. In the current pass, this behavior is treated as explicit and documented in the runtime and review notes.
 
 ### C. Finalization logic is still narrower than the architecture promises
 `decidePaymentFinalize()` is useful, but it is still just a minimal guard. It does not yet embody the full architecture around:
@@ -133,7 +157,7 @@ A fixed window may be perfectly acceptable for v1. But the docs and code should 
 - conflict escalation path
 - refund/void decision coupling
 
-That is normal for an early scaffold, but it means the hardest logic is still ahead.
+That was normal for an early scaffold, but the hard logic path has now moved forward into the verified v1 kernel path and the zero-legacy progress updates.
 
 ## 3. The system has not yet proven its storage mutation model
 

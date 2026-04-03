@@ -11,9 +11,7 @@ rsync -a --exclude 'node_modules' --exclude '.vite' \
   packages/plugins/commerce/ .review-staging/packages/plugins/commerce/
 
 REVIEW_FILES=(
-  "README_REVIEW.md"
   "@THIRD_PARTY_REVIEW_PACKAGE.md"
-  "externa_review.md"
   "external_review.md"
   "HANDOVER.md"
   "commerce-plugin-architecture.md"

@@ -12,6 +12,30 @@ This document is the final direction for the EmDash commerce project after revie
 
 It is written as a practical handoff for the current developer. The goal is not to restart the project. The goal is to sharpen the foundation now, before implementation choices calcify.
 
+## Progress checkpoint (2026-04-03)
+
+### What has been completed since this direction was defined
+
+- `packages/plugins/commerce/src` now includes a closed-loop payment finalization path with:
+  - webhook dedupe receipts
+  - payment attempt persistence
+  - inventory version checks
+  - ledger writes
+  - idempotent completion and replay responses
+- Possession is enforced for cart reads/mutations (`ownerToken` + hash) and order readback (`finalizeToken` + hash).
+- Legacy compatibility paths are removed from active runtime flows; token hashes are required in stored domain types.
+- Package checks are currently green:
+  - `pnpm --filter @emdash-cms/plugin-commerce test`
+  - `pnpm --filter @emdash-cms/plugin-commerce typecheck`
+  - `pnpm test` for the workspace
+
+### What remains intentionally deferred
+
+- broader provider abstraction (one provider path remains v1 target),
+- taxes/shipping/discount breadth,
+- MCP surfaces and broader AI tooling,
+- advanced bundle/product abstractions beyond minimal v1 scope.
+
 ---
 
 ## Executive verdict

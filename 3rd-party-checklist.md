@@ -1,5 +1,11 @@
 # Third-Party Review Checklist (One-Page)
 
+> This is the historical Option A hardening checklist.
+> For the current external reviewer flow, use:
+> - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+> - `external_review.md`
+> - `SHARE_WITH_REVIEWER.md`
+
 ## Scope and review goal
 
 - Path reviewed: Option A finalize hardening for EmDash Commerce webhooks.
