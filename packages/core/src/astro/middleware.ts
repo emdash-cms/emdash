@@ -222,6 +222,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				}
 			}
 
+			// Initialize the runtime for page:metadata and page:fragments hooks.
+			// The runtime is a cached singleton — after the first request, getRuntime()
+			// is just a null-check. This enables SEO plugins to contribute meta tags,
+			// canonical URLs, robots directives, and JSON-LD schema for all visitors,
+			// not just logged-in editors.
+			const config = getConfig();
+			if (config) {
+				try {
+					const runtime = await getRuntime(config);
+					locals.emdash = {
+						collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+						collectPageFragments: runtime.collectPageFragments.bind(runtime),
+					};
+				} catch {
+					// Non-fatal — EmDashHead will fall back to base SEO contributions
+				}
+			}
+
 			const response = await next();
 			setBaselineSecurityHeaders(response);
 			return response;
