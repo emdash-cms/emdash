@@ -5,7 +5,7 @@ export interface GhostPost {
 	html?: string | null;
 	plaintext?: string | null;
 	feature_image?: string | null;
-	type: "post" | "page" | string;
+	type: string;
 	status?: string | null;
 	locale?: string | null;
 	visibility?: string | null;
@@ -92,7 +92,48 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getArray<T>(value: unknown, label: string, required = false): T[] {
+function hasStringKey(record: Record<string, unknown>, key: string): boolean {
+	return typeof record[key] === "string";
+}
+
+function isGhostPost(value: unknown): value is GhostPost {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "slug") && hasStringKey(value, "type");
+}
+
+function isGhostTag(value: unknown): value is GhostTag {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "name") && hasStringKey(value, "slug");
+}
+
+function isGhostPostTag(value: unknown): value is GhostPostTag {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id") && hasStringKey(value, "tag_id");
+}
+
+function isGhostUser(value: unknown): value is GhostUser {
+	return isRecord(value) && hasStringKey(value, "id");
+}
+
+function isGhostPostAuthor(value: unknown): value is GhostPostAuthor {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id") && hasStringKey(value, "author_id");
+}
+
+function isGhostSetting(value: unknown): value is GhostSetting {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "key");
+}
+
+function isGhostPostMeta(value: unknown): value is GhostPostMeta {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id");
+}
+
+function isGhostPostProduct(value: unknown): value is GhostPostProduct {
+	return isRecord(value) && hasStringKey(value, "id") && hasStringKey(value, "post_id") && hasStringKey(value, "product_id");
+}
+
+function getArray<T>(
+	value: unknown,
+	label: string,
+	isItem: (entry: unknown) => entry is T,
+	required = false,
+): T[] {
 	if (value === undefined) {
 		if (required) {
 			throw new Error(`Invalid Ghost export shape: ${label} not found`);
@@ -104,7 +145,15 @@ function getArray<T>(value: unknown, label: string, required = false): T[] {
 		throw new Error(`Invalid Ghost export shape: ${label} must be an array`);
 	}
 
-	return value as T[];
+	const result: T[] = [];
+	for (const entry of value) {
+		if (!isItem(entry)) {
+			throw new Error(`Invalid Ghost export shape: ${label} contains an invalid row`);
+		}
+		result.push(entry);
+	}
+
+	return result;
 }
 
 export function parseGhostExportData(raw: unknown): GhostExportData {
@@ -123,14 +172,14 @@ export function parseGhostExportData(raw: unknown): GhostExportData {
 	}
 
 	return {
-		posts: getArray<GhostPost>(tables.posts, "posts", true),
-		tags: getArray<GhostTag>(tables.tags, "tags"),
-		postTags: getArray<GhostPostTag>(tables.posts_tags, "posts_tags"),
-		users: getArray<GhostUser>(tables.users, "users"),
-		postAuthors: getArray<GhostPostAuthor>(tables.posts_authors, "posts_authors"),
-		settings: getArray<GhostSetting>(tables.settings, "settings"),
-		postsMeta: getArray<GhostPostMeta>(tables.posts_meta, "posts_meta"),
-		postProducts: getArray<GhostPostProduct>(tables.posts_products, "posts_products"),
+		posts: getArray(tables.posts, "posts", isGhostPost, true),
+		tags: getArray(tables.tags, "tags", isGhostTag),
+		postTags: getArray(tables.posts_tags, "posts_tags", isGhostPostTag),
+		users: getArray(tables.users, "users", isGhostUser),
+		postAuthors: getArray(tables.posts_authors, "posts_authors", isGhostPostAuthor),
+		settings: getArray(tables.settings, "settings", isGhostSetting),
+		postsMeta: getArray(tables.posts_meta, "posts_meta", isGhostPostMeta),
+		postProducts: getArray(tables.posts_products, "posts_products", isGhostPostProduct),
 	};
 }
 

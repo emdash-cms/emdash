@@ -145,10 +145,10 @@ export function buildGhostSeedFragment(
 		};
 
 		if (post.type === "page") {
-			content[pageCollection]!.push(seedEntry);
+			content[pageCollection].push(seedEntry);
 		} else if (post.type === "post") {
 			seedEntry.taxonomies = { [tagTaxonomyName]: tagSlugsByPostId.get(post.id) ?? [] };
-			content[postCollection]!.push(seedEntry);
+			content[postCollection].push(seedEntry);
 		}
 	}
 
@@ -162,7 +162,7 @@ export function buildGhostSeedFragment(
 
 	const redirects = uniqueRedirects([
 		...(config.staticRedirects ?? []),
-		...content[postCollection]!.map((entry) => buildPostRedirect(entry.slug, postRoutePrefix)),
+		...content[postCollection].map((entry) => buildPostRedirect(entry.slug, postRoutePrefix)),
 	]);
 
 	return {
