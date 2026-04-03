@@ -9,7 +9,12 @@ jobs:
     name: Format
     if: >-
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/format')
+      github.event.comment.body == '/format' &&
+      (
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
