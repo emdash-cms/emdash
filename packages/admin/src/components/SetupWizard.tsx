@@ -16,6 +16,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../lib/api/client";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
+import { LogoLockup } from "./Logo.js";
 
 // ============================================================================
 // Types
@@ -481,7 +482,7 @@ export function SetupWizard() {
 			<div className="w-full max-w-lg">
 				{/* Header */}
 				<div className="text-center mb-6">
-					<div className="text-4xl font-bold mb-2">— EmDash</div>
+					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && "Set up your site"}
 						{currentStep === "admin" && "Create your account"}
