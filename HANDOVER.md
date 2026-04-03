@@ -91,6 +91,22 @@ Gotchas:
 - `CHANGELOG_REVIEW_NOTES.md`
 - `latest-code_3_review_instructions.md`
 
+## 6) Core lock-down policy (external developer rule)
+
+Do not widen the transaction core by default. Only change finalize/checkout internals when:
+
+- A regression is reproducible (test or production failure), **and**
+- A new test first captures the bug/failure mode, **and**
+- The change is narrowly scoped to that scenario.
+
+When no bug is present, prefer:
+
+- operational hardening (runbooks, comments, naming, diagnostics),
+- validation confidence (targeted tests/types),
+- and documentation alignment.
+
+Do not add abstractions, architecture changes, or cross-scope features (shipping, tax, variants, swatches, bundles) until the current partial-failure and idempotency semantics remain stable under both tests and real incident handling.
+
 ## Next developer execution order
 
 1. Run `pnpm install` at repo root.
