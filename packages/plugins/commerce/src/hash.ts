@@ -2,9 +2,12 @@
  * Synchronous crypto helpers — Node.js only.
  *
  * These functions use `node:crypto` directly and work in Node 15+. They are
- * intentionally kept synchronous so existing call sites do not need to be
- * made async. For Workers / edge runtimes that lack `node:crypto`, use the
- * async equivalents exported from `./lib/crypto-adapter.js` instead:
+ * intentionally kept synchronous for Node-only helpers and tests. Route-path
+ * and webhook-path code must prefer the async runtime adapter in
+ * `./lib/crypto-adapter.js` so Workers / edge runtimes stay portable.
+ *
+ * For Workers / edge runtimes that lack `node:crypto`, use the async
+ * equivalents exported from `./lib/crypto-adapter.js` instead:
  *   - `sha256HexAsync`
  *   - `equalSha256HexDigestAsync`
  *   - `randomHex`

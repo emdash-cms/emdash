@@ -1208,4 +1208,59 @@ describe("finalizePaymentFromWebhook", () => {
 		// write becomes visible — true prevention requires platform-level
 		// insert-if-not-exists or conditional writes (documented residual risk).
 	});
+
+	it("stress: many in-process duplicate same-event finalizations converge on one inventory result", async () => {
+		const orderId = "order_concurrent_many";
+		const extId = "evt_concurrent_many";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_concurrent_many",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const ports = portsFromState(state);
+		const input = {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		};
+
+		const results = await Promise.all(
+			Array.from({ length: 8 }, () => finalizePaymentFromWebhook(ports, input)),
+		);
+		expect(results).toHaveLength(8);
+		for (const result of results) {
+			expect(result).toEqual({ kind: "completed", orderId });
+		}
+
+		const finalStock = await ports.inventoryStock.get(stockDocId);
+		expect(finalStock?.version).toBe(4);
+		expect(finalStock?.quantity).toBe(8);
+
+		const ledger = await ports.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+
+		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("processed");
+	});
 });
