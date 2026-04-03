@@ -15,4 +15,6 @@ export const COMMERCE_LIMITS = {
 	maxWebhookFieldLength: 512,
 	/** Cap on `recommendations` route `limit` query/body field. */
 	maxRecommendationsLimit: 20,
+	/** Max raw webhook payload bytes validated before signature verification. */
+	maxWebhookBodyBytes: 65_536,
 } as const;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createRecommendationsRoute, queryFinalizationState } from "./commerce-extension-seams.js";
+import { webhookReceiptDocId } from "../orchestration/finalize-payment.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -128,7 +129,7 @@ describe("queryFinalizationState", () => {
 		const attempts = new MemCollection(new Map([["a1", paymentAttempt]]));
 		const inventoryLedger = new MemCollection(new Map([["l1", ledgerEntry]]));
 		const inventoryStock = new MemCollection(new Map([["s1", stock]]));
-		const webhookReceipts = new MemCollection(new Map([["r1", receipt]]));
+		const webhookReceipts = new MemCollection(new Map([[webhookReceiptDocId("stripe", "evt_1"), receipt]]));
 
 		const out = await queryFinalizationState(
 			{
