@@ -1,0 +1,14 @@
+{
+	"common.save": "Enregistrer",
+	"common.saving": "Enregistrement…",
+	"common.saved": "Enregistré",
+	"common.cancel": "Annuler",
+	"common.delete": "Supprimer",
+	"common.deleting": "Suppression…",
+	"common.loading": "Chargement…",
+	"common.close": "Fermer",
+	"common.create": "Créer",
+	"common.edit": "Modifier",
+	"common.search": "Rechercher",
+	"common.retry": "Réessayer"
+}
