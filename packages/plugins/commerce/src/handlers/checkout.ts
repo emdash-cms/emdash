@@ -11,6 +11,7 @@ import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
 import { requirePost } from "../lib/require-post.js";
@@ -271,13 +272,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	let orderLineItems: OrderLineItem[];
 	try {
 		orderLineItems = mergeLineItemsBySku(
-			cart.lineItems.map((l) => ({
-				productId: l.productId,
-				variantId: l.variantId,
-				quantity: l.quantity,
-				inventoryVersion: l.inventoryVersion,
-				unitPriceMinor: l.unitPriceMinor,
-			})),
+			projectCartLineItemsForStorage(cart.lineItems),
 		);
 	} catch {
 		throw PluginRouteError.badRequest(

@@ -5,18 +5,9 @@
 
 import type { CartLineItem } from "../types.js";
 import { sha256Hex } from "../hash.js";
+import { projectCartLineItemsForFingerprint } from "./cart-lines.js";
 
 export function cartContentFingerprint(lines: CartLineItem[]): string {
-	const normalized = Array.from(lines, (l) => ({
-			productId: l.productId,
-			variantId: l.variantId ?? "",
-			quantity: l.quantity,
-			inventoryVersion: l.inventoryVersion,
-			unitPriceMinor: l.unitPriceMinor,
-	})).toSorted((a, b) => {
-		const pk = a.productId.localeCompare(b.productId);
-		if (pk !== 0) return pk;
-		return a.variantId.localeCompare(b.variantId);
-	});
+	const normalized = projectCartLineItemsForFingerprint(lines);
 	return sha256Hex(JSON.stringify(normalized));
 }

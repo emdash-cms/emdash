@@ -18,9 +18,13 @@ describe("commerceErrorCodeToWire", () => {
 	});
 
 	it("COMMERCE_ERROR_WIRE_CODES has exactly the same keys as COMMERCE_ERRORS", () => {
-		expect(Object.keys(COMMERCE_ERROR_WIRE_CODES).toSorted()).toEqual(
-			Object.keys(COMMERCE_ERRORS).toSorted(),
-		);
+		type ToSortedStrings = string[] & {
+			toSorted: (compareFn?: (left: string, right: string) => number) => string[];
+		};
+
+		const sortedWireKeys = (Object.keys(COMMERCE_ERROR_WIRE_CODES) as ToSortedStrings).toSorted();
+		const sortedErrorKeys = (Object.keys(COMMERCE_ERRORS) as ToSortedStrings).toSorted();
+		expect(sortedWireKeys).toEqual(sortedErrorKeys);
 	});
 
 	it("returns known mappings for representative codes", () => {
