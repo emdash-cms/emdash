@@ -501,6 +501,10 @@ async function markPaymentAttemptSucceeded(
  * | error       | any               | Terminal; do not auto-retry           |
  * | duplicate   | any               | Replay; redundant delivery            |
  *
+ * Cross-worker concurrency caveat:
+ * two processes can still both read a missing receipt and both execute side effects
+ * in parallel because storage does not expose a true claim primitive today.
+ *
  * A `pending` receipt means the current node claimed this event and something
  * failed partway through. This function handles all partial-success sub-cases:
  *   - inventory ledger written, stock write incomplete  → reconcile pass
@@ -521,6 +525,10 @@ export async function finalizePaymentFromWebhook(
 
 	const order = await ports.orders.get(input.orderId);
 	if (!order) {
+		ports.log?.warn("commerce.finalize.order_not_found", {
+			...logContext,
+			stage: "initial_lookup",
+		});
 		return {
 			kind: "api_error",
 			error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
@@ -556,6 +564,16 @@ export async function finalizePaymentFromWebhook(
 
 	const freshOrder = await ports.orders.get(input.orderId);
 	if (!freshOrder) {
+		ports.log?.warn("commerce.finalize.order_not_found", {
+			...logContext,
+			stage: "post_pending_lookup",
+		});
+
+		/**
+		 * Operational meaning of `error` today:
+		 * order row disappeared while finalization was running.
+		 * Treat as terminal and escalate rather than auto-retrying indefinitely.
+		 */
 		await ports.webhookReceipts.put(receiptId, {
 			...pendingReceipt,
 			status: "error",
@@ -570,6 +588,10 @@ export async function finalizePaymentFromWebhook(
 	const shouldApplyInventory = freshOrder.paymentPhase !== "paid";
 	if (shouldApplyInventory) {
 		if (freshOrder.paymentPhase !== "payment_pending" && freshOrder.paymentPhase !== "authorized") {
+			ports.log?.warn("commerce.finalize.order_not_finalizable", {
+				...logContext,
+				paymentPhase: freshOrder.paymentPhase,
+			});
 			return {
 				kind: "api_error",
 				error: {
@@ -644,11 +666,24 @@ export async function finalizePaymentFromWebhook(
 		};
 	}
 
-	await ports.webhookReceipts.put(receiptId, {
-		...pendingReceipt,
-		status: "processed",
-		updatedAt: nowIso,
-	});
+	/**
+	 * Intentionally let this fail loudly.
+	 * All prior side effects are persisted; with `pendingReceipt` + resume logic,
+	 * retry is safe and expected to complete this final write.
+	 */
+	try {
+		await ports.webhookReceipts.put(receiptId, {
+			...pendingReceipt,
+			status: "processed",
+			updatedAt: nowIso,
+		});
+	} catch (err) {
+		ports.log?.warn("commerce.finalize.receipt_processed_write_failed", {
+			...logContext,
+			details: err instanceof Error ? err.message : String(err),
+		});
+		throw err;
+	}
 
 	ports.log?.info("commerce.finalize.completed", {
 		...logContext,

@@ -14,6 +14,7 @@ The stage-1 commerce slice is implemented in `packages/plugins/commerce` and val
 - Finalization orchestration (`packages/plugins/commerce/src/orchestration/finalize-payment.ts`) now uses explicit decision branches for replay/invalid/token/partial states and includes an operational recovery helper `queryFinalizationStatus(...)`.
 - Inventory reconciliation now handles the edge case where a ledger row is written but stock update is not completed, by finishing the missing stock mutation on retry.
 - Receipt state semantics are documented in code comments and in kernel decision docs so `pending` is explicit as resumable state.
+- `finalizePaymentFromWebhook` now has explicit log coverage on core exit paths, including the intentionally bubbled final `processed` receipt write.
 - Targeted test suite now includes failure-path validation for:
   - ledger exists + stock write fail + retry
   - final receipt `processed` write fail + retry
@@ -40,6 +41,7 @@ Latest hardening pass validation (applies to webhook raw-body enforcement + fina
 - Open design risk remains: concurrent same-event finalize across separate workers/processes can still race before claim-write visibility; storage-level claim primitives are not guaranteed by current EmDash storage interface.
 - `pending` is not terminal and must be treated as resumable.
 - Do not treat `put()` as an atomic claim primitive.
+- `error` receipt state is currently a narrow terminal marker used when the order row disappears during finalize replay.
 - Final-mile receipt writes are now tested and retry-safe by design, but still need platform support for stronger duplicate prevention in distributed delivery.
 
 Lesson learned: do not expand scope until replay/partial-failure behavior remains deterministic and tests pass for the negative paths.

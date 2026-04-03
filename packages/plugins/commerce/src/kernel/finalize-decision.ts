@@ -39,9 +39,9 @@ export type OrderPaymentPhase =
  *   to an already-known receipt. Retry is not useful here.
  * - **pending** — receipt row exists but processing is incomplete. Retry may be
  *   valid once that row resolves.
- * - **error** — terminal failure recorded for this receipt row. Do not proceed
- *   from this helper; orchestration must decide whether a later recovery path
- *   exists.
+ * - **error** — terminal failure recorded for this receipt row. Today this is used
+ *   when the order record disappears while finalization is running; orchestration
+ *   blocks automatic replay unless a future explicit recovery path is added.
  */
 export type WebhookReceiptView =
 	| { exists: false }
