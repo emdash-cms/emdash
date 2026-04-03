@@ -14,6 +14,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
+import { I18nProvider, type Translations } from "./i18n/index.js";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { createAdminRouter } from "./router";
 
@@ -33,6 +34,10 @@ const router = createAdminRouter(queryClient);
 export interface AdminAppProps {
 	/** Plugin admin modules keyed by plugin ID */
 	pluginAdmins?: PluginAdmins;
+	/** Active locale code */
+	locale?: string;
+	/** Translation strings for the active locale */
+	translations?: Translations;
 }
 
 /**
@@ -40,20 +45,26 @@ export interface AdminAppProps {
  */
 const EMPTY_PLUGINS: PluginAdmins = {};
 
-export function AdminApp({ pluginAdmins = EMPTY_PLUGINS }: AdminAppProps) {
+export function AdminApp({
+	pluginAdmins = EMPTY_PLUGINS,
+	locale = "en",
+	translations = {},
+}: AdminAppProps) {
 	React.useEffect(() => {
 		document.getElementById("emdash-boot-loader")?.remove();
 	}, []);
 
 	return (
 		<ThemeProvider>
-			<Toasty>
-				<PluginAdminProvider pluginAdmins={pluginAdmins}>
-					<QueryClientProvider client={queryClient}>
-						<RouterProvider router={router} />
-					</QueryClientProvider>
-				</PluginAdminProvider>
-			</Toasty>
+			<I18nProvider locale={locale} translations={translations}>
+				<Toasty>
+					<PluginAdminProvider pluginAdmins={pluginAdmins}>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</PluginAdminProvider>
+				</Toasty>
+			</I18nProvider>
 		</ThemeProvider>
 	);
 }
