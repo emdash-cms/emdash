@@ -17,11 +17,14 @@ import type { PluginDescriptor } from "emdash";
 import { definePlugin } from "emdash";
 
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
+import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
 import { recommendationsHandler } from "./handlers/recommendations.js";
 import { stripeWebhookHandler } from "./handlers/webhooks-stripe.js";
 import {
+	cartGetInputSchema,
+	cartUpsertInputSchema,
 	checkoutGetOrderInputSchema,
 	checkoutInputSchema,
 	recommendationsInputSchema,
@@ -115,6 +118,16 @@ export function createPlugin() {
 		},
 
 		routes: {
+			"cart/upsert": {
+				public: true,
+				input: cartUpsertInputSchema,
+				handler: cartUpsertHandler as never,
+			},
+			"cart/get": {
+				public: true,
+				input: cartGetInputSchema,
+				handler: cartGetHandler as never,
+			},
 			checkout: {
 				public: true,
 				input: checkoutInputSchema,
@@ -158,3 +171,4 @@ export type {
 export { COMMERCE_EXTENSION_HOOKS } from "./catalog-extensibility.js";
 export type { RecommendationsResponse } from "./handlers/recommendations.js";
 export type { CheckoutGetOrderResponse } from "./handlers/checkout-get-order.js";
+export type { CartUpsertResponse, CartGetResponse } from "./handlers/cart.js";

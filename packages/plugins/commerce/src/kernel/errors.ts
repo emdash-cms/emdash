@@ -20,6 +20,10 @@ export const COMMERCE_ERRORS = {
 	CART_NOT_FOUND: { httpStatus: 404, retryable: false },
 	CART_EXPIRED: { httpStatus: 410, retryable: false },
 	CART_EMPTY: { httpStatus: 422, retryable: false },
+	/** Caller did not supply an owner token but the cart requires one. */
+	CART_TOKEN_REQUIRED: { httpStatus: 401, retryable: false },
+	/** Supplied owner token does not match the stored hash. */
+	CART_TOKEN_INVALID: { httpStatus: 403, retryable: false },
 
 	// Order
 	ORDER_NOT_FOUND: { httpStatus: 404, retryable: false },
@@ -61,6 +65,8 @@ export const COMMERCE_ERROR_WIRE_CODES = {
 	CART_NOT_FOUND: "cart_not_found",
 	CART_EXPIRED: "cart_expired",
 	CART_EMPTY: "cart_empty",
+	CART_TOKEN_REQUIRED: "cart_token_required",
+	CART_TOKEN_INVALID: "cart_token_invalid",
 	ORDER_NOT_FOUND: "order_not_found",
 	ORDER_STATE_CONFLICT: "order_state_conflict",
 	PAYMENT_CONFLICT: "payment_conflict",

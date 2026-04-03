@@ -126,6 +126,7 @@ describe("checkout idempotency persistence recovery", () => {
 					unitPriceMinor: 500,
 				},
 			],
+			createdAt: now,
 			updatedAt: now,
 		};
 
@@ -208,6 +209,7 @@ describe("checkout idempotency persistence recovery", () => {
 					unitPriceMinor: 200,
 				},
 			],
+			createdAt: now,
 			updatedAt: now,
 		};
 

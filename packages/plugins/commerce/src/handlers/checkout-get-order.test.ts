@@ -63,7 +63,7 @@ describe("checkoutGetOrderHandler", () => {
 		const out = await checkoutGetOrderHandler({
 			...ctxFor(orderId, token),
 			storage: { orders: mem },
-		} as RouteContext<CheckoutGetOrderInput>);
+		} as unknown as RouteContext<CheckoutGetOrderInput>);
 
 		expect(out.order).toEqual({
 			cartId: order.cartId,
@@ -85,7 +85,7 @@ describe("checkoutGetOrderHandler", () => {
 			checkoutGetOrderHandler({
 				...ctxFor(orderId),
 				storage: { orders: mem },
-			} as RouteContext<CheckoutGetOrderInput>),
+			} as unknown as RouteContext<CheckoutGetOrderInput>),
 		).rejects.toMatchObject({ code: "webhook_signature_invalid" });
 	});
 
@@ -96,7 +96,7 @@ describe("checkoutGetOrderHandler", () => {
 		const out = await checkoutGetOrderHandler({
 			...ctxFor(orderId),
 			storage: { orders: mem },
-		} as RouteContext<CheckoutGetOrderInput>);
+		} as unknown as RouteContext<CheckoutGetOrderInput>);
 		expect(out.order.paymentPhase).toBe("payment_pending");
 	});
 });

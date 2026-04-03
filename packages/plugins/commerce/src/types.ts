@@ -24,6 +24,13 @@ export interface CartLineItem {
 export interface StoredCart {
 	currency: string;
 	lineItems: CartLineItem[];
+	/**
+	 * SHA-256 hex of the owner token issued at cart creation.
+	 * Mutations (upsert on existing cart) must present the matching raw token.
+	 * Absent on legacy carts created before this field was introduced.
+	 */
+	ownerTokenHash?: string;
+	createdAt: string;
 	updatedAt: string;
 }
 

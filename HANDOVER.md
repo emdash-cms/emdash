@@ -2,115 +2,142 @@
 
 ## 1) Project status: purpose and current problem
 
-This repository hosts an EmDash-native commerce plugin with a narrow stage-1 scope: deterministic checkout and webhook-driven payment finalization for Stripe using storage-backed state. The current objective is to make the transaction core repeatable under partial-failure and duplicate-delivery conditions before expanding scope.
+This repository hosts an EmDash-native commerce plugin with a narrow stage-1 scope: deterministic checkout and webhook-driven payment finalization for Stripe using storage-backed state. The transaction core is hardened for partial failure, idempotent replay, and observable exit paths.
 
-The implementation targets the following problem domain: order creation, payment attempt tracking, inventory deduction, idempotent webhook replay handling, and consistent API-level error and status semantics in the finalize path.
+**Current product goal:** enable a **minimal end-to-end path**—product display (CMS/site) → **cart in plugin storage** → **checkout** → **webhook finalize**—without refactoring finalize/checkout internals. The next implementer adds **adjacent** cart routes and tests only; the money path stays locked per §6.
 
 ## 2) Completed work and outcomes
 
-The stage-1 commerce slice is implemented in `packages/plugins/commerce` and validated with targeted test coverage.
+Stage-1 commerce lives in `packages/plugins/commerce` with Vitest coverage (currently **15 files / 71 tests** in that package).
 
-- Checkout handler (`packages/plugins/commerce/src/handlers/checkout.ts`) now persists deterministic idempotency states and recovers missing partial-order artifacts from pending idempotency records.
-- Finalization orchestration (`packages/plugins/commerce/src/orchestration/finalize-payment.ts`) now uses explicit decision branches for replay/invalid/token/partial states and includes an operational recovery helper `queryFinalizationStatus(...)`.
-- Inventory reconciliation now handles the edge case where a ledger row is written but stock update is not completed, by finishing the missing stock mutation on retry.
-- Receipt state semantics are documented in code comments and in kernel decision docs so `pending` is explicit as resumable state.
-- `finalizePaymentFromWebhook` now has explicit log coverage on core exit paths, including the intentionally bubbled final `processed` receipt write.
-- Targeted test suite now includes failure-path validation for:
-  - ledger exists + stock write fail + retry
-  - final receipt `processed` write fail + retry
-  - same-event concurrent finalize attempts and documented behavior
-- `HANDOVER.md` was updated to support external continuation and handoff.
+- **Checkout** ([`src/handlers/checkout.ts`](packages/plugins/commerce/src/handlers/checkout.ts)): deterministic idempotency; recovers order/attempt from pending idempotency records; validates cart line items and stock preflight.
+- **Finalize** ([`src/orchestration/finalize-payment.ts`](packages/plugins/commerce/src/orchestration/finalize-payment.ts)): centralized orchestration; `queryFinalizationStatus(...)` for diagnostics; inventory reconcile when ledger wrote but stock did not; explicit logging on core paths; intentional bubble on final receipt→`processed` write (retry-safe).
+- **Decisions** ([`src/kernel/finalize-decision.ts`](packages/plugins/commerce/src/kernel/finalize-decision.ts)): receipt semantics documented (`pending` = resumable; `error` = narrow terminal when order disappears mid-run).
+- **Stripe webhook** ([`src/handlers/webhooks-stripe.ts`](packages/plugins/commerce/src/handlers/webhooks-stripe.ts)): signature verification; raw body byte cap before verify; rate limit.
+- **Order read for SSR** ([`src/handlers/checkout-get-order.ts`](packages/plugins/commerce/src/handlers/checkout-get-order.ts)): `POST checkout/get-order` returns a public order snapshot; requires `finalizeToken` when `finalizeTokenHash` exists on the order.
+- **Recommendations** ([`src/handlers/recommendations.ts`](packages/plugins/commerce/src/handlers/recommendations.ts)): returns `enabled: false` and stable `reason`—storefronts should hide the block until a recommender exists.
 
-Validated commands:
+Operational docs: [`packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md`](packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md), support variant alongside, [`COMMERCE_DOCS_INDEX.md`](packages/plugins/commerce/COMMERCE_DOCS_INDEX.md).
+
+### Validate the plugin (from repo root)
 
 ```bash
+pnpm install
 cd packages/plugins/commerce
-pnpm --filter "./packages/plugins/commerce" test -- src/handlers/checkout.test.ts src/orchestration/finalize-payment.test.ts
+pnpm test
 pnpm typecheck
 ```
 
-Latest hardening pass validation (applies to webhook raw-body enforcement + finalize logging + runbook updates):
+Targeted checkout + finalize only:
 
-- `pnpm --filter "./packages/plugins/commerce" test -- src/handlers/checkout.test.ts src/orchestration/finalize-payment.test.ts`
-  - `14 test files, 68 tests passed`
-- `pnpm --filter "./packages/plugins/commerce" typecheck`
-  - `tsc --noEmit` success
+```bash
+cd packages/plugins/commerce
+pnpm test -- src/handlers/checkout.test.ts src/orchestration/finalize-payment.test.ts
+```
 
 ## 3) Failures, open issues, and lessons learned
 
-- Open design risk remains: concurrent same-event finalize across separate workers/processes can still race before claim-write visibility; storage-level claim primitives are not guaranteed by current EmDash storage interface.
-- `pending` is not terminal and must be treated as resumable.
-- Do not treat `put()` as an atomic claim primitive.
-- `error` receipt state is currently a narrow terminal marker used when the order row disappears during finalize replay.
-- Final-mile receipt writes are now tested and retry-safe by design, but still need platform support for stronger duplicate prevention in distributed delivery.
+- **Same-event concurrency:** two workers can still race before a durable claim is visible; storage does not expose a true insert-if-not-exists claim primitive—documented in finalize code; do not paper over with “optimistic” core changes without tests + platform support.
+- **`pending` receipt:** not terminal; safe retry semantics are defined—see runbooks and kernel comments.
+- **`error` receipt:** narrow terminal today (order vanished mid-finalize); do not auto-replay without an explicit recovery design.
+- **`put()` is not a distributed lock.**
 
-Lesson learned: do not expand scope until replay/partial-failure behavior remains deterministic and tests pass for the negative paths.
+Lesson: expand features only after negative-path tests and incident semantics stay green.
 
-## 4) Files changed, key insights, and gotchas
+## 4) Files, insights, and gotchas
 
-Primary implementation references:
+### Primary references
 
-- `packages/plugins/commerce/src/handlers/checkout.ts`
-- `packages/plugins/commerce/src/orchestration/finalize-payment.ts`
-- `packages/plugins/commerce/src/orchestration/finalize-payment.test.ts`
-- `packages/plugins/commerce/src/kernel/api-errors.ts`
-- `packages/plugins/commerce/src/kernel/errors.ts`
-- `packages/plugins/commerce/src/kernel/finalize-decision.ts`
+| Area | Path |
+|------|------|
+| Checkout | `packages/plugins/commerce/src/handlers/checkout.ts` |
+| Cart (to add) | `packages/plugins/commerce/src/handlers/cart.ts` (MVP) |
+| Order read | `packages/plugins/commerce/src/handlers/checkout-get-order.ts` |
+| Finalize | `packages/plugins/commerce/src/orchestration/finalize-payment.ts` |
+| Finalize tests | `packages/plugins/commerce/src/orchestration/finalize-payment.test.ts` |
+| Webhook | `packages/plugins/commerce/src/handlers/webhooks-stripe.ts` |
+| Schemas | `packages/plugins/commerce/src/schemas.ts` |
+| Errors / wire codes | `packages/plugins/commerce/src/kernel/errors.ts`, `api-errors.ts` |
+| Receipt decisions | `packages/plugins/commerce/src/kernel/finalize-decision.ts` |
+| Plugin entry | `packages/plugins/commerce/src/index.ts` |
 
-Key insights:
+### Plugin HTTP routes (mount: `/_emdash/api/plugins/emdash-commerce/<route>`)
 
-- Keep orchestration/state transitions centralized in the kernel/handler boundary.
-- Keep route handlers as contract and serialization layers (`toCommerceApiError()`).
-- Keep enums and states narrow; add transitions only when backed by tests.
-- Failure handling must be explicit and idempotent, not best-effort.
+| Route | Role |
+|-------|------|
+| `cart/upsert` | Create or update a `StoredCart`; issues `ownerToken` on first creation |
+| `cart/get` | Read-only cart snapshot (no auth required) |
+| `checkout` | Create `payment_pending` order + attempt; idempotency |
+| `checkout/get-order` | Read-only order snapshot (token when required) |
+| `webhooks/stripe` | Verify signature → finalize |
+| `recommendations` | Disabled contract for UIs |
 
-Gotchas:
+### Insights
 
-- Invalid rate-limit inputs and idempotency values should fail safely.
-- `pending` receipts need inspection logic before marking as terminal.
-- Do not assume external webhook claims are globally serialized by storage.
-- Do not broaden scope to shipping/tax/bundles/MCP until finalize core is stable.
+- Handlers are **contract + I/O**; money and replay rules stay in orchestration/kernel.
+- Branch on **wire `code`**, not free-form `message` text.
+- Logs: finalize paths use consistent context (`orderId`, `providerId`, `externalEventId`, `correlationId`) where implemented—preserve when extending.
+
+### Gotchas
+
+- Rate limits and idempotency keys must fail safe (see checkout).
+- Do not leak `finalizeTokenHash` in public JSON—`checkout/get-order` already strips it.
+- Installing the plugin in a site: register `createPlugin()` / `commercePlugin()` in Astro `emdash({ plugins: [...] })` and add `@emdash-cms/plugin-commerce` as a dependency—see [`packages/plugins/commerce/src/index.ts`](packages/plugins/commerce/src/index.ts) JSDoc.
 
 ## 5) Key files and directories
 
-### Core
-- `packages/plugins/commerce/package.json`
-- `packages/plugins/commerce/tsconfig.json`
-- `packages/plugins/commerce/vitest.config.ts`
-- `packages/plugins/commerce/src/`
-
-### Commerce docs and onboarding
-- `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
-- `packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md`
-- `packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK_SUPPORT.md`
-- `packages/plugins/commerce/AI-EXTENSIBILITY.md`
-- `commerce-plugin-architecture.md` (architecture reference)
-
-### Review/context notes now in-repo
-- `3rdpary_review_3.md`
-- `CHANGELOG_REVIEW_NOTES.md`
-- `latest-code_3_review_instructions.md`
+- **Package:** `packages/plugins/commerce/` (`package.json`, `src/`, `vitest.config.ts`)
+- **Index of commerce docs:** [`packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`](packages/plugins/commerce/COMMERCE_DOCS_INDEX.md)
+- **Architecture (broad reference):** [`commerce-plugin-architecture.md`](commerce-plugin-architecture.md) — stage-1 code may not implement every catalog route listed there; trust the plugin `routes` object as source of truth for what exists today.
 
 ## 6) Core lock-down policy (external developer rule)
 
-Do not widen the transaction core by default. Only change finalize/checkout internals when:
+Do not widen the transaction core by default. Only change finalize/checkout **internals** when:
 
 - A regression is reproducible (test or production failure), **and**
 - A new test first captures the bug/failure mode, **and**
 - The change is narrowly scoped to that scenario.
 
-When no bug is present, prefer:
+When no bug is present, prefer operational hardening, targeted tests/types, and documentation alignment.
 
-- operational hardening (runbooks, comments, naming, diagnostics),
-- validation confidence (targeted tests/types),
-- and documentation alignment.
+Do not add speculative abstractions or cross-scope features (shipping, tax, swatches, bundles, second gateway, heavy repository layers) until partial-failure and idempotency semantics stay stable under tests and incident handling.
 
-Do not add abstractions, architecture changes, or cross-scope features (shipping, tax, variants, swatches, bundles) until the current partial-failure and idempotency semantics remain stable under both tests and real incident handling.
+**MVP cart work is explicitly allowed:** it is **new routes** that write/read `StoredCart` the same shape `checkout` already expects—**not** a rewrite of checkout/finalize.
 
-## Next developer execution order
+## 7) Next developer: MVP “product → cart → checkout” execution brief
 
-1. Run `pnpm install` at repo root.
-2. Run the validation commands above.
-3. Continue hardening finalize behavior only; do not change product scope.
-4. Maintain compatibility between runtime behavior and docs (especially state semantics and failure handling).
+**Objective:** Ship the smallest **backend** surface so a site (e.g. Astro SSR) can populate `carts`, call existing `checkout`, and optionally drive finalize—**without** duplicating validation or touching finalize logic.
 
+**Chosen approach (DRY/YAGNI):**
+
+1. **T1 — Cart API:** `POST cart/upsert` and `POST cart/get` on the commerce plugin (same patterns as other routes: `requirePost`, Zod input, `throwCommerceApiError`).
+2. **T2 — Validation:** shared Zod fragments in `schemas.ts` so cart line items match what [`checkout.ts`](packages/plugins/commerce/src/handlers/checkout.ts) already validates (`quantity`, `inventoryVersion`, `unitPriceMinor`, bounds).
+3. **T3 — Fixtures:** in tests only, `inventoryStock.put(...)` + `carts.put` via handlers—no dev-only seed routes unless product asks.
+4. **T4 — Proof:** one Vitest chain: upsert cart → checkout → assert order `payment_pending` and idempotency; optional webhook simulation using existing stripe test helpers where feasible.
+5. **T5 — Docs:** update [`COMMERCE_DOCS_INDEX.md`](packages/plugins/commerce/COMMERCE_DOCS_INDEX.md) and this file’s route table; keep [`commerce-plugin-architecture.md`](commerce-plugin-architecture.md) alignment **only** where it reduces confusion (do not rewrite the whole doc).
+
+**Explicit non-goals for this MVP:**
+
+- No new product/catalog collections inside the plugin.
+- No session/auth for carts (cart id is the bearer surface for now).
+- No auto-creating inventory rows from cart upsert (keeps inventory semantics honest).
+- No changes to `finalizePaymentFromWebhook` except if a **proven** regression appears (then follow §6).
+
+**Acceptance criteria (checklist):**
+
+- [x] `cart/upsert` persists a `StoredCart` readable by `checkout` for the same `cartId`.
+- [x] `cart/get` returns 404-class semantics for missing cart (`CART_NOT_FOUND` family).
+- [x] Invalid line items fail at cart boundary with same invariants as checkout would enforce.
+- [x] `pnpm test` and `pnpm typecheck` pass in `packages/plugins/commerce` (84/84 tests, 0 type errors).
+- [x] At least one test chains cart → checkout without manual storage pokes in production code paths.
+- [x] Cart ownership model: `ownerToken` issued on creation, hash stored, required on subsequent mutations.
+
+**After MVP:** wire `demos/simple` (or your site) with HTML-first forms/SSR calling plugin URLs; Playwright e2e can wait until a minimal storefront page exists.
+
+## 8) Execution order (onboarding checklist)
+
+1. `pnpm install` at repo root.
+2. `cd packages/plugins/commerce && pnpm test && pnpm typecheck`.
+3. Read §6 and §7; implement cart routes + tests per §7; do not refactor finalize/checkout unless §6 applies.
+4. Update [`COMMERCE_DOCS_INDEX.md`](packages/plugins/commerce/COMMERCE_DOCS_INDEX.md) and §4 route table here when routes ship.
+5. For local site testing: add `@emdash-cms/plugin-commerce` to the demo/site `package.json`, register the plugin in `astro.config.mjs`, run `pnpm dev`, call plugin URLs under `/_emdash/api/plugins/emdash-commerce/...`.

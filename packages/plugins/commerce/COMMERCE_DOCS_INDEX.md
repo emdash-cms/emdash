@@ -16,5 +16,18 @@
 - `package.json` — package scripts and dependencies
 - `tsconfig.json` — TypeScript config
 - `src/kernel/` — checkout/finalize error and idempotency logic
-- `src/handlers/` — route handlers (checkout/webhooks)
+- `src/handlers/` — route handlers (cart, checkout, webhooks)
 - `src/orchestration/` — finalize orchestration and inventory/attempt updates
+
+## Plugin HTTP routes
+
+| Route | Role |
+|-------|------|
+| `cart/upsert` | Create or update a `StoredCart`; issues `ownerToken` on first creation |
+| `cart/get` | Read-only cart snapshot (no auth required) |
+| `checkout` | Create `payment_pending` order + attempt; idempotency |
+| `checkout/get-order` | Read-only order snapshot (token when required) |
+| `webhooks/stripe` | Verify signature → finalize |
+| `recommendations` | Disabled contract for UIs |
+
+All routes mount under `/_emdash/api/plugins/emdash-commerce/<route>`.

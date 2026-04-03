@@ -8,6 +8,60 @@ import { COMMERCE_LIMITS } from "./kernel/limits.js";
 
 const bounded = (max: number) => z.string().min(1).max(max);
 
+/**
+ * Shared cart line item fragment — same invariants enforced at cart boundary
+ * and re-checked at checkout (defence in depth, not duplication).
+ */
+export const cartLineItemSchema = z.object({
+	productId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
+	variantId: z.string().min(0).max(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
+	quantity: z
+		.number()
+		.int()
+		.min(1, "Quantity must be at least 1")
+		.max(COMMERCE_LIMITS.maxLineItemQty, `Quantity must not exceed ${COMMERCE_LIMITS.maxLineItemQty}`),
+	/**
+	 * Snapshot of the inventory version at the time the item was added to the cart.
+	 * Used for optimistic concurrency during finalize.
+	 */
+	inventoryVersion: z
+		.number()
+		.int()
+		.min(0, "Inventory version must be a non-negative integer"),
+	/** Price in the smallest currency unit (e.g. cents). Must be non-negative. */
+	unitPriceMinor: z
+		.number()
+		.int()
+		.min(0, "Unit price must be a non-negative integer"),
+});
+
+export type CartLineItemInput = z.infer<typeof cartLineItemSchema>;
+
+export const cartUpsertInputSchema = z.object({
+	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
+	currency: z.string().min(3).max(3).toUpperCase(),
+	lineItems: z
+		.array(cartLineItemSchema)
+		.min(0)
+		.max(
+			COMMERCE_LIMITS.maxCartLineItems,
+			`Cart must not exceed ${COMMERCE_LIMITS.maxCartLineItems} line items`,
+		),
+	/**
+	 * Required when mutating an existing cart (i.e. the cart already has an ownerTokenHash).
+	 * Absent on first creation — the server issues a fresh token and returns it once.
+	 */
+	ownerToken: z.string().min(16).max(256).optional(),
+});
+
+export type CartUpsertInput = z.infer<typeof cartUpsertInputSchema>;
+
+export const cartGetInputSchema = z.object({
+	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
+});
+
+export type CartGetInput = z.infer<typeof cartGetInputSchema>;
+
 export const checkoutInputSchema = z.object({
 	cartId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	/** Optional when `Idempotency-Key` header is set. */
