@@ -86,6 +86,11 @@ export type FinalizeWebhookResult =
 	| { kind: "replay"; reason: string }
 	| { kind: "api_error"; error: CommerceApiErrorInput };
 
+type FinalizeFlowDecision =
+	| { kind: "noop"; result: FinalizeWebhookResult; reason: string }
+	| { kind: "invalid_token"; result: FinalizeWebhookResult }
+	| { kind: "proceed"; existingReceipt: StoredWebhookReceipt | null };
+
 class InventoryFinalizeError extends Error {
 	constructor(
 		public code: CommerceErrorCode,
@@ -125,6 +130,44 @@ function noopToResult(
 			message: noopConflictMessage(decision.reason),
 			details: { reason: decision.reason, orderId },
 		},
+	};
+}
+
+function buildFinalizationDecision(
+	order: StoredOrder,
+	existingReceipt: StoredWebhookReceipt | null,
+	correlationId: string,
+	orderId: string,
+	inputFinalizeToken: string | undefined,
+): FinalizeFlowDecision {
+	const decision = decidePaymentFinalize({
+		orderStatus: order.paymentPhase,
+		receipt: receiptToView(existingReceipt),
+		correlationId,
+	});
+	if (decision.action === "noop") {
+		return { kind: "noop", result: noopToResult(decision, order.id ?? orderId), reason: decision.reason };
+	}
+	const tokenErr = verifyFinalizeToken(order, inputFinalizeToken);
+	if (tokenErr) {
+		return { kind: "invalid_token", result: tokenErr };
+	}
+	return { kind: "proceed", existingReceipt };
+}
+
+function createPendingReceipt(
+	input: FinalizeWebhookInput,
+	existingReceipt: StoredWebhookReceipt | null,
+	nowIso: string,
+): StoredWebhookReceipt {
+	return {
+		providerId: input.providerId,
+		externalEventId: input.externalEventId,
+		orderId: input.orderId,
+		status: "pending",
+		correlationId: input.correlationId,
+		createdAt: existingReceipt?.createdAt ?? nowIso,
+		updatedAt: nowIso,
 	};
 }
 
@@ -176,6 +219,106 @@ type InventoryMutation = {
 	nextStock: StoredInventoryStock;
 	ledgerId: string;
 };
+
+type InventoryMutationState =
+	| { kind: "reconcile_existing"; mutation: InventoryMutation }
+	| { kind: "apply_new"; mutation: InventoryMutation };
+
+function classifyInventoryMutationState(
+	mutation: InventoryMutation,
+	existingLedgerIds: Set<string>,
+): InventoryMutationState {
+	return existingLedgerIds.has(mutation.ledgerId)
+		? { kind: "reconcile_existing", mutation }
+		: { kind: "apply_new", mutation };
+}
+
+async function reconcileExistingInventoryMutation(
+	ports: FinalizePaymentPorts,
+	mutation: InventoryMutation,
+): Promise<void> {
+	const latest = await ports.inventoryStock.get(mutation.stockId);
+	if (!latest) {
+		throw new InventoryFinalizeError(
+			"PRODUCT_UNAVAILABLE",
+			`No inventory record for product ${mutation.line.productId}`,
+			{
+				productId: mutation.line.productId,
+			},
+		);
+	}
+	if (
+		latest.version === mutation.nextStock.version &&
+		latest.quantity === mutation.nextStock.quantity
+	) {
+		return;
+	}
+	if (latest.version !== mutation.currentStock.version) {
+		throw new InventoryFinalizeError(
+			"INVENTORY_CHANGED",
+			"Inventory changed between preflight and write",
+			{
+				productId: mutation.line.productId,
+				expectedVersion: mutation.currentStock.version,
+				currentVersion: latest.version,
+			},
+		);
+	}
+	if (latest.quantity < mutation.line.quantity) {
+		throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
+			productId: mutation.line.productId,
+			requested: mutation.line.quantity,
+			available: latest.quantity,
+		});
+	}
+	await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
+}
+
+async function applyInventoryMutation(
+	ports: FinalizePaymentPorts,
+	orderId: string,
+	nowIso: string,
+	mutation: InventoryMutation,
+): Promise<void> {
+	const latest = await ports.inventoryStock.get(mutation.stockId);
+	if (!latest) {
+		throw new InventoryFinalizeError(
+			"PRODUCT_UNAVAILABLE",
+			`No inventory record for product ${mutation.line.productId}`,
+			{
+				productId: mutation.line.productId,
+			},
+		);
+	}
+	if (latest.version !== mutation.currentStock.version) {
+		throw new InventoryFinalizeError(
+			"INVENTORY_CHANGED",
+			"Inventory changed between preflight and write",
+			{
+				productId: mutation.line.productId,
+				expectedVersion: mutation.currentStock.version,
+				currentVersion: latest.version,
+			},
+		);
+	}
+	if (latest.quantity < mutation.line.quantity) {
+		throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
+			productId: mutation.line.productId,
+			requested: mutation.line.quantity,
+			available: latest.quantity,
+		});
+	}
+	const entry: StoredInventoryLedgerEntry = {
+		productId: mutation.line.productId,
+		variantId: mutation.line.variantId ?? "",
+		delta: -mutation.line.quantity,
+		referenceType: "order",
+		referenceId: orderId,
+		createdAt: nowIso,
+	};
+	await ports.inventoryLedger.put(mutation.ledgerId, entry);
+	await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
+}
 
 function inventoryLedgerEntryId(orderId: string, productId: string, variantId: string): string {
 	return `line:${sha256Hex(`${orderId}\n${productId}\n${variantId}`)}`;
@@ -286,97 +429,21 @@ async function applyInventoryMutations(
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
 	}
 
-	/** Lines without a ledger row yet; skip lines already finalized before a failed `orders.put`. */
-	const linesNeedingWork: OrderLineItem[] = [];
-	for (const line of merged) {
-		const variantId = line.variantId ?? "";
-		const ledgerId = inventoryLedgerEntryId(orderId, line.productId, variantId);
-		if (seen.has(ledgerId)) continue;
-		linesNeedingWork.push(line);
-	}
+	const planned = normalizeInventoryMutations(orderId, merged, stockRows, nowIso);
+	const mutationStates = planned.map((mutation) => classifyInventoryMutationState(mutation, seen));
 
-	const planned = normalizeInventoryMutations(orderId, linesNeedingWork, stockRows, nowIso);
-
-	for (const mutation of planned) {
-		if (seen.has(mutation.ledgerId)) {
-			const latest = await ports.inventoryStock.get(mutation.stockId);
-			if (!latest) {
-				throw new InventoryFinalizeError(
-					"PRODUCT_UNAVAILABLE",
-					`No inventory record for product ${mutation.line.productId}`,
-					{
-						productId: mutation.line.productId,
-					},
-				);
-			}
-			if (
-				latest.version === mutation.nextStock.version &&
-				latest.quantity === mutation.nextStock.quantity
-			) {
-				// Retry after partial ledger write failure: stock already reflects this line.
-				continue;
-			}
-			if (latest.version !== mutation.currentStock.version) {
-				throw new InventoryFinalizeError(
-					"INVENTORY_CHANGED",
-					"Inventory changed between preflight and write",
-					{
-						productId: mutation.line.productId,
-						expectedVersion: mutation.currentStock.version,
-						currentVersion: latest.version,
-					},
-				);
-			}
-			if (latest.quantity < mutation.line.quantity) {
-				throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
-					productId: mutation.line.productId,
-					requested: mutation.line.quantity,
-					available: latest.quantity,
-				});
-			}
-			await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
-			continue;
+	for (const state of mutationStates) {
+		switch (state.kind) {
+			case "reconcile_existing":
+				await reconcileExistingInventoryMutation(ports, state.mutation);
+				break;
+			case "apply_new":
+				await applyInventoryMutation(ports, orderId, nowIso, state.mutation);
+				seen.add(state.mutation.ledgerId);
+				break;
+			default:
+				break;
 		}
-
-		const latest = await ports.inventoryStock.get(mutation.stockId);
-		if (!latest) {
-			throw new InventoryFinalizeError(
-				"PRODUCT_UNAVAILABLE",
-				`No inventory record for product ${mutation.line.productId}`,
-				{
-					productId: mutation.line.productId,
-				},
-			);
-		}
-		if (latest.version !== mutation.currentStock.version) {
-			throw new InventoryFinalizeError(
-				"INVENTORY_CHANGED",
-				"Inventory changed between preflight and write",
-				{
-					productId: mutation.line.productId,
-					expectedVersion: mutation.currentStock.version,
-					currentVersion: latest.version,
-				},
-			);
-		}
-		if (latest.quantity < mutation.line.quantity) {
-			throw new InventoryFinalizeError("INSUFFICIENT_STOCK", "Not enough stock at write time", {
-				productId: mutation.line.productId,
-				requested: mutation.line.quantity,
-				available: latest.quantity,
-			});
-		}
-		const entry: StoredInventoryLedgerEntry = {
-			productId: mutation.line.productId,
-			variantId: mutation.line.variantId ?? "",
-			delta: -mutation.line.quantity,
-			referenceType: "order",
-			referenceId: orderId,
-			createdAt: nowIso,
-		};
-		await ports.inventoryLedger.put(mutation.ledgerId, entry);
-		await ports.inventoryStock.put(mutation.stockId, mutation.nextStock);
-		seen.add(mutation.ledgerId);
 	}
 }
 
@@ -431,36 +498,31 @@ export async function finalizePaymentFromWebhook(
 	}
 
 	const existingReceipt = await ports.webhookReceipts.get(receiptId);
-	const decision = decidePaymentFinalize({
-		orderStatus: order.paymentPhase,
-		receipt: receiptToView(existingReceipt),
-		correlationId: input.correlationId,
-	});
-
-	if (decision.action === "noop") {
-		ports.log?.info("commerce.finalize.noop", {
-			orderId: input.orderId,
-			externalEventId: input.externalEventId,
-			reason: decision.reason,
-		});
-		return noopToResult(decision, input.orderId);
+	const decision = buildFinalizationDecision(
+		order,
+		existingReceipt,
+		input.correlationId,
+		input.orderId,
+		input.finalizeToken,
+	);
+	switch (decision.kind) {
+		case "noop":
+			ports.log?.info("commerce.finalize.noop", {
+				orderId: input.orderId,
+				externalEventId: input.externalEventId,
+				reason: decision.reason,
+			});
+			return decision.result;
+		case "invalid_token":
+			ports.log?.warn("commerce.finalize.token_rejected", { orderId: input.orderId });
+			return decision.result;
+		case "proceed":
+			break;
+		default:
+			break;
 	}
 
-	const tokenErr = verifyFinalizeToken(order, input.finalizeToken);
-	if (tokenErr) {
-		ports.log?.warn("commerce.finalize.token_rejected", { orderId: input.orderId });
-		return tokenErr;
-	}
-
-	const pendingReceipt: StoredWebhookReceipt = {
-		providerId: input.providerId,
-		externalEventId: input.externalEventId,
-		orderId: input.orderId,
-		status: "pending",
-		correlationId: input.correlationId,
-		createdAt: existingReceipt?.createdAt ?? nowIso,
-		updatedAt: nowIso,
-	};
+	const pendingReceipt = createPendingReceipt(input, decision.existingReceipt, nowIso);
 	await ports.webhookReceipts.put(receiptId, pendingReceipt);
 
 	const freshOrder = await ports.orders.get(input.orderId);

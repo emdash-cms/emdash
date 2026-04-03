@@ -50,6 +50,11 @@ type CheckoutResponse = {
 	finalizeToken: string;
 };
 
+type CheckoutReplayDecision =
+	| { kind: "cached_completed"; response: CheckoutResponse }
+	| { kind: "cached_pending"; pending: CheckoutPendingState }
+	| { kind: "not_cached" };
+
 function asCollection<T>(raw: unknown): StorageCollection<T> {
 	return raw as StorageCollection<T>;
 }
@@ -71,6 +76,60 @@ function isCheckoutCompletedResponse(value: unknown): value is CheckoutResponse 
 		typeof candidate.currency === "string" &&
 		typeof candidate.finalizeToken === "string"
 	);
+}
+
+function decideCheckoutReplayState(response: StoredIdempotencyKey | null): CheckoutReplayDecision {
+	if (!response) return { kind: "not_cached" };
+	if (isCheckoutCompletedResponse(response.responseBody)) {
+		return { kind: "cached_completed", response: response.responseBody };
+	}
+	if (isCheckoutPendingState(response.responseBody)) {
+		return { kind: "cached_pending", pending: response.responseBody };
+	}
+	return { kind: "not_cached" };
+}
+
+async function restorePendingCheckout(
+	idempotencyDocId: string,
+	cached: StoredIdempotencyKey,
+	pending: CheckoutPendingState,
+	nowIso: string,
+	idempotencyKeys: StorageCollection<StoredIdempotencyKey>,
+	orders: StorageCollection<StoredOrder>,
+	attempts: StorageCollection<StoredPaymentAttempt>,
+): Promise<CheckoutResponse> {
+	const existingOrder = await orders.get(pending.orderId);
+	if (!existingOrder) {
+		await orders.put(pending.orderId, {
+			cartId: pending.cartId,
+			paymentPhase: pending.paymentPhase,
+			currency: pending.currency,
+			lineItems: pending.lineItems,
+			totalMinor: pending.totalMinor,
+			finalizeTokenHash: sha256Hex(pending.finalizeToken),
+			createdAt: pending.createdAt,
+			updatedAt: nowIso,
+		});
+	}
+
+	const existingAttempt = await attempts.get(pending.paymentAttemptId);
+	if (!existingAttempt) {
+		await attempts.put(pending.paymentAttemptId, {
+			orderId: pending.orderId,
+			providerId: "stripe",
+			status: "pending",
+			createdAt: pending.createdAt,
+			updatedAt: nowIso,
+		});
+	}
+
+	const response = checkoutResponseFromPendingState(pending);
+	await idempotencyKeys.put(idempotencyDocId, {
+		...cached,
+		httpStatus: 200,
+		responseBody: response,
+	});
+	return response;
 }
 
 function isCheckoutPendingState(value: unknown): value is CheckoutPendingState {
@@ -183,44 +242,25 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	const idempotencyKeys = asCollection<StoredIdempotencyKey>(ctx.storage.idempotencyKeys);
 	const cached = await idempotencyKeys.get(idempotencyDocId);
 	if (cached && isIdempotencyRecordFresh(cached.createdAt, nowMs)) {
-		if (isCheckoutCompletedResponse(cached.responseBody)) {
-			return cached.responseBody;
-		}
-		if (isCheckoutPendingState(cached.responseBody)) {
-			const pending = cached.responseBody;
-			const orders = asCollection<StoredOrder>(ctx.storage.orders);
-			const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
-			const existingOrder = await orders.get(pending.orderId);
-			if (!existingOrder) {
-				await orders.put(pending.orderId, {
-					cartId: pending.cartId,
-					paymentPhase: pending.paymentPhase,
-					currency: pending.currency,
-					lineItems: pending.lineItems,
-					totalMinor: pending.totalMinor,
-					finalizeTokenHash: sha256Hex(pending.finalizeToken),
-					createdAt: pending.createdAt,
-					updatedAt: nowIso,
-				});
-			}
-
-			const existingAttempt = await attempts.get(pending.paymentAttemptId);
-			if (!existingAttempt) {
-				await attempts.put(pending.paymentAttemptId, {
-					orderId: pending.orderId,
-					providerId: "stripe",
-					status: "pending",
-					createdAt: pending.createdAt,
-					updatedAt: nowIso,
-				});
-			}
-
-			await idempotencyKeys.put(idempotencyDocId, {
-				...cached,
-				httpStatus: 200,
-				responseBody: checkoutResponseFromPendingState(pending),
-			});
-			return checkoutResponseFromPendingState(pending);
+		const decision = decideCheckoutReplayState(cached);
+		const orders = asCollection<StoredOrder>(ctx.storage.orders);
+		const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
+		switch (decision.kind) {
+			case "cached_completed":
+				return decision.response;
+			case "cached_pending":
+				return restorePendingCheckout(
+					idempotencyDocId,
+					cached,
+					decision.pending,
+					nowIso,
+					idempotencyKeys,
+					orders,
+					attempts,
+				);
+			case "not_cached":
+			default:
+				break;
 		}
 	}
 
