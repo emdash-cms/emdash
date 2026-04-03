@@ -155,6 +155,22 @@ function buildFinalizationDecision(
 	return { kind: "proceed", existingReceipt };
 }
 
+/**
+ * A receipt in `pending` status means finalization has started but may not be
+ * complete. Specifically:
+ *   - inventory may or may not have been applied
+ *   - order phase may or may not have been set to `paid`
+ *   - payment attempt may or may not have been marked `succeeded`
+ *
+ * `pending` is the "retry me" signal — not a terminal state. The next call to
+ * `finalizePaymentFromWebhook` for the same event will resume from wherever the
+ * previous attempt stopped.
+ *
+ * Terminal receipt states:
+ *   - `processed` — all side effects completed successfully
+ *   - `error`     — a non-retryable failure was recorded; do not auto-replay
+ *   - `duplicate` — event is a known redundant delivery; treat as replay
+ */
 function createPendingReceipt(
 	input: FinalizeWebhookInput,
 	existingReceipt: StoredWebhookReceipt | null,
@@ -375,6 +391,40 @@ async function applyInventoryMutations(
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
 	}
 
+	/**
+	 * Reconcile pass: for lines where the ledger row was written but the stock
+	 * write did not complete (crash between `inventoryLedger.put` and
+	 * `inventoryStock.put` in `applyInventoryMutation`).
+	 *
+	 * `stock.version === line.inventoryVersion` means the stock was never updated
+	 * despite the ledger entry existing — finish just the stock write.
+	 * `stock.version > inventoryVersion` means the stock was already updated;
+	 * nothing to do for that line.
+	 */
+	for (const line of merged) {
+		const variantId = line.variantId ?? "";
+		const stockId = inventoryStockDocId(line.productId, variantId);
+		const ledgerId = inventoryLedgerEntryId(orderId, line.productId, variantId);
+		if (!seen.has(ledgerId)) continue;
+		const stock = stockRows.get(stockId);
+		if (!stock) {
+			throw new InventoryFinalizeError(
+				"PRODUCT_UNAVAILABLE",
+				`No inventory record for product ${line.productId}`,
+				{ productId: line.productId },
+			);
+		}
+		if (stock.version === line.inventoryVersion) {
+			await ports.inventoryStock.put(stockId, {
+				...stock,
+				version: stock.version + 1,
+				quantity: stock.quantity - line.quantity,
+				updatedAt: nowIso,
+			});
+		}
+	}
+
+	// Apply pass: lines that have no ledger entry yet.
 	const linesNeedingWork: OrderLineItem[] = [];
 	for (const line of merged) {
 		const variantId = line.variantId ?? "";
@@ -423,6 +473,25 @@ async function markPaymentAttemptSucceeded(
 	await ports.paymentAttempts.put(match.id, next);
 }
 
+/**
+ * Finalization state transitions — what each combination means for retry:
+ *
+ * | Receipt     | Order phase       | Interpretation                        |
+ * |-------------|-------------------|---------------------------------------|
+ * | (none)      | payment_pending   | Nothing written; safe to start fresh  |
+ * | pending     | payment_pending   | Partial progress; resume from here    |
+ * | pending     | paid              | Last write (receipt→processed) failed |
+ * | processed   | paid              | Replay; all side effects complete     |
+ * | error       | any               | Terminal; do not auto-retry           |
+ * | duplicate   | any               | Replay; redundant delivery            |
+ *
+ * A `pending` receipt means the current node claimed this event and something
+ * failed partway through. This function handles all partial-success sub-cases:
+ *   - inventory ledger written, stock write incomplete  → reconcile pass
+ *   - inventory done, order.put failed                 → skip inventory, retry order
+ *   - order paid, attempt update failed                → skip both, retry attempt
+ *   - everything done except receipt→processed         → skip all writes, mark processed
+ */
 /**
  * Single authoritative finalize entry for gateway webhooks (Stripe first).
  */
@@ -573,4 +642,43 @@ export async function finalizePaymentFromWebhook(
 	});
 
 	return { kind: "completed", orderId: input.orderId };
+}
+
+/**
+ * Operational recovery helper: answers the four key questions for diagnosing
+ * a partially-finalized order without reading every collection manually.
+ *
+ * Intended for use in runbooks, admin tooling, and integration test assertions.
+ * Does not modify any state.
+ */
+export type FinalizationStatus = {
+	/** At least one inventory ledger row exists for this order. */
+	isInventoryApplied: boolean;
+	/** Order paymentPhase is "paid". */
+	isOrderPaid: boolean;
+	/** At least one payment attempt for this order+provider is "succeeded". */
+	isPaymentAttemptSucceeded: boolean;
+	/** Webhook receipt for this event is "processed". */
+	isReceiptProcessed: boolean;
+};
+
+export async function queryFinalizationStatus(
+	ports: FinalizePaymentPorts,
+	orderId: string,
+	providerId: string,
+	externalEventId: string,
+): Promise<FinalizationStatus> {
+	const receiptId = webhookReceiptDocId(providerId, externalEventId);
+	const [order, receipt, ledgerPage, attemptPage] = await Promise.all([
+		ports.orders.get(orderId),
+		ports.webhookReceipts.get(receiptId),
+		ports.inventoryLedger.query({ where: { referenceType: "order", referenceId: orderId }, limit: 1 }),
+		ports.paymentAttempts.query({ where: { orderId, providerId, status: "succeeded" }, limit: 1 }),
+	]);
+	return {
+		isInventoryApplied: ledgerPage.items.length > 0,
+		isOrderPaid: order?.paymentPhase === "paid",
+		isPaymentAttemptSucceeded: attemptPage.items.length > 0,
+		isReceiptProcessed: receipt?.status === "processed",
+	};
 }

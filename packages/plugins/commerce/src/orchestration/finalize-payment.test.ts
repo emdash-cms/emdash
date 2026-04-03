@@ -12,6 +12,7 @@ import {
 	finalizePaymentFromWebhook,
 	type FinalizePaymentPorts,
 	inventoryStockDocId,
+	queryFinalizationStatus,
 	receiptToView,
 	webhookReceiptDocId,
 } from "./finalize-payment.js";
@@ -91,6 +92,30 @@ function withOneTimePutFailure<T extends object>(collection: MemColl<T>): MemCol
 		put: async (id: string, data: T): Promise<void> => {
 			if (shouldFail) {
 				shouldFail = false;
+				throw new Error("simulated storage write failure");
+			}
+			await collection.put(id, data);
+		},
+	} as MemColl<T>;
+}
+
+/** Succeeds on the first `succeedCount` puts, then fails exactly once. */
+function withNthPutFailure<T extends object>(
+	collection: MemColl<T>,
+	failOnNth: number,
+): MemColl<T> {
+	let callCount = 0;
+	let hasFailed = false;
+	return {
+		get rows() {
+			return collection.rows;
+		},
+		get: (id: string) => collection.get(id),
+		query: (options?: MemQueryOptions) => collection.query(options),
+		put: async (id: string, data: T): Promise<void> => {
+			callCount++;
+			if (callCount === failOnNth && !hasFailed) {
+				hasFailed = true;
 				throw new Error("simulated storage write failure");
 			}
 			await collection.put(id, data);
@@ -884,5 +909,256 @@ describe("finalizePaymentFromWebhook", () => {
 				updatedAt: now,
 			}),
 		).toEqual({ exists: true, status: "duplicate" });
+	});
+
+	it("resumes correctly when ledger write succeeds but stock write fails", async () => {
+		/**
+		 * Sharpest inventory edge: `inventoryLedger.put` succeeds but
+		 * `inventoryStock.put` throws. The receipt is left `pending`, ledger row
+		 * exists, stock is still at the pre-mutation version.
+		 *
+		 * On retry the reconcile pass in `applyInventoryMutations` must detect
+		 * "ledger exists, stock.version === inventoryVersion" and finish the stock
+		 * write without re-writing the ledger.
+		 */
+		const orderId = "order_ledger_ok_stock_fail";
+		const extId = "evt_stock_fail";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_lsf",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		// Wrap inventoryStock so the first put (stock update) fails.
+		const ports = {
+			...basePorts,
+			inventoryStock: withOneTimePutFailure(
+				basePorts.inventoryStock as unknown as MemColl<StoredInventoryStock>,
+			),
+		} as FinalizePaymentPorts;
+
+		// First attempt: ledger write succeeds, stock write throws (hard storage error).
+		await expect(
+			finalizePaymentFromWebhook(ports, {
+				orderId,
+				providerId: "stripe",
+				externalEventId: extId,
+				correlationId: "cid",
+				finalizeToken: FINALIZE_RAW,
+				nowIso: now,
+			}),
+		).rejects.toThrow("simulated storage write failure");
+
+		// After first attempt: ledger row must exist, stock must NOT yet be updated.
+		const ledgerAfterFirst = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledgerAfterFirst.items).toHaveLength(1);
+		const stockAfterFirst = await basePorts.inventoryStock.get(stockDocId);
+		expect(stockAfterFirst?.version).toBe(3); // stock unchanged
+		expect(stockAfterFirst?.quantity).toBe(10); // quantity unchanged
+
+		// Second attempt on basePorts (stock write works): reconcile pass should
+		// detect ledger-exists + stock.version === inventoryVersion and finish it.
+		const second = await finalizePaymentFromWebhook(basePorts, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(second).toEqual({ kind: "completed", orderId });
+
+		const stockAfterRetry = await basePorts.inventoryStock.get(stockDocId);
+		expect(stockAfterRetry?.version).toBe(4); // stock updated
+		expect(stockAfterRetry?.quantity).toBe(8); // 10 - 2
+
+		const ledgerAfterRetry = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledgerAfterRetry.items).toHaveLength(1); // no duplicate ledger row
+
+		const status = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
+		expect(status).toEqual({
+			isInventoryApplied: true,
+			isOrderPaid: true,
+			isPaymentAttemptSucceeded: true,
+			isReceiptProcessed: true,
+		});
+	});
+
+	it("completes on retry when final receipt processed write fails", async () => {
+		/**
+		 * Everything succeeds (inventory, order→paid, payment attempt→succeeded)
+		 * but the final `webhookReceipts.put(status: "processed")` throws.
+		 *
+		 * Receipt is left `pending`. On retry: order is already paid, inventory
+		 * is already applied, attempt is already succeeded. Only the receipt
+		 * write needs to complete.
+		 */
+		const orderId = "order_receipt_fail";
+		const extId = "evt_receipt_fail";
+		const state = {
+			orders: new Map([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_rf",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					inventoryStockDocId("p1", ""),
+					{ productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now },
+				],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		// The second webhookReceipts.put (status→processed) fails; the first
+		// (status→pending) must succeed so the receipt is left in pending state.
+		const ports = {
+			...basePorts,
+			webhookReceipts: withNthPutFailure(
+				basePorts.webhookReceipts as unknown as MemColl<StoredWebhookReceipt>,
+				2,
+			),
+		};
+
+		// First attempt: throws when writing status→processed.
+		await expect(
+			finalizePaymentFromWebhook(ports, {
+				orderId,
+				providerId: "stripe",
+				externalEventId: extId,
+				correlationId: "cid",
+				finalizeToken: FINALIZE_RAW,
+				nowIso: now,
+			}),
+		).rejects.toThrow("simulated storage write failure");
+
+		// After first attempt: all side effects must be done except receipt→processed.
+		const status = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
+		expect(status.isInventoryApplied).toBe(true);
+		expect(status.isOrderPaid).toBe(true);
+		expect(status.isPaymentAttemptSucceeded).toBe(true);
+		expect(status.isReceiptProcessed).toBe(false); // this is the unfinished bit
+
+		const pendingReceipt = await basePorts.webhookReceipts.get(
+			webhookReceiptDocId("stripe", extId),
+		);
+		expect(pendingReceipt?.status).toBe("pending");
+
+		// Second attempt on basePorts: should complete just the receipt write.
+		const second = await finalizePaymentFromWebhook(basePorts, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(second).toEqual({ kind: "completed", orderId });
+
+		const finalStatus = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
+		expect(finalStatus).toEqual({
+			isInventoryApplied: true,
+			isOrderPaid: true,
+			isPaymentAttemptSucceeded: true,
+			isReceiptProcessed: true,
+		});
+	});
+
+	it("concurrent same-event finalize: documents actual behavior (platform concurrency risk)", async () => {
+		/**
+		 * Two concurrent deliveries of the same gateway event — the known
+		 * residual risk documented in finalize-payment.ts.
+		 *
+		 * In the JS event loop, `Promise.all` interleaves both calls at every
+		 * `await` boundary. Both read receipt=null before either writes, so both
+		 * `decidePaymentFinalize` calls return "proceed". Both proceed through
+		 * inventory, order, and receipt writes.
+		 *
+		 * Because all writes are idempotent (same computed values from the same
+		 * read snapshot), both calls complete successfully and stock ends at the
+		 * correct value. This does NOT simulate true parallel execution across
+		 * separate Workers — that risk remains a documented platform constraint
+		 * until insert-if-not-exists or conditional writes are available.
+		 */
+		const orderId = "order_concurrent";
+		const extId = "evt_concurrent";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_concurrent",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const ports = portsFromState(state);
+		const input = {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		};
+
+		const [r1, r2] = await Promise.all([
+			finalizePaymentFromWebhook(ports, input),
+			finalizePaymentFromWebhook(ports, input),
+		]);
+
+		// Both calls see receipt=null at their read phase → both proceed.
+		// Idempotent writes mean both complete successfully with identical side effects.
+		expect(r1).toEqual({ kind: "completed", orderId });
+		expect(r2).toEqual({ kind: "completed", orderId });
+
+		// Stock is decremented exactly once (idempotent overwrites, same values).
+		const finalStock = await ports.inventoryStock.get(stockDocId);
+		expect(finalStock?.version).toBe(4);
+		expect(finalStock?.quantity).toBe(8); // 10 - 2
+
+		// Ledger has exactly one entry (both wrote the same id).
+		const ledger = await ports.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+
+		// NOTE: real concurrent delivery across separate Workers/processes is NOT
+		// covered here. Two processes can both pass the read phase before either
+		// write becomes visible — true prevention requires platform-level
+		// insert-if-not-exists or conditional writes (documented residual risk).
 	});
 });
