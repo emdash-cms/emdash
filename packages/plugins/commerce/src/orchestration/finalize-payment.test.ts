@@ -1035,7 +1035,7 @@ describe("finalizePaymentFromWebhook", () => {
 			providerId: "stripe",
 			externalEventId: ext,
 			correlationId: "cid",
-			finalizeToken: FINALIZE_HASH,
+			finalizeToken: FINALIZE_RAW,
 			nowIso: now,
 		});
 		expect(first).toMatchObject({
@@ -1048,7 +1048,7 @@ describe("finalizePaymentFromWebhook", () => {
 			providerId: "stripe",
 			externalEventId: ext,
 			correlationId: "cid",
-			finalizeToken: FINALIZE_HASH,
+			finalizeToken: FINALIZE_RAW,
 			nowIso: now,
 		});
 		expect(second).toMatchObject({
