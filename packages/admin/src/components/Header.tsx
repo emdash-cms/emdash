@@ -1,14 +1,22 @@
 import { Button, LinkButton, Popover } from "@cloudflare/kumo";
-import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
+import { SignOut, Shield, Gear, ArrowSquareOut, GlobeSimple } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useTranslation } from "../i18n/index.js";
 import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
+import { cn } from "../lib/utils.js";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 
 export type { CurrentUser } from "../lib/api/current-user";
+
+function setLocale(code: string) {
+	const secure = window.location.protocol === "https:" ? "; Secure" : "";
+	document.cookie = `emdash-locale=${code}; Path=/_emdash; SameSite=Lax; Max-Age=31536000${secure}`;
+	window.location.reload();
+}
 
 async function handleLogout() {
 	const res = await apiFetch("/_emdash/api/auth/logout?redirect=/_emdash/admin/login", {
@@ -30,6 +38,12 @@ export function Header() {
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	const { data: user } = useCurrentUser();
+	const { locale } = useTranslation();
+
+	const SUPPORTED_LOCALES = [
+		{ code: "en", label: "English" },
+		{ code: "fr", label: "Français" },
+	];
 
 	// Get display name and initials
 	const displayName = user?.name || user?.email || "User";
@@ -90,6 +104,29 @@ export function Header() {
 								<Gear className="h-4 w-4" />
 								Settings
 							</Link>
+							<hr className="my-1" />
+							<div className="px-3 py-1.5">
+								<div className="flex items-center gap-1.5 text-xs font-medium text-kumo-subtle mb-1">
+									<GlobeSimple className="h-3.5 w-3.5" weight="bold" />
+									Language
+								</div>
+								<div className="grid gap-0.5">
+									{SUPPORTED_LOCALES.map((l) => (
+										<button
+											key={l.code}
+											onClick={() => setLocale(l.code)}
+											className={cn(
+												"rounded-md px-3 py-1.5 text-sm text-left transition-colors",
+												l.code === locale
+													? "bg-kumo-brand/10 text-kumo-brand font-medium"
+													: "hover:bg-kumo-tint",
+											)}
+										>
+											{l.label}
+										</button>
+									))}
+								</div>
+							</div>
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
