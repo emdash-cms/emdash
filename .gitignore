@@ -66,6 +66,3 @@ __screenshots__/
 
 # Downloaded test data (fetched on demand in CI)
 examples/wp-theme-unit-test/
-
-# Personal developer rules
-*.local.*
