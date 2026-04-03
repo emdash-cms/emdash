@@ -8,7 +8,7 @@ This repository hosts an EmDash-native commerce plugin with a narrow stage-1 sco
 
 ## 2) Completed work and outcomes
 
-Stage-1 commerce lives in `packages/plugins/commerce` with Vitest coverage (currently **15 files / 71 tests** in that package).
+Stage-1 commerce lives in `packages/plugins/commerce` with Vitest coverage across **multiple files**, and test coverage has been expanded as seams and extension contracts were added.
 
 - **Checkout** ([`src/handlers/checkout.ts`](packages/plugins/commerce/src/handlers/checkout.ts)): deterministic idempotency; recovers order/attempt from pending idempotency records; validates cart line items and stock preflight; requires `ownerToken` when the cart has `ownerTokenHash` (same as `cart/get` / `cart/upsert`).
 - **Finalize** ([`src/orchestration/finalize-payment.ts`](packages/plugins/commerce/src/orchestration/finalize-payment.ts)): centralized orchestration; `queryFinalizationStatus(...)` for diagnostics; inventory reconcile when ledger wrote but stock did not; explicit logging on core paths; intentional bubble on final receipt→`processed` write (retry-safe).
@@ -16,6 +16,11 @@ Stage-1 commerce lives in `packages/plugins/commerce` with Vitest coverage (curr
 - **Stripe webhook** ([`src/handlers/webhooks-stripe.ts`](packages/plugins/commerce/src/handlers/webhooks-stripe.ts)): signature verification; raw body byte cap before verify; rate limit.
 - **Order read for SSR** ([`src/handlers/checkout-get-order.ts`](packages/plugins/commerce/src/handlers/checkout-get-order.ts)): `POST checkout/get-order` returns a public order snapshot; requires `finalizeToken` whenever the order has `finalizeTokenHash` (checkout always sets it). Rows without a hash are not returned (`ORDER_NOT_FOUND`).
 - **Recommendations** ([`src/handlers/recommendations.ts`](packages/plugins/commerce/src/handlers/recommendations.ts)): returns `enabled: false` and stable `reason`—storefronts should hide the block until a recommender exists.
+- **Extension seams**:
+  - `src/catalog-extensibility.ts` now includes closed-kernel and read-only extension contracts.
+  - `src/handlers/recommendations.ts` exposes a resolver seam for third-party recommender providers.
+  - `src/handlers/webhook-handler.ts` exposes a provider adapter seam for webhook integrations.
+  - `COMMERCE_EXTENSION_SURFACE.md` defines service boundaries and non-bypass policies.
 
 Operational docs: [`packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md`](packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK.md), support variant alongside, [`COMMERCE_DOCS_INDEX.md`](packages/plugins/commerce/COMMERCE_DOCS_INDEX.md).
 
@@ -60,6 +65,7 @@ Lesson: expand features only after negative-path tests and incident semantics st
 | Errors / wire codes | `packages/plugins/commerce/src/kernel/errors.ts`, `api-errors.ts` |
 | Receipt decisions | `packages/plugins/commerce/src/kernel/finalize-decision.ts` |
 | Plugin entry | `packages/plugins/commerce/src/index.ts` |
+| Extension surface | `packages/plugins/commerce/COMMERCE_EXTENSION_SURFACE.md` |
 
 ### Plugin HTTP routes (mount: `/_emdash/api/plugins/emdash-commerce/<route>`)
 
@@ -76,6 +82,7 @@ Lesson: expand features only after negative-path tests and incident semantics st
 
 - Handlers are **contract + I/O**; money and replay rules stay in orchestration/kernel.
 - Branch on **wire `code`**, not free-form `message` text.
+- Treat `src/index.ts` as the active route source-of-truth and `COMMERCE_EXTENSION_SURFACE.md` for extension seams.
 - Logs: finalize paths use consistent context (`orderId`, `providerId`, `externalEventId`, `correlationId`) where implemented—preserve when extending.
 
 ### Gotchas

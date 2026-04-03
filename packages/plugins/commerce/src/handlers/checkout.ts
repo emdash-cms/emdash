@@ -31,11 +31,18 @@ import type {
 
 const CHECKOUT_ROUTE = "checkout";
 const CHECKOUT_PENDING_KIND = "checkout_pending";
+const DEFAULT_PAYMENT_PROVIDER_ID = "stripe";
+
+function resolvePaymentProviderId(value: string | undefined): string {
+	const normalized = value?.trim() ?? "";
+	return normalized.length > 0 ? normalized : DEFAULT_PAYMENT_PROVIDER_ID;
+}
 
 type CheckoutPendingState = {
 	kind: typeof CHECKOUT_PENDING_KIND;
 	orderId: string;
 	paymentAttemptId: string;
+	providerId?: string;
 	cartId: string;
 	paymentPhase: "payment_pending";
 	finalizeToken: string;
@@ -120,7 +127,7 @@ async function restorePendingCheckout(
 	if (!existingAttempt) {
 		await attempts.put(pending.paymentAttemptId, {
 			orderId: pending.orderId,
-			providerId: "stripe",
+			providerId: resolvePaymentProviderId(pending.providerId),
 			status: "pending",
 			createdAt: pending.createdAt,
 			updatedAt: nowIso,
@@ -171,8 +178,9 @@ function deterministicPaymentAttemptId(keyHash: string): string {
 	return `checkout-attempt:${keyHash}`;
 }
 
-export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
+export async function checkoutHandler(ctx: RouteContext<CheckoutInput>, paymentProviderId?: string) {
 	requirePost(ctx);
+	const resolvedPaymentProviderId = resolvePaymentProviderId(paymentProviderId);
 
 	const nowMs = Date.now();
 	const nowIso = new Date(nowMs).toISOString();
@@ -310,7 +318,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	const paymentAttemptId = deterministicPaymentAttemptId(keyHash);
 	const attempt: StoredPaymentAttempt = {
 		orderId,
-		providerId: "stripe",
+		providerId: resolvedPaymentProviderId,
 		status: "pending",
 		createdAt: nowIso,
 		updatedAt: nowIso,
@@ -320,6 +328,7 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 		kind: CHECKOUT_PENDING_KIND,
 		orderId,
 		paymentAttemptId,
+		providerId: resolvedPaymentProviderId,
 		cartId: ctx.input.cartId,
 		paymentPhase: "payment_pending",
 		finalizeToken,

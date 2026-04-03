@@ -13,6 +13,12 @@ This document aligns the **stage-1 commerce kernel** with future **LLM**, **vect
 - **Checkout, webhooks, and finalize** remain **deterministic** and **mutation-authoritative**. Agents must not replace those flows with fuzzy reasoning.
 - **Recommendation** and **search** are **read-only** surfaces. The `recommendations` plugin route is currently **disabled** (`strategy: "disabled"`, `reason: "no_recommender_configured"`) until vector search or an external recommender is wired; storefronts should hide the block when `enabled` is false.
 
+Implementation guardrails:
+
+- `src/index.ts` route table is the source of truth for shipped HTTP capabilities.
+- `COMMERCE_EXTENSION_SURFACE.md` tracks stable extension seams and kernel closure rules.
+- `src/catalog-extensibility.ts` defines export-level contracts for third-party providers.
+
 ## Errors and observability
 
 - Public errors should continue to expose **machine-readable `code`** values (see kernel `COMMERCE_ERROR_WIRE_CODES` and `toCommerceApiError()`). LLMs and MCP tools should branch on `code`, not on free-form `message` text.
@@ -22,6 +28,7 @@ This document aligns the **stage-1 commerce kernel** with future **LLM**, **vect
 
 - **EmDash MCP** today targets **content** tooling. A dedicated **`@emdash-cms/plugin-commerce-mcp`** package is **planned** (architecture Section 11) for scoped tools: product read/write, order lookup for customer service (prefer **short-lived tokens** over wide-open order id guessing), refunds, etc.
 - MCP tools must respect the same invariants as HTTP routes: **no bypass** of finalize/idempotency rules for payments.
+- MCP tools should be read/write-safe by design: reads use `queryFinalizationStatus`/order APIs, writes use service seams that enforce kernel checks.
 
 ## Related files
 
@@ -29,5 +36,6 @@ This document aligns the **stage-1 commerce kernel** with future **LLM**, **vect
 |------|----------|
 | Disabled recommendations route | `src/handlers/recommendations.ts` |
 | Catalog/search field contract | `src/catalog-extensibility.ts` |
+| Extension seams and invariants | `COMMERCE_EXTENSION_SURFACE.md` |
 | Architecture (MCP tool list, principles) | `commerce-plugin-architecture.md` §11 |
 | Execution handoff | `HANDOVER.md` |

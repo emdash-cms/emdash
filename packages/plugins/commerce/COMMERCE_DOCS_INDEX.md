@@ -10,6 +10,7 @@
 - `AI-EXTENSIBILITY.md` — future vector/LLM/MCP design notes
 - `HANDOVER.md` — current execution handoff and stage context
 - `commerce-plugin-architecture.md` — canonical architecture summary
+- `COMMERCE_EXTENSION_SURFACE.md` — extension contract and closed-kernel rules
 
 ## Plugin code references
 
@@ -31,3 +32,5 @@
 | `recommendations` | Disabled contract for UIs |
 
 All routes mount under `/_emdash/api/plugins/emdash-commerce/<route>`.
+
+Implementation note: `src/index.ts` is the active source of truth for what the plugin exposes over HTTP today.

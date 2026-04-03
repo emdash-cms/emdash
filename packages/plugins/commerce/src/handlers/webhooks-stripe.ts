@@ -3,30 +3,23 @@
  * The route still accepts the typed JSON body for deterministic plugin tests.
  */
 
-import type { RouteContext, StorageCollection } from "emdash";
+import type { RouteContext } from "emdash";
 
-import { COMMERCE_LIMITS } from "../kernel/limits.js";
-import { requirePost } from "../lib/require-post.js";
-import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
-import { sha256Hex } from "../hash.js";
 import {
 	hmacSha256HexAsync,
 	constantTimeEqualHexAsync,
 } from "../lib/crypto-adapter.js";
-import { finalizePaymentFromWebhook } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
+import {
+	handlePaymentWebhook,
+	type CommerceWebhookAdapter,
+} from "./webhook-handler.js";
 import type { StripeWebhookInput } from "../schemas.js";
-import type {
-	StoredInventoryLedgerEntry,
-	StoredInventoryStock,
-	StoredOrder,
-	StoredPaymentAttempt,
-	StoredWebhookReceipt,
-} from "../types.js";
 
 const MAX_WEBHOOK_BODY_BYTES = 65_536;
 const STRIPE_SIGNATURE_HEADER = "Stripe-Signature";
 const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
+const STRIPE_PROVIDER_ID = "stripe";
 
 function parseStripeSignatureHeader(raw: string | null): ParsedStripeSignature | null {
 	if (!raw) return null;
@@ -102,68 +95,26 @@ type ParsedStripeSignature = {
 	signatures: string[];
 };
 
-function asCollection<T>(raw: unknown): StorageCollection<T> {
-	return raw as StorageCollection<T>;
-}
+const stripeWebhookAdapter: CommerceWebhookAdapter<StripeWebhookInput> = {
+	providerId: STRIPE_PROVIDER_ID,
+	verifyRequest: ensureValidStripeWebhookSignature,
+	buildFinalizeInput(ctx) {
+		return {
+			orderId: ctx.input.orderId,
+			externalEventId: ctx.input.externalEventId,
+			finalizeToken: ctx.input.finalizeToken,
+		};
+	},
+	buildCorrelationId(ctx) {
+		return ctx.input.correlationId ?? ctx.input.externalEventId;
+	},
+	buildRateLimitSuffix() {
+		return "stripe:ip";
+	},
+};
 
 export async function stripeWebhookHandler(ctx: RouteContext<StripeWebhookInput>) {
-	requirePost(ctx);
-	const cl = ctx.request.headers.get("content-length");
-	if (cl !== null && cl !== "") {
-		const n = Number(cl);
-		if (Number.isFinite(n) && n > MAX_WEBHOOK_BODY_BYTES) {
-			throwCommerceApiError({
-				code: "PAYLOAD_TOO_LARGE",
-				message: "Webhook body is too large",
-			});
-		}
-	}
-	await ensureValidStripeWebhookSignature(ctx);
-
-	const nowMs = Date.now();
-	const ip = ctx.requestMeta.ip ?? "unknown";
-	const ipHash = sha256Hex(ip).slice(0, 32);
-	const allowed = await consumeKvRateLimit({
-		kv: ctx.kv,
-		keySuffix: `webhook:stripe:ip:${ipHash}`,
-		limit: COMMERCE_LIMITS.defaultWebhookPerIpPerWindow,
-		windowMs: COMMERCE_LIMITS.defaultRateWindowMs,
-		nowMs,
-	});
-	if (!allowed) {
-		throwCommerceApiError({
-			code: "RATE_LIMITED",
-			message: "Too many webhook deliveries from this network path",
-		});
-	}
-
-	const correlationId = ctx.input.correlationId ?? ctx.input.externalEventId;
-
-	const result = await finalizePaymentFromWebhook(
-		{
-			orders: asCollection<StoredOrder>(ctx.storage.orders),
-			webhookReceipts: asCollection<StoredWebhookReceipt>(ctx.storage.webhookReceipts),
-			paymentAttempts: asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts),
-			inventoryLedger: asCollection<StoredInventoryLedgerEntry>(ctx.storage.inventoryLedger),
-			inventoryStock: asCollection<StoredInventoryStock>(ctx.storage.inventoryStock),
-			log: ctx.log,
-		},
-		{
-			orderId: ctx.input.orderId,
-			providerId: ctx.input.providerId,
-			externalEventId: ctx.input.externalEventId,
-			correlationId,
-			finalizeToken: ctx.input.finalizeToken,
-		},
-	);
-
-	if (result.kind === "replay") {
-		return { ok: true as const, replay: true as const, reason: result.reason };
-	}
-	if (result.kind === "api_error") {
-		throwCommerceApiError(result.error);
-	}
-	return { ok: true as const, orderId: result.orderId };
+	return handlePaymentWebhook(ctx, stripeWebhookAdapter);
 }
 
 export {

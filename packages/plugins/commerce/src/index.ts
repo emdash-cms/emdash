@@ -20,7 +20,6 @@ import { handleIdempotencyCleanup } from "./handlers/cron.js";
 import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
-import { recommendationsHandler } from "./handlers/recommendations.js";
 import { stripeWebhookHandler } from "./handlers/webhooks-stripe.js";
 import {
 	cartGetInputSchema,
@@ -30,7 +29,15 @@ import {
 	recommendationsInputSchema,
 	stripeWebhookInputSchema,
 } from "./schemas.js";
+import {
+	COMMERCE_EXTENSION_HOOKS,
+	COMMERCE_KERNEL_RULES,
+	COMMERCE_RECOMMENDATION_HOOKS,
+	type CommerceRecommendationResolver,
+} from "./catalog-extensibility.js";
 import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
+import { createRecommendationsRoute } from "./services/commerce-extension-seams.js";
+
 
 /**
  * The EmDash `definePlugin` route handler type requires handlers typed against
@@ -63,7 +70,25 @@ export function commercePlugin(): PluginDescriptor {
 	};
 }
 
-export function createPlugin() {
+export interface CommercePluginOptions {
+	extensions?: {
+		/**
+		 * Optional read-only recommendation provider adapter for storefront features.
+		 * The provider must only return product IDs and must not mutate commerce data.
+		 */
+		recommendationResolver?: CommerceRecommendationResolver;
+		/**
+		 * Optional provider identifier for diagnostic/correlation output from recommender.
+		 */
+		recommendationProviderId?: string;
+	};
+}
+
+export function createPlugin(options: CommercePluginOptions = {}) {
+	const recommendationsRouteHandler = createRecommendationsRoute({
+		resolver: options.extensions?.recommendationResolver,
+		providerId: options.extensions?.recommendationProviderId,
+	});
 	return definePlugin({
 		id: "emdash-commerce",
 		version: "0.1.0",
@@ -140,7 +165,7 @@ export function createPlugin() {
 			recommendations: {
 				public: true,
 				input: recommendationsInputSchema,
-				handler: asRouteHandler(recommendationsHandler),
+				handler: asRouteHandler(recommendationsRouteHandler),
 			},
 			"webhooks/stripe": {
 				public: true,
@@ -157,6 +182,7 @@ export type * from "./types.js";
 export type { CommerceStorage } from "./storage.js";
 export { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 export { COMMERCE_SETTINGS_KEYS } from "./settings-keys.js";
+export { COMMERCE_EXTENSION_HOOKS, COMMERCE_RECOMMENDATION_HOOKS, COMMERCE_KERNEL_RULES } from "./catalog-extensibility.js";
 export {
 	finalizePaymentFromWebhook,
 	webhookReceiptDocId,
@@ -167,7 +193,16 @@ export { throwCommerceApiError } from "./route-errors.js";
 export type {
 	CommerceCatalogProductSearchFields,
 } from "./catalog-extensibility.js";
-export { COMMERCE_EXTENSION_HOOKS } from "./catalog-extensibility.js";
+export {
+	createRecommendationsRoute,
+	createPaymentWebhookRoute,
+	queryFinalizationState,
+	COMMERCE_MCP_ACTORS,
+	type CommerceMcpActor,
+	type CommerceMcpOperationContext,
+} from "./services/commerce-extension-seams.js";
+export type { RecommendationsHandlerOptions } from "./handlers/recommendations.js";
+export type { CommerceWebhookAdapter, WebhookFinalizeResponse } from "./handlers/webhook-handler.js";
 export type { RecommendationsResponse } from "./handlers/recommendations.js";
 export type { CheckoutGetOrderResponse } from "./handlers/checkout-get-order.js";
 export type { CartUpsertResponse, CartGetResponse } from "./handlers/cart.js";
