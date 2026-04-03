@@ -107,6 +107,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { useElementReady } from "./lib/hooks";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -467,6 +468,7 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
+	validateSearch: (search: { field?: string }) => search,
 });
 
 // Editor role level from @emdash-cms/auth
@@ -476,9 +478,18 @@ function ContentEditPage() {
 	const { collection, id } = useParams({
 		from: "/_admin/content/$collection/$id",
 	});
+	const { field: focusField, ...preservedSearch } = useSearch({
+		from: "/_admin/content/$collection/$id",
+	});
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
+
+	useElementReady(focusField && `field-${focusField}`, (el) => {
+		el.scrollIntoView({ behavior: "smooth", block: "center" });
+		el.focus();
+		void navigate({ search: preservedSearch as never, replace: true });
+	});
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
