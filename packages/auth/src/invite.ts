@@ -4,6 +4,7 @@
 
 import { generateTokenWithHash, hashToken } from "./tokens.js";
 import type { AuthAdapter, RoleLevel, EmailMessage, User } from "./types.js";
+import { buildAuthUrl } from "./urls.js";
 
 /** Escape HTML special characters to prevent injection in email templates */
 export function escapeHtml(s: string): string {
@@ -68,7 +69,7 @@ export async function createInviteToken(
 	});
 
 	// Build invite URL
-	const url = new URL("/api/auth/invite/accept", config.baseUrl);
+	const url = buildAuthUrl(config.baseUrl, "api/auth/invite/accept");
 	url.searchParams.set("token", token);
 
 	return { url: url.toString(), email };

@@ -10,6 +10,7 @@ import type { AuthAdapter, User, RoleLevel } from "../types.js";
 import { github, fetchGitHubEmail } from "./providers/github.js";
 import { google } from "./providers/google.js";
 import type { OAuthProvider, OAuthConfig, OAuthProfile, OAuthState } from "./types.js";
+import { buildAuthUrl } from "../urls.js";
 
 export { github, google };
 
@@ -40,7 +41,10 @@ export async function createAuthorizationUrl(
 
 	const provider = getProvider(providerName);
 	const state = generateState();
-	const redirectUri = `${config.baseUrl}/api/auth/oauth/${providerName}/callback`;
+	const redirectUri = buildAuthUrl(
+		config.baseUrl,
+		`api/auth/oauth/${providerName}/callback`,
+	).toString();
 
 	// Generate PKCE code verifier for providers that support it
 	const codeVerifier = generateCodeVerifier();

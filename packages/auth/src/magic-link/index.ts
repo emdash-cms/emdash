@@ -5,6 +5,7 @@
 import { escapeHtml } from "../invite.js";
 import { generateTokenWithHash, hashToken } from "../tokens.js";
 import type { AuthAdapter, User, EmailMessage } from "../types.js";
+import { buildAuthUrl } from "../urls.js";
 
 const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -63,7 +64,7 @@ export async function sendMagicLink(
 	});
 
 	// Build magic link URL
-	const url = new URL("/api/auth/magic-link/verify", config.baseUrl);
+	const url = buildAuthUrl(config.baseUrl, "api/auth/magic-link/verify");
 	url.searchParams.set("token", token);
 
 	// Send email

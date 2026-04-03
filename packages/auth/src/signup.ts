@@ -5,6 +5,7 @@
 import { escapeHtml } from "./invite.js";
 import { generateTokenWithHash, hashToken } from "./tokens.js";
 import type { AuthAdapter, RoleLevel, EmailMessage, User } from "./types.js";
+import { buildAuthUrl } from "./urls.js";
 
 const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -91,7 +92,7 @@ export async function requestSignup(
 	});
 
 	// Build verification URL
-	const url = new URL("/api/auth/signup/verify", config.baseUrl);
+	const url = buildAuthUrl(config.baseUrl, "api/auth/signup/verify");
 	url.searchParams.set("token", token);
 
 	// Send email
