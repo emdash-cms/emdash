@@ -23,6 +23,7 @@ import { PluginRouteError } from "emdash";
 
 import { equalSha256HexDigest, randomFinalizeTokenHex, sha256Hex } from "../hash.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { validateCartLineItems } from "../lib/cart-validation.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -43,7 +44,7 @@ export type CartUpsertResponse = {
 	lineItemCount: number;
 	updatedAt: string;
 	/**
-	 * Only present on cart creation (first upsert).
+	 * Present on first creation and returned when a legacy cart is migrated.
 	 * The caller must store this token — it is never returned again.
 	 * Required for all subsequent mutations.
 	 */
@@ -60,6 +61,8 @@ export async function cartUpsertHandler(
 
 	const carts = asCollection<StoredCart>(ctx.storage.carts);
 	const existing = await carts.get(ctx.input.cartId);
+	let ownerToken: string | undefined;
+	let ownerTokenHash: string | undefined = existing?.ownerTokenHash;
 
 	// --- Ownership check ---
 	if (existing?.ownerTokenHash) {
@@ -79,10 +82,28 @@ export async function cartUpsertHandler(
 		}
 	}
 
-	// --- Rate limit: keyed on token hash (or cartId for legacy/new carts) ---
-	const rateLimitKey = existing?.ownerTokenHash
-		? `cart:token:${existing.ownerTokenHash.slice(0, 32)}`
-		: `cart:id:${sha256Hex(ctx.input.cartId).slice(0, 32)}`;
+	// --- Legacy migration ---
+	// Existing carts without an ownerTokenHash are legacy carts; this migration
+	// binds future mutations to an owner token, either provided by the caller or
+	// generated and returned.
+	const isLegacy = existing !== null && existing.ownerTokenHash === undefined;
+	const rateLimitByCartId = !existing || (isLegacy && !ctx.input.ownerToken);
+	if (!existing) {
+		ownerToken = randomFinalizeTokenHex(24);
+		ownerTokenHash = sha256Hex(ownerToken);
+	} else if (isLegacy) {
+		if (ctx.input.ownerToken) {
+			ownerTokenHash = sha256Hex(ctx.input.ownerToken);
+		} else {
+			ownerToken = randomFinalizeTokenHex(24);
+			ownerTokenHash = sha256Hex(ownerToken);
+		}
+	}
+
+	// --- Rate limit: keyed by cartId for first-time/new carts, token hash thereafter ---
+	const rateLimitKey = rateLimitByCartId
+		? `cart:id:${sha256Hex(ctx.input.cartId).slice(0, 32)}`
+		: `cart:token:${ownerTokenHash!.slice(0, 32)}`;
 
 	const allowed = await consumeKvRateLimit({
 		kv: ctx.kv,
@@ -105,47 +126,12 @@ export async function cartUpsertHandler(
 			message: `Cart must not exceed ${COMMERCE_LIMITS.maxCartLineItems} line items`,
 		});
 	}
-	for (const line of ctx.input.lineItems) {
-		if (
-			!Number.isInteger(line.quantity) ||
-			line.quantity < 1 ||
-			line.quantity > COMMERCE_LIMITS.maxLineItemQty
-		) {
-			throw new PluginRouteError(
-				"VALIDATION_ERROR",
-				`Line item quantity must be between 1 and ${COMMERCE_LIMITS.maxLineItemQty}`,
-				422,
-			);
-		}
-		if (!Number.isInteger(line.inventoryVersion) || line.inventoryVersion < 0) {
-			throw new PluginRouteError(
-				"VALIDATION_ERROR",
-				"Line item inventory version must be a non-negative integer",
-				422,
-			);
-		}
-		if (!Number.isInteger(line.unitPriceMinor) || line.unitPriceMinor < 0) {
-			throw new PluginRouteError(
-				"VALIDATION_ERROR",
-				"Line item unit price must be a non-negative integer",
-				422,
-			);
-		}
+	const lineItemValidationMessage = validateCartLineItems(ctx.input.lineItems);
+	if (lineItemValidationMessage) {
+		throw PluginRouteError.badRequest(lineItemValidationMessage);
 	}
 
 	// --- Persist ---
-	let ownerToken: string | undefined;
-	let ownerTokenHash: string | undefined;
-
-	if (!existing) {
-		// First creation: issue a fresh owner token.
-		ownerToken = randomFinalizeTokenHex(24);
-		ownerTokenHash = sha256Hex(ownerToken);
-	} else {
-		// Preserve existing ownership.
-		ownerTokenHash = existing.ownerTokenHash;
-	}
-
 	const cart: StoredCart = {
 		currency: ctx.input.currency,
 		lineItems: ctx.input.lineItems.map((l) => ({

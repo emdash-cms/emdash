@@ -12,6 +12,7 @@ import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
+import { validateCartLineItems } from "../lib/cart-validation.js";
 import { requirePost } from "../lib/require-post.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -213,24 +214,9 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 			message: `Cart exceeds maximum of ${COMMERCE_LIMITS.maxCartLineItems} line items`,
 		});
 	}
-	for (const line of cart.lineItems) {
-		if (
-			!Number.isInteger(line.quantity) ||
-			line.quantity < 1 ||
-			line.quantity > COMMERCE_LIMITS.maxLineItemQty
-		) {
-			throw PluginRouteError.badRequest(
-				`Line item quantity must be between 1 and ${COMMERCE_LIMITS.maxLineItemQty}`,
-			);
-		}
-		if (!Number.isInteger(line.inventoryVersion) || line.inventoryVersion < 0) {
-			throw PluginRouteError.badRequest(
-				"Line item inventory version must be a non-negative integer",
-			);
-		}
-		if (!Number.isInteger(line.unitPriceMinor) || line.unitPriceMinor < 0) {
-			throw PluginRouteError.badRequest("Line item unit price must be a non-negative integer");
-		}
+	const lineItemValidationMessage = validateCartLineItems(cart.lineItems);
+	if (lineItemValidationMessage) {
+		throw PluginRouteError.badRequest(lineItemValidationMessage);
 	}
 
 	const fingerprint = cartContentFingerprint(cart.lineItems);

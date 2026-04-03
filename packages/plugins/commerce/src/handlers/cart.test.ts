@@ -145,6 +145,63 @@ describe("cartUpsertHandler", () => {
 		expect(second.lineItemCount).toBe(2);
 	});
 
+	it("migrates legacy carts and returns a token when one was not provided", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		carts.rows.set("legacy", {
+			currency: "USD",
+			lineItems: [LINE],
+			createdAt: "2026-04-03T12:00:00.000Z",
+			updatedAt: "2026-04-03T12:00:00.000Z",
+		});
+
+		const result = await cartUpsertHandler(
+			upsertCtx(
+				{
+					cartId: "legacy",
+					currency: "USD",
+					lineItems: [{ ...LINE, quantity: 2 }],
+				},
+				carts,
+				kv,
+			),
+		);
+
+		expect(result.ownerToken).toBeDefined();
+		const stored = await carts.get("legacy");
+		expect(stored!.ownerTokenHash).toBe(sha256Hex(result.ownerToken!));
+		expect(stored!.updatedAt).toBeDefined();
+	});
+
+	it("accepts a caller-provided token when migrating a legacy cart", async () => {
+		const carts = new MemColl<StoredCart>();
+		const kv = new MemKv();
+		carts.rows.set("legacy-existing", {
+			currency: "USD",
+			lineItems: [LINE],
+			createdAt: "2026-04-03T12:00:00.000Z",
+			updatedAt: "2026-04-03T12:00:00.000Z",
+		});
+
+		const ownerToken = "legacy-migration-token-1234567890";
+		const result = await cartUpsertHandler(
+			upsertCtx(
+				{
+					cartId: "legacy-existing",
+					currency: "USD",
+					lineItems: [LINE],
+					ownerToken,
+				},
+				carts,
+				kv,
+			),
+		);
+
+		expect(result.ownerToken).toBeUndefined();
+		const stored = await carts.get("legacy-existing");
+		expect(stored!.ownerTokenHash).toBe(sha256Hex(ownerToken));
+	});
+
 	it("rejects mutation without ownerToken when cart has one", async () => {
 		const carts = new MemColl<StoredCart>();
 		const kv = new MemKv();
