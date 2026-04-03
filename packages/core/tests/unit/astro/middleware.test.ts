@@ -129,7 +129,7 @@ describe("EmDash Middleware", () => {
 		expect(context.locals.emdash).toBeDefined();
 		expect(context.locals.emdash.collectPageMetadata).toBeDefined();
 		expect(context.locals.emdash.collectPageFragments).toBeDefined();
-		
+
 		// Verify they are bound to the runtime
 		const pageCtx = {} as any;
 		await context.locals.emdash.collectPageMetadata(pageCtx);

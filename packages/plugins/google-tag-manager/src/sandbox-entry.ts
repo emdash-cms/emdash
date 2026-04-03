@@ -8,8 +8,12 @@ export default definePlugin({
 			if (!containerId) return null;
 
 			const dataLayerName = (await ctx.kv.get<string>("settings:gtmDataLayerName")) || "dataLayer";
-			const gtmScriptUrl = (await ctx.kv.get<string>("settings:gtmScriptUrl")) || "https://www.googletagmanager.com/gtm.js";
-			const gtmNoScriptUrl = (await ctx.kv.get<string>("settings:gtmNoScriptUrl")) || "https://www.googletagmanager.com/ns.html";
+			const gtmScriptUrl =
+				(await ctx.kv.get<string>("settings:gtmScriptUrl")) ||
+				"https://www.googletagmanager.com/gtm.js";
+			const gtmNoScriptUrl =
+				(await ctx.kv.get<string>("settings:gtmNoScriptUrl")) ||
+				"https://www.googletagmanager.com/ns.html";
 
 			return [
 				{
@@ -51,9 +55,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 					const values = interaction.values || {};
 					await ctx.kv.set("settings:gtmContainerId", values.gtm_container_id || "");
 					await ctx.kv.set("settings:gtmDataLayerName", values.gtm_data_layer_name || "dataLayer");
-					await ctx.kv.set("settings:gtmScriptUrl", values.gtm_script_url || "https://www.googletagmanager.com/gtm.js");
-					await ctx.kv.set("settings:gtmNoScriptUrl", values.gtm_noscript_url || "https://www.googletagmanager.com/ns.html");
-					
+					await ctx.kv.set(
+						"settings:gtmScriptUrl",
+						values.gtm_script_url || "https://www.googletagmanager.com/gtm.js",
+					);
+					await ctx.kv.set(
+						"settings:gtmNoScriptUrl",
+						values.gtm_noscript_url || "https://www.googletagmanager.com/ns.html",
+					);
+
 					const response = await buildSettingsBlocks(ctx);
 					return {
 						...response,
@@ -70,8 +80,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 async function buildSettingsBlocks(ctx: PluginContext) {
 	const containerId = (await ctx.kv.get<string>("settings:gtmContainerId")) || "";
 	const dataLayerName = (await ctx.kv.get<string>("settings:gtmDataLayerName")) || "dataLayer";
-	const gtmScriptUrl = (await ctx.kv.get<string>("settings:gtmScriptUrl")) || "https://www.googletagmanager.com/gtm.js";
-	const gtmNoScriptUrl = (await ctx.kv.get<string>("settings:gtmNoScriptUrl")) || "https://www.googletagmanager.com/ns.html";
+	const gtmScriptUrl =
+		(await ctx.kv.get<string>("settings:gtmScriptUrl")) ||
+		"https://www.googletagmanager.com/gtm.js";
+	const gtmNoScriptUrl =
+		(await ctx.kv.get<string>("settings:gtmNoScriptUrl")) ||
+		"https://www.googletagmanager.com/ns.html";
 
 	return {
 		blocks: [
