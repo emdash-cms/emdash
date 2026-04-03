@@ -507,7 +507,7 @@ async function buildSettingsPage(ctx: PluginContext) {
 				},
 				{ type: "divider" },
 				{ type: "section", text: "**Payload Preview**" },
-				{ type: "code", code: payloadPreview, language: "json" },
+				{ type: "code", code: payloadPreview, language: "jsonc" },
 				{
 					type: "actions",
 					elements: [

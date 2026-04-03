@@ -1259,7 +1259,7 @@ async function runSingleTestAdmin(ctx: PluginContext, testId: string) {
 					style: result.passed ? "success" : "error",
 					text: `${result.passed ? "PASS" : "FAIL"}: ${result.message}`,
 				},
-				...(result.details ? [{ type: "code", code: result.details, language: "json" }] : []),
+				...(result.details ? [{ type: "code", code: result.details, language: "jsonc" }] : []),
 			],
 			toast: {
 				message: `${testId}: ${result.passed ? "passed" : "failed"}`,
