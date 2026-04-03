@@ -21,6 +21,7 @@ import * as React from "react";
 import { apiFetch, fetchManifest } from "../lib/api";
 import { sanitizeRedirectUrl } from "../lib/url";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
+import { LogoLockup } from "./Logo.js";
 
 // ============================================================================
 // Types
@@ -256,7 +257,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 				<div className="text-center">
-					<div className="text-4xl font-bold mb-4">— EmDash</div>
+					<LogoLockup className="h-10 mx-auto mb-4" />
 					<Loader />
 				</div>
 			</div>
@@ -268,7 +269,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<div className="text-4xl font-bold mb-2">— EmDash</div>
+					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{method === "passkey" && "Sign in to your site"}
 						{method === "magic-link" && "Sign in with email"}

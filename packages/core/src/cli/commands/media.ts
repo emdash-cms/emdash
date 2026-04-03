@@ -11,7 +11,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
-import { output } from "../output.js";
+import { configureOutputMode, output } from "../output.js";
 
 const listCommand = defineCommand({
 	meta: {
@@ -34,6 +34,7 @@ const listCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		const client = createClientFromArgs(args);
 
 		try {
@@ -73,6 +74,7 @@ const uploadCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		const client = createClientFromArgs(args);
 		const filename = basename(args.file);
 
@@ -108,6 +110,7 @@ const getCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		const client = createClientFromArgs(args);
 
 		try {
@@ -134,6 +137,7 @@ const deleteCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		const client = createClientFromArgs(args);
 
 		try {
