@@ -12,7 +12,12 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "default": "./dist/i18n/index.js"
+    },
+    "./i18n/locales/*": "./src/i18n/locales/*"
   },
   "scripts": {
     "build": "tsdown && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
