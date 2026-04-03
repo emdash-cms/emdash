@@ -2,74 +2,83 @@
 
 ## 1) Goal and problem statement
 
-This project is a stage-1 EmDash commerce kernel plugin. Its purpose is a minimal, opinionated money path:
+This repository is an EmDash-first Commerce plugin in a Stage-1 kernel state.
+Its current objective is to stabilize and extend a narrow, closed money path (cart, checkout, and webhook finalization) while preserving strict ownership and deterministic idempotent behavior.
 
-- `cart/upsert` and `cart/get` for guest possession-driven cart state,
-- `checkout` for deterministic, idempotent order creation,
-- `checkout/get-order` for secure readback,
-- `webhooks/stripe` for payment-finalization entry.
+The immediate next problem to solve is to harden extensibility and maintainability without changing core payment semantics: keep the kernel contracts stable, isolate extension seams, and reduce risk before broader feature rollout (tax/shipping/discount/future gateway expansion).
 
-The current problem is to move the plugin from “strong foundation” to reliable next-phase ownership: keep the transaction core closed, extend around it, and improve confidence before adding broader feature slices.
-
-The next developer should not broaden finalize semantics. Changes should be adjacent: route extensions, test hardening, storefront wiring, and operational/debugging around known residual risks.
+The next developer should begin by reviewing the codebase for oversized files and weak module boundaries, then prioritize refactoring where boundaries, module sizes, or cohesion block future e-commerce expansion.
 
 ## 2) Completed work and outcomes
 
-The stage-1 kernel is implemented and guarded by tests in `packages/plugins/commerce`.
+The core kernel is implemented and test-guarded in `packages/plugins/commerce`.
 
-- Core runtime is centralized in `src/handlers/checkout.ts`, `src/handlers/checkout-get-order.ts`, `src/handlers/webhooks-stripe.ts`, `src/orchestration/finalize-payment.ts`, and `src/handlers/webhook-handler.ts`.
-- Possession is enforced with `ownerToken`/`ownerTokenHash` for carts and `finalizeToken`/`finalizeTokenHash` for order reads.
-- Runtime crypto for request paths uses the async `lib/crypto-adapter.ts`; `src/hash.ts` has been removed and is not part of active runtime.
-- Duplicate/replay handling is documented and tested; pending receipt semantics are documented in `packages/plugins/commerce/FINALIZATION_REVIEW_AUDIT.md`.
-- Type-cast leakage is intentionally isolated (primarily in `src/index.ts`).
-- Review packaging is now narrowed around one canonical packet; external docs are reduced to an operational entrypoint set.
-- Test suite for commerce package is passing (`21` files, `121` tests).
-- Full workspace `pnpm test` has also been run successfully after package validations.
+Cart and checkout primitives are in place (`cart/upsert`, `cart/get`, `checkout`, `checkout/get-order`) with possession required at boundaries.
+Finalization is implemented through webhook delivery handling with receipt/state driven replay control, including terminal-state transition handling for known irrecoverable inventory conditions.
+Crypto is unified under `src/lib/crypto-adapter.ts`; legacy Node-only hashing (`src/hash.ts`) is removed from active runtime.
+Rate-limit identity extraction was centralized in `src/lib/rate-limit-identity.ts` and reused across checkout, webhook handler, and finalization diagnostics.
+Docs were cleaned to an EmDash-native canonical review path (`@THIRD_PARTY_REVIEW_PACKAGE.md`, `HANDOVER.md`, `commerce-plugin-architecture.md`, `COMMERCE_DOCS_INDEX.md`, and related packet files).
+Recent validation:
+- `pnpm test` passed for `@emdash-cms/plugin-commerce` (`21` files, `122` tests).
+- Workspace `pnpm test` previously passed in full.
+- Full workspace `pnpm typecheck` currently passes.
+- `pnpm --silent lint:quick` passes after lint fixes.
+- `pnpm --silent lint:json` still fails due a local toolchain/runtime issue (below).
 
 ## 3) Failures, open issues, and lessons learned
 
-- **Known residual risk (not fixed): same-event concurrent webhook delivery**. Storage does not provide an insert-if-not-exists/CAS primitive in this layer, so two workers can still race before a durable claim is established. Risk is contained by deterministic writes and explicit diagnostics, but not fully eliminated.
-- **Receipt state is sharp:** `pending` is both claim marker and resumable state. This is intentional and working, but future edits must preserve the meaning exactly.
-- **Hash strategy is unified:** `crypto-adapter.ts` is the preferred runtime path, and legacy Node-only hashing code has been removed.
-- **Failure handling lesson:** avoid edits to finalize/checkout without a reproducer test. Use negative-path and recovery tests first for any behavioral change.
+Known residual risk: same-event concurrent webhook processing remains a storage limitation (no CAS/insert-if-not-exists path in current data model), so parallel duplicate deliveries can still race and rely on deterministic resume semantics plus diagnostic guidance.
+Receipt state is a sharp boundary: `pending` is the resumable claim marker and `error` is terminal. Preserve this contract when changing finalize logic.
+Lint tooling is inconsistent in this environment:
+- `pnpm --silent lint:quick` reports zero diagnostics.
+- `pnpm --silent lint:json` exits non-zero because `oxlint-tsgolint` fails with `invalid message type: 97` (SIGPIPE) in this runtime path, so its output cannot be trusted until toolchain/runtime is corrected.
+A high-confidence rule from the iteration: every behavioral change in payment/receipt/idempotency paths must be made with failing test first and test updates before code.
 
 ## 4) Files changed, key insights, and gotchas
 
-No broad churn was introduced in this handoff window; changes are narrow and additive. Important implementation points:
+Key files touched in the current handoff window that matter for next development:
 
-- `packages/plugins/commerce/src/hash.ts`
-  - Removed, and Node legacy hashing path is no longer used.
+- `packages/plugins/commerce/src/orchestration/finalize-payment.ts`
 - `packages/plugins/commerce/src/orchestration/finalize-payment.test.ts`
-  - Added concurrency stress/replay coverage and async hashing setup for test fixtures.
-- `packages/plugins/commerce/src/handlers/cart.test.ts`
-- `packages/plugins/commerce/src/handlers/checkout.test.ts`
-- `packages/plugins/commerce/src/handlers/checkout-get-order.test.ts`
-  - Migrated test hashing setup to `crypto-adapter` async APIs.
-- `scripts/build-commerce-external-review-zip.sh`
-  - Zip now includes a canonical document set only.
+- `packages/plugins/commerce/src/handlers/checkout.ts`
+- `packages/plugins/commerce/src/handlers/webhook-handler.ts`
+- `packages/plugins/commerce/src/lib/finalization-diagnostics-readthrough.ts`
+- `packages/plugins/commerce/src/lib/rate-limit-identity.ts`
+- `packages/plugins/commerce/src/contracts/commerce-kernel-invariants.test.ts`
+- `packages/plugins/commerce/src/services/commerce-extension-seams.test.ts`
+- `packages/plugins/commerce/src/lib/crypto-adapter.ts` (canonical hashing path)
 
 Gotchas:
+- Keep token handling strict: `ownerToken`/`finalizeToken` are required on mutating/authenticated paths; strict checks are intentional.
+- Do not introduce broad abstractions before adding coverage in `src/orchestration/finalize-payment.test.ts`.
+- Preserve route boundaries (`src/handlers/*` for I/O and input handling, orchestration for transaction semantics).
+- For finalization errors, terminal inventory conditions intentionally move receipt state to `error` to avoid indefinite replay.
+- For review/debugging quality, use the first task below before implementing new feature areas.
 
-- Do not rely on `finalizeTokenHash` in response payloads; `checkout/get-order` strips it by design.
-- Do not add speculative abstraction inside finalize/checkout before failure/replay tests exist.
-- Preserve route/route-handler boundaries: handler files remain I/O and validation; orchestration/kernels carry transaction semantics.
+Initial next-step task:
+- Review large/monolithic files for size and cohesion issues, then map extension seams for future modules (discounts, shipping, taxation, recommendations, gateway additions).
+- Identify candidate extractions in:
+  - `src/handlers/checkout.ts`
+  - `src/orchestration/finalize-payment.ts`
+  - any files that blend route orchestration, validation, and storage orchestration.
 
 ## 5) Key files and directories
 
-- **Primary package:** `packages/plugins/commerce/`
-- **Runtime code:** `packages/plugins/commerce/src/`
-- **Canonical external packet:** `@THIRD_PARTY_REVIEW_PACKAGE.md`
-- **Commerce docs index:** `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
-- **Kernel/seam references:** `packages/plugins/commerce/COMMERCE_EXTENSION_SURFACE.md`
-- **Receipt recovery audit:** `packages/plugins/commerce/FINALIZATION_REVIEW_AUDIT.md`
-- **Zip artifact for handoff:** `commerce-plugin-external-review.zip`
+Primary package: `packages/plugins/commerce/`
 
-## 6) Onboarding order for next developer
+Runtime and kernel files:
+- `packages/plugins/commerce/src/handlers/`
+- `packages/plugins/commerce/src/orchestration/`
+- `packages/plugins/commerce/src/lib/`
+- `packages/plugins/commerce/src/types.ts`
+- `packages/plugins/commerce/src/schemas.ts`
 
-1. Read this file, then `@THIRD_PARTY_REVIEW_PACKAGE.md`, then `external_review.md`.
-2. Verify from `packages/plugins/commerce`:
-   - `pnpm install`
-   - `pnpm test`
-   - `pnpm typecheck`
-3. Confirm `external_review.md` and `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md` if storefront/docs integration is part of the next step.
-4. For changes: keep money-path closed, add focused regression tests first, and update docs only where behavior changed.
+Decision and extension references:
+- `packages/plugins/commerce/COMMERCE_EXTENSION_SURFACE.md`
+- `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
+- `@THIRD_PARTY_REVIEW_PACKAGE.md`
+- `external_review.md`
+- `SHARE_WITH_REVIEWER.md`
+- `commerce-plugin-architecture.md`
+- `packages/plugins/commerce/FINALIZATION_REVIEW_AUDIT.md`
+- `packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK*.md`
