@@ -60,6 +60,10 @@ __screenshots__/
 # AI review artifacts
 *-review.md
 
+# Personal Claude Code preferences (not shared with team)
+CLAUDE.local.md
+.playwright-mcp
+
 .chainlink/
 
 .emdash-bundle-tmp
