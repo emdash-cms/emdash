@@ -387,6 +387,29 @@ function mapInventoryErrorToApiCode(code: CommerceErrorCode): CommerceErrorCode 
 		: code;
 }
 
+function isTerminalInventoryFailure(code: CommerceErrorCode): boolean {
+	return (
+		code === "PRODUCT_UNAVAILABLE" ||
+		code === "INSUFFICIENT_STOCK" ||
+		code === "INVENTORY_CHANGED" ||
+		code === "ORDER_STATE_CONFLICT"
+	);
+}
+
+async function persistReceiptStatus(
+	ports: FinalizePaymentPorts,
+	receiptId: string,
+	receipt: StoredWebhookReceipt,
+	status: StoredWebhookReceipt["status"],
+	nowIso: string,
+): Promise<void> {
+	await ports.webhookReceipts.put(receiptId, {
+		...receipt,
+		status,
+		updatedAt: nowIso,
+	});
+}
+
 async function applyInventoryMutations(
 	ports: FinalizePaymentPorts,
 	orderId: string,
@@ -512,6 +535,9 @@ async function markPaymentAttemptSucceeded(
  *   - inventory done, order.put failed                 → skip inventory, retry order
  *   - order paid, attempt update failed                → skip both, retry attempt
  *   - everything done except receipt→processed         → skip all writes, mark processed
+ * When inventory preconditions are permanently invalid (missing stock,
+ * insufficient stock, or stale version snapshot), the receipt transitions to
+ * `error` so retries do not replay known terminal conflicts.
  */
 /**
  * Single authoritative finalize entry for gateway webhooks (Stripe first).
@@ -632,11 +658,20 @@ export async function finalizePaymentFromWebhook(
 		} catch (err) {
 			if (err instanceof InventoryFinalizeError) {
 				const apiCode = mapInventoryErrorToApiCode(err.code);
-				ports.log?.warn("commerce.finalize.inventory_failed", {
-					...logContext,
-					code: apiCode,
-					details: err.details,
-				});
+				if (isTerminalInventoryFailure(err.code)) {
+					ports.log?.warn("commerce.finalize.inventory_failed_terminal", {
+						...logContext,
+						code: apiCode,
+						details: err.details,
+					});
+					await persistReceiptStatus(ports, receiptId, pendingReceipt, "error", nowIso);
+				} else {
+					ports.log?.warn("commerce.finalize.inventory_failed", {
+						...logContext,
+						code: apiCode,
+						details: err.details,
+					});
+				}
 				return {
 					kind: "api_error",
 					error: {

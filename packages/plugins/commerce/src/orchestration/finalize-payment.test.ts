@@ -449,7 +449,7 @@ describe("finalizePaymentFromWebhook", () => {
 		const order = await ports.orders.get(orderId);
 		expect(order?.paymentPhase).toBe("payment_pending");
 		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
-		expect(receipt?.status).toBe("pending");
+		expect(receipt?.status).toBe("error");
 	});
 
 	it("resumes safely when order persistence fails after inventory write", async () => {
@@ -1003,7 +1003,62 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(order?.paymentPhase).toBe("payment_pending");
 		const rid = webhookReceiptDocId("stripe", ext);
 		const rec = await ports.webhookReceipts.get(rid);
-		expect(rec?.status).toBe("pending");
+		expect(rec?.status).toBe("error");
+	});
+
+	it("terminalized inventory mismatch receipt blocks same-event replay", async () => {
+		const orderId = "order_1";
+		const stockId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[
+					stockId,
+					{
+						productId: "p1",
+						variantId: "",
+						version: 99,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		};
+
+		const ports = portsFromState(state);
+		const ext = "evt_inv_terminal";
+		const first = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: ext,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_HASH,
+			nowIso: now,
+		});
+		expect(first).toMatchObject({
+			kind: "api_error",
+			error: { code: "INVENTORY_CHANGED" },
+		});
+
+		const second = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: ext,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_HASH,
+			nowIso: now,
+		});
+		expect(second).toMatchObject({
+			kind: "api_error",
+			error: { code: "ORDER_STATE_CONFLICT" },
+		});
+
+		const rid = webhookReceiptDocId("stripe", ext);
+		const receipt = await ports.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("error");
 	});
 
 	it("receiptToView maps storage rows for the kernel", () => {

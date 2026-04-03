@@ -11,8 +11,9 @@ import type { RouteContext } from "emdash";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import type { FinalizationStatus } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
-import { sha256HexAsync } from "./crypto-adapter.js";
 import { consumeKvRateLimit } from "./rate-limit-kv.js";
+import { buildRateLimitActorKey } from "./rate-limit-identity.js";
+import { sha256HexAsync } from "./crypto-adapter.js";
 
 const CACHE_KEY_PREFIX = "state:finalize_diag:v1:";
 
@@ -62,12 +63,11 @@ export async function readFinalizationStatusWithGuards(
 	fetcher: () => Promise<FinalizationStatus>,
 ): Promise<FinalizationStatus> {
 	const nowMs = Date.now();
-	const ip = ctx.requestMeta.ip ?? "unknown";
-	const ipHash = (await sha256HexAsync(ip)).slice(0, 32);
+	const actorKey = await buildRateLimitActorKey(ctx, "finalize_diag");
 
 	const allowed = await consumeKvRateLimit({
 		kv: ctx.kv,
-		keySuffix: `finalize_diag:ip:${ipHash}`,
+		keySuffix: `finalize_diag:ip:${actorKey}`,
 		limit: COMMERCE_LIMITS.defaultFinalizationDiagnosticsPerIpPerWindow,
 		windowMs: COMMERCE_LIMITS.defaultRateWindowMs,
 		nowMs,

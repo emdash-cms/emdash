@@ -16,6 +16,7 @@ import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
+import { buildRateLimitActorKey } from "../lib/rate-limit-identity.js";
 import { requirePost } from "../lib/require-post.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -206,8 +207,7 @@ export async function checkoutHandler(
 		);
 	}
 
-	const ip = ctx.requestMeta.ip ?? "unknown";
-	const ipHash = (await sha256HexAsync(ip)).slice(0, 32);
+	const ipHash = await buildRateLimitActorKey(ctx, "checkout");
 	const allowed = await consumeKvRateLimit({
 		kv: ctx.kv,
 		keySuffix: `checkout:ip:${ipHash}`,
