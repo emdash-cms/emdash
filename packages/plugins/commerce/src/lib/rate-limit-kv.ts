@@ -1,5 +1,11 @@
 /**
  * Fixed-window rate limiting using plugin KV (survives across requests in production).
+ *
+ * **Best-effort only.** `consumeKvRateLimit` is a read-modify-write cycle with no
+ * atomic guarantee. Under concurrent requests the counter can undercount, meaning
+ * the actual rate allowed may exceed the configured limit. This is acceptable for
+ * abuse throttling and cost control, but must not be relied on as a hard security
+ * boundary or billing gate.
  */
 
 import type { KVAccess } from "emdash";

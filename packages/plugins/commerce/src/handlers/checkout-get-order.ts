@@ -45,14 +45,14 @@ export async function checkoutGetOrderHandler(
 	const token = ctx.input.finalizeToken?.trim();
 	if (!token) {
 		throwCommerceApiError({
-			code: "WEBHOOK_SIGNATURE_INVALID",
+			code: "ORDER_TOKEN_REQUIRED",
 			message: "finalizeToken is required to read this order",
 		});
 	}
 	const digest = sha256Hex(token);
 	if (!equalSha256HexDigest(digest, expectedHash)) {
 		throwCommerceApiError({
-			code: "WEBHOOK_SIGNATURE_INVALID",
+			code: "ORDER_TOKEN_INVALID",
 			message: "Invalid finalize token for this order",
 		});
 	}

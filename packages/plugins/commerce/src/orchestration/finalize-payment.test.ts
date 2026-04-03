@@ -621,7 +621,7 @@ describe("finalizePaymentFromWebhook", () => {
 
 		expect(res).toMatchObject({
 			kind: "api_error",
-			error: { code: "WEBHOOK_SIGNATURE_INVALID" },
+			error: { code: "ORDER_TOKEN_REQUIRED" },
 		});
 	});
 
@@ -646,7 +646,7 @@ describe("finalizePaymentFromWebhook", () => {
 
 		expect(res).toMatchObject({
 			kind: "api_error",
-			error: { code: "WEBHOOK_SIGNATURE_INVALID" },
+			error: { code: "ORDER_TOKEN_INVALID" },
 		});
 	});
 
@@ -809,7 +809,7 @@ describe("finalizePaymentFromWebhook", () => {
 
 		expect(res).toMatchObject({
 			kind: "api_error",
-			error: { code: "WEBHOOK_SIGNATURE_INVALID" },
+			error: { code: "ORDER_TOKEN_REQUIRED" },
 		});
 	});
 

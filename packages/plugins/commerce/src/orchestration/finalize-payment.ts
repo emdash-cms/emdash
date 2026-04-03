@@ -226,7 +226,7 @@ function verifyFinalizeToken(
 		return {
 			kind: "api_error",
 			error: {
-				code: "WEBHOOK_SIGNATURE_INVALID",
+				code: "ORDER_TOKEN_REQUIRED",
 				message: "finalizeToken is required to finalize this order",
 			},
 		};
@@ -236,7 +236,7 @@ function verifyFinalizeToken(
 		return {
 			kind: "api_error",
 			error: {
-				code: "WEBHOOK_SIGNATURE_INVALID",
+				code: "ORDER_TOKEN_INVALID",
 				message: "Invalid finalize token for this order",
 			},
 		};
@@ -591,6 +591,17 @@ export async function finalizePaymentFromWebhook(
 			ports.log?.warn("commerce.finalize.order_not_finalizable", {
 				...logContext,
 				paymentPhase: freshOrder.paymentPhase,
+			});
+			/**
+			 * Order moved to a non-finalizable phase between the initial read and
+			 * the pending-receipt write (e.g. concurrent finalize completed first).
+			 * Mark the receipt `error` so it does not stay stuck in `pending`
+			 * and operators get a clear terminal signal.
+			 */
+			await ports.webhookReceipts.put(receiptId, {
+				...pendingReceipt,
+				status: "error",
+				updatedAt: nowIso,
 			});
 			return {
 				kind: "api_error",

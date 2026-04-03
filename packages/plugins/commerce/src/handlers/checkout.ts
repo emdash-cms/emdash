@@ -177,8 +177,15 @@ export async function checkoutHandler(ctx: RouteContext<CheckoutInput>) {
 	const nowMs = Date.now();
 	const nowIso = new Date(nowMs).toISOString();
 
-	const headerKey = ctx.request.headers.get("Idempotency-Key")?.trim();
-	const bodyKey = ctx.input.idempotencyKey?.trim();
+	const headerKey = ctx.request.headers.get("Idempotency-Key")?.trim() || undefined;
+	const bodyKey = ctx.input.idempotencyKey?.trim() || undefined;
+
+	if (headerKey && bodyKey && headerKey !== bodyKey) {
+		throw PluginRouteError.badRequest(
+			"Idempotency-Key conflict: header and body values must match when both are supplied",
+		);
+	}
+
 	const idempotencyKey = bodyKey ?? headerKey;
 
 	if (!validateIdempotencyKey(idempotencyKey)) {

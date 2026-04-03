@@ -4,12 +4,15 @@
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
-import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { requirePost } from "../lib/require-post.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { sha256Hex } from "../hash.js";
+import {
+	hmacSha256HexAsync,
+	constantTimeEqualHexAsync,
+} from "../lib/crypto-adapter.js";
 import { finalizePaymentFromWebhook } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { StripeWebhookInput } from "../schemas.js";
@@ -48,29 +51,25 @@ function parseStripeSignatureHeader(raw: string | null): ParsedStripeSignature |
 	return { timestamp, signatures };
 }
 
-function hashWithSecret(secret: string, timestamp: number, rawBody: string): string {
-	return createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
-}
-
-function constantTimeCompareHex(aHex: string, bHex: string): boolean {
-	if (aHex.length !== bHex.length) return false;
-	const a = Buffer.from(aHex, "hex");
-	const b = Buffer.from(bHex, "hex");
-	return timingSafeEqual(a, b);
+async function hashWithSecret(secret: string, timestamp: number, rawBody: string): Promise<string> {
+	return hmacSha256HexAsync(secret, `${timestamp}.${rawBody}`);
 }
 
 function isWebhookBodyWithinSizeLimit(rawBody: string): boolean {
-	return Buffer.byteLength(rawBody, "utf8") <= MAX_WEBHOOK_BODY_BYTES;
+	return new TextEncoder().encode(rawBody).byteLength <= MAX_WEBHOOK_BODY_BYTES;
 }
 
-function isWebhookSignatureValid(secret: string, rawBody: string, rawSignature: string | null): boolean {
+async function isWebhookSignatureValid(secret: string, rawBody: string, rawSignature: string | null): Promise<boolean> {
 	const parsed = parseStripeSignatureHeader(rawSignature);
 	if (!parsed) return false;
 	const now = Date.now() / 1000;
 	if (Math.abs(now - parsed.timestamp) > STRIPE_SIGNATURE_TOLERANCE_SECONDS) return false;
 
-	const expected = hashWithSecret(secret, parsed.timestamp, rawBody);
-	return parsed.signatures.some((sig) => constantTimeCompareHex(sig, expected));
+	const expected = await hashWithSecret(secret, parsed.timestamp, rawBody);
+	for (const sig of parsed.signatures) {
+		if (await constantTimeEqualHexAsync(sig, expected)) return true;
+	}
+	return false;
 }
 
 async function ensureValidStripeWebhookSignature(ctx: RouteContext<StripeWebhookInput>): Promise<void> {
@@ -90,7 +89,7 @@ async function ensureValidStripeWebhookSignature(ctx: RouteContext<StripeWebhook
 		});
 	}
 	const rawSig = ctx.request.headers.get(STRIPE_SIGNATURE_HEADER);
-	if (!isWebhookSignatureValid(secret, rawBody, rawSig)) {
+	if (!(await isWebhookSignatureValid(secret, rawBody, rawSig))) {
 		throwCommerceApiError({
 			code: "WEBHOOK_SIGNATURE_INVALID",
 			message: "Invalid Stripe webhook signature",

@@ -12,39 +12,44 @@ describe("stripe webhook signature helpers", () => {
 	const rawBody = JSON.stringify({ orderId: "o1", externalEventId: "evt_1" });
 	const timestamp = 1_760_000_000;
 
-	it("parses stripe signature header", () => {
-		const sig = `t=${timestamp},v1=${hashWithSecret(secret, timestamp, rawBody)},v1=ignored`;
+	it("parses stripe signature header", async () => {
+		const hash = await hashWithSecret(secret, timestamp, rawBody);
+		const sig = `t=${timestamp},v1=${hash},v1=ignored`;
 		const parsed = parseStripeSignatureHeader(sig);
 		expect(parsed).toEqual({
 			timestamp,
-			signatures: [hashWithSecret(secret, timestamp, rawBody), "ignored"],
+			signatures: [hash, "ignored"],
 		});
 	});
 
-	it("validates a matching v1 signature", () => {
-		const sig = `t=${timestamp},v1=${hashWithSecret(secret, timestamp, rawBody)}`;
+	it("validates a matching v1 signature", async () => {
+		const hash = await hashWithSecret(secret, timestamp, rawBody);
+		const sig = `t=${timestamp},v1=${hash}`;
 		const restore = vi.spyOn(Date, "now").mockReturnValue(timestamp * 1000);
-		expect(isWebhookSignatureValid(secret, rawBody, sig)).toBe(true);
+		expect(await isWebhookSignatureValid(secret, rawBody, sig)).toBe(true);
 		restore.mockRestore();
 	});
 
-	it("rejects mismatched secret", () => {
-		const sig = `t=${timestamp},v1=${hashWithSecret(secret, timestamp, rawBody)}`;
-		expect(isWebhookSignatureValid("whsec_other_secret", rawBody, sig)).toBe(false);
+	it("rejects mismatched secret", async () => {
+		const hash = await hashWithSecret(secret, timestamp, rawBody);
+		const sig = `t=${timestamp},v1=${hash}`;
+		expect(await isWebhookSignatureValid("whsec_other_secret", rawBody, sig)).toBe(false);
 	});
 
-	it("rejects missing timestamp", () => {
-		const sig = `v1=${hashWithSecret(secret, timestamp, rawBody)}`;
-		expect(isWebhookSignatureValid(secret, rawBody, sig)).toBe(false);
+	it("rejects missing timestamp", async () => {
+		const hash = await hashWithSecret(secret, timestamp, rawBody);
+		const sig = `v1=${hash}`;
+		expect(await isWebhookSignatureValid(secret, rawBody, sig)).toBe(false);
 	});
 
-	it("rejects stale signatures", () => {
+	it("rejects stale signatures", async () => {
 		const oldTimestamp = timestamp - 360;
-		const sig = `t=${oldTimestamp},v1=${hashWithSecret(secret, oldTimestamp, rawBody)}`;
+		const hash = await hashWithSecret(secret, oldTimestamp, rawBody);
+		const sig = `t=${oldTimestamp},v1=${hash}`;
 		// Tolerance is 300s; advance wall clock well beyond that vs signature timestamp.
 		const mockNowSeconds = oldTimestamp + 400;
 		const restore = vi.spyOn(Date, "now").mockReturnValue(mockNowSeconds * 1000);
-		expect(isWebhookSignatureValid(secret, rawBody, sig)).toBe(false);
+		expect(await isWebhookSignatureValid(secret, rawBody, sig)).toBe(false);
 		restore.mockRestore();
 	});
 

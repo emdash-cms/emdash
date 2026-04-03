@@ -29,6 +29,10 @@ export const COMMERCE_ERRORS = {
 	ORDER_NOT_FOUND: { httpStatus: 404, retryable: false },
 	ORDER_STATE_CONFLICT: { httpStatus: 409, retryable: false },
 	PAYMENT_CONFLICT: { httpStatus: 409, retryable: false },
+	/** Caller did not supply a finalizeToken but the order requires one. */
+	ORDER_TOKEN_REQUIRED: { httpStatus: 401, retryable: false },
+	/** Supplied finalizeToken does not match the stored hash. */
+	ORDER_TOKEN_INVALID: { httpStatus: 403, retryable: false },
 
 	// Payment
 	PAYMENT_INITIATION_FAILED: { httpStatus: 502, retryable: true },
@@ -70,6 +74,8 @@ export const COMMERCE_ERROR_WIRE_CODES = {
 	ORDER_NOT_FOUND: "order_not_found",
 	ORDER_STATE_CONFLICT: "order_state_conflict",
 	PAYMENT_CONFLICT: "payment_conflict",
+	ORDER_TOKEN_REQUIRED: "order_token_required",
+	ORDER_TOKEN_INVALID: "order_token_invalid",
 	PAYMENT_INITIATION_FAILED: "payment_initiation_failed",
 	PAYMENT_CONFIRMATION_FAILED: "payment_confirmation_failed",
 	PAYMENT_ALREADY_PROCESSED: "payment_already_processed",

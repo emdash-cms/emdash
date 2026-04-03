@@ -86,7 +86,7 @@ describe("checkoutGetOrderHandler", () => {
 				...ctxFor(orderId),
 				storage: { orders: mem },
 			} as unknown as RouteContext<CheckoutGetOrderInput>),
-		).rejects.toMatchObject({ code: "webhook_signature_invalid" });
+		).rejects.toMatchObject({ code: "order_token_required" });
 	});
 
 	it("does not expose legacy orders without finalizeTokenHash (orderId alone is insufficient)", async () => {

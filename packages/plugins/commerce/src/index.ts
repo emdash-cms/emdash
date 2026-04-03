@@ -13,7 +13,7 @@
  * ```
  */
 
-import type { PluginDescriptor } from "emdash";
+import type { PluginDescriptor, RouteContext } from "emdash";
 import { definePlugin } from "emdash";
 
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
@@ -31,6 +31,19 @@ import {
 	stripeWebhookInputSchema,
 } from "./schemas.js";
 import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
+
+/**
+ * The EmDash `definePlugin` route handler type requires handlers typed against
+ * the specific plugin's storage shape, which TypeScript cannot infer from the
+ * generic `PluginDescriptor`. All casts are isolated here so they do not
+ * spread into handler files.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyHandler = (ctx: RouteContext<any>) => Promise<unknown>;
+
+function asRouteHandler(fn: AnyHandler): never {
+	return fn as never;
+}
 
 /** Outbound Stripe API (`api.stripe.com`, `connect.stripe.com`, etc.). */
 const STRIPE_ALLOWED_HOSTS = ["*.stripe.com"] as const;
@@ -107,32 +120,32 @@ export function createPlugin() {
 			"cart/upsert": {
 				public: true,
 				input: cartUpsertInputSchema,
-				handler: cartUpsertHandler as never,
+				handler: asRouteHandler(cartUpsertHandler),
 			},
 			"cart/get": {
 				public: true,
 				input: cartGetInputSchema,
-				handler: cartGetHandler as never,
+				handler: asRouteHandler(cartGetHandler),
 			},
 			checkout: {
 				public: true,
 				input: checkoutInputSchema,
-				handler: checkoutHandler as never,
+				handler: asRouteHandler(checkoutHandler),
 			},
 			"checkout/get-order": {
 				public: true,
 				input: checkoutGetOrderInputSchema,
-				handler: checkoutGetOrderHandler as never,
+				handler: asRouteHandler(checkoutGetOrderHandler),
 			},
 			recommendations: {
 				public: true,
 				input: recommendationsInputSchema,
-				handler: recommendationsHandler as never,
+				handler: asRouteHandler(recommendationsHandler),
 			},
 			"webhooks/stripe": {
 				public: true,
 				input: stripeWebhookInputSchema,
-				handler: stripeWebhookHandler as never,
+				handler: asRouteHandler(stripeWebhookHandler),
 			},
 		},
 	});
