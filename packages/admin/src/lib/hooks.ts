@@ -29,32 +29,3 @@ export function useDebouncedValue<T>(value: T, delay: number): T {
 	}, [value, delay]);
 	return debouncedValue;
 }
-
-const MAX_POLL_ATTEMPTS = 20;
-export function useElementReady(
-	selector: string | undefined | false,
-	onReady: (el: HTMLElement) => void,
-) {
-	const stableOnReady = useStableCallback(onReady);
-	const selectorRef = React.useRef(selector);
-	selectorRef.current = selector;
-
-	React.useEffect(() => {
-		const currentSelector = selectorRef.current;
-		if (!currentSelector) return;
-		let frame: number;
-		let attempts = 0;
-		const poll = () => {
-			const el = document.querySelector<HTMLElement>(currentSelector);
-			if (el) {
-				stableOnReady(el);
-				return;
-			}
-			if (++attempts < MAX_POLL_ATTEMPTS) {
-				frame = requestAnimationFrame(poll);
-			}
-		};
-		frame = requestAnimationFrame(poll);
-		return () => cancelAnimationFrame(frame);
-	}, [stableOnReady]);
-}

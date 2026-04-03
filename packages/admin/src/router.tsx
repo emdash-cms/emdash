@@ -107,7 +107,6 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
-import { useElementReady } from "./lib/hooks";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -487,12 +486,6 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
 
-	useElementReady(field && `#field-${field}`, (el) => {
-		el.scrollIntoView({ behavior: "smooth", block: "center" });
-		el.focus();
-		void navigate({ search: preservedSearch as never, replace: true });
-	});
-
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
@@ -504,6 +497,19 @@ function ContentEditPage() {
 		queryKey: ["content", collection, id],
 		queryFn: () => fetchContent(collection, id),
 	});
+
+	const hasScrolled = React.useRef(false);
+	React.useEffect(() => {
+		if (typeof field !== "string" || isLoading || hasScrolled.current) return;
+
+		const el = document.getElementById(`field-${field}`);
+		if (el) {
+			hasScrolled.current = true;
+			el.scrollIntoView({ behavior: "smooth", block: "center" });
+			el.focus();
+			void navigate({ search: preservedSearch as never, replace: true });
+		}
+	}, [field, isLoading, navigate, preservedSearch]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
