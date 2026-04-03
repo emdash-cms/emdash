@@ -35,7 +35,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
@@ -44,9 +44,6 @@ jobs:
 
       - name: Build packages
         run: pnpm build
-
-      - name: Update npm
-        run: npm install -g npm@latest
 
       - name: Create Release Pull Request or Publish
         id: changesets
