@@ -39,7 +39,7 @@ export function SaveButton({ isDirty, isSaving, className, disabled, ...props }:
 			aria-busy={isSaving}
 			{...props}
 		>
-			{isSaving ? t`Saving…` : isSaved ? t`Saved` : t`Save`}
+			{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
 		</Button>
 	);
 }
