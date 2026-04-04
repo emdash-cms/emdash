@@ -69,7 +69,7 @@ CREATE TABLE ec_posts (
   -- System columns (always present)
   id TEXT PRIMARY KEY,
   slug TEXT UNIQUE,
-  status TEXT DEFAULT 'draft',  -- draft, published, archived
+  status TEXT DEFAULT 'draft',  -- draft, published, scheduled
   author_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
@@ -198,8 +198,8 @@ Uploads use signed URLs for direct client-to-storage uploads, bypassing Workers 
 
 Plugins extend EmDash through a WordPress-inspired hook system:
 
-- **Content hooks** — `beforeCreate`, `afterCreate`, `beforeUpdate`, `afterUpdate`, `beforeDelete`
-- **Media hooks** — `beforeMediaUpload`, `afterMediaUpload`
+- **Content hooks** — `content:beforeSave`, `content:afterSave`, `content:beforeDelete`, `content:afterDelete`
+- **Media hooks** — `media:beforeUpload`, `media:afterUpload`
 - **Isolated storage** — Each plugin gets namespaced KV access
 - **Admin UI extensions** — Dashboard widgets, settings pages, custom field editors
 
