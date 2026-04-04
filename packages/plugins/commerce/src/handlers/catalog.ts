@@ -13,6 +13,11 @@ import {
 	applyProductUpdatePatch,
 	applyProductSkuUpdatePatch,
 } from "../lib/catalog-domain.js";
+import {
+	collectVariantDefiningAttributes,
+	normalizeSkuOptionSignature,
+	validateVariableSkuOptions,
+} from "../lib/catalog-variants.js";
 import { randomHex } from "../lib/crypto-adapter.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -36,6 +41,9 @@ import type {
 	StoredProduct,
 	StoredProductAsset,
 	StoredProductAssetLink,
+	StoredProductAttribute,
+	StoredProductAttributeValue,
+	StoredProductSkuOptionValue,
 	StoredProductSku,
 } from "../types.js";
 
@@ -55,6 +63,14 @@ function toWhere(input: { type?: string; status?: string; visibility?: string })
 
 export type ProductResponse = {
 	product: StoredProduct;
+	attributes?: StoredProductAttribute[];
+	variantMatrix?: Array<{
+		skuId: string;
+		options: Array<{
+			attributeId: string;
+			attributeValueId: string;
+		}>;
+	}>;
 };
 
 export type ProductListResponse = {
@@ -95,6 +111,8 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 	requirePost(ctx);
 
 	const products = asCollection<StoredProduct>(ctx.storage.products);
+	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
+	const productAttributeValues = asCollection<StoredProductAttributeValue>(ctx.storage.productAttributeValues);
 	const nowMs = Date.now();
 	const nowIso = new Date(nowMs).toISOString();
 
@@ -108,6 +126,36 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 
 	const id = `prod_${await randomHex(6)}`;
 	const status = ctx.input.status;
+
+	if (ctx.input.type !== "variable" && ctx.input.attributes.length > 0) {
+		throw PluginRouteError.badRequest("Only variable products can define attributes");
+	}
+
+	if (ctx.input.type === "variable" && ctx.input.attributes.length === 0) {
+		throw PluginRouteError.badRequest("Variable products must define at least one attribute");
+	}
+
+	const variantAttributeCount = ctx.input.attributes.filter((attribute) => attribute.kind === "variant_defining").length;
+	if (ctx.input.type === "variable" && variantAttributeCount === 0) {
+		throw PluginRouteError.badRequest("Variable products must include at least one variant-defining attribute");
+	}
+
+	const attributeCodes = new Set<string>();
+	for (const attribute of ctx.input.attributes) {
+		if (attributeCodes.has(attribute.code)) {
+			throw PluginRouteError.badRequest(`Duplicate attribute code: ${attribute.code}`);
+		}
+		attributeCodes.add(attribute.code);
+
+		const valueCodes = new Set<string>();
+		for (const value of attribute.values) {
+			if (valueCodes.has(value.code)) {
+				throw PluginRouteError.badRequest(`Duplicate value code ${value.code} for attribute ${attribute.code}`);
+			}
+			valueCodes.add(value.code);
+		}
+	}
+
 	const product: StoredProduct = {
 		id,
 		type: ctx.input.type,
@@ -131,6 +179,35 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 	};
 
 	await products.put(id, product);
+
+	for (const attributeInput of ctx.input.attributes) {
+		const attributeId = `${id}_attr_${await randomHex(6)}`;
+		const nowAttribute: StoredProductAttribute = {
+			id: attributeId,
+			productId: id,
+			name: attributeInput.name,
+			code: attributeInput.code,
+			kind: attributeInput.kind,
+			position: attributeInput.position,
+			createdAt: nowIso,
+			updatedAt: nowIso,
+		};
+		await productAttributes.put(attributeId, nowAttribute);
+
+		for (const valueInput of attributeInput.values) {
+			const valueId = `${attributeId}_val_${await randomHex(6)}`;
+			await productAttributeValues.put(valueId, {
+				id: valueId,
+				attributeId,
+				value: valueInput.value,
+				code: valueInput.code,
+				position: valueInput.position,
+				createdAt: nowIso,
+				updatedAt: nowIso,
+			});
+		}
+	}
+
 	return { product };
 }
 
@@ -178,12 +255,38 @@ export async function setProductStateHandler(ctx: RouteContext<ProductStateInput
 export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Promise<ProductResponse> {
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
+	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
+	const productSkuOptionValues = asCollection<StoredProductSkuOptionValue>(ctx.storage.productSkuOptionValues);
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
-	return { product };
+	if (product.type !== "variable") {
+		return { product };
+	}
+
+	const attributes = (await productAttributes.query({ where: { productId: product.id } })).items.map(
+		(row) => row.data,
+	);
+	const skusResult = await productSkus.query({ where: { productId: product.id } });
+	const variantMatrix = [];
+	for (const skuRow of skusResult.items) {
+		const optionResult = await productSkuOptionValues.query({ where: { skuId: skuRow.id } });
+		variantMatrix.push({
+			skuId: skuRow.id,
+			options: optionResult.items.map((option) => ({
+				attributeId: option.data.attributeId,
+				attributeValueId: option.data.attributeValueId,
+			})),
+		});
+	}
+	return {
+		product,
+		attributes,
+		variantMatrix,
+	};
 }
 
 export async function listProductsHandler(ctx: RouteContext<ProductListInput>): Promise<ProductListResponse> {
@@ -209,6 +312,11 @@ export async function createProductSkuHandler(
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
+	const productAttributeValues = asCollection<StoredProductAttributeValue>(
+		ctx.storage.productAttributeValues,
+	);
+	const productSkuOptionValues = asCollection<StoredProductSkuOptionValue>(ctx.storage.productSkuOptionValues);
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
@@ -224,6 +332,48 @@ export async function createProductSkuHandler(
 	});
 	if (existingSku.items.length > 0) {
 		throw PluginRouteError.badRequest(`SKU code already exists: ${ctx.input.skuCode}`);
+	}
+
+	if (product.type !== "variable" && ctx.input.optionValues.length > 0) {
+		throw PluginRouteError.badRequest("Option values are only allowed for variable products");
+	}
+
+	if (product.type === "variable") {
+		const attributesResult = await productAttributes.query({ where: { productId: product.id } });
+		const variantAttributes = collectVariantDefiningAttributes(
+			attributesResult.items.map((row) => row.data),
+		);
+		if (variantAttributes.length === 0) {
+			throw PluginRouteError.badRequest(`Product ${product.id} has no variant-defining attributes`);
+		}
+
+		let attributeValueRows: StoredProductAttributeValue[] = [];
+		for (const attribute of variantAttributes) {
+			const valueResult = await productAttributeValues.query({ where: { attributeId: attribute.id } });
+			attributeValueRows = attributeValueRows.concat(valueResult.items.map((row) => row.data));
+		}
+
+		const existingSkuResult = await productSkus.query({ where: { productId: product.id } });
+		const existingSignatures = new Set<string>();
+		for (const row of existingSkuResult.items) {
+			const optionResult = await productSkuOptionValues.query({ where: { skuId: row.data.id } });
+			const options = optionResult.items.map((option) => ({
+				attributeId: option.data.attributeId,
+				attributeValueId: option.data.attributeValueId,
+			}));
+			const signature = normalizeSkuOptionSignature(options);
+			if (options.length > 0) {
+				existingSignatures.add(signature);
+			}
+		}
+
+		validateVariableSkuOptions({
+			productId: product.id,
+			variantAttributes,
+			attributeValues: attributeValueRows,
+			optionValues: ctx.input.optionValues,
+			existingSignatures,
+		});
 	}
 
 	const nowIso = new Date(Date.now()).toISOString();
@@ -244,6 +394,21 @@ export async function createProductSkuHandler(
 	};
 
 	await productSkus.put(id, sku);
+
+	if (product.type === "variable") {
+		for (const optionInput of ctx.input.optionValues) {
+			const optionId = `${id}_opt_${await randomHex(6)}`;
+			const optionRow: StoredProductSkuOptionValue = {
+				id: optionId,
+				skuId: id,
+				attributeId: optionInput.attributeId,
+				attributeValueId: optionInput.attributeValueId,
+				createdAt: nowIso,
+				updatedAt: nowIso,
+			};
+			await productSkuOptionValues.put(optionId, optionRow);
+		}
+	}
 	return { sku };
 }
 

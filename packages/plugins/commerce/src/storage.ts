@@ -9,6 +9,18 @@ export type CommerceStorage = PluginStorageConfig & {
 		indexes: ["type", "status", "visibility", "slug", "createdAt", "updatedAt", "featured"];
 		uniqueIndexes: [["slug"]];
 	};
+	productAttributes: {
+		indexes: ["productId", "kind", "code", "position", ["productId", "kind"], ["productId", "code"]];
+		uniqueIndexes: [["productId", "code"]];
+	};
+	productAttributeValues: {
+		indexes: ["attributeId", "code", "position", ["attributeId", "code"]];
+		uniqueIndexes: [["attributeId", "code"]];
+	};
+	productSkuOptionValues: {
+		indexes: ["skuId", "attributeId", "attributeValueId"];
+		uniqueIndexes: [["skuId", "attributeId"]];
+	};
 	productAssets: {
 		indexes: ["provider", "externalAssetId", "createdAt", "updatedAt", ["provider", "externalAssetId"]];
 		uniqueIndexes: [["provider", "externalAssetId"]];
@@ -86,6 +98,30 @@ export const COMMERCE_STORAGE_CONFIG = {
 	products: {
 		indexes: ["type", "status", "visibility", "slug", "createdAt", "updatedAt", "featured"] as const,
 		uniqueIndexes: [["slug"]] as const,
+	},
+	productAttributes: {
+		indexes: [
+			"productId",
+			"kind",
+			"code",
+			"position",
+			["productId", "kind"],
+			["productId", "code"],
+		] as const,
+		uniqueIndexes: [["productId", "code"]] as const,
+	},
+	productAttributeValues: {
+		indexes: [
+			"attributeId",
+			"code",
+			"position",
+			["attributeId", "code"],
+		] as const,
+		uniqueIndexes: [["attributeId", "code"]] as const,
+	},
+	productSkuOptionValues: {
+		indexes: ["skuId", "attributeId", "attributeValueId"] as const,
+		uniqueIndexes: [["skuId", "attributeId"]] as const,
 	},
 	productAssets: {
 		indexes: [

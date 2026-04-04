@@ -143,6 +143,26 @@ export const productCreateInputSchema = z.object({
 	sortOrder: z.number().int().min(0).max(10_000).default(0),
 	requiresShippingDefault: z.boolean().default(true),
 	taxClassDefault: z.string().trim().max(64).optional(),
+	attributes: z
+		.array(
+			z.object({
+				name: z.string().trim().min(1).max(128),
+				code: z.string().trim().min(1).max(64).toLowerCase(),
+				kind: z.enum(["variant_defining", "descriptive"]).default("descriptive"),
+				position: z.number().int().min(0).max(10_000).default(0),
+				values: z
+					.array(
+						z.object({
+							value: z.string().trim().min(1).max(128),
+							code: z.string().trim().min(1).max(64).toLowerCase(),
+							position: z.number().int().min(0).max(10_000).default(0),
+						}),
+					)
+					.min(1)
+					.default([]),
+			}),
+		)
+		.default([]),
 });
 export type ProductCreateInput = z.infer<typeof productCreateInputSchema>;
 
@@ -169,6 +189,14 @@ export const productSkuCreateInputSchema = z.object({
 	inventoryVersion: z.number().int().min(0).default(1),
 	requiresShipping: z.boolean().default(true),
 	isDigital: z.boolean().default(false),
+	optionValues: z
+		.array(
+			z.object({
+				attributeId: z.string().trim().min(3).max(128),
+				attributeValueId: z.string().trim().min(3).max(128),
+			}),
+		)
+		.default([]),
 });
 export type ProductSkuCreateInput = z.infer<typeof productSkuCreateInputSchema>;
 

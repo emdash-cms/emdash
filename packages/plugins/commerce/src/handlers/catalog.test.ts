@@ -5,7 +5,10 @@ import type {
 	StoredProduct,
 	StoredProductAsset,
 	StoredProductAssetLink,
+	StoredProductAttribute,
+	StoredProductAttributeValue,
 	StoredProductSku,
+	StoredProductSkuOptionValue,
 } from "../types.js";
 import type {
 	ProductAssetLinkInput,
@@ -76,11 +79,22 @@ function catalogCtx<TInput>(
 	productSkus = new MemColl<StoredProductSku>(),
 	productAssets = new MemColl<StoredProductAsset>(),
 	productAssetLinks = new MemColl<StoredProductAssetLink>(),
+	productAttributes = new MemColl<StoredProductAttribute>(),
+	productAttributeValues = new MemColl<StoredProductAttributeValue>(),
+	productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>(),
 ): RouteContext<TInput> {
 	return {
 		request: new Request("https://example.test/catalog", { method: "POST" }),
 		input,
-		storage: { products, productSkus, productAssets, productAssetLinks },
+		storage: {
+			products,
+			productSkus,
+			productAssets,
+			productAssetLinks,
+			productAttributes,
+			productAttributeValues,
+			productSkuOptionValues,
+		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv: {},
 	} as unknown as RouteContext<TInput>;
@@ -145,6 +159,164 @@ describe("catalog product handlers", () => {
 			products,
 		);
 		await expect(createProductHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("creates variable products with variant attributes and values", async () => {
+		const products = new MemColl<StoredProduct>();
+		const productAttributes = new MemColl<StoredProductAttribute>();
+		const productAttributeValues = new MemColl<StoredProductAttributeValue>();
+
+		const out = await createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "draft",
+					visibility: "hidden",
+					slug: "tee-shirt",
+					title: "Tee Shirt",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [
+								{ value: "Red", code: "red", position: 0 },
+								{ value: "Blue", code: "blue", position: 1 },
+							],
+						},
+						{
+							name: "Size",
+							code: "size",
+							kind: "variant_defining",
+							position: 1,
+							values: [
+								{ value: "Small", code: "s", position: 0 },
+								{ value: "Large", code: "l", position: 1 },
+							],
+						},
+					],
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+			),
+		);
+
+		expect(out.product.type).toBe("variable");
+		expect(productAttributes.rows.size).toBe(2);
+		expect(productAttributeValues.rows.size).toBe(4);
+	});
+
+	it("rejects variable products without variant-defining attributes", async () => {
+		const products = new MemColl<StoredProduct>();
+		const out = createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "draft",
+					visibility: "hidden",
+					slug: "bad-variable",
+					title: "Bad Variable",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Material",
+							code: "material",
+							kind: "descriptive",
+							position: 0,
+							values: [{ value: "Cotton", code: "cotton", position: 0 }],
+						},
+					],
+				},
+				products,
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("rejects variable products with duplicate attribute codes", async () => {
+		const products = new MemColl<StoredProduct>();
+		const out = createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "draft",
+					visibility: "hidden",
+					slug: "dup-attr",
+					title: "Dup Attr",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [{ value: "Red", code: "red", position: 0 }],
+						},
+						{
+							name: "Color Alt",
+							code: "color",
+							kind: "variant_defining",
+							position: 1,
+							values: [{ value: "Blue", code: "blue", position: 0 }],
+						},
+					],
+				},
+				products,
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("rejects duplicate value codes within a variable attribute", async () => {
+		const products = new MemColl<StoredProduct>();
+		const out = createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "draft",
+					visibility: "hidden",
+					slug: "dup-value",
+					title: "Dup Value",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [
+								{ value: "Red", code: "red", position: 0 },
+								{ value: "Maroon", code: "red", position: 1 },
+							],
+						},
+					],
+				},
+				products,
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
 	it("updates mutable product fields and preserves immutable fields", async () => {
@@ -354,6 +526,385 @@ describe("catalog SKU handlers", () => {
 		const listed = await listProductSkusHandler(listCtx);
 		expect(listed.items).toHaveLength(1);
 		expect(listed.items[0]!.id).toBe(created.sku.id);
+	});
+
+	it("stores variant option mappings and returns a variable matrix on get", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAttributes = new MemColl<StoredProductAttribute>();
+		const productAttributeValues = new MemColl<StoredProductAttributeValue>();
+		const productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>();
+
+		const product = await createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "active",
+					visibility: "public",
+					slug: "variable-shirt",
+					title: "Variable Shirt",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [
+								{ value: "Red", code: "red", position: 0 },
+								{ value: "Blue", code: "blue", position: 1 },
+							],
+						},
+						{
+							name: "Size",
+							code: "size",
+							kind: "variant_defining",
+							position: 1,
+							values: [
+								{ value: "Small", code: "s", position: 0 },
+								{ value: "Large", code: "l", position: 1 },
+							],
+						},
+					],
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+			),
+		);
+
+		const colorAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "color");
+		expect(colorAttribute).toBeDefined();
+		const sizeAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "size");
+		expect(sizeAttribute).toBeDefined();
+		const valueByCode = new Map([...productAttributeValues.rows.values()].map((row) => [row.code, row.id]));
+
+		const skuA = await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "VSHIRT-RS",
+					status: "active",
+					unitPriceMinor: 2100,
+					inventoryQuantity: 15,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{
+							attributeId: colorAttribute!.id,
+							attributeValueId: valueByCode.get("red")!,
+						},
+						{
+							attributeId: sizeAttribute!.id,
+							attributeValueId: valueByCode.get("s")!,
+						},
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+
+		const skuB = await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "VSHIRT-BL",
+					status: "active",
+					unitPriceMinor: 2200,
+					inventoryQuantity: 10,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{
+							attributeId: colorAttribute!.id,
+							attributeValueId: valueByCode.get("blue")!,
+						},
+						{
+							attributeId: sizeAttribute!.id,
+							attributeValueId: valueByCode.get("l")!,
+						},
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+
+		expect(skuA.sku.skuCode).toBe("VSHIRT-RS");
+		expect(skuB.sku.skuCode).toBe("VSHIRT-BL");
+		expect(productSkuOptionValues.rows.size).toBe(4);
+
+		const detail = await getProductHandler(
+			catalogCtx(
+				{ productId: product.product.id },
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+		expect(detail.attributes).toHaveLength(2);
+		expect(detail.variantMatrix).toHaveLength(2);
+		expect(detail.variantMatrix?.every((row) => row.options.length === 2)).toBe(true);
+	});
+
+	it("rejects variable SKU creation when option coverage is incomplete", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAttributes = new MemColl<StoredProductAttribute>();
+		const productAttributeValues = new MemColl<StoredProductAttributeValue>();
+		const productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>();
+
+		const product = await createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "active",
+					visibility: "public",
+					slug: "incomplete-variable",
+					title: "Incomplete variable",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [
+								{ value: "Red", code: "red", position: 0 },
+								{ value: "Blue", code: "blue", position: 1 },
+							],
+						},
+						{
+							name: "Size",
+							code: "size",
+							kind: "variant_defining",
+							position: 1,
+							values: [{ value: "Small", code: "s", position: 0 }],
+						},
+					],
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+			),
+		);
+
+		const missing = createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "MISS-1",
+					status: "active",
+					unitPriceMinor: 1000,
+					inventoryQuantity: 1,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{
+							attributeId: [...productAttributes.rows.values()][0]!.id,
+							attributeValueId: [...productAttributeValues.rows.values()][0]!.id,
+						},
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+		await expect(missing).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("rejects option mappings on non-variable products", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("parent", {
+			id: "parent",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "simple-parent",
+			title: "Simple Parent",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: "parent",
+					skuCode: "BAD-MAP",
+					status: "active",
+					unitPriceMinor: 1000,
+					inventoryQuantity: 1,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [{ attributeId: "attr_1", attributeValueId: "val_1" }],
+				},
+				products,
+				skus,
+			),
+		);
+
+		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("rejects duplicate and duplicate-combination SKU option mappings for variable products", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAttributes = new MemColl<StoredProductAttribute>();
+		const productAttributeValues = new MemColl<StoredProductAttributeValue>();
+		const productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>();
+
+		const product = await createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "active",
+					visibility: "public",
+					slug: "combo-variable",
+					title: "Combo variable",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [{ value: "Red", code: "red", position: 0 }],
+						},
+					],
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+			),
+		);
+
+		const colorAttribute = [...productAttributes.rows.values()][0]!;
+		const colorValue = [...productAttributeValues.rows.values()][0]!;
+
+		const duplicateAttributeValue = createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "DUP-1",
+					status: "active",
+					unitPriceMinor: 1000,
+					inventoryQuantity: 1,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{ attributeId: colorAttribute.id, attributeValueId: colorValue.id },
+						{ attributeId: colorAttribute.id, attributeValueId: colorValue.id },
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+		await expect(duplicateAttributeValue).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+		await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "V1",
+					status: "active",
+					unitPriceMinor: 1100,
+					inventoryQuantity: 2,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [{ attributeId: colorAttribute.id, attributeValueId: colorValue.id }],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+
+		const duplicateCombination = createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "V2",
+					status: "active",
+					unitPriceMinor: 1150,
+					inventoryQuantity: 2,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [{ attributeId: colorAttribute.id, attributeValueId: colorValue.id }],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+		await expect(duplicateCombination).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
 	it("updates SKU fields without changing immutable identifiers", async () => {

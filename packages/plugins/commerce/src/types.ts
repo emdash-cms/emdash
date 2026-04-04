@@ -174,6 +174,38 @@ export interface StoredProductSku {
 	updatedAt: string;
 }
 
+export type ProductAttributeKind = "variant_defining" | "descriptive";
+
+export interface StoredProductAttribute {
+	id: string;
+	productId: string;
+	name: string;
+	code: string;
+	kind: ProductAttributeKind;
+	position: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface StoredProductAttributeValue {
+	id: string;
+	attributeId: string;
+	value: string;
+	code: string;
+	position: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface StoredProductSkuOptionValue {
+	id: string;
+	skuId: string;
+	attributeId: string;
+	attributeValueId: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export type ProductAssetLinkTarget = "product" | "sku";
 
 export type ProductAssetRole = "primary_image" | "gallery_image";

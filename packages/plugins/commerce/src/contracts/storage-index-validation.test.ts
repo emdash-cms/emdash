@@ -15,6 +15,9 @@ function includesIndex(
 		| "idempotencyKeys"
 		| "products"
 		| "productSkus"
+	| "productAttributes"
+	| "productAttributeValues"
+	| "productSkuOptionValues"
 		| "inventoryLedger"
 		| "inventoryStock",
 	index: readonly string[],
@@ -79,5 +82,19 @@ describe("storage index contracts", () => {
 	it("supports catalog asset link lookup and idempotent linking", () => {
 		expect(includesIndex("productAssetLinks", ["targetType", "targetId"])).toBe(true);
 		expect(includesIndex("productAssetLinks", ["targetType", "targetId", "assetId"], true)).toBe(true);
+	});
+
+	it("supports variable attribute metadata lookups", () => {
+		expect(includesIndex("productAttributes", ["productId"])).toBe(true);
+		expect(includesIndex("productAttributes", ["productId", "kind"])).toBe(true);
+		expect(includesIndex("productAttributes", ["productId", "code"], true)).toBe(true);
+		expect(includesIndex("productAttributeValues", ["attributeId"])).toBe(true);
+		expect(includesIndex("productAttributeValues", ["attributeId", "code"], true)).toBe(true);
+	});
+
+	it("supports SKU option mapping invariants", () => {
+		expect(includesIndex("productSkuOptionValues", ["skuId"])).toBe(true);
+		expect(includesIndex("productSkuOptionValues", ["attributeId"])).toBe(true);
+		expect(includesIndex("productSkuOptionValues", ["skuId", "attributeId"], true)).toBe(true);
 	});
 });
