@@ -109,6 +109,7 @@ export function TaxonomyTypeList({
 				onConfirm={() => {
 					if (deleteTarget) {
 						onDelete?.(deleteTarget.name);
+						setDeleteTarget(null);
 					}
 				}}
 			/>
