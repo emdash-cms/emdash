@@ -8,21 +8,25 @@ export interface AiRewriteResult {
 	alternatives: string[];
 }
 
+export type AiWritingMode = "rewrite" | "expand" | "summarize" | "formal" | "casual" | "translate";
+
 /**
- * Rewrite text using AI. Returns N alternative versions.
+ * Transform text using AI. Returns N alternative versions.
  * Throws if AI is not configured or the request fails.
  */
 export async function rewriteText(
 	text: string,
-	options?: { count?: number; style?: string },
+	options?: { count?: number; style?: string; mode?: AiWritingMode; targetLanguage?: string },
 ): Promise<AiRewriteResult> {
 	const response = await apiFetch(`${API_BASE}/ai/rewrite`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			text,
-			count: options?.count ?? 3,
+			count: options?.count,
 			style: options?.style,
+			mode: options?.mode,
+			targetLanguage: options?.targetLanguage,
 		}),
 	});
 

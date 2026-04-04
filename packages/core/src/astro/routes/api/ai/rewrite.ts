@@ -20,6 +20,8 @@ const rewriteSchema = z.object({
 	text: z.string().min(1).max(10_000),
 	count: z.number().int().min(1).max(5).optional(),
 	style: z.string().optional(),
+	mode: z.enum(["rewrite", "expand", "summarize", "formal", "casual", "translate"]).optional(),
+	targetLanguage: z.string().optional(),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -54,6 +56,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			text: body.text,
 			count: body.count,
 			style: body.style,
+			mode: body.mode,
+			targetLanguage: body.targetLanguage,
 		});
 
 		return apiSuccess(result);

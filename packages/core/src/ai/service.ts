@@ -59,18 +59,14 @@ export class AiService {
 	}
 
 	/**
-	 * Rewrite text with N alternatives.
-	 * Uses a specialized prompt for high-quality rewrites.
+	 * Transform text using AI writing assistant.
+	 * Supports: rewrite, expand, summarize, formal, casual, translate.
 	 */
 	async rewrite(request: AiRewriteRequest): Promise<AiRewriteResponse> {
-		const count = request.count ?? 3;
-		const style = request.style ?? "varied";
+		const mode = request.mode ?? "rewrite";
+		const count = request.count ?? (mode === "rewrite" ? 3 : 1);
 
-		const system = `You are a writing assistant. Rewrite the given text ${count} different ways. ${
-			style === "varied"
-				? "Each version should have a different tone or approach (e.g., more concise, more formal, more conversational)."
-				: `Each version should be ${style}.`
-		} Return ONLY a JSON array of strings, no other text. Example: ["version 1", "version 2", "version 3"]`;
+		const system = buildWritingPrompt(mode, count, request.targetLanguage);
 
 		const response = await this.complete({
 			prompt: request.text,
@@ -250,5 +246,39 @@ export class AiService {
 			}
 			throw new AiError("AI_PROVIDER_ERROR", "Failed to connect to AI provider.", e);
 		}
+	}
+}
+
+/**
+ * Build the system prompt for each writing mode.
+ */
+function buildWritingPrompt(
+	mode: import("./types.js").AiWritingMode,
+	count: number,
+	targetLanguage?: string,
+): string {
+	const jsonInstruction = `Return ONLY a JSON array of ${count} string${count > 1 ? "s" : ""}, no other text. Example: ${count > 1 ? '["version 1", "version 2"]' : '["result"]'}`;
+
+	switch (mode) {
+		case "rewrite":
+			return `You are a writing assistant. Rewrite the given text ${count} different ways. Each version should have a different tone or approach (e.g., more concise, more formal, more conversational). ${jsonInstruction}`;
+
+		case "expand":
+			return `You are a writing assistant. Expand the given text to be more detailed and comprehensive. Add supporting details, examples, or elaboration while maintaining the original meaning and voice. ${jsonInstruction}`;
+
+		case "summarize":
+			return `You are a writing assistant. Summarize the given text to be shorter and more concise. Preserve the key points and meaning but remove redundancy. Aim for about 50% of the original length. ${jsonInstruction}`;
+
+		case "formal":
+			return `You are a writing assistant. Rewrite the given text in a more formal, professional tone. Use precise language, avoid contractions, and maintain a polished register. ${jsonInstruction}`;
+
+		case "casual":
+			return `You are a writing assistant. Rewrite the given text in a more casual, conversational tone. Use natural language, contractions where appropriate, and a friendly register. ${jsonInstruction}`;
+
+		case "translate":
+			return `You are a translator. Translate the given text to ${targetLanguage || "English"}. Preserve the original meaning, tone, and formatting as closely as possible. ${jsonInstruction}`;
+
+		default:
+			return `You are a writing assistant. Rewrite the given text ${count} different ways. ${jsonInstruction}`;
 	}
 }

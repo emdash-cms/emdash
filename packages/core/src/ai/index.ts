@@ -7,4 +7,5 @@ export type {
 	AiErrorCode,
 	AiRewriteRequest,
 	AiRewriteResponse,
+	AiWritingMode,
 } from "./types.js";

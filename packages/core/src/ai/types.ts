@@ -39,13 +39,19 @@ export interface AiCompletionResponse {
 	};
 }
 
+export type AiWritingMode = "rewrite" | "expand" | "summarize" | "formal" | "casual" | "translate";
+
 export interface AiRewriteRequest {
-	/** The text to rewrite */
+	/** The text to transform */
 	text: string;
-	/** Number of alternatives to generate (default: 3) */
+	/** Number of alternatives to generate (default: 3, or 1 for expand/summarize) */
 	count?: number;
 	/** Style hint: "formal" | "casual" | "concise" | "expanded" */
 	style?: string;
+	/** Writing mode (default: "rewrite") */
+	mode?: AiWritingMode;
+	/** Target language for translate mode */
+	targetLanguage?: string;
 }
 
 export interface AiRewriteResponse {

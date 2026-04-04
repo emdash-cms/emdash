@@ -1807,10 +1807,74 @@ export function PortableTextEditor({
 	);
 }
 
+type AiMode = "rewrite" | "expand" | "summarize" | "formal" | "casual" | "translate";
+
+const AI_ACTIONS: Array<{ mode: AiMode; label: string; description: string }> = [
+	{ mode: "rewrite", label: "Rewrite", description: "3 alternative versions" },
+	{ mode: "expand", label: "Expand", description: "Add detail and depth" },
+	{ mode: "summarize", label: "Summarize", description: "Make it shorter" },
+	{ mode: "formal", label: "More formal", description: "Professional tone" },
+	{ mode: "casual", label: "More casual", description: "Conversational tone" },
+	{ mode: "translate", label: "Translate", description: "To another language" },
+];
+
 /**
- * AI Rewrite Popover - appears below selected text with alternative rewrites
+ * AI Actions Menu - shows available AI writing actions
  */
-function AiRewritePopover({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+function AiActionsMenu({
+	onSelectAction,
+	onClose,
+}: {
+	onSelectAction: (mode: AiMode) => void;
+	onClose: () => void;
+}) {
+	return (
+		<div className="z-[101] absolute mt-2 w-56 rounded-lg border bg-kumo-base shadow-lg overflow-hidden">
+			<div className="px-3 py-2 border-b flex items-center justify-between">
+				<span className="text-xs font-medium text-kumo-subtle flex items-center gap-1.5">
+					<Sparkle className="h-3.5 w-3.5" />
+					AI Writing
+				</span>
+				<button
+					type="button"
+					onClick={onClose}
+					className="text-kumo-subtle hover:text-kumo-default"
+					aria-label="Close"
+				>
+					<X className="h-3.5 w-3.5" />
+				</button>
+			</div>
+			<div>
+				{AI_ACTIONS.map((action) => (
+					<button
+						key={action.mode}
+						type="button"
+						className="w-full text-left px-3 py-2 text-sm hover:bg-kumo-tint flex items-center justify-between"
+						onClick={() => onSelectAction(action.mode)}
+					>
+						<span className="font-medium">{action.label}</span>
+						<span className="text-xs text-kumo-subtle">{action.description}</span>
+					</button>
+				))}
+			</div>
+		</div>
+	);
+}
+
+/**
+ * AI Result Popover - shows AI-generated alternatives for the selected text
+ */
+function AiResultPopover({
+	editor,
+	mode,
+	onClose,
+	onBack,
+}: {
+	editor: Editor;
+	mode: AiMode;
+	onClose: () => void;
+	onBack: () => void;
+}) {
 	const [alternatives, setAlternatives] = React.useState<string[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
@@ -1831,14 +1895,14 @@ function AiRewritePopover({ editor, onClose }: { editor: Editor; onClose: () => 
 		(async () => {
 			try {
 				const { rewriteText } = await import("../lib/api/ai.js");
-				const result = await rewriteText(selectedText.current);
+				const result = await rewriteText(selectedText.current, { mode });
 				if (!cancelled) {
 					setAlternatives(result.alternatives);
 					setLoading(false);
 				}
 			} catch (e) {
 				if (!cancelled) {
-					setError(e instanceof Error ? e.message : "AI rewrite failed");
+					setError(e instanceof Error ? e.message : "AI failed");
 					setLoading(false);
 				}
 			}
@@ -1847,7 +1911,7 @@ function AiRewritePopover({ editor, onClose }: { editor: Editor; onClose: () => 
 		return () => {
 			cancelled = true;
 		};
-	}, [editor]);
+	}, [editor, mode]);
 
 	const handleSelect = (text: string) => {
 		const { from, to } = editor.state.selection;
@@ -1859,8 +1923,15 @@ function AiRewritePopover({ editor, onClose }: { editor: Editor; onClose: () => 
 		<div className="z-[101] absolute mt-2 w-80 rounded-lg border bg-kumo-base shadow-lg overflow-hidden">
 			<div className="px-3 py-2 border-b flex items-center justify-between">
 				<span className="text-xs font-medium text-kumo-subtle flex items-center gap-1.5">
-					<Sparkle className="h-3.5 w-3.5" />
-					AI Rewrite
+					<button
+						type="button"
+						onClick={onBack}
+						className="hover:text-kumo-default"
+						aria-label="Back to actions"
+					>
+						<Sparkle className="h-3.5 w-3.5" />
+					</button>
+					AI {AI_ACTIONS.find((a) => a.mode === mode)?.label ?? "Writing"}
 				</span>
 				<button
 					type="button"
@@ -1902,7 +1973,12 @@ function AiRewritePopover({ editor, onClose }: { editor: Editor; onClose: () => 
  */
 function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
-	const [showAiRewrite, setShowAiRewrite] = React.useState(false);
+	const [aiState, setAiState] = React.useState<{
+		view: "closed" | "menu" | "result";
+		mode?: AiMode;
+	}>({
+		view: "closed",
+	});
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -2037,16 +2113,29 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					</BubbleButton>
 					<div className="w-px h-6 bg-kumo-line mx-1" />
 					<BubbleButton
-						onClick={() => setShowAiRewrite((prev) => !prev)}
-						active={showAiRewrite}
-						title="AI Rewrite (⌘⇧R)"
+						onClick={() =>
+							setAiState((prev) => (prev.view === "closed" ? { view: "menu" } : { view: "closed" }))
+						}
+						active={aiState.view !== "closed"}
+						title="AI Writing Assistant"
 					>
 						<Sparkle className="h-4 w-4" />
 					</BubbleButton>
 				</>
 			)}
-			{showAiRewrite && (
-				<AiRewritePopover editor={editor} onClose={() => setShowAiRewrite(false)} />
+			{aiState.view === "menu" && (
+				<AiActionsMenu
+					onSelectAction={(mode) => setAiState({ view: "result", mode })}
+					onClose={() => setAiState({ view: "closed" })}
+				/>
+			)}
+			{aiState.view === "result" && aiState.mode && (
+				<AiResultPopover
+					editor={editor}
+					mode={aiState.mode}
+					onClose={() => setAiState({ view: "closed" })}
+					onBack={() => setAiState({ view: "menu" })}
+				/>
 			)}
 		</BubbleMenu>
 	);
