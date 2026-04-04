@@ -23,7 +23,7 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 - Last updated: 2026-04-03
 - Owner: emDash Commerce plugin lead (handoff-ready docs update)
 - Current phase owner: Strategy A follow-up only
-- Status in this branch: 5A (same-event duplicate-flight concurrency assertions), 5B (pending-state resume-state visibility and non-terminal branch behavior), and 5C (possession boundary assertions) updated; 5D scope gate still blocks money-path expansion.
+- Status in this branch: 5A (same-event duplicate-flight concurrency assertions), 5B (pending-state resume-state visibility and non-terminal branch behavior), 5C (possession boundary assertions), 5D (scope lock reaffirmed), and 5E (deterministic claim lease/expiry policy) are represented in this branch.
 
 - Scope: **active for this iteration only** and **testable without new provider runtime**.
 - Goal: keep `checkout`/`webhook` behavior unchanged while reducing contract drift across payment adapters.
@@ -49,12 +49,13 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 Use this when opening follow-up work:
 
 1) Set scope to Strategy A only (contract drift hardening, no topology change).
-2) Execute the Strategy A checklist in `CI_REGRESSION_CHECKLIST.md` sections 0–4.
+2) Execute the Strategy A checklist in `CI_REGRESSION_CHECKLIST.md` sections 0–5, with optional 5F follow-through.
 3) Confirm docs updates are in scope:
    - `COMMERCE_DOCS_INDEX.md`
    - `COMMERCE_EXTENSION_SURFACE.md`
    - `AI-EXTENSIBILITY.md`
    - `HANDOVER.md`
+   - `FINALIZATION_REVIEW_AUDIT.md`
 4) Run proof commands:
    - `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts`
    - `pnpm --filter @emdash-cms/plugin-commerce test`
@@ -62,9 +63,9 @@ Use this when opening follow-up work:
 ## External review continuation roadmap
 
 After the latest third-party memo, continue systematically with
-`CI_REGRESSION_CHECKLIST.md` sections 5A–5D (in order) before broadening
+`CI_REGRESSION_CHECKLIST.md` sections 5A–5E (in order) before broadening
 provider topology.
-5A/5B/5C have been incrementally implemented in this branch; 5D scope gate checks remain before any provider-runtime expansion.
+5A/5B/5C/5D/5E have been incrementally implemented in this branch; 5F remains for rollout and testing follow-up of deterministic claim lease policy.
 
 ## Plugin HTTP routes
 

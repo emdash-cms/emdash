@@ -25,11 +25,12 @@ Implementation guardrails:
 ## Current hardening status (next-pass gate)
 
 - This branch ships regression-only updates for 5A (same-event duplicate webhook
-  finalization convergence), 5B (pending-state contract visibility and non-terminal
-  resume transitions), and 5C (possession checks on order/cart entrypoints).
+   finalization convergence), 5B (pending-state contract visibility and non-terminal
+   resume transitions), 5C (possession checks on order/cart entrypoints),
+   5D (scope lock reaffirmation), and 5E (deterministic claim lease policy).
 - Runtime behavior for checkout/finalize/routing remains unchanged while we continue
   to enforce the same scope lock for provider topology (`webhooks/stripe` only) until
-  5D completion and explicit roadmap approval.
+  5F completion and explicit roadmap approval.
 
 ### Strategy A acceptance guidance (contract hardening only)
 

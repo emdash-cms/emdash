@@ -151,3 +151,28 @@ narrow, high-signal, and ordered by failure risk.
   2. 5B
   3. 5C
   4. 5D
+
+### 5E) Deterministic lease/expiry policy for claim reuse
+
+- [ ] Document claim lease semantics (`claimOwner`/`claimToken`/`claimVersion`/`claimExpiresAt`) in
+  `COMMERCE_EXTENSION_SURFACE.md` and `FINALIZATION_REVIEW_AUDIT.md`.
+- [ ] Ensure `assertClaimStillActive()` checks lease ownership + lease expiry at every mutable finalize
+  boundary before performing:
+  - inventory writes,
+  - order settlement,
+  - payment-attempt transition,
+  - final receipt write.
+- [ ] Verify behavior for malformed or missing claim state metadata returns safe replay semantics instead of
+  partial mutation.
+- [ ] Keep race-focused replay tests passing for:
+  - stale claim reclamation,
+  - in-flight claim steal,
+  - stale lease preventing unsafe writes.
+
+### 5F) Rollout and documentation follow-up
+
+- [ ] Confirm `HANDOVER.md`, `COMMERCE_DOCS_INDEX.md`, and `AI-EXTENSIBILITY.md` reflect finalized 5E status.
+- [ ] Prepare a staged rollout switch plan (`COMMERCE_USE_LEASED_FINALIZE`) so strict lease enforcement can
+  be toggled predictably in staged environments.
+- [ ] Record proof artifacts for claim-policy tests, docs updates, and any rollout-switch behavior before exposing
+  in production-like traffic.

@@ -64,7 +64,9 @@ must pass through `finalizePaymentFromWebhook`.
 - Leave runtime gateway behavior on `webhooks/stripe` until a second provider is enabled.
 - Hardening checkpoint in this branch: added regression assertions for same-event duplicate
   webhook finalization convergence (5A), pending-state resume-status visibility (5B),
-  and possession-guard coverage (5C) without behavior widening.
+  possession-guard coverage (5C), and deterministic claim lease/expiry behavior (5E)
+  with active ownership revalidation on all critical finalize-write stages.
+- 5F follow-up tracks staged rollout behavior and documentation.
 - Continue to enforce read-only rules for diagnostics via `queryFinalizationState`.
 
 ### Read-only MCP service seam

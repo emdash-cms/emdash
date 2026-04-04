@@ -81,8 +81,9 @@ export type FinalizePaymentPorts = {
 	log?: FinalizeLogPort;
 };
 
-const WEBHOOK_RECEIPT_CLAIM_STALE_WINDOW_MS = 30_000;
+const WEBHOOK_RECEIPT_CLAIM_LEASE_WINDOW_MS = 30_000;
 const FINALIZE_INVARIANT_CHECKS = process.env.COMMERCE_ENABLE_FINALIZE_INVARIANT_CHECKS === "1";
+const USE_LEASED_FINALIZE = process.env.COMMERCE_USE_LEASED_FINALIZE === "1";
 
 export type FinalizeWebhookInput = {
 	orderId: string;
@@ -228,7 +229,7 @@ function createClaimContext(nowIso: string): {
 			: `${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 10)}`;
 	const nowMs = Date.parse(nowIso);
 	const claimExpiresAt =
-		Number.isFinite(nowMs) ? new Date(nowMs + WEBHOOK_RECEIPT_CLAIM_STALE_WINDOW_MS).toISOString() : nowIso;
+		Number.isFinite(nowMs) ? new Date(nowMs + WEBHOOK_RECEIPT_CLAIM_LEASE_WINDOW_MS).toISOString() : nowIso;
 
 	return {
 		claimOwner: `worker:${claimToken}`,
@@ -238,16 +239,37 @@ function createClaimContext(nowIso: string): {
 	};
 }
 
+function parseClaimTimestampMs(timestamp: string | undefined): number | null {
+	const value = Date.parse(timestamp ?? "");
+	return Number.isFinite(value) ? value : null;
+}
+
+function isClaimLeaseExpiredLegacy(claimExpiresAt: string | undefined, nowIso: string): boolean {
+	const nowMs = parseClaimTimestampMs(nowIso);
+	const expiresMs = parseClaimTimestampMs(claimExpiresAt);
+	if (!Number.isFinite(nowMs)) return true;
+	return Number.isFinite(expiresMs) && nowMs > expiresMs;
+}
+
+function isClaimLeaseExpired(claimExpiresAt: string | undefined, nowIso: string): boolean {
+	if (!USE_LEASED_FINALIZE) {
+		return isClaimLeaseExpiredLegacy(claimExpiresAt, nowIso);
+	}
+	const nowMs = parseClaimTimestampMs(nowIso);
+	const expiresMs = parseClaimTimestampMs(claimExpiresAt);
+	return Number.isFinite(nowMs) && Number.isFinite(expiresMs) ? nowMs > expiresMs : true;
+}
+
 function canTakeClaim(existing: StoredWebhookReceipt, nowIso: string): { canTake: boolean; reason: FinalizeWebhookResult } {
 	switch (existing.claimState) {
 		case "claimed": {
-			const expiresMs = Date.parse(existing.claimExpiresAt ?? "");
-			const nowMs = Date.parse(nowIso);
-			// Missing/unparseable lease timestamp means stale.
-			if (!Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) {
-				return { canTake: true, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
-			}
-			if (nowMs <= expiresMs) {
+			const nowMs = parseClaimTimestampMs(nowIso);
+			const expiresMs = parseClaimTimestampMs(existing.claimExpiresAt);
+			const isInFlight =
+				!USE_LEASED_FINALIZE
+					? Number.isFinite(nowMs) && Number.isFinite(expiresMs) && nowMs <= expiresMs
+					: isClaimLeaseExpired(existing.claimExpiresAt, nowIso);
+			if (isInFlight) {
 				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_in_flight" } };
 			}
 			return { canTake: true, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
@@ -474,12 +496,7 @@ async function assertClaimStillActive(
 		return { kind: "replay", reason: "webhook_receipt_in_flight" };
 	}
 
-	const nowMs = Date.parse(nowIso);
-	if (!Number.isFinite(nowMs)) {
-		return { kind: "replay", reason: "webhook_receipt_claim_retry_failed" };
-	}
-	const expiresMs = Date.parse(activeClaim.claimExpiresAt ?? liveReceipt.claimExpiresAt ?? "");
-	if (Number.isFinite(expiresMs) && nowMs > expiresMs) {
+	if (isClaimLeaseExpired(liveReceipt.claimExpiresAt, nowIso)) {
 		return { kind: "replay", reason: "webhook_receipt_claim_retry_failed" };
 	}
 

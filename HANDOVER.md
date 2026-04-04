@@ -116,7 +116,9 @@ Immediate sequence:
    - `5A` Concurrency and duplicate-event safety. ✅ added in this branch (replay-safe follow-up assertions, no behavior broadening).
    - `5B` Pending-state contract safety. ✅ added for claim-marker status visibility and non-terminal transition coverage (`replay_processed`, `pending_inventory`, `pending_order`, `pending_attempt`, `pending_receipt`, `error`) in this branch.
    - `5C` Ownership boundary hardening. ✅ added in this branch for wrong-token checks on `checkout/get-order`.
-   - `5D` Scope gate before any money-path expansion. (remaining)
+   - `5D` Scope gate before any money-path expansion. ✅ reaffirmed.
+   - `5E` Deterministic lease/expiry policy. ✅ represented in finalize claim logic and claim-aware regression tests.
+   - `5F` Rollout/test switch and docs follow-through. (next)
 3. Confirm runtime unchanged scope lock is enforced in `Scope lock` and `Definition of done` within the checklist.
 4. Run `pnpm --filter @emdash-cms/plugin-commerce test` before any PR.
 5. Rebuild and distribute the handoff package with:
@@ -126,7 +128,7 @@ Success criteria for handoff continuity:
 - `pending` remains both claim marker and resumable state.
 - Deterministic response behavior for replayed checkout/finalize calls is unchanged.
 - Ownership failures continue to reject with stable error shapes and no token leakage.
-- `5A`, `5B`, and `5C` regression deltas are now represented in test coverage and docs.
+- `5A`, `5B`, `5C`, and `5E` regression deltas are now represented in test coverage and docs.
 
 ## 7) External-review packet content (current)
 

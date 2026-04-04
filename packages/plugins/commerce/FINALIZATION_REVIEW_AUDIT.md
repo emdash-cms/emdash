@@ -45,7 +45,7 @@ Preferred operational events:
 | Duplicate webhook event with same `(providerId, externalEventId)` in a shared runtime | Idempotent or replay-like behavior (status transitions + deterministic IDs). | Existing receipt key (`webhookReceiptDocId`) is stable; ledger/order writes are deterministic.                   |
 | Same event replay while previous attempt is still `pending`                           | Resume from `pending` state; side effects remain bounded.                    | Decision/receipt/query logic is deterministic and keyed by the same event id.                                    |
 | Partial failure after some side effects (inventory/order/attempt)                     | Receipt stays `pending` unless missing/non-finalizable order case.           | In-progress state is preserved and documented for safe retry.                                                    |
-| Perfectly concurrent cross-worker delivery                                            | Residual risk remains documented.                                            | No storage claim primitive/CAS in current platform layer; observed behavior varies by backend visibility timing. |
+| Perfectly concurrent cross-worker delivery                                            | Residual risk remains bounded.                                               | Claim ownership now uses lease metadata plus ownership-version checks; safe revalidation points can short-circuit writes before side effects, but platform-specific timing around concurrent updates is still a residual watchpoint. |
 
 ## 3) Operational references
 
