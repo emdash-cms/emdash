@@ -17,6 +17,7 @@ import {
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { handleRedirectCreate } from "#api/handlers/redirects.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { resolveImportByline } from "#import/utils.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
@@ -41,6 +42,8 @@ export interface ImportConfig {
 	authorMappings?: Record<string, string | null>;
 	/** BCP 47 locale for all imported items. When omitted, defaults to defaultLocale. */
 	locale?: string;
+	/** Whether to auto-generate 301 redirects from WordPress URLs. Defaults to true. */
+	generateRedirects?: boolean;
 }
 
 export interface ImportResult {
@@ -54,7 +57,14 @@ export interface ImportResult {
 		created: number;
 		skipped: number;
 	};
+	/** Auto-generated 301 redirects from WordPress URLs */
+	redirects?: {
+		created: number;
+		skipped: number;
+	};
 }
+
+const TRAILING_SLASH = /\/$/;
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, emdashManifest, user } = locals;
@@ -125,6 +135,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			if (sectionsResult.errors.length > 0) {
 				result.success = false;
 			}
+		}
+
+		// Auto-generate 301 redirects from WordPress URLs (enabled by default)
+		if (config.generateRedirects !== false) {
+			const redirectResult = await generateRedirects(wxr.posts, config, emdash.db);
+			result.redirects = redirectResult;
 		}
 
 		return apiSuccess(result);
@@ -280,4 +296,69 @@ function mapStatus(wpStatus: string | undefined): string {
 		default:
 			return "draft";
 	}
+}
+
+/**
+ * Generate 301 redirects from WordPress permalink paths to EmDash paths.
+ * Only creates redirects for published posts where the WordPress URL path
+ * differs from the EmDash path.
+ */
+async function generateRedirects(
+	posts: WxrPost[],
+	config: ImportConfig,
+	db: import("kysely").Kysely<import("#db/types.js").Database>,
+): Promise<{ created: number; skipped: number }> {
+	let created = 0;
+	let skipped = 0;
+
+	for (const post of posts) {
+		const postType = post.postType || "post";
+		const mapping = config.postTypeMappings[postType];
+		if (!mapping || !mapping.enabled) continue;
+
+		// Only redirect published content
+		if (post.status !== "publish") continue;
+
+		// Extract the WordPress path from the link
+		const wpLink = post.link;
+		if (!wpLink) continue;
+
+		let wpPath: string;
+		try {
+			wpPath = new URL(wpLink).pathname;
+		} catch {
+			continue;
+		}
+
+		// Build the EmDash path
+		const slug = post.postName || slugify(post.title || "");
+		if (!slug) continue;
+		const emdashPath = `/${mapping.collection}/${slug}`;
+
+		// Only create redirect if paths differ
+		if (wpPath === emdashPath || wpPath === `${emdashPath}/`) {
+			skipped++;
+			continue;
+		}
+
+		try {
+			const result = await handleRedirectCreate(db, {
+				source: wpPath.replace(TRAILING_SLASH, ""),
+				destination: emdashPath,
+				type: 301,
+				enabled: true,
+				groupName: "wordpress-import",
+			});
+
+			if (result.success) {
+				created++;
+			} else {
+				skipped++;
+			}
+		} catch {
+			skipped++;
+		}
+	}
+
+	return { created, skipped };
 }
