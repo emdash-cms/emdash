@@ -1,14 +1,14 @@
 {
-	"common.save": "Save",
-	"common.saving": "Saving…",
-	"common.saved": "Saved",
-	"common.cancel": "Cancel",
-	"common.delete": "Delete",
-	"common.deleting": "Deleting…",
-	"common.loading": "Loading…",
-	"common.close": "Close",
-	"common.create": "Create",
-	"common.edit": "Edit",
-	"common.search": "Search",
-	"common.retry": "Retry"
+	"save": "Save",
+	"saving": "Saving…",
+	"saved": "Saved",
+	"cancel": "Cancel",
+	"delete": "Delete",
+	"deleting": "Deleting…",
+	"loading": "Loading…",
+	"close": "Close",
+	"create": "Create",
+	"edit": "Edit",
+	"search": "Search",
+	"retry": "Retry"
 }

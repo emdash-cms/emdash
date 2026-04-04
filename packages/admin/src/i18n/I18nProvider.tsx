@@ -40,6 +40,15 @@ function setCookie(code: string) {
  */
 const localeModules = import.meta.glob<{ default: Translations }>("./locales/*/*.json");
 
+/** Prefix every key in a flat map with a namespace: { save: "x" } → { "common.save": "x" } */
+export function prefixKeys(ns: string, map: Record<string, string>): Translations {
+	const result: Translations = {};
+	for (const [k, v] of Object.entries(map)) {
+		result[`${ns}.${k}`] = v;
+	}
+	return result;
+}
+
 /**
  * Load all namespace files for a locale and merge into a single Translations map.
  */
@@ -47,7 +56,10 @@ async function loadLocale(code: string): Promise<Translations> {
 	const prefix = `./locales/${code}/`;
 	const entries = Object.entries(localeModules).filter(([path]) => path.startsWith(prefix));
 	const results = await Promise.all(
-		entries.map(([, importer]) => importer().then((m) => m.default)),
+		entries.map(([path, importer]) => {
+			const ns = path.replace(prefix, "").replace(".json", "");
+			return importer().then((m) => prefixKeys(ns, m.default));
+		}),
 	);
 	let merged: Translations = {};
 	for (const ns of results) {

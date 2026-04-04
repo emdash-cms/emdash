@@ -9,12 +9,7 @@ export type Namespace = keyof typeof en;
 /** Runtime array of namespace names. */
 export const NAMESPACES = Object.keys(en) as Namespace[];
 
-/** Strip a `"ns."` prefix from a dotted key. */
-type StripPrefix<K extends string, P extends string> = K extends `${P}.${infer Rest}`
-	? Rest
-	: never;
-
-/** Map each namespace to its valid (prefix-stripped) translation keys. */
+/** Map each namespace to its valid translation keys. */
 export type TranslationKeyMap = {
-	[NS in Namespace]: StripPrefix<Extract<keyof (typeof en)[NS], string>, NS>;
+	[NS in Namespace]: Extract<keyof (typeof en)[NS], string>;
 };

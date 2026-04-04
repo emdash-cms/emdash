@@ -102,14 +102,14 @@ return <h1>{t("title")}</h1>; // looks up "myfeature.title" — type-checked!
 
 ## Key Files
 
-| File                                                      | Purpose                                                                        |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `packages/admin/src/i18n/config.ts`                       | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, locale validation                       |
-| `packages/admin/src/i18n/types.ts`                        | `Namespace`, `NAMESPACES`, `TranslationKeyMap` — all derived from barrel       |
-| `packages/admin/src/i18n/locales/en/index.ts`             | Barrel export — source of truth for namespaces and type-safe keys              |
-| `packages/admin/src/i18n/I18nProvider.tsx`                | React context, `useTranslation()` hook, client-side locale switching           |
-| `packages/admin/src/i18n/locales/{code}/{namespace}.json` | Translation strings                                                            |
-| `packages/core/src/astro/routes/admin.astro`              | Server-side locale resolution and initial translation loading                  |
+| File                                                      | Purpose                                                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `packages/admin/src/i18n/config.ts`                       | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, locale validation                 |
+| `packages/admin/src/i18n/types.ts`                        | `Namespace`, `NAMESPACES`, `TranslationKeyMap` — all derived from barrel |
+| `packages/admin/src/i18n/locales/en/index.ts`             | Barrel export — source of truth for namespaces and type-safe keys        |
+| `packages/admin/src/i18n/I18nProvider.tsx`                | React context, `useTranslation()` hook, client-side locale switching     |
+| `packages/admin/src/i18n/locales/{code}/{namespace}.json` | Translation strings                                                      |
+| `packages/core/src/astro/routes/admin.astro`              | Server-side locale resolution and initial translation loading            |
 
 ## Translation Key Conventions
 

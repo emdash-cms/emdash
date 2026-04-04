@@ -1,5 +1,5 @@
 /**
- * i18n configuration — single source of truth for supported locales and namespaces.
+ * i18n configuration — single source of truth for supported locales.
  *
  * Imported by both the React provider (client) and admin.astro (server).
  */
@@ -29,3 +29,25 @@ export const SUPPORTED_LOCALES: SupportedLocale[] = [
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));
 
 export const DEFAULT_LOCALE = SUPPORTED_LOCALES[0]!.code;
+
+const LOCALE_COOKIE_RE = /(?:^|;\s*)emdash-locale=([^;]+)/;
+
+/**
+ * Resolve the admin locale from a Request.
+ * Priority: emdash-locale cookie → Accept-Language → DEFAULT_LOCALE.
+ */
+export function resolveLocale(request: Request): string {
+	const cookieHeader = request.headers.get("cookie") ?? "";
+	const cookieMatch = cookieHeader.match(LOCALE_COOKIE_RE);
+	const cookieLocale = cookieMatch?.[1]?.trim() ?? "";
+
+	if (SUPPORTED_LOCALE_CODES.has(cookieLocale)) return cookieLocale;
+
+	const acceptLang = request.headers.get("accept-language") ?? "";
+	for (const entry of acceptLang.split(",")) {
+		const tag = entry.split(";")[0]!.trim().split("-")[0]!.toLowerCase();
+		if (SUPPORTED_LOCALE_CODES.has(tag)) return tag;
+	}
+
+	return DEFAULT_LOCALE;
+}
