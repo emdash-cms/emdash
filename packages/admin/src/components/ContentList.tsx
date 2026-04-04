@@ -81,11 +81,14 @@ export function ContentList({
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+	const [focusedIndex, setFocusedIndex] = React.useState(-1);
+	const tableRef = React.useRef<HTMLTableSectionElement>(null);
 
 	// Reset page when search changes
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchQuery(e.target.value);
 		setPage(0);
+		setFocusedIndex(-1);
 	};
 
 	const filteredItems = React.useMemo(() => {
@@ -96,6 +99,39 @@ export function ContentList({
 
 	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
 	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+	// Keyboard navigation: j/k to move, Enter to open
+	React.useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			// Don't intercept when typing in search input
+			const target = e.target as HTMLElement;
+			if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+			if (activeTab !== "all") return;
+
+			if (e.key === "j" || e.key === "ArrowDown") {
+				e.preventDefault();
+				setFocusedIndex((prev) => Math.min(prev + 1, paginatedItems.length - 1));
+			} else if (e.key === "k" || e.key === "ArrowUp") {
+				e.preventDefault();
+				setFocusedIndex((prev) => Math.max(prev - 1, 0));
+			} else if (e.key === "Enter" && focusedIndex >= 0) {
+				e.preventDefault();
+				const item = paginatedItems[focusedIndex];
+				if (item) {
+					// Navigate to the content editor
+					const link = tableRef.current
+						?.querySelectorAll("tr[data-row]")
+						[focusedIndex]?.querySelector("a");
+					if (link instanceof HTMLAnchorElement) link.click();
+				}
+			} else if (e.key === "Escape") {
+				setFocusedIndex(-1);
+			}
+		};
+
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [activeTab, focusedIndex, paginatedItems]);
 
 	return (
 		<div className="space-y-4">
@@ -214,7 +250,7 @@ export function ContentList({
 										</td>
 									</tr>
 								) : (
-									paginatedItems.map((item) => (
+									paginatedItems.map((item, index) => (
 										<ContentListItem
 											key={item.id}
 											item={item}
@@ -222,6 +258,7 @@ export function ContentList({
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
+											isFocused={index === focusedIndex}
 										/>
 									))
 								)}
@@ -268,6 +305,22 @@ export function ContentList({
 							<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
 								{isLoading ? "Loading..." : "Load More"}
 							</Button>
+						</div>
+					)}
+
+					{/* Keyboard shortcut hints */}
+					{paginatedItems.length > 0 && (
+						<div className="flex items-center gap-4 text-xs text-kumo-subtle pt-2">
+							<span>
+								<kbd className="rounded bg-kumo-control px-1 py-0.5 text-xs">j</kbd>
+								<kbd className="rounded bg-kumo-control px-1 py-0.5 text-xs ml-0.5">k</kbd> navigate
+							</span>
+							<span>
+								<kbd className="rounded bg-kumo-control px-1 py-0.5 text-xs">Enter</kbd> open
+							</span>
+							<span>
+								<kbd className="rounded bg-kumo-control px-1 py-0.5 text-xs">Esc</kbd> clear
+							</span>
 						</div>
 					)}
 				</>
@@ -330,6 +383,7 @@ interface ContentListItemProps {
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	isFocused?: boolean;
 }
 
 function ContentListItem({
@@ -338,12 +392,28 @@ function ContentListItem({
 	onDelete,
 	onDuplicate,
 	showLocale,
+	isFocused,
 }: ContentListItemProps) {
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
+	const rowRef = React.useRef<HTMLTableRowElement>(null);
+
+	// Scroll focused row into view
+	React.useEffect(() => {
+		if (isFocused && rowRef.current) {
+			rowRef.current.scrollIntoView({ block: "nearest" });
+		}
+	}, [isFocused]);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr
+			ref={rowRef}
+			data-row
+			className={cn(
+				"border-b hover:bg-kumo-tint/25",
+				isFocused && "bg-kumo-tint/50 outline outline-2 outline-kumo-brand/30 -outline-offset-2",
+			)}
+		>
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"

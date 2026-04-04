@@ -19,6 +19,7 @@ import {
 	Users,
 	Stack,
 	MagnifyingGlass,
+	Plus,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -37,6 +38,9 @@ const ROUTE_PARAM_REGEX = /\$(\w+)/g;
 
 // Debounce delay for content search (ms)
 const SEARCH_DEBOUNCE_MS = 300;
+
+// Regex for splitting words in fuzzy matching
+const WORD_SPLIT_REGEX = /\s+/;
 
 // Detect macOS for keyboard shortcut display
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -281,14 +285,52 @@ function buildNavItems(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+/**
+ * Fuzzy match score: returns 0 for no match, higher numbers for better matches.
+ * Prefers prefix matches, then word-start matches, then substring matches.
+ */
+function fuzzyScore(text: string, query: string): number {
+	const lower = text.toLowerCase();
+	const q = query.toLowerCase();
+
+	// Exact match
+	if (lower === q) return 100;
+
+	// Prefix match
+	if (lower.startsWith(q)) return 90;
+
+	// Word-start match (e.g., "set" matches "Settings", "med" matches "Media Library")
+	const words = lower.split(WORD_SPLIT_REGEX);
+	for (const word of words) {
+		if (word.startsWith(q)) return 80;
+	}
+
+	// Contains match
+	if (lower.includes(q)) return 60;
+
+	// Character-by-character fuzzy (all query chars appear in order)
+	let qi = 0;
+	for (let i = 0; i < lower.length && qi < q.length; i++) {
+		if (lower[i] === q[qi]) qi++;
+	}
+	if (qi === q.length) return 40;
+
+	return 0;
+}
+
 function filterNavItems(items: NavItem[], query: string): NavItem[] {
 	if (!query) return items;
-	const lowerQuery = query.toLowerCase();
-	return items.filter((item) => {
-		const titleMatch = item.title.toLowerCase().includes(lowerQuery);
-		const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
-		return titleMatch || keywordMatch;
-	});
+
+	const scored = items
+		.map((item) => {
+			const titleScore = fuzzyScore(item.title, query);
+			const keywordScore = Math.max(0, ...(item.keywords?.map((k) => fuzzyScore(k, query)) ?? [0]));
+			return { item, score: Math.max(titleScore, keywordScore) };
+		})
+		.filter((s) => s.score > 0)
+		.toSorted((a, b) => b.score - a.score);
+
+	return scored.map((s) => s.item);
 }
 
 export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
@@ -324,9 +366,40 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 		[allNavItems, query],
 	);
 
+	// Build "Create" actions from collections
+	const createActions = React.useMemo((): ResultItem[] => {
+		return Object.entries(manifest.collections).map(([name, config]) => ({
+			id: `create-${name}`,
+			title: `Create new ${config.labelSingular || config.label}`,
+			to: "/content/$collection/new",
+			params: { collection: name },
+			icon: <Plus className="h-4 w-4" />,
+			description: config.label,
+		}));
+	}, [manifest.collections]);
+
+	// Filter create actions
+	const filteredCreateActions = React.useMemo(() => {
+		if (!query) return [];
+		const q = query.toLowerCase();
+		// Show create actions when user types "create", "new", or a collection name
+		if (q.startsWith("create") || q.startsWith("new") || q.startsWith("+")) {
+			return createActions;
+		}
+		return createActions.filter((action) => fuzzyScore(action.title, query) > 0);
+	}, [createActions, query]);
+
 	// Build result groups
 	const resultGroups = React.useMemo((): ResultGroup[] => {
 		const groups: ResultGroup[] = [];
+
+		// Create actions group (shown first when relevant)
+		if (filteredCreateActions.length > 0) {
+			groups.push({
+				label: "Create",
+				items: filteredCreateActions,
+			});
+		}
 
 		// Navigation group
 		if (filteredNavItems.length > 0) {
@@ -364,7 +437,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 		}
 
 		return groups;
-	}, [filteredNavItems, searchResults, manifest.collections]);
+	}, [filteredCreateActions, filteredNavItems, searchResults, manifest.collections]);
 
 	// Keyboard shortcut to open (Cmd+K / Ctrl+K)
 	useHotkeys("mod+k", (e) => {
