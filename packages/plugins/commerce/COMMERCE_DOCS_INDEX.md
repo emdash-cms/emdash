@@ -10,6 +10,7 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 ## Architecture and implementation
 
 - `AI-EXTENSIBILITY.md` — future vector/LLM/MCP design notes
+- `COMMERCE_AI_ROADMAP.md` — post-MVP LLM/AI feature roadmap (5 scoped items)
 - `HANDOVER.md` — current execution handoff and stage context
 - `commerce-plugin-architecture.md` — canonical architecture summary
 - `COMMERCE_EXTENSION_SURFACE.md` — extension contract and closed-kernel rules
@@ -72,6 +73,9 @@ After the latest third-party memo, continue systematically with
 provider topology.
 5A/5B/5C/5D/5E have been implemented in this branch; 5F documents rollout/testing follow-up and requires
 environment promotion controls for strict lease mode before broader traffic exposure.
+
+For post-5F planning, follow `COMMERCE_AI_ROADMAP.md` as the optional
+reliability-support-catalog extension backlog.
 
 ## Plugin HTTP routes
 

@@ -29,6 +29,8 @@ Implementation guardrails:
    resume transitions), 5C (possession checks on order/cart entrypoints),
    5D (scope lock reaffirmation), 5E (deterministic claim lease policy), and
    5F (rollout docs/proof plan for strict lease mode).
+- Post-5F optional AI roadmap items are tracked in `COMMERCE_AI_ROADMAP.md` and remain
+  non-blocking to Stage-1 money-path behavior.
 - Runtime behavior for checkout/finalize/routing remains unchanged while we continue
   to enforce the same scope lock for provider topology (`webhooks/stripe` only) until
   staged rollout approval for strict claim-lease mode (`COMMERCE_USE_LEASED_FINALIZE=1`).

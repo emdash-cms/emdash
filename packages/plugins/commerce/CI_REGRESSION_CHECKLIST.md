@@ -185,3 +185,15 @@ narrow, high-signal, and ordered by failure risk.
   - docs updates in `COMMERCE_DOCS_INDEX.md`, `COMMERCE_EXTENSION_SURFACE.md`, and `FINALIZATION_REVIEW_AUDIT.md`.
 - [ ] Confirm any environment promotion plan for `COMMERCE_USE_LEASED_FINALIZE` is written and approved by operations
   before routing production-like webhook traffic through strict mode.
+
+### 6) Optional AI/LLM roadmap backlog (post-MVP)
+
+- [ ] Treat `COMMERCE_AI_ROADMAP.md` as the source of truth for the next optional 5-item backlog:
+  - Finalization incident forensics copilot.
+  - Webhook semantic drift guardrail.
+  - Reconciliation copilot for paid-but-wrong-stock events.
+  - Customer-incident communication templates.
+  - Catalog copy/type QA.
+- [ ] Keep all five features advisory/read-only in initial implementation until evidence gates are added.
+- [ ] Add execution tickets only after `Scope lock` and `Strategy A` obligations remain fully intact.
+- [ ] Ensure every item includes an explicit review mode and explicit operator approval path before any write action.

@@ -119,9 +119,12 @@ Immediate sequence:
    - `5D` Scope gate before any money-path expansion. ✅ reaffirmed.
    - `5E` Deterministic lease/expiry policy. ✅ represented in finalize claim logic and claim-aware regression tests.
    - `5F` Rollout/test switch and docs follow-through. ✅ environment-gated strict lease rollout and proof commands have been documented and executed.
-3. Confirm runtime unchanged scope lock is enforced in `Scope lock` and `Definition of done` within the checklist.
-4. Run `pnpm --filter @emdash-cms/plugin-commerce test` before any PR.
-5. Rebuild and distribute the handoff package with:
+4. Optional next band for operator safety/copy quality enhancements is tracked in
+   `COMMERCE_AI_ROADMAP.md` (5 features: incident forensics, webhook drift guardrail,
+   paid-stock reconciliation, customer incident messaging, and catalog QA).
+5. Confirm runtime unchanged scope lock is enforced in `Scope lock` and `Definition of done` within the checklist.
+6. Run `pnpm --filter @emdash-cms/plugin-commerce test` before any PR.
+7. Rebuild and distribute the handoff package with:
    - `./scripts/build-commerce-external-review-zip.sh`
 
 Success criteria for handoff continuity:

@@ -67,6 +67,8 @@ must pass through `finalizePaymentFromWebhook`.
   possession-guard coverage (5C), and deterministic claim lease/expiry behavior (5E)
   with active ownership revalidation on all critical finalize-write stages.
 - 5F staged rollout behavior and documentation has been specified and validated in docs+tests.
+- Optional post-5F operational/AI work is tracked in `COMMERCE_AI_ROADMAP.md` and remains
+  advisory until explicitly staged.
 - Continue to enforce read-only rules for diagnostics via `queryFinalizationState`.
 
 ### Staged rollout control for strict claim lease enforcement
