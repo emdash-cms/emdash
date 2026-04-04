@@ -1,0 +1,41 @@
+{
+	"name": "@emdash-cms/plugin-worker-mailer",
+	"version": "0.1.0",
+	"description": "Implicit TLS SMTP provider plugin for EmDash CMS on Cloudflare Workers",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"email",
+		"smtp",
+		"cloudflare",
+		"worker-mailer"
+	],
+	"author": "Andre Ribas (@RibasSu)",
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "^0.1.0"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"typescript": "^6.0.0-beta"
+	},
+	"dependencies": {
+		"@ribassu/worker-mailer": "^1.3.3"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/worker-mailer"
+	}
+}
