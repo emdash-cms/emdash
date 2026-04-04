@@ -161,6 +161,7 @@ Use `getEmDashEntry` to retrieve one entry by its ID or slug:
 ```astro title="src/pages/posts/[slug].astro"
 ---
 import { getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
 
 const { slug } = Astro.params;
 const { entry: post, error } = await getEmDashEntry("posts", slug);
@@ -176,7 +177,7 @@ if (!post) {
 
 <article>
   <h1>{post.data.title}</h1>
-  <div set:html={post.data.content} />
+  <PortableText value={post.data.content} />
 </article>
 ```
 

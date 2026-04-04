@@ -241,7 +241,7 @@ When deploying to Cloudflare, you can use [Cloudflare Access](https://developers
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import emdash from "emdash/astro";
-import { d1 } from "emdash/db";
+import { d1, access } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	output: "server",
@@ -249,12 +249,10 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			database: d1({ binding: "DB" }),
-			auth: {
-				cloudflareAccess: {
-					teamDomain: "myteam.cloudflareaccess.com",
-					audience: "abc123def456...", // From Access app settings
-				},
-			},
+			auth: access({
+				teamDomain: "myteam.cloudflareaccess.com",
+				audience: "abc123def456...", // From Access app settings
+			}),
 		}),
 	],
 });
@@ -277,18 +275,16 @@ Map your IdP groups to EmDash roles:
 
 ```js title="astro.config.mjs"
 emdash({
-	auth: {
-		cloudflareAccess: {
-			teamDomain: "myteam.cloudflareaccess.com",
-			audience: "abc123...",
-			roleMapping: {
-				Admins: 50, // Admin
-				"Content Editors": 40, // Editor
-				Writers: 30, // Author
-			},
-			defaultRole: 20, // Contributor for users not in any group
+	auth: access({
+		teamDomain: "myteam.cloudflareaccess.com",
+		audience: "abc123...",
+		roleMapping: {
+			Admins: 50, // Admin
+			"Content Editors": 40, // Editor
+			Writers: 30, // Author
 		},
-	},
+		defaultRole: 20, // Contributor for users not in any group
+	}),
 });
 ```
 
