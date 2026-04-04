@@ -13,18 +13,17 @@ import AdminWrapper from "emdash/routes/PluginRegistry";
 export const prerender = false;
 
 // ── i18n locale resolution ──────────────────────────────────────────
-const SUPPORTED_LOCALES = ["en", "fr"] as const;
-type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+import { SUPPORTED_LOCALE_CODES, DEFAULT_LOCALE, NAMESPACES } from "@emdash-cms/admin/i18n";
 
-function isSupportedLocale(value: string): value is SupportedLocale {
-	return (SUPPORTED_LOCALES as readonly string[]).includes(value);
+function isSupportedLocale(value: string): boolean {
+	return SUPPORTED_LOCALE_CODES.has(value);
 }
 
 /**
  * Parse Accept-Language header and return the first supported locale.
  * Accept-Language is a weighted list: "fr-FR,fr;q=0.9,en;q=0.8"
  */
-function parseAcceptLanguage(header: string): SupportedLocale | null {
+function parseAcceptLanguage(header: string): string | null {
 	const candidates = header
 		.split(",")
 		.map((entry) => entry.split(";")[0]!.trim())
@@ -41,17 +40,18 @@ const cookieMatch = cookieHeader.match(/(?:^|;\s*)emdash-locale=([^;]+)/);
 const cookieLocale = cookieMatch?.[1]?.trim() ?? "";
 
 const acceptLang = Astro.request.headers.get("accept-language") ?? "";
-const resolvedLocale: SupportedLocale =
+const resolvedLocale =
 	isSupportedLocale(cookieLocale)
 		? cookieLocale
-		: parseAcceptLanguage(acceptLang) ?? "en";
+		: parseAcceptLanguage(acceptLang) ?? DEFAULT_LOCALE;
 
-const [common, settings, nav] = await Promise.all([
-	import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/common.json`),
-	import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/settings.json`),
-	import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/nav.json`),
-]);
-const translations = { ...common.default, ...settings.default, ...nav.default };
+const namespaceModules = await Promise.all(
+	NAMESPACES.map((ns) => import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/${ns}.json`)),
+);
+let translations = {};
+for (const mod of namespaceModules) {
+	translations = { ...translations, ...mod.default };
+}
 ---
 
 <!doctype html>
