@@ -454,6 +454,26 @@ export function ContentEditor({
 		}
 	}, [lastAutosaveAt, showPreview, previewUrl]);
 
+	// Listen for visual editing messages from the preview iframe
+	React.useEffect(() => {
+		if (!showPreview) return;
+
+		const handleMessage = (e: MessageEvent) => {
+			if (!e.data || typeof e.data !== "object") return;
+
+			if (e.data.type === "emdash:content-changed") {
+				// Content was edited inline in the preview. Trigger a refetch.
+				// The parent page component handles refetching via React Query invalidation.
+				window.dispatchEvent(
+					new CustomEvent("emdash:preview-content-changed", { detail: e.data.detail }),
+				);
+			}
+		};
+
+		window.addEventListener("message", handleMessage);
+		return () => window.removeEventListener("message", handleMessage);
+	}, [showPreview]);
+
 	// Keyboard shortcuts for distraction-free mode
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {

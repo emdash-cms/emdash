@@ -728,6 +728,11 @@ export function renderToolbar(config: ToolbarConfig): string {
     if (currentlyEditing === element) return;
     if (currentlyEditing) endCurrentEdit();
 
+    // Dispatch field-edit-start event for iframe bridge
+    document.dispatchEvent(new CustomEvent("emdash:field-edit-start", {
+      detail: { collection: annotation.collection, id: annotation.id, field: annotation.field },
+    }));
+
     currentlyEditing = element;
     var originalText = element.textContent || "";
 
@@ -1220,6 +1225,34 @@ export function renderToolbar(config: ToolbarConfig): string {
         target = target.parentElement;
       }
     }, true);
+  }
+
+  // --- PostMessage bridge for iframe preview ---
+  // When running inside an iframe (split-pane preview), notify the parent
+  // editor about field edits so it can sync changes.
+  if (window.parent !== window) {
+    document.addEventListener("emdash:content-changed", function(e) {
+      try {
+        window.parent.postMessage({
+          type: "emdash:content-changed",
+          detail: e.detail,
+        }, "*");
+      } catch (err) {
+        // Cross-origin — silently ignore
+      }
+    });
+
+    // Notify parent when a field edit starts (for scroll-to-field)
+    document.addEventListener("emdash:field-edit-start", function(e) {
+      try {
+        window.parent.postMessage({
+          type: "emdash:field-edit-start",
+          detail: e.detail,
+        }, "*");
+      } catch (err) {
+        // Cross-origin — silently ignore
+      }
+    });
   }
 
   updateStatus();
