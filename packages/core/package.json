@@ -201,7 +201,6 @@
     "@tanstack/react-query": ">=5.0.0",
     "@tanstack/react-router": ">=1.100.0",
     "astro": ">=6.0.0-beta.0",
-    "@lingui/core": "catalog:",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
   },
@@ -211,7 +210,6 @@
     "@emdash-cms/blocks": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "@types/pg": "^8.16.0",
-    "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
     "@vitest/ui": "^4.0.17",
