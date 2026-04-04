@@ -25,13 +25,13 @@ msgstr " (opens in new window)"
 msgid " matching \"{searchQuery}\""
 msgstr " matching \"{searchQuery}\""
 
-#: packages/admin/src/components/ContentEditor.tsx:847
+#: packages/admin/src/components/ContentEditor.tsx:852
 msgid "(default)"
 msgstr "(default)"
 
 #. placeholder {0}: seedInfo.collections
-#. placeholder {1}: /** * Setup Wizard - Multi-step first-run setup page * * This component is NOT wrapped in the admin Shell. * It's a standalone page for initial site configuration. * * Steps: * 1. Site Configuration (title, tagline, sample content) * 2. Admin Account (email, name) * 3. Passkey Registration */ import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo"; import { Plural, useLingui } from "@lingui/react/macro"; import { useMutation, useQuery } from "@tanstack/react-query"; import * as React from "react"; import { apiFetch, parseApiResponse } from "../lib/api/client"; import { PasskeyRegistration } from "./auth/PasskeyRegistration"; import { LogoLockup } from "./Logo.js"; // ============================================================================ // Types // ============================================================================ interface SetupStatusResponse { needsSetup: boolean; step?: "start" | "site" | "admin" | "complete"; seedInfo?: { name: string; description: string; collections: number; hasContent: boolean; }; /** Auth mode - "cloudflare-access" or "passkey" */ authMode?: "cloudflare-access" | "passkey"; } interface SetupSiteRequest { title: string; tagline?: string; includeContent: boolean; } interface SetupSiteResponse { success: boolean; error?: string; /** In Access mode, setup is complete after site config */ setupComplete?: boolean; result?: { collections: { created: number; skipped: number }; fields: { created: number; skipped: number }; taxonomies: { created: number; terms: number }; menus: { created: number; items: number }; widgetAreas: { created: number; widgets: number }; settings: { applied: number }; content: { created: number; skipped: number }; }; } interface SetupAdminRequest { email: string; name?: string; } interface SetupAdminResponse { success: boolean; error?: string; options?: unknown; // WebAuthn registration options } type WizardStep = "site" | "admin" | "passkey"; // ============================================================================ // API Functions // ============================================================================ async function fetchSetupStatus(): Promise<SetupStatusResponse> { const response = await apiFetch("/_emdash/api/setup/status"); return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status"); } async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> { const response = await apiFetch("/_emdash/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupSiteResponse>(response, "Setup failed"); } async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> { const response = await apiFetch("/_emdash/api/setup/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin"); } // ============================================================================ // Step Components // ============================================================================ interface SiteStepProps { seedInfo?: SetupStatusResponse["seedInfo"]; onNext: (data: SetupSiteRequest) => void; isLoading: boolean; error?: string; } function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) { const { t } = useLingui(); const [title, setTitle] = React.useState(""); const [tagline, setTagline] = React.useState(""); const [includeContent, setIncludeContent] = React.useState(true); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!title.trim()) { newErrors.title = t`Site title is required`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ title, tagline, includeContent }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Site Title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t`My Awesome Blog`} className={errors.title ? "border-kumo-danger" : ""} disabled={isLoading} /> {errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>} <Input label={t`Tagline`} type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t`Thoughts, tutorials, and more`} disabled={isLoading} /> </div> {seedInfo?.hasContent && ( <Checkbox label={t`Include sample content (recommended for new sites)`} checked={includeContent} onCheckedChange={(checked) => setIncludeContent(checked)} disabled={isLoading} /> )} {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary"> {isLoading ? t`Setting up...` : t`Continue →`} </Button> {seedInfo && ( <p className="text-xs text-kumo-subtle text-center"> <Plural value={seedInfo.collections} one={t`Template: ${seedInfo.name} (# collection)`} other={t`Template: ${seedInfo.name} (# collections)`} /> </p> )} </form> ); } interface AdminStepProps { onNext: (data: SetupAdminRequest) => void; onBack: () => void; isLoading: boolean; error?: string; } function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) { const { t } = useLingui(); const [email, setEmail] = React.useState(""); const [name, setName] = React.useState(""); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!email.trim()) { newErrors.email = t`Email is required`; } else if (!email.includes("@")) { newErrors.email = t`Please enter a valid email`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ email, name: name || undefined }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Your Email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={errors.email ? "border-kumo-danger" : ""} disabled={isLoading} autoComplete="email" /> {errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>} <Input label={t`Your Name`} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" disabled={isLoading} autoComplete="name" /> </div> {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <div className="flex gap-3"> <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}> {t`Back`} </Button> <Button type="submit" className="flex-1 justify-center" loading={isLoading} variant="primary" > {isLoading ? <>{t`Preparing...`}</> : t`Continue`} </Button> </div> </form> ); } interface PasskeyStepProps { adminData: SetupAdminRequest; onBack: () => void; } function handlePasskeySuccess() { // Redirect to admin dashboard after successful registration window.location.href = "/_emdash/admin"; } function PasskeyStep({ adminData, onBack }: PasskeyStepProps) { const { t } = useLingui(); return ( <div className="space-y-6"> <div className="text-center"> <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4"> <svg className="w-8 h-8 text-kumo-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" > <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /> </svg> </div> <h3 className="text-lg font-medium">{t`Set up your passkey`}</h3> <p className="text-sm text-kumo-subtle mt-1"> {t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`} </p> </div> <PasskeyRegistration optionsEndpoint="/_emdash/api/setup/admin" verifyEndpoint="/_emdash/api/setup/admin/verify" onSuccess={handlePasskeySuccess} buttonText={t`Create Passkey`} additionalData={{ ...adminData }} /> <Button type="button" variant="ghost" onClick={onBack} className="w-full"> {t`Back`} </Button> </div> ); } // ============================================================================ // Progress Indicator // ============================================================================ interface StepIndicatorProps { currentStep: WizardStep; useAccessAuth?: boolean; } function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) { const { t } = useLingui(); // In Access mode, only show the site step const steps = useAccessAuth ? ([{ key: "site", label: t`Site Settings` }] as const) : ([ { key: "site", label: t`Site` }, { key: "admin", label: t`Account` }, { key: "passkey", label: t`Passkey` }, ] as const); const currentIndex = steps.findIndex((s) => s.key === currentStep); return ( <div className="flex items-center justify-center mb-8"> {steps.map((step, index) => ( <React.Fragment key={step.key}> <div className="flex items-center"> <div className={` w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${ index < currentIndex ? "bg-kumo-brand text-white" : index === currentIndex ? "bg-kumo-brand text-white" : "bg-kumo-tint text-kumo-subtle" } `} > {index < currentIndex ? ( <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> </svg> ) : ( index + 1 )} </div> <span className={`ml-2 text-sm ${ index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle" }`} > {step.label} </span> </div> {index < steps.length - 1 && ( <div className={`w-12 h-0.5 mx-2 ${index < currentIndex ? "bg-kumo-brand" : "bg-kumo-tint"}`} /> )} </React.Fragment> ))} </div> ); } // ============================================================================ // Main Component // ============================================================================ export function SetupWizard() { const { t } = useLingui(); const [currentStep, setCurrentStep] = React.useState<WizardStep>("site"); const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null); const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null); const [error, setError] = React.useState<string | undefined>(); // Check setup status const { data: status, isLoading: statusLoading, error: statusError, } = useQuery({ queryKey: ["setup", "status"], queryFn: fetchSetupStatus, retry: false, }); // Check if using Cloudflare Access auth const useAccessAuth = status?.authMode === "cloudflare-access"; // Site setup mutation const siteMutation = useMutation({ mutationFn: executeSiteSetup, onSuccess: (data) => { setError(undefined); // In Access mode, setup is complete - redirect to admin if (data.setupComplete) { window.location.href = "/_emdash/admin"; return; } // Otherwise continue to admin account creation setCurrentStep("admin"); }, onError: (err: Error) => { setError(err.message); }, }); // Admin setup mutation const adminMutation = useMutation({ mutationFn: executeAdminSetup, onSuccess: () => { setError(undefined); setCurrentStep("passkey"); }, onError: (err: Error) => { setError(err.message); }, }); // Handle site step completion const handleSiteNext = (data: SetupSiteRequest) => { setSiteData(data); siteMutation.mutate(data); }; // Handle admin step completion const handleAdminNext = (data: SetupAdminRequest) => { setAdminData(data); adminMutation.mutate(data); }; // Redirect if setup already complete if (!statusLoading && status && !status.needsSetup) { window.location.href = "/_emdash/admin"; return null; } // Loading state if (statusLoading) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <Loader /> <p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p> </div> </div> ); } // Error state if (statusError) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1> <p className="mt-2 text-kumo-subtle"> {statusError instanceof Error ? statusError.message : t`Failed to load setup`} </p> </div> </div> ); } return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base p-4"> <div className="w-full max-w-lg"> {/* Header */} <div className="text-center mb-6"> <LogoLockup className="h-10 mx-auto mb-2" /> <h1 className="text-2xl font-semibold text-kumo-default"> {currentStep === "site" && t`Set up your site`} {currentStep === "admin" && t`Create your account`} {currentStep === "passkey" && t`Secure your account`} </h1> {useAccessAuth && currentStep === "site" && ( <p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p> )} </div> {/* Progress */} <StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} /> {/* Form Card */} <div className="bg-kumo-base border rounded-lg shadow-sm p-6"> {currentStep === "site" && ( <SiteStep seedInfo={status?.seedInfo} onNext={handleSiteNext} isLoading={siteMutation.isPending} error={error} /> )} {currentStep === "admin" && ( <AdminStep onNext={handleAdminNext} onBack={() => { setError(undefined); setCurrentStep("site"); }} isLoading={adminMutation.isPending} error={error} /> )} {currentStep === "passkey" && adminData && ( <PasskeyStep adminData={adminData} onBack={() => { setError(undefined); setCurrentStep("admin"); }} /> )} </div> </div> </div> ); } 
-#. placeholder {2}: /** * Setup Wizard - Multi-step first-run setup page * * This component is NOT wrapped in the admin Shell. * It's a standalone page for initial site configuration. * * Steps: * 1. Site Configuration (title, tagline, sample content) * 2. Admin Account (email, name) * 3. Passkey Registration */ import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo"; import { Plural, useLingui } from "@lingui/react/macro"; import { useMutation, useQuery } from "@tanstack/react-query"; import * as React from "react"; import { apiFetch, parseApiResponse } from "../lib/api/client"; import { PasskeyRegistration } from "./auth/PasskeyRegistration"; import { LogoLockup } from "./Logo.js"; // ============================================================================ // Types // ============================================================================ interface SetupStatusResponse { needsSetup: boolean; step?: "start" | "site" | "admin" | "complete"; seedInfo?: { name: string; description: string; collections: number; hasContent: boolean; }; /** Auth mode - "cloudflare-access" or "passkey" */ authMode?: "cloudflare-access" | "passkey"; } interface SetupSiteRequest { title: string; tagline?: string; includeContent: boolean; } interface SetupSiteResponse { success: boolean; error?: string; /** In Access mode, setup is complete after site config */ setupComplete?: boolean; result?: { collections: { created: number; skipped: number }; fields: { created: number; skipped: number }; taxonomies: { created: number; terms: number }; menus: { created: number; items: number }; widgetAreas: { created: number; widgets: number }; settings: { applied: number }; content: { created: number; skipped: number }; }; } interface SetupAdminRequest { email: string; name?: string; } interface SetupAdminResponse { success: boolean; error?: string; options?: unknown; // WebAuthn registration options } type WizardStep = "site" | "admin" | "passkey"; // ============================================================================ // API Functions // ============================================================================ async function fetchSetupStatus(): Promise<SetupStatusResponse> { const response = await apiFetch("/_emdash/api/setup/status"); return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status"); } async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> { const response = await apiFetch("/_emdash/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupSiteResponse>(response, "Setup failed"); } async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> { const response = await apiFetch("/_emdash/api/setup/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin"); } // ============================================================================ // Step Components // ============================================================================ interface SiteStepProps { seedInfo?: SetupStatusResponse["seedInfo"]; onNext: (data: SetupSiteRequest) => void; isLoading: boolean; error?: string; } function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) { const { t } = useLingui(); const [title, setTitle] = React.useState(""); const [tagline, setTagline] = React.useState(""); const [includeContent, setIncludeContent] = React.useState(true); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!title.trim()) { newErrors.title = t`Site title is required`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ title, tagline, includeContent }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Site Title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t`My Awesome Blog`} className={errors.title ? "border-kumo-danger" : ""} disabled={isLoading} /> {errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>} <Input label={t`Tagline`} type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t`Thoughts, tutorials, and more`} disabled={isLoading} /> </div> {seedInfo?.hasContent && ( <Checkbox label={t`Include sample content (recommended for new sites)`} checked={includeContent} onCheckedChange={(checked) => setIncludeContent(checked)} disabled={isLoading} /> )} {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary"> {isLoading ? t`Setting up...` : t`Continue →`} </Button> {seedInfo && ( <p className="text-xs text-kumo-subtle text-center"> <Plural value={seedInfo.collections} one={t`Template: ${seedInfo.name} (# collection)`} other={t`Template: ${seedInfo.name} (# collections)`} /> </p> )} </form> ); } interface AdminStepProps { onNext: (data: SetupAdminRequest) => void; onBack: () => void; isLoading: boolean; error?: string; } function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) { const { t } = useLingui(); const [email, setEmail] = React.useState(""); const [name, setName] = React.useState(""); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!email.trim()) { newErrors.email = t`Email is required`; } else if (!email.includes("@")) { newErrors.email = t`Please enter a valid email`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ email, name: name || undefined }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Your Email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={errors.email ? "border-kumo-danger" : ""} disabled={isLoading} autoComplete="email" /> {errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>} <Input label={t`Your Name`} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" disabled={isLoading} autoComplete="name" /> </div> {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <div className="flex gap-3"> <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}> {t`Back`} </Button> <Button type="submit" className="flex-1 justify-center" loading={isLoading} variant="primary" > {isLoading ? <>{t`Preparing...`}</> : t`Continue`} </Button> </div> </form> ); } interface PasskeyStepProps { adminData: SetupAdminRequest; onBack: () => void; } function handlePasskeySuccess() { // Redirect to admin dashboard after successful registration window.location.href = "/_emdash/admin"; } function PasskeyStep({ adminData, onBack }: PasskeyStepProps) { const { t } = useLingui(); return ( <div className="space-y-6"> <div className="text-center"> <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4"> <svg className="w-8 h-8 text-kumo-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" > <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /> </svg> </div> <h3 className="text-lg font-medium">{t`Set up your passkey`}</h3> <p className="text-sm text-kumo-subtle mt-1"> {t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`} </p> </div> <PasskeyRegistration optionsEndpoint="/_emdash/api/setup/admin" verifyEndpoint="/_emdash/api/setup/admin/verify" onSuccess={handlePasskeySuccess} buttonText={t`Create Passkey`} additionalData={{ ...adminData }} /> <Button type="button" variant="ghost" onClick={onBack} className="w-full"> {t`Back`} </Button> </div> ); } // ============================================================================ // Progress Indicator // ============================================================================ interface StepIndicatorProps { currentStep: WizardStep; useAccessAuth?: boolean; } function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) { const { t } = useLingui(); // In Access mode, only show the site step const steps = useAccessAuth ? ([{ key: "site", label: t`Site Settings` }] as const) : ([ { key: "site", label: t`Site` }, { key: "admin", label: t`Account` }, { key: "passkey", label: t`Passkey` }, ] as const); const currentIndex = steps.findIndex((s) => s.key === currentStep); return ( <div className="flex items-center justify-center mb-8"> {steps.map((step, index) => ( <React.Fragment key={step.key}> <div className="flex items-center"> <div className={` w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${ index < currentIndex ? "bg-kumo-brand text-white" : index === currentIndex ? "bg-kumo-brand text-white" : "bg-kumo-tint text-kumo-subtle" } `} > {index < currentIndex ? ( <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> </svg> ) : ( index + 1 )} </div> <span className={`ml-2 text-sm ${ index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle" }`} > {step.label} </span> </div> {index < steps.length - 1 && ( <div className={`w-12 h-0.5 mx-2 ${index < currentIndex ? "bg-kumo-brand" : "bg-kumo-tint"}`} /> )} </React.Fragment> ))} </div> ); } // ============================================================================ // Main Component // ============================================================================ export function SetupWizard() { const { t } = useLingui(); const [currentStep, setCurrentStep] = React.useState<WizardStep>("site"); const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null); const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null); const [error, setError] = React.useState<string | undefined>(); // Check setup status const { data: status, isLoading: statusLoading, error: statusError, } = useQuery({ queryKey: ["setup", "status"], queryFn: fetchSetupStatus, retry: false, }); // Check if using Cloudflare Access auth const useAccessAuth = status?.authMode === "cloudflare-access"; // Site setup mutation const siteMutation = useMutation({ mutationFn: executeSiteSetup, onSuccess: (data) => { setError(undefined); // In Access mode, setup is complete - redirect to admin if (data.setupComplete) { window.location.href = "/_emdash/admin"; return; } // Otherwise continue to admin account creation setCurrentStep("admin"); }, onError: (err: Error) => { setError(err.message); }, }); // Admin setup mutation const adminMutation = useMutation({ mutationFn: executeAdminSetup, onSuccess: () => { setError(undefined); setCurrentStep("passkey"); }, onError: (err: Error) => { setError(err.message); }, }); // Handle site step completion const handleSiteNext = (data: SetupSiteRequest) => { setSiteData(data); siteMutation.mutate(data); }; // Handle admin step completion const handleAdminNext = (data: SetupAdminRequest) => { setAdminData(data); adminMutation.mutate(data); }; // Redirect if setup already complete if (!statusLoading && status && !status.needsSetup) { window.location.href = "/_emdash/admin"; return null; } // Loading state if (statusLoading) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <Loader /> <p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p> </div> </div> ); } // Error state if (statusError) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1> <p className="mt-2 text-kumo-subtle"> {statusError instanceof Error ? statusError.message : t`Failed to load setup`} </p> </div> </div> ); } return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base p-4"> <div className="w-full max-w-lg"> {/* Header */} <div className="text-center mb-6"> <LogoLockup className="h-10 mx-auto mb-2" /> <h1 className="text-2xl font-semibold text-kumo-default"> {currentStep === "site" && t`Set up your site`} {currentStep === "admin" && t`Create your account`} {currentStep === "passkey" && t`Secure your account`} </h1> {useAccessAuth && currentStep === "site" && ( <p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p> )} </div> {/* Progress */} <StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} /> {/* Form Card */} <div className="bg-kumo-base border rounded-lg shadow-sm p-6"> {currentStep === "site" && ( <SiteStep seedInfo={status?.seedInfo} onNext={handleSiteNext} isLoading={siteMutation.isPending} error={error} /> )} {currentStep === "admin" && ( <AdminStep onNext={handleAdminNext} onBack={() => { setError(undefined); setCurrentStep("site"); }} isLoading={adminMutation.isPending} error={error} /> )} {currentStep === "passkey" && adminData && ( <PasskeyStep adminData={adminData} onBack={() => { setError(undefined); setCurrentStep("admin"); }} /> )} </div> </div> </div> ); } 
+#. placeholder {1}: /** * Setup Wizard - Multi-step first-run setup page * * This component is NOT wrapped in the admin Shell. * It's a standalone page for initial site configuration. * * Steps: * 1. Site Configuration (title, tagline, sample content) * 2. Admin Account (email, name) * 3. Passkey Registration */ import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo"; import { Plural, useLingui } from "@lingui/react/macro"; import { useMutation, useQuery } from "@tanstack/react-query"; import * as React from "react"; import { apiFetch, parseApiResponse } from "../lib/api/client"; import { PasskeyRegistration } from "./auth/PasskeyRegistration"; import { LogoLockup } from "./Logo.js"; // ============================================================================ // Types // ============================================================================ interface SetupStatusResponse { needsSetup: boolean; step?: "start" | "site" | "admin" | "complete"; seedInfo?: { name: string; description: string; collections: number; hasContent: boolean; }; /** Auth mode - "cloudflare-access" or "passkey" */ authMode?: "cloudflare-access" | "passkey"; } interface SetupSiteRequest { title: string; tagline?: string; includeContent: boolean; } interface SetupSiteResponse { success: boolean; error?: string; /** In Access mode, setup is complete after site config */ setupComplete?: boolean; result?: { collections: { created: number; skipped: number }; fields: { created: number; skipped: number }; taxonomies: { created: number; terms: number }; menus: { created: number; items: number }; widgetAreas: { created: number; widgets: number }; settings: { applied: number }; content: { created: number; skipped: number }; }; } interface SetupAdminRequest { email: string; name?: string; } interface SetupAdminResponse { success: boolean; error?: string; options?: unknown; // WebAuthn registration options } type WizardStep = "site" | "admin" | "passkey"; // ============================================================================ // API Functions // ============================================================================ async function fetchSetupStatus(): Promise<SetupStatusResponse> { const response = await apiFetch("/_emdash/api/setup/status"); return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status"); } async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> { const response = await apiFetch("/_emdash/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupSiteResponse>(response, "Setup failed"); } async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> { const response = await apiFetch("/_emdash/api/setup/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin"); } // ============================================================================ // Step Components // ============================================================================ interface SiteStepProps { seedInfo?: SetupStatusResponse["seedInfo"]; onNext: (data: SetupSiteRequest) => void; isLoading: boolean; error?: string; } function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) { const { t } = useLingui(); const [title, setTitle] = React.useState(""); const [tagline, setTagline] = React.useState(""); const [includeContent, setIncludeContent] = React.useState(true); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!title.trim()) { newErrors.title = t`Site title is required`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ title, tagline, includeContent }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Site Title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t`My Awesome Blog`} className={errors.title ? "border-kumo-danger" : ""} disabled={isLoading} /> {errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>} <Input label={t`Tagline`} type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t`Thoughts, tutorials, and more`} disabled={isLoading} /> </div> {seedInfo?.hasContent && ( <Checkbox label={t`Include sample content (recommended for new sites)`} checked={includeContent} onCheckedChange={(checked) => setIncludeContent(checked)} disabled={isLoading} /> )} {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary"> {isLoading ? t`Setting up...` : t`Continue →`} </Button> {seedInfo && ( <p className="text-xs text-kumo-subtle text-center"> <Plural value={seedInfo.collections} one={t`Template: ${seedInfo.name} (# collection)`} other={t`Template: ${seedInfo.name} (# collections)`} /> </p> )} </form> ); } interface AdminStepProps { onNext: (data: SetupAdminRequest) => void; onBack: () => void; isLoading: boolean; error?: string; } function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) { const { t } = useLingui(); const [email, setEmail] = React.useState(""); const [name, setName] = React.useState(""); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!email.trim()) { newErrors.email = t`Email is required`; } else if (!email.includes("@")) { newErrors.email = t`Please enter a valid email`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ email, name: name || undefined }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Your Email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={errors.email ? "border-kumo-danger" : ""} disabled={isLoading} autoComplete="email" /> {errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>} <Input label={t`Your Name`} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" disabled={isLoading} autoComplete="name" /> </div> {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <div className="flex gap-3"> <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}> {t`Back`} </Button> <Button type="submit" className="flex-1 justify-center" loading={isLoading} variant="primary" > {isLoading ? <>{t`Preparing...`}</> : t`Continue →`} </Button> </div> </form> ); } interface PasskeyStepProps { adminData: SetupAdminRequest; onBack: () => void; } function handlePasskeySuccess() { // Redirect to admin dashboard after successful registration window.location.href = "/_emdash/admin"; } function PasskeyStep({ adminData, onBack }: PasskeyStepProps) { const { t } = useLingui(); return ( <div className="space-y-6"> <div className="text-center"> <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4"> <svg className="w-8 h-8 text-kumo-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" > <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /> </svg> </div> <h3 className="text-lg font-medium">{t`Set up your passkey`}</h3> <p className="text-sm text-kumo-subtle mt-1"> {t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`} </p> </div> <PasskeyRegistration optionsEndpoint="/_emdash/api/setup/admin" verifyEndpoint="/_emdash/api/setup/admin/verify" onSuccess={handlePasskeySuccess} buttonText={t`Create Passkey`} additionalData={{ ...adminData }} /> <Button type="button" variant="ghost" onClick={onBack} className="w-full"> {t`Back`} </Button> </div> ); } // ============================================================================ // Progress Indicator // ============================================================================ interface StepIndicatorProps { currentStep: WizardStep; useAccessAuth?: boolean; } function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) { const { t } = useLingui(); // In Access mode, only show the site step const steps = useAccessAuth ? ([{ key: "site", label: t`Site Settings` }] as const) : ([ { key: "site", label: t`Site` }, { key: "admin", label: t`Account` }, { key: "passkey", label: t`Passkey` }, ] as const); const currentIndex = steps.findIndex((s) => s.key === currentStep); return ( <div className="flex items-center justify-center mb-8"> {steps.map((step, index) => ( <React.Fragment key={step.key}> <div className="flex items-center"> <div className={` w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${ index < currentIndex ? "bg-kumo-brand text-white" : index === currentIndex ? "bg-kumo-brand text-white" : "bg-kumo-tint text-kumo-subtle" } `} > {index < currentIndex ? ( <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> </svg> ) : ( index + 1 )} </div> <span className={`ml-2 text-sm ${ index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle" }`} > {step.label} </span> </div> {index < steps.length - 1 && ( <div className={`w-12 h-0.5 mx-2 ${index < currentIndex ? "bg-kumo-brand" : "bg-kumo-tint"}`} /> )} </React.Fragment> ))} </div> ); } // ============================================================================ // Main Component // ============================================================================ export function SetupWizard() { const { t } = useLingui(); const [currentStep, setCurrentStep] = React.useState<WizardStep>("site"); const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null); const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null); const [error, setError] = React.useState<string | undefined>(); // Check setup status const { data: status, isLoading: statusLoading, error: statusError, } = useQuery({ queryKey: ["setup", "status"], queryFn: fetchSetupStatus, retry: false, }); // Check if using Cloudflare Access auth const useAccessAuth = status?.authMode === "cloudflare-access"; // Site setup mutation const siteMutation = useMutation({ mutationFn: executeSiteSetup, onSuccess: (data) => { setError(undefined); // In Access mode, setup is complete - redirect to admin if (data.setupComplete) { window.location.href = "/_emdash/admin"; return; } // Otherwise continue to admin account creation setCurrentStep("admin"); }, onError: (err: Error) => { setError(err.message); }, }); // Admin setup mutation const adminMutation = useMutation({ mutationFn: executeAdminSetup, onSuccess: () => { setError(undefined); setCurrentStep("passkey"); }, onError: (err: Error) => { setError(err.message); }, }); // Handle site step completion const handleSiteNext = (data: SetupSiteRequest) => { setSiteData(data); siteMutation.mutate(data); }; // Handle admin step completion const handleAdminNext = (data: SetupAdminRequest) => { setAdminData(data); adminMutation.mutate(data); }; // Redirect if setup already complete if (!statusLoading && status && !status.needsSetup) { window.location.href = "/_emdash/admin"; return null; } // Loading state if (statusLoading) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <Loader /> <p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p> </div> </div> ); } // Error state if (statusError) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1> <p className="mt-2 text-kumo-subtle"> {statusError instanceof Error ? statusError.message : t`Failed to load setup`} </p> </div> </div> ); } return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base p-4"> <div className="w-full max-w-lg"> {/* Header */} <div className="text-center mb-6"> <LogoLockup className="h-10 mx-auto mb-2" /> <h1 className="text-2xl font-semibold text-kumo-default"> {currentStep === "site" && t`Set up your site`} {currentStep === "admin" && t`Create your account`} {currentStep === "passkey" && t`Secure your account`} </h1> {useAccessAuth && currentStep === "site" && ( <p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p> )} </div> {/* Progress */} <StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} /> {/* Form Card */} <div className="bg-kumo-base border rounded-lg shadow-sm p-6"> {currentStep === "site" && ( <SiteStep seedInfo={status?.seedInfo} onNext={handleSiteNext} isLoading={siteMutation.isPending} error={error} /> )} {currentStep === "admin" && ( <AdminStep onNext={handleAdminNext} onBack={() => { setError(undefined); setCurrentStep("site"); }} isLoading={adminMutation.isPending} error={error} /> )} {currentStep === "passkey" && adminData && ( <PasskeyStep adminData={adminData} onBack={() => { setError(undefined); setCurrentStep("admin"); }} /> )} </div> </div> </div> ); } 
+#. placeholder {2}: /** * Setup Wizard - Multi-step first-run setup page * * This component is NOT wrapped in the admin Shell. * It's a standalone page for initial site configuration. * * Steps: * 1. Site Configuration (title, tagline, sample content) * 2. Admin Account (email, name) * 3. Passkey Registration */ import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo"; import { Plural, useLingui } from "@lingui/react/macro"; import { useMutation, useQuery } from "@tanstack/react-query"; import * as React from "react"; import { apiFetch, parseApiResponse } from "../lib/api/client"; import { PasskeyRegistration } from "./auth/PasskeyRegistration"; import { LogoLockup } from "./Logo.js"; // ============================================================================ // Types // ============================================================================ interface SetupStatusResponse { needsSetup: boolean; step?: "start" | "site" | "admin" | "complete"; seedInfo?: { name: string; description: string; collections: number; hasContent: boolean; }; /** Auth mode - "cloudflare-access" or "passkey" */ authMode?: "cloudflare-access" | "passkey"; } interface SetupSiteRequest { title: string; tagline?: string; includeContent: boolean; } interface SetupSiteResponse { success: boolean; error?: string; /** In Access mode, setup is complete after site config */ setupComplete?: boolean; result?: { collections: { created: number; skipped: number }; fields: { created: number; skipped: number }; taxonomies: { created: number; terms: number }; menus: { created: number; items: number }; widgetAreas: { created: number; widgets: number }; settings: { applied: number }; content: { created: number; skipped: number }; }; } interface SetupAdminRequest { email: string; name?: string; } interface SetupAdminResponse { success: boolean; error?: string; options?: unknown; // WebAuthn registration options } type WizardStep = "site" | "admin" | "passkey"; // ============================================================================ // API Functions // ============================================================================ async function fetchSetupStatus(): Promise<SetupStatusResponse> { const response = await apiFetch("/_emdash/api/setup/status"); return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status"); } async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> { const response = await apiFetch("/_emdash/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupSiteResponse>(response, "Setup failed"); } async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> { const response = await apiFetch("/_emdash/api/setup/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin"); } // ============================================================================ // Step Components // ============================================================================ interface SiteStepProps { seedInfo?: SetupStatusResponse["seedInfo"]; onNext: (data: SetupSiteRequest) => void; isLoading: boolean; error?: string; } function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) { const { t } = useLingui(); const [title, setTitle] = React.useState(""); const [tagline, setTagline] = React.useState(""); const [includeContent, setIncludeContent] = React.useState(true); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!title.trim()) { newErrors.title = t`Site title is required`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ title, tagline, includeContent }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Site Title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t`My Awesome Blog`} className={errors.title ? "border-kumo-danger" : ""} disabled={isLoading} /> {errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>} <Input label={t`Tagline`} type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t`Thoughts, tutorials, and more`} disabled={isLoading} /> </div> {seedInfo?.hasContent && ( <Checkbox label={t`Include sample content (recommended for new sites)`} checked={includeContent} onCheckedChange={(checked) => setIncludeContent(checked)} disabled={isLoading} /> )} {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary"> {isLoading ? t`Setting up...` : t`Continue →`} </Button> {seedInfo && ( <p className="text-xs text-kumo-subtle text-center"> <Plural value={seedInfo.collections} one={t`Template: ${seedInfo.name} (# collection)`} other={t`Template: ${seedInfo.name} (# collections)`} /> </p> )} </form> ); } interface AdminStepProps { onNext: (data: SetupAdminRequest) => void; onBack: () => void; isLoading: boolean; error?: string; } function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) { const { t } = useLingui(); const [email, setEmail] = React.useState(""); const [name, setName] = React.useState(""); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!email.trim()) { newErrors.email = t`Email is required`; } else if (!email.includes("@")) { newErrors.email = t`Please enter a valid email`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ email, name: name || undefined }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Your Email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={errors.email ? "border-kumo-danger" : ""} disabled={isLoading} autoComplete="email" /> {errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>} <Input label={t`Your Name`} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" disabled={isLoading} autoComplete="name" /> </div> {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <div className="flex gap-3"> <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}> {t`Back`} </Button> <Button type="submit" className="flex-1 justify-center" loading={isLoading} variant="primary" > {isLoading ? <>{t`Preparing...`}</> : t`Continue →`} </Button> </div> </form> ); } interface PasskeyStepProps { adminData: SetupAdminRequest; onBack: () => void; } function handlePasskeySuccess() { // Redirect to admin dashboard after successful registration window.location.href = "/_emdash/admin"; } function PasskeyStep({ adminData, onBack }: PasskeyStepProps) { const { t } = useLingui(); return ( <div className="space-y-6"> <div className="text-center"> <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4"> <svg className="w-8 h-8 text-kumo-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" > <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /> </svg> </div> <h3 className="text-lg font-medium">{t`Set up your passkey`}</h3> <p className="text-sm text-kumo-subtle mt-1"> {t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`} </p> </div> <PasskeyRegistration optionsEndpoint="/_emdash/api/setup/admin" verifyEndpoint="/_emdash/api/setup/admin/verify" onSuccess={handlePasskeySuccess} buttonText={t`Create Passkey`} additionalData={{ ...adminData }} /> <Button type="button" variant="ghost" onClick={onBack} className="w-full"> {t`Back`} </Button> </div> ); } // ============================================================================ // Progress Indicator // ============================================================================ interface StepIndicatorProps { currentStep: WizardStep; useAccessAuth?: boolean; } function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) { const { t } = useLingui(); // In Access mode, only show the site step const steps = useAccessAuth ? ([{ key: "site", label: t`Site Settings` }] as const) : ([ { key: "site", label: t`Site` }, { key: "admin", label: t`Account` }, { key: "passkey", label: t`Passkey` }, ] as const); const currentIndex = steps.findIndex((s) => s.key === currentStep); return ( <div className="flex items-center justify-center mb-8"> {steps.map((step, index) => ( <React.Fragment key={step.key}> <div className="flex items-center"> <div className={` w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${ index < currentIndex ? "bg-kumo-brand text-white" : index === currentIndex ? "bg-kumo-brand text-white" : "bg-kumo-tint text-kumo-subtle" } `} > {index < currentIndex ? ( <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> </svg> ) : ( index + 1 )} </div> <span className={`ml-2 text-sm ${ index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle" }`} > {step.label} </span> </div> {index < steps.length - 1 && ( <div className={`w-12 h-0.5 mx-2 ${index < currentIndex ? "bg-kumo-brand" : "bg-kumo-tint"}`} /> )} </React.Fragment> ))} </div> ); } // ============================================================================ // Main Component // ============================================================================ export function SetupWizard() { const { t } = useLingui(); const [currentStep, setCurrentStep] = React.useState<WizardStep>("site"); const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null); const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null); const [error, setError] = React.useState<string | undefined>(); // Check setup status const { data: status, isLoading: statusLoading, error: statusError, } = useQuery({ queryKey: ["setup", "status"], queryFn: fetchSetupStatus, retry: false, }); // Check if using Cloudflare Access auth const useAccessAuth = status?.authMode === "cloudflare-access"; // Site setup mutation const siteMutation = useMutation({ mutationFn: executeSiteSetup, onSuccess: (data) => { setError(undefined); // In Access mode, setup is complete - redirect to admin if (data.setupComplete) { window.location.href = "/_emdash/admin"; return; } // Otherwise continue to admin account creation setCurrentStep("admin"); }, onError: (err: Error) => { setError(err.message); }, }); // Admin setup mutation const adminMutation = useMutation({ mutationFn: executeAdminSetup, onSuccess: () => { setError(undefined); setCurrentStep("passkey"); }, onError: (err: Error) => { setError(err.message); }, }); // Handle site step completion const handleSiteNext = (data: SetupSiteRequest) => { setSiteData(data); siteMutation.mutate(data); }; // Handle admin step completion const handleAdminNext = (data: SetupAdminRequest) => { setAdminData(data); adminMutation.mutate(data); }; // Redirect if setup already complete if (!statusLoading && status && !status.needsSetup) { window.location.href = "/_emdash/admin"; return null; } // Loading state if (statusLoading) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <Loader /> <p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p> </div> </div> ); } // Error state if (statusError) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1> <p className="mt-2 text-kumo-subtle"> {statusError instanceof Error ? statusError.message : t`Failed to load setup`} </p> </div> </div> ); } return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base p-4"> <div className="w-full max-w-lg"> {/* Header */} <div className="text-center mb-6"> <LogoLockup className="h-10 mx-auto mb-2" /> <h1 className="text-2xl font-semibold text-kumo-default"> {currentStep === "site" && t`Set up your site`} {currentStep === "admin" && t`Create your account`} {currentStep === "passkey" && t`Secure your account`} </h1> {useAccessAuth && currentStep === "site" && ( <p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p> )} </div> {/* Progress */} <StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} /> {/* Form Card */} <div className="bg-kumo-base border rounded-lg shadow-sm p-6"> {currentStep === "site" && ( <SiteStep seedInfo={status?.seedInfo} onNext={handleSiteNext} isLoading={siteMutation.isPending} error={error} /> )} {currentStep === "admin" && ( <AdminStep onNext={handleAdminNext} onBack={() => { setError(undefined); setCurrentStep("site"); }} isLoading={adminMutation.isPending} error={error} /> )} {currentStep === "passkey" && adminData && ( <PasskeyStep adminData={adminData} onBack={() => { setError(undefined); setCurrentStep("admin"); }} /> )} </div> </div> </div> ); } 
 #: packages/admin/src/components/SetupWizard.tsx:179
 msgid "{0, plural, one {{1}} other {{2}}}"
 msgstr "{0, plural, one {{1}} other {{2}}}"
@@ -154,7 +154,7 @@ msgstr "{0} skipped (already exist)"
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
 #. placeholder {2}: fields.length !== 1 ? "fields" : "field"
-#: packages/admin/src/components/ContentTypeEditor.tsx:528
+#: packages/admin/src/components/ContentTypeEditor.tsx:527
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} system + {1} custom {2}"
 
@@ -187,7 +187,7 @@ msgstr "{changedCount} change from next revision"
 msgid "{changedCount} changes from next revision"
 msgstr "{changedCount} changes from next revision"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1295
+#: packages/admin/src/components/PortableTextEditor.tsx:1207
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# character} other {# characters}}"
 
@@ -220,7 +220,7 @@ msgstr "{matchedCount} of {totalCount} authors matched by email"
 msgid "{needsNewCollections} new collection{0} will be created"
 msgstr "{needsNewCollections} new collection{0} will be created"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1297
+#: packages/admin/src/components/PortableTextEditor.tsx:1209
 msgid "{readingTime} min read"
 msgstr "{readingTime} min read"
 
@@ -255,7 +255,7 @@ msgstr "{totalScheduled} scheduled"
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} uploaded, {failed} failed"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1292
+#: packages/admin/src/components/PortableTextEditor.tsx:1204
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# word} other {# words}}"
 
@@ -332,7 +332,7 @@ msgstr "5. Copy the generated password"
 msgid "5. Upload the file here"
 msgstr "5. Upload the file here"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:351
+#: packages/admin/src/components/ContentTypeEditor.tsx:350
 msgid "A brief description of this content type"
 msgstr "A brief description of this content type"
 
@@ -370,7 +370,7 @@ msgstr "Actions"
 msgid "Active"
 msgstr "Active"
 
-#: packages/admin/src/components/ContentEditor.tsx:1370
+#: packages/admin/src/components/ContentEditor.tsx:1375
 #: packages/admin/src/components/MenuEditor.tsx:295
 msgid "Add"
 msgstr "Add"
@@ -409,9 +409,9 @@ msgstr "Add Custom Link"
 msgid "Add Domain"
 msgstr "Add Domain"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:533
-#: packages/admin/src/components/FieldEditor.tsx:281
-#: packages/admin/src/components/FieldEditor.tsx:478
+#: packages/admin/src/components/ContentTypeEditor.tsx:532
+#: packages/admin/src/components/FieldEditor.tsx:206
+#: packages/admin/src/components/FieldEditor.tsx:403
 msgid "Add Field"
 msgstr "Add Field"
 
@@ -419,15 +419,15 @@ msgstr "Add Field"
 msgid "Add fields"
 msgstr "Add fields"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:555
+#: packages/admin/src/components/ContentTypeEditor.tsx:554
 msgid "Add fields to define the structure of your content"
 msgstr "Add fields to define the structure of your content"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:558
+#: packages/admin/src/components/ContentTypeEditor.tsx:557
 msgid "Add First Field"
 msgstr "Add First Field"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1933
+#: packages/admin/src/components/PortableTextEditor.tsx:1926
 msgid "Add link"
 msgstr "Add link"
 
@@ -451,7 +451,7 @@ msgstr "Add Passkey"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Add plugins to your astro.config.mjs to extend EmDash functionality."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:417
+#: packages/admin/src/components/ContentTypeEditor.tsx:416
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Add SEO metadata fields (title, description, image) and include in sitemap"
 
@@ -485,15 +485,15 @@ msgstr "Admin"
 msgid "After send: {0}"
 msgstr "After send: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2231
+#: packages/admin/src/components/PortableTextEditor.tsx:2224
 msgid "Align Center"
 msgstr "Align Center"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2224
+#: packages/admin/src/components/PortableTextEditor.tsx:2217
 msgid "Align Left"
 msgstr "Align Left"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2238
+#: packages/admin/src/components/PortableTextEditor.tsx:2231
 msgid "Align Right"
 msgstr "Align Right"
 
@@ -513,7 +513,7 @@ msgstr "All capabilities"
 msgid "All collections"
 msgstr "All collections"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:459
+#: packages/admin/src/components/ContentTypeEditor.tsx:458
 msgid "All comments require approval"
 msgstr "All comments require approval"
 
@@ -546,7 +546,7 @@ msgstr "All types"
 msgid "Allow users from specific domains to sign up"
 msgstr "Allow users from specific domains to sign up"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:445
+#: packages/admin/src/components/ContentTypeEditor.tsx:444
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "Allow visitors to leave comments on this collection's content"
 
@@ -613,12 +613,12 @@ msgstr "Appears on posts and pages"
 msgid "Application Password"
 msgstr "Application Password"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2298
+#: packages/admin/src/components/PortableTextEditor.tsx:2291
 msgid "Apply"
 msgstr "Apply"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1873
-#: packages/admin/src/components/PortableTextEditor.tsx:1874
+#: packages/admin/src/components/PortableTextEditor.tsx:1866
+#: packages/admin/src/components/PortableTextEditor.tsx:1867
 msgid "Apply link"
 msgstr "Apply link"
 
@@ -632,13 +632,17 @@ msgstr "Approve"
 msgid "Approved"
 msgstr "Approved"
 
+#: packages/admin/src/components/FieldEditor.tsx:114
+msgid "Arbitrary JSON data"
+msgstr "Arbitrary JSON data"
+
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:144
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 
 #. placeholder {0}: deleteFieldTarget.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:600
+#: packages/admin/src/components/ContentTypeEditor.tsx:599
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "Are you sure you want to delete the \"{0}\" field?"
 
@@ -706,7 +710,7 @@ msgstr "Authorizing..."
 msgid "Auto (slug change)"
 msgstr "Auto (slug change)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:496
+#: packages/admin/src/components/ContentTypeEditor.tsx:495
 msgid "Auto-approve authenticated users"
 msgstr "Auto-approve authenticated users"
 
@@ -735,7 +739,7 @@ msgstr "Available Widgets"
 msgid "Back"
 msgstr "Back"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:282
+#: packages/admin/src/components/ContentTypeEditor.tsx:281
 msgid "Back to Content Types"
 msgstr "Back to Content Types"
 
@@ -788,10 +792,14 @@ msgstr "Bing Verification"
 msgid "Bio"
 msgstr "Bio"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1897
-#: packages/admin/src/components/PortableTextEditor.tsx:2122
+#: packages/admin/src/components/PortableTextEditor.tsx:1890
+#: packages/admin/src/components/PortableTextEditor.tsx:2115
 msgid "Bold"
 msgstr "Bold"
+
+#: packages/admin/src/components/FieldEditor.tsx:106
+msgid "Boolean"
+msgstr "Boolean"
 
 #: packages/admin/src/components/SeoPanel.tsx:66
 msgid "Brief summary shown below the title in search results"
@@ -815,21 +823,22 @@ msgid "Browse themes and preview them with your own content."
 msgstr "Browse themes and preview them with your own content."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:140
-#: packages/admin/src/components/PortableTextEditor.tsx:2190
+#: packages/admin/src/components/PortableTextEditor.tsx:1353
+#: packages/admin/src/components/PortableTextEditor.tsx:2183
 msgid "Bullet List"
 msgstr "Bullet List"
 
-#: packages/admin/src/components/ContentEditor.tsx:813
+#: packages/admin/src/components/ContentEditor.tsx:818
 #: packages/admin/src/components/Sidebar.tsx:203
 msgid "Bylines"
 msgstr "Bylines"
 
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:557
-#: packages/admin/src/components/ContentEditor.tsx:727
-#: packages/admin/src/components/ContentEditor.tsx:779
-#: packages/admin/src/components/ContentEditor.tsx:1466
-#: packages/admin/src/components/ContentEditor.tsx:1519
+#: packages/admin/src/components/ContentEditor.tsx:562
+#: packages/admin/src/components/ContentEditor.tsx:732
+#: packages/admin/src/components/ContentEditor.tsx:784
+#: packages/admin/src/components/ContentEditor.tsx:1471
+#: packages/admin/src/components/ContentEditor.tsx:1524
 #: packages/admin/src/components/ContentList.tsx:403
 #: packages/admin/src/components/ContentList.tsx:472
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -837,15 +846,15 @@ msgstr "Bylines"
 #: packages/admin/src/components/editor/ImageNode.tsx:223
 #: packages/admin/src/components/editor/ImageNode.tsx:224
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:393
-#: packages/admin/src/components/FieldEditor.tsx:475
+#: packages/admin/src/components/FieldEditor.tsx:400
 #: packages/admin/src/components/MediaDetailPanel.tsx:235
 #: packages/admin/src/components/MediaPickerModal.tsx:580
 #: packages/admin/src/components/MenuEditor.tsx:292
 #: packages/admin/src/components/MenuEditor.tsx:435
 #: packages/admin/src/components/MenuList.tsx:143
 #: packages/admin/src/components/PluginManager.tsx:577
-#: packages/admin/src/components/PortableTextEditor.tsx:1076
-#: packages/admin/src/components/PortableTextEditor.tsx:2282
+#: packages/admin/src/components/PortableTextEditor.tsx:988
+#: packages/admin/src/components/PortableTextEditor.tsx:2275
 #: packages/admin/src/components/Redirects.tsx:174
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:207
@@ -896,8 +905,8 @@ msgstr "Categories"
 msgid "Categories will be imported"
 msgstr "Categories will be imported"
 
-#: packages/admin/src/components/ContentEditor.tsx:1231
-#: packages/admin/src/components/FieldEditor.tsx:341
+#: packages/admin/src/components/ContentEditor.tsx:1236
+#: packages/admin/src/components/FieldEditor.tsx:266
 msgid "Change"
 msgstr "Change"
 
@@ -961,7 +970,7 @@ msgstr "Click the link in the email to sign in."
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:208
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:367
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:369
-#: packages/admin/src/components/FieldEditor.tsx:294
+#: packages/admin/src/components/FieldEditor.tsx:219
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:448
 #: packages/admin/src/components/MenuEditor.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:262
@@ -979,7 +988,7 @@ msgstr "Click the link in the email to sign in."
 msgid "Close"
 msgstr "Close"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:467
+#: packages/admin/src/components/ContentTypeEditor.tsx:466
 msgid "Close comments after (days)"
 msgstr "Close comments after (days)"
 
@@ -988,13 +997,14 @@ msgid "Close panel"
 msgstr "Close panel"
 
 #: packages/admin/src/components/ContentTypeList.tsx:243
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:1918
 #: packages/admin/src/components/Redirects.tsx:421
 msgid "Code"
 msgstr "Code"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:139
-#: packages/admin/src/components/PortableTextEditor.tsx:2211
+#: packages/admin/src/components/PortableTextEditor.tsx:1383
+#: packages/admin/src/components/PortableTextEditor.tsx:2204
 msgid "Code Block"
 msgstr "Code Block"
 
@@ -1029,12 +1039,12 @@ msgid "Comment Detail"
 msgstr "Comment Detail"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:152
-#: packages/admin/src/components/ContentTypeEditor.tsx:427
+#: packages/admin/src/components/ContentTypeEditor.tsx:426
 #: packages/admin/src/components/Sidebar.tsx:180
 msgid "Comments"
 msgstr "Comments"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:499
+#: packages/admin/src/components/ContentTypeEditor.tsx:498
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Comments from logged-in CMS users are approved automatically"
 
@@ -1046,7 +1056,7 @@ msgstr "Complete signup"
 msgid "Component"
 msgstr "Component"
 
-#: packages/admin/src/components/FieldEditor.tsx:281
+#: packages/admin/src/components/FieldEditor.tsx:206
 msgid "Configure Field"
 msgstr "Configure Field"
 
@@ -1119,12 +1129,12 @@ msgstr "Content Types"
 msgid "Content was skipped because it already exists"
 msgstr "Content was skipped because it already exists"
 
-#: packages/admin/src/components/SetupWizard.tsx:260
 #: packages/admin/src/components/SignupPage.tsx:90
 msgid "Continue"
 msgstr "Continue"
 
 #: packages/admin/src/components/SetupWizard.tsx:174
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Continue →"
 msgstr "Continue →"
 
@@ -1179,7 +1189,7 @@ msgstr "Couldn't detect WordPress"
 msgid "Count"
 msgstr "Count"
 
-#: packages/admin/src/components/ContentEditor.tsx:1490
+#: packages/admin/src/components/ContentEditor.tsx:1495
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/Sections.tsx:210
@@ -1189,10 +1199,18 @@ msgstr "Count"
 msgid "Create"
 msgstr "Create"
 
+#: packages/admin/src/components/PortableTextEditor.tsx:1354
+msgid "Create a bullet list"
+msgstr "Create a bullet list"
+
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || t`term`
 #: packages/admin/src/components/TaxonomyManager.tsx:211
 msgid "Create a new {0}"
 msgstr "Create a new {0}"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1364
+msgid "Create a numbered list"
+msgstr "Create a numbered list"
 
 #: packages/admin/src/components/SignupPage.tsx:219
 msgid "Create Account"
@@ -1202,12 +1220,12 @@ msgstr "Create Account"
 msgid "Create an account"
 msgstr "Create an account"
 
-#: packages/admin/src/components/ContentEditor.tsx:1445
+#: packages/admin/src/components/ContentEditor.tsx:1450
 #: packages/admin/src/routes/bylines.tsx:244
 msgid "Create byline"
 msgstr "Create byline"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:514
+#: packages/admin/src/components/ContentTypeEditor.tsx:513
 msgid "Create Content Type"
 msgstr "Create Content Type"
 
@@ -1309,7 +1327,7 @@ msgid "Created {0}"
 msgstr "Created {0}"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:747
+#: packages/admin/src/components/ContentEditor.tsx:752
 msgid "Created: {0}"
 msgstr "Created: {0}"
 
@@ -1317,7 +1335,7 @@ msgstr "Created: {0}"
 msgid "Creating collections and fields..."
 msgstr "Creating collections and fields..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1490
+#: packages/admin/src/components/ContentEditor.tsx:1495
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:180
 #: packages/admin/src/components/Sections.tsx:210
@@ -1326,7 +1344,7 @@ msgstr "Creating collections and fields..."
 msgid "Creating..."
 msgstr "Creating..."
 
-#: packages/admin/src/components/ContentEditor.tsx:850
+#: packages/admin/src/components/ContentEditor.tsx:855
 msgid "current"
 msgstr "current"
 
@@ -1338,7 +1356,7 @@ msgstr "Current"
 msgid "Custom"
 msgstr "Custom"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:565
+#: packages/admin/src/components/ContentTypeEditor.tsx:564
 msgid "Custom Fields"
 msgstr "Custom Fields"
 
@@ -1366,9 +1384,21 @@ msgstr "Dashboard"
 msgid "Date"
 msgstr "Date"
 
+#: packages/admin/src/components/FieldEditor.tsx:107
+msgid "Date & Time"
+msgstr "Date & Time"
+
+#: packages/admin/src/components/FieldEditor.tsx:107
+msgid "Date and time picker"
+msgstr "Date and time picker"
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:279
 msgid "Date Format"
 msgstr "Date Format"
+
+#: packages/admin/src/components/FieldEditor.tsx:104
+msgid "Decimal number"
+msgstr "Decimal number"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:335
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:397
@@ -1388,13 +1418,13 @@ msgstr "Define a new taxonomy for classifying content"
 msgid "Define the structure of your content"
 msgstr "Define the structure of your content"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:293
+#: packages/admin/src/components/ContentTypeEditor.tsx:292
 msgid "Defined in code"
 msgstr "Defined in code"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
-#: packages/admin/src/components/ContentTypeEditor.tsx:603
+#: packages/admin/src/components/ContentTypeEditor.tsx:602
 #: packages/admin/src/components/ContentTypeList.tsx:147
 #: packages/admin/src/components/editor/BlockMenu.tsx:311
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:365
@@ -1429,7 +1459,7 @@ msgid "Delete {0}"
 msgstr "Delete {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:658
+#: packages/admin/src/components/ContentTypeEditor.tsx:657
 msgid "Delete {0} field"
 msgstr "Delete {0} field"
 
@@ -1464,7 +1494,7 @@ msgstr "Delete Content Type?"
 msgid "Delete embed"
 msgstr "Delete embed"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:597
+#: packages/admin/src/components/ContentTypeEditor.tsx:596
 msgid "Delete Field?"
 msgstr "Delete Field?"
 
@@ -1520,7 +1550,7 @@ msgid "Deleted"
 msgstr "Deleted"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
-#: packages/admin/src/components/ContentTypeEditor.tsx:604
+#: packages/admin/src/components/ContentTypeEditor.tsx:603
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/MediaDetailPanel.tsx:231
 #: packages/admin/src/components/MediaDetailPanel.tsx:257
@@ -1568,7 +1598,7 @@ msgstr "Describe this image for accessibility"
 msgid "Describe what this section is for..."
 msgstr "Describe what this section is for..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:348
+#: packages/admin/src/components/ContentTypeEditor.tsx:347
 #: packages/admin/src/components/SectionEditor.tsx:212
 #: packages/admin/src/components/Sections.tsx:198
 #: packages/admin/src/components/Widgets.tsx:340
@@ -1646,12 +1676,12 @@ msgstr "Disabling <0>{selectedUserName}</0> will prevent them from logging in un
 msgid "Disabling..."
 msgstr "Disabling..."
 
-#: packages/admin/src/components/ContentEditor.tsx:542
-#: packages/admin/src/components/ContentEditor.tsx:564
+#: packages/admin/src/components/ContentEditor.tsx:547
+#: packages/admin/src/components/ContentEditor.tsx:569
 msgid "Discard changes"
 msgstr "Discard changes"
 
-#: packages/admin/src/components/ContentEditor.tsx:548
+#: packages/admin/src/components/ContentEditor.tsx:553
 msgid "Discard draft changes?"
 msgstr "Discard draft changes?"
 
@@ -1660,8 +1690,8 @@ msgstr "Discard draft changes?"
 msgid "Dismiss"
 msgstr "Dismiss"
 
-#: packages/admin/src/components/ContentEditor.tsx:1448
-#: packages/admin/src/components/ContentEditor.tsx:1503
+#: packages/admin/src/components/ContentEditor.tsx:1453
+#: packages/admin/src/components/ContentEditor.tsx:1508
 #: packages/admin/src/routes/bylines.tsx:249
 msgid "Display name"
 msgstr "Display name"
@@ -1679,6 +1709,10 @@ msgstr "Display Size"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:476
 msgid "Displayed below the image as a visible caption."
 msgstr "Displayed below the image as a visible caption."
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1393
+msgid "Divider"
+msgstr "Divider"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
 msgid "Domain"
@@ -1705,7 +1739,7 @@ msgstr "Don't have an account? <0>Sign up</0>"
 msgid "Done"
 msgstr "Done"
 
-#: packages/admin/src/components/ContentEditor.tsx:1391
+#: packages/admin/src/components/ContentEditor.tsx:1396
 msgid "Down"
 msgstr "Down"
 
@@ -1713,11 +1747,12 @@ msgstr "Down"
 msgid "Downloading"
 msgstr "Downloading"
 
-#: packages/admin/src/components/ContentEditor.tsx:676
+#: packages/admin/src/components/ContentEditor.tsx:681
 #: packages/admin/src/components/ContentPickerModal.tsx:217
 msgid "Draft"
 msgstr "Draft"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:102
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Drafts"
 msgstr "Drafts"
@@ -1775,8 +1810,8 @@ msgstr "e.g., CI/CD Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "e.g., MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:859
-#: packages/admin/src/components/ContentEditor.tsx:1400
+#: packages/admin/src/components/ContentEditor.tsx:864
+#: packages/admin/src/components/ContentEditor.tsx:1405
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:354
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:355
 #: packages/admin/src/components/MenuEditor.tsx:365
@@ -1797,15 +1832,15 @@ msgid "Edit {0}"
 msgstr "Edit {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:650
+#: packages/admin/src/components/ContentTypeEditor.tsx:649
 msgid "Edit {0} field"
 msgstr "Edit {0} field"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1034
+#: packages/admin/src/components/PortableTextEditor.tsx:946
 msgid "Edit {blockLabel}"
 msgstr "Edit {blockLabel}"
 
-#: packages/admin/src/components/ContentEditor.tsx:486
+#: packages/admin/src/components/ContentEditor.tsx:491
 msgid "Edit {collectionLabel}"
 msgstr "Edit {collectionLabel}"
 
@@ -1813,7 +1848,7 @@ msgstr "Edit {collectionLabel}"
 msgid "Edit {title}"
 msgstr "Edit {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1500
+#: packages/admin/src/components/ContentEditor.tsx:1505
 msgid "Edit byline"
 msgstr "Edit byline"
 
@@ -1821,11 +1856,11 @@ msgstr "Edit byline"
 msgid "Edit Domain"
 msgstr "Edit Domain"
 
-#: packages/admin/src/components/FieldEditor.tsx:281
+#: packages/admin/src/components/FieldEditor.tsx:206
 msgid "Edit Field"
 msgstr "Edit Field"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1933
+#: packages/admin/src/components/PortableTextEditor.tsx:1926
 msgid "Edit link"
 msgstr "Edit link"
 
@@ -1900,7 +1935,7 @@ msgstr "Email verified"
 msgid "Email verified!"
 msgstr "Email verified!"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1444
+#: packages/admin/src/components/PortableTextEditor.tsx:1437
 msgid "Embed a {label}"
 msgstr "Embed a {label}"
 
@@ -1912,9 +1947,13 @@ msgstr "EmDash Exporter plugin detected! You can import directly."
 msgid "Enable"
 msgstr "Enable"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:443
+#: packages/admin/src/components/ContentTypeEditor.tsx:442
 msgid "Enable comments"
 msgstr "Enable comments"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:118
+msgid "Enable full-text search on this collection"
+msgstr "Enable full-text search on this collection"
 
 #: packages/admin/src/components/PluginManager.tsx:393
 msgid "Enable plugin"
@@ -1930,7 +1969,7 @@ msgid "Enabled"
 msgstr "Enabled"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1072
+#: packages/admin/src/components/ContentEditor.tsx:1077
 msgid "Enter {0}..."
 msgstr "Enter {0}..."
 
@@ -1942,7 +1981,7 @@ msgstr "Enter credentials manually"
 msgid "Enter email"
 msgstr "Enter email"
 
-#: packages/admin/src/components/ContentEditor.tsx:1093
+#: packages/admin/src/components/ContentEditor.tsx:1098
 msgid "Enter markdown content..."
 msgstr "Enter markdown content..."
 
@@ -1998,7 +2037,7 @@ msgstr "example.com"
 msgid "Exists"
 msgstr "Exists"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2344
+#: packages/admin/src/components/PortableTextEditor.tsx:2337
 msgid "Exit Spotlight Mode"
 msgstr "Exit Spotlight Mode"
 
@@ -2044,7 +2083,7 @@ msgstr "Failed to add domain"
 msgid "Failed to communicate with plugin"
 msgstr "Failed to communicate with plugin"
 
-#: packages/admin/src/components/ContentEditor.tsx:1484
+#: packages/admin/src/components/ContentEditor.tsx:1489
 msgid "Failed to create byline"
 msgstr "Failed to create byline"
 
@@ -2142,7 +2181,7 @@ msgstr "Failed to send test email"
 msgid "Failed to send verification email"
 msgstr "Failed to send verification email"
 
-#: packages/admin/src/components/ContentEditor.tsx:1534
+#: packages/admin/src/components/ContentEditor.tsx:1539
 msgid "Failed to update byline"
 msgstr "Failed to update byline"
 
@@ -2159,7 +2198,7 @@ msgstr "Favicon"
 msgid "Feature"
 msgstr "Feature"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:375
+#: packages/admin/src/components/ContentTypeEditor.tsx:374
 #: packages/admin/src/components/ContentTypeList.tsx:102
 msgid "Features"
 msgstr "Features"
@@ -2168,15 +2207,15 @@ msgstr "Features"
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "Fetching content from the EmDash Exporter API."
 
-#: packages/admin/src/components/FieldEditor.tsx:353
+#: packages/admin/src/components/FieldEditor.tsx:278
 msgid "Field Label"
 msgstr "Field Label"
 
-#: packages/admin/src/components/FieldEditor.tsx:365
+#: packages/admin/src/components/FieldEditor.tsx:290
 msgid "Field slugs cannot be changed after creation"
 msgstr "Field slugs cannot be changed after creation"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:526
+#: packages/admin/src/components/ContentTypeEditor.tsx:525
 msgid "Fields"
 msgstr "Fields"
 
@@ -2188,6 +2227,14 @@ msgstr "Fields created:"
 #: packages/admin/src/components/WordPressImport.tsx:1740
 msgid "Fields will be added to {needsNewFields} existing collection{0}"
 msgstr "Fields will be added to {needsNewFields} existing collection{0}"
+
+#: packages/admin/src/components/FieldEditor.tsx:112
+msgid "File"
+msgstr "File"
+
+#: packages/admin/src/components/FieldEditor.tsx:112
+msgid "File from media library"
+msgstr "File from media library"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:193
 #: packages/admin/src/components/MediaLibrary.tsx:416
@@ -2218,7 +2265,7 @@ msgstr "Filter by role"
 msgid "Filter byline type"
 msgstr "Filter byline type"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:460
+#: packages/admin/src/components/ContentTypeEditor.tsx:459
 msgid "First-time commenters only"
 msgstr "First-time commenters only"
 
@@ -2276,17 +2323,20 @@ msgid "Guest only"
 msgstr "Guest only"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:2163
+#: packages/admin/src/components/PortableTextEditor.tsx:1323
+#: packages/admin/src/components/PortableTextEditor.tsx:2156
 msgid "Heading 1"
 msgstr "Heading 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:136
-#: packages/admin/src/components/PortableTextEditor.tsx:2170
+#: packages/admin/src/components/PortableTextEditor.tsx:1333
+#: packages/admin/src/components/PortableTextEditor.tsx:2163
 msgid "Heading 2"
 msgstr "Heading 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:137
-#: packages/admin/src/components/PortableTextEditor.tsx:2177
+#: packages/admin/src/components/PortableTextEditor.tsx:1343
+#: packages/admin/src/components/PortableTextEditor.tsx:2170
 msgid "Heading 3"
 msgstr "Heading 3"
 
@@ -2341,9 +2391,14 @@ msgstr "Icon blurred due to image audit"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1413
+#: packages/admin/src/components/FieldEditor.tsx:111
+#: packages/admin/src/components/PortableTextEditor.tsx:1406
 msgid "Image"
 msgstr "Image"
+
+#: packages/admin/src/components/FieldEditor.tsx:111
+msgid "Image from media library"
+msgstr "Image from media library"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:179
 #: packages/admin/src/components/editor/ImageNode.tsx:180
@@ -2452,25 +2507,37 @@ msgstr "Include sample content (recommended for new sites)"
 msgid "Incompatible"
 msgstr "Incompatible"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2150
+#: packages/admin/src/components/PortableTextEditor.tsx:2143
 msgid "Inline Code"
 msgstr "Inline Code"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:384
 #: packages/admin/src/components/MediaPickerModal.tsx:583
-#: packages/admin/src/components/PortableTextEditor.tsx:1079
+#: packages/admin/src/components/PortableTextEditor.tsx:991
 msgid "Insert"
 msgstr "Insert"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1034
+#: packages/admin/src/components/PortableTextEditor.tsx:946
 msgid "Insert {blockLabel}"
 msgstr "Insert {blockLabel}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1428
+#: packages/admin/src/components/PortableTextEditor.tsx:1374
+msgid "Insert a blockquote"
+msgstr "Insert a blockquote"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1384
+msgid "Insert a code block"
+msgstr "Insert a code block"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1394
+msgid "Insert a horizontal rule"
+msgstr "Insert a horizontal rule"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1421
 msgid "Insert a reusable section"
 msgstr "Insert a reusable section"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1414
+#: packages/admin/src/components/PortableTextEditor.tsx:1407
 msgid "Insert an image"
 msgstr "Insert an image"
 
@@ -2478,15 +2545,15 @@ msgstr "Insert an image"
 msgid "Insert from URL"
 msgstr "Insert from URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2311
+#: packages/admin/src/components/PortableTextEditor.tsx:2304
 msgid "Insert Horizontal Rule"
 msgstr "Insert Horizontal Rule"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2306
+#: packages/admin/src/components/PortableTextEditor.tsx:2299
 msgid "Insert Image"
 msgstr "Insert Image"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2253
+#: packages/admin/src/components/PortableTextEditor.tsx:2246
 msgid "Insert Link"
 msgstr "Insert Link"
 
@@ -2520,6 +2587,10 @@ msgstr "Installed from marketplace (v{0})"
 msgid "Installed:"
 msgstr "Installed:"
 
+#: packages/admin/src/components/FieldEditor.tsx:105
+msgid "Integer"
+msgstr "Integer"
+
 #: packages/admin/src/components/SignupPage.tsx:258
 msgid "Invalid link"
 msgstr "Invalid link"
@@ -2537,8 +2608,8 @@ msgstr "Invite User"
 msgid "Invite your first team member"
 msgstr "Invite your first team member"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1904
-#: packages/admin/src/components/PortableTextEditor.tsx:2129
+#: packages/admin/src/components/PortableTextEditor.tsx:1897
+#: packages/admin/src/components/PortableTextEditor.tsx:2122
 msgid "Italic"
 msgstr "Italic"
 
@@ -2560,7 +2631,7 @@ msgstr "Item updated"
 msgid "Keywords"
 msgstr "Keywords"
 
-#: packages/admin/src/components/FieldEditor.tsx:350
+#: packages/admin/src/components/FieldEditor.tsx:275
 #: packages/admin/src/components/MenuEditor.tsx:272
 #: packages/admin/src/components/MenuEditor.tsx:413
 #: packages/admin/src/components/MenuList.tsx:137
@@ -2569,17 +2640,21 @@ msgstr "Keywords"
 msgid "Label"
 msgstr "Label"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:327
+#: packages/admin/src/components/ContentTypeEditor.tsx:326
 msgid "Label (Plural)"
 msgstr "Label (Plural)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:319
+#: packages/admin/src/components/ContentTypeEditor.tsx:318
 msgid "Label (Singular)"
 msgstr "Label (Singular)"
 
 #: packages/admin/src/components/Settings.tsx:129
 msgid "Language"
 msgstr "Language"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1324
+msgid "Large section heading"
+msgstr "Large section heading"
 
 #: packages/admin/src/components/PluginManager.tsx:464
 msgid "Last enabled:"
@@ -2630,6 +2705,10 @@ msgstr "Light"
 msgid "Link expired"
 msgstr "Link expired"
 
+#: packages/admin/src/components/FieldEditor.tsx:113
+msgid "Link to another content item"
+msgstr "Link to another content item"
+
 #: packages/admin/src/routes/bylines.tsx:223
 msgid "Linked"
 msgstr "Linked"
@@ -2679,7 +2758,7 @@ msgstr "Loading comments..."
 msgid "Loading content..."
 msgstr "Loading content..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1732
+#: packages/admin/src/components/PortableTextEditor.tsx:1725
 msgid "Loading editor..."
 msgstr "Loading editor..."
 
@@ -2726,7 +2805,7 @@ msgstr "Loading widgets..."
 #: packages/admin/src/components/ContentList.tsx:309
 #: packages/admin/src/components/ContentPickerModal.tsx:238
 #: packages/admin/src/components/MarketplaceBrowse.tsx:202
-#: packages/admin/src/components/PortableTextEditor.tsx:1232
+#: packages/admin/src/components/PortableTextEditor.tsx:1144
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:179
 #: packages/admin/src/components/settings/SecuritySettings.tsx:106
 #: packages/admin/src/components/TaxonomyManager.tsx:573
@@ -2763,6 +2842,10 @@ msgstr "Logo"
 #: packages/admin/src/components/WordPressImport.tsx:1683
 msgid "Logo & favicon"
 msgstr "Logo & favicon"
+
+#: packages/admin/src/components/FieldEditor.tsx:103
+msgid "Long Text"
+msgstr "Long Text"
 
 #: packages/admin/src/components/Sections.tsx:191
 msgid "Lowercase letters, numbers, and hyphens only"
@@ -2829,11 +2912,11 @@ msgstr "marketplace"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/components/FieldEditor.tsx:420
+#: packages/admin/src/components/FieldEditor.tsx:345
 msgid "Max Length"
 msgstr "Max Length"
 
-#: packages/admin/src/components/FieldEditor.tsx:450
+#: packages/admin/src/components/FieldEditor.tsx:375
 msgid "Max Value"
 msgstr "Max Value"
 
@@ -2867,6 +2950,10 @@ msgstr "Media import was skipped"
 #: packages/admin/src/components/MediaLibrary.tsx:226
 msgid "Media Library"
 msgstr "Media Library"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1334
+msgid "Medium section heading"
+msgstr "Medium section heading"
 
 #: packages/admin/src/components/Widgets.tsx:752
 msgid "Menu"
@@ -2926,15 +3013,15 @@ msgstr "Meta tag content for Google Search Console verification"
 msgid "Meta titles, descriptions, and social images"
 msgstr "Meta titles, descriptions, and social images"
 
-#: packages/admin/src/components/FieldEditor.tsx:413
+#: packages/admin/src/components/FieldEditor.tsx:338
 msgid "Min Length"
 msgstr "Min Length"
 
-#: packages/admin/src/components/FieldEditor.tsx:443
+#: packages/admin/src/components/FieldEditor.tsx:368
 msgid "Min Value"
 msgstr "Min Value"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:453
+#: packages/admin/src/components/ContentTypeEditor.tsx:452
 msgid "Moderation"
 msgstr "Moderation"
 
@@ -2962,13 +3049,13 @@ msgstr "Move {title} to trash"
 msgid "Move down"
 msgstr "Move down"
 
-#: packages/admin/src/components/ContentEditor.tsx:764
-#: packages/admin/src/components/ContentEditor.tsx:786
+#: packages/admin/src/components/ContentEditor.tsx:769
+#: packages/admin/src/components/ContentEditor.tsx:791
 #: packages/admin/src/components/ContentList.tsx:410
 msgid "Move to Trash"
 msgstr "Move to Trash"
 
-#: packages/admin/src/components/ContentEditor.tsx:770
+#: packages/admin/src/components/ContentEditor.tsx:775
 #: packages/admin/src/components/ContentList.tsx:395
 msgid "Move to Trash?"
 msgstr "Move to Trash?"
@@ -2977,11 +3064,23 @@ msgstr "Move to Trash?"
 msgid "Move up"
 msgstr "Move up"
 
+#: packages/admin/src/components/FieldEditor.tsx:109
+msgid "Multi Select"
+msgstr "Multi Select"
+
+#: packages/admin/src/components/FieldEditor.tsx:103
+msgid "Multi-line plain text"
+msgstr "Multi-line plain text"
+
+#: packages/admin/src/components/FieldEditor.tsx:109
+msgid "Multiple choices from options"
+msgstr "Multiple choices from options"
+
 #: packages/admin/src/components/SetupWizard.tsx:144
 msgid "My Awesome Blog"
 msgstr "My Awesome Blog"
 
-#: packages/admin/src/components/ContentEditor.tsx:665
+#: packages/admin/src/components/ContentEditor.tsx:670
 msgid "my-post-slug"
 msgstr "my-post-slug"
 
@@ -3018,7 +3117,7 @@ msgstr "Never"
 msgid "New"
 msgstr "New"
 
-#: packages/admin/src/components/ContentEditor.tsx:486
+#: packages/admin/src/components/ContentEditor.tsx:491
 msgid "New {collectionLabel}"
 msgstr "New {collectionLabel}"
 
@@ -3026,7 +3125,7 @@ msgstr "New {collectionLabel}"
 msgid "New collection"
 msgstr "New collection"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:288
+#: packages/admin/src/components/ContentTypeEditor.tsx:287
 #: packages/admin/src/components/ContentTypeList.tsx:43
 msgid "New Content Type"
 msgstr "New Content Type"
@@ -3113,7 +3212,7 @@ msgstr "No approved comments yet."
 msgid "No bylines found"
 msgstr "No bylines found"
 
-#: packages/admin/src/components/ContentEditor.tsx:1432
+#: packages/admin/src/components/ContentEditor.tsx:1437
 msgid "No bylines selected."
 msgstr "No bylines selected."
 
@@ -3145,7 +3244,7 @@ msgstr "No content in this collection"
 msgid "No content types yet."
 msgstr "No content types yet."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:554
+#: packages/admin/src/components/ContentTypeEditor.tsx:553
 msgid "No custom fields yet"
 msgstr "No custom fields yet"
 
@@ -3185,8 +3284,8 @@ msgstr "No linked user"
 msgid "No matching passkey found for this account."
 msgstr "No matching passkey found for this account."
 
-#: packages/admin/src/components/FieldEditor.tsx:424
-#: packages/admin/src/components/FieldEditor.tsx:454
+#: packages/admin/src/components/FieldEditor.tsx:349
+#: packages/admin/src/components/FieldEditor.tsx:379
 msgid "No maximum"
 msgstr "No maximum"
 
@@ -3212,12 +3311,12 @@ msgstr "No menu items yet"
 msgid "No menus yet"
 msgstr "No menus yet"
 
-#: packages/admin/src/components/FieldEditor.tsx:417
-#: packages/admin/src/components/FieldEditor.tsx:447
+#: packages/admin/src/components/FieldEditor.tsx:342
+#: packages/admin/src/components/FieldEditor.tsx:372
 msgid "No minimum"
 msgstr "No minimum"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:461
+#: packages/admin/src/components/ContentTypeEditor.tsx:460
 msgid "No moderation (auto-approve all)"
 msgstr "No moderation (auto-approve all)"
 
@@ -3249,7 +3348,7 @@ msgstr "No recent activity"
 msgid "No redirects yet"
 msgstr "No redirects yet"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:939
+#: packages/admin/src/components/PortableTextEditor.tsx:851
 msgid "No results"
 msgstr "No results"
 
@@ -3308,12 +3407,17 @@ msgstr "No widget areas yet. Create one to get started."
 msgid "None (top level)"
 msgstr "None (top level)"
 
+#: packages/admin/src/components/FieldEditor.tsx:104
+msgid "Number"
+msgstr "Number"
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Number of posts to show per page on list views"
 msgstr "Number of posts to show per page on list views"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:141
-#: packages/admin/src/components/PortableTextEditor.tsx:2197
+#: packages/admin/src/components/PortableTextEditor.tsx:1363
+#: packages/admin/src/components/PortableTextEditor.tsx:2190
 msgid "Numbered List"
 msgstr "Numbered List"
 
@@ -3368,7 +3472,7 @@ msgstr "Optional description"
 msgid "Optional tooltip on hover"
 msgstr "Optional tooltip on hover"
 
-#: packages/admin/src/components/FieldEditor.tsx:462
+#: packages/admin/src/components/FieldEditor.tsx:387
 msgid "Options (one per line)"
 msgstr "Options (one per line)"
 
@@ -3409,7 +3513,7 @@ msgstr "Outline"
 msgid "Overrides the page title in search engine results"
 msgstr "Overrides the page title in search engine results"
 
-#: packages/admin/src/components/ContentEditor.tsx:801
+#: packages/admin/src/components/ContentEditor.tsx:806
 msgid "Ownership"
 msgstr "Ownership"
 
@@ -3489,17 +3593,17 @@ msgstr "Passkeys Not Supported"
 msgid "Path"
 msgstr "Path"
 
-#: packages/admin/src/components/FieldEditor.tsx:429
+#: packages/admin/src/components/FieldEditor.tsx:354
 msgid "Pattern (Regex)"
 msgstr "Pattern (Regex)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:370
-msgid "Pattern for generating URLs, e.g. /blog/{slug}"
-msgstr "Pattern for generating URLs, e.g. /blog/{slug}"
+#: packages/admin/src/components/ContentTypeEditor.tsx:369
+msgid "Pattern for generating URLs, e.g. /blog/'{slug}'"
+msgstr "Pattern for generating URLs, e.g. /blog/'{slug}'"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:366
-msgid "Pattern must include a {slug} placeholder"
-msgstr "Pattern must include a {slug} placeholder"
+#: packages/admin/src/components/ContentTypeEditor.tsx:365
+msgid "Pattern must include a '{slug}' placeholder"
+msgstr "Pattern must include a '{slug}' placeholder"
 
 #: packages/admin/src/components/ContentList.tsx:520
 msgid "pending"
@@ -3509,7 +3613,7 @@ msgstr "pending"
 msgid "Pending"
 msgstr "Pending"
 
-#: packages/admin/src/components/ContentEditor.tsx:674
+#: packages/admin/src/components/ContentEditor.tsx:679
 msgid "Pending changes"
 msgstr "Pending changes"
 
@@ -3581,11 +3685,11 @@ msgstr "Plugins"
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "Points search engines to the original version of this page, if it's duplicated from another URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:322
+#: packages/admin/src/components/ContentTypeEditor.tsx:321
 msgid "Post"
 msgstr "Post"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:330
+#: packages/admin/src/components/ContentTypeEditor.tsx:329
 #: packages/admin/src/components/WordPressImport.tsx:1146
 msgid "Posts"
 msgstr "Posts"
@@ -3607,12 +3711,17 @@ msgstr "Preparing to download files from WordPress..."
 msgid "Preparing..."
 msgstr "Preparing..."
 
-#: packages/admin/src/components/ContentEditor.tsx:531
+#: packages/admin/src/components/ContentEditor.tsx:536
+#: packages/admin/src/components/ContentTypeEditor.tsx:112
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
 msgstr "Preview"
 
-#: packages/admin/src/components/ContentEditor.tsx:531
+#: packages/admin/src/components/ContentTypeEditor.tsx:113
+msgid "Preview content before publishing"
+msgstr "Preview content before publishing"
+
+#: packages/admin/src/components/ContentEditor.tsx:536
 msgid "Preview draft"
 msgstr "Preview draft"
 
@@ -3633,16 +3742,16 @@ msgstr "Previous screenshot"
 msgid "Provider:"
 msgstr "Provider:"
 
-#: packages/admin/src/components/ContentEditor.tsx:586
-#: packages/admin/src/components/ContentEditor.tsx:659
+#: packages/admin/src/components/ContentEditor.tsx:591
+#: packages/admin/src/components/ContentEditor.tsx:664
 msgid "Publish"
 msgstr "Publish"
 
-#: packages/admin/src/components/ContentEditor.tsx:576
+#: packages/admin/src/components/ContentEditor.tsx:581
 msgid "Publish changes"
 msgstr "Publish changes"
 
-#: packages/admin/src/components/ContentEditor.tsx:672
+#: packages/admin/src/components/ContentEditor.tsx:677
 #: packages/admin/src/components/ContentPickerModal.tsx:214
 #: packages/admin/src/components/Dashboard.tsx:186
 msgid "Published"
@@ -3653,7 +3762,7 @@ msgstr "Published"
 msgid "Published {0}"
 msgstr "Published {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1440
+#: packages/admin/src/components/ContentEditor.tsx:1445
 msgid "Quick create byline"
 msgstr "Quick create byline"
 
@@ -3663,7 +3772,8 @@ msgid "Quick edit alt text"
 msgstr "Quick edit alt text"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:138
-#: packages/admin/src/components/PortableTextEditor.tsx:2204
+#: packages/admin/src/components/PortableTextEditor.tsx:1373
+#: packages/admin/src/components/PortableTextEditor.tsx:2197
 msgid "Quote"
 msgstr "Quote"
 
@@ -3703,9 +3813,13 @@ msgstr "Redirecting to login..."
 msgid "Redirects"
 msgstr "Redirects"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2331
+#: packages/admin/src/components/PortableTextEditor.tsx:2324
 msgid "Redo"
 msgstr "Redo"
+
+#: packages/admin/src/components/FieldEditor.tsx:113
+msgid "Reference"
+msgstr "Reference"
 
 #: packages/admin/src/components/ContentTypeList.tsx:77
 msgid "Register"
@@ -3728,9 +3842,9 @@ msgstr "Registration failed"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registration was cancelled or timed out. Please try again."
 
-#: packages/admin/src/components/ContentEditor.tsx:1409
+#: packages/admin/src/components/ContentEditor.tsx:1414
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:178
-#: packages/admin/src/components/PortableTextEditor.tsx:2294
+#: packages/admin/src/components/PortableTextEditor.tsx:2287
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
@@ -3753,7 +3867,7 @@ msgstr "Remove Domain"
 msgid "Remove Domain?"
 msgstr "Remove Domain?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1239
+#: packages/admin/src/components/ContentEditor.tsx:1244
 msgid "Remove image"
 msgstr "Remove image"
 
@@ -3765,8 +3879,8 @@ msgstr "Remove Image"
 msgid "Remove Image?"
 msgstr "Remove Image?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1885
-#: packages/admin/src/components/PortableTextEditor.tsx:1886
+#: packages/admin/src/components/PortableTextEditor.tsx:1878
+#: packages/admin/src/components/PortableTextEditor.tsx:1879
 msgid "Remove link"
 msgstr "Remove link"
 
@@ -3810,8 +3924,8 @@ msgstr "Repository"
 msgid "Request a new link"
 msgstr "Request a new link"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:639
-#: packages/admin/src/components/FieldEditor.tsx:380
+#: packages/admin/src/components/ContentTypeEditor.tsx:638
+#: packages/admin/src/components/FieldEditor.tsx:305
 msgid "Required"
 msgstr "Required"
 
@@ -3890,6 +4004,7 @@ msgstr "Review"
 msgid "Revision restored"
 msgstr "Revision restored"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:107
 #: packages/admin/src/components/RevisionHistory.tsx:160
 msgid "Revisions"
 msgstr "Revisions"
@@ -3906,6 +4021,14 @@ msgstr "Revoke?"
 msgid "Revoking..."
 msgstr "Revoking..."
 
+#: packages/admin/src/components/FieldEditor.tsx:110
+msgid "Rich Text"
+msgstr "Rich Text"
+
+#: packages/admin/src/components/FieldEditor.tsx:110
+msgid "Rich text editor"
+msgstr "Rich text editor"
+
 #. placeholder {0}: latest.audit.riskScore
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:323
 msgid "Risk score: {0}/100"
@@ -3918,7 +4041,7 @@ msgstr "Risk score: {0}/100"
 msgid "Role"
 msgstr "Role"
 
-#: packages/admin/src/components/ContentEditor.tsx:1414
+#: packages/admin/src/components/ContentEditor.tsx:1419
 msgid "Role label"
 msgstr "Role label"
 
@@ -3929,14 +4052,14 @@ msgstr "Role label"
 msgid "Same window"
 msgstr "Same window"
 
-#: packages/admin/src/components/ContentEditor.tsx:1540
+#: packages/admin/src/components/ContentEditor.tsx:1545
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:350
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:520
 #: packages/admin/src/components/editor/ImageNode.tsx:235
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:404
 #: packages/admin/src/components/MediaDetailPanel.tsx:242
 #: packages/admin/src/components/MenuEditor.tsx:438
-#: packages/admin/src/components/PortableTextEditor.tsx:1079
+#: packages/admin/src/components/PortableTextEditor.tsx:991
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:812
@@ -3952,10 +4075,14 @@ msgstr "Save (Enter)"
 msgid "Save alt text"
 msgstr "Save alt text"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:514
+#: packages/admin/src/components/ContentTypeEditor.tsx:513
 #: packages/admin/src/components/users/UserDetail.tsx:318
 msgid "Save Changes"
 msgstr "Save Changes"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:103
+msgid "Save content as draft before publishing"
+msgstr "Save content as draft before publishing"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:138
 msgid "Save name"
@@ -3973,18 +4100,19 @@ msgstr "Save Settings"
 msgid "Save Social Links"
 msgstr "Save Social Links"
 
-#: packages/admin/src/components/ContentEditor.tsx:506
+#: packages/admin/src/components/ContentEditor.tsx:511
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "Saved"
 
-#: packages/admin/src/components/ContentEditor.tsx:501
-#: packages/admin/src/components/ContentEditor.tsx:1540
-#: packages/admin/src/components/ContentTypeEditor.tsx:514
-#: packages/admin/src/components/FieldEditor.tsx:478
+#: packages/admin/src/components/ContentEditor.tsx:506
+#: packages/admin/src/components/ContentEditor.tsx:1545
+#: packages/admin/src/components/ContentTypeEditor.tsx:513
+#: packages/admin/src/components/FieldEditor.tsx:403
 #: packages/admin/src/components/MediaDetailPanel.tsx:242
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/Redirects.tsx:179
+#: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/settings/GeneralSettings.tsx:296
 #: packages/admin/src/components/settings/SeoSettings.tsx:164
 #: packages/admin/src/components/settings/SocialSettings.tsx:169
@@ -3995,28 +4123,24 @@ msgstr "Saved"
 msgid "Saving..."
 msgstr "Saving..."
 
-#: packages/admin/src/components/SaveButton.tsx:42
-msgid "Saving…"
-msgstr "Saving…"
-
-#: packages/admin/src/components/ContentEditor.tsx:716
+#: packages/admin/src/components/ContentEditor.tsx:721
 msgid "Schedule"
 msgstr "Schedule"
 
-#: packages/admin/src/components/ContentEditor.tsx:702
+#: packages/admin/src/components/ContentEditor.tsx:707
 msgid "Schedule for"
 msgstr "Schedule for"
 
-#: packages/admin/src/components/ContentEditor.tsx:739
+#: packages/admin/src/components/ContentEditor.tsx:744
 msgid "Schedule for later"
 msgstr "Schedule for later"
 
-#: packages/admin/src/components/ContentEditor.tsx:677
+#: packages/admin/src/components/ContentEditor.tsx:682
 msgid "Scheduled"
 msgstr "Scheduled"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:688
+#: packages/admin/src/components/ContentEditor.tsx:693
 msgid "Scheduled for: {0}"
 msgstr "Scheduled for: {0}"
 
@@ -4062,6 +4186,10 @@ msgstr "Screenshot viewer"
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:170
 msgid "Screenshots"
 msgstr "Screenshots"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:117
+msgid "Search"
+msgstr "Search"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
 #: packages/admin/src/components/ContentList.tsx:131
@@ -4135,12 +4263,12 @@ msgstr "Search users"
 msgid "Search..."
 msgstr "Search..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:641
-#: packages/admin/src/components/FieldEditor.tsx:402
+#: packages/admin/src/components/ContentTypeEditor.tsx:640
+#: packages/admin/src/components/FieldEditor.tsx:327
 msgid "Searchable"
 msgstr "Searchable"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1427
+#: packages/admin/src/components/PortableTextEditor.tsx:1420
 msgid "Section"
 msgstr "Section"
 
@@ -4214,7 +4342,11 @@ msgstr "Security error. Make sure you're on a secure connection."
 msgid "Security Settings"
 msgstr "Security Settings"
 
-#: packages/admin/src/components/ContentEditor.tsx:1263
+#: packages/admin/src/components/FieldEditor.tsx:108
+msgid "Select"
+msgstr "Select"
+
+#: packages/admin/src/components/ContentEditor.tsx:1268
 msgid "Select {label}"
 msgstr "Select {label}"
 
@@ -4230,7 +4362,7 @@ msgstr "Select a menu..."
 msgid "Select all"
 msgstr "Select all"
 
-#: packages/admin/src/components/ContentEditor.tsx:1353
+#: packages/admin/src/components/ContentEditor.tsx:1358
 msgid "Select byline..."
 msgstr "Select byline..."
 
@@ -4248,13 +4380,13 @@ msgstr "Select Content"
 msgid "Select Favicon"
 msgstr "Select Favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1254
+#: packages/admin/src/components/ContentEditor.tsx:1259
 msgid "Select image"
 msgstr "Select image"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:70
-#: packages/admin/src/components/PortableTextEditor.tsx:1773
-#: packages/admin/src/components/PortableTextEditor.tsx:2356
+#: packages/admin/src/components/PortableTextEditor.tsx:1766
+#: packages/admin/src/components/PortableTextEditor.tsx:2349
 msgid "Select Image"
 msgstr "Select Image"
 
@@ -4268,7 +4400,7 @@ msgid "Select which content types to import."
 msgstr "Select which content types to import."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:1239
+#: packages/admin/src/components/PortableTextEditor.tsx:1151
 msgid "Select..."
 msgstr "Select..."
 
@@ -4321,7 +4453,7 @@ msgstr "Send Test Email"
 msgid "Sending..."
 msgstr "Sending..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:415
+#: packages/admin/src/components/ContentTypeEditor.tsx:414
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
@@ -4348,7 +4480,7 @@ msgstr "SEO Title"
 msgid "Set a custom display size for this image instance."
 msgstr "Set a custom display size for this image instance."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:478
+#: packages/admin/src/components/ContentTypeEditor.tsx:477
 msgid "Set to 0 to never close comments automatically."
 msgstr "Set to 0 to never close comments automatically."
 
@@ -4364,7 +4496,7 @@ msgstr "Set up your site"
 msgid "Setting up..."
 msgstr "Setting up..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:316
+#: packages/admin/src/components/ContentTypeEditor.tsx:315
 #: packages/admin/src/components/Header.tsx:92
 #: packages/admin/src/components/PluginManager.tsx:382
 #: packages/admin/src/components/PluginManager.tsx:384
@@ -4381,6 +4513,10 @@ msgstr "Settings saved successfully"
 #: packages/admin/src/components/users/InviteUserModal.tsx:110
 msgid "Share this link with the invited user"
 msgstr "Share this link with the invited user"
+
+#: packages/admin/src/components/FieldEditor.tsx:102
+msgid "Short Text"
+msgstr "Short Text"
 
 #: packages/admin/src/components/RevisionHistory.tsx:348
 msgid "Show {unchangedCount} unchanged"
@@ -4424,6 +4560,14 @@ msgstr "Sign in with Passkey"
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:189
 msgid "Signed in as {0}"
 msgstr "Signed in as {0}"
+
+#: packages/admin/src/components/FieldEditor.tsx:108
+msgid "Single choice from options"
+msgstr "Single choice from options"
+
+#: packages/admin/src/components/FieldEditor.tsx:102
+msgid "Single line text input"
+msgstr "Single line text input"
 
 #: packages/admin/src/components/SetupWizard.tsx:333
 msgid "Site"
@@ -4474,12 +4618,13 @@ msgstr "Skip Media Import"
 msgid "Skipped"
 msgstr "Skipped"
 
-#: packages/admin/src/components/ContentEditor.tsx:662
-#: packages/admin/src/components/ContentEditor.tsx:1456
-#: packages/admin/src/components/ContentEditor.tsx:1511
-#: packages/admin/src/components/ContentTypeEditor.tsx:337
+#: packages/admin/src/components/ContentEditor.tsx:667
+#: packages/admin/src/components/ContentEditor.tsx:1461
+#: packages/admin/src/components/ContentEditor.tsx:1516
+#: packages/admin/src/components/ContentTypeEditor.tsx:336
 #: packages/admin/src/components/ContentTypeList.tsx:96
-#: packages/admin/src/components/FieldEditor.tsx:357
+#: packages/admin/src/components/FieldEditor.tsx:115
+#: packages/admin/src/components/FieldEditor.tsx:282
 #: packages/admin/src/components/SectionEditor.tsx:197
 #: packages/admin/src/components/Sections.tsx:182
 #: packages/admin/src/components/TaxonomyManager.tsx:242
@@ -4490,6 +4635,10 @@ msgstr "Slug"
 #: packages/admin/src/components/Sections.tsx:122
 msgid "Slug copied to clipboard"
 msgstr "Slug copied to clipboard"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1344
+msgid "Small section heading"
+msgstr "Small section heading"
 
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/SocialSettings.tsx:81
@@ -4545,7 +4694,7 @@ msgstr "Source path"
 msgid "Spam"
 msgstr "Spam"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2344
+#: packages/admin/src/components/PortableTextEditor.tsx:2337
 msgid "Spotlight Mode"
 msgstr "Spotlight Mode"
 
@@ -4563,8 +4712,8 @@ msgstr "Status"
 msgid "Status code"
 msgstr "Status code"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1918
-#: packages/admin/src/components/PortableTextEditor.tsx:2143
+#: packages/admin/src/components/PortableTextEditor.tsx:1911
+#: packages/admin/src/components/PortableTextEditor.tsx:2136
 msgid "Strikethrough"
 msgstr "Strikethrough"
 
@@ -4576,7 +4725,7 @@ msgstr "Structure"
 msgid "Synced"
 msgstr "Synced"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:686
+#: packages/admin/src/components/ContentTypeEditor.tsx:685
 msgid "System"
 msgstr "System"
 
@@ -4584,7 +4733,7 @@ msgstr "System"
 msgid "System ({resolvedTheme})"
 msgstr "System ({resolvedTheme})"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:541
+#: packages/admin/src/components/ContentTypeEditor.tsx:540
 msgid "System Fields"
 msgstr "System Fields"
 
@@ -4644,7 +4793,7 @@ msgstr "Term"
 msgid "Term deleted"
 msgstr "Term deleted"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2113
+#: packages/admin/src/components/PortableTextEditor.tsx:2106
 msgid "Text formatting"
 msgstr "Text formatting"
 
@@ -4718,11 +4867,11 @@ msgstr "Theme: {label}"
 msgid "Themes"
 msgstr "Themes"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:305
+#: packages/admin/src/components/ContentTypeEditor.tsx:304
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 
-#: packages/admin/src/components/ContentEditor.tsx:1266
+#: packages/admin/src/components/ContentEditor.tsx:1271
 msgid "This field is required"
 msgstr "This field is required"
 
@@ -4774,7 +4923,7 @@ msgstr "This will delete the widget area and all its widgets. This action cannot
 msgid "This will grant CLI access with your permissions."
 msgstr "This will grant CLI access with your permissions."
 
-#: packages/admin/src/components/ContentEditor.tsx:773
+#: packages/admin/src/components/ContentEditor.tsx:778
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "This will move the item to trash. You can restore it later from the trash."
 
@@ -4796,7 +4945,7 @@ msgstr "This will permanently delete this comment. This action cannot be undone.
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "This will remove the plugin and its bundle from your site."
 
-#: packages/admin/src/components/ContentEditor.tsx:551
+#: packages/admin/src/components/ContentEditor.tsx:556
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "This will revert to the published version. Your draft changes will be lost."
 
@@ -4855,11 +5004,15 @@ msgstr "Token created: {0}"
 msgid "Token Name"
 msgstr "Token Name"
 
-#: packages/admin/src/components/ContentEditor.tsx:869
+#: packages/admin/src/components/ContentTypeEditor.tsx:108
+msgid "Track content history"
+msgstr "Track content history"
+
+#: packages/admin/src/components/ContentEditor.tsx:874
 msgid "Translate"
 msgstr "Translate"
 
-#: packages/admin/src/components/ContentEditor.tsx:827
+#: packages/admin/src/components/ContentEditor.tsx:832
 msgid "Translations"
 msgstr "Translations"
 
@@ -4878,6 +5031,10 @@ msgstr "Trash is empty"
 #: packages/admin/src/components/comments/CommentInbox.tsx:549
 msgid "Trash is empty."
 msgstr "Trash is empty."
+
+#: packages/admin/src/components/FieldEditor.tsx:106
+msgid "True/false toggle"
+msgstr "True/false toggle"
 
 #: packages/admin/src/components/MediaLibrary.tsx:366
 #: packages/admin/src/components/MediaPickerModal.tsx:493
@@ -4933,17 +5090,17 @@ msgstr "Type mismatch ({0})"
 msgid "Unable to reach marketplace"
 msgstr "Unable to reach marketplace"
 
-#: packages/admin/src/components/ContentEditor.tsx:1554
-#: packages/admin/src/components/ContentEditor.tsx:1569
+#: packages/admin/src/components/ContentEditor.tsx:1559
+#: packages/admin/src/components/ContentEditor.tsx:1574
 msgid "Unassigned"
 msgstr "Unassigned"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1911
-#: packages/admin/src/components/PortableTextEditor.tsx:2136
+#: packages/admin/src/components/PortableTextEditor.tsx:1904
+#: packages/admin/src/components/PortableTextEditor.tsx:2129
 msgid "Underline"
 msgstr "Underline"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2324
+#: packages/admin/src/components/PortableTextEditor.tsx:2317
 msgid "Undo"
 msgstr "Undo"
 
@@ -4965,8 +5122,8 @@ msgstr "Uninstall confirmation"
 msgid "Uninstalling..."
 msgstr "Uninstalling..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:640
-#: packages/admin/src/components/FieldEditor.tsx:389
+#: packages/admin/src/components/ContentTypeEditor.tsx:639
+#: packages/admin/src/components/FieldEditor.tsx:314
 msgid "Unique"
 msgstr "Unique"
 
@@ -4982,7 +5139,7 @@ msgstr "Unlock aspect ratio"
 msgid "Unnamed passkey"
 msgstr "Unnamed passkey"
 
-#: packages/admin/src/components/ContentEditor.tsx:580
+#: packages/admin/src/components/ContentEditor.tsx:585
 msgid "Unpublish"
 msgstr "Unpublish"
 
@@ -4990,7 +5147,7 @@ msgstr "Unpublish"
 msgid "Unregistered Content Tables Found"
 msgstr "Unregistered Content Tables Found"
 
-#: packages/admin/src/components/ContentEditor.tsx:691
+#: packages/admin/src/components/ContentEditor.tsx:696
 msgid "Unschedule"
 msgstr "Unschedule"
 
@@ -5008,7 +5165,7 @@ msgstr "Untitled"
 msgid "Untitled Widget"
 msgstr "Untitled Widget"
 
-#: packages/admin/src/components/ContentEditor.tsx:1388
+#: packages/admin/src/components/ContentEditor.tsx:1393
 msgid "Up"
 msgstr "Up"
 
@@ -5016,7 +5173,7 @@ msgstr "Up"
 msgid "Update"
 msgstr "Update"
 
-#: packages/admin/src/components/FieldEditor.tsx:478
+#: packages/admin/src/components/FieldEditor.tsx:403
 msgid "Update Field"
 msgstr "Update Field"
 
@@ -5040,7 +5197,7 @@ msgid "Update to v{0}"
 msgstr "Update to v{0}"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:748
+#: packages/admin/src/components/ContentEditor.tsx:753
 msgid "Updated: {0}"
 msgstr "Updated: {0}"
 
@@ -5135,13 +5292,17 @@ msgstr "Uploading..."
 
 #: packages/admin/src/components/MenuEditor.tsx:274
 #: packages/admin/src/components/MenuEditor.tsx:416
-#: packages/admin/src/components/PortableTextEditor.tsx:2260
+#: packages/admin/src/components/PortableTextEditor.tsx:2253
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:358
+#: packages/admin/src/components/ContentTypeEditor.tsx:357
 msgid "URL Pattern"
 msgstr "URL Pattern"
+
+#: packages/admin/src/components/FieldEditor.tsx:115
+msgid "URL-friendly identifier"
+msgstr "URL-friendly identifier"
 
 #: packages/admin/src/components/MenuList.tsx:133
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
@@ -5171,7 +5332,7 @@ msgstr "Used as the identifier. Lowercase letters, numbers, and underscores only
 msgid "Used by screen readers and when image fails to load"
 msgstr "Used by screen readers and when image fails to load"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:343
+#: packages/admin/src/components/ContentTypeEditor.tsx:342
 msgid "Used in URLs and API endpoints"
 msgstr "Used in URLs and API endpoints"
 
@@ -5215,8 +5376,8 @@ msgstr "Users with email addresses from these domains can sign up without an inv
 msgid "v{0} available"
 msgstr "v{0} available"
 
-#: packages/admin/src/components/FieldEditor.tsx:410
-#: packages/admin/src/components/FieldEditor.tsx:440
+#: packages/admin/src/components/FieldEditor.tsx:335
+#: packages/admin/src/components/FieldEditor.tsx:365
 msgid "Validation"
 msgstr "Validation"
 
@@ -5308,6 +5469,10 @@ msgstr "What will happen when you import"
 #: packages/admin/src/components/TaxonomyManager.tsx:480
 msgid "Which content types can use this taxonomy"
 msgstr "Which content types can use this taxonomy"
+
+#: packages/admin/src/components/FieldEditor.tsx:105
+msgid "Whole number"
+msgstr "Whole number"
 
 #: packages/admin/src/components/Widgets.tsx:652
 #: packages/admin/src/components/Widgets.tsx:667
