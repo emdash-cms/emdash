@@ -11,7 +11,9 @@ packages:
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
   "@astrojs/check": ^0.9.7
+  "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
+  "@lingui/conf": ^5.9.4
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
   "@lingui/react": ^5.9.4

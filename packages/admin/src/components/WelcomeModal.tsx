@@ -20,13 +20,13 @@ interface WelcomeModalProps {
 	userRole: number;
 }
 
-// Role labels - returns a key, translated in component
-function getRoleKey(role: number): string {
-	if (role >= 50) return "administrator";
-	if (role >= 40) return "editor";
-	if (role >= 30) return "author";
-	if (role >= 20) return "contributor";
-	return "subscriber";
+// Role labels
+function getRoleLabel(role: number): string {
+	if (role >= 50) return "Administrator";
+	if (role >= 40) return "Editor";
+	if (role >= 30) return "Author";
+	if (role >= 20) return "Contributor";
+	return "Subscriber";
 }
 
 async function dismissWelcome(): Promise<void> {
@@ -64,15 +64,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 		dismissMutation.mutate();
 	};
 
-	const roleKey = getRoleKey(userRole);
-	const roleLabelMap: Record<string, string> = {
-		administrator: t`Administrator`,
-		editor: t`Editor`,
-		author: t`Author`,
-		contributor: t`Contributor`,
-		subscriber: t`Subscriber`,
-	};
-	const roleLabel = roleLabelMap[roleKey] ?? roleKey;
+	const roleLabel = getRoleLabel(userRole);
 	const isAdmin = userRole >= 50;
 
 	return (

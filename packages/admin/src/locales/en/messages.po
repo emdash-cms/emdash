@@ -480,10 +480,6 @@ msgstr "Additional data to import."
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/WelcomeModal.tsx:69
-msgid "Administrator"
-msgstr "Administrator"
-
 #. placeholder {0}: settings.middleware.afterSend.join(", ")
 #: packages/admin/src/components/settings/EmailSettings.tsx:209
 msgid "After send: {0}"
@@ -650,7 +646,7 @@ msgstr "Are you sure you want to delete the \"{0}\" field?"
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 
-#: packages/admin/src/components/WelcomeModal.tsx:128
+#: packages/admin/src/components/WelcomeModal.tsx:120
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "As an administrator, you can invite other users from the Users section."
 
@@ -683,7 +679,6 @@ msgstr "Authentication was cancelled or timed out. Please try again."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:287
-#: packages/admin/src/components/WelcomeModal.tsx:71
 msgid "Author"
 msgstr "Author"
 
@@ -1133,10 +1128,6 @@ msgstr "Continue"
 #: packages/admin/src/components/WordPressImport.tsx:2320
 msgid "Continue Import"
 msgstr "Continue Import"
-
-#: packages/admin/src/components/WelcomeModal.tsx:72
-msgid "Contributor"
-msgstr "Contributor"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:162
 #: packages/admin/src/components/users/InviteUserModal.tsx:135
@@ -1861,10 +1852,6 @@ msgstr "Edit redirect {0}"
 msgid "Edit URL"
 msgstr "Edit URL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:70
-msgid "Editor"
-msgstr "Editor"
-
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:196
 #: packages/admin/src/components/users/UserDetail.tsx:161
@@ -2249,7 +2236,7 @@ msgstr "General"
 msgid "General Settings"
 msgstr "General Settings"
 
-#: packages/admin/src/components/WelcomeModal.tsx:135
+#: packages/admin/src/components/WelcomeModal.tsx:127
 msgid "Get Started"
 msgstr "Get Started"
 
@@ -2744,7 +2731,7 @@ msgstr "Loading widgets..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:254
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:145
 #: packages/admin/src/components/users/UserList.tsx:145
-#: packages/admin/src/components/WelcomeModal.tsx:135
+#: packages/admin/src/components/WelcomeModal.tsx:127
 #: packages/admin/src/routes/bylines.tsx:236
 msgid "Loading..."
 msgstr "Loading..."
@@ -4582,10 +4569,6 @@ msgstr "Strikethrough"
 msgid "Structure"
 msgstr "Structure"
 
-#: packages/admin/src/components/WelcomeModal.tsx:73
-msgid "Subscriber"
-msgstr "Subscriber"
-
 #: packages/admin/src/components/users/UserDetail.tsx:261
 msgid "Synced"
 msgstr "Synced"
@@ -5303,11 +5286,11 @@ msgid "Website URL"
 msgstr "Website URL"
 
 #. placeholder {0}: userName.split(" ")[0]
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:96
 msgid "Welcome to EmDash, {0}!"
 msgstr "Welcome to EmDash, {0}!"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:96
 msgid "Welcome to EmDash!"
 msgstr "Welcome to EmDash!"
 
@@ -5399,15 +5382,15 @@ msgstr "Yes"
 msgid "You can close this page and return to your terminal."
 msgstr "You can close this page and return to your terminal."
 
-#: packages/admin/src/components/WelcomeModal.tsx:121
+#: packages/admin/src/components/WelcomeModal.tsx:113
 msgid "You can create and edit your own content."
 msgstr "You can create and edit your own content."
 
-#: packages/admin/src/components/WelcomeModal.tsx:119
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "You can manage content, media, menus, and taxonomies."
 
-#: packages/admin/src/components/WelcomeModal.tsx:122
+#: packages/admin/src/components/WelcomeModal.tsx:114
 msgid "You can view and contribute to the site."
 msgstr "You can view and contribute to the site."
 
@@ -5415,7 +5398,7 @@ msgstr "You can view and contribute to the site."
 msgid "You cannot change your own role"
 msgstr "You cannot change your own role"
 
-#: packages/admin/src/components/WelcomeModal.tsx:117
+#: packages/admin/src/components/WelcomeModal.tsx:109
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "You have full access to manage this site, including users, settings, and all content."
 
@@ -5440,7 +5423,7 @@ msgstr "You'll be signing up as"
 msgid "You're signed in via Cloudflare Access"
 msgstr "You're signed in via Cloudflare Access"
 
-#: packages/admin/src/components/WelcomeModal.tsx:107
+#: packages/admin/src/components/WelcomeModal.tsx:99
 msgid "Your account has been created successfully."
 msgstr "Your account has been created successfully."
 
@@ -5482,7 +5465,7 @@ msgstr "Your Name"
 msgid "Your name (optional)"
 msgstr "Your name (optional)"
 
-#: packages/admin/src/components/WelcomeModal.tsx:113
+#: packages/admin/src/components/WelcomeModal.tsx:105
 msgid "Your Role"
 msgstr "Your Role"
 
