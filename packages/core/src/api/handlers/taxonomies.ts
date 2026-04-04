@@ -246,6 +246,178 @@ export async function handleTaxonomyCreate(
 }
 
 /**
+ * Get a single taxonomy definition by name
+ */
+export async function handleTaxonomyGet(
+	db: Kysely<Database>,
+	name: string,
+): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
+	try {
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", name)
+			.executeTakeFirst();
+
+		if (!row) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Taxonomy '${name}' not found` },
+			};
+		}
+
+		return {
+			success: true,
+			data: {
+				taxonomy: {
+					id: row.id,
+					name: row.name,
+					label: row.label,
+					labelSingular: row.label_singular ?? undefined,
+					hierarchical: row.hierarchical === 1,
+					collections: row.collections ? JSON.parse(row.collections) : [],
+				},
+			},
+		};
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_GET_ERROR", message: "Failed to get taxonomy" },
+		};
+	}
+}
+
+/**
+ * Update a taxonomy definition
+ */
+export async function handleTaxonomyUpdate(
+	db: Kysely<Database>,
+	name: string,
+	input: { label?: string; hierarchical?: boolean; collections?: string[] },
+): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
+	try {
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", name)
+			.executeTakeFirst();
+
+		if (!existing) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Taxonomy '${name}' not found` },
+			};
+		}
+
+		const collections = input.collections
+			? [...new Set(input.collections)]
+			: undefined;
+
+		// Validate that referenced collections exist
+		if (collections && collections.length > 0) {
+			const existingCollections = await db
+				.selectFrom("_emdash_collections")
+				.select("slug")
+				.where("slug", "in", collections)
+				.execute();
+
+			const existingSlugs = new Set(existingCollections.map((c) => c.slug));
+			const invalid = collections.filter((c) => !existingSlugs.has(c));
+			if (invalid.length > 0) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Unknown collection(s): ${invalid.join(", ")}`,
+					},
+				};
+			}
+		}
+
+		const updates: Record<string, unknown> = {};
+		if (input.label !== undefined) updates.label = input.label;
+		if (input.hierarchical !== undefined) updates.hierarchical = input.hierarchical ? 1 : 0;
+		if (collections !== undefined) updates.collections = JSON.stringify(collections);
+
+		if (Object.keys(updates).length > 0) {
+			await db
+				.updateTable("_emdash_taxonomy_defs")
+				.set(updates)
+				.where("name", "=", name)
+				.execute();
+		}
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", name)
+			.executeTakeFirst();
+
+		return {
+			success: true,
+			data: {
+				taxonomy: {
+					id: row!.id,
+					name: row!.name,
+					label: row!.label,
+					labelSingular: row!.label_singular ?? undefined,
+					hierarchical: row!.hierarchical === 1,
+					collections: row!.collections ? JSON.parse(row!.collections) : [],
+				},
+			},
+		};
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_UPDATE_ERROR", message: "Failed to update taxonomy" },
+		};
+	}
+}
+
+/**
+ * Delete a taxonomy definition and all its terms
+ */
+export async function handleTaxonomyDelete(
+	db: Kysely<Database>,
+	name: string,
+): Promise<ApiResult<{ deleted: true }>> {
+	try {
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", name)
+			.executeTakeFirst();
+
+		if (!existing) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Taxonomy '${name}' not found` },
+			};
+		}
+
+		// Delete all terms for this taxonomy
+		const repo = new TaxonomyRepository(db);
+		const terms = await repo.findByName(name);
+		for (const term of terms) {
+			await repo.delete(term.id);
+		}
+
+		// Delete the taxonomy definition
+		await db
+			.deleteFrom("_emdash_taxonomy_defs")
+			.where("name", "=", name)
+			.execute();
+
+		return { success: true, data: { deleted: true } };
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_DELETE_ERROR", message: "Failed to delete taxonomy" },
+		};
+	}
+}
+
+/**
  * List all terms for a taxonomy (returns tree for hierarchical taxonomies)
  */
 export async function handleTermList(
