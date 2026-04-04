@@ -111,6 +111,9 @@ describe("Self-Signup", () => {
 			expect(mockEmailSend).toHaveBeenCalledTimes(1);
 			expect(sentEmails[0]!.to).toBe("newuser@allowed.com");
 			expect(sentEmails[0]!.subject).toContain("Test Site");
+			expect(sentEmails[0]!.text).toContain(
+				"https://example.com/_emdash/api/auth/signup/verify?token=",
+			);
 			expect(sentEmails[0]!.text).toContain("verify");
 		});
 
