@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@lingui/babel-plugin-lingui-macro": "catalog:",
     "@lingui/cli": "catalog:",
     "@lingui/macro": "catalog:",
     "@lingui/vite-plugin": "catalog:",

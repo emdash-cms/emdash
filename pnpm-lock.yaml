@@ -606,6 +606,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.2
+      '@lingui/babel-plugin-lingui-macro':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@5.9.3)
       '@lingui/cli':
         specifier: 'catalog:'
         version: 5.9.4(typescript@5.9.3)
