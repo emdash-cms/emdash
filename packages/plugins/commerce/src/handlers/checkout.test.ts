@@ -9,6 +9,14 @@ import type { CheckoutInput } from "../schemas.js";
 import type {
 	StoredCart,
 	StoredIdempotencyKey,
+	StoredDigitalAsset,
+	StoredDigitalEntitlement,
+	StoredProduct,
+	StoredProductAsset,
+	StoredProductAssetLink,
+	StoredBundleComponent,
+	StoredProductSku,
+	StoredProductSkuOptionValue,
 	StoredInventoryStock,
 	StoredOrder,
 	StoredPaymentAttempt,
@@ -29,6 +37,10 @@ vi.mock("../lib/rate-limit-kv.js", () => ({
 type MemCollection<T extends object> = {
 	get(id: string): Promise<T | null>;
 	put(id: string, data: T): Promise<void>;
+	query?(options?: { where?: Record<string, unknown>; limit?: number }): Promise<{
+		items: Array<{ id: string; data: T }>;
+		hasMore: boolean;
+	}>;
 	rows: Map<string, T>;
 };
 
@@ -42,6 +54,21 @@ class MemColl<T extends object> implements MemCollection<T> {
 
 	async put(id: string, data: T): Promise<void> {
 		this.rows.set(id, structuredClone(data));
+	}
+
+	async query(
+		options: { where?: Record<string, unknown>; limit?: number } = {},
+	): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
+		const where = options.where ?? {};
+		const limit = options.limit;
+		let items = Array.from(this.rows.entries(), ([id, data]) => ({ id, data }));
+		for (const [field, value] of Object.entries(where)) {
+			items = items.filter((item) => (item.data as Record<string, unknown>)[field] === value);
+		}
+		if (typeof limit === "number") {
+			items = items.slice(0, limit);
+		}
+		return { items, hasMore: false };
 	}
 }
 
@@ -90,6 +117,7 @@ function contextFor({
 	ownerToken,
 	requestMethod = "POST",
 	ip = "127.0.0.1",
+	extras,
 }: {
 	idempotencyKeys: MemCollection<StoredIdempotencyKey>;
 	orders: MemCollection<StoredOrder>;
@@ -102,6 +130,16 @@ function contextFor({
 	ownerToken?: string;
 	requestMethod?: string;
 	ip?: string;
+	extras?: {
+		products?: MemCollection<StoredProduct>;
+		productSkus?: MemCollection<StoredProductSku>;
+		productSkuOptionValues?: MemCollection<StoredProductSkuOptionValue>;
+		digitalAssets?: MemCollection<StoredDigitalAsset>;
+		digitalEntitlements?: MemCollection<StoredDigitalEntitlement>;
+		productAssetLinks?: MemCollection<StoredProductAssetLink>;
+		productAssets?: MemCollection<StoredProductAsset>;
+		bundleComponents?: MemCollection<StoredBundleComponent>;
+	};
 }): RouteContext<CheckoutInput> {
 	const req = new Request("https://example.local/checkout", {
 		method: requestMethod,
@@ -120,6 +158,7 @@ function contextFor({
 			paymentAttempts,
 			carts,
 			inventoryStock,
+			...extras,
 		},
 		requestMeta: {
 			ip,
@@ -618,5 +657,601 @@ describe("checkout route guardrails", () => {
 			kv: new MemKv(),
 		} as unknown as RouteContext<CheckoutInput>;
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+});
+
+describe("checkout order snapshot capture", () => {
+	it("stores catalog snapshot fields on order line items", async () => {
+		const now = "2026-04-04T12:00:00.000Z";
+		const cartId = "snapshot-cart";
+		const idempotencyKey = "idem-key-snapshot-16";
+		const ownerToken = "owner-token-snapshot";
+
+		const product: StoredProduct = {
+			id: "product_snapshot_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "snapshot-product",
+			title: "Snapshot Product",
+			shortDescription: "Snap short",
+			longDescription: "Snap long",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const sku: StoredProductSku = {
+			id: "sku_snapshot_1",
+			productId: product.id,
+			skuCode: "SNAP-SKU",
+			status: "active",
+			unitPriceMinor: 1200,
+			compareAtPriceMinor: 1500,
+			inventoryQuantity: 20,
+			inventoryVersion: 4,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{
+					productId: product.id,
+					variantId: sku.id,
+					quantity: 2,
+					inventoryVersion: 4,
+					unitPriceMinor: 1200,
+				},
+			],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+		const orders = new MemColl<StoredOrder>();
+		const paymentAttempts = new MemColl<StoredPaymentAttempt>();
+		const carts = new MemColl(new Map([[cartId, cart]]));
+		const inventoryStock = new MemColl(
+			new Map([
+				[
+					inventoryStockDocId(product.id, sku.id),
+					{
+						productId: product.id,
+						variantId: sku.id,
+						version: 4,
+						quantity: 5,
+						updatedAt: now,
+					},
+				],
+			]),
+		);
+		const products = new MemColl(new Map([[product.id, product]]));
+		const productSkus = new MemColl(new Map([[sku.id, sku]]));
+
+		const out = await checkoutHandler(
+			contextFor({
+				idempotencyKeys,
+				orders,
+				paymentAttempts,
+				carts,
+				inventoryStock,
+				kv: new MemKv(),
+				idempotencyKey,
+				cartId,
+				ownerToken,
+				extras: {
+					products,
+					productSkus,
+					productSkuOptionValues: new MemColl(),
+					digitalAssets: new MemColl(),
+					digitalEntitlements: new MemColl(),
+					productAssetLinks: new MemColl(),
+					productAssets: new MemColl(),
+					bundleComponents: new MemColl(),
+				},
+			}),
+		);
+
+		expect(out.totalMinor).toBe(2400);
+		const orderId = deterministicOrderId(
+			await sha256HexAsync(
+				`${CHECKOUT_ROUTE}|${cartId}|${cart.updatedAt}|${cartContentFingerprint(cart.lineItems)}|${idempotencyKey}`,
+			),
+		);
+		const order = await orders.get(orderId);
+		expect(order).toBeTruthy();
+		expect(order?.lineItems[0]?.snapshot?.productTitle).toBe("Snapshot Product");
+		expect(order?.lineItems[0]?.snapshot?.skuCode).toBe("SNAP-SKU");
+		expect(order?.lineItems[0]?.snapshot?.lineSubtotalMinor).toBe(2400);
+		expect(order?.lineItems[0]?.snapshot?.lineDiscountMinor).toBe(0);
+		expect(order?.lineItems[0]?.snapshot?.lineTotalMinor).toBe(2400);
+
+		product.title = "Updated Title";
+		sku.unitPriceMinor = 3000;
+		await products.put(product.id, product);
+		await productSkus.put(sku.id, sku);
+
+		const cachedOrder = await orders.get(orderId);
+		expect(cachedOrder?.lineItems[0]?.snapshot?.productTitle).toBe("Snapshot Product");
+	});
+
+	it("captures digital entitlement and image snapshot data", async () => {
+		const now = "2026-04-04T12:00:00.000Z";
+		const cartId = "snapshot-digital-cart";
+		const idempotencyKey = "idem-digital-16chars";
+		const ownerToken = "owner-token-digital";
+
+		const product: StoredProduct = {
+			id: "product_digital_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "snapshot-digital",
+			title: "Snapshot Digital",
+			shortDescription: "Snapshot digital short",
+			longDescription: "Snapshot digital long",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: false,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const sku: StoredProductSku = {
+			id: "sku_digital_1",
+			productId: product.id,
+			skuCode: "DIGI-SKU",
+			status: "active",
+			unitPriceMinor: 900,
+			compareAtPriceMinor: 1200,
+			inventoryQuantity: 30,
+			inventoryVersion: 2,
+			requiresShipping: false,
+			isDigital: true,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const image: StoredProductAsset = {
+			id: "asset_image_1",
+			provider: "cloudinary",
+			externalAssetId: "image-001",
+			fileName: "snapshot.jpg",
+			altText: "Snapshot cover",
+			createdAt: now,
+			updatedAt: now,
+		};
+		const imageLink: StoredProductAssetLink = {
+			id: "asset_link_image_1",
+			targetType: "product",
+			targetId: product.id,
+			assetId: image.id,
+			role: "primary_image",
+			position: 0,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const asset: StoredDigitalAsset = {
+			id: "digital_asset_1",
+			provider: "s3",
+			externalAssetId: "asset-pdf",
+			label: "Guide PDF",
+			downloadLimit: 2,
+			downloadExpiryDays: 60,
+			isManualOnly: false,
+			isPrivate: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const entitlement: StoredDigitalEntitlement = {
+			id: "entitlement_1",
+			skuId: sku.id,
+			digitalAssetId: asset.id,
+			grantedQuantity: 1,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{
+					productId: product.id,
+					variantId: sku.id,
+					quantity: 1,
+					inventoryVersion: 2,
+					unitPriceMinor: 900,
+				},
+			],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+		const orders = new MemColl<StoredOrder>();
+		const paymentAttempts = new MemColl<StoredPaymentAttempt>();
+		const carts = new MemColl(new Map([[cartId, cart]]));
+		const inventoryStock = new MemColl(
+			new Map([
+				[
+					inventoryStockDocId(product.id, sku.id),
+					{
+						productId: product.id,
+						variantId: sku.id,
+						version: 2,
+						quantity: 20,
+						updatedAt: now,
+					},
+				],
+			]),
+		);
+		const products = new MemColl(new Map([[product.id, product]]));
+		const productSkus = new MemColl(new Map([[sku.id, sku]]));
+		const productAssets = new MemColl(new Map([[image.id, image]]));
+		const productAssetLinks = new MemColl(new Map([[imageLink.id, imageLink]]));
+		const digitalAssets = new MemColl(new Map([[asset.id, asset]]));
+		const digitalEntitlements = new MemColl(new Map([[entitlement.id, entitlement]]));
+
+		await checkoutHandler(
+			contextFor({
+				idempotencyKeys,
+				orders,
+				paymentAttempts,
+				carts,
+				inventoryStock,
+				kv: new MemKv(),
+				idempotencyKey,
+				cartId,
+				ownerToken,
+				extras: {
+					products,
+					productSkus,
+					productSkuOptionValues: new MemColl(),
+					digitalAssets,
+					digitalEntitlements,
+					productAssetLinks,
+					productAssets,
+					bundleComponents: new MemColl(),
+				},
+			}),
+		);
+
+		const orderId = deterministicOrderId(
+			await sha256HexAsync(
+				`${CHECKOUT_ROUTE}|${cartId}|${cart.updatedAt}|${cartContentFingerprint(cart.lineItems)}|${idempotencyKey}`,
+			),
+		);
+		const order = await orders.get(orderId);
+		const snapshot = order?.lineItems[0]?.snapshot;
+		expect(snapshot?.digitalEntitlements).toEqual([
+			{
+				entitlementId: entitlement.id,
+				digitalAssetId: asset.id,
+				digitalAssetLabel: asset.label,
+				grantedQuantity: entitlement.grantedQuantity,
+				downloadLimit: asset.downloadLimit,
+				downloadExpiryDays: asset.downloadExpiryDays,
+				isManualOnly: asset.isManualOnly,
+				isPrivate: asset.isPrivate,
+			},
+		]);
+		expect(snapshot?.image).toMatchObject({
+			assetId: image.id,
+			provider: image.provider,
+			externalAssetId: image.externalAssetId,
+		});
+	});
+
+	it("persists frozen snapshot during idempotent checkout replay", async () => {
+		const now = "2026-04-05T12:00:00.000Z";
+		const cartId = "snapshot-replay-cart";
+		const idempotencyKey = "idem-key-replay-16";
+		const ownerToken = "owner-token-replay";
+
+		const product: StoredProduct = {
+			id: "product_replay_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "snapshot-replay",
+			title: "Replay Product",
+			shortDescription: "Replay short",
+			longDescription: "Replay long",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const sku: StoredProductSku = {
+			id: "sku_replay_1",
+			productId: product.id,
+			skuCode: "REPLAY-SKU",
+			status: "active",
+			unitPriceMinor: 1500,
+			inventoryQuantity: 12,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{
+					productId: product.id,
+					variantId: sku.id,
+					quantity: 1,
+					inventoryVersion: 1,
+					unitPriceMinor: 1500,
+				},
+			],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+		const orders = new MemColl<StoredOrder>();
+		const paymentAttempts = new MemColl<StoredPaymentAttempt>();
+		const carts = new MemColl(new Map([[cartId, cart]]));
+		const inventoryStock = new MemColl(
+			new Map([
+				[
+					inventoryStockDocId(product.id, sku.id),
+					{
+						productId: product.id,
+						variantId: sku.id,
+						version: 1,
+						quantity: 6,
+						updatedAt: now,
+					},
+				],
+			]),
+		);
+		const ctx = contextFor({
+			idempotencyKeys,
+			orders,
+			paymentAttempts,
+			carts,
+			inventoryStock,
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+			ownerToken,
+			extras: {
+				products: new MemColl(new Map([[product.id, product]])),
+				productSkus: new MemColl(new Map([[sku.id, sku]])),
+				productSkuOptionValues: new MemColl(),
+				digitalAssets: new MemColl(),
+				digitalEntitlements: new MemColl(),
+				productAssetLinks: new MemColl(),
+				productAssets: new MemColl(),
+				bundleComponents: new MemColl(),
+			},
+		});
+
+		const first = await checkoutHandler(ctx);
+		product.title = "Mutated Replay Product";
+		sku.unitPriceMinor = 9999;
+		await (ctx.storage.products as MemColl<StoredProduct>).put(product.id, product);
+		await (ctx.storage.productSkus as MemColl<StoredProductSku>).put(sku.id, sku);
+		const second = await checkoutHandler(ctx);
+		expect(second.orderId).toBe(first.orderId);
+
+		const orderId = deterministicOrderId(
+			await sha256HexAsync(
+				`${CHECKOUT_ROUTE}|${cartId}|${cart.updatedAt}|${cartContentFingerprint(cart.lineItems)}|${idempotencyKey}`,
+			),
+		);
+		const order = await orders.get(orderId);
+		expect(order?.lineItems[0]?.snapshot?.productTitle).toBe("Replay Product");
+		expect(second.totalMinor).toBe(first.totalMinor);
+	});
+
+	it("captures bundle summary in snapshot", async () => {
+		const now = "2026-04-06T12:00:00.000Z";
+		const cartId = "snapshot-bundle-cart";
+		const idempotencyKey = "idem-key-bundle-16";
+		const ownerToken = "owner-token-bundle";
+
+		const componentProductA: StoredProduct = {
+			id: "bundle_component_product_a",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "component-a",
+			title: "Component A",
+			shortDescription: "Component A short",
+			longDescription: "Component A long",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const componentProductB: StoredProduct = {
+			id: "bundle_component_product_b",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "component-b",
+			title: "Component B",
+			shortDescription: "Component B short",
+			longDescription: "Component B long",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const bundle: StoredProduct = {
+			id: "bundle_product_1",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "snapshot-bundle",
+			title: "Snapshot Bundle",
+			shortDescription: "Bundle short",
+			longDescription: "Bundle long",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			bundleDiscountType: "percentage",
+			bundleDiscountValueBps: 10_000,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const componentSkuA: StoredProductSku = {
+			id: "bundle_component_sku_a",
+			productId: componentProductA.id,
+			skuCode: "COMP-A",
+			status: "active",
+			unitPriceMinor: 1000,
+			inventoryQuantity: 20,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const componentSkuB: StoredProductSku = {
+			id: "bundle_component_sku_b",
+			productId: componentProductB.id,
+			skuCode: "COMP-B",
+			status: "active",
+			unitPriceMinor: 500,
+			inventoryQuantity: 9,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const componentA: StoredBundleComponent = {
+			id: "bundle_comp_link_a",
+			bundleProductId: bundle.id,
+			componentSkuId: componentSkuA.id,
+			quantity: 2,
+			position: 0,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const componentB: StoredBundleComponent = {
+			id: "bundle_comp_link_b",
+			bundleProductId: bundle.id,
+			componentSkuId: componentSkuB.id,
+			quantity: 1,
+			position: 1,
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{
+					productId: bundle.id,
+					quantity: 2,
+					inventoryVersion: 1,
+					unitPriceMinor: 0,
+				},
+			],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+		const orders = new MemColl<StoredOrder>();
+		const paymentAttempts = new MemColl<StoredPaymentAttempt>();
+		const carts = new MemColl(new Map([[cartId, cart]]));
+		const inventoryStock = new MemColl(
+			new Map([
+				[
+					inventoryStockDocId(bundle.id, ""),
+					{
+						productId: bundle.id,
+						variantId: "",
+						version: 1,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		);
+		const products = new MemColl(
+			new Map([
+				[componentProductA.id, componentProductA],
+				[componentProductB.id, componentProductB],
+				[bundle.id, bundle],
+			]),
+		);
+		const productSkus = new MemColl(
+			new Map([
+				[componentSkuA.id, componentSkuA],
+				[componentSkuB.id, componentSkuB],
+			]),
+		);
+		const bundleComponents = new MemColl(
+			new Map([
+				[componentA.id, componentA],
+				[componentB.id, componentB],
+			]),
+		);
+
+		await checkoutHandler(
+			contextFor({
+				idempotencyKeys,
+				orders,
+				paymentAttempts,
+				carts,
+				inventoryStock,
+				kv: new MemKv(),
+				idempotencyKey,
+				cartId,
+				ownerToken,
+				extras: {
+					products,
+					productSkus,
+					productSkuOptionValues: new MemColl(),
+					digitalAssets: new MemColl(),
+					digitalEntitlements: new MemColl(),
+					productAssetLinks: new MemColl(),
+					productAssets: new MemColl(),
+					bundleComponents,
+				},
+			}),
+		);
+
+		const orderId = deterministicOrderId(
+			await sha256HexAsync(
+				`${CHECKOUT_ROUTE}|${cartId}|${cart.updatedAt}|${cartContentFingerprint(cart.lineItems)}|${idempotencyKey}`,
+			),
+		);
+		const order = await orders.get(orderId);
+		const snapshot = order?.lineItems[0]?.snapshot;
+		expect(snapshot?.bundleSummary).toMatchObject({
+			subtotalMinor: 2500,
+			discountType: "percentage",
+			discountValueBps: 10_000,
+			discountAmountMinor: 2500,
+			finalPriceMinor: 0,
+			availability: 9,
+		});
+		expect(snapshot?.lineSubtotalMinor).toBe(5000);
+		expect(snapshot?.lineDiscountMinor).toBe(5000);
+		expect(snapshot?.lineTotalMinor).toBe(0);
+		expect(order?.lineItems[0]?.unitPriceMinor).toBe(0);
 	});
 });

@@ -34,12 +34,82 @@ export interface StoredCart {
 }
 
 export interface OrderLineItem {
-	/** Catalog id; avoid duplicating canonical product copy on the order snapshot. */
+	snapshot?: OrderLineItemSnapshot;
+	/** Catalog id for historical order display. */
 	productId: string;
 	variantId?: string;
 	quantity: number;
 	inventoryVersion: number;
 	unitPriceMinor: number;
+}
+
+export interface OrderLineItemOptionSelection {
+	attributeId: string;
+	attributeValueId: string;
+}
+
+export interface OrderLineItemImageSnapshot {
+	linkId: string;
+	assetId: string;
+	provider: string;
+	externalAssetId: string;
+	fileName?: string;
+	altText?: string;
+}
+
+export interface OrderLineItemDigitalEntitlementSnapshot {
+	entitlementId: string;
+	digitalAssetId: string;
+	digitalAssetLabel?: string;
+	grantedQuantity: number;
+	downloadLimit?: number;
+	downloadExpiryDays?: number;
+	isManualOnly: boolean;
+	isPrivate: boolean;
+}
+
+export interface OrderLineItemBundleComponentSummary {
+	componentId: string;
+	componentSkuId: string;
+	componentSkuCode: string;
+	componentProductId: string;
+	componentPriceMinor: number;
+	quantityPerBundle: number;
+	subtotalContributionMinor: number;
+	availableBundleQuantity: number;
+}
+
+export interface OrderLineItemBundleSummary {
+	productId: string;
+	subtotalMinor: number;
+	discountType: BundleDiscountType;
+	discountValueMinor: number;
+	discountValueBps: number;
+	discountAmountMinor: number;
+	finalPriceMinor: number;
+	availability: number;
+	components: OrderLineItemBundleComponentSummary[];
+}
+
+export interface OrderLineItemSnapshot {
+	productId: string;
+	skuId: string;
+	productType: ProductType;
+	productTitle: string;
+	productSlug?: string;
+	skuCode: string;
+	selectedOptions: OrderLineItemOptionSelection[];
+	currency: string;
+	unitPriceMinor: number;
+	compareAtPriceMinor?: number;
+	lineSubtotalMinor: number;
+	lineDiscountMinor: number;
+	lineTotalMinor: number;
+	requiresShipping: boolean;
+	isDigital: boolean;
+	image?: OrderLineItemImageSnapshot;
+	bundleSummary?: OrderLineItemBundleSummary;
+	digitalEntitlements?: OrderLineItemDigitalEntitlementSnapshot[];
 }
 
 export interface StoredOrder {
@@ -136,6 +206,7 @@ export type ProductType = "simple" | "variable" | "bundle";
 export type ProductStatus = "draft" | "active" | "archived";
 export type ProductVisibility = "public" | "hidden";
 export type ProductSkuStatus = "active" | "inactive";
+export type BundleDiscountType = "none" | "fixed_amount" | "percentage";
 
 export interface StoredProduct {
 	id: string;
@@ -153,6 +224,9 @@ export interface StoredProduct {
 	requiresShippingDefault: boolean;
 	taxClassDefault?: string;
 	metadataJson?: Record<string, unknown>;
+	bundleDiscountType?: BundleDiscountType;
+	bundleDiscountValueMinor?: number;
+	bundleDiscountValueBps?: number;
 	createdAt: string;
 	updatedAt: string;
 	publishedAt?: string;
@@ -229,9 +303,53 @@ export interface StoredDigitalEntitlement {
 	updatedAt: string;
 }
 
+export interface StoredCategory {
+	id: string;
+	name: string;
+	slug: string;
+	parentId?: string;
+	position: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface StoredProductCategoryLink {
+	id: string;
+	productId: string;
+	categoryId: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface StoredProductTag {
+	id: string;
+	name: string;
+	slug: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface StoredProductTagLink {
+	id: string;
+	productId: string;
+	tagId: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface StoredBundleComponent {
+	id: string;
+	bundleProductId: string;
+	componentSkuId: string;
+	quantity: number;
+	position: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export type ProductAssetLinkTarget = "product" | "sku";
 
-export type ProductAssetRole = "primary_image" | "gallery_image";
+export type ProductAssetRole = "primary_image" | "gallery_image" | "variant_image";
 
 export interface StoredProductAsset {
 	id: string;

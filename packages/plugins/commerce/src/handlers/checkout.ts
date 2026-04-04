@@ -9,6 +9,7 @@ import { PluginRouteError } from "emdash";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
+import { buildOrderLineSnapshots } from "../lib/catalog-order-snapshots.js";
 import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
@@ -25,6 +26,14 @@ import type {
 	StoredCart,
 	StoredIdempotencyKey,
 	StoredOrder,
+	StoredProduct,
+	StoredProductAsset,
+	StoredProductAssetLink,
+	StoredProductSku,
+	StoredProductSkuOptionValue,
+	StoredDigitalAsset,
+	StoredDigitalEntitlement,
+	StoredBundleComponent,
 	StoredPaymentAttempt,
 	StoredInventoryStock,
 	OrderLineItem,
@@ -45,6 +54,29 @@ import {
 
 function asCollection<T>(raw: unknown): StorageCollection<T> {
 	return raw as StorageCollection<T>;
+}
+
+type SnapshotQueryCollection<T> = {
+	get(id: string): Promise<T | null>;
+	query(options?: { where?: Record<string, unknown>; limit?: number }): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
+};
+
+function asSnapshotCollection<T>(raw: unknown): SnapshotQueryCollection<T> {
+	if (raw) {
+		const collection = raw as { get: (id: string) => Promise<T | null>; query?: SnapshotQueryCollection<T>["query"] };
+		return {
+			get: collection.get.bind(collection),
+			query: collection.query ? collection.query.bind(collection) : async () => ({ items: [], hasMore: false }),
+		};
+	}
+	return {
+		async get() {
+			return null;
+		},
+		async query() {
+			return { items: [], hasMore: false };
+		},
+	};
 }
 
 export async function checkoutHandler(
@@ -181,7 +213,25 @@ export async function checkoutHandler(
 		);
 	}
 
-	const totalMinor = orderLineItems.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
+	const productSnapshots = await buildOrderLineSnapshots(orderLineItems, cart.currency, {
+		products: asSnapshotCollection<StoredProduct>(ctx.storage.products),
+		productSkus: asSnapshotCollection<StoredProductSku>(ctx.storage.productSkus),
+		productSkuOptionValues: asSnapshotCollection<StoredProductSkuOptionValue>(
+			ctx.storage.productSkuOptionValues,
+		),
+		productDigitalAssets: asSnapshotCollection<StoredDigitalAsset>(ctx.storage.digitalAssets),
+		productDigitalEntitlements: asSnapshotCollection<StoredDigitalEntitlement>(ctx.storage.digitalEntitlements),
+		productAssetLinks: asSnapshotCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks),
+		productAssets: asSnapshotCollection<StoredProductAsset>(ctx.storage.productAssets),
+		bundleComponents: asSnapshotCollection<StoredBundleComponent>(ctx.storage.bundleComponents),
+	});
+	const orderLineItemsWithSnapshots = orderLineItems.map((line, index) => ({
+		...line,
+		snapshot: productSnapshots[index],
+		unitPriceMinor: productSnapshots[index]?.unitPriceMinor ?? line.unitPriceMinor,
+	}));
+
+	const totalMinor = orderLineItemsWithSnapshots.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
 	const orderId = deterministicOrderId(keyHash);
 
 	const finalizeToken = await randomHex(24);
@@ -191,7 +241,7 @@ export async function checkoutHandler(
 		cartId: ctx.input.cartId,
 		paymentPhase: "payment_pending",
 		currency: cart.currency,
-		lineItems: orderLineItems,
+		lineItems: orderLineItemsWithSnapshots,
 		totalMinor,
 		finalizeTokenHash,
 		createdAt: nowIso,
@@ -217,7 +267,7 @@ export async function checkoutHandler(
 		finalizeToken,
 		totalMinor,
 		currency: cart.currency,
-		lineItems: orderLineItems,
+		lineItems: orderLineItemsWithSnapshots,
 		createdAt: nowIso,
 	};
 

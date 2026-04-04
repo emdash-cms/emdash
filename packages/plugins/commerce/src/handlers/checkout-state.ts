@@ -6,6 +6,7 @@ import type {
 	StoredIdempotencyKey,
 	StoredOrder,
 	StoredPaymentAttempt,
+	OrderLineItem,
 } from "../types.js";
 import { resolvePaymentProviderId as resolvePaymentProviderIdFromContracts } from "../services/commerce-provider-contracts.js";
 import { throwCommerceApiError } from "../route-errors.js";
@@ -23,13 +24,7 @@ export type CheckoutPendingState = {
 	finalizeToken: string;
 	totalMinor: number;
 	currency: string;
-	lineItems: Array<{
-		productId: string;
-		variantId?: string;
-		quantity: number;
-		inventoryVersion: number;
-		unitPriceMinor: number;
-	}>;
+	lineItems: OrderLineItem[];
 	createdAt: string;
 };
 

@@ -16,13 +16,13 @@ todos:
     status: completed
   - id: phase-5-bundles
     content: Add bundle component model, discount computation, and derived availability semantics with tests.
-    status: pending
+    status: completed
   - id: phase-6-catalog-org
     content: Add categories/tags + link tables and catalog list/detail retrieval filters.
-    status: pending
+    status: completed
   - id: phase-7-order-snapshots
     content: Add order line snapshot payloads at checkout-time and enforce snapshot-based historical correctness.
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -274,6 +274,14 @@ if (new Set(options.map((o) => o.attributeId)).size !== options.length) throw ..
 4. Add utility in [`packages/plugins/commerce/src/lib`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/lib) or new helper file for deterministic discount and availability.
 5. Add integration tests (price/availability, invalid component refs, recursive prevention where possible via validation).
 
+#### Execution status (current)
+Completed in this implementation pass with:
+- `bundleComponents` collection and indexes added in storage/types.
+- bundle discount fields stored on `StoredProduct`.
+- `bundle-components/*` and `bundle/compute` routes exposed in `index.ts`.
+- deterministic bundle compute helper added in `src/lib/catalog-bundles.ts`.
+- handler-level tests in `handlers/catalog.test.ts` covering add/reorder/remove/compute and invalid composition.
+
 ```ts
 const derived = components.reduce((sum, c) => sum + c.priceMinor * c.qty, 0);
 const discountMinor = discountType === 'percentage' ? Math.floor(derived * (discountBps ?? 0) / 10_000) : Math.max(0, fixedAmount ?? 0);
@@ -307,6 +315,16 @@ const finalMinor = Math.max(0, derived - discountMinor);
    - admin retrieval shape includes lifecycle/inventory summary hints
 5. Implement response mapping through the shared DTO builders in [`packages/plugins/commerce/src/handlers/catalog.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/handlers/catalog.ts).
 6. Route additions in [`packages/plugins/commerce/src/index.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/index.ts).
+7. Route-level response-shape validation and filter/list behavior for `categoryId`/`tagId` included in `ProductResponse` and listing handlers.
+
+#### Execution status (current)
+Completed in this implementation pass with:
+- category/tag entities and link rows added in types/storage.
+- category/tag DTO members and catalog request filtering enabled in handlers.
+- category/tag routes exposed through `index.ts` with list/create/link/unlink endpoints.
+
+#### Residual checks before phase closure
+- Ensure all schema-level route contract tests include category/tag indexes/lookup paths.
 
 ### Phase 7 — Order snapshot integration
 - **Strategy A (chosen): Snapshot within order line payload at checkout write time.**
@@ -319,6 +337,16 @@ const finalMinor = Math.max(0, derived - discountMinor);
   - eventual consistency risk for order history integrity.
 
 **Why A wins:** reaches required behavior quickly with smallest blast radius.
+
+#### Execution status (current)
+- Snapshot shape and snapshot line payload now extended in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts).
+- Snapshot utility added in [`packages/plugins/commerce/src/lib/catalog-order-snapshots.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/lib/catalog-order-snapshots.ts).
+- Checkout now enriches and persists snapshots in [`packages/plugins/commerce/src/handlers/checkout.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/handlers/checkout.ts) and stores them in pending state for replay.
+- Checkout regression coverage added in [`packages/plugins/commerce/src/handlers/checkout.test.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/handlers/checkout.test.ts).
+- Snapshot coverage now includes:
+  - digital entitlement and image snapshot assertions,
+  - bundle summary assertions,
+  - idempotent checkout replay invariance (frozen snapshot retained on repeated replay).
 
 #### Implement
 1. Expand `OrderLineItem` in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts) with a `snapshot` field.
