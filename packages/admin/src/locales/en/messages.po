@@ -29,6 +29,13 @@ msgstr " matching \"{searchQuery}\""
 msgid "(default)"
 msgstr "(default)"
 
+#. placeholder {0}: seedInfo.collections
+#. placeholder {1}: /** * Setup Wizard - Multi-step first-run setup page * * This component is NOT wrapped in the admin Shell. * It's a standalone page for initial site configuration. * * Steps: * 1. Site Configuration (title, tagline, sample content) * 2. Admin Account (email, name) * 3. Passkey Registration */ import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo"; import { Plural, useLingui } from "@lingui/react/macro"; import { useMutation, useQuery } from "@tanstack/react-query"; import * as React from "react"; import { apiFetch, parseApiResponse } from "../lib/api/client"; import { PasskeyRegistration } from "./auth/PasskeyRegistration"; import { LogoLockup } from "./Logo.js"; // ============================================================================ // Types // ============================================================================ interface SetupStatusResponse { needsSetup: boolean; step?: "start" | "site" | "admin" | "complete"; seedInfo?: { name: string; description: string; collections: number; hasContent: boolean; }; /** Auth mode - "cloudflare-access" or "passkey" */ authMode?: "cloudflare-access" | "passkey"; } interface SetupSiteRequest { title: string; tagline?: string; includeContent: boolean; } interface SetupSiteResponse { success: boolean; error?: string; /** In Access mode, setup is complete after site config */ setupComplete?: boolean; result?: { collections: { created: number; skipped: number }; fields: { created: number; skipped: number }; taxonomies: { created: number; terms: number }; menus: { created: number; items: number }; widgetAreas: { created: number; widgets: number }; settings: { applied: number }; content: { created: number; skipped: number }; }; } interface SetupAdminRequest { email: string; name?: string; } interface SetupAdminResponse { success: boolean; error?: string; options?: unknown; // WebAuthn registration options } type WizardStep = "site" | "admin" | "passkey"; // ============================================================================ // API Functions // ============================================================================ async function fetchSetupStatus(): Promise<SetupStatusResponse> { const response = await apiFetch("/_emdash/api/setup/status"); return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status"); } async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> { const response = await apiFetch("/_emdash/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupSiteResponse>(response, "Setup failed"); } async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> { const response = await apiFetch("/_emdash/api/setup/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin"); } // ============================================================================ // Step Components // ============================================================================ interface SiteStepProps { seedInfo?: SetupStatusResponse["seedInfo"]; onNext: (data: SetupSiteRequest) => void; isLoading: boolean; error?: string; } function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) { const { t } = useLingui(); const [title, setTitle] = React.useState(""); const [tagline, setTagline] = React.useState(""); const [includeContent, setIncludeContent] = React.useState(true); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!title.trim()) { newErrors.title = t`Site title is required`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ title, tagline, includeContent }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Site Title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t`My Awesome Blog`} className={errors.title ? "border-kumo-danger" : ""} disabled={isLoading} /> {errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>} <Input label={t`Tagline`} type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t`Thoughts, tutorials, and more`} disabled={isLoading} /> </div> {seedInfo?.hasContent && ( <Checkbox label={t`Include sample content (recommended for new sites)`} checked={includeContent} onCheckedChange={(checked) => setIncludeContent(checked)} disabled={isLoading} /> )} {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary"> {isLoading ? <>{t`Setting up...`}</> : t`Continue`} </Button> {seedInfo && ( <p className="text-xs text-kumo-subtle text-center"> <Plural value={seedInfo.collections} one={t`Template: ${seedInfo.name} (# collection)`} other={t`Template: ${seedInfo.name} (# collections)`} /> </p> )} </form> ); } interface AdminStepProps { onNext: (data: SetupAdminRequest) => void; onBack: () => void; isLoading: boolean; error?: string; } function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) { const { t } = useLingui(); const [email, setEmail] = React.useState(""); const [name, setName] = React.useState(""); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!email.trim()) { newErrors.email = t`Email is required`; } else if (!email.includes("@")) { newErrors.email = t`Please enter a valid email`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ email, name: name || undefined }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Your Email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={errors.email ? "border-kumo-danger" : ""} disabled={isLoading} autoComplete="email" /> {errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>} <Input label={t`Your Name`} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" disabled={isLoading} autoComplete="name" /> </div> {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <div className="flex gap-3"> <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}> {t`Back`} </Button> <Button type="submit" className="flex-1 justify-center" loading={isLoading} variant="primary" > {isLoading ? <>{t`Preparing...`}</> : t`Continue`} </Button> </div> </form> ); } interface PasskeyStepProps { adminData: SetupAdminRequest; onBack: () => void; } function handlePasskeySuccess() { // Redirect to admin dashboard after successful registration window.location.href = "/_emdash/admin"; } function PasskeyStep({ adminData, onBack }: PasskeyStepProps) { const { t } = useLingui(); return ( <div className="space-y-6"> <div className="text-center"> <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4"> <svg className="w-8 h-8 text-kumo-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" > <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /> </svg> </div> <h3 className="text-lg font-medium">{t`Set up your passkey`}</h3> <p className="text-sm text-kumo-subtle mt-1"> {t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`} </p> </div> <PasskeyRegistration optionsEndpoint="/_emdash/api/setup/admin" verifyEndpoint="/_emdash/api/setup/admin/verify" onSuccess={handlePasskeySuccess} buttonText={t`Create Passkey`} additionalData={{ ...adminData }} /> <Button type="button" variant="ghost" onClick={onBack} className="w-full"> {t`Back`} </Button> </div> ); } // ============================================================================ // Progress Indicator // ============================================================================ interface StepIndicatorProps { currentStep: WizardStep; useAccessAuth?: boolean; } function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) { const { t } = useLingui(); // In Access mode, only show the site step const steps = useAccessAuth ? ([{ key: "site", label: t`Site Settings` }] as const) : ([ { key: "site", label: t`Site` }, { key: "admin", label: t`Account` }, { key: "passkey", label: t`Passkey` }, ] as const); const currentIndex = steps.findIndex((s) => s.key === currentStep); return ( <div className="flex items-center justify-center mb-8"> {steps.map((step, index) => ( <React.Fragment key={step.key}> <div className="flex items-center"> <div className={` w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${ index < currentIndex ? "bg-kumo-brand text-white" : index === currentIndex ? "bg-kumo-brand text-white" : "bg-kumo-tint text-kumo-subtle" } `} > {index < currentIndex ? ( <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> </svg> ) : ( index + 1 )} </div> <span className={`ml-2 text-sm ${ index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle" }`} > {step.label} </span> </div> {index < steps.length - 1 && ( <div className={`w-12 h-0.5 mx-2 ${index < currentIndex ? "bg-kumo-brand" : "bg-kumo-tint"}`} /> )} </React.Fragment> ))} </div> ); } // ============================================================================ // Main Component // ============================================================================ export function SetupWizard() { const { t } = useLingui(); const [currentStep, setCurrentStep] = React.useState<WizardStep>("site"); const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null); const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null); const [error, setError] = React.useState<string | undefined>(); // Check setup status const { data: status, isLoading: statusLoading, error: statusError, } = useQuery({ queryKey: ["setup", "status"], queryFn: fetchSetupStatus, retry: false, }); // Check if using Cloudflare Access auth const useAccessAuth = status?.authMode === "cloudflare-access"; // Site setup mutation const siteMutation = useMutation({ mutationFn: executeSiteSetup, onSuccess: (data) => { setError(undefined); // In Access mode, setup is complete - redirect to admin if (data.setupComplete) { window.location.href = "/_emdash/admin"; return; } // Otherwise continue to admin account creation setCurrentStep("admin"); }, onError: (err: Error) => { setError(err.message); }, }); // Admin setup mutation const adminMutation = useMutation({ mutationFn: executeAdminSetup, onSuccess: () => { setError(undefined); setCurrentStep("passkey"); }, onError: (err: Error) => { setError(err.message); }, }); // Handle site step completion const handleSiteNext = (data: SetupSiteRequest) => { setSiteData(data); siteMutation.mutate(data); }; // Handle admin step completion const handleAdminNext = (data: SetupAdminRequest) => { setAdminData(data); adminMutation.mutate(data); }; // Redirect if setup already complete if (!statusLoading && status && !status.needsSetup) { window.location.href = "/_emdash/admin"; return null; } // Loading state if (statusLoading) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <Loader /> <p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p> </div> </div> ); } // Error state if (statusError) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1> <p className="mt-2 text-kumo-subtle"> {statusError instanceof Error ? statusError.message : t`Failed to load setup`} </p> </div> </div> ); } return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base p-4"> <div className="w-full max-w-lg"> {/* Header */} <div className="text-center mb-6"> <LogoLockup className="h-10 mx-auto mb-2" /> <h1 className="text-2xl font-semibold text-kumo-default"> {currentStep === "site" && t`Set up your site`} {currentStep === "admin" && t`Create your account`} {currentStep === "passkey" && t`Secure your account`} </h1> {useAccessAuth && currentStep === "site" && ( <p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p> )} </div> {/* Progress */} <StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} /> {/* Form Card */} <div className="bg-kumo-base border rounded-lg shadow-sm p-6"> {currentStep === "site" && ( <SiteStep seedInfo={status?.seedInfo} onNext={handleSiteNext} isLoading={siteMutation.isPending} error={error} /> )} {currentStep === "admin" && ( <AdminStep onNext={handleAdminNext} onBack={() => { setError(undefined); setCurrentStep("site"); }} isLoading={adminMutation.isPending} error={error} /> )} {currentStep === "passkey" && adminData && ( <PasskeyStep adminData={adminData} onBack={() => { setError(undefined); setCurrentStep("admin"); }} /> )} </div> </div> </div> ); } 
+#. placeholder {2}: /** * Setup Wizard - Multi-step first-run setup page * * This component is NOT wrapped in the admin Shell. * It's a standalone page for initial site configuration. * * Steps: * 1. Site Configuration (title, tagline, sample content) * 2. Admin Account (email, name) * 3. Passkey Registration */ import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo"; import { Plural, useLingui } from "@lingui/react/macro"; import { useMutation, useQuery } from "@tanstack/react-query"; import * as React from "react"; import { apiFetch, parseApiResponse } from "../lib/api/client"; import { PasskeyRegistration } from "./auth/PasskeyRegistration"; import { LogoLockup } from "./Logo.js"; // ============================================================================ // Types // ============================================================================ interface SetupStatusResponse { needsSetup: boolean; step?: "start" | "site" | "admin" | "complete"; seedInfo?: { name: string; description: string; collections: number; hasContent: boolean; }; /** Auth mode - "cloudflare-access" or "passkey" */ authMode?: "cloudflare-access" | "passkey"; } interface SetupSiteRequest { title: string; tagline?: string; includeContent: boolean; } interface SetupSiteResponse { success: boolean; error?: string; /** In Access mode, setup is complete after site config */ setupComplete?: boolean; result?: { collections: { created: number; skipped: number }; fields: { created: number; skipped: number }; taxonomies: { created: number; terms: number }; menus: { created: number; items: number }; widgetAreas: { created: number; widgets: number }; settings: { applied: number }; content: { created: number; skipped: number }; }; } interface SetupAdminRequest { email: string; name?: string; } interface SetupAdminResponse { success: boolean; error?: string; options?: unknown; // WebAuthn registration options } type WizardStep = "site" | "admin" | "passkey"; // ============================================================================ // API Functions // ============================================================================ async function fetchSetupStatus(): Promise<SetupStatusResponse> { const response = await apiFetch("/_emdash/api/setup/status"); return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status"); } async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> { const response = await apiFetch("/_emdash/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupSiteResponse>(response, "Setup failed"); } async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> { const response = await apiFetch("/_emdash/api/setup/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), }); return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin"); } // ============================================================================ // Step Components // ============================================================================ interface SiteStepProps { seedInfo?: SetupStatusResponse["seedInfo"]; onNext: (data: SetupSiteRequest) => void; isLoading: boolean; error?: string; } function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) { const { t } = useLingui(); const [title, setTitle] = React.useState(""); const [tagline, setTagline] = React.useState(""); const [includeContent, setIncludeContent] = React.useState(true); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!title.trim()) { newErrors.title = t`Site title is required`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ title, tagline, includeContent }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Site Title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t`My Awesome Blog`} className={errors.title ? "border-kumo-danger" : ""} disabled={isLoading} /> {errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>} <Input label={t`Tagline`} type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t`Thoughts, tutorials, and more`} disabled={isLoading} /> </div> {seedInfo?.hasContent && ( <Checkbox label={t`Include sample content (recommended for new sites)`} checked={includeContent} onCheckedChange={(checked) => setIncludeContent(checked)} disabled={isLoading} /> )} {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary"> {isLoading ? <>{t`Setting up...`}</> : t`Continue`} </Button> {seedInfo && ( <p className="text-xs text-kumo-subtle text-center"> <Plural value={seedInfo.collections} one={t`Template: ${seedInfo.name} (# collection)`} other={t`Template: ${seedInfo.name} (# collections)`} /> </p> )} </form> ); } interface AdminStepProps { onNext: (data: SetupAdminRequest) => void; onBack: () => void; isLoading: boolean; error?: string; } function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) { const { t } = useLingui(); const [email, setEmail] = React.useState(""); const [name, setName] = React.useState(""); const [errors, setErrors] = React.useState<Record<string, string>>({}); const validate = (): boolean => { const newErrors: Record<string, string> = {}; if (!email.trim()) { newErrors.email = t`Email is required`; } else if (!email.includes("@")) { newErrors.email = t`Please enter a valid email`; } setErrors(newErrors); return Object.keys(newErrors).length === 0; }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; onNext({ email, name: name || undefined }); }; return ( <form onSubmit={handleSubmit} className="space-y-6"> <div className="space-y-4"> <Input label={t`Your Email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={errors.email ? "border-kumo-danger" : ""} disabled={isLoading} autoComplete="email" /> {errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>} <Input label={t`Your Name`} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" disabled={isLoading} autoComplete="name" /> </div> {error && ( <div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div> )} <div className="flex gap-3"> <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}> {t`Back`} </Button> <Button type="submit" className="flex-1 justify-center" loading={isLoading} variant="primary" > {isLoading ? <>{t`Preparing...`}</> : t`Continue`} </Button> </div> </form> ); } interface PasskeyStepProps { adminData: SetupAdminRequest; onBack: () => void; } function handlePasskeySuccess() { // Redirect to admin dashboard after successful registration window.location.href = "/_emdash/admin"; } function PasskeyStep({ adminData, onBack }: PasskeyStepProps) { const { t } = useLingui(); return ( <div className="space-y-6"> <div className="text-center"> <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4"> <svg className="w-8 h-8 text-kumo-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" > <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /> </svg> </div> <h3 className="text-lg font-medium">{t`Set up your passkey`}</h3> <p className="text-sm text-kumo-subtle mt-1"> {t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`} </p> </div> <PasskeyRegistration optionsEndpoint="/_emdash/api/setup/admin" verifyEndpoint="/_emdash/api/setup/admin/verify" onSuccess={handlePasskeySuccess} buttonText={t`Create Passkey`} additionalData={{ ...adminData }} /> <Button type="button" variant="ghost" onClick={onBack} className="w-full"> {t`Back`} </Button> </div> ); } // ============================================================================ // Progress Indicator // ============================================================================ interface StepIndicatorProps { currentStep: WizardStep; useAccessAuth?: boolean; } function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) { const { t } = useLingui(); // In Access mode, only show the site step const steps = useAccessAuth ? ([{ key: "site", label: t`Site Settings` }] as const) : ([ { key: "site", label: t`Site` }, { key: "admin", label: t`Account` }, { key: "passkey", label: t`Passkey` }, ] as const); const currentIndex = steps.findIndex((s) => s.key === currentStep); return ( <div className="flex items-center justify-center mb-8"> {steps.map((step, index) => ( <React.Fragment key={step.key}> <div className="flex items-center"> <div className={` w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${ index < currentIndex ? "bg-kumo-brand text-white" : index === currentIndex ? "bg-kumo-brand text-white" : "bg-kumo-tint text-kumo-subtle" } `} > {index < currentIndex ? ( <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> </svg> ) : ( index + 1 )} </div> <span className={`ml-2 text-sm ${ index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle" }`} > {step.label} </span> </div> {index < steps.length - 1 && ( <div className={`w-12 h-0.5 mx-2 ${index < currentIndex ? "bg-kumo-brand" : "bg-kumo-tint"}`} /> )} </React.Fragment> ))} </div> ); } // ============================================================================ // Main Component // ============================================================================ export function SetupWizard() { const { t } = useLingui(); const [currentStep, setCurrentStep] = React.useState<WizardStep>("site"); const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null); const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null); const [error, setError] = React.useState<string | undefined>(); // Check setup status const { data: status, isLoading: statusLoading, error: statusError, } = useQuery({ queryKey: ["setup", "status"], queryFn: fetchSetupStatus, retry: false, }); // Check if using Cloudflare Access auth const useAccessAuth = status?.authMode === "cloudflare-access"; // Site setup mutation const siteMutation = useMutation({ mutationFn: executeSiteSetup, onSuccess: (data) => { setError(undefined); // In Access mode, setup is complete - redirect to admin if (data.setupComplete) { window.location.href = "/_emdash/admin"; return; } // Otherwise continue to admin account creation setCurrentStep("admin"); }, onError: (err: Error) => { setError(err.message); }, }); // Admin setup mutation const adminMutation = useMutation({ mutationFn: executeAdminSetup, onSuccess: () => { setError(undefined); setCurrentStep("passkey"); }, onError: (err: Error) => { setError(err.message); }, }); // Handle site step completion const handleSiteNext = (data: SetupSiteRequest) => { setSiteData(data); siteMutation.mutate(data); }; // Handle admin step completion const handleAdminNext = (data: SetupAdminRequest) => { setAdminData(data); adminMutation.mutate(data); }; // Redirect if setup already complete if (!statusLoading && status && !status.needsSetup) { window.location.href = "/_emdash/admin"; return null; } // Loading state if (statusLoading) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <Loader /> <p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p> </div> </div> ); } // Error state if (statusError) { return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base"> <div className="text-center"> <h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1> <p className="mt-2 text-kumo-subtle"> {statusError instanceof Error ? statusError.message : t`Failed to load setup`} </p> </div> </div> ); } return ( <div className="min-h-screen flex items-center justify-center bg-kumo-base p-4"> <div className="w-full max-w-lg"> {/* Header */} <div className="text-center mb-6"> <LogoLockup className="h-10 mx-auto mb-2" /> <h1 className="text-2xl font-semibold text-kumo-default"> {currentStep === "site" && t`Set up your site`} {currentStep === "admin" && t`Create your account`} {currentStep === "passkey" && t`Secure your account`} </h1> {useAccessAuth && currentStep === "site" && ( <p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p> )} </div> {/* Progress */} <StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} /> {/* Form Card */} <div className="bg-kumo-base border rounded-lg shadow-sm p-6"> {currentStep === "site" && ( <SiteStep seedInfo={status?.seedInfo} onNext={handleSiteNext} isLoading={siteMutation.isPending} error={error} /> )} {currentStep === "admin" && ( <AdminStep onNext={handleAdminNext} onBack={() => { setError(undefined); setCurrentStep("site"); }} isLoading={adminMutation.isPending} error={error} /> )} {currentStep === "passkey" && adminData && ( <PasskeyStep adminData={adminData} onBack={() => { setError(undefined); setCurrentStep("admin"); }} /> )} </div> </div> </div> ); } 
+#: packages/admin/src/components/SetupWizard.tsx:179
+msgid "{0, plural, one {{1}} other {{2}}}"
+msgstr "{0, plural, one {{1}} other {{2}}}"
+
 #. placeholder {0}: comments.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:344
 msgid "{0, plural, one {# comment} other {# comments}}"
@@ -48,22 +55,17 @@ msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# permission} other {# permissions}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2075
+#: packages/admin/src/components/WordPressImport.tsx:2077
 msgid "{0} content errors"
 msgstr "{0} content errors"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2066
+#: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "{0} content items imported"
 msgstr "{0} content items imported"
 
-#. placeholder {0}: bestMatch?.detected.siteTitle || t`WordPress site`
-#: packages/admin/src/components/WordPressImport.tsx:1127
-msgid "{0} detected"
-msgstr "{0} detected"
-
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2161
+#: packages/admin/src/components/WordPressImport.tsx:2163
 msgid "{0} files imported"
 msgstr "{0} files imported"
 
@@ -79,7 +81,7 @@ msgstr "{0} has been removed"
 
 #. placeholder {0}: rewriteResult.urlsRewritten
 #. placeholder {1}: rewriteResult.updated
-#: packages/admin/src/components/WordPressImport.tsx:2164
+#: packages/admin/src/components/WordPressImport.tsx:2166
 msgid "{0} image URLs updated in {1} content items"
 msgstr "{0} image URLs updated in {1} content items"
 
@@ -99,7 +101,7 @@ msgid "{0} items"
 msgstr "{0} items"
 
 #. placeholder {0}: analysis.postTypes.filter((pt) => selections[pt.name]?.enabled).reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1745
+#: packages/admin/src/components/WordPressImport.tsx:1747
 msgid "{0} items will be imported"
 msgstr "{0} items will be imported"
 
@@ -109,18 +111,18 @@ msgid "{0} media"
 msgstr "{0} media"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2078
+#: packages/admin/src/components/WordPressImport.tsx:2080
 msgid "{0} media errors"
 msgstr "{0} media errors"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2072
+#: packages/admin/src/components/WordPressImport.tsx:2074
 msgid "{0} media files imported"
 msgstr "{0} media files imported"
 
 #. placeholder {0}: navMenus.length
 #. placeholder {1}: navMenus.length > 1 ? "s" : ""
-#: packages/admin/src/components/WordPressImport.tsx:1750
+#: packages/admin/src/components/WordPressImport.tsx:1752
 msgid "{0} menu{1} will be imported"
 msgstr "{0} menu{1} will be imported"
 
@@ -140,7 +142,7 @@ msgid "{0} selected"
 msgstr "{0} selected"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2069
+#: packages/admin/src/components/WordPressImport.tsx:2071
 msgid "{0} skipped (already exist)"
 msgstr "{0} skipped (already exist)"
 
@@ -184,11 +186,11 @@ msgstr "{changedCount} changes from next revision"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# character} other {# characters}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1918
+#: packages/admin/src/components/WordPressImport.tsx:1920
 msgid "{count} files"
 msgstr "{count} files"
 
-#: packages/admin/src/components/WordPressImport.tsx:2148
+#: packages/admin/src/components/WordPressImport.tsx:2150
 msgid "{count} items"
 msgstr "{count} items"
 
@@ -200,22 +202,26 @@ msgstr "{label} — no translation"
 msgid "{label} — view translation"
 msgstr "{label} — view translation"
 
-#: packages/admin/src/components/WordPressImport.tsx:2266
+#: packages/admin/src/components/WordPressImport.tsx:2268
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount} of {totalCount} assigned"
 
-#: packages/admin/src/components/WordPressImport.tsx:2254
+#: packages/admin/src/components/WordPressImport.tsx:2256
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} of {totalCount} authors matched by email"
 
 #. placeholder {0}: needsNewCollections > 1 ? "s" : ""
-#: packages/admin/src/components/WordPressImport.tsx:1734
+#: packages/admin/src/components/WordPressImport.tsx:1736
 msgid "{needsNewCollections} new collection{0} will be created"
 msgstr "{needsNewCollections} new collection{0} will be created"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1297
 msgid "{readingTime} min read"
 msgstr "{readingTime} min read"
+
+#: packages/admin/src/components/WordPressImport.tsx:1129
+msgid "{siteTitle} detected"
+msgstr "{siteTitle} detected"
 
 #: packages/admin/src/components/MediaLibrary.tsx:140
 #: packages/admin/src/components/MediaLibrary.tsx:176
@@ -265,7 +271,7 @@ msgstr "/old-page or /blog/[slug]"
 msgid "+{0} more"
 msgstr "+{0} more"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1348
 msgid "1. Log into your WordPress admin"
 msgstr "1. Log into your WordPress admin"
 
@@ -277,11 +283,11 @@ msgstr "1. Log into your WordPress admin dashboard"
 msgid "2. Go to Tools → Export"
 msgstr "2. Go to Tools → Export"
 
-#: packages/admin/src/components/WordPressImport.tsx:1347
+#: packages/admin/src/components/WordPressImport.tsx:1349
 msgid "2. Go to Users → Profile"
 msgstr "2. Go to Users → Profile"
 
-#: packages/admin/src/components/WordPressImport.tsx:1348
+#: packages/admin/src/components/WordPressImport.tsx:1350
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. Scroll to \"Application Passwords\""
 
@@ -309,7 +315,7 @@ msgstr "308 Permanent (Strict)"
 msgid "4. Click \"Download Export File\""
 msgstr "4. Click \"Download Export File\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1349
+#: packages/admin/src/components/WordPressImport.tsx:1351
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Enter \"EmDash\" and click \"Add New\""
 
@@ -317,7 +323,7 @@ msgstr "4. Enter \"EmDash\" and click \"Add New\""
 msgid "404 Errors"
 msgstr "404 Errors"
 
-#: packages/admin/src/components/WordPressImport.tsx:1350
+#: packages/admin/src/components/WordPressImport.tsx:1352
 msgid "5. Copy the generated password"
 msgstr "5. Copy the generated password"
 
@@ -337,7 +343,7 @@ msgstr "A full-width hero banner with heading, text, and CTA button"
 msgid "A short description of your site"
 msgstr "A short description of your site"
 
-#: packages/admin/src/components/SetupWizard.tsx:332
+#: packages/admin/src/components/SetupWizard.tsx:334
 msgid "Account"
 msgstr "Account"
 
@@ -408,7 +414,7 @@ msgstr "Add Domain"
 msgid "Add Field"
 msgstr "Add Field"
 
-#: packages/admin/src/components/WordPressImport.tsx:1830
+#: packages/admin/src/components/WordPressImport.tsx:1832
 msgid "Add fields"
 msgstr "Add fields"
 
@@ -465,7 +471,7 @@ msgstr "Add your social media profiles. These are available to your site's theme
 msgid "Adding..."
 msgstr "Adding..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1577
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "Additional data to import."
 msgstr "Additional data to import."
 
@@ -514,7 +520,7 @@ msgstr "All collections"
 msgid "All comments require approval"
 msgstr "All comments require approval"
 
-#: packages/admin/src/components/WordPressImport.tsx:2309
+#: packages/admin/src/components/WordPressImport.tsx:2311
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "All imported content will be unassigned. You can reassign authors later from the content editor."
 
@@ -574,7 +580,7 @@ msgstr "Alt Text"
 msgid "Alt text set"
 msgstr "Alt text set"
 
-#: packages/admin/src/components/WordPressImport.tsx:1219
+#: packages/admin/src/components/WordPressImport.tsx:1221
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 
@@ -589,7 +595,7 @@ msgstr "An error occurred"
 msgid "An unknown error occurred"
 msgstr "An unknown error occurred"
 
-#: packages/admin/src/components/WordPressImport.tsx:1399
+#: packages/admin/src/components/WordPressImport.tsx:1401
 msgid "Analyzing export file..."
 msgstr "Analyzing export file..."
 
@@ -606,7 +612,7 @@ msgstr "API Tokens"
 msgid "Appears on posts and pages"
 msgstr "Appears on posts and pages"
 
-#: packages/admin/src/components/WordPressImport.tsx:1314
+#: packages/admin/src/components/WordPressImport.tsx:1316
 msgid "Application Password"
 msgstr "Application Password"
 
@@ -647,7 +653,7 @@ msgstr "Are you sure you want to delete this menu? This will also delete all men
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "As an administrator, you can invite other users from the Users section."
 
-#: packages/admin/src/components/WordPressImport.tsx:2249
+#: packages/admin/src/components/WordPressImport.tsx:2251
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 
@@ -680,7 +686,7 @@ msgstr "Authentication was cancelled or timed out. Please try again."
 msgid "Author"
 msgstr "Author"
 
-#: packages/admin/src/components/WordPressImport.tsx:2264
+#: packages/admin/src/components/WordPressImport.tsx:2266
 msgid "Author Mapping"
 msgstr "Author Mapping"
 
@@ -726,10 +732,10 @@ msgstr "Available Widgets"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:267
 #: packages/admin/src/components/MenuEditor.tsx:218
-#: packages/admin/src/components/SetupWizard.tsx:250
-#: packages/admin/src/components/SetupWizard.tsx:310
-#: packages/admin/src/components/WordPressImport.tsx:1334
-#: packages/admin/src/components/WordPressImport.tsx:2318
+#: packages/admin/src/components/SetupWizard.tsx:252
+#: packages/admin/src/components/SetupWizard.tsx:312
+#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:2320
 msgid "Back"
 msgstr "Back"
 
@@ -800,7 +806,7 @@ msgid "Browse and install plugins to extend your site."
 msgstr "Browse and install plugins to extend your site."
 
 #: packages/admin/src/components/WordPressImport.tsx:955
-#: packages/admin/src/components/WordPressImport.tsx:1418
+#: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Browse Files"
 msgstr "Browse Files"
 
@@ -856,7 +862,7 @@ msgstr "Bylines"
 #: packages/admin/src/components/TaxonomyManager.tsx:513
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
 #: packages/admin/src/components/Widgets.tsx:353
-#: packages/admin/src/components/WordPressImport.tsx:1761
+#: packages/admin/src/components/WordPressImport.tsx:1763
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -890,7 +896,7 @@ msgstr "Caption"
 msgid "Categories"
 msgstr "Categories"
 
-#: packages/admin/src/components/WordPressImport.tsx:1613
+#: packages/admin/src/components/WordPressImport.tsx:1615
 msgid "Categories will be imported"
 msgstr "Categories will be imported"
 
@@ -1009,7 +1015,7 @@ msgstr "Collection:"
 msgid "Collections"
 msgstr "Collections"
 
-#: packages/admin/src/components/WordPressImport.tsx:2125
+#: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Collections created:"
 msgstr "Collections created:"
 
@@ -1056,16 +1062,16 @@ msgstr "Confirm"
 msgid "Connect"
 msgstr "Connect"
 
-#: packages/admin/src/components/WordPressImport.tsx:1331
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "Connect & Analyze"
 msgstr "Connect & Analyze"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1281
+#: packages/admin/src/components/WordPressImport.tsx:1283
 msgid "Connect to {0}"
 msgstr "Connect to {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Connect with WordPress"
 msgstr "Connect with WordPress"
 
@@ -1084,11 +1090,11 @@ msgid "Content"
 msgstr "Content"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2175
+#: packages/admin/src/components/WordPressImport.tsx:2177
 msgid "Content Errors ({0})"
 msgstr "Content Errors ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1141
+#: packages/admin/src/components/WordPressImport.tsx:1143
 msgid "Content found:"
 msgstr "Content found:"
 
@@ -1104,7 +1110,7 @@ msgstr "Content ID:"
 msgid "Content snapshot:"
 msgstr "Content snapshot:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1555
+#: packages/admin/src/components/WordPressImport.tsx:1557
 msgid "Content to Import"
 msgstr "Content to Import"
 
@@ -1113,17 +1119,17 @@ msgstr "Content to Import"
 msgid "Content Types"
 msgstr "Content Types"
 
-#: packages/admin/src/components/WordPressImport.tsx:2108
+#: packages/admin/src/components/WordPressImport.tsx:2110
 msgid "Content was skipped because it already exists"
 msgstr "Content was skipped because it already exists"
 
 #: packages/admin/src/components/SetupWizard.tsx:174
-#: packages/admin/src/components/SetupWizard.tsx:258
+#: packages/admin/src/components/SetupWizard.tsx:260
 #: packages/admin/src/components/SignupPage.tsx:90
 msgid "Continue"
 msgstr "Continue"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2322
 msgid "Continue Import"
 msgstr "Continue Import"
 
@@ -1223,11 +1229,11 @@ msgstr "Create New Menu"
 msgid "Create New Token"
 msgstr "Create New Token"
 
-#: packages/admin/src/components/WordPressImport.tsx:1325
+#: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Create one in WordPress: Users → Profile → Application Passwords"
 
-#: packages/admin/src/components/SetupWizard.tsx:305
+#: packages/admin/src/components/SetupWizard.tsx:307
 msgid "Create Passkey"
 msgstr "Create Passkey"
 
@@ -1249,7 +1255,7 @@ msgstr "Create redirect for this path"
 msgid "Create redirect rules to manage URL changes."
 msgstr "Create redirect rules to manage URL changes."
 
-#: packages/admin/src/components/WordPressImport.tsx:1765
+#: packages/admin/src/components/WordPressImport.tsx:1767
 msgid "Create Schema & Import"
 msgstr "Create Schema & Import"
 
@@ -1276,7 +1282,7 @@ msgstr "Create Token"
 msgid "Create Widget Area"
 msgstr "Create Widget Area"
 
-#: packages/admin/src/components/SetupWizard.tsx:494
+#: packages/admin/src/components/SetupWizard.tsx:496
 msgid "Create your account"
 msgstr "Create your account"
 
@@ -1700,7 +1706,7 @@ msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Don't have an account? <0>Sign up</0>"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
-#: packages/admin/src/components/WordPressImport.tsx:1974
+#: packages/admin/src/components/WordPressImport.tsx:1976
 msgid "Done"
 msgstr "Done"
 
@@ -1708,7 +1714,7 @@ msgstr "Done"
 msgid "Down"
 msgstr "Down"
 
-#: packages/admin/src/components/WordPressImport.tsx:1972
+#: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Downloading"
 msgstr "Downloading"
 
@@ -1750,7 +1756,7 @@ msgstr "Drag widgets into an area to add them"
 msgid "Drop to add widget"
 msgstr "Drop to add widget"
 
-#: packages/admin/src/components/WordPressImport.tsx:1412
+#: packages/admin/src/components/WordPressImport.tsx:1414
 msgid "Drop your WordPress export file here"
 msgstr "Drop your WordPress export file here"
 
@@ -1874,7 +1880,7 @@ msgstr "Email (optional)"
 msgid "Email address"
 msgstr "Email address"
 
-#: packages/admin/src/components/SetupWizard.tsx:204
+#: packages/admin/src/components/SetupWizard.tsx:206
 #: packages/admin/src/components/SignupPage.tsx:48
 msgid "Email is required"
 msgstr "Email is required"
@@ -1907,7 +1913,7 @@ msgstr "Email verified!"
 msgid "Embed a {label}"
 msgstr "Embed a {label}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1131
+#: packages/admin/src/components/WordPressImport.tsx:1133
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporter plugin detected! You can import directly."
 
@@ -1937,7 +1943,7 @@ msgstr "Enabled"
 msgid "Enter {0}..."
 msgstr "Enter {0}..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1204
+#: packages/admin/src/components/WordPressImport.tsx:1206
 msgid "Enter credentials manually"
 msgstr "Enter credentials manually"
 
@@ -1957,7 +1963,7 @@ msgstr "Enter name"
 msgid "Enter the code from your terminal"
 msgstr "Enter the code from your terminal"
 
-#: packages/admin/src/components/WordPressImport.tsx:1283
+#: packages/admin/src/components/WordPressImport.tsx:1285
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "Enter your WordPress credentials to import content directly."
 
@@ -1967,7 +1973,7 @@ msgstr "Enter your WordPress site URL"
 
 #: packages/admin/src/components/MenuEditor.tsx:83
 #: packages/admin/src/components/MenuEditor.tsx:122
-#: packages/admin/src/components/SetupWizard.tsx:477
+#: packages/admin/src/components/SetupWizard.tsx:479
 #: packages/admin/src/components/Widgets.tsx:619
 msgid "Error"
 msgstr "Error"
@@ -1997,7 +2003,7 @@ msgstr "Example: {0} → January 23, 2026"
 msgid "example.com"
 msgstr "example.com"
 
-#: packages/admin/src/components/WordPressImport.tsx:1856
+#: packages/admin/src/components/WordPressImport.tsx:1858
 msgid "Exists"
 msgstr "Exists"
 
@@ -2023,7 +2029,7 @@ msgstr "Expiry"
 msgid "Export from WordPress manually"
 msgstr "Export from WordPress manually"
 
-#: packages/admin/src/components/WordPressImport.tsx:1221
+#: packages/admin/src/components/WordPressImport.tsx:1223
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Export your content from WordPress to import everything including drafts."
 
@@ -2031,7 +2037,7 @@ msgstr "Export your content from WordPress to import everything including drafts
 msgid "Fail"
 msgstr "Fail"
 
-#: packages/admin/src/components/WordPressImport.tsx:1976
+#: packages/admin/src/components/WordPressImport.tsx:1978
 msgid "Failed"
 msgstr "Failed"
 
@@ -2051,7 +2057,7 @@ msgstr "Failed to communicate with plugin"
 msgid "Failed to create byline"
 msgstr "Failed to create byline"
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1540
 msgid "Failed to create some collections"
 msgstr "Failed to create some collections"
 
@@ -2097,7 +2103,7 @@ msgstr "Failed to load plugins: {0}"
 msgid "Failed to load revisions"
 msgstr "Failed to load revisions"
 
-#: packages/admin/src/components/SetupWizard.tsx:479
+#: packages/admin/src/components/SetupWizard.tsx:481
 msgid "Failed to load setup"
 msgstr "Failed to load setup"
 
@@ -2183,12 +2189,12 @@ msgstr "Field slugs cannot be changed after creation"
 msgid "Fields"
 msgstr "Fields"
 
-#: packages/admin/src/components/WordPressImport.tsx:2131
+#: packages/admin/src/components/WordPressImport.tsx:2133
 msgid "Fields created:"
 msgstr "Fields created:"
 
 #. placeholder {0}: needsNewFields > 1 ? "s" : ""
-#: packages/admin/src/components/WordPressImport.tsx:1740
+#: packages/admin/src/components/WordPressImport.tsx:1742
 msgid "Fields will be added to {needsNewFields} existing collection{0}"
 msgstr "Fields will be added to {needsNewFields} existing collection{0}"
 
@@ -2201,7 +2207,7 @@ msgstr "Filename"
 msgid "Filename cannot be changed after upload"
 msgstr "Filename cannot be changed after upload"
 
-#: packages/admin/src/components/WordPressImport.tsx:1939
+#: packages/admin/src/components/WordPressImport.tsx:1941
 msgid "Files are downloaded from your WordPress site"
 msgstr "Files are downloaded from your WordPress site"
 
@@ -2225,7 +2231,7 @@ msgstr "Filter byline type"
 msgid "First-time commenters only"
 msgstr "First-time commenters only"
 
-#: packages/admin/src/components/WordPressImport.tsx:1222
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "For a complete import including drafts and all content, export from WordPress."
 
@@ -2250,7 +2256,7 @@ msgstr "Get Started"
 msgid "Give this passkey a name to help you identify it later."
 msgstr "Give this passkey a name to help you identify it later."
 
-#: packages/admin/src/components/WordPressImport.tsx:2211
+#: packages/admin/src/components/WordPressImport.tsx:2213
 msgid "Go to Dashboard"
 msgstr "Go to Dashboard"
 
@@ -2331,7 +2337,7 @@ msgstr "Homepage"
 msgid "Hooks"
 msgstr "Hooks"
 
-#: packages/admin/src/components/WordPressImport.tsx:1344
+#: packages/admin/src/components/WordPressImport.tsx:1346
 msgid "How to create an Application Password"
 msgstr "How to create an Application Password"
 
@@ -2367,11 +2373,11 @@ msgstr "Image URL"
 msgid "Import"
 msgstr "Import"
 
-#: packages/admin/src/components/WordPressImport.tsx:1190
+#: packages/admin/src/components/WordPressImport.tsx:1192
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 
-#: packages/admin/src/components/WordPressImport.tsx:2209
+#: packages/admin/src/components/WordPressImport.tsx:2211
 msgid "Import Another File"
 msgstr "Import Another File"
 
@@ -2379,15 +2385,15 @@ msgstr "Import Another File"
 msgid "Import Capabilities"
 msgstr "Import Capabilities"
 
-#: packages/admin/src/components/WordPressImport.tsx:2102
+#: packages/admin/src/components/WordPressImport.tsx:2104
 msgid "Import Complete"
 msgstr "Import Complete"
 
-#: packages/admin/src/components/WordPressImport.tsx:2103
+#: packages/admin/src/components/WordPressImport.tsx:2105
 msgid "Import Completed with Errors"
 msgstr "Import Completed with Errors"
 
-#: packages/admin/src/components/WordPressImport.tsx:1523
+#: packages/admin/src/components/WordPressImport.tsx:1525
 msgid "Import failed"
 msgstr "Import failed"
 
@@ -2395,19 +2401,19 @@ msgstr "Import failed"
 msgid "Import from WordPress"
 msgstr "Import from WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:1680
+#: packages/admin/src/components/WordPressImport.tsx:1682
 msgid "Import logo and favicon"
 msgstr "Import logo and favicon"
 
-#: packages/admin/src/components/WordPressImport.tsx:1953
+#: packages/admin/src/components/WordPressImport.tsx:1955
 msgid "Import Media"
 msgstr "Import Media"
 
-#: packages/admin/src/components/WordPressImport.tsx:1906
+#: packages/admin/src/components/WordPressImport.tsx:1908
 msgid "Import Media Files"
 msgstr "Import Media Files"
 
-#: packages/admin/src/components/WordPressImport.tsx:1589
+#: packages/admin/src/components/WordPressImport.tsx:1591
 msgid "Import navigation menus"
 msgstr "Import navigation menus"
 
@@ -2415,19 +2421,19 @@ msgstr "Import navigation menus"
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "Import posts, pages, and custom post types from WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:1696
+#: packages/admin/src/components/WordPressImport.tsx:1698
 msgid "Import SEO settings"
 msgstr "Import SEO settings"
 
-#: packages/admin/src/components/WordPressImport.tsx:1652
+#: packages/admin/src/components/WordPressImport.tsx:1654
 msgid "Import site configuration from WordPress."
 msgstr "Import site configuration from WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:1664
+#: packages/admin/src/components/WordPressImport.tsx:1666
 msgid "Import site title and tagline"
 msgstr "Import site title and tagline"
 
-#: packages/admin/src/components/WordPressImport.tsx:1188
+#: packages/admin/src/components/WordPressImport.tsx:1190
 msgid "Import via EmDash Exporter"
 msgstr "Import via EmDash Exporter"
 
@@ -2435,7 +2441,7 @@ msgstr "Import via EmDash Exporter"
 msgid "Imported"
 msgstr "Imported"
 
-#: packages/admin/src/components/WordPressImport.tsx:2142
+#: packages/admin/src/components/WordPressImport.tsx:2144
 msgid "Imported by Collection"
 msgstr "Imported by Collection"
 
@@ -2443,7 +2449,7 @@ msgstr "Imported by Collection"
 msgid "Importing content..."
 msgstr "Importing content..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1985
+#: packages/admin/src/components/WordPressImport.tsx:1987
 msgid "Importing Media"
 msgstr "Importing Media"
 
@@ -2451,7 +2457,7 @@ msgstr "Importing Media"
 msgid "Include sample content (recommended for new sites)"
 msgstr "Include sample content (recommended for new sites)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1826
+#: packages/admin/src/components/WordPressImport.tsx:1828
 msgid "Incompatible"
 msgstr "Incompatible"
 
@@ -2617,7 +2623,7 @@ msgstr "Last used {0}"
 msgid "Leave blank to use a discoverable passkey."
 msgstr "Leave blank to use a discoverable passkey."
 
-#: packages/admin/src/components/WordPressImport.tsx:2289
+#: packages/admin/src/components/WordPressImport.tsx:2291
 msgid "Leave unassigned"
 msgstr "Leave unassigned"
 
@@ -2713,7 +2719,7 @@ msgstr "Loading sections..."
 msgid "Loading settings..."
 msgstr "Loading settings..."
 
-#: packages/admin/src/components/SetupWizard.tsx:466
+#: packages/admin/src/components/SetupWizard.tsx:468
 msgid "Loading setup..."
 msgstr "Loading setup..."
 
@@ -2763,7 +2769,7 @@ msgstr "Log out"
 msgid "Logo"
 msgstr "Logo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1683
+#: packages/admin/src/components/WordPressImport.tsx:1685
 msgid "Logo & favicon"
 msgstr "Logo & favicon"
 
@@ -2813,7 +2819,7 @@ msgstr "Manage your passkeys and authentication"
 msgid "Manual"
 msgstr "Manual"
 
-#: packages/admin/src/components/WordPressImport.tsx:2247
+#: packages/admin/src/components/WordPressImport.tsx:2249
 msgid "Map Authors"
 msgstr "Map Authors"
 
@@ -2842,7 +2848,7 @@ msgstr "Max Value"
 
 #: packages/admin/src/components/Sidebar.tsx:175
 #: packages/admin/src/components/WordPressImport.tsx:667
-#: packages/admin/src/components/WordPressImport.tsx:1158
+#: packages/admin/src/components/WordPressImport.tsx:1160
 msgid "Media"
 msgstr "Media"
 
@@ -2851,19 +2857,19 @@ msgid "Media Details"
 msgstr "Media Details"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2193
+#: packages/admin/src/components/WordPressImport.tsx:2195
 msgid "Media Errors ({0})"
 msgstr "Media Errors ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:2158
+#: packages/admin/src/components/WordPressImport.tsx:2160
 msgid "Media Import"
 msgstr "Media Import"
 
-#: packages/admin/src/components/WordPressImport.tsx:2101
+#: packages/admin/src/components/WordPressImport.tsx:2103
 msgid "Media Import Complete"
 msgstr "Media Import Complete"
 
-#: packages/admin/src/components/WordPressImport.tsx:2112
+#: packages/admin/src/components/WordPressImport.tsx:2114
 msgid "Media import was skipped"
 msgstr "Media import was skipped"
 
@@ -2925,7 +2931,7 @@ msgstr "Meta tag content for Bing Webmaster Tools verification"
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Meta tag content for Google Search Console verification"
 
-#: packages/admin/src/components/WordPressImport.tsx:1701
+#: packages/admin/src/components/WordPressImport.tsx:1703
 msgid "Meta titles, descriptions, and social images"
 msgstr "Meta titles, descriptions, and social images"
 
@@ -3025,7 +3031,7 @@ msgstr "New"
 msgid "New {collectionLabel}"
 msgstr "New {collectionLabel}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1828
+#: packages/admin/src/components/WordPressImport.tsx:1830
 msgid "New collection"
 msgstr "New collection"
 
@@ -3168,7 +3174,7 @@ msgstr "No email provider configured"
 msgid "No email provider configured. Share this link manually."
 msgstr "No email provider configured. Share this link manually."
 
-#: packages/admin/src/components/WordPressImport.tsx:2307
+#: packages/admin/src/components/WordPressImport.tsx:2309
 msgid "No EmDash users found"
 msgstr "No EmDash users found"
 
@@ -3349,7 +3355,7 @@ msgstr "Oops!"
 msgid "Open in new tab"
 msgstr "Open in new tab"
 
-#: packages/admin/src/components/WordPressImport.tsx:1358
+#: packages/admin/src/components/WordPressImport.tsx:1360
 msgid "Open WordPress Profile"
 msgstr "Open WordPress Profile"
 
@@ -3379,7 +3385,7 @@ msgstr "Options (one per line)"
 msgid "or choose from library"
 msgstr "or choose from library"
 
-#: packages/admin/src/components/WordPressImport.tsx:1414
+#: packages/admin/src/components/WordPressImport.tsx:1416
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "Or click to browse. Accepts .xml files exported from WordPress."
 
@@ -3387,7 +3393,7 @@ msgstr "Or click to browse. Accepts .xml files exported from WordPress."
 msgid "Or continue with"
 msgstr "Or continue with"
 
-#: packages/admin/src/components/WordPressImport.tsx:1215
+#: packages/admin/src/components/WordPressImport.tsx:1217
 msgid "Or upload an export file"
 msgstr "Or upload an export file"
 
@@ -3421,7 +3427,7 @@ msgid "Package"
 msgstr "Package"
 
 #: packages/admin/src/components/PluginManager.tsx:327
-#: packages/admin/src/components/WordPressImport.tsx:1152
+#: packages/admin/src/components/WordPressImport.tsx:1154
 msgid "Pages"
 msgstr "Pages"
 
@@ -3437,7 +3443,7 @@ msgstr "Parent"
 msgid "Pass"
 msgstr "Pass"
 
-#: packages/admin/src/components/SetupWizard.tsx:333
+#: packages/admin/src/components/SetupWizard.tsx:335
 msgid "Passkey"
 msgstr "Passkey"
 
@@ -3479,7 +3485,7 @@ msgstr "Passkeys are a secure, passwordless way to sign in to your account. You 
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:299
 msgid "Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in."
 msgstr "Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in."
 
@@ -3528,7 +3534,7 @@ msgstr "Permanently delete {title}"
 msgid "Permissions"
 msgstr "Permissions"
 
-#: packages/admin/src/components/SetupWizard.tsx:206
+#: packages/admin/src/components/SetupWizard.tsx:208
 msgid "Please enter a valid email"
 msgstr "Please enter a valid email"
 
@@ -3589,7 +3595,7 @@ msgid "Post"
 msgstr "Post"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:330
-#: packages/admin/src/components/WordPressImport.tsx:1146
+#: packages/admin/src/components/WordPressImport.tsx:1148
 msgid "Posts"
 msgstr "Posts"
 
@@ -3601,12 +3607,12 @@ msgstr "Posts Per Page"
 msgid "Preparing registration..."
 msgstr "Preparing registration..."
 
-#: packages/admin/src/components/WordPressImport.tsx:2032
+#: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Preparing to download files from WordPress..."
 msgstr "Preparing to download files from WordPress..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:168
-#: packages/admin/src/components/SetupWizard.tsx:258
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Preparing..."
 msgstr "Preparing..."
 
@@ -3674,7 +3680,7 @@ msgstr "Quote"
 msgid "Reading"
 msgstr "Reading"
 
-#: packages/admin/src/components/WordPressImport.tsx:1832
+#: packages/admin/src/components/WordPressImport.tsx:1834
 msgid "Ready"
 msgstr "Ready"
 
@@ -3818,7 +3824,7 @@ msgstr "Request a new link"
 msgid "Required"
 msgstr "Required"
 
-#: packages/admin/src/components/WordPressImport.tsx:1845
+#: packages/admin/src/components/WordPressImport.tsx:1847
 msgid "Required fields:"
 msgstr "Required fields:"
 
@@ -4023,11 +4029,11 @@ msgstr "Scheduled"
 msgid "Scheduled for: {0}"
 msgstr "Scheduled for: {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2122
 msgid "Schema Changes"
 msgstr "Schema Changes"
 
-#: packages/admin/src/components/WordPressImport.tsx:1523
+#: packages/admin/src/components/WordPressImport.tsx:1525
 msgid "Schema preparation failed"
 msgstr "Schema preparation failed"
 
@@ -4180,7 +4186,7 @@ msgstr "Section title"
 msgid "Sections"
 msgstr "Sections"
 
-#: packages/admin/src/components/SetupWizard.tsx:495
+#: packages/admin/src/components/SetupWizard.tsx:497
 msgid "Secure your account"
 msgstr "Secure your account"
 
@@ -4266,7 +4272,7 @@ msgstr "Select Image"
 msgid "Select Logo"
 msgstr "Select Logo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1556
+#: packages/admin/src/components/WordPressImport.tsx:1558
 msgid "Select which content types to import."
 msgstr "Select which content types to import."
 
@@ -4334,7 +4340,7 @@ msgstr "SEO"
 msgid "SEO Settings"
 msgstr "SEO Settings"
 
-#: packages/admin/src/components/WordPressImport.tsx:1699
+#: packages/admin/src/components/WordPressImport.tsx:1701
 msgid "SEO settings (Yoast)"
 msgstr "SEO settings (Yoast)"
 
@@ -4355,11 +4361,11 @@ msgstr "Set a custom display size for this image instance."
 msgid "Set to 0 to never close comments automatically."
 msgstr "Set to 0 to never close comments automatically."
 
-#: packages/admin/src/components/SetupWizard.tsx:295
+#: packages/admin/src/components/SetupWizard.tsx:297
 msgid "Set up your passkey"
 msgstr "Set up your passkey"
 
-#: packages/admin/src/components/SetupWizard.tsx:493
+#: packages/admin/src/components/SetupWizard.tsx:495
 msgid "Set up your site"
 msgstr "Set up your site"
 
@@ -4373,7 +4379,7 @@ msgstr "Setting up..."
 #: packages/admin/src/components/PluginManager.tsx:384
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:226
-#: packages/admin/src/components/WordPressImport.tsx:1649
+#: packages/admin/src/components/WordPressImport.tsx:1651
 msgid "Settings"
 msgstr "Settings"
 
@@ -4428,7 +4434,7 @@ msgstr "Sign in with Passkey"
 msgid "Signed in as {0}"
 msgstr "Signed in as {0}"
 
-#: packages/admin/src/components/SetupWizard.tsx:331
+#: packages/admin/src/components/SetupWizard.tsx:333
 msgid "Site"
 msgstr "Site"
 
@@ -4440,7 +4446,7 @@ msgstr "Site Identity"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Site identity, logo, favicon, and reading preferences"
 
-#: packages/admin/src/components/SetupWizard.tsx:329
+#: packages/admin/src/components/SetupWizard.tsx:331
 msgid "Site Settings"
 msgstr "Site Settings"
 
@@ -4449,7 +4455,7 @@ msgstr "Site Settings"
 msgid "Site Title"
 msgstr "Site Title"
 
-#: packages/admin/src/components/WordPressImport.tsx:1667
+#: packages/admin/src/components/WordPressImport.tsx:1669
 msgid "Site title & tagline"
 msgstr "Site title & tagline"
 
@@ -4469,11 +4475,11 @@ msgstr "Size"
 msgid "Size:"
 msgstr "Size:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1950
+#: packages/admin/src/components/WordPressImport.tsx:1952
 msgid "Skip Media Import"
 msgstr "Skip Media Import"
 
-#: packages/admin/src/components/WordPressImport.tsx:1975
+#: packages/admin/src/components/WordPressImport.tsx:1977
 msgid "Skipped"
 msgstr "Skipped"
 
@@ -4512,7 +4518,7 @@ msgstr "Social media profile links"
 msgid "Social Profiles"
 msgstr "Social Profiles"
 
-#: packages/admin/src/components/WordPressImport.tsx:1715
+#: packages/admin/src/components/WordPressImport.tsx:1717
 msgid "Some content types cannot be imported"
 msgstr "Some content types cannot be imported"
 
@@ -4552,7 +4558,7 @@ msgstr "Spam"
 msgid "Spotlight Mode"
 msgstr "Spotlight Mode"
 
-#: packages/admin/src/components/WordPressImport.tsx:1766
+#: packages/admin/src/components/WordPressImport.tsx:1768
 msgid "Start Import"
 msgstr "Start Import"
 
@@ -4571,7 +4577,7 @@ msgstr "Status code"
 msgid "Strikethrough"
 msgstr "Strikethrough"
 
-#: packages/admin/src/components/WordPressImport.tsx:1576
+#: packages/admin/src/components/WordPressImport.tsx:1578
 msgid "Structure"
 msgstr "Structure"
 
@@ -4604,7 +4610,7 @@ msgstr "Tagline"
 msgid "Tags"
 msgstr "Tags"
 
-#: packages/admin/src/components/WordPressImport.tsx:1631
+#: packages/admin/src/components/WordPressImport.tsx:1633
 msgid "Tags will be imported"
 msgstr "Tags will be imported"
 
@@ -4626,16 +4632,14 @@ msgid "Taxonomy not found: {taxonomyName}"
 msgstr "Taxonomy not found: {taxonomyName}"
 
 #. placeholder {0}: seedInfo.name
-#. placeholder {1}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:180
-msgid "Template: {0} ({1} collection)"
-msgstr "Template: {0} ({1} collection)"
+#: packages/admin/src/components/SetupWizard.tsx:181
+msgid "Template: {0} (# collection)"
+msgstr "Template: {0} (# collection)"
 
 #. placeholder {0}: seedInfo.name
-#. placeholder {1}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:181
-msgid "Template: {0} ({1} collections)"
-msgstr "Template: {0} ({1} collections)"
+#: packages/admin/src/components/SetupWizard.tsx:182
+msgid "Template: {0} (# collections)"
+msgstr "Template: {0} (# collections)"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:210
 #: packages/admin/src/components/TaxonomyManager.tsx:211
@@ -4661,7 +4665,7 @@ msgstr "Text formatting"
 msgid "The device will not be granted access."
 msgstr "The device will not be granted access."
 
-#: packages/admin/src/components/WordPressImport.tsx:1717
+#: packages/admin/src/components/WordPressImport.tsx:1719
 msgid "The existing collection has fields with incompatible types."
 msgstr "The existing collection has fields with incompatible types."
 
@@ -4739,7 +4743,7 @@ msgstr "This field is required"
 msgid "This is a custom section."
 msgstr "This is a custom section."
 
-#: packages/admin/src/components/WordPressImport.tsx:1132
+#: packages/admin/src/components/WordPressImport.tsx:1134
 msgid "This is a WordPress site."
 msgstr "This is a WordPress site."
 
@@ -4906,7 +4910,7 @@ msgstr "Try adjusting your search or filters."
 msgid "Try again"
 msgstr "Try again"
 
-#: packages/admin/src/components/WordPressImport.tsx:1406
+#: packages/admin/src/components/WordPressImport.tsx:1408
 msgid "Try Again"
 msgstr "Try Again"
 
@@ -4915,7 +4919,7 @@ msgid "Try another code"
 msgstr "Try another code"
 
 #: packages/admin/src/components/WordPressImport.tsx:1110
-#: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/components/WordPressImport.tsx:1234
 msgid "Try Another URL"
 msgstr "Try Another URL"
 
@@ -4933,7 +4937,7 @@ msgid "Type"
 msgstr "Type"
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:1864
+#: packages/admin/src/components/WordPressImport.tsx:1866
 msgid "Type mismatch ({0})"
 msgstr "Type mismatch ({0})"
 
@@ -5065,7 +5069,7 @@ msgstr "Updating..."
 msgid "Upload"
 msgstr "Upload"
 
-#: packages/admin/src/components/WordPressImport.tsx:1215
+#: packages/admin/src/components/WordPressImport.tsx:1217
 msgid "Upload an export file"
 msgstr "Upload an export file"
 
@@ -5074,7 +5078,7 @@ msgid "Upload an image to get started"
 msgstr "Upload an image to get started"
 
 #: packages/admin/src/components/WordPressImport.tsx:1108
-#: packages/admin/src/components/WordPressImport.tsx:1229
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "Upload Export File"
 msgstr "Upload Export File"
 
@@ -5119,7 +5123,7 @@ msgstr "Upload to {0}"
 msgid "Upload WordPress export file"
 msgstr "Upload WordPress export file"
 
-#: packages/admin/src/components/WordPressImport.tsx:1940
+#: packages/admin/src/components/WordPressImport.tsx:1942
 msgid "Uploaded to your EmDash media storage"
 msgstr "Uploaded to your EmDash media storage"
 
@@ -5127,7 +5131,7 @@ msgstr "Uploaded to your EmDash media storage"
 msgid "Uploaded:"
 msgstr "Uploaded:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1973
+#: packages/admin/src/components/WordPressImport.tsx:1975
 msgid "Uploading"
 msgstr "Uploading"
 
@@ -5156,7 +5160,7 @@ msgstr "URL Pattern"
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 
-#: packages/admin/src/components/WordPressImport.tsx:1941
+#: packages/admin/src/components/WordPressImport.tsx:1943
 msgid "URLs in your content are updated automatically"
 msgstr "URLs in your content are updated automatically"
 
@@ -5306,11 +5310,11 @@ msgstr "Welcome to EmDash, {0}!"
 msgid "Welcome to EmDash!"
 msgstr "Welcome to EmDash!"
 
-#: packages/admin/src/components/WordPressImport.tsx:1937
+#: packages/admin/src/components/WordPressImport.tsx:1939
 msgid "What happens when you import:"
 msgstr "What happens when you import:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1729
+#: packages/admin/src/components/WordPressImport.tsx:1731
 msgid "What will happen when you import"
 msgstr "What will happen when you import"
 
@@ -5358,7 +5362,7 @@ msgstr "Widgets"
 msgid "Width"
 msgstr "Width"
 
-#: packages/admin/src/components/WordPressImport.tsx:1860
+#: packages/admin/src/components/WordPressImport.tsx:1862
 msgid "Will create"
 msgstr "Will create"
 
@@ -5370,11 +5374,11 @@ msgstr "Without an email provider, invite links must be shared manually."
 msgid "WordPress authorization was rejected"
 msgstr "WordPress authorization was rejected"
 
-#: packages/admin/src/components/WordPressImport.tsx:1127
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "WordPress site"
 msgstr "WordPress site"
 
-#: packages/admin/src/components/WordPressImport.tsx:1300
+#: packages/admin/src/components/WordPressImport.tsx:1302
 msgid "WordPress Username"
 msgstr "WordPress Username"
 
@@ -5423,7 +5427,7 @@ msgstr "You won't be able to use \"{0}\" to sign in anymore. This action cannot 
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 
-#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1195
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "You'll be redirected to WordPress to authorize the connection."
 
@@ -5431,7 +5435,7 @@ msgstr "You'll be redirected to WordPress to authorize the connection."
 msgid "You'll be signing up as"
 msgstr "You'll be signing up as"
 
-#: packages/admin/src/components/SetupWizard.tsx:498
+#: packages/admin/src/components/SetupWizard.tsx:500
 msgid "You're signed in via Cloudflare Access"
 msgstr "You're signed in via Cloudflare Access"
 
@@ -5449,7 +5453,7 @@ msgstr "Your browser doesn't support passkeys. Please use a modern browser like 
 msgid "Your device doesn't support the required security features."
 msgstr "Your device doesn't support the required security features."
 
-#: packages/admin/src/components/SetupWizard.tsx:222
+#: packages/admin/src/components/SetupWizard.tsx:224
 msgid "Your Email"
 msgstr "Your Email"
 
@@ -5469,7 +5473,7 @@ msgstr "Your Instagram username"
 msgid "Your LinkedIn profile username"
 msgstr "Your LinkedIn profile username"
 
-#: packages/admin/src/components/SetupWizard.tsx:234
+#: packages/admin/src/components/SetupWizard.tsx:236
 msgid "Your Name"
 msgstr "Your Name"
 
@@ -5486,7 +5490,7 @@ msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Your Twitter/X handle (e.g., @username)"
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:1910
 msgid "Your WordPress export contains {0} media files."
 msgstr "Your WordPress export contains {0} media files."
 

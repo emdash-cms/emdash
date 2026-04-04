@@ -11,7 +11,7 @@
  */
 
 import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Plural, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -176,9 +176,11 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 
 			{seedInfo && (
 				<p className="text-xs text-kumo-subtle text-center">
-					{seedInfo.collections === 1
-						? t`Template: ${seedInfo.name} (${seedInfo.collections} collection)`
-						: t`Template: ${seedInfo.name} (${seedInfo.collections} collections)`}
+					<Plural
+						value={seedInfo.collections}
+						one={t`Template: ${seedInfo.name} (# collection)`}
+						other={t`Template: ${seedInfo.name} (# collections)`}
+					/>
 				</p>
 			)}
 		</form>
