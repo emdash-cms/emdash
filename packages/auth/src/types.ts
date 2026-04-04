@@ -34,6 +34,9 @@ const ROLE_LEVEL_MAP = new Map<number, RoleLevel>(Object.values(Role).map((v) =>
 export function toRoleLevel(value: number): RoleLevel {
 	const level = ROLE_LEVEL_MAP.get(value);
 	if (level !== undefined) return level;
+	// Accept custom role levels (any positive integer) without throwing.
+	// Custom roles use explicit permission arrays checked by the RoleRegistry.
+	if (value > 0 && Number.isInteger(value)) return value as unknown as RoleLevel;
 	throw new Error(`Invalid role level: ${value}`);
 }
 

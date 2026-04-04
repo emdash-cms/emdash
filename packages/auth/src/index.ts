@@ -45,7 +45,9 @@ export {
 	PermissionError,
 	scopesForRole,
 	clampScopes,
+	RoleRegistry,
 	type Permission,
+	type RoleDef,
 } from "./rbac.js";
 
 // Tokens

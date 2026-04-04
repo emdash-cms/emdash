@@ -37,6 +37,7 @@ import * as m033 from "./033_content_visibility.js";
 import * as m034 from "./034_taxonomy_fields.js";
 import * as m035 from "./035_taxonomy_seo.js";
 import * as m036 from "./036_taxonomy_supports.js";
+import * as m037 from "./037_role_defs.js";
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -80,6 +81,7 @@ class StaticMigrationProvider implements MigrationProvider {
 			"034_taxonomy_fields": m034,
 			"035_taxonomy_seo": m035,
 			"036_taxonomy_supports": m036,
+			"037_role_defs": m037,
 		};
 	}
 }

@@ -425,6 +425,7 @@ export interface Database {
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
 	_emdash_rate_limits: RateLimitTable;
+	_emdash_role_defs: RoleDefTable;
 }
 
 export type MediaRow = {
@@ -498,4 +499,20 @@ export interface RateLimitTable {
 	key: string; // {ip}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
+}
+
+// Role Definitions
+
+export interface RoleDefTable {
+	id: string;
+	name: string;
+	label: string;
+	level: number;
+	builtin: number; // 0 or 1
+	permissions: string | null; // JSON array of Permission strings
+	fields: string | null; // JSON array of field definitions
+	color: string | null;
+	description: string | null;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
 }

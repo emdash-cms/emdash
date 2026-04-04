@@ -4,15 +4,17 @@ import { z } from "zod";
 // Role level
 // ---------------------------------------------------------------------------
 
-/** Valid role level values */
-export const VALID_ROLE_LEVELS = new Set([10, 20, 30, 40, 50]);
+/** Built-in role level values */
+export const BUILTIN_ROLE_LEVELS = new Set([10, 20, 30, 40, 50]);
 
-/** Role level — coerces string/number to valid RoleLevel (10|20|30|40|50) */
+/** Role level — coerces string/number to valid role level (1-99) */
 export const roleLevel = z.coerce
 	.number()
 	.int()
-	.refine((n): n is 10 | 20 | 30 | 40 | 50 => VALID_ROLE_LEVELS.has(n), {
-		message: "Invalid role level. Must be 10, 20, 30, 40, or 50",
+	.min(1)
+	.max(99)
+	.refine((n) => Number.isInteger(n), {
+		message: "Role level must be an integer between 1 and 99",
 	});
 
 // ---------------------------------------------------------------------------

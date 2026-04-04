@@ -5,6 +5,62 @@
 import type { ApiTokenScope } from "./tokens.js";
 import { Role, type RoleLevel } from "./types.js";
 
+// ---------------------------------------------------------------------------
+// Role Registry — in-memory cache of role definitions for custom roles
+// ---------------------------------------------------------------------------
+
+export interface RoleDef {
+	id: string;
+	name: string;
+	label: string;
+	level: number;
+	builtin: boolean;
+	permissions: Permission[] | null;
+	fields: unknown[] | null;
+	color: string | null;
+	description: string | null;
+}
+
+const BUILTIN_LEVELS = new Set<number>([10, 20, 30, 40, 50]);
+
+export class RoleRegistry {
+	private defs = new Map<number, RoleDef>();
+	private _loaded = false;
+
+	get loaded(): boolean {
+		return this._loaded;
+	}
+
+	load(defs: RoleDef[]): void {
+		this.defs.clear();
+		for (const def of defs) {
+			this.defs.set(def.level, def);
+		}
+		this._loaded = true;
+	}
+
+	invalidate(): void {
+		this.defs.clear();
+		this._loaded = false;
+	}
+
+	getRoleDef(level: number): RoleDef | undefined {
+		return this.defs.get(level);
+	}
+
+	isBuiltinLevel(level: number): boolean {
+		return BUILTIN_LEVELS.has(level);
+	}
+
+	getAllRoles(): RoleDef[] {
+		return [...this.defs.values()].sort((a, b) => a.level - b.level);
+	}
+
+	getCustomRoles(): RoleDef[] {
+		return this.getAllRoles().filter((d) => !d.builtin);
+	}
+}
+
 /**
  * Permission definitions with minimum role required
  */
@@ -85,13 +141,27 @@ export const Permissions = {
 export type Permission = keyof typeof Permissions;
 
 /**
- * Check if a user has a specific permission
+ * Check if a user has a specific permission.
+ *
+ * For built-in roles (10/20/30/40/50) or when no registry is provided,
+ * uses the legacy numeric comparison. For custom roles, looks up the
+ * explicit permissions array in the registry.
  */
 export function hasPermission(
-	user: { role: RoleLevel } | null | undefined,
+	user: { role: RoleLevel | number } | null | undefined,
 	permission: Permission,
+	registry?: RoleRegistry,
 ): boolean {
 	if (!user) return false;
+
+	// If registry is loaded and role is a custom level, check permissions array
+	if (registry?.loaded && !BUILTIN_LEVELS.has(user.role)) {
+		const def = registry.getRoleDef(user.role);
+		if (!def || !def.permissions) return false;
+		return def.permissions.includes(permission);
+	}
+
+	// Built-in role or no registry: legacy numeric comparison
 	return user.role >= Permissions[permission];
 }
 
@@ -99,13 +169,14 @@ export function hasPermission(
  * Require a permission, throwing if not met
  */
 export function requirePermission(
-	user: { role: RoleLevel } | null | undefined,
+	user: { role: RoleLevel | number } | null | undefined,
 	permission: Permission,
-): asserts user is { role: RoleLevel } {
+	registry?: RoleRegistry,
+): asserts user is { role: RoleLevel | number } {
 	if (!user) {
 		throw new PermissionError("unauthorized", "Authentication required");
 	}
-	if (!hasPermission(user, permission)) {
+	if (!hasPermission(user, permission, registry)) {
 		throw new PermissionError("forbidden", `Missing permission: ${permission}`);
 	}
 }
@@ -114,31 +185,33 @@ export function requirePermission(
  * Check if user can perform action on a resource they own
  */
 export function canActOnOwn(
-	user: { role: RoleLevel; id: string } | null | undefined,
+	user: { role: RoleLevel | number; id: string } | null | undefined,
 	ownerId: string,
 	ownPermission: Permission,
 	anyPermission: Permission,
+	registry?: RoleRegistry,
 ): boolean {
 	if (!user) return false;
 	if (user.id === ownerId) {
-		return hasPermission(user, ownPermission);
+		return hasPermission(user, ownPermission, registry);
 	}
-	return hasPermission(user, anyPermission);
+	return hasPermission(user, anyPermission, registry);
 }
 
 /**
  * Require permission on a resource, checking ownership
  */
 export function requirePermissionOnResource(
-	user: { role: RoleLevel; id: string } | null | undefined,
+	user: { role: RoleLevel | number; id: string } | null | undefined,
 	ownerId: string,
 	ownPermission: Permission,
 	anyPermission: Permission,
-): asserts user is { role: RoleLevel; id: string } {
+	registry?: RoleRegistry,
+): asserts user is { role: RoleLevel | number; id: string } {
 	if (!user) {
 		throw new PermissionError("unauthorized", "Authentication required");
 	}
-	if (!canActOnOwn(user, ownerId, ownPermission, anyPermission)) {
+	if (!canActOnOwn(user, ownerId, ownPermission, anyPermission, registry)) {
 		throw new PermissionError("forbidden", `Missing permission: ${anyPermission}`);
 	}
 }

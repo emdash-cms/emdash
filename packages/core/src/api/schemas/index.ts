@@ -15,3 +15,4 @@ export * from "./users.js";
 export * from "./widgets.js";
 export * from "./redirects.js";
 export * from "./bylines.js";
+export * from "./roles.js";
