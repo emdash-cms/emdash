@@ -62,6 +62,14 @@ export interface StorageCollectionDeclaration {
 	uniqueIndexes?: string[];
 }
 
+export interface PluginSettingField {
+	type: "string" | "text" | "boolean" | "number" | "select";
+	label: string;
+	description?: string;
+	default?: unknown;
+	options?: Array<{ label: string; value: string }>;
+}
+
 export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	/** Unique plugin identifier */
 	id: string;
@@ -114,6 +122,20 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	 * Sandboxed plugins can only access declared collections.
 	 */
 	storage?: Record<string, StorageCollectionDeclaration>;
+	/**
+	 * WordPress plugin slugs that this plugin replaces.
+	 * Displayed in the marketplace to help WordPress migrants find equivalent plugins.
+	 * Example: ["yoast-seo", "rank-math-seo"]
+	 */
+	replaces?: string[];
+	/**
+	 * Plugin settings schema. Defines configurable options shown in the admin.
+	 */
+	settings?: Record<string, PluginSettingField>;
+	/**
+	 * Custom API routes the plugin exposes.
+	 */
+	routes?: Array<{ method: string; path: string; handler: string }>;
 }
 
 /**
