@@ -10,7 +10,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
-import { output } from "../output.js";
+import { configureOutputMode, output } from "../output.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,6 +77,7 @@ const listCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const result = await client.list(args.collection, {
@@ -130,6 +131,7 @@ const getCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const item = await client.get(args.collection, args.id, {
@@ -177,6 +179,7 @@ const createCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const data = await readInputData(args);
 			const client = createClientFromArgs(args);
@@ -229,6 +232,7 @@ const updateCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const data = await readInputData(args);
 			const client = createClientFromArgs(args);
@@ -270,6 +274,7 @@ const deleteCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			await client.delete(args.collection, args.id);
@@ -297,6 +302,7 @@ const publishCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			await client.publish(args.collection, args.id);
@@ -324,6 +330,7 @@ const unpublishCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			await client.unpublish(args.collection, args.id);
@@ -356,6 +363,7 @@ const scheduleCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			await client.schedule(args.collection, args.id, { at: args.at });
@@ -383,6 +391,7 @@ const restoreCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			await client.restore(args.collection, args.id);
@@ -410,6 +419,7 @@ const translationsCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const translations = await client.translations(args.collection, args.id);
