@@ -26,7 +26,7 @@ export {
 	type PluginAdmins,
 } from "./lib/plugin-context";
 
-// i18n
+// Locales
 export {
 	useLocale,
 	SUPPORTED_LOCALES,

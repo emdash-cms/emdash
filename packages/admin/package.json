@@ -25,7 +25,9 @@
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
     "test": "vitest",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "i18n:extract": "lingui extract --clean",
+    "i18n:check": "lingui extract --clean && git diff --exit-code -- src/locales/"
   },
   "dependencies": {
     "@cloudflare/kumo": "^1.16.0",
