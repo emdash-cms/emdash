@@ -5,7 +5,7 @@ import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { RoleBadge, ROLES, useTranslatedRoleConfig } from "./RoleBadge";
+import { RoleBadge, ROLES } from "./RoleBadge";
 
 export interface UserListProps {
 	users: UserListItem[];
@@ -36,7 +36,6 @@ export function UserList({
 	onLoadMore,
 }: UserListProps) {
 	const { t } = useLingui();
-	const { translateLabel } = useTranslatedRoleConfig();
 
 	return (
 		<div className="space-y-4">
@@ -71,14 +70,14 @@ export function UserList({
 					}
 					items={{
 						all: t`All roles`,
-						...Object.fromEntries(ROLES.map((r) => [r.value.toString(), translateLabel(r.label)])),
+						...Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label])),
 					}}
 					aria-label={t`Filter by role`}
 				>
 					<Select.Option value="all">{t`All roles`}</Select.Option>
 					{ROLES.map((role) => (
 						<Select.Option key={role.value} value={role.value.toString()}>
-							{translateLabel(role.label)}
+							{role.label}
 						</Select.Option>
 					))}
 				</Select>

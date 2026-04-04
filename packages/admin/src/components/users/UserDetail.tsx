@@ -14,7 +14,7 @@ import * as React from "react";
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
-import { ROLES, getRoleLabel, useTranslatedRoleConfig } from "./RoleBadge";
+import { ROLES, getRoleLabel } from "./RoleBadge";
 
 export interface UserDetailProps {
 	user: UserDetailType | null;
@@ -51,7 +51,6 @@ export function UserDetail({
 	onSendRecovery,
 }: UserDetailProps) {
 	const { t } = useLingui();
-	const { translateLabel, translateDescription } = useTranslatedRoleConfig();
 	const [name, setName] = React.useState(user?.name ?? "");
 	const [email, setEmail] = React.useState(user?.email ?? "");
 	const [role, setRole] = React.useState(user?.role ?? 30);
@@ -175,7 +174,7 @@ export function UserDetail({
 									<div className="flex-1">
 										<Input
 											label={t`Role`}
-											value={translateLabel(getRoleLabel(role))}
+											value={getRoleLabel(role)}
 											disabled
 											className="cursor-not-allowed"
 										/>
@@ -190,15 +189,15 @@ export function UserDetail({
 											value={role.toString()}
 											onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
 											items={Object.fromEntries(
-												ROLES.map((r) => [r.value.toString(), translateLabel(r.label)]),
+												ROLES.map((r) => [r.value.toString(), r.label]),
 											)}
 										>
 											{ROLES.map((r) => (
 												<Select.Option key={r.value} value={r.value.toString()}>
 													<div>
-														<div>{translateLabel(r.label)}</div>
+														<div>{r.label}</div>
 														<div className="text-xs text-kumo-subtle">
-															{translateDescription(r.description)}
+															{r.description}
 														</div>
 													</div>
 												</Select.Option>

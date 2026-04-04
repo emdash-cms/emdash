@@ -1,5 +1,3 @@
-import { useLingui } from "@lingui/react/macro";
-
 import { cn } from "../../lib/utils";
 
 /** Role level to name mapping */
@@ -47,36 +45,6 @@ export function getRoleLabel(role: number): string {
 	return getRoleConfig(role).label;
 }
 
-/**
- * Hook that returns a function to translate role labels at render time.
- * Use this in components that need translated role strings.
- */
-export function useTranslatedRoleConfig() {
-	const { t } = useLingui();
-
-	const labels: Record<string, string> = {
-		Subscriber: t`Subscriber`,
-		Contributor: t`Contributor`,
-		Author: t`Author`,
-		Editor: t`Editor`,
-		Admin: t`Admin`,
-	};
-
-	const descriptions: Record<string, string> = {
-		"Can view content": t`Can view content`,
-		"Can create content": t`Can create content`,
-		"Can publish own content": t`Can publish own content`,
-		"Can manage all content": t`Can manage all content`,
-		"Full access": t`Full access`,
-		"Unknown role": t`Unknown role`,
-	};
-
-	return {
-		translateLabel: (label: string) => labels[label] ?? label,
-		translateDescription: (description: string) => descriptions[description] ?? description,
-	};
-}
-
 export interface RoleBadgeProps {
 	role: number;
 	size?: "sm" | "md";
@@ -94,7 +62,6 @@ export function RoleBadge({
 	className,
 }: RoleBadgeProps) {
 	const config = getRoleConfig(role);
-	const { translateLabel, translateDescription } = useTranslatedRoleConfig();
 
 	const colorClasses: Record<string, string> = {
 		gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
@@ -117,12 +84,10 @@ export function RoleBadge({
 				colorClasses[config.color],
 				className,
 			)}
-			title={showDescription ? undefined : translateDescription(config.description)}
+			title={showDescription ? undefined : config.description}
 		>
-			{translateLabel(config.label)}
-			{showDescription && (
-				<span className="ml-1 opacity-75">- {translateDescription(config.description)}</span>
-			)}
+			{config.label}
+			{showDescription && <span className="ml-1 opacity-75">- {config.description}</span>}
 		</span>
 	);
 }
