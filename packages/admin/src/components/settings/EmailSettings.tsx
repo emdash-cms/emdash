@@ -6,6 +6,7 @@
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	CheckCircle,
@@ -26,6 +27,7 @@ import {
 import { getMutationError } from "../DialogError.js";
 
 export function EmailSettings() {
+	const { t } = useLingui();
 	const [testEmail, setTestEmail] = React.useState("");
 	const [status, setStatus] = React.useState<{
 		type: "success" | "error";
@@ -53,7 +55,7 @@ export function EmailSettings() {
 		onError: (error) => {
 			setStatus({
 				type: "error",
-				message: getMutationError(error) || "Failed to send test email",
+				message: getMutationError(error) || t`Failed to send test email`,
 			});
 		},
 	});
@@ -77,11 +79,11 @@ export function EmailSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label="Back to settings">
+					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
 						<ArrowLeft className="h-4 w-4" />
 					</Button>
 				</Link>
-				<h1 className="text-2xl font-bold">Email Settings</h1>
+				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
 			</div>
 
 			{/* Status banner */}
@@ -106,7 +108,7 @@ export function EmailSettings() {
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-center gap-2 mb-4">
 					<Envelope className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">Email Pipeline</h2>
+					<h2 className="text-lg font-semibold">{t`Email Pipeline`}</h2>
 				</div>
 
 				<PipelineStatus settings={settings} />
@@ -117,15 +119,15 @@ export function EmailSettings() {
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-center gap-2 mb-4">
 						<PaperPlaneTilt className="h-5 w-5 text-kumo-subtle" />
-						<h2 className="text-lg font-semibold">Send Test Email</h2>
+						<h2 className="text-lg font-semibold">{t`Send Test Email`}</h2>
 					</div>
 					<p className="text-sm text-kumo-subtle mb-4">
-						Send a test email through the full pipeline to verify your email configuration.
+						{t`Send a test email through the full pipeline to verify your email configuration.`}
 					</p>
 					<form onSubmit={handleTestSubmit} className="flex items-end gap-3">
 						<div className="flex-1">
 							<Input
-								label="Recipient email"
+								label={t`Recipient email`}
 								type="email"
 								value={testEmail}
 								onChange={(e) => setTestEmail(e.target.value)}
@@ -134,7 +136,7 @@ export function EmailSettings() {
 							/>
 						</div>
 						<Button type="submit" disabled={testMutation.isPending || !testEmail}>
-							{testMutation.isPending ? "Sending..." : "Send Test"}
+							{testMutation.isPending ? t`Sending...` : t`Send Test`}
 						</Button>
 					</form>
 				</div>
@@ -148,6 +150,7 @@ export function EmailSettings() {
 // =============================================================================
 
 function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined }) {
+	const { t } = useLingui();
 	if (!settings) return null;
 
 	if (!settings.available) {
@@ -157,14 +160,13 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 					<WarningCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
 					<div>
 						<p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-							No email provider configured
+							{t`No email provider configured`}
 						</p>
 						<p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-							Install and activate an email provider plugin to enable email features like
-							invitations, magic links, and password recovery.
+							{t`Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery.`}
 						</p>
 						<p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-							Without an email provider, invite links must be shared manually.
+							{t`Without an email provider, invite links must be shared manually.`}
 						</p>
 					</div>
 				</div>
@@ -179,10 +181,10 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 				<CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
 				<div>
 					<p className="text-sm font-medium text-green-800 dark:text-green-200">
-						Email provider active
+						{t`Email provider active`}
 					</p>
 					<p className="text-sm text-green-700 dark:text-green-300">
-						Provider:{" "}
+						{t`Provider:`}{" "}
 						<code className="rounded bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs">
 							{settings.selectedProviderId || "default"}
 						</code>
@@ -195,16 +197,16 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 				<div className="p-3 rounded-md bg-kumo-tint/50 border">
 					<div className="flex items-center gap-2 mb-2">
 						<PlugsConnected className="h-4 w-4 text-kumo-subtle" />
-						<p className="text-sm font-medium">Email Middleware</p>
+						<p className="text-sm font-medium">{t`Email Middleware`}</p>
 					</div>
 					{settings.middleware.beforeSend.length > 0 && (
 						<p className="text-sm text-kumo-subtle">
-							Before send: {settings.middleware.beforeSend.join(", ")}
+							{t`Before send: ${settings.middleware.beforeSend.join(", ")}`}
 						</p>
 					)}
 					{settings.middleware.afterSend.length > 0 && (
 						<p className="text-sm text-kumo-subtle">
-							After send: {settings.middleware.afterSend.join(", ")}
+							{t`After send: ${settings.middleware.afterSend.join(", ")}`}
 						</p>
 					)}
 				</div>
@@ -213,7 +215,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 			{/* Available providers (if multiple) */}
 			{settings.providers.length > 1 && (
 				<div className="p-3 rounded-md bg-kumo-tint/50 border">
-					<p className="text-sm font-medium mb-1">Available Providers</p>
+					<p className="text-sm font-medium mb-1">{t`Available Providers`}</p>
 					<p className="text-sm text-kumo-subtle">
 						{settings.providers.map((p) => p.pluginId).join(", ")}
 					</p>

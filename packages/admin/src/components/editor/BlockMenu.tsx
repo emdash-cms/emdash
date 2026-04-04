@@ -12,6 +12,7 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import { useLingui } from "@lingui/react/macro";
 import {
 	DotsSixVertical,
 	Paragraph,
@@ -125,6 +126,17 @@ interface BlockMenuProps {
  * Block Menu - floating menu for block-level actions
  */
 export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
+	const { t } = useLingui();
+	const transformLabels: Record<string, string> = {
+		paragraph: t`Paragraph`,
+		heading1: t`Heading 1`,
+		heading2: t`Heading 2`,
+		heading3: t`Heading 3`,
+		blockquote: t`Quote`,
+		codeBlock: t`Code Block`,
+		bulletList: t`Bullet List`,
+		orderedList: t`Numbered List`,
+	};
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const stableOnClose = useStableCallback(onClose);
@@ -247,7 +259,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={() => setShowTransforms(false)}
 					>
 						<CaretRight className="h-4 w-4 rotate-180" />
-						<span>Back</span>
+						<span>{t`Back`}</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
 					{blockTransforms.map((transform) => (
@@ -258,7 +270,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 							onClick={() => handleTransform(transform)}
 						>
 							<transform.icon className="h-4 w-4 text-kumo-subtle" />
-							<span>{transform.label}</span>
+							<span>{transformLabels[transform.id] ?? transform.label}</span>
 						</button>
 					))}
 				</div>
@@ -272,7 +284,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					>
 						<span className="flex items-center gap-2">
 							<Paragraph className="h-4 w-4 text-kumo-subtle" />
-							<span>Turn into</span>
+							<span>{t`Turn into`}</span>
 						</span>
 						<CaretRight className="h-4 w-4 text-kumo-subtle" />
 					</button>
@@ -282,7 +294,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={handleDuplicate}
 					>
 						<Copy className="h-4 w-4 text-kumo-subtle" />
-						<span>Duplicate</span>
+						<span>{t`Duplicate`}</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
 					<button
@@ -291,7 +303,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={handleDelete}
 					>
 						<Trash className="h-4 w-4" />
-						<span>Delete</span>
+						<span>{t`Delete`}</span>
 					</button>
 				</div>
 			)}
@@ -313,6 +325,7 @@ interface BlockHandleProps {
 }
 
 export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps) {
+	const { t } = useLingui();
 	return (
 		<Button
 			type="button"
@@ -327,7 +340,7 @@ export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps
 			onDragStart={onDragStart}
 			draggable
 			data-block-handle
-			aria-label="Drag to reorder block"
+			aria-label={t`Drag to reorder block`}
 		>
 			<DotsSixVertical className="h-4 w-4" />
 		</Button>

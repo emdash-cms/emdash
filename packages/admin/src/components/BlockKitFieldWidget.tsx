@@ -1,5 +1,6 @@
 import { Input, Switch } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
+import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 interface BlockKitFieldWidgetProps {
@@ -63,6 +64,7 @@ function BlockKitFieldElement({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const { t } = useLingui();
 	switch (element.type) {
 		case "text_input":
 			return (
@@ -103,7 +105,7 @@ function BlockKitFieldElement({
 						value={typeof value === "string" ? value : ""}
 						onChange={(e) => onChange(element.action_id, e.target.value)}
 					>
-						<option value="">Select...</option>
+						<option value="">{t`Select...`}</option>
 						{options.map((opt) => (
 							<option key={opt.value} value={opt.value}>
 								{opt.label}
@@ -116,7 +118,7 @@ function BlockKitFieldElement({
 		default:
 			return (
 				<div className="text-sm text-kumo-subtle">
-					Unsupported widget element type: {(element as { type: string }).type}
+					{t`Unsupported widget element type: ${(element as { type: string }).type}`}
 				</div>
 			);
 	}

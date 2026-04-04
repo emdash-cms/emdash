@@ -12,6 +12,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../../lib/api/client";
@@ -137,10 +138,12 @@ export function PasskeyRegistration({
 	verifyEndpoint,
 	onSuccess,
 	onError,
-	buttonText = "Register Passkey",
+	buttonText,
 	showNameInput = false,
 	additionalData = EMPTY_DATA,
 }: PasskeyRegistrationProps) {
+	const { t } = useLingui();
+	const resolvedButtonText = buttonText ?? t`Register Passkey`;
 	const [state, setState] = React.useState<RegistrationState>({
 		status: "idle",
 	});
@@ -157,14 +160,14 @@ export function PasskeyRegistration({
 		if (!isSupported) {
 			setState({
 				status: "error",
-				message: "WebAuthn is not supported in this browser",
+				message: t`WebAuthn is not supported in this browser`,
 			});
 			return;
 		}
 
 		try {
 			// Step 1: Get registration options from server
-			setState({ status: "loading", message: "Preparing registration..." });
+			setState({ status: "loading", message: t`Preparing registration...` });
 
 			const optionsResponse = await apiFetch(optionsEndpoint, {
 				method: "POST",
@@ -178,7 +181,7 @@ export function PasskeyRegistration({
 			const { options } = optionsData;
 
 			// Step 2: Create credential with browser
-			setState({ status: "loading", message: "Waiting for passkey..." });
+			setState({ status: "loading", message: t`Waiting for passkey...` });
 
 			// Convert options to the format expected by the browser
 			const publicKeyOptions: PublicKeyCredentialCreationOptions = {
@@ -209,7 +212,7 @@ export function PasskeyRegistration({
 			}
 
 			// Step 3: Send credential to server for verification
-			setState({ status: "loading", message: "Verifying..." });
+			setState({ status: "loading", message: t`Verifying...` });
 
 			// navigator.credentials.create() with publicKey returns PublicKeyCredential
 			const credential = rawCredential as PublicKeyCredential;
@@ -253,26 +256,26 @@ export function PasskeyRegistration({
 			setState({ status: "success" });
 			onSuccess(result);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Registration failed";
+			const message = error instanceof Error ? error.message : t`Registration failed`;
 
 			// Handle specific WebAuthn errors
 			let userMessage = message;
 			if (error instanceof DOMException) {
 				switch (error.name) {
 					case "NotAllowedError":
-						userMessage = "Registration was cancelled or timed out. Please try again.";
+						userMessage = t`Registration was cancelled or timed out. Please try again.`;
 						break;
 					case "InvalidStateError":
-						userMessage = "This passkey is already registered on this device.";
+						userMessage = t`This passkey is already registered on this device.`;
 						break;
 					case "NotSupportedError":
-						userMessage = "Your device doesn't support the required security features.";
+						userMessage = t`Your device doesn't support the required security features.`;
 						break;
 					case "SecurityError":
-						userMessage = "Security error. Make sure you're on a secure connection.";
+						userMessage = t`Security error. Make sure you're on a secure connection.`;
 						break;
 					default:
-						userMessage = `Authentication error: ${error.message}`;
+						userMessage = t`Authentication error: ${error.message}`;
 				}
 			}
 
@@ -293,7 +296,7 @@ export function PasskeyRegistration({
 	if (!isSupported) {
 		return (
 			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4">
-				<h3 className="font-medium text-kumo-danger">Passkeys Not Available Here</h3>
+				<h3 className="font-medium text-kumo-danger">{t`Passkeys Not Available Here`}</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
 					{insecureContext ? (
 						<>
@@ -320,15 +323,15 @@ export function PasskeyRegistration({
 			{showNameInput && (
 				<div>
 					<Input
-						label="Passkey Name (optional)"
+						label={t`Passkey Name (optional)`}
 						type="text"
 						value={passkeyName}
 						onChange={(e) => setPasskeyName(e.target.value)}
-						placeholder="e.g., MacBook Pro, iPhone"
+						placeholder={t`e.g., MacBook Pro, iPhone`}
 						disabled={state.status === "loading"}
 					/>
 					<p className="mt-1 text-xs text-kumo-subtle">
-						Give this passkey a name to help you identify it later.
+						{t`Give this passkey a name to help you identify it later.`}
 					</p>
 				</div>
 			)}
@@ -343,7 +346,7 @@ export function PasskeyRegistration({
 			{/* Success message */}
 			{state.status === "success" && (
 				<div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
-					Passkey registered successfully!
+					{t`Passkey registered successfully!`}
 				</div>
 			)}
 
@@ -355,12 +358,12 @@ export function PasskeyRegistration({
 				className="w-full justify-center"
 				variant="primary"
 			>
-				{state.status === "loading" ? <>{state.message}</> : buttonText}
+				{state.status === "loading" ? <>{state.message}</> : resolvedButtonText}
 			</Button>
 
 			{/* Help text */}
 			<p className="text-xs text-kumo-subtle text-center">
-				You'll be prompted to use your device's biometric authentication, security key, or PIN.
+				{t`You'll be prompted to use your device's biometric authentication, security key, or PIN.`}
 			</p>
 		</div>
 	);
