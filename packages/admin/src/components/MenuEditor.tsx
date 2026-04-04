@@ -238,11 +238,11 @@ export function MenuEditor() {
 						className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm"
 					>
 						<option value="">Top level</option>
-						{localItems.map((it) => (
-							<option key={it.id} value={it.id}>
-								{it.label}
-							</option>
-						))}
+								{localItems.map((it) => (
+									<option key={it.id} value={it.id}>
+										{it.label[0] + '\u200B' + it.label.slice(1)}
+									</option>
+								))}
 					</select>
 
 					<Button
@@ -308,11 +308,11 @@ export function MenuEditor() {
 								{/* Parent selection for new item (defaults to currently selected parent) */}
 								<select name="parentId" defaultValue={newParentId} className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm">
 									<option value="">Top level</option>
-									{localItems.map((it) => (
-										<option key={it.id} value={it.id}>
-											{it.label}
-										</option>
-									))}
+													{localItems.map((it) => (
+														<option key={it.id} value={it.id}>
+															{it.label[0] + '\u200B' + it.label.slice(1)}
+														</option>
+													))}
 								</select>
 								<DialogError message={addError || getMutationError(createMutation.error)} />
 								<div className="flex justify-end gap-2">
@@ -460,13 +460,13 @@ export function MenuEditor() {
 							{/* Parent selection for editing item */}
 							<select name="parentId" defaultValue={editingItem.parent_id ?? ""} className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm">
 								<option value="">Top level</option>
-								{localItems
-									.filter((it) => it.id !== editingItem.id)
-									.map((it) => (
-										<option key={it.id} value={it.id}>
-											{it.label}
-										</option>
-									))}
+								       {localItems
+									       .filter((it) => it.id !== editingItem.id)
+									       .map((it) => (
+											       <option key={it.id} value={it.id}>
+												       {it.label[0] + '\u200B' + it.label.slice(1)}
+											       </option>
+									       ))}
 							</select>
 							<DialogError message={editError || getMutationError(updateMutation.error)} />
 							<div className="flex justify-end gap-2">
