@@ -9,35 +9,40 @@ packages:
   - slidev
 
 catalog:
-  "@arethetypeswrong/cli": ^0.18.2
-  "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^13.0.1
-  "@astrojs/node": ^10.0.0
-  "@astrojs/react": ^5.0.0
-  "@cloudflare/workers-types": ^4.20260305.1
-  "@phosphor-icons/react": ^2.1.10
-  "@tanstack/react-query": 5.90.21
-  "@tanstack/react-router": 1.163.2
-  "@tiptap/core": ^3.20.0
-  "@tiptap/extension-character-count": ^3.20.0
-  "@tiptap/extension-drag-handle": ^3.20.0
-  "@tiptap/extension-drag-handle-react": ^3.20.0
-  "@tiptap/extension-dropcursor": ^3.20.0
-  "@tiptap/extension-focus": ^3.20.0
-  "@tiptap/extension-image": ^3.20.0
-  "@tiptap/extension-link": ^3.20.0
-  "@tiptap/extension-node-range": ^3.20.0
-  "@tiptap/extension-placeholder": ^3.20.0
-  "@tiptap/extension-text-align": ^3.20.0
-  "@tiptap/extension-typography": ^3.20.0
-  "@tiptap/extension-underline": ^3.20.0
-  "@tiptap/pm": ^3.20.0
-  "@tiptap/react": ^3.20.0
-  "@tiptap/starter-kit": ^3.20.0
-  "@tiptap/suggestion": ^3.20.0
-  "@types/node": 24.10.13
-  "@types/react": 19.2.14
-  "@types/react-dom": 19.2.3
+  '@arethetypeswrong/cli': ^0.18.2
+  '@astrojs/check': ^0.9.7
+  '@lingui/cli': ^5.9.4
+  '@lingui/core': ^5.9.4
+  '@lingui/macro': ^5.9.4
+  '@lingui/react': ^5.9.4
+  '@lingui/vite-plugin': ^5.9.4
+  '@astrojs/cloudflare': ^13.0.1
+  '@astrojs/node': ^10.0.0
+  '@astrojs/react': ^5.0.0
+  '@cloudflare/workers-types': ^4.20260305.1
+  '@phosphor-icons/react': ^2.1.10
+  '@tanstack/react-query': 5.90.21
+  '@tanstack/react-router': 1.163.2
+  '@tiptap/core': ^3.20.0
+  '@tiptap/extension-character-count': ^3.20.0
+  '@tiptap/extension-drag-handle': ^3.20.0
+  '@tiptap/extension-drag-handle-react': ^3.20.0
+  '@tiptap/extension-dropcursor': ^3.20.0
+  '@tiptap/extension-focus': ^3.20.0
+  '@tiptap/extension-image': ^3.20.0
+  '@tiptap/extension-link': ^3.20.0
+  '@tiptap/extension-node-range': ^3.20.0
+  '@tiptap/extension-placeholder': ^3.20.0
+  '@tiptap/extension-text-align': ^3.20.0
+  '@tiptap/extension-typography': ^3.20.0
+  '@tiptap/extension-underline': ^3.20.0
+  '@tiptap/pm': ^3.20.0
+  '@tiptap/react': ^3.20.0
+  '@tiptap/starter-kit': ^3.20.0
+  '@tiptap/suggestion': ^3.20.0
+  '@types/node': 24.10.13
+  '@types/react': 19.2.14
+  '@types/react-dom': 19.2.3
   astro: ^6.0.1
   better-sqlite3: ^11.10.0
   publint: 0.3.17
