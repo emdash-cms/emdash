@@ -112,6 +112,8 @@ const blockTransforms: BlockTransform[] = [
 	},
 ];
 
+type BlockTransformId = (typeof blockTransforms)[number]["id"];
+
 interface BlockMenuProps {
 	editor: Editor;
 	/** The DOM element of the selected block (for positioning) */
@@ -127,7 +129,7 @@ interface BlockMenuProps {
  */
 export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
 	const { t } = useLingui();
-	const transformLabels: Record<string, string> = {
+	const transformLabels: Record<BlockTransformId, string> = React.useMemo(() => ({
 		paragraph: t`Paragraph`,
 		heading1: t`Heading 1`,
 		heading2: t`Heading 2`,
@@ -136,7 +138,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 		codeBlock: t`Code Block`,
 		bulletList: t`Bullet List`,
 		orderedList: t`Numbered List`,
-	};
+	}), [t]);
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const stableOnClose = useStableCallback(onClose);
