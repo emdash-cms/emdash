@@ -20,6 +20,7 @@ export const userUpdateBody = z
 		name: z.string().optional(),
 		email: z.string().email().optional(),
 		role: roleLevel.optional(),
+		data: z.record(z.unknown()).nullish(),
 	})
 	.meta({ id: "UserUpdateBody" });
 
@@ -50,6 +51,7 @@ export const userSchema = z
 		role: z.number().int(),
 		emailVerified: z.boolean(),
 		disabled: z.boolean(),
+		data: z.record(z.unknown()).nullable().optional(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
 		lastLogin: z.string().nullable(),
@@ -74,6 +76,7 @@ export const userDetailSchema = z
 		role: z.number().int(),
 		emailVerified: z.boolean(),
 		disabled: z.boolean(),
+		data: z.record(z.unknown()).nullable().optional(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
 		lastLogin: z.string().nullable(),

@@ -115,6 +115,7 @@ export const updateProfileBody = z
 	.object({
 		name: z.string().min(1).max(100).nullish(),
 		avatarUrl: z.string().url().nullish(),
+		data: z.record(z.unknown()).nullish(),
 	})
 	.strict()
 	.meta({ id: "UpdateProfileBody" });

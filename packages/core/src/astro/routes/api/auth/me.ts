@@ -33,6 +33,7 @@ export const GET: APIRoute = async ({ locals, session }) => {
 		name: user.name,
 		role: user.role,
 		avatarUrl: user.avatarUrl,
+		data: user.data,
 		isFirstLogin,
 	});
 };
@@ -81,9 +82,22 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 	if (isParseError(body)) return body;
 
 	const userRepo = new UserRepository(emdash.db);
+
+	// Merge data: preserve existing keys, allow overwriting individual keys
+	let mergedData: Record<string, unknown> | undefined;
+	if (body.data !== undefined) {
+		if (body.data === null) {
+			mergedData = {};
+		} else {
+			const existing = (await userRepo.findById(user.id))?.data ?? {};
+			mergedData = { ...existing, ...body.data };
+		}
+	}
+
 	const updated = await userRepo.update(user.id, {
 		name: body.name ?? undefined,
 		avatarUrl: body.avatarUrl ?? undefined,
+		data: mergedData,
 	});
 
 	if (!updated) {
@@ -96,5 +110,6 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 		name: updated.name,
 		role: updated.role,
 		avatarUrl: updated.avatarUrl,
+		data: updated.data,
 	});
 };

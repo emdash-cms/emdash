@@ -50,6 +50,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 			role: result.user.role,
 			emailVerified: result.user.emailVerified,
 			disabled: result.user.disabled,
+			data: result.user.data,
 			createdAt: result.user.createdAt.toISOString(),
 			updatedAt: result.user.updatedAt.toISOString(),
 			lastLogin: result.lastLogin?.toISOString() ?? null,
@@ -122,6 +123,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			name: body.name,
 			email: body.email,
 			role,
+			data: body.data === null ? null : body.data,
 		});
 
 		// Fetch updated user
@@ -136,6 +138,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 				role: updated!.role,
 				emailVerified: updated!.emailVerified,
 				disabled: updated!.disabled,
+				data: updated!.data,
 				createdAt: updated!.createdAt.toISOString(),
 				updatedAt: updated!.updatedAt.toISOString(),
 			},
