@@ -21,7 +21,7 @@ Create collections through the admin panel under **Content Types**. Each collect
 | `labelSingular` | Singular form (e.g., "Post")                         |
 | `description`   | Optional description for editors                     |
 | `icon`          | Lucide icon name for the admin sidebar               |
-| `supports`      | Features like drafts, revisions, preview, scheduling |
+| `supports`      | Features like drafts, revisions, preview, scheduling, search, seo |
 
 <Aside type="note">
 	Some collection slugs are reserved: `content`, `media`, `users`, `revisions`, `taxonomies`,
@@ -223,7 +223,8 @@ Every field supports these properties:
 
 <Aside type="caution">
 	Some field slugs are reserved and cannot be used: `id`, `slug`, `status`, `author_id`,
-	`created_at`, `updated_at`, `published_at`, `deleted_at`, `version`.
+	`primary_byline_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`,
+	`version`, `live_revision_id`, `draft_revision_id`.
 </Aside>
 
 ## Validation Rules
@@ -376,6 +377,6 @@ Field types map to SQLite column types:
 		Organize content with [categories and tags](/guides/taxonomies/).
 	</Card>
 	<Card title="Media Library" icon="seti:image">
-		Manage [images and files](/guides/media/).
+		Manage [images and files](/guides/media-library/).
 	</Card>
 </CardGrid>
