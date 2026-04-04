@@ -180,7 +180,7 @@ msgstr "{changedCount} change from next revision"
 msgid "{changedCount} changes from next revision"
 msgstr "{changedCount} changes from next revision"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1292
+#: packages/admin/src/components/PortableTextEditor.tsx:1295
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# character} other {# characters}}"
 
@@ -213,7 +213,7 @@ msgstr "{matchedCount} of {totalCount} authors matched by email"
 msgid "{needsNewCollections} new collection{0} will be created"
 msgstr "{needsNewCollections} new collection{0} will be created"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1293
+#: packages/admin/src/components/PortableTextEditor.tsx:1297
 msgid "{readingTime} min read"
 msgstr "{readingTime} min read"
 
@@ -248,7 +248,7 @@ msgstr "{totalScheduled} scheduled"
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} uploaded, {failed} failed"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1291
+#: packages/admin/src/components/PortableTextEditor.tsx:1292
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# word} other {# words}}"
 
@@ -420,7 +420,7 @@ msgstr "Add fields to define the structure of your content"
 msgid "Add First Field"
 msgstr "Add First Field"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1929
+#: packages/admin/src/components/PortableTextEditor.tsx:1933
 msgid "Add link"
 msgstr "Add link"
 
@@ -470,7 +470,7 @@ msgid "Additional data to import."
 msgstr "Additional data to import."
 
 #: packages/admin/src/components/Sidebar.tsx:404
-#: packages/admin/src/components/users/RoleBadge.tsx:62
+#: packages/admin/src/components/users/RoleBadge.tsx:65
 msgid "Admin"
 msgstr "Admin"
 
@@ -483,15 +483,15 @@ msgstr "Administrator"
 msgid "After send: {0}"
 msgstr "After send: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2227
+#: packages/admin/src/components/PortableTextEditor.tsx:2231
 msgid "Align Center"
 msgstr "Align Center"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2220
+#: packages/admin/src/components/PortableTextEditor.tsx:2224
 msgid "Align Left"
 msgstr "Align Left"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2234
+#: packages/admin/src/components/PortableTextEditor.tsx:2238
 msgid "Align Right"
 msgstr "Align Right"
 
@@ -556,7 +556,7 @@ msgstr "Allowed Domains"
 msgid "Already have an account?"
 msgstr "Already have an account?"
 
-#: packages/admin/src/components/PluginManager.tsx:567
+#: packages/admin/src/components/PluginManager.tsx:571
 msgid "Also delete plugin storage data"
 msgstr "Also delete plugin storage data"
 
@@ -611,12 +611,12 @@ msgstr "Appears on posts and pages"
 msgid "Application Password"
 msgstr "Application Password"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2294
+#: packages/admin/src/components/PortableTextEditor.tsx:2298
 msgid "Apply"
 msgstr "Apply"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1869
-#: packages/admin/src/components/PortableTextEditor.tsx:1870
+#: packages/admin/src/components/PortableTextEditor.tsx:1873
+#: packages/admin/src/components/PortableTextEditor.tsx:1874
 msgid "Apply link"
 msgstr "Apply link"
 
@@ -677,7 +677,7 @@ msgstr "Authentication was cancelled or timed out. Please try again."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:287
-#: packages/admin/src/components/users/RoleBadge.tsx:60
+#: packages/admin/src/components/users/RoleBadge.tsx:63
 #: packages/admin/src/components/WelcomeModal.tsx:71
 msgid "Author"
 msgstr "Author"
@@ -726,7 +726,7 @@ msgstr "Available Providers"
 msgid "Available Widgets"
 msgstr "Available Widgets"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:264
+#: packages/admin/src/components/editor/BlockMenu.tsx:267
 #: packages/admin/src/components/MenuEditor.tsx:218
 #: packages/admin/src/components/SetupWizard.tsx:250
 #: packages/admin/src/components/SetupWizard.tsx:310
@@ -788,8 +788,8 @@ msgstr "Bing Verification"
 msgid "Bio"
 msgstr "Bio"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1893
-#: packages/admin/src/components/PortableTextEditor.tsx:2118
+#: packages/admin/src/components/PortableTextEditor.tsx:1897
+#: packages/admin/src/components/PortableTextEditor.tsx:2122
 msgid "Bold"
 msgstr "Bold"
 
@@ -814,8 +814,8 @@ msgstr "Browse the"
 msgid "Browse themes and preview them with your own content."
 msgstr "Browse themes and preview them with your own content."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:139
-#: packages/admin/src/components/PortableTextEditor.tsx:2186
+#: packages/admin/src/components/editor/BlockMenu.tsx:140
+#: packages/admin/src/components/PortableTextEditor.tsx:2190
 msgid "Bullet List"
 msgstr "Bullet List"
 
@@ -824,19 +824,19 @@ msgstr "Bullet List"
 msgid "Bylines"
 msgstr "Bylines"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:67
+#: packages/admin/src/components/users/RoleBadge.tsx:71
 msgid "Can create content"
 msgstr "Can create content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:69
+#: packages/admin/src/components/users/RoleBadge.tsx:73
 msgid "Can manage all content"
 msgstr "Can manage all content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:68
+#: packages/admin/src/components/users/RoleBadge.tsx:72
 msgid "Can publish own content"
 msgstr "Can publish own content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:66
+#: packages/admin/src/components/users/RoleBadge.tsx:70
 msgid "Can view content"
 msgstr "Can view content"
 
@@ -858,9 +858,9 @@ msgstr "Can view content"
 #: packages/admin/src/components/MenuEditor.tsx:292
 #: packages/admin/src/components/MenuEditor.tsx:435
 #: packages/admin/src/components/MenuList.tsx:143
-#: packages/admin/src/components/PluginManager.tsx:573
+#: packages/admin/src/components/PluginManager.tsx:577
 #: packages/admin/src/components/PortableTextEditor.tsx:1076
-#: packages/admin/src/components/PortableTextEditor.tsx:2278
+#: packages/admin/src/components/PortableTextEditor.tsx:2282
 #: packages/admin/src/components/Redirects.tsx:174
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:207
@@ -871,7 +871,7 @@ msgstr "Can view content"
 #: packages/admin/src/components/settings/SecuritySettings.tsx:204
 #: packages/admin/src/components/TaxonomyManager.tsx:294
 #: packages/admin/src/components/TaxonomyManager.tsx:513
-#: packages/admin/src/components/users/InviteUserModal.tsx:199
+#: packages/admin/src/components/users/InviteUserModal.tsx:201
 #: packages/admin/src/components/Widgets.tsx:353
 #: packages/admin/src/components/WordPressImport.tsx:1761
 msgid "Cancel"
@@ -885,7 +885,7 @@ msgstr "Cannot delete theme sections"
 msgid "Canonical URL"
 msgstr "Canonical URL"
 
-#: packages/admin/src/components/PluginManager.tsx:412
+#: packages/admin/src/components/PluginManager.tsx:416
 msgid "Capabilities"
 msgstr "Capabilities"
 
@@ -980,9 +980,9 @@ msgstr "Click the link in the email to sign in."
 #: packages/admin/src/components/MenuList.tsx:113
 #: packages/admin/src/components/MenuList.tsx:117
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:304
-#: packages/admin/src/components/users/InviteUserModal.tsx:87
-#: packages/admin/src/components/users/InviteUserModal.tsx:93
-#: packages/admin/src/components/users/InviteUserModal.tsx:97
+#: packages/admin/src/components/users/InviteUserModal.tsx:89
+#: packages/admin/src/components/users/InviteUserModal.tsx:95
+#: packages/admin/src/components/users/InviteUserModal.tsx:99
 msgid "Close"
 msgstr "Close"
 
@@ -995,24 +995,20 @@ msgid "Close panel"
 msgstr "Close panel"
 
 #: packages/admin/src/components/ContentTypeList.tsx:243
-#: packages/admin/src/components/PortableTextEditor.tsx:1921
+#: packages/admin/src/components/PortableTextEditor.tsx:1925
 #: packages/admin/src/components/Redirects.tsx:421
 msgid "Code"
 msgstr "Code"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:138
-#: packages/admin/src/components/PortableTextEditor.tsx:2207
+#: packages/admin/src/components/editor/BlockMenu.tsx:139
+#: packages/admin/src/components/PortableTextEditor.tsx:2211
 msgid "Code Block"
 msgstr "Code Block"
 
-#: packages/admin/src/components/PluginManager.tsx:395
-#: packages/admin/src/components/PluginManager.tsx:400
+#: packages/admin/src/components/PluginManager.tsx:399
+#: packages/admin/src/components/PluginManager.tsx:404
 msgid "Collapse details"
 msgstr "Collapse details"
-
-#: packages/admin/src/components/users/InviteUserModal.tsx:157
-msgid "colleague@example.com"
-msgstr "colleague@example.com"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 msgid "Collection:"
@@ -1140,13 +1136,13 @@ msgstr "Continue"
 msgid "Continue Import"
 msgstr "Continue Import"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:59
+#: packages/admin/src/components/users/RoleBadge.tsx:62
 #: packages/admin/src/components/WelcomeModal.tsx:72
 msgid "Contributor"
 msgstr "Contributor"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:162
-#: packages/admin/src/components/users/InviteUserModal.tsx:133
+#: packages/admin/src/components/users/InviteUserModal.tsx:135
 msgid "Copied to clipboard"
 msgstr "Copied to clipboard"
 
@@ -1155,7 +1151,7 @@ msgstr "Copied to clipboard"
 msgid "Copy {0} to clipboard"
 msgstr "Copy {0} to clipboard"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:123
+#: packages/admin/src/components/users/InviteUserModal.tsx:125
 msgid "Copy invite link"
 msgstr "Copy invite link"
 
@@ -1171,7 +1167,7 @@ msgstr "Copy this token now — it won't be shown again."
 msgid "Copy token"
 msgstr "Copy token"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:137
+#: packages/admin/src/components/users/InviteUserModal.tsx:139
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "Could not copy automatically. Please select the URL above and copy manually."
 
@@ -1404,7 +1400,7 @@ msgstr "Defined in code"
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
 #: packages/admin/src/components/ContentTypeEditor.tsx:603
 #: packages/admin/src/components/ContentTypeList.tsx:147
-#: packages/admin/src/components/editor/BlockMenu.tsx:308
+#: packages/admin/src/components/editor/BlockMenu.tsx:311
 #: packages/admin/src/components/MediaDetailPanel.tsx:231
 #: packages/admin/src/components/MediaDetailPanel.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:370
@@ -1614,7 +1610,7 @@ msgstr "Dimensions:"
 msgid "Disable"
 msgstr "Disable"
 
-#: packages/admin/src/components/PluginManager.tsx:389
+#: packages/admin/src/components/PluginManager.tsx:393
 msgid "Disable plugin"
 msgstr "Disable plugin"
 
@@ -1637,7 +1633,7 @@ msgstr "Disable User?"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: packages/admin/src/components/PluginManager.tsx:466
+#: packages/admin/src/components/PluginManager.tsx:470
 msgid "Disabled:"
 msgstr "Disabled:"
 
@@ -1703,7 +1699,7 @@ msgstr "Domain updated"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Don't have an account? <0>Sign up</0>"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:143
+#: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Done"
 msgstr "Done"
@@ -1738,7 +1734,7 @@ msgstr "Drag here to add"
 msgid "Drag to reorder {0}"
 msgstr "Drag to reorder {0}"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:345
+#: packages/admin/src/components/editor/BlockMenu.tsx:348
 msgid "Drag to reorder block"
 msgstr "Drag to reorder block"
 
@@ -1758,7 +1754,7 @@ msgstr "Drop to add widget"
 msgid "Drop your WordPress export file here"
 msgstr "Drop your WordPress export file here"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:299
+#: packages/admin/src/components/editor/BlockMenu.tsx:302
 msgid "Duplicate"
 msgstr "Duplicate"
 
@@ -1826,7 +1822,7 @@ msgstr "Edit Domain"
 msgid "Edit Field"
 msgstr "Edit Field"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1929
+#: packages/admin/src/components/PortableTextEditor.tsx:1933
 msgid "Edit link"
 msgstr "Edit link"
 
@@ -1851,7 +1847,7 @@ msgstr "Edit Redirect"
 msgid "Edit redirect {0}"
 msgstr "Edit redirect {0}"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:61
+#: packages/admin/src/components/users/RoleBadge.tsx:64
 #: packages/admin/src/components/WelcomeModal.tsx:70
 msgid "Editor"
 msgstr "Editor"
@@ -1868,7 +1864,7 @@ msgstr "Email (optional)"
 
 #: packages/admin/src/components/LoginPage.tsx:183
 #: packages/admin/src/components/SignupPage.tsx:65
-#: packages/admin/src/components/users/InviteUserModal.tsx:153
+#: packages/admin/src/components/users/InviteUserModal.tsx:155
 msgid "Email address"
 msgstr "Email address"
 
@@ -1901,7 +1897,7 @@ msgstr "Email verified"
 msgid "Email verified!"
 msgstr "Email verified!"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1440
+#: packages/admin/src/components/PortableTextEditor.tsx:1444
 msgid "Embed a {label}"
 msgstr "Embed a {label}"
 
@@ -1917,7 +1913,7 @@ msgstr "Enable"
 msgid "Enable comments"
 msgstr "Enable comments"
 
-#: packages/admin/src/components/PluginManager.tsx:389
+#: packages/admin/src/components/PluginManager.tsx:393
 msgid "Enable plugin"
 msgstr "Enable plugin"
 
@@ -1999,12 +1995,12 @@ msgstr "example.com"
 msgid "Exists"
 msgstr "Exists"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2340
+#: packages/admin/src/components/PortableTextEditor.tsx:2344
 msgid "Exit Spotlight Mode"
 msgstr "Exit Spotlight Mode"
 
-#: packages/admin/src/components/PluginManager.tsx:395
-#: packages/admin/src/components/PluginManager.tsx:400
+#: packages/admin/src/components/PluginManager.tsx:399
+#: packages/admin/src/components/PluginManager.tsx:404
 msgid "Expand details"
 msgstr "Expand details"
 
@@ -2231,7 +2227,7 @@ msgstr "For a complete import including drafts and all content, export from Word
 msgid "For the best import experience, install the EmDash Exporter plugin on your WordPress site."
 msgstr "For the best import experience, install the EmDash Exporter plugin on your WordPress site."
 
-#: packages/admin/src/components/users/RoleBadge.tsx:70
+#: packages/admin/src/components/users/RoleBadge.tsx:74
 msgid "Full access"
 msgstr "Full access"
 
@@ -2280,18 +2276,18 @@ msgstr "Guest byline"
 msgid "Guest only"
 msgstr "Guest only"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:134
-#: packages/admin/src/components/PortableTextEditor.tsx:2159
+#: packages/admin/src/components/editor/BlockMenu.tsx:135
+#: packages/admin/src/components/PortableTextEditor.tsx:2163
 msgid "Heading 1"
 msgstr "Heading 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:2166
+#: packages/admin/src/components/editor/BlockMenu.tsx:136
+#: packages/admin/src/components/PortableTextEditor.tsx:2170
 msgid "Heading 2"
 msgstr "Heading 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:136
-#: packages/admin/src/components/PortableTextEditor.tsx:2173
+#: packages/admin/src/components/editor/BlockMenu.tsx:137
+#: packages/admin/src/components/PortableTextEditor.tsx:2177
 msgid "Heading 3"
 msgstr "Heading 3"
 
@@ -2346,7 +2342,7 @@ msgstr "Icon blurred due to image audit"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1409
+#: packages/admin/src/components/PortableTextEditor.tsx:1413
 msgid "Image"
 msgstr "Image"
 
@@ -2457,7 +2453,7 @@ msgstr "Include sample content (recommended for new sites)"
 msgid "Incompatible"
 msgstr "Incompatible"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2146
+#: packages/admin/src/components/PortableTextEditor.tsx:2150
 msgid "Inline Code"
 msgstr "Inline Code"
 
@@ -2471,11 +2467,11 @@ msgstr "Insert"
 msgid "Insert {blockLabel}"
 msgstr "Insert {blockLabel}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1424
+#: packages/admin/src/components/PortableTextEditor.tsx:1428
 msgid "Insert a reusable section"
 msgstr "Insert a reusable section"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1410
+#: packages/admin/src/components/PortableTextEditor.tsx:1414
 msgid "Insert an image"
 msgstr "Insert an image"
 
@@ -2483,15 +2479,15 @@ msgstr "Insert an image"
 msgid "Insert from URL"
 msgstr "Insert from URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2307
+#: packages/admin/src/components/PortableTextEditor.tsx:2311
 msgid "Insert Horizontal Rule"
 msgstr "Insert Horizontal Rule"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2302
+#: packages/admin/src/components/PortableTextEditor.tsx:2306
 msgid "Insert Image"
 msgstr "Insert Image"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2249
+#: packages/admin/src/components/PortableTextEditor.tsx:2253
 msgid "Insert Link"
 msgstr "Insert Link"
 
@@ -2517,11 +2513,11 @@ msgid "Installed"
 msgstr "Installed"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:435
+#: packages/admin/src/components/PluginManager.tsx:439
 msgid "Installed from marketplace (v{0})"
 msgstr "Installed from marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:454
+#: packages/admin/src/components/PluginManager.tsx:458
 msgid "Installed:"
 msgstr "Installed:"
 
@@ -2529,11 +2525,11 @@ msgstr "Installed:"
 msgid "Invalid link"
 msgstr "Invalid link"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:78
+#: packages/admin/src/components/users/InviteUserModal.tsx:80
 msgid "Invite Link Created"
 msgstr "Invite Link Created"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:78
+#: packages/admin/src/components/users/InviteUserModal.tsx:80
 #: packages/admin/src/components/users/UserList.tsx:47
 msgid "Invite User"
 msgstr "Invite User"
@@ -2542,8 +2538,8 @@ msgstr "Invite User"
 msgid "Invite your first team member"
 msgstr "Invite your first team member"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1900
-#: packages/admin/src/components/PortableTextEditor.tsx:2125
+#: packages/admin/src/components/PortableTextEditor.tsx:1904
+#: packages/admin/src/components/PortableTextEditor.tsx:2129
 msgid "Italic"
 msgstr "Italic"
 
@@ -2586,7 +2582,7 @@ msgstr "Label (Singular)"
 msgid "Language"
 msgstr "Language"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:464
 msgid "Last enabled:"
 msgstr "Last enabled:"
 
@@ -2684,7 +2680,7 @@ msgstr "Loading comments..."
 msgid "Loading content..."
 msgstr "Loading content..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1728
+#: packages/admin/src/components/PortableTextEditor.tsx:1732
 msgid "Loading editor..."
 msgstr "Loading editor..."
 
@@ -3166,7 +3162,7 @@ msgstr "No domains configured. Users must be invited individually."
 msgid "No email provider configured"
 msgstr "No email provider configured"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:82
+#: packages/admin/src/components/users/InviteUserModal.tsx:84
 msgid "No email provider configured. Share this link manually."
 msgstr "No email provider configured. Share this link manually."
 
@@ -3317,8 +3313,8 @@ msgstr "None (top level)"
 msgid "Number of posts to show per page on list views"
 msgstr "Number of posts to show per page on list views"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:140
-#: packages/admin/src/components/PortableTextEditor.tsx:2193
+#: packages/admin/src/components/editor/BlockMenu.tsx:141
+#: packages/admin/src/components/PortableTextEditor.tsx:2197
 msgid "Numbered List"
 msgstr "Numbered List"
 
@@ -3416,7 +3412,7 @@ msgstr "Overrides the page title in search engine results"
 msgid "Ownership"
 msgstr "Ownership"
 
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Package"
 msgstr "Package"
 
@@ -3425,7 +3421,7 @@ msgstr "Package"
 msgid "Pages"
 msgstr "Pages"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:133
+#: packages/admin/src/components/editor/BlockMenu.tsx:134
 msgid "Paragraph"
 msgstr "Paragraph"
 
@@ -3661,8 +3657,8 @@ msgstr "Quick create byline"
 msgid "Quick edit alt text"
 msgstr "Quick edit alt text"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:137
-#: packages/admin/src/components/PortableTextEditor.tsx:2200
+#: packages/admin/src/components/editor/BlockMenu.tsx:138
+#: packages/admin/src/components/PortableTextEditor.tsx:2204
 msgid "Quote"
 msgstr "Quote"
 
@@ -3702,7 +3698,7 @@ msgstr "Redirecting to login..."
 msgid "Redirects"
 msgstr "Redirects"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2327
+#: packages/admin/src/components/PortableTextEditor.tsx:2331
 msgid "Redo"
 msgstr "Redo"
 
@@ -3729,7 +3725,7 @@ msgstr "Registration was cancelled or timed out. Please try again."
 
 #: packages/admin/src/components/ContentEditor.tsx:1409
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:178
-#: packages/admin/src/components/PortableTextEditor.tsx:2290
+#: packages/admin/src/components/PortableTextEditor.tsx:2294
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
 msgid "Remove"
@@ -3760,8 +3756,8 @@ msgstr "Remove Image"
 msgid "Remove Image?"
 msgstr "Remove Image?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1881
-#: packages/admin/src/components/PortableTextEditor.tsx:1882
+#: packages/admin/src/components/PortableTextEditor.tsx:1885
+#: packages/admin/src/components/PortableTextEditor.tsx:1886
 msgid "Remove link"
 msgstr "Remove link"
 
@@ -3892,7 +3888,7 @@ msgstr "Revoking..."
 msgid "Risk score: {0}/100"
 msgstr "Risk score: {0}/100"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:165
+#: packages/admin/src/components/users/InviteUserModal.tsx:167
 #: packages/admin/src/components/users/UserDetail.tsx:177
 #: packages/admin/src/components/users/UserDetail.tsx:189
 #: packages/admin/src/components/users/UserList.tsx:96
@@ -4112,7 +4108,7 @@ msgstr "Search..."
 msgid "Searchable"
 msgstr "Searchable"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1423
+#: packages/admin/src/components/PortableTextEditor.tsx:1427
 msgid "Section"
 msgstr "Section"
 
@@ -4225,8 +4221,8 @@ msgid "Select image"
 msgstr "Select image"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:70
-#: packages/admin/src/components/PortableTextEditor.tsx:1769
-#: packages/admin/src/components/PortableTextEditor.tsx:2352
+#: packages/admin/src/components/PortableTextEditor.tsx:1773
+#: packages/admin/src/components/PortableTextEditor.tsx:2356
 msgid "Select Image"
 msgstr "Select Image"
 
@@ -4260,11 +4256,11 @@ msgstr "Self-Signup Domains"
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "Send a test email through the full pipeline to verify your email configuration."
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:83
+#: packages/admin/src/components/users/InviteUserModal.tsx:85
 msgid "Send an invitation email to a new team member."
 msgstr "Send an invitation email to a new team member."
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:202
+#: packages/admin/src/components/users/InviteUserModal.tsx:204
 msgid "Send Invite"
 msgstr "Send Invite"
 
@@ -4288,7 +4284,7 @@ msgstr "Send Test Email"
 #: packages/admin/src/components/settings/EmailSettings.tsx:139
 #: packages/admin/src/components/SignupPage.tsx:87
 #: packages/admin/src/components/SignupPage.tsx:150
-#: packages/admin/src/components/users/InviteUserModal.tsx:202
+#: packages/admin/src/components/users/InviteUserModal.tsx:204
 #: packages/admin/src/components/users/UserDetail.tsx:344
 msgid "Sending..."
 msgstr "Sending..."
@@ -4338,8 +4334,8 @@ msgstr "Setting up..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:316
 #: packages/admin/src/components/Header.tsx:92
-#: packages/admin/src/components/PluginManager.tsx:378
-#: packages/admin/src/components/PluginManager.tsx:380
+#: packages/admin/src/components/PluginManager.tsx:382
+#: packages/admin/src/components/PluginManager.tsx:384
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:226
 #: packages/admin/src/components/WordPressImport.tsx:1649
@@ -4350,7 +4346,7 @@ msgstr "Settings"
 msgid "Settings saved successfully"
 msgstr "Settings saved successfully"
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:108
+#: packages/admin/src/components/users/InviteUserModal.tsx:110
 msgid "Share this link with the invited user"
 msgstr "Share this link with the invited user"
 
@@ -4501,7 +4497,7 @@ msgstr "Sort themes"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:326
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:491
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:226
-#: packages/admin/src/components/PluginManager.tsx:432
+#: packages/admin/src/components/PluginManager.tsx:436
 #: packages/admin/src/components/Redirects.tsx:418
 #: packages/admin/src/components/SectionEditor.tsx:232
 msgid "Source"
@@ -4517,7 +4513,7 @@ msgstr "Source path"
 msgid "Spam"
 msgstr "Spam"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2340
+#: packages/admin/src/components/PortableTextEditor.tsx:2344
 msgid "Spotlight Mode"
 msgstr "Spotlight Mode"
 
@@ -4535,8 +4531,8 @@ msgstr "Status"
 msgid "Status code"
 msgstr "Status code"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1914
-#: packages/admin/src/components/PortableTextEditor.tsx:2139
+#: packages/admin/src/components/PortableTextEditor.tsx:1918
+#: packages/admin/src/components/PortableTextEditor.tsx:2143
 msgid "Strikethrough"
 msgstr "Strikethrough"
 
@@ -4544,7 +4540,7 @@ msgstr "Strikethrough"
 msgid "Structure"
 msgstr "Structure"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:58
+#: packages/admin/src/components/users/RoleBadge.tsx:61
 #: packages/admin/src/components/WelcomeModal.tsx:73
 msgid "Subscriber"
 msgstr "Subscriber"
@@ -4623,7 +4619,7 @@ msgstr "Term"
 msgid "Term deleted"
 msgstr "Term deleted"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2109
+#: packages/admin/src/components/PortableTextEditor.tsx:2113
 msgid "Text formatting"
 msgstr "Text formatting"
 
@@ -4639,7 +4635,7 @@ msgstr "The existing collection has fields with incompatible types."
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:180
+#: packages/admin/src/components/users/InviteUserModal.tsx:182
 msgid "The invited user will have this role once they complete registration."
 msgstr "The invited user will have this role once they complete registration."
 
@@ -4713,7 +4709,7 @@ msgstr "This is a custom section."
 msgid "This is a WordPress site."
 msgstr "This is a WordPress site."
 
-#: packages/admin/src/components/users/InviteUserModal.tsx:111
+#: packages/admin/src/components/users/InviteUserModal.tsx:113
 msgid "This link expires in 7 days and can only be used once."
 msgstr "This link expires in 7 days and can only be used once."
 
@@ -4771,7 +4767,7 @@ msgstr "This will permanently delete \"{0}\". This action cannot be undone."
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "This will permanently delete this comment. This action cannot be undone."
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:562
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "This will remove the plugin and its bundle from your site."
 
@@ -4894,7 +4890,7 @@ msgstr "Try Another URL"
 msgid "Try with my data"
 msgstr "Try with my data"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:289
+#: packages/admin/src/components/editor/BlockMenu.tsx:292
 msgid "Turn into"
 msgstr "Turn into"
 
@@ -4917,30 +4913,30 @@ msgstr "Unable to reach marketplace"
 msgid "Unassigned"
 msgstr "Unassigned"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1907
-#: packages/admin/src/components/PortableTextEditor.tsx:2132
+#: packages/admin/src/components/PortableTextEditor.tsx:1911
+#: packages/admin/src/components/PortableTextEditor.tsx:2136
 msgid "Underline"
 msgstr "Underline"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2320
+#: packages/admin/src/components/PortableTextEditor.tsx:2324
 msgid "Undo"
 msgstr "Undo"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:191
-#: packages/admin/src/components/PluginManager.tsx:482
-#: packages/admin/src/components/PluginManager.tsx:576
+#: packages/admin/src/components/PluginManager.tsx:486
+#: packages/admin/src/components/PluginManager.tsx:580
 msgid "Uninstall"
 msgstr "Uninstall"
 
-#: packages/admin/src/components/PluginManager.tsx:556
+#: packages/admin/src/components/PluginManager.tsx:560
 msgid "Uninstall {pluginName}?"
 msgstr "Uninstall {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:551
+#: packages/admin/src/components/PluginManager.tsx:555
 msgid "Uninstall confirmation"
 msgstr "Uninstall confirmation"
 
-#: packages/admin/src/components/PluginManager.tsx:576
+#: packages/admin/src/components/PluginManager.tsx:580
 msgid "Uninstalling..."
 msgstr "Uninstalling..."
 
@@ -4949,7 +4945,7 @@ msgstr "Uninstalling..."
 msgid "Unique"
 msgstr "Unique"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:71
+#: packages/admin/src/components/users/RoleBadge.tsx:75
 msgid "Unknown role"
 msgstr "Unknown role"
 
@@ -5017,7 +5013,7 @@ msgid "Update this redirect rule."
 msgstr "Update this redirect rule."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:363
+#: packages/admin/src/components/PluginManager.tsx:367
 msgid "Update to v{0}"
 msgstr "Update to v{0}"
 
@@ -5030,7 +5026,7 @@ msgstr "Updated: {0}"
 msgid "Updating content URLs..."
 msgstr "Updating content URLs..."
 
-#: packages/admin/src/components/PluginManager.tsx:363
+#: packages/admin/src/components/PluginManager.tsx:367
 msgid "Updating..."
 msgstr "Updating..."
 
@@ -5117,7 +5113,7 @@ msgstr "Uploading..."
 
 #: packages/admin/src/components/MenuEditor.tsx:274
 #: packages/admin/src/components/MenuEditor.tsx:416
-#: packages/admin/src/components/PortableTextEditor.tsx:2256
+#: packages/admin/src/components/PortableTextEditor.tsx:2260
 msgid "URL"
 msgstr "URL"
 
@@ -5219,7 +5215,7 @@ msgstr "Version"
 msgid "View email provider status and send test emails"
 msgstr "View email provider status and send test emails"
 
-#: packages/admin/src/components/PluginManager.tsx:371
+#: packages/admin/src/components/PluginManager.tsx:375
 msgid "View in Marketplace"
 msgstr "View in Marketplace"
 

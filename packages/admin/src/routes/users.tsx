@@ -15,7 +15,6 @@ import {
 	UserDetail,
 	InviteUserModal,
 	getRoleLabel,
-	useTranslatedRoleConfig,
 } from "../components/users";
 import {
 	fetchUsers,
@@ -44,7 +43,6 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export function UsersPage() {
 	const { t } = useLingui();
-	const { translateLabel } = useTranslatedRoleConfig();
 	const queryClient = useQueryClient();
 
 	// State
@@ -216,8 +214,8 @@ export function UsersPage() {
 	const users = usersQuery.data?.pages.flatMap((p) => p.items) ?? [];
 	const selectedUser = userDetailQuery.data ?? null;
 	const selectedUserName = selectedUser?.name || selectedUser?.email;
-	const currentRoleLabel = translateLabel(getRoleLabel(selectedUser?.role ?? 0));
-	const newRoleLabel = translateLabel(getRoleLabel(pendingSaveData?.role ?? 0));
+	const currentRoleLabel = getRoleLabel(selectedUser?.role ?? 0);
+	const newRoleLabel = getRoleLabel(pendingSaveData?.role ?? 0);
 
 	return (
 		<>
