@@ -56,6 +56,7 @@ describe("Invite", () => {
 
 			expect(result.email).toBe("new@example.com");
 			expect(result.url).toContain("https://example.com");
+			expect(result.url).toContain("/_emdash/api/auth/invite/accept?token=");
 			expect(result.url).toMatch(TOKEN_PARAM_REGEX);
 			// Should NOT have a token field on the result
 			expect("token" in result).toBe(false);
