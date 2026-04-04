@@ -423,6 +423,69 @@ async function persistReceiptStatus(
 	});
 }
 
+function getActiveClaim(receipt: StoredWebhookReceipt):
+	| { claimOwner: string; claimToken: string; claimVersion: string; claimExpiresAt?: string }
+	| null {
+	if (receipt.claimState !== "claimed" || !receipt.claimOwner || !receipt.claimToken || !receipt.claimVersion) {
+		return null;
+	}
+
+	return {
+		claimOwner: receipt.claimOwner,
+		claimToken: receipt.claimToken,
+		claimVersion: receipt.claimVersion,
+		claimExpiresAt: receipt.claimExpiresAt,
+	};
+}
+
+async function assertClaimStillActive(
+	ports: FinalizePaymentPorts,
+	receiptId: string,
+	claimedReceipt: StoredWebhookReceipt,
+	nowIso: string,
+): Promise<FinalizeWebhookResult | null> {
+	const activeClaim = getActiveClaim(claimedReceipt);
+	if (!activeClaim) return null;
+
+	const liveReceipt = await ports.webhookReceipts.get(receiptId);
+	if (!liveReceipt) {
+		return { kind: "replay", reason: "webhook_receipt_claim_retry_failed" };
+	}
+
+	if (liveReceipt.status === "processed") {
+		return { kind: "replay", reason: "webhook_receipt_processed" };
+	}
+	if (liveReceipt.status === "duplicate") {
+		return { kind: "replay", reason: "webhook_receipt_duplicate" };
+	}
+	if (liveReceipt.status === "error") {
+		return { kind: "replay", reason: "webhook_error" };
+	}
+
+	if (liveReceipt.claimState !== "claimed") {
+		return { kind: "replay", reason: "webhook_receipt_in_flight" };
+	}
+
+	if (
+		liveReceipt.claimOwner !== activeClaim.claimOwner ||
+		liveReceipt.claimToken !== activeClaim.claimToken ||
+		liveReceipt.claimVersion !== activeClaim.claimVersion
+	) {
+		return { kind: "replay", reason: "webhook_receipt_in_flight" };
+	}
+
+	const nowMs = Date.parse(nowIso);
+	if (!Number.isFinite(nowMs)) {
+		return { kind: "replay", reason: "webhook_receipt_claim_retry_failed" };
+	}
+	const expiresMs = Date.parse(activeClaim.claimExpiresAt ?? liveReceipt.claimExpiresAt ?? "");
+	if (Number.isFinite(expiresMs) && nowMs > expiresMs) {
+		return { kind: "replay", reason: "webhook_receipt_claim_retry_failed" };
+	}
+
+	return null;
+}
+
 function mapInventoryFinalizeErrorToReceiptCode(code: CommerceErrorCode): WebhookReceiptErrorCode {
 	if (code === "PRODUCT_UNAVAILABLE") return "PRODUCT_UNAVAILABLE";
 	if (code === "INSUFFICIENT_STOCK") return "INSUFFICIENT_STOCK";
@@ -551,6 +614,10 @@ export async function finalizePaymentFromWebhook(
 		stage: "pending_receipt_written",
 		priorReceiptStatus: decision.existingReceipt?.status,
 	});
+		{
+			const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+		if (claimCheck) return claimCheck;
+	}
 
 	const freshOrder = await ports.orders.get(input.orderId);
 	if (!freshOrder) {
@@ -564,6 +631,10 @@ export async function finalizePaymentFromWebhook(
 		 * order row disappeared while finalization was running.
 		 * Treat as terminal and escalate rather than auto-retrying indefinitely.
 		 */
+		{
+			const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+			if (claimCheck) return claimCheck;
+		}
 		await persistReceiptStatus(
 			ports,
 			receiptId,
@@ -592,6 +663,10 @@ export async function finalizePaymentFromWebhook(
 			 * Mark the receipt `error` so it does not stay stuck in `pending`
 			 * and operators get a clear terminal signal.
 			 */
+			{
+				const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+				if (claimCheck) return claimCheck;
+			}
 			await persistReceiptStatus(
 				ports,
 				receiptId,
@@ -612,11 +687,19 @@ export async function finalizePaymentFromWebhook(
 		}
 
 		try {
+			{
+				const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+				if (claimCheck) return claimCheck;
+			}
 			ports.log?.info("commerce.finalize.inventory_reconcile", {
 				...logContext,
 				paymentPhase: freshOrder.paymentPhase,
 			});
 			await applyInventoryForOrder(ports, freshOrder, input.orderId, nowIso);
+			{
+				const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+				if (claimCheck) return claimCheck;
+			}
 			ports.log?.info("commerce.finalize.inventory_applied", {
 				...logContext,
 				orderId: input.orderId,
@@ -630,6 +713,10 @@ export async function finalizePaymentFromWebhook(
 						code: apiCode,
 						details: err.details,
 					});
+					{
+						const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+						if (claimCheck) return claimCheck;
+					}
 					await persistReceiptStatus(
 						ports,
 						receiptId,
@@ -675,6 +762,10 @@ export async function finalizePaymentFromWebhook(
 			updatedAt: nowIso,
 		};
 		try {
+			{
+				const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+				if (claimCheck) return claimCheck;
+			}
 			await ports.orders.put(input.orderId, paidOrder);
 		} catch (err) {
 			ports.log?.warn("commerce.finalize.order_update_failed", {
@@ -693,12 +784,20 @@ export async function finalizePaymentFromWebhook(
 	}
 
 	try {
+		{
+			const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+			if (claimCheck) return claimCheck;
+		}
 		ports.log?.info("commerce.finalize.payment_attempt_update_attempt", {
 			...logContext,
 			orderId: input.orderId,
 			providerId: input.providerId,
 		});
 		await markPaymentAttemptSucceeded(ports, input.orderId, input.providerId, nowIso);
+		{
+			const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+			if (claimCheck) return claimCheck;
+		}
 	} catch (err) {
 		ports.log?.warn("commerce.finalize.attempt_update_failed", {
 			...logContext,
@@ -720,6 +819,10 @@ export async function finalizePaymentFromWebhook(
 	 * retry is safe and expected to complete this final write.
 	 */
 	try {
+		{
+			const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+			if (claimCheck) return claimCheck;
+		}
 		ports.log?.info("commerce.finalize.receipt_processed", {
 			...logContext,
 			stage: "finalize",

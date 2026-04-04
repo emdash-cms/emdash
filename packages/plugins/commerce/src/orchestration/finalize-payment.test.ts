@@ -160,6 +160,17 @@ function memCollWithPutIfAbsent<T extends object>(
 	} as MemCollWithClaiming<T>;
 }
 
+function stealWebhookClaim(webhookRows: Map<string, StoredWebhookReceipt>, receiptId: string): void {
+	const current = webhookRows.get(receiptId);
+	if (!current) return;
+	webhookRows.set(receiptId, {
+		...current,
+		claimOwner: "other-worker",
+		claimToken: "stolen-token",
+		claimVersion: "2026-04-02T11:00:00.000Z",
+	});
+}
+
 function portsFromState(state: {
 	orders: Map<string, StoredOrder>;
 	webhookReceipts: Map<string, StoredWebhookReceipt>;
@@ -1817,6 +1828,293 @@ describe("finalizePaymentFromWebhook", () => {
 
 		expect(res).toEqual({ kind: "completed", orderId });
 		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("processed");
+		expect(receipt?.claimState).toBe("released");
+	});
+
+	it("aborts before order/payment writes when claim is stolen after inventory step", async () => {
+		const orderId = "order_claim_stolen_before_finalize_writes";
+		const extId = "evt_claim_stolen_before_finalize_writes";
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [],
+						totalMinor: 0,
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_claim_stolen_before_finalize_writes",
+					{
+						orderId,
+						providerId: "stripe",
+						status: "pending",
+						createdAt: now,
+						updatedAt: now,
+					},
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+
+		const basePorts = portsFromState(state);
+		const webhookRows = basePorts.webhookReceipts.rows;
+		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const rid = webhookReceiptDocId("stripe", extId);
+		const ports = {
+			...basePorts,
+			inventoryLedger: {
+				rows: basePorts.inventoryLedger.rows,
+				get: basePorts.inventoryLedger.get.bind(basePorts.inventoryLedger),
+				put: basePorts.inventoryLedger.put.bind(basePorts.inventoryLedger),
+				query: async (options: Parameters<MemColl<StoredInventoryLedgerEntry>["query"]>[0]) => {
+					const result = await basePorts.inventoryLedger.query(options);
+					stealWebhookClaim(webhookRows, rid);
+					return result;
+				},
+			},
+			webhookReceipts,
+		} as FinalizePaymentPorts;
+
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "replay", reason: "webhook_receipt_in_flight" });
+
+		const order = await basePorts.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("payment_pending");
+		const pa = await basePorts.paymentAttempts.get("pa_claim_stolen_before_finalize_writes");
+		expect(pa?.status).toBe("pending");
+		const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(0);
+		const receipt = await basePorts.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("pending");
+		expect(receipt?.claimOwner).toBe("other-worker");
+	});
+
+	it("aborts before payment attempt update when claim is stolen during order write", async () => {
+		const orderId = "order_claim_stolen_during_order_write";
+		const extId = "evt_claim_stolen_during_order_write";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_claim_stolen_during_order_write",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const webhookRows = basePorts.webhookReceipts.rows;
+		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const rid = webhookReceiptDocId("stripe", extId);
+		const ports = {
+			...basePorts,
+			orders: {
+				rows: basePorts.orders.rows,
+				get: basePorts.orders.get.bind(basePorts.orders),
+				query: basePorts.orders.query.bind(basePorts.orders),
+				put: async (id: string, data: StoredOrder): Promise<void> => {
+					stealWebhookClaim(webhookRows, rid);
+					await basePorts.orders.put(id, data);
+				},
+			},
+			webhookReceipts,
+		} as FinalizePaymentPorts;
+
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "replay", reason: "webhook_receipt_in_flight" });
+
+		const order = await basePorts.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("paid");
+		const pa = await basePorts.paymentAttempts.get("pa_claim_stolen_during_order_write");
+		expect(pa?.status).toBe("pending");
+		const stock = await basePorts.inventoryStock.get(stockDocId);
+		expect(stock?.quantity).toBe(8);
+		const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+		const receipt = await basePorts.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("pending");
+		expect(receipt?.claimOwner).toBe("other-worker");
+	});
+
+	it("aborts before processed receipt when claim is stolen during payment attempt write", async () => {
+		const orderId = "order_claim_stolen_during_attempt_write";
+		const extId = "evt_claim_stolen_during_attempt_write";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_claim_stolen_during_attempt_write",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const webhookRows = basePorts.webhookReceipts.rows;
+		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const rid = webhookReceiptDocId("stripe", extId);
+		const ports = {
+			...basePorts,
+			paymentAttempts: {
+				rows: basePorts.paymentAttempts.rows,
+				get: basePorts.paymentAttempts.get.bind(basePorts.paymentAttempts),
+				query: basePorts.paymentAttempts.query.bind(basePorts.paymentAttempts),
+				put: async (id: string, data: StoredPaymentAttempt): Promise<void> => {
+					stealWebhookClaim(webhookRows, rid);
+					await basePorts.paymentAttempts.put(id, data);
+				},
+			},
+			webhookReceipts,
+		} as FinalizePaymentPorts;
+
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "replay", reason: "webhook_receipt_in_flight" });
+
+		const order = await basePorts.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("paid");
+		const pa = await basePorts.paymentAttempts.get("pa_claim_stolen_during_attempt_write");
+		expect(pa?.status).toBe("succeeded");
+		const stock = await basePorts.inventoryStock.get(stockDocId);
+		expect(stock?.quantity).toBe(8);
+		const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+		const receipt = await basePorts.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("pending");
+		expect(receipt?.claimOwner).toBe("other-worker");
+	});
+
+	it("aborts when another worker marks receipt processed during order write", async () => {
+		const orderId = "order_claim_processed_during_order_write";
+		const extId = "evt_claim_processed_during_order_write";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_claim_processed_during_order_write",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const webhookRows = basePorts.webhookReceipts.rows;
+		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const rid = webhookReceiptDocId("stripe", extId);
+		const ports = {
+			...basePorts,
+			orders: {
+				rows: basePorts.orders.rows,
+				get: basePorts.orders.get.bind(basePorts.orders),
+				query: basePorts.orders.query.bind(basePorts.orders),
+				put: async (id: string, data: StoredOrder): Promise<void> => {
+					await basePorts.orders.put(id, data);
+					const current = webhookRows.get(rid);
+					if (current) {
+						webhookRows.set(rid, {
+							...current,
+							status: "processed",
+							claimState: "released",
+							claimOwner: undefined,
+							claimToken: undefined,
+							claimVersion: undefined,
+							claimExpiresAt: undefined,
+							updatedAt: now,
+						});
+					}
+				},
+			},
+			webhookReceipts,
+		} as FinalizePaymentPorts;
+
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "replay", reason: "webhook_receipt_processed" });
+
+		const order = await basePorts.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("paid");
+		const pa = await basePorts.paymentAttempts.get("pa_claim_processed_during_order_write");
+		expect(pa?.status).toBe("pending");
+		const stock = await basePorts.inventoryStock.get(stockDocId);
+		expect(stock?.quantity).toBe(8);
+		const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+		const receipt = await basePorts.webhookReceipts.get(rid);
 		expect(receipt?.status).toBe("processed");
 		expect(receipt?.claimState).toBe("released");
 	});
