@@ -27,10 +27,11 @@ Implementation guardrails:
 - This branch ships regression-only updates for 5A (same-event duplicate webhook
    finalization convergence), 5B (pending-state contract visibility and non-terminal
    resume transitions), 5C (possession checks on order/cart entrypoints),
-   5D (scope lock reaffirmation), and 5E (deterministic claim lease policy).
+   5D (scope lock reaffirmation), 5E (deterministic claim lease policy), and
+   5F (rollout docs/proof plan for strict lease mode).
 - Runtime behavior for checkout/finalize/routing remains unchanged while we continue
   to enforce the same scope lock for provider topology (`webhooks/stripe` only) until
-  5F completion and explicit roadmap approval.
+  staged rollout approval for strict claim-lease mode (`COMMERCE_USE_LEASED_FINALIZE=1`).
 
 ### Strategy A acceptance guidance (contract hardening only)
 

@@ -265,10 +265,10 @@ function canTakeClaim(existing: StoredWebhookReceipt, nowIso: string): { canTake
 		case "claimed": {
 			const nowMs = parseClaimTimestampMs(nowIso);
 			const expiresMs = parseClaimTimestampMs(existing.claimExpiresAt);
-			const isInFlight =
-				!USE_LEASED_FINALIZE
-					? Number.isFinite(nowMs) && Number.isFinite(expiresMs) && nowMs <= expiresMs
-					: isClaimLeaseExpired(existing.claimExpiresAt, nowIso);
+			const isInFlight = Number.isFinite(nowMs) && Number.isFinite(expiresMs) && nowMs <= expiresMs;
+			if (USE_LEASED_FINALIZE && (!Number.isFinite(nowMs) || !Number.isFinite(expiresMs))) {
+				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+			}
 			if (isInFlight) {
 				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_in_flight" } };
 			}

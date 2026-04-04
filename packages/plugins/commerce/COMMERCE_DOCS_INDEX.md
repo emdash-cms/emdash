@@ -23,7 +23,7 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 - Last updated: 2026-04-03
 - Owner: emDash Commerce plugin lead (handoff-ready docs update)
 - Current phase owner: Strategy A follow-up only
-- Status in this branch: 5A (same-event duplicate-flight concurrency assertions), 5B (pending-state resume-state visibility and non-terminal branch behavior), 5C (possession boundary assertions), 5D (scope lock reaffirmed), and 5E (deterministic claim lease/expiry policy) are represented in this branch.
+- Status in this branch: 5A (same-event duplicate-flight concurrency assertions), 5B (pending-state resume-state visibility and non-terminal branch behavior), 5C (possession boundary assertions), 5D (scope lock reaffirmed), 5E (deterministic claim lease/expiry policy), and 5F (staged rollout check/reporting for strict claim lease mode).
 
 - Scope: **active for this iteration only** and **testable without new provider runtime**.
 - Goal: keep `checkout`/`webhook` behavior unchanged while reducing contract drift across payment adapters.
@@ -59,13 +59,19 @@ Use this when opening follow-up work:
 4) Run proof commands:
    - `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts`
    - `pnpm --filter @emdash-cms/plugin-commerce test`
+5) Rollout for strict lease enforcement:
+   - Default path keeps strict lease checks disabled for compatibility.
+   - Enable `COMMERCE_USE_LEASED_FINALIZE=1` in staged environments to enforce malformed/missing lease metadata replay
+     before turning it on for broader webhook-driven traffic.
+   - Keep a command log and attach strict-mode and default-mode test outputs to release notes.
 
 ## External review continuation roadmap
 
 After the latest third-party memo, continue systematically with
 `CI_REGRESSION_CHECKLIST.md` sections 5A–5E (in order) before broadening
 provider topology.
-5A/5B/5C/5D/5E have been incrementally implemented in this branch; 5F remains for rollout and testing follow-up of deterministic claim lease policy.
+5A/5B/5C/5D/5E have been implemented in this branch; 5F documents rollout/testing follow-up and requires
+environment promotion controls for strict lease mode before broader traffic exposure.
 
 ## Plugin HTTP routes
 

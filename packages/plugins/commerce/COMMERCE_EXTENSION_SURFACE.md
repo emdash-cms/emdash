@@ -66,8 +66,17 @@ must pass through `finalizePaymentFromWebhook`.
   webhook finalization convergence (5A), pending-state resume-status visibility (5B),
   possession-guard coverage (5C), and deterministic claim lease/expiry behavior (5E)
   with active ownership revalidation on all critical finalize-write stages.
-- 5F follow-up tracks staged rollout behavior and documentation.
+- 5F staged rollout behavior and documentation has been specified and validated in docs+tests.
 - Continue to enforce read-only rules for diagnostics via `queryFinalizationState`.
+
+### Staged rollout control for strict claim lease enforcement
+
+- `COMMERCE_USE_LEASED_FINALIZE` controls strict lease semantics for webhook finalization:
+  - absent / not `"1"` (default): legacy mode for compatibility.
+  - `"1"`: strict mode — malformed or missing `claimExpiresAt` is treated as replay-safe stale lease.
+- Strict mode still permits reclaiming valid stale leases (where `now > claimExpiresAt`) and keeps valid in-flight
+  lock semantics unchanged.
+- Recommended rollout: enable on canary/staging first, capture strict-mode proof artifacts, then promote.
 
 ### Read-only MCP service seam
 

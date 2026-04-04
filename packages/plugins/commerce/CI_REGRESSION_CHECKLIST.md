@@ -174,5 +174,14 @@ narrow, high-signal, and ordered by failure risk.
 - [ ] Confirm `HANDOVER.md`, `COMMERCE_DOCS_INDEX.md`, and `AI-EXTENSIBILITY.md` reflect finalized 5E status.
 - [ ] Prepare a staged rollout switch plan (`COMMERCE_USE_LEASED_FINALIZE`) so strict lease enforcement can
   be toggled predictably in staged environments.
-- [ ] Record proof artifacts for claim-policy tests, docs updates, and any rollout-switch behavior before exposing
-  in production-like traffic.
+- [ ] Run and archive both rollout-mode command families before enabling strict mode broadly:
+  - [ ] Legacy behavior check (flag off): `pnpm --filter @emdash-cms/plugin-commerce test`.
+  - [ ] Strict lease check mode: `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test`.
+  - [ ] Optional focused smoke on finalize regression in strict mode:
+    `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test src/orchestration/finalize-payment.test.ts`.
+- [ ] Record proof artifacts for:
+  - command outputs for both modes,
+  - `src/orchestration/finalize-payment.test.ts` passing in both modes,
+  - docs updates in `COMMERCE_DOCS_INDEX.md`, `COMMERCE_EXTENSION_SURFACE.md`, and `FINALIZATION_REVIEW_AUDIT.md`.
+- [ ] Confirm any environment promotion plan for `COMMERCE_USE_LEASED_FINALIZE` is written and approved by operations
+  before routing production-like webhook traffic through strict mode.
