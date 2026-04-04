@@ -1,22 +1,15 @@
 import { Button, LinkButton, Popover } from "@cloudflare/kumo";
-import { SignOut, Shield, Gear, ArrowSquareOut, GlobeSimple } from "@phosphor-icons/react";
+import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { useTranslation } from "../i18n/index.js";
 import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
-import { cn } from "../lib/utils.js";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 
 export type { CurrentUser } from "../lib/api/current-user";
-
-function setLocale(code: string) {
-	const secure = window.location.protocol === "https:" ? "; Secure" : "";
-	document.cookie = `emdash-locale=${code}; Path=/_emdash; SameSite=Lax; Max-Age=31536000${secure}`;
-	window.location.reload();
-}
 
 async function handleLogout() {
 	const res = await apiFetch("/_emdash/api/auth/logout?redirect=/_emdash/admin/login", {
@@ -37,14 +30,8 @@ async function handleLogout() {
 export function Header() {
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
+	const { t } = useTranslation("nav");
 	const { data: user } = useCurrentUser();
-	const { locale } = useTranslation();
-
-	const SUPPORTED_LOCALES = [
-		{ code: "en", label: "English" },
-		{ code: "fr", label: "Français" },
-	];
-
 	// Get display name and initials
 	const displayName = user?.name || user?.email || "User";
 	const initialsSource = user?.name || user?.email || "U";
@@ -60,7 +47,7 @@ export function Header() {
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 mr-1" />
-					View Site
+					{t("viewSite")}
 				</LinkButton>
 
 				{/* Theme toggle */}
@@ -94,7 +81,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								<Shield className="h-4 w-4" />
-								Security Settings
+								{t("securitySettings")}
 							</Link>
 							<Link
 								to="/settings"
@@ -102,38 +89,15 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								<Gear className="h-4 w-4" />
-								Settings
+								{t("settings")}
 							</Link>
-							<hr className="my-1" />
-							<div className="px-3 py-1.5">
-								<div className="flex items-center gap-1.5 text-xs font-medium text-kumo-subtle mb-1">
-									<GlobeSimple className="h-3.5 w-3.5" weight="bold" />
-									Language
-								</div>
-								<div className="grid gap-0.5">
-									{SUPPORTED_LOCALES.map((l) => (
-										<button
-											key={l.code}
-											onClick={() => setLocale(l.code)}
-											className={cn(
-												"rounded-md px-3 py-1.5 text-sm text-left transition-colors",
-												l.code === locale
-													? "bg-kumo-brand/10 text-kumo-brand font-medium"
-													: "hover:bg-kumo-tint",
-											)}
-										>
-											{l.label}
-										</button>
-									))}
-								</div>
-							</div>
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-left"
 							>
 								<SignOut className="h-4 w-4" />
-								Log out
+								{t("logOut")}
 							</button>
 						</div>
 					</Popover.Content>

@@ -12,20 +12,9 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { useTranslation } from "../i18n/index.js";
+import { useTranslation, SUPPORTED_LOCALES } from "../i18n/index.js";
 import { fetchManifest } from "../lib/api";
 import { cn } from "../lib/utils.js";
-
-const SUPPORTED_LOCALES = [
-	{ code: "en", label: "English" },
-	{ code: "fr", label: "Français" },
-];
-
-function setLocale(code: string) {
-	const secure = window.location.protocol === "https:" ? "; Secure" : "";
-	document.cookie = `emdash-locale=${code}; Path=/_emdash; SameSite=Lax; Max-Age=31536000${secure}`;
-	window.location.reload();
-}
 
 interface SettingsLinkProps {
 	to: string;
@@ -61,32 +50,32 @@ export function Settings() {
 		queryFn: fetchManifest,
 	});
 
-	const { locale } = useTranslation();
+	const { t, locale, setLocale } = useTranslation("settings");
 	const showSecuritySettings = manifest?.authMode === "passkey";
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-2xl font-bold">Settings</h1>
+			<h1 className="text-2xl font-bold">{t("title")}</h1>
 
 			{/* Site settings */}
 			<div className="space-y-2">
 				<SettingsLink
 					to="/settings/general"
 					icon={<Gear className="h-5 w-5" />}
-					title="General"
-					description="Site identity, logo, favicon, and reading preferences"
+					title={t("general")}
+					description={t("general.description")}
 				/>
 				<SettingsLink
 					to="/settings/social"
 					icon={<ShareNetwork className="h-5 w-5" />}
-					title="Social Links"
-					description="Social media profile links"
+					title={t("social")}
+					description={t("social.description")}
 				/>
 				<SettingsLink
 					to="/settings/seo"
 					icon={<MagnifyingGlass className="h-5 w-5" />}
-					title="SEO"
-					description="Search engine optimization and verification"
+					title={t("seo")}
+					description={t("seo.description")}
 				/>
 			</div>
 
@@ -96,14 +85,14 @@ export function Settings() {
 					<SettingsLink
 						to="/settings/security"
 						icon={<Shield className="h-5 w-5" />}
-						title="Security"
-						description="Manage your passkeys and authentication"
+						title={t("security")}
+						description={t("security.description")}
 					/>
 					<SettingsLink
 						to="/settings/allowed-domains"
 						icon={<Globe className="h-5 w-5" />}
-						title="Self-Signup Domains"
-						description="Allow users from specific domains to sign up"
+						title={t("selfSignup")}
+						description={t("selfSignup.description")}
 					/>
 				</div>
 			)}
@@ -113,14 +102,14 @@ export function Settings() {
 				<SettingsLink
 					to="/settings/api-tokens"
 					icon={<Key className="h-5 w-5" />}
-					title="API Tokens"
-					description="Create personal access tokens for programmatic API access"
+					title={t("apiTokens")}
+					description={t("apiTokens.description")}
 				/>
 				<SettingsLink
 					to="/settings/email"
 					icon={<Envelope className="h-5 w-5" />}
-					title="Email"
-					description="View email provider status and send test emails"
+					title={t("email")}
+					description={t("email.description")}
 				/>
 			</div>
 
@@ -132,8 +121,8 @@ export function Settings() {
 							<GlobeSimple className="h-5 w-5" />
 						</div>
 						<div>
-							<div className="font-medium">Language</div>
-							<div className="text-sm text-kumo-subtle">Choose your preferred admin language</div>
+							<div className="font-medium">{t("language")}</div>
+							<div className="text-sm text-kumo-subtle">{t("language.description")}</div>
 						</div>
 					</div>
 					<div className="flex gap-1">
