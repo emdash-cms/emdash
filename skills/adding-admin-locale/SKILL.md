@@ -38,7 +38,7 @@ locales: ["en", "fr", "de"], // ← add
 **2. Run extraction** to generate the new `.po` file:
 
 ```bash
-cd packages/admin && pnpm exec lingui extract
+pnpm --filter @emdash-cms/admin locale:extract
 ```
 
 This creates `packages/admin/src/locales/de/messages.po` with all `msgstr` empty.
@@ -64,6 +64,8 @@ export const SUPPORTED_LOCALES: SupportedLocale[] = [
 	{ code: "de", label: "Deutsch" }, // ← add
 ].filter((l) => validateLocaleCode(l.code));
 ```
+
+The `label` should be the language's name written in its own script (e.g. "Français" not "French", "עברית" not "Hebrew").
 
 **5. That's it.** The Vite plugin compiles the `.po` on import. The locale switcher in Settings will show the new option.
 
@@ -104,7 +106,7 @@ const greeting = t`Hello ${name}`;
 **After adding strings, run extraction:**
 
 ```bash
-cd packages/admin && pnpm exec lingui extract
+pnpm --filter @emdash-cms/admin locale:extract
 ```
 
 This updates all `.po` files with the new strings. Existing translations are preserved.

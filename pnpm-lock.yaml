@@ -859,9 +859,6 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@lingui/core':
-        specifier: 'catalog:'
-        version: 5.9.4(@lingui/babel-plugin-lingui-macro@5.9.4(typescript@5.9.3))
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
         version: 1.26.0(zod@4.3.6)
@@ -992,9 +989,6 @@ importers:
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.14
       '@types/sanitize-html':
         specifier: ^2.16.0
         version: 2.16.0
