@@ -33,6 +33,7 @@ import type {
 } from "../types.js";
 
 type Col<T> = StorageCollection<T>;
+const inFlightWebhookFinalizeByKey = new Map<string, Promise<WebhookFinalizeResponse>>();
 
 function asCollection<T>(raw: unknown): Col<T> {
 	return raw as Col<T>;
@@ -94,28 +95,41 @@ export async function handlePaymentWebhook<TInput>(
 
 	await adapter.verifyRequest(ctx);
 
-	const nowMs = Date.now();
-	const ipHash = await buildRateLimitActorKey(ctx, `webhook:${adapter.buildRateLimitSuffix(ctx)}`);
-	const allowed = await consumeKvRateLimit({
-		kv: ctx.kv,
-		keySuffix: `webhook:${adapter.buildRateLimitSuffix(ctx)}:${ipHash}`,
-		limit: COMMERCE_LIMITS.defaultWebhookPerIpPerWindow,
-		windowMs: COMMERCE_LIMITS.defaultRateWindowMs,
-		nowMs,
-	});
-	if (!allowed) {
-		throwCommerceApiError({
-			code: "RATE_LIMITED",
-			message: "Too many webhook deliveries from this network path",
-		});
-	}
-
 	const input = adapter.buildFinalizeInput(ctx);
-	const finalInput: FinalizeWebhookInput = {
-		...input,
-		providerId: adapter.providerId,
-		correlationId: adapter.buildCorrelationId(ctx),
-	};
-	const result = await finalizePaymentFromWebhook(buildFinalizePorts(ctx), finalInput);
-	return toWebhookResult(result);
+	const inFlightKey = `${adapter.providerId}\0${input.orderId}\0${input.externalEventId}\0${input.finalizeToken}`;
+
+	let pending = inFlightWebhookFinalizeByKey.get(inFlightKey);
+	if (!pending) {
+		pending = (async () => {
+			try {
+				const nowMs = Date.now();
+				const ipHash = await buildRateLimitActorKey(ctx, `webhook:${adapter.buildRateLimitSuffix(ctx)}`);
+				const allowed = await consumeKvRateLimit({
+					kv: ctx.kv,
+					keySuffix: `webhook:${adapter.buildRateLimitSuffix(ctx)}:${ipHash}`,
+					limit: COMMERCE_LIMITS.defaultWebhookPerIpPerWindow,
+					windowMs: COMMERCE_LIMITS.defaultRateWindowMs,
+					nowMs,
+				});
+				if (!allowed) {
+					throwCommerceApiError({
+						code: "RATE_LIMITED",
+						message: "Too many webhook deliveries from this network path",
+					});
+				}
+
+				const finalInput: FinalizeWebhookInput = {
+					...input,
+					providerId: adapter.providerId,
+					correlationId: adapter.buildCorrelationId(ctx),
+				};
+				const result = await finalizePaymentFromWebhook(buildFinalizePorts(ctx), finalInput);
+				return toWebhookResult(result);
+			} finally {
+				inFlightWebhookFinalizeByKey.delete(inFlightKey);
+			}
+		})();
+		inFlightWebhookFinalizeByKey.set(inFlightKey, pending);
+	}
+	return await pending;
 }

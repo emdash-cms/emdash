@@ -131,4 +131,22 @@ describe("payment webhook seam", () => {
 		});
 		expect(consumeKvRateLimit).toHaveBeenCalledTimes(1);
 	});
+
+it("dedupes concurrent duplicate webhook deliveries", async () => {
+	let resolveFinalize!: () => void;
+	const finalizePromise = new Promise<{ kind: "completed"; orderId: string }>((resolve) => {
+		resolveFinalize = () => resolve({ kind: "completed", orderId: "order_1" });
+	});
+	finalizePaymentFromWebhook.mockReturnValue(finalizePromise);
+
+	const first = createPaymentWebhookRoute(adapter)(ctx());
+	const second = createPaymentWebhookRoute(adapter)(ctx());
+	const all = Promise.all([first, second]);
+
+	resolveFinalize();
+	const [firstResult, secondResult] = await all;
+	expect(finalizePaymentFromWebhook).toHaveBeenCalledTimes(1);
+	expect(firstResult).toEqual({ ok: true, replay: false, orderId: "order_1" });
+	expect(secondResult).toEqual({ ok: true, replay: false, orderId: "order_1" });
+});
 });
