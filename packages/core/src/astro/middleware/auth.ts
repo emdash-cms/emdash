@@ -57,8 +57,10 @@ const ROLE_ADMIN = 50;
  * Astro's auto-hashing defeats 'unsafe-inline' (CSP3 ignores 'unsafe-inline'
  * when hashes are present), which would break user-facing pages.
  */
-function buildEmDashCsp(marketplaceUrl?: string): string {
+function buildEmDashCsp(marketplaceUrl?: string, storageEndpoint?: string): string {
 	const imgSources = ["'self'", "data:", "blob:"];
+	const connectSources = ["'self'"];
+
 	if (marketplaceUrl) {
 		try {
 			imgSources.push(new URL(marketplaceUrl).origin);
@@ -66,11 +68,22 @@ function buildEmDashCsp(marketplaceUrl?: string): string {
 			// ignore invalid marketplace URL
 		}
 	}
+
+	if (storageEndpoint) {
+		try {
+			const origin = new URL(storageEndpoint).origin;
+			connectSources.push(origin);
+			imgSources.push(origin);
+		} catch {
+			// ignore invalid storage endpoint
+		}
+	}
+
 	return [
 		"default-src 'self'",
 		"script-src 'self' 'unsafe-inline'",
 		"style-src 'self' 'unsafe-inline'",
-		"connect-src 'self'",
+		`connect-src ${connectSources.join(" ")}`,
 		"form-action 'self'",
 		"frame-ancestors 'none'",
 		`img-src ${imgSources.join(" ")}`,
@@ -240,7 +253,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const response = await next();
 		if (!import.meta.env.DEV) {
 			const marketplaceUrl = context.locals.emdash?.config.marketplace;
-			response.headers.set("Content-Security-Policy", buildEmDashCsp(marketplaceUrl));
+			const storageEndpoint = (context.locals.emdash?.config.storage?.config as Record<string, unknown>)
+				?.endpoint as string | undefined;
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(marketplaceUrl, storageEndpoint),
+			);
 		}
 		return response;
 	}
@@ -250,7 +268,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Set strict CSP on all /_emdash responses (prod only)
 	if (!import.meta.env.DEV) {
 		const marketplaceUrl = context.locals.emdash?.config.marketplace;
-		response.headers.set("Content-Security-Policy", buildEmDashCsp(marketplaceUrl));
+		const storageEndpoint = (context.locals.emdash?.config.storage?.config as Record<string, unknown>)
+			?.endpoint as string | undefined;
+		response.headers.set(
+			"Content-Security-Policy",
+			buildEmDashCsp(marketplaceUrl, storageEndpoint),
+		);
 	}
 
 	return response;
