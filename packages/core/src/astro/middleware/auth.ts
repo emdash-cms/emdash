@@ -41,7 +41,8 @@ declare global {
 			emdashManifest?: EmDashManifest;
 		}
 		interface SessionData {
-			user: { id: string };
+			user?: { id: string };
+			pendingTwoFactor?: { userId: string; expiresAt: number };
 			hasSeenWelcome: boolean;
 		}
 	}
@@ -106,6 +107,8 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
+	"/_emdash/api/auth/2fa/pending",
+	"/_emdash/api/auth/2fa/verify",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 ]);

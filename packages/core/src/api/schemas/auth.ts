@@ -110,3 +110,9 @@ export const authMeActionBody = z
 		action: z.string().min(1),
 	})
 	.meta({ id: "AuthMeActionBody" });
+
+export const twoFactorCodeBody = z
+	.object({
+		code: z.string().min(6).max(12),
+	})
+	.meta({ id: "TwoFactorCodeBody" });

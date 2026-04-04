@@ -18,6 +18,9 @@ import {
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
+import { isTwoFactorEnabled } from "#auth/two-factor.js";
+
+const TWO_FACTOR_PENDING_MS = 5 * 60 * 1000;
 
 type ProviderName = "github" | "google";
 
@@ -171,6 +174,20 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		const stateStore = createOAuthStateStore(emdash.db);
 
 		const user = await handleOAuthCallback(config, adapter, provider, code, state, stateStore);
+
+		if (isTwoFactorEnabled(user)) {
+			if (session) {
+				session.set("pendingTwoFactor", {
+					userId: user.id,
+					expiresAt: Date.now() + TWO_FACTOR_PENDING_MS,
+				});
+			}
+
+			const loginUrl = new URL("/_emdash/admin/login", url.origin);
+			loginUrl.searchParams.set("two_factor", "required");
+			loginUrl.searchParams.set("redirect", "/_emdash/admin");
+			return redirect(loginUrl.toString());
+		}
 
 		// Create session
 		if (session) {

@@ -16,7 +16,10 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { passkeyVerifyBody } from "#api/schemas.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
+import { isTwoFactorEnabled } from "#auth/two-factor.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+
+const TWO_FACTOR_PENDING_MS = 5 * 60 * 1000;
 
 export const POST: APIRoute = async ({ request, locals, session }) => {
 	const { emdash } = locals;
@@ -45,6 +48,20 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			body.credential,
 			challengeStore,
 		);
+
+		if (isTwoFactorEnabled(user)) {
+			if (session) {
+				session.set("pendingTwoFactor", {
+					userId: user.id,
+					expiresAt: Date.now() + TWO_FACTOR_PENDING_MS,
+				});
+			}
+
+			return apiSuccess({
+				success: true,
+				requiresTwoFactor: true,
+			});
+		}
 
 		// Create session
 		if (session) {
