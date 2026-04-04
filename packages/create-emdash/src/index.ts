@@ -195,7 +195,7 @@ function configureDatabase(projectDir: string, database: DatabaseChoice): string
 		dependencies.pg = dependencies.pg ?? "^8.16.0";
 		delete dependencies["better-sqlite3"];
 		ensureEnvVar(projectDir, "DATABASE_URL", "postgres://user:password@localhost:5432/emdash");
-		notes.push("Database: PostgreSQL configured (set DATABASE_URL in .env)");
+		notes.push("Database: PostgreSQL configured (DATABASE_URL added to .env.example)");
 	}
 
 	if (database === "mongodb") {
