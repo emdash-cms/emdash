@@ -8,20 +8,8 @@
 
 import * as React from "react";
 
+import { SUPPORTED_LOCALE_CODES } from "./config.js";
 import type { Translations } from "./types.js";
-
-export interface SupportedLocale {
-	code: string;
-	label: string;
-}
-
-/** Available locales — extend this list as translations are added. */
-export const SUPPORTED_LOCALES: SupportedLocale[] = [
-	{ code: "en", label: "English" },
-	{ code: "fr", label: "Français" },
-];
-
-const SUPPORTED_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));
 
 interface I18nContextValue {
 	locale: string;
@@ -47,42 +35,26 @@ function setCookie(code: string) {
 }
 
 /**
+ * All locale JSON files, discovered at build time by Vite.
+ * Lazy-loaded: each file becomes its own chunk, fetched on demand.
+ */
+const localeModules = import.meta.glob<{ default: Translations }>("./locales/*/*.json");
+
+/**
  * Load all namespace files for a locale and merge into a single Translations map.
- * Vite code-splits each JSON into its own chunk — only fetched on demand.
  */
 async function loadLocale(code: string): Promise<Translations> {
-	const namespaces = await Promise.all(localeNamespaces.map((ns) => ns(code)));
+	const prefix = `./locales/${code}/`;
+	const entries = Object.entries(localeModules).filter(([path]) => path.startsWith(prefix));
+	const results = await Promise.all(
+		entries.map(([, importer]) => importer().then((m) => m.default)),
+	);
 	let merged: Translations = {};
-	for (const ns of namespaces) {
+	for (const ns of results) {
 		merged = { ...merged, ...ns };
 	}
 	return merged;
 }
-
-/** Each function loads one namespace JSON for a given locale code. */
-const localeNamespaces: Array<(code: string) => Promise<Translations>> = [
-	async (code) => {
-		const importers: Record<string, () => Promise<{ default: Translations }>> = {
-			en: () => import("./locales/en/common.json"),
-			fr: () => import("./locales/fr/common.json"),
-		};
-		return (await importers[code]!()).default;
-	},
-	async (code) => {
-		const importers: Record<string, () => Promise<{ default: Translations }>> = {
-			en: () => import("./locales/en/settings.json"),
-			fr: () => import("./locales/fr/settings.json"),
-		};
-		return (await importers[code]!()).default;
-	},
-	async (code) => {
-		const importers: Record<string, () => Promise<{ default: Translations }>> = {
-			en: () => import("./locales/en/nav.json"),
-			fr: () => import("./locales/fr/nav.json"),
-		};
-		return (await importers[code]!()).default;
-	},
-];
 
 export function I18nProvider({
 	locale: initialLocale,
@@ -94,7 +66,7 @@ export function I18nProvider({
 
 	const setLocale = React.useCallback(
 		(code: string) => {
-			if (!SUPPORTED_CODES.has(code) || code === locale) return;
+			if (!SUPPORTED_LOCALE_CODES.has(code) || code === locale) return;
 
 			setCookie(code);
 			setLocaleState(code);

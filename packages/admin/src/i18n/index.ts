@@ -1,3 +1,5 @@
-export { I18nProvider, useTranslation, SUPPORTED_LOCALES } from "./I18nProvider.js";
-export type { I18nProviderProps, SupportedLocale } from "./I18nProvider.js";
+export { I18nProvider, useTranslation } from "./I18nProvider.js";
+export type { I18nProviderProps } from "./I18nProvider.js";
 export type { Translations } from "./types.js";
+export { SUPPORTED_LOCALES, SUPPORTED_LOCALE_CODES, DEFAULT_LOCALE, NAMESPACES } from "./config.js";
+export type { SupportedLocale } from "./config.js";
