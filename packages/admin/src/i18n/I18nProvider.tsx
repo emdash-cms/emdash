@@ -8,8 +8,8 @@
 
 import * as React from "react";
 
-import { SUPPORTED_LOCALE_CODES } from "./config.js";
-import type { Translations } from "./types.js";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALE_CODES } from "./config.js";
+import type { Namespace, Translations, TranslationKeyMap } from "./types.js";
 
 interface I18nContextValue {
 	locale: string;
@@ -18,7 +18,7 @@ interface I18nContextValue {
 }
 
 const I18nContext = React.createContext<I18nContextValue>({
-	locale: "en",
+	locale: DEFAULT_LOCALE,
 	translations: {},
 	setLocale: () => {},
 });
@@ -87,6 +87,14 @@ export function I18nProvider({
  * Get translation function, current locale, and locale switcher.
  * Optional namespace prefix: useTranslation('common') makes t('save') look up 'common.save'.
  */
+export function useTranslation<NS extends Namespace>(
+	namespace: NS,
+): {
+	t: (key: TranslationKeyMap[NS], vars?: Record<string, string | number>) => string;
+	locale: string;
+	setLocale: (code: string) => void;
+};
+export function useTranslation(): { locale: string; setLocale: (code: string) => void };
 export function useTranslation(namespace?: string) {
 	const { locale, translations, setLocale } = React.useContext(I18nContext);
 
@@ -94,6 +102,11 @@ export function useTranslation(namespace?: string) {
 		(key: string, vars?: Record<string, string | number>) => {
 			const fullKey = namespace ? `${namespace}.${key}` : key;
 			let value = translations[fullKey] ?? fullKey;
+
+			if (value === fullKey && import.meta.env.DEV) {
+				console.warn(`[useTranslation] key not found: ${fullKey}`);
+			}
+
 			if (vars) {
 				for (const [k, v] of Object.entries(vars)) {
 					value = value.replaceAll(`{${k}}`, String(v));

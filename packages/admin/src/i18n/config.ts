@@ -10,11 +10,13 @@ export interface SupportedLocale {
 }
 
 /** Validate a locale code against the Intl.Locale API (BCP 47). */
-function validateLocaleCode(code: string): string {
+function validateLocaleCode(code: string): string | void {
 	try {
 		return new Intl.Locale(code).baseName;
 	} catch {
-		throw new Error(`Invalid locale code: "${code}"`);
+		if (import.meta.env.DEV) {
+			throw new Error(`Invalid locale code: "${code}"`);
+		}
 	}
 }
 
@@ -26,7 +28,4 @@ export const SUPPORTED_LOCALES: SupportedLocale[] = [
 
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));
 
-export const DEFAULT_LOCALE = validateLocaleCode("en");
-
-/** Translation namespace filenames (without extension). */
-export const NAMESPACES = ["common", "settings", "nav"] as const;
+export const DEFAULT_LOCALE = SUPPORTED_LOCALES[0]!.code;
