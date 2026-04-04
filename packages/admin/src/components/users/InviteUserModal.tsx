@@ -15,6 +15,8 @@ export interface InviteUserModalProps {
 	onInvite: (email: string, role: number) => void;
 }
 
+const INVITE_EMAIL_PLACEHOLDER = "colleague@example.com";
+
 /**
  * Invite user modal — sends invite email or shows copy-link fallback
  */
@@ -154,7 +156,7 @@ export function InviteUserModal({
 								type="email"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
-								placeholder={t`colleague@example.com`}
+								placeholder={INVITE_EMAIL_PLACEHOLDER}
 								required
 								autoComplete="off"
 							/>
