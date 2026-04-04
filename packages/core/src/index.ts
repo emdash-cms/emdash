@@ -221,6 +221,7 @@ export type {
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
+	PluginSlashCommand,
 	PortableTextBlockField,
 	// Comment types
 	CommentBeforeCreateEvent,

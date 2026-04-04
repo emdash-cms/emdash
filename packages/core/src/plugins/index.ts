@@ -174,6 +174,7 @@ export type {
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
+	PluginSlashCommand,
 	PortableTextBlockField,
 	SettingField,
 	SettingFieldType,

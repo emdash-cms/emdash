@@ -1322,6 +1322,17 @@ export interface PortableTextEditorProps {
 	onEditorReady?: (editor: Editor) => void;
 	/** Minimal chrome - hides toolbar, border, footer (distraction-free mode) */
 	minimal?: boolean;
+	/** Plugin slash commands available for insertion via the / menu */
+	pluginSlashCommands?: Array<{
+		id: string;
+		title: string;
+		description: string;
+		icon?: string;
+		aliases?: string[];
+		category?: string;
+		action: string;
+		insertContent?: string;
+	}>;
 	/** Callback when a block node requests sidebar space (e.g. image settings) */
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
@@ -1339,6 +1350,7 @@ export function PortableTextEditor({
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
 	pluginBlocks = [],
+	pluginSlashCommands = [],
 	focusMode: controlledFocusMode,
 	onFocusModeChange,
 	onEditorReady,
@@ -1440,8 +1452,32 @@ export function PortableTextEditor({
 			});
 		}
 
+		// Add plugin slash commands (arbitrary commands registered by plugins)
+		for (const cmd of pluginSlashCommands) {
+			cmds.push({
+				id: `plugin-cmd-${cmd.id}`,
+				title: cmd.title,
+				description: cmd.description,
+				icon: resolveIcon(cmd.icon),
+				aliases: cmd.aliases,
+				category: cmd.category ?? "Plugins",
+				command: ({ editor, range }) => {
+					editor.chain().focus().deleteRange(range).run();
+					if (cmd.action === "insert-text" && cmd.insertContent) {
+						editor.chain().focus().insertContent(cmd.insertContent).run();
+					} else {
+						window.dispatchEvent(
+							new CustomEvent("emdash:plugin-slash-command", {
+								detail: { id: cmd.id, action: cmd.action },
+							}),
+						);
+					}
+				},
+			});
+		}
+
 		return cmds;
-	}, [pluginBlocks]);
+	}, [pluginBlocks, pluginSlashCommands]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing

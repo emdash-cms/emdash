@@ -1070,6 +1070,25 @@ export interface PortableTextBlockConfig {
 }
 
 /**
+ * A slash command contributed by a plugin.
+ * These appear in the editor's `/` menu alongside built-in commands.
+ */
+export interface PluginSlashCommand {
+	id: string;
+	title: string;
+	description: string;
+	icon?: string;
+	aliases?: string[];
+	category?: string;
+	/** The handler is called when the command is selected. Receives the editor range to replace. */
+	action: "insert-text" | "open-modal" | "custom";
+	/** For insert-text: the text/HTML to insert */
+	insertContent?: string;
+	/** For open-modal: which plugin admin page to open */
+	modalPath?: string;
+}
+
+/**
  * Configuration for a field widget type contributed by a plugin.
  * A field widget provides a custom editing UI for a schema field.
  * The field references the widget via `widget: "pluginId:widgetName"`.
@@ -1101,6 +1120,8 @@ export interface PluginAdminConfig {
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types this plugin provides */
 	fieldWidgets?: FieldWidgetConfig[];
+	/** Slash commands this plugin contributes to the editor's / menu */
+	slashCommands?: PluginSlashCommand[];
 }
 
 /**
