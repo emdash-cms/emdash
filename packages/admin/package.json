@@ -65,7 +65,6 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
-    "@babel/plugin-proposal-decorators": "^7.29.0",
     "@lingui/cli": "^5.9.4",
     "@lingui/macro": "^5.9.4",
     "@lingui/vite-plugin": "^5.9.4",
