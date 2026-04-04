@@ -230,12 +230,14 @@ export interface Product {
 
 // Typed overloads for query functions
 declare module "emdash" {
-	export function getEmDashCollection(type: "posts"): Promise<ContentEntry<Post>[]>;
+	export function getEmDashCollection(
+		type: "posts",
+	): Promise<{ entries: ContentEntry<Post>[]; error?: Error }>;
 
 	export function getEmDashEntry(
 		type: "products",
 		id: string,
-	): Promise<ContentEntry<Product> | null>;
+	): Promise<{ entry: ContentEntry<Product> | null; error?: Error; isPreview: boolean }>;
 }
 ```
 
@@ -328,6 +330,6 @@ EmDash follows the Directus model: database-first with optional type generation.
 		Explore the [admin architecture](/concepts/admin-panel/).
 	</Card>
 	<Card title="Seeding" icon="open-book">
-		Set up sites with [seed files](/guides/seeding/).
+		Set up sites with [seed files](/themes/seed-files/).
 	</Card>
 </CardGrid>

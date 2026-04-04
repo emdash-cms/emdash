@@ -1,5 +1,6 @@
 import { execFile, spawn } from "node:child_process";
-import { resolve } from "node:path";
+import { rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
@@ -202,6 +203,12 @@ describe.sequential("Site smoke matrix", () => {
 			{ timeout: site.startupTimeoutMs + 120_000 },
 			async () => {
 				await ensureBuilt();
+
+				// Remove stale database files so each run starts fresh.
+				// SQLite demos use data.db; WAL/SHM sidecars may also exist.
+				for (const file of ["data.db", "data.db-wal", "data.db-shm"]) {
+					rmSync(join(site.dir, file), { force: true });
+				}
 
 				const baseUrl = `http://localhost:${site.port}`;
 				const serverProcess = spawn("pnpm", ["exec", "astro", "dev", "--port", String(site.port)], {

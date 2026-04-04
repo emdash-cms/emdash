@@ -64,8 +64,8 @@ Update your Astro configuration to use D1 and R2:
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
-import emdash, { r2 } from "emdash/astro";
-import { d1 } from "emdash/db";
+import emdash from "emdash/astro";
+import { d1, r2 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	output: "server",
@@ -170,16 +170,14 @@ If your organization uses Cloudflare Access, you can use it as your authenticati
 emdash({
   database: d1({ binding: "DB" }),
   storage: r2({ binding: "MEDIA" }),
-  auth: {
-    cloudflareAccess: {
-      teamDomain: "myteam.cloudflareaccess.com",
-      audience: "your-app-audience-tag",
-      roleMapping: {
-        "Admins": 50,
-        "Editors": 40,
-      },
+  auth: access({
+    teamDomain: "myteam.cloudflareaccess.com",
+    audience: "your-app-audience-tag",
+    roleMapping: {
+      "Admins": 50,
+      "Editors": 40,
     },
-  },
+  }),
 }),
 ```
 
