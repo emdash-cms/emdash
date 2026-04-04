@@ -5,7 +5,7 @@ description: Use when adding a new admin UI locale, translating admin strings, o
 
 # Adding an Admin Locale
 
-The admin UI uses a lightweight i18n system with no external dependencies. Translations live in flat JSON files at `packages/admin/src/i18n/locales/{code}/{namespace}.json`. The provider uses `import.meta.glob` to discover them automatically — no code changes needed for new locales or namespaces on the client side.
+The admin UI uses a lightweight i18n system with no external dependencies. Translations live in flat JSON files at `packages/admin/src/i18n/locales/{code}/{namespace}.json`. The provider uses `import.meta.glob` to discover them automatically — no code changes needed for new locales on the client side.
 
 ## Architecture
 
@@ -20,8 +20,13 @@ I18nProvider (client)
   ├─ import.meta.glob("./locales/*/*.json") discovers all files at build time
   └─ setLocale() dynamically imports new locale JSON — no page reload
 
+Type safety
+  ├─ locales/en/index.ts barrel exports all default-locale JSONs
+  ├─ types.ts derives Namespace type + TranslationKeyMap from the barrel
+  └─ useTranslation("ns") → t("key") is type-checked against JSON keys
+
 Components
-  └─ useTranslation("namespace") → t("key") → translated string
+  └─ useTranslation("namespace") → t("key") → translated string (type-safe)
 ```
 
 ## Adding a New Locale
@@ -45,13 +50,13 @@ cp -r packages/admin/src/i18n/locales/en packages/admin/src/i18n/locales/de
 
 ```ts
 export const SUPPORTED_LOCALES: SupportedLocale[] = [
-	{ code: validateLocaleCode("en"), label: "English" },
-	{ code: validateLocaleCode("fr"), label: "Français" },
-	{ code: validateLocaleCode("de"), label: "Deutsch" }, // ← add
-];
+	{ code: "en", label: "English" },
+	{ code: "fr", label: "Français" },
+	{ code: "de", label: "Deutsch" }, // ← add
+].filter((l) => validateLocaleCode(l.code));
 ```
 
-The `validateLocaleCode()` call uses `Intl.Locale` to validate BCP 47 codes at module load time — a typo fails immediately.
+The `filter` + `validateLocaleCode()` call uses `Intl.Locale` to validate BCP 47 codes at module load time — invalid codes are silently dropped (with a thrown error in dev mode).
 
 **4. That's it.** New locale files are discovered automatically — no other code changes needed.
 
@@ -75,35 +80,43 @@ done
 }
 ```
 
-**3. Register in config** — add to `NAMESPACES` in `packages/admin/src/i18n/config.ts`:
+**3. Add to the default locale barrel** — `packages/admin/src/i18n/locales/en/index.ts`:
 
 ```ts
-export const NAMESPACES = ["common", "settings", "nav", "myfeature"] as const;
+export { default as common } from "./common.json";
+export { default as nav } from "./nav.json";
+export { default as settings } from "./settings.json";
+export { default as myfeature } from "./myfeature.json"; // ← add
 ```
 
-Both client and server read from this config — no other files need updating.
+This is the only registration step. `NAMESPACES` and the `Namespace` type are derived from this barrel automatically — both the runtime array and the TypeScript types.
 
 **4. Use in components:**
 
 ```tsx
 const { t } = useTranslation("myfeature");
-return <h1>{t("title")}</h1>; // looks up "myfeature.title"
+return <h1>{t("title")}</h1>; // looks up "myfeature.title" — type-checked!
 ```
+
+`t()` only accepts keys that exist in the default locale's JSON for that namespace. Passing an invalid key is a compile-time error.
 
 ## Key Files
 
-| File                                                      | Purpose                                                                     |
-| --------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `packages/admin/src/i18n/config.ts`                       | Single source of truth: `SUPPORTED_LOCALES`, `NAMESPACES`, `DEFAULT_LOCALE` |
-| `packages/admin/src/i18n/I18nProvider.tsx`                | React context, `useTranslation()` hook, client-side locale switching        |
-| `packages/admin/src/i18n/locales/{code}/{namespace}.json` | Translation strings                                                         |
-| `packages/core/src/astro/routes/admin.astro`              | Server-side locale resolution and initial translation loading               |
+| File                                                      | Purpose                                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `packages/admin/src/i18n/config.ts`                       | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, locale validation                       |
+| `packages/admin/src/i18n/types.ts`                        | `Namespace`, `NAMESPACES`, `TranslationKeyMap` — all derived from barrel       |
+| `packages/admin/src/i18n/locales/en/index.ts`             | Barrel export — source of truth for namespaces and type-safe keys              |
+| `packages/admin/src/i18n/I18nProvider.tsx`                | React context, `useTranslation()` hook, client-side locale switching           |
+| `packages/admin/src/i18n/locales/{code}/{namespace}.json` | Translation strings                                                            |
+| `packages/core/src/astro/routes/admin.astro`              | Server-side locale resolution and initial translation loading                  |
 
 ## Translation Key Conventions
 
 - Keys are flat, dot-namespaced: `namespace.key` (e.g., `common.save`, `nav.dashboard`)
 - Keys in JSON files include the full namespace prefix
 - `useTranslation("namespace")` prepends the namespace, so `t("save")` looks up `"namespace.save"`
+- `t()` is type-safe: only keys from the default locale's JSON are accepted
 - Interpolation uses `{variable}` syntax: `t("greeting", { name: "World" })` with `"common.greeting": "Hello, {name}!"`
 - Missing keys fall back to the key itself (visible in UI for debugging)
 
@@ -113,7 +126,7 @@ return <h1>{t("title")}</h1>; // looks up "myfeature.title"
 
 2. **Missing keys in a locale** — if `fr/nav.json` has a key that `de/nav.json` doesn't, the German UI shows the raw key. Copy the English file first, then translate.
 
-3. **Adding a namespace JSON without updating `NAMESPACES` in `config.ts`** — the server won't load it on initial render. `config.ts` is the single source of truth — update it there and both sides pick it up.
+3. **Adding a namespace JSON without updating the barrel** — the namespace won't be typed and `NAMESPACES` won't include it. Always add the `export { default as ... }` line to `locales/en/index.ts`.
 
 ## RTL Languages
 
