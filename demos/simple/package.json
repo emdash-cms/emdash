@@ -32,5 +32,7 @@
     "@lingui/cli": "^5.9.4",
     "@lingui/conf": "^5.9.4",
     "@lingui/vite-plugin": "^5.9.4"
-  }
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {}
 }
