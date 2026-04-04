@@ -38,31 +38,6 @@ export interface ContentTypeEditorProps {
 	onReorderFields?: (fieldSlugs: string[]) => void;
 }
 
-function getSupportOptions(t: (template: TemplateStringsArray, ...args: unknown[]) => string) {
-	return [
-		{
-			value: "drafts",
-			label: t`Drafts`,
-			description: t`Save content as draft before publishing`,
-		},
-		{
-			value: "revisions",
-			label: t`Revisions`,
-			description: t`Track content history`,
-		},
-		{
-			value: "preview",
-			label: t`Preview`,
-			description: t`Preview content before publishing`,
-		},
-		{
-			value: "search",
-			label: t`Search`,
-			description: t`Enable full-text search on this collection`,
-		},
-	];
-}
-
 /**
  * System fields that exist on every collection
  * These are created automatically and cannot be modified
@@ -120,7 +95,31 @@ export function ContentTypeEditor({
 	onReorderFields: _onReorderFields,
 }: ContentTypeEditorProps) {
 	const { t } = useLingui();
-	const supportOptions = getSupportOptions(t);
+	const supportOptions = React.useMemo(
+		() => [
+			{
+				value: "drafts",
+				label: t`Drafts`,
+				description: t`Save content as draft before publishing`,
+			},
+			{
+				value: "revisions",
+				label: t`Revisions`,
+				description: t`Track content history`,
+			},
+			{
+				value: "preview",
+				label: t`Preview`,
+				description: t`Preview content before publishing`,
+			},
+			{
+				value: "search",
+				label: t`Search`,
+				description: t`Enable full-text search on this collection`,
+			},
+		],
+		[t],
+	);
 	const _navigate = useNavigate();
 
 	// Form state
@@ -363,11 +362,11 @@ export function ContentTypeEditor({
 								/>
 								{urlPattern && !urlPattern.includes("{slug}") && (
 									<p className="text-xs text-kumo-danger mt-2">
-										{t`Pattern must include a {slug} placeholder`}
+										{t`Pattern must include a '{slug}' placeholder`}
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">
-									{t`Pattern for generating URLs, e.g. /blog/{slug}`}
+									{t`Pattern for generating URLs, e.g. /blog/'{slug}'`}
 								</p>
 							</div>
 
