@@ -50,6 +50,8 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
+import { RoleTypeEditor } from "./components/RoleTypeEditor";
+import { RoleTypeList } from "./components/RoleTypeList";
 import { TaxonomyTypeEditor } from "./components/TaxonomyTypeEditor";
 import { TaxonomyTypeList } from "./components/TaxonomyTypeList";
 import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
@@ -118,6 +120,15 @@ import {
 	type CreateTaxonomyInput,
 	type UpdateTaxonomyInput,
 } from "./lib/api/taxonomies";
+import {
+	fetchRoles,
+	fetchRole,
+	createRole,
+	updateRole,
+	deleteRole,
+	type CreateRoleInput,
+	type UpdateRoleInput,
+} from "./lib/api/roles";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -1608,6 +1619,130 @@ function TaxonomyTypesEditPage() {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// Role Types routes
+// ---------------------------------------------------------------------------
+
+const roleTypesListRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/role-types",
+	component: RoleTypesListPage,
+});
+
+function RoleTypesListPage() {
+	const queryClient = useQueryClient();
+
+	const {
+		data: roles,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ["roleDefs"],
+		queryFn: fetchRoles,
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (name: string) => deleteRole(name),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["roleDefs"] });
+		},
+	});
+
+	if (error) {
+		return <ErrorScreen error={error.message} />;
+	}
+
+	return (
+		<RoleTypeList
+			roles={roles ?? []}
+			isLoading={isLoading}
+			onDelete={(name) => deleteMutation.mutate(name)}
+			deleteError={deleteMutation.error}
+			isDeleting={deleteMutation.isPending}
+		/>
+	);
+}
+
+const roleTypesNewRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/role-types/new",
+	component: RoleTypesNewPage,
+});
+
+function RoleTypesNewPage() {
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+
+	const createMutation = useMutation({
+		mutationFn: (input: CreateRoleInput) => createRole(input),
+		onSuccess: (result) => {
+			void queryClient.invalidateQueries({ queryKey: ["roleDefs"] });
+			void navigate({
+				to: "/role-types/$name",
+				params: { name: result.name },
+			});
+		},
+	});
+
+	return (
+		<RoleTypeEditor
+			isNew
+			isSaving={createMutation.isPending}
+			onSave={(input) => {
+				createMutation.mutate(input as CreateRoleInput);
+			}}
+		/>
+	);
+}
+
+const roleTypesEditRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/role-types/$name",
+	component: RoleTypesEditPage,
+});
+
+function RoleTypesEditPage() {
+	const { name } = useParams({ from: "/_admin/role-types/$name" });
+	const queryClient = useQueryClient();
+
+	const {
+		data: role,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ["roleDefs", name],
+		queryFn: () => fetchRole(name),
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: (input: UpdateRoleInput) => updateRole(name, input),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["roleDefs"] });
+			void queryClient.invalidateQueries({ queryKey: ["roleDefs", name] });
+		},
+	});
+
+	if (error) {
+		return <ErrorScreen error={error.message} />;
+	}
+
+	if (isLoading) {
+		return <LoadingScreen />;
+	}
+
+	if (!role) {
+		return <ErrorScreen error={`Role '${name}' not found`} />;
+	}
+
+	return (
+		<RoleTypeEditor
+			role={role}
+			isSaving={updateMutation.isPending}
+			onSave={(input) => updateMutation.mutate(input as UpdateRoleInput)}
+		/>
+	);
+}
+
 // Plugin page route
 const pluginRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -1664,6 +1799,9 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	taxonomyTypesListRoute,
 	taxonomyTypesNewRoute,
 	taxonomyTypesEditRoute,
+	roleTypesListRoute,
+	roleTypesNewRoute,
+	roleTypesEditRoute,
 	usersRoute,
 	bylinesRoute,
 	widgetsRoute,

@@ -13,7 +13,7 @@ import * as React from "react";
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
-import { ROLES, getRoleLabel } from "./RoleBadge";
+import { useAllRoles, getRoleLabel, useRoleDefs } from "./RoleBadge";
 
 export interface UserDetailProps {
 	user: UserDetailType | null;
@@ -52,6 +52,8 @@ export function UserDetail({
 	const [name, setName] = React.useState(user?.name ?? "");
 	const [email, setEmail] = React.useState(user?.email ?? "");
 	const [role, setRole] = React.useState(user?.role ?? 30);
+	const ROLES = useAllRoles();
+	const { data: roleDefs } = useRoleDefs();
 
 	// Reset form when viewing a different user
 	const userIdRef = React.useRef(user?.id);
@@ -172,7 +174,7 @@ export function UserDetail({
 									<div className="flex-1">
 										<Input
 											label="Role"
-											value={getRoleLabel(role)}
+											value={getRoleLabel(role, roleDefs)}
 											disabled
 											className="cursor-not-allowed"
 										/>

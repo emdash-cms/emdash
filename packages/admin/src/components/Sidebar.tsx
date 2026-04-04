@@ -15,6 +15,7 @@ import {
 	Users,
 	Stack,
 	ArrowsLeftRight,
+	ShieldCheck,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -217,6 +218,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: "Content Types", icon: Database, minRole: ROLE_ADMIN },
 		{ to: "/taxonomy-types", label: "Taxonomy Types", icon: List, minRole: ROLE_ADMIN },
+		{ to: "/role-types", label: "Role Types", icon: ShieldCheck, minRole: ROLE_ADMIN },
 		{ to: "/users", label: "Users", icon: Users, minRole: ROLE_ADMIN },
 		{ to: "/plugins-manager", label: "Plugins", icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];

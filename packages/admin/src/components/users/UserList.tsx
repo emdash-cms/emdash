@@ -4,7 +4,7 @@ import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { RoleBadge, ROLES } from "./RoleBadge";
+import { RoleBadge, useAllRoles } from "./RoleBadge";
 
 export interface UserListProps {
 	users: UserListItem[];
@@ -34,6 +34,8 @@ export function UserList({
 	onInviteUser,
 	onLoadMore,
 }: UserListProps) {
+	const ROLES = useAllRoles();
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}

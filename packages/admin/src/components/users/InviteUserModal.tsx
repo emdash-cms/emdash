@@ -2,7 +2,7 @@ import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
 import { Check, Copy, X } from "@phosphor-icons/react";
 import * as React from "react";
 
-import { ROLES } from "./RoleBadge";
+import { useAllRoles } from "./RoleBadge";
 
 export interface InviteUserModalProps {
 	open: boolean;
@@ -29,6 +29,7 @@ export function InviteUserModal({
 	const [role, setRole] = React.useState(30); // Default to Author
 	const [copied, setCopied] = React.useState(false);
 	const [copyError, setCopyError] = React.useState(false);
+	const ROLES = useAllRoles();
 
 	const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 

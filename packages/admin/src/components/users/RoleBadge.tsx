@@ -1,7 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
+
+import { fetchRoles, type RoleDef } from "../../lib/api/roles.js";
 import { cn } from "../../lib/utils";
 
-/** Role level to name mapping */
-const ROLE_CONFIG: Record<number, { label: string; color: string; description: string }> = {
+/** Built-in role config (fallback when API roles haven't loaded) */
+const BUILTIN_ROLE_CONFIG: Record<number, { label: string; color: string; description: string }> = {
 	10: {
 		label: "Subscriber",
 		color: "gray",
@@ -29,10 +32,32 @@ const ROLE_CONFIG: Record<number, { label: string; color: string; description: s
 	},
 };
 
+/** Map a hex color to the closest named Tailwind color for badge styling */
+function colorToTailwindName(hex: string | null): string {
+	if (!hex) return "gray";
+	const map: Record<string, string> = {
+		"#ef4444": "red", "#f97316": "orange", "#eab308": "yellow",
+		"#22c55e": "green", "#3b82f6": "blue", "#8b5cf6": "purple",
+		"#ec4899": "pink", "#6b7280": "gray",
+	};
+	return map[hex.toLowerCase()] ?? "gray";
+}
+
 /** Get role config, with fallback for unknown roles */
-export function getRoleConfig(role: number) {
+export function getRoleConfig(role: number, roleDefs?: RoleDef[]) {
+	// Check API-provided role definitions first
+	if (roleDefs) {
+		const def = roleDefs.find((r) => r.level === role);
+		if (def) {
+			return {
+				label: def.label,
+				color: def.builtin ? (BUILTIN_ROLE_CONFIG[role]?.color ?? "gray") : colorToTailwindName(def.color),
+				description: def.description ?? `Level ${def.level} role`,
+			};
+		}
+	}
 	return (
-		ROLE_CONFIG[role] ?? {
+		BUILTIN_ROLE_CONFIG[role] ?? {
 			label: `Role ${role}`,
 			color: "gray",
 			description: "Unknown role",
@@ -41,8 +66,18 @@ export function getRoleConfig(role: number) {
 }
 
 /** Get role label from role level */
-export function getRoleLabel(role: number): string {
-	return getRoleConfig(role).label;
+export function getRoleLabel(role: number, roleDefs?: RoleDef[]): string {
+	return getRoleConfig(role, roleDefs).label;
+}
+
+/** Hook to fetch all role definitions for use in dropdowns and badges */
+export function useRoleDefs() {
+	return useQuery({
+		queryKey: ["roleDefs"],
+		queryFn: fetchRoles,
+		staleTime: 5 * 60 * 1000,
+		retry: false,
+	});
 }
 
 export interface RoleBadgeProps {
@@ -53,7 +88,8 @@ export interface RoleBadgeProps {
 }
 
 /**
- * Role badge component with semantic colors
+ * Role badge component with semantic colors.
+ * Fetches custom role definitions to display dynamic labels and colors.
  */
 export function RoleBadge({
 	role,
@@ -61,7 +97,8 @@ export function RoleBadge({
 	showDescription = false,
 	className,
 }: RoleBadgeProps) {
-	const config = getRoleConfig(role);
+	const { data: roleDefs } = useRoleDefs();
+	const config = getRoleConfig(role, roleDefs);
 
 	const colorClasses: Record<string, string> = {
 		gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
@@ -92,11 +129,29 @@ export function RoleBadge({
 	);
 }
 
-/** List of all roles for dropdowns */
-export const ROLES = [
+/** Built-in roles for dropdowns (static fallback) */
+export const BUILTIN_ROLES = [
 	{ value: 10, label: "Subscriber", description: "Can view content" },
 	{ value: 20, label: "Contributor", description: "Can create content" },
 	{ value: 30, label: "Author", description: "Can publish own content" },
 	{ value: 40, label: "Editor", description: "Can manage all content" },
 	{ value: 50, label: "Admin", description: "Full access" },
 ];
+
+/** @deprecated Use useAllRoles() hook instead for dynamic roles */
+export const ROLES = BUILTIN_ROLES;
+
+/** Hook that returns all roles (built-in + custom) for use in dropdowns */
+export function useAllRoles() {
+	const { data: roleDefs } = useRoleDefs();
+
+	if (!roleDefs) return BUILTIN_ROLES;
+
+	return roleDefs
+		.map((r) => ({
+			value: r.level,
+			label: r.label,
+			description: r.description ?? (r.builtin ? BUILTIN_ROLE_CONFIG[r.level]?.description ?? "" : `Level ${r.level} role`),
+		}))
+		.sort((a, b) => a.value - b.value);
+}
