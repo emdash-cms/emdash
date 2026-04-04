@@ -18,6 +18,10 @@ Use this quick checklist if a merchant or customer support agent reports, “The
    - `processed` = this event was already handled.
    - `pending` = event is in partial-finalization recovery and may be safely retried once.
    - `error` or missing = do not retry blindly; escalate.
+   - `receiptErrorCode` (new) guides escalation:
+     - `ORDER_NOT_FOUND` = order row disappeared during finalization; do not auto-retry.
+     - `ORDER_STATE_CONFLICT` = state changed between reads; investigate before manual intervention.
+     - `INVENTORY_CHANGED`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE` = terminal inventory mismatch; manual correction required before retrying.
 
 3. Open payment attempt rows for the order.
    - `succeeded` means finalize reached payment-attempt stage.

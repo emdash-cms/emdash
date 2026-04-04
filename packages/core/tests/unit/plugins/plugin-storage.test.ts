@@ -85,6 +85,44 @@ describe("PluginStorageRepository", () => {
 		});
 	});
 
+	describe("putIfAbsent()", () => {
+		it("should insert a new document and return true", async () => {
+			const doc: TestDocument = {
+				title: "Test",
+				status: "active",
+				count: 5,
+				createdAt: "2024-01-01",
+			};
+
+			const inserted = await repo.putIfAbsent("doc1", doc);
+			expect(inserted).toBe(true);
+
+			const result = await repo.get("doc1");
+			expect(result).toEqual(doc);
+		});
+
+		it("should return false without overwriting an existing document", async () => {
+			const doc: TestDocument = {
+				title: "Original",
+				status: "active",
+				count: 1,
+				createdAt: "2024-01-01",
+			};
+			const replacement: TestDocument = {
+				...doc,
+				title: "Replacement",
+				count: 2,
+			};
+
+			await repo.put("doc1", doc);
+			const inserted = await repo.putIfAbsent("doc1", replacement);
+			expect(inserted).toBe(false);
+
+			const result = await repo.get("doc1");
+			expect(result).toEqual(doc);
+		});
+	});
+
 	describe("delete()", () => {
 		it("should return false for non-existent document", async () => {
 			const result = await repo.delete("non-existent");

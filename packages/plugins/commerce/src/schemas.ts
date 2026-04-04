@@ -85,7 +85,7 @@ export const checkoutGetOrderInputSchema = z.object({
 
 export type CheckoutGetOrderInput = z.infer<typeof checkoutGetOrderInputSchema>;
 
-export const stripeWebhookInputSchema = z.object({
+const stripeWebhookLegacyInputSchema = z.object({
 	orderId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	externalEventId: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
 	providerId: z.string().min(1).max(64).default("stripe"),
@@ -96,7 +96,28 @@ export const stripeWebhookInputSchema = z.object({
 	finalizeToken: z.string().min(16).max(256),
 });
 
+const stripeWebhookEventDataSchema = z.object({
+	id: bounded(COMMERCE_LIMITS.maxWebhookFieldLength),
+	type: z.string().min(1).max(128),
+	data: z.object({
+		object: z.object({
+			id: z.string().min(1).max(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
+			metadata: z.record(z.string().max(COMMERCE_LIMITS.maxWebhookFieldLength)).optional(),
+		}),
+	}),
+});
+
+const stripeWebhookEventInputSchema = z.union([
+	// Optional compatibility mode: old integration and some tests POST the expected fields directly.
+	stripeWebhookLegacyInputSchema,
+	// Production mode: parse a verified Stripe webhook event and derive ids from metadata.
+	stripeWebhookEventDataSchema,
+]);
+
+export const stripeWebhookInputSchema = stripeWebhookEventInputSchema;
+
 export type StripeWebhookInput = z.infer<typeof stripeWebhookInputSchema>;
+export type StripeWebhookEventInput = z.infer<typeof stripeWebhookEventDataSchema>;
 
 export const recommendationsInputSchema = z.object({
 	/** Hint for “similar to this product” (catalog id). */

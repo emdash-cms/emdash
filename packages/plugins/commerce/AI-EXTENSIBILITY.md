@@ -22,6 +22,15 @@ Implementation guardrails:
   `createPaymentWebhookRoute`, `queryFinalizationState`) are the only MCP-facing
   extension surfaces for this stage.
 
+## Current hardening status (next-pass gate)
+
+- This branch ships regression-only updates for 5A (same-event duplicate webhook
+  finalization convergence), 5B (pending-state contract visibility and non-terminal
+  resume transitions), and 5C (possession checks on order/cart entrypoints).
+- Runtime behavior for checkout/finalize/routing remains unchanged while we continue
+  to enforce the same scope lock for provider topology (`webhooks/stripe` only) until
+  5D completion and explicit roadmap approval.
+
 ### Strategy A acceptance guidance (contract hardening only)
 
 **Strategy A metadata**
@@ -44,6 +53,18 @@ Implementation guardrails:
 - Future `orderEvents`-style logs should record an **`actor`** (`system` | `merchant` | `agent` | `customer`) for audit trails; see architecture Section 11.
 - For this stage, replay diagnostics should consume the enriched `queryFinalizationStatus`
   state shape (`receiptStatus` + `resumeState`) rather than inspecting storage manually.
+
+### Stage-1 limits and Stage-2 roadmap
+
+This stage intentionally excludes adjustment-event lifecycle automation:
+
+- one active payment provider (`stripe`) through `webhooks/stripe`;
+- no automatic refund/chargeback event replay for inventory restoration;
+- no stage-2 “admin finalize transition” command surface;
+- storefronts receive read-only finalization visibility only (`queryFinalizationState`).
+
+Out-of-band stage-2 work should introduce provider-independent event adapter hooks
+for credits/adjustments and define an explicit recovery tool path with audit controls.
 
 ## MCP
 

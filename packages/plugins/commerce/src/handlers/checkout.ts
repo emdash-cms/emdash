@@ -87,6 +87,8 @@ export async function checkoutHandler(
 	}
 
 	const carts = asCollection<StoredCart>(ctx.storage.carts);
+	const orders = asCollection<StoredOrder>(ctx.storage.orders);
+	const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
 	const cart = await carts.get(ctx.input.cartId);
 	if (!cart) {
 		throwCommerceApiError({ code: "CART_NOT_FOUND", message: "Cart not found" });
@@ -116,10 +118,13 @@ export async function checkoutHandler(
 	const cached = await idempotencyKeys.get(idempotencyDocId);
 	if (cached && isIdempotencyRecordFresh(cached.createdAt, nowMs)) {
 		const decision = decideCheckoutReplayState(cached);
-		const orders = asCollection<StoredOrder>(ctx.storage.orders);
-		const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
 		switch (decision.kind) {
 			case "cached_completed":
+				const cachedOrder = await orders.get(decision.response.orderId);
+				const cachedAttempt = await attempts.get(decision.response.paymentAttemptId);
+				if (!cachedOrder || !cachedAttempt) {
+					break;
+				}
 				return decision.response;
 			case "cached_pending":
 				return await restorePendingCheckout(
@@ -212,8 +217,6 @@ export async function checkoutHandler(
 		createdAt: nowIso,
 	});
 
-	const orders = asCollection<StoredOrder>(ctx.storage.orders);
-	const attempts = asCollection<StoredPaymentAttempt>(ctx.storage.paymentAttempts);
 	await orders.put(orderId, order);
 	await attempts.put(paymentAttemptId, attempt);
 

@@ -71,6 +71,14 @@ export interface StoredPaymentAttempt {
 
 export type WebhookReceiptStatus = "processed" | "duplicate" | "pending" | "error";
 
+export type WebhookReceiptErrorCode =
+	| "ORDER_NOT_FOUND"
+	| "ORDER_STATE_CONFLICT"
+	| "INVENTORY_CHANGED"
+	| "INSUFFICIENT_STOCK"
+	| "PRODUCT_UNAVAILABLE"
+	| "VARIANT_UNAVAILABLE";
+
 export interface StoredWebhookReceipt {
 	providerId: string;
 	externalEventId: string;
@@ -79,6 +87,10 @@ export interface StoredWebhookReceipt {
 	correlationId?: string;
 	createdAt: string;
 	updatedAt: string;
+	/** Optional terminal error classification for operational triage and recovery tooling. */
+	errorCode?: WebhookReceiptErrorCode;
+	/** Optional operational details for terminal error receipts. */
+	errorDetails?: Record<string, unknown>;
 }
 
 export interface StoredIdempotencyKey {

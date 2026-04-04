@@ -90,4 +90,16 @@ describe("checkoutGetOrderHandler", () => {
 		).rejects.toMatchObject({ code: "order_token_required" });
 	});
 
+	it("rejects wrong finalize token when order requires one", async () => {
+		const orderId = "ord_3";
+		const order: StoredOrder = { ...orderBase, finalizeTokenHash: await sha256HexAsync(token) };
+		const mem = new MemCollImpl(new Map([[orderId, order]]));
+		await expect(
+			checkoutGetOrderHandler({
+				...ctxFor(orderId, "wrong_finalization_token_1234567890"),
+				storage: { orders: mem },
+			} as unknown as RouteContext<CheckoutGetOrderInput>),
+		).rejects.toMatchObject({ code: "order_token_invalid" });
+	});
+
 });

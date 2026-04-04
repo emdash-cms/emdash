@@ -62,6 +62,9 @@ must pass through `finalizePaymentFromWebhook`.
 - Do not introduce provider registry/routing multiplexing yet.
 - Do not introduce an MCP command surface yet.
 - Leave runtime gateway behavior on `webhooks/stripe` until a second provider is enabled.
+- Hardening checkpoint in this branch: added regression assertions for same-event duplicate
+  webhook finalization convergence (5A), pending-state resume-status visibility (5B),
+  and possession-guard coverage (5C) without behavior widening.
 - Continue to enforce read-only rules for diagnostics via `queryFinalizationState`.
 
 ### Read-only MCP service seam
@@ -80,6 +83,46 @@ must pass through `finalizePaymentFromWebhook`.
 - `resumeState` (`not_started`, `pending_inventory`, `pending_order`,
   `pending_attempt`, `pending_receipt`, `replay_processed`,
   `replay_duplicate`, `error`, `event_unknown`)
+
+### Read-only validator and optional finalize-time invariants
+
+Operators can combine:
+
+- `queryFinalizationState` read model (order/receipt/attempt/ledger state), and
+- read-only inventory/stock checks during incident review.
+
+For deeper drift detection, set `COMMERCE_ENABLE_FINALIZE_INVARIANT_CHECKS=1` so
+completed finalize calls also log warning-level invariant signals when order paid,
+attempt success, and ledger/stock application are unexpectedly out of sync.
+This flag should be used as a temporary safety net during incident response only,
+ not as part of normal fast-path processing.
+
+### Paid-vs-receipt semantics for storefront and support tooling
+
+`isOrderPaid` is the order-facing signal. It should drive user-visible “payment
+completed” messaging.
+
+`receiptStatus` is event-facing signal. It should drive retry/recovery visibility:
+
+- `missing`: there is no event receipt row yet.
+- `pending`: event is in partial-finalization recovery and can be retried through safe re-invocation.
+- `processed`: event has been handled once; duplicates should be treated as idempotent replay.
+- `error`: explicit finalization failure; manual triage before more retries.
+- `duplicate`: duplicate event replay path after idempotent precondition short-circuit.
+
+Optional storefront-safe fields to show in support dashboards:
+
+- `isReceiptProcessed` (boolean)
+- `isPaymentAttemptSucceeded` (boolean)
+- `resumeState` (action hint for support runbooks)
+- `receiptErrorCode` when `receiptStatus === "error"` (operation-classified terminal error)
+
+For Stage-1, `receiptStatus === "error"` is intentionally treated as a runbook-only recovery
+signal (no built-in admin transition API yet). Recovery tooling should require an explicit
+human operator decision using `receiptErrorCode` and related checkpoints.
+
+This keeps storefront user messaging tied to order state while preserving webhook
+forensics for operators.
 
 **Option B (moderate polling):** this helper applies a per-client-IP KV rate limit
 (`COMMERCE_LIMITS.defaultFinalizationDiagnosticsPerIpPerWindow` per

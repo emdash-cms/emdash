@@ -22,6 +22,10 @@ Use this if a merchant reports: **“customer is marked paid, but stock is wrong
   - `processed` = finalize already completed for this event.
   - `pending` = partial finalization happened and retry may continue safely.
   - `error`/missing = inspect logs before retrying.
+  - `receiptErrorCode` (new):
+    - `ORDER_NOT_FOUND` = order record disappeared while finalizing; do not auto-retry.
+    - `ORDER_STATE_CONFLICT` = payment state shifted between reads; verify intent before retrying.
+    - `INVENTORY_CHANGED`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE` = inventory is terminally mismatched; do not auto-retry without manual correction.
 - Open payment attempt rows for this order/provider:
   - `succeeded` means payment attempt did finalize.
   - `pending` means finalization likely interrupted.
@@ -81,7 +85,8 @@ Retries should be run only when evidence says the order was likely in partial-wr
 - Create/attach a ticket with:
   - orderId, payment event id, timestamps
   - order state before/after
-  - receipt state (`processed/pending/error`)
+  - receipt state (`processed`/`pending`/`error`)
+  - `receiptErrorCode` (if status is `error`)
   - stock and ledger IDs involved
   - whether retry was attempted and result code/message
 - Assign to: on-call engineer + merchant support lead.

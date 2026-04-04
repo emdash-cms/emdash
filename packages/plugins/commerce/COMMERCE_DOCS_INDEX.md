@@ -23,6 +23,7 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 - Last updated: 2026-04-03
 - Owner: emDash Commerce plugin lead (handoff-ready docs update)
 - Current phase owner: Strategy A follow-up only
+- Status in this branch: 5A (same-event duplicate-flight concurrency assertions), 5B (pending-state resume-state visibility and non-terminal branch behavior), and 5C (possession boundary assertions) updated; 5D scope gate still blocks money-path expansion.
 
 - Scope: **active for this iteration only** and **testable without new provider runtime**.
 - Goal: keep `checkout`/`webhook` behavior unchanged while reducing contract drift across payment adapters.
@@ -63,6 +64,7 @@ Use this when opening follow-up work:
 After the latest third-party memo, continue systematically with
 `CI_REGRESSION_CHECKLIST.md` sections 5A–5D (in order) before broadening
 provider topology.
+5A/5B/5C have been incrementally implemented in this branch; 5D scope gate checks remain before any provider-runtime expansion.
 
 ## Plugin HTTP routes
 

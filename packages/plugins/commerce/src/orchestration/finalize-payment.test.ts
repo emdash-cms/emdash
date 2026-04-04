@@ -127,6 +127,28 @@ function withNthPutFailure<T extends object>(
 	} as MemColl<T>;
 }
 
+type MemCollWithPutIfAbsent<T extends object> = MemColl<T> & {
+	putIfAbsent(id: string, data: T): Promise<boolean>;
+};
+
+function memCollWithPutIfAbsent<T extends object>(
+	collection: MemColl<T>,
+): MemCollWithPutIfAbsent<T> {
+	return {
+		get rows() {
+			return collection.rows;
+		},
+		get: collection.get.bind(collection),
+		query: collection.query.bind(collection),
+		put: collection.put.bind(collection),
+		putIfAbsent: async (id: string, data: T): Promise<boolean> => {
+			if (collection.rows.has(id)) return false;
+			collection.rows.set(id, structuredClone(data));
+			return true;
+		},
+	} as MemCollWithPutIfAbsent<T>;
+}
+
 function portsFromState(state: {
 	orders: Map<string, StoredOrder>;
 	webhookReceipts: Map<string, StoredWebhookReceipt>;
@@ -681,7 +703,8 @@ describe("finalizePaymentFromWebhook", () => {
 			inventoryStock: new Map<string, StoredInventoryStock>(),
 		};
 
-		const res = await finalizePaymentFromWebhook(portsFromState(state), {
+		const ports = portsFromState(state);
+		const res = await finalizePaymentFromWebhook(ports, {
 			orderId,
 			providerId: "stripe",
 			externalEventId: ext,
@@ -782,6 +805,15 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(receipt?.status).toBe("processed");
 		const attempt = await ports.paymentAttempts.get("pa_paid");
 		expect(attempt?.status).toBe("succeeded");
+		const final = await queryFinalizationStatus(ports, orderId, "stripe", ext);
+		expect(final).toMatchObject({
+			resumeState: "replay_processed",
+			receiptStatus: "processed",
+			isInventoryApplied: false,
+			isOrderPaid: true,
+			isPaymentAttemptSucceeded: true,
+			isReceiptProcessed: true,
+		});
 	});
 
 	it("pending receipt still requires finalize token", async () => {
@@ -808,7 +840,8 @@ describe("finalizePaymentFromWebhook", () => {
 			inventoryStock: new Map<string, StoredInventoryStock>(),
 		};
 
-		const res = await finalizePaymentFromWebhook(portsFromState(state), {
+		const ports = portsFromState(state);
+		const res = await finalizePaymentFromWebhook(ports, {
 			orderId,
 			providerId: "stripe",
 			externalEventId: ext,
@@ -820,6 +853,15 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(res).toMatchObject({
 			kind: "api_error",
 			error: { code: "ORDER_TOKEN_REQUIRED" },
+		});
+		const pendingStatus = await queryFinalizationStatus(ports, orderId, "stripe", ext);
+		expect(pendingStatus).toMatchObject({
+			receiptStatus: "pending",
+			isInventoryApplied: false,
+			isOrderPaid: false,
+			isPaymentAttemptSucceeded: false,
+			isReceiptProcessed: false,
+			resumeState: "pending_inventory",
 		});
 	});
 
@@ -883,6 +925,15 @@ describe("finalizePaymentFromWebhook", () => {
 			kind: "api_error",
 			error: { code: "ORDER_TOKEN_REQUIRED" },
 		});
+		const preRetryStatus = await queryFinalizationStatus(ports, orderId, "stripe", ext);
+		expect(preRetryStatus).toMatchObject({
+			receiptStatus: "pending",
+			isInventoryApplied: false,
+			isOrderPaid: false,
+			isPaymentAttemptSucceeded: false,
+			isReceiptProcessed: false,
+			resumeState: "pending_inventory",
+		});
 		const pending = await ports.webhookReceipts.get(rid);
 		expect(pending?.status).toBe("pending");
 
@@ -911,6 +962,55 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(stock?.quantity).toBe(8);
 		const ledger = await ports.inventoryLedger.query({ limit: 10 });
 		expect(ledger.items).toHaveLength(1);
+	});
+
+	it("marks pending receipt as error when order leaves finalizable phase between reads", async () => {
+		const orderId = "order_state_conflict";
+		const ext = "evt_state_conflict";
+		const rid = webhookReceiptDocId("stripe", ext);
+		const state = {
+			orders: new Map<string, StoredOrder>([[orderId, baseOrder()]]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>(),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>(),
+		};
+
+		const basePorts = portsFromState(state) as FinalizePaymentPorts & {
+			orders: MemColl<StoredOrder>;
+		};
+		let getCount = 0;
+		const orderStateMutatingOrders: MemColl<StoredOrder> = {
+			...basePorts.orders,
+			get: async (id: string) => {
+				const row = await basePorts.orders.get(id);
+				getCount += 1;
+				if (row && getCount === 2 && id === orderId) {
+					const drifted = { ...row, paymentPhase: "processing" as const };
+					basePorts.orders.rows.set(id, drifted);
+					return drifted;
+				}
+				return row;
+			},
+		};
+
+		const ports = { ...basePorts, orders: orderStateMutatingOrders } as FinalizePaymentPorts;
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: ext,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+		expect(res).toMatchObject({
+			kind: "api_error",
+			error: { code: "ORDER_STATE_CONFLICT" },
+		});
+
+		const receipt = await basePorts.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("error");
+		expect(receipt?.errorCode).toBe("ORDER_STATE_CONFLICT");
 	});
 
 	it("marks pending receipt as error when order disappears between reads", async () => {
@@ -958,6 +1058,8 @@ describe("finalizePaymentFromWebhook", () => {
 
 		const receipt = await basePorts.webhookReceipts.get(rid);
 		expect(receipt?.status).toBe("error");
+		expect(receipt?.errorCode).toBe("ORDER_NOT_FOUND");
+		expect(receipt?.errorDetails).toMatchObject({ orderId, correlationId: "cid" });
 		const order = await basePorts.orders.get(orderId);
 		expect(order).toBeNull();
 	});
@@ -999,11 +1101,22 @@ describe("finalizePaymentFromWebhook", () => {
 			kind: "api_error",
 			error: { code: "INVENTORY_CHANGED" },
 		});
+		const status = await queryFinalizationStatus(ports, orderId, "stripe", ext);
+		expect(status).toMatchObject({
+			receiptStatus: "error",
+			isInventoryApplied: false,
+			isOrderPaid: false,
+			isPaymentAttemptSucceeded: false,
+			isReceiptProcessed: false,
+			receiptErrorCode: "INVENTORY_CHANGED",
+			resumeState: "error",
+		});
 		const order = await ports.orders.get(orderId);
 		expect(order?.paymentPhase).toBe("payment_pending");
 		const rid = webhookReceiptDocId("stripe", ext);
 		const rec = await ports.webhookReceipts.get(rid);
 		expect(rec?.status).toBe("error");
+		expect(rec?.errorCode).toBe("INVENTORY_CHANGED");
 	});
 
 	it("terminalized inventory mismatch receipt blocks same-event replay", async () => {
@@ -1130,6 +1243,15 @@ describe("finalizePaymentFromWebhook", () => {
 				nowIso: now,
 			}),
 		).rejects.toThrow("simulated storage write failure");
+		const interrupted = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
+		expect(interrupted).toMatchObject({
+			receiptStatus: "pending",
+			isInventoryApplied: true,
+			isOrderPaid: false,
+			isPaymentAttemptSucceeded: false,
+			isReceiptProcessed: false,
+			resumeState: "pending_order",
+		});
 
 		// After first attempt: ledger row must exist, stock must NOT yet be updated.
 		const ledgerAfterFirst = await basePorts.inventoryLedger.query({ limit: 10 });
@@ -1229,6 +1351,15 @@ describe("finalizePaymentFromWebhook", () => {
 			kind: "api_error",
 			error: { code: "ORDER_STATE_CONFLICT" },
 		});
+		const pendingAttempt = await queryFinalizationStatus(basePorts, orderId, "stripe", extId);
+		expect(pendingAttempt).toMatchObject({
+			receiptStatus: "pending",
+			isInventoryApplied: true,
+			isOrderPaid: true,
+			isPaymentAttemptSucceeded: false,
+			isReceiptProcessed: false,
+			resumeState: "pending_attempt",
+		});
 
 		const attemptBeforeRetry = await basePorts.paymentAttempts.get("pa_retry_attempt");
 		expect(attemptBeforeRetry?.status).toBe("pending");
@@ -1323,6 +1454,10 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(status.isOrderPaid).toBe(true);
 		expect(status.isPaymentAttemptSucceeded).toBe(true);
 		expect(status.isReceiptProcessed).toBe(false); // this is the unfinished bit
+		expect(status).toMatchObject({
+			resumeState: "pending_receipt",
+			receiptStatus: "pending",
+		});
 
 		const pendingReceipt = await basePorts.webhookReceipts.get(
 			webhookReceiptDocId("stripe", extId),
@@ -1398,21 +1533,10 @@ describe("finalizePaymentFromWebhook", () => {
 		});
 	});
 
-	it("concurrent same-event finalize: documents actual behavior (platform concurrency risk)", async () => {
+	it("concurrent same-event finalize: preserves single terminal side effect and replay-safe follow-up", async () => {
 		/**
-		 * Two concurrent deliveries of the same gateway event — the known
-		 * residual risk documented in finalize-payment.ts.
-		 *
-		 * In the JS event loop, `Promise.all` interleaves both calls at every
-		 * `await` boundary. Both read receipt=null before either writes, so both
-		 * `decidePaymentFinalize` calls return "proceed". Both proceed through
-		 * inventory, order, and receipt writes.
-		 *
-		 * Because all writes are idempotent (same computed values from the same
-		 * read snapshot), both calls complete successfully and stock ends at the
-		 * correct value. This does NOT simulate true parallel execution across
-		 * separate Workers — that risk remains a documented platform constraint
-		 * until insert-if-not-exists or conditional writes are available.
+		 * Two concurrent deliveries of the same gateway event should converge on one
+		 * terminalized payment state and remain replay-safe once finalized.
 		 */
 		const orderId = "order_concurrent";
 		const extId = "evt_concurrent";
@@ -1440,6 +1564,14 @@ describe("finalizePaymentFromWebhook", () => {
 		};
 
 		const ports = portsFromState(state);
+		const logs = Array<{ level: "info" | "warn"; message: string; data?: unknown }>();
+		const portsWithLogs = {
+			...ports,
+			log: {
+				info: (message: string, data?: unknown) => logs.push({ level: "info", message, data }),
+				warn: (message: string, data?: unknown) => logs.push({ level: "warn", message, data }),
+			},
+		};
 		const input = {
 			orderId,
 			providerId: "stripe",
@@ -1450,12 +1582,12 @@ describe("finalizePaymentFromWebhook", () => {
 		};
 
 		const [r1, r2] = await Promise.all([
-			finalizePaymentFromWebhook(ports, input),
-			finalizePaymentFromWebhook(ports, input),
+			finalizePaymentFromWebhook(portsWithLogs, input),
+			finalizePaymentFromWebhook(portsWithLogs, input),
 		]);
 
-		// Both calls see receipt=null at their read phase → both proceed.
-		// Idempotent writes mean both complete successfully with identical side effects.
+		// In-process race windows may drive both through `proceed`; idempotent writes
+		// should still converge on one terminal state.
 		expect(r1).toEqual({ kind: "completed", orderId });
 		expect(r2).toEqual({ kind: "completed", orderId });
 
@@ -1468,10 +1600,82 @@ describe("finalizePaymentFromWebhook", () => {
 		const ledger = await ports.inventoryLedger.query({ limit: 10 });
 		expect(ledger.items).toHaveLength(1);
 
-		// NOTE: real concurrent delivery across separate Workers/processes is NOT
-		// covered here. Two processes can both pass the read phase before either
-		// write becomes visible — true prevention requires platform-level
-		// insert-if-not-exists or conditional writes (documented residual risk).
+		const replay = await finalizePaymentFromWebhook(portsWithLogs, input);
+		expect(replay).toEqual({ kind: "replay", reason: "webhook_receipt_processed" });
+
+		const finalStatus = await queryFinalizationStatus(portsWithLogs, orderId, "stripe", extId);
+		expect(finalStatus).toMatchObject({
+			receiptStatus: "processed",
+			isInventoryApplied: true,
+			isOrderPaid: true,
+			isPaymentAttemptSucceeded: true,
+			isReceiptProcessed: true,
+			resumeState: "replay_processed",
+		});
+
+		expect(logs.some((entry) => entry.message === "commerce.finalize.inventory_reconcile")).toBe(true);
+		expect(logs.some((entry) => entry.message === "commerce.finalize.payment_attempt_update_attempt")).toBe(true);
+		expect(logs.some((entry) => entry.message === "commerce.finalize.completed")).toBe(true);
+		expect(logs.some((entry) => entry.message === "commerce.finalize.noop")).toBe(true);
+	});
+
+	it("claim-aware same-event concurrency: only one worker applies side effects", async () => {
+		const orderId = "order_claim_once";
+		const extId = "evt_claim_once";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>(),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_claim_once",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const ports = {
+			...basePorts,
+			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+		} as FinalizePaymentPorts;
+		const input = {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		};
+
+		const [first, second] = await Promise.all([
+			finalizePaymentFromWebhook(ports, input),
+			finalizePaymentFromWebhook(ports, input),
+		]);
+		const outcomes = [first, second].map((result) => result.kind);
+		expect(outcomes).toContain("completed");
+		expect(outcomes).toContain("replay");
+
+		const stock = await ports.inventoryStock.get(stockDocId);
+		expect(stock?.version).toBe(4);
+		expect(stock?.quantity).toBe(8);
+
+		const ledger = await ports.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(1);
+
+		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("processed");
 	});
 
 	it("stress: many in-process duplicate same-event finalizations converge on one inventory result", async () => {

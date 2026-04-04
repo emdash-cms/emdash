@@ -123,6 +123,11 @@ export interface StorageCollection<T = unknown> {
 	// Basic CRUD
 	get(id: string): Promise<T | null>;
 	put(id: string, data: T): Promise<void>;
+	/**
+	 * Insert only if the document does not exist. Returns `true` when the row is created.
+	 * This is an optional capability used for optimistic "claim" workflows.
+	 */
+	putIfAbsent?(id: string, data: T): Promise<boolean>;
 	delete(id: string): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
 

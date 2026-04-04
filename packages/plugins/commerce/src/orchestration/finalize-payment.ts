@@ -22,7 +22,9 @@ import type {
 	StoredOrder,
 	StoredPaymentAttempt,
 	StoredWebhookReceipt,
+	WebhookReceiptErrorCode,
 } from "../types.js";
+import type { CommerceErrorCode } from "../kernel/errors.js";
 import {
 	InventoryFinalizeError,
 	applyInventoryForOrder,
@@ -57,6 +59,7 @@ export type FinalizeLogPort = {
 export type FinalizeCollection<T> = {
 	get(id: string): Promise<T | null>;
 	put(id: string, data: T): Promise<void>;
+	putIfAbsent?(id: string, data: T): Promise<boolean>;
 };
 
 export type QueryableCollection<T> = FinalizeCollection<T> & {
@@ -77,6 +80,9 @@ export type FinalizePaymentPorts = {
 	inventoryStock: QueryableCollection<StoredInventoryStock>;
 	log?: FinalizeLogPort;
 };
+
+const WEBHOOK_RECEIPT_CLAIM_STALE_WINDOW_MS = 30_000;
+const FINALIZE_INVARIANT_CHECKS = process.env.COMMERCE_ENABLE_FINALIZE_INVARIANT_CHECKS === "1";
 
 export type FinalizeWebhookInput = {
 	orderId: string;
@@ -196,6 +202,60 @@ function createPendingReceipt(
 	};
 }
 
+function isReceiptClaimFresh(
+	receipt: StoredWebhookReceipt,
+	nowIso: string,
+	staleWindowMs: number,
+): boolean {
+	const updatedMs = Date.parse(receipt.updatedAt);
+	const nowMs = Date.parse(nowIso);
+	if (!Number.isFinite(updatedMs) || !Number.isFinite(nowMs)) return true;
+	return nowMs - updatedMs <= staleWindowMs;
+}
+
+async function claimWebhookReceipt({
+	ports,
+	receiptId,
+	receipt,
+	nowIso,
+}: {
+	ports: FinalizePaymentPorts;
+	receiptId: string;
+	receipt: StoredWebhookReceipt;
+	nowIso: string;
+}): Promise<{ kind: "acquired" } | { kind: "replay"; result: FinalizeWebhookResult }> {
+	if (!ports.webhookReceipts.putIfAbsent) {
+		return { kind: "acquired" };
+	}
+
+	const claimedNow = await ports.webhookReceipts.putIfAbsent(receiptId, receipt);
+	if (claimedNow) {
+		return { kind: "acquired" };
+	}
+
+	const existing = await ports.webhookReceipts.get(receiptId);
+	if (!existing) {
+		const replayInsert = await ports.webhookReceipts.putIfAbsent(receiptId, receipt);
+		if (replayInsert) return { kind: "acquired" };
+		return {
+			kind: "replay",
+			result: {
+				kind: "replay",
+				reason: "webhook_receipt_claim_retry_failed",
+			},
+		};
+	}
+
+	if (existing.status !== "pending" || !isReceiptClaimFresh(existing, nowIso, WEBHOOK_RECEIPT_CLAIM_STALE_WINDOW_MS)) {
+		return { kind: "acquired" };
+	}
+
+	return {
+		kind: "replay",
+		result: { kind: "replay", reason: "webhook_receipt_in_flight" },
+	};
+}
+
 function noopConflictMessage(reason: string): string {
 	switch (reason) {
 		case "webhook_pending":
@@ -242,12 +302,24 @@ async function persistReceiptStatus(
 	receipt: StoredWebhookReceipt,
 	status: StoredWebhookReceipt["status"],
 	nowIso: string,
+	errorCode?: StoredWebhookReceipt["errorCode"],
+	errorDetails?: Record<string, unknown>,
 ): Promise<void> {
 	await ports.webhookReceipts.put(receiptId, {
 		...receipt,
 		status,
+		errorCode: status === "error" ? errorCode : undefined,
+		errorDetails: status === "error" ? errorDetails ?? receipt.errorDetails : undefined,
 		updatedAt: nowIso,
 	});
+}
+
+function mapInventoryFinalizeErrorToReceiptCode(code: CommerceErrorCode): WebhookReceiptErrorCode {
+	if (code === "PRODUCT_UNAVAILABLE") return "PRODUCT_UNAVAILABLE";
+	if (code === "INSUFFICIENT_STOCK") return "INSUFFICIENT_STOCK";
+	if (code === "INVENTORY_CHANGED") return "INVENTORY_CHANGED";
+	if (code === "ORDER_STATE_CONFLICT") return "ORDER_STATE_CONFLICT";
+	return "ORDER_STATE_CONFLICT";
 }
 
 async function markPaymentAttemptSucceeded(
@@ -285,8 +357,9 @@ async function markPaymentAttemptSucceeded(
  * | duplicate   | any               | Replay; redundant delivery            |
  *
  * Cross-worker concurrency caveat:
- * two processes can still both read a missing receipt and both execute side effects
- * in parallel because storage does not expose a true claim primitive today.
+ * if a process stalls while processing an event (for longer than the claim window),
+ * another worker may start and replay this event. The claim window keeps overlap low,
+ * and idempotent writes keep the path safe if this still happens.
  *
  * A `pending` receipt means the current node claimed this event and something
  * failed partway through. This function handles all partial-success sub-cases:
@@ -345,7 +418,22 @@ export async function finalizePaymentFromWebhook(
 			break;
 	}
 
-	const pendingReceipt = createPendingReceipt(input, decision.existingReceipt, nowIso);
+	const stagedReceipt = createPendingReceipt(input, decision.existingReceipt, nowIso);
+	const claim = await claimWebhookReceipt({
+		ports,
+		receiptId,
+		receipt: stagedReceipt,
+		nowIso,
+	});
+	if (claim.kind === "replay") {
+		ports.log?.info("commerce.finalize.noop", {
+			...logContext,
+			reason: "webhook_receipt_claim_in_flight",
+		});
+		return claim.result;
+	}
+
+	const pendingReceipt = stagedReceipt;
 	ports.log?.info("commerce.finalize.receipt_pending", {
 		...logContext,
 		stage: "pending_receipt_written",
@@ -365,11 +453,15 @@ export async function finalizePaymentFromWebhook(
 		 * order row disappeared while finalization was running.
 		 * Treat as terminal and escalate rather than auto-retrying indefinitely.
 		 */
-		await ports.webhookReceipts.put(receiptId, {
-			...pendingReceipt,
-			status: "error",
-			updatedAt: nowIso,
-		});
+		await persistReceiptStatus(
+			ports,
+			receiptId,
+			pendingReceipt,
+			"error",
+			nowIso,
+			"ORDER_NOT_FOUND",
+			{ orderId: input.orderId, correlationId: input.correlationId },
+		);
 		return {
 			kind: "api_error",
 			error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
@@ -389,11 +481,15 @@ export async function finalizePaymentFromWebhook(
 			 * Mark the receipt `error` so it does not stay stuck in `pending`
 			 * and operators get a clear terminal signal.
 			 */
-			await ports.webhookReceipts.put(receiptId, {
-				...pendingReceipt,
-				status: "error",
-				updatedAt: nowIso,
-			});
+			await persistReceiptStatus(
+				ports,
+				receiptId,
+				pendingReceipt,
+				"error",
+				nowIso,
+				"ORDER_STATE_CONFLICT",
+				{ paymentPhase: freshOrder.paymentPhase },
+			);
 			return {
 				kind: "api_error",
 				error: {
@@ -423,7 +519,19 @@ export async function finalizePaymentFromWebhook(
 						code: apiCode,
 						details: err.details,
 					});
-					await persistReceiptStatus(ports, receiptId, pendingReceipt, "error", nowIso);
+					await persistReceiptStatus(
+						ports,
+						receiptId,
+						pendingReceipt,
+						"error",
+						nowIso,
+						mapInventoryFinalizeErrorToReceiptCode(err.code),
+						{
+							...err.details,
+							inventoryErrorCode: err.code,
+							commerceErrorCode: apiCode,
+						},
+					);
 				} else {
 					ports.log?.warn("commerce.finalize.inventory_failed", {
 						...logContext,
@@ -523,6 +631,10 @@ export async function finalizePaymentFromWebhook(
 		stage: "completed",
 	});
 
+	if (FINALIZE_INVARIANT_CHECKS) {
+		await validateFinalizationInvariants(ports, input, logContext);
+	}
+
 	return { kind: "completed", orderId: input.orderId };
 }
 
@@ -548,10 +660,45 @@ export async function queryFinalizationStatus(
 		isOrderPaid: order?.paymentPhase === "paid",
 		isPaymentAttemptSucceeded: attemptPage.items.length > 0,
 		isReceiptProcessed: receipt?.status === "processed",
+		receiptErrorCode: receipt?.errorCode,
 		resumeState: "not_started",
 	};
 	status.resumeState = deriveFinalizationResumeState(status);
 	return status;
+}
+
+async function validateFinalizationInvariants(
+	ports: FinalizePaymentPorts,
+	input: FinalizeWebhookInput,
+	logContext: FinalizeLogContext,
+): Promise<void> {
+	const status = await queryFinalizationStatus(
+		ports,
+		input.orderId,
+		input.providerId,
+		input.externalEventId,
+	);
+	if (!status.isOrderPaid) {
+		ports.log?.warn("commerce.finalize.invariant_failed", {
+			...logContext,
+			reason: "order_not_paid_after_complete",
+			resumeState: status.resumeState,
+		});
+	}
+	if (!status.isPaymentAttemptSucceeded) {
+		ports.log?.warn("commerce.finalize.invariant_failed", {
+			...logContext,
+			reason: "payment_attempt_not_succeeded_after_complete",
+			resumeState: status.resumeState,
+		});
+	}
+	if (!status.isInventoryApplied) {
+		ports.log?.warn("commerce.finalize.invariant_failed", {
+			...logContext,
+			reason: "inventory_not_applied_after_complete",
+			resumeState: status.resumeState,
+		});
+	}
 }
 
 export type { FinalizationStatus } from "./finalize-payment-status.js";

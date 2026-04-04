@@ -1,3 +1,5 @@
+import type { WebhookReceiptErrorCode } from "../types.js";
+
 export type FinalizationStatus = {
 	/** Raw webhook-receipt status for quick runbook triage. */
 	receiptStatus: "missing" | "pending" | "processed" | "error" | "duplicate";
@@ -9,6 +11,8 @@ export type FinalizationStatus = {
 	isPaymentAttemptSucceeded: boolean;
 	/** Webhook receipt for this event is "processed". */
 	isReceiptProcessed: boolean;
+	/** Optional terminal error classification when `receiptStatus === "error"`. */
+	receiptErrorCode?: WebhookReceiptErrorCode;
 	/**
 	 * Human-readable resume state for operations that consume this helper as a
 	 * status surface (MCP, support tooling, runbooks).

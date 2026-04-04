@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
+import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CheckoutInput } from "../schemas.js";
 import type {
@@ -13,6 +14,11 @@ import type {
 	StoredPaymentAttempt,
 } from "../types.js";
 import { checkoutHandler } from "./checkout.js";
+import {
+	CHECKOUT_ROUTE,
+	deterministicOrderId,
+	deterministicPaymentAttemptId,
+} from "./checkout-state.js";
 
 const consumeKvRateLimit = vi.fn(async (_opts?: unknown) => true);
 vi.mock("../lib/rate-limit-kv.js", () => ({
@@ -208,6 +214,91 @@ describe("checkout idempotency persistence recovery", () => {
 		});
 		expect(orders.rows.size).toBe(1);
 		expect(paymentAttempts.rows.size).toBe(1);
+	});
+
+	it("falls back to storage-backed checkout when cached completed response has no matching rows", async () => {
+		const cartId = "cart_stale_cache";
+		const idempotencyKey = "idem-key-stale-cache";
+		const now = "2026-04-02T12:00:00.000Z";
+		const ownerToken = "owner-token-for-stale-cache";
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{
+					productId: "p1",
+					quantity: 1,
+					inventoryVersion: 2,
+					unitPriceMinor: 650,
+				},
+			],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		const orders = new MemColl<StoredOrder>();
+		const paymentAttempts = new MemColl<StoredPaymentAttempt>();
+		const carts = new MemColl(new Map([[cartId, cart]]));
+		const inventoryStock = new MemColl(
+			new Map([
+				[
+					inventoryStockDocId("p1", ""),
+					{
+						productId: "p1",
+						variantId: "",
+						version: 2,
+						quantity: 10,
+						updatedAt: now,
+					},
+				],
+			]),
+		);
+		const kv = new MemKv();
+		const idempotencyRows = new Map<string, StoredIdempotencyKey>();
+		const idempotency = new MemColl(idempotencyRows);
+
+		const fingerprint = cartContentFingerprint(cart.lineItems);
+		const keyHash = await sha256HexAsync(
+			`${CHECKOUT_ROUTE}|${cartId}|${cart.updatedAt}|${fingerprint}|${idempotencyKey}`,
+		);
+		const idempotencyDocId = `idemp:${keyHash}`;
+		await idempotency.put(idempotencyDocId, {
+			route: CHECKOUT_ROUTE,
+			keyHash,
+			httpStatus: 200,
+			responseBody: {
+				orderId: "stale_order_1",
+				paymentPhase: "payment_pending",
+				paymentAttemptId: "stale_attempt_1",
+				currency: "USD",
+				totalMinor: 650,
+				finalizeToken: "cached-token",
+			},
+			createdAt: now,
+		});
+
+		const result = await checkoutHandler(
+			contextFor({
+				idempotencyKeys: idempotency,
+				orders,
+				paymentAttempts,
+				carts,
+				inventoryStock,
+				kv,
+				idempotencyKey,
+				cartId,
+				ownerToken,
+			}),
+		);
+
+		const expectedOrderId = deterministicOrderId(keyHash);
+		const expectedAttemptId = deterministicPaymentAttemptId(keyHash);
+		expect(result.orderId).toBe(expectedOrderId);
+		expect(result.paymentAttemptId).toBe(expectedAttemptId);
+		expect(orders.rows.size).toBe(1);
+		expect(paymentAttempts.rows.size).toBe(1);
+		expect(orders.rows.has(expectedOrderId)).toBe(true);
+		expect(paymentAttempts.rows.has(expectedAttemptId)).toBe(true);
 	});
 
 	it("serves fresh idempotent replay on repeated successful checkout calls", async () => {

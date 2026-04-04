@@ -88,6 +88,42 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	}
 
 	/**
+	 * Store a document only if it does not already exist.
+	 * Returns true when the document is inserted, false when an existing row already
+	 * owns the same (collection, id) key.
+	 */
+	async putIfAbsent(id: string, data: T): Promise<boolean> {
+		const now = new Date().toISOString();
+		const jsonData = JSON.stringify(data);
+
+		try {
+			await this.db
+				.insertInto("_plugin_storage")
+				.values({
+					plugin_id: this.pluginId,
+					collection: this.collection,
+					id,
+					data: jsonData,
+					created_at: now,
+					updated_at: now,
+				})
+				.execute();
+			return true;
+		} catch (error) {
+			if (error instanceof Error) {
+				const message = error.message.toLowerCase();
+				if (
+					message.includes("unique constraint failed") ||
+					message.includes("duplicate key value violates unique constraint")
+				) {
+					return false;
+				}
+			}
+			throw error;
+		}
+	}
+
+	/**
 	 * Delete a document
 	 */
 	async delete(id: string): Promise<boolean> {
