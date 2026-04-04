@@ -1,5 +1,4 @@
 import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	DndContext,
 	closestCenter,
@@ -17,6 +16,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Plus,
