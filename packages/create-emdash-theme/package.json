@@ -1,0 +1,36 @@
+{
+	"name": "create-emdash-theme",
+	"version": "0.1.0",
+	"description": "Scaffold a new EmDash CMS theme",
+	"type": "module",
+	"bin": "./dist/index.mjs",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@clack/prompts": "^0.10.0",
+		"picocolors": "^1.1.1"
+	},
+	"devDependencies": {
+		"tsdown": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"theme",
+		"scaffold",
+		"create",
+		"astro"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/create-emdash-theme"
+	}
+}
