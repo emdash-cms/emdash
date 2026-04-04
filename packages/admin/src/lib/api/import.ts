@@ -154,6 +154,8 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
+	/** Number of SEO redirects created (old WP URLs -> new slugs) */
+	redirects?: number;
 }
 
 /**

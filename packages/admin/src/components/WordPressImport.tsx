@@ -2,6 +2,7 @@ import { Badge, Button, Input, LinkButton, Loader, buttonVariants } from "@cloud
 import {
 	Upload,
 	Check,
+	CheckCircle,
 	X,
 	Warning,
 	WarningCircle,
@@ -907,9 +908,9 @@ function ChooseStep({
 						<Globe className="h-6 w-6 text-blue-600 dark:text-blue-400" />
 					</div>
 					<div className="flex-1">
-						<h3 className="text-lg font-medium">Enter your WordPress site URL</h3>
+						<h3 className="text-lg font-medium">Paste your WordPress site URL to get started</h3>
 						<p className="text-kumo-subtle mt-1">
-							We'll check what import options are available for your site.
+							We'll detect your site and find the fastest way to import your content.
 						</p>
 						<form onSubmit={onProbeUrl} className="mt-4 flex gap-2">
 							<Input
@@ -932,7 +933,7 @@ function ChooseStep({
 					<div className="w-full border-t" />
 				</div>
 				<div className="relative flex justify-center text-xs uppercase">
-					<span className="bg-kumo-base px-2 text-kumo-subtle">or upload directly</span>
+					<span className="bg-kumo-base px-2 text-kumo-subtle">Or upload a WXR file</span>
 				</div>
 			</div>
 
@@ -2053,60 +2054,68 @@ function CompleteStep({
 	const hasContentErrors = result.errors.length > 0;
 	const overallSuccess = !hasContentErrors && (!mediaResult || mediaResult.failed.length === 0);
 
-	const wasMediaOnlyImport =
-		result.imported === 0 && result.skipped > 0 && mediaResult && mediaResult.imported.length > 0;
+	const mediaCount = mediaResult?.imported.length ?? 0;
+	const redirectCount = result.redirects ?? 0;
 
-	const getSummaryMessage = () => {
+	// Build the summary line: "{N} posts imported, {M} media files, {K} redirects created"
+	const getSummaryParts = () => {
 		const parts: string[] = [];
 		if (result.imported > 0) {
-			parts.push(`${result.imported} content items imported`);
+			parts.push(`${result.imported} posts imported`);
 		}
 		if (result.skipped > 0 && result.imported > 0) {
-			parts.push(`${result.skipped} skipped (already exist)`);
+			parts.push(`${result.skipped} skipped`);
 		}
-		if (mediaResult && mediaResult.imported.length > 0) {
-			parts.push(`${mediaResult.imported.length} media files imported`);
+		if (mediaCount > 0) {
+			parts.push(`${mediaCount} media files`);
+		}
+		if (redirectCount > 0) {
+			parts.push(`${redirectCount} SEO redirects created`);
 		}
 		if (hasContentErrors) {
-			parts.push(`${result.errors.length} content errors`);
+			parts.push(`${result.errors.length} errors`);
 		}
 		if (hasMediaErrors) {
 			parts.push(`${mediaResult.failed.length} media errors`);
 		}
-		return parts.join(" · ");
+		return parts.join(", ");
 	};
 
 	return (
 		<div className="space-y-6">
+			{/* Hero success / warning banner */}
 			<div
 				className={cn(
-					"rounded-lg border p-6 text-center",
+					"rounded-lg border p-8 text-center",
 					overallSuccess
 						? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-900/20"
 						: "border-yellow-200 bg-yellow-50 dark:border-yellow-900/50 dark:bg-yellow-900/20",
 				)}
 			>
 				{overallSuccess ? (
-					<Check className="mx-auto h-12 w-12 text-green-600 dark:text-green-400" />
+					<CheckCircle
+						weight="fill"
+						className="mx-auto h-16 w-16 text-green-600 dark:text-green-400"
+					/>
 				) : (
-					<Warning className="mx-auto h-12 w-12 text-yellow-600 dark:text-yellow-400" />
+					<Warning className="mx-auto h-16 w-16 text-yellow-600 dark:text-yellow-400" />
 				)}
-				<h3 className="mt-4 text-lg font-medium">
-					{overallSuccess
-						? wasMediaOnlyImport
-							? "Media Import Complete"
-							: "Import Complete"
-						: "Import Completed with Errors"}
-				</h3>
-				<p className="mt-2 text-kumo-subtle">{getSummaryMessage()}</p>
-				{wasMediaOnlyImport && (
-					<p className="text-sm text-kumo-subtle mt-1">
-						Content was skipped because it already exists
-					</p>
-				)}
+				<h2 className="mt-4 text-2xl font-bold">
+					{overallSuccess ? "Import Complete!" : "Import Completed with Errors"}
+				</h2>
+				<p className="mt-2 text-kumo-subtle text-base">{getSummaryParts()}</p>
 				{skippedMedia && <p className="text-sm text-kumo-subtle mt-1">Media import was skipped</p>}
+
+				{/* Primary navigation CTAs */}
+				<div className="mt-6 flex items-center justify-center gap-3">
+					<LinkButton href="/_emdash/admin/content/posts">View Content</LinkButton>
+					<LinkButton href="/_emdash/admin/settings" variant="outline">
+						Import Settings
+					</LinkButton>
+				</div>
 			</div>
 
+			{/* Detailed breakdown cards */}
 			{prepareResult &&
 				(prepareResult.collectionsCreated.length > 0 || prepareResult.fieldsCreated.length > 0) && (
 					<div className="rounded-lg border bg-kumo-base">
@@ -2146,14 +2155,14 @@ function CompleteStep({
 				</div>
 			)}
 
-			{mediaResult && mediaResult.imported.length > 0 && (
+			{mediaCount > 0 && (
 				<div className="rounded-lg border bg-kumo-base">
 					<div className="border-b p-4">
 						<h3 className="font-medium">Media Import</h3>
 					</div>
 					<div className="p-4 space-y-2 text-sm">
 						<p>
-							<strong>{mediaResult.imported.length}</strong> files imported
+							<strong>{mediaCount}</strong> files imported
 						</p>
 						{rewriteResult && rewriteResult.updated > 0 && (
 							<p>
@@ -2161,6 +2170,20 @@ function CompleteStep({
 								<strong>{rewriteResult.updated}</strong> content items
 							</p>
 						)}
+					</div>
+				</div>
+			)}
+
+			{redirectCount > 0 && (
+				<div className="rounded-lg border bg-kumo-base">
+					<div className="border-b p-4">
+						<h3 className="font-medium">SEO Redirects</h3>
+					</div>
+					<div className="p-4 text-sm">
+						<p>
+							<strong>{redirectCount}</strong> redirects created from old WordPress URLs to new
+							slugs
+						</p>
 					</div>
 				</div>
 			)}
@@ -2203,9 +2226,8 @@ function CompleteStep({
 
 			<div className="flex gap-3">
 				<Button variant="outline" onClick={onReset}>
-					Import Another File
+					Import Another Site
 				</Button>
-				<LinkButton href="/_emdash/admin">Go to Dashboard</LinkButton>
 			</div>
 		</div>
 	);
