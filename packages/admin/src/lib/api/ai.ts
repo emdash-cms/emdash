@@ -4,7 +4,7 @@
  * Provides natural language parsing for the command palette.
  */
 
-import { apiFetch, API_BASE } from "./client.js";
+import { apiFetch, API_BASE, parseApiResponse } from "./client.js";
 
 export interface ParsedCommand {
 	action: "navigate" | "search" | "create";
@@ -45,4 +45,28 @@ export async function parseNaturalLanguageCommand(query: string): Promise<Parsed
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Generate an image using AI (DALL-E via OpenAI provider)
+ */
+export async function generateAiImage(prompt: string): Promise<{ url: string }> {
+	const response = await apiFetch(`${API_BASE}/ai/image`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ action: "generate", prompt }),
+	});
+	return parseApiResponse<{ url: string }>(response, "Failed to generate image");
+}
+
+/**
+ * Generate alt text for an image using AI vision model
+ */
+export async function generateAltText(imageUrl: string): Promise<{ altText: string }> {
+	const response = await apiFetch(`${API_BASE}/ai/image`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ action: "alt-text", imageUrl }),
+	});
+	return parseApiResponse<{ altText: string }>(response, "Failed to generate alt text");
 }
