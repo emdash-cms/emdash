@@ -28,10 +28,10 @@
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",
-    "@lingui/babel-plugin-lingui-macro": "^5.9.4",
-    "@lingui/cli": "^5.9.4",
-    "@lingui/conf": "^5.9.4",
-    "@lingui/vite-plugin": "^5.9.4"
+    "@lingui/babel-plugin-lingui-macro": "catalog:",
+    "@lingui/cli": "catalog:",
+    "@lingui/conf": "catalog:",
+    "@lingui/vite-plugin": "catalog:"
   },
   "peerDependencies": {},
   "optionalDependencies": {}

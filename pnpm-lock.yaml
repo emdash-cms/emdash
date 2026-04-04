@@ -24,7 +24,13 @@ catalogs:
     '@cloudflare/workers-types':
       specifier: ^4.20260305.1
       version: 4.20260305.1
+    '@lingui/babel-plugin-lingui-macro':
+      specifier: ^5.9.4
+      version: 5.9.4
     '@lingui/cli':
+      specifier: ^5.9.4
+      version: 5.9.4
+    '@lingui/conf':
       specifier: ^5.9.4
       version: 5.9.4
     '@lingui/core':
@@ -426,16 +432,16 @@ importers:
         specifier: 'catalog:'
         version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.1)(typescript@6.0.0-beta)
       '@lingui/babel-plugin-lingui-macro':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(typescript@6.0.0-beta)
       '@lingui/cli':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(typescript@6.0.0-beta)
       '@lingui/conf':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(typescript@6.0.0-beta)
       '@lingui/vite-plugin':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(typescript@6.0.0-beta)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
 
   docs:
