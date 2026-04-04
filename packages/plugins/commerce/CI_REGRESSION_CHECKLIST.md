@@ -107,3 +107,47 @@ Use this as a ticket-ready acceptance gate for follow-on work.
   - Duplicate storage writes in an error/retry path do not create duplicate ledger rows.
 - Ensure replay states still preserve all required idempotency metadata (`route`, `attemptCount`,
   `result`).
+
+## 5) External-review memo action roadmap (next phase)
+
+Use this section when continuing from the latest external review memo. Tickets are
+narrow, high-signal, and ordered by failure risk.
+
+### 5A) Concurrency and duplicate delivery safety
+
+- [ ] Add/extend a race-focused test that drives same-event concurrent `webhooks/stripe`
+  handlers with identical `providerId` + `externalEventId`.
+- [ ] Assert exactly one terminal side-effect set is produced for the event:
+  - one order-payment success
+  - one ledger movement set at most
+- [ ] Assert follow-up flights return replay-safe statuses (`replay_processed` or
+  `replay_duplicate`) without duplicate stock/ledger side effects.
+- [ ] Preserve diagnostic visibility for replay transitions and finalization completion log points.
+
+### 5B) Pending-state contract safety
+
+- [ ] Add/extend tests proving `pending` is a claim marker + resumable state boundary:
+  - resume from `pending` with missing/late finalize token,
+  - resume transition when order is already paid,
+  - nonterminal writes are not forced into `error` unless expected terminal inventory condition is met.
+- [ ] Assert each finalize branch keeps `resumeState` and `inventoryState` coherent for operator visibility.
+
+### 5C) Ownership/possession boundary hardening
+
+- [ ] Add/extend tests for possession failures at all relevant entrypoints:
+  - `cart/get` with wrong/missing owner token,
+  - `checkout` when cart ownership hash state is inconsistent,
+  - `checkout/get-order` with missing/wrong finalize token.
+- [ ] Assert unauthorized paths keep response shape stable and do not expose token-derived internals.
+
+### 5D) Roadmap gate before money-path expansion
+
+- [ ] Re-affirm the "narrow kernel first" guardrail in `HANDOVER.md` and
+  `COMMERCE_DOCS_INDEX.md` before any new provider runtime expansion.
+- [ ] Keep Scope lock active: no provider routing/MCP command surface expansion until a second
+  provider or active `@emdash-cms/plugin-commerce-mcp` scope request.
+- [ ] Keep ticket order:
+  1. 5A
+  2. 5B
+  3. 5C
+  4. 5D

@@ -68,6 +68,18 @@ Initial next-step task:
 - Strategy A only: complete contract hardening acceptance (provider constants, adapter contract shapes, seam exports) and keep behavior unchanged.
 - Defer broader extension architecture work (provider registry/routing, MCP command surface, second-provider multiplexing) until a second provider or MCP command channel is actively in scope.
 
+## 6) Systematic roadmap after external review
+
+Use this roadmap after each review memo cycle:
+
+1. `5A` in `CI_REGRESSION_CHECKLIST.md`: concurrency/replay stress and duplicate-event invariants.
+2. `5B` in `CI_REGRESSION_CHECKLIST.md`: formalize and protect `pending` semantics.
+3. `5C` in `CI_REGRESSION_CHECKLIST.md`: harden owner/finalize token boundary cases.
+4. `5D` in `CI_REGRESSION_CHECKLIST.md`: re-assert scope lock and only then open broader architecture work.
+- Blocker: do not move to full provider-runtime refactor until either:
+  - a second provider is active, or
+  - an `@emdash-cms/plugin-commerce-mcp` command surface scope is approved.
+
 ## 5) Key files and directories
 
 Primary package: `packages/plugins/commerce/`

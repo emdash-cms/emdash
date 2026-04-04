@@ -58,6 +58,12 @@ Use this when opening follow-up work:
    - `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts`
    - `pnpm --filter @emdash-cms/plugin-commerce test`
 
+## External review continuation roadmap
+
+After the latest third-party memo, continue systematically with
+`CI_REGRESSION_CHECKLIST.md` sections 5A–5D (in order) before broadening
+provider topology.
+
 ## Plugin HTTP routes
 
 | Route                | Role                                                                                             |
