@@ -23,6 +23,7 @@ import type {
 	PaginatedResult,
 	WhereClause,
 } from "../../plugins/types.js";
+import { isUniqueConstraintViolation } from "../unique-constraint.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
@@ -110,17 +111,32 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 				.execute();
 			return true;
 		} catch (error) {
-			if (error instanceof Error) {
-				const message = error.message.toLowerCase();
-				if (
-					message.includes("unique constraint failed") ||
-					message.includes("duplicate key value violates unique constraint")
-				) {
-					return false;
-				}
-			}
+			if (isUniqueConstraintViolation(error)) return false;
 			throw error;
 		}
+	}
+
+	/**
+	 * Replace a document only when the row version matches the expected value.
+	 * Returns true when the document was updated.
+	 */
+	async compareAndSwap(id: string, expectedVersion: string, data: T): Promise<boolean> {
+		const now = new Date().toISOString();
+		const jsonData = JSON.stringify(data);
+
+		const result = await this.db
+			.updateTable("_plugin_storage")
+			.set({
+				data: jsonData,
+				updated_at: now,
+			})
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.where("updated_at", "=", expectedVersion)
+			.executeTakeFirst();
+
+		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
 
 	/**

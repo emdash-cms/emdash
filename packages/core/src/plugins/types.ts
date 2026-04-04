@@ -128,6 +128,12 @@ export interface StorageCollection<T = unknown> {
 	 * This is an optional capability used for optimistic "claim" workflows.
 	 */
 	putIfAbsent?(id: string, data: T): Promise<boolean>;
+	/**
+	 * Atomically replace a document only when the current row version matches.
+	 * The version token comes from a storage-stable value (currently the row's
+	 * `updated_at` timestamp).
+	 */
+	compareAndSwap?(id: string, expectedVersion: string, data: T): Promise<boolean>;
 	delete(id: string): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
 

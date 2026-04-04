@@ -123,6 +123,79 @@ describe("PluginStorageRepository", () => {
 		});
 	});
 
+	describe("compareAndSwap()", () => {
+		it("should replace the document when version matches", async () => {
+			const doc: TestDocument = {
+				title: "Original",
+				status: "active",
+				count: 1,
+				createdAt: "2024-01-01",
+			};
+			const next = {
+				...doc,
+				title: "Replaced",
+				count: 2,
+			};
+
+			await repo.put("doc1", doc);
+			const { updated_at: version } = await db
+				.selectFrom("_plugin_storage")
+				.select("updated_at")
+				.where("plugin_id", "=", "test-plugin")
+				.where("collection", "=", "items")
+				.where("id", "=", "doc1")
+				.executeTakeFirstOrThrow();
+
+			const replaced = await repo.compareAndSwap("doc1", version, next);
+			expect(replaced).toBe(true);
+
+			const result = await repo.get("doc1");
+			expect(result).toEqual(next);
+		});
+
+		it("should not replace the document when version mismatches", async () => {
+			const doc: TestDocument = {
+				title: "Original",
+				status: "active",
+				count: 1,
+				createdAt: "2024-01-01",
+			};
+			const replacement: TestDocument = {
+				...doc,
+				title: "Replacement",
+				count: 2,
+			};
+			const stale = {
+				...doc,
+				title: "Stale Attempt",
+				count: 99,
+			};
+
+			await repo.put("doc1", doc);
+			await repo.put("doc1", replacement);
+			const staleVersion = "1970-01-01T00:00:00.000Z";
+
+			const replaced = await repo.compareAndSwap("doc1", staleVersion, stale);
+			expect(replaced).toBe(false);
+
+			const result = await repo.get("doc1");
+			expect(result).toEqual(replacement);
+		});
+
+		it("should return false for a missing document", async () => {
+			const next: TestDocument = {
+				title: "Next",
+				status: "active",
+				count: 1,
+				createdAt: "2024-01-01",
+			};
+
+			const swapped = await repo.compareAndSwap("does-not-exist", "1970-01-01T00:00:00.000Z", next);
+			expect(swapped).toBe(false);
+			expect(await repo.get("does-not-exist")).toBeNull();
+		});
+	});
+
 	describe("delete()", () => {
 		it("should return false for non-existent document", async () => {
 			const result = await repo.delete("non-existent");
