@@ -11,6 +11,8 @@ function includesIndex(
 		| "paymentAttempts"
 		| "webhookReceipts"
 		| "idempotencyKeys"
+		| "products"
+		| "productSkus"
 		| "inventoryLedger"
 		| "inventoryStock",
 	index: readonly string[],
@@ -54,5 +56,16 @@ describe("storage index contracts", () => {
 	it("keeps deterministic index coverage for status-read diagnostics path", () => {
 		expect(includesIndex("inventoryStock", ["productId", "variantId"], true)).toBe(true);
 		expect(includesIndex("paymentAttempts", ["orderId", "providerId", "status"])).toBe(true);
+	});
+
+	it("supports catalog product lookup and uniqueness invariants", () => {
+		expect(includesIndex("products", ["slug"])).toBe(true);
+		expect(includesIndex("products", ["slug"], true)).toBe(true);
+		expect(includesIndex("products", ["status"])).toBe(true);
+	});
+
+	it("supports catalog SKU lookup and sku-code uniqueness invariants", () => {
+		expect(includesIndex("productSkus", ["productId"])).toBe(true);
+		expect(includesIndex("productSkus", ["skuCode"], true)).toBe(true);
 	});
 });

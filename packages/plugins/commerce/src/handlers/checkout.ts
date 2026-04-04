@@ -29,8 +29,8 @@ import type {
 	StoredInventoryStock,
 	OrderLineItem,
 } from "../types.js";
+import type { CheckoutPendingState } from "./checkout-state.js";
 import {
-	CheckoutPendingState,
 	CHECKOUT_PENDING_KIND,
 	CHECKOUT_ROUTE,
 	computeCheckoutReplayIntegrity,

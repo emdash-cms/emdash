@@ -131,3 +131,45 @@ export interface StoredInventoryStock {
 	quantity: number;
 	updatedAt: string;
 }
+
+export type ProductType = "simple" | "variable" | "bundle";
+export type ProductStatus = "draft" | "active" | "archived";
+export type ProductVisibility = "public" | "hidden";
+export type ProductSkuStatus = "active" | "inactive";
+
+export interface StoredProduct {
+	id: string;
+	type: ProductType;
+	status: ProductStatus;
+	visibility: ProductVisibility;
+	slug: string;
+	title: string;
+	shortDescription: string;
+	longDescription: string;
+	brand?: string;
+	vendor?: string;
+	featured: boolean;
+	sortOrder: number;
+	requiresShippingDefault: boolean;
+	taxClassDefault?: string;
+	metadataJson?: Record<string, unknown>;
+	createdAt: string;
+	updatedAt: string;
+	publishedAt?: string;
+	archivedAt?: string;
+}
+
+export interface StoredProductSku {
+	id: string;
+	productId: string;
+	skuCode: string;
+	status: ProductSkuStatus;
+	unitPriceMinor: number;
+	compareAtPriceMinor?: number;
+	inventoryQuantity: number;
+	inventoryVersion: number;
+	requiresShipping: boolean;
+	isDigital: boolean;
+	createdAt: string;
+	updatedAt: string;
+}

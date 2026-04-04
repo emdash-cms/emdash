@@ -128,3 +128,95 @@ export const recommendationsInputSchema = z.object({
 });
 
 export type RecommendationsInput = z.infer<typeof recommendationsInputSchema>;
+
+export const productCreateInputSchema = z.object({
+	type: z.enum(["simple", "variable", "bundle"]).default("simple"),
+	status: z.enum(["draft", "active", "archived"]).default("draft"),
+	visibility: z.enum(["public", "hidden"]).default("hidden"),
+	slug: z.string().trim().min(2).max(128).toLowerCase(),
+	title: z.string().trim().min(1).max(160),
+	shortDescription: z.string().trim().max(320).default(""),
+	longDescription: z.string().trim().max(8_000).default(""),
+	brand: z.string().trim().max(128).optional(),
+	vendor: z.string().trim().max(128).optional(),
+	featured: z.boolean().default(false),
+	sortOrder: z.number().int().min(0).max(10_000).default(0),
+	requiresShippingDefault: z.boolean().default(true),
+	taxClassDefault: z.string().trim().max(64).optional(),
+});
+export type ProductCreateInput = z.infer<typeof productCreateInputSchema>;
+
+export const productGetInputSchema = z.object({
+	productId: z.string().trim().min(3).max(128),
+});
+export type ProductGetInput = z.infer<typeof productGetInputSchema>;
+
+export const productListInputSchema = z.object({
+	type: z.enum(["simple", "variable", "bundle"]).optional(),
+	status: z.enum(["draft", "active", "archived"]).optional(),
+	visibility: z.enum(["public", "hidden"]).optional(),
+	limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type ProductListInput = z.infer<typeof productListInputSchema>;
+
+export const productSkuCreateInputSchema = z.object({
+	productId: z.string().trim().min(3).max(128),
+	skuCode: z.string().trim().min(1).max(128),
+	status: z.enum(["active", "inactive"]).default("active"),
+	unitPriceMinor: z.number().int().min(0),
+	compareAtPriceMinor: z.number().int().min(0).optional(),
+	inventoryQuantity: z.number().int().min(0),
+	inventoryVersion: z.number().int().min(0).default(1),
+	requiresShipping: z.boolean().default(true),
+	isDigital: z.boolean().default(false),
+});
+export type ProductSkuCreateInput = z.infer<typeof productSkuCreateInputSchema>;
+
+export const productSkuListInputSchema = z.object({
+	productId: z.string().trim().min(3).max(128),
+	limit: z.coerce.number().int().min(1).max(100).default(100),
+});
+export type ProductSkuListInput = z.infer<typeof productSkuListInputSchema>;
+
+export const productUpdateInputSchema = z.object({
+	productId: z.string().trim().min(3).max(128),
+	type: z.enum(["simple", "variable", "bundle"]).optional(),
+	status: z.enum(["draft", "active", "archived"]).optional(),
+	visibility: z.enum(["public", "hidden"]).optional(),
+	slug: z.string().trim().min(2).max(128).toLowerCase().optional(),
+	title: z.string().trim().min(1).max(160).optional(),
+	shortDescription: z.string().trim().max(320).optional(),
+	longDescription: z.string().trim().max(8_000).optional(),
+	brand: z.string().trim().max(128).optional(),
+	vendor: z.string().trim().max(128).optional(),
+	featured: z.boolean().optional(),
+	sortOrder: z.number().int().min(0).max(10_000).optional(),
+	requiresShippingDefault: z.boolean().optional(),
+	taxClassDefault: z.string().trim().max(64).optional(),
+});
+export type ProductUpdateInput = z.infer<typeof productUpdateInputSchema>;
+
+export const productStateInputSchema = z.object({
+	productId: z.string().trim().min(3).max(128),
+	status: z.enum(["draft", "active", "archived"]),
+});
+export type ProductStateInput = z.infer<typeof productStateInputSchema>;
+
+export const productSkuUpdateInputSchema = z.object({
+	skuId: z.string().trim().min(3).max(128),
+	skuCode: z.string().trim().min(1).max(128).optional(),
+	status: z.enum(["active", "inactive"]).optional(),
+	unitPriceMinor: z.number().int().min(0).optional(),
+	compareAtPriceMinor: z.number().int().min(0).optional(),
+	inventoryQuantity: z.number().int().min(0).optional(),
+	inventoryVersion: z.number().int().min(0).optional(),
+	requiresShipping: z.boolean().optional(),
+	isDigital: z.boolean().optional(),
+});
+export type ProductSkuUpdateInput = z.infer<typeof productSkuUpdateInputSchema>;
+
+export const productSkuStateInputSchema = z.object({
+	skuId: z.string().trim().min(3).max(128),
+	status: z.enum(["active", "inactive"]),
+});
+export type ProductSkuStateInput = z.infer<typeof productSkuStateInputSchema>;

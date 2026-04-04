@@ -23,6 +23,17 @@ import {
 	type CommerceRecommendationResolver,
 } from "./catalog-extensibility.js";
 import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
+import {
+	setProductStateHandler,
+	createProductHandler,
+	createProductSkuHandler,
+	getProductHandler,
+	setSkuStatusHandler,
+	updateProductHandler,
+	updateProductSkuHandler,
+	listProductSkusHandler,
+	listProductsHandler,
+} from "./handlers/catalog.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
@@ -30,6 +41,15 @@ import { stripeWebhookHandler } from "./handlers/webhooks-stripe.js";
 import {
 	cartGetInputSchema,
 	cartUpsertInputSchema,
+	productCreateInputSchema,
+	productGetInputSchema,
+	productSkuStateInputSchema,
+	productListInputSchema,
+	productSkuCreateInputSchema,
+	productSkuUpdateInputSchema,
+	productSkuListInputSchema,
+	productStateInputSchema,
+	productUpdateInputSchema,
 	checkoutGetOrderInputSchema,
 	checkoutInputSchema,
 	recommendationsInputSchema,
@@ -151,6 +171,51 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 				input: cartGetInputSchema,
 				handler: asRouteHandler(cartGetHandler),
 			},
+			"catalog/product/create": {
+				public: true,
+				input: productCreateInputSchema,
+				handler: asRouteHandler(createProductHandler),
+			},
+			"catalog/product/get": {
+				public: true,
+				input: productGetInputSchema,
+				handler: asRouteHandler(getProductHandler),
+			},
+			"catalog/product/update": {
+				public: true,
+				input: productUpdateInputSchema,
+				handler: asRouteHandler(updateProductHandler),
+			},
+			"catalog/product/state": {
+				public: true,
+				input: productStateInputSchema,
+				handler: asRouteHandler(setProductStateHandler),
+			},
+			"catalog/products": {
+				public: true,
+				input: productListInputSchema,
+				handler: asRouteHandler(listProductsHandler),
+			},
+			"catalog/sku/create": {
+				public: true,
+				input: productSkuCreateInputSchema,
+				handler: asRouteHandler(createProductSkuHandler),
+			},
+			"catalog/sku/update": {
+				public: true,
+				input: productSkuUpdateInputSchema,
+				handler: asRouteHandler(updateProductSkuHandler),
+			},
+			"catalog/sku/state": {
+				public: true,
+				input: productSkuStateInputSchema,
+				handler: asRouteHandler(setSkuStatusHandler),
+			},
+			"catalog/sku/list": {
+				public: true,
+				input: productSkuListInputSchema,
+				handler: asRouteHandler(listProductSkusHandler),
+			},
 			checkout: {
 				public: true,
 				input: checkoutInputSchema,
@@ -217,3 +282,4 @@ export type {
 export type { RecommendationsResponse } from "./handlers/recommendations.js";
 export type { CheckoutGetOrderResponse } from "./handlers/checkout-get-order.js";
 export type { CartUpsertResponse, CartGetResponse } from "./handlers/cart.js";
+export type { ProductResponse, ProductListResponse, ProductSkuResponse, ProductSkuListResponse } from "./handlers/catalog.js";

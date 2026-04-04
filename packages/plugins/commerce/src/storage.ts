@@ -5,6 +5,14 @@
 import type { PluginStorageConfig } from "emdash";
 
 export type CommerceStorage = PluginStorageConfig & {
+	products: {
+		indexes: ["type", "status", "visibility", "slug", "createdAt", "updatedAt", "featured"];
+		uniqueIndexes: [["slug"]];
+	};
+	productSkus: {
+		indexes: ["productId", "status", "requiresShipping", "createdAt", "skuCode"];
+		uniqueIndexes: [["skuCode"]];
+	};
 	orders: {
 		indexes: ["paymentPhase", "createdAt", "cartId"];
 	};
@@ -59,6 +67,14 @@ export type CommerceStorage = PluginStorageConfig & {
 };
 
 export const COMMERCE_STORAGE_CONFIG = {
+	products: {
+		indexes: ["type", "status", "visibility", "slug", "createdAt", "updatedAt", "featured"] as const,
+		uniqueIndexes: [["slug"]] as const,
+	},
+	productSkus: {
+		indexes: ["productId", "status", "requiresShipping", "createdAt", "skuCode"] as const,
+		uniqueIndexes: [["skuCode"]] as const,
+	},
 	orders: {
 		indexes: ["paymentPhase", "createdAt", "cartId"] as const,
 	},
