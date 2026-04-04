@@ -11,6 +11,7 @@ import LiveSearch from "emdash/ui/search";
 
 interface Props {
 	title: string;
+	pageTitle?: string | null;
 	description?: string | null;
 	image?: string | null;
 	canonical?: string | null;
@@ -18,7 +19,7 @@ interface Props {
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, canonical, content } = Astro.props;
+const { title, pageTitle, description, image, canonical, content } = Astro.props;
 
 const menu = await getMenu("primary");
 
@@ -27,6 +28,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: "website",
 	title,
+	pageTitle: pageTitle ?? title,
 	description,
 	canonical,
 	image,

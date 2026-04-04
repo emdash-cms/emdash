@@ -423,15 +423,15 @@ Core validates, deduplicates, and renders the contributions. Plugins return stru
   if (event.page.kind !== "content") return null;
 
   return {
-    kind: "jsonld",
-    id: `schema:${event.page.content?.collection}:${event.page.content?.id}`,
-    graph: {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      headline: event.page.title,
-      description: event.page.description,
-    },
-  };
+     kind: "jsonld",
+     id: `schema:${event.page.content?.collection}:${event.page.content?.id}`,
+     graph: {
+       "@context": "https://schema.org",
+       "@type": "BlogPosting",
+       headline: event.page.pageTitle ?? event.page.title,
+       description: event.page.description,
+     },
+   };
 }
 ```
 
@@ -442,10 +442,11 @@ Core validates, deduplicates, and renders the contributions. Plugins return stru
   page: {
     url: string;
     path: string;
-    locale: string | null;
-    kind: "content" | "custom";
-    pageType: string;
+   locale: string | null;
+   kind: "content" | "custom";
+   pageType: string;
     title: string | null;
+    pageTitle?: string | null;
     description: string | null;
     canonical: string | null;
     image: string | null;
