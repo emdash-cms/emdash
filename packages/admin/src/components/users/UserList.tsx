@@ -1,10 +1,11 @@
 import { Button, Input, Loader, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { RoleBadge, ROLES } from "./RoleBadge";
+import { RoleBadge, ROLES, useTranslatedRoleConfig } from "./RoleBadge";
 
 export interface UserListProps {
 	users: UserListItem[];
@@ -34,13 +35,16 @@ export function UserList({
 	onInviteUser,
 	onLoadMore,
 }: UserListProps) {
+	const { t } = useLingui();
+	const { translateLabel } = useTranslatedRoleConfig();
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">Users</h1>
+				<h1 className="text-2xl font-bold">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
-					Invite User
+					{t`Invite User`}
 				</Button>
 			</div>
 
@@ -53,11 +57,11 @@ export function UserList({
 					/>
 					<Input
 						type="search"
-						placeholder="Search by name or email..."
+						placeholder={t`Search by name or email...`}
 						className="pl-10"
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
-						aria-label="Search users"
+						aria-label={t`Search users`}
 					/>
 				</div>
 				<Select
@@ -66,15 +70,15 @@ export function UserList({
 						onRoleFilterChange(value === "all" || value === null ? undefined : parseInt(value, 10))
 					}
 					items={{
-						all: "All roles",
-						...Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label])),
+						all: t`All roles`,
+						...Object.fromEntries(ROLES.map((r) => [r.value.toString(), translateLabel(r.label)])),
 					}}
-					aria-label="Filter by role"
+					aria-label={t`Filter by role`}
 				>
-					<Select.Option value="all">All roles</Select.Option>
+					<Select.Option value="all">{t`All roles`}</Select.Option>
 					{ROLES.map((role) => (
 						<Select.Option key={role.value} value={role.value.toString()}>
-							{role.label}
+							{translateLabel(role.label)}
 						</Select.Option>
 					))}
 				</Select>
@@ -86,19 +90,19 @@ export function UserList({
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								User
+								{t`User`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Role
+								{t`Role`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Status
+								{t`Status`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Last Login
+								{t`Last Login`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Passkeys
+								{t`Passkeys`}
 							</th>
 						</tr>
 					</thead>
@@ -108,7 +112,7 @@ export function UserList({
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
 									{searchQuery || roleFilter !== undefined ? (
 										<>
-											No users found matching your filters.{" "}
+											{t`No users found matching your filters.`}{" "}
 											<button
 												className="text-kumo-brand underline"
 												onClick={() => {
@@ -116,14 +120,14 @@ export function UserList({
 													onRoleFilterChange(undefined);
 												}}
 											>
-												Clear filters
+												{t`Clear filters`}
 											</button>
 										</>
 									) : (
 										<>
-											No users yet.{" "}
+											{t`No users yet.`}{" "}
 											<button className="text-kumo-brand underline" onClick={onInviteUser}>
-												Invite your first team member
+												{t`Invite your first team member`}
 											</button>
 										</>
 									)}
@@ -139,7 +143,7 @@ export function UserList({
 								<td colSpan={5} className="px-4 py-4">
 									<div className="flex items-center justify-center gap-2 text-kumo-subtle">
 										<Loader size="sm" />
-										Loading...
+										{t`Loading...`}
 									</div>
 								</td>
 							</tr>
@@ -152,7 +156,7 @@ export function UserList({
 			{hasMore && !isLoading && (
 				<div className="flex justify-center">
 					<Button variant="outline" onClick={onLoadMore}>
-						Load More
+						{t`Load More`}
 					</Button>
 				</div>
 			)}
@@ -166,8 +170,9 @@ interface UserListRowProps {
 }
 
 function UserListRow({ user, onSelect }: UserListRowProps) {
+	const { t } = useLingui();
 	const displayName = user.name || user.email;
-	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never";
+	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t`Never`;
 
 	return (
 		<tr className="border-b hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>
@@ -194,12 +199,12 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 				{user.disabled ? (
 					<span className="inline-flex items-center gap-1 text-sm text-kumo-danger">
 						<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
-						Disabled
+						{t`Disabled`}
 					</span>
 				) : (
 					<span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
 						<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-						Active
+						{t`Active`}
 					</span>
 				)}
 			</td>

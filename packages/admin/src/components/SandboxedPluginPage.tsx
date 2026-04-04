@@ -7,6 +7,7 @@
 
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
+import { useLingui } from "@lingui/react/macro";
 import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -18,6 +19,7 @@ interface SandboxedPluginPageProps {
 }
 
 export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps) {
+	const { t } = useLingui();
 	const [blocks, setBlocks] = useState<Block[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 					setTimeout(setToast, 4000, null);
 				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : "Failed to communicate with plugin");
+				setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
 			}
 		},
 		[pluginId],
@@ -84,7 +86,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				<div className="flex items-start gap-3">
 					<WarningCircle className="h-5 w-5 shrink-0 text-kumo-danger" />
 					<div>
-						<h3 className="font-semibold text-kumo-danger">Plugin Error</h3>
+						<h3 className="font-semibold text-kumo-danger">{t`Plugin Error`}</h3>
 						<p className="mt-1 text-sm text-kumo-subtle">{error}</p>
 					</div>
 				</div>
