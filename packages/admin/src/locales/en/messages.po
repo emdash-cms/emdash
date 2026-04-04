@@ -1,0 +1,264 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-04-04 12:28+0300\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: packages/admin/src/components/Sidebar.tsx:404
+msgid "Admin"
+msgstr "Admin"
+
+#: packages/admin/src/components/Settings.tsx:99
+msgid "Allow users from specific domains to sign up"
+msgstr "Allow users from specific domains to sign up"
+
+#: packages/admin/src/components/Settings.tsx:109
+msgid "API Tokens"
+msgstr "API Tokens"
+
+#: packages/admin/src/components/LoginPage.tsx:253
+msgid "Authentication error: {error}"
+msgstr "Authentication error: {error}"
+
+#: packages/admin/src/components/LoginPage.tsx:174
+#: packages/admin/src/components/LoginPage.tsx:210
+msgid "Back to login"
+msgstr "Back to login"
+
+#: packages/admin/src/components/Sidebar.tsx:203
+msgid "Bylines"
+msgstr "Bylines"
+
+#: packages/admin/src/components/ConfirmDialog.tsx:57
+msgid "Cancel"
+msgstr "Cancel"
+
+#: packages/admin/src/components/Sidebar.tsx:191
+msgid "Categories"
+msgstr "Categories"
+
+#: packages/admin/src/components/LoginPage.tsx:158
+msgid "Check your email"
+msgstr "Check your email"
+
+#: packages/admin/src/components/Settings.tsx:129
+msgid "Choose your preferred admin language"
+msgstr "Choose your preferred admin language"
+
+#: packages/admin/src/components/LoginPage.tsx:169
+msgid "Click the link in the email to sign in."
+msgstr "Click the link in the email to sign in."
+
+#: packages/admin/src/components/Sidebar.tsx:180
+msgid "Comments"
+msgstr "Comments"
+
+#: packages/admin/src/components/Sidebar.tsx:378
+msgid "Content"
+msgstr "Content"
+
+#: packages/admin/src/components/Sidebar.tsx:207
+msgid "Content Types"
+msgstr "Content Types"
+
+#: packages/admin/src/components/Settings.tsx:110
+msgid "Create personal access tokens for programmatic API access"
+msgstr "Create personal access tokens for programmatic API access"
+
+#: packages/admin/src/components/Sidebar.tsx:166
+#: packages/admin/src/components/Sidebar.tsx:367
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: packages/admin/src/components/LoginPage.tsx:358
+msgid "Don't have an account? <0>Sign up</0>"
+msgstr "Don't have an account? <0>Sign up</0>"
+
+#: packages/admin/src/components/Settings.tsx:115
+msgid "Email"
+msgstr "Email"
+
+#: packages/admin/src/components/LoginPage.tsx:183
+msgid "Email address"
+msgstr "Email address"
+
+#: packages/admin/src/components/LoginPage.tsx:127
+#: packages/admin/src/components/LoginPage.tsx:132
+msgid "Failed to send magic link"
+msgstr "Failed to send magic link"
+
+#: packages/admin/src/components/Settings.tsx:69
+msgid "General"
+msgstr "General"
+
+#: packages/admin/src/components/LoginPage.tsx:160
+msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
+msgstr "If an account exists for <0>{email}</0>, we've sent a sign-in link."
+
+#: packages/admin/src/components/Sidebar.tsx:225
+msgid "Import"
+msgstr "Import"
+
+#: packages/admin/src/components/Settings.tsx:128
+msgid "Language"
+msgstr "Language"
+
+#: packages/admin/src/components/Header.tsx:100
+msgid "Log out"
+msgstr "Log out"
+
+#: packages/admin/src/components/Sidebar.tsx:392
+msgid "Manage"
+msgstr "Manage"
+
+#: packages/admin/src/components/Settings.tsx:93
+msgid "Manage your passkeys and authentication"
+msgstr "Manage your passkeys and authentication"
+
+#: packages/admin/src/components/Sidebar.tsx:216
+msgid "Marketplace"
+msgstr "Marketplace"
+
+#: packages/admin/src/components/Sidebar.tsx:175
+msgid "Media"
+msgstr "Media"
+
+#: packages/admin/src/components/Sidebar.tsx:185
+msgid "Menus"
+msgstr "Menus"
+
+#: packages/admin/src/components/LoginPage.tsx:313
+msgid "Or continue with"
+msgstr "Or continue with"
+
+#: packages/admin/src/components/Sidebar.tsx:209
+#: packages/admin/src/components/Sidebar.tsx:416
+msgid "Plugins"
+msgstr "Plugins"
+
+#: packages/admin/src/components/Sidebar.tsx:186
+msgid "Redirects"
+msgstr "Redirects"
+
+#: packages/admin/src/components/SaveButton.tsx:42
+msgid "Save"
+msgstr "Save"
+
+#: packages/admin/src/components/SaveButton.tsx:42
+msgid "Saved"
+msgstr "Saved"
+
+#: packages/admin/src/components/SaveButton.tsx:42
+msgid "Saving…"
+msgstr "Saving…"
+
+#: packages/admin/src/components/Settings.tsx:82
+msgid "Search engine optimization and verification"
+msgstr "Search engine optimization and verification"
+
+#: packages/admin/src/components/Sidebar.tsx:188
+msgid "Sections"
+msgstr "Sections"
+
+#: packages/admin/src/components/Settings.tsx:92
+msgid "Security"
+msgstr "Security"
+
+#: packages/admin/src/components/Header.tsx:84
+msgid "Security Settings"
+msgstr "Security Settings"
+
+#: packages/admin/src/components/Settings.tsx:98
+msgid "Self-Signup Domains"
+msgstr "Self-Signup Domains"
+
+#: packages/admin/src/components/LoginPage.tsx:206
+msgid "Send magic link"
+msgstr "Send magic link"
+
+#: packages/admin/src/components/LoginPage.tsx:206
+msgid "Sending..."
+msgstr "Sending..."
+
+#: packages/admin/src/components/Settings.tsx:81
+msgid "SEO"
+msgstr "SEO"
+
+#: packages/admin/src/components/Header.tsx:92
+#: packages/admin/src/components/Settings.tsx:62
+#: packages/admin/src/components/Sidebar.tsx:226
+msgid "Settings"
+msgstr "Settings"
+
+#: packages/admin/src/components/LoginPage.tsx:283
+msgid "Sign in to your site"
+msgstr "Sign in to your site"
+
+#: packages/admin/src/components/LoginPage.tsx:284
+msgid "Sign in with email"
+msgstr "Sign in with email"
+
+#: packages/admin/src/components/LoginPage.tsx:340
+msgid "Sign in with email link"
+msgstr "Sign in with email link"
+
+#: packages/admin/src/components/LoginPage.tsx:304
+msgid "Sign in with Passkey"
+msgstr "Sign in with Passkey"
+
+#: packages/admin/src/components/Settings.tsx:70
+msgid "Site identity, logo, favicon, and reading preferences"
+msgstr "Site identity, logo, favicon, and reading preferences"
+
+#: packages/admin/src/components/Settings.tsx:75
+msgid "Social Links"
+msgstr "Social Links"
+
+#: packages/admin/src/components/Settings.tsx:76
+msgid "Social media profile links"
+msgstr "Social media profile links"
+
+#: packages/admin/src/components/Sidebar.tsx:198
+msgid "Tags"
+msgstr "Tags"
+
+#: packages/admin/src/components/LoginPage.tsx:170
+msgid "The link will expire in 15 minutes."
+msgstr "The link will expire in 15 minutes."
+
+#: packages/admin/src/components/Sidebar.tsx:220
+msgid "Themes"
+msgstr "Themes"
+
+#: packages/admin/src/components/LoginPage.tsx:351
+msgid "Use your registered passkey to sign in securely."
+msgstr "Use your registered passkey to sign in securely."
+
+#: packages/admin/src/components/Sidebar.tsx:208
+msgid "Users"
+msgstr "Users"
+
+#: packages/admin/src/components/Settings.tsx:116
+msgid "View email provider status and send test emails"
+msgstr "View email provider status and send test emails"
+
+#: packages/admin/src/components/Header.tsx:50
+msgid "View Site"
+msgstr "View Site"
+
+#: packages/admin/src/components/LoginPage.tsx:352
+msgid "We'll send you a link to sign in without a password."
+msgstr "We'll send you a link to sign in without a password."
+
+#: packages/admin/src/components/Sidebar.tsx:187
+msgid "Widgets"
+msgstr "Widgets"

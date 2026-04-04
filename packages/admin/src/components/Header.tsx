@@ -1,9 +1,9 @@
 import { Button, LinkButton, Popover } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { useTranslation } from "../i18n/index.js";
 import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
 import { Sidebar } from "./Sidebar";
@@ -30,7 +30,7 @@ async function handleLogout() {
 export function Header() {
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
-	const { t } = useTranslation("nav");
+	const { t } = useLingui();
 	const { data: user } = useCurrentUser();
 	// Get display name and initials
 	const displayName = user?.name || user?.email || "User";
@@ -47,7 +47,7 @@ export function Header() {
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 mr-1" />
-					{t("viewSite")}
+					{t`View Site`}
 				</LinkButton>
 
 				{/* Theme toggle */}
@@ -81,7 +81,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								<Shield className="h-4 w-4" />
-								{t("securitySettings")}
+								{t`Security Settings`}
 							</Link>
 							<Link
 								to="/settings"
@@ -89,7 +89,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								<Gear className="h-4 w-4" />
-								{t("settings")}
+								{t`Settings`}
 							</Link>
 							<hr className="my-1" />
 							<button
@@ -97,7 +97,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-left"
 							>
 								<SignOut className="h-4 w-4" />
-								{t("logOut")}
+								{t`Log out`}
 							</button>
 						</div>
 					</Popover.Content>

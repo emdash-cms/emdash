@@ -22,8 +22,8 @@ function validateLocaleCode(code: string): string | void {
 
 /** Available locales — extend this list as translations are added. */
 export const SUPPORTED_LOCALES: SupportedLocale[] = [
-	{ code: "en", label: "English" },
-	{ code: "fr", label: "Français" },
+	{ code: "en", label: "English" }
+	// { code: "fr", label: "Français" }
 ].filter((l) => validateLocaleCode(l.code));
 
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));
