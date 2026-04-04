@@ -177,6 +177,32 @@ describe("BylineRepository", () => {
 		expect(result.get(realIds[0]!)![0]!.byline.id).toBe(byline.id);
 	});
 
+	it("getContentBylinesMany does not duplicate credits for repeated content IDs", async () => {
+		const byline = await bylineRepo.create({
+			slug: "duplicate-batch-author",
+			displayName: "Duplicate Batch Author",
+		});
+
+		const content = await contentRepo.create({
+			type: "post",
+			slug: "duplicate-batch-post",
+			data: { title: "Duplicate Batch Post" },
+		});
+		await bylineRepo.setContentBylines("post", content.id, [{ bylineId: byline.id }]);
+
+		const ids: string[] = [];
+		for (let i = 0; i < SQL_BATCH_SIZE + 10; i++) {
+			ids.push(`fake-id-${i}`);
+		}
+		ids[0] = content.id;
+		ids[SQL_BATCH_SIZE + 5] = content.id;
+
+		const result = await bylineRepo.getContentBylinesMany("post", ids);
+
+		expect(result.get(content.id)).toHaveLength(1);
+		expect(result.get(content.id)?.[0]?.byline.id).toBe(byline.id);
+	});
+
 	it("findByUserIds handles more IDs than SQL_BATCH_SIZE", async () => {
 		// Create a real user so the FK constraint is satisfied
 		const userId = "user-batch-test";

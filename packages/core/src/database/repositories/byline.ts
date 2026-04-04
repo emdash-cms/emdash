@@ -260,7 +260,8 @@ export class BylineRepository {
 		const result = new Map<string, ContentBylineCredit[]>();
 		if (contentIds.length === 0) return result;
 
-		for (const chunk of chunks(contentIds, SQL_BATCH_SIZE)) {
+		const uniqueContentIds = [...new Set(contentIds)];
+		for (const chunk of chunks(uniqueContentIds, SQL_BATCH_SIZE)) {
 			const rows = await this.db
 				.selectFrom("_emdash_content_bylines as cb")
 				.innerJoin("_emdash_bylines as b", "b.id", "cb.byline_id")
