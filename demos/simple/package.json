@@ -27,8 +27,10 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@astrojs/check": "catalog:"
-  },
-  "peerDependencies": {},
-  "optionalDependencies": {}
+    "@astrojs/check": "catalog:",
+    "@lingui/babel-plugin-lingui-macro": "^5.9.4",
+    "@lingui/cli": "^5.9.4",
+    "@lingui/conf": "^5.9.4",
+    "@lingui/vite-plugin": "^5.9.4"
+  }
 }

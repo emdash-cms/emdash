@@ -8,11 +8,11 @@
  */
 
 import { Button, Loader } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { FloppyDisk, Check } from "@phosphor-icons/react";
 import type { ComponentProps } from "react";
 import * as React from "react";
 
-import { useTranslation } from "../i18n/index.js";
 import { cn } from "../lib/utils";
 
 export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "children" | "shape"> {
@@ -26,7 +26,7 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
  * Button that reflects save state
  */
 export function SaveButton({ isDirty, isSaving, className, disabled, ...props }: SaveButtonProps) {
-	const { t } = useTranslation("common");
+	const { t } = useLingui();
 	const isSaved = !isDirty && !isSaving;
 
 	return (
@@ -39,7 +39,7 @@ export function SaveButton({ isDirty, isSaving, className, disabled, ...props }:
 			aria-busy={isSaving}
 			{...props}
 		>
-			{isSaving ? t("saving") : isSaved ? t("saved") : t("save")}
+			{isSaving ? t`Saving…` : isSaved ? t`Saved` : t`Save`}
 		</Button>
 	);
 }

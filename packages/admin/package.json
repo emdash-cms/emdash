@@ -13,11 +13,11 @@
       "default": "./dist/index.js"
     },
     "./styles.css": "./dist/styles.css",
-    "./i18n": {
-      "types": "./dist/i18n/index.d.ts",
-      "default": "./dist/i18n/index.js"
+    "./locales": {
+      "types": "./dist/locales/index.d.ts",
+      "default": "./dist/locales/index.js"
     },
-    "./i18n/locales/*": "./src/i18n/locales/*"
+    "./locales/*": "./src/locales/*"
   },
   "scripts": {
     "build": "tsdown && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
@@ -34,6 +34,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emdash-cms/blocks": "workspace:*",
     "@floating-ui/react": "^0.27.16",
+    "@lingui/core": "^5.9.4",
+    "@lingui/react": "^5.9.4",
     "@phosphor-icons/react": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
@@ -63,6 +65,10 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@babel/plugin-proposal-decorators": "^7.29.0",
+    "@lingui/cli": "^5.9.4",
+    "@lingui/macro": "^5.9.4",
+    "@lingui/vite-plugin": "^5.9.4",
     "@tailwindcss/cli": "^4.1.10",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/react": "^16.3.0",

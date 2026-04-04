@@ -28,11 +28,10 @@ export {
 
 // i18n
 export {
-	I18nProvider,
-	useTranslation,
+	useLocale,
 	SUPPORTED_LOCALES,
 	SUPPORTED_LOCALE_CODES,
 	DEFAULT_LOCALE,
-	NAMESPACES,
-} from "./i18n/index.js";
-export type { Translations, I18nProviderProps, SupportedLocale } from "./i18n/index.js";
+	resolveLocale,
+} from "./locales/index.js";
+export type { SupportedLocale } from "./locales/index.js";

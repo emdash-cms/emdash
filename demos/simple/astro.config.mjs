@@ -1,6 +1,7 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
+import { lingui } from "@lingui/vite-plugin";
 import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
@@ -15,7 +16,11 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	integrations: [
-		react(),
+		react({
+			babel: {
+				plugins: ["@lingui/babel-plugin-lingui-macro"],
+			},
+		}),
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
 			storage: local({
@@ -26,4 +31,7 @@ export default defineConfig({
 		}),
 	],
 	devToolbar: { enabled: false },
+	vite: {
+		plugins: [lingui()],
+	},
 });

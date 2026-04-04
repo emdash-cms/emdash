@@ -13,20 +13,10 @@ import AdminWrapper from "emdash/routes/PluginRegistry";
 export const prerender = false;
 
 // ── i18n locale resolution ──────────────────────────────────────────
-import { resolveLocale, NAMESPACES, prefixKeys } from "@emdash-cms/admin/i18n";
+import { resolveLocale } from "@emdash-cms/admin/locales";
 
 const resolvedLocale = resolveLocale(Astro.request);
-
-const namespaceModules = await Promise.all(
-	NAMESPACES.map(async (ns) => {
-		const mod = await import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/${ns}.json`);
-		return prefixKeys(ns, mod.default);
-	}),
-);
-let translations = {};
-for (const mod of namespaceModules) {
-	translations = { ...translations, ...mod };
-}
+const { messages } = await import(`@emdash-cms/admin/locales/${resolvedLocale}/messages.po`);
 ---
 
 <!doctype html>
@@ -91,7 +81,7 @@ for (const mod of namespaceModules) {
 					<p>Loading EmDash...</p>
 				</div>
 			</div>
-			<AdminWrapper client:only="react" locale={resolvedLocale} translations={translations} />
+			<AdminWrapper client:only="react" locale={resolvedLocale} messages={messages} />
 		</div>
 	</body>
 </html>
