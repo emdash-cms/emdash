@@ -416,12 +416,18 @@ export function ContentEditor({
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 
-	// Escape exits distraction-free mode
+	// Keyboard shortcuts for distraction-free mode
 	React.useEffect(() => {
-		if (!isDistractionFree) return;
-
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
+			// Cmd+\ (or Ctrl+\) toggles distraction-free mode
+			if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
+				e.preventDefault();
+				e.stopPropagation();
+				setIsDistractionFree((prev) => !prev);
+				return;
+			}
+			// Escape exits distraction-free mode
+			if (isDistractionFree && e.key === "Escape") {
 				e.preventDefault();
 				e.stopPropagation();
 				setIsDistractionFree(false);
@@ -513,7 +519,7 @@ export function ContentEditor({
 							type="button"
 							onClick={() => setIsDistractionFree(true)}
 							aria-label="Enter distraction-free mode"
-							title="Distraction-free mode (⌘⇧\)"
+							title="Distraction-free mode (⌘\)"
 						>
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
@@ -593,7 +599,7 @@ export function ContentEditor({
 			<div
 				className={cn(
 					"grid gap-6 lg:grid-cols-3",
-					isDistractionFree && "lg:grid-cols-1 max-w-4xl mx-auto pt-16",
+					isDistractionFree && "lg:grid-cols-1 max-w-[680px] mx-auto pt-16",
 				)}
 			>
 				{/* Editor fields */}

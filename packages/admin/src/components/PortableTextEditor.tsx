@@ -1290,6 +1290,27 @@ function EditorFooter({ editor }: { editor: Editor }) {
 	);
 }
 
+/**
+ * Minimal word count for distraction-free mode.
+ * Shows word count and reading time in the bottom-right corner.
+ */
+function MinimalWordCount({ editor }: { editor: Editor }) {
+	const { words } = useEditorState({
+		editor,
+		selector: (ctx) => ({
+			words: ctx.editor.storage.characterCount.words(),
+		}),
+	});
+
+	const readingTime = calculateReadingTime(words);
+
+	return (
+		<div className="text-right py-2 px-4 text-xs text-kumo-subtle tabular-nums">
+			{words} {words === 1 ? "word" : "words"} · {readingTime} min read
+		</div>
+	);
+}
+
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
 
@@ -1741,6 +1762,7 @@ export function PortableTextEditor({
 				{editable && <DragHandleWrapper editor={editor} />}
 			</div>
 			{!minimal && <EditorFooter editor={editor} />}
+			{minimal && <MinimalWordCount editor={editor} />}
 
 			{/* Slash command menu */}
 			<SlashCommandMenu
