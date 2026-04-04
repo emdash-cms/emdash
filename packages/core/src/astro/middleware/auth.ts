@@ -92,8 +92,7 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/dev-bypass",
 	"/_emdash/api/auth/signup/",
 	"/_emdash/api/auth/magic-link/",
-	"/_emdash/api/auth/invite/accept",
-	"/_emdash/api/auth/invite/complete",
+	"/_emdash/api/auth/invite/",
 	"/_emdash/api/auth/oauth/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
@@ -268,6 +267,10 @@ async function handleEmDashAuth(
 	const { emdash } = locals;
 
 	const isLoginRoute = url.pathname.startsWith("/_emdash/admin/login");
+	const isPublicAdminRoute =
+		isLoginRoute ||
+		url.pathname.startsWith("/_emdash/admin/invite/accept") ||
+		url.pathname.startsWith("/_emdash/admin/signup");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
 	if (!emdash?.db) {
@@ -281,7 +284,7 @@ async function handleEmDashAuth(
 	if (authMode.type === "external") {
 		// In dev mode, fall back to passkey auth since external JWT won't be present
 		if (import.meta.env.DEV) {
-			if (isLoginRoute) {
+			if (isPublicAdminRoute) {
 				return next();
 			}
 
@@ -293,7 +296,7 @@ async function handleEmDashAuth(
 	}
 
 	// Passkey authentication (default)
-	if (isLoginRoute) {
+	if (isPublicAdminRoute) {
 		return next();
 	}
 

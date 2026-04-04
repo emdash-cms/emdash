@@ -61,6 +61,18 @@ describe("Invite", () => {
 			expect("token" in result).toBe(false);
 		});
 
+		it("should preserve baseUrl path prefix in invite URL", async () => {
+			const result = await createInviteToken(
+				{ baseUrl: "https://example.com/_emdash" },
+				adapter,
+				"path@example.com",
+				Role.AUTHOR,
+				adminId,
+			);
+
+			expect(result.url).toContain("https://example.com/_emdash/admin/invite/accept");
+		});
+
 		it("should throw user_exists if email is already registered", async () => {
 			await adapter.createUser({
 				email: "existing@example.com",
