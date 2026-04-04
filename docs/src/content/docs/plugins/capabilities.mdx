@@ -1,0 +1,224 @@
+---
+title: "Capabilities"
+description: "Declared permissions that control what APIs a plugin can access."
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+EmDash plugins use a capability system to declare what they need access to. A plugin that declares `["read:content"]` gets `ctx.content` with read methods. A plugin that does not declare it gets `ctx.content` as `undefined`.
+
+Capabilities are declared in two places -- the descriptor and the sandbox entry -- and they must match. The runtime enforces these declarations: if your code tries to use an API you did not declare, it will be `undefined` or throw.
+
+```typescript title="src/index.ts (descriptor)"
+export function myPlugin(): PluginDescriptor {
+	return {
+		id: "my-plugin",
+		capabilities: ["read:content", "write:media"],
+		// ...
+	};
+}
+```
+
+```typescript title="src/sandbox-entry.ts"
+export default () =>
+	definePlugin({
+		id: "my-plugin",
+		capabilities: ["read:content", "write:media"],
+		// ...
+	});
+```
+
+## Why Capabilities?
+
+- **Least privilege.** Plugins only get what they ask for. An SEO plugin that only reads content cannot accidentally delete media.
+- **Transparency.** Users see what a plugin needs before installing it. A plugin requesting `network:fetch:any` is more scrutinized than one requesting `read:content`.
+- **Marketplace safety.** The automated security audit flags plugins that request capabilities they do not appear to use, or that request overly broad capabilities like `network:fetch:any` without justification.
+
+## Available Capabilities
+
+### `read:content`
+
+Grants read access to content entries across all collections.
+
+**Unlocks on `ctx`:**
+- `ctx.content.get(collection, id)` -- Fetch a single content entry
+- `ctx.content.list(collection, options)` -- List entries with pagination
+- `ctx.content.listCollections()` -- List all collections
+
+**When to use:** Your plugin needs to inspect or query published content. Examples: SEO validation, sitemap generation, search indexing, content analytics.
+
+```typescript
+"content:afterSave": async (event, ctx) => {
+	// ctx.content is available because we declared read:content
+	const posts = await ctx.content.list("posts", {
+		status: "published",
+		limit: 100,
+	});
+	ctx.log.info(`Site has ${posts.items.length} published posts`);
+},
+```
+
+### `write:content`
+
+Grants create, update, and delete access to content entries. Implies `read:content`.
+
+**Unlocks on `ctx`:**
+- Everything from `read:content`, plus:
+- `ctx.content.create(collection, data)` -- Create a new entry
+- `ctx.content.update(collection, id, data)` -- Update an existing entry
+- `ctx.content.delete(collection, id)` -- Delete an entry
+
+**When to use:** Your plugin creates or modifies content programmatically. Examples: content import, automated content generation, cross-posting.
+
+```typescript
+"content:afterSave": async (event, ctx) => {
+	if (event.collection === "posts" && event.isNew) {
+		await ctx.content.create("audit-entries", {
+			action: "post_created",
+			postId: event.content.id,
+			timestamp: new Date().toISOString(),
+		});
+	}
+},
+```
+
+### `read:media`
+
+Grants read access to the media library.
+
+**Unlocks on `ctx`:**
+- `ctx.media.get(id)` -- Fetch a single media item
+- `ctx.media.list(options)` -- List media with pagination and MIME type filtering
+
+**When to use:** Your plugin needs to inspect uploaded files. Examples: image optimization checks, media auditing, gallery generation.
+
+### `write:media`
+
+Grants upload and delete access to media. Implies `read:media`.
+
+**Unlocks on `ctx`:**
+- Everything from `read:media`, plus:
+- `ctx.media.upload(filename, contentType, bytes)` -- Upload a file
+- `ctx.media.getUploadUrl(filename, contentType)` -- Get a presigned upload URL
+- `ctx.media.delete(id)` -- Delete a media item
+
+**When to use:** Your plugin uploads or manages files. Examples: image optimization (re-upload optimized versions), automatic thumbnail generation, media import from external sources.
+
+### `read:users`
+
+Grants read-only access to user information (no password hashes or sessions).
+
+**Unlocks on `ctx`:**
+- `ctx.users.get(id)` -- Get a user by ID
+- `ctx.users.getByEmail(email)` -- Get a user by email
+- `ctx.users.list(options)` -- List users with optional role filtering
+
+**When to use:** Your plugin needs to know who performed an action or look up user details. Examples: audit logging with user info, content attribution, notification routing.
+
+### `email:send`
+
+Grants the ability to send emails through the configured email provider.
+
+**Unlocks on `ctx`:**
+- `ctx.email.send({ to, subject, text, html })` -- Send an email
+
+**When to use:** Your plugin sends emails to users or administrators. Examples: comment notifications, content approval workflows, scheduled digest emails.
+
+<Aside type="note">
+	`ctx.email` is only available when a site has an `email:provide` plugin installed (like an SMTP
+	or Resend provider). If no provider is configured, `ctx.email` is `undefined` even if you
+	declared the capability.
+</Aside>
+
+```typescript
+"content:afterSave": async (event, ctx) => {
+	if (!ctx.email) return; // No email provider configured
+
+	if (event.collection === "comments" && event.isNew) {
+		await ctx.email.send({
+			to: "admin@example.com",
+			subject: "New comment on your site",
+			text: `A new comment was posted on ${event.content.postTitle}.`,
+		});
+	}
+},
+```
+
+### `email:provide`
+
+Registers the plugin as an email transport provider. Only one plugin can be the active email provider at a time. Grants access to the exclusive `email:deliver` hook.
+
+**When to use:** Your plugin implements email delivery via SMTP, Resend, Postmark, SendGrid, or another transport.
+
+### `email:intercept`
+
+Grants access to `email:beforeSend` and `email:afterSend` hooks for observing or transforming outgoing emails.
+
+**When to use:** Your plugin needs to log, transform, or conditionally block outgoing emails. Examples: email analytics, template injection, compliance filtering.
+
+### `network:fetch`
+
+Grants outbound HTTP access, restricted to hosts declared in `allowedHosts`.
+
+**Unlocks on `ctx`:**
+- `ctx.http.fetch(url, init)` -- Standard Fetch API, host-restricted
+
+**When to use:** Your plugin calls specific external APIs. Examples: webhook delivery to a known endpoint, social media cross-posting, analytics reporting.
+
+```typescript title="src/index.ts"
+export function webhookPlugin(): PluginDescriptor {
+	return {
+		id: "webhooks",
+		capabilities: ["network:fetch", "read:content"],
+		allowedHosts: ["api.example.com", "hooks.slack.com"],
+		// ...
+	};
+}
+```
+
+### `network:fetch:any`
+
+Grants unrestricted outbound HTTP access. No `allowedHosts` restriction.
+
+**When to use:** Your plugin calls user-configured URLs where the host is not known at build time. Examples: generic webhook plugins where the user enters a URL, integration connectors.
+
+<Aside type="caution">
+	`network:fetch:any` is a powerful capability. The marketplace audit flags plugins that request
+	it without clear justification. Prefer `network:fetch` with `allowedHosts` when possible.
+</Aside>
+
+### `page:inject`
+
+Grants access to the `page:fragments` hook for injecting scripts, styles, and HTML into rendered pages. **Trusted plugins only.**
+
+**When to use:** Your plugin needs to add analytics scripts, third-party widgets, or custom markup to public pages. Examples: Google Analytics, cookie consent banners, chat widgets.
+
+<Aside type="caution">
+	`page:inject` output runs as first-party code in the visitor's browser. Sandboxed plugins
+	cannot use this capability. Use `page:metadata` for sandbox-safe head contributions.
+</Aside>
+
+## Capabilities are Enforced, Not Advisory
+
+The capability system is not just documentation. The runtime actively enforces it:
+
+- In **trusted mode**, the `PluginContextFactory` only attaches APIs matching declared capabilities. Undeclared APIs are `undefined` on `ctx`.
+- In **sandboxed mode** (Cloudflare Workers isolate), the sandbox proxy only forwards calls for declared capabilities. Undeclared calls throw.
+- The **marketplace audit** cross-references declared capabilities against actual code usage and flags mismatches.
+
+If your plugin tries to use `ctx.content` without declaring `read:content`, your code will fail at runtime with `TypeError: Cannot read properties of undefined`.
+
+## Choosing Capabilities
+
+Declare the minimum set your plugin needs:
+
+| Plugin type | Typical capabilities |
+| --- | --- |
+| SEO / analytics | `read:content` |
+| Audit logging | `read:content` |
+| Content importer | `write:content`, `write:media` |
+| Image optimizer | `read:media`, `write:media` |
+| Webhook sender | `read:content`, `network:fetch` |
+| Email notifications | `read:content`, `email:send` |
+| Analytics script | `page:inject` |
+| Email transport | `email:provide` |

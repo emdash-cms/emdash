@@ -1,0 +1,275 @@
+---
+title: "Building Plugins"
+description: "Create your first EmDash plugin with a descriptor, sandbox entry, hooks, and settings."
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+An EmDash plugin is a self-contained package that hooks into CMS events, stores its own data, and optionally adds admin UI. Plugins run in a sandboxed environment with only the capabilities they declare.
+
+Every plugin has two parts:
+
+1. **Descriptor** (`index.ts`) -- A factory function that returns a `PluginDescriptor`. This runs at build time in Vite and tells EmDash the plugin's ID, version, capabilities, and where to find its runtime code. No side effects allowed.
+2. **Sandbox entry** (`sandbox-entry.ts`) -- A function that calls `definePlugin()` with hooks, routes, and runtime logic. This runs on the server at request time, inside a capability-gated context.
+
+These two parts **must be separate files** because they run in completely different environments.
+
+## Scaffold a New Plugin
+
+Use the create command to generate a plugin skeleton:
+
+```bash
+npm create emdash-plugin my-plugin
+```
+
+This produces:
+
+```
+my-plugin/
+├── src/
+│   ├── index.ts             # Descriptor (build time)
+│   └── sandbox-entry.ts     # Runtime logic (server)
+├── package.json
+└── tsconfig.json
+```
+
+## The Descriptor
+
+The descriptor is the plugin's "business card." It tells EmDash what the plugin needs without executing any runtime logic.
+
+Here is the SEO plugin's descriptor as a real example:
+
+```typescript title="src/index.ts"
+import type { PluginDescriptor } from "emdash";
+
+export function seoPlugin(): PluginDescriptor {
+	return {
+		id: "seo",
+		version: "0.1.0",
+		format: "standard",
+		entrypoint: "@emdash-cms/plugin-seo/sandbox",
+		capabilities: ["read:content"],
+		replaces: ["yoast-seo", "rank-math-seo", "all-in-one-seo-pack"],
+		storage: {
+			settings: {},
+		},
+		settings: {
+			robotsTxt: {
+				type: "text",
+				label: "robots.txt",
+				description: "Custom robots.txt content. Leave empty for default.",
+				default: "",
+			},
+			sitemapEnabled: {
+				type: "boolean",
+				label: "Enable sitemap.xml",
+				description: "Automatically generate a sitemap from published content.",
+				default: true,
+			},
+		},
+		adminPages: [{ path: "/overview", label: "SEO Overview", icon: "search" }],
+		routes: [
+			{ method: "GET", path: "/sitemap.xml", handler: "handleSitemap" },
+			{ method: "GET", path: "/robots.txt", handler: "handleRobots" },
+		],
+	};
+}
+
+export default seoPlugin;
+```
+
+Key fields:
+
+| Field | Purpose |
+| --- | --- |
+| `id` | Unique plugin identifier. Lowercase, hyphens allowed. |
+| `version` | Semver version string. |
+| `format` | `"standard"` for sandboxable plugins (recommended). `"native"` for trusted-only. |
+| `entrypoint` | Module specifier for the sandbox entry (e.g., `"@my-org/my-plugin/sandbox"`). |
+| `capabilities` | What APIs the plugin needs. See [Capabilities](/plugins/capabilities/). |
+| `replaces` | WordPress plugin slugs this replaces (for migration). |
+| `storage` | Declared storage collections with optional indexes. |
+| `settings` | Settings schema -- generates admin UI automatically. |
+| `adminPages` | Custom pages in the admin panel. |
+| `routes` | HTTP endpoints the plugin serves. |
+
+<Aside type="note">
+	The `format: "standard"` field is important. Standard-format plugins can run both in-process and
+	in a sandboxed V8 isolate on Cloudflare. Native-format plugins can only run in-process and
+	cannot be published to the marketplace.
+</Aside>
+
+## The Sandbox Entry
+
+The sandbox entry contains your runtime logic -- hooks that respond to events, routes that serve HTTP requests, and any business logic in between.
+
+Here is the SEO plugin's sandbox entry:
+
+```typescript title="src/sandbox-entry.ts"
+import { definePlugin } from "emdash";
+
+export default () =>
+	definePlugin({
+		id: "seo",
+		capabilities: ["read:content"],
+		hooks: {
+			"content:afterSave": async (event, _ctx) => {
+				const { data } = event.content;
+				const seo = data.seo as
+					| { title?: string; description?: string; ogImage?: string }
+					| undefined;
+
+				if (!seo) return;
+
+				const warnings: string[] = [];
+
+				if (seo.title && seo.title.length > 60) {
+					warnings.push(
+						`SEO title is ${seo.title.length} chars (recommended: under 60)`,
+					);
+				}
+
+				if (seo.description && seo.description.length > 160) {
+					warnings.push(
+						`SEO description is ${seo.description.length} chars (recommended: under 160)`,
+					);
+				}
+
+				if (!seo.ogImage) {
+					warnings.push(
+						"No Open Graph image set. Social shares will use a default image.",
+					);
+				}
+
+				if (warnings.length > 0) {
+					console.log(
+						`[seo] Warnings for "${data.title || "Untitled"}":`,
+						warnings,
+					);
+				}
+			},
+		},
+		routes: {
+			handleSitemap: async (_req, ctx) => {
+				const settings = await ctx.storage.get("settings", "config");
+				const enabled = settings?.sitemapEnabled !== false;
+
+				if (!enabled) {
+					return new Response("Sitemap generation is disabled", { status: 404 });
+				}
+
+				const collections = await ctx.content.listCollections();
+				// ... build sitemap XML from published content
+			},
+
+			handleRobots: async (_req, ctx) => {
+				const settings = await ctx.storage.get("settings", "config");
+				const custom = settings?.robotsTxt;
+
+				const content =
+					custom ||
+					["User-agent: *", "Allow: /", "", "Sitemap: /sitemap.xml"].join(
+						"\n",
+					);
+
+				return new Response(content, {
+					headers: { "Content-Type": "text/plain" },
+				});
+			},
+		},
+	});
+```
+
+The `definePlugin()` call receives a `PluginContext` (`ctx`) in every hook and route handler. What is available on `ctx` depends on the capabilities you declared:
+
+- `ctx.log` -- Always available. Structured logging.
+- `ctx.kv` -- Always available. Key-value store for config and state.
+- `ctx.storage` -- Available if you declared `storage` collections.
+- `ctx.content` -- Available with `read:content` or `write:content`.
+- `ctx.media` -- Available with `read:media` or `write:media`.
+- `ctx.http` -- Available with `network:fetch`.
+- `ctx.email` -- Available with `email:send`.
+- `ctx.users` -- Available with `read:users`.
+- `ctx.site` -- Always available. Site name, URL, locale.
+
+## Adding to Your Site
+
+Register your plugin in the site's Astro config:
+
+```typescript title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash";
+import { seoPlugin } from "@emdash-cms/plugin-seo";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			plugins: [seoPlugin()],
+		}),
+	],
+});
+```
+
+For local development with a workspace plugin:
+
+```typescript title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash";
+import { myPlugin } from "../packages/plugins/my-plugin/src/index.ts";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			plugins: [myPlugin()],
+		}),
+	],
+});
+```
+
+<Aside type="tip">
+	Plugins in the `plugins` array run in-process (trusted mode). To run a plugin in a sandboxed
+	V8 isolate on Cloudflare, use the `sandboxed` array instead. Standard-format plugins work in
+	both.
+</Aside>
+
+## Package Exports
+
+Configure `package.json` so EmDash can resolve each entrypoint:
+
+```json title="package.json"
+{
+	"name": "@my-org/plugin-example",
+	"version": "1.0.0",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./sandbox": {
+			"types": "./dist/sandbox-entry.d.ts",
+			"import": "./dist/sandbox-entry.js"
+		},
+		"./admin": {
+			"types": "./dist/admin.d.ts",
+			"import": "./dist/admin.js"
+		}
+	},
+	"peerDependencies": {
+		"emdash": "^0.1.0"
+	}
+}
+```
+
+| Export | Runs in | Purpose |
+| --- | --- | --- |
+| `"."` | Vite (build time) | Descriptor factory -- imported in `astro.config.mjs` |
+| `"./sandbox"` | Server (request time) | Runtime logic -- hooks, routes, business logic |
+| `"./admin"` | Browser | React components for admin pages and widgets |
+
+## Next Steps
+
+- [Plugin Hooks](/plugins/hooks/) -- All available hooks with event data and examples
+- [Capabilities](/plugins/capabilities/) -- What each capability grants
+- [Plugin Storage](/plugins/storage/) -- Persist data in indexed collections
+- [Publishing to Marketplace](/plugins/publishing/) -- Bundle and distribute your plugin

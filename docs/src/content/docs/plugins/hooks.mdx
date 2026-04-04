@@ -1,327 +1,238 @@
 ---
-title: Plugin Hooks
-description: Hook into content, media, and plugin lifecycle events.
+title: "Plugin Hooks"
+description: "All available plugin hooks with event data, return types, and real examples."
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Hooks let plugins run code in response to events. All hooks receive an event object and the plugin context. Hooks are declared at plugin definition time, not registered dynamically at runtime.
-
-## Hook Signature
-
-Every hook handler receives two arguments:
+Hooks let plugins run code in response to CMS events. Every hook handler receives two arguments: an event object and the plugin context (`ctx`). Hooks are declared at definition time inside `definePlugin()`, not registered dynamically.
 
 ```typescript
-async (event: EventType, ctx: PluginContext) => ReturnType;
+hooks: {
+	"content:afterSave": async (event, ctx) => {
+		ctx.log.info(`Saved ${event.collection}/${event.content.id}`);
+	},
+}
 ```
-
-- `event` — Data about the event (content being saved, media uploaded, etc.)
-- `ctx` — The [plugin context](/plugins/overview/#plugin-context) with storage, KV, logging, and capability-gated APIs
 
 ## Hook Configuration
 
-Hooks can be declared as a simple handler or with full configuration:
+Hooks can be a bare function or a config object with priority, timeout, and error handling:
 
 <Tabs>
-  <TabItem label="Simple">
+	<TabItem label="Simple">
 ```typescript
 hooks: {
-  "content:afterSave": async (event, ctx) => {
-    ctx.log.info("Content saved");
-  }
+	"content:afterSave": async (event, ctx) => {
+		ctx.log.info("Content saved");
+	},
 }
 ```
-  </TabItem>
-  <TabItem label="Full Config">
+	</TabItem>
+	<TabItem label="With Options">
 ```typescript
 hooks: {
-  "content:afterSave": {
-    priority: 100,
-    timeout: 5000,
-    dependencies: ["audit-log"],
-    errorPolicy: "continue",
-    handler: async (event, ctx) => {
-      ctx.log.info("Content saved");
-    }
-  }
+	"content:afterSave": {
+		priority: 200,
+		timeout: 10000,
+		errorPolicy: "continue",
+		handler: async (event, ctx) => {
+			ctx.log.info("Content saved");
+		},
+	},
 }
 ```
-  </TabItem>
+	</TabItem>
 </Tabs>
 
-### Configuration Options
-
-| Option         | Type                    | Default   | Description                                |
-| -------------- | ----------------------- | --------- | ------------------------------------------ |
-| `priority`     | `number`                | `100`     | Execution order. Lower numbers run first.  |
-| `timeout`      | `number`                | `5000`    | Maximum execution time in milliseconds.    |
-| `dependencies` | `string[]`              | `[]`      | Plugin IDs that must run before this hook. |
-| `errorPolicy`  | `"abort" \| "continue"` | `"abort"` | Whether to stop the pipeline on error.     |
-| `handler`      | `function`              | —         | The hook handler function. Required.       |
-
-<Aside type="tip">
-	Use `errorPolicy: "continue"` for non-critical hooks like notifications. Use `"abort"` (the
-	default) when the hook's result is essential.
-</Aside>
-
-## Lifecycle Hooks
-
-Lifecycle hooks run during plugin installation, activation, and deactivation.
-
-### `plugin:install`
-
-Runs once when the plugin is first added to a site.
-
-```typescript
-"plugin:install": async (_event, ctx) => {
-  ctx.log.info("Installing plugin...");
-
-  // Seed default data
-  await ctx.kv.set("settings:enabled", true);
-  await ctx.storage.items!.put("default", { name: "Default Item" });
-}
-```
-
-**Event:** `{}`  
-**Returns:** `Promise<void>`
-
-### `plugin:activate`
-
-Runs when the plugin is enabled (after install or when re-enabled).
-
-```typescript
-"plugin:activate": async (_event, ctx) => {
-  ctx.log.info("Plugin activated");
-}
-```
-
-**Event:** `{}`  
-**Returns:** `Promise<void>`
-
-### `plugin:deactivate`
-
-Runs when the plugin is disabled (but not removed).
-
-```typescript
-"plugin:deactivate": async (_event, ctx) => {
-  ctx.log.info("Plugin deactivated");
-  // Release resources, pause background work
-}
-```
-
-**Event:** `{}`  
-**Returns:** `Promise<void>`
-
-### `plugin:uninstall`
-
-Runs when the plugin is removed from a site.
-
-```typescript
-"plugin:uninstall": async (event, ctx) => {
-  ctx.log.info("Uninstalling plugin...");
-
-  if (event.deleteData) {
-    // User opted to delete plugin data
-    const result = await ctx.storage.items!.query({ limit: 1000 });
-    await ctx.storage.items!.deleteMany(result.items.map(i => i.id));
-  }
-}
-```
-
-**Event:** `{ deleteData: boolean }`  
-**Returns:** `Promise<void>`
-
-<Aside type="caution">
-	Be conservative in `plugin:uninstall`. Default to preserving data—users may reinstall. Only delete
-	when `event.deleteData` is `true`.
-</Aside>
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `priority` | `number` | `100` | Execution order. Lower numbers run first. |
+| `timeout` | `number` | `5000` | Max execution time in milliseconds. |
+| `dependencies` | `string[]` | `[]` | Plugin IDs that must run before this hook. |
+| `errorPolicy` | `"abort" \| "continue"` | `"abort"` | Whether to stop the hook pipeline on error. |
 
 ## Content Hooks
 
-Content hooks run during create, update, and delete operations.
-
 ### `content:beforeSave`
 
-Runs before content is saved. Return modified content or `void` to keep it unchanged. Throw to cancel the save.
+Fires before content is written to the database. Return modified content to transform it, or throw to cancel the save.
+
+**Event data:**
+
+```typescript
+{
+	content: Record<string, unknown>;  // The content being saved
+	collection: string;                // Collection slug (e.g., "posts")
+	isNew: boolean;                    // true = create, false = update
+}
+```
+
+**Returns:** `Record<string, unknown> | void`
+
+**Example -- slug normalization:**
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-  const { content, collection, isNew } = event;
+	const { content, collection, isNew } = event;
 
-  // Validate
-  if (collection === "posts" && !content.title) {
-    throw new Error("Posts require a title");
-  }
+	if (content.slug) {
+		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
+	}
 
-  // Transform
-  if (content.slug) {
-    content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
-  }
-
-  return content;
-}
+	return content;
+},
 ```
-
-**Event:**
-
-```typescript
-{
-	content: Record<string, unknown>; // Content data being saved
-	collection: string; // Collection name
-	isNew: boolean; // True if creating, false if updating
-}
-```
-
-**Returns:** `Promise<Record<string, unknown> | void>`
 
 ### `content:afterSave`
 
-Runs after content is successfully saved. Use for side effects like notifications, logging, or syncing to external systems.
+Fires after content is successfully saved. Use for side effects: logging, notifications, external syncs, validation warnings. Cannot modify the saved content.
 
-```typescript
-"content:afterSave": async (event, ctx) => {
-  const { content, collection, isNew } = event;
-
-  ctx.log.info(`${isNew ? "Created" : "Updated"} ${collection}/${content.id}`);
-
-  // Trigger external sync
-  if (ctx.http) {
-    await ctx.http.fetch("https://api.example.com/webhook", {
-      method: "POST",
-      body: JSON.stringify({ event: "content:save", id: content.id })
-    });
-  }
-}
-```
-
-**Event:**
+**Event data:**
 
 ```typescript
 {
-	content: Record<string, unknown>; // Saved content (includes id, timestamps)
+	content: Record<string, unknown>;  // The saved content (includes id, timestamps)
 	collection: string;
 	isNew: boolean;
 }
 ```
 
-**Returns:** `Promise<void>`
+**Returns:** `void`
 
-### `content:beforeDelete`
-
-Runs before content is deleted. Return `false` to cancel the deletion, `true` or `void` to allow it.
+**Real example -- the SEO plugin validates meta tags after every save:**
 
 ```typescript
-"content:beforeDelete": async (event, ctx) => {
-  const { id, collection } = event;
+"content:afterSave": async (event, _ctx) => {
+	const { data } = event.content;
+	const seo = data.seo as
+		| { title?: string; description?: string; ogImage?: string }
+		| undefined;
 
-  // Prevent deletion of protected content
-  if (collection === "pages" && id === "home") {
-    ctx.log.warn("Cannot delete home page");
-    return false;
-  }
+	if (!seo) return;
 
-  return true;
-}
+	const warnings: string[] = [];
+
+	// Google truncates titles at ~60 characters
+	if (seo.title && seo.title.length > 60) {
+		warnings.push(
+			`SEO title is ${seo.title.length} chars (recommended: under 60)`,
+		);
+	}
+
+	// Google truncates descriptions at ~160 characters
+	if (seo.description && seo.description.length > 160) {
+		warnings.push(
+			`SEO description is ${seo.description.length} chars (recommended: under 160)`,
+		);
+	}
+
+	if (!seo.ogImage) {
+		warnings.push("No Open Graph image set. Social shares will use a default image.");
+	}
+
+	if (warnings.length > 0) {
+		console.log(`[seo] Warnings for "${data.title || "Untitled"}":`, warnings);
+	}
+},
 ```
 
-**Event:**
+**Real example -- the audit-log plugin records every content change:**
 
 ```typescript
-{
-	id: string; // Content ID being deleted
-	collection: string;
-}
-```
+"content:afterSave": {
+	priority: 200, // Run after other plugins
+	timeout: 2000,
+	handler: async (event, ctx) => {
+		const { content, collection, isNew } = event;
 
-**Returns:** `Promise<boolean | void>`
+		const entry = {
+			timestamp: new Date().toISOString(),
+			action: isNew ? "create" : "update",
+			collection,
+			resourceId: content.id as string,
+		};
+
+		const entryId = `${Date.now()}-${content.id}`;
+		await ctx.storage.entries!.put(entryId, entry);
+
+		ctx.log.info(`Logged ${entry.action} on ${collection}/${content.id}`);
+	},
+},
+```
 
 ### `content:afterDelete`
 
-Runs after content is successfully deleted.
+Fires after content is permanently deleted. Use for cleanup: removing related plugin data, notifying external systems, audit logging.
 
-```typescript
-"content:afterDelete": async (event, ctx) => {
-  const { id, collection } = event;
-
-  ctx.log.info(`Deleted ${collection}/${id}`);
-
-  // Clean up related plugin data
-  await ctx.storage.cache!.delete(`${collection}:${id}`);
-}
-```
-
-**Event:**
+**Event data:**
 
 ```typescript
 {
-	id: string;
-	collection: string;
+	id: string;           // ID of the deleted content
+	collection: string;   // Collection slug
 }
 ```
 
-**Returns:** `Promise<void>`
+**Returns:** `void`
+
+**Example -- clean up plugin data after deletion:**
+
+```typescript
+"content:afterDelete": async (event, ctx) => {
+	const { id, collection } = event;
+
+	// Remove cached data for this content
+	await ctx.storage.cache!.delete(`${collection}:${id}`);
+
+	ctx.log.info(`Cleaned up data for deleted ${collection}/${id}`);
+},
+```
 
 ## Media Hooks
 
-Media hooks run during file uploads.
-
 ### `media:beforeUpload`
 
-Runs before a file is uploaded. Return modified file info or `void` to keep it unchanged. Throw to cancel the upload.
+Fires before a file is uploaded. Return modified file info to rename or reclassify, or throw to reject the upload.
 
-```typescript
-"media:beforeUpload": async (event, ctx) => {
-  const { file } = event;
-
-  // Validate file type
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Only images are allowed");
-  }
-
-  // Validate file size (10MB max)
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error("File too large");
-  }
-
-  // Rename file
-  return {
-    ...file,
-    name: `${Date.now()}-${file.name}`
-  };
-}
-```
-
-**Event:**
+**Event data:**
 
 ```typescript
 {
 	file: {
-		name: string; // Original filename
-		type: string; // MIME type
-		size: number; // Size in bytes
+		name: string;    // Original filename
+		type: string;    // MIME type (e.g., "image/png")
+		size: number;    // Size in bytes
 	}
 }
 ```
 
-**Returns:** `Promise<{ name: string; type: string; size: number } | void>`
+**Returns:** `{ name: string; type: string; size: number } | void`
+
+**Example -- enforce image-only uploads with a 10MB limit:**
+
+```typescript
+"media:beforeUpload": async (event, ctx) => {
+	const { file } = event;
+
+	if (!file.type.startsWith("image/")) {
+		throw new Error("Only images are allowed");
+	}
+
+	if (file.size > 10 * 1024 * 1024) {
+		throw new Error("File too large (max 10MB)");
+	}
+
+	// Prefix filename with timestamp
+	return { ...file, name: `${Date.now()}-${file.name}` };
+},
+```
 
 ### `media:afterUpload`
 
-Runs after a file is successfully uploaded.
+Fires after a file is successfully uploaded and stored.
 
-```typescript
-"media:afterUpload": async (event, ctx) => {
-  const { media } = event;
-
-  ctx.log.info(`Uploaded ${media.filename}`, {
-    id: media.id,
-    size: media.size,
-    mimeType: media.mimeType
-  });
-}
-```
-
-**Event:**
+**Event data:**
 
 ```typescript
 {
@@ -336,175 +247,173 @@ Runs after a file is successfully uploaded.
 }
 ```
 
-**Returns:** `Promise<void>`
+**Returns:** `void`
 
-## Hook Execution Order
-
-Hooks run in this order:
-
-1. Hooks with lower `priority` values run first
-2. For equal priorities, hooks run in plugin registration order
-3. Hooks with `dependencies` wait for those plugins to complete
+**Example -- log upload details:**
 
 ```typescript
-// Plugin A
-"content:afterSave": {
-  priority: 50,  // Runs first
-  handler: async () => {}
-}
+"media:afterUpload": async (event, ctx) => {
+	const { media } = event;
 
-// Plugin B
-"content:afterSave": {
-  priority: 100,  // Runs second (default priority)
-  handler: async () => {}
-}
+	ctx.log.info(`Uploaded ${media.filename}`, {
+		id: media.id,
+		size: media.size,
+		mimeType: media.mimeType,
+	});
+},
+```
 
-// Plugin C
-"content:afterSave": {
-  priority: 200,
-  dependencies: ["plugin-a"],  // Runs after A, even if priority was lower
-  handler: async () => {}
+### `media:afterDelete`
+
+Fires after a media item is deleted from storage.
+
+**Event data:**
+
+```typescript
+{
+	id: string;           // ID of the deleted media item
+	filename: string;
 }
 ```
 
-## Error Handling
+**Returns:** `void`
 
-When a hook throws or times out:
-
-- **`errorPolicy: "abort"`** — The entire pipeline stops. The original operation may fail.
-- **`errorPolicy: "continue"`** — The error is logged, and remaining hooks still run.
+**Example:**
 
 ```typescript
-"content:afterSave": {
-  timeout: 5000,
-  errorPolicy: "continue",  // Don't fail the save if this hook fails
-  handler: async (event, ctx) => {
-    // External API call that might fail
-    await ctx.http!.fetch("https://unreliable-api.com/notify");
-  }
-}
+"media:afterDelete": async (event, ctx) => {
+	ctx.log.info(`Deleted media ${event.filename} (${event.id})`);
+},
 ```
 
-<Aside type="tip">
-	Use `errorPolicy: "continue"` for non-critical operations like analytics, notifications, or
-	external syncs. The content save succeeds even if the hook fails.
-</Aside>
+## Lifecycle Hooks
 
-## Timeouts
+These hooks run during plugin installation and state changes.
 
-Hooks have a default timeout of 5000ms (5 seconds). Increase it for operations that may take longer:
+### `plugin:install`
+
+Fires once when the plugin is first added to a site. Seed default data here.
 
 ```typescript
-"content:afterSave": {
-  timeout: 30000,  // 30 seconds
-  handler: async (event, ctx) => {
-    // Long-running operation
-  }
-}
+"plugin:install": async (_event, ctx) => {
+	await ctx.kv.set("settings:enabled", true);
+	ctx.log.info("Plugin installed with default settings");
+},
+```
+
+### `plugin:activate` / `plugin:deactivate`
+
+Fire when the plugin is enabled or disabled from the admin panel.
+
+```typescript
+"plugin:activate": async (_event, ctx) => {
+	ctx.log.info("Plugin activated");
+},
+"plugin:deactivate": async (_event, ctx) => {
+	ctx.log.info("Plugin deactivated — pausing background work");
+},
+```
+
+### `plugin:uninstall`
+
+Fires when the plugin is removed. The event includes `deleteData: boolean` indicating whether the user chose to wipe plugin data.
+
+```typescript
+"plugin:uninstall": async (event, ctx) => {
+	if (event.deleteData) {
+		const result = await ctx.storage.entries!.query({ limit: 1000 });
+		await ctx.storage.entries!.deleteMany(result.items.map((i) => i.id));
+		ctx.log.info("Plugin data deleted");
+	}
+},
 ```
 
 <Aside type="caution">
-	In sandboxed mode on Cloudflare, resource limits are enforced at the isolate level. Long-running
-	hooks may be terminated regardless of the configured timeout.
+	Default to preserving data in `plugin:uninstall`. Users may reinstall. Only delete when
+	`event.deleteData` is `true`.
 </Aside>
 
 ## Public Page Hooks
 
-Public page hooks let plugins contribute to the `<head>` and `<body>` of rendered pages. Templates opt in using the `<EmDashHead>`, `<EmDashBodyStart>`, and `<EmDashBodyEnd>` components from `emdash/ui`.
-
 ### `page:metadata`
 
-Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, canonical/alternate links, and JSON-LD structured data. Works in both trusted and sandboxed modes.
-
-Core validates, deduplicates, and renders the contributions. Plugins return structured data, never raw HTML.
+Contributes structured metadata to rendered pages -- meta tags, Open Graph properties, canonical links, and JSON-LD. Works in both trusted and sandboxed modes.
 
 ```typescript
 "page:metadata": async (event, ctx) => {
-  if (event.page.kind !== "content") return null;
+	if (event.page.kind !== "content") return null;
 
-  return {
-    kind: "jsonld",
-    id: `schema:${event.page.content?.collection}:${event.page.content?.id}`,
-    graph: {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      headline: event.page.title,
-      description: event.page.description,
-    },
-  };
-}
+	return {
+		kind: "jsonld",
+		graph: {
+			"@context": "https://schema.org",
+			"@type": "BlogPosting",
+			headline: event.page.title,
+			description: event.page.description,
+		},
+	};
+},
 ```
-
-**Event:**
-
-```typescript
-{
-  page: {
-    url: string;
-    path: string;
-    locale: string | null;
-    kind: "content" | "custom";
-    pageType: string;
-    title: string | null;
-    description: string | null;
-    canonical: string | null;
-    image: string | null;
-    content?: { collection: string; id: string; slug: string | null };
-  }
-}
-```
-
-**Returns:** `PageMetadataContribution | PageMetadataContribution[] | null`
-
-**Contribution types:**
-
-| Kind       | Renders                                            | Dedupe key              |
-| ---------- | -------------------------------------------------- | ----------------------- |
-| `meta`     | `<meta name="..." content="...">`                  | `key` or `name`         |
-| `property` | `<meta property="..." content="...">`              | `key` or `property`     |
-| `link`     | `<link rel="canonical\|alternate" href="...">`     | canonical: singleton; alternate: `key` or `hreflang` |
-| `jsonld`   | `<script type="application/ld+json">`              | `id` (if present)       |
-
-First contribution wins for any dedupe key. Link hrefs must be HTTP or HTTPS.
 
 ### `page:fragments`
 
-Contributes raw HTML, scripts, or markup to page insertion points. **Trusted plugins only** — sandboxed plugins cannot use this hook.
+Injects raw HTML, scripts, or styles into page insertion points. **Trusted plugins only** -- sandboxed plugins cannot use this hook.
 
 ```typescript
 "page:fragments": async (event, ctx) => {
-  return {
-    kind: "external-script",
-    placement: "head",
-    src: "https://www.googletagmanager.com/gtm.js?id=GTM-XXXXX",
-    async: true,
-  };
-}
+	return {
+		kind: "external-script",
+		placement: "head",
+		src: "https://www.googletagmanager.com/gtm.js?id=GTM-XXXXX",
+		async: true,
+	};
+},
 ```
 
-**Returns:** `PageFragmentContribution | PageFragmentContribution[] | null`
-
-Placements: `"head"`, `"body:start"`, `"body:end"`. Templates that omit a component for a placement silently ignore contributions targeting it.
+Placements: `"head"`, `"body:start"`, `"body:end"`.
 
 <Aside type="caution">
-	`page:fragments` is trusted-only because its output runs as first-party code in the browser.
-	Worker Loader isolation does not extend to browser-executed scripts. Use `page:metadata` for
-	sandbox-safe contributions.
+	`page:fragments` output runs as first-party code in the browser. Sandbox isolation does not
+	extend to browser-executed scripts. Use `page:metadata` for sandbox-safe contributions.
 </Aside>
 
-## Hooks Reference
+## Hook Execution Order
 
-| Hook                   | Trigger                   | Return                        |
-| ---------------------- | ------------------------- | ----------------------------- |
-| `plugin:install`       | First plugin installation | `void`                        |
-| `plugin:activate`      | Plugin enabled            | `void`                        |
-| `plugin:deactivate`    | Plugin disabled           | `void`                        |
-| `plugin:uninstall`     | Plugin removed            | `void`                        |
-| `content:beforeSave`   | Before content save       | Modified content or `void`    |
-| `content:afterSave`    | After content save        | `void`                        |
-| `content:beforeDelete` | Before content delete     | `false` to cancel, else allow |
-| `content:afterDelete`  | After content delete      | `void`                        |
-| `media:beforeUpload`   | Before file upload        | Modified file info or `void`  |
-| `media:afterUpload`    | After file upload         | `void`                        |
-| `page:metadata`        | Page render               | Contributions or `null`       |
-| `page:fragments`       | Page render (trusted)     | Contributions or `null`       |
+1. Hooks with lower `priority` values run first (default is `100`).
+2. Hooks with equal priority run in plugin registration order.
+3. Hooks with `dependencies` wait for those plugins to complete first.
+
+```typescript
+// Plugin A: priority 50 -- runs first
+"content:afterSave": { priority: 50, handler: async () => {} }
+
+// Plugin B: default priority 100 -- runs second
+"content:afterSave": async () => {}
+
+// Plugin C: depends on A -- waits for A regardless of priority
+"content:afterSave": { dependencies: ["plugin-a"], handler: async () => {} }
+```
+
+## Error Handling
+
+- **`errorPolicy: "abort"`** (default) -- Pipeline stops, original operation may fail.
+- **`errorPolicy: "continue"`** -- Error is logged, remaining hooks still run.
+
+Use `"continue"` for non-critical work like analytics, notifications, or external syncs where failure should not block the user's action.
+
+## Quick Reference
+
+| Hook | Fires when | Event data | Can modify? |
+| --- | --- | --- | --- |
+| `content:beforeSave` | Before content write | `{ content, collection, isNew }` | Return modified content |
+| `content:afterSave` | After content write | `{ content, collection, isNew }` | No |
+| `content:afterDelete` | After content delete | `{ id, collection }` | No |
+| `media:beforeUpload` | Before file upload | `{ file: { name, type, size } }` | Return modified file info |
+| `media:afterUpload` | After file upload | `{ media: { id, filename, ... } }` | No |
+| `media:afterDelete` | After media delete | `{ id, filename }` | No |
+| `plugin:install` | First installation | `{}` | No |
+| `plugin:activate` | Plugin enabled | `{}` | No |
+| `plugin:deactivate` | Plugin disabled | `{}` | No |
+| `plugin:uninstall` | Plugin removed | `{ deleteData }` | No |
+| `page:metadata` | Page render | `{ page }` | Return contributions |
+| `page:fragments` | Page render (trusted) | `{ page }` | Return contributions |
