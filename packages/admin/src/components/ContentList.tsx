@@ -8,6 +8,8 @@ import {
 	MagnifyingGlass,
 	CaretLeft,
 	CaretRight,
+	CaretUp,
+	CaretDown,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -24,6 +26,7 @@ export interface ContentListProps {
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
 	onDelete?: (id: string) => void;
+	onPublish?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
@@ -58,6 +61,9 @@ function getItemTitle(item: { data: Record<string, unknown>; slug: string | null
 /**
  * Content list view with table display and trash tab
  */
+type SortField = "title" | "status" | "date";
+type SortDir = "asc" | "desc";
+
 export function ContentList({
 	collection,
 	collectionLabel,
@@ -66,6 +72,7 @@ export function ContentList({
 	isLoading,
 	isTrashedLoading,
 	onDelete,
+	onPublish,
 	onDuplicate,
 	onRestore,
 	onPermanentDelete,
@@ -81,6 +88,11 @@ export function ContentList({
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+	const [sortField, setSortField] = React.useState<SortField>("date");
+	const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+	const [focusedIndex, setFocusedIndex] = React.useState(-1);
+	const tableRef = React.useRef<HTMLTableElement>(null);
 
 	// Reset page when search changes
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,14 +100,118 @@ export function ContentList({
 		setPage(0);
 	};
 
+	const handleSort = (field: SortField) => {
+		if (sortField === field) {
+			setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+		} else {
+			setSortField(field);
+			setSortDir(field === "title" ? "asc" : "desc");
+		}
+		setPage(0);
+	};
+
+	const toggleSelection = (id: string) => {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) {
+				next.delete(id);
+			} else {
+				next.add(id);
+			}
+			return next;
+		});
+	};
+
 	const filteredItems = React.useMemo(() => {
-		if (!searchQuery) return items;
-		const query = searchQuery.toLowerCase();
-		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
+		let result = items;
+		if (searchQuery) {
+			const query = searchQuery.toLowerCase();
+			result = result.filter((item) => getItemTitle(item).toLowerCase().includes(query));
+		}
+		return result;
 	}, [items, searchQuery]);
 
-	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+	const sortedItems = React.useMemo(() => {
+		const sorted = [...filteredItems];
+		sorted.sort((a, b) => {
+			let cmp = 0;
+			switch (sortField) {
+				case "title":
+					cmp = getItemTitle(a).localeCompare(getItemTitle(b));
+					break;
+				case "status":
+					cmp = a.status.localeCompare(b.status);
+					break;
+				case "date": {
+					const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+					const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+					cmp = dateA - dateB;
+					break;
+				}
+			}
+			return sortDir === "asc" ? cmp : -cmp;
+		});
+		return sorted;
+	}, [filteredItems, sortField, sortDir]);
+
+	const totalPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_SIZE));
+	const paginatedItems = sortedItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+	const allPageSelected =
+		paginatedItems.length > 0 && paginatedItems.every((item) => selectedIds.has(item.id));
+
+	const toggleSelectAll = () => {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (allPageSelected) {
+				for (const item of paginatedItems) {
+					next.delete(item.id);
+				}
+			} else {
+				for (const item of paginatedItems) {
+					next.add(item.id);
+				}
+			}
+			return next;
+		});
+	};
+
+	// Keyboard navigation for the table
+	React.useEffect(() => {
+		const table = tableRef.current;
+		if (!table) return;
+
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (activeTab !== "all" || paginatedItems.length === 0) return;
+			// Don't intercept when focused on an input
+			if (
+				e.target instanceof HTMLInputElement ||
+				e.target instanceof HTMLTextAreaElement ||
+				e.target instanceof HTMLSelectElement
+			)
+				return;
+
+			switch (e.key) {
+				case "ArrowDown":
+					e.preventDefault();
+					setFocusedIndex((prev) => Math.min(prev + 1, paginatedItems.length - 1));
+					break;
+				case "ArrowUp":
+					e.preventDefault();
+					setFocusedIndex((prev) => Math.max(prev - 1, 0));
+					break;
+				case "x":
+					if (focusedIndex >= 0 && focusedIndex < paginatedItems.length) {
+						const item = paginatedItems[focusedIndex];
+						if (item) toggleSelection(item.id);
+					}
+					break;
+			}
+		};
+
+		table.addEventListener("keydown", handleKeyDown);
+		return () => table.removeEventListener("keydown", handleKeyDown);
+	}, [activeTab, paginatedItems, focusedIndex]);
 
 	return (
 		<div className="space-y-4">
@@ -159,25 +275,84 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
+					{/* Bulk actions bar */}
+					{selectedIds.size > 0 && (
+						<div className="flex items-center gap-3 rounded-lg border bg-kumo-brand/10 px-4 py-2">
+							<span className="text-sm font-medium">{selectedIds.size} selected</span>
+							{onPublish && (
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={() => {
+										for (const id of selectedIds) {
+											onPublish(id);
+										}
+										setSelectedIds(new Set());
+									}}
+								>
+									Publish
+								</Button>
+							)}
+							{onDelete && (
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={() => {
+										for (const id of selectedIds) {
+											onDelete(id);
+										}
+										setSelectedIds(new Set());
+									}}
+								>
+									Delete
+								</Button>
+							)}
+							<Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+								Clear selection
+							</Button>
+						</div>
+					)}
+
 					{/* Table */}
 					<div className="rounded-md border overflow-x-auto">
-						<table className="w-full">
+						<table ref={tableRef} className="w-full" tabIndex={0}>
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Title
+									<th scope="col" className="w-10 px-4 py-3">
+										<input
+											type="checkbox"
+											checked={allPageSelected}
+											onChange={toggleSelectAll}
+											aria-label="Select all"
+											className="h-4 w-4 rounded border-kumo-border"
+										/>
 									</th>
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Status
-									</th>
+									<SortableHeader
+										label="Title"
+										field="title"
+										sortField={sortField}
+										sortDir={sortDir}
+										onSort={handleSort}
+									/>
+									<SortableHeader
+										label="Status"
+										field="status"
+										sortField={sortField}
+										sortDir={sortDir}
+										onSort={handleSort}
+									/>
 									{i18n && (
 										<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
 											Locale
 										</th>
 									)}
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Date
-									</th>
+									<SortableHeader
+										label="Date"
+										field="date"
+										sortField={sortField}
+										sortDir={sortDir}
+										onSort={handleSort}
+									/>
 									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
 										Actions
 									</th>
@@ -186,7 +361,7 @@ export function ContentList({
 							<tbody>
 								{items.length === 0 && !isLoading ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={i18n ? 6 : 5} className="px-4 py-8 text-center text-kumo-subtle">
 											No {collectionLabel.toLowerCase()} yet.{" "}
 											<Link
 												to="/content/$collection/new"
@@ -199,12 +374,12 @@ export function ContentList({
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={i18n ? 6 : 5} className="px-4 py-8 text-center text-kumo-subtle">
 											No results for &ldquo;{searchQuery}&rdquo;
 										</td>
 									</tr>
 								) : (
-									paginatedItems.map((item) => (
+									paginatedItems.map((item, index) => (
 										<ContentListItem
 											key={item.id}
 											item={item}
@@ -212,6 +387,9 @@ export function ContentList({
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
+											selected={selectedIds.has(item.id)}
+											focused={index === focusedIndex}
+											onToggleSelect={() => toggleSelection(item.id)}
 										/>
 									))
 								)}
@@ -223,7 +401,7 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+								{sortedItems.length} {sortedItems.length === 1 ? "item" : "items"}
 								{searchQuery && ` matching "${searchQuery}"`}
 							</span>
 							<div className="flex items-center gap-2">
@@ -320,6 +498,9 @@ interface ContentListItemProps {
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	selected?: boolean;
+	focused?: boolean;
+	onToggleSelect?: () => void;
 }
 
 function ContentListItem({
@@ -328,12 +509,30 @@ function ContentListItem({
 	onDelete,
 	onDuplicate,
 	showLocale,
+	selected,
+	focused,
+	onToggleSelect,
 }: ContentListItemProps) {
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr
+			className={cn(
+				"border-b hover:bg-kumo-tint/25",
+				selected && "bg-kumo-brand/5",
+				focused && "ring-2 ring-inset ring-kumo-brand/40",
+			)}
+		>
+			<td className="w-10 px-4 py-3">
+				<input
+					type="checkbox"
+					checked={!!selected}
+					onChange={() => onToggleSelect?.()}
+					aria-label={`Select ${title}`}
+					className="h-4 w-4 rounded border-kumo-border"
+				/>
+			</td>
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
@@ -481,6 +680,39 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 				</div>
 			</td>
 		</tr>
+	);
+}
+
+function SortableHeader({
+	label,
+	field,
+	sortField,
+	sortDir,
+	onSort,
+}: {
+	label: string;
+	field: SortField;
+	sortField: SortField;
+	sortDir: SortDir;
+	onSort: (field: SortField) => void;
+}) {
+	const isActive = sortField === field;
+	return (
+		<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+			<button
+				type="button"
+				className="inline-flex items-center gap-1 hover:text-kumo-brand"
+				onClick={() => onSort(field)}
+			>
+				{label}
+				{isActive &&
+					(sortDir === "asc" ? (
+						<CaretUp className="h-3 w-3" aria-hidden="true" />
+					) : (
+						<CaretDown className="h-3 w-3" aria-hidden="true" />
+					))}
+			</button>
+		</th>
 	);
 }
 
