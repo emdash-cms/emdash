@@ -324,30 +324,42 @@ export class CommentRepository {
 
 	/**
 	 * Count comments grouped by status (for inbox badges)
+	 *
+	 * Uses four parallel COUNT queries with WHERE filters to leverage partial indexes
+	 * (idx_comments_pending, idx_comments_approved, idx_comments_spam, idx_comments_trash)
+	 * instead of a full table GROUP BY scan.
 	 */
 	async countByStatus(): Promise<Record<CommentStatus, number>> {
-		const rows = await this.db
-			.selectFrom("_emdash_comments")
-			.select(["status"])
-			.select((eb) => eb.fn.count("id").as("count"))
-			.groupBy("status")
-			.execute();
+		// Execute four parallel COUNT queries, each using its partial index
+		const [pending, approved, spam, trash] = await Promise.all([
+			this.db
+				.selectFrom("_emdash_comments")
+				.select((eb) => eb.fn.count("id").as("count"))
+				.where("status", "=", "pending")
+				.executeTakeFirst(),
+			this.db
+				.selectFrom("_emdash_comments")
+				.select((eb) => eb.fn.count("id").as("count"))
+				.where("status", "=", "approved")
+				.executeTakeFirst(),
+			this.db
+				.selectFrom("_emdash_comments")
+				.select((eb) => eb.fn.count("id").as("count"))
+				.where("status", "=", "spam")
+				.executeTakeFirst(),
+			this.db
+				.selectFrom("_emdash_comments")
+				.select((eb) => eb.fn.count("id").as("count"))
+				.where("status", "=", "trash")
+				.executeTakeFirst(),
+		]);
 
-		const counts: Record<CommentStatus, number> = {
-			pending: 0,
-			approved: 0,
-			spam: 0,
-			trash: 0,
+		return {
+			pending: Number(pending?.count ?? 0),
+			approved: Number(approved?.count ?? 0),
+			spam: Number(spam?.count ?? 0),
+			trash: Number(trash?.count ?? 0),
 		};
-
-		for (const row of rows) {
-			const status = row.status as CommentStatus;
-			if (status in counts) {
-				counts[status] = Number(row.count);
-			}
-		}
-
-		return counts;
 	}
 
 	/**
