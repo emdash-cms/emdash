@@ -1288,8 +1288,12 @@ function EditorFooter({ editor }: { editor: Editor }) {
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
-			<span><Plural value={words} one="# word" other="# words" /></span>
-			<span><Plural value={characters} one="# character" other="# characters" /></span>
+			<span>
+				<Plural value={words} one="# word" other="# words" />
+			</span>
+			<span>
+				<Plural value={characters} one="# character" other="# characters" />
+			</span>
 			<span>{t`${readingTime} min read`}</span>
 		</div>
 	);

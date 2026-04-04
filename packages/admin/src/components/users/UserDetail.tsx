@@ -188,17 +188,13 @@ export function UserDetail({
 											label={t`Role`}
 											value={role.toString()}
 											onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-											items={Object.fromEntries(
-												ROLES.map((r) => [r.value.toString(), r.label]),
-											)}
+											items={Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label]))}
 										>
 											{ROLES.map((r) => (
 												<Select.Option key={r.value} value={r.value.toString()}>
 													<div>
 														<div>{r.label}</div>
-														<div className="text-xs text-kumo-subtle">
-															{r.description}
-														</div>
+														<div className="text-xs text-kumo-subtle">{r.description}</div>
 													</div>
 												</Select.Option>
 											))}
