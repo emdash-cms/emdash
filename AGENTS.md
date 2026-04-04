@@ -54,12 +54,37 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
 
 You verified linting and types were clean before starting. If they're failing now, your changes caused it -- even if the errors are in files you didn't touch. Don't dismiss failures as "unrelated". Don't assign blame. Just fix them.
 
+### Changesets
+
+If your change affects a published package's behavior, add a changeset. Without one, the change won't trigger a package release.
+
+```bash
+pnpm changeset --empty
+```
+
+This creates a blank changeset file in `.changeset/`. Edit it to add the affected package(s), bump type, and description:
+
+```markdown
+---
+"emdash": patch
+---
+
+Fixes CLI `--json` flag so JSON output is clean.
+```
+
+Start descriptions with a present-tense verb (Adds, Fixes, Updates, Removes, Refactors). Focus on what changes for the user, not implementation details.
+
+Skip changesets for docs-only, test-only, CI, or demo/template changes.
+
+See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets) for full guidance and examples.
+
 ### PR Flow
 
 1. All tests pass: `pnpm test`
 2. Full lint suite clean: `pnpm --silent lint:json | jq '.diagnostics | length'`. Returns JSON with stderr piped to /dev/null, so it won't break parsers. Fix any issues.
 3. Format with `pnpm format` (oxfmt with tabs for indentation, configured in `.prettierrc`).
-4. Open the PR with the `pr` skill. Fill out every section of the PR template. Check the AI disclosure box.
+4. Add a changeset if the change affects a published package: `pnpm changeset`.
+5. Open the PR with the `pr` skill. Fill out every section of the PR template. Check the AI disclosure box.
 
 ### Dev Servers
 
