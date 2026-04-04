@@ -1,7 +1,7 @@
 /**
- * i18n configuration — single source of truth for supported locales.
+ * Locale configuration — single source of truth for supported locales.
  *
- * Imported by both the React provider (client) and admin.astro (server).
+ * Imported by both the Lingui provider (client) and admin.astro (server).
  */
 
 export interface SupportedLocale {
