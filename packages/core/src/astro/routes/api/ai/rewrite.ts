@@ -7,12 +7,12 @@
  */
 
 import type { APIRoute } from "astro";
+import { z } from "zod";
 
+import { AiError, AiService } from "#ai/index.js";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
-import { AiError, AiService } from "#ai/index.js";
-import { z } from "zod";
 
 export const prerender = false;
 
@@ -40,7 +40,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	try {
 		const aiConfig = await getAiConfig(emdash.db);
 		if (!aiConfig) {
-			return apiError("AI_NOT_CONFIGURED", "AI is not configured. Add your API key in Settings > AI.", 400);
+			return apiError(
+				"AI_NOT_CONFIGURED",
+				"AI is not configured. Add your API key in Settings > AI.",
+				400,
+			);
 		}
 
 		const ai = new AiService();

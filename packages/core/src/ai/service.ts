@@ -42,7 +42,10 @@ export class AiService {
 	 */
 	async complete(request: AiCompletionRequest): Promise<AiCompletionResponse> {
 		if (!this.config) {
-			throw new AiError("AI_NOT_CONFIGURED", "AI is not configured. Add your API key in Settings > AI.");
+			throw new AiError(
+				"AI_NOT_CONFIGURED",
+				"AI is not configured. Add your API key in Settings > AI.",
+			);
 		}
 
 		const { provider } = this.config;
@@ -109,7 +112,10 @@ export class AiService {
 		messages.push({ role: "user", content: request.prompt });
 
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), request.maxTokens ? DEFAULT_TIMEOUT : REWRITE_TIMEOUT);
+		const timeout = setTimeout(
+			() => controller.abort(),
+			request.maxTokens ? DEFAULT_TIMEOUT : REWRITE_TIMEOUT,
+		);
 
 		try {
 			const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -140,7 +146,10 @@ export class AiService {
 
 			if (!response.ok) {
 				const body = await response.text().catch(() => "");
-				throw new AiError("AI_PROVIDER_ERROR", `AI provider error (${response.status}): ${body.slice(0, 200)}`);
+				throw new AiError(
+					"AI_PROVIDER_ERROR",
+					`AI provider error (${response.status}): ${body.slice(0, 200)}`,
+				);
 			}
 
 			const data = (await response.json()) as {
@@ -207,7 +216,10 @@ export class AiService {
 
 			if (!response.ok) {
 				const body = await response.text().catch(() => "");
-				throw new AiError("AI_PROVIDER_ERROR", `AI provider error (${response.status}): ${body.slice(0, 200)}`);
+				throw new AiError(
+					"AI_PROVIDER_ERROR",
+					`AI provider error (${response.status}): ${body.slice(0, 200)}`,
+				);
 			}
 
 			const data = (await response.json()) as {

@@ -1810,13 +1810,7 @@ export function PortableTextEditor({
 /**
  * AI Rewrite Popover - appears below selected text with alternative rewrites
  */
-function AiRewritePopover({
-	editor,
-	onClose,
-}: {
-	editor: Editor;
-	onClose: () => void;
-}) {
+function AiRewritePopover({ editor, onClose }: { editor: Editor; onClose: () => void }) {
 	const [alternatives, setAlternatives] = React.useState<string[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
@@ -1884,9 +1878,7 @@ function AiRewritePopover({
 						Generating alternatives...
 					</div>
 				)}
-				{error && (
-					<div className="px-3 py-4 text-sm text-kumo-danger">{error}</div>
-				)}
+				{error && <div className="px-3 py-4 text-sm text-kumo-danger">{error}</div>}
 				{!loading &&
 					!error &&
 					alternatives.map((alt, i) => (
@@ -2054,10 +2046,7 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 				</>
 			)}
 			{showAiRewrite && (
-				<AiRewritePopover
-					editor={editor}
-					onClose={() => setShowAiRewrite(false)}
-				/>
+				<AiRewritePopover editor={editor} onClose={() => setShowAiRewrite(false)} />
 			)}
 		</BubbleMenu>
 	);
