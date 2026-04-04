@@ -46,9 +46,12 @@ const resolvedLocale: SupportedLocale =
 		? cookieLocale
 		: parseAcceptLanguage(acceptLang) ?? "en";
 
-const translations = (
-	await import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/common.json`)
-).default;
+const [common, settings, nav] = await Promise.all([
+	import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/common.json`),
+	import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/settings.json`),
+	import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/nav.json`),
+]);
+const translations = { ...common.default, ...settings.default, ...nav.default };
 ---
 
 <!doctype html>
