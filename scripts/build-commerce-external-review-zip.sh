@@ -13,6 +13,7 @@ rsync -a --exclude 'node_modules' --exclude '.vite' \
 REVIEW_FILES=(
   "@THIRD_PARTY_REVIEW_PACKAGE.md"
   "external_review.md"
+  "SHARE_WITH_REVIEWER.md"
   "HANDOVER.md"
   "commerce-plugin-architecture.md"
   "3rd-party-checklist.md"
