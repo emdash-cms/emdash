@@ -17,6 +17,7 @@ REVIEW_FILES=(
   "HANDOVER.md"
   "commerce-plugin-architecture.md"
   "3rd-party-checklist.md"
+  "emdash-commerce-third-party-review-memo.md"
 )
 
 for file in "${REVIEW_FILES[@]}"; do
