@@ -24,6 +24,21 @@ catalogs:
     '@cloudflare/workers-types':
       specifier: ^4.20260305.1
       version: 4.20260305.1
+    '@lingui/cli':
+      specifier: ^5.9.4
+      version: 5.9.4
+    '@lingui/core':
+      specifier: ^5.9.4
+      version: 5.9.4
+    '@lingui/macro':
+      specifier: ^5.9.4
+      version: 5.9.4
+    '@lingui/react':
+      specifier: ^5.9.4
+      version: 5.9.4
+    '@lingui/vite-plugin':
+      specifier: ^5.9.4
+      version: 5.9.4
     '@phosphor-icons/react':
       specifier: ^2.1.10
       version: 2.1.10
@@ -498,10 +513,10 @@ importers:
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@lingui/core':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(@lingui/babel-plugin-lingui-macro@5.9.4(typescript@5.9.3))
       '@lingui/react':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(@lingui/babel-plugin-lingui-macro@5.9.4(typescript@5.9.3))(react@19.2.4)
       '@phosphor-icons/react':
         specifier: 'catalog:'
@@ -586,13 +601,13 @@ importers:
         specifier: 'catalog:'
         version: 0.18.2
       '@lingui/cli':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(typescript@5.9.3)
       '@lingui/macro':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(@lingui/babel-plugin-lingui-macro@5.9.4(typescript@5.9.3))(react@19.2.4)
       '@lingui/vite-plugin':
-        specifier: ^5.9.4
+        specifier: 'catalog:'
         version: 5.9.4(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       '@tailwindcss/cli':
         specifier: ^4.1.10
@@ -844,6 +859,9 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@lingui/core':
+        specifier: 'catalog:'
+        version: 5.9.4(@lingui/babel-plugin-lingui-macro@5.9.4(typescript@5.9.3))
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
         version: 1.26.0(zod@4.3.6)
@@ -974,6 +992,9 @@ importers:
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
       '@types/sanitize-html':
         specifier: ^2.16.0
         version: 2.16.0
