@@ -20,6 +20,7 @@ import {
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
+	SplitHorizontal,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -416,6 +417,43 @@ export function ContentEditor({
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 
+	// Live preview state
+	const [showPreview, setShowPreview] = React.useState(false);
+	const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+	const previewIframeRef = React.useRef<HTMLIFrameElement>(null);
+
+	// Fetch preview URL when preview is toggled on
+	React.useEffect(() => {
+		if (!showPreview || isNew || !item?.id) {
+			setPreviewUrl(null);
+			return;
+		}
+
+		let cancelled = false;
+		(async () => {
+			try {
+				const result = await getPreviewUrl(collection, item.id);
+				if (!cancelled && result?.url) {
+					setPreviewUrl(result.url);
+				}
+			} catch {
+				// Silently fail - preview just won't load
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [showPreview, isNew, item?.id, collection]);
+
+	// Refresh preview iframe after autosave completes
+	React.useEffect(() => {
+		if (showPreview && previewUrl && lastAutosaveAt && previewIframeRef.current) {
+			// Reload the iframe to show updated content
+			previewIframeRef.current.src = previewUrl;
+		}
+	}, [lastAutosaveAt, showPreview, previewUrl]);
+
 	// Keyboard shortcuts for distraction-free mode
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -512,6 +550,19 @@ export function ContentEditor({
 							) : null}
 						</div>
 					)}
+					{!isDistractionFree && !isNew && (
+						<Button
+							variant="ghost"
+							shape="square"
+							type="button"
+							onClick={() => setShowPreview((prev) => !prev)}
+							aria-label={showPreview ? "Close preview" : "Show live preview"}
+							title="Live preview"
+							className={showPreview ? "text-kumo-brand" : undefined}
+						>
+							<SplitHorizontal className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					)}
 					{!isDistractionFree && (
 						<Button
 							variant="ghost"
@@ -600,10 +651,11 @@ export function ContentEditor({
 				className={cn(
 					"grid gap-6 lg:grid-cols-3",
 					isDistractionFree && "lg:grid-cols-1 max-w-[680px] mx-auto pt-16",
+					showPreview && !isDistractionFree && "lg:grid-cols-2",
 				)}
 			>
 				{/* Editor fields */}
-				<div className="space-y-6 lg:col-span-2">
+				<div className={cn("space-y-6", !showPreview && "lg:col-span-2")}>
 					<div
 						className={cn(
 							"rounded-lg border bg-kumo-base p-6",
@@ -634,8 +686,29 @@ export function ContentEditor({
 					</div>
 				</div>
 
-				{/* Sidebar - hidden in distraction-free mode */}
-				<div className={cn("space-y-6", isDistractionFree && "hidden")}>
+				{/* Live preview iframe - replaces sidebar when active */}
+				{showPreview && !isDistractionFree && (
+					<div
+						className="rounded-lg border bg-kumo-base overflow-hidden sticky top-4"
+						style={{ height: "calc(100vh - 12rem)" }}
+					>
+						{previewUrl ? (
+							<iframe
+								ref={previewIframeRef}
+								src={previewUrl}
+								className="w-full h-full border-0"
+								title="Live preview"
+							/>
+						) : (
+							<div className="flex items-center justify-center h-full text-sm text-kumo-subtle">
+								{isNew ? "Save content to see preview" : "Loading preview..."}
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Sidebar - hidden in distraction-free mode and preview mode */}
+				<div className={cn("space-y-6", (isDistractionFree || showPreview) && "hidden")}>
 					{blockSidebarPanel ? (
 						/* Block sidebar panel – replaces default sections when a block requests it */
 						blockSidebarPanel.type === "image" ? (
