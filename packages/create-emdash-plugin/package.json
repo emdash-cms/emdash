@@ -1,0 +1,36 @@
+{
+	"name": "create-emdash-plugin",
+	"version": "0.1.0",
+	"description": "Scaffold a new EmDash CMS plugin",
+	"type": "module",
+	"bin": "./dist/index.mjs",
+	"files": [
+		"dist",
+		"template"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@clack/prompts": "^0.10.0",
+		"picocolors": "^1.1.1"
+	},
+	"devDependencies": {
+		"tsdown": "^0.12.0"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"scaffold",
+		"create"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/create-emdash-plugin"
+	}
+}
