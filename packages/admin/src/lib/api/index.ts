@@ -350,3 +350,6 @@ export {
 
 // Current user
 export { type CurrentUser, useCurrentUser } from "./current-user.js";
+
+// AI
+export { rewriteText, isAiConfigured, type AiRewriteResult } from "./ai.js";

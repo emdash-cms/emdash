@@ -39,6 +39,8 @@ import {
 	CodeBlock,
 	Stack,
 	Eye,
+	Sparkle,
+	SpinnerGap,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -1806,11 +1808,109 @@ export function PortableTextEditor({
 }
 
 /**
+ * AI Rewrite Popover - appears below selected text with alternative rewrites
+ */
+function AiRewritePopover({
+	editor,
+	onClose,
+}: {
+	editor: Editor;
+	onClose: () => void;
+}) {
+	const [alternatives, setAlternatives] = React.useState<string[]>([]);
+	const [loading, setLoading] = React.useState(true);
+	const [error, setError] = React.useState<string | null>(null);
+	const selectedText = React.useRef("");
+
+	React.useEffect(() => {
+		const { from, to } = editor.state.selection;
+		selectedText.current = editor.state.doc.textBetween(from, to, " ");
+
+		if (!selectedText.current.trim()) {
+			setError("Select some text first.");
+			setLoading(false);
+			return;
+		}
+
+		let cancelled = false;
+
+		(async () => {
+			try {
+				const { rewriteText } = await import("../lib/api/ai.js");
+				const result = await rewriteText(selectedText.current);
+				if (!cancelled) {
+					setAlternatives(result.alternatives);
+					setLoading(false);
+				}
+			} catch (e) {
+				if (!cancelled) {
+					setError(e instanceof Error ? e.message : "AI rewrite failed");
+					setLoading(false);
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [editor]);
+
+	const handleSelect = (text: string) => {
+		const { from, to } = editor.state.selection;
+		editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, text).run();
+		onClose();
+	};
+
+	return (
+		<div className="z-[101] absolute mt-2 w-80 rounded-lg border bg-kumo-base shadow-lg overflow-hidden">
+			<div className="px-3 py-2 border-b flex items-center justify-between">
+				<span className="text-xs font-medium text-kumo-subtle flex items-center gap-1.5">
+					<Sparkle className="h-3.5 w-3.5" />
+					AI Rewrite
+				</span>
+				<button
+					type="button"
+					onClick={onClose}
+					className="text-kumo-subtle hover:text-kumo-default"
+					aria-label="Close"
+				>
+					<X className="h-3.5 w-3.5" />
+				</button>
+			</div>
+			<div className="max-h-64 overflow-y-auto">
+				{loading && (
+					<div className="px-3 py-6 flex items-center justify-center gap-2 text-sm text-kumo-subtle">
+						<SpinnerGap className="h-4 w-4 animate-spin" />
+						Generating alternatives...
+					</div>
+				)}
+				{error && (
+					<div className="px-3 py-4 text-sm text-kumo-danger">{error}</div>
+				)}
+				{!loading &&
+					!error &&
+					alternatives.map((alt, i) => (
+						<button
+							key={i}
+							type="button"
+							className="w-full text-left px-3 py-2.5 text-sm hover:bg-kumo-tint border-b last:border-b-0 transition-colors"
+							onClick={() => handleSelect(alt)}
+						>
+							{alt}
+						</button>
+					))}
+			</div>
+		</div>
+	);
+}
+
+/**
  * Bubble Menu - appears when text is selected
  * Shows inline formatting options and link editing
  */
 function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
+	const [showAiRewrite, setShowAiRewrite] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -1943,7 +2043,21 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
+					<div className="w-px h-6 bg-kumo-line mx-1" />
+					<BubbleButton
+						onClick={() => setShowAiRewrite((prev) => !prev)}
+						active={showAiRewrite}
+						title="AI Rewrite (⌘⇧R)"
+					>
+						<Sparkle className="h-4 w-4" />
+					</BubbleButton>
 				</>
+			)}
+			{showAiRewrite && (
+				<AiRewritePopover
+					editor={editor}
+					onClose={() => setShowAiRewrite(false)}
+				/>
 			)}
 		</BubbleMenu>
 	);
