@@ -40,100 +40,6 @@ export interface FieldEditorProps {
 	isSaving?: boolean;
 }
 
-function getFieldTypes(t: (template: TemplateStringsArray, ...args: unknown[]) => string): {
-	type: FieldType;
-	label: string;
-	description: string;
-	icon: React.ElementType;
-}[] {
-	return [
-		{
-			type: "string",
-			label: t`Short Text`,
-			description: t`Single line text input`,
-			icon: TextT,
-		},
-		{
-			type: "text",
-			label: t`Long Text`,
-			description: t`Multi-line plain text`,
-			icon: TextAlignLeft,
-		},
-		{
-			type: "number",
-			label: t`Number`,
-			description: t`Decimal number`,
-			icon: Hash,
-		},
-		{
-			type: "integer",
-			label: t`Integer`,
-			description: t`Whole number`,
-			icon: Hash,
-		},
-		{
-			type: "boolean",
-			label: t`Boolean`,
-			description: t`True/false toggle`,
-			icon: ToggleLeft,
-		},
-		{
-			type: "datetime",
-			label: t`Date & Time`,
-			description: t`Date and time picker`,
-			icon: Calendar,
-		},
-		{
-			type: "select",
-			label: t`Select`,
-			description: t`Single choice from options`,
-			icon: List,
-		},
-		{
-			type: "multiSelect",
-			label: t`Multi Select`,
-			description: t`Multiple choices from options`,
-			icon: ListChecks,
-		},
-		{
-			type: "portableText",
-			label: t`Rich Text`,
-			description: t`Rich text editor`,
-			icon: FileText,
-		},
-		{
-			type: "image",
-			label: t`Image`,
-			description: t`Image from media library`,
-			icon: ImageIcon,
-		},
-		{
-			type: "file",
-			label: t`File`,
-			description: t`File from media library`,
-			icon: File,
-		},
-		{
-			type: "reference",
-			label: t`Reference`,
-			description: t`Link to another content item`,
-			icon: LinkSimple,
-		},
-		{
-			type: "json",
-			label: "JSON",
-			description: t`Arbitrary JSON data`,
-			icon: BracketsCurly,
-		},
-		{
-			type: "slug",
-			label: t`Slug`,
-			description: t`URL-friendly identifier`,
-			icon: Link,
-		},
-	];
-}
-
 interface FieldFormState {
 	step: "type" | "config";
 	selectedType: FieldType | null;
@@ -190,7 +96,26 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
  */
 export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: FieldEditorProps) {
 	const { t } = useLingui();
-	const FIELD_TYPES = getFieldTypes(t);
+	const FIELD_TYPES = React.useMemo(
+		/* prettier-ignore */
+		() => [
+			{ type: "string" as const, label: t`Short Text`, description: t`Single line text input`, icon: TextT },
+			{ type: "text" as const, label: t`Long Text`, description: t`Multi-line plain text`, icon: TextAlignLeft },
+			{ type: "number" as const, label: t`Number`, description: t`Decimal number`, icon: Hash },
+			{ type: "integer" as const, label: t`Integer`, description: t`Whole number`, icon: Hash },
+			{ type: "boolean" as const, label: t`Boolean`, description: t`True/false toggle`, icon: ToggleLeft },
+			{ type: "datetime" as const, label: t`Date & Time`, description: t`Date and time picker`, icon: Calendar },
+			{ type: "select" as const, label: t`Select`, description: t`Single choice from options`, icon: List },
+			{ type: "multiSelect" as const, label: t`Multi Select`, description: t`Multiple choices from options`, icon: ListChecks },
+			{ type: "portableText" as const, label: t`Rich Text`, description: t`Rich text editor`, icon: FileText },
+			{ type: "image" as const, label: t`Image`, description: t`Image from media library`, icon: ImageIcon },
+			{ type: "file" as const, label: t`File`, description: t`File from media library`, icon: File },
+			{ type: "reference" as const, label: t`Reference`, description: t`Link to another content item`, icon: LinkSimple },
+			{ type: "json" as const, label: "JSON", description: t`Arbitrary JSON data`, icon: BracketsCurly },
+			{ type: "slug" as const, label: t`Slug`, description: t`URL-friendly identifier`, icon: Link },
+		],
+		[t],
+	);
 	const [formState, setFormState] = React.useState(() => getInitialFormState(field));
 
 	// Reset state when dialog opens
