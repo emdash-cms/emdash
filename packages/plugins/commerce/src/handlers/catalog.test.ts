@@ -1,8 +1,26 @@
 import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
-import type { StoredProduct, StoredProductSku } from "../types.js";
-import type { ProductCreateInput, ProductSkuCreateInput } from "../schemas.js";
+import type {
+	StoredProduct,
+	StoredProductAsset,
+	StoredProductAssetLink,
+	StoredProductSku,
+} from "../types.js";
+import type {
+	ProductAssetLinkInput,
+	ProductAssetReorderInput,
+	ProductAssetRegisterInput,
+	ProductAssetUnlinkInput,
+	ProductSkuCreateInput,
+	ProductCreateInput,
+} from "../schemas.js";
+import {
+	productAssetLinkInputSchema,
+	productAssetReorderInputSchema,
+	productAssetRegisterInputSchema,
+	productAssetUnlinkInputSchema,
+} from "../schemas.js";
 import {
 	createProductHandler,
 	setProductStateHandler,
@@ -11,6 +29,10 @@ import {
 	setSkuStatusHandler,
 	updateProductHandler,
 	updateProductSkuHandler,
+	linkCatalogAssetHandler,
+	reorderCatalogAssetHandler,
+	registerProductAssetHandler,
+	unlinkCatalogAssetHandler,
 	listProductsHandler,
 	listProductSkusHandler,
 } from "./catalog.js";
@@ -25,6 +47,10 @@ class MemColl<T extends object> {
 
 	async put(id: string, data: T): Promise<void> {
 		this.rows.set(id, structuredClone(data));
+	}
+
+	async delete(id: string): Promise<boolean> {
+		return this.rows.delete(id);
 	}
 
 	async query(options?: {
@@ -48,11 +74,13 @@ function catalogCtx<TInput>(
 	input: TInput,
 	products: MemColl<StoredProduct>,
 	productSkus = new MemColl<StoredProductSku>(),
+	productAssets = new MemColl<StoredProductAsset>(),
+	productAssetLinks = new MemColl<StoredProductAssetLink>(),
 ): RouteContext<TInput> {
 	return {
 		request: new Request("https://example.test/catalog", { method: "POST" }),
 		input,
-		storage: { products, productSkus },
+		storage: { products, productSkus, productAssets, productAssetLinks },
 		requestMeta: { ip: "127.0.0.1" },
 		kv: {},
 	} as unknown as RouteContext<TInput>;
@@ -425,5 +453,285 @@ describe("catalog SKU handlers", () => {
 			),
 		);
 		expect(archived.sku.status).toBe("inactive");
+	});
+});
+
+describe("catalog asset handlers", () => {
+	it("rejects binary-upload payload keys at the contract boundary", () => {
+		expect(
+			productAssetRegisterInputSchema.safeParse({
+				externalAssetId: "media-1",
+				provider: "media",
+				file: "should-not-be-uploaded",
+			}).success,
+		).toBe(false);
+
+		expect(
+			productAssetLinkInputSchema.safeParse({
+				assetId: "asset_1",
+				targetType: "product",
+				targetId: "prod_1",
+				role: "gallery_image",
+				position: 0,
+				stream: "binary",
+			}).success,
+		).toBe(false);
+
+		expect(
+			productAssetUnlinkInputSchema.safeParse({
+				linkId: "link_1",
+				file: "should-not-be-uploaded",
+			}).success,
+		).toBe(false);
+
+		expect(
+			productAssetReorderInputSchema.safeParse({
+				linkId: "link_1",
+				position: 0,
+				body: "not-expected",
+			}).success,
+		).toBe(false);
+	});
+
+	it("registers provider-agnostic asset metadata without binary payload", async () => {
+		const productAssets = new MemColl<StoredProductAsset>();
+
+		const out = await registerProductAssetHandler(
+			catalogCtx<ProductAssetRegisterInput>(
+				{
+					externalAssetId: "media-123",
+					provider: "media",
+					fileName: "hero.jpg",
+					mimeType: "image/jpeg",
+					byteSize: 123_456,
+				},
+				new MemColl(),
+				new MemColl(),
+				productAssets,
+			),
+		);
+
+		expect(out.asset.id).toMatch(/^asset_/);
+		expect(out.asset.provider).toBe("media");
+		expect(out.asset.externalAssetId).toBe("media-123");
+		expect(out.asset.mimeType).toBe("image/jpeg");
+	});
+
+	it("links media metadata rows to a product and enforces one primary image per target", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAssets = new MemColl<StoredProductAsset>();
+		const productAssetLinks = new MemColl<StoredProductAssetLink>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "base",
+			title: "Base",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await productAssets.put("asset_1", {
+			id: "asset_1",
+			provider: "media",
+			externalAssetId: "media-1",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productAssets.put("asset_2", {
+			id: "asset_2",
+			provider: "media",
+			externalAssetId: "media-2",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const first = await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_1",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "primary_image",
+					position: 0,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		expect(first.link.role).toBe("primary_image");
+		expect(first.link.targetType).toBe("product");
+		expect(first.link.targetId).toBe("prod_1");
+
+		const duplicatePrimary = linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_2",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "primary_image",
+					position: 1,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		await expect(duplicatePrimary).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("links asset rows to SKU targets and supports reordering", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAssets = new MemColl<StoredProductAsset>();
+		const productAssetLinks = new MemColl<StoredProductAssetLink>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "base",
+			title: "Base",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "SKU-1",
+			status: "active",
+			unitPriceMinor: 1299,
+			inventoryQuantity: 5,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		for (let index = 0; index < 2; index++) {
+			await productAssets.put(`asset_${index + 1}`, {
+				id: `asset_${index + 1}`,
+				provider: "media",
+				externalAssetId: `media-${index + 1}`,
+				createdAt: "2026-01-01T00:00:00.000Z",
+				updatedAt: "2026-01-01T00:00:00.000Z",
+			});
+		}
+
+		const first = await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_1",
+					targetType: "sku",
+					targetId: "sku_1",
+					role: "gallery_image",
+					position: 0,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		const second = await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_2",
+					targetType: "sku",
+					targetId: "sku_1",
+					role: "gallery_image",
+					position: 1,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
+		);
+
+		const reordered = await reorderCatalogAssetHandler(
+			catalogCtx<ProductAssetReorderInput>({ linkId: second.link.id, position: 0 }, products, skus, productAssets, productAssetLinks),
+		);
+		expect(reordered.link.position).toBe(0);
+
+		const byTarget = await productAssetLinks.query({ where: { targetType: "sku", targetId: "sku_1" } });
+		const inOrder = byTarget.items.map((item) => item.data).sort((left, right) => left.position - right.position);
+		expect(inOrder[0]?.id).toBe(second.link.id);
+		expect(inOrder[1]?.id).toBe(first.link.id);
+	});
+
+	it("unlinks an asset and removes its link row", async () => {
+		const products = new MemColl<StoredProduct>();
+		const productAssets = new MemColl<StoredProductAsset>();
+		const productAssetLinks = new MemColl<StoredProductAssetLink>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "base",
+			title: "Base",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productAssets.put("asset_1", {
+			id: "asset_1",
+			provider: "media",
+			externalAssetId: "media-1",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const linked = await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_1",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "gallery_image",
+				},
+				products,
+				new MemColl(),
+				productAssets,
+				productAssetLinks,
+			),
+		);
+
+		const out = await unlinkCatalogAssetHandler(
+			catalogCtx<ProductAssetUnlinkInput>(
+				{
+					linkId: linked.link.id,
+				},
+				products,
+				new MemColl(),
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		expect(out.deleted).toBe(true);
+
+		const removed = await productAssetLinks.get(linked.link.id);
+		expect(removed).toBeNull();
 	});
 });

@@ -220,3 +220,36 @@ export const productSkuStateInputSchema = z.object({
 	status: z.enum(["active", "inactive"]),
 });
 export type ProductSkuStateInput = z.infer<typeof productSkuStateInputSchema>;
+
+export const productAssetRegisterInputSchema = z.object({
+	externalAssetId: bounded(128),
+	provider: z.string().trim().min(1).max(64).default("media"),
+	fileName: z.string().trim().max(260).optional(),
+	altText: z.string().trim().max(260).optional(),
+	mimeType: z.string().trim().max(128).optional(),
+	byteSize: z.number().int().min(0).optional(),
+	width: z.number().int().min(1).max(20_000).optional(),
+	height: z.number().int().min(1).max(20_000).optional(),
+	metadata: z.record(z.unknown()).optional(),
+}).strict();
+export type ProductAssetRegisterInput = z.infer<typeof productAssetRegisterInputSchema>;
+
+export const productAssetLinkInputSchema = z.object({
+	assetId: z.string().trim().min(3).max(128),
+	targetType: z.enum(["product", "sku"]),
+	targetId: z.string().trim().min(3).max(128),
+	role: z.enum(["primary_image", "gallery_image"]).default("gallery_image"),
+	position: z.number().int().min(0).default(0),
+}).strict();
+export type ProductAssetLinkInput = z.infer<typeof productAssetLinkInputSchema>;
+
+export const productAssetUnlinkInputSchema = z.object({
+	linkId: z.string().trim().min(3).max(128),
+}).strict();
+export type ProductAssetUnlinkInput = z.infer<typeof productAssetUnlinkInputSchema>;
+
+export const productAssetReorderInputSchema = z.object({
+	linkId: z.string().trim().min(3).max(128),
+	position: z.number().int().min(0),
+}).strict();
+export type ProductAssetReorderInput = z.infer<typeof productAssetReorderInputSchema>;

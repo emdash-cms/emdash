@@ -173,3 +173,33 @@ export interface StoredProductSku {
 	createdAt: string;
 	updatedAt: string;
 }
+
+export type ProductAssetLinkTarget = "product" | "sku";
+
+export type ProductAssetRole = "primary_image" | "gallery_image";
+
+export interface StoredProductAsset {
+	id: string;
+	provider: string;
+	externalAssetId: string;
+	fileName?: string;
+	altText?: string;
+	mimeType?: string;
+	byteSize?: number;
+	width?: number;
+	height?: number;
+	createdAt: string;
+	updatedAt: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface StoredProductAssetLink {
+	id: string;
+	targetType: ProductAssetLinkTarget;
+	targetId: string;
+	assetId: string;
+	role: ProductAssetRole;
+	position: number;
+	createdAt: string;
+	updatedAt: string;
+}

@@ -24,6 +24,10 @@ import {
 } from "./catalog-extensibility.js";
 import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
 import {
+	linkCatalogAssetHandler,
+	reorderCatalogAssetHandler,
+	registerProductAssetHandler,
+	unlinkCatalogAssetHandler,
 	setProductStateHandler,
 	createProductHandler,
 	createProductSkuHandler,
@@ -41,6 +45,10 @@ import { stripeWebhookHandler } from "./handlers/webhooks-stripe.js";
 import {
 	cartGetInputSchema,
 	cartUpsertInputSchema,
+	productAssetLinkInputSchema,
+	productAssetReorderInputSchema,
+	productAssetRegisterInputSchema,
+	productAssetUnlinkInputSchema,
 	productCreateInputSchema,
 	productGetInputSchema,
 	productSkuStateInputSchema,
@@ -171,6 +179,26 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 				input: cartGetInputSchema,
 				handler: asRouteHandler(cartGetHandler),
 			},
+			"product-assets/register": {
+				public: true,
+				input: productAssetRegisterInputSchema,
+				handler: asRouteHandler(registerProductAssetHandler),
+			},
+			"catalog/asset/link": {
+				public: true,
+				input: productAssetLinkInputSchema,
+				handler: asRouteHandler(linkCatalogAssetHandler),
+			},
+			"catalog/asset/unlink": {
+				public: true,
+				input: productAssetUnlinkInputSchema,
+				handler: asRouteHandler(unlinkCatalogAssetHandler),
+			},
+			"catalog/asset/reorder": {
+				public: true,
+				input: productAssetReorderInputSchema,
+				handler: asRouteHandler(reorderCatalogAssetHandler),
+			},
 			"catalog/product/create": {
 				public: true,
 				input: productCreateInputSchema,
@@ -282,4 +310,12 @@ export type {
 export type { RecommendationsResponse } from "./handlers/recommendations.js";
 export type { CheckoutGetOrderResponse } from "./handlers/checkout-get-order.js";
 export type { CartUpsertResponse, CartGetResponse } from "./handlers/cart.js";
-export type { ProductResponse, ProductListResponse, ProductSkuResponse, ProductSkuListResponse } from "./handlers/catalog.js";
+export type {
+	ProductAssetLinkResponse,
+	ProductAssetResponse,
+	ProductAssetUnlinkResponse,
+	ProductResponse,
+	ProductListResponse,
+	ProductSkuResponse,
+	ProductSkuListResponse,
+} from "./handlers/catalog.js";

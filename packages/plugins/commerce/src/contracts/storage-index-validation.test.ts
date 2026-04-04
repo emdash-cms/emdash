@@ -9,6 +9,8 @@ function includesIndex(
 		| "orders"
 		| "carts"
 		| "paymentAttempts"
+		| "productAssets"
+		| "productAssetLinks"
 		| "webhookReceipts"
 		| "idempotencyKeys"
 		| "products"
@@ -67,5 +69,15 @@ describe("storage index contracts", () => {
 	it("supports catalog SKU lookup and sku-code uniqueness invariants", () => {
 		expect(includesIndex("productSkus", ["productId"])).toBe(true);
 		expect(includesIndex("productSkus", ["skuCode"], true)).toBe(true);
+	});
+
+	it("supports catalog asset records and lookup invariants", () => {
+		expect(includesIndex("productAssets", ["provider", "externalAssetId"])).toBe(true);
+		expect(includesIndex("productAssets", ["provider", "externalAssetId"], true)).toBe(true);
+	});
+
+	it("supports catalog asset link lookup and idempotent linking", () => {
+		expect(includesIndex("productAssetLinks", ["targetType", "targetId"])).toBe(true);
+		expect(includesIndex("productAssetLinks", ["targetType", "targetId", "assetId"], true)).toBe(true);
 	});
 });
