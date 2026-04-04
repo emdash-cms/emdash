@@ -5,12 +5,12 @@
  */
 
 import { Button, Dialog } from "@cloudflare/kumo";
-import { Sparkle } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { apiFetch, throwResponseError } from "../lib/api/client";
+import { LogoIcon } from "./Logo.js";
 
 interface WelcomeModalProps {
 	open: boolean;
@@ -87,8 +87,8 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 					/>
 				</div>
 				<div className="flex flex-col space-y-1.5 text-center sm:text-center">
-					<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-kumo-brand/10">
-						<Sparkle className="h-8 w-8 text-kumo-brand" />
+					<div className="mx-auto mb-4">
+						<LogoIcon className="h-16 w-16" />
 					</div>
 					<Dialog.Title className="text-2xl font-semibold leading-none tracking-tight">
 						Welcome to EmDash{userName ? `, ${userName.split(" ")[0]}` : ""}!

@@ -8,7 +8,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
-import { output } from "../output.js";
+import { configureOutputMode, output } from "../output.js";
 
 export const searchCommand = defineCommand({
 	meta: {
@@ -38,6 +38,7 @@ export const searchCommand = defineCommand({
 		...connectionArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const results = await client.search(args.query, {
