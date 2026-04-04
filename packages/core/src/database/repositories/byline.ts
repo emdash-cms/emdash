@@ -1,6 +1,7 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { listTablesLike } from "../dialect-helpers.js";
 import type { BylineTable, Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -259,41 +260,43 @@ export class BylineRepository {
 		const result = new Map<string, ContentBylineCredit[]>();
 		if (contentIds.length === 0) return result;
 
-		const rows = await this.db
-			.selectFrom("_emdash_content_bylines as cb")
-			.innerJoin("_emdash_bylines as b", "b.id", "cb.byline_id")
-			.select([
-				"cb.content_id as content_id",
-				"cb.sort_order as sort_order",
-				"cb.role_label as role_label",
-				"b.id as id",
-				"b.slug as slug",
-				"b.display_name as display_name",
-				"b.bio as bio",
-				"b.avatar_media_id as avatar_media_id",
-				"b.website_url as website_url",
-				"b.user_id as user_id",
-				"b.is_guest as is_guest",
-				"b.created_at as created_at",
-				"b.updated_at as updated_at",
-			])
-			.where("cb.collection_slug", "=", collectionSlug)
-			.where("cb.content_id", "in", contentIds)
-			.orderBy("cb.sort_order", "asc")
-			.execute();
+		for (const chunk of chunks(contentIds, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_content_bylines as cb")
+				.innerJoin("_emdash_bylines as b", "b.id", "cb.byline_id")
+				.select([
+					"cb.content_id as content_id",
+					"cb.sort_order as sort_order",
+					"cb.role_label as role_label",
+					"b.id as id",
+					"b.slug as slug",
+					"b.display_name as display_name",
+					"b.bio as bio",
+					"b.avatar_media_id as avatar_media_id",
+					"b.website_url as website_url",
+					"b.user_id as user_id",
+					"b.is_guest as is_guest",
+					"b.created_at as created_at",
+					"b.updated_at as updated_at",
+				])
+				.where("cb.collection_slug", "=", collectionSlug)
+				.where("cb.content_id", "in", chunk)
+				.orderBy("cb.sort_order", "asc")
+				.execute();
 
-		for (const row of rows) {
-			const contentId = row.content_id;
-			const credit: ContentBylineCredit = {
-				byline: rowToByline(row),
-				sortOrder: row.sort_order,
-				roleLabel: row.role_label,
-			};
-			const existing = result.get(contentId);
-			if (existing) {
-				existing.push(credit);
-			} else {
-				result.set(contentId, [credit]);
+			for (const row of rows) {
+				const contentId = row.content_id;
+				const credit: ContentBylineCredit = {
+					byline: rowToByline(row),
+					sortOrder: row.sort_order,
+					roleLabel: row.role_label,
+				};
+				const existing = result.get(contentId);
+				if (existing) {
+					existing.push(credit);
+				} else {
+					result.set(contentId, [credit]);
+				}
 			}
 		}
 
@@ -308,15 +311,17 @@ export class BylineRepository {
 		const result = new Map<string, BylineSummary>();
 		if (userIds.length === 0) return result;
 
-		const rows = await this.db
-			.selectFrom("_emdash_bylines")
-			.selectAll()
-			.where("user_id", "in", userIds)
-			.execute();
+		for (const chunk of chunks(userIds, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_bylines")
+				.selectAll()
+				.where("user_id", "in", chunk)
+				.execute();
 
-		for (const row of rows) {
-			if (row.user_id) {
-				result.set(row.user_id, rowToByline(row));
+			for (const row of rows) {
+				if (row.user_id) {
+					result.set(row.user_id, rowToByline(row));
+				}
 			}
 		}
 		return result;
