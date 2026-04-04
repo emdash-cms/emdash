@@ -345,7 +345,7 @@ msgstr "Account"
 msgid "Account exists"
 msgstr "Account exists"
 
-#: packages/admin/src/components/users/UserDetail.tsx:228
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Account Info"
 msgstr "Account Info"
 
@@ -358,8 +358,8 @@ msgstr "Account Info"
 msgid "Actions"
 msgstr "Actions"
 
-#: packages/admin/src/components/users/UserDetail.tsx:218
-#: packages/admin/src/components/users/UserList.tsx:207
+#: packages/admin/src/components/users/UserDetail.tsx:213
+#: packages/admin/src/components/users/UserList.tsx:206
 msgid "Active"
 msgstr "Active"
 
@@ -470,7 +470,6 @@ msgid "Additional data to import."
 msgstr "Additional data to import."
 
 #: packages/admin/src/components/Sidebar.tsx:404
-#: packages/admin/src/components/users/RoleBadge.tsx:65
 msgid "Admin"
 msgstr "Admin"
 
@@ -523,8 +522,8 @@ msgstr "All imported content will be unassigned. You can reassign authors later 
 msgid "All locales"
 msgstr "All locales"
 
-#: packages/admin/src/components/users/UserList.tsx:73
-#: packages/admin/src/components/users/UserList.tsx:78
+#: packages/admin/src/components/users/UserList.tsx:72
+#: packages/admin/src/components/users/UserList.tsx:77
 msgid "All roles"
 msgstr "All roles"
 
@@ -677,7 +676,6 @@ msgstr "Authentication was cancelled or timed out. Please try again."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:287
-#: packages/admin/src/components/users/RoleBadge.tsx:63
 #: packages/admin/src/components/WelcomeModal.tsx:71
 msgid "Author"
 msgstr "Author"
@@ -824,22 +822,6 @@ msgstr "Bullet List"
 msgid "Bylines"
 msgstr "Bylines"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:71
-msgid "Can create content"
-msgstr "Can create content"
-
-#: packages/admin/src/components/users/RoleBadge.tsx:73
-msgid "Can manage all content"
-msgstr "Can manage all content"
-
-#: packages/admin/src/components/users/RoleBadge.tsx:72
-msgid "Can publish own content"
-msgstr "Can publish own content"
-
-#: packages/admin/src/components/users/RoleBadge.tsx:70
-msgid "Can view content"
-msgstr "Can view content"
-
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentEditor.tsx:557
 #: packages/admin/src/components/ContentEditor.tsx:727
@@ -852,6 +834,7 @@ msgstr "Can view content"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:517
 #: packages/admin/src/components/editor/ImageNode.tsx:223
 #: packages/admin/src/components/editor/ImageNode.tsx:224
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:393
 #: packages/admin/src/components/FieldEditor.tsx:475
 #: packages/admin/src/components/MediaDetailPanel.tsx:235
 #: packages/admin/src/components/MediaPickerModal.tsx:580
@@ -876,6 +859,14 @@ msgstr "Can view content"
 #: packages/admin/src/components/WordPressImport.tsx:1761
 msgid "Cancel"
 msgstr "Cancel"
+
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:392
+msgid "Cancel (Esc)"
+msgstr "Cancel (Esc)"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:147
+msgid "Cancel rename"
+msgstr "Cancel rename"
 
 #: packages/admin/src/components/Sections.tsx:399
 msgid "Cannot delete theme sections"
@@ -908,7 +899,7 @@ msgstr "Categories will be imported"
 msgid "Change"
 msgstr "Change"
 
-#: packages/admin/src/routes/users.tsx:299
+#: packages/admin/src/routes/users.tsx:297
 msgid "Change <0>{selectedUserName}</0> from <1>{currentRoleLabel}</1> to <2>{newRoleLabel}</2>? They will lose access to higher-level features."
 msgstr "Change <0>{selectedUserName}</0> from <1>{currentRoleLabel}</1> to <2>{newRoleLabel}</2>? They will lose access to higher-level features."
 
@@ -950,7 +941,7 @@ msgstr "Checking authentication..."
 msgid "Choose your preferred admin language"
 msgstr "Choose your preferred admin language"
 
-#: packages/admin/src/components/users/UserList.tsx:123
+#: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
 msgstr "Clear filters"
 
@@ -990,7 +981,7 @@ msgstr "Close"
 msgid "Close comments after (days)"
 msgstr "Close comments after (days)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:130
+#: packages/admin/src/components/users/UserDetail.tsx:129
 msgid "Close panel"
 msgstr "Close panel"
 
@@ -1078,7 +1069,7 @@ msgstr "Connect to {0}"
 msgid "Connect with WordPress"
 msgstr "Connect with WordPress"
 
-#: packages/admin/src/components/users/UserDetail.tsx:298
+#: packages/admin/src/components/users/UserDetail.tsx:293
 msgid "Connected"
 msgstr "Connected"
 
@@ -1136,7 +1127,6 @@ msgstr "Continue"
 msgid "Continue Import"
 msgstr "Continue Import"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:62
 #: packages/admin/src/components/WelcomeModal.tsx:72
 msgid "Contributor"
 msgstr "Contributor"
@@ -1166,6 +1156,11 @@ msgstr "Copy this token now — it won't be shown again."
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:155
 msgid "Copy token"
 msgstr "Copy token"
+
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:309
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:310
+msgid "Copy URL"
+msgstr "Copy URL"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:139
 msgid "Could not copy automatically. Please select the URL above and copy manually."
@@ -1302,8 +1297,8 @@ msgstr "Create your first reusable content section to get started."
 msgid "Create your passkey"
 msgstr "Create your passkey"
 
-#: packages/admin/src/components/users/UserDetail.tsx:231
-#: packages/admin/src/components/users/UserDetail.tsx:271
+#: packages/admin/src/components/users/UserDetail.tsx:226
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Created"
 msgstr "Created"
 
@@ -1401,6 +1396,7 @@ msgstr "Defined in code"
 #: packages/admin/src/components/ContentTypeEditor.tsx:603
 #: packages/admin/src/components/ContentTypeList.tsx:147
 #: packages/admin/src/components/editor/BlockMenu.tsx:311
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:365
 #: packages/admin/src/components/MediaDetailPanel.tsx:231
 #: packages/admin/src/components/MediaDetailPanel.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:370
@@ -1462,6 +1458,10 @@ msgstr "Delete Comment?"
 #: packages/admin/src/components/ContentTypeList.tsx:141
 msgid "Delete Content Type?"
 msgstr "Delete Content Type?"
+
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:366
+msgid "Delete embed"
+msgstr "Delete embed"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:597
 msgid "Delete Field?"
@@ -1537,15 +1537,15 @@ msgstr "Deleting..."
 msgid "Demo"
 msgstr "Demo"
 
-#: packages/admin/src/routes/users.tsx:304
+#: packages/admin/src/routes/users.tsx:302
 msgid "Demote User"
 msgstr "Demote User"
 
-#: packages/admin/src/routes/users.tsx:297
+#: packages/admin/src/routes/users.tsx:295
 msgid "Demote User?"
 msgstr "Demote User?"
 
-#: packages/admin/src/routes/users.tsx:305
+#: packages/admin/src/routes/users.tsx:303
 msgid "Demoting..."
 msgstr "Demoting..."
 
@@ -1594,7 +1594,7 @@ msgstr "Device authorized"
 msgid "Device code"
 msgstr "Device code"
 
-#: packages/admin/src/components/users/UserDetail.tsx:266
+#: packages/admin/src/components/users/UserDetail.tsx:261
 msgid "Device-bound"
 msgstr "Device-bound"
 
@@ -1606,7 +1606,7 @@ msgstr "Didn't receive the email?"
 msgid "Dimensions:"
 msgstr "Dimensions:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:331
+#: packages/admin/src/components/users/UserDetail.tsx:326
 msgid "Disable"
 msgstr "Disable"
 
@@ -1618,18 +1618,18 @@ msgstr "Disable plugin"
 msgid "Disable redirect"
 msgstr "Disable redirect"
 
-#: packages/admin/src/routes/users.tsx:282
+#: packages/admin/src/routes/users.tsx:280
 msgid "Disable User"
 msgstr "Disable User"
 
-#: packages/admin/src/routes/users.tsx:275
+#: packages/admin/src/routes/users.tsx:273
 msgid "Disable User?"
 msgstr "Disable User?"
 
 #: packages/admin/src/components/PluginManager.tsx:308
 #: packages/admin/src/components/Redirects.tsx:393
-#: packages/admin/src/components/users/UserDetail.tsx:213
-#: packages/admin/src/components/users/UserList.tsx:202
+#: packages/admin/src/components/users/UserDetail.tsx:208
+#: packages/admin/src/components/users/UserList.tsx:201
 msgid "Disabled"
 msgstr "Disabled"
 
@@ -1637,11 +1637,11 @@ msgstr "Disabled"
 msgid "Disabled:"
 msgstr "Disabled:"
 
-#: packages/admin/src/routes/users.tsx:277
+#: packages/admin/src/routes/users.tsx:275
 msgid "Disabling <0>{selectedUserName}</0> will prevent them from logging in until re-enabled. Their content will be preserved."
 msgstr "Disabling <0>{selectedUserName}</0> will prevent them from logging in until re-enabled. Their content will be preserved."
 
-#: packages/admin/src/routes/users.tsx:283
+#: packages/admin/src/routes/users.tsx:281
 msgid "Disabling..."
 msgstr "Disabling..."
 
@@ -1776,6 +1776,8 @@ msgstr "e.g., MacBook Pro, iPhone"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentEditor.tsx:1400
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:354
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:355
 #: packages/admin/src/components/MenuEditor.tsx:365
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:384
@@ -1847,14 +1849,18 @@ msgstr "Edit Redirect"
 msgid "Edit redirect {0}"
 msgstr "Edit redirect {0}"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:64
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:354
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:355
+msgid "Edit URL"
+msgstr "Edit URL"
+
 #: packages/admin/src/components/WelcomeModal.tsx:70
 msgid "Editor"
 msgstr "Editor"
 
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:196
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:161
 msgid "Email"
 msgstr "Email"
 
@@ -1889,7 +1895,7 @@ msgstr "Email provider active"
 msgid "Email Settings"
 msgstr "Email Settings"
 
-#: packages/admin/src/components/users/UserDetail.tsx:245
+#: packages/admin/src/components/users/UserDetail.tsx:240
 msgid "Email verified"
 msgstr "Email verified"
 
@@ -1905,7 +1911,7 @@ msgstr "Embed a {label}"
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporter plugin detected! You can import directly."
 
-#: packages/admin/src/components/users/UserDetail.tsx:331
+#: packages/admin/src/components/users/UserDetail.tsx:326
 msgid "Enable"
 msgstr "Enable"
 
@@ -1935,7 +1941,7 @@ msgstr "Enter {0}..."
 msgid "Enter credentials manually"
 msgstr "Enter credentials manually"
 
-#: packages/admin/src/components/users/UserDetail.tsx:166
+#: packages/admin/src/components/users/UserDetail.tsx:165
 msgid "Enter email"
 msgstr "Enter email"
 
@@ -1943,7 +1949,7 @@ msgstr "Enter email"
 msgid "Enter markdown content..."
 msgstr "Enter markdown content..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Enter name"
 msgstr "Enter name"
 
@@ -2100,7 +2106,7 @@ msgid "Failed to load theme"
 msgstr "Failed to load theme"
 
 #. placeholder {0}: usersQuery.error.message
-#: packages/admin/src/routes/users.tsx:205
+#: packages/admin/src/routes/users.tsx:203
 msgid "Failed to load users: {0}"
 msgstr "Failed to load users: {0}"
 
@@ -2207,7 +2213,7 @@ msgstr "Filter by capability"
 msgid "Filter by collection"
 msgstr "Filter by collection"
 
-#: packages/admin/src/components/users/UserList.tsx:76
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Filter by role"
 msgstr "Filter by role"
 
@@ -2226,10 +2232,6 @@ msgstr "For a complete import including drafts and all content, export from Word
 #: packages/admin/src/components/WordPressImport.tsx:1035
 msgid "For the best import experience, install the EmDash Exporter plugin on your WordPress site."
 msgstr "For the best import experience, install the EmDash Exporter plugin on your WordPress site."
-
-#: packages/admin/src/components/users/RoleBadge.tsx:74
-msgid "Full access"
-msgstr "Full access"
 
 #: packages/admin/src/components/Settings.tsx:69
 msgid "General"
@@ -2530,11 +2532,11 @@ msgid "Invite Link Created"
 msgstr "Invite Link Created"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:80
-#: packages/admin/src/components/users/UserList.tsx:47
+#: packages/admin/src/components/users/UserList.tsx:46
 msgid "Invite User"
 msgstr "Invite User"
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:129
 msgid "Invite your first team member"
 msgstr "Invite your first team member"
 
@@ -2586,11 +2588,11 @@ msgstr "Language"
 msgid "Last enabled:"
 msgstr "Last enabled:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:239
+#: packages/admin/src/components/users/UserDetail.tsx:234
 msgid "Last login"
 msgstr "Last login"
 
-#: packages/admin/src/components/users/UserList.tsx:102
+#: packages/admin/src/components/users/UserList.tsx:101
 msgid "Last Login"
 msgstr "Last Login"
 
@@ -2598,11 +2600,11 @@ msgstr "Last Login"
 msgid "Last seen"
 msgstr "Last seen"
 
-#: packages/admin/src/components/users/UserDetail.tsx:235
+#: packages/admin/src/components/users/UserDetail.tsx:230
 msgid "Last updated"
 msgstr "Last updated"
 
-#: packages/admin/src/components/users/UserDetail.tsx:274
+#: packages/admin/src/components/users/UserDetail.tsx:269
 msgid "Last used"
 msgstr "Last used"
 
@@ -2635,7 +2637,7 @@ msgstr "Link expired"
 msgid "Linked"
 msgstr "Linked"
 
-#: packages/admin/src/components/users/UserDetail.tsx:288
+#: packages/admin/src/components/users/UserDetail.tsx:283
 msgid "Linked Accounts"
 msgstr "Linked Accounts"
 
@@ -2664,7 +2666,7 @@ msgstr "Load more"
 
 #: packages/admin/src/components/ContentList.tsx:261
 #: packages/admin/src/components/ContentList.tsx:309
-#: packages/admin/src/components/users/UserList.tsx:159
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "Load More"
 
@@ -2734,7 +2736,7 @@ msgstr "Loading widgets..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:172
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:254
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:145
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:145
 #: packages/admin/src/components/WelcomeModal.tsx:135
 #: packages/admin/src/routes/bylines.tsx:236
 msgid "Loading..."
@@ -2993,7 +2995,7 @@ msgstr "my-post-slug"
 #: packages/admin/src/components/TaxonomyManager.tsx:454
 #: packages/admin/src/components/TaxonomyManager.tsx:603
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:156
+#: packages/admin/src/components/users/UserDetail.tsx:155
 #: packages/admin/src/components/Widgets.tsx:332
 msgid "Name"
 msgstr "Name"
@@ -3010,8 +3012,8 @@ msgstr "Name must start with a letter and contain only lowercase letters, number
 msgid "Navigation"
 msgstr "Navigation"
 
-#: packages/admin/src/components/users/UserDetail.tsx:241
-#: packages/admin/src/components/users/UserList.tsx:175
+#: packages/admin/src/components/users/UserDetail.tsx:236
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "Never"
 
@@ -3074,7 +3076,7 @@ msgstr "Next page"
 msgid "Next screenshot"
 msgstr "Next screenshot"
 
-#: packages/admin/src/components/users/UserDetail.tsx:246
+#: packages/admin/src/components/users/UserDetail.tsx:241
 msgid "No"
 msgstr "No"
 
@@ -3222,7 +3224,7 @@ msgstr "No minimum"
 msgid "No moderation (auto-approve all)"
 msgstr "No moderation (auto-approve all)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:258
+#: packages/admin/src/components/users/UserDetail.tsx:253
 msgid "No passkeys registered"
 msgstr "No passkeys registered"
 
@@ -3292,11 +3294,11 @@ msgstr "No spam comments."
 msgid "No themes found"
 msgstr "No themes found"
 
-#: packages/admin/src/components/users/UserList.tsx:115
+#: packages/admin/src/components/users/UserList.tsx:114
 msgid "No users found matching your filters."
 msgstr "No users found matching your filters."
 
-#: packages/admin/src/components/users/UserList.tsx:128
+#: packages/admin/src/components/users/UserList.tsx:127
 msgid "No users yet."
 msgstr "No users yet."
 
@@ -3342,6 +3344,8 @@ msgstr "Oops!"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:335
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:499
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:500
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:320
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:321
 msgid "Open in new tab"
 msgstr "Open in new tab"
 
@@ -3441,6 +3445,10 @@ msgstr "Passkey"
 msgid "Passkey added successfully"
 msgstr "Passkey added successfully"
 
+#: packages/admin/src/components/settings/PasskeyItem.tsx:130
+msgid "Passkey name"
+msgstr "Passkey name"
+
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:316
 msgid "Passkey Name (optional)"
 msgstr "Passkey Name (optional)"
@@ -3458,8 +3466,8 @@ msgid "Passkey renamed"
 msgstr "Passkey renamed"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:175
-#: packages/admin/src/components/users/UserDetail.tsx:255
-#: packages/admin/src/components/users/UserList.tsx:105
+#: packages/admin/src/components/users/UserDetail.tsx:250
+#: packages/admin/src/components/users/UserList.tsx:104
 msgid "Passkeys"
 msgstr "Passkeys"
 
@@ -3684,7 +3692,7 @@ msgid "Recipient email"
 msgstr "Recipient email"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:348
+#: packages/admin/src/components/users/UserDetail.tsx:343
 msgid "Recovery link sent to {0}"
 msgstr "Recovery link sent to {0}"
 
@@ -3728,10 +3736,14 @@ msgstr "Registration was cancelled or timed out. Please try again."
 #: packages/admin/src/components/PortableTextEditor.tsx:2294
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
+#: packages/admin/src/components/settings/PasskeyItem.tsx:188
+#: packages/admin/src/components/settings/PasskeyItem.tsx:206
 msgid "Remove"
 msgstr "Remove"
 
+#. placeholder {0}: passkey.name || "passkey"
 #. placeholder {0}: term.label
+#: packages/admin/src/components/settings/PasskeyItem.tsx:189
 #: packages/admin/src/components/TaxonomySidebar.tsx:189
 msgid "Remove {0}"
 msgstr "Remove {0}"
@@ -3761,13 +3773,27 @@ msgstr "Remove Image?"
 msgid "Remove link"
 msgstr "Remove link"
 
+#: packages/admin/src/components/settings/PasskeyItem.tsx:204
+msgid "Remove passkey?"
+msgstr "Remove passkey?"
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 msgid "Remove this image from the document?"
 msgstr "Remove this image from the document?"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:179
+#: packages/admin/src/components/settings/PasskeyItem.tsx:207
 msgid "Removing..."
 msgstr "Removing..."
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:177
+msgid "Rename"
+msgstr "Rename"
+
+#. placeholder {0}: passkey.name || "passkey"
+#: packages/admin/src/components/settings/PasskeyItem.tsx:178
+msgid "Rename {0}"
+msgstr "Rename {0}"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:192
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:227
@@ -3889,9 +3915,9 @@ msgid "Risk score: {0}/100"
 msgstr "Risk score: {0}/100"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:167
-#: packages/admin/src/components/users/UserDetail.tsx:177
-#: packages/admin/src/components/users/UserDetail.tsx:189
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/users/UserDetail.tsx:176
+#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserList.tsx:95
 msgid "Role"
 msgstr "Role"
 
@@ -3910,6 +3936,7 @@ msgstr "Same window"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:350
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:520
 #: packages/admin/src/components/editor/ImageNode.tsx:235
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:404
 #: packages/admin/src/components/MediaDetailPanel.tsx:242
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/PortableTextEditor.tsx:1079
@@ -3920,14 +3947,22 @@ msgstr "Same window"
 msgid "Save"
 msgstr "Save"
 
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:403
+msgid "Save (Enter)"
+msgstr "Save (Enter)"
+
 #: packages/admin/src/components/editor/ImageNode.tsx:236
 msgid "Save alt text"
 msgstr "Save alt text"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:514
-#: packages/admin/src/components/users/UserDetail.tsx:323
+#: packages/admin/src/components/users/UserDetail.tsx:318
 msgid "Save Changes"
 msgstr "Save Changes"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:138
+msgid "Save name"
+msgstr "Save name"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:164
 msgid "Save SEO Settings"
@@ -3957,7 +3992,7 @@ msgstr "Saved"
 #: packages/admin/src/components/settings/SeoSettings.tsx:164
 #: packages/admin/src/components/settings/SocialSettings.tsx:169
 #: packages/admin/src/components/TaxonomyManager.tsx:298
-#: packages/admin/src/components/users/UserDetail.tsx:323
+#: packages/admin/src/components/users/UserDetail.tsx:318
 #: packages/admin/src/components/Widgets.tsx:812
 #: packages/admin/src/routes/bylines.tsx:315
 msgid "Saving..."
@@ -4041,7 +4076,7 @@ msgstr "Search {0}"
 msgid "Search {0}..."
 msgstr "Search {0}..."
 
-#: packages/admin/src/components/users/UserList.tsx:60
+#: packages/admin/src/components/users/UserList.tsx:59
 msgid "Search by name or email..."
 msgstr "Search by name or email..."
 
@@ -4094,7 +4129,7 @@ msgstr "Search source or destination..."
 msgid "Search themes..."
 msgstr "Search themes..."
 
-#: packages/admin/src/components/users/UserList.tsx:64
+#: packages/admin/src/components/users/UserList.tsx:63
 msgid "Search users"
 msgstr "Search users"
 
@@ -4268,7 +4303,7 @@ msgstr "Send Invite"
 msgid "Send magic link"
 msgstr "Send magic link"
 
-#: packages/admin/src/components/users/UserDetail.tsx:344
+#: packages/admin/src/components/users/UserDetail.tsx:339
 msgid "Send Recovery Link"
 msgstr "Send Recovery Link"
 
@@ -4285,7 +4320,7 @@ msgstr "Send Test Email"
 #: packages/admin/src/components/SignupPage.tsx:87
 #: packages/admin/src/components/SignupPage.tsx:150
 #: packages/admin/src/components/users/InviteUserModal.tsx:204
-#: packages/admin/src/components/users/UserDetail.tsx:344
+#: packages/admin/src/components/users/UserDetail.tsx:339
 msgid "Sending..."
 msgstr "Sending..."
 
@@ -4523,7 +4558,7 @@ msgstr "Start Import"
 
 #: packages/admin/src/components/ContentList.tsx:173
 #: packages/admin/src/components/Redirects.tsx:423
-#: packages/admin/src/components/users/UserList.tsx:99
+#: packages/admin/src/components/users/UserList.tsx:98
 msgid "Status"
 msgstr "Status"
 
@@ -4540,12 +4575,11 @@ msgstr "Strikethrough"
 msgid "Structure"
 msgstr "Structure"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:61
 #: packages/admin/src/components/WelcomeModal.tsx:73
 msgid "Subscriber"
 msgstr "Subscriber"
 
-#: packages/admin/src/components/users/UserDetail.tsx:266
+#: packages/admin/src/components/users/UserDetail.tsx:261
 msgid "Synced"
 msgstr "Synced"
 
@@ -4868,7 +4902,7 @@ msgstr "Try adjusting your search"
 msgid "Try adjusting your search or filters."
 msgstr "Try adjusting your search or filters."
 
-#: packages/admin/src/routes/users.tsx:210
+#: packages/admin/src/routes/users.tsx:208
 msgid "Try again"
 msgstr "Try again"
 
@@ -4945,10 +4979,6 @@ msgstr "Uninstalling..."
 msgid "Unique"
 msgstr "Unique"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:75
-msgid "Unknown role"
-msgstr "Unknown role"
-
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:272
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:273
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:437
@@ -4956,7 +4986,8 @@ msgstr "Unknown role"
 msgid "Unlock aspect ratio"
 msgstr "Unlock aspect ratio"
 
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/settings/PasskeyItem.tsx:153
+#: packages/admin/src/components/users/UserDetail.tsx:259
 msgid "Unnamed passkey"
 msgstr "Unnamed passkey"
 
@@ -5158,7 +5189,7 @@ msgstr "Used in URLs and API endpoints"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 
-#: packages/admin/src/components/users/UserList.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:92
 msgid "User"
 msgstr "User"
 
@@ -5167,16 +5198,16 @@ msgstr "User"
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 
-#: packages/admin/src/components/users/UserDetail.tsx:128
+#: packages/admin/src/components/users/UserDetail.tsx:127
 msgid "User Details"
 msgstr "User Details"
 
-#: packages/admin/src/components/users/UserDetail.tsx:308
+#: packages/admin/src/components/users/UserDetail.tsx:303
 msgid "User not found"
 msgstr "User not found"
 
 #: packages/admin/src/components/Sidebar.tsx:208
-#: packages/admin/src/components/users/UserList.tsx:45
+#: packages/admin/src/components/users/UserList.tsx:44
 msgid "Users"
 msgstr "Users"
 
@@ -5355,7 +5386,7 @@ msgstr "Write widget content..."
 msgid "WXR File"
 msgstr "WXR File"
 
-#: packages/admin/src/components/users/UserDetail.tsx:246
+#: packages/admin/src/components/users/UserDetail.tsx:241
 msgid "Yes"
 msgstr "Yes"
 
@@ -5375,13 +5406,18 @@ msgstr "You can manage content, media, menus, and taxonomies."
 msgid "You can view and contribute to the site."
 msgstr "You can view and contribute to the site."
 
-#: packages/admin/src/components/users/UserDetail.tsx:183
+#: packages/admin/src/components/users/UserDetail.tsx:182
 msgid "You cannot change your own role"
 msgstr "You cannot change your own role"
 
 #: packages/admin/src/components/WelcomeModal.tsx:117
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "You have full access to manage this site, including users, settings, and all content."
+
+#. placeholder {0}: passkey.name || "this passkey"
+#: packages/admin/src/components/settings/PasskeyItem.tsx:205
+msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
+msgstr "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:356
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
