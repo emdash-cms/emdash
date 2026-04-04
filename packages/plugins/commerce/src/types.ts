@@ -79,6 +79,8 @@ export type WebhookReceiptErrorCode =
 	| "PRODUCT_UNAVAILABLE"
 	| "VARIANT_UNAVAILABLE";
 
+export type WebhookReceiptClaimState = "unclaimed" | "claimed" | "released";
+
 export interface StoredWebhookReceipt {
 	providerId: string;
 	externalEventId: string;
@@ -91,6 +93,16 @@ export interface StoredWebhookReceipt {
 	errorCode?: WebhookReceiptErrorCode;
 	/** Optional operational details for terminal error receipts. */
 	errorDetails?: Record<string, unknown>;
+	/** Lease owner for concurrency recovery / claim transfer. */
+	claimOwner?: string;
+	/** Lease token tied to a claim attempt (opaque to storage layer). */
+	claimToken?: string;
+	/** Lease expiry timestamp (ISO-8601 string) for stale-claim recovery. */
+	claimExpiresAt?: string;
+	/** Storage version observed when claim token was issued (for CAS-style transitions). */
+	claimVersion?: string;
+	/** High-level state of claim ownership (`claimed` when actively owned). */
+	claimState?: WebhookReceiptClaimState;
 }
 
 export interface StoredIdempotencyKey {
