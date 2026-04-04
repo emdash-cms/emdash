@@ -166,6 +166,19 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm run --filter @emdash-cms/admin test
 
+  test-e2e-rollup:
+    name: E2E Tests
+    if: always()
+    needs: [test-e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check E2E shard results
+        run: |
+          if [ "${{ needs.test-e2e.result }}" != "success" ]; then
+            echo "E2E tests failed or were cancelled"
+            exit 1
+          fi
+
   test-e2e:
     name: E2E tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest

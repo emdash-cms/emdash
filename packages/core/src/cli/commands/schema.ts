@@ -8,7 +8,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 
 import { connectionArgs as commonArgs, createClientFromArgs } from "../client-factory.js";
-import { output } from "../output.js";
+import { configureOutputMode, output } from "../output.js";
 
 const listCommand = defineCommand({
 	meta: {
@@ -19,6 +19,7 @@ const listCommand = defineCommand({
 		...commonArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const collections = await client.collections();
@@ -44,6 +45,7 @@ const getCommand = defineCommand({
 		...commonArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const collection = await client.collection(args.collection);
@@ -82,6 +84,7 @@ const createCommand = defineCommand({
 		...commonArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const data = await client.createCollection({
@@ -117,6 +120,7 @@ const deleteCommand = defineCommand({
 		...commonArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			if (!args.force) {
 				const confirmed = await consola.prompt(`Delete collection "${args.collection}"?`, {
@@ -170,6 +174,7 @@ const addFieldCommand = defineCommand({
 		...commonArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			const data = await client.createField(args.collection, {
@@ -206,6 +211,7 @@ const removeFieldCommand = defineCommand({
 		...commonArgs,
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
 			await client.deleteField(args.collection, args.field);
