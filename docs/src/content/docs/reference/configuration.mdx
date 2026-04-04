@@ -200,6 +200,26 @@ Use Cloudflare Access as the authentication provider instead of passkeys.
 	magic links, and self-signup are disabled.
 </Aside>
 
+### `passkeyPublicOrigin`
+
+**Optional.** The browser-facing origin for WebAuthn passkey verification. Required when EmDash sits behind a TLS-terminating reverse proxy where the internal request URL (`http://127.0.0.1:…`) differs from the browser's origin (`https://mysite.com`).
+
+```js
+emdash({
+	passkeyPublicOrigin: "https://mysite.com",
+	// ...
+});
+```
+
+When set, `rpId` and `origin` for passkey registration and login are derived from this value instead of the request URL. Must be a valid `http:` or `https:` URL. The integration validates and normalizes it at load time.
+
+<Aside>
+	When running behind a reverse proxy, you should also configure
+	[`security.allowedDomains`](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains)
+	and (in dev) `vite.server.allowedHosts` for your public hostname so Astro correctly reconstructs
+	`context.url` from forwarded headers.
+</Aside>
+
 ## Database Adapters
 
 Import from `emdash/db`:
