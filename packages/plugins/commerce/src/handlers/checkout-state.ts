@@ -8,6 +8,7 @@ import type {
 	StoredPaymentAttempt,
 } from "../types.js";
 import { resolvePaymentProviderId as resolvePaymentProviderIdFromContracts } from "../services/commerce-provider-contracts.js";
+import { throwCommerceApiError } from "../route-errors.js";
 
 export const CHECKOUT_ROUTE = "checkout";
 export const CHECKOUT_PENDING_KIND = "checkout_pending";
@@ -166,9 +167,11 @@ export async function restorePendingCheckout(
 	orders: StorageCollection<StoredOrder>,
 	attempts: StorageCollection<StoredPaymentAttempt>,
 ): Promise<CheckoutResponse> {
+	const expectedProviderId = resolvePaymentProviderId(pending.providerId);
+	const finalizeTokenHash = await sha256HexAsync(pending.finalizeToken);
+
 	const existingOrder = await orders.get(pending.orderId);
 	if (!existingOrder) {
-		const finalizeTokenHash = await sha256HexAsync(pending.finalizeToken);
 		await orders.put(pending.orderId, {
 			cartId: pending.cartId,
 			paymentPhase: pending.paymentPhase,
@@ -179,16 +182,60 @@ export async function restorePendingCheckout(
 			createdAt: pending.createdAt,
 			updatedAt: nowIso,
 		});
+	} else {
+		const orderLineItemsMatch =
+			existingOrder.lineItems.length === pending.lineItems.length &&
+			existingOrder.lineItems.every((existingItem, index) => {
+				const pendingItem = pending.lineItems[index];
+				return (
+					existingItem.productId === pendingItem.productId &&
+					existingItem.variantId === pendingItem.variantId &&
+					existingItem.quantity === pendingItem.quantity &&
+					existingItem.inventoryVersion === pendingItem.inventoryVersion &&
+					existingItem.unitPriceMinor === pendingItem.unitPriceMinor
+				);
+			});
+
+		if (
+			existingOrder.cartId !== pending.cartId ||
+			existingOrder.paymentPhase !== pending.paymentPhase ||
+			existingOrder.currency !== pending.currency ||
+			existingOrder.totalMinor !== pending.totalMinor ||
+			existingOrder.finalizeTokenHash !== finalizeTokenHash ||
+			!orderLineItemsMatch
+		) {
+			throwCommerceApiError({
+				code: "ORDER_STATE_CONFLICT",
+				message: "Cached checkout recovery state no longer matches current order",
+				details: {
+					idempotencyKey: idempotencyDocId,
+					orderId: pending.orderId,
+				},
+			});
+		}
 	}
 
 	const existingAttempt = await attempts.get(pending.paymentAttemptId);
 	if (!existingAttempt) {
 		await attempts.put(pending.paymentAttemptId, {
 			orderId: pending.orderId,
-			providerId: resolvePaymentProviderId(pending.providerId),
+			providerId: expectedProviderId,
 			status: "pending",
 			createdAt: pending.createdAt,
 			updatedAt: nowIso,
+		});
+	} else if (
+		existingAttempt.orderId !== pending.orderId ||
+		existingAttempt.providerId !== expectedProviderId ||
+		existingAttempt.status !== "pending"
+	) {
+		throwCommerceApiError({
+			code: "ORDER_STATE_CONFLICT",
+			message: "Cached checkout recovery state no longer matches current payment attempt",
+			details: {
+				idempotencyKey: idempotencyDocId,
+				paymentAttemptId: pending.paymentAttemptId,
+			},
 		});
 	}
 

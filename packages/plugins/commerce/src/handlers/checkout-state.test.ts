@@ -188,19 +188,19 @@ describe("restorePendingCheckout", () => {
 			createdAt: NOW,
 		};
 		const existingOrder: StoredOrder = {
-			cartId: "existing-cart",
+			cartId: pending.cartId,
 			paymentPhase: "payment_pending",
 			currency: "USD",
-			lineItems: [],
-			totalMinor: 777,
-			finalizeTokenHash: "existing-hash",
+			lineItems: pending.lineItems,
+			totalMinor: 1500,
+			finalizeTokenHash: await sha256HexAsync(pending.finalizeToken),
 			createdAt: "2026-04-01T00:00:00.000Z",
 			updatedAt: "2026-04-01T00:00:00.000Z",
 		};
 		const existingAttempt: StoredPaymentAttempt = {
 			orderId: pending.orderId,
 			providerId: "stripe",
-			status: "succeeded",
+			status: "pending",
 			createdAt: "2026-04-01T00:00:00.000Z",
 			updatedAt: "2026-04-01T00:00:00.000Z",
 		};
@@ -223,6 +223,82 @@ describe("restorePendingCheckout", () => {
 			paymentAttemptId: pending.paymentAttemptId,
 		});
 		expect(response.replayIntegrity).toMatch(/^[a-f0-9]{64}$/);
+		expect(await orders.get(pending.orderId)).toEqual(existingOrder);
+		expect(await attempts.get(pending.paymentAttemptId)).toEqual(existingAttempt);
+	});
+
+	it("fails replay restore if existing order no longer matches pending payload", async () => {
+		const pending = checkoutPendingFixture();
+		const cached: StoredIdempotencyKey = {
+			route: CHECKOUT_ROUTE,
+			keyHash: "k6",
+			httpStatus: 202,
+			responseBody: pending,
+			createdAt: NOW,
+		};
+		const existingOrder: StoredOrder = {
+			cartId: "other-cart",
+			paymentPhase: "payment_pending",
+			currency: "USD",
+			lineItems: pending.lineItems,
+			totalMinor: pending.totalMinor,
+			finalizeTokenHash: await sha256HexAsync(pending.finalizeToken),
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const existingAttempt: StoredPaymentAttempt = {
+			orderId: pending.orderId,
+			providerId: resolvePaymentProviderId(pending.providerId),
+			status: "pending",
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const orders = new MemColl<StoredOrder>(new Map([[pending.orderId, existingOrder]]));
+		const attempts = new MemColl<StoredPaymentAttempt>(new Map([[pending.paymentAttemptId, existingAttempt]]));
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+
+		await expect(
+			restorePendingCheckout("idemp:order-mismatch", cached, pending, NOW, idempotencyKeys, orders, attempts),
+		).rejects.toMatchObject({ code: "order_state_conflict" });
+		expect(await idempotencyKeys.get("idemp:order-mismatch")).toBeNull();
+		expect(await orders.get(pending.orderId)).toEqual(existingOrder);
+		expect(await attempts.get(pending.paymentAttemptId)).toEqual(existingAttempt);
+	});
+
+	it("fails replay restore if existing attempt no longer matches pending payload", async () => {
+		const pending = checkoutPendingFixture();
+		const cached: StoredIdempotencyKey = {
+			route: CHECKOUT_ROUTE,
+			keyHash: "k7",
+			httpStatus: 202,
+			responseBody: pending,
+			createdAt: NOW,
+		};
+		const existingOrder: StoredOrder = {
+			cartId: pending.cartId,
+			paymentPhase: pending.paymentPhase,
+			currency: pending.currency,
+			lineItems: pending.lineItems,
+			totalMinor: pending.totalMinor,
+			finalizeTokenHash: await sha256HexAsync(pending.finalizeToken),
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const existingAttempt: StoredPaymentAttempt = {
+			orderId: pending.orderId,
+			providerId: resolvePaymentProviderId(pending.providerId),
+			status: "succeeded",
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const orders = new MemColl<StoredOrder>(new Map([[pending.orderId, existingOrder]]));
+		const attempts = new MemColl<StoredPaymentAttempt>(new Map([[pending.paymentAttemptId, existingAttempt]]));
+		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
+
+		await expect(
+			restorePendingCheckout("idemp:attempt-mismatch", cached, pending, NOW, idempotencyKeys, orders, attempts),
+		).rejects.toMatchObject({ code: "order_state_conflict" });
+		expect(await idempotencyKeys.get("idemp:attempt-mismatch")).toBeNull();
 		expect(await orders.get(pending.orderId)).toEqual(existingOrder);
 		expect(await attempts.get(pending.paymentAttemptId)).toEqual(existingAttempt);
 	});
