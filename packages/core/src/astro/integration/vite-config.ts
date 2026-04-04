@@ -204,6 +204,54 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 }
 
 /**
+ * Creates a Vite plugin that ensures PluginBridge is exported from the
+ * Worker entry point when a sandbox runner is configured.
+ *
+ * The Cloudflare sandbox runner needs PluginBridge to be a named export
+ * of the main Worker module so it's accessible via cloudflare:workers
+ * exports at runtime. The Astro Cloudflare adapter only generates a
+ * default export in entry.mjs, so this plugin appends the named export
+ * during the build.
+ */
+function createPluginBridgeExportPlugin(sandboxRunner?: string): Plugin | null {
+	if (!sandboxRunner) return null;
+
+	return {
+		name: "emdash-plugin-bridge-export",
+		enforce: "post",
+		generateBundle(_, bundle) {
+			// Find the entry chunk (entry.mjs)
+			for (const [fileName, chunk] of Object.entries(bundle)) {
+				if (chunk.type === "chunk" && chunk.isEntry && fileName.endsWith(".mjs")) {
+					// Find which chunk contains the PluginBridge export from the
+					// virtual sandbox-runner module. The build graph includes it
+					// because the virtual module re-exports it.
+					let bridgeChunk: string | null = null;
+					for (const [name, c] of Object.entries(bundle)) {
+						if (
+							c.type === "chunk" &&
+							c.code.includes("PluginBridge") &&
+							c.code.includes("WorkerEntrypoint")
+						) {
+							// Use the chunk's path relative to the entry
+							bridgeChunk = name;
+							break;
+						}
+					}
+
+					if (bridgeChunk) {
+						// Compute the import path relative to entry.mjs
+						const importPath = "./" + bridgeChunk;
+						chunk.code += `\nimport { PluginBridge } from "${importPath}";\nexport { PluginBridge };\n`;
+					}
+					break;
+				}
+			}
+		},
+	};
+}
+
+/**
  * Modules that contain native Node.js addons or Node-only code.
  * These must be external in SSR to avoid bundling failures on Node.
  * On Cloudflare, the adapter handles its own externalization — setting
@@ -257,7 +305,10 @@ export function createViteConfig(
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
-		plugins: [createVirtualModulesPlugin(options)] as NonNullable<AstroConfig["vite"]>["plugins"],
+		plugins: [
+			createVirtualModulesPlugin(options),
+			...(cloudflare ? [createPluginBridgeExportPlugin(options.resolvedConfig.sandboxRunner)] : []),
+		].filter(Boolean) as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
 		// On Cloudflare: skip — the adapter handles externalization, and setting
