@@ -39,6 +39,7 @@ export function MenuEditor() {
 	const [isContentPickerOpen, setIsContentPickerOpen] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState<MenuItem | null>(null);
 	const [localItems, setLocalItems] = React.useState<MenuItem[]>([]);
+	const [newParentId, setNewParentId] = React.useState<string>("");
 	const [addError, setAddError] = React.useState<string | null>(null);
 	const [editError, setEditError] = React.useState<string | null>(null);
 
@@ -131,11 +132,13 @@ export function MenuEditor() {
 		const labelVal = formData.get("label");
 		const urlVal = formData.get("url");
 		const targetVal = formData.get("target");
+		const parentVal = formData.get("parentId");
 		createMutation.mutate({
 			type: "custom",
 			label: typeof labelVal === "string" ? labelVal : "",
 			customUrl: typeof urlVal === "string" ? urlVal : "",
 			target: (typeof targetVal === "string" ? targetVal : "") || undefined,
+			parentId: typeof parentVal === "string" && parentVal !== "" ? parentVal : undefined,
 		});
 	};
 
@@ -145,6 +148,7 @@ export function MenuEditor() {
 			label: item.title,
 			referenceCollection: item.collection,
 			referenceId: item.id,
+			parentId: newParentId || undefined,
 		});
 	};
 
@@ -156,6 +160,7 @@ export function MenuEditor() {
 		const uLabelVal = formData.get("label");
 		const uUrlVal = formData.get("url");
 		const uTargetVal = formData.get("target");
+		const uParentVal = formData.get("parentId");
 		updateMutation.mutate({
 			itemId: editingItem.id,
 			input: {
@@ -163,6 +168,8 @@ export function MenuEditor() {
 				customUrl:
 					editingItem.type === "custom" ? (typeof uUrlVal === "string" ? uUrlVal : "") : undefined,
 				target: (typeof uTargetVal === "string" ? uTargetVal : "") || undefined,
+				parentId:
+					typeof uParentVal === "string" ? (uParentVal === "" ? null : uParentVal) : undefined,
 			},
 		});
 	};
@@ -223,7 +230,21 @@ export function MenuEditor() {
 						<p className="text-kumo-subtle">Edit menu items</p>
 					</div>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex gap-2 items-center">
+					<label className="text-sm text-kumo-subtle mr-2">Parent</label>
+					<select
+						value={newParentId}
+						onChange={(e) => setNewParentId(e.target.value)}
+						className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm"
+					>
+						<option value="">Top level</option>
+						{localItems.map((it) => (
+							<option key={it.id} value={it.id}>
+								{it.label}
+							</option>
+						))}
+					</select>
+
 					<Button
 						icon={<FileIcon />}
 						variant="outline"
@@ -284,6 +305,15 @@ export function MenuEditor() {
 									<Select.Option value="">Same window</Select.Option>
 									<Select.Option value="_blank">New window</Select.Option>
 								</Select>
+								{/* Parent selection for new item (defaults to currently selected parent) */}
+								<select name="parentId" defaultValue={newParentId} className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm">
+									<option value="">Top level</option>
+									{localItems.map((it) => (
+										<option key={it.id} value={it.id}>
+											{it.label}
+										</option>
+									))}
+								</select>
 								<DialogError message={addError || getMutationError(createMutation.error)} />
 								<div className="flex justify-end gap-2">
 									<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
@@ -427,6 +457,17 @@ export function MenuEditor() {
 								<Select.Option value="">Same window</Select.Option>
 								<Select.Option value="_blank">New window</Select.Option>
 							</Select>
+							{/* Parent selection for editing item */}
+							<select name="parentId" defaultValue={editingItem.parent_id ?? ""} className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm">
+								<option value="">Top level</option>
+								{localItems
+									.filter((it) => it.id !== editingItem.id)
+									.map((it) => (
+										<option key={it.id} value={it.id}>
+											{it.label}
+										</option>
+									))}
+							</select>
 							<DialogError message={editError || getMutationError(updateMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setEditingItem(null)}>
