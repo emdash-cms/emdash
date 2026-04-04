@@ -1116,8 +1116,6 @@ function ProbeResultStep({
 	}
 
 	// WordPress detected
-	const siteTitle = bestMatch?.detected.siteTitle || t`WordPress site`;
-	
 	return (
 		<div className="space-y-6">
 			{/* Detection success */}
@@ -1126,7 +1124,7 @@ function ProbeResultStep({
 					<Check className="h-6 w-6 text-green-500 flex-shrink-0" />
 					<div>
 						<h3 className="font-medium">
-							{t`${siteTitle} detected`}
+							{t`${bestMatch?.detected.siteTitle || t`WordPress site`} detected`}
 						</h3>
 						<p className="mt-1 text-sm text-kumo-subtle">
 							{hasPlugin
