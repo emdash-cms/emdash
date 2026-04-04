@@ -345,7 +345,11 @@ function PluginCard({
 									title={plugin.capabilities.map((c) => CAPABILITY_LABELS[c] ?? c).join(", ")}
 								>
 									<ShieldCheck className="h-3 w-3" />
-									<Plural value={plugin.capabilities.length} one="# permission" other="# permissions" />
+									<Plural
+										value={plugin.capabilities.length}
+										one="# permission"
+										other="# permissions"
+									/>
 								</span>
 							)}
 						</div>

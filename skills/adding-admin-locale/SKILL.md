@@ -85,11 +85,13 @@ function MyComponent() {
 ```tsx
 import { Trans } from "@lingui/react/macro";
 
-<p>
-	<Trans>
-		Read the <a href="/docs">documentation</a> to learn more.
-	</Trans>
-</p>
+return (
+	<p>
+		<Trans>
+			Read the <a href="/docs">documentation</a> to learn more.
+		</Trans>
+	</p>
+);
 ```
 
 **With interpolation:**
@@ -109,23 +111,23 @@ This updates all `.po` files with the new strings. Existing translations are pre
 
 ## Key Files
 
-| File | Purpose |
-| --- | --- |
-| `lingui.config.ts` (repo root) | Lingui config: locales, catalog paths, source scanning |
-| `packages/admin/src/locales/config.ts` | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()` |
-| `packages/admin/src/locales/useLocale.ts` | `useLocale()` hook — client-side locale switching with cookie |
-| `packages/admin/src/locales/index.ts` | Barrel export for locale utilities |
-| `packages/admin/src/locales/{locale}/messages.po` | Translation catalogs (gettext `.po` format) |
-| `packages/core/src/astro/routes/admin.astro` | Server-side locale resolution and catalog loading |
-| `demos/simple/astro.config.mjs` | Lingui Vite plugin + Babel macro plugin config |
+| File                                              | Purpose                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `lingui.config.ts` (repo root)                    | Lingui config: locales, catalog paths, source scanning        |
+| `packages/admin/src/locales/config.ts`            | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()`      |
+| `packages/admin/src/locales/useLocale.ts`         | `useLocale()` hook — client-side locale switching with cookie |
+| `packages/admin/src/locales/index.ts`             | Barrel export for locale utilities                            |
+| `packages/admin/src/locales/{locale}/messages.po` | Translation catalogs (gettext `.po` format)                   |
+| `packages/core/src/astro/routes/admin.astro`      | Server-side locale resolution and catalog loading             |
+| `demos/simple/astro.config.mjs`                   | Lingui Vite plugin + Babel macro plugin config                |
 
 ## Macro Reference
 
-| Macro | Import | Use for |
-| --- | --- | --- |
-| `t` | `@lingui/react/macro` via `useLingui()` | Plain strings, attributes, props |
-| `Trans` | `@lingui/react/macro` | JSX with inline tags/components |
-| `Plural` | `@lingui/react/macro` | Pluralization |
+| Macro    | Import                                  | Use for                          |
+| -------- | --------------------------------------- | -------------------------------- |
+| `t`      | `@lingui/react/macro` via `useLingui()` | Plain strings, attributes, props |
+| `Trans`  | `@lingui/react/macro`                   | JSX with inline tags/components  |
+| `Plural` | `@lingui/react/macro`                   | Pluralization                    |
 
 All macros are compile-time transforms — they produce optimized `i18n._()` calls at build time via `@lingui/babel-plugin-lingui-macro`.
 
@@ -133,7 +135,7 @@ All macros are compile-time transforms — they produce optimized `i18n._()` cal
 
 1. **Forgetting `lingui extract` after adding strings** — new strings won't appear in `.po` files until extracted.
 
-2. **Using `t()` instead of `` t`` ``** — Lingui macros use tagged template literals, not function calls. `` t`Save` `` is correct, `t("Save")` will not compile.
+2. **Using `t()` instead of ` t` ``** — Lingui macros use tagged template literals, not function calls. `` t`Save` `` is correct, `t("Save")` will not compile.
 
 3. **Forgetting to add the locale to `config.ts`** — the `.po` file will exist but the locale won't appear in the UI selector.
 
