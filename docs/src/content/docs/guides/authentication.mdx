@@ -268,6 +268,7 @@ export default defineConfig({
 | `defaultRole`   | `number`  | `30`     | Role for users not matching any group (30 = Author)           |
 | `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups                 |
 | `roleMapping`   | `object`  | —        | Map IdP group names to role levels                            |
+| `audienceEnvVar`| `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable name for the audience tag (alternative to hardcoding) |
 
 ### Role Mapping
 
