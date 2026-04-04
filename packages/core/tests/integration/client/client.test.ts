@@ -15,7 +15,6 @@ import type { TestServerContext } from "../server.js";
 import { assertNodeVersion, createTestServer } from "../server.js";
 
 const PORT = 4399;
-const TIMEOUT = 60_000;
 
 describe("EmDashClient Integration", () => {
 	let ctx: TestServerContext;
@@ -23,7 +22,7 @@ describe("EmDashClient Integration", () => {
 	beforeAll(async () => {
 		assertNodeVersion();
 		ctx = await createTestServer({ port: PORT });
-	}, TIMEOUT);
+	});
 
 	afterAll(async () => {
 		await ctx?.cleanup();
