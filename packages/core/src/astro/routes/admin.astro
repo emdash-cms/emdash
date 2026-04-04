@@ -13,44 +13,19 @@ import AdminWrapper from "emdash/routes/PluginRegistry";
 export const prerender = false;
 
 // ── i18n locale resolution ──────────────────────────────────────────
-import { SUPPORTED_LOCALE_CODES, DEFAULT_LOCALE, NAMESPACES } from "@emdash-cms/admin/i18n";
+import { resolveLocale, NAMESPACES, prefixKeys } from "@emdash-cms/admin/i18n";
 
-function isSupportedLocale(value: string): boolean {
-	return SUPPORTED_LOCALE_CODES.has(value);
-}
-
-/**
- * Parse Accept-Language header and return the first supported locale.
- * Accept-Language is a weighted list: "fr-FR,fr;q=0.9,en;q=0.8"
- */
-function parseAcceptLanguage(header: string): string | null {
-	const candidates = header
-		.split(",")
-		.map((entry) => entry.split(";")[0]!.trim())
-		.map((tag) => tag.split("-")[0]!.toLowerCase());
-
-	for (const candidate of candidates) {
-		if (isSupportedLocale(candidate)) return candidate;
-	}
-	return null;
-}
-
-const cookieHeader = Astro.request.headers.get("cookie") ?? "";
-const cookieMatch = cookieHeader.match(/(?:^|;\s*)emdash-locale=([^;]+)/);
-const cookieLocale = cookieMatch?.[1]?.trim() ?? "";
-
-const acceptLang = Astro.request.headers.get("accept-language") ?? "";
-const resolvedLocale =
-	isSupportedLocale(cookieLocale)
-		? cookieLocale
-		: parseAcceptLanguage(acceptLang) ?? DEFAULT_LOCALE;
+const resolvedLocale = resolveLocale(Astro.request);
 
 const namespaceModules = await Promise.all(
-	NAMESPACES.map((ns) => import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/${ns}.json`)),
+	NAMESPACES.map(async (ns) => {
+		const mod = await import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/${ns}.json`);
+		return prefixKeys(ns, mod.default);
+	}),
 );
 let translations = {};
 for (const mod of namespaceModules) {
-	translations = { ...translations, ...mod.default };
+	translations = { ...translations, ...mod };
 }
 ---
 
