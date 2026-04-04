@@ -171,7 +171,7 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 			)}
 
 			<Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary">
-				{isLoading ? <>{t`Setting up...`}</> : t`Continue`}
+				{isLoading ? t`Setting up...` : t`Continue →`}
 			</Button>
 
 			{seedInfo && (
