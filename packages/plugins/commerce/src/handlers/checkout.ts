@@ -33,11 +33,14 @@ import {
 	CheckoutPendingState,
 	CHECKOUT_PENDING_KIND,
 	CHECKOUT_ROUTE,
+	computeCheckoutReplayIntegrity,
 	decideCheckoutReplayState,
 	deterministicOrderId,
 	deterministicPaymentAttemptId,
 	restorePendingCheckout,
 	resolvePaymentProviderId,
+	toCheckoutClientResponse,
+	validateCachedCheckoutCompleted,
 } from "./checkout-state.js";
 
 function asCollection<T>(raw: unknown): StorageCollection<T> {
@@ -122,19 +125,28 @@ export async function checkoutHandler(
 			case "cached_completed":
 				const cachedOrder = await orders.get(decision.response.orderId);
 				const cachedAttempt = await attempts.get(decision.response.paymentAttemptId);
-				if (!cachedOrder || !cachedAttempt) {
+				if (
+					!(await validateCachedCheckoutCompleted(
+						keyHash,
+						decision.response,
+						cachedOrder,
+						cachedAttempt,
+					))
+				) {
 					break;
 				}
-				return decision.response;
+				return toCheckoutClientResponse(decision.response);
 			case "cached_pending":
-				return await restorePendingCheckout(
-					idempotencyDocId,
-					cached,
-					decision.pending,
-					nowIso,
-					idempotencyKeys,
-					orders,
-					attempts,
+				return toCheckoutClientResponse(
+					await restorePendingCheckout(
+						idempotencyDocId,
+						cached,
+						decision.pending,
+						nowIso,
+						idempotencyKeys,
+						orders,
+						attempts,
+					),
 				);
 			case "not_cached":
 			default:
@@ -228,12 +240,13 @@ export async function checkoutHandler(
 		currency: cart.currency,
 		finalizeToken,
 	};
+	const replayIntegrity = await computeCheckoutReplayIntegrity(keyHash, responseBody);
 
 	await idempotencyKeys.put(idempotencyDocId, {
 		route: CHECKOUT_ROUTE,
 		keyHash,
 		httpStatus: 200,
-		responseBody,
+		responseBody: { ...responseBody, replayIntegrity },
 		createdAt: nowIso,
 	});
 

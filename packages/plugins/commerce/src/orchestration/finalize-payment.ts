@@ -6,11 +6,9 @@
  *
  * `decidePaymentFinalize` interprets the read model only; this module performs writes.
  *
- * **Concurrency:** Plugin storage has no multi-document transactions and `put` upserts on id
- * only. Two concurrent deliveries of the *same* gateway event can still double-apply
- * inventory until the platform exposes insert-if-not-exists or conditional writes. Receipt
- * + `finalizeTokenHash` reduce *cross-order* abuse; duplicate concurrent same-event remains
- * a documented residual risk.
+ * **Concurrency:** `webhookReceipts.putIfAbsent` (when available) plus pending/fresh claim
+ * rules serialize same-event overlap; terminal receipt rows short-circuit losers without
+ * overwriting `processed`/`duplicate`/`error` state.
  */
 
 import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
@@ -209,7 +207,8 @@ function isReceiptClaimFresh(
 ): boolean {
 	const updatedMs = Date.parse(receipt.updatedAt);
 	const nowMs = Date.parse(nowIso);
-	if (!Number.isFinite(updatedMs) || !Number.isFinite(nowMs)) return true;
+	// Unparseable timestamps → stale: allow another worker to take over the claim.
+	if (!Number.isFinite(updatedMs) || !Number.isFinite(nowMs)) return false;
 	return nowMs - updatedMs <= staleWindowMs;
 }
 
@@ -246,7 +245,18 @@ async function claimWebhookReceipt({
 		};
 	}
 
-	if (existing.status !== "pending" || !isReceiptClaimFresh(existing, nowIso, WEBHOOK_RECEIPT_CLAIM_STALE_WINDOW_MS)) {
+	if (existing.status === "processed") {
+		return { kind: "replay", result: { kind: "replay", reason: "webhook_receipt_processed" } };
+	}
+	if (existing.status === "duplicate") {
+		return { kind: "replay", result: { kind: "replay", reason: "webhook_receipt_duplicate" } };
+	}
+	if (existing.status === "error") {
+		return { kind: "replay", result: { kind: "replay", reason: "webhook_error" } };
+	}
+
+	// `pending`: stale or unparseable updatedAt → allow this worker to take over; fresh → same-event overlap.
+	if (!isReceiptClaimFresh(existing, nowIso, WEBHOOK_RECEIPT_CLAIM_STALE_WINDOW_MS)) {
 		return { kind: "acquired" };
 	}
 

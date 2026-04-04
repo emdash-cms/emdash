@@ -7,15 +7,16 @@ import type { RouteContext } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { hmacSha256HexAsync, constantTimeEqualHexAsync } from "../lib/crypto-adapter.js";
+import { STRIPE_WEBHOOK_SIGNATURE } from "../services/commerce-provider-contracts.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { StripeWebhookEventInput, StripeWebhookInput } from "../schemas.js";
 import { handlePaymentWebhook, type CommerceWebhookAdapter } from "./webhook-handler.js";
 
 const MAX_WEBHOOK_BODY_BYTES = COMMERCE_LIMITS.maxWebhookBodyBytes;
 const STRIPE_SIGNATURE_HEADER = "Stripe-Signature";
-const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
-const STRIPE_SIGNATURE_TOLERANCE_MIN_SECONDS = 30;
-const STRIPE_SIGNATURE_TOLERANCE_MAX_SECONDS = 7_200;
+const STRIPE_SIGNATURE_TOLERANCE_SECONDS = STRIPE_WEBHOOK_SIGNATURE.defaultToleranceSeconds;
+const STRIPE_SIGNATURE_TOLERANCE_MIN_SECONDS = STRIPE_WEBHOOK_SIGNATURE.minToleranceSeconds;
+const STRIPE_SIGNATURE_TOLERANCE_MAX_SECONDS = STRIPE_WEBHOOK_SIGNATURE.maxToleranceSeconds;
 const STRIPE_PROVIDER_ID = "stripe";
 const STRIPE_METADATA_ORDER_ID_KEYS = ["orderId", "emdashOrderId", "emdash_order_id"] as const;
 const STRIPE_METADATA_FINALIZE_TOKEN_KEYS = [

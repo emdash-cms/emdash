@@ -1678,6 +1678,66 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(receipt?.status).toBe("processed");
 	});
 
+	it("pending receipt with unparseable updatedAt is treated as stale claim and finalizes", async () => {
+		const orderId = "order_bad_receipt_ts";
+		const extId = "evt_bad_receipt_ts";
+		const rid = webhookReceiptDocId("stripe", extId);
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 1, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>([
+				[
+					rid,
+					{
+						providerId: "stripe",
+						externalEventId: extId,
+						orderId,
+						status: "pending",
+						correlationId: "cid",
+						createdAt: now,
+						updatedAt: "not-an-iso-timestamp",
+					},
+				],
+			]),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_bad_ts",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const ports = {
+			...basePorts,
+			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+		} as FinalizePaymentPorts;
+
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "completed", orderId });
+		const receipt = await ports.webhookReceipts.get(rid);
+		expect(receipt?.status).toBe("processed");
+	});
+
 	it("stress: many in-process duplicate same-event finalizations converge on one inventory result", async () => {
 		const orderId = "order_concurrent_many";
 		const extId = "evt_concurrent_many";

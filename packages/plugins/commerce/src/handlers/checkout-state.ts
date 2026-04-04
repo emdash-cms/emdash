@@ -39,7 +39,17 @@ export type CheckoutResponse = {
 	totalMinor: number;
 	currency: string;
 	finalizeToken: string;
+	/** Present on new writes; validates idempotency replay against live storage. */
+	replayIntegrity?: string;
 };
+
+/** Wire shape returned to clients (no internal replay seal). */
+export type CheckoutClientResponse = Omit<CheckoutResponse, "replayIntegrity">;
+
+export function toCheckoutClientResponse(response: CheckoutResponse): CheckoutClientResponse {
+	const { replayIntegrity: _replayIntegrity, ...out } = response;
+	return out;
+}
 
 export type CheckoutReplayDecision =
 	| { kind: "cached_completed"; response: CheckoutResponse }
@@ -66,7 +76,8 @@ export function isCheckoutCompletedResponse(value: unknown): value is CheckoutRe
 		typeof candidate.currency === "string" &&
 		typeof candidate.finalizeToken === "string" &&
 		candidate.cartId === undefined &&
-		candidate.lineItems === undefined
+		candidate.lineItems === undefined &&
+		(candidate.replayIntegrity === undefined || typeof candidate.replayIntegrity === "string")
 	);
 }
 
@@ -108,6 +119,44 @@ function checkoutResponseFromPendingState(state: CheckoutPendingState): Checkout
 	};
 }
 
+type CheckoutReplayIntegrityInput = Pick<
+	CheckoutResponse,
+	"orderId" | "paymentAttemptId" | "totalMinor" | "currency" | "paymentPhase" | "finalizeToken"
+>;
+
+/** Deterministic seal for completed-checkout idempotency replay validation. */
+export async function computeCheckoutReplayIntegrity(
+	keyHash: string,
+	response: CheckoutReplayIntegrityInput,
+): Promise<string> {
+	return sha256HexAsync(
+		`${keyHash}|${response.orderId}|${response.paymentAttemptId}|${response.totalMinor}|${response.currency}|${response.paymentPhase}|${response.finalizeToken}`,
+	);
+}
+
+/**
+ * Returns true when cached completed response matches live order + attempt rows.
+ * When `replayIntegrity` is absent (legacy cache), only structural + token-hash checks apply.
+ */
+export async function validateCachedCheckoutCompleted(
+	keyHash: string,
+	cached: CheckoutResponse,
+	order: StoredOrder | null,
+	attempt: StoredPaymentAttempt | null,
+): Promise<boolean> {
+	if (!order || !attempt) return false;
+	if (attempt.orderId !== cached.orderId) return false;
+	if (order.paymentPhase !== cached.paymentPhase) return false;
+	if (order.totalMinor !== cached.totalMinor) return false;
+	if (order.currency !== cached.currency) return false;
+	if ((await sha256HexAsync(cached.finalizeToken)) !== order.finalizeTokenHash) return false;
+	if (cached.replayIntegrity != null && cached.replayIntegrity.length > 0) {
+		const expected = await computeCheckoutReplayIntegrity(keyHash, cached);
+		if (expected !== cached.replayIntegrity) return false;
+	}
+	return true;
+}
+
 export async function restorePendingCheckout(
 	idempotencyDocId: string,
 	cached: StoredIdempotencyKey,
@@ -143,7 +192,9 @@ export async function restorePendingCheckout(
 		});
 	}
 
-	const response = checkoutResponseFromPendingState(pending);
+	const base = checkoutResponseFromPendingState(pending);
+	const replayIntegrity = await computeCheckoutReplayIntegrity(cached.keyHash, base);
+	const response: CheckoutResponse = { ...base, replayIntegrity };
 	await idempotencyKeys.put(idempotencyDocId, {
 		...cached,
 		httpStatus: 200,

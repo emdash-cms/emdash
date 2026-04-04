@@ -10,6 +10,16 @@ export const PAYMENT_DEFAULTS = {
 } as const;
 
 /**
+ * Stripe webhook signature verification bounds (shared by `webhooks/stripe` and tests).
+ * Tolerance is seconds of clock skew allowed between signature timestamp and server time.
+ */
+export const STRIPE_WEBHOOK_SIGNATURE = {
+	defaultToleranceSeconds: 300,
+	minToleranceSeconds: 30,
+	maxToleranceSeconds: 7_200,
+} as const;
+
+/**
  * Resolve a provider identifier from user input and preserve deterministic defaults.
  * Empty/whitespace values are treated as "unset" and map to the checkout default.
  */

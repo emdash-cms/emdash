@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { STRIPE_WEBHOOK_SIGNATURE } from "../services/commerce-provider-contracts.js";
 import {
 	clampStripeTolerance,
 	extractStripeFinalizeMetadata,
@@ -116,8 +117,8 @@ describe("stripe webhook signature helpers", () => {
 	});
 
 	it("clamps webhook tolerance setting to configured bounds", () => {
-		expect(clampStripeTolerance(0)).toBe(60);
-		expect(clampStripeTolerance(9_999_999)).toBe(7_200);
+		expect(clampStripeTolerance(0)).toBe(STRIPE_WEBHOOK_SIGNATURE.minToleranceSeconds);
+		expect(clampStripeTolerance(9_999_999)).toBe(STRIPE_WEBHOOK_SIGNATURE.maxToleranceSeconds);
 		expect(clampStripeTolerance("150")).toBe(150);
 	});
 
@@ -155,6 +156,7 @@ describe("stripe webhook signature helpers", () => {
 		const body = rawStripeEventBody;
 		const timestamp = 1_760_000_999;
 		const sig = `t=${timestamp},v1=${await hashWithSecret(secret, timestamp, body)}`;
+		const clock = vi.spyOn(Date, "now").mockReturnValue(timestamp * 1000);
 
 		const ctx = {
 			request: new Request("https://example.test/webhooks/stripe", {
@@ -189,7 +191,11 @@ describe("stripe webhook signature helpers", () => {
 			},
 		} as never;
 
-		await stripeWebhookHandler(ctx);
+		try {
+			await stripeWebhookHandler(ctx);
+		} finally {
+			clock.mockRestore();
+		}
 
 		expect(finalizePaymentFromWebhook).toHaveBeenCalledWith(
 			expect.anything(),
@@ -212,40 +218,45 @@ describe("stripe webhook signature helpers", () => {
 		});
 		const timestamp = 1_760_000_999;
 		const sig = `t=${timestamp},v1=${await hashWithSecret(secret, timestamp, body)}`;
+		const clock = vi.spyOn(Date, "now").mockReturnValue(timestamp * 1000);
 
-		await expect(
-			stripeWebhookHandler({
-				request: new Request("https://example.test/webhooks/stripe", {
-					method: "POST",
-					body,
-					headers: {
-						"content-length": String(body.length),
-						"Stripe-Signature": sig,
-					},
-				}),
-				input: JSON.parse(body),
-				storage: {
-					orders: {},
-					webhookReceipts: {},
-					paymentAttempts: {},
-					inventoryLedger: {},
-					inventoryStock: {},
-				},
-				kv: {
-					get: vi.fn(async (key: string) => {
-						if (key === "settings:stripeWebhookSecret") return secret;
-						if (key === "settings:stripeWebhookToleranceSeconds") return "300";
-						return null;
+		try {
+			await expect(
+				stripeWebhookHandler({
+					request: new Request("https://example.test/webhooks/stripe", {
+						method: "POST",
+						body,
+						headers: {
+							"content-length": String(body.length),
+							"Stripe-Signature": sig,
+						},
 					}),
-				},
-				requestMeta: { ip: "127.0.0.1" },
-				log: {
-					info: () => undefined,
-					warn: () => undefined,
-					error: () => undefined,
-					debug: () => undefined,
-				},
-			} as never),
-		).rejects.toMatchObject({ code: "ORDER_STATE_CONFLICT" });
+					input: JSON.parse(body),
+					storage: {
+						orders: {},
+						webhookReceipts: {},
+						paymentAttempts: {},
+						inventoryLedger: {},
+						inventoryStock: {},
+					},
+					kv: {
+						get: vi.fn(async (key: string) => {
+							if (key === "settings:stripeWebhookSecret") return secret;
+							if (key === "settings:stripeWebhookToleranceSeconds") return "300";
+							return null;
+						}),
+					},
+					requestMeta: { ip: "127.0.0.1" },
+					log: {
+						info: () => undefined,
+						warn: () => undefined,
+						error: () => undefined,
+						debug: () => undefined,
+					},
+				} as never),
+			).rejects.toMatchObject({ code: "order_state_conflict" });
+		} finally {
+			clock.mockRestore();
+		}
 	});
 });

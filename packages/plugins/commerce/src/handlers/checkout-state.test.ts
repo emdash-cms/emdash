@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import {
 	CHECKOUT_PENDING_KIND,
 	CHECKOUT_ROUTE,
 	type CheckoutPendingState,
+	computeCheckoutReplayIntegrity,
 	deterministicOrderId,
 	deterministicPaymentAttemptId,
 	decideCheckoutReplayState,
 	restorePendingCheckout,
 	resolvePaymentProviderId,
+	validateCachedCheckoutCompleted,
 } from "./checkout-state.js";
 import type { StoredIdempotencyKey, StoredOrder, StoredPaymentAttempt } from "../types.js";
 
@@ -137,7 +140,7 @@ describe("restorePendingCheckout", () => {
 
 		const response = await restorePendingCheckout("idemp:abc", cached, pending, NOW, idempotencyKeys, orders, attempts);
 
-		expect(response).toEqual({
+		expect(response).toMatchObject({
 			orderId: pending.orderId,
 			paymentPhase: "payment_pending",
 			paymentAttemptId: pending.paymentAttemptId,
@@ -145,6 +148,7 @@ describe("restorePendingCheckout", () => {
 			currency: pending.currency,
 			finalizeToken: pending.finalizeToken,
 		});
+		expect(response.replayIntegrity).toMatch(/^[a-f0-9]{64}$/);
 		const order = await orders.get(pending.orderId);
 		expect(order).toEqual({
 			cartId: pending.cartId,
@@ -218,8 +222,93 @@ describe("restorePendingCheckout", () => {
 			orderId: pending.orderId,
 			paymentAttemptId: pending.paymentAttemptId,
 		});
+		expect(response.replayIntegrity).toMatch(/^[a-f0-9]{64}$/);
 		expect(await orders.get(pending.orderId)).toEqual(existingOrder);
 		expect(await attempts.get(pending.paymentAttemptId)).toEqual(existingAttempt);
+	});
+});
+
+describe("validateCachedCheckoutCompleted", () => {
+	it("returns false when order or attempt is missing", async () => {
+		const cached = {
+			orderId: "o1",
+			paymentPhase: "payment_pending" as const,
+			paymentAttemptId: "a1",
+			totalMinor: 100,
+			currency: "USD",
+			finalizeToken: "tok_______________________________",
+		};
+		expect(await validateCachedCheckoutCompleted("kh", cached, null, null)).toBe(false);
+	});
+
+	it("returns false when replayIntegrity does not match payload", async () => {
+		const token = "tok_______________________________";
+		const order: StoredOrder = {
+			cartId: "c1",
+			paymentPhase: "payment_pending",
+			currency: "USD",
+			lineItems: [],
+			totalMinor: 100,
+			finalizeTokenHash: await sha256HexAsync(token),
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const attempt: StoredPaymentAttempt = {
+			orderId: "o1",
+			providerId: "stripe",
+			status: "pending",
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const cached = {
+			orderId: "o1",
+			paymentPhase: "payment_pending" as const,
+			paymentAttemptId: "a1",
+			totalMinor: 100,
+			currency: "USD",
+			finalizeToken: token,
+			replayIntegrity: "deadbeef",
+		};
+		expect(await validateCachedCheckoutCompleted("kh", cached, order, attempt)).toBe(false);
+	});
+
+	it("returns true when replayIntegrity matches and rows align", async () => {
+		const token = "tok_______________________________";
+		const keyHash = "keyh";
+		const order: StoredOrder = {
+			cartId: "c1",
+			paymentPhase: "payment_pending",
+			currency: "USD",
+			lineItems: [],
+			totalMinor: 100,
+			finalizeTokenHash: await sha256HexAsync(token),
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const attempt: StoredPaymentAttempt = {
+			orderId: "o1",
+			providerId: "stripe",
+			status: "pending",
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const cached = {
+			orderId: "o1",
+			paymentPhase: "payment_pending" as const,
+			paymentAttemptId: "a1",
+			totalMinor: 100,
+			currency: "USD",
+			finalizeToken: token,
+		};
+		const replayIntegrity = await computeCheckoutReplayIntegrity(keyHash, cached);
+		expect(
+			await validateCachedCheckoutCompleted(
+				keyHash,
+				{ ...cached, replayIntegrity },
+				order,
+				attempt,
+			),
+		).toBe(true);
 	});
 });
 
