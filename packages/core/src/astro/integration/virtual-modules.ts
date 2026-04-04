@@ -273,6 +273,10 @@ export const sandboxEnabled = false;
 	return `
 // Auto-generated sandbox runner module
 import { createSandboxRunner as _createSandboxRunner } from "${sandboxRunner}";
+// Re-export PluginBridge so it's included in the build graph.
+// The entry-point export plugin will hoist this to entry.mjs at build time,
+// making it accessible via cloudflare:workers exports at runtime.
+export { PluginBridge } from "${sandboxRunner}";
 
 export const createSandboxRunner = _createSandboxRunner;
 export const sandboxEnabled = true;
