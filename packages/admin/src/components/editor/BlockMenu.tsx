@@ -45,7 +45,7 @@ interface BlockTransform {
 	transform: (editor: Editor) => void;
 }
 
-const blockTransforms: BlockTransform[] = [
+const blockTransforms = [
 	{
 		id: "paragraph",
 		label: "Paragraph",
@@ -110,7 +110,7 @@ const blockTransforms: BlockTransform[] = [
 			editor.chain().focus().toggleOrderedList().run();
 		},
 	},
-];
+] as const satisfies BlockTransform[];
 
 type BlockTransformId = (typeof blockTransforms)[number]["id"];
 
