@@ -19,12 +19,15 @@ import {
 	Users,
 	Stack,
 	MagnifyingGlass,
+	Sparkle,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { parseNaturalLanguageCommand } from "../lib/api/ai";
+import type { ParsedCommand } from "../lib/api/ai";
 import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
 
@@ -38,8 +41,64 @@ const ROUTE_PARAM_REGEX = /\$(\w+)/g;
 // Debounce delay for content search (ms)
 const SEARCH_DEBOUNCE_MS = 300;
 
+// Debounce delay for AI parsing (slightly longer to avoid unnecessary calls)
+const AI_DEBOUNCE_MS = 500;
+
+// Pattern for detecting natural language queries
+const NL_QUERY_PREFIX = /^(show me|find|list|create|how many|what)\b/i;
+
 // Detect macOS for keyboard shortcut display
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+
+/**
+ * Check whether a query looks like a natural language command.
+ * Returns true if the query is longer than 20 characters or
+ * starts with a recognized question/action word.
+ */
+function isNaturalLanguageQuery(query: string): boolean {
+	const trimmed = query.trim();
+	if (!trimmed) return false;
+	return trimmed.length > 20 || NL_QUERY_PREFIX.test(trimmed);
+}
+
+/**
+ * Format a parsed AI command into a human-readable title.
+ */
+function formatParsedCommand(cmd: ParsedCommand): string {
+	const action = cmd.action.charAt(0).toUpperCase() + cmd.action.slice(1);
+	const target = cmd.target.charAt(0).toUpperCase() + cmd.target.slice(1);
+	if (cmd.params && Object.keys(cmd.params).length > 0) {
+		const paramStr = Object.entries(cmd.params)
+			.map(([k, v]) => `${k}: ${String(v)}`)
+			.join(", ");
+		return `${action} ${target} (${paramStr})`;
+	}
+	return `${action} ${target}`;
+}
+
+/**
+ * Map a parsed AI command to a navigation route.
+ */
+function parsedCommandToRoute(cmd: ParsedCommand): {
+	to: string;
+	params?: Record<string, string>;
+} {
+	switch (cmd.action) {
+		case "search":
+			return {
+				to: "/content/$collection",
+				params: { collection: cmd.target },
+			};
+		case "create":
+			return {
+				to: "/content/$collection",
+				params: { collection: cmd.target },
+			};
+		case "navigate":
+		default:
+			return { to: `/${cmd.target}` };
+	}
+}
 
 /**
  * Custom hook for debouncing a value
@@ -299,6 +358,9 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	// Debounce the search query to avoid flickering on every keystroke
 	const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
 
+	// Debounce the AI query separately (longer delay)
+	const debouncedAiQuery = useDebouncedValue(query, AI_DEBOUNCE_MS);
+
 	const { data: user } = useCurrentUser();
 
 	const userRole = user?.role ?? 0;
@@ -309,6 +371,15 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 		queryFn: () => searchContent(debouncedQuery),
 		enabled: debouncedQuery.length >= 2,
 		staleTime: 30 * 1000,
+	});
+
+	// AI natural language parsing
+	const shouldParseNl = isNaturalLanguageQuery(debouncedAiQuery);
+	const { data: aiParsedCommand } = useQuery({
+		queryKey: ["command-palette-ai", debouncedAiQuery],
+		queryFn: () => parseNaturalLanguageCommand(debouncedAiQuery),
+		enabled: shouldParseNl,
+		staleTime: 60 * 1000,
 	});
 
 	// Show loading while waiting for debounce or API response
@@ -363,8 +434,26 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 			});
 		}
 
+		// AI Suggestion group
+		if (aiParsedCommand) {
+			const route = parsedCommandToRoute(aiParsedCommand);
+			groups.push({
+				label: "AI Suggestion",
+				items: [
+					{
+						id: "ai-suggestion",
+						title: formatParsedCommand(aiParsedCommand),
+						to: route.to,
+						params: route.params,
+						icon: <Sparkle className="h-4 w-4" />,
+						description: `${aiParsedCommand.action} action`,
+					},
+				],
+			});
+		}
+
 		return groups;
-	}, [filteredNavItems, searchResults, manifest.collections]);
+	}, [filteredNavItems, searchResults, manifest.collections, aiParsedCommand]);
 
 	// Keyboard shortcut to open (Cmd+K / Ctrl+K)
 	useHotkeys("mod+k", (e) => {
