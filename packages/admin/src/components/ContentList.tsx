@@ -186,15 +186,25 @@ export function ContentList({
 							<tbody>
 								{items.length === 0 && !isLoading ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											No {collectionLabel.toLowerCase()} yet.{" "}
-											<Link
-												to="/content/$collection/new"
-												params={{ collection }}
-												className="text-kumo-brand underline"
-											>
-												Create your first one
-											</Link>
+										<td colSpan={i18n ? 5 : 4} className="px-4 py-12 text-center">
+											<p className="text-kumo-subtle mb-3">
+												No {collectionLabel.toLowerCase()} yet.
+											</p>
+											<div className="flex items-center justify-center gap-3">
+												<Link
+													to="/content/$collection/new"
+													params={{ collection }}
+													className="inline-flex items-center gap-1.5 rounded-md bg-kumo-brand px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+												>
+													Create your first one
+												</Link>
+												<Link
+													to="/import"
+													className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-kumo-default hover:bg-kumo-tint"
+												>
+													Import from WordPress
+												</Link>
+											</div>
 										</td>
 									</tr>
 								) : paginatedItems.length === 0 ? (
