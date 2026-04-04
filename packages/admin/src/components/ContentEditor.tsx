@@ -521,7 +521,7 @@ export function ContentEditor({
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
 					)}
-					{!isNew && supportsPreview && isPublished && (
+					{!isNew && supportsPreview && (
 						<Button
 							variant="outline"
 							type="button"
