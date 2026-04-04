@@ -55,16 +55,6 @@ let runtimeInitializing = false;
 let i18nInitialized = false;
 
 /**
- * Whether we've verified the database has been set up.
- * On a fresh deployment the first request may hit a public page, bypassing
- * runtime init. Without this check, template helpers like getSiteSettings()
- * would query an empty database and crash. Once verified (or once the runtime
- * has initialized via an admin/API request), this stays true for the worker's
- * lifetime.
- */
-let setupVerified = false;
-
-/**
  * Get EmDash configuration from virtual module
  */
 function getConfig(): EmDashConfig | null {
@@ -175,64 +165,19 @@ function setBaselineSecurityHeaders(response: Response): void {
 	}
 }
 
-/** Public routes that require the runtime (sitemap, robots.txt, etc.) */
-const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-
 export const onRequest = defineMiddleware(async (context, next) => {
-	const { request, locals, cookies } = context;
-	const url = context.url;
-
-	// Process /_emdash routes and public routes with an active session
-	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
-	const isEmDashRoute = url.pathname.startsWith("/_emdash");
-	const isPublicRuntimeRoute = PUBLIC_RUNTIME_ROUTES.has(url.pathname);
-
-	// Check for edit mode cookie - editors viewing public pages need the runtime
-	// so auth middleware can verify their session for visual editing
-	const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
-	const hasPreviewToken = url.searchParams.has("_preview");
-
-	// Playground mode: the playground middleware stashes the per-session DO database
-	// on locals.__playgroundDb. When present, use runWithContext() to make it
-	// available to getDb() and the runtime's db getter via the correct ALS instance.
-	const playgroundDb = locals.__playgroundDb;
-
-	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
-		const sessionUser = await context.session?.get("user");
-		if (!sessionUser && !playgroundDb) {
-			// On a fresh deployment the database may be completely empty.
-			// Public pages call getSiteSettings() / getMenu() via getDb(), which
-			// bypasses runtime init and would crash with "no such table: options".
-			// Do a one-time lightweight probe using the same getDb() instance the
-			// page will use: if the migrations table doesn't exist, no migrations
-			// have ever run -- redirect to the setup wizard.
-			if (!setupVerified) {
-				try {
-					const { getDb } = await import("../loader.js");
-					const db = await getDb();
-					await db
-						.selectFrom("_emdash_migrations" as keyof Database)
-						.selectAll()
-						.limit(1)
-						.execute();
-					setupVerified = true;
-				} catch {
-					// Table doesn't exist -> fresh database, redirect to setup
-					return context.redirect("/_emdash/admin/setup");
-				}
-			}
-
-			const response = await next();
-			setBaselineSecurityHeaders(response);
-			return response;
-		}
-	}
+	const { request, locals } = context;
 
 	const config = getConfig();
 	if (!config) {
 		console.error("EmDash: No configuration found");
 		return next();
 	}
+
+	// Playground mode: the playground middleware stashes the per-session DO database
+	// on locals.__playgroundDb. When present, use runWithContext() to make it
+	// available to getDb() and the runtime's db getter via the correct ALS instance.
+	const playgroundDb = locals.__playgroundDb;
 
 	// In playground mode, wrap the entire runtime init + request handling in
 	// runWithContext so that getDatabase() and all init queries use the real
@@ -241,9 +186,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		try {
 			// Get or create runtime
 			const runtime = await getRuntime(config);
-
-			// Runtime init runs migrations, so the DB is guaranteed set up
-			setupVerified = true;
 
 			// Get manifest (cached after first call)
 			const manifest = await runtime.getManifest();
@@ -264,6 +206,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				handleContentPermanentDelete: runtime.handleContentPermanentDelete.bind(runtime),
 				handleContentCountTrashed: runtime.handleContentCountTrashed.bind(runtime),
 				handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
+
+				// Page Contributions
+				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+				collectPageFragments: runtime.collectPageFragments.bind(runtime),
 
 				// Duplicate handler
 				handleContentDuplicate: runtime.handleContentDuplicate.bind(runtime),
