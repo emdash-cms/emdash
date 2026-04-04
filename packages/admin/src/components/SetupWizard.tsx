@@ -257,7 +257,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 					loading={isLoading}
 					variant="primary"
 				>
-					{isLoading ? <>{t`Preparing...`}</> : t`Continue`}
+					{isLoading ? <>{t`Preparing...`}</> : t`Continue →`}
 				</Button>
 			</div>
 		</form>
