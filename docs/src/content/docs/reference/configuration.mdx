@@ -202,30 +202,63 @@ Use Cloudflare Access as the authentication provider instead of passkeys.
 
 ### `passkeyPublicOrigin`
 
-**Optional.** The browser-facing origin for WebAuthn passkey verification. Required when EmDash sits behind a TLS-terminating reverse proxy where the internal request URL (`http://127.0.0.1:…`) differs from the browser's origin (`https://mysite.com`).
+**Optional.** Pass a full **browser-facing origin** (scheme + host + optional port, **no path**) so WebAuthn **`rpId`** and **`origin`** match what the user’s browser sends in `clientData.origin`.
+
+By default, passkeys follow **`Astro.url`** / **`request.url`**. Behind a **TLS-terminating reverse proxy**, the app often still sees **`http://`** on the internal hop while the tab is **`https://`**, or the reconstructed host does not match the public name — which breaks passkey verification. Set `passkeyPublicOrigin` to the origin users type in the address bar (for example `https://cms.example.com` or `https://cms.example.com:8443`).
+
+The integration **validates** this value at load time: it must be a valid URL with **`http:`** or **`https:`** protocol and is normalized to **`origin`**.
 
 ```js
 emdash({
-	passkeyPublicOrigin: "https://mysite.com",
-	// ...
+	database: sqlite({ url: "file:./data.db" }),
+	storage: local({
+		directory: "./uploads",
+		baseUrl: "/_emdash/api/media/file",
+	}),
+	passkeyPublicOrigin: "https://cms.example.com",
 });
 ```
 
-When set, `rpId` and `origin` for passkey registration and login are derived from this value instead of the request URL. Must be a valid `http:` or `https:` URL. The integration validates and normalizes it at load time.
+#### Reverse proxy and passkeys
 
-<Aside>
-	When running behind a reverse proxy, you should also configure
-	[`security.allowedDomains`](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains)
-	and (in dev) `vite.server.allowedHosts` for your public hostname so Astro correctly reconstructs
-	`context.url` from forwarded headers.
+Astro only reflects **`X-Forwarded-*`** when the public host is allowed. Configure [**`security.allowedDomains`**](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains) for the hostname (and schemes) your users hit. In **`astro dev`**, add matching **`vite.server.allowedHosts`** so Vite accepts the proxy **`Host`** header.
+
+Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`passkeyPublicOrigin`** when the reconstructed URL **still** diverges from the browser origin (typical when TLS is terminated in front and the upstream request stays **`http://`**).
+
+With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`passkeyPublicOrigin`** matches the public HTTPS origin.
+
+<Aside type="caution">
+	Your reverse proxy should forward a **port-aware** `Host` / `X-Forwarded-Host` when you use non-default ports. If the proxy strips the port, **`rpId`** and Astro’s rebuilt URL can be wrong.
 </Aside>
 
-## Database Adapters
+```js title="astro.config.mjs (excerpt)"
+import { defineConfig } from "astro/config";
+import emdash, { local } from "emdash/astro";
+import { sqlite } from "emdash/db";
 
-Import from `emdash/db`:
-
-```js
-import { sqlite, libsql, postgres, d1 } from "emdash/db";
+export default defineConfig({
+	security: {
+		allowedDomains: [
+			{ hostname: "cms.example.com", protocol: "https" },
+			{ hostname: "cms.example.com", protocol: "http" },
+		],
+	},
+	vite: {
+		server: {
+			allowedHosts: ["cms.example.com"],
+		},
+	},
+	integrations: [
+		emdash({
+			database: sqlite({ url: "file:./data.db" }),
+			storage: local({
+				directory: "./uploads",
+				baseUrl: "/_emdash/api/media/file",
+			}),
+			passkeyPublicOrigin: "https://cms.example.com",
+		}),
+	],
+});
 ```
 
 ### `sqlite(config)`

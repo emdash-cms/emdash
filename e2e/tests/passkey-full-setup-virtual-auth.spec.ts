@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { expect, test } from "../fixtures";
+import { refreshServerPatAfterDevBypass } from "../fixtures/refresh-server-pat";
 import { addVirtualWebAuthnAuthenticator } from "../fixtures/virtual-authenticator";
 
 const ADMIN_AFTER_SETUP_URL = /\/_emdash\/admin(\/login)?/;
@@ -30,9 +31,7 @@ async function resetSetup(): Promise<void> {
 }
 
 async function restoreFixtureSetup(): Promise<void> {
-	const base = fixtureBaseUrl();
-	const res = await fetch(`${base}/_emdash/api/setup/dev-bypass?token=1`);
-	if (!res.ok) throw new Error(`dev-bypass restore failed: ${res.status}`);
+	await refreshServerPatAfterDevBypass(fixtureBaseUrl());
 }
 
 test.describe("Setup wizard passkey with virtual authenticator (localhost)", () => {
