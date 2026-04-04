@@ -1,0 +1,19 @@
+{
+	"settings.title": "Settings",
+	"settings.general": "General",
+	"settings.general.description": "Site identity, logo, favicon, and reading preferences",
+	"settings.social": "Social Links",
+	"settings.social.description": "Social media profile links",
+	"settings.seo": "SEO",
+	"settings.seo.description": "Search engine optimization and verification",
+	"settings.security": "Security",
+	"settings.security.description": "Manage your passkeys and authentication",
+	"settings.selfSignup": "Self-Signup Domains",
+	"settings.selfSignup.description": "Allow users from specific domains to sign up",
+	"settings.apiTokens": "API Tokens",
+	"settings.apiTokens.description": "Create personal access tokens for programmatic API access",
+	"settings.email": "Email",
+	"settings.email.description": "View email provider status and send test emails",
+	"settings.language": "Language",
+	"settings.language.description": "Choose your preferred admin language"
+}

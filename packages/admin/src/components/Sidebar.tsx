@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useTranslation } from "../i18n/index.js";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { usePluginAdmins } from "../lib/plugin-context";
@@ -146,6 +147,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const currentPath = location.pathname;
 	const pluginAdmins = usePluginAdmins();
 
+	const { t } = useTranslation("nav");
 	const { data: user } = useCurrentUser();
 	const userRole = user?.role ?? 0;
 
@@ -160,7 +162,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	// --- Build nav item groups ---
 
-	const contentItems: NavItem[] = [{ to: "/", label: "Dashboard", icon: SquaresFour }];
+	const contentItems: NavItem[] = [{ to: "/", label: t("dashboard"), icon: SquaresFour }];
 	for (const [name, config] of Object.entries(manifest.collections)) {
 		contentItems.push({
 			to: "/content/$collection",
@@ -169,53 +171,58 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			params: { collection: name },
 		});
 	}
-	contentItems.push({ to: "/media", label: "Media", icon: Image });
+	contentItems.push({ to: "/media", label: t("media"), icon: Image });
 
 	const manageItems: NavItem[] = [
 		{
 			to: "/comments",
-			label: "Comments",
+			label: t("comments"),
 			icon: ChatCircle,
 			minRole: ROLE_EDITOR,
 			badge: commentCounts?.pending,
 		},
-		{ to: "/menus", label: "Menus", icon: List, minRole: ROLE_EDITOR },
-		{ to: "/redirects", label: "Redirects", icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
-		{ to: "/widgets", label: "Widgets", icon: GridFour, minRole: ROLE_EDITOR },
-		{ to: "/sections", label: "Sections", icon: Stack, minRole: ROLE_EDITOR },
+		{ to: "/menus", label: t("menus"), icon: List, minRole: ROLE_EDITOR },
+		{ to: "/redirects", label: t("redirects"), icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
+		{ to: "/widgets", label: t("widgets"), icon: GridFour, minRole: ROLE_EDITOR },
+		{ to: "/sections", label: t("sections"), icon: Stack, minRole: ROLE_EDITOR },
 		{
 			to: "/taxonomies/$taxonomy",
-			label: "Categories",
+			label: t("categories"),
 			icon: FileText,
 			params: { taxonomy: "category" },
 			minRole: ROLE_EDITOR,
 		},
 		{
 			to: "/taxonomies/$taxonomy",
-			label: "Tags",
+			label: t("tags"),
 			icon: FileText,
 			params: { taxonomy: "tag" },
 			minRole: ROLE_EDITOR,
 		},
-		{ to: "/bylines", label: "Bylines", icon: FileText, minRole: ROLE_EDITOR },
+		{ to: "/bylines", label: t("bylines"), icon: FileText, minRole: ROLE_EDITOR },
 	];
 
 	const adminItems: NavItem[] = [
-		{ to: "/content-types", label: "Content Types", icon: Database, minRole: ROLE_ADMIN },
-		{ to: "/users", label: "Users", icon: Users, minRole: ROLE_ADMIN },
-		{ to: "/plugins-manager", label: "Plugins", icon: PuzzlePiece, minRole: ROLE_ADMIN },
+		{ to: "/content-types", label: t("contentTypes"), icon: Database, minRole: ROLE_ADMIN },
+		{ to: "/users", label: t("users"), icon: Users, minRole: ROLE_ADMIN },
+		{ to: "/plugins-manager", label: t("plugins"), icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];
 
 	if (manifest.marketplace) {
 		adminItems.push(
-			{ to: "/plugins/marketplace", label: "Marketplace", icon: Storefront, minRole: ROLE_ADMIN },
-			{ to: "/themes/marketplace", label: "Themes", icon: Palette, minRole: ROLE_ADMIN },
+			{
+				to: "/plugins/marketplace",
+				label: t("marketplace"),
+				icon: Storefront,
+				minRole: ROLE_ADMIN,
+			},
+			{ to: "/themes/marketplace", label: t("themes"), icon: Palette, minRole: ROLE_ADMIN },
 		);
 	}
 
 	adminItems.push(
-		{ to: "/import/wordpress", label: "Import", icon: Upload, minRole: ROLE_ADMIN },
-		{ to: "/settings", label: "Settings", icon: Gear, minRole: ROLE_ADMIN },
+		{ to: "/import/wordpress", label: t("import"), icon: Upload, minRole: ROLE_ADMIN },
+		{ to: "/settings", label: t("settings"), icon: Gear, minRole: ROLE_ADMIN },
 	);
 
 	const pluginItems: NavItem[] = [];
@@ -358,7 +365,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 					<KumoSidebar.Group>
 						<KumoSidebar.Menu>
 							<NavMenuLink
-								item={{ to: "/", label: "Dashboard", icon: SquaresFour }}
+								item={{ to: "/", label: t("dashboard"), icon: SquaresFour }}
 								isActive={isItemActive("/", currentPath)}
 							/>
 						</KumoSidebar.Menu>
@@ -369,7 +376,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 					{/* Content — collections + media (collapsible) */}
 					{visibleContent.length > 1 && (
 						<KumoSidebar.Group collapsible defaultOpen>
-							<KumoSidebar.GroupLabel>Content</KumoSidebar.GroupLabel>
+							<KumoSidebar.GroupLabel>{t("group.content")}</KumoSidebar.GroupLabel>
 							<KumoSidebar.GroupContent>
 								<KumoSidebar.Menu>
 									{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
@@ -383,7 +390,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 					{/* Manage — comments, menus, taxonomies, etc. (collapsible) */}
 					{visibleManage.length > 0 && (
 						<KumoSidebar.Group collapsible defaultOpen>
-							<KumoSidebar.GroupLabel>Manage</KumoSidebar.GroupLabel>
+							<KumoSidebar.GroupLabel>{t("group.manage")}</KumoSidebar.GroupLabel>
 							<KumoSidebar.GroupContent>
 								<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
 							</KumoSidebar.GroupContent>
@@ -395,7 +402,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 					{/* Admin — content types, users, plugins, import (collapsible) */}
 					{visibleAdmin.length > 0 && (
 						<KumoSidebar.Group collapsible defaultOpen>
-							<KumoSidebar.GroupLabel>Admin</KumoSidebar.GroupLabel>
+							<KumoSidebar.GroupLabel>{t("group.admin")}</KumoSidebar.GroupLabel>
 							<KumoSidebar.GroupContent>
 								<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
 							</KumoSidebar.GroupContent>
@@ -407,7 +414,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						<>
 							<KumoSidebar.Separator />
 							<KumoSidebar.Group collapsible defaultOpen>
-								<KumoSidebar.GroupLabel>Plugins</KumoSidebar.GroupLabel>
+								<KumoSidebar.GroupLabel>{t("group.plugins")}</KumoSidebar.GroupLabel>
 								<KumoSidebar.GroupContent>
 									<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
 								</KumoSidebar.GroupContent>
