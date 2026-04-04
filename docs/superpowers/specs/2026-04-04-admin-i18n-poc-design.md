@@ -121,16 +121,17 @@ const cookieMatch = cookieHeader.match(/(?:^|;\s*)emdash-locale=([^;]+)/);
 const cookieLocale = cookieMatch?.[1]?.trim() ?? "";
 
 const acceptLang = Astro.request.headers.get("accept-language") ?? "";
-const resolvedLocale: SupportedLocale =
-	isSupportedLocale(cookieLocale)
-		? cookieLocale
-		: parseAcceptLanguage(acceptLang) ?? "en";
+const resolvedLocale: SupportedLocale = isSupportedLocale(cookieLocale)
+	? cookieLocale
+	: (parseAcceptLanguage(acceptLang) ?? "en");
 
 // Dynamic import with safelist-validated locale
-const translations = (await import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/common.json`)).default;
+const translations = (await import(`@emdash-cms/admin/i18n/locales/${resolvedLocale}/common.json`))
+	.default;
 ```
 
 **Template changes:**
+
 - `<html lang="en">` → `<html lang={resolvedLocale}>`
 - `<AdminWrapper client:only="react" />` → `<AdminWrapper client:only="react" locale={resolvedLocale} translations={translations} />`
 
@@ -203,9 +204,9 @@ Add locale selector in the user dropdown menu:
 Replace hardcoded `"Cancel"` with `t('common.cancel')`:
 
 ```tsx
-const { t } = useTranslation('common');
+const { t } = useTranslation("common");
 // ...
-<Button>{t('cancel')}</Button>
+<Button>{t("cancel")}</Button>;
 ```
 
 ### `packages/admin/src/components/SaveButton.tsx`
@@ -214,14 +215,14 @@ Replace `"Save"` / `"Saving..."` / `"Saved"` with `t()` calls.
 
 ## Cookie Spec
 
-| Attribute | Value |
-|-----------|-------|
-| Name | `emdash-locale` |
-| Path | `/_emdash` |
-| SameSite | `Lax` |
-| Max-Age | `31536000` (1 year) |
-| HttpOnly | No (JS read/write required) |
-| Secure | Yes in production, No in dev |
+| Attribute | Value                        |
+| --------- | ---------------------------- |
+| Name      | `emdash-locale`              |
+| Path      | `/_emdash`                   |
+| SameSite  | `Lax`                        |
+| Max-Age   | `31536000` (1 year)          |
+| HttpOnly  | No (JS read/write required)  |
+| Secure    | Yes in production, No in dev |
 
 ## Admin Package Exports
 
@@ -236,6 +237,7 @@ Add `"./i18n"` to the `exports` map in `package.json` pointing to `dist/i18n/ind
 Add `"./i18n/locales/*"` to the `exports` map as a wildcard pattern, so `admin.astro` can do `import(...locales/${locale}/common.json)`. Alternatively, the locale files could live in `packages/core/src/astro/routes/` alongside `admin.astro` — simpler but less clean for future locale additions. The implementation plan should pick one approach.
 
 Public API additions:
+
 - `Translations` type
 - `I18nProvider` (exported for testing)
 - `useTranslation` hook
