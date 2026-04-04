@@ -1,97 +1,93 @@
 # HANDOVER
 
-## 1) Goal and problem statement
+## 1) Purpose
 
-This repository is an EmDash-first Commerce plugin in a Stage-1 kernel state.
-Its current objective is to stabilize and extend a narrow, closed money path (cart, checkout, and webhook finalization) while preserving strict ownership and deterministic idempotent behavior.
+This repository is a Stage-1 EmDash commerce plugin core.
+Current problem scope is to keep the money path narrow and deterministic (`cart` → `checkout` → webhook finalization), with strict possession checks and idempotent replay behavior.
 
-The immediate next problem to solve is to harden extensibility and maintainability without changing core payment semantics: keep the kernel contracts stable, isolate extension seams, and reduce risk before broader feature rollout (tax/shipping/discount/future gateway expansion).
-
-The next developer should begin by reviewing the codebase for oversized files and weak module boundaries, then prioritize refactoring where boundaries, module sizes, or cohesion block future e-commerce expansion.
+The immediate objective is to continue hardening reliability and maintainability without changing checkout/finalize semantics, while preserving the existing production-safe route boundaries.
 
 ## 2) Completed work and outcomes
 
-The core kernel is implemented and test-guarded in `packages/plugins/commerce`.
+Core kernel and money-path behavior are implemented and test-guarded:
 
-Cart and checkout primitives are in place (`cart/upsert`, `cart/get`, `checkout`, `checkout/get-order`) with possession required at boundaries.
-Finalization is implemented through webhook delivery handling with receipt/state driven replay control, including terminal-state transition handling for known irrecoverable inventory conditions.
-Crypto is unified under `src/lib/crypto-adapter.ts`; legacy Node-only hashing (`src/hash.ts`) is removed from active runtime.
-Rate-limit identity extraction was centralized in `src/lib/rate-limit-identity.ts` and reused across checkout, webhook handler, and finalization diagnostics.
-Docs were cleaned to an EmDash-native canonical review path (`@THIRD_PARTY_REVIEW_PACKAGE.md`, `HANDOVER.md`, `commerce-plugin-architecture.md`, `COMMERCE_DOCS_INDEX.md`, and related packet files).
-Recent validation:
-- `pnpm --filter @emdash-cms/plugin-commerce test` passed (`24` files, `143` tests).
-- `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts` passed (`3` tests).
-- Workspace `pnpm test` previously passed in full.
-- Full workspace `pnpm typecheck` currently passes.
-- `pnpm --silent lint:quick` passes after lint fixes.
-- `pnpm --silent lint:json` still fails due a local toolchain/runtime issue (below).
+- Routes: `cart/upsert`, `cart/get`, `checkout`, `checkout/get-order`, `webhooks/stripe`, `recommendations`.
+- Ownership enforcement via `ownerToken/ownerTokenHash` and `finalizeToken/finalizeTokenHash`.
+- Receipt-driven replay and finalization semantics with terminal error handling for irreversible inventory conditions.
+- Contract hardening completed for provider defaults, adapter contracts, and extension seam exports.
+- Reviewer package updated to canonical flow and include current review memo:
+  - `@THIRD_PARTY_REVIEW_PACKAGE.md`
+  - `external_review.md`
+  - `SHARE_WITH_REVIEWER.md`
+  - `HANDOVER.md`
+  - `commerce-plugin-architecture.md`
+  - `3rd-party-checklist.md`
+  - `COMMERCE_DOCS_INDEX.md`
+  - `CI_REGRESSION_CHECKLIST.md`
+  - `emdash-commerce-third-party-review-memo.md`
+
+Latest validation commands available in this branch:
+- `pnpm --filter @emdash-cms/plugin-commerce test`
+- `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts`
+- `pnpm --silent lint:quick`
+- `pnpm --silent lint:json` remains blocked by environment/toolchain behavior (`oxlint-tsgolint` SIGPIPE path) in this environment.
 
 ## 3) Failures, open issues, and lessons learned
 
-Known residual risk: same-event concurrent webhook processing remains a storage limitation (no CAS/insert-if-not-exists path in current data model), so parallel duplicate deliveries can still race and rely on deterministic resume semantics plus diagnostic guidance.
-Receipt state is a sharp boundary: `pending` is the resumable claim marker and `error` is terminal. Preserve this contract when changing finalize logic.
-Lint tooling is inconsistent in this environment:
-- `pnpm --silent lint:quick` reports zero diagnostics.
-- `pnpm --silent lint:json` exits non-zero because `oxlint-tsgolint` fails with `invalid message type: 97` (SIGPIPE) in this runtime path, so its output cannot be trusted until toolchain/runtime is corrected.
-A high-confidence rule from the iteration: every behavioral change in payment/receipt/idempotency paths must be made with failing test first and test updates before code.
+Known residual risk remains:
+- same-event concurrent duplicate webhook delivery can race due to storage constraints (no CAS/insert-if-not-exists primitive, no multi-document transactional boundary).
+- `pending` remains a high-sensitivity state: it is both claim marker and resumable recovery marker.
+- `receipt.error` is intentionally terminal to prevent indefinite replay loops.
+
+Key lessons for next work:
+- Keep changes to idempotency/payment/finalization paths test-first.
+- Avoid changing behavior in these paths before replay, concurrency, and possession regression tests are updated.
+- Preserve current scope lock: provider/runtime expansion only when explicitly approved by roadmap gate.
 
 ## 4) Files changed, key insights, and gotchas
 
-Key files touched in the current handoff window that matter for next development:
+Files of highest relevance for next development:
 
 - `packages/plugins/commerce/src/orchestration/finalize-payment.ts`
 - `packages/plugins/commerce/src/orchestration/finalize-payment.test.ts`
 - `packages/plugins/commerce/src/handlers/checkout.ts`
+- `packages/plugins/commerce/src/handlers/cart.ts`
+- `packages/plugins/commerce/src/handlers/checkout-get-order.ts`
 - `packages/plugins/commerce/src/handlers/webhook-handler.ts`
 - `packages/plugins/commerce/src/services/commerce-provider-contracts.ts`
 - `packages/plugins/commerce/src/services/commerce-provider-contracts.test.ts`
+- `packages/plugins/commerce/src/services/commerce-extension-seams.ts`
+- `packages/plugins/commerce/src/services/commerce-extension-seams.test.ts`
 - `packages/plugins/commerce/src/lib/finalization-diagnostics-readthrough.ts`
 - `packages/plugins/commerce/src/lib/rate-limit-identity.ts`
+- `packages/plugins/commerce/src/lib/crypto-adapter.ts`
 - `packages/plugins/commerce/src/contracts/commerce-kernel-invariants.test.ts`
-- `packages/plugins/commerce/src/services/commerce-extension-seams.test.ts`
-- `packages/plugins/commerce/src/lib/crypto-adapter.ts` (canonical hashing path)
+- `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
+- `packages/plugins/commerce/COMMERCE_EXTENSION_SURFACE.md`
+- `packages/plugins/commerce/AI-EXTENSIBILITY.md`
+- `packages/plugins/commerce/CI_REGRESSION_CHECKLIST.md`
+- `scripts/build-commerce-external-review-zip.sh`
+- `emdash-commerce-third-party-review-memo.md`
 
 Gotchas:
-- Keep token handling strict: `ownerToken`/`finalizeToken` are required on mutating/authenticated paths; strict checks are intentional.
-- Do not introduce broad abstractions before adding coverage in `src/orchestration/finalize-payment.test.ts`.
-- Preserve route boundaries (`src/handlers/*` for I/O and input handling, orchestration for transaction semantics).
-- For finalization errors, terminal inventory conditions intentionally move receipt state to `error` to avoid indefinite replay.
-- For review/debugging quality, use the first task below before implementing new feature areas.
-
-**Strategy A handoff metadata**
-
-- Last updated: 2026-04-03
-- Owner: emDash Commerce lead
-- Scope steward: contract hardening only, no runtime topology work
-
-Initial next-step task:
-- Strategy A only: complete contract hardening acceptance (provider constants, adapter contract shapes, seam exports) and keep behavior unchanged.
-- Defer broader extension architecture work (provider registry/routing, MCP command surface, second-provider multiplexing) until a second provider or MCP command channel is actively in scope.
-
-## 6) Systematic roadmap after external review
-
-Use this roadmap after each review memo cycle:
-
-1. `5A` in `CI_REGRESSION_CHECKLIST.md`: concurrency/replay stress and duplicate-event invariants.
-2. `5B` in `CI_REGRESSION_CHECKLIST.md`: formalize and protect `pending` semantics.
-3. `5C` in `CI_REGRESSION_CHECKLIST.md`: harden owner/finalize token boundary cases.
-4. `5D` in `CI_REGRESSION_CHECKLIST.md`: re-assert scope lock and only then open broader architecture work.
-- Blocker: do not move to full provider-runtime refactor until either:
-  - a second provider is active, or
-  - an `@emdash-cms/plugin-commerce-mcp` command surface scope is approved.
+- Do not alter `pending`/`error` contracts without updating finalization replay coverage.
+- Do not broaden runtime topology in this phase.
+- Keep the review packet canonical:
+  - `scripts/build-commerce-external-review-zip.sh` is the source of truth for external handoff artifacts.
+- Do not assume `lint:json` results are trustworthy until the environment/toolchain issue is resolved.
 
 ## 5) Key files and directories
 
 Primary package: `packages/plugins/commerce/`
 
-Runtime and kernel files:
+Runtime/kernel:
 - `packages/plugins/commerce/src/handlers/`
 - `packages/plugins/commerce/src/orchestration/`
 - `packages/plugins/commerce/src/lib/`
 - `packages/plugins/commerce/src/types.ts`
 - `packages/plugins/commerce/src/schemas.ts`
 
-Decision and extension references:
+Strategy and reference docs:
 - `packages/plugins/commerce/COMMERCE_EXTENSION_SURFACE.md`
 - `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
 - `@THIRD_PARTY_REVIEW_PACKAGE.md`
@@ -100,3 +96,5 @@ Decision and extension references:
 - `commerce-plugin-architecture.md`
 - `packages/plugins/commerce/FINALIZATION_REVIEW_AUDIT.md`
 - `packages/plugins/commerce/PAID_BUT_WRONG_STOCK_RUNBOOK*.md`
+- `3rd-party-checklist.md`
+
