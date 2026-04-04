@@ -217,22 +217,11 @@ Use this table when adapting WordPress patterns to EmDash:
 | `$wpdb`                 | `ctx.storage`                        | Direct storage access          |
 | Categories/Tags         | Taxonomies                           | Hierarchical support preserved |
 
-## CLI Import (Advanced)
+## API Import (Advanced)
 
-Developers can also import via the CLI:
+The WordPress import is available through the admin dashboard and the REST API. Use the admin dashboard import wizard for the best experience — it provides field mapping, conflict resolution, and progress tracking.
 
-```bash
-# Analyze export file
-npx emdash import wordpress export.xml --analyze
-
-# Run import
-npx emdash import wordpress export.xml --execute
-
-# With media download
-npx emdash import wordpress export.xml --execute --download-media
-```
-
-The CLI uses the same APIs as the dashboard and supports `--resume` for interrupted imports.
+The import API endpoints are under `/_emdash/api/import/wordpress/` for programmatic access.
 
 ## Troubleshooting
 
