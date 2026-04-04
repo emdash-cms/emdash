@@ -12,6 +12,7 @@ import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 
 /**
  * Get a byline by ID.
@@ -222,15 +223,17 @@ async function getAuthorIds(
 	const tableName = `ec_${collection}`;
 	validateIdentifier(tableName, "content table");
 
-	const result = await sql<{ id: string; author_id: string | null }>`
-		SELECT id, author_id FROM ${sql.ref(tableName)}
-		WHERE id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
-	`.execute(db);
-
 	const map = new Map<string, string>();
-	for (const row of result.rows) {
-		if (row.author_id) {
-			map.set(row.id, row.author_id);
+	for (const chunk of chunks(entryIds, SQL_BATCH_SIZE)) {
+		const result = await sql<{ id: string; author_id: string | null }>`
+			SELECT id, author_id FROM ${sql.ref(tableName)}
+			WHERE id IN (${sql.join(chunk.map((id) => sql`${id}`))})
+		`.execute(db);
+
+		for (const row of result.rows) {
+			if (row.author_id) {
+				map.set(row.id, row.author_id);
+			}
 		}
 	}
 	return map;
