@@ -24,6 +24,7 @@ import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { usePluginAdmins } from "../lib/plugin-context";
 import { cn } from "../lib/utils";
+import { LogoIcon } from "./Logo.js";
 
 // Re-export for Shell.tsx and Header.tsx
 export { KumoSidebar as Sidebar, useSidebar };
@@ -346,9 +347,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						to="/"
 						className="emdash-brand-link flex w-full min-w-0 items-center gap-2 px-3 py-1"
 					>
-						<span className="text-base shrink-0" aria-hidden="true">
-							—
-						</span>
+						<LogoIcon className="size-5 shrink-0" aria-hidden="true" />
 						<span className="emdash-brand-text font-semibold truncate">EmDash</span>
 					</Link>
 				</KumoSidebar.Header>
