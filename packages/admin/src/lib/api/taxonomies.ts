@@ -31,6 +31,12 @@ export interface CreateTaxonomyInput {
 	collections?: string[];
 }
 
+export interface UpdateTaxonomyInput {
+	label?: string;
+	hierarchical?: boolean;
+	collections?: string[];
+}
+
 export interface CreateTermInput {
 	slug: string;
 	label: string;
@@ -79,6 +85,35 @@ export async function createTaxonomy(input: CreateTaxonomyInput): Promise<Taxono
 		"Failed to create taxonomy",
 	);
 	return data.taxonomy;
+}
+
+/**
+ * Update a taxonomy definition
+ */
+export async function updateTaxonomy(
+	name: string,
+	input: UpdateTaxonomyInput,
+): Promise<TaxonomyDef> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/${name}`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	const data = await parseApiResponse<{ taxonomy: TaxonomyDef }>(
+		response,
+		"Failed to update taxonomy",
+	);
+	return data.taxonomy;
+}
+
+/**
+ * Delete a taxonomy definition
+ */
+export async function deleteTaxonomy(name: string): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/${name}`, {
+		method: "DELETE",
+	});
+	if (!response.ok) await throwResponseError(response, "Failed to delete taxonomy");
 }
 
 /**

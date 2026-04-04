@@ -50,6 +50,8 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
+import { TaxonomyTypeEditor } from "./components/TaxonomyTypeEditor";
+import { TaxonomyTypeList } from "./components/TaxonomyTypeList";
 import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
 import { ThemeMarketplaceDetail } from "./components/ThemeMarketplaceDetail";
 import { Widgets } from "./components/Widgets";
@@ -107,6 +109,15 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import {
+	fetchTaxonomyDefs,
+	fetchTaxonomyDef,
+	createTaxonomy,
+	updateTaxonomy,
+	deleteTaxonomy,
+	type CreateTaxonomyInput,
+	type UpdateTaxonomyInput,
+} from "./lib/api/taxonomies";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -1461,6 +1472,139 @@ function ContentTypesEditPage() {
 	);
 }
 
+// Taxonomy Types routes
+const taxonomyTypesListRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/taxonomy-types",
+	component: TaxonomyTypesListPage,
+});
+
+function TaxonomyTypesListPage() {
+	const queryClient = useQueryClient();
+
+	const {
+		data: taxonomies,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ["taxonomyDefs"],
+		queryFn: fetchTaxonomyDefs,
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (name: string) => deleteTaxonomy(name),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["taxonomyDefs"] });
+		},
+	});
+
+	if (error) {
+		return <ErrorScreen error={error.message} />;
+	}
+
+	return (
+		<TaxonomyTypeList
+			taxonomies={taxonomies ?? []}
+			isLoading={isLoading}
+			onDelete={(name) => deleteMutation.mutate(name)}
+			deleteError={deleteMutation.error}
+			isDeleting={deleteMutation.isPending}
+		/>
+	);
+}
+
+const taxonomyTypesNewRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/taxonomy-types/new",
+	component: TaxonomyTypesNewPage,
+});
+
+function TaxonomyTypesNewPage() {
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+
+	const { data: collections } = useQuery({
+		queryKey: ["schema", "collections"],
+		queryFn: fetchCollections,
+	});
+
+	const createMutation = useMutation({
+		mutationFn: (input: CreateTaxonomyInput) => createTaxonomy(input),
+		onSuccess: (result) => {
+			void queryClient.invalidateQueries({ queryKey: ["taxonomyDefs"] });
+			void navigate({
+				to: "/taxonomy-types/$name",
+				params: { name: result.name },
+			});
+		},
+	});
+
+	return (
+		<TaxonomyTypeEditor
+			isNew
+			collections={collections?.map((c) => ({ slug: c.slug, label: c.label }))}
+			isSaving={createMutation.isPending}
+			onSave={(input) => {
+				createMutation.mutate(input as CreateTaxonomyInput);
+			}}
+		/>
+	);
+}
+
+const taxonomyTypesEditRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/taxonomy-types/$name",
+	component: TaxonomyTypesEditPage,
+});
+
+function TaxonomyTypesEditPage() {
+	const { name } = useParams({ from: "/_admin/taxonomy-types/$name" });
+	const queryClient = useQueryClient();
+
+	const {
+		data: taxonomy,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ["taxonomyDefs", name],
+		queryFn: () => fetchTaxonomyDef(name),
+	});
+
+	const { data: collections } = useQuery({
+		queryKey: ["schema", "collections"],
+		queryFn: fetchCollections,
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: (input: UpdateTaxonomyInput) => updateTaxonomy(name, input),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["taxonomyDefs"] });
+			void queryClient.invalidateQueries({ queryKey: ["taxonomyDefs", name] });
+		},
+	});
+
+	if (error) {
+		return <ErrorScreen error={error.message} />;
+	}
+
+	if (isLoading) {
+		return <LoadingScreen />;
+	}
+
+	if (!taxonomy) {
+		return <ErrorScreen error={`Taxonomy '${name}' not found`} />;
+	}
+
+	return (
+		<TaxonomyTypeEditor
+			taxonomy={taxonomy}
+			collections={collections?.map((c) => ({ slug: c.slug, label: c.label }))}
+			isSaving={updateMutation.isPending}
+			onSave={(input) => updateMutation.mutate(input as UpdateTaxonomyInput)}
+		/>
+	);
+}
+
 // Plugin page route
 const pluginRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -1514,6 +1658,9 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	sectionsListRoute,
 	sectionEditRoute,
 	taxonomyRoute,
+	taxonomyTypesListRoute,
+	taxonomyTypesNewRoute,
+	taxonomyTypesEditRoute,
 	usersRoute,
 	bylinesRoute,
 	widgetsRoute,

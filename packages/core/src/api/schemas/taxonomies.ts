@@ -26,6 +26,19 @@ export const createTaxonomyDefBody = z
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
 
+export const updateTaxonomyDefBody = z
+	.object({
+		label: z.string().min(1).max(200).optional(),
+		hierarchical: z.boolean().optional(),
+		collections: z
+			.array(
+				z.string().min(1).max(63).regex(collectionSlugPattern, "Invalid collection slug format"),
+			)
+			.max(100)
+			.optional(),
+	})
+	.meta({ id: "UpdateTaxonomyDefBody" });
+
 // ---------------------------------------------------------------------------
 // Taxonomy terms: Input schemas
 // ---------------------------------------------------------------------------
