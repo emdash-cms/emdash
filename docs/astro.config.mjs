@@ -19,11 +19,6 @@ export default defineConfig({
 					label: "GitHub",
 					href: "https://github.com/emdash-cms/emdash",
 				},
-				{
-					icon: "discord",
-					label: "Discord",
-					href: "https://astro.build/chat",
-				},
 			],
 			editLink: {
 				baseUrl: "https://github.com/emdash-cms/emdash/tree/main/docs",
