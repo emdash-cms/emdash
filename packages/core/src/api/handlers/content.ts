@@ -380,6 +380,7 @@ export async function handleContentCreate(
 		data: Record<string, unknown>;
 		slug?: string;
 		status?: string;
+		visibility?: string;
 		authorId?: string;
 		bylines?: ContentBylineInput[];
 		locale?: string;
@@ -420,6 +421,7 @@ export async function handleContentCreate(
 				slug,
 				data: body.data,
 				status: body.status || "draft",
+				visibility: body.visibility,
 				authorId: body.authorId,
 				locale: body.locale,
 				translationOf: body.translationOf,
@@ -474,6 +476,7 @@ export async function handleContentUpdate(
 		data?: Record<string, unknown>;
 		slug?: string;
 		status?: string;
+		visibility?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
 		_rev?: string;
@@ -536,6 +539,7 @@ export async function handleContentUpdate(
 				data: body.data,
 				slug: body.slug,
 				status: body.status,
+				visibility: body.visibility,
 				authorId: body.authorId,
 			});
 

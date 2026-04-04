@@ -4,6 +4,31 @@
 
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
+export interface TaxonomyFieldDef {
+	name: string;
+	label: string;
+	type: "string" | "text" | "number" | "integer" | "boolean" | "datetime" | "select" | "multiSelect" | "image" | "file" | "reference" | "json" | "url" | "color";
+	required?: boolean;
+	options?: Array<{ value: string; label: string }>;
+	widget?: string;
+	validation?: {
+		min?: number;
+		max?: number;
+		minLength?: number;
+		maxLength?: number;
+		pattern?: string;
+	};
+	defaultValue?: unknown;
+}
+
+export interface TermSeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
 export interface TaxonomyTerm {
 	id: string;
 	name: string;
@@ -11,6 +36,8 @@ export interface TaxonomyTerm {
 	label: string;
 	parentId?: string;
 	description?: string;
+	data?: Record<string, unknown>;
+	seo?: TermSeo;
 	children: TaxonomyTerm[];
 	count?: number;
 }
@@ -22,6 +49,9 @@ export interface TaxonomyDef {
 	labelSingular?: string;
 	hierarchical: boolean;
 	collections: string[];
+	fields?: TaxonomyFieldDef[];
+	supports?: string[];
+	hasSeo?: boolean;
 }
 
 export interface CreateTaxonomyInput {
@@ -29,12 +59,18 @@ export interface CreateTaxonomyInput {
 	label: string;
 	hierarchical?: boolean;
 	collections?: string[];
+	fields?: TaxonomyFieldDef[];
+	supports?: string[];
+	hasSeo?: boolean;
 }
 
 export interface UpdateTaxonomyInput {
 	label?: string;
 	hierarchical?: boolean;
 	collections?: string[];
+	fields?: TaxonomyFieldDef[];
+	supports?: string[];
+	hasSeo?: boolean;
 }
 
 export interface CreateTermInput {
@@ -42,6 +78,7 @@ export interface CreateTermInput {
 	label: string;
 	parentId?: string;
 	description?: string;
+	data?: Record<string, unknown>;
 }
 
 export interface UpdateTermInput {
@@ -49,6 +86,8 @@ export interface UpdateTermInput {
 	label?: string;
 	parentId?: string;
 	description?: string;
+	data?: Record<string, unknown>;
+	seo?: Partial<TermSeo>;
 }
 
 /**

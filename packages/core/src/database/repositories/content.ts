@@ -35,6 +35,7 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 	"locale",
 	"translation_group",
+	"visibility",
 ]);
 
 /**
@@ -111,6 +112,7 @@ export class ContentRepository {
 			slug,
 			data,
 			status = "draft",
+			visibility = "public",
 			authorId,
 			primaryBylineId,
 			locale,
@@ -140,6 +142,7 @@ export class ContentRepository {
 			"id",
 			"slug",
 			"status",
+			"visibility",
 			"author_id",
 			"primary_byline_id",
 			"created_at",
@@ -153,6 +156,7 @@ export class ContentRepository {
 			id,
 			slug || null,
 			status,
+			visibility,
 			authorId || null,
 			primaryBylineId ?? null,
 			now,
@@ -477,6 +481,10 @@ export class ContentRepository {
 			query = query.where("status", "=", options.where.status);
 		}
 
+		if (options.where?.visibility) {
+			query = query.where("visibility", "=", options.where.visibility);
+		}
+
 		if (options.where?.authorId) {
 			query = query.where("author_id", "=", options.where.authorId);
 		}
@@ -551,6 +559,10 @@ export class ContentRepository {
 
 		if (input.status !== undefined) {
 			updates.status = input.status;
+		}
+
+		if (input.visibility !== undefined) {
+			updates.visibility = input.visibility;
 		}
 
 		if (input.slug !== undefined) {
@@ -1105,6 +1117,7 @@ export class ContentRepository {
 			type,
 			slug: row.slug as string | null,
 			status: row.status as string,
+			visibility: (row.visibility as string) ?? "public",
 			data,
 			authorId: row.author_id as string | null,
 			primaryBylineId: (row.primary_byline_id as string | null) ?? null,

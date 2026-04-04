@@ -110,3 +110,11 @@ export const authMeActionBody = z
 		action: z.string().min(1),
 	})
 	.meta({ id: "AuthMeActionBody" });
+
+export const updateProfileBody = z
+	.object({
+		name: z.string().min(1).max(100).nullish(),
+		avatarUrl: z.string().url().nullish(),
+	})
+	.strict()
+	.meta({ id: "UpdateProfileBody" });

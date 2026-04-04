@@ -7,6 +7,24 @@ import { z } from "zod";
 /** Collection slug format: lowercase alphanumeric + underscores, starts with letter */
 const collectionSlugPattern = /^[a-z][a-z0-9_]*$/;
 
+/** Schema for a custom field definition on a taxonomy type */
+export const taxonomyFieldDef = z.object({
+	name: z.string().min(1),
+	label: z.string().min(1),
+	type: z.enum(["string", "text", "number", "integer", "boolean", "datetime", "select", "multiSelect", "image", "file", "reference", "json", "url", "color"]),
+	required: z.boolean().optional(),
+	options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
+	widget: z.string().optional(),
+	validation: z.object({
+		min: z.number().optional(),
+		max: z.number().optional(),
+		minLength: z.number().optional(),
+		maxLength: z.number().optional(),
+		pattern: z.string().optional(),
+	}).optional(),
+	defaultValue: z.unknown().optional(),
+}).meta({ id: "TaxonomyFieldDef" });
+
 export const createTaxonomyDefBody = z
 	.object({
 		name: z
@@ -23,6 +41,9 @@ export const createTaxonomyDefBody = z
 			.max(100)
 			.optional()
 			.default([]),
+		fields: z.array(taxonomyFieldDef).optional(),
+		supports: z.array(z.string()).optional(),
+		hasSeo: z.boolean().optional(),
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
 
@@ -36,6 +57,9 @@ export const updateTaxonomyDefBody = z
 			)
 			.max(100)
 			.optional(),
+		fields: z.array(taxonomyFieldDef).optional(),
+		supports: z.array(z.string()).optional(),
+		hasSeo: z.boolean().optional(),
 	})
 	.meta({ id: "UpdateTaxonomyDefBody" });
 
@@ -43,12 +67,22 @@ export const updateTaxonomyDefBody = z
 // Taxonomy terms: Input schemas
 // ---------------------------------------------------------------------------
 
+/** SEO input for taxonomy terms */
+export const termSeoInput = z.object({
+	title: z.string().nullish(),
+	description: z.string().nullish(),
+	image: z.string().nullish(),
+	canonical: z.string().url().nullish(),
+	noIndex: z.boolean().optional(),
+});
+
 export const createTermBody = z
 	.object({
 		slug: z.string().min(1),
 		label: z.string().min(1),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),
+		data: z.record(z.unknown()).optional(),
 	})
 	.meta({ id: "CreateTermBody" });
 
@@ -58,6 +92,8 @@ export const updateTermBody = z
 		label: z.string().min(1).optional(),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),
+		data: z.record(z.unknown()).optional(),
+		seo: termSeoInput.optional(),
 	})
 	.meta({ id: "UpdateTermBody" });
 
@@ -73,6 +109,9 @@ export const taxonomyDefSchema = z
 		labelSingular: z.string().optional(),
 		hierarchical: z.boolean(),
 		collections: z.array(z.string()),
+		fields: z.array(taxonomyFieldDef).optional(),
+		supports: z.array(z.string()).optional(),
+		hasSeo: z.boolean().optional(),
 	})
 	.meta({ id: "TaxonomyDef" });
 
@@ -88,6 +127,14 @@ export const termSchema = z
 		label: z.string(),
 		parentId: z.string().nullable(),
 		description: z.string().optional(),
+		data: z.record(z.unknown()).optional(),
+		seo: z.object({
+			title: z.string().nullable(),
+			description: z.string().nullable(),
+			image: z.string().nullable(),
+			canonical: z.string().nullable(),
+			noIndex: z.boolean(),
+		}).optional(),
 	})
 	.meta({ id: "Term" });
 

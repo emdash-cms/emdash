@@ -5,6 +5,7 @@ export interface CreateContentInput {
 	slug?: string | null;
 	data: Record<string, unknown>;
 	status?: string;
+	visibility?: string;
 	authorId?: string;
 	primaryBylineId?: string | null;
 	locale?: string;
@@ -15,6 +16,7 @@ export interface CreateContentInput {
 export interface UpdateContentInput {
 	data?: Record<string, unknown>;
 	status?: string;
+	visibility?: string;
 	slug?: string | null;
 	publishedAt?: string | null;
 	scheduledAt?: string | null;
@@ -64,6 +66,7 @@ export interface ContentBylineCredit {
 export interface FindManyOptions {
 	where?: {
 		status?: string;
+		visibility?: string;
 		authorId?: string;
 		locale?: string;
 	};
@@ -103,6 +106,7 @@ export interface ContentItem {
 	type: string;
 	slug: string | null;
 	status: string;
+	visibility: string;
 	data: Record<string, unknown>;
 	authorId: string | null;
 	primaryBylineId: string | null;

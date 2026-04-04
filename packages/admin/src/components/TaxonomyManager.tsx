@@ -5,13 +5,13 @@
  * Shows hierarchical structure for categories, flat list for tags.
  */
 
-import { Button, Checkbox, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
+import { Button, Checkbox, Dialog, Input, InputArea, Label, Select, Switch, Toast } from "@cloudflare/kumo";
 import { Plus, Pencil, Trash, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchManifest } from "../lib/api/client.js";
-import type { TaxonomyTerm, TaxonomyDef, CreateTaxonomyInput } from "../lib/api/taxonomies.js";
+import type { TaxonomyTerm, TaxonomyDef, TaxonomyFieldDef, CreateTaxonomyInput, TermSeo } from "../lib/api/taxonomies.js";
 import {
 	fetchTaxonomyDef,
 	fetchTerms,
@@ -95,6 +95,214 @@ function TermRow({
 }
 
 /**
+ * Render the appropriate input for a custom taxonomy field.
+ * Uses the same field type system as the content editor's FieldRenderer.
+ */
+function TaxonomyFieldInput({
+	field,
+	value,
+	onChange,
+}: {
+	field: TaxonomyFieldDef;
+	value: unknown;
+	onChange: (val: unknown) => void;
+}) {
+	const fieldLabel = field.label + (field.required ? " *" : "");
+
+	switch (field.type) {
+		case "text":
+			return (
+				<InputArea
+					label={fieldLabel}
+					value={(value as string) ?? ""}
+					onChange={(e) => onChange(e.target.value || undefined)}
+					rows={3}
+					required={field.required}
+				/>
+			);
+		case "boolean":
+			return (
+				<div className="flex items-center gap-2">
+					<Switch
+						checked={!!value}
+						onCheckedChange={(checked) => onChange(checked)}
+						id={`field-${field.name}`}
+					/>
+					<Label htmlFor={`field-${field.name}`} className="cursor-pointer">
+						{field.label}
+					</Label>
+				</div>
+			);
+		case "number":
+			return (
+				<Input
+					label={fieldLabel}
+					type="number"
+					value={value != null ? String(value) : ""}
+					onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
+					required={field.required}
+				/>
+			);
+		case "integer":
+			return (
+				<Input
+					label={fieldLabel}
+					type="number"
+					step="1"
+					value={value != null ? String(value) : ""}
+					onChange={(e) => onChange(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)}
+					required={field.required}
+				/>
+			);
+		case "datetime":
+			return (
+				<Input
+					label={fieldLabel}
+					type="datetime-local"
+					value={(value as string) ?? ""}
+					onChange={(e) => onChange(e.target.value || undefined)}
+					required={field.required}
+				/>
+			);
+		case "select":
+			return (
+				<Select
+					label={fieldLabel}
+					value={(value as string) ?? ""}
+					onValueChange={(v) => onChange(v || undefined)}
+					items={{
+						"": "-- Select --",
+						...Object.fromEntries((field.options ?? []).map((o) => [o.value, o.label])),
+					}}
+				>
+					<Select.Option value="">-- Select --</Select.Option>
+					{(field.options ?? []).map((opt) => (
+						<Select.Option key={opt.value} value={opt.value}>
+							{opt.label}
+						</Select.Option>
+					))}
+				</Select>
+			);
+		case "multiSelect": {
+			const selected = Array.isArray(value) ? (value as string[]) : [];
+			return (
+				<div className="space-y-1">
+					<label className="text-sm font-medium">{fieldLabel}</label>
+					<div className="space-y-1 rounded-md border p-2">
+						{(field.options ?? []).map((opt) => (
+							<label key={opt.value} className="flex items-center gap-2 cursor-pointer py-0.5">
+								<input
+									type="checkbox"
+									checked={selected.includes(opt.value)}
+									onChange={(e) => {
+										if (e.target.checked) {
+											onChange([...selected, opt.value]);
+										} else {
+											const next = selected.filter((v) => v !== opt.value);
+											onChange(next.length > 0 ? next : undefined);
+										}
+									}}
+									className="rounded"
+								/>
+								<span className="text-sm">{opt.label}</span>
+							</label>
+						))}
+						{(!field.options || field.options.length === 0) && (
+							<p className="text-xs text-kumo-subtle">No options defined for this field.</p>
+						)}
+					</div>
+				</div>
+			);
+		}
+		case "color":
+			return (
+				<div className="space-y-1">
+					<label className="text-sm font-medium">{fieldLabel}</label>
+					<div className="flex gap-2 items-center">
+						<input
+							type="color"
+							value={(value as string) ?? "#000000"}
+							onChange={(e) => onChange(e.target.value)}
+							className="h-8 w-8 rounded border cursor-pointer"
+						/>
+						<Input
+							value={(value as string) ?? ""}
+							onChange={(e) => onChange(e.target.value || undefined)}
+							placeholder="#000000"
+						/>
+					</div>
+				</div>
+			);
+		case "url":
+			return (
+				<Input
+					label={fieldLabel}
+					type="url"
+					value={(value as string) ?? ""}
+					onChange={(e) => onChange(e.target.value || undefined)}
+					placeholder="https://"
+					required={field.required}
+				/>
+			);
+		case "image":
+		case "file":
+			return (
+				<Input
+					label={fieldLabel}
+					type="url"
+					value={(value as string) ?? ""}
+					onChange={(e) => onChange(e.target.value || undefined)}
+					placeholder={field.type === "image" ? "https://example.com/image.jpg" : "https://example.com/file.pdf"}
+					required={field.required}
+				/>
+			);
+		case "reference":
+			return (
+				<Input
+					label={fieldLabel}
+					value={(value as string) ?? ""}
+					onChange={(e) => onChange(e.target.value || undefined)}
+					placeholder="Reference ID"
+					required={field.required}
+				/>
+			);
+		case "json":
+			return (
+				<InputArea
+					label={fieldLabel}
+					value={typeof value === "string" ? value : value != null ? JSON.stringify(value, null, 2) : ""}
+					onChange={(e) => {
+						const raw = e.target.value;
+						if (!raw) {
+							onChange(undefined);
+							return;
+						}
+						try {
+							onChange(JSON.parse(raw));
+						} catch {
+							// Keep raw string while user is editing
+							onChange(raw);
+						}
+					}}
+					rows={4}
+					className="font-mono text-sm"
+					placeholder="{}"
+					required={field.required}
+				/>
+			);
+		default: // string
+			return (
+				<Input
+					label={fieldLabel}
+					value={(value as string) ?? ""}
+					onChange={(e) => onChange(e.target.value || undefined)}
+					required={field.required}
+				/>
+			);
+	}
+}
+
+/**
  * Term form dialog
  */
 function TermFormDialog({
@@ -119,6 +327,14 @@ function TermFormDialog({
 	const [description, setDescription] = React.useState(term?.description || "");
 	const [autoSlug, setAutoSlug] = React.useState(!term);
 	const [error, setError] = React.useState<string | null>(null);
+	const [customData, setCustomData] = React.useState<Record<string, unknown>>(term?.data ?? {});
+	const [seo, setSeo] = React.useState<Partial<TermSeo>>({
+		title: term?.seo?.title ?? null,
+		description: term?.seo?.description ?? null,
+		image: term?.seo?.image ?? null,
+		canonical: term?.seo?.canonical ?? null,
+		noIndex: term?.seo?.noIndex ?? false,
+	});
 
 	// Auto-generate slug from label
 	React.useEffect(() => {
@@ -134,6 +350,7 @@ function TermFormDialog({
 				label,
 				parentId: parentId || undefined,
 				description: description || undefined,
+				data: Object.keys(customData).length > 0 ? customData : undefined,
 			}),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
@@ -154,6 +371,8 @@ function TermFormDialog({
 				label,
 				parentId: parentId || undefined,
 				description: description || undefined,
+				data: Object.keys(customData).length > 0 ? customData : undefined,
+				seo: taxonomyDef.hasSeo ? seo : undefined,
 			});
 		},
 		onSuccess: () => {
@@ -274,6 +493,66 @@ function TermFormDialog({
 							placeholder="Optional description"
 							rows={3}
 						/>
+
+						{/* Custom fields from taxonomy definition */}
+						{taxonomyDef.fields && taxonomyDef.fields.length > 0 && (
+							<div className="space-y-3 border-t pt-3">
+								<p className="text-sm font-medium">Custom Fields</p>
+								{taxonomyDef.fields.map((field) => (
+									<TaxonomyFieldInput
+										key={field.name}
+										field={field}
+										value={customData[field.name]}
+										onChange={(val) =>
+											setCustomData((prev) => ({ ...prev, [field.name]: val }))
+										}
+									/>
+								))}
+							</div>
+						)}
+
+						{/* SEO fields */}
+						{taxonomyDef.hasSeo && (
+							<div className="space-y-3 border-t pt-3">
+								<p className="text-sm font-medium">SEO</p>
+								<Input
+									label="SEO Title"
+									value={seo.title ?? ""}
+									onChange={(e) => setSeo((prev) => ({ ...prev, title: e.target.value || null }))}
+									placeholder="Page title for search engines"
+								/>
+								<InputArea
+									label="SEO Description"
+									value={seo.description ?? ""}
+									onChange={(e) =>
+										setSeo((prev) => ({ ...prev, description: e.target.value || null }))
+									}
+									placeholder="Meta description for search engines"
+									rows={2}
+								/>
+								<Input
+									label="SEO Image URL"
+									value={seo.image ?? ""}
+									onChange={(e) => setSeo((prev) => ({ ...prev, image: e.target.value || null }))}
+									placeholder="https://example.com/image.jpg"
+								/>
+								<Input
+									label="Canonical URL"
+									value={seo.canonical ?? ""}
+									onChange={(e) =>
+										setSeo((prev) => ({ ...prev, canonical: e.target.value || null }))
+									}
+									placeholder="https://example.com/page"
+								/>
+								<Checkbox
+									label="No Index (prevent search engines from indexing)"
+									checked={seo.noIndex ?? false}
+									onCheckedChange={(checked) =>
+										setSeo((prev) => ({ ...prev, noIndex: checked }))
+									}
+								/>
+							</div>
+						)}
 
 						<DialogError
 							message={

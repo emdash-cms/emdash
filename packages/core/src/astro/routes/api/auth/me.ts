@@ -11,7 +11,8 @@ export const prerender = false;
 
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
-import { authMeActionBody } from "#api/schemas.js";
+import { authMeActionBody, updateProfileBody } from "#api/schemas.js";
+import { UserRepository } from "#db/repositories/user.js";
 
 export const GET: APIRoute = async ({ locals, session }) => {
 	const { user } = locals;
@@ -57,4 +58,43 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 	}
 
 	return apiError("UNKNOWN_ACTION", "Unknown action", 400);
+};
+
+/**
+ * PUT /_emdash/api/auth/me
+ *
+ * Update the current user's profile (name, avatarUrl).
+ */
+export const PUT: APIRoute = async ({ request, locals }) => {
+	const { user } = locals;
+
+	if (!user) {
+		return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
+	}
+
+	const emdash = locals.emdash;
+	if (!emdash?.db) {
+		return apiError("SERVICE_UNAVAILABLE", "Database not available", 503);
+	}
+
+	const body = await parseBody(request, updateProfileBody);
+	if (isParseError(body)) return body;
+
+	const userRepo = new UserRepository(emdash.db);
+	const updated = await userRepo.update(user.id, {
+		name: body.name ?? undefined,
+		avatarUrl: body.avatarUrl ?? undefined,
+	});
+
+	if (!updated) {
+		return apiError("NOT_FOUND", "User not found", 404);
+	}
+
+	return apiSuccess({
+		id: updated.id,
+		email: updated.email,
+		name: updated.name,
+		role: updated.role,
+		avatarUrl: updated.avatarUrl,
+	});
 };

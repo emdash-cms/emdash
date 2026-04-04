@@ -96,6 +96,7 @@ export interface ContentEditorProps {
 	onSave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
+		visibility?: string;
 		bylines?: BylineCreditInput[];
 	}) => void;
 	/** Callback for autosave (debounced, skips revision creation) */
@@ -212,6 +213,7 @@ export function ContentEditor({
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
+	const [visibility, setVisibility] = React.useState(item?.visibility || "public");
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
@@ -353,6 +355,7 @@ export function ContentEditor({
 		onSave?.({
 			data: formData,
 			slug: slug || undefined,
+			visibility,
 			bylines: activeBylines,
 		});
 	};
@@ -737,6 +740,20 @@ export function ContentEditor({
 											)}
 										</div>
 									)}
+
+									<div>
+										<Label htmlFor="visibility-select">Visibility</Label>
+										<Select
+											id="visibility-select"
+											value={visibility}
+											onChange={(e) => setVisibility(e.target.value)}
+											className="mt-1"
+										>
+											<option value="public">Public</option>
+											<option value="members">Members only</option>
+											<option value="private">Private</option>
+										</Select>
+									</div>
 
 									{item && (
 										<div className="text-xs text-kumo-subtle">

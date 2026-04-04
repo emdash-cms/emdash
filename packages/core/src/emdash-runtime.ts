@@ -1357,6 +1357,7 @@ export class EmDashRuntime {
 			data: Record<string, unknown>;
 			slug?: string;
 			status?: string;
+			visibility?: string;
 			authorId?: string;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
@@ -1399,6 +1400,7 @@ export class EmDashRuntime {
 			data?: Record<string, unknown>;
 			slug?: string;
 			status?: string;
+			visibility?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			/** Skip revision creation (used by autosave) */

@@ -535,6 +535,7 @@ export class SchemaRegistry {
 			.addColumn("draft_revision_id", "text", (col) => col.references("revisions.id"))
 			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 			.addColumn("translation_group", "text")
+			.addColumn("visibility", "text", (col) => col.notNull().defaultTo("public"))
 			.addUniqueConstraint(`${tableName}_slug_locale_unique`, ["slug", "locale"])
 			.execute();
 
@@ -596,8 +597,13 @@ export class SchemaRegistry {
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)}
 			ON ${sql.ref(tableName)} (translation_group)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_visibility`)}
+			ON ${sql.ref(tableName)} (visibility)
 		`.execute(conn);
 	}
 

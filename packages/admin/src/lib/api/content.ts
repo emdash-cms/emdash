@@ -37,6 +37,7 @@ export interface ContentItem {
 	type: string;
 	slug: string | null;
 	status: string;
+	visibility: string;
 	locale: string;
 	translationGroup: string | null;
 	data: Record<string, unknown>;
@@ -62,6 +63,7 @@ export interface CreateContentInput {
 	slug?: string;
 	data: Record<string, unknown>;
 	status?: string;
+	visibility?: string;
 	bylines?: BylineCreditInput[];
 	locale?: string;
 	translationOf?: string;
@@ -104,6 +106,7 @@ export interface UpdateContentInput {
 	data?: Record<string, unknown>;
 	slug?: string;
 	status?: string;
+	visibility?: string;
 	authorId?: string | null;
 	bylines?: BylineCreditInput[];
 	/** Skip revision creation (used by autosave) */
@@ -172,6 +175,7 @@ export async function createContent(
 			data: input.data,
 			slug: input.slug,
 			status: input.status,
+			visibility: input.visibility,
 			bylines: input.bylines,
 			locale: input.locale,
 			translationOf: input.translationOf,

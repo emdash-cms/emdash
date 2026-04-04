@@ -185,6 +185,7 @@ export interface EmDashHandlers {
 			data: Record<string, unknown>;
 			slug?: string;
 			status?: string;
+			visibility?: string;
 			authorId?: string;
 			locale?: string;
 			translationOf?: string;
@@ -198,6 +199,7 @@ export interface EmDashHandlers {
 			data?: Record<string, unknown>;
 			slug?: string;
 			status?: string;
+			visibility?: string;
 			authorId?: string | null;
 			_rev?: string;
 		},

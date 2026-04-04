@@ -5,7 +5,9 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
+import type { ContentSeo, ContentSeoInput } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
@@ -16,6 +18,12 @@ const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 // Response types
 // ---------------------------------------------------------------------------
 
+export interface TaxonomyFieldDef {
+	name: string;
+	label: string;
+	type: "text" | "textarea" | "url" | "number" | "boolean" | "color";
+}
+
 export interface TaxonomyDef {
 	id: string;
 	name: string;
@@ -23,6 +31,9 @@ export interface TaxonomyDef {
 	labelSingular?: string;
 	hierarchical: boolean;
 	collections: string[];
+	fields?: TaxonomyFieldDef[];
+	supports?: string[];
+	hasSeo?: boolean;
 }
 
 export interface TaxonomyListResponse {
@@ -36,6 +47,8 @@ export interface TermData {
 	label: string;
 	parentId: string | null;
 	description?: string;
+	data?: Record<string, unknown>;
+	seo?: ContentSeo;
 }
 
 export interface TermWithCount extends TermData {
@@ -85,13 +98,37 @@ function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
 }
 
 /**
+ * Parse a taxonomy def row into the API response shape.
+ */
+function rowToTaxonomyDef(row: Record<string, unknown>): TaxonomyDef {
+	const def: TaxonomyDef = {
+		id: row.id as string,
+		name: row.name as string,
+		label: row.label as string,
+		labelSingular: (row.label_singular as string) ?? undefined,
+		hierarchical: (row.hierarchical as number) === 1,
+		collections: row.collections ? JSON.parse(row.collections as string) : [],
+	};
+	if (row.fields) {
+		def.fields = JSON.parse(row.fields as string);
+	}
+	if (row.supports) {
+		def.supports = JSON.parse(row.supports as string);
+	}
+	if ((row.has_seo as number) === 1) {
+		def.hasSeo = true;
+	}
+	return def;
+}
+
+/**
  * Look up a taxonomy definition by name, returning a NOT_FOUND error if missing.
  */
 async function requireTaxonomyDef(
 	db: Kysely<Database>,
 	name: string,
 ): Promise<
-	| { success: true; def: { hierarchical: number } }
+	| { success: true; def: Record<string, unknown> }
 	| { success: false; error: { code: string; message: string } }
 > {
 	const def = await db
@@ -107,7 +144,7 @@ async function requireTaxonomyDef(
 		};
 	}
 
-	return { success: true, def };
+	return { success: true, def: def as Record<string, unknown> };
 }
 
 // ---------------------------------------------------------------------------
@@ -123,14 +160,7 @@ export async function handleTaxonomyList(
 	try {
 		const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
 
-		const taxonomies: TaxonomyDef[] = rows.map((row) => ({
-			id: row.id,
-			name: row.name,
-			label: row.label,
-			labelSingular: row.label_singular ?? undefined,
-			hierarchical: row.hierarchical === 1,
-			collections: row.collections ? JSON.parse(row.collections) : [],
-		}));
+		const taxonomies: TaxonomyDef[] = rows.map((row) => rowToTaxonomyDef(row as Record<string, unknown>));
 
 		return { success: true, data: { taxonomies } };
 	} catch {
@@ -146,7 +176,7 @@ export async function handleTaxonomyList(
  */
 export async function handleTaxonomyCreate(
 	db: Kysely<Database>,
-	input: { name: string; label: string; hierarchical?: boolean; collections?: string[] },
+	input: { name: string; label: string; hierarchical?: boolean; collections?: string[]; fields?: TaxonomyFieldDef[]; supports?: string[]; hasSeo?: boolean },
 ): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
 	try {
 		// Validate name format
@@ -203,29 +233,37 @@ export async function handleTaxonomyCreate(
 
 		const id = ulid();
 
+		const values: Record<string, unknown> = {
+			id,
+			name: input.name,
+			label: input.label,
+			label_singular: null,
+			hierarchical: input.hierarchical ? 1 : 0,
+			collections: JSON.stringify(collections),
+		};
+		if (input.fields) values.fields = JSON.stringify(input.fields);
+		if (input.supports) values.supports = JSON.stringify(input.supports);
+		if (input.hasSeo !== undefined) values.has_seo = input.hasSeo ? 1 : 0;
+
 		await db
 			.insertInto("_emdash_taxonomy_defs")
-			.values({
-				id,
-				name: input.name,
-				label: input.label,
-				label_singular: null,
-				hierarchical: input.hierarchical ? 1 : 0,
-				collections: JSON.stringify(collections),
-			})
+			.values(values)
 			.execute();
+
+		const taxonomy: TaxonomyDef = {
+			id,
+			name: input.name,
+			label: input.label,
+			hierarchical: input.hierarchical ?? false,
+			collections,
+		};
+		if (input.fields) taxonomy.fields = input.fields;
+		if (input.supports) taxonomy.supports = input.supports;
+		if (input.hasSeo) taxonomy.hasSeo = true;
 
 		return {
 			success: true,
-			data: {
-				taxonomy: {
-					id,
-					name: input.name,
-					label: input.label,
-					hierarchical: input.hierarchical ?? false,
-					collections,
-				},
-			},
+			data: { taxonomy },
 		};
 	} catch (error) {
 		// Handle UNIQUE constraint violation from concurrent duplicate inserts
@@ -269,14 +307,7 @@ export async function handleTaxonomyGet(
 		return {
 			success: true,
 			data: {
-				taxonomy: {
-					id: row.id,
-					name: row.name,
-					label: row.label,
-					labelSingular: row.label_singular ?? undefined,
-					hierarchical: row.hierarchical === 1,
-					collections: row.collections ? JSON.parse(row.collections) : [],
-				},
+				taxonomy: rowToTaxonomyDef(row as Record<string, unknown>),
 			},
 		};
 	} catch {
@@ -293,7 +324,7 @@ export async function handleTaxonomyGet(
 export async function handleTaxonomyUpdate(
 	db: Kysely<Database>,
 	name: string,
-	input: { label?: string; hierarchical?: boolean; collections?: string[] },
+	input: { label?: string; hierarchical?: boolean; collections?: string[]; fields?: TaxonomyFieldDef[]; supports?: string[]; hasSeo?: boolean },
 ): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
 	try {
 		const existing = await db
@@ -338,6 +369,9 @@ export async function handleTaxonomyUpdate(
 		if (input.label !== undefined) updates.label = input.label;
 		if (input.hierarchical !== undefined) updates.hierarchical = input.hierarchical ? 1 : 0;
 		if (collections !== undefined) updates.collections = JSON.stringify(collections);
+		if (input.fields !== undefined) updates.fields = JSON.stringify(input.fields);
+		if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
+		if (input.hasSeo !== undefined) updates.has_seo = input.hasSeo ? 1 : 0;
 
 		if (Object.keys(updates).length > 0) {
 			await db
@@ -356,14 +390,7 @@ export async function handleTaxonomyUpdate(
 		return {
 			success: true,
 			data: {
-				taxonomy: {
-					id: row!.id,
-					name: row!.name,
-					label: row!.label,
-					labelSingular: row!.label_singular ?? undefined,
-					hierarchical: row!.hierarchical === 1,
-					collections: row!.collections ? JSON.parse(row!.collections) : [],
-				},
+				taxonomy: rowToTaxonomyDef(row as Record<string, unknown>),
 			},
 		};
 	} catch {
@@ -438,16 +465,20 @@ export async function handleTermList(
 			counts.set(term.id, count);
 		}
 
-		const termData: TermWithCount[] = terms.map((term) => ({
-			id: term.id,
-			name: term.name,
-			slug: term.slug,
-			label: term.label,
-			parentId: term.parentId,
-			description: typeof term.data?.description === "string" ? term.data.description : undefined,
-			children: [],
-			count: counts.get(term.id) ?? 0,
-		}));
+		const termData: TermWithCount[] = terms.map((term) => {
+			const { description: desc, ...customData } = term.data ?? {};
+			return {
+				id: term.id,
+				name: term.name,
+				slug: term.slug,
+				label: term.label,
+				parentId: term.parentId,
+				description: typeof desc === "string" ? desc : undefined,
+				data: Object.keys(customData).length > 0 ? customData : undefined,
+				children: [],
+				count: counts.get(term.id) ?? 0,
+			};
+		});
 
 		const isHierarchical = lookup.def.hierarchical === 1;
 		const result = isHierarchical ? buildTree(termData) : termData;
@@ -467,7 +498,7 @@ export async function handleTermList(
 export async function handleTermCreate(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	input: { slug: string; label: string; parentId?: string | null; description?: string },
+	input: { slug: string; label: string; parentId?: string | null; description?: string; data?: Record<string, unknown> },
 ): Promise<ApiResult<TermResponse>> {
 	try {
 		const lookup = await requireTaxonomyDef(db, taxonomyName);
@@ -487,14 +518,18 @@ export async function handleTermCreate(
 			};
 		}
 
+		const termData: Record<string, unknown> = { ...input.data };
+		if (input.description) termData.description = input.description;
+
 		const term = await repo.create({
 			name: taxonomyName,
 			slug: input.slug,
 			label: input.label,
 			parentId: input.parentId ?? undefined,
-			data: input.description ? { description: input.description } : undefined,
+			data: Object.keys(termData).length > 0 ? termData : undefined,
 		});
 
+		const { description: desc, ...customData } = term.data ?? {};
 		return {
 			success: true,
 			data: {
@@ -504,8 +539,8 @@ export async function handleTermCreate(
 					slug: term.slug,
 					label: term.label,
 					parentId: term.parentId,
-					description:
-						typeof term.data?.description === "string" ? term.data.description : undefined,
+					description: typeof desc === "string" ? desc : undefined,
+					data: Object.keys(customData).length > 0 ? customData : undefined,
 				},
 			},
 		};
@@ -542,25 +577,37 @@ export async function handleTermGet(
 		const count = await repo.countEntriesWithTerm(term.id);
 		const children = await repo.findChildren(term.id);
 
+		const { description: desc, ...customData } = term.data ?? {};
+		const termResult: TermData & { count: number; children: Array<{ id: string; slug: string; label: string }> } = {
+			id: term.id,
+			name: term.name,
+			slug: term.slug,
+			label: term.label,
+			parentId: term.parentId,
+			description: typeof desc === "string" ? desc : undefined,
+			data: Object.keys(customData).length > 0 ? customData : undefined,
+			count,
+			children: children.map((c) => ({
+				id: c.id,
+				slug: c.slug,
+				label: c.label,
+			})),
+		};
+
+		// Fetch SEO data if taxonomy has SEO enabled
+		const defRow = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", taxonomyName)
+			.executeTakeFirst();
+		if (defRow && (defRow as Record<string, unknown>).has_seo === 1) {
+			const seoRepo = new SeoRepository(db);
+			termResult.seo = await seoRepo.get(`taxonomy:${taxonomyName}`, term.id);
+		}
+
 		return {
 			success: true,
-			data: {
-				term: {
-					id: term.id,
-					name: term.name,
-					slug: term.slug,
-					label: term.label,
-					parentId: term.parentId,
-					description:
-						typeof term.data?.description === "string" ? term.data.description : undefined,
-					count,
-					children: children.map((c) => ({
-						id: c.id,
-						slug: c.slug,
-						label: c.label,
-					})),
-				},
-			},
+			data: { term: termResult },
 		};
 	} catch {
 		return {
@@ -577,7 +624,7 @@ export async function handleTermUpdate(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	termSlug: string,
-	input: { slug?: string; label?: string; parentId?: string | null; description?: string },
+	input: { slug?: string; label?: string; parentId?: string | null; description?: string; data?: Record<string, unknown>; seo?: ContentSeoInput },
 ): Promise<ApiResult<TermResponse>> {
 	try {
 		const repo = new TaxonomyRepository(db);
@@ -607,11 +654,20 @@ export async function handleTermUpdate(
 			}
 		}
 
+		// Merge custom data fields with description into data JSON
+		let mergedData: Record<string, unknown> | undefined;
+		if (input.data !== undefined || input.description !== undefined) {
+			const existingData = term.data ?? {};
+			mergedData = { ...existingData };
+			if (input.data) Object.assign(mergedData, input.data);
+			if (input.description !== undefined) mergedData.description = input.description;
+		}
+
 		const updated = await repo.update(term.id, {
 			slug: input.slug,
 			label: input.label,
 			parentId: input.parentId,
-			data: input.description !== undefined ? { description: input.description } : undefined,
+			data: mergedData,
 		});
 
 		if (!updated) {
@@ -621,19 +677,35 @@ export async function handleTermUpdate(
 			};
 		}
 
+		// Handle SEO upsert if taxonomy has SEO enabled
+		let seo: ContentSeo | undefined;
+		if (input.seo) {
+			const defRow = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.selectAll()
+				.where("name", "=", taxonomyName)
+				.executeTakeFirst();
+			if (defRow && (defRow as Record<string, unknown>).has_seo === 1) {
+				const seoRepo = new SeoRepository(db);
+				seo = await seoRepo.upsert(`taxonomy:${taxonomyName}`, updated.id, input.seo);
+			}
+		}
+
+		const { description: desc, ...customData } = updated.data ?? {};
+		const termResult: TermData = {
+			id: updated.id,
+			name: updated.name,
+			slug: updated.slug,
+			label: updated.label,
+			parentId: updated.parentId,
+			description: typeof desc === "string" ? desc : undefined,
+			data: Object.keys(customData).length > 0 ? customData : undefined,
+		};
+		if (seo) termResult.seo = seo;
+
 		return {
 			success: true,
-			data: {
-				term: {
-					id: updated.id,
-					name: updated.name,
-					slug: updated.slug,
-					label: updated.label,
-					parentId: updated.parentId,
-					description:
-						typeof updated.data?.description === "string" ? updated.data.description : undefined,
-				},
-			},
+			data: { term: termResult },
 		};
 	} catch {
 		return {
@@ -675,6 +747,17 @@ export async function handleTermDelete(
 					message: "Cannot delete term with children. Delete children first.",
 				},
 			};
+		}
+
+		// Clean up SEO data if taxonomy has SEO enabled
+		const defRow = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", taxonomyName)
+			.executeTakeFirst();
+		if (defRow && (defRow as Record<string, unknown>).has_seo === 1) {
+			const seoRepo = new SeoRepository(db);
+			await seoRepo.delete(`taxonomy:${taxonomyName}`, term.id);
 		}
 
 		const deleted = await repo.delete(term.id);

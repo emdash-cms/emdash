@@ -393,6 +393,7 @@ function ContentNewPage() {
 		mutationFn: (data: {
 			data: Record<string, unknown>;
 			slug?: string;
+			visibility?: string;
 			bylines?: BylineCreditInput[];
 		}) => createContent(collection, data),
 		onSuccess: (result) => {
@@ -443,6 +444,7 @@ function ContentNewPage() {
 	const handleSave = (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
+		visibility?: string;
 		bylines?: BylineCreditInput[];
 	}) => {
 		createMutation.mutate(payload);
@@ -785,6 +787,7 @@ function ContentEditPage() {
 	const handleSave = (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
+		visibility?: string;
 		bylines?: BylineCreditInput[];
 	}) => {
 		updateMutation.mutate(payload);

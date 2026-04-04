@@ -33,6 +33,10 @@ import * as m029 from "./029_redirects.js";
 import * as m030 from "./030_widen_scheduled_index.js";
 import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
+import * as m033 from "./033_content_visibility.js";
+import * as m034 from "./034_taxonomy_fields.js";
+import * as m035 from "./035_taxonomy_seo.js";
+import * as m036 from "./036_taxonomy_supports.js";
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -72,6 +76,10 @@ class StaticMigrationProvider implements MigrationProvider {
 			"030_widen_scheduled_index": m030,
 			"031_bylines": m031,
 			"032_rate_limits": m032,
+			"033_content_visibility": m033,
+			"034_taxonomy_fields": m034,
+			"035_taxonomy_seo": m035,
+			"036_taxonomy_supports": m036,
 		};
 	}
 }

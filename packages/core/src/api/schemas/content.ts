@@ -7,6 +7,8 @@ import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
 // Content: Input schemas
 // ---------------------------------------------------------------------------
 
+export const contentVisibility = z.enum(["public", "members", "private"]);
+
 /** SEO input — per-content meta fields */
 export const contentSeoInput = z
 	.object({
@@ -32,6 +34,7 @@ export const contentCreateBody = z
 		data: z.record(z.string(), z.unknown()),
 		slug: z.string().nullish(),
 		status: z.string().optional(),
+		visibility: contentVisibility.optional(),
 		bylines: z.array(contentBylineInputSchema).optional(),
 		locale: localeCode.optional(),
 		translationOf: z.string().optional(),
@@ -44,6 +47,7 @@ export const contentUpdateBody = z
 		data: z.record(z.string(), z.unknown()).optional(),
 		slug: z.string().nullish(),
 		status: z.string().optional(),
+		visibility: contentVisibility.optional(),
 		authorId: z.string().nullish(),
 		bylines: z.array(contentBylineInputSchema).optional(),
 		_rev: z
@@ -101,6 +105,7 @@ export const contentItemSchema = z
 		type: z.string().meta({ description: "Collection slug this item belongs to" }),
 		slug: z.string().nullable(),
 		status: z.string().meta({ description: "draft, published, or scheduled" }),
+		visibility: z.string(),
 		data: z.record(z.string(), z.unknown()).meta({
 			description: "User-defined field values",
 		}),
