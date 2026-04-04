@@ -6,7 +6,7 @@ export function FieldsBlockComponent({ block }: { block: FieldsBlock }) {
 			{block.fields.map((field, i) => (
 				<div key={i}>
 					<div className="text-sm text-kumo-subtle">{field.label}</div>
-					<div className="text-kumo-default overflow-hidden text-ellipsis" title={field.value}>{field.value}</div>
+					<div className="text-kumo-default truncate" title={field.value}>{field.value}</div>
 				</div>
 			))}
 		</div>
