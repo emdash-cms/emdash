@@ -1,3 +1,4 @@
+import cloudflare from "@astrojs/cloudflare";
 import starlight from "@astrojs/starlight";
 // @ts-check
 import { defineConfig } from "astro/config";
@@ -162,4 +163,6 @@ export default defineConfig({
 			],
 		}),
 	],
+
+	adapter: cloudflare(),
 });
