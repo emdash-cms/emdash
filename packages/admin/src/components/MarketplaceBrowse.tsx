@@ -14,6 +14,7 @@ import {
 	ShieldWarning,
 	Warning,
 	ArrowsClockwise,
+	ArrowsLeftRight,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -41,6 +42,26 @@ const SORT_LABELS: Record<SortOption, string> = {
 	created: "Newest",
 	name: "Name",
 };
+
+/**
+ * Find which WordPress plugin slug from the `replaces` array matches the search query.
+ * Returns the matched slug or undefined if none match.
+ */
+function findReplacesMatch(plugin: MarketplacePluginSummary, query: string): string | undefined {
+	if (!query || !plugin.replaces?.length) return undefined;
+	const q = query.toLowerCase();
+	return plugin.replaces.find((slug) => slug.toLowerCase().includes(q));
+}
+
+/**
+ * Augmented plugin with optional WordPress replacement match info,
+ * used when the search query matches a `replaces` entry.
+ */
+interface PluginWithReplacesMatch {
+	plugin: MarketplacePluginSummary;
+	/** The WordPress plugin slug this result matched on, if any */
+	replacesMatch?: string;
+}
 
 export interface MarketplaceBrowseProps {
 	/** IDs of plugins already installed on this site */
@@ -74,7 +95,46 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
 		});
 
-	const plugins = data?.pages.flatMap((p) => p.items);
+	const rawPlugins = data?.pages.flatMap((p) => p.items);
+
+	// Augment plugins with WordPress replacement match info.
+	// When the search query matches a plugin's `replaces` entry (WordPress slug),
+	// that plugin surfaces even if the server-side search didn't match it, and
+	// a "Replaces" badge is shown on the card.
+	const augmented: PluginWithReplacesMatch[] | undefined = React.useMemo(() => {
+		if (!rawPlugins) return undefined;
+		if (!debouncedQuery) return rawPlugins.map((plugin) => ({ plugin }));
+
+		const alreadyIncluded = new Set(rawPlugins.map((p) => p.id));
+		const results: PluginWithReplacesMatch[] = [];
+
+		for (const plugin of rawPlugins) {
+			const replacesMatch = findReplacesMatch(plugin, debouncedQuery);
+			results.push({ plugin, replacesMatch });
+		}
+
+		// Also surface plugins from other pages that matched via replaces but
+		// weren't in the server results. We can only check what we already have.
+		if (data) {
+			for (const page of data.pages) {
+				for (const plugin of page.items) {
+					if (alreadyIncluded.has(plugin.id)) continue;
+					const replacesMatch = findReplacesMatch(plugin, debouncedQuery);
+					if (replacesMatch) {
+						results.push({ plugin, replacesMatch });
+						alreadyIncluded.add(plugin.id);
+					}
+				}
+			}
+		}
+
+		return results;
+	}, [rawPlugins, debouncedQuery, data]);
+
+	// Detect if any results matched via the replaces field
+	const wpReplacesMatches = augmented?.filter((r) => r.replacesMatch) ?? [];
+	const hasWpMatches = wpReplacesMatches.length > 0;
+	const wpMatchedNames = [...new Set(wpReplacesMatches.map((r) => r.replacesMatch!))];
 
 	return (
 		<div className="space-y-6">
@@ -162,10 +222,21 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 				</div>
 			)}
 
+			{/* WordPress alternative banner */}
+			{hasWpMatches && (
+				<div className="flex items-center gap-2 rounded-lg border border-kumo-brand/30 bg-kumo-brand/5 px-4 py-3 text-sm">
+					<ArrowsLeftRight className="h-4 w-4 shrink-0 text-kumo-brand" />
+					<span>
+						Looking for a WordPress alternative? These EmDash plugins replace{" "}
+						<strong>{wpMatchedNames.join(", ")}</strong>.
+					</span>
+				</div>
+			)}
+
 			{/* Results grid */}
-			{plugins && !isLoading && (
+			{augmented && !isLoading && (
 				<>
-					{plugins.length === 0 ? (
+					{augmented.length === 0 ? (
 						<div className="rounded-lg border bg-kumo-base p-8 text-center">
 							<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
 							<h3 className="mt-4 text-lg font-medium">No plugins found</h3>
@@ -178,11 +249,12 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					) : (
 						<>
 							<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-								{plugins.map((plugin) => (
+								{augmented.map(({ plugin, replacesMatch }) => (
 									<PluginCard
 										key={plugin.id}
 										plugin={plugin}
 										isInstalled={installedPluginIds.has(plugin.id)}
+										replacesMatch={replacesMatch}
 									/>
 								))}
 							</div>
@@ -212,9 +284,11 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 interface PluginCardProps {
 	plugin: MarketplacePluginSummary;
 	isInstalled: boolean;
+	/** WordPress plugin slug this card matched on via `replaces` */
+	replacesMatch?: string;
 }
 
-function PluginCard({ plugin, isInstalled }: PluginCardProps) {
+function PluginCard({ plugin, isInstalled, replacesMatch }: PluginCardProps) {
 	const navigate = useNavigate();
 	const auditVerdict = plugin.latestVersion?.audit?.verdict;
 	const imageVerdict = plugin.latestVersion?.imageAudit?.verdict;
@@ -256,6 +330,12 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 								}}
 							>
 								<Badge variant="secondary">Installed</Badge>
+							</span>
+						)}
+						{replacesMatch && (
+							<span className="inline-flex items-center gap-1 rounded bg-kumo-brand/10 px-1.5 py-0.5 text-xs font-medium text-kumo-brand">
+								<ArrowsLeftRight className="h-3 w-3" />
+								Replaces: {replacesMatch}
 							</span>
 						)}
 					</div>

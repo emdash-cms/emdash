@@ -46,6 +46,8 @@ export interface MarketplacePluginSummary {
 	author: MarketplaceAuthor;
 	capabilities: string[];
 	keywords?: string[];
+	/** WordPress plugin slugs this EmDash plugin replaces (e.g. ["yoast-seo", "contact-form-7"]) */
+	replaces?: string[];
 	installCount: number;
 	iconUrl?: string;
 	latestVersion?: {
