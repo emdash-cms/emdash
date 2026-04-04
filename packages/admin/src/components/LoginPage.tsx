@@ -364,24 +364,26 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					</p>
 				)}
 
-				{/* Language selector */}
-				<div className="mt-6 flex justify-center gap-2 text-xs text-kumo-subtle">
-					{SUPPORTED_LOCALES.map((l, i) => (
-						<React.Fragment key={l.code}>
-							{i > 0 && <span>·</span>}
-							<button
-								onClick={() => setLocale(l.code)}
-								className={
-									l.code === locale
-										? "font-medium text-kumo-default"
-										: "hover:text-kumo-default transition-colors"
-								}
-							>
-								{l.label}
-							</button>
-						</React.Fragment>
-					))}
-				</div>
+				{/* Language selector — only shown when multiple locales are available */}
+				{SUPPORTED_LOCALES.length > 1 && (
+					<div className="mt-6 flex justify-center gap-2 text-xs text-kumo-subtle">
+						{SUPPORTED_LOCALES.map((l, i) => (
+							<React.Fragment key={l.code}>
+								{i > 0 && <span>·</span>}
+								<button
+									onClick={() => setLocale(l.code)}
+									className={
+										l.code === locale
+											? "font-medium text-kumo-default"
+											: "hover:text-kumo-default transition-colors"
+									}
+								>
+									{l.label}
+								</button>
+							</React.Fragment>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);

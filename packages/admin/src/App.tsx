@@ -56,12 +56,10 @@ export function AdminApp({
 		document.getElementById("emdash-boot-loader")?.remove();
 	}, []);
 
-	React.useMemo(() => {
-		if (!i18n.locale) {
-			i18n.load(locale, messages);
-			i18n.activate(locale);
-		}
-	}, [locale, messages]);
+	console.log("locale", locale);
+	if (!i18n.locale) {
+		i18n.loadAndActivate({ locale, messages });
+	}
 
 	return (
 		<ThemeProvider>
