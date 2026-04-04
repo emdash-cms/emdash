@@ -364,6 +364,11 @@ export function ContentEditor({
 	const handlePreview = async () => {
 		if (!item?.id) return;
 
+		const contentUrl = (s: string) => {
+			const pattern = manifest?.collections[collection]?.urlPattern;
+			return pattern ? pattern.replace("{slug}", s) : `/${collection}/${s}`;
+		};
+
 		setIsLoadingPreview(true);
 		try {
 			const result = await getPreviewUrl(collection, item.id);
@@ -372,11 +377,11 @@ export function ContentEditor({
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
 				// Fallback to direct URL if preview not configured
-				window.open(`/${collection}/${slug || item.id}`, "_blank", "noopener,noreferrer");
+				window.open(contentUrl(slug || item.id), "_blank", "noopener,noreferrer");
 			}
 		} catch {
 			// Fallback to direct URL on error
-			window.open(`/${collection}/${slug || item?.id}`, "_blank", "noopener,noreferrer");
+			window.open(contentUrl(slug || item?.id || ""), "_blank", "noopener,noreferrer");
 		} finally {
 			setIsLoadingPreview(false);
 		}
