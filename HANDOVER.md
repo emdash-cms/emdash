@@ -34,7 +34,7 @@ Latest validation commands available in this branch:
 - `pnpm --silent lint:json` remains blocked by environment/toolchain behavior (`oxlint-tsgolint` SIGPIPE path) in this environment.
 
 Branch artifact metadata:
-- Commit: `557a841`
+- Commit: `5d43b60`
 - Updated: 2026-04-03
 - Review archive builder: `./scripts/build-commerce-external-review-zip.sh`
 - Shareable artifact: `./commerce-plugin-external-review.zip`
