@@ -726,7 +726,7 @@ msgstr "Available Providers"
 msgid "Available Widgets"
 msgstr "Available Widgets"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:262
+#: packages/admin/src/components/editor/BlockMenu.tsx:264
 #: packages/admin/src/components/MenuEditor.tsx:218
 #: packages/admin/src/components/SetupWizard.tsx:250
 #: packages/admin/src/components/SetupWizard.tsx:310
@@ -814,7 +814,7 @@ msgstr "Browse the"
 msgid "Browse themes and preview them with your own content."
 msgstr "Browse themes and preview them with your own content."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:137
+#: packages/admin/src/components/editor/BlockMenu.tsx:139
 #: packages/admin/src/components/PortableTextEditor.tsx:2186
 msgid "Bullet List"
 msgstr "Bullet List"
@@ -1000,7 +1000,7 @@ msgstr "Close panel"
 msgid "Code"
 msgstr "Code"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:136
+#: packages/admin/src/components/editor/BlockMenu.tsx:138
 #: packages/admin/src/components/PortableTextEditor.tsx:2207
 msgid "Code Block"
 msgstr "Code Block"
@@ -1404,7 +1404,7 @@ msgstr "Defined in code"
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
 #: packages/admin/src/components/ContentTypeEditor.tsx:603
 #: packages/admin/src/components/ContentTypeList.tsx:147
-#: packages/admin/src/components/editor/BlockMenu.tsx:306
+#: packages/admin/src/components/editor/BlockMenu.tsx:308
 #: packages/admin/src/components/MediaDetailPanel.tsx:231
 #: packages/admin/src/components/MediaDetailPanel.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:370
@@ -1738,7 +1738,7 @@ msgstr "Drag here to add"
 msgid "Drag to reorder {0}"
 msgstr "Drag to reorder {0}"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:343
+#: packages/admin/src/components/editor/BlockMenu.tsx:345
 msgid "Drag to reorder block"
 msgstr "Drag to reorder block"
 
@@ -1758,7 +1758,7 @@ msgstr "Drop to add widget"
 msgid "Drop your WordPress export file here"
 msgstr "Drop your WordPress export file here"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:297
+#: packages/admin/src/components/editor/BlockMenu.tsx:299
 msgid "Duplicate"
 msgstr "Duplicate"
 
@@ -2280,17 +2280,17 @@ msgstr "Guest byline"
 msgid "Guest only"
 msgstr "Guest only"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:132
+#: packages/admin/src/components/editor/BlockMenu.tsx:134
 #: packages/admin/src/components/PortableTextEditor.tsx:2159
 msgid "Heading 1"
 msgstr "Heading 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:133
+#: packages/admin/src/components/editor/BlockMenu.tsx:135
 #: packages/admin/src/components/PortableTextEditor.tsx:2166
 msgid "Heading 2"
 msgstr "Heading 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:134
+#: packages/admin/src/components/editor/BlockMenu.tsx:136
 #: packages/admin/src/components/PortableTextEditor.tsx:2173
 msgid "Heading 3"
 msgstr "Heading 3"
@@ -3317,7 +3317,7 @@ msgstr "None (top level)"
 msgid "Number of posts to show per page on list views"
 msgstr "Number of posts to show per page on list views"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:138
+#: packages/admin/src/components/editor/BlockMenu.tsx:140
 #: packages/admin/src/components/PortableTextEditor.tsx:2193
 msgid "Numbered List"
 msgstr "Numbered List"
@@ -3425,7 +3425,7 @@ msgstr "Package"
 msgid "Pages"
 msgstr "Pages"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:131
+#: packages/admin/src/components/editor/BlockMenu.tsx:133
 msgid "Paragraph"
 msgstr "Paragraph"
 
@@ -3661,7 +3661,7 @@ msgstr "Quick create byline"
 msgid "Quick edit alt text"
 msgstr "Quick edit alt text"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:135
+#: packages/admin/src/components/editor/BlockMenu.tsx:137
 #: packages/admin/src/components/PortableTextEditor.tsx:2200
 msgid "Quote"
 msgstr "Quote"
@@ -4894,7 +4894,7 @@ msgstr "Try Another URL"
 msgid "Try with my data"
 msgstr "Try with my data"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:287
+#: packages/admin/src/components/editor/BlockMenu.tsx:289
 msgid "Turn into"
 msgstr "Turn into"
 
