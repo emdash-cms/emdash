@@ -78,7 +78,7 @@ When `locale` is omitted, it defaults to the request's current locale. If no tra
 
 ### Filter by Status
 
-Retrieve only published, draft, or archived content:
+Retrieve only published or draft content:
 
 ```ts
 // Only published posts
@@ -90,16 +90,11 @@ const { entries: published } = await getEmDashCollection("posts", {
 const { entries: drafts } = await getEmDashCollection("posts", {
 	status: "draft",
 });
-
-// Only archived
-const { entries: archived } = await getEmDashCollection("posts", {
-	status: "archived",
-});
 ```
 
 <Aside type="tip">
-	Always filter by `status: "published"` for public-facing pages. Draft and archived content should
-	only be accessible in the admin or preview mode.
+	Always filter by `status: "published"` for public-facing pages. Draft content should only be
+	accessible in the admin or preview mode.
 </Aside>
 
 ### Limit Results
