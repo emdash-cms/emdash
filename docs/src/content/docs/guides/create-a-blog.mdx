@@ -25,7 +25,7 @@ The default posts collection includes:
 - `content` - Rich text body
 - `excerpt` - Short description
 - `featured_image` - Header image (optional)
-- `status` - draft, published, or archived
+- `status` - draft, published, or scheduled
 - `publishedAt` - Publication date (system field)
 
 ## Create Your First Post
@@ -96,6 +96,7 @@ Create a dynamic route for individual posts:
 ```astro title="src/pages/blog/[slug].astro"
 ---
 import { getEmDashCollection, getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 export async function getStaticPaths() {
@@ -125,7 +126,7 @@ if (!post) {
     <time datetime={post.data.publishedAt?.toISOString()}>
       {post.data.publishedAt?.toLocaleDateString()}
     </time>
-    <div set:html={post.data.content} />
+    <PortableText value={post.data.content} />
   </article>
 </Base>
 ```

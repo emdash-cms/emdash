@@ -20,7 +20,8 @@ EmDash stores uploaded media (images, documents, videos) in a configurable stora
 Use R2 bindings when deploying to Cloudflare Workers for the fastest integration.
 
 ```js title="astro.config.mjs"
-import emdash, { r2 } from "emdash/astro";
+import emdash from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	integrations: [
@@ -188,7 +189,8 @@ The `baseUrl` should match EmDash's media file endpoint (`/_emdash/api/media/fil
 Switch storage backends based on environment:
 
 ```js title="astro.config.mjs"
-import emdash, { r2, s3, local } from "emdash/astro";
+import emdash, { s3, local } from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 
 const storage = import.meta.env.PROD
 	? r2({ binding: "MEDIA" })
