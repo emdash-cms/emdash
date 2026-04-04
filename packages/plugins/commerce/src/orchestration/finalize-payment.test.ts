@@ -130,10 +130,13 @@ function withNthPutFailure<T extends object>(
 type MemCollWithPutIfAbsent<T extends object> = MemColl<T> & {
 	putIfAbsent(id: string, data: T): Promise<boolean>;
 };
+type MemCollWithClaiming<T extends object> = MemCollWithPutIfAbsent<T> & {
+	compareAndSwap(id: string, expectedVersion: string, data: T): Promise<boolean>;
+};
 
 function memCollWithPutIfAbsent<T extends object>(
 	collection: MemColl<T>,
-): MemCollWithPutIfAbsent<T> {
+): MemCollWithClaiming<T> {
 	return {
 		get rows() {
 			return collection.rows;
@@ -146,7 +149,15 @@ function memCollWithPutIfAbsent<T extends object>(
 			collection.rows.set(id, structuredClone(data));
 			return true;
 		},
-	} as MemCollWithPutIfAbsent<T>;
+		compareAndSwap: async (id: string, expectedVersion: string, data: T): Promise<boolean> => {
+			const existing = collection.rows.get(id);
+			if (!existing) return false;
+			const version = (existing as Record<string, unknown>).updatedAt;
+			if (typeof version !== "string" || version !== expectedVersion) return false;
+			collection.rows.set(id, structuredClone(data));
+			return true;
+		},
+	} as MemCollWithClaiming<T>;
 }
 
 function portsFromState(state: {
@@ -1676,6 +1687,138 @@ describe("finalizePaymentFromWebhook", () => {
 
 		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
 		expect(receipt?.status).toBe("processed");
+	});
+
+	it("does not steal a fresh claimed in-flight webhook receipt", async () => {
+		const orderId = "order_fresh_claim";
+		const extId = "evt_fresh_claim";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const freshClaimExpiresAt = "2026-04-02T12:00:30.000Z";
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>([
+				[
+					webhookReceiptDocId("stripe", extId),
+					{
+						providerId: "stripe",
+						externalEventId: extId,
+						orderId,
+						status: "pending",
+						correlationId: "cid",
+						createdAt: now,
+						updatedAt: now,
+						claimState: "claimed",
+						claimOwner: "other-worker",
+						claimToken: "other-token",
+						claimVersion: now,
+						claimExpiresAt: freshClaimExpiresAt,
+					},
+				],
+			]),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_fresh_claim",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const ports = {
+			...basePorts,
+			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+		} as FinalizePaymentPorts;
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "replay", reason: "webhook_receipt_in_flight" });
+
+		const order = await ports.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("payment_pending");
+		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.claimState).toBe("claimed");
+	});
+
+	it("reclaims a stale claimed webhook receipt and completes finalize", async () => {
+		const orderId = "order_stale_claim";
+		const extId = "evt_stale_claim";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>([
+				[
+					webhookReceiptDocId("stripe", extId),
+					{
+						providerId: "stripe",
+						externalEventId: extId,
+						orderId,
+						status: "pending",
+						correlationId: "cid",
+						createdAt: "2026-04-02T11:00:00.000Z",
+						updatedAt: now,
+						claimState: "claimed",
+						claimOwner: "other-worker",
+						claimToken: "other-token",
+						claimVersion: "2026-04-02T11:00:00.000Z",
+						claimExpiresAt: "2026-04-02T11:59:00.000Z",
+					},
+				],
+			]),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_stale_claim",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
+
+		const basePorts = portsFromState(state);
+		const ports = {
+			...basePorts,
+			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+		} as FinalizePaymentPorts;
+
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
+
+		expect(res).toEqual({ kind: "completed", orderId });
+		const receipt = await ports.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("processed");
+		expect(receipt?.claimState).toBe("released");
 	});
 
 	it("pending receipt with unparseable updatedAt is treated as stale claim and finalizes", async () => {
