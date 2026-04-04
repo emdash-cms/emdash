@@ -206,6 +206,29 @@ export interface StoredProductSkuOptionValue {
 	updatedAt: string;
 }
 
+export interface StoredDigitalAsset {
+	id: string;
+	provider: string;
+	externalAssetId: string;
+	label?: string;
+	downloadLimit?: number;
+	downloadExpiryDays?: number;
+	isManualOnly: boolean;
+	isPrivate: boolean;
+	createdAt: string;
+	updatedAt: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface StoredDigitalEntitlement {
+	id: string;
+	skuId: string;
+	digitalAssetId: string;
+	grantedQuantity: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export type ProductAssetLinkTarget = "product" | "sku";
 
 export type ProductAssetRole = "primary_image" | "gallery_image";

@@ -25,6 +25,9 @@ import {
 import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
 import {
 	linkCatalogAssetHandler,
+	createDigitalAssetHandler,
+	createDigitalEntitlementHandler,
+	removeDigitalEntitlementHandler,
 	reorderCatalogAssetHandler,
 	registerProductAssetHandler,
 	unlinkCatalogAssetHandler,
@@ -49,6 +52,9 @@ import {
 	productAssetReorderInputSchema,
 	productAssetRegisterInputSchema,
 	productAssetUnlinkInputSchema,
+	digitalAssetCreateInputSchema,
+	digitalEntitlementCreateInputSchema,
+	digitalEntitlementRemoveInputSchema,
 	productCreateInputSchema,
 	productGetInputSchema,
 	productSkuStateInputSchema,
@@ -199,6 +205,21 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 				input: productAssetReorderInputSchema,
 				handler: asRouteHandler(reorderCatalogAssetHandler),
 			},
+			"digital-assets/create": {
+				public: true,
+				input: digitalAssetCreateInputSchema,
+				handler: asRouteHandler(createDigitalAssetHandler),
+			},
+			"digital-entitlements/create": {
+				public: true,
+				input: digitalEntitlementCreateInputSchema,
+				handler: asRouteHandler(createDigitalEntitlementHandler),
+			},
+			"digital-entitlements/remove": {
+				public: true,
+				input: digitalEntitlementRemoveInputSchema,
+				handler: asRouteHandler(removeDigitalEntitlementHandler),
+			},
 			"catalog/product/create": {
 				public: true,
 				input: productCreateInputSchema,
@@ -314,6 +335,9 @@ export type {
 	ProductAssetLinkResponse,
 	ProductAssetResponse,
 	ProductAssetUnlinkResponse,
+	DigitalAssetResponse,
+	DigitalEntitlementResponse,
+	DigitalEntitlementUnlinkResponse,
 	ProductResponse,
 	ProductListResponse,
 	ProductSkuResponse,

@@ -33,6 +33,9 @@ import type {
 	ProductGetInput,
 	ProductListInput,
 	ProductSkuCreateInput,
+	DigitalAssetCreateInput,
+	DigitalEntitlementCreateInput,
+	DigitalEntitlementRemoveInput,
 	ProductStateInput,
 	ProductUpdateInput,
 	ProductSkuListInput,
@@ -43,6 +46,8 @@ import type {
 	StoredProductAssetLink,
 	StoredProductAttribute,
 	StoredProductAttributeValue,
+	StoredDigitalAsset,
+	StoredDigitalEntitlement,
 	StoredProductSkuOptionValue,
 	StoredProductSku,
 } from "../types.js";
@@ -61,18 +66,6 @@ function toWhere(input: { type?: string; status?: string; visibility?: string })
 	return where;
 }
 
-export type ProductResponse = {
-	product: StoredProduct;
-	attributes?: StoredProductAttribute[];
-	variantMatrix?: Array<{
-		skuId: string;
-		options: Array<{
-			attributeId: string;
-			attributeValueId: string;
-		}>;
-	}>;
-};
-
 export type ProductListResponse = {
 	items: StoredProduct[];
 };
@@ -85,6 +78,33 @@ export type ProductSkuListResponse = {
 	items: StoredProductSku[];
 };
 
+export type ProductDigitalEntitlementSummary = {
+	skuId: string;
+	entitlements: Array<{
+		entitlementId: string;
+		digitalAssetId: string;
+		digitalAssetLabel?: string;
+		grantedQuantity: number;
+		downloadLimit?: number;
+		downloadExpiryDays?: number;
+		isManualOnly: boolean;
+		isPrivate: boolean;
+	}>;
+};
+
+export type ProductResponse = {
+	product: StoredProduct;
+	attributes?: StoredProductAttribute[];
+	variantMatrix?: Array<{
+		skuId: string;
+		options: Array<{
+			attributeId: string;
+			attributeValueId: string;
+		}>;
+	}>;
+	digitalEntitlements?: ProductDigitalEntitlementSummary[];
+};
+
 export type ProductAssetResponse = {
 	asset: StoredProductAsset;
 };
@@ -94,6 +114,18 @@ export type ProductAssetLinkResponse = {
 };
 
 export type ProductAssetUnlinkResponse = {
+	deleted: boolean;
+};
+
+export type DigitalAssetResponse = {
+	asset: StoredDigitalAsset;
+};
+
+export type DigitalEntitlementResponse = {
+	entitlement: StoredDigitalEntitlement;
+};
+
+export type DigitalEntitlementUnlinkResponse = {
 	deleted: boolean;
 };
 
@@ -258,35 +290,75 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
 	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
 	const productSkuOptionValues = asCollection<StoredProductSkuOptionValue>(ctx.storage.productSkuOptionValues);
+	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
+	const productDigitalEntitlements = asCollection<StoredDigitalEntitlement>(ctx.storage.digitalEntitlements);
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
-	if (product.type !== "variable") {
-		return { product };
+	const skusResult = await productSkus.query({ where: { productId: product.id } });
+	const skuRows = skusResult.items.map((row) => row.data);
+	const response: ProductResponse = { product };
+
+	if (product.type === "variable") {
+		const attributes = (await productAttributes.query({ where: { productId: product.id } })).items.map(
+			(row) => row.data,
+		);
+		const variantMatrix = [];
+		for (const skuRow of skuRows) {
+			const optionResult = await productSkuOptionValues.query({ where: { skuId: skuRow.id } });
+			variantMatrix.push({
+				skuId: skuRow.id,
+				options: optionResult.items.map((option) => ({
+					attributeId: option.data.attributeId,
+					attributeValueId: option.data.attributeValueId,
+				})),
+			});
+		}
+		response.attributes = attributes;
+		response.variantMatrix = variantMatrix;
 	}
 
-	const attributes = (await productAttributes.query({ where: { productId: product.id } })).items.map(
-		(row) => row.data,
-	);
-	const skusResult = await productSkus.query({ where: { productId: product.id } });
-	const variantMatrix = [];
-	for (const skuRow of skusResult.items) {
-		const optionResult = await productSkuOptionValues.query({ where: { skuId: skuRow.id } });
-		variantMatrix.push({
-			skuId: skuRow.id,
-			options: optionResult.items.map((option) => ({
-				attributeId: option.data.attributeId,
-				attributeValueId: option.data.attributeValueId,
-			})),
+	const digitalEntitlements: ProductDigitalEntitlementSummary[] = [];
+	for (const sku of skuRows) {
+		const entitlementResult = await productDigitalEntitlements.query({
+			where: { skuId: sku.id },
+			limit: 100,
 		});
+		if (entitlementResult.items.length === 0) {
+			continue;
+		}
+
+		const entitlements = [];
+		for (const entitlementRow of entitlementResult.items) {
+			const entitlement = entitlementRow.data;
+			const digitalAsset = await productDigitalAssets.get(entitlement.digitalAssetId);
+			if (!digitalAsset) {
+				continue;
+			}
+			entitlements.push({
+				entitlementId: entitlement.id,
+				digitalAssetId: entitlement.digitalAssetId,
+				digitalAssetLabel: digitalAsset.label,
+				grantedQuantity: entitlement.grantedQuantity,
+				downloadLimit: digitalAsset.downloadLimit,
+				downloadExpiryDays: digitalAsset.downloadExpiryDays,
+				isManualOnly: digitalAsset.isManualOnly,
+				isPrivate: digitalAsset.isPrivate,
+			});
+		}
+		if (entitlements.length > 0) {
+			digitalEntitlements.push({
+				skuId: sku.id,
+				entitlements,
+			});
+		}
 	}
-	return {
-		product,
-		attributes,
-		variantMatrix,
-	};
+	if (digitalEntitlements.length > 0) {
+		response.digitalEntitlements = digitalEntitlements;
+	}
+	return response;
 }
 
 export async function listProductsHandler(ctx: RouteContext<ProductListInput>): Promise<ProductListResponse> {
@@ -669,4 +741,99 @@ function normalizeAssetLinksByOrder(links: StoredProductAssetLink[]): StoredProd
 		...link,
 		position: idx,
 	}));
+}
+
+export async function createDigitalAssetHandler(
+	ctx: RouteContext<DigitalAssetCreateInput>,
+): Promise<DigitalAssetResponse> {
+	requirePost(ctx);
+	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
+	const nowIso = new Date(Date.now()).toISOString();
+
+	const existing = await productDigitalAssets.query({
+		where: { provider: ctx.input.provider, externalAssetId: ctx.input.externalAssetId },
+		limit: 1,
+	});
+	if (existing.items.length > 0) {
+		throw PluginRouteError.badRequest("Digital asset already registered for provider key");
+	}
+
+	const id = `digital_asset_${await randomHex(6)}`;
+	const asset: StoredDigitalAsset = {
+		id,
+		provider: ctx.input.provider,
+		externalAssetId: ctx.input.externalAssetId,
+		label: ctx.input.label,
+		downloadLimit: ctx.input.downloadLimit,
+		downloadExpiryDays: ctx.input.downloadExpiryDays,
+		isManualOnly: ctx.input.isManualOnly,
+		isPrivate: ctx.input.isPrivate,
+		metadata: ctx.input.metadata,
+		createdAt: nowIso,
+		updatedAt: nowIso,
+	};
+
+	await productDigitalAssets.put(id, asset);
+	return { asset };
+}
+
+export async function createDigitalEntitlementHandler(
+	ctx: RouteContext<DigitalEntitlementCreateInput>,
+): Promise<DigitalEntitlementResponse> {
+	requirePost(ctx);
+	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
+	const productDigitalEntitlements = asCollection<StoredDigitalEntitlement>(
+		ctx.storage.digitalEntitlements,
+	);
+	const nowIso = new Date(Date.now()).toISOString();
+
+	const sku = await productSkus.get(ctx.input.skuId);
+	if (!sku) {
+		throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "SKU not found" });
+	}
+	if (sku.status !== "active") {
+		throw PluginRouteError.badRequest(`Cannot attach entitlement to inactive SKU ${ctx.input.skuId}`);
+	}
+
+	const digitalAsset = await productDigitalAssets.get(ctx.input.digitalAssetId);
+	if (!digitalAsset) {
+		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Digital asset not found" });
+	}
+
+	const existing = await productDigitalEntitlements.query({
+		where: { skuId: ctx.input.skuId, digitalAssetId: ctx.input.digitalAssetId },
+		limit: 1,
+	});
+	if (existing.items.length > 0) {
+		throw PluginRouteError.badRequest("SKU already has this digital entitlement");
+	}
+
+	const id = `entitlement_${await randomHex(6)}`;
+	const entitlement: StoredDigitalEntitlement = {
+		id,
+		skuId: ctx.input.skuId,
+		digitalAssetId: ctx.input.digitalAssetId,
+		grantedQuantity: ctx.input.grantedQuantity,
+		createdAt: nowIso,
+		updatedAt: nowIso,
+	};
+	await productDigitalEntitlements.put(id, entitlement);
+	return { entitlement };
+}
+
+export async function removeDigitalEntitlementHandler(
+	ctx: RouteContext<DigitalEntitlementRemoveInput>,
+): Promise<DigitalEntitlementUnlinkResponse> {
+	requirePost(ctx);
+	const productDigitalEntitlements = asCollection<StoredDigitalEntitlement>(
+		ctx.storage.digitalEntitlements,
+	);
+
+	const existing = await productDigitalEntitlements.get(ctx.input.entitlementId);
+	if (!existing) {
+		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Digital entitlement not found" });
+	}
+	await productDigitalEntitlements.delete(ctx.input.entitlementId);
+	return { deleted: true };
 }

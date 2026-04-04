@@ -18,6 +18,8 @@ function includesIndex(
 	| "productAttributes"
 	| "productAttributeValues"
 	| "productSkuOptionValues"
+	| "digitalAssets"
+	| "digitalEntitlements"
 		| "inventoryLedger"
 		| "inventoryStock",
 	index: readonly string[],
@@ -96,5 +98,13 @@ describe("storage index contracts", () => {
 		expect(includesIndex("productSkuOptionValues", ["skuId"])).toBe(true);
 		expect(includesIndex("productSkuOptionValues", ["attributeId"])).toBe(true);
 		expect(includesIndex("productSkuOptionValues", ["skuId", "attributeId"], true)).toBe(true);
+	});
+
+	it("supports digital asset records and entitlements", () => {
+		expect(includesIndex("digitalAssets", ["provider", "externalAssetId"])).toBe(true);
+		expect(includesIndex("digitalAssets", ["provider", "externalAssetId"], true)).toBe(true);
+		expect(includesIndex("digitalEntitlements", ["skuId"])).toBe(true);
+		expect(includesIndex("digitalEntitlements", ["digitalAssetId"])).toBe(true);
+		expect(includesIndex("digitalEntitlements", ["skuId", "digitalAssetId"], true)).toBe(true);
 	});
 });

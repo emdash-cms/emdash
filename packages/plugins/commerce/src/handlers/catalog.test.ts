@@ -7,6 +7,8 @@ import type {
 	StoredProductAssetLink,
 	StoredProductAttribute,
 	StoredProductAttributeValue,
+	StoredDigitalAsset,
+	StoredDigitalEntitlement,
 	StoredProductSku,
 	StoredProductSkuOptionValue,
 } from "../types.js";
@@ -17,12 +19,16 @@ import type {
 	ProductAssetUnlinkInput,
 	ProductSkuCreateInput,
 	ProductCreateInput,
+	DigitalAssetCreateInput,
+	DigitalEntitlementCreateInput,
 } from "../schemas.js";
 import {
 	productAssetLinkInputSchema,
 	productAssetReorderInputSchema,
 	productAssetRegisterInputSchema,
 	productAssetUnlinkInputSchema,
+	digitalAssetCreateInputSchema,
+	digitalEntitlementCreateInputSchema,
 } from "../schemas.js";
 import {
 	createProductHandler,
@@ -38,6 +44,9 @@ import {
 	unlinkCatalogAssetHandler,
 	listProductsHandler,
 	listProductSkusHandler,
+	createDigitalAssetHandler,
+	createDigitalEntitlementHandler,
+	removeDigitalEntitlementHandler,
 } from "./catalog.js";
 
 class MemColl<T extends object> {
@@ -82,6 +91,8 @@ function catalogCtx<TInput>(
 	productAttributes = new MemColl<StoredProductAttribute>(),
 	productAttributeValues = new MemColl<StoredProductAttributeValue>(),
 	productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>(),
+	digitalAssets = new MemColl<StoredDigitalAsset>(),
+	digitalEntitlements = new MemColl<StoredDigitalEntitlement>(),
 ): RouteContext<TInput> {
 	return {
 		request: new Request("https://example.test/catalog", { method: "POST" }),
@@ -94,6 +105,8 @@ function catalogCtx<TInput>(
 			productAttributes,
 			productAttributeValues,
 			productSkuOptionValues,
+			digitalAssets,
+			digitalEntitlements,
 		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv: {},
@@ -481,6 +494,117 @@ describe("catalog product handlers", () => {
 	it("returns product_unavailable when productId does not exist", async () => {
 		const out = getProductHandler(catalogCtx({ productId: "missing" }, new MemColl()));
 		await expect(out).rejects.toMatchObject({ code: "product_unavailable" });
+	});
+
+	it("returns entitlement summaries in product detail view", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const digitalAssets = new MemColl<StoredDigitalAsset>();
+		const digitalEntitlements = new MemColl<StoredDigitalEntitlement>();
+
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "digital-product",
+			title: "Digital Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "DIGI",
+			status: "active",
+			unitPriceMinor: 199,
+			inventoryQuantity: 100,
+			inventoryVersion: 1,
+			requiresShipping: false,
+			isDigital: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const asset = await createDigitalAssetHandler(
+			catalogCtx<DigitalAssetCreateInput>(
+				{
+					externalAssetId: "media-101",
+					provider: "media",
+					label: "Product Manual",
+					downloadLimit: 1,
+					downloadExpiryDays: 30,
+					isManualOnly: true,
+					isPrivate: true,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+
+		await createDigitalEntitlementHandler(
+			catalogCtx<DigitalEntitlementCreateInput>(
+				{
+					skuId: "sku_1",
+					digitalAssetId: asset.asset.id,
+					grantedQuantity: 2,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+
+		const out = await getProductHandler(
+			catalogCtx(
+				{ productId: "prod_1" },
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+
+		expect(out.digitalEntitlements).toEqual([
+			{
+				skuId: "sku_1",
+				entitlements: [
+					{
+						entitlementId: expect.any(String),
+						digitalAssetId: asset.asset.id,
+						digitalAssetLabel: "Product Manual",
+						grantedQuantity: 2,
+						downloadLimit: 1,
+						downloadExpiryDays: 30,
+						isManualOnly: true,
+						isPrivate: true,
+					},
+				],
+			},
+		]);
 	});
 });
 
@@ -1284,5 +1408,156 @@ describe("catalog asset handlers", () => {
 
 		const removed = await productAssetLinks.get(linked.link.id);
 		expect(removed).toBeNull();
+	});
+});
+
+describe("catalog digital entitlement handlers", () => {
+	it("rejects binary-upload payload keys at the contract boundary", () => {
+		expect(
+			digitalAssetCreateInputSchema.safeParse({
+				externalAssetId: "media-1",
+				provider: "media",
+				file: "should-not-be-uploaded",
+			}).success,
+		).toBe(false);
+		expect(
+			digitalEntitlementCreateInputSchema.safeParse({
+				skuId: "sku_1",
+				digitalAssetId: "asset_1",
+				grantedQuantity: 1,
+				file: "should-not-be-uploaded",
+			}).success,
+		).toBe(false);
+	});
+
+	it("creates digital assets and entitlements, and enforces unique mapping per SKU+asset", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const digitalAssets = new MemColl<StoredDigitalAsset>();
+		const digitalEntitlements = new MemColl<StoredDigitalEntitlement>();
+
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "digital-product",
+			title: "Digital Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "DIGI",
+			status: "active",
+			unitPriceMinor: 199,
+			inventoryQuantity: 100,
+			inventoryVersion: 1,
+			requiresShipping: false,
+			isDigital: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const asset = await createDigitalAssetHandler(
+			catalogCtx<DigitalAssetCreateInput>(
+				{
+					externalAssetId: "media-101",
+					provider: "media",
+					label: "Product Manual",
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+
+		const first = await createDigitalEntitlementHandler(
+			catalogCtx<DigitalEntitlementCreateInput>(
+				{
+					skuId: "sku_1",
+					digitalAssetId: asset.asset.id,
+					grantedQuantity: 1,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+		expect(first.entitlement.skuId).toBe("sku_1");
+		expect(first.entitlement.digitalAssetId).toBe(asset.asset.id);
+		await expect(
+			createDigitalEntitlementHandler(
+				catalogCtx<DigitalEntitlementCreateInput>(
+					{
+						skuId: "sku_1",
+						digitalAssetId: asset.asset.id,
+						grantedQuantity: 1,
+					},
+					products,
+					skus,
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					digitalAssets,
+					digitalEntitlements,
+				),
+			),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("removes entitlement assignments", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const digitalAssets = new MemColl<StoredDigitalAsset>();
+		const digitalEntitlements = new MemColl<StoredDigitalEntitlement>();
+
+		await digitalEntitlements.put("ent_1", {
+			id: "ent_1",
+			skuId: "sku_1",
+			digitalAssetId: "asset_1",
+			grantedQuantity: 1,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = await removeDigitalEntitlementHandler(
+			catalogCtx(
+				{ entitlementId: "ent_1" },
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+		expect(out.deleted).toBe(true);
+
+		const missing = await digitalEntitlements.get("ent_1");
+		expect(missing).toBeNull();
 	});
 });

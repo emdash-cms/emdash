@@ -21,6 +21,14 @@ export type CommerceStorage = PluginStorageConfig & {
 		indexes: ["skuId", "attributeId", "attributeValueId"];
 		uniqueIndexes: [["skuId", "attributeId"]];
 	};
+	digitalAssets: {
+		indexes: ["provider", "externalAssetId", "label", "isPrivate", "isManualOnly", "createdAt", ["provider", "externalAssetId"]];
+		uniqueIndexes: [["provider", "externalAssetId"]];
+	};
+	digitalEntitlements: {
+		indexes: ["skuId", "digitalAssetId", "createdAt"];
+		uniqueIndexes: [["skuId", "digitalAssetId"]];
+	};
 	productAssets: {
 		indexes: ["provider", "externalAssetId", "createdAt", "updatedAt", ["provider", "externalAssetId"]];
 		uniqueIndexes: [["provider", "externalAssetId"]];
@@ -122,6 +130,22 @@ export const COMMERCE_STORAGE_CONFIG = {
 	productSkuOptionValues: {
 		indexes: ["skuId", "attributeId", "attributeValueId"] as const,
 		uniqueIndexes: [["skuId", "attributeId"]] as const,
+	},
+	digitalAssets: {
+		indexes: [
+			"provider",
+			"externalAssetId",
+			"label",
+			"isPrivate",
+			"isManualOnly",
+			"createdAt",
+			["provider", "externalAssetId"],
+		] as const,
+		uniqueIndexes: [["provider", "externalAssetId"]] as const,
+	},
+	digitalEntitlements: {
+		indexes: ["skuId", "digitalAssetId", "createdAt"] as const,
+		uniqueIndexes: [["skuId", "digitalAssetId"]] as const,
 	},
 	productAssets: {
 		indexes: [

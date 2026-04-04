@@ -281,3 +281,27 @@ export const productAssetReorderInputSchema = z.object({
 	position: z.number().int().min(0),
 }).strict();
 export type ProductAssetReorderInput = z.infer<typeof productAssetReorderInputSchema>;
+
+export const digitalAssetCreateInputSchema = z.object({
+	externalAssetId: bounded(128),
+	provider: z.string().trim().min(1).max(64).default("media"),
+	label: z.string().trim().max(260).optional(),
+	downloadLimit: z.number().int().min(1).optional(),
+	downloadExpiryDays: z.number().int().min(1).optional(),
+	isManualOnly: z.boolean().default(false),
+	isPrivate: z.boolean().default(true),
+	metadata: z.record(z.unknown()).optional(),
+}).strict();
+export type DigitalAssetCreateInput = z.infer<typeof digitalAssetCreateInputSchema>;
+
+export const digitalEntitlementCreateInputSchema = z.object({
+	skuId: bounded(128),
+	digitalAssetId: bounded(128),
+	grantedQuantity: z.number().int().min(1).default(1),
+}).strict();
+export type DigitalEntitlementCreateInput = z.infer<typeof digitalEntitlementCreateInputSchema>;
+
+export const digitalEntitlementRemoveInputSchema = z.object({
+	entitlementId: bounded(128),
+}).strict();
+export type DigitalEntitlementRemoveInput = z.infer<typeof digitalEntitlementRemoveInputSchema>;
