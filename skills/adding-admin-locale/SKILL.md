@@ -1,52 +1,61 @@
 ---
 name: adding-admin-locale
-description: Use when adding a new admin UI locale, translating admin strings, or adding a new i18n namespace.
+description: Use when adding a new admin UI locale, translating admin strings, or wrapping new components with Lingui macros.
 ---
 
 # Adding an Admin Locale
 
-The admin UI uses a lightweight i18n system with no external dependencies. Translations live in flat JSON files at `packages/admin/src/i18n/locales/{code}/{namespace}.json`. The provider uses `import.meta.glob` to discover them automatically — no code changes needed for new locales on the client side.
+The admin UI uses [Lingui](https://lingui.dev) for i18n. Translatable strings are written as English in the source code using macros (`` t`Save` ``, `<Trans>`). The `lingui extract` CLI scans components and generates `.po` catalogs per locale. The Lingui Vite plugin compiles `.po` files on import at build time.
 
 ## Architecture
 
 ```
+lingui extract (CLI)
+  └─ Scans src/**/*.{ts,tsx} for macros → generates .po catalogs
+
 admin.astro (server)
-  ├─ Reads emdash-locale cookie → Accept-Language → 'en' fallback
-  ├─ Imports all namespace JSONs for the resolved locale
-  └─ Serializes { locale, translations } as props to React
+  ├─ resolveLocale(request) — cookie → Accept-Language → 'en' fallback
+  ├─ Imports compiled .po catalog for the resolved locale
+  └─ Passes { locale, messages } as props to React
 
-I18nProvider (client)
-  ├─ Initialized with server-resolved locale + translations
-  ├─ import.meta.glob("./locales/*/*.json") discovers all files at build time
-  └─ setLocale() dynamically imports new locale JSON — no page reload
-
-Type safety
-  ├─ locales/en/index.ts barrel exports all default-locale JSONs
-  ├─ types.ts derives Namespace type + TranslationKeyMap from the barrel
-  └─ useTranslation("ns") → t("key") is type-checked against JSON keys
+I18nProvider (client, @lingui/react)
+  ├─ Initialized with server-resolved locale + compiled messages
+  └─ useLocale().setLocale() dynamically imports new catalog — no page reload
 
 Components
-  └─ useTranslation("namespace") → t("key") → translated string (type-safe)
+  ├─ useLingui() macro → t`text` for plain strings
+  └─ <Trans> for JSX with inline markup
 ```
 
 ## Adding a New Locale
 
-**1. Copy an existing locale directory:**
+**1. Add the locale to `lingui.config.ts`** (repo root):
+
+```ts
+locales: ["en", "fr", "de"], // ← add
+```
+
+**2. Run extraction** to generate the new `.po` file:
 
 ```bash
-cp -r packages/admin/src/i18n/locales/en packages/admin/src/i18n/locales/de
+cd packages/admin && pnpm exec lingui extract
 ```
 
-**2. Translate all JSON files** in the new directory. Keys stay the same, values change:
+This creates `packages/admin/src/locales/de/messages.po` with all `msgstr` empty.
 
-```json
-{
-	"common.save": "Speichern",
-	"common.cancel": "Abbrechen"
-}
+**3. Translate the `.po` file.** Each entry has an English `msgid` and an empty `msgstr`:
+
+```po
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Dashboard"
+msgstr "Armaturenbrett"
 ```
 
-**3. Register the locale in `packages/admin/src/i18n/config.ts`:**
+Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly.
+
+**4. Enable the locale in the admin UI** — uncomment or add to `packages/admin/src/locales/config.ts`:
 
 ```ts
 export const SUPPORTED_LOCALES: SupportedLocale[] = [
@@ -56,77 +65,85 @@ export const SUPPORTED_LOCALES: SupportedLocale[] = [
 ].filter((l) => validateLocaleCode(l.code));
 ```
 
-The `filter` + `validateLocaleCode()` call uses `Intl.Locale` to validate BCP 47 codes at module load time — invalid codes are silently dropped (with a thrown error in dev mode).
+**5. That's it.** The Vite plugin compiles the `.po` on import. The locale switcher in Settings will show the new option.
 
-**4. That's it.** New locale files are discovered automatically — no other code changes needed.
+## Adding Translatable Strings
 
-## Adding a New Namespace
+**For plain text** — use the `t` tagged template from `useLingui()`:
 
-**1. Create the JSON file** in every locale directory:
+```tsx
+import { useLingui } from "@lingui/react/macro";
 
-```bash
-# Create for all locales
-for locale in packages/admin/src/i18n/locales/*/; do
-  echo '{}' > "$locale/myfeature.json"
-done
-```
-
-**2. Add keys** using the pattern `namespace.key`:
-
-```json
-{
-	"myfeature.title": "My Feature",
-	"myfeature.description": "Does something useful"
+function MyComponent() {
+	const { t } = useLingui();
+	return <h1>{t`Settings`}</h1>;
 }
 ```
 
-**3. Add to the default locale barrel** — `packages/admin/src/i18n/locales/en/index.ts`:
-
-```ts
-export { default as common } from "./common.json";
-export { default as nav } from "./nav.json";
-export { default as settings } from "./settings.json";
-export { default as myfeature } from "./myfeature.json"; // ← add
-```
-
-This is the only registration step. `NAMESPACES` and the `Namespace` type are derived from this barrel automatically — both the runtime array and the TypeScript types.
-
-**4. Use in components:**
+**For JSX with inline markup** — use `<Trans>`:
 
 ```tsx
-const { t } = useTranslation("myfeature");
-return <h1>{t("title")}</h1>; // looks up "myfeature.title" — type-checked!
+import { Trans } from "@lingui/react/macro";
+
+<p>
+	<Trans>
+		Read the <a href="/docs">documentation</a> to learn more.
+	</Trans>
+</p>
 ```
 
-`t()` only accepts keys that exist in the default locale's JSON for that namespace. Passing an invalid key is a compile-time error.
+**With interpolation:**
+
+```tsx
+const { t } = useLingui();
+const greeting = t`Hello ${name}`;
+```
+
+**After adding strings, run extraction:**
+
+```bash
+cd packages/admin && pnpm exec lingui extract
+```
+
+This updates all `.po` files with the new strings. Existing translations are preserved.
 
 ## Key Files
 
-| File                                                      | Purpose                                                                  |
-| --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `packages/admin/src/i18n/config.ts`                       | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, locale validation                 |
-| `packages/admin/src/i18n/types.ts`                        | `Namespace`, `NAMESPACES`, `TranslationKeyMap` — all derived from barrel |
-| `packages/admin/src/i18n/locales/en/index.ts`             | Barrel export — source of truth for namespaces and type-safe keys        |
-| `packages/admin/src/i18n/I18nProvider.tsx`                | React context, `useTranslation()` hook, client-side locale switching     |
-| `packages/admin/src/i18n/locales/{code}/{namespace}.json` | Translation strings                                                      |
-| `packages/core/src/astro/routes/admin.astro`              | Server-side locale resolution and initial translation loading            |
+| File | Purpose |
+| --- | --- |
+| `lingui.config.ts` (repo root) | Lingui config: locales, catalog paths, source scanning |
+| `packages/admin/src/locales/config.ts` | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()` |
+| `packages/admin/src/locales/useLocale.ts` | `useLocale()` hook — client-side locale switching with cookie |
+| `packages/admin/src/locales/index.ts` | Barrel export for locale utilities |
+| `packages/admin/src/locales/{locale}/messages.po` | Translation catalogs (gettext `.po` format) |
+| `packages/core/src/astro/routes/admin.astro` | Server-side locale resolution and catalog loading |
+| `demos/simple/astro.config.mjs` | Lingui Vite plugin + Babel macro plugin config |
 
-## Translation Key Conventions
+## Macro Reference
 
-- Keys are flat, dot-namespaced: `namespace.key` (e.g., `common.save`, `nav.dashboard`)
-- Keys in JSON files include the full namespace prefix
-- `useTranslation("namespace")` prepends the namespace, so `t("save")` looks up `"namespace.save"`
-- `t()` is type-safe: only keys from the default locale's JSON are accepted
-- Interpolation uses `{variable}` syntax: `t("greeting", { name: "World" })` with `"common.greeting": "Hello, {name}!"`
-- Missing keys fall back to the key itself (visible in UI for debugging)
+| Macro | Import | Use for |
+| --- | --- | --- |
+| `t` | `@lingui/react/macro` via `useLingui()` | Plain strings, attributes, props |
+| `Trans` | `@lingui/react/macro` | JSX with inline tags/components |
+| `Plural` | `@lingui/react/macro` | Pluralization |
+
+All macros are compile-time transforms — they produce optimized `i18n._()` calls at build time via `@lingui/babel-plugin-lingui-macro`.
 
 ## Common Mistakes
 
-1. **Forgetting to add the locale to `config.ts`** — the JSON files will exist but the locale won't appear in the selector and won't be validated.
+1. **Forgetting `lingui extract` after adding strings** — new strings won't appear in `.po` files until extracted.
 
-2. **Missing keys in a locale** — if `fr/nav.json` has a key that `de/nav.json` doesn't, the German UI shows the raw key. Copy the English file first, then translate.
+2. **Using `t()` instead of `` t`` ``** — Lingui macros use tagged template literals, not function calls. `` t`Save` `` is correct, `t("Save")` will not compile.
 
-3. **Adding a namespace JSON without updating the barrel** — the namespace won't be typed and `NAMESPACES` won't include it. Always add the `export { default as ... }` line to `locales/en/index.ts`.
+3. **Forgetting to add the locale to `config.ts`** — the `.po` file will exist but the locale won't appear in the UI selector.
+
+4. **Adding a locale to `config.ts` but not `lingui.config.ts`** — the UI will show it but no `.po` file will be generated on extract.
+
+5. **Importing from `@lingui/react` instead of `@lingui/react/macro`** — the non-macro version doesn't have the `t` tagged template. Use the `/macro` path.
+
+## Translation Quality
+
+AI-assisted translation is fine, but only into a language that you are fluent in and can proofread. Do not submit machine-translated `.po` files for languages you cannot verify — inaccurate translations are worse than untranslated strings.
 
 ## RTL Languages
 
