@@ -13,7 +13,7 @@ todos:
     status: completed
   - id: phase-4-digital-entitlements
     content: Implement digital_assets + digital_entitlements storage, schemas, handlers, and retrieval hooks.
-    status: pending
+    status: completed
   - id: phase-5-bundles
     content: Add bundle component model, discount computation, and derived availability semantics with tests.
     status: pending
