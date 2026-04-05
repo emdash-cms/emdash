@@ -72,6 +72,6 @@ ENV EMDASH_PREVIEW_SECRET=""
 EXPOSE 4321
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4321/_emdash/api/setup/status || exit 1
+  CMD node -e "require('net').createConnection(4321,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})"
 
 CMD ["node", "./dist/server/entry.mjs"]

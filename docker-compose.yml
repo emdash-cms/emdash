@@ -1,19 +1,14 @@
-version: "3.9"
-
 services:
   emdash:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: emdash-rgb
-    restart: unless-stopped
-    # ports:
-    #   - "4321:4321"
+    # Coolify manages networking via Traefik — no ports needed
     environment:
       NODE_ENV: production
       HOST: "0.0.0.0"
       PORT: "4321"
-      # ── Security secrets — change these before going live ──────────────────
+      # Set these in Coolify's Environment Variables panel
       EMDASH_AUTH_SECRET: "${EMDASH_AUTH_SECRET:-change-me-in-production}"
       EMDASH_PREVIEW_SECRET: "${EMDASH_PREVIEW_SECRET:-}"
     volumes:
@@ -21,6 +16,12 @@ services:
       - emdash-data:/app/data
       # User-uploaded media files
       - emdash-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').createConnection(4321,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
 volumes:
   emdash-data:
