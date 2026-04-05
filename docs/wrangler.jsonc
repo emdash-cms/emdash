@@ -1,0 +1,21 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"compatibility_date": "2026-03-01",
+	"routes": [
+		{
+			"pattern": "docs.emdashcms.com",
+			"custom_domain": true,
+			"zone_name": "emdashcms.com",
+		},
+	],
+	"compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+	"name": "docs",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS",
+	},
+	"observability": {
+		"enabled": true,
+	},
+}
