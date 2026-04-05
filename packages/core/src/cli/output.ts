@@ -5,6 +5,20 @@ interface OutputArgs {
 }
 
 /**
+ * Redirect consola output to stderr so it doesn't pollute JSON on stdout.
+ *
+ * Call this early in any command that uses `output()` with `--json`.
+ * Safe to call multiple times — only applies the redirect once.
+ */
+export function configureOutputMode(args: OutputArgs): void {
+	if (args.json || !process.stdout.isTTY) {
+		// Send all consola output to stderr so stdout is clean JSON
+		consola.options.stdout = process.stderr;
+		consola.options.stderr = process.stderr;
+	}
+}
+
+/**
  * Output data as JSON or pretty-printed.
  *
  * If stdout is not a TTY or --json is set, outputs JSON.
