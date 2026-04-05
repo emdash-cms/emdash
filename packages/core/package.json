@@ -149,7 +149,9 @@
     "prepublishOnly": "node --run build",
     "typecheck": "tsgo --noEmit",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution --ignore-rules=internal-resolution-error",
-    "test": "vitest"
+    "test": "vitest",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@emdash-cms/admin": "workspace:*",
