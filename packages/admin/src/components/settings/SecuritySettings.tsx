@@ -147,7 +147,14 @@ export function SecuritySettings() {
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-2xl font-bold">Security Settings</h1>
+			<div className="flex items-center gap-3">
+				<Link to="/settings">
+					<Button variant="ghost" shape="square" size="sm" aria-label="Back to Settings">
+						<ArrowLeft className="h-4 w-4" />
+					</Button>
+				</Link>
+				<h1 className="text-2xl font-bold">Security Settings</h1>
+			</div>
 
 			{/* Status message */}
 			{saveStatus && (

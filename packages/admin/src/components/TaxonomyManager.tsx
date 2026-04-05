@@ -120,6 +120,16 @@ function TermFormDialog({
 	const [autoSlug, setAutoSlug] = React.useState(!term);
 	const [error, setError] = React.useState<string | null>(null);
 
+	// Sync form state when term prop changes (e.g. when editing a different term)
+	React.useEffect(() => {
+		setLabel(term?.label || "");
+		setSlug(term?.slug || "");
+		setParentId(term?.parentId || "");
+		setDescription(term?.description || "");
+		setAutoSlug(!term);
+		setError(null);
+	}, [term]);
+
 	// Auto-generate slug from label
 	React.useEffect(() => {
 		if (autoSlug && label) {
