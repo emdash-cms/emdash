@@ -1,5 +1,7 @@
 import { computeBundleSummary } from "./catalog-bundles.js";
+import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
 import type {
+	OrderLineItemBundleComponentSummary,
 	OrderLineItemBundleSummary,
 	OrderLineItemDigitalEntitlementSnapshot,
 	OrderLineItemImageSnapshot,
@@ -8,6 +10,7 @@ import type {
 	StoredBundleComponent,
 	StoredDigitalAsset,
 	StoredDigitalEntitlement,
+	StoredInventoryStock,
 	StoredProduct,
 	StoredProductAsset,
 	StoredProductAssetLink,
@@ -34,6 +37,8 @@ export type CatalogSnapshotCollections = {
 	productAssetLinks: QueryCollection<StoredProductAssetLink>;
 	productAssets: QueryCollection<StoredProductAsset>;
 	bundleComponents: QueryCollection<StoredBundleComponent>;
+	/** Required for bundle snapshots: per-component stock versions at checkout. */
+	inventoryStock: { get(id: string): Promise<StoredInventoryStock | null> };
 };
 
 type SnapshotLineInput = {
@@ -211,6 +216,24 @@ async function buildBundleSummary(
 			sku: entry.sku,
 		})),
 	);
+	const components: OrderLineItemBundleComponentSummary[] = await Promise.all(
+		summary.components.map(async (component) => {
+			const stockId = inventoryStockDocId(component.componentProductId, component.componentSkuId);
+			const stock = await catalog.inventoryStock.get(stockId);
+			return {
+				componentId: component.componentId,
+				componentSkuId: component.componentSkuId,
+				componentSkuCode: component.componentSkuCode,
+				componentProductId: component.componentProductId,
+				componentPriceMinor: component.componentPriceMinor,
+				quantityPerBundle: component.quantityPerBundle,
+				subtotalContributionMinor: component.subtotalContributionMinor,
+				availableBundleQuantity: component.availableBundleQuantity,
+				componentInventoryVersion: stock?.version ?? -1,
+			};
+		}),
+	);
+
 	const out: OrderLineItemBundleSummary = {
 		productId,
 		subtotalMinor: summary.subtotalMinor,
@@ -220,16 +243,7 @@ async function buildBundleSummary(
 		discountAmountMinor: summary.discountAmountMinor,
 		finalPriceMinor: summary.finalPriceMinor,
 		availability: summary.availability,
-		components: summary.components.map((component) => ({
-			componentId: component.componentId,
-			componentSkuId: component.componentSkuId,
-			componentSkuCode: component.componentSkuCode,
-			componentProductId: component.componentProductId,
-			componentPriceMinor: component.componentPriceMinor,
-			quantityPerBundle: component.quantityPerBundle,
-			subtotalContributionMinor: component.subtotalContributionMinor,
-			availableBundleQuantity: component.availableBundleQuantity,
-		})),
+		components,
 	};
 	const requiresShipping = componentLines.some((line) => line.sku.requiresShipping);
 	return { summary: out, requiresShipping };

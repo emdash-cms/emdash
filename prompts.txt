@@ -1,0 +1,19 @@
+1. **Evaluate 4 Strategies:** Against complexity, **DRY**, **YAGNI**, and scalability.
+2. **Describe Each:** One paragraph per strategy, detailing trade-offs.
+3. **Compare & Choose:** Summarize side-by-side; pick best overall.
+4. **Implement:** Provide runnable, concise code aligned with chosen approach.
+
+
+#handover
+
+Let us hand this project over to a new developer to further develop, test and debug the next phase. Please make sure all documentation (.md files) are  current. Please provide them with all the information they need to succeed and tackle next steps. Please edit @HANDOVER.md as follows:
+- **Goal:** Brief a new developer on project status in short & concise  paragraphs covering:
+  1. The big-picture purposes of the app, and the specific problem we are trying to solve at this time.
+  2. Completed work and outcomes
+  3. Failures, open issues, and lessons learned
+  4. Files changed, if that matters for future development, key insights, and “gotchas” to avoid
+  5. Key files and directories
+- **Tone:** Technical README style—fact-only, no speculation or fluff. Make sure it is DRY & YAGNI.
+
+# new
+Please take over this project for an EmDash ecommerce plugin. Read @handover.md to get you started, and any other documentation you find useful from this project. Proceed like a 10x engineer working the next version of of this app.

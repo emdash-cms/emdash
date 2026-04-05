@@ -10,6 +10,7 @@ import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
 import { buildOrderLineSnapshots } from "../lib/catalog-order-snapshots.js";
+import { validateLineItemsStockForCheckout } from "../lib/checkout-inventory-validation.js";
 import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
@@ -19,7 +20,6 @@ import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { buildRateLimitActorKey } from "../lib/rate-limit-identity.js";
 import { requirePost } from "../lib/require-post.js";
-import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutInput } from "../schemas.js";
 import type {
@@ -187,22 +187,12 @@ export async function checkoutHandler(
 	}
 
 	const inventoryStock = asCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
-	for (const line of cart.lineItems) {
-		const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
-		const inv = await inventoryStock.get(stockId);
-		if (!inv) {
-			throwCommerceApiError({
-				code: "PRODUCT_UNAVAILABLE",
-				message: `Product is not available: ${line.productId}`,
-			});
-		}
-		if (inv.quantity < line.quantity) {
-			throwCommerceApiError({
-				code: "INSUFFICIENT_STOCK",
-				message: `Insufficient stock for product ${line.productId}`,
-			});
-		}
-	}
+	await validateLineItemsStockForCheckout(cart.lineItems, {
+		products: asCollection(ctx.storage.products),
+		bundleComponents: asCollection(ctx.storage.bundleComponents),
+		productSkus: asCollection(ctx.storage.productSkus),
+		inventoryStock,
+	});
 
 	let orderLineItems: OrderLineItem[];
 	try {
@@ -224,6 +214,9 @@ export async function checkoutHandler(
 		productAssetLinks: asSnapshotCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks),
 		productAssets: asSnapshotCollection<StoredProductAsset>(ctx.storage.productAssets),
 		bundleComponents: asSnapshotCollection<StoredBundleComponent>(ctx.storage.bundleComponents),
+		inventoryStock: {
+			get: (id: string) => inventoryStock.get(id),
+		},
 	});
 	const orderLineItemsWithSnapshots = orderLineItems.map((line, index) => ({
 		...line,

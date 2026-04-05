@@ -11,11 +11,19 @@ import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CartGetInput, CartUpsertInput, CheckoutInput } from "../schemas.js";
 import type {
+	StoredBundleComponent,
 	StoredCart,
+	StoredDigitalAsset,
+	StoredDigitalEntitlement,
 	StoredIdempotencyKey,
 	StoredInventoryStock,
 	StoredOrder,
 	StoredPaymentAttempt,
+	StoredProduct,
+	StoredProductAsset,
+	StoredProductAssetLink,
+	StoredProductSku,
+	StoredProductSkuOptionValue,
 } from "../types.js";
 import { cartGetHandler, cartUpsertHandler } from "./cart.js";
 import { checkoutHandler } from "./checkout.js";
@@ -43,6 +51,67 @@ class MemColl<T extends object> {
 	}
 }
 
+function decodeStockDocId(id: string): { productId: string; variantId: string } | null {
+	const prefix = "stock:";
+	if (!id.startsWith(prefix)) return null;
+	const rest = id.slice(prefix.length);
+	const idx = rest.indexOf(":");
+	if (idx === -1) return null;
+	return {
+		productId: decodeURIComponent(rest.slice(0, idx)),
+		variantId: decodeURIComponent(rest.slice(idx + 1)),
+	};
+}
+
+/**
+ * Serves generous default stock for any `stock:product:variant` id so cart upsert
+ * tests do not need per-SKU seed rows.
+ */
+class PermissiveInventoryStockColl {
+	constructor(public readonly rows = new Map<string, StoredInventoryStock>()) {}
+
+	async get(id: string): Promise<StoredInventoryStock | null> {
+		const row = this.rows.get(id);
+		if (row) return structuredClone(row);
+		const parsed = decodeStockDocId(id);
+		if (!parsed) return null;
+		return {
+			productId: parsed.productId,
+			variantId: parsed.variantId,
+			version: 1,
+			quantity: 50_000,
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		};
+	}
+
+	async put(id: string, data: StoredInventoryStock): Promise<void> {
+		this.rows.set(id, structuredClone(data));
+	}
+}
+
+class DefaultProductsColl extends MemColl<StoredProduct> {
+	async get(id: string): Promise<StoredProduct | null> {
+		const row = this.rows.get(id);
+		if (row) return structuredClone(row);
+		const ts = "2026-01-01T00:00:00.000Z";
+		return {
+			id,
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: id,
+			title: id,
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: ts,
+			updatedAt: ts,
+		};
+	}
+}
+
 class MemKv {
 	store = new Map<string, unknown>();
 
@@ -67,7 +136,13 @@ function upsertCtx(
 	return {
 		request: new Request("https://example.test/cart/upsert", { method: "POST" }),
 		input,
-		storage: { carts },
+		storage: {
+			carts,
+			products: new DefaultProductsColl(),
+			bundleComponents: new MemColl<StoredBundleComponent>(),
+			productSkus: new MemColl<StoredProductSku>(),
+			inventoryStock: new PermissiveInventoryStockColl(),
+		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv,
 	} as unknown as RouteContext<CartUpsertInput>;
@@ -105,7 +180,21 @@ function checkoutCtx(
 			idempotencyKey: input.idempotencyKey,
 			...(input.ownerToken !== undefined ? { ownerToken: input.ownerToken } : {}),
 		},
-		storage: { carts, orders, paymentAttempts, idempotencyKeys, inventoryStock },
+		storage: {
+			carts,
+			orders,
+			paymentAttempts,
+			idempotencyKeys,
+			inventoryStock,
+			products: new DefaultProductsColl(),
+			bundleComponents: new MemColl<StoredBundleComponent>(),
+			productSkus: new MemColl<StoredProductSku>(),
+			productSkuOptionValues: new MemColl<StoredProductSkuOptionValue>(),
+			digitalAssets: new MemColl<StoredDigitalAsset>(),
+			digitalEntitlements: new MemColl<StoredDigitalEntitlement>(),
+			productAssetLinks: new MemColl<StoredProductAssetLink>(),
+			productAssets: new MemColl<StoredProductAsset>(),
+		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv,
 	} as unknown as RouteContext<CheckoutInput>;

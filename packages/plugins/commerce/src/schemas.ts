@@ -163,6 +163,9 @@ export const productCreateInputSchema = z.object({
 			}),
 		)
 		.default([]),
+	bundleDiscountType: z.enum(["none", "fixed_amount", "percentage"]).default("none"),
+	bundleDiscountValueMinor: z.number().int().min(0).optional(),
+	bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
 });
 export type ProductCreateInput = z.infer<typeof productCreateInputSchema>;
 
@@ -175,6 +178,8 @@ export const productListInputSchema = z.object({
 	type: z.enum(["simple", "variable", "bundle"]).optional(),
 	status: z.enum(["draft", "active", "archived"]).optional(),
 	visibility: z.enum(["public", "hidden"]).optional(),
+	categoryId: bounded(128).optional(),
+	tagId: bounded(128).optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 export type ProductListInput = z.infer<typeof productListInputSchema>;
@@ -221,6 +226,11 @@ export const productUpdateInputSchema = z.object({
 	sortOrder: z.number().int().min(0).max(10_000).optional(),
 	requiresShippingDefault: z.boolean().optional(),
 	taxClassDefault: z.string().trim().max(64).optional(),
+	bundleDiscountType: z
+		.enum(["none", "fixed_amount", "percentage"])
+		.optional(),
+	bundleDiscountValueMinor: z.number().int().min(0).optional(),
+	bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
 });
 export type ProductUpdateInput = z.infer<typeof productUpdateInputSchema>;
 
@@ -266,7 +276,7 @@ export const productAssetLinkInputSchema = z.object({
 	assetId: z.string().trim().min(3).max(128),
 	targetType: z.enum(["product", "sku"]),
 	targetId: z.string().trim().min(3).max(128),
-	role: z.enum(["primary_image", "gallery_image"]).default("gallery_image"),
+	role: z.enum(["primary_image", "gallery_image", "variant_image"]).default("gallery_image"),
 	position: z.number().int().min(0).default(0),
 }).strict();
 export type ProductAssetLinkInput = z.infer<typeof productAssetLinkInputSchema>;
@@ -281,6 +291,77 @@ export const productAssetReorderInputSchema = z.object({
 	position: z.number().int().min(0),
 }).strict();
 export type ProductAssetReorderInput = z.infer<typeof productAssetReorderInputSchema>;
+
+export const bundleComponentAddInputSchema = z.object({
+	bundleProductId: bounded(128),
+	componentSkuId: bounded(128),
+	quantity: z.number().int().min(1),
+	position: z.number().int().min(0).default(0),
+}).strict();
+export type BundleComponentAddInput = z.infer<typeof bundleComponentAddInputSchema>;
+
+export const bundleComponentRemoveInputSchema = z.object({
+	bundleComponentId: bounded(128),
+}).strict();
+export type BundleComponentRemoveInput = z.infer<typeof bundleComponentRemoveInputSchema>;
+
+export const bundleComponentReorderInputSchema = z.object({
+	bundleComponentId: bounded(128),
+	position: z.number().int().min(0),
+}).strict();
+export type BundleComponentReorderInput = z.infer<typeof bundleComponentReorderInputSchema>;
+
+export const bundleComputeInputSchema = z.object({
+	productId: bounded(128),
+}).strict();
+export type BundleComputeInput = z.infer<typeof bundleComputeInputSchema>;
+
+export const categoryCreateInputSchema = z.object({
+	name: z.string().trim().min(1).max(128),
+	slug: z.string().trim().min(2).max(128).toLowerCase(),
+	parentId: z.string().trim().min(3).max(128).optional(),
+	position: z.number().int().min(0).max(10_000).default(0),
+}).strict();
+export type CategoryCreateInput = z.infer<typeof categoryCreateInputSchema>;
+
+export const categoryListInputSchema = z.object({
+	parentId: z.string().trim().min(3).max(128).optional(),
+	limit: z.coerce.number().int().min(1).max(100).default(100),
+}).strict();
+export type CategoryListInput = z.infer<typeof categoryListInputSchema>;
+
+export const productCategoryLinkInputSchema = z.object({
+	productId: bounded(128),
+	categoryId: bounded(128),
+}).strict();
+export type ProductCategoryLinkInput = z.infer<typeof productCategoryLinkInputSchema>;
+
+export const productCategoryUnlinkInputSchema = z.object({
+	linkId: bounded(128),
+}).strict();
+export type ProductCategoryUnlinkInput = z.infer<typeof productCategoryUnlinkInputSchema>;
+
+export const tagCreateInputSchema = z.object({
+	name: z.string().trim().min(1).max(128),
+	slug: z.string().trim().min(2).max(128).toLowerCase(),
+}).strict();
+export type TagCreateInput = z.infer<typeof tagCreateInputSchema>;
+
+export const tagListInputSchema = z.object({
+	limit: z.coerce.number().int().min(1).max(100).default(100),
+}).strict();
+export type TagListInput = z.infer<typeof tagListInputSchema>;
+
+export const productTagLinkInputSchema = z.object({
+	productId: bounded(128),
+	tagId: bounded(128),
+}).strict();
+export type ProductTagLinkInput = z.infer<typeof productTagLinkInputSchema>;
+
+export const productTagUnlinkInputSchema = z.object({
+	linkId: bounded(128),
+}).strict();
+export type ProductTagUnlinkInput = z.infer<typeof productTagUnlinkInputSchema>;
 
 export const digitalAssetCreateInputSchema = z.object({
 	externalAssetId: bounded(128),

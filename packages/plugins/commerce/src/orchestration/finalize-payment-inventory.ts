@@ -1,4 +1,5 @@
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import { toInventoryDeductionLines } from "../lib/order-inventory-lines.js";
 import type { CommerceErrorCode } from "../kernel/errors.js";
 import type {
 	OrderLineItem,
@@ -171,7 +172,7 @@ async function applyInventoryMutations(
 
 	let merged: OrderLineItem[];
 	try {
-		merged = mergeLineItemsBySku(orderLines);
+		merged = toInventoryDeductionLines(orderLines);
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
@@ -232,7 +233,8 @@ export function readCurrentStockRows(
 ): Promise<Map<string, StoredInventoryStock>> {
 	return (async () => {
 		const out = new Map<string, StoredInventoryStock>();
-		for (const line of lines) {
+		const deductionLines = toInventoryDeductionLines(lines);
+		for (const line of deductionLines) {
 			const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
 			const stock = await inventoryStock.get(stockId);
 			if (!stock) {

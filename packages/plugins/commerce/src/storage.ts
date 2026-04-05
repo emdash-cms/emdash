@@ -29,6 +29,26 @@ export type CommerceStorage = PluginStorageConfig & {
 		indexes: ["skuId", "digitalAssetId", "createdAt"];
 		uniqueIndexes: [["skuId", "digitalAssetId"]];
 	};
+	categories: {
+		indexes: ["slug", "name", "parentId", "position", ["parentId", "position"], ["parentId", "slug"]];
+		uniqueIndexes: [["slug"]];
+	};
+	productCategoryLinks: {
+		indexes: ["productId", "categoryId"];
+		uniqueIndexes: [["productId", "categoryId"]];
+	};
+	productTags: {
+		indexes: ["slug", "name", "createdAt"];
+		uniqueIndexes: [["slug"]];
+	};
+	productTagLinks: {
+		indexes: ["productId", "tagId"];
+		uniqueIndexes: [["productId", "tagId"]];
+	};
+	bundleComponents: {
+		indexes: ["bundleProductId", "componentSkuId", "position", "createdAt", ["bundleProductId", "position"]];
+		uniqueIndexes: [["bundleProductId", "componentSkuId"]];
+	};
 	productAssets: {
 		indexes: ["provider", "externalAssetId", "createdAt", "updatedAt", ["provider", "externalAssetId"]];
 		uniqueIndexes: [["provider", "externalAssetId"]];
@@ -146,6 +166,32 @@ export const COMMERCE_STORAGE_CONFIG = {
 	digitalEntitlements: {
 		indexes: ["skuId", "digitalAssetId", "createdAt"] as const,
 		uniqueIndexes: [["skuId", "digitalAssetId"]] as const,
+	},
+	categories: {
+		indexes: ["slug", "name", "parentId", "position", ["parentId", "position"], ["parentId", "slug"]] as const,
+		uniqueIndexes: [["slug"]] as const,
+	},
+	productCategoryLinks: {
+		indexes: ["productId", "categoryId"] as const,
+		uniqueIndexes: [["productId", "categoryId"]] as const,
+	},
+	productTags: {
+		indexes: ["slug", "name", "createdAt"] as const,
+		uniqueIndexes: [["slug"]] as const,
+	},
+	productTagLinks: {
+		indexes: ["productId", "tagId"] as const,
+		uniqueIndexes: [["productId", "tagId"]] as const,
+	},
+	bundleComponents: {
+		indexes: [
+			"bundleProductId",
+			"componentSkuId",
+			"position",
+			"createdAt",
+			["bundleProductId", "position"],
+		] as const,
+		uniqueIndexes: [["bundleProductId", "componentSkuId"]] as const,
 	},
 	productAssets: {
 		indexes: [

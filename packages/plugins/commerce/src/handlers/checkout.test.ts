@@ -72,6 +72,30 @@ class MemColl<T extends object> implements MemCollection<T> {
 	}
 }
 
+/** Default catalog product for checkout tests that do not seed `products`. */
+class DefaultProductsColl extends MemColl<StoredProduct> {
+	async get(id: string): Promise<StoredProduct | null> {
+		const row = this.rows.get(id);
+		if (row) return structuredClone(row);
+		const now = "2026-01-01T00:00:00.000Z";
+		return {
+			id,
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: id,
+			title: id,
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+		};
+	}
+}
+
 class MemKv {
 	store = new Map<string, unknown>();
 
@@ -145,6 +169,16 @@ function contextFor({
 		method: requestMethod,
 		headers: new Headers({ "Idempotency-Key": idempotencyKey }),
 	});
+	const catalogDefaults = {
+		products: new DefaultProductsColl(),
+		productSkus: new MemColl<StoredProductSku>(),
+		productSkuOptionValues: new MemColl<StoredProductSkuOptionValue>(),
+		digitalAssets: new MemColl<StoredDigitalAsset>(),
+		digitalEntitlements: new MemColl<StoredDigitalEntitlement>(),
+		productAssetLinks: new MemColl<StoredProductAssetLink>(),
+		productAssets: new MemColl<StoredProductAsset>(),
+		bundleComponents: new MemColl<StoredBundleComponent>(),
+	};
 	return {
 		request: req as Request & { headers: Headers },
 		input: {
@@ -158,6 +192,7 @@ function contextFor({
 			paymentAttempts,
 			carts,
 			inventoryStock,
+			...catalogDefaults,
 			...extras,
 		},
 		requestMeta: {
@@ -1179,12 +1214,22 @@ describe("checkout order snapshot capture", () => {
 		const inventoryStock = new MemColl(
 			new Map([
 				[
-					inventoryStockDocId(bundle.id, ""),
+					inventoryStockDocId(componentProductA.id, componentSkuA.id),
 					{
-						productId: bundle.id,
-						variantId: "",
-						version: 1,
-						quantity: 10,
+						productId: componentProductA.id,
+						variantId: componentSkuA.id,
+						version: 5,
+						quantity: 50,
+						updatedAt: now,
+					},
+				],
+				[
+					inventoryStockDocId(componentProductB.id, componentSkuB.id),
+					{
+						productId: componentProductB.id,
+						variantId: componentSkuB.id,
+						version: 7,
+						quantity: 30,
 						updatedAt: now,
 					},
 				],
@@ -1253,5 +1298,129 @@ describe("checkout order snapshot capture", () => {
 		expect(snapshot?.lineDiscountMinor).toBe(5000);
 		expect(snapshot?.lineTotalMinor).toBe(0);
 		expect(order?.lineItems[0]?.unitPriceMinor).toBe(0);
+		expect(snapshot?.bundleSummary?.components.every((c) => c.componentInventoryVersion >= 0)).toBe(
+			true,
+		);
+	});
+
+	it("rejects checkout when a bundle component has insufficient stock", async () => {
+		const now = "2026-04-07T12:00:00.000Z";
+		const cartId = "snapshot-bundle-low-stock";
+		const idempotencyKey = "idem-bundle-lowstk16";
+		const ownerToken = "owner-token-bndl-low";
+
+		const componentProduct: StoredProduct = {
+			id: "low_stock_comp_prod",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "low-comp",
+			title: "Component",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const bundle: StoredProduct = {
+			id: "bundle_low_stock",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "bundle-low",
+			title: "Low bundle",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			bundleDiscountType: "none",
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const componentSku: StoredProductSku = {
+			id: "low_stock_comp_sku",
+			productId: componentProduct.id,
+			skuCode: "LOW-COMP",
+			status: "active",
+			unitPriceMinor: 100,
+			inventoryQuantity: 5,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const componentLink: StoredBundleComponent = {
+			id: "low_bc_1",
+			bundleProductId: bundle.id,
+			componentSkuId: componentSku.id,
+			quantity: 10,
+			position: 0,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [
+				{
+					productId: bundle.id,
+					quantity: 1,
+					inventoryVersion: 1,
+					unitPriceMinor: 100,
+				},
+			],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		await expect(
+			checkoutHandler(
+				contextFor({
+					idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+					orders: new MemColl<StoredOrder>(),
+					paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+					carts: new MemColl(new Map([[cartId, cart]])),
+					inventoryStock: new MemColl(
+						new Map([
+							[
+								inventoryStockDocId(componentProduct.id, componentSku.id),
+								{
+									productId: componentProduct.id,
+									variantId: componentSku.id,
+									version: 1,
+									quantity: 3,
+									updatedAt: now,
+								},
+							],
+						]),
+					),
+					kv: new MemKv(),
+					idempotencyKey,
+					cartId,
+					ownerToken,
+					extras: {
+						products: new MemColl(
+							new Map([
+								[componentProduct.id, componentProduct],
+								[bundle.id, bundle],
+							]),
+						),
+						productSkus: new MemColl(new Map([[componentSku.id, componentSku]])),
+						productSkuOptionValues: new MemColl(),
+						digitalAssets: new MemColl(),
+						digitalEntitlements: new MemColl(),
+						productAssetLinks: new MemColl(),
+						productAssets: new MemColl(),
+						bundleComponents: new MemColl(new Map([[componentLink.id, componentLink]])),
+					},
+				}),
+			),
+		).rejects.toMatchObject({ code: "insufficient_stock" });
 	});
 });

@@ -20,8 +20,13 @@ function includesIndex(
 	| "productSkuOptionValues"
 	| "digitalAssets"
 	| "digitalEntitlements"
-		| "inventoryLedger"
-		| "inventoryStock",
+	| "categories"
+	| "productCategoryLinks"
+	| "productTags"
+	| "productTagLinks"
+	| "bundleComponents"
+	| "inventoryLedger"
+	| "inventoryStock",
 	index: readonly string[],
 	unique = false,
 ): boolean {
@@ -106,5 +111,25 @@ describe("storage index contracts", () => {
 		expect(includesIndex("digitalEntitlements", ["skuId"])).toBe(true);
 		expect(includesIndex("digitalEntitlements", ["digitalAssetId"])).toBe(true);
 		expect(includesIndex("digitalEntitlements", ["skuId", "digitalAssetId"], true)).toBe(true);
+	});
+
+	it("supports bundle components and composition lookups", () => {
+		expect(includesIndex("bundleComponents", ["bundleProductId"])).toBe(true);
+		expect(includesIndex("bundleComponents", ["bundleProductId", "componentSkuId"], true)).toBe(true);
+		expect(includesIndex("bundleComponents", ["bundleProductId", "position"])).toBe(true);
+	});
+
+	it("supports catalog organization lookup indexes", () => {
+		expect(includesIndex("categories", ["slug"])).toBe(true);
+		expect(includesIndex("categories", ["slug"], true)).toBe(true);
+		expect(includesIndex("categories", ["parentId"])).toBe(true);
+		expect(includesIndex("productCategoryLinks", ["productId"])).toBe(true);
+		expect(includesIndex("productCategoryLinks", ["categoryId"])).toBe(true);
+		expect(includesIndex("productCategoryLinks", ["productId", "categoryId"], true)).toBe(true);
+		expect(includesIndex("productTags", ["slug"])).toBe(true);
+		expect(includesIndex("productTags", ["slug"], true)).toBe(true);
+		expect(includesIndex("productTagLinks", ["productId"])).toBe(true);
+		expect(includesIndex("productTagLinks", ["tagId"])).toBe(true);
+		expect(includesIndex("productTagLinks", ["productId", "tagId"], true)).toBe(true);
 	});
 });

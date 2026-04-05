@@ -22,6 +22,7 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { validateLineItemsStockForCheckout } from "../lib/checkout-inventory-validation.js";
 import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
@@ -30,7 +31,7 @@ import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CartGetInput, CartUpsertInput } from "../schemas.js";
-import type { StoredCart } from "../types.js";
+import type { StoredBundleComponent, StoredCart, StoredInventoryStock, StoredProduct, StoredProductSku } from "../types.js";
 
 function asCollection<T>(raw: unknown): StorageCollection<T> {
 	return raw as StorageCollection<T>;
@@ -106,6 +107,14 @@ export async function cartUpsertHandler(
 	if (lineItemValidationMessage) {
 		throw PluginRouteError.badRequest(lineItemValidationMessage);
 	}
+
+	const inventoryStock = asCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
+	await validateLineItemsStockForCheckout(ctx.input.lineItems, {
+		products: asCollection<StoredProduct>(ctx.storage.products),
+		bundleComponents: asCollection<StoredBundleComponent>(ctx.storage.bundleComponents),
+		productSkus: asCollection<StoredProductSku>(ctx.storage.productSkus),
+		inventoryStock,
+	});
 
 	// --- Persist ---
 	const cart: StoredCart = {

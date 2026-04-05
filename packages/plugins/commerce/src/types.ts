@@ -77,6 +77,11 @@ export interface OrderLineItemBundleComponentSummary {
 	quantityPerBundle: number;
 	subtotalContributionMinor: number;
 	availableBundleQuantity: number;
+	/**
+	 * Component SKU stock `version` captured at checkout for optimistic finalize.
+	 * When missing at snapshot time (-1), finalization falls back to legacy bundle-line stock rows.
+	 */
+	componentInventoryVersion: number;
 }
 
 export interface OrderLineItemBundleSummary {

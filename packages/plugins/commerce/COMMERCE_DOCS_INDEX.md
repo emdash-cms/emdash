@@ -41,9 +41,11 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 - `package.json` — package scripts and dependencies
 - `tsconfig.json` — TypeScript config
 - `src/services/` and `src/orchestration/` — extension seams and finalize logic
-- `src/handlers/` — route handlers (cart, checkout, webhooks)
+- `src/handlers/` — route handlers (cart, checkout, webhooks, catalog)
 - `src/orchestration/` — finalize orchestration and inventory/attempt updates
 - `src/catalog-extensibility.ts` — kernel rules + extension seam contracts
+- `src/storage.ts` — storage collection declarations (products/skus added for v1 catalog)
+- `src/types.ts` and `src/schemas.ts` — catalog domain models and validation
 
 ### Ticket starter: Strategy A (contract hardening)
 
@@ -87,6 +89,11 @@ reliability-support-catalog extension backlog.
 | `checkout/get-order` | Read-only order snapshot; always requires matching `finalizeToken`                               |
 | `webhooks/stripe`    | Verify signature → finalize                                                                      |
 | `recommendations`    | Disabled contract for UIs                                                                        |
+| `catalog/product/create` | Validate and create a product row                                                                |
+| `catalog/product/get`    | Retrieve one product by id                                                                        |
+| `catalog/products`       | List products by type/status/visibility                                                            |
+| `catalog/sku/create`     | Create a SKU for an existing product                                                               |
+| `catalog/sku/list`       | List SKUs for one product                                                                         |
 
 ## Diagnostics and runbook surfaces
 

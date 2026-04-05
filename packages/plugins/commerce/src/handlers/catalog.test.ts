@@ -7,8 +7,13 @@ import type {
 	StoredProductAssetLink,
 	StoredProductAttribute,
 	StoredProductAttributeValue,
+	StoredBundleComponent,
 	StoredDigitalAsset,
 	StoredDigitalEntitlement,
+	StoredCategory,
+	StoredProductCategoryLink,
+	StoredProductTag,
+	StoredProductTagLink,
 	StoredProductSku,
 	StoredProductSkuOptionValue,
 } from "../types.js";
@@ -21,6 +26,14 @@ import type {
 	ProductCreateInput,
 	DigitalAssetCreateInput,
 	DigitalEntitlementCreateInput,
+	BundleComponentAddInput,
+	BundleComponentRemoveInput,
+	BundleComponentReorderInput,
+	BundleComputeInput,
+	CategoryCreateInput,
+	ProductCategoryLinkInput,
+	TagCreateInput,
+	ProductTagLinkInput,
 } from "../schemas.js";
 import {
 	productAssetLinkInputSchema,
@@ -29,6 +42,15 @@ import {
 	productAssetUnlinkInputSchema,
 	digitalAssetCreateInputSchema,
 	digitalEntitlementCreateInputSchema,
+	categoryCreateInputSchema,
+	categoryListInputSchema,
+	productCategoryLinkInputSchema,
+	productCategoryUnlinkInputSchema,
+	tagCreateInputSchema,
+	tagListInputSchema,
+	productTagLinkInputSchema,
+	productTagUnlinkInputSchema,
+	bundleComponentAddInputSchema,
 } from "../schemas.js";
 import {
 	createProductHandler,
@@ -44,6 +66,18 @@ import {
 	unlinkCatalogAssetHandler,
 	listProductsHandler,
 	listProductSkusHandler,
+	createCategoryHandler,
+	listCategoriesHandler,
+	createProductCategoryLinkHandler,
+	removeProductCategoryLinkHandler,
+	createTagHandler,
+	listTagsHandler,
+	createProductTagLinkHandler,
+	removeProductTagLinkHandler,
+	addBundleComponentHandler,
+	reorderBundleComponentHandler,
+	removeBundleComponentHandler,
+	bundleComputeHandler,
 	createDigitalAssetHandler,
 	createDigitalEntitlementHandler,
 	removeDigitalEntitlementHandler,
@@ -91,6 +125,11 @@ function catalogCtx<TInput>(
 	productAttributes = new MemColl<StoredProductAttribute>(),
 	productAttributeValues = new MemColl<StoredProductAttributeValue>(),
 	productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>(),
+	bundleComponents = new MemColl<StoredBundleComponent>(),
+	categories = new MemColl<StoredCategory>(),
+	productCategoryLinks = new MemColl<StoredProductCategoryLink>(),
+	productTags = new MemColl<StoredProductTag>(),
+	productTagLinks = new MemColl<StoredProductTagLink>(),
 	digitalAssets = new MemColl<StoredDigitalAsset>(),
 	digitalEntitlements = new MemColl<StoredDigitalEntitlement>(),
 ): RouteContext<TInput> {
@@ -105,6 +144,11 @@ function catalogCtx<TInput>(
 			productAttributes,
 			productAttributeValues,
 			productSkuOptionValues,
+			bundleComponents,
+			categories,
+			productCategoryLinks,
+			productTags,
+			productTagLinks,
 			digitalAssets,
 			digitalEntitlements,
 		},
@@ -549,6 +593,7 @@ describe("catalog product handlers", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
+				new MemColl(),
 				digitalAssets,
 				digitalEntitlements,
 			),
@@ -563,6 +608,7 @@ describe("catalog product handlers", () => {
 				},
 				products,
 				skus,
+				new MemColl(),
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
@@ -1519,6 +1565,7 @@ describe("catalog digital entitlement handlers", () => {
 					new MemColl(),
 					new MemColl(),
 					new MemColl(),
+					new MemColl(),
 					digitalAssets,
 					digitalEntitlements,
 				),
@@ -1551,6 +1598,7 @@ describe("catalog digital entitlement handlers", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
+				new MemColl(),
 				digitalAssets,
 				digitalEntitlements,
 			),
@@ -1559,5 +1607,775 @@ describe("catalog digital entitlement handlers", () => {
 
 		const missing = await digitalEntitlements.get("ent_1");
 		expect(missing).toBeNull();
+	});
+});
+
+describe("catalog bundle handlers", () => {
+	it("adds components and computes discount-aware bundle summary", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const bundleComponents = new MemColl<StoredBundleComponent>();
+
+		await products.put("prod_bundle", {
+			id: "prod_bundle",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "starter-bundle",
+			title: "Starter Bundle",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			bundleDiscountType: "fixed_amount",
+			bundleDiscountValueMinor: 50,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_component_1", {
+			id: "prod_component_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "sock",
+			title: "Sock",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_component_2", {
+			id: "prod_component_2",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "blanket",
+			title: "Blanket",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_sock", {
+			id: "sku_sock",
+			productId: "prod_component_1",
+			skuCode: "SOCK",
+			status: "active",
+			unitPriceMinor: 100,
+			compareAtPriceMinor: 120,
+			inventoryQuantity: 6,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_blanket", {
+			id: "sku_blanket",
+			productId: "prod_component_2",
+			skuCode: "BLNK",
+			status: "active",
+			unitPriceMinor: 75,
+			inventoryQuantity: 4,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_sock",
+					quantity: 2,
+					position: 0,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+		await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_blanket",
+					quantity: 1,
+					position: 1,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+
+		const summary = await bundleComputeHandler(
+			catalogCtx<BundleComputeInput>(
+				{
+					productId: "prod_bundle",
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+
+		expect(summary.subtotalMinor).toBe(275);
+		expect(summary.discountAmountMinor).toBe(50);
+		expect(summary.finalPriceMinor).toBe(225);
+		expect(summary.availability).toBe(3);
+		expect(summary.components).toHaveLength(2);
+	});
+
+	it("supports component reorder and removal with position normalizing", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const bundleComponents = new MemColl<StoredBundleComponent>();
+
+		await products.put("prod_bundle", {
+			id: "prod_bundle",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "winter-bundle",
+			title: "Winter Bundle",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_component_1", {
+			id: "prod_component_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "boot",
+			title: "Boot",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_component_2", {
+			id: "prod_component_2",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "cap",
+			title: "Cap",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_component_3", {
+			id: "prod_component_3",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "mitt",
+			title: "Mittens",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await skus.put("sku_boot", {
+			id: "sku_boot",
+			productId: "prod_component_1",
+			skuCode: "BOOT",
+			status: "active",
+			unitPriceMinor: 120,
+			compareAtPriceMinor: 150,
+			inventoryQuantity: 5,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_cap", {
+			id: "sku_cap",
+			productId: "prod_component_2",
+			skuCode: "CAP",
+			status: "active",
+			unitPriceMinor: 40,
+			inventoryQuantity: 4,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_mitt", {
+			id: "sku_mitt",
+			productId: "prod_component_3",
+			skuCode: "MITT",
+			status: "active",
+			unitPriceMinor: 10,
+			inventoryQuantity: 8,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const addedFirst = await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_boot",
+					quantity: 1,
+					position: 0,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+		const addedSecond = await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_cap",
+					quantity: 1,
+					position: 1,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+		const addedThird = await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_mitt",
+					quantity: 1,
+					position: 2,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+
+		const reordered = await reorderBundleComponentHandler(
+			catalogCtx<BundleComponentReorderInput>(
+				{
+					bundleComponentId: addedThird.component.id,
+					position: 0,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+		expect(reordered.component.position).toBe(0);
+
+		const removed = await removeBundleComponentHandler(
+			catalogCtx<BundleComponentRemoveInput>(
+				{ bundleComponentId: addedSecond.component.id },
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+		expect(removed.deleted).toBe(true);
+
+		const list = await bundleComponents.query({
+			where: { bundleProductId: "prod_bundle" },
+		});
+		expect(list.items.find((row) => row.id === addedFirst.component.id)?.data.position).toBe(1);
+		expect(list.items.find((row) => row.id === addedThird.component.id)?.data.position).toBe(0);
+	});
+
+	it("rejects invalid bundle component composition", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const bundleComponents = new MemColl<StoredBundleComponent>();
+
+		await products.put("prod_bundle", {
+			id: "prod_bundle",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "nested-bundle",
+			title: "Nested Bundle",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_bundle_invalid", {
+			id: "prod_bundle_invalid",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "nested-bundle-invalid",
+			title: "Nested Bundle Invalid",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("bundle_invalid_sku", {
+			id: "bundle_invalid_sku",
+			productId: "prod_bundle_invalid",
+			skuCode: "BUNDLE-SKU",
+			status: "active",
+			unitPriceMinor: 50,
+			inventoryQuantity: 10,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await expect(
+			addBundleComponentHandler(
+				catalogCtx<BundleComponentAddInput>(
+					{
+						bundleProductId: "prod_bundle",
+						componentSkuId: "bundle_invalid_sku",
+						quantity: 1,
+						position: 0,
+					},
+					products,
+					skus,
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					bundleComponents,
+				),
+			),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+		await products.put("prod_simple", {
+			id: "prod_simple",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "simple-component",
+			title: "Simple Component",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_simple", {
+			id: "sku_simple",
+			productId: "prod_simple",
+			skuCode: "SIMPLE",
+			status: "active",
+			unitPriceMinor: 30,
+			inventoryQuantity: 20,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_simple",
+					quantity: 1,
+					position: 0,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+		await expect(
+			addBundleComponentHandler(
+				catalogCtx<BundleComponentAddInput>(
+					{
+						bundleProductId: "prod_bundle",
+						componentSkuId: "sku_simple",
+						quantity: 2,
+						position: 1,
+					},
+					products,
+					skus,
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					bundleComponents,
+				),
+			),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+		expect(bundleComponentAddInputSchema.safeParse({
+			bundleProductId: "prod_bundle",
+			componentSkuId: "sku_simple",
+			quantity: 0,
+			position: 0,
+		}).success).toBe(false);
+	});
+});
+
+describe("catalog organization", () => {
+	it("creates categories and filters listing by category", async () => {
+		const products = new MemColl<StoredProduct>();
+		const categories = new MemColl<StoredCategory>();
+		const productCategoryLinks = new MemColl<StoredProductCategoryLink>();
+
+		const category = await createCategoryHandler(
+			catalogCtx<CategoryCreateInput>(
+				{
+					name: "Electronics",
+					slug: "electronics",
+					position: 0,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+
+		const listedCategories = await listCategoriesHandler(
+			catalogCtx(
+				{
+					limit: 10,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+		expect(listedCategories.items.map((item) => item.slug)).toEqual(["electronics"]);
+
+		const cameraProduct = await createProductHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					status: "active",
+					visibility: "public",
+					slug: "camera",
+					title: "Camera",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+				},
+				products,
+			),
+		);
+		await createProductHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					status: "active",
+					visibility: "public",
+					slug: "lamp",
+					title: "Lamp",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 1,
+					requiresShippingDefault: true,
+				},
+				products,
+			),
+		);
+
+		const first = await listProductsHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					limit: 10,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+		expect(first.items.map((item) => item.product.slug)).toEqual(["camera", "lamp"]);
+
+		await createProductCategoryLinkHandler(
+			catalogCtx<ProductCategoryLinkInput>(
+				{
+					productId: cameraProduct.product.id,
+					categoryId: category.category.id,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+
+		const filtered = await listProductsHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					categoryId: category.category.id,
+					limit: 10,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+		expect(filtered.items.map((item) => item.product.slug)).toEqual(["camera"]);
+	});
+
+	it("creates tags and filters listing by tag", async () => {
+		const products = new MemColl<StoredProduct>();
+		const tags = new MemColl<StoredProductTag>();
+		const productTagLinks = new MemColl<StoredProductTagLink>();
+
+		const tag = await createTagHandler(
+			catalogCtx<TagCreateInput>(
+				{
+					name: "Featured",
+					slug: "featured",
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				tags,
+				productTagLinks,
+			),
+		);
+
+		const listedTags = await listTagsHandler(
+			catalogCtx(
+				{
+					limit: 10,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				tags,
+				productTagLinks,
+			),
+		);
+		expect(listedTags.items.map((item) => item.slug)).toEqual(["featured"]);
+
+		const tumblerProduct = await createProductHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					status: "active",
+					visibility: "public",
+					slug: "tumbler",
+					title: "Tumbler",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+				},
+				products,
+			),
+		);
+		await createProductHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					status: "active",
+					visibility: "public",
+					slug: "matte",
+					title: "Matte",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 1,
+					requiresShippingDefault: true,
+				},
+				products,
+			),
+		);
+
+		await createProductTagLinkHandler(
+			catalogCtx<ProductTagLinkInput>(
+				{
+					productId: tumblerProduct.product.id,
+					tagId: tag.tag.id,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				tags,
+				productTagLinks,
+			),
+		);
+
+		const filtered = await listProductsHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					tagId: tag.tag.id,
+					limit: 10,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				tags,
+				productTagLinks,
+			),
+		);
+		expect(filtered.items.map((item) => item.product.slug)).toEqual(["tumbler"]);
+	});
+
+	it("validates category and tag schema helpers", () => {
+		expect(categoryCreateInputSchema.safeParse({ name: "Tools", slug: "tools", position: 0 }).success).toBe(true);
+		expect(categoryListInputSchema.safeParse({}).success).toBe(true);
+		expect(productCategoryLinkInputSchema.safeParse({ productId: "p", categoryId: "c" }).success).toBe(true);
+		expect(productCategoryUnlinkInputSchema.safeParse({ linkId: "link_1" }).success).toBe(true);
+		expect(tagCreateInputSchema.safeParse({ name: "Gift", slug: "gift" }).success).toBe(true);
+		expect(tagListInputSchema.safeParse({}).success).toBe(true);
+		expect(productTagLinkInputSchema.safeParse({ productId: "p", tagId: "t" }).success).toBe(true);
+		expect(productTagUnlinkInputSchema.safeParse({ linkId: "link_1" }).success).toBe(true);
 	});
 });
