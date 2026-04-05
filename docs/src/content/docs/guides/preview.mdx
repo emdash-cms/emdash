@@ -70,7 +70,7 @@ import { getPreviewUrl } from "emdash";
 const previewUrl = await getPreviewUrl({
 	collection: "posts",
 	id: "my-draft-post",
-	secret: process.env.PREVIEW_SECRET!,
+	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
 	expiresIn: "1h",
 });
 // Returns: /posts/my-draft-post?_preview=eyJjaWQ...
@@ -82,7 +82,7 @@ With a base URL for absolute links:
 const fullUrl = await getPreviewUrl({
 	collection: "posts",
 	id: "my-draft-post",
-	secret: process.env.PREVIEW_SECRET!,
+	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
 	baseUrl: "https://example.com",
 });
 // Returns: https://example.com/posts/my-draft-post?_preview=eyJjaWQ...
@@ -94,7 +94,7 @@ With a custom path pattern:
 const blogUrl = await getPreviewUrl({
 	collection: "posts",
 	id: "my-draft-post",
-	secret: process.env.PREVIEW_SECRET!,
+	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
 	pathPattern: "/blog/{id}",
 });
 // Returns: /blog/my-draft-post?_preview=eyJjaWQ...
@@ -133,13 +133,13 @@ import { verifyPreviewToken } from "emdash";
 // From a URL (extracts _preview query parameter)
 const result = await verifyPreviewToken({
 	url: Astro.url,
-	secret: import.meta.env.PREVIEW_SECRET,
+	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
 });
 
 // Or with a token directly
 const result = await verifyPreviewToken({
 	token: someTokenString,
-	secret: import.meta.env.PREVIEW_SECRET,
+	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
 });
 ```
 
@@ -228,7 +228,7 @@ The payload contains:
 Tokens are signed with HMAC-SHA256 using your preview secret.
 
 <Aside type="caution">
-	Keep your `PREVIEW_SECRET` secure. Anyone with this secret can generate valid preview tokens for
+	Keep your `EMDASH_PREVIEW_SECRET` secure. Anyone with this secret can generate valid preview tokens for
 	any content.
 </Aside>
 
