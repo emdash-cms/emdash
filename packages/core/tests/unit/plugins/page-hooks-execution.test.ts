@@ -80,14 +80,16 @@ function createPageContext(overrides: Partial<PublicPageContext> = {}): PublicPa
 // ---------------------------------------------------------------------------
 
 let db: Kysely<any>;
+let sqlite: InstanceType<typeof Database>;
 
 beforeEach(() => {
-	const sqlite = new Database(":memory:");
+	sqlite = new Database(":memory:");
 	db = new Kysely({ dialect: new SqliteDialect({ database: sqlite }) });
 });
 
 afterEach(async () => {
 	await db.destroy();
+	sqlite.close();
 });
 
 // ---------------------------------------------------------------------------
@@ -279,7 +281,7 @@ describe("page:fragments hook execution", () => {
 			},
 		});
 
-		const pipeline = new HookPipeline([pluginWithoutCap]);
+		const pipeline = new HookPipeline([pluginWithoutCap], { db });
 
 		expect(pipeline.hasHooks("page:fragments")).toBe(false);
 	});

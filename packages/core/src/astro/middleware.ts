@@ -45,6 +45,7 @@ import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { runWithContext } from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
 let runtimeInstance: EmDashRuntime | null = null;
@@ -197,23 +198,53 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// available to getDb() and the runtime's db getter via the correct ALS instance.
 	const playgroundDb = locals.__playgroundDb;
 
-	// On a fresh deployment the database may be completely empty.
-	// Do a one-time lightweight probe: if the migrations table doesn't exist,
-	// no migrations have ever run -- redirect to the setup wizard.
-	// This check is cached for the worker's lifetime after first success.
-	if (!setupVerified && !isEmDashRoute) {
-		try {
-			const { getDb } = await import("../loader.js");
-			const db = await getDb();
-			await db
-				.selectFrom("_emdash_migrations" as keyof Database)
-				.selectAll()
-				.limit(1)
-				.execute();
-			setupVerified = true;
-		} catch {
-			// Table doesn't exist -> fresh database, redirect to setup
-			return context.redirect("/_emdash/admin/setup");
+	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
+		const sessionUser = await context.session?.get("user");
+		if (!sessionUser && !playgroundDb) {
+			// On a fresh deployment the database may be completely empty.
+			// Public pages call getSiteSettings() / getMenu() via getDb(), which
+			// bypasses runtime init and would crash with "no such table: options".
+			// Do a one-time lightweight probe using the same getDb() instance the
+			// page will use: if the migrations table doesn't exist, no migrations
+			// have ever run -- redirect to the setup wizard.
+			if (!setupVerified) {
+				try {
+					const { getDb } = await import("../loader.js");
+					const db = await getDb();
+					await db
+						.selectFrom("_emdash_migrations" as keyof Database)
+						.selectAll()
+						.limit(1)
+						.execute();
+					setupVerified = true;
+				} catch {
+					// Table doesn't exist -> fresh database, redirect to setup
+					return context.redirect("/_emdash/admin/setup");
+				}
+			}
+
+			// Initialize the runtime for page:metadata and page:fragments hooks.
+			// The runtime is a cached singleton — after the first request,
+			// getRuntime() is just a null-check. This enables SEO plugins to
+			// contribute meta tags for all visitors, not just logged-in editors.
+			const config = getConfig();
+			if (config) {
+				try {
+					const runtime = await getRuntime(config);
+					setupVerified = true;
+					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for these two methods
+					locals.emdash = {
+						collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+						collectPageFragments: runtime.collectPageFragments.bind(runtime),
+					} as EmDashHandlers;
+				} catch {
+					// Non-fatal — EmDashHead will fall back to base SEO contributions
+				}
+			}
+
+			const response = await next();
+			setBaselineSecurityHeaders(response);
+			return response;
 		}
 	}
 
@@ -222,17 +253,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		console.error("EmDash: No configuration found");
 		return next();
 	}
-
-	// Determine whether this is an anonymous public page request.
-	// Anonymous requests still need the runtime (for plugin page hooks) but
-	// skip the manifest query since public pages don't need collection metadata.
-	const isAnonymousPublic =
-		!isEmDashRoute &&
-		!isPublicRuntimeRoute &&
-		!hasEditCookie &&
-		!hasPreviewToken &&
-		!playgroundDb &&
-		!(await context.session?.get("user"));
 
 	// In playground mode, wrap the entire runtime init + request handling in
 	// runWithContext so that getDatabase() and all init queries use the real
@@ -245,13 +265,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// Runtime init runs migrations, so the DB is guaranteed set up
 			setupVerified = true;
 
-			// Load manifest for admin/authenticated routes (skipped for anonymous
-			// public pages -- getManifest() queries the DB for all collections/fields
-			// and anonymous pages don't need it)
-			if (!isAnonymousPublic) {
-				const manifest = await runtime.getManifest();
-				locals.emdashManifest = manifest;
-			}
+			// Get manifest (cached after first call)
+			const manifest = await runtime.getManifest();
+
+			// Attach to locals for route handlers
+			locals.emdashManifest = manifest;
 			locals.emdash = {
 				// Content handlers
 				handleContentList: runtime.handleContentList.bind(runtime),
