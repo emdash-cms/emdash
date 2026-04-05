@@ -24,6 +24,7 @@ SYNC_ITEMS=(
 
 # Template pairs: base -> cloudflare variant
 TEMPLATE_PAIRS=(
+	"blank:blank-cloudflare"
 	"blog:blog-cloudflare"
 	"marketing:marketing-cloudflare"
 	"portfolio:portfolio-cloudflare"

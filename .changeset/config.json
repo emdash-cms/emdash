@@ -24,6 +24,7 @@
 		"@emdash-cms/plugin-marketplace-test",
 		"@emdash-cms/plugin-sandboxed-test",
 		"@emdash-cms/template-blank",
+		"@emdash-cms/template-blank-cloudflare",
 		"@emdash-cms/template-blog",
 		"@emdash-cms/template-blog-cloudflare",
 		"@emdash-cms/template-marketing",

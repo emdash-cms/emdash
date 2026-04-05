@@ -90,6 +90,11 @@ const CLOUDFLARE_TEMPLATES = {
 		description: "A portfolio site with projects and case studies",
 		dir: "portfolio-cloudflare",
 	},
+	blank: {
+		name: "Blank",
+		description: "A minimal starter with no content or styling",
+		dir: "blank-cloudflare",
+	},
 } as const satisfies Record<string, TemplateConfig>;
 
 type NodeTemplate = keyof typeof NODE_TEMPLATES;
