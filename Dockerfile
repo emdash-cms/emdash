@@ -46,6 +46,10 @@ RUN pnpm deploy --filter @emdash-cms/template-rgb-animation --prod --legacy /dep
 # ─── Stage 2: Runtime ────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
 
+# better-sqlite3 native bindings require libstdc++ at runtime.
+# The builder stage has it implicitly via g++, but this clean image does not.
+RUN apk add --no-cache libstdc++ libc6-compat
+
 WORKDIR /app
 
 # ── Copy the fully resolved, symlink-free deployment directory ────────────────
