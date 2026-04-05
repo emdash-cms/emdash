@@ -15,6 +15,7 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"build": "pnpm run --filter {./packages/**} build",
+		"postbuild": "pnpm install --frozen-lockfile",
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
 		"format:astro": "prettier --write .",
