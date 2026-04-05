@@ -285,41 +285,32 @@ Access media programmatically using the admin API.
 
 ### Upload a File
 
-Request a signed upload URL:
+Upload media as multipart form data:
 
 ```bash
-POST /_emdash/api/media/upload
-Content-Type: application/json
+POST /_emdash/api/media
+Content-Type: multipart/form-data
 Authorization: Bearer YOUR_API_TOKEN
 
-{
-  "filename": "hero-image.jpg",
-  "contentType": "image/jpeg",
-  "size": 245000
-}
+file=<binary file data>
 ```
 
 Response:
 
 ```json
 {
-	"url": "https://storage.example.com/signed-upload-url...",
-	"method": "PUT",
-	"headers": {
-		"Content-Type": "image/jpeg"
-	},
-	"expiresAt": "2024-01-15T12:00:00Z",
-	"key": "media/abc123/hero-image.jpg"
+	"success": true,
+	"data": {
+		"item": {
+			"id": "01ABC123",
+			"filename": "hero-image.jpg",
+			"mime_type": "image/jpeg",
+			"storage_key": "media/abc123/hero-image.jpg",
+			"width": 1200,
+			"height": 800
+		}
+	}
 }
-```
-
-Upload the file using the signed URL:
-
-```bash
-PUT https://storage.example.com/signed-upload-url...
-Content-Type: image/jpeg
-
-<file contents>
 ```
 
 ### List Media
@@ -444,19 +435,19 @@ The local media library ("Library" tab) is always available alongside any config
 
 ### Rendering Provider Media
 
-Use the `EmDashMedia` component to render media from any provider:
+Use the `Image` component to render media:
 
 ```astro title="src/pages/posts/[slug].astro"
 ---
-import { EmDashMedia } from "emdash/ui";
+import { Image } from "emdash/ui";
 import { getEmDashEntry } from "emdash";
 
 const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 ---
 
 {post?.data.featured_image && (
-  <EmDashMedia
-    value={post.data.featured_image}
+  <Image
+    image={post.data.featured_image}
     width={800}
     height={450}
   />
@@ -465,7 +456,7 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 The component automatically:
 - Detects the provider from the stored value
-- Renders the appropriate element (`<img>`, `<video>`, etc.)
+- Renders an optimized `<img>` element
 - Applies provider-specific optimizations (e.g., Cloudflare Images transformations)
 
 ### MediaValue Type
@@ -474,9 +465,10 @@ Media fields store a `MediaValue` object containing provider information:
 
 ```ts
 interface MediaValue {
-  provider: string;     // Provider ID (e.g., "local", "cloudflare-images")
+  provider?: string;    // Provider ID, defaults to "local"
   id: string;           // Provider-specific ID
-  url?: string;         // Direct URL (for local/external)
+  src?: string;         // Direct URL (for local media or legacy data)
+  previewUrl?: string;  // Preview URL for admin display (external providers)
   filename?: string;    // Original filename
   mimeType?: string;    // MIME type
   width?: number;       // Image/video width
