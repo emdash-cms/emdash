@@ -9,7 +9,8 @@ import { getEmDashEntry } from "emdash";
 import { PortableText } from "emdash/ui";
 import { embedComponents } from "@emdash-cms/plugin-embeds/astro";
 
-const { slug } = Astro.params;
+const { slug: rawSlug } = Astro.params;
+const slug = rawSlug ? decodeURIComponent(rawSlug) : undefined;
 
 const { entry: post } = slug
 	? await getEmDashEntry("posts", slug)

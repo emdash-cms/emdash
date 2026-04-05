@@ -3,7 +3,8 @@ import { getEmDashEntry, getEntryTerms, getSeoMeta } from "emdash";
 import { Image, PortableText, WidgetArea } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
-const { slug } = Astro.params;
+const { slug: rawSlug } = Astro.params;
+const slug = rawSlug ? decodeURIComponent(rawSlug) : undefined;
 
 if (!slug) {
 	return Astro.redirect("/404");
