@@ -187,9 +187,7 @@ describe("marketplace publish e2e", () => {
 		};
 
 		expect(body.github.clientId).toBe("test");
-		expect(body.github.deviceAuthorizationEndpoint).toBe(
-			"https://github.com/login/device/code",
-		);
+		expect(body.github.deviceAuthorizationEndpoint).toBe("https://github.com/login/device/code");
 		expect(body.github.tokenEndpoint).toBe("https://github.com/login/oauth/access_token");
 		expect(body.marketplace.deviceTokenEndpoint).toBe("/api/v1/auth/github/device");
 	});
