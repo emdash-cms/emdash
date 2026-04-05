@@ -103,6 +103,7 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		shouldApplyResponse?: () => boolean;
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
@@ -300,6 +301,8 @@ export function ContentEditor({
 			}),
 		[formData, slug, activeBylines],
 	);
+	const currentDataRef = React.useRef(currentData);
+	currentDataRef.current = currentData;
 	const isDirty = isNew || currentData !== lastSavedData;
 
 	// Autosave with debounce
@@ -327,11 +330,13 @@ export function ContentEditor({
 		}
 
 		// Schedule autosave
+		const autosaveSnapshot = currentData;
 		autosaveTimeoutRef.current = setTimeout(() => {
 			onAutosave({
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
 				bylines: activeBylines,
+				shouldApplyResponse: () => currentDataRef.current === autosaveSnapshot,
 			});
 		}, AUTOSAVE_DELAY);
 
