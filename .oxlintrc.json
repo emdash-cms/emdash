@@ -100,6 +100,7 @@
 		"**/*.d.ts",
 		"skills/**/scaffold/**",
 		".opencode/skills/**/scaffold/**",
-		".claude/skills/**/scaffold/**"
+		".claude/skills/**/scaffold/**",
+		".agents/skills/**/scaffold/**"
 	]
 }
