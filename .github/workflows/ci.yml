@@ -114,6 +114,7 @@ jobs:
   test-smoke:
     name: Smoke Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17
@@ -139,9 +140,25 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm --filter emdash exec vitest run --config vitest.smoke.config.ts
-        timeout-minutes: 5
         env:
           DATABASE_URL: postgres://postgres:test@localhost:5432/emdash_smoke
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter emdash exec vitest run --config vitest.integration.config.ts
 
   test-browser:
     name: Browser Tests
