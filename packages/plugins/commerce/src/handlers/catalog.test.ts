@@ -105,6 +105,17 @@ class MemColl<T extends object> {
 		this.rows.set(id, structuredClone(data));
 	}
 
+	async getMany(ids: string[]): Promise<Map<string, T>> {
+		const rows = new Map<string, T>();
+		for (const id of ids) {
+			const row = this.rows.get(id);
+			if (row) {
+				rows.set(id, structuredClone(row));
+			}
+		}
+		return rows;
+	}
+
 	async delete(id: string): Promise<boolean> {
 		return this.rows.delete(id);
 	}
@@ -115,9 +126,16 @@ class MemColl<T extends object> {
 	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
 		const where = options?.where ?? {};
 		const values = [...this.rows.entries()].filter(([, row]) =>
-			Object.entries(where).every(([field, expected]) =>
-				(row as Record<string, unknown>)[field] === expected,
-			),
+			Object.entries(where).every(([field, expected]) => {
+				const rowValue = (row as Record<string, unknown>)[field];
+				if (expected && typeof expected === "object" && !Array.isArray(expected)) {
+					const maybeInFilter = expected as { in?: unknown[] };
+					if (Array.isArray(maybeInFilter.in)) {
+						return maybeInFilter.in.includes(rowValue);
+					}
+				}
+				return rowValue === expected;
+			}),
 		);
 		const items = values
 			.slice(0, options?.limit ?? 50)

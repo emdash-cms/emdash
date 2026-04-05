@@ -215,6 +215,28 @@ function toWhere(input: { type?: string; status?: string; visibility?: string })
 	return where;
 }
 
+function toUniqueStringList(values: string[]): string[] {
+	return [...new Set(values)];
+}
+
+async function getManyByIds<T>(collection: Collection<T>, ids: string[]): Promise<Map<string, T>> {
+	const uniqueIds = toUniqueStringList(ids);
+	const getMany = (collection as { getMany?: (ids: string[]) => Promise<Map<string, T>> }).getMany;
+	if (getMany) {
+		return getMany(uniqueIds);
+	}
+
+	const rows = await Promise.all(uniqueIds.map((id) => collection.get(id)));
+	const map = new Map<string, T>();
+	for (const [index, id] of uniqueIds.entries()) {
+		const row = rows[index];
+		if (row) {
+			map.set(id, row);
+		}
+	}
+	return map;
+}
+
 export type ProductSkuResponse = {
 	sku: StoredProductSku;
 };
@@ -414,16 +436,39 @@ async function queryCategoryDtos(
 	categories: Collection<StoredCategory>,
 	productId: string,
 ): Promise<ProductCategoryDTO[]> {
+	const results = await queryCategoryDtosForProducts(productCategoryLinks, categories, [productId]);
+	return results.get(productId) ?? [];
+}
+
+async function queryCategoryDtosForProducts(
+	productCategoryLinks: Collection<StoredProductCategoryLink>,
+	categories: Collection<StoredCategory>,
+	productIds: string[],
+): Promise<Map<string, ProductCategoryDTO[]>> {
+	const normalizedProductIds = toUniqueStringList(productIds);
+	if (normalizedProductIds.length === 0) {
+		return new Map();
+	}
+
 	const links = await productCategoryLinks.query({
-		where: { productId },
+		where: { productId: { in: normalizedProductIds } },
 	});
-	const rows = await Promise.all(
-		links.items.map(async (link) => {
-			const category = await categories.get(link.data.categoryId);
-			return category ? toProductCategoryDTO(category) : null;
-		}),
+	const categoryRows = await getManyByIds(
+		categories,
+		toUniqueStringList(links.items.map((link) => link.data.categoryId)),
 	);
-	return rows.filter((row): row is ProductCategoryDTO => row !== null);
+	const rowsByProduct = new Map<string, ProductCategoryDTO[]>();
+
+	for (const link of links.items) {
+		const category = categoryRows.get(link.data.categoryId);
+		if (!category) {
+			continue;
+		}
+		const current = rowsByProduct.get(link.data.productId) ?? [];
+		current.push(toProductCategoryDTO(category));
+		rowsByProduct.set(link.data.productId, current);
+	}
+	return rowsByProduct;
 }
 
 async function queryTagDtos(
@@ -431,16 +476,36 @@ async function queryTagDtos(
 	tags: Collection<StoredProductTag>,
 	productId: string,
 ): Promise<ProductTagDTO[]> {
+	const results = await queryTagDtosForProducts(productTagLinks, tags, [productId]);
+	return results.get(productId) ?? [];
+}
+
+async function queryTagDtosForProducts(
+	productTagLinks: Collection<StoredProductTagLink>,
+	tags: Collection<StoredProductTag>,
+	productIds: string[],
+): Promise<Map<string, ProductTagDTO[]>> {
+	const normalizedProductIds = toUniqueStringList(productIds);
+	if (normalizedProductIds.length === 0) {
+		return new Map();
+	}
+
 	const links = await productTagLinks.query({
-		where: { productId },
+		where: { productId: { in: normalizedProductIds } },
 	});
-	const rows = await Promise.all(
-		links.items.map(async (link) => {
-			const tag = await tags.get(link.data.tagId);
-			return tag ? toProductTagDTO(tag) : null;
-		}),
-	);
-	return rows.filter((row): row is ProductTagDTO => row !== null);
+	const tagRows = await getManyByIds(tags, toUniqueStringList(links.items.map((link) => link.data.tagId)));
+	const rowsByProduct = new Map<string, ProductTagDTO[]>();
+
+	for (const link of links.items) {
+		const tag = tagRows.get(link.data.tagId);
+		if (!tag) {
+			continue;
+		}
+		const current = rowsByProduct.get(link.data.productId) ?? [];
+		current.push(toProductTagDTO(tag));
+		rowsByProduct.set(link.data.productId, current);
+	}
+	return rowsByProduct;
 }
 
 function summarizeInventory(skus: StoredProductSku[]): ProductInventorySummaryDTO {
@@ -480,35 +545,91 @@ async function loadProductReadMetadata(
 	context: ProductReadContext,
 ): Promise<ProductReadMetadata> {
 	const { product, includeGalleryImages = false } = context;
-	const [skusResult, categories, tags, primaryImage, galleryImages] = await Promise.all([
-		collections.productSkus.query({ where: { productId: product.id } }),
-		queryCategoryDtos(collections.productCategoryLinks, collections.productCategories, product.id),
-		queryTagDtos(collections.productTagLinks, collections.productTags, product.id),
-		queryPrimaryImageForProduct(collections.productAssetLinks, collections.productAssets, "product", product.id),
-		includeGalleryImages
-			? queryProductImagesByRole(
-				collections.productAssetLinks,
-				collections.productAssets,
-				"product",
-				product.id,
-				["gallery_image"],
-			)
-			: Promise.resolve([] as ProductPrimaryImageDTO[]),
-	]);
-
-	const skus = await hydrateSkusWithInventoryStock(
-		product,
-		skusResult.items.map((row) => row.data),
-		collections.inventoryStock,
-	);
-
-	return {
-		skus,
-		categories,
-		tags,
-		primaryImage,
-		galleryImages,
+	const metadataByProduct = await loadProductsReadMetadata(collections, {
+		products: [product],
+		includeGalleryImages,
+	});
+	return metadataByProduct.get(product.id) ?? {
+		skus: [],
+		categories: [],
+		tags: [],
+		galleryImages: [],
 	};
+}
+
+type InFilter = { in: string[] };
+
+async function loadProductsReadMetadata(
+	collections: ProductReadCollections,
+	context: {
+		products: StoredProduct[];
+		includeGalleryImages?: boolean;
+	},
+): Promise<Map<string, ProductReadMetadata>> {
+	const productIds = toUniqueStringList(context.products.map((product) => product.id));
+	const includeGalleryImages = context.includeGalleryImages ?? false;
+	if (productIds.length === 0) {
+		return new Map();
+	}
+
+	const productsById = new Map<string, StoredProduct>(context.products.map((product) => [product.id, product]));
+	const skusResult = await collections.productSkus.query({
+		where: { productId: { in: productIds } },
+	});
+	const skusByProduct = new Map<string, StoredProductSku[]>();
+	for (const row of skusResult.items) {
+		const current = skusByProduct.get(row.data.productId) ?? [];
+		current.push(row.data);
+		skusByProduct.set(row.data.productId, current);
+	}
+
+	const hydratedSkusByProductEntries = await Promise.all(
+		productIds.map(async (productId) => {
+			const product = productsById.get(productId);
+			const skus = skusByProduct.get(productId) ?? [];
+			return [productId, product ? await hydrateSkusWithInventoryStock(product, skus, collections.inventoryStock)] as const;
+		}),
+	);
+	const hydratedSkusByProduct = new Map(hydratedSkusByProductEntries);
+
+	const categoriesByProduct = await queryCategoryDtosForProducts(
+		collections.productCategoryLinks,
+		collections.productCategories,
+		productIds,
+	);
+	const tagsByProduct = await queryTagDtosForProducts(
+		collections.productTagLinks,
+		collections.productTags,
+		productIds,
+	);
+	const primaryImageByProduct = await queryProductImagesByRoleForTargets(
+		collections.productAssetLinks,
+		collections.productAssets,
+		"product",
+		productIds,
+		["primary_image"],
+	);
+	const galleryImageByProduct = includeGalleryImages
+		? await queryProductImagesByRoleForTargets(
+			collections.productAssetLinks,
+			collections.productAssets,
+			"product",
+			productIds,
+			["gallery_image"],
+		)
+		: new Map();
+
+	const metadataByProduct = new Map<string, ProductReadMetadata>();
+	for (const productId of productIds) {
+		metadataByProduct.set(productId, {
+			skus: hydratedSkusByProduct.get(productId) ?? [],
+			categories: categoriesByProduct.get(productId) ?? [],
+			tags: tagsByProduct.get(productId) ?? [],
+			primaryImage: primaryImageByProduct.get(productId)?.[0],
+			galleryImages: galleryImageByProduct.get(productId) ?? [],
+		});
+	}
+	return metadataByProduct;
 }
 
 function summarizeSkuPricing(skus: StoredProductSku[]): ProductPriceRangeDTO {
@@ -528,33 +649,130 @@ async function queryPrimaryImageForProduct(
 	targetType: ProductAssetLinkTarget,
 	targetId: string,
 ): Promise<ProductPrimaryImageDTO | undefined> {
-	const images = await queryProductImagesByRole(productAssetLinks, productAssets, targetType, targetId, ["primary_image"]);
-	return images[0];
+	const images = await queryProductImagesByRoleForTargets(
+		productAssetLinks,
+		productAssets,
+		targetType,
+		[targetId],
+		["primary_image"],
+	);
+	return images.get(targetId)?.[0];
 }
 
-async function queryProductImagesByRole(
+async function queryProductImagesByRoleForTargets(
 	productAssetLinks: Collection<StoredProductAssetLink>,
 	productAssets: Collection<StoredProductAsset>,
 	targetType: ProductAssetLinkTarget,
-	targetId: string,
+	targetIds: string[],
 	roles: ProductAssetRole[],
-): Promise<ProductPrimaryImageDTO[]> {
-	const links = await queryAssetLinksForTarget(productAssetLinks, targetType, targetId);
-	const rows: ProductPrimaryImageDTO[] = [];
-	for (const link of links) {
-		if (!roles.includes(link.role)) continue;
-		const asset = await productAssets.get(link.assetId);
-		if (!asset) continue;
-		rows.push({
-			linkId: link.id,
-			assetId: asset.id,
-			provider: asset.provider,
-			externalAssetId: asset.externalAssetId,
-			fileName: asset.fileName,
-			altText: asset.altText,
-		});
+): Promise<Map<string, ProductPrimaryImageDTO[]>> {
+	const normalizedTargetIds = toUniqueStringList(targetIds);
+	const normalizedRoles = toUniqueStringList(roles);
+	if (normalizedTargetIds.length === 0 || normalizedRoles.length === 0) {
+		return new Map();
 	}
-	return rows;
+
+	const query: { where: Record<string, string | number | InFilter> } = {
+		where: {
+			targetType,
+			targetId: normalizedTargetIds.length === 1 ? normalizedTargetIds[0] : ({ in: normalizedTargetIds } as InFilter),
+			role: normalizedRoles.length === 1 ? normalizedRoles[0] : ({ in: normalizedRoles } as InFilter),
+		},
+	};
+	const links = await productAssetLinks.query(query).then((result) => result.items);
+	const assetIds = toUniqueStringList(links.map((link) => link.data.assetId));
+	const assetsById = await getManyByIds(productAssets, assetIds);
+	const linksByTarget = new Map<string, StoredProductAssetLink[]>();
+	for (const link of links) {
+		const normalized = linksByTarget.get(link.data.targetId) ?? [];
+		normalized.push(link.data);
+		linksByTarget.set(link.data.targetId, normalized);
+	}
+
+	const imagesByTarget = new Map<string, ProductPrimaryImageDTO[]>();
+	for (const [targetId, targetLinks] of linksByTarget) {
+		const sortedLinks = sortAssetLinksByPosition(targetLinks);
+		const rows: ProductPrimaryImageDTO[] = [];
+		for (const link of sortedLinks) {
+			const asset = assetsById.get(link.assetId);
+			if (!asset) {
+				continue;
+			}
+			rows.push({
+				linkId: link.id,
+				assetId: asset.id,
+				provider: asset.provider,
+				externalAssetId: asset.externalAssetId,
+				fileName: asset.fileName,
+				altText: asset.altText,
+			});
+		}
+		imagesByTarget.set(targetId, rows);
+	}
+	return imagesByTarget;
+}
+
+async function querySkuOptionValuesBySkuIds(
+	productSkuOptionValues: Collection<StoredProductSkuOptionValue>,
+	skuIds: string[],
+): Promise<Map<string, Array<{ attributeId: string; attributeValueId: string }>>> {
+	const normalizedSkuIds = toUniqueStringList(skuIds);
+	if (normalizedSkuIds.length === 0) {
+		return new Map();
+	}
+
+	const result = await productSkuOptionValues.query({
+		where: { skuId: { in: normalizedSkuIds } },
+	});
+	const bySkuId = new Map<string, Array<{ attributeId: string; attributeValueId: string }>>();
+	for (const row of result.items) {
+		const current = bySkuId.get(row.data.skuId) ?? [];
+		current.push({
+			attributeId: row.data.attributeId,
+			attributeValueId: row.data.attributeValueId,
+		});
+		bySkuId.set(row.data.skuId, current);
+	}
+	return bySkuId;
+}
+
+async function queryDigitalEntitlementSummariesBySkuIds(
+	productDigitalEntitlements: Collection<StoredDigitalEntitlement>,
+	productDigitalAssets: Collection<StoredDigitalAsset>,
+	skuIds: string[],
+): Promise<Map<string, ProductDigitalEntitlementSummary[]>> {
+	const normalizedSkuIds = toUniqueStringList(skuIds);
+	if (normalizedSkuIds.length === 0) {
+		return new Map();
+	}
+
+	const entitlementRows = await productDigitalEntitlements.query({
+		where: { skuId: { in: normalizedSkuIds } },
+	});
+	const assetIds = toUniqueStringList(
+		entitlementRows.items.map((row) => row.data.digitalAssetId),
+	);
+	const assetsById = await getManyByIds(productDigitalAssets, assetIds);
+	const summariesBySku = new Map<string, ProductDigitalEntitlementSummary[]>();
+	for (const entitlement of entitlementRows.items) {
+		const asset = assetsById.get(entitlement.data.digitalAssetId);
+		if (!asset) {
+			continue;
+		}
+		const current = summariesBySku.get(entitlement.data.skuId) ?? [];
+		current.push({
+			entitlementId: entitlement.data.id,
+			digitalAssetId: entitlement.data.digitalAssetId,
+			digitalAssetLabel: asset.label,
+			grantedQuantity: entitlement.data.grantedQuantity,
+			downloadLimit: asset.downloadLimit,
+			downloadExpiryDays: asset.downloadExpiryDays,
+			isManualOnly: asset.isManualOnly,
+			isPrivate: asset.isPrivate,
+		});
+		summariesBySku.set(entitlement.data.skuId, current);
+	}
+	return summariesBySku;
 }
 
 export async function createProductHandler(ctx: RouteContext<ProductCreateInput>): Promise<ProductResponse> {
@@ -773,12 +991,21 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 		const attributes = (await productAttributes.query({ where: { productId: product.id } })).items.map(
 			(row) => row.data,
 		);
+		const skuOptionValuesBySku = await querySkuOptionValuesBySkuIds(
+			productSkuOptionValues,
+			skuRows.map((sku) => sku.id),
+		);
+		const variantImageBySku = await queryProductImagesByRoleForTargets(
+			productAssetLinks,
+			productAssets,
+			"sku",
+			skuRows.map((sku) => sku.id),
+			["variant_image"],
+		);
 		const variantMatrix: VariantMatrixDTO[] = [];
 		for (const skuRow of skuRows) {
-			const optionResult = await productSkuOptionValues.query({ where: { skuId: skuRow.id } });
-			const variantImage = (await queryProductImagesByRole(productAssetLinks, productAssets, "sku", skuRow.id, [
-				"variant_image",
-			]))[0];
+			const variantImage = variantImageBySku.get(skuRow.id)?.[0];
+			const options = skuOptionValuesBySku.get(skuRow.id) ?? [];
 			variantMatrix.push({
 				skuId: skuRow.id,
 				skuCode: skuRow.skuCode,
@@ -790,10 +1017,7 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 				requiresShipping: skuRow.requiresShipping,
 				isDigital: skuRow.isDigital,
 				image: variantImage,
-				options: optionResult.items.map((option) => ({
-					attributeId: option.data.attributeId,
-					attributeValueId: option.data.attributeValueId,
-				})),
+				options,
 			});
 		}
 		response.attributes = attributes;
@@ -802,23 +1026,30 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 
 	if (product.type === "bundle") {
 		const components = await queryBundleComponentsForProduct(bundleComponents, product.id);
-		const componentLines = [];
-		for (const component of components) {
-			const componentSku = await productSkus.get(component.componentSkuId);
-			if (!componentSku) {
-				throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Bundle component SKU not found" });
-			}
-			const componentProduct = await products.get(componentSku.productId);
-			if (!componentProduct) {
-				throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component product not found" });
-			}
-			const hydratedComponentSkus = await hydrateSkusWithInventoryStock(
-				componentProduct,
-				[componentSku],
-				inventoryStock,
-			);
-			componentLines.push({ component, sku: hydratedComponentSkus[0] ?? componentSku });
-		}
+		const componentSkus = await getManyByIds(productSkus, components.map((component) => component.componentSkuId));
+		const componentProductIds = toUniqueStringList(
+			components.map((component) => componentSkus.get(component.componentSkuId)?.productId).filter((value): value is string => Boolean(value)),
+		);
+		const componentProducts = await getManyByIds(products, componentProductIds);
+
+		const componentLines = await Promise.all(
+			components.map(async (component) => {
+				const componentSku = componentSkus.get(component.componentSkuId);
+				if (!componentSku) {
+					throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Bundle component SKU not found" });
+				}
+				const componentProduct = componentProducts.get(componentSku.productId);
+				if (!componentProduct) {
+					throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component product not found" });
+				}
+				const hydratedComponentSkus = await hydrateSkusWithInventoryStock(
+					componentProduct,
+					[componentSku],
+					inventoryStock,
+				);
+				return { component, sku: hydratedComponentSkus[0] ?? componentSku };
+			}),
+		);
 		response.bundleSummary = computeBundleSummary(
 			product.id,
 			product.bundleDiscountType,
@@ -829,39 +1060,20 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 	}
 
 	const digitalEntitlements: ProductDigitalEntitlementSummary[] = [];
+	const entitlementsBySku = await queryDigitalEntitlementSummariesBySkuIds(
+		productDigitalEntitlements,
+		productDigitalAssets,
+		skuRows.map((sku) => sku.id),
+	);
 	for (const sku of skuRows) {
-		const entitlementResult = await productDigitalEntitlements.query({
-			where: { skuId: sku.id },
-			limit: 100,
-		});
-		if (entitlementResult.items.length === 0) {
+		const entitlements = entitlementsBySku.get(sku.id);
+		if (!entitlements || entitlements.length === 0) {
 			continue;
 		}
-
-		const entitlements = [];
-		for (const entitlementRow of entitlementResult.items) {
-			const entitlement = entitlementRow.data;
-			const digitalAsset = await productDigitalAssets.get(entitlement.digitalAssetId);
-			if (!digitalAsset) {
-				continue;
-			}
-			entitlements.push({
-				entitlementId: entitlement.id,
-				digitalAssetId: entitlement.digitalAssetId,
-				digitalAssetLabel: digitalAsset.label,
-				grantedQuantity: entitlement.grantedQuantity,
-				downloadLimit: digitalAsset.downloadLimit,
-				downloadExpiryDays: digitalAsset.downloadExpiryDays,
-				isManualOnly: digitalAsset.isManualOnly,
-				isPrivate: digitalAsset.isPrivate,
-			});
-		}
-		if (entitlements.length > 0) {
-			digitalEntitlements.push({
-				skuId: sku.id,
-				entitlements,
-			});
-		}
+		digitalEntitlements.push({
+			skuId: sku.id,
+			entitlements,
+		});
 	}
 	if (digitalEntitlements.length > 0) {
 		response.digitalEntitlements = digitalEntitlements;
@@ -905,24 +1117,30 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 		0,
 		ctx.input.limit,
 	);
+	const metadataByProduct = await loadProductsReadMetadata(
+		{
+			productCategoryLinks,
+			productCategories,
+			productTagLinks,
+			productTags,
+			productAssets,
+			productAssetLinks,
+			productSkus,
+			inventoryStock,
+		},
+		{
+			products: sortedRows,
+			includeGalleryImages: true,
+		},
+	);
 	const items: CatalogListingDTO[] = [];
 	for (const row of sortedRows) {
-		const { skus: skuRows, categories, tags, primaryImage, galleryImages } = await loadProductReadMetadata(
-			{
-				productCategoryLinks,
-				productCategories,
-				productTagLinks,
-				productTags,
-				productAssets,
-				productAssetLinks,
-				productSkus,
-				inventoryStock,
-			},
-			{
-				product: row,
-				includeGalleryImages: true,
-			},
-		);
+		const { skus: skuRows, categories, tags, primaryImage, galleryImages } = metadataByProduct.get(row.id) ?? {
+			skus: [],
+			categories: [],
+			tags: [],
+			galleryImages: [],
+		};
 
 		items.push({
 			product: row,
