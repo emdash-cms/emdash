@@ -698,7 +698,7 @@ describe("checkout route guardrails", () => {
 			},
 			requestMeta: { ip: "127.0.0.1" },
 			kv: new MemKv(),
-		} as RouteContext<CheckoutInput>;
+		} as unknown as RouteContext<CheckoutInput>;
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 });

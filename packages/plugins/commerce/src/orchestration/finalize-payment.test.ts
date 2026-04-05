@@ -21,7 +21,7 @@ import {
 const FINALIZE_RAW = "unit_test_finalize_secret_ok____________";
 let FINALIZE_HASH = "";
 
-function asMemCollection<T extends object>(collection: MemCollection<T>): MemCollection<T> {
+function asMemCollection<T extends object>(collection: MemColl<T>): MemColl<T> {
 	return collection;
 }
 

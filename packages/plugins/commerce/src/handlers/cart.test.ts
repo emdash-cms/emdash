@@ -229,7 +229,7 @@ describe("cartUpsertHandler", () => {
 			storage: { carts },
 			requestMeta: { ip: "127.0.0.1" },
 			kv,
-		} as RouteContext<CartUpsertInput>;
+		} as unknown as RouteContext<CartUpsertInput>;
 		await expect(cartUpsertHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
 	});
 
@@ -417,7 +417,7 @@ describe("cartGetHandler", () => {
 			storage: { carts },
 			requestMeta: { ip: "127.0.0.1" },
 			kv,
-		} as RouteContext<CartGetInput>;
+		} as unknown as RouteContext<CartGetInput>;
 		await expect(cartGetHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
 	});
 

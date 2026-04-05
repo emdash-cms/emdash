@@ -16,6 +16,7 @@ import type {
 	StoredProductTagLink,
 	StoredProductSku,
 	StoredProductSkuOptionValue,
+	StoredInventoryStock,
 } from "../types.js";
 import type {
 	ProductAssetLinkInput,
@@ -23,6 +24,7 @@ import type {
 	ProductAssetRegisterInput,
 	ProductAssetUnlinkInput,
 	ProductSkuCreateInput,
+	ProductSkuUpdateInput,
 	ProductCreateInput,
 	DigitalAssetCreateInput,
 	DigitalEntitlementCreateInput,
@@ -32,6 +34,7 @@ import type {
 	BundleComputeInput,
 	CategoryCreateInput,
 	ProductCategoryLinkInput,
+	ProductListInput,
 	TagCreateInput,
 	ProductTagLinkInput,
 } from "../schemas.js";
@@ -56,6 +59,7 @@ import {
 } from "../schemas.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sortedImmutable } from "../lib/sort-immutable.js";
+import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
 import {
 	createProductHandler,
 	setProductStateHandler,
@@ -138,6 +142,7 @@ function catalogCtx<TInput>(
 	productTagLinks = new MemColl<StoredProductTagLink>(),
 	digitalAssets = new MemColl<StoredDigitalAsset>(),
 	digitalEntitlements = new MemColl<StoredDigitalEntitlement>(),
+	inventoryStock = new MemColl<StoredInventoryStock>(),
 ): RouteContext<TInput> {
 	return {
 		request: new Request("https://example.test/catalog", { method: "POST" }),
@@ -157,6 +162,7 @@ function catalogCtx<TInput>(
 			productTagLinks,
 			digitalAssets,
 			digitalEntitlements,
+			inventoryStock,
 		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv: {},
@@ -675,6 +681,100 @@ describe("catalog product handlers", () => {
 		expect(out.items[0]!.lowStockSkuCount).toBe(1);
 	});
 
+	it("uses inventory stock rows for list inventory summary calculations", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "low-stock-product",
+			title: "Low Stock Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_low", {
+			id: "sku_low",
+			productId: "prod_1",
+			skuCode: "LOW",
+			status: "active",
+			unitPriceMinor: 1000,
+			inventoryQuantity: 100,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const listCtx = catalogCtx<ProductListInput>({ type: "simple", visibility: "public", limit: 10 }, products, skus);
+		const inventoryStock = (listCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		await inventoryStock.put(inventoryStockDocId("prod_1", ""), {
+			productId: "prod_1",
+			variantId: "",
+			version: 3,
+			quantity: 0,
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = await listProductsHandler(listCtx);
+		expect(out.items).toHaveLength(1);
+		expect(out.items[0]!.inventorySummary.totalInventoryQuantity).toBe(0);
+		expect(out.items[0]!.lowStockSkuCount).toBe(1);
+	});
+
+	it("reads simple product SKU inventory from inventoryStock in product detail", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "stock-product",
+			title: "Stock Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "STOCK",
+			status: "active",
+			unitPriceMinor: 500,
+			inventoryQuantity: 100,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const getCtx = catalogCtx({ productId: "prod_1" }, products, skus);
+		const inventoryStock = (getCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		await inventoryStock.put(inventoryStockDocId("prod_1", "sku_1"), {
+			productId: "prod_1",
+			variantId: "sku_1",
+			version: 6,
+			quantity: 6,
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const detail = await getProductHandler(getCtx);
+		expect(detail.skus?.[0]).toMatchObject({ id: "sku_1", inventoryQuantity: 6, inventoryVersion: 6 });
+	});
+
 	it("returns product_unavailable when productId does not exist", async () => {
 		const out = getProductHandler(catalogCtx({ productId: "missing" }, new MemColl()));
 		await expect(out).rejects.toMatchObject({ code: "product_unavailable" });
@@ -992,6 +1092,135 @@ describe("catalog SKU handlers", () => {
 		expect(detail.attributes).toHaveLength(2);
 		expect(detail.variantMatrix).toHaveLength(2);
 		expect(detail.variantMatrix?.every((row) => row.options.length === 2)).toBe(true);
+	});
+
+	it("creates matching inventoryStock rows when creating a simple SKU", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("parent", {
+			id: "parent",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "parent",
+			title: "Parent",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const createCtx = catalogCtx<ProductSkuCreateInput>(
+			{
+				productId: "parent",
+				skuCode: "SIMPLE-STOCK",
+				status: "active",
+				unitPriceMinor: 1299,
+				inventoryQuantity: 12,
+				inventoryVersion: 1,
+				requiresShipping: true,
+				isDigital: false,
+			},
+			products,
+			skus,
+		);
+		const created = await createProductSkuHandler(createCtx);
+		const inventoryStock = (createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+
+		const variantStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, created.sku.id));
+		const productStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, ""));
+		expect(inventoryStock.rows.size).toBe(2);
+		expect(variantStock).toMatchObject({
+			productId: "parent",
+			variantId: created.sku.id,
+			quantity: 12,
+			version: 1,
+		});
+		expect(productStock).toMatchObject({
+			productId: "parent",
+			variantId: "",
+			quantity: 12,
+			version: 1,
+		});
+	});
+
+	it("updates matching inventoryStock rows when SKU inventory fields change", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const inventoryStock = new MemColl<StoredInventoryStock>();
+		const productSkuCtx = (input: ProductSkuCreateInput | ProductSkuUpdateInput) =>
+			catalogCtx(
+				input as Parameters<typeof catalogCtx>[0],
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				inventoryStock,
+			);
+
+		await products.put("parent", {
+			id: "parent",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "parent",
+			title: "Parent",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		const created = await createProductSkuHandler(
+			productSkuCtx({
+				productId: "parent",
+				skuCode: "SIMPLE-STOCK",
+				status: "active",
+				unitPriceMinor: 1299,
+				inventoryQuantity: 12,
+				inventoryVersion: 1,
+				requiresShipping: true,
+				isDigital: false,
+			}) as Parameters<typeof createProductSkuHandler>[0],
+		);
+
+		await updateProductSkuHandler(
+			productSkuCtx({
+				skuId: created.sku.id,
+				inventoryQuantity: 3,
+				inventoryVersion: 4,
+			}) as Parameters<typeof updateProductSkuHandler>[0],
+		);
+
+		const variantStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, created.sku.id));
+		const productStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, ""));
+		expect(variantStock).toMatchObject({
+			productId: "parent",
+			variantId: created.sku.id,
+			quantity: 3,
+			version: 4,
+		});
+		expect(productStock).toMatchObject({
+			productId: "parent",
+			variantId: "",
+			quantity: 3,
+			version: 4,
+		});
 	});
 
 	it("rejects variable SKU creation when option coverage is incomplete", async () => {

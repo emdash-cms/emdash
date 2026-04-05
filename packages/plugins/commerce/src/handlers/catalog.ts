@@ -18,6 +18,7 @@ import {
 	normalizeSkuOptionSignature,
 	validateVariableSkuOptions,
 } from "../lib/catalog-variants.js";
+import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
 import type {
 	CatalogListingDTO,
 	ProductCategoryDTO,
@@ -82,6 +83,7 @@ import type {
 	StoredProductTag,
 	StoredProductTagLink,
 	StoredBundleComponent,
+	StoredInventoryStock,
 	StoredProductSkuOptionValue,
 	ProductAssetRole,
 	StoredProductSku,
@@ -117,6 +119,79 @@ function assertBundleDiscountPatchForProduct(
 	}
 }
 type Collection<T> = StorageCollection<T>;
+
+function asOptionalCollection<T>(raw: unknown): Collection<T> | null {
+	return raw ? (raw as Collection<T>) : null;
+}
+
+function mapInventoryStockToSku(
+	sku: StoredProductSku,
+	inventoryStock?: StoredInventoryStock | null,
+): StoredProductSku {
+	if (!inventoryStock) {
+		return sku;
+	}
+	return {
+		...sku,
+		inventoryQuantity: inventoryStock.quantity,
+		inventoryVersion: inventoryStock.version,
+	};
+}
+
+async function hydrateSkusWithInventoryStock(
+	product: StoredProduct,
+	skuRows: StoredProductSku[],
+	inventoryStock: Collection<StoredInventoryStock> | null,
+): Promise<StoredProductSku[]> {
+	if (!inventoryStock) {
+		return skuRows;
+	}
+
+	const variantStocks = await Promise.all(
+		skuRows.map((sku) => inventoryStock.get(inventoryStockDocId(product.id, sku.id))),
+	);
+	const productLevelStock = product.type === "simple" && skuRows.length === 1
+		? await inventoryStock.get(inventoryStockDocId(product.id, ""))
+		: null;
+
+	const hydrated = skuRows.map((sku, index) => {
+		const stock = variantStocks[index] ?? productLevelStock;
+		return mapInventoryStockToSku(sku, stock);
+	});
+	return hydrated;
+}
+
+async function syncInventoryStockForSku(
+	inventoryStock: Collection<StoredInventoryStock> | null,
+	product: StoredProduct,
+	sku: StoredProductSku,
+	nowIso: string,
+	includeProductLevelStock: boolean,
+): Promise<void> {
+	if (!inventoryStock) {
+		return;
+	}
+
+	await inventoryStock.put(inventoryStockDocId(product.id, sku.id), {
+		productId: product.id,
+		variantId: sku.id,
+		quantity: sku.inventoryQuantity,
+		version: sku.inventoryVersion,
+		updatedAt: nowIso,
+	});
+
+	if (!includeProductLevelStock) {
+		return;
+	}
+
+	await inventoryStock.put(inventoryStockDocId(product.id, ""), {
+		productId: product.id,
+		variantId: "",
+		quantity: sku.inventoryQuantity,
+		version: sku.inventoryVersion,
+		updatedAt: nowIso,
+	});
+}
 
 function asCollection<T>(raw: unknown): Collection<T> {
 	return raw as Collection<T>;
@@ -539,6 +614,7 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
 	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
 	const productSkuOptionValues = asCollection<StoredProductSkuOptionValue>(ctx.storage.productSkuOptionValues);
 	const productAssets = asCollection<StoredProductAsset>(ctx.storage.productAssets);
@@ -556,7 +632,11 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
 	const skusResult = await productSkus.query({ where: { productId: product.id } });
-	const skuRows = skusResult.items.map((row) => row.data);
+	const skuRows = await hydrateSkusWithInventoryStock(
+		product,
+		skusResult.items.map((row) => row.data),
+		inventoryStock,
+	);
 	const categories = await queryCategoryDtos(productCategoryLinks, productCategories, product.id);
 	const tags = await queryTagDtos(productTagLinks, productTags, product.id);
 	const primaryImage = await queryPrimaryImageForProduct(productAssetLinks, productAssets, "product", product.id);
@@ -610,7 +690,16 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 			if (!componentSku) {
 				throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Bundle component SKU not found" });
 			}
-			componentLines.push({ component, sku: componentSku });
+			const componentProduct = await products.get(componentSku.productId);
+			if (!componentProduct) {
+				throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component product not found" });
+			}
+			const hydratedComponentSkus = await hydrateSkusWithInventoryStock(
+				componentProduct,
+				[componentSku],
+				inventoryStock,
+			);
+			componentLines.push({ component, sku: hydratedComponentSkus[0] ?? componentSku });
 		}
 		response.bundleSummary = computeBundleSummary(
 			product.id,
@@ -666,6 +755,7 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
 	const productAssets = asCollection<StoredProductAsset>(ctx.storage.productAssets);
 	const productAssetLinks = asCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks);
 	const productCategories = asCollection<StoredCategory>(ctx.storage.categories);
@@ -700,7 +790,11 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 	const items: CatalogListingDTO[] = [];
 	for (const row of sortedRows) {
 		const skus = await productSkus.query({ where: { productId: row.id } });
-		const skuRows = skus.items.map((sku) => sku.data);
+		const skuRows = await hydrateSkusWithInventoryStock(
+			row,
+			skus.items.map((sku) => sku.data),
+			inventoryStock,
+		);
 		const primaryImage = await queryPrimaryImageForProduct(productAssetLinks, productAssets, "product", row.id);
 		const galleryImages = await queryProductImagesByRole(
 			productAssetLinks,
@@ -928,6 +1022,7 @@ export async function createProductSkuHandler(
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
 	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
 	const productAttributeValues = asCollection<StoredProductAttributeValue>(
 		ctx.storage.productAttributeValues,
@@ -950,6 +1045,7 @@ export async function createProductSkuHandler(
 	if (existingSku.items.length > 0) {
 		throw PluginRouteError.badRequest(`SKU code already exists: ${ctx.input.skuCode}`);
 	}
+	const existingSkuCount = (await productSkus.query({ where: { productId: product.id } })).items.length;
 
 	if (product.type !== "variable" && inputOptionValues.length > 0) {
 		throw PluginRouteError.badRequest("Option values are only allowed for variable products");
@@ -1015,6 +1111,13 @@ export async function createProductSkuHandler(
 	};
 
 	await productSkus.put(id, sku);
+	await syncInventoryStockForSku(
+		inventoryStock,
+		product,
+		sku,
+		nowIso,
+		product.type !== "variable" && existingSkuCount === 0,
+	);
 
 	if (product.type === "variable") {
 		for (const optionInput of inputOptionValues) {
@@ -1037,7 +1140,9 @@ export async function updateProductSkuHandler(
 	ctx: RouteContext<ProductSkuUpdateInput>,
 ): Promise<ProductSkuResponse> {
 	requirePost(ctx);
+	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
 	const nowIso = new Date(Date.now()).toISOString();
 
 	const existing = await productSkus.get(ctx.input.skuId);
@@ -1057,6 +1162,23 @@ export async function updateProductSkuHandler(
 	}
 	const sku = applyProductSkuUpdatePatch(existing, patch, nowIso);
 	await productSkus.put(skuId, sku);
+	const shouldSyncInventoryStock =
+		patch.inventoryQuantity !== undefined || patch.inventoryVersion !== undefined;
+	if (shouldSyncInventoryStock) {
+		const product = await products.get(existing.productId);
+		if (!product) {
+			throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
+		}
+		const productSkusForProduct = await productSkus.query({ where: { productId: product.id } });
+		const includeProductLevelStock = product.type !== "variable" && productSkusForProduct.items.length === 1;
+		await syncInventoryStockForSku(
+			inventoryStock,
+			product,
+			sku,
+			nowIso,
+			includeProductLevelStock,
+		);
+	}
 
 	return { sku };
 }
@@ -1445,6 +1567,7 @@ export async function bundleComputeHandler(
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
+	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
 	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
 
 	const product = await products.get(ctx.input.productId);
@@ -1462,7 +1585,12 @@ export async function bundleComputeHandler(
 		if (!sku) {
 			throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Bundle component SKU not found" });
 		}
-		lines.push({ component, sku });
+		const componentProduct = await products.get(sku.productId);
+		if (!componentProduct) {
+			throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component product not found" });
+		}
+		const hydratedSkus = await hydrateSkusWithInventoryStock(componentProduct, [sku], inventoryStock);
+		lines.push({ component, sku: hydratedSkus[0] ?? sku });
 	}
 
 	return computeBundleSummary(
