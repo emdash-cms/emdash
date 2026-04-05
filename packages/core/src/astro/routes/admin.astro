@@ -6,9 +6,9 @@
  * AdminWrapper imports plugin admin modules and passes them to AdminApp.
  */
 import "@emdash-cms/admin/styles.css";
-// Use package-qualified import so Astro generates a proper module URL
-// (relative imports resolve to absolute paths which break client hydration)
-import AdminWrapper from "emdash/routes/PluginRegistry";
+// Keep this as a local sibling import so Astro treats it as a framework
+// component source file instead of a package dependency.
+import AdminWrapper from "./PluginRegistry.tsx";
 
 export const prerender = false;
 ---
