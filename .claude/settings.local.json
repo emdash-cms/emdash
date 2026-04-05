@@ -3,7 +3,15 @@
     "allow": [
       "Bash(python3 -c 'import sys,json; d=json.load\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\); print\\(d.get\\('\\\\''name'\\\\'','\\\\''?'\\\\''\\), '\\\\''|'\\\\'', list\\(d.get\\('\\\\''scripts'\\\\'',{}\\).keys\\(\\)\\)\\)')",
       "Bash(python3:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4321/)",
+      "Bash(docker stop:*)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:4322/)",
+      "Bash(kill %1)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" http://localhost:4321/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:4321/)",
+      "Bash(docker compose up:*)"
     ]
   }
 }

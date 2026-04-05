@@ -27,13 +27,20 @@ RUN pnpm --filter emdash \
          build
 
 # ── Remove admin/src/ so Vite uses compiled dist/ only ───────────────────────
-# vite-config.ts resolveAdminSource() detects packages/admin/src/ and switches
-# Vite to compile raw TS from the workspace link instead of using dist/ → fails.
-# core/src/ MUST stay: its routes/* and ui exports point to src/ directly.
+# vite-config.ts resolveAdminSource() checks for packages/admin/src/ and if
+# found aliases Vite to raw TS instead of dist/ → build failure.
+# core/src/ MUST remain: routes/* and ui exports point directly to src/.
 RUN rm -rf packages/admin/src
 
 # ── Build the blog template (Astro SSR → dist/) ──────────────────────────────
 RUN pnpm --filter @emdash-cms/template-blog build
+
+# ── Create a self-contained production deployment directory ──────────────────
+# pnpm deploy resolves all workspace:* links, installs only prod deps,
+# and produces a flat node_modules with NO symlinks — safe to copy between
+# Docker stages. The blog dist/ is included because templates/blog has no
+# "files" field so pnpm deploy copies everything.
+RUN pnpm deploy --filter @emdash-cms/template-blog --prod --legacy /deploy
 
 
 # ─── Stage 2: Runtime ────────────────────────────────────────────────────────
@@ -41,28 +48,16 @@ FROM node:22-alpine AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules             ./node_modules
-COPY --from=builder /app/package.json             ./
-COPY --from=builder /app/pnpm-workspace.yaml      ./
+# ── Copy the fully resolved, symlink-free deployment directory ────────────────
+COPY --from=builder /deploy .
 
-COPY --from=builder /app/packages/core/package.json   packages/core/
-COPY --from=builder /app/packages/core/dist/           packages/core/dist/
-COPY --from=builder /app/packages/admin/package.json  packages/admin/
-COPY --from=builder /app/packages/admin/dist/          packages/admin/dist/
-COPY --from=builder /app/packages/auth/package.json   packages/auth/
-COPY --from=builder /app/packages/auth/dist/           packages/auth/dist/
-COPY --from=builder /app/packages/blocks/package.json packages/blocks/
-COPY --from=builder /app/packages/blocks/dist/         packages/blocks/dist/
-COPY --from=builder /app/packages/plugins/audit-log/package.json packages/plugins/audit-log/
-COPY --from=builder /app/packages/plugins/audit-log/src/          packages/plugins/audit-log/src/
+# ── Copy the compiled dist/ (excluded by .gitignore, so pnpm deploy skips it) -
+COPY --from=builder /app/templates/blog/dist/ ./dist/
 
-COPY --from=builder /app/templates/blog/dist/          templates/blog/dist/
-COPY --from=builder /app/templates/blog/package.json   templates/blog/
-COPY --from=builder /app/templates/blog/astro.config.mjs templates/blog/
+# ── Persistent data volumes ───────────────────────────────────────────────────
+RUN mkdir -p data uploads
 
-RUN mkdir -p templates/blog/data templates/blog/uploads
-
-VOLUME ["/app/templates/blog/data", "/app/templates/blog/uploads"]
+VOLUME ["/app/data", "/app/uploads"]
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
@@ -71,7 +66,5 @@ ENV EMDASH_AUTH_SECRET=""
 ENV EMDASH_PREVIEW_SECRET=""
 
 EXPOSE 4321
-
-WORKDIR /app/templates/blog
 
 CMD ["node", "./dist/server/entry.mjs"]
