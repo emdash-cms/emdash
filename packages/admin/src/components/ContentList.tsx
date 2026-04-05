@@ -97,6 +97,13 @@ export function ContentList({
 	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
 	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+	// Auto-fetch next API page when user reaches the last client-side page
+	React.useEffect(() => {
+		if (page >= totalPages - 1 && hasMore && onLoadMore) {
+			onLoadMore();
+		}
+	}, [page, totalPages, hasMore, onLoadMore]);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -223,7 +230,8 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+								{filteredItems.length}
+								{hasMore && !searchQuery ? "+" : ""} {filteredItems.length === 1 ? "item" : "items"}
 								{searchQuery && ` matching "${searchQuery}"`}
 							</span>
 							<div className="flex items-center gap-2">
@@ -249,15 +257,6 @@ export function ContentList({
 									<CaretRight className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</div>
-						</div>
-					)}
-
-					{/* Load more */}
-					{hasMore && (
-						<div className="flex justify-center">
-							<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
-								{isLoading ? "Loading..." : "Load More"}
-							</Button>
 						</div>
 					)}
 				</>

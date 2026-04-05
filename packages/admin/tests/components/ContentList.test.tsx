@@ -289,31 +289,26 @@ describe("ContentList", () => {
 	});
 
 	describe("load more", () => {
-		it("shows Load More button when hasMore is true", async () => {
+		it("auto-fetches next page when on last client-side page and hasMore is true", async () => {
 			const onLoadMore = vi.fn();
+			// Only a few items — fits on one page, so user is already on the last page
 			const items = [makeItem()];
-			const screen = await render(
-				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
-			);
-			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
-		});
-
-		it("does not show Load More when hasMore is false", async () => {
-			const items = [makeItem()];
-			const screen = await render(<ContentList {...defaultProps} items={items} hasMore={false} />);
-			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
-		});
-
-		it("calls onLoadMore when Load More is clicked", async () => {
-			const onLoadMore = vi.fn();
-			const items = [makeItem()];
-			const screen = await render(
+			await render(
 				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
 			);
 
-			await screen.getByRole("button", { name: "Load More" }).click();
-
+			// Effect should fire on mount since page 0 is the last page
 			expect(onLoadMore).toHaveBeenCalledOnce();
+		});
+
+		it("does not auto-fetch when hasMore is false", async () => {
+			const onLoadMore = vi.fn();
+			const items = [makeItem()];
+			await render(
+				<ContentList {...defaultProps} items={items} hasMore={false} onLoadMore={onLoadMore} />,
+			);
+
+			expect(onLoadMore).not.toHaveBeenCalled();
 		});
 	});
 
