@@ -19,23 +19,21 @@ COPY . .
 RUN pnpm install --frozen-lockfile --offline
 
 # ── Build library packages ────────────────────────────────────────────────────
-RUN pnpm --filter emdash --filter @emdash-cms/admin --filter @emdash-cms/auth --filter @emdash-cms/blocks build
+RUN pnpm --filter emdash \
+         --filter @emdash-cms/admin \
+         --filter @emdash-cms/auth \
+         --filter @emdash-cms/blocks \
+         --filter @emdash-cms/gutenberg-to-portable-text \
+         build
 
-# ── Remove workspace src/ so Vite uses compiled dist/ only ───────────────────
-# vite-config.ts resolveAdminSource() checks if packages/admin/src/ exists.
-# If it does, Vite tries to compile raw TS from the workspace symlink → fails.
-RUN rm -rf packages/admin/src packages/auth/src packages/blocks/src packages/core/src
+# ── Remove admin/src/ so Vite uses compiled dist/ only ───────────────────────
+# vite-config.ts resolveAdminSource() detects packages/admin/src/ and switches
+# Vite to compile raw TS from the workspace link instead of using dist/ → fails.
+# core/src/ MUST stay: its routes/* and ui exports point to src/ directly.
+RUN rm -rf packages/admin/src
 
-# ── Build the blog template — print full output on failure ───────────────────
-RUN pnpm --filter @emdash-cms/template-blog build 2>&1 | tee /tmp/astro-build.log; \
-    BUILD_EXIT=${PIPESTATUS[0]}; \
-    if [ "$BUILD_EXIT" != "0" ]; then \
-      echo ""; \
-      echo "========== ASTRO BUILD FAILED — FULL LOG =========="; \
-      cat /tmp/astro-build.log; \
-      echo "===================================================="; \
-      exit 1; \
-    fi
+# ── Build the blog template (Astro SSR → dist/) ──────────────────────────────
+RUN pnpm --filter @emdash-cms/template-blog build
 
 
 # ─── Stage 2: Runtime ────────────────────────────────────────────────────────
