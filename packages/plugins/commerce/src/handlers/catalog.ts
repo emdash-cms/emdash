@@ -451,6 +451,66 @@ function summarizeInventory(skus: StoredProductSku[]): ProductInventorySummaryDT
 	return { skuCount, activeSkuCount, totalInventoryQuantity };
 }
 
+type ProductReadCollections = {
+	productCategoryLinks: Collection<StoredProductCategoryLink>;
+	productCategories: Collection<StoredCategory>;
+	productTagLinks: Collection<StoredProductTagLink>;
+	productTags: Collection<StoredProductTag>;
+	productAssets: Collection<StoredProductAsset>;
+	productAssetLinks: Collection<StoredProductAssetLink>;
+	productSkus: Collection<StoredProductSku>;
+	inventoryStock: Collection<StoredInventoryStock> | null;
+};
+
+type ProductReadContext = {
+	product: StoredProduct;
+	includeGalleryImages?: boolean;
+};
+
+type ProductReadMetadata = {
+	skus: StoredProductSku[];
+	categories: ProductCategoryDTO[];
+	tags: ProductTagDTO[];
+	primaryImage?: ProductPrimaryImageDTO;
+	galleryImages: ProductPrimaryImageDTO[];
+};
+
+async function loadProductReadMetadata(
+	collections: ProductReadCollections,
+	context: ProductReadContext,
+): Promise<ProductReadMetadata> {
+	const { product, includeGalleryImages = false } = context;
+	const [skusResult, categories, tags, primaryImage, galleryImages] = await Promise.all([
+		collections.productSkus.query({ where: { productId: product.id } }),
+		queryCategoryDtos(collections.productCategoryLinks, collections.productCategories, product.id),
+		queryTagDtos(collections.productTagLinks, collections.productTags, product.id),
+		queryPrimaryImageForProduct(collections.productAssetLinks, collections.productAssets, "product", product.id),
+		includeGalleryImages
+			? queryProductImagesByRole(
+				collections.productAssetLinks,
+				collections.productAssets,
+				"product",
+				product.id,
+				["gallery_image"],
+			)
+			: Promise.resolve([] as ProductPrimaryImageDTO[]),
+	]);
+
+	const skus = await hydrateSkusWithInventoryStock(
+		product,
+		skusResult.items.map((row) => row.data),
+		collections.inventoryStock,
+	);
+
+	return {
+		skus,
+		categories,
+		tags,
+		primaryImage,
+		galleryImages,
+	};
+}
+
 function summarizeSkuPricing(skus: StoredProductSku[]): ProductPriceRangeDTO {
 	if (skus.length === 0) return { minUnitPriceMinor: undefined, maxUnitPriceMinor: undefined };
 	const prices = skus.filter((sku) => sku.status === "active").map((sku) => sku.unitPriceMinor);
@@ -691,22 +751,20 @@ export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Pro
 	if (!product) {
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
-	const skusResult = await productSkus.query({ where: { productId: product.id } });
-	const skuRows = await hydrateSkusWithInventoryStock(
-		product,
-		skusResult.items.map((row) => row.data),
-		inventoryStock,
-	);
-	const categories = await queryCategoryDtos(productCategoryLinks, productCategories, product.id);
-	const tags = await queryTagDtos(productTagLinks, productTags, product.id);
-	const primaryImage = await queryPrimaryImageForProduct(productAssetLinks, productAssets, "product", product.id);
-	const galleryImages = await queryProductImagesByRole(
-		productAssetLinks,
-		productAssets,
-		"product",
-		product.id,
-		["gallery_image"],
-	);
+	const { skus: skuRows, categories, tags, primaryImage, galleryImages } =
+		await loadProductReadMetadata({
+			productCategoryLinks,
+			productCategories,
+			productTagLinks,
+			productTags,
+			productAssets,
+			productAssetLinks,
+			productSkus,
+			inventoryStock,
+		}, {
+			product,
+			includeGalleryImages: true,
+		});
 	const response: ProductResponse = { product, skus: skuRows, categories, tags };
 	if (primaryImage) response.primaryImage = primaryImage;
 	if (galleryImages.length > 0) response.galleryImages = galleryImages;
@@ -849,22 +907,23 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 	);
 	const items: CatalogListingDTO[] = [];
 	for (const row of sortedRows) {
-		const skus = await productSkus.query({ where: { productId: row.id } });
-		const skuRows = await hydrateSkusWithInventoryStock(
-			row,
-			skus.items.map((sku) => sku.data),
-			inventoryStock,
+		const { skus: skuRows, categories, tags, primaryImage, galleryImages } = await loadProductReadMetadata(
+			{
+				productCategoryLinks,
+				productCategories,
+				productTagLinks,
+				productTags,
+				productAssets,
+				productAssetLinks,
+				productSkus,
+				inventoryStock,
+			},
+			{
+				product: row,
+				includeGalleryImages: true,
+			},
 		);
-		const primaryImage = await queryPrimaryImageForProduct(productAssetLinks, productAssets, "product", row.id);
-		const galleryImages = await queryProductImagesByRole(
-			productAssetLinks,
-			productAssets,
-			"product",
-			row.id,
-			["gallery_image"],
-		);
-		const categories = await queryCategoryDtos(productCategoryLinks, productCategories, row.id);
-		const tags = await queryTagDtos(productTagLinks, productTags, row.id);
+
 		items.push({
 			product: row,
 			priceRange: summarizeSkuPricing(skuRows),
