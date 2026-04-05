@@ -1461,7 +1461,14 @@ function BylineCreditsEditor({
 						<div className="mt-6 flex justify-end gap-2">
 							<Dialog.Close
 								render={(p) => (
-									<Button {...p} variant="secondary" onClick={resetQuickCreate}>
+									<Button
+										{...p}
+										variant="secondary"
+										onClick={(e) => {
+											resetQuickCreate();
+											p.onClick?.(e);
+										}}
+									>
 										Cancel
 									</Button>
 								)}
