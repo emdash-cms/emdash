@@ -9,6 +9,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { describe, it, expect } from "vitest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,9 +22,7 @@ describe("package.json exports", () => {
 	for (const [entrypoint, conditions] of Object.entries(exports)) {
 		if (conditions == null || typeof conditions !== "object") continue;
 
-		for (const [condition, filepath] of Object.entries(
-			conditions as Record<string, string>,
-		)) {
+		for (const [condition, filepath] of Object.entries(conditions as Record<string, string>)) {
 			it(`${entrypoint} → ${condition} (${filepath}) exists`, () => {
 				const absolute = resolve(pkgRoot, filepath);
 				expect(
