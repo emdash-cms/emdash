@@ -485,6 +485,8 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
  * Uses batch queries to avoid N+1.
  *
  * Fails silently if the byline tables don't exist yet (pre-migration).
+ *
+ * IDs are chunked to stay within Cloudflare D1's bound-parameter limit.
  */
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
@@ -495,7 +497,18 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
 		if (ids.length === 0) return;
 
-		const bylinesMap = await getBylinesForEntries(type, ids);
+		// Chunk IDs to avoid exceeding D1's SQL bound-parameter limit.
+		// A conservative chunk size of 50 keeps each IN (...) clause well within
+		// D1's limit while minimising round-trips.
+		const CHUNK_SIZE = 50;
+		type BylinesMap = Awaited<ReturnType<typeof getBylinesForEntries>>;
+		const bylinesMap: BylinesMap = new Map();
+		for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+			const chunkMap = await getBylinesForEntries(type, ids.slice(i, i + CHUNK_SIZE));
+			for (const [k, v] of chunkMap) {
+				bylinesMap.set(k, v);
+			}
+		}
 
 		for (const entry of entries) {
 			const data = entryData(entry);
