@@ -321,15 +321,6 @@ function sortBundleComponentsByPosition(
 	return sorted;
 }
 
-function normalizeBundleComponentPositions(
-	components: StoredBundleComponent[],
-): StoredBundleComponent[] {
-	return components.map((component, idx) => ({
-		...component,
-		position: idx,
-	}));
-}
-
 type OrderedRow = {
 	id: string;
 	position: number;
@@ -397,7 +388,7 @@ async function queryBundleComponentsForProduct(
 		where: { bundleProductId },
 	});
 	const rows = sortBundleComponentsByPosition(query.items.map((row) => row.data));
-	return normalizeBundleComponentPositions(rows);
+	return normalizeOrderedChildren(rows);
 }
 
 function toProductCategoryDTO(row: StoredCategory): ProductCategoryDTO {
