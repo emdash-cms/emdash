@@ -1049,6 +1049,7 @@ function FieldRenderer({
 		case "boolean":
 			return (
 				<Switch
+					id={id}
 					label={label}
 					checked={typeof value === "boolean" ? value : false}
 					onCheckedChange={handleChange}
@@ -1058,7 +1059,7 @@ function FieldRenderer({
 		case "portableText": {
 			const labelId = `${id}-label`;
 			return (
-				<div>
+				<div id={id}>
 					{!minimal && (
 						<span
 							id={labelId}
@@ -1102,6 +1103,7 @@ function FieldRenderer({
 			}
 			return (
 				<Select
+					id={id}
 					label={label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => handleChange(v ?? "")}
@@ -1134,6 +1136,7 @@ function FieldRenderer({
 				value != null && typeof value === "object" ? (value as ImageFieldValue) : undefined;
 			return (
 				<ImageFieldRenderer
+					id={id}
 					label={label}
 					value={imageValue}
 					onChange={handleChange}
@@ -1181,13 +1184,14 @@ interface ImageFieldValue {
  * Handles backwards compatibility with legacy string URLs.
  */
 interface ImageFieldRendererProps {
+	id?: string;
 	label: string;
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | undefined) => void;
 	required?: boolean;
 }
 
-function ImageFieldRenderer({ label, value, onChange, required }: ImageFieldRendererProps) {
+function ImageFieldRenderer({ id, label, value, onChange, required }: ImageFieldRendererProps) {
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
@@ -1221,7 +1225,7 @@ function ImageFieldRenderer({ label, value, onChange, required }: ImageFieldRend
 	};
 
 	return (
-		<div>
+		<div id={id}>
 			<Label>{label}</Label>
 			{displayUrl ? (
 				<div className="mt-2 relative group">
