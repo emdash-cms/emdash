@@ -42,7 +42,7 @@ import {
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { Extension, type Range } from "@tiptap/core";
+import { Extension, type Content, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -471,6 +471,26 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		type: "doc",
 		content: content.length > 0 ? content : [{ type: "paragraph" }],
 	};
+}
+
+function stripPortableTextKeys(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map(stripPortableTextKeys);
+	}
+
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value)
+				.filter(([key]) => key !== "_key")
+				.map(([key, entryValue]) => [key, stripPortableTextKeys(entryValue)]),
+		);
+	}
+
+	return value;
+}
+
+function serializePortableTextForComparison(blocks: PortableTextBlock[]): string {
+	return JSON.stringify(stripPortableTextKeys(blocks));
 }
 
 function convertPTBlock(block: PortableTextBlock): unknown {
@@ -1465,12 +1485,6 @@ export function PortableTextEditor({
 		return [...titleMatches, ...otherMatches];
 	};
 
-	// Convert initial value to ProseMirror format
-	const initialContent = React.useMemo(
-		() => portableTextToProsemirror(value || []),
-		[], // Only compute once on mount
-	);
-
 	// Memoize the entire extensions array so TipTap never diffs/replaces
 	// plugins on re-render. The loop was: extension array changes → useEditor
 	// calls setOptions → old Suggestion plugin destroyed → onExit fires
@@ -1526,6 +1540,24 @@ export function PortableTextEditor({
 		[], // Created once — all mutable state accessed via refs
 	);
 
+	// The initial ProseMirror document passed to the editor when it's created.
+	// TipTap treats this as boot input, so keep it stable for the lifetime of the editor instance
+	const initialContentRef = React.useRef<ReturnType<typeof portableTextToProsemirror> | null>(null);
+	if (!initialContentRef.current) {
+		initialContentRef.current = portableTextToProsemirror(value || []);
+	}
+
+	// The latest ProseMirror document derived from the `value` prop.
+	// If changed after mount, this is what we push into the editor via setContent()
+	const externalContent = React.useMemo(() => portableTextToProsemirror(value || []), [value]);
+
+	// A stable comparison key for the current `value` prop, based on Portable Text.
+	// This lets the reconciliation effect ignore editor-specific ProseMirror differences
+	const externalPortableTextSignature = React.useMemo(
+		() => serializePortableTextForComparison(value || []),
+		[value],
+	);
+
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -1541,7 +1573,7 @@ export function PortableTextEditor({
 
 	const editor = useEditor({
 		extensions,
-		content: initialContent as Parameters<typeof useEditor>[0]["content"],
+		content: initialContentRef.current as Parameters<typeof useEditor>[0]["content"],
 		editable,
 		immediatelyRender: true,
 		editorProps,
@@ -1556,6 +1588,26 @@ export function PortableTextEditor({
 			}
 		},
 	});
+
+	// TipTap only reads the initial boot document from useEditor({ content }),
+	// so later external value changes must be reconciled into the live editor
+	React.useEffect(() => {
+		if (!editor) {
+			return;
+		}
+
+		// Do nothing if, after normalization, the updated value prop's content matches the editor's current content
+		const currentPortableTextSignature = serializePortableTextForComparison(
+			prosemirrorToPortableText(
+				editor.getJSON() as Parameters<typeof prosemirrorToPortableText>[0],
+			),
+		);
+		if (currentPortableTextSignature === externalPortableTextSignature) {
+			return;
+		}
+
+		editor.commands.setContent(externalContent as Content, { emitUpdate: false });
+	}, [editor, externalContent, externalPortableTextSignature]);
 
 	// Notify when editor is ready
 	React.useEffect(() => {

@@ -464,6 +464,47 @@ describe("Editor component behaviour", () => {
 			{ timeout: 2000 },
 		);
 	});
+
+	it("updates editor content when value changes without firing onChange", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<PortableTextEditor value={[textBlock("Initial text")]} onChange={onChange} />,
+		);
+		let pm = await waitForEditor();
+		expect(pm.textContent).toBe("Initial text");
+
+		onChange.mockClear();
+
+		await screen.rerender(
+			<PortableTextEditor
+				value={[textBlock("Updated first line"), textBlock("Updated second line")]}
+				onChange={onChange}
+			/>,
+		);
+
+		pm = await waitForEditor();
+		await vi.waitFor(() => {
+			const paragraphs = pm.querySelectorAll("p");
+			expect(paragraphs.length).toBe(2);
+			expect(paragraphs[0]!.textContent).toBe("Updated first line");
+			expect(paragraphs[1]!.textContent).toBe("Updated second line");
+		});
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("does not reset editor history for equivalent value updates", async () => {
+		const screen = await render(<PortableTextEditor value={[textBlock("Stable text")]} />);
+		await waitForEditor();
+
+		const undoBtn = screen.getByRole("button", { name: "Undo" });
+		await expect.element(undoBtn).toBeDisabled();
+
+		await screen.rerender(<PortableTextEditor value={[textBlock("Stable text")]} />);
+
+		await vi.waitFor(async () => {
+			await expect.element(undoBtn).toBeDisabled();
+		});
+	});
 });
 
 // =============================================================================
