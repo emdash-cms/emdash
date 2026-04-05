@@ -13,11 +13,14 @@ import mime from "mime/lite";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { RESERVED_COLLECTION_SLUGS } from "#schema/types.js";
 import type { EmDashHandlers } from "#types";
 
 export const prerender = false;
 
 const NUMERIC_PATTERN = /^-?\d+(\.\d+)?$/;
+const INVALID_SLUG_CHARS = /[^a-z0-9_-]/g;
+const LEADING_NON_ALPHA = /^[^a-z]+/;
 
 /** Field compatibility status */
 export type FieldCompatibility =
@@ -445,6 +448,16 @@ function isInternalMetaKey(key: string): boolean {
 	return false;
 }
 
+function sanitizeSlug(slug: string): string {
+	const sanitized = slug
+		.toLowerCase()
+		.replace(INVALID_SLUG_CHARS, "_")
+		.replace(LEADING_NON_ALPHA, "");
+	if (!sanitized) return "imported";
+	if (RESERVED_COLLECTION_SLUGS.includes(sanitized)) return `wp_${sanitized}`;
+	return sanitized;
+}
+
 function mapPostTypeToCollection(postType: string): string {
 	const mapping: Record<string, string> = {
 		post: "posts",
@@ -457,7 +470,7 @@ function mapPostTypeToCollection(postType: string): string {
 		event: "events",
 		faq: "faqs",
 	};
-	return mapping[postType] || postType;
+	return mapping[postType] || sanitizeSlug(postType);
 }
 
 function mapMetaKeyToField(key: string): string {
@@ -507,4 +520,4 @@ function singularize(str: string): string {
 }
 
 // Export helpers for use in prepare endpoint
-export { capitalize, singularize, mapPostTypeToCollection };
+export { capitalize, sanitizeSlug, singularize, mapPostTypeToCollection };

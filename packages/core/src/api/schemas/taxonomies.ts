@@ -4,8 +4,8 @@ import { z } from "zod";
 // Taxonomy definitions: Input schemas
 // ---------------------------------------------------------------------------
 
-/** Collection slug format: lowercase alphanumeric + underscores, starts with letter */
-const collectionSlugPattern = /^[a-z][a-z0-9_]*$/;
+/** Collection slug format: lowercase alphanumeric + underscores/hyphens, starts with letter */
+const collectionSlugPattern = /^[a-z][a-z0-9_-]*$/;
 
 export const createTaxonomyDefBody = z
 	.object({
@@ -13,7 +13,10 @@ export const createTaxonomyDefBody = z
 			.string()
 			.min(1)
 			.max(63)
-			.regex(/^[a-z][a-z0-9_]*$/, "Name must be lowercase alphanumeric with underscores"),
+			.regex(
+				/^[a-z][a-z0-9_-]*$/,
+				"Name must be lowercase alphanumeric with underscores or hyphens",
+			),
 		label: z.string().min(1).max(200),
 		hierarchical: z.boolean().optional().default(false),
 		collections: z

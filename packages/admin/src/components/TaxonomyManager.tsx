@@ -31,7 +31,7 @@ interface TaxonomyManagerProps {
 // Regex patterns for taxonomy name generation and validation (module-scoped per lint rules)
 const NON_ALPHANUMERIC_PATTERN = /[^a-z0-9]+/g;
 const LEADING_TRAILING_UNDERSCORE_PATTERN = /^_|_$/g;
-const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
 /**
  * Flatten tree to get all terms
@@ -377,7 +377,7 @@ function CreateTaxonomyDialog({
 
 		if (!TAXONOMY_NAME_PATTERN.test(name)) {
 			setError(
-				"Name must start with a letter and contain only lowercase letters, numbers, and underscores",
+				"Name must start with a letter and contain only lowercase letters, numbers, underscores, and hyphens",
 			);
 			return;
 		}
@@ -453,11 +453,11 @@ function CreateTaxonomyDialog({
 								}}
 								placeholder="genre"
 								required
-								pattern="[a-z][a-z0-9_]*"
-								title="Lowercase letters, numbers, and underscores only, starting with a letter"
+								pattern="[a-z][a-z0-9_\-]*"
+								title="Lowercase letters, numbers, underscores, and hyphens, starting with a letter"
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
-								Used as the identifier. Lowercase letters, numbers, and underscores only.
+								Used as the identifier. Lowercase letters, numbers, underscores, and hyphens.
 							</p>
 						</div>
 
