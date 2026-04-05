@@ -1,4 +1,4 @@
-name: Seed Marketplace Plugins
+name: Deploy Marketplace
 
 on:
   workflow_dispatch:
@@ -6,18 +6,19 @@ on:
     branches: [main]
     paths:
       - "packages/plugins/**"
+      - "packages/marketplace/**"
       - ".github/workflows/deploy-marketplace.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: seed-marketplace
+  group: deploy-marketplace
   cancel-in-progress: false
 
 jobs:
-  seed:
-    name: Seed Plugins
+  deploy-and-seed:
+    name: Deploy and Seed Marketplace
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -32,6 +33,89 @@ jobs:
 
       # Build core (produces the CLI at dist/cli/index.mjs)
       - run: pnpm run --filter emdash... build
+
+      - name: Verify deployment secrets
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MARKETPLACE_GITHUB_CLIENT_ID: ${{ secrets.MARKETPLACE_GITHUB_CLIENT_ID }}
+          MARKETPLACE_GITHUB_CLIENT_SECRET: ${{ secrets.MARKETPLACE_GITHUB_CLIENT_SECRET }}
+          MARKETPLACE_SEED_TOKEN: ${{ secrets.MARKETPLACE_SEED_TOKEN }}
+        run: |
+          for name in \
+            CLOUDFLARE_API_TOKEN \
+            CLOUDFLARE_ACCOUNT_ID \
+            MARKETPLACE_GITHUB_CLIENT_ID \
+            MARKETPLACE_GITHUB_CLIENT_SECRET \
+            MARKETPLACE_SEED_TOKEN
+          do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Push marketplace Worker secrets
+        working-directory: packages/marketplace
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MARKETPLACE_GITHUB_CLIENT_ID: ${{ secrets.MARKETPLACE_GITHUB_CLIENT_ID }}
+          MARKETPLACE_GITHUB_CLIENT_SECRET: ${{ secrets.MARKETPLACE_GITHUB_CLIENT_SECRET }}
+          MARKETPLACE_SEED_TOKEN: ${{ secrets.MARKETPLACE_SEED_TOKEN }}
+        run: |
+          printf '%s' "$MARKETPLACE_GITHUB_CLIENT_ID" | pnpm exec wrangler secret put GITHUB_CLIENT_ID
+          printf '%s' "$MARKETPLACE_GITHUB_CLIENT_SECRET" | pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
+          printf '%s' "$MARKETPLACE_SEED_TOKEN" | pnpm exec wrangler secret put SEED_TOKEN
+
+      - name: Deploy marketplace Worker
+        working-directory: packages/marketplace
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm deploy
+
+      - name: Smoke-check auth discovery
+        env:
+          MARKETPLACE_URL: https://marketplace.emdashcms.com
+        run: |
+          node <<'NODE'
+          const url = `${process.env.MARKETPLACE_URL}/api/v1/auth/discovery`;
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+          (async () => {
+            let lastStatus = 0;
+            let lastBody = "";
+
+            for (let attempt = 1; attempt <= 24; attempt += 1) {
+              const res = await fetch(url);
+              lastStatus = res.status;
+              lastBody = await res.text();
+
+              if (res.ok) {
+                try {
+                  const body = JSON.parse(lastBody);
+                  if (typeof body?.github?.clientId === "string" && body.github.clientId.length > 0) {
+                    console.log(`Discovery ready on attempt ${attempt}.`);
+                    process.exit(0);
+                  }
+                } catch {}
+              }
+
+              await sleep(5000);
+            }
+
+            console.error("Discovery never exposed github.clientId.");
+            console.error(`Last status: ${lastStatus}`);
+            console.error(lastBody);
+            process.exit(1);
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
 
       # Bundle and publish each standard-format plugin.
       # Only plugins with a sandbox entry can be marketplace-installed.

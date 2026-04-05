@@ -17,6 +17,7 @@
 import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { getDb } from "../../loader.js";
 
 /** Paths that should never be intercepted by redirects */
 const SKIP_PREFIXES = ["/_emdash", "/_image"];
@@ -41,13 +42,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return next();
 	}
 
-	const { emdash } = context.locals;
-	if (!emdash?.db) {
-		return next();
-	}
-
 	try {
-		const repo = new RedirectRepository(emdash.db);
+		// Anonymous public requests may bypass full runtime init, so
+		// locals.emdash is not guaranteed to exist here. Fall back to the
+		// shared loader database so redirects still work on public traffic.
+		const db = context.locals.emdash?.db ?? (await getDb());
+		const repo = new RedirectRepository(db);
 		const match = await repo.matchPath(pathname);
 
 		if (match) {

@@ -44,6 +44,10 @@ In trusted mode:
 	Only install trusted plugins from sources you trust — npm packages you've reviewed, or code you've written yourself. In trusted mode, a malicious plugin has the same access as your application code.
 </Aside>
 
+<Aside type="tip" title="When a plugin needs both trusted and marketplace installs">
+	If a plugin needs Node-only transports or other trusted-only APIs, ship a trusted npm package and a separate marketplace package instead of forcing both runtimes through one artifact. For example, `emdash-smtp` is the trusted package, while `emdash-smtp-marketplace` is the sandbox-safe marketplace package.
+</Aside>
+
 ## Sandboxed Mode (Cloudflare Workers)
 
 Sandboxed plugins run in isolated V8 isolates provided by Cloudflare's [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/) API. Each plugin gets its own isolate with enforced limits.
