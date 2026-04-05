@@ -1,0 +1,288 @@
+name: PR Sweep
+
+on:
+  schedule:
+    # Every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sweep:
+    name: Sweep Open PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sweep PRs
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const now = new Date();
+            const DAY = 24 * 60 * 60 * 1000;
+
+            // Label color map for auto-creation
+            const labelColors = {
+              'needs-approval': 'fbca04',
+              'needs-rebase': 'e11d48',
+              'stale': 'ededed',
+              'overlap': 'c5def5',
+            };
+
+            // Ensure labels exist
+            const existingLabels = new Set();
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listLabelsForRepo,
+              { owner, repo, per_page: 100 }
+            )) {
+              for (const label of response.data) {
+                existingLabels.add(label.name);
+              }
+            }
+            for (const [name, color] of Object.entries(labelColors)) {
+              if (!existingLabels.has(name)) {
+                await github.rest.issues.createLabel({ owner, repo, name, color });
+              }
+            }
+
+            // Get all open PRs
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            core.info(`Sweeping ${prs.length} open PRs`);
+
+            // Build a file->PR map for overlap detection
+            const fileToPRs = new Map();
+
+            for (const pr of prs) {
+              const prLabels = new Set(pr.labels.map(l => l.name));
+              const toAdd = [];
+              const toRemove = [];
+
+              // --- needs-approval: PR has no CI check runs ---
+              // (CLA runs via pull_request_target so it always runs)
+              try {
+                const { data: checkRuns } = await github.rest.checks.listForRef({
+                  owner,
+                  repo,
+                  ref: pr.head.sha,
+                  per_page: 100,
+                });
+                // Filter to only CI-related checks (not CLA, not PR Triage)
+                const ciChecks = checkRuns.check_runs.filter(c =>
+                  !c.name.includes('CLA') &&
+                  !c.name.includes('Label') &&
+                  !c.name.includes('Triage') &&
+                  !c.name.includes('Validate PR')
+                );
+                const prAge = now - new Date(pr.created_at);
+
+                if (ciChecks.length === 0 && prAge > 5 * 60 * 1000) {
+                  // No CI checks after 5 minutes -- likely needs approval
+                  if (!prLabels.has('needs-approval')) toAdd.push('needs-approval');
+                } else {
+                  if (prLabels.has('needs-approval')) toRemove.push('needs-approval');
+                }
+              } catch {
+                // Ignore check run lookup failures
+              }
+
+              // --- needs-rebase: PR has merge conflicts ---
+              // mergeable is not included in the list endpoint; fetch individually
+              try {
+                const { data: fullPr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                });
+                if (fullPr.mergeable === false) {
+                  if (!prLabels.has('needs-rebase')) toAdd.push('needs-rebase');
+                } else if (fullPr.mergeable === true) {
+                  if (prLabels.has('needs-rebase')) toRemove.push('needs-rebase');
+                }
+                // mergeable===null means GitHub is still computing; skip
+              } catch {
+                // Ignore merge status lookup failures
+              }
+
+              // --- Stale detection ---
+              const lastActivity = new Date(pr.updated_at);
+              const daysSinceActivity = (now - lastActivity) / DAY;
+
+              if (daysSinceActivity > 21) {
+                // 21 days with no activity -- close it
+                if (!prLabels.has('stale')) {
+                  // Should already be labeled stale from 14-day mark, but just in case
+                  toAdd.push('stale');
+                }
+
+                const marker = '<!-- stale-close -->';
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: `${marker}\nThis PR has been inactive for 21 days and is being closed automatically. If you'd like to continue working on it, feel free to reopen it.`,
+                });
+
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  state: 'closed',
+                });
+
+                core.info(`#${pr.number}: closed (stale, ${Math.floor(daysSinceActivity)} days inactive)`);
+                continue; // Skip further processing for closed PRs
+              } else if (daysSinceActivity > 14) {
+                // 14 days -- label as stale and warn
+                if (!prLabels.has('stale')) {
+                  toAdd.push('stale');
+
+                  const marker = '<!-- stale-warning -->';
+                  // Check if we already left a stale warning
+                  const { data: comments } = await github.rest.issues.listComments({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    per_page: 10,
+                  });
+                  const hasWarning = comments.some(c =>
+                    c.user?.login === 'github-actions[bot]' && c.body?.includes(marker)
+                  );
+
+                  if (!hasWarning) {
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: pr.number,
+                      body: `${marker}\nThis PR has been inactive for 14 days. It will be closed automatically in 7 days if there is no further activity.\n\nIf you're still working on this, please push an update or leave a comment.`,
+                    });
+                  }
+                }
+              } else {
+                // Active -- remove stale label if present
+                if (prLabels.has('stale')) toRemove.push('stale');
+              }
+
+              // --- Collect files for overlap detection ---
+              try {
+                const { data: files } = await github.rest.pulls.listFiles({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  per_page: 100,
+                });
+                for (const file of files) {
+                  if (!fileToPRs.has(file.filename)) {
+                    fileToPRs.set(file.filename, []);
+                  }
+                  fileToPRs.get(file.filename).push(pr.number);
+                }
+              } catch {
+                // Ignore file listing failures
+              }
+
+              // --- Apply label changes ---
+              if (toAdd.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: toAdd,
+                });
+              }
+              for (const label of toRemove) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    name: label,
+                  });
+                } catch {
+                  // Label might not exist on the PR
+                }
+              }
+
+              if (toAdd.length > 0 || toRemove.length > 0) {
+                core.info(`#${pr.number}: +[${toAdd.join(',')}] -[${toRemove.join(',')}]`);
+              }
+            }
+
+            // --- Overlap detection ---
+            // Find files changed by multiple PRs
+            const overlaps = new Map(); // pr number -> set of overlapping PR numbers
+            for (const [file, prNumbers] of fileToPRs) {
+              if (prNumbers.length > 1) {
+                for (const prNum of prNumbers) {
+                  if (!overlaps.has(prNum)) overlaps.set(prNum, new Set());
+                  for (const other of prNumbers) {
+                    if (other !== prNum) overlaps.get(prNum).add(other);
+                  }
+                }
+              }
+            }
+
+            // Label PRs with significant overlap (3+ shared files with another PR)
+            for (const [prNum, otherPRs] of overlaps) {
+              // Count shared files per overlapping PR
+              const sharedFileCounts = new Map();
+              for (const [file, prNumbers] of fileToPRs) {
+                if (prNumbers.includes(prNum)) {
+                  for (const other of prNumbers) {
+                    if (other !== prNum) {
+                      sharedFileCounts.set(other, (sharedFileCounts.get(other) || 0) + 1);
+                    }
+                  }
+                }
+              }
+
+              const significantOverlaps = [...sharedFileCounts.entries()]
+                .filter(([_, count]) => count >= 3)
+                .map(([otherPR, count]) => `#${otherPR} (${count} shared files)`);
+
+              if (significantOverlaps.length > 0) {
+                const pr = prs.find(p => p.number === prNum);
+                const prLabels = new Set(pr?.labels.map(l => l.name) || []);
+
+                if (!prLabels.has('overlap')) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: prNum,
+                    labels: ['overlap'],
+                  });
+
+                  // Leave a comment about the overlap (only once)
+                  const marker = '<!-- overlap-notice -->';
+                  const { data: comments } = await github.rest.issues.listComments({
+                    owner,
+                    repo,
+                    issue_number: prNum,
+                    per_page: 20,
+                  });
+                  const hasNotice = comments.some(c =>
+                    c.user?.login === 'github-actions[bot]' && c.body?.includes(marker)
+                  );
+
+                  if (!hasNotice) {
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: prNum,
+                      body: `${marker}\n## Overlapping PRs\n\nThis PR modifies files that are also changed by other open PRs:\n\n${significantOverlaps.map(s => `- ${s}`).join('\n')}\n\nThis may cause merge conflicts or duplicated work. A maintainer will coordinate.`,
+                    });
+                  }
+
+                  core.info(`#${prNum}: overlap with ${significantOverlaps.join(', ')}`);
+                }
+              }
+            }
