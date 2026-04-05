@@ -252,7 +252,8 @@ async function queryBundleComponentsForProduct(
 	const query = await bundleComponents.query({
 		where: { bundleProductId },
 	});
-	return sortBundleComponentsByPosition(query.items.map((row) => row.data));
+	const rows = sortBundleComponentsByPosition(query.items.map((row) => row.data));
+	return normalizeBundleComponentPositions(rows);
 }
 
 function toProductCategoryDTO(row: StoredCategory): ProductCategoryDTO {
