@@ -1,0 +1,137 @@
+name: PR Compliance
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-pr:
+    name: Validate PR
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' && github.actor != 'emdashbot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check PR template
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const pr = context.payload.pull_request;
+
+            const errors = [];
+
+            // Check if the PR body looks like it used the template at all
+            const hasTemplate = body.includes('## What does this PR do?') || body.includes('## Type of change');
+
+            if (!hasTemplate) {
+              errors.push('This PR does not use the required PR template. Please edit the description to use the [PR template](https://github.com/emdash-cms/emdash/blob/main/.github/PULL_REQUEST_TEMPLATE.md). Copy it into your PR description and fill out all sections.');
+            } else {
+              // Must have a description (not just the raw template placeholder)
+              const descriptionSection = body.match(/## What does this PR do\?\s*\n([\s\S]*?)(?=\n## )/);
+              const description = descriptionSection?.[1]?.replace(/<!--[\s\S]*?-->/g, '').trim() || '';
+              if (!description || description === 'Closes #') {
+                errors.push('Fill out the "What does this PR do?" section with a description of your change.');
+              }
+
+              // Must check at least one type
+              const typeChecks = [
+                /- \[x\] Bug fix/i,
+                /- \[x\] Feature/i,
+                /- \[x\] Refactor/i,
+                /- \[x\] Documentation/i,
+                /- \[x\] Performance/i,
+                /- \[x\] Tests/i,
+                /- \[x\] Chore/i,
+              ];
+              const hasType = typeChecks.some(re => re.test(body));
+              if (!hasType) {
+                errors.push('Check at least one "Type of change" checkbox.');
+              }
+
+              // If Feature is checked, require a discussion link
+              const isFeature = /- \[x\] Feature/i.test(body);
+              if (isFeature) {
+                const hasDiscussionLink = /github\.com\/emdash-cms\/emdash\/discussions\/\d+/.test(body);
+                if (!hasDiscussionLink) {
+                  errors.push('Feature PRs require a link to an approved Discussion (https://github.com/emdash-cms/emdash/discussions/categories/ideas). Open a Discussion first, get approval, then link it in the PR.');
+                }
+              }
+
+              // Must check the "I have read CONTRIBUTING.md" box
+              const hasReadContributing = /- \[x\] I have read \[CONTRIBUTING\.md\]/i.test(body);
+              if (!hasReadContributing) {
+                errors.push('Check the "I have read CONTRIBUTING.md" checkbox.');
+              }
+            }
+
+            if (errors.length > 0) {
+              const message = [
+                '## PR template validation failed',
+                '',
+                'Please fix the following issues by editing your PR description:',
+                '',
+                ...errors.map(e => `- ${e}`),
+                '',
+                'See [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) for the full contribution policy.',
+              ].join('\n');
+
+              // Leave a comment so the author sees the errors directly
+              // Find and update existing bot comment, or create a new one
+              const marker = '<!-- pr-compliance-check -->';
+              const commentBody = `${marker}\n${message}`;
+
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+              });
+
+              const existing = comments.find(c =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes(marker)
+              );
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body: commentBody,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: commentBody,
+                });
+              }
+
+              core.setFailed(message);
+            } else {
+              // If passing now, remove any previous failure comment
+              const marker = '<!-- pr-compliance-check -->';
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+              });
+
+              const existing = comments.find(c =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes(marker)
+              );
+
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+              }
+            }

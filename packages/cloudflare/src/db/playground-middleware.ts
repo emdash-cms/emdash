@@ -24,6 +24,7 @@ import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
 import { isBlockedInPlayground } from "./do-playground-routes.js";
+import { renderPlaygroundLoadingPage } from "./playground-loading.js";
 import { renderPlaygroundToolbar } from "./playground-toolbar.js";
 
 /** Default TTL for playground data (1 hour) */
@@ -244,6 +245,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const binding = getBindingName();
 
 	// --- Entry point: /playground ---
+	// Show a loading page immediately. The page calls /_playground/init via
+	// fetch to do the actual setup, then redirects to admin when ready.
+	// If the session is already initialized, skip the loading page.
 	if (url.pathname === "/playground") {
 		let token = cookies.get(COOKIE_NAME)?.value;
 		if (!token) {
@@ -256,19 +260,49 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			});
 		}
 
+		// Already initialized? Skip the loading page and go straight to admin.
+		if (initializedSessions.has(token)) {
+			return context.redirect("/_emdash/admin");
+		}
+
+		return new Response(renderPlaygroundLoadingPage(), {
+			status: 200,
+			headers: { "content-type": "text/html; charset=utf-8" },
+		});
+	}
+
+	// --- Init endpoint: called by the loading page ---
+	if (url.pathname === "/_playground/init" && context.request.method === "POST") {
+		const token = cookies.get(COOKIE_NAME)?.value;
+		if (!token) {
+			return Response.json(
+				{ error: { code: "NO_SESSION", message: "No playground session" } },
+				{ status: 400 },
+			);
+		}
+
+		if (initializedSessions.has(token)) {
+			return Response.json({ ok: true });
+		}
+
 		const stub = getStub(binding, token);
 		const dialect = new PreviewDODialect({ getStub: () => stub });
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const db = new Kysely<any>({ dialect });
 
-		if (!initializedSessions.has(token)) {
+		try {
 			await initializePlayground(db, token);
 			initializedSessions.add(token);
 			const fullStub = getFullStub(binding, token);
 			await fullStub.setTtlAlarm(ttl);
+			return Response.json({ ok: true });
+		} catch (error) {
+			console.error("Playground initialization failed:", error);
+			return Response.json(
+				{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
+				{ status: 500 },
+			);
 		}
-
-		return context.redirect("/_emdash/admin");
 	}
 
 	// --- Reset endpoint ---
