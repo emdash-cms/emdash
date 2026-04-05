@@ -14,12 +14,16 @@ import {
 	validateCachedCheckoutCompleted,
 } from "./checkout-state.js";
 import type { StoredIdempotencyKey, StoredOrder, StoredPaymentAttempt } from "../types.js";
+import type { StorageCollection } from "emdash";
 
 type MemCollection<T extends object> = {
 	get(id: string): Promise<T | null>;
 	put(id: string, data: T): Promise<void>;
 	rows: Map<string, T>;
 };
+function asStorageCollection<T extends object>(collection: MemCollection<T>): StorageCollection<T> {
+	return collection as unknown as StorageCollection<T>;
+}
 
 class MemColl<T extends object> implements MemCollection<T> {
 	constructor(public readonly rows = new Map<string, T>()) {}
@@ -35,6 +39,7 @@ class MemColl<T extends object> implements MemCollection<T> {
 }
 
 const NOW = "2026-04-02T12:00:00.000Z";
+const REPLAY_INTEGRITY_HEX64 = /^[a-f0-9]{64}$/;
 
 function checkoutPendingFixture(overrides: Partial<CheckoutPendingState> = {}): CheckoutPendingState {
 	return {
@@ -138,7 +143,15 @@ describe("restorePendingCheckout", () => {
 		const attempts = new MemColl<StoredPaymentAttempt>();
 		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
 
-		const response = await restorePendingCheckout("idemp:abc", cached, pending, NOW, idempotencyKeys, orders, attempts);
+		const response = await restorePendingCheckout(
+			"idemp:abc",
+			cached,
+			pending,
+			NOW,
+			asStorageCollection(idempotencyKeys),
+			asStorageCollection(orders),
+			asStorageCollection(attempts),
+		);
 
 		expect(response).toMatchObject({
 			orderId: pending.orderId,
@@ -148,7 +161,7 @@ describe("restorePendingCheckout", () => {
 			currency: pending.currency,
 			finalizeToken: pending.finalizeToken,
 		});
-		expect(response.replayIntegrity).toMatch(/^[a-f0-9]{64}$/);
+		expect(response.replayIntegrity).toMatch(REPLAY_INTEGRITY_HEX64);
 		const order = await orders.get(pending.orderId);
 		expect(order).toEqual({
 			cartId: pending.cartId,
@@ -213,16 +226,16 @@ describe("restorePendingCheckout", () => {
 			cached,
 			pending,
 			NOW,
-			idempotencyKeys,
-			orders,
-			attempts,
+			asStorageCollection(idempotencyKeys),
+			asStorageCollection(orders),
+			asStorageCollection(attempts),
 		);
 
 		expect(response).toMatchObject({
 			orderId: pending.orderId,
 			paymentAttemptId: pending.paymentAttemptId,
 		});
-		expect(response.replayIntegrity).toMatch(/^[a-f0-9]{64}$/);
+		expect(response.replayIntegrity).toMatch(REPLAY_INTEGRITY_HEX64);
 		expect(await orders.get(pending.orderId)).toEqual(existingOrder);
 		expect(await attempts.get(pending.paymentAttemptId)).toEqual(existingAttempt);
 	});
@@ -258,7 +271,15 @@ describe("restorePendingCheckout", () => {
 		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
 
 		await expect(
-			restorePendingCheckout("idemp:order-mismatch", cached, pending, NOW, idempotencyKeys, orders, attempts),
+			restorePendingCheckout(
+				"idemp:order-mismatch",
+				cached,
+				pending,
+				NOW,
+			asStorageCollection(idempotencyKeys),
+			asStorageCollection(orders),
+			asStorageCollection(attempts),
+			),
 		).rejects.toMatchObject({ code: "order_state_conflict" });
 		expect(await idempotencyKeys.get("idemp:order-mismatch")).toBeNull();
 		expect(await orders.get(pending.orderId)).toEqual(existingOrder);
@@ -296,7 +317,15 @@ describe("restorePendingCheckout", () => {
 		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
 
 		await expect(
-			restorePendingCheckout("idemp:attempt-mismatch", cached, pending, NOW, idempotencyKeys, orders, attempts),
+			restorePendingCheckout(
+				"idemp:attempt-mismatch",
+				cached,
+				pending,
+				NOW,
+				asStorageCollection(idempotencyKeys),
+				asStorageCollection(orders),
+				asStorageCollection(attempts),
+			),
 		).rejects.toMatchObject({ code: "order_state_conflict" });
 		expect(await idempotencyKeys.get("idemp:attempt-mismatch")).toBeNull();
 		expect(await orders.get(pending.orderId)).toEqual(existingOrder);

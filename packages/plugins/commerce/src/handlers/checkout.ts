@@ -38,7 +38,7 @@ import type {
 	StoredInventoryStock,
 	OrderLineItem,
 } from "../types.js";
-import type { CheckoutPendingState } from "./checkout-state.js";
+import type { CheckoutPendingState, CheckoutResponse } from "./checkout-state.js";
 import {
 	CHECKOUT_PENDING_KIND,
 	CHECKOUT_ROUTE,
@@ -275,9 +275,9 @@ export async function checkoutHandler(
 	await orders.put(orderId, order);
 	await attempts.put(paymentAttemptId, attempt);
 
-	const responseBody = {
+	const responseBody: CheckoutResponse = {
 		orderId,
-		paymentPhase: order.paymentPhase,
+		paymentPhase: "payment_pending",
 		paymentAttemptId,
 		totalMinor,
 		currency: cart.currency,

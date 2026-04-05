@@ -90,7 +90,7 @@ class PermissiveInventoryStockColl {
 }
 
 class DefaultProductsColl extends MemColl<StoredProduct> {
-	async get(id: string): Promise<StoredProduct | null> {
+	override async get(id: string): Promise<StoredProduct | null> {
 		const row = this.rows.get(id);
 		if (row) return structuredClone(row);
 		const ts = "2026-01-01T00:00:00.000Z";
@@ -128,12 +128,16 @@ class MemKv {
 type CartGetInputForTest = Omit<CartGetInput, "ownerToken"> & { ownerToken?: string };
 type CheckoutInputForTest = Omit<CheckoutInput, "ownerToken"> & { ownerToken?: string };
 
+function asRouteContext<T>(context: unknown): RouteContext<T> {
+	return context as RouteContext<T>;
+}
+
 function upsertCtx(
 	input: CartUpsertInput,
 	carts: MemColl<StoredCart>,
 	kv: MemKv,
 ): RouteContext<CartUpsertInput> {
-	return {
+	return asRouteContext<CartUpsertInput>({
 		request: new Request("https://example.test/cart/upsert", { method: "POST" }),
 		input,
 		storage: {
@@ -145,11 +149,11 @@ function upsertCtx(
 		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv,
-	} as unknown as RouteContext<CartUpsertInput>;
+	});
 }
 
 function getCtx(input: CartGetInputForTest, carts: MemColl<StoredCart>): RouteContext<CartGetInput> {
-	return {
+	return asRouteContext<CartGetInput>({
 		request: new Request("https://example.test/cart/get", { method: "POST" }),
 		input: {
 			cartId: input.cartId,
@@ -158,7 +162,7 @@ function getCtx(input: CartGetInputForTest, carts: MemColl<StoredCart>): RouteCo
 		storage: { carts },
 		requestMeta: { ip: "127.0.0.1" },
 		kv: new MemKv(),
-	} as unknown as RouteContext<CartGetInput>;
+	});
 }
 
 function checkoutCtx(
@@ -170,7 +174,7 @@ function checkoutCtx(
 	inventoryStock: MemColl<StoredInventoryStock>,
 	kv: MemKv,
 ): RouteContext<CheckoutInput> {
-	return {
+	return asRouteContext<CheckoutInput>({
 		request: new Request("https://example.test/checkout", {
 			method: "POST",
 			headers: new Headers({ "Idempotency-Key": input.idempotencyKey ?? "" }),
@@ -197,7 +201,7 @@ function checkoutCtx(
 		},
 		requestMeta: { ip: "127.0.0.1" },
 		kv,
-	} as unknown as RouteContext<CheckoutInput>;
+	});
 }
 
 const LINE = {
@@ -225,7 +229,7 @@ describe("cartUpsertHandler", () => {
 			storage: { carts },
 			requestMeta: { ip: "127.0.0.1" },
 			kv,
-		} as unknown as RouteContext<CartUpsertInput>;
+		} as RouteContext<CartUpsertInput>;
 		await expect(cartUpsertHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
 	});
 
@@ -413,7 +417,7 @@ describe("cartGetHandler", () => {
 			storage: { carts },
 			requestMeta: { ip: "127.0.0.1" },
 			kv,
-		} as unknown as RouteContext<CartGetInput>;
+		} as RouteContext<CartGetInput>;
 		await expect(cartGetHandler(ctx)).rejects.toMatchObject({ code: "METHOD_NOT_ALLOWED" });
 	});
 

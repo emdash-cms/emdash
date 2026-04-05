@@ -1,5 +1,6 @@
 import { computeBundleSummary } from "./catalog-bundles.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
+import { sortedImmutable } from "./sort-immutable.js";
 import type {
 	OrderLineItemBundleComponentSummary,
 	OrderLineItemBundleSummary,
@@ -135,7 +136,9 @@ async function buildOrderLineSnapshot(
 
 	const targetType = line.variantId ? "sku" : "product";
 	const targetId = line.variantId ?? product.id;
-	const preferredRoles = line.variantId ? ["variant_image", "primary_image"] : ["primary_image"];
+	const preferredRoles = line.variantId
+		? (["variant_image", "primary_image"] as const)
+		: (["primary_image"] as const);
 	base.image = await queryRepresentativeImage({
 		productAssetLinks: catalog.productAssetLinks,
 		productAssets: catalog.productAssets,
@@ -184,7 +187,9 @@ async function resolveSkuForSnapshot(
 	if (rows.items.length !== 1) {
 		return null;
 	}
-	return rows.items[0].data;
+	const row = rows.items[0];
+	if (!row) return null;
+	return row.data;
 }
 
 async function buildBundleSummary(
@@ -278,16 +283,15 @@ async function querySkuOptionSelections(
 	productSkuOptionValues: QueryCollection<StoredProductSkuOptionValue>,
 ): Promise<OrderLineItemOptionSelection[]> {
 	const options = await productSkuOptionValues.query({ where: { skuId } });
-	const ordered = options.items
-		.map((row) => ({
+	const ordered = sortedImmutable(
+		options.items.map((row) => ({
 			attributeId: row.data.attributeId,
 			attributeValueId: row.data.attributeValueId,
-		}))
-		.sort(
-			(left, right) =>
-				left.attributeId.localeCompare(right.attributeId) ||
-				left.attributeValueId.localeCompare(right.attributeValueId),
-		);
+		})),
+		(left, right) =>
+			left.attributeId.localeCompare(right.attributeId) ||
+			left.attributeValueId.localeCompare(right.attributeValueId),
+	);
 	return ordered;
 }
 
@@ -296,14 +300,15 @@ async function queryRepresentativeImage(input: {
 	productAssets: QueryCollection<StoredProductAsset>;
 	targetType: StoredProductAssetLink["targetType"];
 	targetId: string;
-	roles: StoredProductAssetLink["role"][];
+	roles: readonly StoredProductAssetLink["role"][];
 }): Promise<OrderLineItemImageSnapshot | undefined> {
 		const links = await input.productAssetLinks.query({
 			where: { targetType: input.targetType, targetId: input.targetId },
 		});
-	const sorted = links.items
-		.map((row) => row.data)
-		.sort((left, right) => left.position - right.position || left.id.localeCompare(right.id));
+	const sorted = sortedImmutable(
+		links.items.map((row) => row.data),
+		(left, right) => left.position - right.position || left.id.localeCompare(right.id),
+	);
 	const acceptedRoles = new Set(input.roles);
 	for (const link of sorted) {
 		if (!acceptedRoles.has(link.role)) continue;

@@ -40,6 +40,7 @@ import {
 	productAssetReorderInputSchema,
 	productAssetRegisterInputSchema,
 	productAssetUnlinkInputSchema,
+	productCreateInputSchema,
 	digitalAssetCreateInputSchema,
 	digitalEntitlementCreateInputSchema,
 	categoryCreateInputSchema,
@@ -51,7 +52,10 @@ import {
 	productTagLinkInputSchema,
 	productTagUnlinkInputSchema,
 	bundleComponentAddInputSchema,
+	productUpdateInputSchema,
 } from "../schemas.js";
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { sortedImmutable } from "../lib/sort-immutable.js";
 import {
 	createProductHandler,
 	setProductStateHandler,
@@ -69,11 +73,9 @@ import {
 	createCategoryHandler,
 	listCategoriesHandler,
 	createProductCategoryLinkHandler,
-	removeProductCategoryLinkHandler,
 	createTagHandler,
 	listTagsHandler,
 	createProductTagLinkHandler,
-	removeProductTagLinkHandler,
 	addBundleComponentHandler,
 	reorderBundleComponentHandler,
 	removeBundleComponentHandler,
@@ -82,6 +84,10 @@ import {
 	createDigitalEntitlementHandler,
 	removeDigitalEntitlementHandler,
 } from "./catalog.js";
+
+const PRODUCT_ID_PREFIX = /^prod_/;
+const SKU_ID_PREFIX = /^sku_/;
+const ASSET_ID_PREFIX = /^asset_/;
 
 class MemColl<T extends object> {
 	constructor(public readonly rows = new Map<string, T>()) {}
@@ -178,7 +184,7 @@ describe("catalog product handlers", () => {
 			),
 		);
 
-		expect(out.product.id).toMatch(/^prod_/);
+		expect(out.product.id).toMatch(PRODUCT_ID_PREFIX);
 		expect(products.rows.size).toBe(1);
 	});
 
@@ -216,6 +222,51 @@ describe("catalog product handlers", () => {
 			products,
 		);
 		await expect(createProductHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("rejects duplicate slugs on product update", async () => {
+		const products = new MemColl<StoredProduct>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "first",
+			title: "Existing One",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_2", {
+			id: "prod_2",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "second",
+			title: "Existing Two",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const duplicate = updateProductHandler(
+			catalogCtx(
+				{
+					productId: "prod_1",
+					slug: "second",
+				},
+				products,
+			),
+		);
+		await expect(duplicate).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
 	it("creates variable products with variant attributes and values", async () => {
@@ -444,6 +495,34 @@ describe("catalog product handlers", () => {
 		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
+	it("rejects bundle discount fields on non-bundle product updates", async () => {
+		const products = new MemColl<StoredProduct>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "simple",
+			title: "Simple Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = updateProductHandler(
+			catalogCtx({
+				productId: "prod_1",
+				bundleDiscountType: "fixed_amount",
+				bundleDiscountValueMinor: 100,
+			}, products),
+		);
+		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
 	it("sets product status transitions", async () => {
 		const products = new MemColl<StoredProduct>();
 		await products.put("prod_1", {
@@ -532,7 +611,68 @@ describe("catalog product handlers", () => {
 			),
 		);
 		expect(out.items).toHaveLength(1);
-		expect(out.items[0]!.id).toBe("p1");
+		expect(out.items[0]!.product.id).toBe("p1");
+	});
+
+	it("counts low-stock SKUs using COMMERCE_LIMITS.lowStockThreshold", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const threshold = COMMERCE_LIMITS.lowStockThreshold;
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "low-stock-product",
+			title: "Low Stock Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_low", {
+			id: "sku_low",
+			productId: "prod_1",
+			skuCode: "LOW",
+			status: "active",
+			unitPriceMinor: 1000,
+			inventoryQuantity: threshold,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_safe", {
+			id: "sku_safe",
+			productId: "prod_1",
+			skuCode: "SAFE",
+			status: "active",
+			unitPriceMinor: 1000,
+			inventoryQuantity: threshold + 1,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = await listProductsHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					visibility: "public",
+					limit: 10,
+				},
+				products,
+				skus,
+			),
+		);
+		expect(out.items).toHaveLength(1);
+		expect(out.items[0]!.lowStockSkuCount).toBe(1);
 	});
 
 	it("returns product_unavailable when productId does not exist", async () => {
@@ -594,6 +734,10 @@ describe("catalog product handlers", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
 				digitalAssets,
 				digitalEntitlements,
 			),
@@ -614,6 +758,10 @@ describe("catalog product handlers", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
 				digitalAssets,
 				digitalEntitlements,
 			),
@@ -624,6 +772,11 @@ describe("catalog product handlers", () => {
 				{ productId: "prod_1" },
 				products,
 				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
@@ -690,7 +843,7 @@ describe("catalog SKU handlers", () => {
 		);
 		const created = await createProductSkuHandler(createSkuCtx);
 		expect(created.sku.skuCode).toBe("SIMPLE-A");
-		expect(created.sku.id).toMatch(/^sku_/);
+		expect(created.sku.id).toMatch(SKU_ID_PREFIX);
 
 		const listCtx = catalogCtx({ productId: "parent", limit: 10 }, products, skus);
 		const listed = await listProductSkusHandler(listCtx);
@@ -754,7 +907,7 @@ describe("catalog SKU handlers", () => {
 		expect(colorAttribute).toBeDefined();
 		const sizeAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "size");
 		expect(sizeAttribute).toBeDefined();
-		const valueByCode = new Map([...productAttributeValues.rows.values()].map((row) => [row.code, row.id]));
+		const valueByCode = new Map(Array.from(productAttributeValues.rows.values(), (row) => [row.code, row.id]));
 
 		const skuA = await createProductSkuHandler(
 			catalogCtx<ProductSkuCreateInput>(
@@ -1127,6 +1280,79 @@ describe("catalog SKU handlers", () => {
 		expect(updated.sku.productId).toBe("parent");
 	});
 
+	it("rejects duplicate sku code on SKU update", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("parent", {
+			id: "parent",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "parent",
+			title: "Parent",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("parent_two", {
+			id: "parent_two",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "parent-two",
+			title: "Parent Two",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "parent",
+			skuCode: "SKU-ONE",
+			status: "active",
+			unitPriceMinor: 1200,
+			inventoryQuantity: 5,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_2", {
+			id: "sku_2",
+			productId: "parent_two",
+			skuCode: "SKU-TWO",
+			status: "active",
+			unitPriceMinor: 1500,
+			inventoryQuantity: 5,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const duplicate = updateProductSkuHandler(
+			catalogCtx(
+				{
+					skuId: "sku_2",
+					skuCode: "SKU-ONE",
+				},
+				products,
+				skus,
+			),
+		);
+		await expect(duplicate).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
 	it("sets SKU active/inactive state", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
@@ -1232,7 +1458,7 @@ describe("catalog asset handlers", () => {
 			),
 		);
 
-		expect(out.asset.id).toMatch(/^asset_/);
+		expect(out.asset.id).toMatch(ASSET_ID_PREFIX);
 		expect(out.asset.provider).toBe("media");
 		expect(out.asset.externalAssetId).toBe("media-123");
 		expect(out.asset.mimeType).toBe("image/jpeg");
@@ -1392,9 +1618,10 @@ describe("catalog asset handlers", () => {
 		expect(reordered.link.position).toBe(0);
 
 		const byTarget = await productAssetLinks.query({ where: { targetType: "sku", targetId: "sku_1" } });
-		const inOrder = byTarget.items.map((item) => item.data).sort((left, right) => left.position - right.position);
-		expect(inOrder[0]?.id).toBe(second.link.id);
-		expect(inOrder[1]?.id).toBe(first.link.id);
+		const inOrder = byTarget.items.map((item) => item.data);
+		const ordered = sortedImmutable(inOrder, (left, right) => left.position - right.position);
+		expect(ordered[0]?.id).toBe(second.link.id);
+		expect(ordered[1]?.id).toBe(first.link.id);
 	});
 
 	it("unlinks an asset and removes its link row", async () => {
@@ -1454,6 +1681,88 @@ describe("catalog asset handlers", () => {
 
 		const removed = await productAssetLinks.get(linked.link.id);
 		expect(removed).toBeNull();
+	});
+
+	it("normalizes remaining asset link positions after unlink", async () => {
+		const products = new MemColl<StoredProduct>();
+		const productAssets = new MemColl<StoredProductAsset>();
+		const productAssetLinks = new MemColl<StoredProductAssetLink>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "base",
+			title: "Base",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productAssets.put("asset_1", {
+			id: "asset_1",
+			provider: "media",
+			externalAssetId: "media-1",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productAssets.put("asset_2", {
+			id: "asset_2",
+			provider: "media",
+			externalAssetId: "media-2",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const firstLink = await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_1",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "gallery_image",
+				},
+				products,
+				new MemColl(),
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		const secondLink = await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_2",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "gallery_image",
+				},
+				products,
+				new MemColl(),
+				productAssets,
+				productAssetLinks,
+			),
+		);
+
+		const removed = await unlinkCatalogAssetHandler(
+			catalogCtx<ProductAssetUnlinkInput>(
+				{
+					linkId: firstLink.link.id,
+				},
+				products,
+				new MemColl(),
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		expect(removed.deleted).toBe(true);
+
+		const remaining = await productAssetLinks.query({ where: { targetType: "product", targetId: "prod_1" } });
+		expect(remaining.items).toHaveLength(1);
+		expect(remaining.items[0]!.data.id).toBe(secondLink.link.id);
+		expect(remaining.items[0]!.data.position).toBe(0);
 	});
 });
 
@@ -1525,6 +1834,11 @@ describe("catalog digital entitlement handlers", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
 				digitalAssets,
 				digitalEntitlements,
 			),
@@ -1539,6 +1853,11 @@ describe("catalog digital entitlement handlers", () => {
 				},
 				products,
 				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
@@ -1560,6 +1879,10 @@ describe("catalog digital entitlement handlers", () => {
 					},
 					products,
 					skus,
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
+					new MemColl(),
 					new MemColl(),
 					new MemColl(),
 					new MemColl(),
@@ -1593,6 +1916,10 @@ describe("catalog digital entitlement handlers", () => {
 				{ entitlementId: "ent_1" },
 				products,
 				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
@@ -2337,7 +2664,6 @@ describe("catalog organization", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
-				new MemColl(),
 				tags,
 				productTagLinks,
 			),
@@ -2361,7 +2687,6 @@ describe("catalog organization", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
-				tags,
 				productTagLinks,
 			),
 		);
@@ -2369,6 +2694,28 @@ describe("catalog organization", () => {
 	});
 
 	it("validates category and tag schema helpers", () => {
+		expect(
+			productCreateInputSchema.safeParse({
+				type: "simple",
+				status: "draft",
+				visibility: "public",
+				slug: "simple-with-bundle-discount",
+				title: "Simple with discount",
+				bundleDiscountType: "fixed_amount",
+				bundleDiscountValueMinor: 100,
+			}).success,
+		).toBe(false);
+		expect(
+			productCreateInputSchema.safeParse({
+				type: "bundle",
+				status: "draft",
+				visibility: "public",
+				slug: "bundle-with-discount",
+				title: "Bundle with discount",
+				bundleDiscountType: "fixed_amount",
+				bundleDiscountValueMinor: 100,
+			}).success,
+		).toBe(true);
 		expect(categoryCreateInputSchema.safeParse({ name: "Tools", slug: "tools", position: 0 }).success).toBe(true);
 		expect(categoryListInputSchema.safeParse({}).success).toBe(true);
 		expect(productCategoryLinkInputSchema.safeParse({ productId: "p", categoryId: "c" }).success).toBe(true);
@@ -2377,5 +2724,19 @@ describe("catalog organization", () => {
 		expect(tagListInputSchema.safeParse({}).success).toBe(true);
 		expect(productTagLinkInputSchema.safeParse({ productId: "p", tagId: "t" }).success).toBe(true);
 		expect(productTagUnlinkInputSchema.safeParse({ linkId: "link_1" }).success).toBe(true);
+		expect(
+			productUpdateInputSchema.safeParse({
+				productId: "p",
+				bundleDiscountType: "percentage",
+				bundleDiscountValueMinor: 500,
+			}).success,
+		).toBe(false);
+		expect(
+			productUpdateInputSchema.safeParse({
+				productId: "p",
+				bundleDiscountType: "fixed_amount",
+				bundleDiscountValueBps: 100,
+			}).success,
+		).toBe(false);
 	});
 });

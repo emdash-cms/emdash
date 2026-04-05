@@ -7,6 +7,80 @@ import { z } from "astro/zod";
 import { COMMERCE_LIMITS } from "./kernel/limits.js";
 
 const bounded = (max: number) => z.string().min(1).max(max);
+type BundleDiscountType = "none" | "fixed_amount" | "percentage";
+type BundleDiscountInput = {
+	bundleDiscountType?: BundleDiscountType;
+	bundleDiscountValueMinor?: number;
+	bundleDiscountValueBps?: number;
+};
+
+function addBundleDiscountIssue(ctx: z.RefinementCtx, message: string, path: string[]): void {
+	ctx.addIssue({
+		code: z.ZodIssueCode.custom,
+		message,
+		path,
+	});
+}
+
+function validateBundleDiscountForProductType(
+	ctx: z.RefinementCtx,
+	productType: "simple" | "variable" | "bundle",
+	input: BundleDiscountInput,
+): void {
+	const hasDiscountType = input.bundleDiscountType !== undefined;
+	const hasFixedAmountValue = input.bundleDiscountValueMinor !== undefined;
+	const hasBpsValue = input.bundleDiscountValueBps !== undefined;
+	const discountType: BundleDiscountType = input.bundleDiscountType ?? "none";
+
+	if (productType !== "bundle") {
+		if (hasDiscountType || hasFixedAmountValue || hasBpsValue) {
+			addBundleDiscountIssue(
+				ctx,
+				"Bundle discount fields are only supported for bundle products",
+				["bundleDiscountType"],
+			);
+		}
+		return;
+	}
+
+	if (discountType === "fixed_amount" && hasBpsValue) {
+		addBundleDiscountIssue(ctx, "bundleDiscountValueBps can only be used with percentage bundles", [
+			"bundleDiscountValueBps",
+		]);
+		return;
+	}
+
+	if (discountType === "percentage" && hasFixedAmountValue) {
+		addBundleDiscountIssue(ctx, "bundleDiscountValueMinor can only be used with fixed-amount bundles", [
+			"bundleDiscountValueMinor",
+		]);
+		return;
+	}
+
+	if (discountType === "none" && (hasFixedAmountValue || hasBpsValue)) {
+		addBundleDiscountIssue(ctx, "Bundle discount values cannot be set when discount type is none", [
+			"bundleDiscountValueMinor",
+			"bundleDiscountValueBps",
+		]);
+	}
+}
+
+function validateBundleDiscountPatchShape(ctx: z.RefinementCtx, input: BundleDiscountInput): void {
+	const hasFixedAmountValue = input.bundleDiscountValueMinor !== undefined;
+	const hasBpsValue = input.bundleDiscountValueBps !== undefined;
+
+	if (input.bundleDiscountType === "fixed_amount" && hasBpsValue) {
+		addBundleDiscountIssue(ctx, "bundleDiscountValueBps can only be used with percentage bundles", [
+			"bundleDiscountValueBps",
+		]);
+	}
+
+	if (input.bundleDiscountType === "percentage" && hasFixedAmountValue) {
+		addBundleDiscountIssue(ctx, "bundleDiscountValueMinor can only be used with fixed-amount bundles", [
+			"bundleDiscountValueMinor",
+		]);
+	}
+}
 
 /**
  * Shared cart line item fragment — same invariants enforced at cart boundary
@@ -102,7 +176,7 @@ const stripeWebhookEventDataSchema = z.object({
 	data: z.object({
 		object: z.object({
 			id: z.string().min(1).max(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
-			metadata: z.record(z.string().max(COMMERCE_LIMITS.maxWebhookFieldLength)).optional(),
+			metadata: z.record(z.string(), z.string().max(COMMERCE_LIMITS.maxWebhookFieldLength)).optional(),
 		}),
 	}),
 });
@@ -166,8 +240,10 @@ export const productCreateInputSchema = z.object({
 	bundleDiscountType: z.enum(["none", "fixed_amount", "percentage"]).default("none"),
 	bundleDiscountValueMinor: z.number().int().min(0).optional(),
 	bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
+}).superRefine((input, ctx) => {
+	validateBundleDiscountForProductType(ctx, input.type, input);
 });
-export type ProductCreateInput = z.infer<typeof productCreateInputSchema>;
+export type ProductCreateInput = z.input<typeof productCreateInputSchema>;
 
 export const productGetInputSchema = z.object({
 	productId: z.string().trim().min(3).max(128),
@@ -203,7 +279,7 @@ export const productSkuCreateInputSchema = z.object({
 		)
 		.default([]),
 });
-export type ProductSkuCreateInput = z.infer<typeof productSkuCreateInputSchema>;
+export type ProductSkuCreateInput = z.input<typeof productSkuCreateInputSchema>;
 
 export const productSkuListInputSchema = z.object({
 	productId: z.string().trim().min(3).max(128),
@@ -231,6 +307,8 @@ export const productUpdateInputSchema = z.object({
 		.optional(),
 	bundleDiscountValueMinor: z.number().int().min(0).optional(),
 	bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
+}).superRefine((input, ctx) => {
+	validateBundleDiscountPatchShape(ctx, input);
 });
 export type ProductUpdateInput = z.infer<typeof productUpdateInputSchema>;
 
@@ -268,7 +346,7 @@ export const productAssetRegisterInputSchema = z.object({
 	byteSize: z.number().int().min(0).optional(),
 	width: z.number().int().min(1).max(20_000).optional(),
 	height: z.number().int().min(1).max(20_000).optional(),
-	metadata: z.record(z.unknown()).optional(),
+	metadata: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 export type ProductAssetRegisterInput = z.infer<typeof productAssetRegisterInputSchema>;
 
@@ -279,7 +357,7 @@ export const productAssetLinkInputSchema = z.object({
 	role: z.enum(["primary_image", "gallery_image", "variant_image"]).default("gallery_image"),
 	position: z.number().int().min(0).default(0),
 }).strict();
-export type ProductAssetLinkInput = z.infer<typeof productAssetLinkInputSchema>;
+export type ProductAssetLinkInput = z.input<typeof productAssetLinkInputSchema>;
 
 export const productAssetUnlinkInputSchema = z.object({
 	linkId: z.string().trim().min(3).max(128),
@@ -371,9 +449,9 @@ export const digitalAssetCreateInputSchema = z.object({
 	downloadExpiryDays: z.number().int().min(1).optional(),
 	isManualOnly: z.boolean().default(false),
 	isPrivate: z.boolean().default(true),
-	metadata: z.record(z.unknown()).optional(),
+	metadata: z.record(z.string(), z.unknown()).optional(),
 }).strict();
-export type DigitalAssetCreateInput = z.infer<typeof digitalAssetCreateInputSchema>;
+export type DigitalAssetCreateInput = z.input<typeof digitalAssetCreateInputSchema>;
 
 export const digitalEntitlementCreateInputSchema = z.object({
 	skuId: bounded(128),

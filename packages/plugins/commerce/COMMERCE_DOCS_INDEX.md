@@ -12,8 +12,7 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 - `AI-EXTENSIBILITY.md` — future vector/LLM/MCP design notes
 - `COMMERCE_AI_ROADMAP.md` — post-MVP LLM/AI feature roadmap (5 scoped items)
 - `HANDOVER.md` — current execution handoff and stage context
-- `commerce-plugin-architecture.md` — canonical architecture summary
-- `COMMERCE_EXTENSION_SURFACE.md` — extension contract and closed-kernel rules
+- `COMMERCE_EXTENSION_SURFACE.md` — architecture contracts and extension rules
 - `FINALIZATION_REVIEW_AUDIT.md` — pending receipt state transitions and replay safety audit
 - `CI_REGRESSION_CHECKLIST.md` — regression gates for follow-on tickets
 

@@ -12,16 +12,25 @@ import {
 	stripeWebhookHandler,
 } from "./webhooks-stripe.js";
 
-const finalizePaymentFromWebhook = vi.fn();
-const consumeKvRateLimit = vi.fn(async () => true);
+const finalizePaymentFromWebhook = vi.fn<(ports: unknown, input: unknown) => Promise<unknown>>();
+const consumeKvRateLimit = vi.fn<
+	(input: {
+		kv: unknown;
+		keySuffix: string;
+		limit: number;
+		windowMs: number;
+		nowMs: number;
+	}) => Promise<boolean>
+>(async () => true);
 
 vi.mock("../orchestration/finalize-payment.js", () => ({
 	__esModule: true,
-	finalizePaymentFromWebhook: (...args: unknown[]) => finalizePaymentFromWebhook(...args),
+	finalizePaymentFromWebhook: (...args: Parameters<typeof finalizePaymentFromWebhook>) =>
+		finalizePaymentFromWebhook(...args),
 }));
 vi.mock("../lib/rate-limit-kv.js", () => ({
 	__esModule: true,
-	consumeKvRateLimit: (...args: unknown[]) => consumeKvRateLimit(...args),
+	consumeKvRateLimit: (...args: Parameters<typeof consumeKvRateLimit>) => consumeKvRateLimit(...args),
 }));
 
 describe("stripe webhook signature helpers", () => {
@@ -152,11 +161,11 @@ describe("stripe webhook signature helpers", () => {
 			orderId: "order_1",
 		});
 
-		const secret = "whsec_live_test";
+		const webhookSecret = "whsec_live_test";
 		const body = rawStripeEventBody;
-		const timestamp = 1_760_000_999;
-		const sig = `t=${timestamp},v1=${await hashWithSecret(secret, timestamp, body)}`;
-		const clock = vi.spyOn(Date, "now").mockReturnValue(timestamp * 1000);
+		const testTimestamp = 1_760_000_999;
+		const sig = `t=${testTimestamp},v1=${await hashWithSecret(webhookSecret, testTimestamp, body)}`;
+		const clock = vi.spyOn(Date, "now").mockReturnValue(testTimestamp * 1000);
 
 		const ctx = {
 			request: new Request("https://example.test/webhooks/stripe", {
@@ -177,7 +186,7 @@ describe("stripe webhook signature helpers", () => {
 			},
 			kv: {
 				get: vi.fn(async (key: string) => {
-					if (key === "settings:stripeWebhookSecret") return secret;
+					if (key === "settings:stripeWebhookSecret") return webhookSecret;
 					if (key === "settings:stripeWebhookToleranceSeconds") return "300";
 					return null;
 				}),
@@ -210,15 +219,15 @@ describe("stripe webhook signature helpers", () => {
 	});
 
 	it("rejects Stripe event payloads missing metadata", async () => {
-		const secret = "whsec_live_test";
+		const webhookSecret = "whsec_live_test";
 		const body = JSON.stringify({
 			id: "evt_invalid",
 			type: "payment_intent.succeeded",
 			data: { object: { id: "pi_1", metadata: {} } },
 		});
-		const timestamp = 1_760_000_999;
-		const sig = `t=${timestamp},v1=${await hashWithSecret(secret, timestamp, body)}`;
-		const clock = vi.spyOn(Date, "now").mockReturnValue(timestamp * 1000);
+		const testTimestamp = 1_760_000_999;
+		const sig = `t=${testTimestamp},v1=${await hashWithSecret(webhookSecret, testTimestamp, body)}`;
+		const clock = vi.spyOn(Date, "now").mockReturnValue(testTimestamp * 1000);
 
 		try {
 			await expect(
@@ -241,7 +250,7 @@ describe("stripe webhook signature helpers", () => {
 					},
 					kv: {
 						get: vi.fn(async (key: string) => {
-							if (key === "settings:stripeWebhookSecret") return secret;
+						if (key === "settings:stripeWebhookSecret") return webhookSecret;
 							if (key === "settings:stripeWebhookToleranceSeconds") return "300";
 							return null;
 						}),

@@ -21,6 +21,10 @@ import {
 const FINALIZE_RAW = "unit_test_finalize_secret_ok____________";
 let FINALIZE_HASH = "";
 
+function asMemCollection<T extends object>(collection: MemCollection<T>): MemCollection<T> {
+	return collection;
+}
+
 beforeAll(async () => {
 	FINALIZE_HASH = await sha256HexAsync(FINALIZE_RAW);
 });
@@ -30,6 +34,14 @@ type MemQueryOptions = {
 	limit?: number;
 	cursor?: string;
 	orderBy?: Partial<Record<"createdAt" | "orderId" | "providerId" | "status", "asc" | "desc">>;
+};
+
+type TestFinalizePaymentPorts = FinalizePaymentPorts & {
+	orders: MemColl<StoredOrder>;
+	webhookReceipts: MemColl<StoredWebhookReceipt>;
+	paymentAttempts: MemColl<StoredPaymentAttempt>;
+	inventoryLedger: MemColl<StoredInventoryLedgerEntry>;
+	inventoryStock: MemColl<StoredInventoryStock>;
 };
 
 type MemPaginated<T> = { items: T[]; hasMore: boolean; cursor?: string };
@@ -177,14 +189,14 @@ function portsFromState(state: {
 	paymentAttempts: Map<string, StoredPaymentAttempt>;
 	inventoryLedger: Map<string, StoredInventoryLedgerEntry>;
 	inventoryStock: Map<string, StoredInventoryStock>;
-}): FinalizePaymentPorts {
+}): TestFinalizePaymentPorts {
 	return {
 		orders: new MemColl(state.orders),
 		webhookReceipts: new MemColl(state.webhookReceipts),
 		paymentAttempts: new MemColl(state.paymentAttempts),
 		inventoryLedger: new MemColl(state.inventoryLedger),
 		inventoryStock: new MemColl(state.inventoryStock),
-	} as FinalizePaymentPorts;
+	} as TestFinalizePaymentPorts;
 }
 
 const now = "2026-04-02T12:00:00.000Z";
@@ -536,7 +548,7 @@ describe("finalizePaymentFromWebhook", () => {
 		};
 		const ports = {
 			...basePorts,
-			orders: withOneTimePutFailure(basePorts.orders as unknown as MemColl<StoredOrder>),
+		orders: withOneTimePutFailure(asMemCollection(basePorts.orders)),
 		};
 
 		const first = await finalizePaymentFromWebhook(ports, {
@@ -605,9 +617,7 @@ describe("finalizePaymentFromWebhook", () => {
 		const ports = portsFromState(state);
 		const basePorts = {
 			...ports,
-			paymentAttempts: withOneTimePutFailure(
-				ports.paymentAttempts as unknown as MemColl<StoredPaymentAttempt>,
-			),
+		paymentAttempts: withOneTimePutFailure(asMemCollection(ports.paymentAttempts)),
 		} as typeof ports;
 
 		const first = await finalizePaymentFromWebhook(basePorts, {
@@ -1002,7 +1012,7 @@ describe("finalizePaymentFromWebhook", () => {
 			orders: MemColl<StoredOrder>;
 		};
 		let getCount = 0;
-		const orderStateMutatingOrders: MemColl<StoredOrder> = {
+		const orderStateMutatingOrders = {
 			...basePorts.orders,
 			get: async (id: string) => {
 				const row = await basePorts.orders.get(id);
@@ -1051,7 +1061,7 @@ describe("finalizePaymentFromWebhook", () => {
 			orders: MemColl<StoredOrder>;
 		};
 		let orderReadCount = 0;
-		const disappearingOrders: MemColl<StoredOrder> = {
+		const disappearingOrders = {
 			...basePorts.orders,
 			get: async (id: string) => {
 				const row = await basePorts.orders.get(id);
@@ -1250,7 +1260,7 @@ describe("finalizePaymentFromWebhook", () => {
 		const ports = {
 			...basePorts,
 			inventoryStock: withOneTimePutFailure(
-				basePorts.inventoryStock as unknown as MemColl<StoredInventoryStock>,
+			asMemCollection(basePorts.inventoryStock),
 			),
 		} as FinalizePaymentPorts;
 
@@ -1453,8 +1463,8 @@ describe("finalizePaymentFromWebhook", () => {
 		const ports = {
 			...basePorts,
 			webhookReceipts: withNthPutFailure(
-				basePorts.webhookReceipts as unknown as MemColl<StoredWebhookReceipt>,
-				2,
+			asMemCollection(basePorts.webhookReceipts),
+			2,
 			),
 		};
 
@@ -1914,7 +1924,9 @@ describe("finalizePaymentFromWebhook", () => {
 			});
 
 			expect(res.kind).toBe("replay");
-			expect(["webhook_receipt_claim_retry_failed", "webhook_receipt_in_flight"]).toContain(res.reason);
+			if (res.kind === "replay") {
+				expect(["webhook_receipt_claim_retry_failed", "webhook_receipt_in_flight"]).toContain(res.reason);
+			}
 
 			const order = await basePorts.orders.get(orderId);
 			expect(order?.paymentPhase).toBe("payment_pending");
@@ -1965,7 +1977,11 @@ describe("finalizePaymentFromWebhook", () => {
 		const ports = {
 			...basePorts,
 			webhookReceipts: {
-				...claimableReceipts,
+				get: claimableReceipts.get.bind(claimableReceipts),
+				put: claimableReceipts.put.bind(claimableReceipts),
+				query: claimableReceipts.query.bind(claimableReceipts),
+				rows: webhookRows,
+				compareAndSwap: claimableReceipts.compareAndSwap.bind(claimableReceipts),
 				putIfAbsent: async (id: string, data: StoredWebhookReceipt): Promise<boolean> => {
 					const inserted = await claimableReceipts.putIfAbsent(id, data);
 					if (inserted) {
@@ -1980,7 +1996,7 @@ describe("finalizePaymentFromWebhook", () => {
 					return inserted;
 				},
 			},
-		} as FinalizePaymentPorts;
+	} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {
 			orderId,
@@ -2053,7 +2069,7 @@ describe("finalizePaymentFromWebhook", () => {
 				},
 			},
 			webhookReceipts,
-		} as FinalizePaymentPorts;
+	} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {
 			orderId,

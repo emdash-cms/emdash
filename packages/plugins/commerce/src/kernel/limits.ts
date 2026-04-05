@@ -24,4 +24,6 @@ export const COMMERCE_LIMITS = {
 	maxRecommendationsLimit: 20,
 	/** Max raw webhook payload bytes validated before signature verification. */
 	maxWebhookBodyBytes: 65_536,
+	/** Inventory threshold considered low-stock for product list summary display. */
+	lowStockThreshold: 0,
 } as const;

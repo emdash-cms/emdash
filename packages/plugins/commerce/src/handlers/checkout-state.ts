@@ -1,4 +1,4 @@
-import type { RouteContext, StorageCollection } from "emdash";
+import type { StorageCollection } from "emdash";
 
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import type { CheckoutInput } from "../schemas.js";
@@ -182,6 +182,7 @@ export async function restorePendingCheckout(
 			existingOrder.lineItems.length === pending.lineItems.length &&
 			existingOrder.lineItems.every((existingItem, index) => {
 				const pendingItem = pending.lineItems[index];
+				if (!pendingItem) return false;
 				return (
 					existingItem.productId === pendingItem.productId &&
 					existingItem.variantId === pendingItem.variantId &&

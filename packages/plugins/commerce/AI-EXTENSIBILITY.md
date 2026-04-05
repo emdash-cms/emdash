@@ -1,6 +1,6 @@
 # Commerce plugin — AI, vectors, and MCP readiness
 
-This document aligns the **stage-1 commerce kernel** with future **LLM**, **vector search**, and **MCP** work. It is the operational companion to Section 11 in `commerce-plugin-architecture.md`.
+This document aligns the **stage-1 commerce kernel** with future **LLM**, **vector search**, and **MCP** work. It is the operational companion to `COMMERCE_EXTENSION_SURFACE.md`.
 
 ## Vectors and catalog
 
@@ -54,7 +54,7 @@ Implementation guardrails:
 ## Errors and observability
 
 - Public errors should continue to expose **machine-readable `code`** values (see kernel `COMMERCE_ERROR_WIRE_CODES` and `toCommerceApiError()`). LLMs and MCP tools should branch on `code`, not on free-form `message` text.
-- Future `orderEvents`-style logs should record an **`actor`** (`system` | `merchant` | `agent` | `customer`) for audit trails; see architecture Section 11.
+- Future `orderEvents`-style logs should record an **`actor`** (`system` | `merchant` | `agent` | `customer`) for audit trails; see `COMMERCE_EXTENSION_SURFACE.md`.
 - For this stage, replay diagnostics should consume the enriched `queryFinalizationStatus`
   state shape (`receiptStatus` + `resumeState`) rather than inspecting storage manually.
 
@@ -72,7 +72,7 @@ for credits/adjustments and define an explicit recovery tool path with audit con
 
 ## MCP
 
-- **EmDash MCP** today targets **content** tooling. A dedicated **`@emdash-cms/plugin-commerce-mcp`** package is **planned** (architecture Section 11) for scoped tools: product read/write, order lookup for customer service (prefer **short-lived tokens** over wide-open order id guessing), refunds, etc.
+- **EmDash MCP** today targets **content** tooling. A dedicated **`@emdash-cms/plugin-commerce-mcp`** package is **planned** (`COMMERCE_EXTENSION_SURFACE.md`) for scoped tools: product read/write, order lookup for customer service (prefer **short-lived tokens** over wide-open order id guessing), refunds, etc.
 - MCP tools must respect the same invariants as HTTP routes: **no bypass** of finalize/idempotency rules for payments.
 - MCP tools should be read/write-safe by design: reads use `queryFinalizationStatus`/order APIs, writes use service seams that enforce kernel checks.
 
@@ -83,5 +83,5 @@ for credits/adjustments and define an explicit recovery tool path with audit con
 | Disabled recommendations route           | `src/handlers/recommendations.ts`     |
 | Catalog/search field contract            | `src/catalog-extensibility.ts`        |
 | Extension seams and invariants           | `COMMERCE_EXTENSION_SURFACE.md`       |
-| Architecture (MCP tool list, principles) | `commerce-plugin-architecture.md` §11 |
+| Architecture (MCP tool list, principles) | `COMMERCE_EXTENSION_SURFACE.md` |
 | Execution handoff                        | `HANDOVER.md`                         |

@@ -73,7 +73,7 @@ describe("catalog variant invariants", () => {
 	});
 
 	it("rejects SKU options missing or extra variant-defining assignments", () => {
-		const variantAttributes = [colorAttribute, sizeAttribute];
+		const variantAttributes = collectVariantDefiningAttributes([colorAttribute, sizeAttribute]);
 		const attributeValues = [valueColorRed, valueColorBlue, valueSizeS];
 		expect(() =>
 			validateVariableSkuOptions({
@@ -100,7 +100,7 @@ describe("catalog variant invariants", () => {
 	});
 
 	it("rejects unknown and duplicate option pair definitions", () => {
-		const variantAttributes = [colorAttribute, sizeAttribute];
+		const variantAttributes = collectVariantDefiningAttributes([colorAttribute, sizeAttribute]);
 		const attributeValues = [valueColorRed, valueSizeS];
 		expect(() =>
 			validateVariableSkuOptions({
@@ -130,7 +130,7 @@ describe("catalog variant invariants", () => {
 	});
 
 	it("rejects duplicate option combinations across SKUs", () => {
-		const variantAttributes = [colorAttribute];
+		const variantAttributes = collectVariantDefiningAttributes([colorAttribute]);
 		const attributeValues = [valueColorRed, valueColorBlue];
 		expect(() =>
 			validateVariableSkuOptions({

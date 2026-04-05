@@ -1,6 +1,7 @@
 import { PluginRouteError } from "emdash";
 
 import type { StoredProductAttribute, StoredProductAttributeValue } from "../types.js";
+import { sortedImmutableNoCompare } from "./sort-immutable.js";
 
 export type SkuOptionAssignment = {
 	attributeId: string;
@@ -10,10 +11,7 @@ export type SkuOptionAssignment = {
 export type VariantDefiningAttribute = StoredProductAttribute & { kind: "variant_defining" };
 
 export function normalizeSkuOptionSignature(options: readonly SkuOptionAssignment[]): string {
-	return [...options]
-		.map((row) => `${row.attributeId}:${row.attributeValueId}`)
-		.sort()
-		.join("|");
+	return sortedImmutableNoCompare(Array.from(options, (row) => `${row.attributeId}:${row.attributeValueId}`)).join("|");
 }
 
 export function collectVariantDefiningAttributes(
@@ -49,7 +47,7 @@ export function validateVariableSkuOptions({
 	optionValues: readonly SkuOptionAssignment[];
 	existingSignatures: ReadonlySet<string>;
 }) {
-	const expectedAttributeIds = [...variantAttributes].map((attribute) => attribute.id);
+	const expectedAttributeIds = Array.from(variantAttributes, (attribute) => attribute.id);
 	const expectedCount = expectedAttributeIds.length;
 	if (optionValues.length !== expectedCount) {
 		throw PluginRouteError.badRequest(

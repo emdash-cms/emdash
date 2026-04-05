@@ -1,5 +1,4 @@
-import { BundleDiscountType, type StoredBundleComponent } from "../types.js";
-import type { StoredProductSku } from "../types.js";
+import type { BundleDiscountType, StoredBundleComponent, StoredProductSku } from "../types.js";
 
 export type BundleComputeComponentSummary = {
 	componentId: string;

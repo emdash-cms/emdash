@@ -28,6 +28,14 @@ import {
 	deterministicPaymentAttemptId,
 } from "./checkout-state.js";
 
+function asRouteContext<T>(context: unknown): RouteContext<T> {
+	return context as RouteContext<T>;
+}
+
+function asMemCollection<T extends object>(collection: unknown): MemColl<T> {
+	return collection as MemColl<T>;
+}
+
 const consumeKvRateLimit = vi.fn(async (_opts?: unknown) => true);
 vi.mock("../lib/rate-limit-kv.js", () => ({
 	__esModule: true,
@@ -74,7 +82,7 @@ class MemColl<T extends object> implements MemCollection<T> {
 
 /** Default catalog product for checkout tests that do not seed `products`. */
 class DefaultProductsColl extends MemColl<StoredProduct> {
-	async get(id: string): Promise<StoredProduct | null> {
+	override async get(id: string): Promise<StoredProduct | null> {
 		const row = this.rows.get(id);
 		if (row) return structuredClone(row);
 		const now = "2026-01-01T00:00:00.000Z";
@@ -179,7 +187,7 @@ function contextFor({
 		productAssets: new MemColl<StoredProductAsset>(),
 		bundleComponents: new MemColl<StoredBundleComponent>(),
 	};
-	return {
+	return asRouteContext<CheckoutInput>({
 		request: req as Request & { headers: Headers },
 		input: {
 			cartId,
@@ -199,7 +207,7 @@ function contextFor({
 			ip,
 		},
 		kv,
-	} as unknown as RouteContext<CheckoutInput>;
+	});
 }
 
 describe("checkout idempotency persistence recovery", () => {
@@ -690,7 +698,7 @@ describe("checkout route guardrails", () => {
 			},
 			requestMeta: { ip: "127.0.0.1" },
 			kv: new MemKv(),
-		} as unknown as RouteContext<CheckoutInput>;
+		} as RouteContext<CheckoutInput>;
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 });
@@ -1076,8 +1084,8 @@ describe("checkout order snapshot capture", () => {
 		const first = await checkoutHandler(ctx);
 		product.title = "Mutated Replay Product";
 		sku.unitPriceMinor = 9999;
-		await (ctx.storage.products as MemColl<StoredProduct>).put(product.id, product);
-		await (ctx.storage.productSkus as MemColl<StoredProductSku>).put(sku.id, sku);
+		await asMemCollection<StoredProduct>(ctx.storage.products).put(product.id, product);
+		await asMemCollection<StoredProductSku>(ctx.storage.productSkus).put(sku.id, sku);
 		const second = await checkoutHandler(ctx);
 		expect(second.orderId).toBe(first.orderId);
 

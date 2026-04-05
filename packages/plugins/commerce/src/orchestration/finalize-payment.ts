@@ -247,8 +247,8 @@ function parseClaimTimestampMs(timestamp: string | undefined): number | null {
 function isClaimLeaseExpiredLegacy(claimExpiresAt: string | undefined, nowIso: string): boolean {
 	const nowMs = parseClaimTimestampMs(nowIso);
 	const expiresMs = parseClaimTimestampMs(claimExpiresAt);
-	if (!Number.isFinite(nowMs)) return true;
-	return Number.isFinite(expiresMs) && nowMs > expiresMs;
+	if (nowMs === null || expiresMs === null) return true;
+	return nowMs > expiresMs;
 }
 
 function isClaimLeaseExpired(claimExpiresAt: string | undefined, nowIso: string): boolean {
@@ -257,7 +257,8 @@ function isClaimLeaseExpired(claimExpiresAt: string | undefined, nowIso: string)
 	}
 	const nowMs = parseClaimTimestampMs(nowIso);
 	const expiresMs = parseClaimTimestampMs(claimExpiresAt);
-	return Number.isFinite(nowMs) && Number.isFinite(expiresMs) ? nowMs > expiresMs : true;
+	if (nowMs === null || expiresMs === null) return true;
+	return nowMs > expiresMs;
 }
 
 function canTakeClaim(existing: StoredWebhookReceipt, nowIso: string): { canTake: boolean; reason: FinalizeWebhookResult } {
@@ -265,10 +266,13 @@ function canTakeClaim(existing: StoredWebhookReceipt, nowIso: string): { canTake
 		case "claimed": {
 			const nowMs = parseClaimTimestampMs(nowIso);
 			const expiresMs = parseClaimTimestampMs(existing.claimExpiresAt);
-			const isInFlight = Number.isFinite(nowMs) && Number.isFinite(expiresMs) && nowMs <= expiresMs;
-			if (USE_LEASED_FINALIZE && (!Number.isFinite(nowMs) || !Number.isFinite(expiresMs))) {
-				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+			if (nowMs === null || expiresMs === null) {
+				if (USE_LEASED_FINALIZE) {
+					return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+				}
+				return { canTake: true, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
 			}
+			const isInFlight = nowMs <= expiresMs;
 			if (isInFlight) {
 				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_in_flight" } };
 			}

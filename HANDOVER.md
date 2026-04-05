@@ -2,100 +2,29 @@
 
 ## 1) Purpose
 
-This repository is the EmDash commerce plugin with a stage-1 money-path and a pending catalog-spec implementation track. The current problem is to complete the v1 catalog model while keeping checkout/finalize behavior unchanged and deterministic.
+This repository is the EmDash v1 commerce plugin in a staged build where the payment/kernel path is intentionally stable and the catalog domain is being completed against `emdash-commerce-product-catalog-v1-spec-updated.md` and follow-up external-review notes. The current problem is to preserve checkout/finalize determinism, idempotency, and possession rules while completing catalog and order-history correctness, especially around transactional behavior for catalog objects like bundles.
 
-The immediate scope is to keep the kernel narrow (`cart` → `checkout` → webhook finalize), enforce strict possession and replay contracts, and add the catalog foundation required by `emdash-commerce-product-catalog-v1-spec-updated.md` in incremental phases.
+The immediate objective for the next developer is to continue from the last merged state with minimal surface expansion: fix known catalog regressions, tighten catalog invariants, and harden bundle/asset/stock behavior without changing the existing cart/checkout/webhook architecture.
 
 ## 2) Completed work and outcomes
 
-Money-path kernel work remains intact and is regression-covered:
+Phases 1–7 are implemented and wired into the plugin, including product/SKU foundations, assets, variable attributes/options, digital assets/entitlements, bundle composition and pricing, catalog categories/tags/listing/detail retrieval, and checkout-time immutable order snapshots. Bundle transaction-completeness from external review feedback is now in place: bundle cart/checkout validation checks component SKU stock, and finalize-time inventory mutation expands bundles into component SKUs so component stock is decremented consistently when snapshot metadata indicates it.
 
-- Core route surface: `cart/upsert`, `cart/get`, `checkout`, `checkout/get-order`, `webhooks/stripe`, `recommendations`.
-- Ownership and possession checks continue through `ownerToken/ownerTokenHash` and `finalizeToken/finalizeTokenHash`.
-- Replay safety and conflict handling are in place for webhook/checkout recovery, including `restorePendingCheckout` drift checks.
-
-Catalog phase-1 foundation is now implemented and wired into plugin registration:
-
-- Storage: `products` and `productSkus` collections added in `src/storage.ts` with indexing contracts.
-- Domain shape: `StoredProduct` and `StoredProductSku` added to `src/types.ts`.
-- Validation: product and SKU create/list/get input schemas added in `src/schemas.ts`.
-- Handlers: `createProductHandler`, `getProductHandler`, `listProductsHandler`, `createProductSkuHandler`, `listProductSkusHandler` in `src/handlers/catalog.ts`.
-- Route exposure: `catalog/product/create`, `catalog/product/get`, `catalog/products`, `catalog/sku/create`, `catalog/sku/list` in `src/index.ts`.
-- Regression: index coverage and catalog handler behavior tests added in `src/contracts/storage-index-validation.test.ts` and `src/handlers/catalog.test.ts`.
-
-Validation state at handoff:
-
-- `pnpm --filter @emdash-cms/plugin-commerce test src/handlers/catalog.test.ts src/contracts/storage-index-validation.test.ts` passed.
-- `pnpm --filter @emdash-cms/plugin-commerce test` passed: 25 files, 175 tests passed, 1 skipped.
+This was committed as `b101fe4` with root-level docs added for spec and external-review context (`emdash-commerce-product-catalog-v1-spec-updated.md`, `emdash-commerce-external-review-update.md`) and supporting tests across `cart.test.ts`, `checkout.test.ts`, and new `finalize-payment-inventory.test.ts`. Core kernel routes and middleware behavior remain unchanged.
 
 ## 3) Failures, open issues, and lessons learned
 
-No open test regressions are present in `packages/plugins/commerce` at handoff. Remaining implementation gaps are by spec phase, not defects:
+Current known failures are not in the kernel but in catalog coverage and lint hygiene: `catalog.test.ts` has 12 failing cases in the monorepo test run, and `pnpm --silent lint:quick` reports multiple rule violations (including `no-array-sort`, `prefer-static-regex`, `no-unused-vars`, `no-shadow`, `prefer-array-from-map`, `prefer-spread-syntax`) across touched areas. Remaining open functional work is in domain hardening (not architectural rewrites): slug/SKU code update-time uniqueness and invariants, bundle-discount field constraints on non-bundle products, SKU model completeness (inventory mode/backorder/weight/dimensions/tax class/archived behavior), asset unlink/reorder position normalization, and low-stock logic that currently uses overly broad thresholds.
 
-- Phase-2+ work is still pending for media/assets, option matrix, digital assets/entitlements, bundle composition, and catalog-to-order snapshot integration.
-- Product catalog read APIs are currently non-cursor paginated and return sorted filtered arrays.
-- Snapshot correctness against historical mutable catalog rows is not yet implemented in order lines.
-
-Lessons carried forward from this phase:
-
-- Keep all changes to idempotency, possession, and replay logic test-first.
-- Preserve scope lock: do not broaden provider/runtime topology before explicit roadmap gate.
-- Prefer additive catalog changes that remain aligned to current storage and handler contracts.
+Recent lessons are to keep domain checks inside shared library/helpers instead of handler-to-handler calls, capture bundle component stock version in snapshot data for forward compatibility, and preserve legacy fallback behavior when snapshots are incomplete so historical order rows can still reconcile safely.
 
 ## 4) Files changed, key insights, and gotchas
 
-High-impact files for continuation:
+High-impact changed files after handoff now include:
+`packages/plugins/commerce/HANDOVER.md`, `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`, `packages/plugins/commerce/src/handlers/catalog.ts`, `packages/plugins/commerce/src/handlers/catalog.test.ts`, `packages/plugins/commerce/src/handlers/cart.ts`, `packages/plugins/commerce/src/handlers/cart.test.ts`, `packages/plugins/commerce/src/handlers/checkout.ts`, `packages/plugins/commerce/src/handlers/checkout.test.ts`, `packages/plugins/commerce/src/storage.ts`, `packages/plugins/commerce/src/schemas.ts`, `packages/plugins/commerce/src/types.ts`, `packages/plugins/commerce/src/index.ts`, `packages/plugins/commerce/src/lib/catalog-order-snapshots.ts`, `packages/plugins/commerce/src/lib/catalog-bundles.ts`, `packages/plugins/commerce/src/lib/catalog-dto.ts`, `packages/plugins/commerce/src/lib/checkout-inventory-validation.ts`, `packages/plugins/commerce/src/lib/order-inventory-lines.ts`, `packages/plugins/commerce/src/orchestration/finalize-payment-inventory.ts`, `packages/plugins/commerce/src/orchestration/finalize-payment-inventory.test.ts`, `packages/plugins/commerce/src/contracts/storage-index-validation.test.ts`, plus current docs (`prompts.txt`, `external_review.md`, `COMMERCE_DOCS_INDEX.md` references).
 
-- `packages/plugins/commerce/src/storage.ts`
-- `packages/plugins/commerce/src/types.ts`
-- `packages/plugins/commerce/src/schemas.ts`
-- `packages/plugins/commerce/src/handlers/catalog.ts`
-- `packages/plugins/commerce/src/handlers/catalog.test.ts`
-- `packages/plugins/commerce/src/contracts/storage-index-validation.test.ts`
-- `packages/plugins/commerce/src/index.ts`
-- `packages/plugins/commerce/src/orchestration/finalize-payment.ts`
-- `packages/plugins/commerce/src/handlers/checkout.ts`
-- `packages/plugins/commerce/src/handlers/cart.ts`
-- `packages/plugins/commerce/src/handlers/checkout-get-order.ts`
-- `packages/plugins/commerce/src/handlers/webhook-handler.ts`
-- `packages/plugins/commerce/src/handlers/checkout-state.ts`
-- `packages/plugins/commerce/src/handlers/checkout-state.test.ts`
-- `packages/plugins/commerce/src/contracts/commerce-kernel-invariants.test.ts`
-
-Gotchas to avoid:
-
-- Product and SKU IDs are generated with `prod_` and `sku_` prefixes plus `randomHex` suffixes; keep token/ID assumptions consistent in tooling.
-- SKU creation is blocked for missing products and archived products.
-- Handler-level uniqueness checks for slugs and SKU codes remain a required invariant even with storage unique indexes.
-- Existing order/cart line item model is still primitive and has not been replaced by snapshot-rich line schema.
+Critical gotchas are idempotency and snapshot assumptions: `OrderLineItem.unitPriceMinor` is now aligned with snapshot pricing on checkout write, bundle snapshot component entries include `componentInventoryVersion`, and fallback-only behavior still applies when snapshot metadata is missing; avoid changing these contracts without updating replay-sensitive tests in checkout/finalization paths.
 
 ## 5) Key files and directories
 
-Primary package:
-
-- `packages/plugins/commerce/`
-
-Core runtime:
-
-- `packages/plugins/commerce/src/handlers/`
-- `packages/plugins/commerce/src/orchestration/`
-- `packages/plugins/commerce/src/lib/`
-- `packages/plugins/commerce/src/contracts/`
-- `packages/plugins/commerce/src/types.ts`
-- `packages/plugins/commerce/src/schemas.ts`
-
-Reference and governance docs:
-
-- `packages/plugins/commerce/HANDOVER.md` (this file)
-- `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
-- `packages/plugins/commerce/COMMERCE_EXTENSION_SURFACE.md`
-- `packages/plugins/commerce/COMMERCE_AI_ROADMAP.md`
-- `packages/plugins/commerce/CI_REGRESSION_CHECKLIST.md`
-- `packages/plugins/commerce/FINALIZATION_REVIEW_AUDIT.md`
-- `@THIRD_PARTY_REVIEW_PACKAGE.md`
-- `external_review.md`
-- `SHARE_WITH_REVIEWER.md`
-- `commerce-plugin-architecture.md`
-- `3rd-party-checklist.md`
-- `emdash-commerce-third-party-review-memo.md`
-- `scripts/build-commerce-external-review-zip.sh`
+Primary development area is `packages/plugins/commerce/`; continuation should focus first on `packages/plugins/commerce/src/lib`, `packages/plugins/commerce/src/handlers`, `packages/plugins/commerce/src/orchestration`, and `packages/plugins/commerce/src/contracts` with schema/type guardrails in `packages/plugins/commerce/src/types.ts` and `packages/plugins/commerce/src/schemas.ts`. For planning and external review alignment, keep `emdash-commerce-product-catalog-v1-spec-updated.md`, `emdash-commerce-external-review-update.md`, and `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md` current when moving into the next phase.

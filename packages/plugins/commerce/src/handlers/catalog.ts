@@ -36,8 +36,9 @@ import {
 import { randomHex } from "../lib/crypto-adapter.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { sortedImmutable } from "../lib/sort-immutable.js";
 import type {
-	ProductAssetLinkTarget,
 	ProductCreateInput,
 	ProductAssetLinkInput,
 	ProductAssetReorderInput,
@@ -68,6 +69,7 @@ import type {
 	ProductTagUnlinkInput,
 } from "../schemas.js";
 import type {
+	ProductAssetLinkTarget,
 	StoredProduct,
 	StoredProductAsset,
 	StoredProductAssetLink,
@@ -84,7 +86,36 @@ import type {
 	ProductAssetRole,
 	StoredProductSku,
 } from "../types.js";
+type BundleDiscountPatchInput = {
+	bundleDiscountType?: "none" | "fixed_amount" | "percentage";
+	bundleDiscountValueMinor?: number;
+	bundleDiscountValueBps?: number;
+};
 
+function assertBundleDiscountPatchForProduct(
+	product: StoredProduct,
+	patch: BundleDiscountPatchInput,
+): void {
+	const hasType = patch.bundleDiscountType !== undefined;
+	const hasMinorValue = patch.bundleDiscountValueMinor !== undefined;
+	const hasBpsValue = patch.bundleDiscountValueBps !== undefined;
+	const effectiveType = patch.bundleDiscountType ?? product.bundleDiscountType ?? "none";
+
+	if (product.type !== "bundle" && (hasType || hasMinorValue || hasBpsValue)) {
+		throw PluginRouteError.badRequest("Bundle discount fields are only supported for bundle products");
+	}
+
+	if (product.type !== "bundle") {
+		return;
+	}
+
+	if (hasMinorValue && effectiveType !== "fixed_amount") {
+		throw PluginRouteError.badRequest("bundleDiscountValueMinor can only be used with fixed_amount bundles");
+	}
+	if (hasBpsValue && effectiveType !== "percentage") {
+		throw PluginRouteError.badRequest("bundleDiscountValueBps can only be used with percentage bundles");
+	}
+}
 type Collection<T> = StorageCollection<T>;
 
 function asCollection<T>(raw: unknown): Collection<T> {
@@ -184,9 +215,9 @@ export type ProductTagLinkUnlinkResponse = {
 };
 
 function sortAssetLinksByPosition(links: StoredProductAssetLink[]): StoredProductAssetLink[] {
-	const sorted = [...links].sort((left, right) => {
+	const sorted = sortedImmutable(links, (left, right) => {
 		if (left.position === right.position) {
-			return left.createdAt.localeCompare(right.createdAt);
+			return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
 		}
 		return left.position - right.position;
 	});
@@ -196,9 +227,9 @@ function sortAssetLinksByPosition(links: StoredProductAssetLink[]): StoredProduc
 function sortBundleComponentsByPosition(
 	components: StoredBundleComponent[],
 ): StoredBundleComponent[] {
-	const sorted = [...components].sort((left, right) => {
+	const sorted = sortedImmutable(components, (left, right) => {
 		if (left.position === right.position) {
-			return left.createdAt.localeCompare(right.createdAt);
+			return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
 		}
 		return left.position - right.position;
 	});
@@ -208,8 +239,7 @@ function sortBundleComponentsByPosition(
 function normalizeBundleComponentPositions(
 	components: StoredBundleComponent[],
 ): StoredBundleComponent[] {
-	const sorted = sortBundleComponentsByPosition(components);
-	return sorted.map((component, idx) => ({
+	return components.map((component, idx) => ({
 		...component,
 		position: idx,
 	}));
@@ -222,7 +252,7 @@ async function queryBundleComponentsForProduct(
 	const query = await bundleComponents.query({
 		where: { bundleProductId },
 	});
-	return sortBundleComponentsByPosition(query.items);
+	return sortBundleComponentsByPosition(query.items.map((row) => row.data));
 }
 
 function toProductCategoryDTO(row: StoredCategory): ProductCategoryDTO {
@@ -337,6 +367,21 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productAttributes = asCollection<StoredProductAttribute>(ctx.storage.productAttributes);
 	const productAttributeValues = asCollection<StoredProductAttributeValue>(ctx.storage.productAttributeValues);
+	const type = ctx.input.type ?? "simple";
+	const status = ctx.input.status ?? "draft";
+	const visibility = ctx.input.visibility ?? "hidden";
+	const shortDescription = ctx.input.shortDescription ?? "";
+	const longDescription = ctx.input.longDescription ?? "";
+	const featured = ctx.input.featured ?? false;
+	const sortOrder = ctx.input.sortOrder ?? 0;
+	const requiresShippingDefault = ctx.input.requiresShippingDefault ?? true;
+	const bundleDiscountType = ctx.input.bundleDiscountType ?? "none";
+	const inputAttributes = (ctx.input.attributes ?? []).map((attributeInput) => ({
+		...attributeInput,
+		kind: attributeInput.kind ?? "descriptive",
+		position: attributeInput.position ?? 0,
+		values: attributeInput.values ?? [],
+	}));
 	const nowMs = Date.now();
 	const nowIso = new Date(nowMs).toISOString();
 
@@ -349,23 +394,22 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 	}
 
 	const id = `prod_${await randomHex(6)}`;
-	const status = ctx.input.status;
 
-	if (ctx.input.type !== "variable" && ctx.input.attributes.length > 0) {
+	if (type !== "variable" && inputAttributes.length > 0) {
 		throw PluginRouteError.badRequest("Only variable products can define attributes");
 	}
 
-	if (ctx.input.type === "variable" && ctx.input.attributes.length === 0) {
+	if (type === "variable" && inputAttributes.length === 0) {
 		throw PluginRouteError.badRequest("Variable products must define at least one attribute");
 	}
 
-	const variantAttributeCount = ctx.input.attributes.filter((attribute) => attribute.kind === "variant_defining").length;
-	if (ctx.input.type === "variable" && variantAttributeCount === 0) {
+	const variantAttributeCount = inputAttributes.filter((attribute) => attribute.kind === "variant_defining").length;
+	if (type === "variable" && variantAttributeCount === 0) {
 		throw PluginRouteError.badRequest("Variable products must include at least one variant-defining attribute");
 	}
 
 	const attributeCodes = new Set<string>();
-	for (const attribute of ctx.input.attributes) {
+	for (const attribute of inputAttributes) {
 		if (attributeCodes.has(attribute.code)) {
 			throw PluginRouteError.badRequest(`Duplicate attribute code: ${attribute.code}`);
 		}
@@ -382,20 +426,20 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 
 	const product: StoredProduct = {
 		id,
-		type: ctx.input.type,
+		type,
 		status,
-		visibility: ctx.input.visibility,
+		visibility,
 		slug: ctx.input.slug,
 		title: ctx.input.title,
-		shortDescription: ctx.input.shortDescription,
-		longDescription: ctx.input.longDescription,
+		shortDescription,
+		longDescription,
 		brand: ctx.input.brand,
 		vendor: ctx.input.vendor,
-		featured: ctx.input.featured,
-		sortOrder: ctx.input.sortOrder,
-		requiresShippingDefault: ctx.input.requiresShippingDefault,
+		featured,
+		sortOrder,
+		requiresShippingDefault,
 		taxClassDefault: ctx.input.taxClassDefault,
-		bundleDiscountType: ctx.input.bundleDiscountType,
+		bundleDiscountType,
 		bundleDiscountValueMinor: ctx.input.bundleDiscountValueMinor,
 		bundleDiscountValueBps: ctx.input.bundleDiscountValueBps,
 		metadataJson: {},
@@ -407,7 +451,7 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 
 	await products.put(id, product);
 
-	for (const attributeInput of ctx.input.attributes) {
+	for (const attributeInput of inputAttributes) {
 		const attributeId = `${id}_attr_${await randomHex(6)}`;
 		const nowAttribute: StoredProductAttribute = {
 			id: attributeId,
@@ -428,7 +472,7 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 				attributeId,
 				value: valueInput.value,
 				code: valueInput.code,
-				position: valueInput.position,
+				position: valueInput.position ?? 0,
 				createdAt: nowIso,
 				updatedAt: nowIso,
 			});
@@ -448,6 +492,17 @@ export async function updateProductHandler(ctx: RouteContext<ProductUpdateInput>
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
 	const { productId, ...patch } = ctx.input;
+	if (patch.slug !== undefined && patch.slug !== existing.slug) {
+		const slugRows = await products.query({
+			where: { slug: patch.slug },
+			limit: 1,
+		});
+		if (slugRows.items.some((row) => row.id !== productId)) {
+			throw PluginRouteError.badRequest(`Product slug already exists: ${patch.slug}`);
+		}
+	}
+	assertBundleDiscountPatchForProduct(existing, patch);
+
 	const product = applyProductUpdatePatch(existing, patch, nowIso);
 
 	await products.put(productId, product);
@@ -637,9 +692,10 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 		rows = rows.filter((row) => allowedProductIds.has(row.id));
 	}
 
-	const sortedRows = rows
-		.sort((left, right) => left.sortOrder - right.sortOrder || left.slug.localeCompare(right.slug))
-		.slice(0, ctx.input.limit);
+	const sortedRows = sortedImmutable(rows, (left, right) => left.sortOrder - right.sortOrder || left.slug.localeCompare(right.slug)).slice(
+		0,
+		ctx.input.limit,
+	);
 	const items: CatalogListingDTO[] = [];
 	for (const row of sortedRows) {
 		const skus = await productSkus.query({ where: { productId: row.id } });
@@ -660,7 +716,9 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 			inventorySummary: summarizeInventory(skuRows),
 			primaryImage,
 			galleryImages: galleryImages.length > 0 ? galleryImages : undefined,
-			lowStockSkuCount: skuRows.filter((sku) => sku.status === "active" && sku.inventoryQuantity <= 0).length,
+			lowStockSkuCount: skuRows.filter(
+				(sku) => sku.status === "active" && sku.inventoryQuantity <= COMMERCE_LIMITS.lowStockThreshold,
+			).length,
 			categories,
 			tags,
 		});
@@ -715,9 +773,10 @@ export async function listCategoriesHandler(ctx: RouteContext<CategoryListInput>
 		where,
 		limit: ctx.input.limit,
 	});
-	const items = result.items
-		.map((row) => row.data)
-		.sort((left, right) => left.position - right.position || left.slug.localeCompare(right.slug));
+	const items = sortedImmutable(
+		result.items.map((row) => row.data),
+		(left, right) => left.position - right.position || left.slug.localeCompare(right.slug),
+	);
 	return { items };
 }
 
@@ -806,9 +865,7 @@ export async function listTagsHandler(ctx: RouteContext<TagListInput>): Promise<
 	const result = await tags.query({
 		limit: ctx.input.limit,
 	});
-	const items = result.items
-		.map((row) => row.data)
-		.sort((left, right) => left.slug.localeCompare(right.slug));
+	const items = sortedImmutable(result.items.map((row) => row.data), (left, right) => left.slug.localeCompare(right.slug));
 	return { items };
 }
 
@@ -875,6 +932,7 @@ export async function createProductSkuHandler(
 		ctx.storage.productAttributeValues,
 	);
 	const productSkuOptionValues = asCollection<StoredProductSkuOptionValue>(ctx.storage.productSkuOptionValues);
+	const inputOptionValues = ctx.input.optionValues ?? [];
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
@@ -892,7 +950,7 @@ export async function createProductSkuHandler(
 		throw PluginRouteError.badRequest(`SKU code already exists: ${ctx.input.skuCode}`);
 	}
 
-	if (product.type !== "variable" && ctx.input.optionValues.length > 0) {
+	if (product.type !== "variable" && inputOptionValues.length > 0) {
 		throw PluginRouteError.badRequest("Option values are only allowed for variable products");
 	}
 
@@ -908,7 +966,7 @@ export async function createProductSkuHandler(
 		let attributeValueRows: StoredProductAttributeValue[] = [];
 		for (const attribute of variantAttributes) {
 			const valueResult = await productAttributeValues.query({ where: { attributeId: attribute.id } });
-			attributeValueRows = attributeValueRows.concat(valueResult.items.map((row) => row.data));
+			attributeValueRows = [...attributeValueRows, ...valueResult.items.map((row) => row.data)];
 		}
 
 		const existingSkuResult = await productSkus.query({ where: { productId: product.id } });
@@ -929,24 +987,28 @@ export async function createProductSkuHandler(
 			productId: product.id,
 			variantAttributes,
 			attributeValues: attributeValueRows,
-			optionValues: ctx.input.optionValues,
+			optionValues: inputOptionValues,
 			existingSignatures,
 		});
 	}
 
 	const nowIso = new Date(Date.now()).toISOString();
 	const id = `sku_${ctx.input.productId}_${await randomHex(6)}`;
+	const status = ctx.input.status ?? "active";
+	const requiresShipping = ctx.input.requiresShipping ?? true;
+	const isDigital = ctx.input.isDigital ?? false;
+	const inventoryVersion = ctx.input.inventoryVersion ?? 1;
 	const sku: StoredProductSku = {
 		id,
 		productId: ctx.input.productId,
 		skuCode: ctx.input.skuCode,
-		status: ctx.input.status,
+		status,
 		unitPriceMinor: ctx.input.unitPriceMinor,
 		compareAtPriceMinor: ctx.input.compareAtPriceMinor,
 		inventoryQuantity: ctx.input.inventoryQuantity,
-		inventoryVersion: ctx.input.inventoryVersion,
-		requiresShipping: ctx.input.requiresShipping,
-		isDigital: ctx.input.isDigital,
+		inventoryVersion,
+		requiresShipping,
+		isDigital,
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
@@ -954,7 +1016,7 @@ export async function createProductSkuHandler(
 	await productSkus.put(id, sku);
 
 	if (product.type === "variable") {
-		for (const optionInput of ctx.input.optionValues) {
+		for (const optionInput of inputOptionValues) {
 			const optionId = `${id}_opt_${await randomHex(6)}`;
 			const optionRow: StoredProductSkuOptionValue = {
 				id: optionId,
@@ -983,6 +1045,15 @@ export async function updateProductSkuHandler(
 	}
 
 	const { skuId, ...patch } = ctx.input;
+	if (patch.skuCode !== undefined && patch.skuCode !== existing.skuCode) {
+		const existingSkuRows = await productSkus.query({
+			where: { skuCode: patch.skuCode },
+			limit: 1,
+		});
+		if (existingSkuRows.items.some((row) => row.id !== skuId)) {
+			throw PluginRouteError.badRequest(`SKU code already exists: ${patch.skuCode}`);
+		}
+	}
 	const sku = applyProductSkuUpdatePatch(existing, patch, nowIso);
 	await productSkus.put(skuId, sku);
 
@@ -1095,6 +1166,8 @@ export async function registerProductAssetHandler(
 
 export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLinkInput>): Promise<ProductAssetLinkResponse> {
 	requirePost(ctx);
+	const role = ctx.input.role ?? "gallery_image";
+	const position = ctx.input.position ?? 0;
 	const nowIso = new Date(Date.now()).toISOString();
 	const productAssets = asCollection<StoredProductAsset>(ctx.storage.productAssets);
 	const productAssetLinks = asCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks);
@@ -1112,7 +1185,7 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 	await loadCatalogTargetExists(products, skus, targetType, targetId);
 
 	const links = await queryAssetLinksForTarget(productAssetLinks, targetType, targetId);
-	if (ctx.input.role === "primary_image") {
+	if (role === "primary_image") {
 		const hasPrimary = links.some((link) => link.role === "primary_image");
 		if (hasPrimary) {
 			throw PluginRouteError.badRequest("Target already has a primary image");
@@ -1125,7 +1198,7 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 	}
 
 	const linkId = `asset_link_${await randomHex(6)}`;
-	const desiredPosition = normalizeAssetPosition(ctx.input.position);
+	const desiredPosition = normalizeAssetPosition(position);
 	const requestedPosition = Math.min(desiredPosition, links.length);
 
 	const link: StoredProductAssetLink = {
@@ -1133,7 +1206,7 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 		targetType,
 		targetId,
 		assetId: ctx.input.assetId,
-		role: ctx.input.role,
+		role,
 		position: requestedPosition,
 		createdAt: nowIso,
 		updatedAt: nowIso,
@@ -1166,8 +1239,19 @@ export async function unlinkCatalogAssetHandler(
 	if (!existing) {
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Asset link not found" });
 	}
+	const links = await queryAssetLinksForTarget(productAssetLinks, existing.targetType, existing.targetId);
 
 	await productAssetLinks.delete(ctx.input.linkId);
+
+	const remaining = links.filter((link) => link.id !== ctx.input.linkId);
+	const normalized = normalizeAssetLinks(remaining).map((link) => ({
+		...link,
+		updatedAt: new Date(Date.now()).toISOString(),
+	}));
+	for (const candidate of normalized) {
+		await productAssetLinks.put(candidate.id, candidate);
+	}
+
 	return { deleted: true };
 }
 
@@ -1408,11 +1492,14 @@ export async function createDigitalAssetHandler(
 	ctx: RouteContext<DigitalAssetCreateInput>,
 ): Promise<DigitalAssetResponse> {
 	requirePost(ctx);
+	const provider = ctx.input.provider ?? "media";
+	const isManualOnly = ctx.input.isManualOnly ?? false;
+	const isPrivate = ctx.input.isPrivate ?? true;
 	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
 	const nowIso = new Date(Date.now()).toISOString();
 
 	const existing = await productDigitalAssets.query({
-		where: { provider: ctx.input.provider, externalAssetId: ctx.input.externalAssetId },
+		where: { provider, externalAssetId: ctx.input.externalAssetId },
 		limit: 1,
 	});
 	if (existing.items.length > 0) {
@@ -1422,13 +1509,13 @@ export async function createDigitalAssetHandler(
 	const id = `digital_asset_${await randomHex(6)}`;
 	const asset: StoredDigitalAsset = {
 		id,
-		provider: ctx.input.provider,
+		provider,
 		externalAssetId: ctx.input.externalAssetId,
 		label: ctx.input.label,
 		downloadLimit: ctx.input.downloadLimit,
 		downloadExpiryDays: ctx.input.downloadExpiryDays,
-		isManualOnly: ctx.input.isManualOnly,
-		isPrivate: ctx.input.isPrivate,
+		isManualOnly,
+		isPrivate,
 		metadata: ctx.input.metadata,
 		createdAt: nowIso,
 		updatedAt: nowIso,
