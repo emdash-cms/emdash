@@ -275,10 +275,28 @@ export interface MeterBlock extends BlockBase {
 	custom_value?: string;
 }
 
+/**
+ * Accepted code block language values.
+ * Canonical Kumo languages: ts, tsx, jsonc, bash, css.
+ * Common aliases are also accepted and normalized at render time.
+ */
+export type CodeLanguage =
+	| "ts"
+	| "tsx"
+	| "jsonc"
+	| "bash"
+	| "css"
+	| "json"
+	| "javascript"
+	| "typescript"
+	| "js"
+	| "sh"
+	| "shell";
+
 export interface CodeBlock extends BlockBase {
 	type: "code";
 	code: string;
-	language?: "ts" | "tsx" | "jsonc" | "bash" | "css";
+	language?: CodeLanguage;
 }
 
 export type Block =

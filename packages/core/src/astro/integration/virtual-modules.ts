@@ -6,6 +6,7 @@
  * so Vite can properly resolve and bundle them.
  */
 
+import { build } from "esbuild";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
@@ -411,16 +412,80 @@ function resolveModulePathFromProject(specifier: string, projectRoot: string): s
 	return require.resolve(specifier);
 }
 
+/** File extensions that require TypeScript/JSX transpilation. */
+const TS_LOADERS: Record<string, "ts" | "tsx" | "jsx"> = {
+	".ts": "ts",
+	".tsx": "tsx",
+	".mts": "ts",
+	".cts": "ts",
+	".jsx": "jsx",
+};
+
+/**
+ * Bundle a sandbox entry into a self-contained ES module.
+ *
+ * Worker Loader isolates only have access to the generated wrapper and this
+ * plugin code — bare specifiers like `"emdash"` cannot be resolved at runtime.
+ * We use esbuild to bundle all imports, shimming `"emdash"` with a virtual
+ * module that provides `definePlugin` as an identity function (which is all
+ * standard-format sandboxed plugins need).
+ */
+async function bundleSandboxEntry(filePath: string, pluginId: string): Promise<string> {
+	const ext = filePath.slice(filePath.lastIndexOf("."));
+	const loader = TS_LOADERS[ext];
+
+	try {
+		const result = await build({
+			entryPoints: [filePath],
+			bundle: true,
+			write: false,
+			format: "esm",
+			target: "es2022",
+			platform: "neutral",
+			plugins: [
+				{
+					name: "emdash-sandbox-shim",
+					setup(b) {
+						// Intercept bare "emdash" imports and replace with a
+						// lightweight shim. definePlugin is an identity function
+						// for standard-format plugins (see define-plugin.ts).
+						b.onResolve({ filter: /^emdash$/ }, () => ({
+							path: "emdash",
+							namespace: "emdash-shim",
+						}));
+						b.onLoad({ filter: /.*/, namespace: "emdash-shim" }, () => ({
+							contents: "export const definePlugin = (d) => d;",
+							loader: "js",
+						}));
+					},
+				},
+			],
+			...(loader ? { loader: { [ext]: loader } } : {}),
+		});
+
+		if (result.outputFiles.length === 0) {
+			throw new Error("esbuild produced no output");
+		}
+
+		return result.outputFiles[0].text;
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		throw new Error(
+			`Failed to bundle sandboxed plugin "${pluginId}" (${filePath}): ${msg}`,
+		);
+	}
+}
+
 /**
  * Generates the sandboxed plugins module.
  * Resolves plugin entrypoints to files, reads them, and embeds the code.
  *
  * At runtime, middleware uses SandboxRunner to load these into isolates.
  */
-export function generateSandboxedPluginsModule(
+export async function generateSandboxedPluginsModule(
 	sandboxed: PluginDescriptor[],
 	projectRoot: string,
-): string {
+): Promise<string> {
 	if (sandboxed.length === 0) {
 		return `
 // No sandboxed plugins configured
@@ -435,8 +500,12 @@ export const sandboxedPlugins = [];
 
 		// Resolve the bundle to a file path using project's require context
 		const filePath = resolveModulePathFromProject(bundleSpecifier, projectRoot);
-		// Read the source code
-		const code = readFileSync(filePath, "utf-8");
+		// Bundle the plugin into a self-contained ES module.
+		// Worker Loader isolates only have access to the wrapper and this code —
+		// bare imports like "emdash" must be resolved at build time.
+		// We alias "emdash" to a shim since definePlugin is an identity function
+		// for standard-format plugins (the only format sandboxed plugins use).
+		const code = await bundleSandboxEntry(filePath, descriptor.id);
 
 		// Create the plugin entry with embedded code and sandbox config
 		pluginEntries.push(`{

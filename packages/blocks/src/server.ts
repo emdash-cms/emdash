@@ -38,6 +38,8 @@ export type {
 	ImageBlock,
 	ContextBlock,
 	ColumnsBlock,
+	CodeBlock,
+	CodeLanguage,
 	Block,
 	// Interactions
 	BlockAction,

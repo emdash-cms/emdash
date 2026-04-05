@@ -7,6 +7,7 @@ import type {
 	ChartBlock,
 	ChartSeries,
 	CodeBlock,
+	CodeLanguage,
 	ComboboxElement,
 	ColumnsBlock,
 	ConfirmDialog,
@@ -387,7 +388,7 @@ function meter(opts: {
 function codeBlock(opts: {
 	blockId?: string;
 	code: string;
-	language?: "ts" | "tsx" | "jsonc" | "bash" | "css";
+	language?: CodeLanguage;
 }): CodeBlock {
 	return {
 		type: "code",
