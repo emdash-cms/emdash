@@ -128,10 +128,12 @@ const settingFieldSchema = z.discriminatedUnion("type", [
 		default: z.string().optional(),
 	}),
 	z.object({ ...baseSettingFields, type: z.literal("secret") }),
+	z.object({ ...baseSettingFields, type: z.literal("url") }),
+	z.object({ ...baseSettingFields, type: z.literal("email") })
 ]);
 
 const adminPageSchema = z.object({
-	path: z.string(),
+	path: z.string()
 	label: z.string(),
 	icon: z.string().optional(),
 });
