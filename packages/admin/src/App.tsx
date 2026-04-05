@@ -56,11 +56,11 @@ export function AdminApp({
 		document.getElementById("emdash-boot-loader")?.remove();
 	}, []);
 
-	React.useLayoutEffect(() => {
-		if (!i18n.locale) {
-			i18n.loadAndActivate({ locale, messages });
-		}
-	}, [locale, messages]);
+	const i18nInitialized = React.useRef(false);
+	if (!i18nInitialized.current) {
+		i18n.loadAndActivate({ locale, messages });
+		i18nInitialized.current = true;
+	}
 
 	return (
 		<ThemeProvider>
