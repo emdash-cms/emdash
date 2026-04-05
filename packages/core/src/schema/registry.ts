@@ -24,7 +24,7 @@ import {
 } from "./types.js";
 
 // Regex patterns for schema registry
-const SLUG_VALIDATION_PATTERN = /^[a-z][a-z0-9_]*$/;
+const SLUG_VALIDATION_PATTERN = /^[a-z][a-z0-9_-]*$/;
 const EC_PREFIX_PATTERN = /^ec_/;
 const SINGLE_QUOTE_PATTERN = /'/g;
 const UNDERSCORE_PATTERN = /_/g;
@@ -703,7 +703,7 @@ export class SchemaRegistry {
 
 		if (!SLUG_VALIDATION_PATTERN.test(slug)) {
 			throw new SchemaError(
-				`${type} slug must start with a letter and contain only lowercase letters, numbers, and underscores`,
+				`${type} slug must start with a letter and contain only lowercase letters, numbers, underscores, and hyphens`,
 				"INVALID_SLUG",
 			);
 		}

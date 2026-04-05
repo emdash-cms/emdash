@@ -18,7 +18,7 @@ import { z } from "zod";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 
-const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -786,7 +786,7 @@ export function createMcpServer(): McpServer {
 				slug: z
 					.string()
 					.regex(COLLECTION_SLUG_PATTERN)
-					.describe("Unique identifier (lowercase letters, numbers, underscores)"),
+					.describe("Unique identifier (lowercase letters, numbers, underscores, hyphens)"),
 				label: z.string().describe("Display name (plural, e.g. 'Blog Posts')"),
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
@@ -868,7 +868,7 @@ export function createMcpServer(): McpServer {
 				slug: z
 					.string()
 					.regex(COLLECTION_SLUG_PATTERN)
-					.describe("Field identifier (lowercase letters, numbers, underscores)"),
+					.describe("Field identifier (lowercase letters, numbers, underscores, hyphens)"),
 				label: z.string().describe("Display name for the field"),
 				type: z
 					.enum([

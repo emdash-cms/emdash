@@ -12,7 +12,7 @@ import type { SandboxEmailSendCallback } from "emdash";
 import { ulid } from "emdash";
 
 /** Regex to validate collection names (prevent SQL injection) */
-const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
+const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_-]*$/;
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
