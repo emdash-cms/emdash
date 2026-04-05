@@ -831,6 +831,7 @@ function ContentEditPage() {
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
+			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
