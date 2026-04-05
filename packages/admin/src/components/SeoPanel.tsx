@@ -10,36 +10,119 @@ import { Input, InputArea, Label, Switch } from "@cloudflare/kumo";
 import * as React from "react";
 
 import type { ContentSeo, ContentSeoInput } from "../lib/api";
+import { useDebouncedValue } from "../lib/hooks";
 
 export interface SeoPanelProps {
+	contentKey?: string;
 	seo?: ContentSeo;
 	onChange: (seo: ContentSeoInput) => void;
+}
+
+const SEO_TEXT_DEBOUNCE_MS = 500;
+
+interface SeoDraft {
+	title: string;
+	description: string;
+	canonical: string;
+	noIndex: boolean;
+}
+
+function toDraft(seo?: ContentSeo): SeoDraft {
+	return {
+		title: seo?.title ?? "",
+		description: seo?.description ?? "",
+		canonical: seo?.canonical ?? "",
+		noIndex: seo?.noIndex ?? false,
+	};
+}
+
+function toInput(draft: SeoDraft): ContentSeoInput {
+	return {
+		title: draft.title || null,
+		description: draft.description || null,
+		canonical: draft.canonical || null,
+		noIndex: draft.noIndex,
+	};
+}
+
+function serializeDraft(draft: SeoDraft): string {
+	return JSON.stringify(draft);
 }
 
 /**
  * Compact SEO metadata editor for the content sidebar.
  */
-export function SeoPanel({ seo, onChange }: SeoPanelProps) {
-	const [title, setTitle] = React.useState(seo?.title ?? "");
-	const [description, setDescription] = React.useState(seo?.description ?? "");
-	const [canonical, setCanonical] = React.useState(seo?.canonical ?? "");
-	const [noIndex, setNoIndex] = React.useState(seo?.noIndex ?? false);
+export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
+	const propDraft = React.useMemo(() => toDraft(seo), [seo]);
+	const propSnapshot = React.useMemo(() => serializeDraft(propDraft), [propDraft]);
+	const [draft, setDraft] = React.useState<SeoDraft>(propDraft);
+	const currentDraftRef = React.useRef(draft);
+	currentDraftRef.current = draft;
+	const lastPropSnapshotRef = React.useRef(propSnapshot);
+	const lastEmittedSnapshotRef = React.useRef(propSnapshot);
+	const previousContentKeyRef = React.useRef(contentKey);
 
-	// Keep local state in sync when the prop changes (e.g. after save)
+	// Reset local state when the editor switches to a different content item.
 	React.useEffect(() => {
-		setTitle(seo?.title ?? "");
-		setDescription(seo?.description ?? "");
-		setCanonical(seo?.canonical ?? "");
-		setNoIndex(seo?.noIndex ?? false);
-	}, [seo]);
+		if (previousContentKeyRef.current === contentKey) {
+			return;
+		}
+		previousContentKeyRef.current = contentKey;
+		setDraft(propDraft);
+		currentDraftRef.current = propDraft;
+		lastPropSnapshotRef.current = propSnapshot;
+		lastEmittedSnapshotRef.current = propSnapshot;
+	}, [contentKey, propDraft, propSnapshot]);
 
-	const emitChange = (patch: Partial<ContentSeoInput>) => {
-		onChange({
-			title: title || null,
-			description: description || null,
-			canonical: canonical || null,
-			noIndex,
-			...patch,
+	// When fresh server data arrives for the same item, only sync it back into
+	// local state if the user is not ahead of that response.
+	React.useEffect(() => {
+		const previousPropSnapshot = lastPropSnapshotRef.current;
+		if (propSnapshot === previousPropSnapshot) {
+			return;
+		}
+
+		const currentDraftSnapshot = serializeDraft(currentDraftRef.current);
+		const shouldSync =
+			currentDraftSnapshot === previousPropSnapshot || currentDraftSnapshot === propSnapshot;
+
+		if (shouldSync) {
+			setDraft(propDraft);
+			currentDraftRef.current = propDraft;
+			lastEmittedSnapshotRef.current = propSnapshot;
+		}
+
+		lastPropSnapshotRef.current = propSnapshot;
+	}, [propDraft, propSnapshot]);
+
+	const debouncedTextDraft = useDebouncedValue(
+		{
+			title: draft.title,
+			description: draft.description,
+			canonical: draft.canonical,
+		},
+		SEO_TEXT_DEBOUNCE_MS,
+	);
+
+	React.useEffect(() => {
+		const nextDraft: SeoDraft = {
+			...currentDraftRef.current,
+			title: debouncedTextDraft.title,
+			description: debouncedTextDraft.description,
+			canonical: debouncedTextDraft.canonical,
+		};
+		const nextSnapshot = serializeDraft(nextDraft);
+		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+			return;
+		}
+		lastEmittedSnapshotRef.current = nextSnapshot;
+		onChange(toInput(nextDraft));
+	}, [debouncedTextDraft, onChange]);
+
+	const updateDraft = (patch: Partial<SeoDraft>) => {
+		currentDraftRef.current = { ...currentDraftRef.current, ...patch };
+		setDraft((prev) => {
+			return { ...prev, ...patch };
 		});
 	};
 
@@ -48,10 +131,9 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 			<Input
 				label="SEO Title"
 				description="Overrides the page title in search engine results"
-				value={title}
+				value={draft.title}
 				onChange={(e) => {
-					setTitle(e.target.value);
-					emitChange({ title: e.target.value || null });
+					updateDraft({ title: e.target.value });
 				}}
 			/>
 
@@ -59,14 +141,13 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 				<InputArea
 					label="Meta Description"
 					description={
-						description
-							? `${description.length}/160 characters`
+						draft.description
+							? `${draft.description.length}/160 characters`
 							: "Brief summary shown below the title in search results"
 					}
-					value={description}
+					value={draft.description}
 					onChange={(e) => {
-						setDescription(e.target.value);
-						emitChange({ description: e.target.value || null });
+						updateDraft({ description: e.target.value });
 					}}
 					rows={3}
 				/>
@@ -75,10 +156,9 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 			<Input
 				label="Canonical URL"
 				description="Points search engines to the original version of this page, if it's duplicated from another URL"
-				value={canonical}
+				value={draft.canonical}
 				onChange={(e) => {
-					setCanonical(e.target.value);
-					emitChange({ canonical: e.target.value || null });
+					updateDraft({ canonical: e.target.value });
 				}}
 			/>
 
@@ -88,10 +168,16 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 					<p className="text-xs text-kumo-subtle">Add noindex meta tag</p>
 				</div>
 				<Switch
-					checked={noIndex}
+					checked={draft.noIndex}
 					onCheckedChange={(checked) => {
-						setNoIndex(checked);
-						emitChange({ noIndex: checked });
+						const nextDraft = { ...currentDraftRef.current, noIndex: checked };
+						updateDraft({ noIndex: checked });
+						const nextSnapshot = serializeDraft(nextDraft);
+						if (nextSnapshot === lastEmittedSnapshotRef.current) {
+							return;
+						}
+						lastEmittedSnapshotRef.current = nextSnapshot;
+						onChange(toInput(nextDraft));
 					}}
 				/>
 			</div>

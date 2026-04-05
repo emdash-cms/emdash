@@ -892,7 +892,7 @@ export function ContentEditor({
 										<MagnifyingGlass className="h-4 w-4" />
 										SEO
 									</h3>
-									<SeoPanel seo={item?.seo} onChange={onSeoChange} />
+									<SeoPanel contentKey={item?.id} seo={item?.seo} onChange={onSeoChange} />
 								</div>
 							)}
 
