@@ -39,6 +39,11 @@ import {
 	CodeBlock,
 	Stack,
 	Eye,
+	Table as TableIcon,
+	Plus,
+	Trash,
+	Rows,
+	Columns,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -46,6 +51,10 @@ import { Extension, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -277,6 +286,67 @@ function convertPMNode(node: {
 				_type: typeof blockType === "string" ? blockType : "embed",
 				_key: generateKey(),
 				id: typeof pluginId === "string" ? pluginId : "",
+			};
+		}
+
+		case "table": {
+			const tableKey = generateKey();
+			const tableContent = (node.content || []) as Array<{
+				type: string;
+				content?: Array<{
+					type: string;
+					content?: unknown[];
+				}>;
+			}>;
+
+			const rows = tableContent
+				.filter((row) => row.type === "tableRow")
+				.map((row, rowIndex) => {
+					const cells = (row.content || []).map((cell, cellIndex) => {
+						const isHeader = cell.type === "tableHeader";
+						const cellContent = (cell.content || []) as Array<{
+							type: string;
+							content?: unknown[];
+						}>;
+
+						// Extract text from paragraphs inside the cell
+						const contentSpans: PortableTextSpan[] = [];
+						for (const para of cellContent) {
+							if (para.type === "paragraph") {
+								const { children } = convertInlineContent(para.content || []);
+								contentSpans.push(...children);
+							}
+						}
+
+						// Ensure at least one span
+						if (contentSpans.length === 0) {
+							contentSpans.push({
+								_type: "span",
+								_key: generateKey(),
+								text: "",
+							});
+						}
+
+						return {
+							_type: "tableCell" as const,
+							_key: `${tableKey}_r${rowIndex}_c${cellIndex}`,
+							content: contentSpans,
+							isHeader,
+						};
+					});
+
+					return {
+						_type: "tableRow" as const,
+						_key: `${tableKey}_r${rowIndex}`,
+						cells,
+					};
+				});
+
+			return {
+				_type: "table",
+				_key: tableKey,
+				rows,
+				hasHeaderRow: rows[0]?.cells.some((c) => c.isHeader) ?? false,
 			};
 		}
 
@@ -544,6 +614,72 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "break":
 			return { type: "horizontalRule" };
 
+		case "table": {
+			const tableBlock = block as {
+				_type: "table";
+				_key: string;
+				rows?: Array<{
+					_type: "tableRow";
+					_key: string;
+					cells: Array<{
+						_type: "tableCell";
+						_key: string;
+						content: PortableTextSpan[];
+						isHeader?: boolean;
+					}>;
+				}>;
+				hasHeaderRow?: boolean;
+			};
+
+			const rows = (tableBlock.rows || []).map((row, rowIndex) => {
+				const cells = row.cells.map((cell) => {
+					const cellType =
+						cell.isHeader || (tableBlock.hasHeaderRow && rowIndex === 0)
+							? "tableHeader"
+							: "tableCell";
+
+					// Map PortableText marks to ProseMirror marks
+					const markNameMap: Record<string, string> = {
+						strong: "bold",
+						em: "italic",
+						underline: "underline",
+						"strike-through": "strike",
+						code: "code",
+					};
+					const pmContent = cell.content.map((span) => ({
+						type: "text",
+						text: span.text || "",
+						marks:
+							span.marks
+								?.map((mark) => ({
+									type: markNameMap[mark] || mark,
+								}))
+								.filter((m) => m.type) || [],
+					}));
+
+					return {
+						type: cellType,
+						content: [
+							{
+								type: "paragraph",
+								content: pmContent.length > 0 ? pmContent : undefined,
+							},
+						],
+					};
+				});
+
+				return {
+					type: "tableRow",
+					content: cells,
+				};
+			});
+
+			return {
+				type: "table",
+				content: rows,
+			};
+		}
+
 		default: {
 			// Treat unknown block types as plugin blocks (embeds)
 			// These have an id field (or url for backwards compat) for the embed source,
@@ -768,6 +904,21 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["hr", "---", "separator"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+		},
+	},
+	{
+		id: "table",
+		title: "Table",
+		description: "Insert a table",
+		icon: TableIcon,
+		aliases: ["grid", "spreadsheet"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+				.run();
 		},
 	},
 ];
@@ -1516,6 +1667,13 @@ export function PortableTextEditor({
 				onStateChange: setSlashMenuState,
 				getState: () => slashMenuStateRef.current,
 			}),
+			// Table extensions after slash commands so suggestion keyboard handlers have priority
+			Table.configure({
+				resizable: true,
+			}),
+			TableRow,
+			TableHeader,
+			TableCell,
 			CharacterCount,
 			Focus.configure({
 				className: "has-focus",
@@ -1736,6 +1894,7 @@ export function PortableTextEditor({
 				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
 			)}
 			<EditorBubbleMenu editor={editor} />
+			<TableBubbleMenu editor={editor} />
 			<div className="relative overflow-visible">
 				<EditorContent editor={editor} />
 				{editable && <DragHandleWrapper editor={editor} />}
@@ -1923,6 +2082,95 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					</BubbleButton>
 				</>
 			)}
+		</BubbleMenu>
+	);
+}
+
+/**
+ * Table Bubble Menu - appears when cursor is in a table
+ * Shows table editing options: add/remove rows/columns, delete table
+ */
+function TableBubbleMenu({ editor }: { editor: Editor }) {
+	if (!editor.isActive("table")) {
+		return null;
+	}
+
+	return (
+		<BubbleMenu
+			editor={editor}
+			options={{
+				placement: "top",
+				offset: 8,
+			}}
+			shouldShow={({ editor: e }) => e.isActive("table")}
+			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+		>
+			{/* Add column before */}
+			<BubbleButton
+				onClick={() => editor.chain().focus().addColumnBefore().run()}
+				title="Add column before"
+			>
+				<Columns className="h-4 w-4" />
+				<Plus className="h-2 w-2 absolute -left-0.5" />
+			</BubbleButton>
+
+			{/* Add column after */}
+			<BubbleButton
+				onClick={() => editor.chain().focus().addColumnAfter().run()}
+				title="Add column after"
+			>
+				<Columns className="h-4 w-4" />
+				<Plus className="h-2 w-2 absolute -right-0.5" />
+			</BubbleButton>
+
+			{/* Delete column */}
+			<BubbleButton
+				onClick={() => editor.chain().focus().deleteColumn().run()}
+				title="Delete column"
+			>
+				<Columns className="h-4 w-4 text-kumo-danger" />
+			</BubbleButton>
+
+			<div className="w-px h-6 bg-kumo-line mx-1" />
+
+			{/* Add row before */}
+			<BubbleButton
+				onClick={() => editor.chain().focus().addRowBefore().run()}
+				title="Add row before"
+			>
+				<Rows className="h-4 w-4" />
+				<Plus className="h-2 w-2 absolute -top-0.5" />
+			</BubbleButton>
+
+			{/* Add row after */}
+			<BubbleButton
+				onClick={() => editor.chain().focus().addRowAfter().run()}
+				title="Add row after"
+			>
+				<Rows className="h-4 w-4" />
+				<Plus className="h-2 w-2 absolute -bottom-0.5" />
+			</BubbleButton>
+
+			{/* Delete row */}
+			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title="Delete row">
+				<Rows className="h-4 w-4 text-kumo-danger" />
+			</BubbleButton>
+
+			<div className="w-px h-6 bg-kumo-line mx-1" />
+
+			{/* Toggle header row */}
+			<BubbleButton
+				onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+				active={editor.isActive("tableHeader")}
+				title="Toggle header row"
+			>
+				<TableIcon className="h-4 w-4" />
+			</BubbleButton>
+
+			{/* Delete table */}
+			<BubbleButton onClick={() => editor.chain().focus().deleteTable().run()} title="Delete table">
+				<Trash className="h-4 w-4 text-kumo-danger" />
+			</BubbleButton>
 		</BubbleMenu>
 	);
 }
@@ -2197,6 +2445,15 @@ function EditorToolbar({
 					title="Code Block"
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() =>
+						editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+					}
+					active={editor.isActive("table")}
+					title="Insert Table"
+				>
+					<TableIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 
