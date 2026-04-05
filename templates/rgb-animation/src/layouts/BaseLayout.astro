@@ -1,0 +1,112 @@
+---
+import '@/styles/global.css';
+import '@/styles/layout.css';
+import '@/styles/animations.css';
+import { type Locale, t, getLocaleFromUrl, getAlternatePath } from '@/i18n';
+import { SITE_URL } from '@/lib/constants';
+import { EmDashHead } from "emdash/ui";
+import { createPublicPageContext } from "emdash/page";
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+}
+
+const locale = getLocaleFromUrl(Astro.url) as Locale;
+const { title, description, ogImage } = Astro.props;
+
+const pageTitle = title
+  ? `${title} | ${t(locale, 'site.title')}`
+  : t(locale, 'site.title');
+const pageDescription = description ?? t(locale, 'site.description');
+const ogImageUrl = ogImage ?? '/og-image.png';
+const canonicalUrl = `${SITE_URL}${Astro.url.pathname}`;
+const alternatePath = getAlternatePath(Astro.url);
+const jaPath = locale === 'ja' ? Astro.url.pathname : alternatePath;
+const enPath = locale === 'en' ? Astro.url.pathname : alternatePath;
+
+const pageCtx = createPublicPageContext({
+  Astro,
+  kind: "custom",
+  pageType: "website",
+  title: pageTitle,
+  description: pageDescription,
+  canonical: canonicalUrl,
+  image: ogImageUrl,
+  seo: { ogImage: ogImageUrl },
+  siteName: t(locale, 'site.title'),
+});
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={pageDescription} />
+    <title>{pageTitle}</title>
+
+    <EmDashHead page={pageCtx} />
+
+    <!-- Canonical & i18n -->
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" hreflang="ja" href={`${SITE_URL}${jaPath}`} />
+    <link rel="alternate" hreflang="en" href={`${SITE_URL}${enPath}`} />
+    <link rel="alternate" hreflang="x-default" href={`${SITE_URL}${jaPath}`} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={t(locale, 'site.title')} />
+    <meta property="og:locale" content={locale === 'ja' ? 'ja_JP' : 'en_US'} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={pageDescription} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Generator -->
+    <meta name="generator" content={Astro.generator} />
+
+    <slot name="head" />
+  </head>
+  <body>
+    <div class="page">
+      <slot name="header" />
+      <main class="page__main">
+        <slot />
+      </main>
+      <slot name="footer" />
+    </div>
+
+    <script>
+      import { initScrollAnimations } from '@/lib/animations';
+      document.addEventListener('DOMContentLoaded', initScrollAnimations);
+      document.addEventListener('astro:page-load', initScrollAnimations);
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  /* Homepage dark background override */
+  body.page--dark {
+    background-color: var(--color-bg-dark);
+    color: var(--color-text-on-dark);
+  }
+</style>

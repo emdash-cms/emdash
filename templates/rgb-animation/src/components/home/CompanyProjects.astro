@@ -1,0 +1,74 @@
+---
+import type { Locale } from '@/i18n';
+import { t } from '@/i18n';
+import { getEmDashCollection } from 'emdash';
+import ProjectCard from './ProjectCard.astro';
+import type { ProjectItem } from '@/lib/types';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+
+const { entries } = await getEmDashCollection('projects');
+const projects: ProjectItem[] = entries.map((entry) => ({
+  id: entry.id,
+  slug: entry.slug ?? entry.id,
+  title: entry.data.title ?? '',
+  titleEn: entry.data.title_en ?? '',
+  thumbnail: entry.data.featured_image?.src ?? '/images/placeholder-project-1.svg',
+  summary: entry.data.summary ?? '',
+  summaryEn: entry.data.summary_en ?? '',
+  status: entry.data.status ?? 'ongoing',
+}));
+---
+
+<section class="section section--dark company-projects" id="projects">
+  <div class="container">
+    <div class="section__header fade-in">
+      <h2 class="section__title company-projects__title">
+        {t(locale, 'home.projects.title')}
+      </h2>
+      <div class="section__divider line-draw"></div>
+      <p class="section__subtitle company-projects__subtitle">
+        {t(locale, 'home.projects.subtitle')}
+      </p>
+    </div>
+
+    <div class="company-projects__grid">
+      {projects.map((project, index) => (
+        <ProjectCard project={project} locale={locale} index={index} />
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .company-projects__title,
+  .company-projects__subtitle {
+    color: var(--color-text-on-dark);
+  }
+
+  .company-projects__subtitle {
+    color: var(--color-text-muted);
+  }
+
+  .company-projects__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  @media (min-width: 640px) {
+    .company-projects__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .company-projects__grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>

@@ -1,0 +1,73 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Header from '@/components/common/Header.astro';
+import Footer from '@/components/common/Footer.astro';
+import { t } from '@/i18n';
+
+const locale = 'ja';
+---
+
+<BaseLayout title="404 — ページが見つかりません">
+  <Header slot="header" />
+
+  <div class="error-page container">
+    <p class="error-page__code">404</p>
+    <h1 class="error-page__title">{t(locale, 'error.404.title')}</h1>
+    <a href="/" class="error-page__btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+      </svg>
+      {t(locale, 'error.404.back')}
+    </a>
+  </div>
+
+  <Footer slot="footer" />
+</BaseLayout>
+
+<style>
+  .error-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    gap: var(--space-sm);
+  }
+
+  .error-page__code {
+    font-family: var(--font-en);
+    font-size: clamp(5rem, 20vw, 10rem);
+    font-weight: var(--weight-bold);
+    color: var(--color-accent);
+    line-height: 1;
+    opacity: 0.15;
+    margin-bottom: calc(var(--space-sm) * -2);
+  }
+
+  .error-page__title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-primary);
+  }
+
+  .error-page__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-top: var(--space-sm);
+    padding: 12px 24px;
+    background-color: var(--color-accent);
+    color: var(--color-text-on-accent);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-en);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+    transition: background-color var(--duration-fast) var(--ease-default);
+  }
+
+  .error-page__btn:hover {
+    background-color: var(--color-accent-hover);
+  }
+</style>

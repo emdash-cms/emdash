@@ -1,0 +1,48 @@
+import type { WorkItem } from '@/lib/types';
+
+export const mockWorks: WorkItem[] = [
+  {
+    id: 'w1',
+    slug: 'phantom-blade',
+    title: 'ファントムブレイド',
+    titleEn: 'Phantom Blade',
+    category: 'film',
+    thumbnail: '/images/placeholder-work-1.svg',
+    year: 2025,
+    description: '劇場版アニメーション制作。全編3DCGによるアクション大作。',
+    descriptionEn: 'Theatrical anime production. Full 3DCG action blockbuster.',
+  },
+  {
+    id: 'w2',
+    slug: 'crystal-wars',
+    title: 'クリスタルウォーズ',
+    titleEn: 'Crystal Wars',
+    category: 'game',
+    thumbnail: '/images/placeholder-work-2.svg',
+    year: 2025,
+    description: 'ゲームムービー制作。リアルタイム3DCGカットシーン。',
+    descriptionEn: 'Game cinematic production. Real-time 3DCG cutscenes.',
+  },
+  {
+    id: 'w3',
+    slug: 'neon-city-mv',
+    title: 'ネオンシティ MV',
+    titleEn: 'Neon City MV',
+    category: 'video',
+    thumbnail: '/images/placeholder-work-3.svg',
+    year: 2024,
+    description: 'ミュージックビデオ制作。サイバーパンク風VFX。',
+    descriptionEn: 'Music video production. Cyberpunk-style VFX.',
+  },
+  {
+    id: 'w4',
+    slug: 'azure-horizon',
+    title: 'アズールホライゾン',
+    titleEn: 'Azure Horizon',
+    category: 'film',
+    thumbnail: '/images/placeholder-work-4.svg',
+    year: 2024,
+    description: '短編アニメーション。美しい背景美術と光の演出。',
+    descriptionEn: 'Short animation. Beautiful background art and lighting.',
+  },
+];

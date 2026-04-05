@@ -1,0 +1,86 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Header from '@/components/common/Header.astro';
+import Footer from '@/components/common/Footer.astro';
+import ScrollToTop from '@/components/common/ScrollToTop.astro';
+import Preloader from '@/components/common/Preloader';
+import HeroVideo from '@/components/home/HeroVideo';
+import WorksGrid from '@/components/home/WorksGrid.astro';
+import ProjectCarousel from '@/components/home/ProjectCarousel';
+import CompanyProjects from '@/components/home/CompanyProjects.astro';
+import OutsourcedGallery from '@/components/home/OutsourcedGallery';
+import { t } from '@/i18n';
+import { getEmDashCollection } from 'emdash';
+
+const locale = 'ja';
+
+const { entries: carouselEntries } = await getEmDashCollection('carousel_images');
+const carouselImages = carouselEntries.map((entry) => ({
+  id: entry.id,
+  src: entry.data.featured_image?.src ?? '/images/placeholder-carousel-1.svg',
+  alt: entry.data.title ?? '',
+  altEn: entry.data.title_en ?? '',
+}));
+
+const { entries: outsourcedEntries } = await getEmDashCollection('outsourced');
+const outsourcedItems = outsourcedEntries.map((entry) => ({
+  id: entry.id,
+  title: entry.data.title ?? '',
+  titleEn: entry.data.title_en ?? '',
+  mediaType: entry.data.media_type ?? 'image',
+  src: entry.data.featured_image?.src ?? '/images/placeholder-outsourced-1.svg',
+  aspectRatio: entry.data.aspect_ratio ?? 'landscape',
+  category: entry.data.outsourced_category?.[0] ?? 'VFX',
+}));
+---
+
+<BaseLayout
+  title={t(locale, 'site.title')}
+  description={t(locale, 'site.description')}
+>
+  <!-- Preloader — hydrate immediately -->
+  <Preloader client:load />
+
+  <Header slot="header" />
+
+  <!-- §2. Hero Video Player -->
+  <HeroVideo
+    client:load
+    poster="/images/hero-poster.svg"
+    title={t(locale, 'home.hero.title')}
+  />
+
+  <!-- §3. Works Grid — Movies/Anime -->
+  <WorksGrid locale={locale} />
+
+  <!-- §4. Project Images Carousel -->
+  <ProjectCarousel
+    client:visible
+    images={carouselImages}
+    locale={locale}
+    title={t(locale, 'home.carousel.title')}
+    subtitle={t(locale, 'home.carousel.subtitle')}
+  />
+
+  <!-- §5. Company Projects -->
+  <CompanyProjects locale={locale} />
+
+  <!-- §6. Outsourced Works Gallery -->
+  <OutsourcedGallery
+    client:visible
+    items={outsourcedItems}
+    locale={locale}
+    title={t(locale, 'home.outsourced.title')}
+    subtitle={t(locale, 'home.outsourced.subtitle')}
+  />
+
+  <Footer slot="footer" />
+  <ScrollToTop />
+</BaseLayout>
+
+<style is:global>
+  /* Homepage uses dark background */
+  body {
+    background-color: var(--color-bg-dark);
+  }
+</style>

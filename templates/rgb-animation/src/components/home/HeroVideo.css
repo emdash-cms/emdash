@@ -1,0 +1,201 @@
+.hero-video {
+  position: relative;
+  width: 100%;
+  background-color: #000;
+  overflow: hidden;
+  cursor: default;
+}
+
+/* Aspect ratio: 16:9 */
+.hero-video::before {
+  content: '';
+  display: block;
+  padding-top: 56.25%;
+}
+
+.hero-video__video,
+.hero-video__placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-video__video {
+  object-fit: cover;
+}
+
+.hero-video__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #111;
+}
+
+.hero-video__poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Click-to-play overlay */
+.hero-video__play-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.hero-video__play-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background-color: rgba(230, 0, 18, 0.9);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 8px rgba(230, 0, 18, 0.2);
+  transition: transform var(--duration-normal) var(--ease-spring),
+              background-color var(--duration-fast) var(--ease-default);
+}
+
+.hero-video__play-overlay:hover .hero-video__play-icon {
+  transform: scale(1.1);
+  background-color: var(--color-accent);
+}
+
+/* Controls */
+.hero-video__controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-sm) var(--space-sm) var(--space-xs);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  z-index: 3;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--duration-normal) var(--ease-default),
+              transform var(--duration-normal) var(--ease-default);
+}
+
+.hero-video--show-controls .hero-video__controls {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Seek bar */
+.hero-video__seek {
+  padding-block: 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.hero-video__seek-track {
+  position: relative;
+  height: 3px;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  transition: height var(--duration-fast) var(--ease-default);
+}
+
+.hero-video__seek:hover .hero-video__seek-track,
+.hero-video__seek:focus-visible .hero-video__seek-track {
+  height: 5px;
+}
+
+.hero-video__seek-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background-color: var(--color-accent);
+  border-radius: 2px;
+  transition: width 100ms linear;
+}
+
+.hero-video__seek-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-accent);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.hero-video__seek:hover .hero-video__seek-thumb,
+.hero-video__seek:focus-visible .hero-video__seek-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Controls row */
+.hero-video__controls-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: 4px;
+}
+
+.hero-video__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-default),
+              background-color var(--duration-fast) var(--ease-default);
+  flex-shrink: 0;
+}
+
+.hero-video__btn:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.hero-video__time {
+  font-family: var(--font-en);
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.hero-video__time-sep {
+  opacity: 0.5;
+}
+
+.hero-video__controls-spacer {
+  flex: 1;
+}
+
+/* Responsive: larger controls on bigger screens */
+@media (min-width: 768px) {
+  .hero-video__play-icon {
+    width: 88px;
+    height: 88px;
+  }
+
+  .hero-video__controls {
+    padding: var(--space-md) var(--space-md) var(--space-sm);
+  }
+
+  .hero-video__btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .hero-video__time {
+    font-size: var(--text-sm);
+  }
+}

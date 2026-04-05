@@ -1,0 +1,542 @@
+{
+	"$schema": "https://emdashcms.com/seed.schema.json",
+	"version": "1",
+	"meta": {
+		"name": "RGB Animation",
+		"description": "Anime/3DCG/VFX production company portfolio",
+		"author": "RGB Animation"
+	},
+
+	"settings": {
+		"title": "RGB Animation",
+		"tagline": "Anime / 3DCG / VFX"
+	},
+
+	"collections": [
+		{
+			"slug": "works",
+			"label": "Works",
+			"labelSingular": "Work",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title (JP)",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "title_en",
+					"label": "Title (EN)",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "featured_image",
+					"label": "Thumbnail",
+					"type": "image"
+				},
+				{
+					"slug": "year",
+					"label": "Year",
+					"type": "string"
+				},
+				{
+					"slug": "description",
+					"label": "Description (JP)",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "description_en",
+					"label": "Description (EN)",
+					"type": "text"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		},
+		{
+			"slug": "projects",
+			"label": "Company Projects",
+			"labelSingular": "Project",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title (JP)",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "title_en",
+					"label": "Title (EN)",
+					"type": "string"
+				},
+				{
+					"slug": "featured_image",
+					"label": "Thumbnail",
+					"type": "image"
+				},
+				{
+					"slug": "summary",
+					"label": "Summary (JP)",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "summary_en",
+					"label": "Summary (EN)",
+					"type": "text"
+				},
+				{
+					"slug": "status",
+					"label": "Status",
+					"type": "string"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText"
+				}
+			]
+		},
+		{
+			"slug": "outsourced",
+			"label": "Outsourced Works",
+			"labelSingular": "Outsourced Work",
+			"supports": ["drafts", "revisions", "search"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title (JP)",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "title_en",
+					"label": "Title (EN)",
+					"type": "string"
+				},
+				{
+					"slug": "featured_image",
+					"label": "Image",
+					"type": "image"
+				},
+				{
+					"slug": "media_type",
+					"label": "Media Type",
+					"type": "string"
+				},
+				{
+					"slug": "aspect_ratio",
+					"label": "Aspect Ratio",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"slug": "carousel_images",
+			"label": "Carousel Images",
+			"labelSingular": "Carousel Image",
+			"supports": ["drafts"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Alt Text (JP)",
+					"type": "string",
+					"required": true
+				},
+				{
+					"slug": "title_en",
+					"label": "Alt Text (EN)",
+					"type": "string"
+				},
+				{
+					"slug": "featured_image",
+					"label": "Image",
+					"type": "image",
+					"required": true
+				}
+			]
+		},
+		{
+			"slug": "pages",
+			"label": "Pages",
+			"labelSingular": "Page",
+			"supports": ["drafts", "revisions", "search"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		}
+	],
+
+	"taxonomies": [
+		{
+			"name": "work_category",
+			"label": "Work Categories",
+			"labelSingular": "Work Category",
+			"hierarchical": false,
+			"collections": ["works"],
+			"terms": [
+				{ "slug": "film", "label": "Film" },
+				{ "slug": "game", "label": "Game" },
+				{ "slug": "video", "label": "Video" },
+				{ "slug": "background", "label": "Background" },
+				{ "slug": "character", "label": "Character" },
+				{ "slug": "tvc", "label": "TVC" }
+			]
+		},
+		{
+			"name": "outsourced_category",
+			"label": "Outsourced Categories",
+			"labelSingular": "Outsourced Category",
+			"hierarchical": false,
+			"collections": ["outsourced"],
+			"terms": [
+				{ "slug": "vfx", "label": "VFX" },
+				{ "slug": "3dcg", "label": "3DCG" },
+				{ "slug": "tvc", "label": "TVC" },
+				{ "slug": "video", "label": "Video" },
+				{ "slug": "motion", "label": "Motion" }
+			]
+		}
+	],
+
+	"menus": [
+		{
+			"name": "primary",
+			"label": "Primary Navigation",
+			"items": [
+				{ "type": "custom", "label": "Film", "url": "/works/film" },
+				{ "type": "custom", "label": "Game", "url": "/works/game" },
+				{ "type": "custom", "label": "Video", "url": "/works/video" },
+				{ "type": "custom", "label": "Background", "url": "/works/background" },
+				{ "type": "custom", "label": "Character", "url": "/works/character" },
+				{ "type": "custom", "label": "TVC", "url": "/works/tvc" }
+			]
+		},
+		{
+			"name": "secondary",
+			"label": "Secondary Navigation",
+			"items": [
+				{ "type": "custom", "label": "Store", "url": "/store" },
+				{ "type": "custom", "label": "Recruit", "url": "/recruit" },
+				{ "type": "custom", "label": "Contact", "url": "/contact" }
+			]
+		}
+	],
+
+	"content": {
+		"works": [
+			{
+				"id": "phantom-blade",
+				"slug": "phantom-blade",
+				"status": "published",
+				"data": {
+					"title": "ファントムブレイド",
+					"title_en": "Phantom Blade",
+					"year": "2025",
+					"description": "劇場版アニメーション制作。全編3DCGによるアクション大作。",
+					"description_en": "Theatrical anime production. Full 3DCG action blockbuster.",
+					"featured_image": "/images/placeholder-work-1.svg"
+				},
+				"taxonomies": {
+					"work_category": ["film"]
+				}
+			},
+			{
+				"id": "crystal-wars",
+				"slug": "crystal-wars",
+				"status": "published",
+				"data": {
+					"title": "クリスタルウォーズ",
+					"title_en": "Crystal Wars",
+					"year": "2025",
+					"description": "ゲームムービー制作。リアルタイム3DCGカットシーン。",
+					"description_en": "Game cinematic production. Real-time 3DCG cutscenes.",
+					"featured_image": "/images/placeholder-work-2.svg"
+				},
+				"taxonomies": {
+					"work_category": ["game"]
+				}
+			},
+			{
+				"id": "neon-city-mv",
+				"slug": "neon-city-mv",
+				"status": "published",
+				"data": {
+					"title": "ネオンシティ MV",
+					"title_en": "Neon City MV",
+					"year": "2024",
+					"description": "ミュージックビデオ制作。サイバーパンク風VFX。",
+					"description_en": "Music video production. Cyberpunk-style VFX.",
+					"featured_image": "/images/placeholder-work-3.svg"
+				},
+				"taxonomies": {
+					"work_category": ["video"]
+				}
+			},
+			{
+				"id": "azure-horizon",
+				"slug": "azure-horizon",
+				"status": "published",
+				"data": {
+					"title": "アズールホライゾン",
+					"title_en": "Azure Horizon",
+					"year": "2024",
+					"description": "短編アニメーション。美しい背景美術と光の演出。",
+					"description_en": "Short animation. Beautiful background art and lighting.",
+					"featured_image": "/images/placeholder-work-4.svg"
+				},
+				"taxonomies": {
+					"work_category": ["film"]
+				}
+			}
+		],
+		"projects": [
+			{
+				"id": "rgb-origins",
+				"slug": "rgb-origins",
+				"status": "published",
+				"data": {
+					"title": "RGB Origins",
+					"title_en": "RGB Origins",
+					"summary": "RGB Animationの設立ストーリーを描くオリジナルアニメーション企画。",
+					"summary_en": "Original animation project depicting the founding story of RGB Animation.",
+					"status": "ongoing",
+					"featured_image": "/images/placeholder-project-1.svg"
+				}
+			},
+			{
+				"id": "color-spectrum",
+				"slug": "color-spectrum",
+				"status": "published",
+				"data": {
+					"title": "カラースペクトラム",
+					"title_en": "Color Spectrum",
+					"summary": "色彩をテーマにした実験的ショートフィルムシリーズ。",
+					"summary_en": "Experimental short film series themed around color.",
+					"status": "ongoing",
+					"featured_image": "/images/placeholder-project-2.svg"
+				}
+			},
+			{
+				"id": "digital-frontier",
+				"slug": "digital-frontier",
+				"status": "published",
+				"data": {
+					"title": "デジタルフロンティア",
+					"title_en": "Digital Frontier",
+					"summary": "VR技術を活用した次世代映像体験プロジェクト。",
+					"summary_en": "Next-gen visual experience project utilizing VR technology.",
+					"status": "completed",
+					"featured_image": "/images/placeholder-project-3.svg"
+				}
+			}
+		],
+		"outsourced": [
+			{
+				"id": "acme-promo",
+				"slug": "acme-promo",
+				"status": "published",
+				"data": {
+					"title": "ACME社 プロモーション映像",
+					"title_en": "ACME Corp Promotion Video",
+					"media_type": "image",
+					"aspect_ratio": "landscape",
+					"featured_image": "/images/placeholder-outsourced-1.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["vfx"]
+				}
+			},
+			{
+				"id": "starforge-opening",
+				"slug": "starforge-opening",
+				"status": "published",
+				"data": {
+					"title": "ゲーム「StarForge」オープニング",
+					"title_en": "Game \"StarForge\" Opening",
+					"media_type": "image",
+					"aspect_ratio": "portrait",
+					"featured_image": "/images/placeholder-outsourced-2.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["3dcg"]
+				}
+			},
+			{
+				"id": "fresh-water-cm",
+				"slug": "fresh-water-cm",
+				"status": "published",
+				"data": {
+					"title": "テレビCM「Fresh Water」",
+					"title_en": "TV Commercial \"Fresh Water\"",
+					"media_type": "image",
+					"aspect_ratio": "landscape",
+					"featured_image": "/images/placeholder-outsourced-3.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["tvc"]
+				}
+			},
+			{
+				"id": "midnight-run-mv",
+				"slug": "midnight-run-mv",
+				"status": "published",
+				"data": {
+					"title": "MV「Midnight Run」",
+					"title_en": "MV \"Midnight Run\"",
+					"media_type": "image",
+					"aspect_ratio": "square",
+					"featured_image": "/images/placeholder-outsourced-4.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["video"]
+				}
+			},
+			{
+				"id": "shadow-realm-vfx",
+				"slug": "shadow-realm-vfx",
+				"status": "published",
+				"data": {
+					"title": "映画「Shadow Realm」VFX",
+					"title_en": "Film \"Shadow Realm\" VFX",
+					"media_type": "image",
+					"aspect_ratio": "landscape",
+					"featured_image": "/images/placeholder-outsourced-5.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["vfx"]
+				}
+			},
+			{
+				"id": "puzzlequest-ui",
+				"slug": "puzzlequest-ui",
+				"status": "published",
+				"data": {
+					"title": "アプリ「PuzzleQuest」UI映像",
+					"title_en": "App \"PuzzleQuest\" UI Animation",
+					"media_type": "image",
+					"aspect_ratio": "portrait",
+					"featured_image": "/images/placeholder-outsourced-6.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["motion"]
+				}
+			},
+			{
+				"id": "arch-visualization",
+				"slug": "arch-visualization",
+				"status": "published",
+				"data": {
+					"title": "建築ビジュアライゼーション",
+					"title_en": "Architecture Visualization",
+					"media_type": "image",
+					"aspect_ratio": "landscape",
+					"featured_image": "/images/placeholder-outsourced-7.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["3dcg"]
+				}
+			},
+			{
+				"id": "food-cm",
+				"slug": "food-cm",
+				"status": "published",
+				"data": {
+					"title": "フードCM撮影",
+					"title_en": "Food Commercial Shoot",
+					"media_type": "image",
+					"aspect_ratio": "square",
+					"featured_image": "/images/placeholder-outsourced-8.svg"
+				},
+				"taxonomies": {
+					"outsourced_category": ["tvc"]
+				}
+			}
+		],
+		"carousel_images": [
+			{
+				"id": "carousel-1",
+				"slug": "carousel-1",
+				"status": "published",
+				"data": {
+					"title": "プロジェクトイメージ 1",
+					"title_en": "Project Image 1",
+					"featured_image": "/images/placeholder-carousel-1.svg"
+				}
+			},
+			{
+				"id": "carousel-2",
+				"slug": "carousel-2",
+				"status": "published",
+				"data": {
+					"title": "プロジェクトイメージ 2",
+					"title_en": "Project Image 2",
+					"featured_image": "/images/placeholder-carousel-2.svg"
+				}
+			},
+			{
+				"id": "carousel-3",
+				"slug": "carousel-3",
+				"status": "published",
+				"data": {
+					"title": "プロジェクトイメージ 3",
+					"title_en": "Project Image 3",
+					"featured_image": "/images/placeholder-carousel-3.svg"
+				}
+			},
+			{
+				"id": "carousel-4",
+				"slug": "carousel-4",
+				"status": "published",
+				"data": {
+					"title": "プロジェクトイメージ 4",
+					"title_en": "Project Image 4",
+					"featured_image": "/images/placeholder-carousel-4.svg"
+				}
+			},
+			{
+				"id": "carousel-5",
+				"slug": "carousel-5",
+				"status": "published",
+				"data": {
+					"title": "プロジェクトイメージ 5",
+					"title_en": "Project Image 5",
+					"featured_image": "/images/placeholder-carousel-5.svg"
+				}
+			},
+			{
+				"id": "carousel-6",
+				"slug": "carousel-6",
+				"status": "published",
+				"data": {
+					"title": "プロジェクトイメージ 6",
+					"title_en": "Project Image 6",
+					"featured_image": "/images/placeholder-carousel-6.svg"
+				}
+			}
+		]
+	}
+}

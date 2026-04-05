@@ -11,7 +11,23 @@
       "Bash(kill %1)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" http://localhost:4321/)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:4321/)",
-      "Bash(docker compose up:*)"
+      "Bash(docker compose up:*)",
+      "Bash(cp -r 'D:/NFClientProjects/RGBAnimation/src/i18n/*' D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/i18n/)",
+      "Bash(cp -r 'D:/NFClientProjects/RGBAnimation/src/styles/*' D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/styles/)",
+      "Bash(cp -r 'D:/NFClientProjects/RGBAnimation/src/lib/*' D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/lib/)",
+      "Bash(cp -r 'D:/NFClientProjects/RGBAnimation/src/data/*' D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/data/)",
+      "Bash(cp D:/NFClientProjects/RGBAnimation/src/components/common/Header.astro D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/components/common/)",
+      "Bash(cp D:/NFClientProjects/RGBAnimation/src/components/common/Footer.astro D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/components/common/)",
+      "Bash(cp D:/NFClientProjects/RGBAnimation/src/components/common/LanguageSwitcher.astro D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/components/common/)",
+      "Bash(cp D:/NFClientProjects/RGBAnimation/src/components/common/ScrollToTop.astro D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/components/common/)",
+      "Bash(cp D:/NFClientProjects/RGBAnimation/src/components/common/Preloader.tsx D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/components/common/)",
+      "Bash(cp -r \"D:/NFClientProjects/RGBAnimation/public/\"* \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/public/\")",
+      "Bash(cp \"D:/NFClientProjects/RGBAnimation/src/pages/index.astro\" \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/pages/\")",
+      "Bash(cp \"D:/NFClientProjects/RGBAnimation/src/pages/404.astro\" \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/pages/\")",
+      "Bash(cp \"D:/NFClientProjects/RGBAnimation/src/pages/en/index.astro\" \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/pages/en/\")",
+      "Bash(cp \"D:/NFClientProjects/RGBAnimation/src/layouts/BaseLayout.astro\" \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/layouts/\")",
+      "Bash(docker compose:*)",
+      "Bash(pnpm install:*)"
     ]
   }
 }

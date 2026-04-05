@@ -1,0 +1,31 @@
+{
+	"name": "@emdash-cms/template-rgb-animation",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"emdash": {
+		"seed": "seed/seed.json"
+	},
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"start": "node ./dist/server/entry.mjs",
+		"bootstrap": "emdash init && emdash seed",
+		"seed": "emdash seed",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/node": "catalog:",
+		"@astrojs/react": "catalog:",
+		"@astrojs/sitemap": "^3.7.2",
+		"astro": "catalog:",
+		"better-sqlite3": "catalog:",
+		"emdash": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@astrojs/check": "catalog:"
+	}
+}

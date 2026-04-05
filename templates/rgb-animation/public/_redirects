@@ -1,0 +1,5 @@
+# Cloudflare Pages — Redirects
+# See: https://developers.cloudflare.com/pages/configuration/redirects/
+
+# Normalize trailing slashes (Astro handles this, but belt-and-suspenders)
+/en  /en/  301

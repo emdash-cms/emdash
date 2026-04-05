@@ -1,0 +1,266 @@
+---
+import { type Locale, t, getLocaleFromUrl, getLocalizedPath } from '@/i18n';
+
+const locale = getLocaleFromUrl(Astro.url) as Locale;
+const year = new Date().getFullYear().toString();
+---
+
+<footer class="footer" id="footer">
+  <div class="footer__inner container--wide">
+    <!-- Left: Company info -->
+    <div class="footer__company">
+      <a href={getLocalizedPath('/', locale)} class="footer__logo" aria-label="RGB Animation">
+        <span class="footer__logo-text">RGB ANIMATION</span>
+      </a>
+      <p class="footer__company-name">{t(locale, 'footer.company.name.ja')}</p>
+      <p class="footer__company-name-en">{t(locale, 'footer.company.name.en')}</p>
+      <div class="footer__copyright">
+        <p>{t(locale, 'footer.copyright', { year })}</p>
+        <p>{t(locale, 'footer.copyright.sub')}</p>
+      </div>
+    </div>
+
+    <!-- Right: Sitemap -->
+    <div class="footer__sitemap">
+      <h2 class="footer__sitemap-title">{t(locale, 'footer.sitemap')}</h2>
+
+      <div class="footer__sitemap-grid">
+        <div class="footer__sitemap-group">
+          <h3 class="footer__sitemap-heading">{t(locale, 'footer.news')}</h3>
+          <a href={getLocalizedPath('/news', locale)} class="footer__sitemap-link">
+            {t(locale, 'footer.news.all')}
+          </a>
+        </div>
+
+        <div class="footer__sitemap-group">
+          <h3 class="footer__sitemap-heading">{t(locale, 'footer.projects')}</h3>
+          <div class="footer__sitemap-sub">
+            <a href={getLocalizedPath('/works', locale)} class="footer__sitemap-link">
+              {t(locale, 'footer.projects.all')}
+            </a>
+            <span class="footer__sitemap-sep">/</span>
+            <a href={getLocalizedPath('/works/film', locale)} class="footer__sitemap-link">
+              {t(locale, 'footer.projects.movies')}
+            </a>
+            <span class="footer__sitemap-sep">/</span>
+            <a href={getLocalizedPath('/works/video', locale)} class="footer__sitemap-link">
+              {t(locale, 'footer.projects.videos')}
+            </a>
+          </div>
+        </div>
+
+        <div class="footer__sitemap-group">
+          <h3 class="footer__sitemap-heading">{t(locale, 'footer.company')}</h3>
+          <a href={getLocalizedPath('/company', locale)} class="footer__sitemap-link">
+            {t(locale, 'footer.company.info')}
+          </a>
+        </div>
+
+        <div class="footer__sitemap-group">
+          <h3 class="footer__sitemap-heading">{t(locale, 'footer.contact')}</h3>
+          <a href={getLocalizedPath('/contact', locale)} class="footer__sitemap-link">
+            {t(locale, 'footer.contact.us')}
+          </a>
+        </div>
+
+        <div class="footer__sitemap-group">
+          <a href={getLocalizedPath('/recruit', locale)} class="footer__sitemap-heading footer__sitemap-heading--link">
+            {t(locale, 'footer.recruit')}
+          </a>
+        </div>
+
+        <div class="footer__sitemap-group">
+          <a href={getLocalizedPath('/privacy', locale)} class="footer__sitemap-heading footer__sitemap-heading--link">
+            {t(locale, 'footer.privacy')}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="footer__bottom">
+    <div class="footer__bottom-inner container--wide">
+      <span class="footer__bottom-copy">
+        {t(locale, 'footer.copyright', { year })}
+      </span>
+      <button class="footer__scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label={t(locale, 'common.scrollToTop')}>
+        {t(locale, 'common.backToTop')}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 19V5" />
+          <path d="m5 12 7-7 7 7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    border-top: 1px solid var(--color-border-light);
+    padding-top: var(--space-lg);
+  }
+
+  .footer__inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+    padding-inline: var(--container-padding);
+    max-width: var(--container-wide);
+    margin-inline: auto;
+  }
+
+  @media (min-width: 768px) {
+    .footer__inner {
+      grid-template-columns: 1fr 2fr;
+      gap: var(--space-xl);
+    }
+  }
+
+  /* Company column */
+  .footer__company {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .footer__logo {
+    display: inline-block;
+    margin-bottom: var(--space-xs);
+  }
+
+  .footer__logo-text {
+    font-family: var(--font-en);
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.08em;
+    color: var(--color-text-primary);
+  }
+
+  .footer__company-name {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .footer__company-name-en {
+    font-family: var(--font-en);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .footer__copyright {
+    margin-top: var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    line-height: 1.6;
+  }
+
+  /* Sitemap column */
+  .footer__sitemap-title {
+    font-family: var(--font-en);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.12em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-md);
+    text-transform: uppercase;
+  }
+
+  .footer__sitemap-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  @media (min-width: 768px) {
+    .footer__sitemap-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-sm) var(--space-md);
+    }
+  }
+
+  .footer__sitemap-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .footer__sitemap-heading {
+    font-family: var(--font-en);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.06em;
+    color: var(--color-text-primary);
+  }
+
+  .footer__sitemap-heading--link {
+    transition: color var(--duration-fast) var(--ease-default);
+  }
+
+  .footer__sitemap-heading--link:hover {
+    color: var(--color-accent);
+  }
+
+  .footer__sitemap-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .footer__sitemap-link {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    transition: color var(--duration-fast) var(--ease-default);
+  }
+
+  .footer__sitemap-link:hover {
+    color: var(--color-accent);
+  }
+
+  .footer__sitemap-sep {
+    color: var(--color-border-light);
+    font-size: var(--text-xs);
+  }
+
+  /* Bottom bar */
+  .footer__bottom {
+    margin-top: var(--space-lg);
+    padding-block: var(--space-sm);
+    border-top: 1px solid var(--color-border-light);
+  }
+
+  .footer__bottom-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: var(--container-padding);
+    max-width: var(--container-wide);
+    margin-inline: auto;
+  }
+
+  .footer__bottom-copy {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .footer__scroll-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-en);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    transition: color var(--duration-fast) var(--ease-default);
+  }
+
+  .footer__scroll-top:hover {
+    color: var(--color-accent);
+  }
+</style>

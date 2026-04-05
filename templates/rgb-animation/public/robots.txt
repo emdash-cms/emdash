@@ -1,0 +1,19 @@
+# RGB Animation — Robots
+# AI crawlers are ALLOWED (never block)
+User-agent: *
+Allow: /
+
+# Explicitly allow AI crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+Sitemap: https://rgb-animation.com/sitemap-index.xml
