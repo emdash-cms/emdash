@@ -1,0 +1,207 @@
+name: PR Triage
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Label PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Triage PR
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = new Set();
+
+            // --- Bot detection ---
+            const botLogins = ['dependabot[bot]', 'renovate[bot]', 'emdashbot[bot]'];
+            if (botLogins.includes(pr.user.login)) {
+              labels.add('bot');
+            }
+
+            // --- Size labels ---
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const linesChanged = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+            const sizeLabels = ['size/XS', 'size/S', 'size/M', 'size/L', 'size/XL'];
+            let sizeLabel;
+            if (linesChanged < 10) sizeLabel = 'size/XS';
+            else if (linesChanged < 50) sizeLabel = 'size/S';
+            else if (linesChanged < 200) sizeLabel = 'size/M';
+            else if (linesChanged < 500) sizeLabel = 'size/L';
+            else sizeLabel = 'size/XL';
+            labels.add(sizeLabel);
+
+            // --- Area labels ---
+            const areaMap = {
+              'area/core': (f) => f.startsWith('packages/core/'),
+              'area/admin': (f) => f.startsWith('packages/admin/'),
+              'area/plugins': (f) => f.startsWith('packages/plugins/'),
+              'area/docs': (f) => f.startsWith('docs/'),
+              'area/templates': (f) => f.startsWith('templates/'),
+              'area/ci': (f) => f.startsWith('.github/'),
+              'area/auth': (f) => f.startsWith('packages/auth/'),
+              'area/cloudflare': (f) => f.startsWith('packages/cloudflare/'),
+            };
+
+            for (const file of files) {
+              for (const [label, matcher] of Object.entries(areaMap)) {
+                if (matcher(file.filename)) {
+                  labels.add(label);
+                }
+              }
+            }
+
+            // --- Merge conflict detection ---
+            // mergeable is available on the full PR object (may need a separate fetch
+            // since the webhook payload sometimes has mergeable=null while computing)
+            try {
+              const { data: fullPr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+              });
+              if (fullPr.mergeable === false) {
+                labels.add('needs-rebase');
+              }
+            } catch {
+              // Ignore -- mergeable state may not be computed yet
+            }
+
+            // CLA labels are managed by the CLA workflow (cla.yml), not here.
+
+            // --- Ensure all labels exist, then apply ---
+            const labelColors = {
+              'bot': 'ededed',
+              'size/XS': '3cbf00',
+              'size/S': '5dba3f',
+              'size/M': 'fbca04',
+              'size/L': 'ee9b00',
+              'size/XL': 'd93f0b',
+              'area/core': '0052cc',
+              'area/admin': '7057ff',
+              'area/plugins': '008672',
+              'area/docs': '0075ca',
+              'area/templates': 'bfdadc',
+              'area/ci': '000000',
+              'area/auth': 'd4c5f9',
+              'area/cloudflare': 'f9a825',
+              'needs-rebase': 'e11d48',
+            };
+
+            // Get existing labels on the repo
+            const existingLabels = new Set();
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listLabelsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+            )) {
+              for (const label of response.data) {
+                existingLabels.add(label.name);
+              }
+            }
+
+            // Create any missing labels
+            for (const label of labels) {
+              if (!existingLabels.has(label) && labelColors[label]) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label,
+                  color: labelColors[label],
+                });
+              }
+            }
+
+            // Get current labels on the PR to remove stale ones
+            const currentLabels = new Set(pr.labels.map(l => l.name));
+
+            // Helper: remove a label, ignoring 404 if it's already gone
+            async function safeRemoveLabel(name) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name,
+                });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+            }
+
+            // Remove stale size labels (only one size label at a time)
+            for (const sl of sizeLabels) {
+              if (sl !== sizeLabel && currentLabels.has(sl)) {
+                await safeRemoveLabel(sl);
+              }
+            }
+
+            // Remove needs-rebase if PR is now mergeable
+            if (!labels.has('needs-rebase') && currentLabels.has('needs-rebase')) {
+              await safeRemoveLabel('needs-rebase');
+            }
+
+            // Add new labels
+            const toAdd = [...labels].filter(l => !currentLabels.has(l));
+            if (toAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: toAdd,
+              });
+            }
+
+            core.info(`Applied labels: ${[...labels].join(', ')}`);
+
+            // --- Scope guard: comment on oversized PRs ---
+            // Only on open (not synchronize) to avoid spamming on every push
+            if (context.payload.action === 'opened') {
+              const warnings = [];
+
+              if (linesChanged > 500) {
+                warnings.push(`This PR changes **${linesChanged.toLocaleString()} lines** across **${files.length} files**. Large PRs are harder to review and more likely to be closed without review.`);
+              } else if (files.length > 20) {
+                warnings.push(`This PR touches **${files.length} files**. PRs with a broad scope are harder to review. Please confirm the scope hasn't drifted beyond the intended change.`);
+              }
+
+              // Check for cross-area changes (touching multiple packages)
+              const areas = Object.keys(areaMap).filter(a => labels.has(a));
+              if (areas.length > 3) {
+                warnings.push(`This PR spans ${areas.length} different areas (${areas.join(', ')}). Consider breaking it into smaller, focused PRs.`);
+              }
+
+              if (warnings.length > 0) {
+                const marker = '<!-- scope-guard -->';
+                const body = [
+                  marker,
+                  '## Scope check',
+                  '',
+                  ...warnings,
+                  '',
+                  'If this scope is intentional, no action needed. A maintainer will review it. If not, please consider splitting this into smaller PRs.',
+                  '',
+                  'See [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) for contribution guidelines.',
+                ].join('\n');
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body,
+                });
+              }
+            }
