@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c 'import sys,json; d=json.load\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\)\\); print\\(d.get\\('\\\\''name'\\\\'','\\\\''?'\\\\''\\), '\\\\''|'\\\\'', list\\(d.get\\('\\\\''scripts'\\\\'',{}\\).keys\\(\\)\\)\\)')",
+      "Bash(python3:*)"
+    ]
+  }
+}
