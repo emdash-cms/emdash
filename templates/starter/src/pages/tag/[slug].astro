@@ -1,10 +1,9 @@
 ---
-import { getTerm, getEmDashCollection } from "emdash";
+import { getTerm, getEmDashCollection, decodeSlug } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
-const { slug: rawSlug } = Astro.params;
-const slug = rawSlug ? decodeURIComponent(rawSlug) : undefined;
+const slug = decodeSlug(Astro.params.slug);
 const term = slug ? await getTerm("tag", slug) : null;
 
 if (!term) {
