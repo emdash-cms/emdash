@@ -1149,15 +1149,51 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
 
     dimPromise.then(function(dims) {
-      var formData = new FormData();
-      formData.append("file", file);
-      if (dims.width) formData.append("width", String(dims.width));
-      if (dims.height) formData.append("height", String(dims.height));
+      // Generate a thumbnail for large images to avoid OOM in server-side
+      // blurhash generation on memory-constrained runtimes (Workers).
+      var thumbPromise;
+      if (dims.width && dims.height && dims.width * dims.height * 4 > 32 * 1024 * 1024) {
+        thumbPromise = new Promise(function(resolve) {
+          var thumbW = 64;
+          var thumbH = Math.max(1, Math.round((dims.height / dims.width) * thumbW));
+          var canvas = document.createElement("canvas");
+          canvas.width = thumbW;
+          canvas.height = thumbH;
+          var ctx = canvas.getContext("2d");
+          if (ctx) {
+            var img = new Image();
+            img.onload = function() {
+              ctx.drawImage(img, 0, 0, thumbW, thumbH);
+              canvas.toBlob(function(blob) {
+                URL.revokeObjectURL(img.src);
+                resolve(blob);
+              }, "image/png");
+            };
+            img.onerror = function() {
+              URL.revokeObjectURL(img.src);
+              resolve(null);
+            };
+            img.src = URL.createObjectURL(file);
+          } else {
+            resolve(null);
+          }
+        });
+      } else {
+        thumbPromise = Promise.resolve(null);
+      }
 
-      return ecFetch("/_emdash/api/media", {
-        method: "POST",
-        credentials: "same-origin",
-        body: formData
+      return thumbPromise.then(function(thumbnail) {
+        var formData = new FormData();
+        formData.append("file", file);
+        if (dims.width) formData.append("width", String(dims.width));
+        if (dims.height) formData.append("height", String(dims.height));
+        if (thumbnail) formData.append("thumbnail", thumbnail, "thumb.png");
+
+        return ecFetch("/_emdash/api/media", {
+          method: "POST",
+          credentials: "same-origin",
+          body: formData
+        });
       });
     })
     .then(function(r) { return r.json(); })
