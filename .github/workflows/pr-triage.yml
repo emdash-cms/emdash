@@ -128,26 +128,30 @@ jobs:
             // Get current labels on the PR to remove stale ones
             const currentLabels = new Set(pr.labels.map(l => l.name));
 
-            // Remove stale size labels (only one size label at a time)
-            for (const sl of sizeLabels) {
-              if (sl !== sizeLabel && currentLabels.has(sl)) {
+            // Helper: remove a label, ignoring 404 if it's already gone
+            async function safeRemoveLabel(name) {
+              try {
                 await github.rest.issues.removeLabel({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pr.number,
-                  name: sl,
+                  name,
                 });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+            }
+
+            // Remove stale size labels (only one size label at a time)
+            for (const sl of sizeLabels) {
+              if (sl !== sizeLabel && currentLabels.has(sl)) {
+                await safeRemoveLabel(sl);
               }
             }
 
             // Remove needs-rebase if PR is now mergeable
             if (!labels.has('needs-rebase') && currentLabels.has('needs-rebase')) {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                name: 'needs-rebase',
-              });
+              await safeRemoveLabel('needs-rebase');
             }
 
             // Add new labels
