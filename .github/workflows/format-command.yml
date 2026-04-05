@@ -77,13 +77,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install formatters
-        run: npm install --no-save --ignore-scripts oxfmt prettier prettier-plugin-astro
-
-      - name: Run formatters
-        run: |
-          npx oxfmt --ignore-path .gitignore
-          npx prettier --write .
+      - name: Run formatter
+        run: npx oxfmt --ignore-path .gitignore
 
       - name: Check for changes
         id: diff
@@ -133,7 +128,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\nnpx oxfmt --ignore-path .gitignore\nnpx prettier --write .\n\`\`\``,
+              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
             });
 
       - name: React to comment (result)
