@@ -25,6 +25,8 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { computeThumbnailSize } from "../media/thumbnail.js";
+
 // ── Portable Text types ────────────────────────────────────────────
 
 interface PTSpan {
@@ -1126,19 +1128,22 @@ function InlineMediaPicker({
 					const h = img.naturalHeight;
 					// 32 MB RGBA threshold — matches server MAX_DECODED_BYTES
 					if (w * h * 4 > 32 * 1024 * 1024) {
-						const thumbW = 64;
-						const thumbH = Math.max(1, Math.round((h / w) * thumbW));
-						const canvas = document.createElement("canvas");
-						canvas.width = thumbW;
-						canvas.height = thumbH;
-						const ctx = canvas.getContext("2d");
-						if (ctx) {
-							ctx.drawImage(img, 0, 0, thumbW, thumbH);
-							canvas.toBlob((blob) => {
-								URL.revokeObjectURL(img.src);
-								resolve({ width: w, height: h, thumbnail: blob ?? undefined });
-							}, "image/png");
-							return;
+						const { width: thumbW, height: thumbH } = computeThumbnailSize(w, h);
+						try {
+							const canvas = document.createElement("canvas");
+							canvas.width = thumbW;
+							canvas.height = thumbH;
+							const ctx = canvas.getContext("2d");
+							if (ctx) {
+								ctx.drawImage(img, 0, 0, thumbW, thumbH);
+								canvas.toBlob((blob) => {
+									URL.revokeObjectURL(img.src);
+									resolve({ width: w, height: h, thumbnail: blob ?? undefined });
+								}, "image/png");
+								return;
+							}
+						} catch {
+							// Canvas allocation or draw failed — fall through to no-thumbnail path
 						}
 					}
 					URL.revokeObjectURL(img.src);

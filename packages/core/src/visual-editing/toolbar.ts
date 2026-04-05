@@ -1151,30 +1151,43 @@ export function renderToolbar(config: ToolbarConfig): string {
     dimPromise.then(function(dims) {
       // Generate a thumbnail for large images to avoid OOM in server-side
       // blurhash generation on memory-constrained runtimes (Workers).
+      // Thumbnail fits within a 64x64 box (scale by max dimension) so that
+      // extreme aspect ratios don't explode into a huge canvas client-side.
       var thumbPromise;
       if (dims.width && dims.height && dims.width * dims.height * 4 > 32 * 1024 * 1024) {
         thumbPromise = new Promise(function(resolve) {
-          var thumbW = 64;
-          var thumbH = Math.max(1, Math.round((dims.height / dims.width) * thumbW));
-          var canvas = document.createElement("canvas");
-          canvas.width = thumbW;
-          canvas.height = thumbH;
-          var ctx = canvas.getContext("2d");
-          if (ctx) {
-            var img = new Image();
-            img.onload = function() {
-              ctx.drawImage(img, 0, 0, thumbW, thumbH);
-              canvas.toBlob(function(blob) {
+          try {
+            var maxDim = Math.max(dims.width, dims.height);
+            var scale = Math.min(1, 64 / maxDim);
+            var thumbW = Math.max(1, Math.round(dims.width * scale));
+            var thumbH = Math.max(1, Math.round(dims.height * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = thumbW;
+            canvas.height = thumbH;
+            var ctx = canvas.getContext("2d");
+            if (ctx) {
+              var img = new Image();
+              img.onload = function() {
+                try {
+                  ctx.drawImage(img, 0, 0, thumbW, thumbH);
+                  canvas.toBlob(function(blob) {
+                    URL.revokeObjectURL(img.src);
+                    resolve(blob);
+                  }, "image/png");
+                } catch (e) {
+                  URL.revokeObjectURL(img.src);
+                  resolve(null);
+                }
+              };
+              img.onerror = function() {
                 URL.revokeObjectURL(img.src);
-                resolve(blob);
-              }, "image/png");
-            };
-            img.onerror = function() {
-              URL.revokeObjectURL(img.src);
+                resolve(null);
+              };
+              img.src = URL.createObjectURL(file);
+            } else {
               resolve(null);
-            };
-            img.src = URL.createObjectURL(file);
-          } else {
+            }
+          } catch (e) {
             resolve(null);
           }
         });
