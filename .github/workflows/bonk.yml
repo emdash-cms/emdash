@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Bonk
-        uses: ask-bonk/ask-bonk/github@c39e982defd0114385df54e72012a3fc4333c4d4 # main 2026-03-23
+        uses: ask-bonk/ask-bonk/github@5704e1685d6efc3951efb9166a8bd17a9ca28509 # main 2026-03-23
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
