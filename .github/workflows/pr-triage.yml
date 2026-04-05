@@ -81,29 +81,7 @@ jobs:
               // Ignore -- mergeable state may not be computed yet
             }
 
-            // --- CLA status ---
-            // The CLA assistant sets a commit status named "license/cla".
-            // Check the latest status for this PR's head SHA.
-            try {
-              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: pr.head.sha,
-              });
-              const claStatus = statuses.find(s => s.context === 'license/cla');
-              if (claStatus) {
-                if (claStatus.state === 'success') {
-                  labels.add('cla: signed');
-                } else {
-                  labels.add('cla: needed');
-                }
-              } else {
-                // CLA check hasn't run yet -- mark as pending
-                labels.add('cla: needed');
-              }
-            } catch {
-              // If we can't read statuses, don't add CLA labels
-            }
+            // CLA labels are managed by the CLA workflow (cla.yml), not here.
 
             // --- Ensure all labels exist, then apply ---
             const labelColors = {
@@ -121,8 +99,6 @@ jobs:
               'area/ci': '000000',
               'area/auth': 'd4c5f9',
               'area/cloudflare': 'f9a825',
-              'cla: signed': '0e8a16',
-              'cla: needed': 'b60205',
               'needs-rebase': 'e11d48',
             };
 
@@ -160,19 +136,6 @@ jobs:
                   repo: context.repo.repo,
                   issue_number: pr.number,
                   name: sl,
-                });
-              }
-            }
-
-            // Remove stale CLA labels
-            const claLabels = ['cla: signed', 'cla: needed'];
-            for (const cl of claLabels) {
-              if (!labels.has(cl) && currentLabels.has(cl)) {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pr.number,
-                  name: cl,
                 });
               }
             }
