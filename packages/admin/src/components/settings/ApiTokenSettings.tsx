@@ -5,6 +5,7 @@
  */
 
 import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Copy,
@@ -54,6 +55,7 @@ function computeExpiryDate(option: string): string | undefined {
 // =============================================================================
 
 export function ApiTokenSettings() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [showCreateForm, setShowCreateForm] = React.useState(false);
 	const [newToken, setNewToken] = React.useState<ApiTokenCreateResult | null>(null);
@@ -115,9 +117,9 @@ export function ApiTokenSettings() {
 					<ArrowLeft className="h-5 w-5" />
 				</Link>
 				<div>
-					<h1 className="text-2xl font-bold">API Tokens</h1>
+					<h1 className="text-2xl font-bold">{t`API Tokens`}</h1>
 					<p className="text-sm text-kumo-subtle">
-						Create personal access tokens for programmatic API access
+						{t`Create personal access tokens for programmatic API access`}
 					</p>
 				</div>
 			</div>
@@ -129,10 +131,10 @@ export function ApiTokenSettings() {
 						<Key className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
 						<div className="flex-1 min-w-0">
 							<p className="font-medium text-green-800 dark:text-green-200">
-								Token created: {newToken.info.name}
+								{t`Token created: ${newToken.info.name}`}
 							</p>
 							<p className="text-sm text-green-700 dark:text-green-300 mt-1">
-								Copy this token now — it won't be shown again.
+								{t`Copy this token now — it won't be shown again.`}
 							</p>
 							<div className="mt-3 flex items-center gap-2">
 								<code className="flex-1 rounded bg-white dark:bg-black/30 px-3 py-2 text-sm font-mono border truncate">
@@ -142,7 +144,7 @@ export function ApiTokenSettings() {
 									variant="ghost"
 									shape="square"
 									onClick={() => setTokenVisible(!tokenVisible)}
-									aria-label={tokenVisible ? "Hide token" : "Show token"}
+									aria-label={tokenVisible ? t`Hide token` : t`Show token`}
 								>
 									{tokenVisible ? <EyeSlash /> : <Eye />}
 								</Button>
@@ -150,14 +152,14 @@ export function ApiTokenSettings() {
 									variant="ghost"
 									shape="square"
 									onClick={handleCopyToken}
-									aria-label="Copy token"
+									aria-label={t`Copy token`}
 								>
 									<Copy />
 								</Button>
 							</div>
 							{copied && (
 								<p className="text-xs text-green-600 dark:text-green-400 mt-1">
-									Copied to clipboard
+									{t`Copied to clipboard`}
 								</p>
 							)}
 						</div>
@@ -165,9 +167,9 @@ export function ApiTokenSettings() {
 							variant="ghost"
 							size="sm"
 							onClick={() => setNewToken(null)}
-							aria-label="Dismiss"
+							aria-label={t`Dismiss`}
 						>
-							Dismiss
+							{t`Dismiss`}
 						</Button>
 					</div>
 				</div>
@@ -189,7 +191,7 @@ export function ApiTokenSettings() {
 				/>
 			) : (
 				<Button icon={<Plus />} onClick={() => setShowCreateForm(true)}>
-					Create Token
+					{t`Create Token`}
 				</Button>
 			)}
 
@@ -201,7 +203,7 @@ export function ApiTokenSettings() {
 					</div>
 				) : !tokens || tokens.length === 0 ? (
 					<div className="py-8 text-center text-sm text-kumo-subtle">
-						No API tokens yet. Create one to get started.
+						{t`No API tokens yet. Create one to get started.`}
 					</div>
 				) : (
 					<div className="divide-y">
@@ -215,16 +217,16 @@ export function ApiTokenSettings() {
 										</code>
 									</div>
 									<div className="flex gap-3 mt-1 text-xs text-kumo-subtle">
-										<span>Scopes: {token.scopes.join(", ")}</span>
+										<span>{t`Scopes: ${token.scopes.join(", ")}`}</span>
 										{token.expiresAt && (
-											<span>Expires {new Date(token.expiresAt).toLocaleDateString()}</span>
+											<span>{t`Expires ${new Date(token.expiresAt).toLocaleDateString()}`}</span>
 										)}
 										{token.lastUsedAt && (
-											<span>Last used {new Date(token.lastUsedAt).toLocaleDateString()}</span>
+											<span>{t`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}</span>
 										)}
 									</div>
 									<div className="text-xs text-kumo-subtle mt-0.5">
-										Created {new Date(token.createdAt).toLocaleDateString()}
+										{t`Created ${new Date(token.createdAt).toLocaleDateString()}`}
 									</div>
 								</div>
 
@@ -235,14 +237,14 @@ export function ApiTokenSettings() {
 												{getMutationError(revokeMutation.error)}
 											</span>
 										)}
-										<span className="text-sm text-kumo-danger">Revoke?</span>
+										<span className="text-sm text-kumo-danger">{t`Revoke?`}</span>
 										<Button
 											variant="destructive"
 											size="sm"
 											disabled={revokeMutation.isPending}
 											onClick={() => revokeMutation.mutate(token.id)}
 										>
-											{revokeMutation.isPending ? "Revoking..." : "Confirm"}
+											{revokeMutation.isPending ? t`Revoking...` : t`Confirm`}
 										</Button>
 										<Button
 											variant="outline"
@@ -252,7 +254,7 @@ export function ApiTokenSettings() {
 												revokeMutation.reset();
 											}}
 										>
-											Cancel
+											{t`Cancel`}
 										</Button>
 									</div>
 								) : (
@@ -260,7 +262,7 @@ export function ApiTokenSettings() {
 										variant="ghost"
 										shape="square"
 										onClick={() => setRevokeConfirmId(token.id)}
-										aria-label="Revoke token"
+										aria-label={t`Revoke token`}
 									>
 										<Trash className="h-4 w-4 text-kumo-subtle hover:text-kumo-danger" />
 									</Button>
@@ -286,6 +288,7 @@ interface CreateTokenFormProps {
 }
 
 function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenFormProps) {
+	const { t } = useLingui();
 	const [name, setName] = React.useState("");
 	const [selectedScopes, setSelectedScopes] = React.useState<Set<string>>(new Set());
 	const [expiry, setExpiry] = React.useState("30d");
@@ -315,7 +318,7 @@ function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenF
 
 	return (
 		<div className="rounded-lg border bg-kumo-base p-6">
-			<h2 className="text-lg font-semibold mb-4">Create New Token</h2>
+			<h2 className="text-lg font-semibold mb-4">{t`Create New Token`}</h2>
 
 			{error && (
 				<div className="mb-4 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-3 flex items-center gap-2 text-sm text-kumo-danger">
@@ -326,16 +329,16 @@ function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenF
 
 			<form onSubmit={handleSubmit} className="space-y-4">
 				<Input
-					label="Token Name"
+					label={t`Token Name`}
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					placeholder="e.g., CI/CD Pipeline"
+					placeholder={t`e.g., CI/CD Pipeline`}
 					required
 					autoFocus
 				/>
 
 				<div>
-					<div className="text-sm font-medium mb-2">Scopes</div>
+					<div className="text-sm font-medium mb-2">{t`Scopes`}</div>
 					<div className="space-y-2">
 						{API_TOKEN_SCOPES.map((scope) => (
 							<label key={scope.value} className="flex items-start gap-2 cursor-pointer">
@@ -353,7 +356,7 @@ function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenF
 				</div>
 
 				<Select
-					label="Expiry"
+					label={t`Expiry`}
 					value={expiry}
 					onValueChange={(v) => v !== null && setExpiry(v)}
 					items={Object.fromEntries(EXPIRY_OPTIONS.map((o) => [o.value, o.label]))}
@@ -367,10 +370,10 @@ function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenF
 
 				<div className="flex gap-2 pt-2">
 					<Button type="submit" disabled={!isValid || isCreating}>
-						{isCreating ? "Creating..." : "Create Token"}
+						{isCreating ? t`Creating...` : t`Create Token`}
 					</Button>
 					<Button type="button" variant="outline" onClick={onCancel}>
-						Cancel
+						{t`Cancel`}
 					</Button>
 				</div>
 			</form>

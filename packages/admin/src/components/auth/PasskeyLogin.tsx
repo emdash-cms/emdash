@@ -12,6 +12,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../../lib/api/client";
@@ -136,8 +137,10 @@ export function PasskeyLogin({
 	onSuccess,
 	onError,
 	showEmailInput = false,
-	buttonText = "Sign in with Passkey",
+	buttonText,
 }: PasskeyLoginProps) {
+	const { t } = useLingui();
+	const resolvedButtonText = buttonText ?? t`Sign in with Passkey`;
 	const [state, setState] = React.useState<LoginState>({ status: "idle" });
 	const [email, setEmail] = React.useState("");
 	const [supportsConditional, setSupportsConditional] = React.useState(false);
@@ -155,14 +158,14 @@ export function PasskeyLogin({
 			if (!isSupported) {
 				setState({
 					status: "error",
-					message: "WebAuthn is not supported in this browser",
+					message: t`WebAuthn is not supported in this browser`,
 				});
 				return;
 			}
 
 			try {
 				// Step 1: Get authentication options from server
-				setState({ status: "loading", message: "Preparing..." });
+				setState({ status: "loading", message: t`Preparing...` });
 
 				const optionsResponse = await apiFetch(optionsEndpoint, {
 					method: "POST",
@@ -176,7 +179,7 @@ export function PasskeyLogin({
 				const { options } = optionsData;
 
 				// Step 2: Get assertion from browser
-				setState({ status: "loading", message: "Waiting for passkey..." });
+				setState({ status: "loading", message: t`Waiting for passkey...` });
 
 				// Convert options to the format expected by the browser
 				const publicKeyOptions: PublicKeyCredentialRequestOptions = {
@@ -206,7 +209,7 @@ export function PasskeyLogin({
 				}
 
 				// Step 3: Send credential to server for verification
-				setState({ status: "loading", message: "Verifying..." });
+				setState({ status: "loading", message: t`Verifying...` });
 
 				// navigator.credentials.get() with publicKey returns PublicKeyCredential
 				const credential = rawCredential as PublicKeyCredential;
@@ -249,30 +252,30 @@ export function PasskeyLogin({
 				setState({ status: "success" });
 				onSuccess(result);
 			} catch (error) {
-				const message = error instanceof Error ? error.message : "Authentication failed";
+				const message = error instanceof Error ? error.message : t`Authentication failed`;
 
 				// Handle specific WebAuthn errors
 				let userMessage = message;
 				if (error instanceof DOMException) {
 					switch (error.name) {
 						case "NotAllowedError":
-							userMessage = "Authentication was cancelled or timed out. Please try again.";
+							userMessage = t`Authentication was cancelled or timed out. Please try again.`;
 							break;
 						case "InvalidStateError":
-							userMessage = "No matching passkey found for this account.";
+							userMessage = t`No matching passkey found for this account.`;
 							break;
 						case "NotSupportedError":
-							userMessage = "Your device doesn't support the required security features.";
+							userMessage = t`Your device doesn't support the required security features.`;
 							break;
 						case "SecurityError":
-							userMessage = "Security error. Make sure you're on a secure connection.";
+							userMessage = t`Security error. Make sure you're on a secure connection.`;
 							break;
 						case "AbortError":
 							// User cancelled - don't show error
 							setState({ status: "idle" });
 							return;
 						default:
-							userMessage = `Authentication error: ${error.message}`;
+							userMessage = t`Authentication error: ${error.message}`;
 					}
 				}
 
@@ -287,10 +290,9 @@ export function PasskeyLogin({
 	if (!isSupported) {
 		return (
 			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4">
-				<h3 className="font-medium text-kumo-danger">Passkeys Not Supported</h3>
+				<h3 className="font-medium text-kumo-danger">{t`Passkeys Not Supported`}</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
-					Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari,
-					Firefox, or Edge.
+					{t`Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge.`}
 				</p>
 			</div>
 		);
@@ -302,7 +304,7 @@ export function PasskeyLogin({
 			{showEmailInput && (
 				<div>
 					<Input
-						label="Email (optional)"
+						label={t`Email (optional)`}
 						type="email"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
@@ -311,7 +313,7 @@ export function PasskeyLogin({
 						autoComplete="username webauthn"
 					/>
 					<p className="mt-1 text-xs text-kumo-subtle">
-						Leave blank to use a discoverable passkey.
+						{t`Leave blank to use a discoverable passkey.`}
 					</p>
 				</div>
 			)}
@@ -331,12 +333,12 @@ export function PasskeyLogin({
 				className="w-full justify-center"
 				variant="primary"
 			>
-				{state.status === "loading" ? <>{state.message}</> : buttonText}
+				{state.status === "loading" ? <>{state.message}</> : resolvedButtonText}
 			</Button>
 
 			{/* Help text */}
 			<p className="text-xs text-kumo-subtle text-center">
-				Use your device's biometric authentication, security key, or PIN to sign in.
+				{t`Use your device's biometric authentication, security key, or PIN to sign in.`}
 			</p>
 		</div>
 	);

@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type {
 	MarketplaceSearchResult,
 	MarketplacePluginSummary,
 } from "../../src/lib/api/marketplace";
+import { render } from "../utils/render.js";
 
 // Mock router
 const mockNavigate = vi.fn();

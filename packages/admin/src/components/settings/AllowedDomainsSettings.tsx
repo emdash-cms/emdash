@@ -6,6 +6,7 @@
  */
 
 import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	Globe,
 	Plus,
@@ -42,6 +43,7 @@ function getRoleName(level: number): string {
 }
 
 export function AllowedDomainsSettings() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
 	const [editingDomain, setEditingDomain] = React.useState<AllowedDomain | null>(null);
@@ -90,12 +92,12 @@ export function AllowedDomainsSettings() {
 			setIsAddingDomain(false);
 			setNewDomain("");
 			setNewRole(30);
-			setSaveStatus({ type: "success", message: "Domain added successfully" });
+			setSaveStatus({ type: "success", message: t`Domain added successfully` });
 		},
 		onError: (mutationError) => {
 			setSaveStatus({
 				type: "error",
-				message: mutationError instanceof Error ? mutationError.message : "Failed to add domain",
+				message: mutationError instanceof Error ? mutationError.message : t`Failed to add domain`,
 			});
 		},
 	});
@@ -112,12 +114,13 @@ export function AllowedDomainsSettings() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
 			setEditingDomain(null);
-			setSaveStatus({ type: "success", message: "Domain updated" });
+			setSaveStatus({ type: "success", message: t`Domain updated` });
 		},
 		onError: (mutationError) => {
 			setSaveStatus({
 				type: "error",
-				message: mutationError instanceof Error ? mutationError.message : "Failed to update domain",
+				message:
+					mutationError instanceof Error ? mutationError.message : t`Failed to update domain`,
 			});
 		},
 	});
@@ -128,12 +131,13 @@ export function AllowedDomainsSettings() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
 			setDeletingDomain(null);
-			setSaveStatus({ type: "success", message: "Domain removed" });
+			setSaveStatus({ type: "success", message: t`Domain removed` });
 		},
 		onError: (mutationError) => {
 			setSaveStatus({
 				type: "error",
-				message: mutationError instanceof Error ? mutationError.message : "Failed to remove domain",
+				message:
+					mutationError instanceof Error ? mutationError.message : t`Failed to remove domain`,
 			});
 		},
 	});
@@ -170,9 +174,9 @@ export function AllowedDomainsSettings() {
 	if (manifestLoading || isLoading) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-2xl font-bold">Self-Signup Domains</h1>
+				<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>
 				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">Loading...</p>
+					<p className="text-kumo-subtle">{t`Loading...`}</p>
 				</div>
 			</div>
 		);
@@ -182,18 +186,17 @@ export function AllowedDomainsSettings() {
 	if (isExternalAuth) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-2xl font-bold">Self-Signup Domains</h1>
+				<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-start gap-3">
 						<Info className="h-5 w-5 text-kumo-subtle mt-0.5 flex-shrink-0" />
 						<div className="space-y-2">
 							<p className="text-kumo-subtle">
-								User access is managed by an external provider ({manifest?.authMode}). Self-signup
-								domain settings are not available when using external authentication.
+								{t`User access is managed by an external provider (${manifest?.authMode}). Self-signup domain settings are not available when using external authentication.`}
 							</p>
 							<Link to="/settings">
 								<Button variant="outline" size="sm" icon={<ArrowLeft />}>
-									Back to Settings
+									{t`Back to Settings`}
 								</Button>
 							</Link>
 						</div>
@@ -206,10 +209,10 @@ export function AllowedDomainsSettings() {
 	if (error) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-2xl font-bold">Self-Signup Domains</h1>
+				<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6">
 					<p className="text-kumo-danger">
-						{error instanceof Error ? error.message : "Failed to load allowed domains"}
+						{error instanceof Error ? error.message : t`Failed to load allowed domains`}
 					</p>
 				</div>
 			</div>
@@ -218,7 +221,7 @@ export function AllowedDomainsSettings() {
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-2xl font-bold">Self-Signup Domains</h1>
+			<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>
 
 			{/* Status message */}
 			{saveStatus && (
@@ -242,12 +245,11 @@ export function AllowedDomainsSettings() {
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-center gap-2 mb-4">
 					<Globe className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">Allowed Domains</h2>
+					<h2 className="text-lg font-semibold">{t`Allowed Domains`}</h2>
 				</div>
 
 				<p className="text-sm text-kumo-subtle mb-6">
-					Users with email addresses from these domains can sign up without an invite. They will be
-					assigned the specified role automatically.
+					{t`Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically.`}
 				</p>
 
 				{/* Domain list */}
@@ -269,7 +271,7 @@ export function AllowedDomainsSettings() {
 									<div>
 										<div className="font-medium">{domain.domain}</div>
 										<div className="text-sm text-kumo-subtle">
-											Default role: {getRoleName(domain.defaultRole)}
+											{t`Default role: ${getRoleName(domain.defaultRole)}`}
 										</div>
 									</div>
 								</div>
@@ -279,7 +281,7 @@ export function AllowedDomainsSettings() {
 										shape="square"
 										onClick={() => setEditingDomain(domain)}
 										disabled={updateMutation.isPending}
-										aria-label={`Edit ${domain.domain}`}
+										aria-label={t`Edit ${domain.domain}`}
 									>
 										<Pencil className="h-4 w-4" />
 									</Button>
@@ -288,7 +290,7 @@ export function AllowedDomainsSettings() {
 										shape="square"
 										onClick={() => setDeletingDomain(domain.domain)}
 										disabled={deleteMutation.isPending}
-										aria-label={`Delete ${domain.domain}`}
+										aria-label={t`Delete ${domain.domain}`}
 									>
 										<Trash className="h-4 w-4 text-kumo-danger" />
 									</Button>
@@ -298,7 +300,7 @@ export function AllowedDomainsSettings() {
 					</div>
 				) : (
 					<div className="rounded-lg border border-dashed p-6 text-center text-kumo-subtle">
-						No domains configured. Users must be invited individually.
+						{t`No domains configured. Users must be invited individually.`}
 					</div>
 				)}
 
@@ -307,7 +309,7 @@ export function AllowedDomainsSettings() {
 					{isAddingDomain ? (
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
-								<h3 className="font-medium">Add an allowed domain</h3>
+								<h3 className="font-medium">{t`Add an allowed domain`}</h3>
 								<Button
 									variant="ghost"
 									size="sm"
@@ -316,21 +318,21 @@ export function AllowedDomainsSettings() {
 										setNewDomain("");
 									}}
 								>
-									Cancel
+									{t`Cancel`}
 								</Button>
 							</div>
 							<div className="grid gap-4 sm:grid-cols-2">
 								<div className="space-y-2">
 									<Input
-										label="Domain"
-										placeholder="example.com"
+										label={t`Domain`}
+										placeholder={t`example.com`}
 										value={newDomain}
 										onChange={(e) => setNewDomain(e.target.value)}
 									/>
 								</div>
 								<div className="space-y-2">
 									<Select
-										label="Default Role"
+										label={t`Default Role`}
 										value={String(newRole)}
 										onValueChange={(v) => v !== null && setNewRole(Number(v))}
 										items={Object.fromEntries(ROLES.map((r) => [String(r.value), r.label]))}
@@ -347,12 +349,12 @@ export function AllowedDomainsSettings() {
 								onClick={handleAddDomain}
 								disabled={!newDomain.trim() || createMutation.isPending}
 							>
-								{createMutation.isPending ? "Adding..." : "Add Domain"}
+								{createMutation.isPending ? t`Adding...` : t`Add Domain`}
 							</Button>
 						</div>
 					) : (
 						<Button onClick={() => setIsAddingDomain(true)} icon={<Plus />}>
-							Add Domain
+							{t`Add Domain`}
 						</Button>
 					)}
 				</div>
@@ -367,10 +369,10 @@ export function AllowedDomainsSettings() {
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<div className="flex flex-col space-y-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								Edit Domain
+								{t`Edit Domain`}
 							</Dialog.Title>
 							<Dialog.Description className="text-sm text-kumo-subtle">
-								Update settings for {editingDomain?.domain}
+								{t`Update settings for ${editingDomain?.domain}`}
 							</Dialog.Description>
 						</div>
 						<Dialog.Close
@@ -392,7 +394,7 @@ export function AllowedDomainsSettings() {
 					<div className="space-y-4 py-4">
 						<div className="space-y-2">
 							<Select
-								label="Default Role"
+								label={t`Default Role`}
 								value={String(editingDomain?.defaultRole ?? 30)}
 								onValueChange={(v) =>
 									v !== null && editingDomain && handleUpdateRole(editingDomain.domain, Number(v))
@@ -417,23 +419,25 @@ export function AllowedDomainsSettings() {
 				disablePointerDismissal
 			>
 				<Dialog className="p-6" size="sm">
-					<Dialog.Title className="text-lg font-semibold">Remove Domain?</Dialog.Title>
+					<Dialog.Title className="text-lg font-semibold">{t`Remove Domain?`}</Dialog.Title>
 					<Dialog.Description className="text-kumo-subtle">
-						Users from <strong>{deletingDomain}</strong> will no longer be able to sign up without
-						an invite. Existing users are not affected.
+						<Trans>
+							Users from <strong>{deletingDomain}</strong> will no longer be able to sign up without
+							an invite. Existing users are not affected.
+						</Trans>
 					</Dialog.Description>
 					<div className="mt-6 flex justify-end gap-2">
 						<Dialog.Close
 							render={(p) => (
 								<Button {...p} variant="secondary">
-									Cancel
+									{t`Cancel`}
 								</Button>
 							)}
 						/>
 						<Dialog.Close
 							render={(p) => (
 								<Button {...p} variant="destructive" onClick={handleDelete}>
-									Remove Domain
+									{t`Remove Domain`}
 								</Button>
 							)}
 						/>

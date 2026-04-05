@@ -1,4 +1,5 @@
 import { Button, Input, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import {
 	X,
 	Key,
@@ -49,6 +50,7 @@ export function UserDetail({
 	onEnable,
 	onSendRecovery,
 }: UserDetailProps) {
+	const { t } = useLingui();
 	const [name, setName] = React.useState(user?.name ?? "");
 	const [email, setEmail] = React.useState(user?.email ?? "");
 	const [role, setRole] = React.useState(user?.role ?? 30);
@@ -122,9 +124,9 @@ export function UserDetail({
 				{/* Header */}
 				<div className="flex items-center justify-between border-b px-6 py-4">
 					<h2 id="user-detail-title" className="text-lg font-semibold">
-						User Details
+						{t`User Details`}
 					</h2>
-					<Button variant="ghost" shape="square" onClick={onClose} aria-label="Close panel">
+					<Button variant="ghost" shape="square" onClick={onClose} aria-label={t`Close panel`}>
 						<X className="h-5 w-5" aria-hidden="true" />
 					</Button>
 				</div>
@@ -150,17 +152,17 @@ export function UserDetail({
 								)}
 								<div className="flex-1 min-w-0 space-y-3">
 									<Input
-										label="Name"
+										label={t`Name`}
 										value={name}
 										onChange={(e) => setName(e.target.value)}
-										placeholder="Enter name"
+										placeholder={t`Enter name`}
 									/>
 									<Input
-										label="Email"
+										label={t`Email`}
 										type="email"
 										value={email}
 										onChange={(e) => setEmail(e.target.value)}
-										placeholder="Enter email"
+										placeholder={t`Enter email`}
 										required
 									/>
 								</div>
@@ -171,17 +173,19 @@ export function UserDetail({
 								{isSelf ? (
 									<div className="flex-1">
 										<Input
-											label="Role"
+											label={t`Role`}
 											value={getRoleLabel(role)}
 											disabled
 											className="cursor-not-allowed"
 										/>
-										<p className="text-xs text-kumo-subtle mt-1">You cannot change your own role</p>
+										<p className="text-xs text-kumo-subtle mt-1">
+											{t`You cannot change your own role`}
+										</p>
 									</div>
 								) : (
 									<div className="flex-1">
 										<Select
-											label="Role"
+											label={t`Role`}
 											value={role.toString()}
 											onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
 											items={Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label]))}
@@ -201,12 +205,12 @@ export function UserDetail({
 									{user.disabled ? (
 										<span className="inline-flex items-center gap-1 text-sm text-kumo-danger">
 											<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
-											Disabled
+											{t`Disabled`}
 										</span>
 									) : (
 										<span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
 											<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-											Active
+											{t`Active`}
 										</span>
 									)}
 								</div>
@@ -216,25 +220,25 @@ export function UserDetail({
 							<div className="grid gap-4">
 								{/* Timestamps */}
 								<div className="rounded-lg border p-4">
-									<h4 className="text-sm font-medium text-kumo-subtle mb-3">Account Info</h4>
+									<h4 className="text-sm font-medium text-kumo-subtle mb-3">{t`Account Info`}</h4>
 									<div className="space-y-2 text-sm">
 										<div className="flex justify-between">
-											<span className="text-kumo-subtle">Created</span>
+											<span className="text-kumo-subtle">{t`Created`}</span>
 											<span>{new Date(user.createdAt).toLocaleDateString()}</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-kumo-subtle">Last updated</span>
+											<span className="text-kumo-subtle">{t`Last updated`}</span>
 											<span>{new Date(user.updatedAt).toLocaleDateString()}</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-kumo-subtle">Last login</span>
+											<span className="text-kumo-subtle">{t`Last login`}</span>
 											<span>
-												{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never"}
+												{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t`Never`}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-kumo-subtle">Email verified</span>
-											<span>{user.emailVerified ? "Yes" : "No"}</span>
+											<span className="text-kumo-subtle">{t`Email verified`}</span>
+											<span>{user.emailVerified ? t`Yes` : t`No`}</span>
 										</div>
 									</div>
 								</div>
@@ -243,24 +247,26 @@ export function UserDetail({
 								<div className="rounded-lg border p-4">
 									<h4 className="text-sm font-medium text-kumo-subtle mb-3 flex items-center gap-2">
 										<Key className="h-4 w-4" aria-hidden="true" />
-										Passkeys ({user.credentials.length})
+										{t`Passkeys`} ({user.credentials.length})
 									</h4>
 									{user.credentials.length === 0 ? (
-										<p className="text-sm text-kumo-subtle">No passkeys registered</p>
+										<p className="text-sm text-kumo-subtle">{t`No passkeys registered`}</p>
 									) : (
 										<div className="space-y-2">
 											{user.credentials.map((cred) => (
 												<div key={cred.id} className="flex justify-between text-sm">
 													<div>
-														<div>{cred.name || "Unnamed passkey"}</div>
+														<div>{cred.name || t`Unnamed passkey`}</div>
 														<div className="text-xs text-kumo-subtle">
-															{cred.deviceType === "multiDevice" ? "Synced" : "Device-bound"}
+															{cred.deviceType === "multiDevice" ? t`Synced` : t`Device-bound`}
 														</div>
 													</div>
 													<div className="text-right text-kumo-subtle">
-														<div>Created {new Date(cred.createdAt).toLocaleDateString()}</div>
+														<div>
+															{t`Created`} {new Date(cred.createdAt).toLocaleDateString()}
+														</div>
 														<div className="text-xs">
-															Last used {new Date(cred.lastUsedAt).toLocaleDateString()}
+															{t`Last used`} {new Date(cred.lastUsedAt).toLocaleDateString()}
 														</div>
 													</div>
 												</div>
@@ -274,7 +280,7 @@ export function UserDetail({
 									<div className="rounded-lg border p-4">
 										<h4 className="text-sm font-medium text-kumo-subtle mb-3 flex items-center gap-2">
 											<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
-											Linked Accounts ({user.oauthAccounts.length})
+											{t`Linked Accounts`} ({user.oauthAccounts.length})
 										</h4>
 										<div className="space-y-2">
 											{user.oauthAccounts.map((account, i) => (
@@ -284,7 +290,7 @@ export function UserDetail({
 												>
 													<span className="capitalize">{account.provider}</span>
 													<span className="text-kumo-subtle">
-														Connected {new Date(account.createdAt).toLocaleDateString()}
+														{t`Connected`} {new Date(account.createdAt).toLocaleDateString()}
 													</span>
 												</div>
 											))}
@@ -294,7 +300,7 @@ export function UserDetail({
 							</div>
 						</form>
 					) : (
-						<div className="text-center text-kumo-subtle py-8">User not found</div>
+						<div className="text-center text-kumo-subtle py-8">{t`User not found`}</div>
 					)}
 				</div>
 
@@ -309,7 +315,7 @@ export function UserDetail({
 								disabled={!isDirty || isSaving}
 								icon={<FloppyDisk />}
 							>
-								{isSaving ? "Saving..." : "Save Changes"}
+								{isSaving ? t`Saving...` : t`Save Changes`}
 							</Button>
 							{!isSelf && (
 								<Button
@@ -317,7 +323,7 @@ export function UserDetail({
 									onClick={user.disabled ? onEnable : onDisable}
 									icon={user.disabled ? <CheckCircle /> : <Prohibit />}
 								>
-									{user.disabled ? "Enable" : "Disable"}
+									{user.disabled ? t`Enable` : t`Disable`}
 								</Button>
 							)}
 						</div>
@@ -330,11 +336,11 @@ export function UserDetail({
 									disabled={isSendingRecovery}
 									icon={<Envelope />}
 								>
-									{isSendingRecovery ? "Sending..." : "Send Recovery Link"}
+									{isSendingRecovery ? t`Sending...` : t`Send Recovery Link`}
 								</Button>
 								{recoverySent && (
 									<p className="text-xs text-green-600 dark:text-green-400 text-center">
-										Recovery link sent to {user.email}
+										{t`Recovery link sent to ${user.email}`}
 									</p>
 								)}
 								{recoveryError && (

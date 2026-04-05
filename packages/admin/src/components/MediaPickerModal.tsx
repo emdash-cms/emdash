@@ -7,6 +7,7 @@
  */
 
 import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
+import { Plural, useLingui } from "@lingui/react/macro";
 import { Upload, Image, Check, Globe, MagnifyingGlass } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -63,8 +64,10 @@ export function MediaPickerModal({
 	onOpenChange,
 	onSelect,
 	mimeTypeFilter = "image/",
-	title = "Select Image",
+	title,
 }: MediaPickerModalProps) {
+	const { t } = useLingui();
+	const resolvedTitle = title ?? t`Select Image`;
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -277,7 +280,7 @@ export function MediaPickerModal({
 		try {
 			url = new URL(imageUrl.trim());
 		} catch {
-			setUrlError("Please enter a valid URL");
+			setUrlError(t`Please enter a valid URL`);
 			return;
 		}
 
@@ -301,7 +304,7 @@ export function MediaPickerModal({
 			onOpenChange(false);
 			setImageUrl("");
 		} catch {
-			setUrlError("Could not load image from URL");
+			setUrlError(t`Could not load image from URL`);
 		} finally {
 			setIsProbing(false);
 		}
@@ -339,7 +342,7 @@ export function MediaPickerModal({
 			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col" size="xl">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{title}
+						{resolvedTitle}
 					</Dialog.Title>
 					<Dialog.Close
 						aria-label="Close"
@@ -360,14 +363,14 @@ export function MediaPickerModal({
 
 				{/* URL Input */}
 				<div className="border-b pb-4">
-					<Label>Insert from URL</Label>
+					<Label>{t`Insert from URL`}</Label>
 					<div className="flex gap-2 mt-1.5">
 						<div className="flex-1 relative">
 							<Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="url"
 								placeholder="https://example.com/image.jpg"
-								aria-label="Image URL"
+								aria-label={t`Image URL`}
 								value={imageUrl}
 								onChange={(e) => {
 									setImageUrl(e.target.value);
@@ -378,7 +381,7 @@ export function MediaPickerModal({
 							/>
 						</div>
 						<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
-							{isProbing ? <Loader size="sm" /> : "Insert"}
+							{isProbing ? <Loader size="sm" /> : t`Insert`}
 						</Button>
 					</div>
 					{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
@@ -390,7 +393,7 @@ export function MediaPickerModal({
 						<span className="w-full border-t" />
 					</div>
 					<div className="relative flex justify-center text-xs uppercase">
-						<span className="bg-kumo-base px-2 text-kumo-subtle">or choose from library</span>
+						<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
 					</div>
 				</div>
 
@@ -433,8 +436,8 @@ export function MediaPickerModal({
 							<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="search"
-								placeholder="Search..."
-								aria-label="Search media"
+								placeholder={t`Search...`}
+								aria-label={t`Search media`}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="pl-9"
@@ -442,7 +445,7 @@ export function MediaPickerModal({
 						</div>
 					) : (
 						<p className="text-sm text-kumo-subtle">
-							{items.length} item{items.length !== 1 ? "s" : ""}
+							<Plural value={items.length} one="# item" other="# items" />
 						</p>
 					)}
 
@@ -455,7 +458,7 @@ export function MediaPickerModal({
 								onClick={() => fileInputRef.current?.click()}
 								disabled={isUploading}
 							>
-								{isUploading ? "Uploading..." : "Upload"}
+								{isUploading ? t`Uploading...` : t`Upload`}
 							</Button>
 							<input
 								ref={fileInputRef}
@@ -463,7 +466,7 @@ export function MediaPickerModal({
 								accept={mimeTypeFilter ? `${mimeTypeFilter}*` : undefined}
 								className="sr-only"
 								onChange={handleFileSelect}
-								aria-label="Upload file"
+								aria-label={t`Upload file`}
 							/>
 						</>
 					)}
@@ -471,7 +474,7 @@ export function MediaPickerModal({
 
 				{/* Upload error */}
 				<DialogError
-					message={uploadError ? `Upload failed: ${uploadError}` : null}
+					message={uploadError ? t`Upload failed: ${uploadError}` : null}
 					className="mb-3"
 				/>
 
@@ -484,13 +487,13 @@ export function MediaPickerModal({
 					) : items.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-full text-center p-8">
 							<Image className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
-							<h3 className="text-lg font-medium">No media found</h3>
+							<h3 className="text-lg font-medium">{t`No media found`}</h3>
 							<p className="text-sm text-kumo-subtle mt-1">
 								{canSearch && searchQuery
-									? "Try a different search term"
+									? t`Try a different search term`
 									: canUpload
-										? "Upload an image to get started"
-										: "No media available from this provider"}
+										? t`Upload an image to get started`
+										: t`No media available from this provider`}
 							</p>
 							{canUpload && !searchQuery && (
 								<Button
@@ -498,7 +501,7 @@ export function MediaPickerModal({
 									icon={<Upload />}
 									onClick={() => fileInputRef.current?.click()}
 								>
-									Upload Image
+									{t`Upload Image`}
 								</Button>
 							)}
 						</div>
@@ -506,7 +509,7 @@ export function MediaPickerModal({
 						<ul
 							className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 p-1"
 							role="listbox"
-							aria-label="Available media"
+							aria-label={t`Available media`}
 						>
 							{activeProvider === "local"
 								? (items as MediaItem[]).map((item) => (
@@ -564,7 +567,7 @@ export function MediaPickerModal({
 					<div className="flex-1 text-sm text-kumo-subtle">
 						{selectedItem && (
 							<span>
-								Selected: <strong>{selectedItem.item.filename}</strong>
+								{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
 								{selectedItem.providerId !== "local" && (
 									<span className="ml-2 text-xs">
 										(from {providers?.find((p) => p.id === selectedItem.providerId)?.name})
@@ -574,10 +577,10 @@ export function MediaPickerModal({
 						)}
 					</div>
 					<Button variant="outline" onClick={handleClose}>
-						Cancel
+						{t`Cancel`}
 					</Button>
 					<Button onClick={handleConfirm} disabled={!selectedItem}>
-						Insert
+						{t`Insert`}
 					</Button>
 				</div>
 			</Dialog>

@@ -9,10 +9,10 @@
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
+import { render } from "../utils/render.js";
 
 // ---------------------------------------------------------------------------
 // Mocks — heavy components that need network / Astro context

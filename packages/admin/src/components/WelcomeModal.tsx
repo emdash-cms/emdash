@@ -5,6 +5,7 @@
  */
 
 import { Button, Dialog } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -38,6 +39,7 @@ async function dismissWelcome(): Promise<void> {
 }
 
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({
@@ -91,39 +93,38 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 						<LogoIcon className="h-16 w-16" />
 					</div>
 					<Dialog.Title className="text-2xl font-semibold leading-none tracking-tight">
-						Welcome to EmDash{userName ? `, ${userName.split(" ")[0]}` : ""}!
+						{userName ? t`Welcome to EmDash, ${userName.split(" ")[0]}!` : t`Welcome to EmDash!`}
 					</Dialog.Title>
 					<Dialog.Description className="text-base text-kumo-subtle">
-						Your account has been created successfully.
+						{t`Your account has been created successfully.`}
 					</Dialog.Description>
 				</div>
 
 				<div className="space-y-4 py-4">
 					<div className="rounded-lg bg-kumo-tint p-4">
-						<div className="text-sm font-medium">Your Role</div>
+						<div className="text-sm font-medium">{t`Your Role`}</div>
 						<div className="text-lg font-semibold text-kumo-brand">{roleLabel}</div>
 						<p className="text-sm text-kumo-subtle mt-1">
 							{isAdmin
-								? "You have full access to manage this site, including users, settings, and all content."
+								? t`You have full access to manage this site, including users, settings, and all content.`
 								: userRole >= 40
-									? "You can manage content, media, menus, and taxonomies."
+									? t`You can manage content, media, menus, and taxonomies.`
 									: userRole >= 30
-										? "You can create and edit your own content."
-										: "You can view and contribute to the site."}
+										? t`You can create and edit your own content.`
+										: t`You can view and contribute to the site.`}
 						</p>
 					</div>
 
 					{isAdmin && (
 						<p className="text-sm text-kumo-subtle">
-							As an administrator, you can invite other users from the{" "}
-							<span className="font-medium">Users</span> section.
+							{t`As an administrator, you can invite other users from the Users section.`}
 						</p>
 					)}
 				</div>
 
 				<div className="flex flex-col-reverse sm:flex-row sm:justify-center sm:space-x-2">
 					<Button onClick={handleGetStarted} disabled={dismissMutation.isPending} size="lg">
-						{dismissMutation.isPending ? "Loading..." : "Get Started"}
+						{dismissMutation.isPending ? t`Loading...` : t`Get Started`}
 					</Button>
 				</div>
 			</Dialog>

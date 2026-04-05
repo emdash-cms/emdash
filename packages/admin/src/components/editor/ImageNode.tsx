@@ -10,6 +10,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
@@ -42,6 +43,7 @@ declare module "@tiptap/react" {
 
 // React component for the image node view
 function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
+	const { t } = useLingui();
 	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
 	const [altText, setAltText] = React.useState(node.attrs.alt || "");
 
@@ -162,8 +164,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 							className="h-8 w-8"
 							onMouseDown={(e) => e.preventDefault()}
 							onClick={() => setIsEditingAlt(true)}
-							title="Quick edit alt text"
-							aria-label="Quick edit alt text"
+							title={t`Quick edit alt text`}
+							aria-label={t`Quick edit alt text`}
 						>
 							<Pencil className="h-4 w-4" />
 						</Button>
@@ -174,8 +176,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 							className="h-8 w-8"
 							onMouseDown={(e) => e.preventDefault()}
 							onClick={toggleSidebar}
-							title="Image settings"
-							aria-label="Image settings"
+							title={t`Image settings`}
+							aria-label={t`Image settings`}
 						>
 							<SlidersHorizontal className="h-4 w-4" />
 						</Button>
@@ -186,8 +188,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 							className="h-8 w-8"
 							onMouseDown={(e) => e.preventDefault()}
 							onClick={() => deleteNode()}
-							title="Delete image"
-							aria-label="Delete image"
+							title={t`Delete image`}
+							aria-label={t`Delete image`}
 						>
 							<Trash className="h-4 w-4" />
 						</Button>
@@ -197,14 +199,14 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 				{/* Quick alt text editor (inline) */}
 				{isEditingAlt && (
 					<div className="absolute bottom-0 left-0 right-0 bg-kumo-base/95 backdrop-blur p-3 rounded-b-lg border-t">
-						<label className="text-xs font-medium text-kumo-subtle mb-1 block">Alt text</label>
+						<label className="text-xs font-medium text-kumo-subtle mb-1 block">{t`Alt text`}</label>
 						<div className="flex gap-2">
 							<Input
 								type="text"
 								value={altText}
 								onChange={(e) => setAltText(e.target.value)}
 								onKeyDown={handleKeyDown}
-								placeholder="Describe the image..."
+								placeholder={t`Describe the image...`}
 								className="flex-1 h-8 text-sm"
 								autoFocus
 							/>
@@ -218,8 +220,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 									setAltText(node.attrs.alt || "");
 									setIsEditingAlt(false);
 								}}
-								title="Cancel"
-								aria-label="Cancel"
+								title={t`Cancel`}
+								aria-label={t`Cancel`}
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -230,8 +232,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 								className="h-8 w-8"
 								onMouseDown={(e) => e.preventDefault()}
 								onClick={handleSaveAlt}
-								title="Save"
-								aria-label="Save alt text"
+								title={t`Save`}
+								aria-label={t`Save alt text`}
 							>
 								<Check className="h-4 w-4" />
 							</Button>
