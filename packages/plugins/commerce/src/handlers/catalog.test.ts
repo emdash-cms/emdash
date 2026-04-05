@@ -775,6 +775,182 @@ describe("catalog product handlers", () => {
 		expect(detail.skus?.[0]).toMatchObject({ id: "sku_1", inventoryQuantity: 6, inventoryVersion: 6 });
 	});
 
+	it("returns the same category/tag/image metadata from product detail and listing", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAssets = new MemColl<StoredProductAsset>();
+		const productAssetLinks = new MemColl<StoredProductAssetLink>();
+		const productCategories = new MemColl<StoredCategory>();
+		const productCategoryLinks = new MemColl<StoredProductCategoryLink>();
+		const productTags = new MemColl<StoredProductTag>();
+		const productTagLinks = new MemColl<StoredProductTagLink>();
+
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "seeded-product",
+			title: "Seeded Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "INV-1",
+			status: "active",
+			unitPriceMinor: 1200,
+			inventoryQuantity: 4,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await productCategories.put("cat_1", {
+			id: "cat_1",
+			name: "Featured",
+			slug: "featured",
+			parentId: undefined,
+			position: 0,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productCategoryLinks.put("pcat_1", {
+			id: "pcat_1",
+			productId: "prod_1",
+			categoryId: "cat_1",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await productTags.put("tag_1", {
+			id: "tag_1",
+			name: "Sale",
+			slug: "sale",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productTagLinks.put("ptag_1", {
+			id: "ptag_1",
+			productId: "prod_1",
+			tagId: "tag_1",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await productAssets.put("asset_primary", {
+			id: "asset_primary",
+			provider: "media",
+			externalAssetId: "media-primary",
+			fileName: "primary.jpg",
+			altText: "Primary image",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await productAssets.put("asset_gallery", {
+			id: "asset_gallery",
+			provider: "media",
+			externalAssetId: "media-gallery",
+			fileName: "gallery.jpg",
+			altText: "Gallery image",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_primary",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "primary_image",
+					position: 0,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
+		);
+		await linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_gallery",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "gallery_image",
+					position: 0,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
+		);
+
+		const detail = await getProductHandler(
+			catalogCtx(
+				{ productId: "prod_1" },
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productCategories,
+				productCategoryLinks,
+				productTags,
+				productTagLinks,
+			),
+		);
+
+		const list = await listProductsHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					status: "active",
+					visibility: "public",
+					limit: 10,
+				},
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productCategories,
+				productCategoryLinks,
+				productTags,
+				productTagLinks,
+			),
+		);
+
+		expect(list.items).toHaveLength(1);
+		const listed = list.items[0]!;
+		expect(listed.product.id).toBe("prod_1");
+		expect(listed.categories).toEqual(detail.categories);
+		expect(listed.tags).toEqual(detail.tags);
+		expect(listed.primaryImage).toEqual(detail.primaryImage);
+		expect(listed.galleryImages).toEqual(detail.galleryImages);
+		expect(listed.inventorySummary.totalInventoryQuantity).toBe(detail.skus?.[0]?.inventoryQuantity);
+		expect(listed.lowStockSkuCount).toBe(
+			detail.skus?.filter((sku) => sku.status === "active" && sku.inventoryQuantity <= COMMERCE_LIMITS.lowStockThreshold).length ?? 0,
+		);
+	});
+
 	it("returns product_unavailable when productId does not exist", async () => {
 		const out = getProductHandler(catalogCtx({ productId: "missing" }, new MemColl()));
 		await expect(out).rejects.toMatchObject({ code: "product_unavailable" });
