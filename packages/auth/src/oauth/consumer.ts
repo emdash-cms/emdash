@@ -40,7 +40,10 @@ export async function createAuthorizationUrl(
 
 	const provider = getProvider(providerName);
 	const state = generateState();
-	const redirectUri = `${config.baseUrl}/api/auth/oauth/${providerName}/callback`;
+	const redirectUri = new URL(
+		`/_emdash/api/auth/oauth/${providerName}/callback`,
+		config.baseUrl,
+	).toString();
 
 	// Generate PKCE code verifier for providers that support it
 	const codeVerifier = generateCodeVerifier();
