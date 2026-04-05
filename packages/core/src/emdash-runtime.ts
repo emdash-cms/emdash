@@ -235,6 +235,32 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 	return { ...item };
 }
 
+/**
+ * Merge draft revision content into a content item response.
+ *
+ * Revision-backed collections keep metadata on the content row while draft
+ * field data (and draft slug overrides) live in the revisions table.
+ */
+function mergeDraftRevisionIntoItem(
+	item: ContentItemInternal,
+	revisionData: Record<string, unknown>,
+): ContentItemInternal {
+	const draftData: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(revisionData)) {
+		if (!key.startsWith("_")) {
+			draftData[key] = value;
+		}
+	}
+
+	const draftSlug = typeof revisionData._slug === "string" ? revisionData._slug : item.slug;
+
+	return {
+		...item,
+		slug: draftSlug,
+		data: { ...item.data, ...draftData },
+	};
+}
+
 // Module-level caches (persist across requests within worker)
 const dbCache = new Map<string, Kysely<Database>>();
 let dbInitPromise: Promise<Kysely<Database>> | null = null;
@@ -1523,6 +1549,14 @@ export class EmDashRuntime {
 			authorId: bodyWithoutRev.authorId,
 			bylines: bodyWithoutRev.bylines,
 		});
+
+		if (result.success && result.data && usesDraftRevisions && result.data.item.draftRevisionId) {
+			const revisionRepo = new RevisionRepository(this.db);
+			const draftRevision = await revisionRepo.findById(result.data.item.draftRevisionId);
+			if (draftRevision?.data) {
+				result.data.item = mergeDraftRevisionIntoItem(result.data.item, draftRevision.data);
+			}
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (result.success && result.data) {
