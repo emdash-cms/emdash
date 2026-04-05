@@ -951,6 +951,63 @@ describe("catalog SKU handlers", () => {
 		expect(listed.items[0]!.id).toBe(created.sku.id);
 	});
 
+	it("rejects creating more than one SKU for simple products", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("parent", {
+			id: "parent",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "parent",
+			title: "Parent",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: "parent",
+					skuCode: "SIMPLE-A",
+					status: "active",
+					unitPriceMinor: 1299,
+					inventoryQuantity: 10,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+				},
+				products,
+				skus,
+			),
+		);
+
+		const second = createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: "parent",
+					skuCode: "SIMPLE-B",
+					status: "active",
+					unitPriceMinor: 1299,
+					inventoryQuantity: 5,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+				},
+				products,
+				skus,
+			),
+		);
+
+		await expect(second).rejects.toMatchObject({ code: "BAD_REQUEST" });
+		expect(skus.rows.size).toBe(1);
+	});
+
 	it("stores variant option mappings and returns a variable matrix on get", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();

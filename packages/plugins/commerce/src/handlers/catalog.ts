@@ -118,6 +118,16 @@ function assertBundleDiscountPatchForProduct(
 		throw PluginRouteError.badRequest("bundleDiscountValueBps can only be used with percentage bundles");
 	}
 }
+
+function assertSimpleProductSkuCapacity(product: StoredProduct, existingSkuCount: number): void {
+	if (product.type !== "simple") {
+		return;
+	}
+	if (existingSkuCount > 0) {
+		throw PluginRouteError.badRequest("Simple products can have at most one SKU");
+	}
+}
+
 type Collection<T> = StorageCollection<T>;
 
 function asOptionalCollection<T>(raw: unknown): Collection<T> | null {
@@ -1046,6 +1056,7 @@ export async function createProductSkuHandler(
 		throw PluginRouteError.badRequest(`SKU code already exists: ${ctx.input.skuCode}`);
 	}
 	const existingSkuCount = (await productSkus.query({ where: { productId: product.id } })).items.length;
+	assertSimpleProductSkuCapacity(product, existingSkuCount);
 
 	if (product.type !== "variable" && inputOptionValues.length > 0) {
 		throw PluginRouteError.badRequest("Option values are only allowed for variable products");
