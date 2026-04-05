@@ -209,12 +209,28 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
  * On Cloudflare, the adapter handles its own externalization — setting
  * ssr.external there conflicts with @cloudflare/vite-plugin's validation.
  */
-const NODE_NATIVE_EXTERNALS = [
+export const NODE_NATIVE_EXTERNALS = [
 	"better-sqlite3",
 	"bindings",
 	"file-uri-to-path",
 	"@libsql/kysely-libsql",
 	"pg",
+];
+
+/**
+ * Additional Node SSR packages that must stay external.
+ *
+ * sanitize-html's htmlparser2/entities stack can be mis-transpiled when it is
+ * pulled into the standalone server bundle, causing runtime ESM interop errors
+ * like `entities/decode does not provide an export named default` on first
+ * request. Keep the sanitizer stack external for Node SSR while leaving the
+ * Cloudflare branch unchanged.
+ */
+export const NODE_SSR_EXTERNALS = [
+	...NODE_NATIVE_EXTERNALS,
+	"sanitize-html",
+	"htmlparser2",
+	"entities",
 ];
 
 /**
@@ -320,7 +336,7 @@ export function createViteConfig(
 					},
 				}
 			: {
-					external: NODE_NATIVE_EXTERNALS,
+					external: NODE_SSR_EXTERNALS,
 					noExternal: ["emdash", "@emdash-cms/admin"],
 				},
 		optimizeDeps: {
@@ -329,7 +345,7 @@ export function createViteConfig(
 			include: useSource
 				? ["@astrojs/react/client.js"]
 				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
-			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
+			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_SSR_EXTERNALS, "virtual:emdash"],
 		},
 	};
 }

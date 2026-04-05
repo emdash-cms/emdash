@@ -11,9 +11,9 @@ import type { PortableTextBlock } from "@emdash-cms/gutenberg-to-portable-text";
 // Author Types
 // =============================================================================
 
-/** Author info from WordPress */
-export interface WpAuthorInfo {
-	id?: number;
+/** Author info from an external import source */
+export interface ImportAuthorInfo {
+	id?: number | string;
 	login?: string;
 	email?: string;
 	displayName?: string;
@@ -183,7 +183,7 @@ export interface PostTypeAnalysis {
 
 /** Attachment/media info */
 export interface AttachmentInfo {
-	id?: number;
+	id?: number | string;
 	title?: string;
 	url?: string;
 	filename?: string;
@@ -243,7 +243,7 @@ export interface ImportAnalysis {
 
 	categories: number;
 	tags: number;
-	authors: WpAuthorInfo[];
+	authors: ImportAuthorInfo[];
 
 	/** Navigation menus found in the export */
 	navMenus?: NavMenuAnalysis[];
@@ -288,6 +288,12 @@ export interface NormalizedItem {
 	content: PortableTextBlock[];
 	/** Excerpt/summary */
 	excerpt?: string;
+	/** Sanitized HTML body for sources that are HTML-first */
+	html?: string;
+	/** Original public path in the source system */
+	sourcePath?: string;
+	/** Source visibility hint (e.g. public, members, paid) */
+	visibility?: string;
 	/** Publication date */
 	date: Date;
 	/** Last modified date */

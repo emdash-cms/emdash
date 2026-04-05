@@ -115,6 +115,8 @@ export class ContentRepository {
 			primaryBylineId,
 			locale,
 			translationOf,
+			createdAt,
+			updatedAt,
 			publishedAt,
 		} = input;
 
@@ -155,8 +157,8 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			now,
-			now,
+			createdAt ?? now,
+			updatedAt ?? now,
 			publishedAt || null,
 			1,
 			locale || "en",
@@ -545,7 +547,7 @@ export class ContentRepository {
 
 		// Build update object with parameterized values
 		const updates: Record<string, unknown> = {
-			updated_at: now,
+			updated_at: input.updatedAt ?? now,
 			version: sql`version + 1`,
 		};
 
@@ -555,6 +557,10 @@ export class ContentRepository {
 
 		if (input.slug !== undefined) {
 			updates.slug = input.slug;
+		}
+
+		if (input.createdAt !== undefined) {
+			updates.created_at = input.createdAt;
 		}
 
 		if (input.publishedAt !== undefined) {

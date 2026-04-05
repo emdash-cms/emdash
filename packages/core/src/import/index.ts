@@ -23,6 +23,7 @@ export type {
 	FieldCompatibility,
 	CollectionSchemaStatus,
 	AttachmentInfo,
+	ImportAuthorInfo,
 	NormalizedItem,
 	ImportConfig,
 	ImportResult,
@@ -67,7 +68,31 @@ export {
 // SSRF protection
 export { validateExternalUrl, ssrfSafeFetch, SsrfError } from "./ssrf.js";
 
+// Ghost import helpers
+export {
+	parseGhostExportData,
+	parseGhostExportString,
+	buildGhostTagSlugsByPostId,
+	buildGhostPrimaryAuthorByPostId,
+	buildGhostAuthorPostCounts,
+	buildGhostPostMetaByPostId,
+	getGhostSettingValue,
+	sortGhostPostsByPublishedDate,
+} from "./ghost/parser.js";
+export {
+	rewriteGhostHtml,
+	normalizeGhostMediaUrl,
+	buildGhostExcerpt,
+	stripGhostHtml,
+} from "./ghost/rewrite.js";
+export {
+	buildGhostSeedFragment,
+	type GhostSeedFragment,
+	type GhostToSeedConfig,
+} from "./ghost/to-seed.js";
+
 // Sources
+export { ghostExportSource } from "./sources/ghost-export.js";
 export { wxrSource } from "./sources/wxr.js";
 export { wordpressRestSource } from "./sources/wordpress-rest.js";
 export {
@@ -79,6 +104,7 @@ export {
 
 // Auto-register built-in sources
 import { registerSource } from "./registry.js";
+import { ghostExportSource } from "./sources/ghost-export.js";
 import { wordpressPluginSource } from "./sources/wordpress-plugin.js";
 import { wordpressRestSource } from "./sources/wordpress-rest.js";
 import { wxrSource } from "./sources/wxr.js";
@@ -87,4 +113,5 @@ import { wxrSource } from "./sources/wxr.js";
 // Plugin source first - if they have our plugin, use it
 registerSource(wordpressPluginSource);
 registerSource(wordpressRestSource);
+registerSource(ghostExportSource);
 registerSource(wxrSource);
