@@ -1,5 +1,5 @@
 import { computeBundleSummary } from "./catalog-bundles.js";
-import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
+import { inventoryStockDocId } from "./inventory-stock.js";
 import { sortedImmutable } from "./sort-immutable.js";
 import type {
 	OrderLineItemBundleComponentSummary,

@@ -1,4 +1,5 @@
 import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import { inventoryStockDocId } from "../lib/inventory-stock.js";
 import { toInventoryDeductionLines } from "../lib/order-inventory-lines.js";
 import type { CommerceErrorCode } from "../kernel/errors.js";
 import type {
@@ -6,6 +7,8 @@ import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
 } from "../types.js";
+
+export { inventoryStockDocId };
 
 type QueryOptions<T> = {
 	where?: Record<string, unknown>;
@@ -37,10 +40,6 @@ export class InventoryFinalizeError extends Error {
 		super(message);
 		this.name = "InventoryFinalizeError";
 	}
-}
-
-export function inventoryStockDocId(productId: string, variantId: string): string {
-	return `stock:${encodeURIComponent(productId)}:${encodeURIComponent(variantId)}`;
 }
 
 type InventoryMutation = {

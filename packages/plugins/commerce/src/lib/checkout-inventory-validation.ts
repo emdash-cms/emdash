@@ -4,7 +4,7 @@
  * no bundle-owned inventory row is required.
  */
 
-import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
+import { inventoryStockDocId } from "./inventory-stock.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { StoredBundleComponent, StoredInventoryStock, StoredProduct, StoredProductSku } from "../types.js";
 

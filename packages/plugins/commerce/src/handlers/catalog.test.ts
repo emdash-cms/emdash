@@ -59,7 +59,7 @@ import {
 } from "../schemas.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sortedImmutable } from "../lib/sort-immutable.js";
-import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
+import { inventoryStockDocId } from "../lib/inventory-stock.js";
 import {
 	createProductHandler,
 	setProductStateHandler,

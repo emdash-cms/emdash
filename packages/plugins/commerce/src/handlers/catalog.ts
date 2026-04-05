@@ -18,7 +18,7 @@ import {
 	normalizeSkuOptionSignature,
 	validateVariableSkuOptions,
 } from "../lib/catalog-variants.js";
-import { inventoryStockDocId } from "../orchestration/finalize-payment-inventory.js";
+import { inventoryStockDocId } from "../lib/inventory-stock.js";
 import type {
 	CatalogListingDTO,
 	ProductCategoryDTO,
