@@ -541,7 +541,7 @@ export function ContentEditor({
 								<Dialog.Root disablePointerDismissal>
 									<Dialog.Trigger
 										render={(p) => (
-											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
+											<Button {...p} type="button" variant="outline" icon={<X />}>
 												Discard changes
 											</Button>
 										)}

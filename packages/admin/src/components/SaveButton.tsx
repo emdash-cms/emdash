@@ -29,7 +29,7 @@ export function SaveButton({ isDirty, isSaving, className, disabled, ...props }:
 
 	return (
 		<Button
-			className={cn("min-w-[100px] transition-all", className)}
+			className={cn("transition-all", className)}
 			disabled={disabled || isSaving || isSaved}
 			variant={isSaved ? "secondary" : "primary"}
 			icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
