@@ -32,14 +32,16 @@ Fetch multiple sections with optional filters:
 import { getSections } from "emdash";
 
 // Get all sections
-const all = await getSections();
+const { items: all } = await getSections();
 
 // Filter by source
-const themeSections = await getSections({ source: "theme" });
+const { items: themeSections } = await getSections({ source: "theme" });
 
 // Search by title/keywords
-const results = await getSections({ search: "newsletter" });
+const { items: results } = await getSections({ search: "newsletter" });
 ```
+
+`getSections` returns `{ items: Section[], nextCursor?: string }` following the standard pagination pattern.
 
 ## Section Structure
 
@@ -51,7 +53,7 @@ interface Section {
   description?: string;
   keywords: string[];
   content: PortableTextBlock[];
-  previewMedia?: { id: string; url: string };
+  previewUrl?: string;
   source: "theme" | "user" | "import";
   themeId?: string;
   createdAt: string;
