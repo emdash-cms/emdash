@@ -306,6 +306,17 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/content/[collection]/[id]/terms/[taxonomy].ts"),
 	});
 
+	// Role definition routes
+	injectRoute({
+		pattern: "/_emdash/api/roles",
+		entrypoint: resolveRoute("api/roles/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/roles/[name]",
+		entrypoint: resolveRoute("api/roles/[name].ts"),
+	});
+
 	// Plugin management routes (under /admin to avoid conflict with plugin API routes)
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins",
