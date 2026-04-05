@@ -621,8 +621,10 @@ function ContentEditPage() {
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
 		onSuccess: () => {
 			setLastAutosaveAt(new Date());
-			// Silently update the cache without full invalidation
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			// Don't invalidate the query here — a refetch would trigger the
+			// form-reset useEffect in ContentEditor and overwrite any edits
+			// the user made between the autosave request and the refetch response.
+			// The cache refreshes naturally on manual save, navigation, or window refocus.
 		},
 		onError: (err) => {
 			toastManager.add({

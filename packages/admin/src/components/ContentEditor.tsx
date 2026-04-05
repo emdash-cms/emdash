@@ -251,6 +251,13 @@ export function ContentEditor({
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
+	//
+	// NOTE: item?.updatedAt is intentionally excluded from the dependency array.
+	// Including it caused a circular reset loop: autosave → server updates updatedAt →
+	// query refetch → this effect fires → form state resets to server values →
+	// user's in-progress edits are lost. By depending only on actual data/slug/status
+	// changes, the form only resets when content meaningfully changes (e.g., after
+	// discard draft or restore revision), not on every timestamp bump.
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
 	React.useEffect(() => {
 		if (item) {
@@ -274,7 +281,7 @@ export function ContentEditor({
 				}),
 			);
 		}
-	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
+	}, [itemDataString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 
