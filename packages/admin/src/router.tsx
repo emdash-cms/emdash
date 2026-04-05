@@ -235,25 +235,19 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
-	const {
-		data,
-		fetchNextPage,
-		hasNextPage,
-		isFetchingNextPage,
-		isLoading,
-		error,
-	} = useInfiniteQuery({
-		queryKey: ["content", collection, { locale: activeLocale }],
-		queryFn: ({ pageParam }) =>
-			fetchContentList(collection, {
-				locale: activeLocale,
-				cursor: pageParam as string | undefined,
-				limit: 100,
-			}),
-		initialPageParam: undefined as string | undefined,
-		getNextPageParam: (lastPage) => lastPage.nextCursor,
-		enabled: !!manifest,
-	});
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+		useInfiniteQuery({
+			queryKey: ["content", collection, { locale: activeLocale }],
+			queryFn: ({ pageParam }) =>
+				fetchContentList(collection, {
+					locale: activeLocale,
+					cursor: pageParam as string | undefined,
+					limit: 100,
+				}),
+			initialPageParam: undefined as string | undefined,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+			enabled: !!manifest,
+		});
 
 	// Fetch trashed items
 	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
