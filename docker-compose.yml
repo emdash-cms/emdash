@@ -5,10 +5,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: emdash-blog
+    container_name: emdash-rgb
     restart: unless-stopped
-    # ports:
-    #   - "4321:4321"
+    ports:
+      - "4321:4321"
     environment:
       NODE_ENV: production
       HOST: "0.0.0.0"
@@ -18,9 +18,9 @@ services:
       EMDASH_PREVIEW_SECRET: "${EMDASH_PREVIEW_SECRET:-}"
     volumes:
       # SQLite database — persisted across container restarts/redeploys
-      - emdash-data:/app/templates/blog/data
+      - emdash-data:/app/data
       # User-uploaded media files
-      - emdash-uploads:/app/templates/blog/uploads
+      - emdash-uploads:/app/uploads
 
 volumes:
   emdash-data:

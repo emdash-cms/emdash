@@ -33,14 +33,14 @@ RUN pnpm --filter emdash \
 RUN rm -rf packages/admin/src
 
 # ── Build the blog template (Astro SSR → dist/) ──────────────────────────────
-RUN pnpm --filter @emdash-cms/template-blog build
+RUN pnpm --filter @emdash-cms/template-rgb-animation build
 
 # ── Create a self-contained production deployment directory ──────────────────
 # pnpm deploy resolves all workspace:* links, installs only prod deps,
 # and produces a flat node_modules with NO symlinks — safe to copy between
 # Docker stages. The blog dist/ is included because templates/blog has no
 # "files" field so pnpm deploy copies everything.
-RUN pnpm deploy --filter @emdash-cms/template-blog --prod --legacy /deploy
+RUN pnpm deploy --filter @emdash-cms/template-rgb-animation --prod --legacy /deploy
 
 
 # ─── Stage 2: Runtime ────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ WORKDIR /app
 COPY --from=builder /deploy .
 
 # ── Copy the compiled dist/ (excluded by .gitignore, so pnpm deploy skips it) -
-COPY --from=builder /app/templates/blog/dist/ ./dist/
+COPY --from=builder /app/templates/rgb-animation/dist/ ./dist/
 
 # ── Persistent data volumes ───────────────────────────────────────────────────
 RUN mkdir -p data uploads
