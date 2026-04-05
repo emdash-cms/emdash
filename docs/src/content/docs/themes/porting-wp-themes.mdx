@@ -184,7 +184,7 @@ orderBy: { publishedAt: "desc" },
 ```astro title="src/pages/posts/[slug].astro"
 ---
 import { getEmDashCollection, getEntryTerms } from "emdash";
-import { PortableText } from "emdash/astro";
+import { PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 export async function getStaticPaths() {
@@ -261,7 +261,7 @@ Identify widget areas in the theme and render them:
 ```astro title="src/components/Sidebar.astro"
 ---
 import { getWidgetArea, getMenu } from "emdash";
-import { PortableText } from "emdash/astro";
+import { PortableText } from "emdash/ui";
 import RecentPosts from "./widgets/RecentPosts.astro";
 
 const sidebar = await getWidgetArea("sidebar");
