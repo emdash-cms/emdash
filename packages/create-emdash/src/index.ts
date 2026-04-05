@@ -184,7 +184,10 @@ function configureDatabase(projectDir: string, database: DatabaseChoice): string
 		const astroConfigPath = resolve(projectDir, "astro.config.mjs");
 		if (existsSync(astroConfigPath)) {
 			let astroConfig = readFileSync(astroConfigPath, "utf-8");
-			astroConfig = astroConfig.replace(SQLITE_IMPORT_REGEX, 'import { postgres } from "emdash/db";');
+			astroConfig = astroConfig.replace(
+				SQLITE_IMPORT_REGEX,
+				'import { postgres } from "emdash/db";',
+			);
 			astroConfig = astroConfig.replace(
 				SQLITE_DATABASE_CONFIG_REGEX,
 				"database: postgres({\n\t\t\t\tconnectionString: process.env.DATABASE_URL,\n\t\t\t}),",
@@ -309,35 +312,35 @@ async function main() {
 		platform === "cloudflare"
 			? "d1"
 			: await (async () => {
-				const selected = await p.select<RuntimeDatabase>({
-					message: "Which database setup?",
-					options: [
-						{
-							value: "sqlite",
-							label: "SQLite",
-							hint: "Simplest local setup",
-						},
-						{
-							value: "postgres",
-							label: "PostgreSQL",
-							hint: "Production relational database",
-						},
-						{
-							value: "mongodb",
-							label: "MongoDB (companion)",
-							hint: "Adds MongoDB helper for custom app data",
-						},
-					],
-					initialValue: "sqlite",
-				});
+					const selected = await p.select<RuntimeDatabase>({
+						message: "Which database setup?",
+						options: [
+							{
+								value: "sqlite",
+								label: "SQLite",
+								hint: "Simplest local setup",
+							},
+							{
+								value: "postgres",
+								label: "PostgreSQL",
+								hint: "Production relational database",
+							},
+							{
+								value: "mongodb",
+								label: "MongoDB (companion)",
+								hint: "Adds MongoDB helper for custom app data",
+							},
+						],
+						initialValue: "sqlite",
+					});
 
-				if (p.isCancel(selected)) {
-					p.cancel("Operation cancelled.");
-					process.exit(0);
-				}
+					if (p.isCancel(selected)) {
+						p.cancel("Operation cancelled.");
+						process.exit(0);
+					}
 
-				return selected;
-			})();
+					return selected;
+				})();
 
 	// Step 4: pick package manager
 	const detectedPm = detectPackageManager();
