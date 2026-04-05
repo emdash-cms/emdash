@@ -278,6 +278,13 @@ export function ContentEditor({
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 
+	// Default author to current user when item has no author assigned
+	React.useEffect(() => {
+		if (currentUser && !item?.authorId && onAuthorChange) {
+			onAuthorChange(currentUser.id);
+		}
+	}, [item?.id, currentUser?.id]);
+
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
 			if (isNew) {
@@ -802,7 +809,7 @@ export function ContentEditor({
 								<div className="p-4 border-t">
 									<h3 className="mb-4 font-semibold">Ownership</h3>
 									<AuthorSelector
-										authorId={item?.authorId || null}
+										authorId={item?.authorId ?? currentUser?.id ?? null}
 										users={users}
 										onChange={onAuthorChange}
 									/>
