@@ -739,7 +739,10 @@ export interface PublicPageContext {
 	locale: string | null;
 	kind: "content" | "custom";
 	pageType: string;
+	/** Full document title for the rendered page */
 	title: string | null;
+	/** Page-only title for OG/Twitter/JSON-LD headline output */
+	pageTitle?: string | null;
 	description: string | null;
 	canonical: string | null;
 	image: string | null;

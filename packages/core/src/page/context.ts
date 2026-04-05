@@ -12,6 +12,7 @@ interface PageContextFields {
 	kind: "content" | "custom";
 	pageType?: string;
 	title?: string | null;
+	pageTitle?: string | null;
 	description?: string | null;
 	canonical?: string | null;
 	image?: string | null;
@@ -76,6 +77,7 @@ export function createPublicPageContext(input: CreatePublicPageContextInput): Pu
 		kind: input.kind,
 		pageType: input.pageType ?? (input.kind === "content" ? "article" : "website"),
 		title: input.title ?? null,
+		pageTitle: input.pageTitle ?? null,
 		description: input.description ?? null,
 		canonical: input.canonical ?? null,
 		image: input.image ?? null,

@@ -310,6 +310,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: "article",
 	title: fullTitle,
+	pageTitle: post.data.title,
 	description,
 	canonical,
 	image,
@@ -450,7 +451,7 @@ interface Props {
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, content } = Astro.props;
+const { title, pageTitle, description, image, content } = Astro.props;
 const menu = await getMenu("primary");
 
 const pageCtx = createPublicPageContext({
@@ -458,6 +459,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: "website",
 	title,
+	pageTitle: pageTitle ?? title,
 	description,
 	image,
 	content,
