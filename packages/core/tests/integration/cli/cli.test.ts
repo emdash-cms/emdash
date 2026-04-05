@@ -19,7 +19,6 @@ import { assertNodeVersion, createTestServer } from "../server.js";
 const exec = promisify(execFile);
 
 const PORT = 4398; // Different port from client integration tests
-const TIMEOUT = 60_000;
 
 // Path to the built CLI binary
 const CLI_BIN = resolve(import.meta.dirname, "../../../dist/cli/index.mjs");
@@ -30,7 +29,7 @@ describe("CLI Integration", () => {
 	beforeAll(async () => {
 		assertNodeVersion();
 		ctx = await createTestServer({ port: PORT });
-	}, TIMEOUT);
+	});
 
 	afterAll(async () => {
 		await ctx?.cleanup();
