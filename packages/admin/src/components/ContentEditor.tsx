@@ -475,7 +475,7 @@ export function ContentEditor({
 							to="/content/$collection"
 							params={{ collection }}
 							search={{ locale: undefined }}
-							aria-label={`Back to ${collectionLabel} list`}
+							aria-label={t`Back to ${collectionLabel} list`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
 							<ArrowLeft className="h-5 w-5" aria-hidden="true" />
@@ -486,7 +486,7 @@ export function ContentEditor({
 							variant="ghost"
 							shape="square"
 							onClick={() => setIsDistractionFree(false)}
-							aria-label="Exit distraction-free mode"
+							aria-label={t`Exit distraction-free mode`}
 						>
 							<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
 						</Button>
@@ -523,7 +523,7 @@ export function ContentEditor({
 							shape="square"
 							type="button"
 							onClick={() => setIsDistractionFree(true)}
-							aria-label="Enter distraction-free mode"
+							aria-label={t`Enter distraction-free mode`}
 							title="Distraction-free mode (⌘⇧\)"
 						>
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />

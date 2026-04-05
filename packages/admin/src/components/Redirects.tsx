@@ -106,13 +106,13 @@ function RedirectFormDialog({
 						</p>
 					</div>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
+								aria-label={t`Close`}
 								className="absolute right-4 top-4"
 							>
 								<X className="h-4 w-4" />

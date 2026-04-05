@@ -129,7 +129,7 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b">
 					<h2 className="font-semibold truncate pr-2">{t`Media Details`}</h2>
-					<Button variant="ghost" shape="square" aria-label="Close" onClick={onClose}>
+					<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
 						<X className="h-4 w-4" />
 						<span className="sr-only">Close</span>
 					</Button>

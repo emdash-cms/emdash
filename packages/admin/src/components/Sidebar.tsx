@@ -348,7 +348,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		`,
 				}}
 			/>
-			<KumoSidebar className="emdash-sidebar" aria-label="Admin navigation">
+			<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
 				<KumoSidebar.Header>
 					<Link
 						to="/"

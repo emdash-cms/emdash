@@ -7,6 +7,7 @@
  */
 
 import { Button } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { ShieldCheck, ShieldWarning, Warning } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -49,6 +50,7 @@ export function CapabilityConsentDialog({
 	onConfirm,
 	onCancel,
 }: CapabilityConsentDialogProps) {
+	const { t } = useLingui();
 	const newSet = new Set(newCapabilities);
 	const isUpdate = mode === "update" || newCapabilities.length > 0;
 
@@ -57,7 +59,7 @@ export function CapabilityConsentDialog({
 			className="fixed inset-0 z-50 flex items-center justify-center"
 			role="dialog"
 			aria-modal="true"
-			aria-label="Capability consent"
+			aria-label={t`Capability consent`}
 		>
 			{/* Backdrop */}
 			<div className="absolute inset-0 bg-black/50" onClick={() => !isPending && onCancel()} />

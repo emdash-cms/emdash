@@ -8,6 +8,7 @@
  * - Block menu integration for transforms, duplicate, delete
  */
 
+import { useLingui } from "@lingui/react/macro";
 import { DotsSixVertical } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
@@ -41,6 +42,7 @@ declare module "@tiptap/core" {
  * DragHandleWrapper - Official TipTap drag handle with BlockMenu integration
  */
 export function DragHandleWrapper({ editor }: DragHandleWrapperProps) {
+	const { t } = useLingui();
 	const [hoveredNode, setHoveredNode] = React.useState<HoveredNode | null>(null);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
@@ -120,7 +122,7 @@ export function DragHandleWrapper({ editor }: DragHandleWrapperProps) {
 					)}
 					onClick={handleClick}
 					data-block-handle
-					aria-label="Block actions - drag to reorder, click for menu"
+					aria-label={t`Block actions - drag to reorder, click for menu`}
 				>
 					<DotsSixVertical className="h-4 w-4" />
 				</button>

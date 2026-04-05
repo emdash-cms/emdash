@@ -480,6 +480,10 @@ msgstr "Additional data to import."
 msgid "Admin"
 msgstr "Admin"
 
+#: packages/admin/src/components/Sidebar.tsx:351
+msgid "Admin navigation"
+msgstr "Admin navigation"
+
 #. placeholder {0}: settings.middleware.afterSend.join(", ")
 #: packages/admin/src/components/settings/EmailSettings.tsx:209
 msgid "After send: {0}"
@@ -739,6 +743,10 @@ msgstr "Available Widgets"
 msgid "Back"
 msgstr "Back"
 
+#: packages/admin/src/components/ContentEditor.tsx:474
+msgid "Back to {collectionLabel} list"
+msgstr "Back to {collectionLabel} list"
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:281
 msgid "Back to Content Types"
 msgstr "Back to Content Types"
@@ -791,6 +799,10 @@ msgstr "Bing Verification"
 #: packages/admin/src/routes/bylines.tsx:264
 msgid "Bio"
 msgstr "Bio"
+
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:125
+msgid "Block actions - drag to reorder, click for menu"
+msgstr "Block actions - drag to reorder, click for menu"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1890
 #: packages/admin/src/components/PortableTextEditor.tsx:2115
@@ -891,6 +903,10 @@ msgstr "Canonical URL"
 msgid "Capabilities"
 msgstr "Capabilities"
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:62
+msgid "Capability consent"
+msgstr "Capability consent"
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:307
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:472
 #: packages/admin/src/components/MediaDetailPanel.tsx:211
@@ -965,13 +981,20 @@ msgid "Click the link in the email to sign in."
 msgstr "Click the link in the email to sign in."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
+#: packages/admin/src/components/ContentPickerModal.tsx:120
+#: packages/admin/src/components/ContentPickerModal.tsx:126
 #: packages/admin/src/components/ContentPickerModal.tsx:130
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:206
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:208
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:367
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:369
+#: packages/admin/src/components/FieldEditor.tsx:209
+#: packages/admin/src/components/FieldEditor.tsx:215
 #: packages/admin/src/components/FieldEditor.tsx:219
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:448
+#: packages/admin/src/components/MediaDetailPanel.tsx:132
+#: packages/admin/src/components/MediaPickerModal.tsx:348
+#: packages/admin/src/components/MediaPickerModal.tsx:354
 #: packages/admin/src/components/MenuEditor.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:262
 #: packages/admin/src/components/MenuEditor.tsx:266
@@ -981,10 +1004,28 @@ msgstr "Click the link in the email to sign in."
 #: packages/admin/src/components/MenuList.tsx:107
 #: packages/admin/src/components/MenuList.tsx:113
 #: packages/admin/src/components/MenuList.tsx:117
+#: packages/admin/src/components/PortableTextEditor.tsx:949
+#: packages/admin/src/components/PortableTextEditor.tsx:955
+#: packages/admin/src/components/Redirects.tsx:109
+#: packages/admin/src/components/Redirects.tsx:115
+#: packages/admin/src/components/SectionPickerModal.tsx:60
+#: packages/admin/src/components/SectionPickerModal.tsx:66
+#: packages/admin/src/components/Sections.tsx:151
+#: packages/admin/src/components/Sections.tsx:157
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:379
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:385
+#: packages/admin/src/components/TaxonomyManager.tsx:215
+#: packages/admin/src/components/TaxonomyManager.tsx:221
+#: packages/admin/src/components/TaxonomyManager.tsx:427
+#: packages/admin/src/components/TaxonomyManager.tsx:433
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:304
 #: packages/admin/src/components/users/InviteUserModal.tsx:89
 #: packages/admin/src/components/users/InviteUserModal.tsx:95
 #: packages/admin/src/components/users/InviteUserModal.tsx:99
+#: packages/admin/src/components/WelcomeModal.tsx:76
+#: packages/admin/src/components/WelcomeModal.tsx:82
+#: packages/admin/src/components/Widgets.tsx:315
+#: packages/admin/src/components/Widgets.tsx:321
 msgid "Close"
 msgstr "Close"
 
@@ -1939,6 +1980,10 @@ msgstr "Email verified!"
 msgid "Embed a {label}"
 msgstr "Embed a {label}"
 
+#: packages/admin/src/components/Logo.tsx:76
+msgid "EmDash"
+msgstr "EmDash"
+
 #: packages/admin/src/components/WordPressImport.tsx:1131
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporter plugin detected! You can import directly."
@@ -1976,6 +2021,10 @@ msgstr "Enter {0}..."
 #: packages/admin/src/components/WordPressImport.tsx:1204
 msgid "Enter credentials manually"
 msgstr "Enter credentials manually"
+
+#: packages/admin/src/components/ContentEditor.tsx:522
+msgid "Enter distraction-free mode"
+msgstr "Enter distraction-free mode"
 
 #: packages/admin/src/components/users/UserDetail.tsx:165
 msgid "Enter email"
@@ -2036,6 +2085,10 @@ msgstr "example.com"
 #: packages/admin/src/components/WordPressImport.tsx:1856
 msgid "Exists"
 msgstr "Exists"
+
+#: packages/admin/src/components/ContentEditor.tsx:485
+msgid "Exit distraction-free mode"
+msgstr "Exit distraction-free mode"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2337
 msgid "Exit Spotlight Mode"
@@ -2418,6 +2471,11 @@ msgstr "Image URL"
 #: packages/admin/src/components/WordPressImport.tsx:653
 msgid "Import"
 msgstr "Import"
+
+#. placeholder {0}: postType.name
+#: packages/admin/src/components/WordPressImport.tsx:1804
+msgid "Import {0}"
+msgstr "Import {0}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1190
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
