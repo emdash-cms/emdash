@@ -1,4 +1,9 @@
 {
+	// Production deploys also require these Worker secrets:
+	// - GITHUB_CLIENT_ID
+	// - GITHUB_CLIENT_SECRET
+	// - SEED_TOKEN
+	// AUDIT_ENFORCEMENT defaults to "flag" in code if no value is provided.
 	"name": "emdash-marketplace",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-02-25",

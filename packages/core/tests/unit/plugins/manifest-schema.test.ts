@@ -105,6 +105,16 @@ describe("pluginManifestSchema — route entries", () => {
 	});
 });
 
+describe("pluginManifestSchema — hook entries", () => {
+	it("should accept email:status in manifests", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			hooks: ["email:status"],
+		});
+		expect(result.success).toBe(true);
+	});
+});
+
 describe("normalizeManifestRoute", () => {
 	it("should convert a plain string to { name } object", () => {
 		expect(normalizeManifestRoute("webhook")).toEqual({ name: "webhook" });

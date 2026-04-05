@@ -90,10 +90,12 @@ See [Storage Options](/deployment/storage/) for details.
 **Optional.** Array of EmDash plugins.
 
 ```js
-import seoPlugin from "@emdash-cms/plugin-seo";
+import { emdashSmtp } from "emdash-smtp";
 
-plugins: [seoPlugin()];
+plugins: [emdashSmtp()];
 ```
+
+If a plugin also has a separate marketplace-safe package, keep the trusted package in `plugins` and publish the sandbox variant separately. For example, `emdash-smtp` is the trusted package used in `astro.config.mjs`, while `emdash-smtp-marketplace` stays on the marketplace publish/install path.
 
 ### `auth`
 

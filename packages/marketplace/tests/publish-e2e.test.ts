@@ -171,6 +171,60 @@ describe("marketplace publish e2e", () => {
 		};
 	});
 
+	it("returns discovery config with the GitHub client id when configured", async () => {
+		const res = await app.request("/api/v1/auth/discovery", {}, env);
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			github: {
+				clientId: string;
+				deviceAuthorizationEndpoint: string;
+				tokenEndpoint: string;
+			};
+			marketplace: {
+				deviceTokenEndpoint: string;
+			};
+		};
+
+		expect(body.github.clientId).toBe("test");
+		expect(body.github.deviceAuthorizationEndpoint).toBe(
+			"https://github.com/login/device/code",
+		);
+		expect(body.github.tokenEndpoint).toBe("https://github.com/login/oauth/access_token");
+		expect(body.marketplace.deviceTokenEndpoint).toBe("/api/v1/auth/github/device");
+	});
+
+	it("returns an empty discovery clientId when GitHub OAuth is not configured", async () => {
+		env.GITHUB_CLIENT_ID = "";
+
+		const res = await app.request("/api/v1/auth/discovery", {}, env);
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { github: { clientId: string } };
+		expect(body.github.clientId).toBe("");
+	});
+
+	it("fails device auth with 503 when GitHub OAuth config is missing", async () => {
+		env.GITHUB_CLIENT_ID = "";
+		env.GITHUB_CLIENT_SECRET = "";
+
+		const res = await app.request(
+			"/api/v1/auth/github/device",
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ access_token: "gho_test" }),
+			},
+			env,
+		);
+
+		expect(res.status).toBe(503);
+		const body = (await res.json()) as { error: string; detail: string };
+		expect(body.error).toBe("GitHub OAuth is not configured on this marketplace deployment.");
+		expect(body.detail).toContain("GITHUB_CLIENT_ID");
+		expect(body.detail).toContain("GITHUB_CLIENT_SECRET");
+	});
+
 	it("publishes a plugin tarball via seed auth and lists it", async () => {
 		const formData = new FormData();
 		formData.append(

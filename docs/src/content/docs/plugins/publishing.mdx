@@ -101,6 +101,15 @@ The bundle command checks:
   If your backend code imports a Node.js built-in, the bundle will fail validation. Replace Node.js APIs with Web APIs or move the logic to a trusted plugin instead.
 </Aside>
 
+## Paired trusted and marketplace packages
+
+Some plugins should ship as two npm packages:
+
+- `emdash-smtp` — trusted package for `astro.config.mjs`, where Node-only transports can run
+- `emdash-smtp-marketplace` — sandbox-safe package published with `emdash plugin publish`
+
+Keep the same EmDash plugin ID in both variants, but publish separate package names so the marketplace bundle stays sandbox-safe and the trusted install keeps its full Node runtime.
+
 ## Publishing
 
 The `emdash plugin publish` command uploads your tarball to the marketplace:
