@@ -19,14 +19,14 @@ npm install @emdash-cms/x402
 import { x402 } from "@emdash-cms/x402";
 
 export default defineConfig({
-  integrations: [
-    x402({
-      payTo: "0xYourWalletAddress",
-      network: "eip155:8453", // Base mainnet
-      defaultPrice: "$0.01",
-      botOnly: true, // only charge bots/agents, not humans
-    }),
-  ],
+	integrations: [
+		x402({
+			payTo: "0xYourWalletAddress",
+			network: "eip155:8453", // Base mainnet
+			defaultPrice: "$0.01",
+			botOnly: true, // only charge bots/agents, not humans
+		}),
+	],
 });
 ```
 
@@ -53,18 +53,18 @@ x402.applyHeaders(result, Astro.response);
 
 ## Configuration
 
-| Option | Required | Default | Description |
-|--------|----------|---------|-------------|
-| `payTo` | Yes | — | Wallet address to receive payments |
-| `network` | Yes | — | [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) network ID (e.g. `eip155:8453` for Base) |
-| `defaultPrice` | No | — | Default price, can be overridden per-page |
-| `facilitatorUrl` | No | `https://x402.org/facilitator` | Payment verification endpoint |
-| `scheme` | No | `"exact"` | Payment scheme |
-| `maxTimeoutSeconds` | No | `60` | Signature timeout |
-| `botOnly` | No | `false` | Only enforce for bots (requires Cloudflare Bot Management) |
-| `botScoreThreshold` | No | `30` | Bot score threshold (1–99). Below = bot |
-| `evm` | No | `true` | Enable EVM chain support |
-| `svm` | No | `false` | Enable Solana chain support |
+| Option              | Required | Default                        | Description                                                                               |
+| ------------------- | -------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `payTo`             | Yes      | —                              | Wallet address to receive payments                                                        |
+| `network`           | Yes      | —                              | [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) network ID (e.g. `eip155:8453` for Base) |
+| `defaultPrice`      | No       | —                              | Default price, can be overridden per-page                                                 |
+| `facilitatorUrl`    | No       | `https://x402.org/facilitator` | Payment verification endpoint                                                             |
+| `scheme`            | No       | `"exact"`                      | Payment scheme                                                                            |
+| `maxTimeoutSeconds` | No       | `60`                           | Signature timeout                                                                         |
+| `botOnly`           | No       | `false`                        | Only enforce for bots (requires Cloudflare Bot Management)                                |
+| `botScoreThreshold` | No       | `30`                           | Bot score threshold (1–99). Below = bot                                                   |
+| `evm`               | No       | `true`                         | Enable EVM chain support                                                                  |
+| `svm`               | No       | `false`                        | Enable Solana chain support                                                               |
 
 ### Price formats
 
@@ -79,10 +79,10 @@ x402.applyHeaders(result, Astro.response);
 
 Common CAIP-2 identifiers:
 
-| Network | ID |
-|---------|-----|
-| Base | `eip155:8453` |
-| Ethereum | `eip155:1` |
+| Network                | ID             |
+| ---------------------- | -------------- |
+| Base                   | `eip155:8453`  |
+| Ethereum               | `eip155:1`     |
 | Base Sepolia (testnet) | `eip155:84532` |
 
 ## API
@@ -93,10 +93,10 @@ Checks the request for a valid payment signature. Returns a `Response` (402) if 
 
 ```ts
 interface EnforceResult {
-  paid: boolean;          // true if payment was verified
-  skipped: boolean;       // true if skipped (e.g. human in botOnly mode)
-  payer?: string;         // payer's wallet address
-  responseHeaders: Record<string, string>;
+	paid: boolean; // true if payment was verified
+	skipped: boolean; // true if skipped (e.g. human in botOnly mode)
+	payer?: string; // payer's wallet address
+	responseHeaders: Record<string, string>;
 }
 ```
 
