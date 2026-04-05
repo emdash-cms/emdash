@@ -1,25 +1,20 @@
-name: Format Command
+name: Auto Format
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
 
 jobs:
   format:
     name: Format
-    if: >-
-      github.event.issue.pull_request &&
-      github.event.comment.body == '/format' &&
-      (
-        github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'COLLABORATOR'
-      )
+    # Skip bot-authored commits to avoid infinite loops
+    if: github.actor != 'emdashbot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Generate token
         id: app-token
@@ -34,28 +29,15 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-            });
-            const isFork = pr.data.head.repo.fork || pr.data.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
-            core.setOutput('ref', pr.data.head.ref);
-            core.setOutput('sha', pr.data.head.sha);
+            const pr = context.payload.pull_request;
+            const isFork = pr.head.repo.fork || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('sha', pr.head.sha);
+            core.setOutput('number', pr.number.toString());
             core.setOutput('is_fork', isFork.toString());
-            core.setOutput('full_name', pr.data.head.repo.full_name);
+            core.setOutput('full_name', pr.head.repo.full_name);
 
-      - name: React to comment
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'eyes',
-            });
+      # --- Same-repo PRs: checkout and push directly ---
 
       - name: Checkout (same-repo)
         if: steps.pr.outputs.is_fork == 'false'
@@ -63,6 +45,8 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.ref }}
           token: ${{ steps.app-token.outputs.token }}
+
+      # --- Fork PRs: checkout the fork at the pinned SHA ---
 
       - name: Checkout (fork)
         if: steps.pr.outputs.is_fork == 'true'
@@ -90,6 +74,8 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # --- Same-repo: push directly ---
+
       - name: Commit and push (same-repo)
         if: steps.pr.outputs.is_fork == 'false' && steps.diff.outputs.changed == 'true'
         run: |
@@ -98,6 +84,8 @@ jobs:
           git commit -m "style: format"
           git push
 
+      # --- Fork: push via git with GIT_ASKPASS ---
+
       - name: Commit and push (fork)
         if: steps.pr.outputs.is_fork == 'true' && steps.diff.outputs.changed == 'true'
         id: push-fork
@@ -105,6 +93,8 @@ jobs:
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
           git commit -m "style: format"
+          # Push to the fork using the app token via GIT_ASKPASS to avoid
+          # leaking the token in process args or git config
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
@@ -127,19 +117,6 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: ${{ steps.pr.outputs.number }},
               body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
-            });
-
-      - name: React to comment (result)
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const changed = '${{ steps.diff.outputs.changed }}' === 'true';
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: changed ? 'rocket' : '+1',
             });
