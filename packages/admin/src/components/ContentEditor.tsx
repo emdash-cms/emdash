@@ -39,6 +39,7 @@ import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { RepeaterField } from "./RepeaterField.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -78,6 +79,7 @@ export interface FieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }>;
 	widget?: string;
+	validation?: Record<string, unknown>;
 }
 
 /** Simplified user info for current user context */
@@ -1138,6 +1140,29 @@ function FieldRenderer({
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+				/>
+			);
+		}
+
+		case "repeater": {
+			const validation = field.validation as Record<string, unknown> | undefined;
+			const subFields = (validation?.subFields ?? []) as Array<{
+				slug: string;
+				type: string;
+				label: string;
+				required?: boolean;
+				options?: string[];
+			}>;
+			return (
+				<RepeaterField
+					label={label}
+					id={id}
+					value={value}
+					onChange={handleChange}
+					required={field.required}
+					subFields={subFields}
+					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
+					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
 				/>
 			);
 		}
