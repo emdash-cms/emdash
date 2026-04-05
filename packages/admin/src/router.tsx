@@ -375,6 +375,19 @@ function getPluginBlocks(manifest: AdminManifest): PluginBlockDef[] {
 	return blocks;
 }
 
+/** Extract editor style entries from all plugins in the manifest */
+function getEditorStyles(
+	manifest: AdminManifest,
+): NonNullable<NonNullable<AdminManifest["plugins"][string]>["editorStyles"]> {
+	const entries: NonNullable<NonNullable<AdminManifest["plugins"][string]>["editorStyles"]> = [];
+	for (const plugin of Object.values(manifest.plugins)) {
+		if (plugin.editorStyles) {
+			entries.push(...plugin.editorStyles);
+		}
+	}
+	return entries;
+}
+
 // Content new route
 const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -409,6 +422,7 @@ function ContentNewPage() {
 	});
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
+	const editorStyles = React.useMemo(() => (manifest ? getEditorStyles(manifest) : []), [manifest]);
 
 	const { data: bylinesData } = useQuery({
 		queryKey: ["bylines"],
@@ -461,6 +475,7 @@ function ContentNewPage() {
 			isSaving={createMutation.isPending}
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
+			editorStyles={editorStyles}
 			availableBylines={bylinesData?.items}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
@@ -771,6 +786,7 @@ function ContentEditPage() {
 	});
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
+	const editorStyles = React.useMemo(() => (manifest ? getEditorStyles(manifest) : []), [manifest]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -838,6 +854,7 @@ function ContentEditPage() {
 			translations={translationsData?.translations}
 			onTranslate={(locale) => translateMutation.mutate(locale)}
 			pluginBlocks={pluginBlocks}
+			editorStyles={editorStyles}
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
