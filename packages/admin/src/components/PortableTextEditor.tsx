@@ -961,6 +961,37 @@ function SlashCommandMenu({
 	);
 }
 
+function getPluginBlockDefaultValues(fields?: Element[]): Record<string, unknown> {
+	const defaults: Record<string, unknown> = {};
+
+	for (const field of fields ?? []) {
+		const initialValue = "initial_value" in field ? field.initial_value : undefined;
+		if (initialValue !== undefined) {
+			defaults[field.action_id] = initialValue;
+		}
+	}
+
+	return defaults;
+}
+
+function buildPluginBlockFormValues(
+	block: PluginBlockDef | null,
+	initialValues?: Record<string, unknown>,
+): Record<string, unknown> {
+	const defaults = getPluginBlockDefaultValues(block?.fields);
+	return initialValues ? { ...defaults, ...initialValues } : defaults;
+}
+
+function hasPluginBlockFormData(values: Record<string, unknown>): boolean {
+	return Object.values(values).some(
+		(value) => value !== undefined && value !== null && value !== "",
+	);
+}
+
+function resolvePluginBlockFieldValue(_field: Element, value: unknown): unknown {
+	return value;
+}
+
 /**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
@@ -983,11 +1014,7 @@ function PluginBlockModal({
 
 	React.useEffect(() => {
 		if (block) {
-			if (initialValues) {
-				setFormValues({ ...initialValues });
-			} else {
-				setFormValues({});
-			}
+			setFormValues(buildPluginBlockFormValues(block, initialValues));
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
@@ -1016,7 +1043,7 @@ function PluginBlockModal({
 	// For simple URL mode, check if the URL is non-empty
 	// For Block Kit fields, require at least one field to have a value
 	const canSubmit = hasFields
-		? Object.values(formValues).some((v) => v !== undefined && v !== null && v !== "")
+		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
 	return (
@@ -1093,6 +1120,8 @@ function BlockKitField({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const resolvedValue = resolvePluginBlockFieldValue(field, value);
+
 	switch (field.type) {
 		case "text_input": {
 			const multiline = !!field.multiline;
@@ -1105,14 +1134,14 @@ function BlockKitField({
 						<Tag
 							className="flex w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-kumo-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2 min-h-[80px]"
 							placeholder={placeholder}
-							value={typeof value === "string" ? value : ""}
+							value={typeof resolvedValue === "string" ? resolvedValue : ""}
 							onChange={(e) => onChange(field.action_id, e.target.value)}
 						/>
 					) : (
 						<Input
 							type="text"
 							placeholder={placeholder}
-							value={typeof value === "string" ? value : ""}
+							value={typeof resolvedValue === "string" ? resolvedValue : ""}
 							onChange={(e) => onChange(field.action_id, e.target.value)}
 						/>
 					)}
@@ -1129,7 +1158,7 @@ function BlockKitField({
 						type="number"
 						min={min}
 						max={max}
-						value={typeof value === "number" ? String(value) : ""}
+						value={typeof resolvedValue === "number" ? String(resolvedValue) : ""}
 						onChange={(e) =>
 							onChange(field.action_id, e.target.value ? Number(e.target.value) : undefined)
 						}
@@ -1138,14 +1167,21 @@ function BlockKitField({
 			);
 		}
 		case "select": {
-			return <DynamicSelect field={field} pluginId={pluginId} value={value} onChange={onChange} />;
+			return (
+				<DynamicSelect
+					field={field}
+					pluginId={pluginId}
+					value={resolvedValue}
+					onChange={onChange}
+				/>
+			);
 		}
 		case "toggle": {
 			return (
 				<div className="flex items-center gap-2">
 					<input
 						type="checkbox"
-						checked={!!value}
+						checked={!!resolvedValue}
 						onChange={(e) => onChange(field.action_id, e.target.checked)}
 						className="h-4 w-4"
 					/>
@@ -1246,6 +1282,11 @@ export type { PluginBlockDef } from "./editor/PluginBlockNode";
 // Exported for unit testing (pure functions, no React dependencies)
 export { prosemirrorToPortableText as _prosemirrorToPortableText };
 export { portableTextToProsemirror as _portableTextToProsemirror };
+export {
+	buildPluginBlockFormValues as _buildPluginBlockFormValues,
+	hasPluginBlockFormData as _hasPluginBlockFormData,
+	resolvePluginBlockFieldValue as _resolvePluginBlockFieldValue,
+};
 
 // =============================================================================
 // Editor Footer with Writing Metrics
