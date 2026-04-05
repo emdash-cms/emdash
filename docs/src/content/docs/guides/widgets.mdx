@@ -202,8 +202,8 @@ const { entries: posts } = await getEmDashCollection("posts", {
 <ul class="recent-posts">
   {posts.map(post => (
     <li>
-      {showThumbnails && post.data.featuredImage && (
-        <img src={post.data.featuredImage} alt="" class="thumbnail" />
+      {showThumbnails && post.data.featured_image && (
+        <img src={post.data.featured_image} alt="" class="thumbnail" />
       )}
       <a href={`/posts/${post.slug}`}>{post.data.title}</a>
       {showDate && post.data.publishedAt && (
