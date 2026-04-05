@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: emdash-rgb
     restart: unless-stopped
-    ports:
-      - "4321:4321"
+    # ports:
+    #   - "4321:4321"
     environment:
       NODE_ENV: production
       HOST: "0.0.0.0"
