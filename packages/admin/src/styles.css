@@ -203,6 +203,15 @@ body {
 }
 
 /**
+ * Prevent dialogs from overflowing the viewport on small screens.
+ * Individual dialogs use various max-w-* / w-* classes that exceed
+ * mobile viewport width — this global cap keeps them accessible.
+ */
+[role="dialog"] {
+	max-width: calc(100vw - 2rem);
+}
+
+/**
  * Isolate the admin root's stacking context.
  */
 #admin-root {
