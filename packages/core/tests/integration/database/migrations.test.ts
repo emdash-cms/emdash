@@ -57,7 +57,7 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(31);
+		expect(migrations).toHaveLength(32);
 		expect(migrations[0]?.name).toBe("001_initial");
 		expect(migrations[0]?.timestamp).toBeDefined();
 		expect(migrations[1]?.name).toBe("002_media_status");
@@ -98,8 +98,8 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		// Should still only have thirty-one migration records
-		expect(migrations).toHaveLength(31);
+		// Should still only have thirty-two migration records
+		expect(migrations).toHaveLength(32);
 	});
 
 	it("should report correct migration status", async () => {
@@ -408,5 +408,100 @@ describe("Database Migrations (Integration)", () => {
 
 		expect(logs).toHaveLength(1);
 		expect(logs[0]?.action).toBe("content:create");
+	});
+
+	describe("033_backfill_url_patterns", () => {
+		it("should set url_pattern for posts and pages with NULL values", async () => {
+			await runMigrations(db);
+
+			// Insert test collections with NULL url_pattern (simulating pre-migration state)
+			await db
+				.insertInto("_emdash_collections")
+				.values({ id: "bp-posts", slug: "test_posts", label: "Posts", has_seo: 0 } as any)
+				.execute();
+			await db
+				.insertInto("_emdash_collections")
+				.values({ id: "bp-pages", slug: "test_pages", label: "Pages", has_seo: 0 } as any)
+				.execute();
+
+			// Verify they start with NULL
+			const before = await db
+				.selectFrom("_emdash_collections")
+				.select(["slug", "url_pattern"])
+				.where("slug", "in", ["test_posts", "test_pages"])
+				.execute();
+			expect(before.every((c) => c.url_pattern === null)).toBe(true);
+
+			// Run the migration up function directly with the known slugs
+			// (the real migration targets "posts" and "pages", so test with those)
+			await db
+				.insertInto("_emdash_collections")
+				.values({ id: "bp-real-posts", slug: "posts", label: "Real Posts", has_seo: 0 } as any)
+				.onConflict((oc) => oc.column("slug").doNothing())
+				.execute();
+			await db
+				.updateTable("_emdash_collections" as any)
+				.set({ url_pattern: null })
+				.where("slug", "=", "posts")
+				.execute();
+
+			await db
+				.insertInto("_emdash_collections")
+				.values({ id: "bp-real-pages", slug: "pages", label: "Real Pages", has_seo: 0 } as any)
+				.onConflict((oc) => oc.column("slug").doNothing())
+				.execute();
+			await db
+				.updateTable("_emdash_collections" as any)
+				.set({ url_pattern: null })
+				.where("slug", "=", "pages")
+				.execute();
+
+			// Run migration 033 directly
+			const { up } = await import("../../../src/database/migrations/033_backfill_url_patterns.js");
+			await up(db);
+
+			const posts = await db
+				.selectFrom("_emdash_collections")
+				.select("url_pattern")
+				.where("slug", "=", "posts")
+				.executeTakeFirst();
+
+			const pages = await db
+				.selectFrom("_emdash_collections")
+				.select("url_pattern")
+				.where("slug", "=", "pages")
+				.executeTakeFirst();
+
+			expect(posts?.url_pattern).toBe("/posts/{slug}");
+			expect(pages?.url_pattern).toBe("/{slug}");
+		});
+
+		it("should not overwrite user-configured url_pattern values", async () => {
+			await runMigrations(db);
+
+			// Set a custom url_pattern on posts
+			await db
+				.insertInto("_emdash_collections")
+				.values({ id: "bp-custom", slug: "posts", label: "Posts", has_seo: 0 } as any)
+				.onConflict((oc) => oc.column("slug").doNothing())
+				.execute();
+			await db
+				.updateTable("_emdash_collections" as any)
+				.set({ url_pattern: "/blog/{slug}" })
+				.where("slug", "=", "posts")
+				.execute();
+
+			// Run migration 033 directly
+			const { up } = await import("../../../src/database/migrations/033_backfill_url_patterns.js");
+			await up(db);
+
+			const posts = await db
+				.selectFrom("_emdash_collections")
+				.select("url_pattern")
+				.where("slug", "=", "posts")
+				.executeTakeFirst();
+
+			expect(posts?.url_pattern).toBe("/blog/{slug}");
+		});
 	});
 });

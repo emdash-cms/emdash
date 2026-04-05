@@ -18,6 +18,7 @@ export const defaultSeed: SeedFile = {
 			slug: "posts",
 			label: "Posts",
 			labelSingular: "Post",
+			urlPattern: "/posts/{slug}",
 			supports: ["drafts", "revisions", "search"],
 			fields: [
 				{
@@ -49,6 +50,7 @@ export const defaultSeed: SeedFile = {
 			slug: "pages",
 			label: "Pages",
 			labelSingular: "Page",
+			urlPattern: "/{slug}",
 			supports: ["drafts", "revisions", "search"],
 			fields: [
 				{

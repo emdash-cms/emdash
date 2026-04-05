@@ -70,7 +70,7 @@ describe("Database Migrations", () => {
 			await expect(runMigrations(db)).resolves.not.toThrow();
 
 			const status = await getMigrationStatus(db);
-			expect(status.applied).toHaveLength(31); // 001_initial through 032_rate_limits (no 010)
+			expect(status.applied).toHaveLength(32); // 001_initial through 033_backfill_url_patterns (no 010)
 		});
 
 		it("should record migration in tracking table", async () => {
@@ -78,7 +78,7 @@ describe("Database Migrations", () => {
 
 			const records = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-			expect(records).toHaveLength(31);
+			expect(records).toHaveLength(32);
 			expect(records[0].name).toBe("001_initial");
 			expect(records[0].timestamp).toBeDefined();
 			expect(records[1].name).toBe("002_media_status");

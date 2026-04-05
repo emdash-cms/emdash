@@ -195,7 +195,7 @@ describe("ContentTypeEditor", () => {
 			label: "Articles",
 			labelSingular: "Article",
 			description: undefined,
-			urlPattern: undefined,
+			urlPattern: "/articles/{slug}",
 			supports: ["drafts"], // default
 			hasSeo: false,
 		});
@@ -446,22 +446,35 @@ describe("ContentTypeEditor", () => {
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {
+		const onSave = vi.fn();
 		const collection = makeCollection();
-		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
 
 		await screen.getByLabelText("URL Pattern").fill("/blog/broken");
 
+		// Validation fires on submit, not inline
+		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		await saveButton.click();
+
 		await expect.element(screen.getByText(URL_PATTERN_SLUG_RE)).toBeInTheDocument();
+		expect(onSave).not.toHaveBeenCalled();
 	});
 
-	it("disables save button when pattern lacks {slug}", async () => {
+	it("prevents save when pattern lacks {slug}", async () => {
+		const onSave = vi.fn();
 		const collection = makeCollection();
-		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
 
 		await screen.getByLabelText("URL Pattern").fill("/blog/broken");
 
 		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
-		await expect.element(saveButton).toBeDisabled();
+		await saveButton.click();
+
+		expect(onSave).not.toHaveBeenCalled();
 	});
 
 	it("enables save button when pattern includes {slug}", async () => {
