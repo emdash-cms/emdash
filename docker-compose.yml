@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  emdash:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: emdash-blog
+    restart: unless-stopped
+    # ports:
+    #   - "4321:4321"
+    environment:
+      NODE_ENV: production
+      HOST: "0.0.0.0"
+      PORT: "4321"
+      # ── Security secrets — change these before going live ──────────────────
+      EMDASH_AUTH_SECRET: "${EMDASH_AUTH_SECRET:-change-me-in-production}"
+      EMDASH_PREVIEW_SECRET: "${EMDASH_PREVIEW_SECRET:-}"
+    volumes:
+      # SQLite database — persisted across container restarts/redeploys
+      - emdash-data:/app/templates/blog/data
+      # User-uploaded media files
+      - emdash-uploads:/app/templates/blog/uploads
+
+volumes:
+  emdash-data:
+  emdash-uploads:

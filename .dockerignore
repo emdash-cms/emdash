@@ -1,0 +1,36 @@
+# ── dependencies ─────────────────────────────────────────────────────────────
+**/node_modules/
+**/.pnpm-store/
+
+# ── build artefacts ─────────────────────────────────────────────────────────
+**/dist/
+**/.astro/
+**/.emdash-bundle-tmp
+
+# ── runtime data (never bake DB or uploads into the image) ───────────────────
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+**/uploads/
+
+# ── secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+.dev.vars
+
+# ── test artefacts ───────────────────────────────────────────────────────────
+playwright-report/
+test-results/
+__screenshots__/
+debug-*.png
+# Note: demos/ and e2e/ are intentionally NOT excluded — pnpm workspace
+# requires all package.json files to be present during pnpm install.
+
+# ── large binary assets not needed in the build ──────────────────────────────
+assets/
+
+# ── git / editor ──────────────────────────────────────────────────────────────
+.git/
+.vscode/
+.idea/

@@ -5,6 +5,11 @@ import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
+// In Docker the SQLite file lives inside the volume-mounted ./data/ directory.
+// Fall back to the repo root for local development.
+const dbUrl = process.env.DATABASE_URL ?? "file:./data/data.db";
+const uploadsDir = process.env.UPLOADS_DIR ?? "./uploads";
+
 export default defineConfig({
 	output: "server",
 	adapter: node({
@@ -17,9 +22,9 @@ export default defineConfig({
 	integrations: [
 		react(),
 		emdash({
-			database: sqlite({ url: "file:./data.db" }),
+			database: sqlite({ url: dbUrl }),
 			storage: local({
-				directory: "./uploads",
+				directory: uploadsDir,
 				baseUrl: "/_emdash/api/media/file",
 			}),
 			plugins: [auditLogPlugin()],
