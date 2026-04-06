@@ -1172,6 +1172,10 @@ export class EmDashRuntime {
 								label: v.charAt(0).toUpperCase() + v.slice(1),
 							}));
 						}
+						// Include full validation for repeater fields (subFields, minItems, maxItems)
+						if (field.type === "repeater" && field.validation) {
+							(entry as Record<string, unknown>).validation = field.validation;
+						}
 						fields[field.slug] = entry;
 					}
 				}

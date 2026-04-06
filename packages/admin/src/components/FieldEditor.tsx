@@ -625,7 +625,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 				)}
 
 				{step === "config" && (
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+					<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2">
 						<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
 							Cancel
 						</Button>
