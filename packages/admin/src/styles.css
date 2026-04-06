@@ -204,11 +204,14 @@ body {
 
 /**
  * Prevent dialogs from overflowing the viewport on small screens.
- * Individual dialogs use various max-w-* / w-* classes that exceed
- * mobile viewport width — this global cap keeps them accessible.
+ * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
+ * which overrides max-width in CSS. We need to cap min-width too.
  */
-[role="dialog"] {
-	max-width: calc(100vw - 2rem);
+@media (max-width: 639px) {
+	[role="dialog"] {
+		min-width: 0 !important;
+		max-width: calc(100vw - 2rem);
+	}
 }
 
 /**
