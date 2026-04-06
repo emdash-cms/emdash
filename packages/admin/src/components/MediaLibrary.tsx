@@ -137,7 +137,7 @@ export function MediaLibrary({
 				if (failed === 0) {
 					setUploadState({
 						status: "success",
-						message: plural(total, { one: "# file uploaded", other: "# files uploaded" }),
+						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
 					});
 				} else if (uploaded === 0) {
 					setUploadState({
@@ -173,7 +173,7 @@ export function MediaLibrary({
 				if (failed === 0) {
 					setUploadState({
 						status: "success",
-						message: plural(total, { one: "# file uploaded", other: "# files uploaded" }),
+						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
 					});
 				} else if (uploaded === 0) {
 					setUploadState({

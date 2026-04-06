@@ -226,8 +226,8 @@ msgstr "{readingTime} min read"
 
 #: packages/admin/src/components/MediaLibrary.tsx:140
 #: packages/admin/src/components/MediaLibrary.tsx:176
-msgid "{total, plural, one {# file uploaded} other {# files uploaded}}"
-msgstr "{total, plural, one {# file uploaded} other {# files uploaded}}"
+msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
+msgstr "{total, plural, one {File uploaded} other {# files uploaded}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:145
 #: packages/admin/src/components/MediaLibrary.tsx:181
