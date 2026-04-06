@@ -15,12 +15,13 @@ import {
 	Warning,
 	ArrowsClockwise,
 } from "@phosphor-icons/react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
 	CAPABILITY_LABELS,
+	fetchCategories,
 	searchMarketplace,
 	type MarketplacePluginSummary,
 	type MarketplaceSearchOpts,
@@ -51,6 +52,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [sort, setSort] = React.useState<SortOption>("installs");
 	const [capability, setCapability] = React.useState<string>("");
+	const [category, setCategory] = React.useState<string>("");
 	const [debouncedQuery, setDebouncedQuery] = React.useState("");
 
 	// Debounce search input
@@ -59,9 +61,16 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 		return () => clearTimeout(timer);
 	}, [searchQuery]);
 
+	const { data: categories } = useQuery({
+		queryKey: ["marketplace", "categories"],
+		queryFn: fetchCategories,
+		staleTime: 5 * 60 * 1000,
+	});
+
 	const searchOpts: MarketplaceSearchOpts = {
 		q: debouncedQuery || undefined,
 		capability: capability || undefined,
+		category: category || undefined,
 		sort,
 		limit: 20,
 	};
@@ -106,6 +115,19 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					{Object.entries(CAPABILITY_LABELS).map(([value, label]) => (
 						<option key={value} value={value}>
 							{label}
+						</option>
+					))}
+				</select>
+				<select
+					value={category}
+					onChange={(e) => setCategory(e.target.value)}
+					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+					aria-label="Filter by category"
+				>
+					<option value="">All categories</option>
+					{categories?.map((cat) => (
+						<option key={cat.slug} value={cat.slug}>
+							{cat.name}
 						</option>
 					))}
 				</select>

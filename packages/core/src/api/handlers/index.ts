@@ -153,6 +153,7 @@ export {
 	handleMarketplaceUpdateCheck,
 	handleMarketplaceSearch,
 	handleMarketplaceGetPlugin,
+	handleMarketplaceGetCategories,
 	handleThemeSearch,
 	handleThemeGetDetail,
 	loadBundleFromR2,

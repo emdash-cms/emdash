@@ -860,6 +860,35 @@ export async function handleMarketplaceGetPlugin(
 	}
 }
 
+export async function handleMarketplaceGetCategories(
+	marketplaceUrl: string | undefined,
+): Promise<ApiResult<unknown>> {
+	const client = getClient(marketplaceUrl);
+	if (!client) {
+		return {
+			success: false,
+			error: { code: "MARKETPLACE_NOT_CONFIGURED", message: "Marketplace is not configured" },
+		};
+	}
+
+	try {
+		const categories = await client.getCategories();
+		return { success: true, data: { items: categories } };
+	} catch (err) {
+		if (err instanceof MarketplaceUnavailableError) {
+			return {
+				success: false,
+				error: { code: "MARKETPLACE_UNAVAILABLE", message: "Marketplace is unavailable" },
+			};
+		}
+		console.error("Failed to get marketplace categories:", err);
+		return {
+			success: false,
+			error: { code: "GET_CATEGORIES_FAILED", message: "Failed to get categories" },
+		};
+	}
+}
+
 // ── Theme proxy handlers ──────────────────────────────────────────
 
 export async function handleThemeSearch(

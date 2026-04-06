@@ -1,5 +1,6 @@
 import type {
 	AuthorRow,
+	CategoryRow,
 	PluginAuditRow,
 	PluginImageAuditRow,
 	PluginRow,
@@ -42,6 +43,20 @@ function decodeCursor(cursor?: string): number {
 	}
 }
 
+/** Strip FTS5 special operators to prevent syntax errors. Returns null if input is empty after sanitization. */
+const FTS_OPERATOR_RE = /[*"():^{}[\]|!~@#$%&\\]/g;
+const FTS_BOOLEAN_RE = /\b(AND|OR|NOT|NEAR)\b/gi;
+const WHITESPACE_RE = /\s+/;
+
+function sanitizeFtsQuery(input: string): string | null {
+	const cleaned = input.replace(FTS_OPERATOR_RE, " ").replace(FTS_BOOLEAN_RE, " ").trim();
+	if (!cleaned || cleaned.length > 500) return null;
+	// Wrap each word in double quotes to avoid FTS5 syntax issues
+	const words = cleaned.split(WHITESPACE_RE).filter(Boolean);
+	if (words.length === 0) return null;
+	return words.map((w) => `"${w}"`).join(" ");
+}
+
 // ── Plugin queries ──────────────────────────────────────────────
 
 export async function getPlugin(db: D1Database, id: string): Promise<PluginRow | null> {
@@ -74,14 +89,29 @@ export async function searchPlugins(
 	const bindings: unknown[] = [];
 
 	if (opts.q) {
-		conditions.push("(p.name LIKE ? OR p.description LIKE ? OR p.keywords LIKE ?)");
-		const pattern = `%${opts.q}%`;
-		bindings.push(pattern, pattern, pattern);
+		// Try FTS5 first, fall back to LIKE if FTS table doesn't exist or query fails.
+		// FTS5 input is sanitized: strip operators that could cause syntax errors.
+		const sanitized = sanitizeFtsQuery(opts.q);
+		if (sanitized) {
+			conditions.push("p.rowid IN (SELECT rowid FROM plugins_fts WHERE plugins_fts MATCH ?)");
+			bindings.push(sanitized);
+		} else {
+			conditions.push("(p.name LIKE ? OR p.description LIKE ? OR p.keywords LIKE ?)");
+			const pattern = `%${opts.q}%`;
+			bindings.push(pattern, pattern, pattern);
+		}
 	}
 
 	if (opts.capability) {
 		conditions.push("EXISTS (SELECT 1 FROM json_each(p.capabilities) WHERE json_each.value = ?)");
 		bindings.push(opts.capability);
+	}
+
+	if (opts.category) {
+		conditions.push(
+			"EXISTS (SELECT 1 FROM plugin_categories pc JOIN categories c ON c.id = pc.category_id WHERE pc.plugin_id = p.id AND c.slug = ?)",
+		);
+		bindings.push(opts.category);
 	}
 
 	const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -784,4 +814,66 @@ export async function updateTheme(
 		.run();
 
 	return getTheme(db, id);
+}
+
+// ── Category queries ────────────────────────────────────────────
+
+export async function getCategories(db: D1Database): Promise<CategoryRow[]> {
+	const result = await db
+		.prepare("SELECT * FROM categories ORDER BY sort_order ASC")
+		.all<CategoryRow>();
+	return result.results ?? [];
+}
+
+export async function getCategoryBySlug(db: D1Database, slug: string): Promise<CategoryRow | null> {
+	return db.prepare("SELECT * FROM categories WHERE slug = ?").bind(slug).first<CategoryRow>();
+}
+
+export async function getPluginCategories(
+	db: D1Database,
+	pluginId: string,
+): Promise<CategoryRow[]> {
+	const result = await db
+		.prepare(
+			`SELECT c.* FROM categories c
+			JOIN plugin_categories pc ON pc.category_id = c.id
+			WHERE pc.plugin_id = ?
+			ORDER BY c.sort_order ASC`,
+		)
+		.bind(pluginId)
+		.all<CategoryRow>();
+	return result.results ?? [];
+}
+
+const MAX_CATEGORIES_PER_PLUGIN = 3;
+
+export async function setPluginCategories(
+	db: D1Database,
+	pluginId: string,
+	categorySlugs: string[],
+): Promise<void> {
+	const slugs = categorySlugs.slice(0, MAX_CATEGORIES_PER_PLUGIN);
+
+	// Delete existing assignments
+	await db.prepare("DELETE FROM plugin_categories WHERE plugin_id = ?").bind(pluginId).run();
+
+	if (slugs.length === 0) return;
+
+	// Look up category IDs by slug
+	const placeholders = slugs.map(() => "?").join(", ");
+	const cats = await db
+		.prepare(`SELECT id, slug FROM categories WHERE slug IN (${placeholders})`)
+		.bind(...slugs)
+		.all<{ id: string; slug: string }>();
+
+	const rows = cats.results ?? [];
+	if (rows.length === 0) return;
+
+	// Batch insert
+	const stmts = rows.map((cat) =>
+		db
+			.prepare("INSERT OR IGNORE INTO plugin_categories (plugin_id, category_id) VALUES (?, ?)")
+			.bind(pluginId, cat.id),
+	);
+	await db.batch(stmts);
 }
