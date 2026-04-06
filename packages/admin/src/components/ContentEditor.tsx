@@ -10,12 +10,6 @@ import {
 	Switch,
 	buttonVariants,
 } from "@cloudflare/kumo";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { json, jsonParseLinter } from "@codemirror/lang-json";
-import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { linter } from "@codemirror/lint";
-import { EditorState } from "@codemirror/state";
-import { EditorView, type ViewUpdate, keymap, placeholder } from "@codemirror/view";
 import {
 	ArrowLeft,
 	Check,
@@ -44,7 +38,13 @@ import { usePluginAdmins } from "../lib/plugin-context.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
+import type { JsonCodeEditorProps } from "./JsonCodeEditor.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+
+const LazyJsonCodeEditor = React.lazy(async () => {
+	const module = await import("./JsonCodeEditor.js");
+	return { default: module.JsonCodeEditor };
+});
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -219,6 +219,8 @@ export function ContentEditor({
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
 	const [fieldErrors, setFieldErrors] = React.useState<Record<string, string | null>>({});
+	const [jsonEditorEpoch, setJsonEditorEpoch] = React.useState(0);
+	const previousItemIdRef = React.useRef(item?.id);
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
@@ -261,8 +263,11 @@ export function ContentEditor({
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
 	React.useEffect(() => {
 		if (item) {
+			const didItemIdChange = item.id !== previousItemIdRef.current;
 			setFormData(item.data);
 			setFieldErrors({});
+			if (didItemIdChange) setJsonEditorEpoch((epoch) => epoch + 1);
+			previousItemIdRef.current = item.id;
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
 			setStatus(item.status);
@@ -635,11 +640,7 @@ export function ContentEditor({
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => (
 								<FieldRenderer
-									// JSON fields use CodeMirror as an uncontrolled editor.
-									// Including item?.id in the key ensures the editor remounts
-									// when navigating between items, while autosave round-trips
-									// (same item id, different updatedAt) leave it alone.
-									key={field.kind === "json" ? `${name}-${item?.id ?? "new"}` : name}
+									key={field.kind === "json" ? `${name}-${jsonEditorEpoch}` : name}
 									name={name}
 									field={field}
 									value={formData[name]}
@@ -965,128 +966,21 @@ interface FieldRendererProps {
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 }
 
-function formatJsonValue(value: unknown): string {
-	if (value == null) return "";
-	if (typeof value === "string") return value;
-	try {
-		return JSON.stringify(value, null, 2);
-	} catch {
-		return "";
-	}
-}
-
-/** Minimal CodeMirror theme that integrates with the Kumo design tokens. */
-const jsonEditorTheme = EditorView.theme({
-	"&": {
-		fontFamily:
-			'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-		fontSize: "13px",
-	},
-	".cm-scroller": { overflow: "auto", maxHeight: "20rem", minHeight: "10rem" },
-	".cm-content": { padding: "0.625rem 0.75rem", caretColor: "currentColor" },
-	".cm-line": { padding: "0" },
-	"&.cm-focused": { outline: "none" },
-	".cm-gutters": { display: "none" },
-});
-
-/**
- * Editable JSON field with inline syntax highlighting and lint errors.
- * Uses CodeMirror 6 so the editor itself is the highlighted input — no
- * separate preview panel. Value sync is one-directional: changes we make
- * never feed back through the parent to reset the editor state.
- */
-function JsonCodeEditor({
+function JsonEditorFallback({
 	id,
 	label,
 	labelClass,
-	value,
-	onChange,
-	onValidationChange,
-}: {
-	id: string;
-	label: string;
-	labelClass?: string;
-	value: unknown;
-	onChange: (value: unknown) => void;
-	onValidationChange?: (error: string | null) => void;
-}) {
-	const containerRef = React.useRef<HTMLDivElement>(null);
-	const viewRef = React.useRef<EditorView | null>(null);
-	// Always-current handler refs so the EditorView closure never goes stale.
-	const onChangeRef = React.useRef(onChange);
-	const onValidationRef = React.useRef(onValidationChange);
-	onChangeRef.current = onChange;
-	onValidationRef.current = onValidationChange;
-
-	// Mount the CodeMirror editor once.
-	React.useEffect(() => {
-		if (!containerRef.current) return;
-
-		const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
-			if (!update.docChanged) return;
-			const content = update.state.doc.toString();
-			if (!content.trim()) {
-				onChangeRef.current(null);
-				onValidationRef.current?.(null);
-				return;
-			}
-			try {
-				onChangeRef.current(JSON.parse(content));
-				onValidationRef.current?.(null);
-			} catch (e) {
-				onValidationRef.current?.(e instanceof Error ? e.message : "Invalid JSON");
-			}
-		});
-
-		const view = new EditorView({
-			state: EditorState.create({
-				doc: formatJsonValue(value),
-				extensions: [
-					json(),
-					linter(jsonParseLinter()),
-					syntaxHighlighting(defaultHighlightStyle),
-					history(),
-					keymap.of([...defaultKeymap, ...historyKeymap]),
-					EditorView.lineWrapping,
-					EditorView.contentAttributes.of({ "aria-labelledby": `${id}-label` }),
-					placeholder('{\n  "key": "value"\n}'),
-					jsonEditorTheme,
-					updateListener,
-				],
-			}),
-			parent: containerRef.current,
-		});
-		viewRef.current = view;
-
-		return () => {
-			view.destroy();
-			viewRef.current = null;
-		};
-		// Only runs on mount; all live handlers use refs.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
-
-	// No value sync effect. The CodeMirror editor is uncontrolled after mount:
-	// it initialises from `value` once and owns its content from that point on.
-	// Navigation to a different item is handled by the `key` on <FieldRenderer>
-	// (which includes item.id for json fields), causing a remount and a fresh
-	// initialisation — not by syncing `value` changes into a live editor.
-
+}: Pick<JsonCodeEditorProps, "id" | "label" | "labelClass">) {
 	return (
-		<div className="space-y-1.5">
+		<div className="space-y-1.5" aria-live="polite">
 			<div
 				id={`${id}-label`}
 				className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}
 			>
 				{label}
 			</div>
-			<div
-				className={cn(
-					"overflow-hidden rounded-md border border-kumo-line bg-transparent",
-					"focus-within:ring-2 focus-within:ring-kumo-ring focus-within:ring-offset-2",
-				)}
-			>
-				<div ref={containerRef} />
+			<div className="rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm text-kumo-subtle">
+				Loading editor...
 			</div>
 		</div>
 	);
@@ -1258,14 +1152,18 @@ function FieldRenderer({
 
 		case "json":
 			return (
-				<JsonCodeEditor
-					id={id}
-					label={label}
-					labelClass={labelClass}
-					value={value}
-					onChange={handleChange}
-					onValidationChange={handleValidationChange}
-				/>
+				<React.Suspense
+					fallback={<JsonEditorFallback id={id} label={label} labelClass={labelClass} />}
+				>
+					<LazyJsonCodeEditor
+						id={id}
+						label={label}
+						labelClass={labelClass}
+						value={value}
+						onChange={handleChange}
+						onValidationChange={handleValidationChange}
+					/>
+				</React.Suspense>
 			);
 
 		case "select": {

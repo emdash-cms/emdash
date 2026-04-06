@@ -162,6 +162,81 @@ describe("ContentEditor", () => {
 			await expect.element(editor).toHaveTextContent('"dark"');
 			await expect.element(editor).toHaveTextContent('"nested"');
 		});
+
+		it("keeps in-progress json text when same item refreshes", async () => {
+			const fields = { metadata: { kind: "json", label: "Metadata" } } satisfies Record<
+				string,
+				FieldDescriptor
+			>;
+			const item = makeItem({
+				id: "item-1",
+				data: { metadata: { theme: "dark" } },
+				updatedAt: "2025-01-15T10:30:00Z",
+			});
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields,
+				isNew: false,
+				item,
+				onSave: vi.fn(),
+			};
+
+			const screen = await render(<ContentEditor {...props} />);
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"theme":"light","draft":true}');
+
+			await screen.rerender(
+				<ContentEditor
+					{...props}
+					item={makeItem({
+						id: "item-1",
+						data: { metadata: { theme: "dark" } },
+						updatedAt: "2025-01-15T10:31:00Z",
+					})}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('"light"');
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('"draft"');
+		});
+
+		it("resets json editor when switching to another item", async () => {
+			const fields = { metadata: { kind: "json", label: "Metadata" } } satisfies Record<
+				string,
+				FieldDescriptor
+			>;
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields,
+				isNew: false,
+				item: makeItem({ id: "item-1", data: { metadata: { theme: "dark" } } }),
+				onSave: vi.fn(),
+			};
+
+			const screen = await render(<ContentEditor {...props} />);
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"theme":"light"}');
+
+			await screen.rerender(
+				<ContentEditor
+					{...props}
+					item={makeItem({ id: "item-2", data: { metadata: { theme: "other" } } })}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('"other"');
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.not.toHaveTextContent('"light"');
+		});
 	});
 
 	describe("saving", () => {
