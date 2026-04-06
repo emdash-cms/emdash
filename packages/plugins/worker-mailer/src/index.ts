@@ -19,9 +19,11 @@ const DEFAULT_AUTH_TYPE = "plain";
 const IMPLICIT_TLS_REQUIRED_MESSAGE =
 	"Cloudflare Workers only supports SMTP connections that start secure (implicit TLS / SMTPS). Use a TLS-enabled SMTP port such as 465.";
 
-const VALID_AUTH_TYPES = new Set(["plain", "login", "cram-md5"] as const);
-
 type AuthType = "plain" | "login" | "cram-md5";
+
+function isAuthType(value: string): value is AuthType {
+	return value === "plain" || value === "login" || value === "cram-md5";
+}
 
 export interface WorkerMailerPluginOptions {
 	/** SMTP host (e.g. smtp.example.com) */
@@ -70,8 +72,7 @@ export function workerMailerPlugin(
 
 function coerceAuthType(value: unknown, fallback: AuthType): AuthType {
 	if (typeof value !== "string") return fallback;
-	if (VALID_AUTH_TYPES.has(value as AuthType)) return value as AuthType;
-	return fallback;
+	return isAuthType(value) ? value : fallback;
 }
 
 function coerceNumber(value: unknown, fallback: number): number {
