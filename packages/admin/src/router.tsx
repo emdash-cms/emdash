@@ -622,8 +622,8 @@ function ContentEditPage() {
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
 		onSuccess: () => {
 			setLastAutosaveAt(new Date());
-			// Silently update the cache without full invalidation
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			// Don't invalidate queries on autosave to prevent form reset
+			// The local form state is the source of truth during editing
 		},
 		onError: (err) => {
 			toastManager.add({
