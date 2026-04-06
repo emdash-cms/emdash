@@ -37,6 +37,7 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 		onChange({
 			title: title || null,
 			description: description || null,
+			image: seo?.image || null,
 			canonical: canonical || null,
 			noIndex,
 			...patch,
