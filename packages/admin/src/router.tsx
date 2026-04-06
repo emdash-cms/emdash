@@ -1369,6 +1369,8 @@ function ContentTypesNewPage() {
 		<ContentTypeEditor
 			isNew
 			isSaving={createMutation.isPending}
+			error={createMutation.error}
+			onErrorClear={() => createMutation.reset()}
 			onSave={(input) => {
 				createMutation.mutate(input as CreateCollectionInput);
 			}}
@@ -1480,6 +1482,8 @@ function ContentTypesEditPage() {
 		<ContentTypeEditor
 			collection={collection}
 			isSaving={updateMutation.isPending}
+			error={updateMutation.error}
+			onErrorClear={() => updateMutation.reset()}
 			onSave={(input) => updateMutation.mutate(input as UpdateCollectionInput)}
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}

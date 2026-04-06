@@ -94,6 +94,39 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain("collections[0].fields: must be an array");
 		});
 
+		it("should reject urlPattern without {slug} placeholder", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						urlPattern: "/blog/broken",
+						fields: [],
+					},
+				],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"collections[0].urlPattern: must include a {slug} placeholder",
+			);
+		});
+
+		it("should accept urlPattern with {slug} placeholder", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						urlPattern: "/blog/{slug}",
+						fields: [],
+					},
+				],
+			});
+			expect(result.valid).toBe(true);
+		});
+
 		it("should validate field properties", () => {
 			const result = validateSeed({
 				version: "1",

@@ -65,6 +65,8 @@ export const ErrorCode = {
 	COLLECTION_NOT_FOUND: "COLLECTION_NOT_FOUND",
 	TABLE_NOT_FOUND: "TABLE_NOT_FOUND",
 	FIELD_EXISTS: "FIELD_EXISTS",
+	LABEL_EXISTS: "LABEL_EXISTS",
+	URL_PATTERN_EXISTS: "URL_PATTERN_EXISTS",
 	RESERVED_SLUG: "RESERVED_SLUG",
 	INVALID_SLUG: "INVALID_SLUG",
 	CREATE_FAILED: "CREATE_FAILED",
@@ -390,6 +392,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.CONFLICT:
 		case ErrorCode.COLLECTION_EXISTS:
 		case ErrorCode.FIELD_EXISTS:
+		case ErrorCode.LABEL_EXISTS:
+		case ErrorCode.URL_PATTERN_EXISTS:
 		case ErrorCode.CREDENTIAL_EXISTS:
 		case ErrorCode.EMAIL_IN_USE:
 		case ErrorCode.USER_EXISTS:

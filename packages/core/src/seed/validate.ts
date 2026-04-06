@@ -89,6 +89,11 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: label is required`);
 				}
 
+				// Validate urlPattern contains {slug} when provided
+				if (collection.urlPattern && !collection.urlPattern.includes("{slug}")) {
+					errors.push(`${prefix}.urlPattern: must include a {slug} placeholder`);
+				}
+
 				// Validate fields
 				if (!Array.isArray(collection.fields)) {
 					errors.push(`${prefix}.fields: must be an array`);

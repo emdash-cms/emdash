@@ -37,16 +37,25 @@ import type {
 } from "../lib/api";
 import { cn } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DialogError, getMutationError } from "./DialogError";
 import { FieldEditor } from "./FieldEditor";
 
 // Regex patterns for slug generation
 const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
 const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g;
 
+/** Derive a default URL pattern from a collection slug, e.g. "posts" → "/posts/{slug}" */
+const defaultUrlPattern = (collectionSlug: string) =>
+	collectionSlug ? `/${collectionSlug}/{slug}` : "";
+
 export interface ContentTypeEditorProps {
 	collection?: SchemaCollectionWithFields;
 	isNew?: boolean;
 	isSaving?: boolean;
+	/** Mutation error from the last save attempt. */
+	error?: Error | null;
+	/** Called when the user edits form fields, to reset the mutation error. */
+	onErrorClear?: () => void;
 	onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void;
 	onAddField?: (input: CreateFieldInput) => void;
 	onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void;
@@ -127,6 +136,8 @@ export function ContentTypeEditor({
 	collection,
 	isNew,
 	isSaving,
+	error,
+	onErrorClear,
 	onSave,
 	onAddField,
 	onUpdateField,
@@ -141,6 +152,7 @@ export function ContentTypeEditor({
 	const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? "");
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
+	const [urlPatternTouched, setUrlPatternTouched] = React.useState(!isNew);
 	const [supports, setSupports] = React.useState<string[]>(collection?.supports ?? ["drafts"]);
 
 	// SEO state
@@ -166,57 +178,78 @@ export function ContentTypeEditor({
 	const [fieldSaving, setFieldSaving] = React.useState(false);
 	const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null);
 
-	const urlPatternValid = !urlPattern || urlPattern.includes("{slug}");
+	// Validation state -- errors are shown inline on fields after a submit attempt
+	const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
-	// Track whether form has unsaved changes
-	const hasChanges = React.useMemo(() => {
-		if (isNew) return slug && label;
-		if (!collection) return false;
-		return (
-			label !== collection.label ||
-			labelSingular !== (collection.labelSingular ?? "") ||
-			description !== (collection.description ?? "") ||
-			urlPattern !== (collection.urlPattern ?? "") ||
-			JSON.stringify([...supports].toSorted()) !==
-				JSON.stringify([...collection.supports].toSorted()) ||
-			hasSeo !== collection.hasSeo ||
-			commentsEnabled !== collection.commentsEnabled ||
-			commentsModeration !== collection.commentsModeration ||
-			commentsClosedAfterDays !== collection.commentsClosedAfterDays ||
-			commentsAutoApproveUsers !== collection.commentsAutoApproveUsers
-		);
-	}, [
-		isNew,
-		collection,
-		slug,
-		label,
-		labelSingular,
-		description,
-		urlPattern,
-		supports,
-		hasSeo,
-		commentsEnabled,
-		commentsModeration,
-		commentsClosedAfterDays,
-		commentsAutoApproveUsers,
-	]);
+	// Dirty tracking via serialized snapshots (same pattern as ContentEditor).
+	// Comparing serialized strings avoids subtle type mismatches between local
+	// state and the collection prop (e.g. boolean vs integer from SQLite).
+	const serializeFormState = React.useCallback(
+		() =>
+			JSON.stringify({
+				label,
+				labelSingular,
+				description,
+				urlPattern,
+				supports: supports.toSorted(),
+				hasSeo,
+				commentsEnabled,
+				commentsModeration,
+				commentsClosedAfterDays,
+				commentsAutoApproveUsers,
+			}),
+		[
+			label,
+			labelSingular,
+			description,
+			urlPattern,
+			supports,
+			hasSeo,
+			commentsEnabled,
+			commentsModeration,
+			commentsClosedAfterDays,
+			commentsAutoApproveUsers,
+		],
+	);
 
-	// Auto-generate slug from plural label
+	const [lastSavedState, setLastSavedState] = React.useState(serializeFormState);
+	const currentState = serializeFormState();
+	const hasChanges = isNew ? !!(slug && label) : currentState !== lastSavedState;
+
+	// When save completes (isSaving transitions false), snapshot current state as clean.
+	// This fires immediately without waiting for the refetch, preventing the dirty flash.
+	const prevSaving = React.useRef(isSaving);
+	React.useEffect(() => {
+		if (prevSaving.current && !isSaving) {
+			setLastSavedState(serializeFormState());
+		}
+		prevSaving.current = isSaving;
+	}, [isSaving, serializeFormState]);
+
+	// Auto-generate slug from plural label.
+	// Clears validation errors for label and any derived fields (slug).
 	const handleLabelChange = (value: string) => {
 		setLabel(value);
+		setFieldErrors((prev) => ({ ...prev, label: "", slug: "" }));
+		onErrorClear?.();
 		if (isNew) {
-			setSlug(
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_PATTERN, "_")
-					.replace(SLUG_LEADING_TRAILING_PATTERN, ""),
-			);
+			const newSlug = value
+				.toLowerCase()
+				.replace(SLUG_INVALID_CHARS_PATTERN, "_")
+				.replace(SLUG_LEADING_TRAILING_PATTERN, "");
+			setSlug(newSlug);
+			if (!urlPatternTouched) {
+				setUrlPattern(defaultUrlPattern(newSlug));
+			}
 		}
 	};
 
-	// Auto-generate plural label (and slug) from singular label
+	// Auto-generate plural label (and slug) from singular label.
+	// Clears validation errors for all three derived fields.
 	const handleSingularLabelChange = (value: string) => {
 		setLabelSingular(value);
+		setFieldErrors((prev) => ({ ...prev, labelSingular: "" }));
+		onErrorClear?.();
 		if (isNew) {
 			const plural = value ? `${value}s` : "";
 			handleLabelChange(plural);
@@ -229,8 +262,22 @@ export function ContentTypeEditor({
 		);
 	};
 
+	const validate = (): Record<string, string> => {
+		const errors: Record<string, string> = {};
+		if (!label.trim()) errors.label = "Label is required";
+		if (!labelSingular.trim()) errors.labelSingular = "Singular label is required";
+		if (isNew && !slug.trim()) errors.slug = "Slug is required";
+		if (urlPattern && !urlPattern.includes("{slug}")) {
+			errors.urlPattern = "Pattern must include a {slug} placeholder";
+		}
+		return errors;
+	};
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		const errors = validate();
+		setFieldErrors(errors);
+		if (Object.keys(errors).length > 0) return;
 		if (isNew) {
 			onSave({
 				slug,
@@ -349,6 +396,8 @@ export function ContentTypeEditor({
 								onChange={(e) => handleSingularLabelChange(e.target.value)}
 								placeholder="Post"
 								disabled={isFromCode}
+								error={fieldErrors.labelSingular}
+								variant={fieldErrors.labelSingular ? "error" : "default"}
 							/>
 
 							<Input
@@ -357,19 +406,24 @@ export function ContentTypeEditor({
 								onChange={(e) => handleLabelChange(e.target.value)}
 								placeholder="Posts"
 								disabled={isFromCode}
+								error={fieldErrors.label}
+								variant={fieldErrors.label ? "error" : "default"}
 							/>
 
 							{isNew && (
-								<div>
-									<Input
-										label="Slug"
-										value={slug}
-										onChange={(e) => setSlug(e.target.value)}
-										placeholder="posts"
-										disabled={!isNew}
-									/>
-									<p className="text-xs text-kumo-subtle mt-2">Used in URLs and API endpoints</p>
-								</div>
+								<Input
+									label="Slug"
+									value={slug}
+									onChange={(e) => {
+										setSlug(e.target.value);
+										setFieldErrors((prev) => ({ ...prev, slug: "" }));
+										onErrorClear?.();
+									}}
+									placeholder="posts"
+									description="Used in URLs and API endpoints"
+									error={fieldErrors.slug}
+									variant={fieldErrors.slug ? "error" : "default"}
+								/>
 							)}
 
 							<InputArea
@@ -381,23 +435,21 @@ export function ContentTypeEditor({
 								disabled={isFromCode}
 							/>
 
-							<div>
-								<Input
-									label="URL Pattern"
-									value={urlPattern}
-									onChange={(e) => setUrlPattern(e.target.value)}
-									placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`}
-									disabled={isFromCode}
-								/>
-								{urlPattern && !urlPattern.includes("{slug}") && (
-									<p className="text-xs text-kumo-danger mt-2">
-										Pattern must include a {"{slug}"} placeholder
-									</p>
-								)}
-								<p className="text-xs text-kumo-subtle mt-1">
-									Pattern for generating URLs, e.g. /blog/{"{slug}"}
-								</p>
-							</div>
+							<Input
+								label="URL Pattern"
+								value={urlPattern}
+								onChange={(e) => {
+									setUrlPattern(e.target.value);
+									setUrlPatternTouched(true);
+									setFieldErrors((prev) => ({ ...prev, urlPattern: "" }));
+									onErrorClear?.();
+								}}
+								placeholder="/{slug}"
+								disabled={isFromCode}
+								description={`Pattern for generating URLs, e.g. /blog/{"{slug}"}`}
+								error={fieldErrors.urlPattern}
+								variant={fieldErrors.urlPattern ? "error" : "default"}
+							/>
 
 							<div className="space-y-3">
 								<Label>Features</Label>
@@ -533,12 +585,10 @@ export function ContentTypeEditor({
 							</div>
 						)}
 
+						<DialogError message={getMutationError(error)} />
+
 						{!isFromCode && (
-							<Button
-								type="submit"
-								disabled={!hasChanges || !urlPatternValid || isSaving}
-								className="w-full"
-							>
+							<Button type="submit" disabled={!hasChanges || isSaving} className="w-full">
 								{isSaving ? "Saving..." : isNew ? "Create Content Type" : "Save Changes"}
 							</Button>
 						)}

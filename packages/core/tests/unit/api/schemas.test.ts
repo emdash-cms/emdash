@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-import { contentUpdateBody, httpUrl } from "../../../src/api/schemas/index.js";
+import {
+	contentUpdateBody,
+	createCollectionBody,
+	updateCollectionBody,
+	httpUrl,
+} from "../../../src/api/schemas/index.js";
+
+const SLUG_PLACEHOLDER_RE = /\{slug\}/;
 
 describe("contentUpdateBody schema", () => {
 	it("should pass through skipRevision when present", () => {
@@ -52,5 +59,47 @@ describe("httpUrl validator", () => {
 
 	it("is case-insensitive for scheme", () => {
 		expect(httpUrl.parse("HTTPS://EXAMPLE.COM")).toBe("HTTPS://EXAMPLE.COM");
+	});
+});
+
+describe("createCollectionBody urlPattern validation", () => {
+	it("rejects urlPattern without {slug}", () => {
+		expect(() =>
+			createCollectionBody.parse({
+				slug: "posts",
+				label: "Posts",
+				urlPattern: "/blog/broken",
+			}),
+		).toThrow(SLUG_PLACEHOLDER_RE);
+	});
+
+	it("accepts urlPattern with {slug}", () => {
+		const result = createCollectionBody.parse({
+			slug: "posts",
+			label: "Posts",
+			urlPattern: "/blog/{slug}",
+		});
+		expect(result.urlPattern).toBe("/blog/{slug}");
+	});
+
+	it("accepts omitted urlPattern", () => {
+		const result = createCollectionBody.parse({
+			slug: "posts",
+			label: "Posts",
+		});
+		expect(result.urlPattern).toBeUndefined();
+	});
+});
+
+describe("updateCollectionBody urlPattern validation", () => {
+	it("rejects urlPattern without {slug}", () => {
+		expect(() => updateCollectionBody.parse({ urlPattern: "/blog/broken" })).toThrow(
+			SLUG_PLACEHOLDER_RE,
+		);
+	});
+
+	it("accepts null urlPattern (clear the pattern)", () => {
+		const result = updateCollectionBody.parse({ urlPattern: null });
+		expect(result.urlPattern).toBeNull();
 	});
 });

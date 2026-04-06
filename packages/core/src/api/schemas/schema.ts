@@ -10,6 +10,11 @@ const collectionSupportValues = z.enum(["drafts", "revisions", "preview", "sched
 
 const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)$/;
 
+/** URL pattern must contain a {slug} placeholder when non-empty. */
+const urlPatternSchema = z
+	.string()
+	.refine((v) => !v || v.includes("{slug}"), "URL pattern must include a {slug} placeholder");
+
 const fieldTypeValues = z.enum([
 	"string",
 	"text",
@@ -50,7 +55,7 @@ export const createCollectionBody = z
 		icon: z.string().optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
-		urlPattern: z.string().optional(),
+		urlPattern: urlPatternSchema.optional(),
 		hasSeo: z.boolean().optional(),
 	})
 	.meta({ id: "CreateCollectionBody" });
@@ -62,7 +67,7 @@ export const updateCollectionBody = z
 		description: z.string().optional(),
 		icon: z.string().optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: z.string().nullish(),
+		urlPattern: urlPatternSchema.nullish(),
 		hasSeo: z.boolean().optional(),
 		commentsEnabled: z.boolean().optional(),
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
