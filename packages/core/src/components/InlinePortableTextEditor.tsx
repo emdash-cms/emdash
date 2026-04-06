@@ -399,7 +399,7 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 		return {
 			type: "image",
 			attrs: {
-				src: asset?.url || ib.url || `/_emdash/api/media/file/${asset?._ref}`,
+				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 				alt: ib.alt || "",
 				title: ib.caption || "",
 				caption: ib.caption || "",
