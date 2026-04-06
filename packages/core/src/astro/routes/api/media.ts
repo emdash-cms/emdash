@@ -151,10 +151,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const width = widthStr ? parseInt(widthStr, 10) : undefined;
 		const height = heightStr ? parseInt(heightStr, 10) : undefined;
 
-		// Generate placeholder data for images
-		const placeholder = file.type.startsWith("image/")
-			? await generatePlaceholder(buffer, file.type)
-			: null;
+		// Generate placeholder data for images.
+		// If the client sent a thumbnail (small pre-resized image), use that
+		// instead of the full buffer to avoid OOM on memory-constrained runtimes.
+		const thumbnailEntry = formData.get("thumbnail");
+		const thumbnail = thumbnailEntry instanceof File ? thumbnailEntry : null;
+
+		let placeholder: Awaited<ReturnType<typeof generatePlaceholder>> = null;
+		if (file.type.startsWith("image/")) {
+			if (thumbnail) {
+				const thumbBuffer = new Uint8Array(await thumbnail.arrayBuffer());
+				placeholder = await generatePlaceholder(thumbBuffer, thumbnail.type);
+			} else {
+				const clientDims = width && height ? { width, height } : undefined;
+				placeholder = await generatePlaceholder(buffer, file.type, clientDims);
+			}
+		}
 
 		// Create media record
 		const result = await emdash.handleMediaCreate({

@@ -1,5 +1,22 @@
 import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo";
 import {
+	DndContext,
+	closestCenter,
+	type DragEndEvent,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	arrayMove,
+	SortableContext,
+	sortableKeyboardCoordinates,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
 	ArrowLeft,
 	Plus,
 	DotsSixVertical,
@@ -114,7 +131,7 @@ export function ContentTypeEditor({
 	onAddField,
 	onUpdateField,
 	onDeleteField,
-	onReorderFields: _onReorderFields,
+	onReorderFields,
 }: ContentTypeEditorProps) {
 	const _navigate = useNavigate();
 
@@ -267,6 +284,21 @@ export function ContentTypeEditor({
 
 	const isFromCode = collection?.source === "code";
 	const fields = collection?.fields ?? [];
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	);
+
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const oldIndex = fields.findIndex((f) => f.id === active.id);
+		const newIndex = fields.findIndex((f) => f.id === over.id);
+		if (oldIndex === -1 || newIndex === -1) return;
+		const reordered = arrayMove(fields, oldIndex, newIndex);
+		onReorderFields?.(reordered.map((f) => f.slug));
+	};
 
 	return (
 		<div className="space-y-6">
@@ -561,17 +593,28 @@ export function ContentTypeEditor({
 									<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider border-b">
 										Custom Fields
 									</div>
-									<div className="divide-y">
-										{fields.map((field) => (
-											<FieldRow
-												key={field.id}
-												field={field}
-												isFromCode={isFromCode}
-												onEdit={() => handleEditField(field)}
-												onDelete={() => setDeleteFieldTarget(field)}
-											/>
-										))}
-									</div>
+									<DndContext
+										sensors={sensors}
+										collisionDetection={closestCenter}
+										onDragEnd={handleDragEnd}
+									>
+										<SortableContext
+											items={fields.map((f) => f.id)}
+											strategy={verticalListSortingStrategy}
+										>
+											<div className="divide-y">
+												{fields.map((field) => (
+													<FieldRow
+														key={field.id}
+														field={field}
+														isFromCode={isFromCode}
+														onEdit={() => handleEditField(field)}
+														onDelete={() => setDeleteFieldTarget(field)}
+													/>
+												))}
+											</div>
+										</SortableContext>
+									</DndContext>
 								</>
 							)}
 						</div>
@@ -620,9 +663,31 @@ interface FieldRowProps {
 }
 
 function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+		id: field.id,
+		disabled: isFromCode,
+	});
+	const style = { transform: CSS.Transform.toString(transform), transition };
+
 	return (
-		<div className="flex items-center px-4 py-3 hover:bg-kumo-tint/25">
-			{!isFromCode && <DotsSixVertical className="h-5 w-5 mr-3 text-kumo-subtle cursor-grab" />}
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={cn(
+				"flex items-center px-4 py-3 hover:bg-kumo-tint/25",
+				isDragging && "opacity-50",
+			)}
+		>
+			{!isFromCode && (
+				<button
+					{...attributes}
+					{...listeners}
+					className="cursor-grab active:cursor-grabbing mr-3"
+					aria-label={`Drag to reorder ${field.label}`}
+				>
+					<DotsSixVertical className="h-5 w-5 text-kumo-subtle" />
+				</button>
+			)}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
 					<span className="font-medium">{field.label}</span>
