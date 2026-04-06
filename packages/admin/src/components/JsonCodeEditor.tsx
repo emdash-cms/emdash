@@ -8,7 +8,13 @@ import { cn } from "../lib/utils";
 
 function formatJsonValue(value: unknown): string {
 	if (value == null) return "";
-	if (typeof value === "string") return value;
+	if (typeof value === "string") {
+		try {
+			return JSON.stringify(JSON.parse(value), null, 2);
+		} catch {
+			return JSON.stringify(value, null, 2);
+		}
+	}
 	try {
 		return JSON.stringify(value, null, 2);
 	} catch {

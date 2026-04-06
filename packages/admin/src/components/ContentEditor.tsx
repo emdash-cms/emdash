@@ -219,6 +219,8 @@ export function ContentEditor({
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
 	const [fieldErrors, setFieldErrors] = React.useState<Record<string, string | null>>({});
+	const fieldErrorsRef = React.useRef(fieldErrors);
+	fieldErrorsRef.current = fieldErrors;
 	const [jsonEditorEpoch, setJsonEditorEpoch] = React.useState(0);
 	const previousItemIdRef = React.useRef(item?.id);
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
@@ -264,9 +266,19 @@ export function ContentEditor({
 	React.useEffect(() => {
 		if (item) {
 			const didItemIdChange = item.id !== previousItemIdRef.current;
+			const hasActiveFieldErrors = Object.values(fieldErrorsRef.current).some(
+				(error) => typeof error === "string" && error.length > 0,
+			);
+
+			if (!didItemIdChange && hasActiveFieldErrors) {
+				return;
+			}
+
 			setFormData(item.data);
-			setFieldErrors({});
-			if (didItemIdChange) setJsonEditorEpoch((epoch) => epoch + 1);
+			if (didItemIdChange) {
+				setFieldErrors({});
+				setJsonEditorEpoch((epoch) => epoch + 1);
+			}
 			previousItemIdRef.current = item.id;
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
@@ -339,8 +351,8 @@ export function ContentEditor({
 			return;
 		}
 
-		// Don't autosave if not dirty or already saving
-		if (!isDirty || isSaving || isAutosaving) {
+		// Don't autosave if not dirty, invalid, or already saving
+		if (!isDirty || hasFieldErrors || isSaving || isAutosaving) {
 			return;
 		}
 
@@ -363,7 +375,17 @@ export function ContentEditor({
 				clearTimeout(autosaveTimeoutRef.current);
 			}
 		};
-	}, [currentData, isNew, onAutosave, item?.id, isDirty, isSaving, isAutosaving, activeBylines]);
+	}, [
+		currentData,
+		isNew,
+		onAutosave,
+		item?.id,
+		isDirty,
+		hasFieldErrors,
+		isSaving,
+		isAutosaving,
+		activeBylines,
+	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
