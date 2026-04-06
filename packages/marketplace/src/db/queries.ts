@@ -105,7 +105,7 @@ export async function searchPlugins(
 
 	const query = `
 		SELECT p.*, a.name AS author_name, a.avatar_url AS author_avatar_url, a.verified AS author_verified,
-			(SELECT COUNT(*) FROM installs i WHERE i.plugin_id = p.id) AS install_count,
+			p.install_count,
 			lv.version AS latest_version,
 			lv.status AS latest_status,
 			lv.audit_verdict AS latest_audit_verdict,
@@ -201,25 +201,30 @@ export async function getPluginVersion(
 
 // ── Install queries ─────────────────────────────────────────────
 
-export async function getInstallCount(db: D1Database, pluginId: string): Promise<number> {
-	const row = await db
-		.prepare("SELECT COUNT(*) AS count FROM installs WHERE plugin_id = ?")
-		.bind(pluginId)
-		.first<{ count: number }>();
-	return row?.count ?? 0;
-}
-
 export async function upsertInstall(
 	db: D1Database,
 	data: { pluginId: string; siteHash: string; version: string },
 ): Promise<void> {
-	await db
+	// Insert or update the install row
+	const upsertResult = await db
 		.prepare(
 			`INSERT INTO installs (plugin_id, site_hash, version) VALUES (?, ?, ?)
 			ON CONFLICT (plugin_id, site_hash) DO UPDATE SET version = excluded.version, installed_at = datetime('now')`,
 		)
 		.bind(data.pluginId, data.siteHash, data.version)
 		.run();
+
+	// Only increment install_count when a new row was inserted (not an upsert update).
+	// D1 reports changes=1 for both INSERT and ON CONFLICT UPDATE, so we use
+	// a subquery to get the actual count for correctness.
+	if (upsertResult.meta.changes > 0) {
+		await db
+			.prepare(
+				`UPDATE plugins SET install_count = (SELECT COUNT(*) FROM installs WHERE plugin_id = ?) WHERE id = ?`,
+			)
+			.bind(data.pluginId, data.pluginId)
+			.run();
+	}
 }
 
 // ── Write queries ───────────────────────────────────────────────
