@@ -271,9 +271,9 @@ export function MenuEditor() {
 								<Input
 									label="URL"
 									name="url"
-									type="url"
+									type="text"
 									required
-									placeholder="https://example.com"
+									placeholder="https://example.com or /about"
 								/>
 								<Select
 									label="Target"
@@ -413,7 +413,7 @@ export function MenuEditor() {
 								<Input
 									label="URL"
 									name="url"
-									type="url"
+									type="text"
 									required
 									defaultValue={editingItem.custom_url || ""}
 								/>
