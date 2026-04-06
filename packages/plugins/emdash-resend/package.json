@@ -1,0 +1,29 @@
+{
+	"name": "@emdash-cms/plugin-resend",
+	"version": "0.1.0",
+	"description": "Resend email provider plugin for EmDash CMS",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"email",
+		"resend"
+	],
+	"author": "Jerry Albertson",
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	}
+}
