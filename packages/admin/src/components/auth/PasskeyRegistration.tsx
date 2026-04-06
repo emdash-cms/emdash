@@ -15,6 +15,10 @@ import { Button, Input } from "@cloudflare/kumo";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../../lib/api/client";
+import {
+	isPasskeyEnvironmentUsable,
+	isWebAuthnSecureContext,
+} from "../../lib/webauthn-environment";
 
 // ============================================================================
 // Constants
@@ -96,17 +100,6 @@ type RegistrationState =
 	| { status: "success" };
 
 /**
- * Check if WebAuthn is supported in the current browser
- */
-function isWebAuthnSupported(): boolean {
-	return (
-		typeof window !== "undefined" &&
-		window.PublicKeyCredential !== undefined &&
-		typeof window.PublicKeyCredential === "function"
-	);
-}
-
-/**
  * Convert base64url to ArrayBuffer
  */
 function base64urlToBuffer(base64url: string): ArrayBuffer {
@@ -153,8 +146,12 @@ export function PasskeyRegistration({
 	});
 	const [passkeyName, setPasskeyName] = React.useState("");
 
-	// Check WebAuthn support on mount
-	const isSupported = React.useMemo(() => isWebAuthnSupported(), []);
+	// Secure context (HTTPS or http://localhost) + PublicKeyCredential
+	const isSupported = React.useMemo(() => isPasskeyEnvironmentUsable(), []);
+	const insecureContext = React.useMemo(
+		() => typeof window !== "undefined" && !isWebAuthnSecureContext(),
+		[],
+	);
 
 	const handleRegister = React.useCallback(async () => {
 		if (!isSupported) {
@@ -292,14 +289,26 @@ export function PasskeyRegistration({
 		onError,
 	]);
 
-	// Not supported message
+	// Not usable (insecure origin vs missing API — browser hides WebAuthn the same way)
 	if (!isSupported) {
 		return (
 			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4">
-				<h3 className="font-medium text-kumo-danger">Passkeys Not Supported</h3>
+				<h3 className="font-medium text-kumo-danger">Passkeys Not Available Here</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
-					Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari,
-					Firefox, or Edge.
+					{insecureContext ? (
+						<>
+							Passkeys require a <strong className="text-kumo-default">secure context</strong>: use{" "}
+							<strong className="text-kumo-default">HTTPS</strong>, or open the admin at{" "}
+							<strong className="text-kumo-default">http://localhost</strong> (with your dev port).
+							Plain <code className="text-xs">http://</code> on a custom hostname is not treated as
+							secure, even on loopback.
+						</>
+					) : (
+						<>
+							Your browser doesn't support passkeys. Please use a modern browser like Chrome,
+							Safari, Firefox, or Edge.
+						</>
+					)}
 				</p>
 			</div>
 		);
