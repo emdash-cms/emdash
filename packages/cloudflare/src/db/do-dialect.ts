@@ -16,6 +16,7 @@ import type {
 } from "kysely";
 import { SqliteAdapter, SqliteQueryCompiler } from "kysely";
 
+import type { Database } from "emdash";
 import { D1Introspector } from "./d1-introspector.js";
 import type { QueryResult as DOQueryResult } from "./do-class.js";
 
@@ -62,7 +63,7 @@ export class PreviewDODialect implements Dialect {
 		return new SqliteQueryCompiler();
 	}
 
-	createIntrospector(db: Kysely<any>): DatabaseIntrospector {
+	createIntrospector(db: Kysely<Database>): DatabaseIntrospector {
 		return new D1Introspector(db);
 	}
 }

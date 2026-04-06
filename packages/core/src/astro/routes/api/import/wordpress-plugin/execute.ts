@@ -16,7 +16,7 @@ import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { getSource } from "#import/index.js";
 import { validateExternalUrl, SsrfError } from "#import/ssrf.js";
-import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
+import type { ImportConfig, ImportResult, NormalizedItem, PostTypeMapping } from "#import/types.js";
 import { resolveImportByline } from "#import/utils.js";
 import type { FieldType } from "#schema/types.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
@@ -33,6 +33,55 @@ export interface WpPluginImportResponse {
 	success: boolean;
 	result?: ImportResult;
 	error?: { message: string };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPostTypeMapping(value: unknown): value is PostTypeMapping {
+	if (!isRecord(value)) return false;
+	return (
+		typeof value.collection === "string" &&
+		typeof value.enabled === "boolean"
+	);
+}
+
+function parseWpPluginImportConfig(rawConfig: Record<string, unknown>): WpPluginImportConfig | null {
+	if (!isRecord(rawConfig.postTypeMappings)) return null;
+	const postTypeMappings: Record<string, PostTypeMapping> = {};
+	for (const [postType, rawMapping] of Object.entries(rawConfig.postTypeMappings)) {
+		if (!isPostTypeMapping(rawMapping)) return null;
+		postTypeMappings[postType] = rawMapping;
+	}
+
+	if (Object.keys(postTypeMappings).length === 0) return null;
+
+	const config: WpPluginImportConfig = {
+		postTypeMappings,
+	};
+
+	if (rawConfig.skipExisting !== undefined && rawConfig.skipExisting !== null) {
+		if (typeof rawConfig.skipExisting !== "boolean") return null;
+		config.skipExisting = rawConfig.skipExisting;
+	}
+
+	if (rawConfig.authorMappings !== undefined && rawConfig.authorMappings !== null) {
+		if (!isRecord(rawConfig.authorMappings)) return null;
+		const authorMappings: Record<string, string | null> = {};
+		for (const [login, userId] of Object.entries(rawConfig.authorMappings)) {
+			if (typeof userId === "string" || userId === null) {
+				authorMappings[login] = userId;
+			} else {
+				return null;
+			}
+		}
+		if (Object.keys(authorMappings).length > 0) {
+			config.authorMappings = authorMappings;
+		}
+	}
+
+	return config;
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -57,8 +106,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("SSRF_BLOCKED", msg, 400);
 		}
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to WpPluginImportConfig
-		const config = body.config as unknown as WpPluginImportConfig;
+		const config = parseWpPluginImportConfig(body.config);
+		if (!config) {
+			return apiError(
+				"VALIDATION_ERROR",
+				`Invalid import config`,
+				400,
+			);
+		}
 
 		// Get the WordPress plugin source
 		const source = getSource("wordpress-plugin");

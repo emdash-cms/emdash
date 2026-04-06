@@ -12,6 +12,7 @@ import { env } from "cloudflare:workers";
 import type { DatabaseIntrospector, Dialect, Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
+import type { Database } from "emdash";
 import { D1Introspector } from "./d1-introspector.js";
 
 /**
@@ -30,7 +31,7 @@ interface D1Config {
  * cross-join with pragma_table_info() that D1 doesn't allow.
  */
 class EmDashD1Dialect extends D1Dialect {
-	override createIntrospector(db: Kysely<any>): DatabaseIntrospector {
+	override createIntrospector(db: Kysely<Database>): DatabaseIntrospector {
 		return new D1Introspector(db);
 	}
 }

@@ -1182,8 +1182,10 @@ export interface ResolvedPluginHooks {
  * Plugin authors annotate their event parameters with specific types for IDE
  * support. At the type level, we accept any function with compatible arity.
  */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event types
-export type StandardHookHandler = (...args: any[]) => Promise<any>;
+export type StandardHookHandler<TEvent = unknown, TContext extends PluginContext = PluginContext> = (
+	event: TEvent,
+	ctx: TContext,
+) => Promise<unknown>;
 
 /**
  * Standard plugin hook entry -- either a bare handler or a config object.
@@ -1202,13 +1204,19 @@ export type StandardHookEntry =
 /**
  * Standard plugin route handler -- takes (routeCtx, pluginCtx) like sandbox entries.
  * The routeCtx contains input and request info; pluginCtx is the full plugin context.
- *
- * Uses `any` for routeCtx to allow plugins to access properties like
- * `routeCtx.request.url` without needing exact type matches across
- * trusted (Request object) and sandboxed (plain object) modes.
+ * Route context fields are intentionally narrow so sandbox and trusted handlers can
+ * share a single signature while remaining explicit in intent.
  */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- see above
-export type StandardRouteHandler = (routeCtx: any, ctx: PluginContext) => Promise<unknown>;
+export type StandardRouteContext<TInput = unknown> = Pick<RouteContext<TInput>, "input" | "request" | "requestMeta"> & {
+	// Compatibility fallback for handlers that still expect optional PluginContext-like
+	// fields in the first argument (legacy standard-route shape).
+	[K in keyof Partial<PluginContext>]?: PluginContext[K];
+};
+
+export type StandardRouteHandler<TInput = unknown> = (
+	routeCtx: StandardRouteContext<TInput>,
+	pluginCtx: PluginContext,
+) => Promise<unknown>;
 
 /**
  * Standard plugin route entry -- either a config object with handler, or just a handler.
@@ -1226,15 +1234,13 @@ export interface StandardRouteEntry {
  *
  * This is the input to definePlugin() for standard-format plugins.
  *
- * The hooks and routes use permissive types (Record<string, any>) so that
+ * The hooks and routes use permissive types (Record<string, unknown>) so that
  * plugin authors can annotate their handlers with specific event types
  * without type errors from strictFunctionTypes contravariance.
  */
 export interface StandardPluginDefinition {
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	hooks?: Record<string, any>;
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	routes?: Record<string, any>;
+	hooks?: Record<string, unknown>;
+	routes?: Record<string, unknown>;
 }
 
 /**
