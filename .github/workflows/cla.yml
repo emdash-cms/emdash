@@ -27,7 +27,7 @@ jobs:
           path-to-signatures: "signatures/version1/cla.json"
           path-to-document: "https://www.cloudflare.com/cla/"
           branch: "cla-signatures"
-          allowlist: dependabot[bot]
+          allowlist: dependabot[bot],emdashbot[bot]
           lock-pullrequest-aftermerge: false
 
   label:
