@@ -5,7 +5,9 @@ description: Use when adding a new admin UI locale, translating admin strings, o
 
 # Adding an Admin Locale
 
-The admin UI uses [Lingui](https://lingui.dev) for i18n. Translatable strings are written as English in the source code using macros (`` t`Save` ``, `<Trans>`). The `lingui extract` CLI scans components and generates `.po` catalogs per locale. The Lingui Vite plugin compiles `.po` files on import at build time.
+The admin UI uses [Lingui](https://lingui.dev) for i18n. Translatable strings are written as English in the source code using macros (`` t`Save` ``, `<Trans>`). The `lingui extract` CLI scans components and generates `.po` catalogs per locale.
+
+In dev mode, the Lingui Vite plugin compiles `.po` on import — edit and refresh. In production, catalogs are pre-compiled to `.mjs` via `lingui compile` at build time — no plugin needed for consumers.
 
 ## Architecture
 
@@ -13,9 +15,15 @@ The admin UI uses [Lingui](https://lingui.dev) for i18n. Translatable strings ar
 lingui extract (CLI)
   └─ Scans src/**/*.{ts,tsx} for macros → generates .po catalogs
 
+Dev mode (Vite plugin)
+  └─ Compiles .po → JS on import, live in the browser after refresh
+
+Production build (lingui compile in admin build script)
+  └─ Pre-compiles .po → .mjs for published packages
+
 admin.astro (server)
   ├─ resolveLocale(request) — cookie → Accept-Language → 'en' fallback
-  ├─ Imports compiled .po catalog for the resolved locale
+  ├─ Imports .po (dev) or .mjs (prod) via import.meta.env.DEV
   └─ Passes { locale, messages } as props to React
 
 I18nProvider (client, @lingui/react)
@@ -43,19 +51,7 @@ pnpm --filter @emdash-cms/admin locale:extract
 
 This creates `packages/admin/src/locales/de/messages.po` with all `msgstr` empty.
 
-**3. Translate the `.po` file.** Each entry has an English `msgid` and an empty `msgstr`:
-
-```po
-msgid "Save"
-msgstr "Speichern"
-
-msgid "Dashboard"
-msgstr "Armaturenbrett"
-```
-
-Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly.
-
-**4. Enable the locale in the admin UI** — uncomment or add to `packages/admin/src/locales/config.ts`:
+**3. Enable the locale in the admin UI** — add to `packages/admin/src/locales/config.ts`:
 
 ```ts
 export const SUPPORTED_LOCALES: SupportedLocale[] = [
@@ -67,7 +63,25 @@ export const SUPPORTED_LOCALES: SupportedLocale[] = [
 
 The `label` should be the language's name written in its own script (e.g. "Français" not "French", "עברית" not "Hebrew").
 
-**5. That's it.** The Vite plugin compiles the `.po` on import. The locale switcher in Settings will show the new option.
+**4. Translate the `.po` file.** Each entry has an English `msgid` and an empty `msgstr`:
+
+```po
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Dashboard"
+msgstr "Armaturenbrett"
+```
+
+Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly. Refresh the browser to see changes — no compile or restart needed in dev.
+
+**5. Before committing**, compile for production:
+
+```bash
+pnpm --filter @emdash-cms/admin exec lingui compile --namespace es
+```
+
+This creates `messages.mjs` alongside the `.po` — committed as a build artifact for published packages.
 
 ## Adding Translatable Strings
 
@@ -113,15 +127,15 @@ This updates all `.po` files with the new strings. Existing translations are pre
 
 ## Key Files
 
-| File                                              | Purpose                                                       |
-| ------------------------------------------------- | ------------------------------------------------------------- |
-| `lingui.config.ts` (repo root)                    | Lingui config: locales, catalog paths, source scanning        |
-| `packages/admin/src/locales/config.ts`            | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()`      |
-| `packages/admin/src/locales/useLocale.ts`         | `useLocale()` hook — client-side locale switching with cookie |
-| `packages/admin/src/locales/index.ts`             | Barrel export for locale utilities                            |
-| `packages/admin/src/locales/{locale}/messages.po` | Translation catalogs (gettext `.po` format)                   |
-| `packages/core/src/astro/routes/admin.astro`      | Server-side locale resolution and catalog loading             |
-| `demos/simple/astro.config.mjs`                   | Lingui Vite plugin + Babel macro plugin config                |
+| File                                               | Purpose                                                       |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| `lingui.config.ts` (repo root)                     | Lingui config: locales, catalog paths, source scanning        |
+| `packages/admin/src/locales/config.ts`             | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()`      |
+| `packages/admin/src/locales/useLocale.ts`          | `useLocale()` hook — client-side locale switching with cookie |
+| `packages/admin/src/locales/index.ts`              | Barrel export for locale utilities                            |
+| `packages/admin/src/locales/{locale}/messages.po`  | Translation catalogs (gettext `.po` format, source of truth)  |
+| `packages/admin/src/locales/{locale}/messages.mjs` | Pre-compiled JS catalogs (generated, committed)               |
+| `packages/core/src/astro/routes/admin.astro`       | Server-side locale resolution and catalog loading             |
 
 ## Macro Reference
 
@@ -135,15 +149,15 @@ All macros are compile-time transforms — they produce optimized `i18n._()` cal
 
 ## Common Mistakes
 
-1. **Forgetting `lingui extract` after adding strings** — new strings won't appear in `.po` files until extracted.
+1. **Using `t()` instead of `` t` ` ``** — Lingui macros use tagged template literals, not function calls. `` t`Save` `` is correct, `t("Save")` will not compile.
 
-2. **Using `t()` instead of ` t` ``** — Lingui macros use tagged template literals, not function calls. `` t`Save` `` is correct, `t("Save")` will not compile.
+2. **Forgetting to add the locale to `config.ts`** — the `.po` file will exist but the locale won't appear in the UI selector.
 
-3. **Forgetting to add the locale to `config.ts`** — the `.po` file will exist but the locale won't appear in the UI selector.
+3. **Adding a locale to `config.ts` but not `lingui.config.ts`** — the UI will show it but no `.po` file will be generated on extract.
 
-4. **Adding a locale to `config.ts` but not `lingui.config.ts`** — the UI will show it but no `.po` file will be generated on extract.
+4. **Importing from `@lingui/react` instead of `@lingui/react/macro`** — the non-macro version doesn't have the `t` tagged template. Use the `/macro` path.
 
-5. **Importing from `@lingui/react` instead of `@lingui/react/macro`** — the non-macro version doesn't have the `t` tagged template. Use the `/macro` path.
+5. **Forgetting `lingui compile` before committing** — production imports `.mjs`, not `.po`. Run compile before committing new translations.
 
 ## Translation Quality
 
