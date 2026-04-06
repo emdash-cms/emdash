@@ -64,7 +64,9 @@ describe("createHttpAccess host allowlist matching", () => {
 
 		const http = createHttpAccess(pluginId, ["*.example.com"]);
 		await expect(http.fetch("https://api.example.com/v1")).resolves.toBeInstanceOf(Response);
-		await expect(http.fetch("https://evil.com")).rejects.toThrow('is not allowed to fetch from host "evil.com"');
+		await expect(http.fetch("https://evil.com")).rejects.toThrow(
+			'is not allowed to fetch from host "evil.com"',
+		);
 	});
 });
 
