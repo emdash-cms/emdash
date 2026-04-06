@@ -20,7 +20,7 @@
     "./locales/*": "./src/locales/*"
   },
   "scripts": {
-    "build": "tsdown && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "build": "lingui compile --namespace es && tsdown && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
     "dev": "tsdown src/index.ts --format esm --dts --watch",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
