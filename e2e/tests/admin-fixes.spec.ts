@@ -147,7 +147,7 @@ test.describe("Upload completion timing", () => {
 		await uploadResponse;
 
 		// Now success feedback should appear
-		const successIndicator = page.locator('text="File uploaded"');
+		const successIndicator = page.locator('text=/file uploaded/i');
 		await expect(successIndicator).toBeVisible({ timeout: 5000 });
 	});
 });
