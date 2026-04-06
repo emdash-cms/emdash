@@ -19,7 +19,9 @@ export function useLocale() {
 		(code: string) => {
 			if (code === i18n.locale || !SUPPORTED_LOCALE_CODES.has(code)) return;
 			setCookie(code);
-			void import(`./${code}/messages.mjs`)
+			void (
+				import.meta.env.DEV ? import(`./${code}/messages.po`) : import(`./${code}/messages.mjs`)
+			)
 				.then(({ messages }) => i18n.loadAndActivate({ locale: code, messages }))
 				.catch(() => {
 					// Revert cookie on failure so the user isn't stuck
