@@ -100,15 +100,20 @@ export default definePlugin({
 
 Every hook and route handler receives a `PluginContext` object with access to:
 
-| Property      | Description                            | Availability                           |
-| ------------- | -------------------------------------- | -------------------------------------- |
-| `ctx.storage` | Plugin's document collections          | Always (if declared)                   |
-| `ctx.kv`      | Key-value store for settings and state | Always                                 |
-| `ctx.content` | Read/write site content                | With `read:content` or `write:content` |
-| `ctx.media`   | Read/write media files                 | With `read:media` or `write:media`     |
-| `ctx.http`    | HTTP client for external requests      | With `network:fetch`                   |
-| `ctx.log`     | Structured logger                      | Always                                 |
-| `ctx.plugin`  | Plugin metadata (id, version)          | Always                                 |
+| Property      | Description                                          | Availability                           |
+| ------------- | ---------------------------------------------------- | -------------------------------------- |
+| `ctx.storage` | Plugin's document collections                        | Always (if declared)                   |
+| `ctx.kv`      | Key-value store for settings and state               | Always                                 |
+| `ctx.content` | Read/write site content                              | With `read:content` or `write:content` |
+| `ctx.media`   | Read/write media files                               | With `read:media` or `write:media`     |
+| `ctx.http`    | HTTP client for external requests                    | With `network:fetch`                   |
+| `ctx.log`     | Structured logger (debug, info, warn, error)         | Always                                 |
+| `ctx.plugin`  | Plugin metadata (id, version)                        | Always                                 |
+| `ctx.site`    | Site info: `name`, `url`, `locale`                   | Always                                 |
+| `ctx.url()`   | Generate absolute URLs from paths                    | Always                                 |
+| `ctx.users`   | Read user info: `get()`, `getByEmail()`, `list()`    | With `read:users`                      |
+| `ctx.cron`    | Schedule tasks: `schedule()`, `cancel()`, `list()`   | Always                                 |
+| `ctx.email`   | Send email: `send()`                                 | With `email:send` + provider configured |
 
 The context shape is identical across all hooks and routes. Capability-gated properties are only present when the plugin declares the required capability.
 
@@ -116,13 +121,19 @@ The context shape is identical across all hooks and routes. Capability-gated pro
 
 Capabilities determine what APIs are available in the plugin context:
 
-| Capability      | Grants Access To                                                       |
-| --------------- | ---------------------------------------------------------------------- |
-| `read:content`  | `ctx.content.get()`, `ctx.content.list()`                              |
-| `write:content` | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` |
-| `read:media`    | `ctx.media.get()`, `ctx.media.list()`                                  |
-| `write:media`   | `ctx.media.getUploadUrl()`, `ctx.media.delete()`                       |
-| `network:fetch` | `ctx.http.fetch()`                                                     |
+| Capability        | Grants Access To                                                       |
+| ----------------- | ---------------------------------------------------------------------- |
+| `read:content`    | `ctx.content.get()`, `ctx.content.list()`                              |
+| `write:content`   | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` |
+| `read:media`      | `ctx.media.get()`, `ctx.media.list()`                                  |
+| `write:media`     | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` |
+| `network:fetch`   | `ctx.http.fetch()` (restricted to `allowedHosts`)                      |
+| `network:fetch:any` | `ctx.http.fetch()` (unrestricted — for user-configured URLs)         |
+| `read:users`      | `ctx.users.get()`, `ctx.users.getByEmail()`, `ctx.users.list()`       |
+| `email:send`      | `ctx.email.send()` (requires a provider plugin)                        |
+| `email:provide`   | Register `email:deliver` exclusive hook (transport provider)           |
+| `email:intercept` | Register `email:beforeSend` / `email:afterSend` hooks                  |
+| `page:inject`     | Register `page:metadata` / `page:fragments` hooks                      |
 
 <Aside type="tip">
 	`write:content` implies `read:content`. Same for media. Declare only what you need.

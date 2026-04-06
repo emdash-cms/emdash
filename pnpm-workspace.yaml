@@ -11,7 +11,7 @@ packages:
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
   "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^13.0.1
+  "@astrojs/cloudflare": ^13.1.7
   "@astrojs/node": ^10.0.0
   "@astrojs/react": ^5.0.0
   "@cloudflare/workers-types": ^4.20260305.1
@@ -46,4 +46,4 @@ catalog:
   tsdown: 0.20.3
   typescript: ^5.9.3
   vitest: ^4.0.18
-  wrangler: ^4.71.0
+  wrangler: ^4.80.0

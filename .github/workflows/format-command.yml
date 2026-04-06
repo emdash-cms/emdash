@@ -9,8 +9,14 @@ jobs:
     name: Format
     if: >-
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/format')
+      github.event.comment.body == '/format' &&
+      (
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -22,7 +28,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Get PR branch
+      - name: Get PR details
         id: pr
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -33,8 +39,11 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
+            const isFork = pr.data.head.repo.fork || pr.data.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput('ref', pr.data.head.ref);
             core.setOutput('sha', pr.data.head.sha);
+            core.setOutput('is_fork', isFork.toString());
+            core.setOutput('full_name', pr.data.head.repo.full_name);
 
       - name: React to comment
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -48,47 +57,86 @@ jobs:
               content: 'eyes',
             });
 
-      - name: Checkout
+      - name: Checkout (same-repo)
+        if: steps.pr.outputs.is_fork == 'false'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ steps.pr.outputs.ref }}
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - name: Checkout (fork)
+        if: steps.pr.outputs.is_fork == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ steps.pr.outputs.full_name }}
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Run formatter
-        run: pnpm format
+        run: npx oxfmt --ignore-path .gitignore
 
-      - name: Commit and push
-        id: commit
+      - name: Check for changes
+        id: diff
         run: |
-          git config user.name "emdashbot[bot]"
-          git config user.email "emdashbot[bot]@users.noreply.github.com"
           git add -A
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "style: format"
-            git push
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: React to comment
+      - name: Commit and push (same-repo)
+        if: steps.pr.outputs.is_fork == 'false' && steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "style: format"
+          git push
+
+      - name: Commit and push (fork)
+        if: steps.pr.outputs.is_fork == 'true' && steps.diff.outputs.changed == 'true'
+        id: push-fork
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "style: format"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add fork "https://x-access-token@github.com/${{ steps.pr.outputs.full_name }}.git"
+          if git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
+            echo "push_failed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f "$GIT_ASKPASS"
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Comment on push failure
+        if: steps.push-fork.outputs.push_failed == 'true'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const changed = '${{ steps.commit.outputs.changed }}' === 'true';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
+            });
+
+      - name: React to comment (result)
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const changed = '${{ steps.diff.outputs.changed }}' === 'true';
             await github.rest.reactions.createForIssueComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
