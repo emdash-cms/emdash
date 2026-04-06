@@ -440,6 +440,9 @@ importers:
       '@lingui/conf':
         specifier: 'catalog:'
         version: 5.9.4(typescript@6.0.0-beta)
+      '@lingui/vite-plugin':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@6.0.0-beta)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
 
   docs:
     dependencies:
@@ -10344,6 +10347,16 @@ snapshots:
     dependencies:
       '@lingui/cli': 5.9.4(typescript@5.9.3)
       '@lingui/conf': 5.9.4(typescript@5.9.3)
+      vite: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+      - typescript
+
+  '@lingui/vite-plugin@5.9.4(typescript@6.0.0-beta)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))':
+    dependencies:
+      '@lingui/cli': 5.9.4(typescript@6.0.0-beta)
+      '@lingui/conf': 5.9.4(typescript@6.0.0-beta)
       vite: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - babel-plugin-macros
