@@ -633,9 +633,10 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 			const rows = (tableBlock.rows || []).map((row, rowIndex) => {
 				const cells = row.cells.map((cell) => {
-					const cellType = cell.isHeader || (tableBlock.hasHeaderRow && rowIndex === 0)
-						? "tableHeader"
-						: "tableCell";
+					const cellType =
+						cell.isHeader || (tableBlock.hasHeaderRow && rowIndex === 0)
+							? "tableHeader"
+							: "tableCell";
 
 					// Map PortableText marks to ProseMirror marks
 					const markNameMap: Record<string, string> = {
@@ -648,9 +649,12 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					const pmContent = cell.content.map((span) => ({
 						type: "text",
 						text: span.text || "",
-						marks: span.marks?.map((mark) => ({
-							type: markNameMap[mark] || mark
-						})).filter((m) => m.type) || [],
+						marks:
+							span.marks
+								?.map((mark) => ({
+									type: markNameMap[mark] || mark,
+								}))
+								.filter((m) => m.type) || [],
 					}));
 
 					return {
@@ -2147,10 +2151,7 @@ function TableBubbleMenu({ editor }: { editor: Editor }) {
 			</BubbleButton>
 
 			{/* Delete row */}
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteRow().run()}
-				title="Delete row"
-			>
+			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title="Delete row">
 				<Rows className="h-4 w-4 text-kumo-danger" />
 			</BubbleButton>
 
@@ -2166,10 +2167,7 @@ function TableBubbleMenu({ editor }: { editor: Editor }) {
 			</BubbleButton>
 
 			{/* Delete table */}
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteTable().run()}
-				title="Delete table"
-			>
+			<BubbleButton onClick={() => editor.chain().focus().deleteTable().run()} title="Delete table">
 				<Trash className="h-4 w-4 text-kumo-danger" />
 			</BubbleButton>
 		</BubbleMenu>
@@ -2448,7 +2446,9 @@ function EditorToolbar({
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+					onClick={() =>
+						editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+					}
 					active={editor.isActive("table")}
 					title="Insert Table"
 				>
