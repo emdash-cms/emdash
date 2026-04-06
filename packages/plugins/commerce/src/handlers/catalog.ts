@@ -95,6 +95,10 @@ import type {
 	ProductAssetRole,
 	StoredProductSku,
 } from "../types.js";
+function getNowIso(): string {
+	return new Date(Date.now()).toISOString();
+}
+
 type BundleDiscountPatchInput = {
 	bundleDiscountType?: "none" | "fixed_amount" | "percentage";
 	bundleDiscountValueMinor?: number;
@@ -1200,7 +1204,7 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 export async function updateProductHandler(ctx: RouteContext<ProductUpdateInput>): Promise<ProductResponse> {
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const existing = await products.get(ctx.input.productId);
 	if (!existing) {
@@ -1221,7 +1225,7 @@ export async function updateProductHandler(ctx: RouteContext<ProductUpdateInput>
 export async function setProductStateHandler(ctx: RouteContext<ProductStateInput>): Promise<ProductResponse> {
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
@@ -1476,7 +1480,7 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 export async function createCategoryHandler(ctx: RouteContext<CategoryCreateInput>): Promise<CategoryResponse> {
 	requirePost(ctx);
 	const categories = asCollection<StoredCategory>(ctx.storage.categories);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	if (ctx.input.parentId) {
 		const parent = await categories.get(ctx.input.parentId);
@@ -1529,7 +1533,7 @@ export async function createProductCategoryLinkHandler(
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const categories = asCollection<StoredCategory>(ctx.storage.categories);
 	const productCategoryLinks = asCollection<StoredProductCategoryLink>(ctx.storage.productCategoryLinks);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
@@ -1565,7 +1569,7 @@ export async function removeProductCategoryLinkHandler(
 	const productCategoryLinks = asCollection<StoredProductCategoryLink>(ctx.storage.productCategoryLinks);
 	const link = await productCategoryLinks.get(ctx.input.linkId);
 	if (!link) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product-category link not found" });
+		throwCommerceApiError({ code: "CATEGORY_LINK_NOT_FOUND", message: "Product-category link not found" });
 	}
 
 	await productCategoryLinks.delete(ctx.input.linkId);
@@ -1575,7 +1579,7 @@ export async function removeProductCategoryLinkHandler(
 export async function createTagHandler(ctx: RouteContext<TagCreateInput>): Promise<TagResponse> {
 	requirePost(ctx);
 	const tags = asCollection<StoredProductTag>(ctx.storage.productTags);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const id = `tag_${await randomHex(6)}`;
 	const tag: StoredProductTag = {
@@ -1609,7 +1613,7 @@ export async function createProductTagLinkHandler(
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const tags = asCollection<StoredProductTag>(ctx.storage.productTags);
 	const productTagLinks = asCollection<StoredProductTagLink>(ctx.storage.productTagLinks);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const product = await products.get(ctx.input.productId);
 	if (!product) {
@@ -1643,7 +1647,7 @@ export async function removeProductTagLinkHandler(ctx: RouteContext<ProductTagUn
 	const productTagLinks = asCollection<StoredProductTagLink>(ctx.storage.productTagLinks);
 	const link = await productTagLinks.get(ctx.input.linkId);
 	if (!link) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product-tag link not found" });
+		throwCommerceApiError({ code: "TAG_LINK_NOT_FOUND", message: "Product-tag link not found" });
 	}
 	await productTagLinks.delete(ctx.input.linkId);
 	return { deleted: true };
@@ -1726,7 +1730,7 @@ export async function createProductSkuHandler(
 		});
 	}
 
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 	const id = `sku_${ctx.input.productId}_${await randomHex(6)}`;
 	const status = ctx.input.status ?? "active";
 	const requiresShipping = ctx.input.requiresShipping ?? true;
@@ -1783,7 +1787,7 @@ export async function updateProductSkuHandler(
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
 	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const existing = await productSkus.get(ctx.input.skuId);
 	if (!existing) {
@@ -1830,7 +1834,7 @@ export async function setSkuStatusHandler(ctx: RouteContext<ProductSkuStateInput
 	const updated: StoredProductSku = {
 		...existing,
 		status: ctx.input.status,
-		updatedAt: new Date(Date.now()).toISOString(),
+		updatedAt: getNowIso(),
 	};
 	await productSkus.put(ctx.input.skuId, updated);
 	return { sku: updated };
@@ -1921,7 +1925,7 @@ export async function registerProductAssetHandler(
 ): Promise<ProductAssetResponse> {
 	requirePost(ctx);
 	const productAssets = asCollection<StoredProductAsset>(ctx.storage.productAssets);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const id = `asset_${await randomHex(6)}`;
 	const asset: StoredProductAsset = {
@@ -1953,7 +1957,7 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 	requirePost(ctx);
 	const role = ctx.input.role ?? "gallery_image";
 	const position = ctx.input.position ?? 0;
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 	const productAssets = asCollection<StoredProductAsset>(ctx.storage.productAssets);
 	const productAssetLinks = asCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
@@ -1964,7 +1968,7 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 
 	const asset = await productAssets.get(ctx.input.assetId);
 	if (!asset) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Asset not found" });
+		throwCommerceApiError({ code: "ASSET_NOT_FOUND", message: "Asset not found" });
 	}
 
 	await loadCatalogTargetExists(products, skus, targetType, targetId);
@@ -2027,11 +2031,11 @@ export async function unlinkCatalogAssetHandler(
 	ctx: RouteContext<ProductAssetUnlinkInput>,
 ): Promise<ProductAssetUnlinkResponse> {
 	requirePost(ctx);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 	const productAssetLinks = asCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks);
 	const existing = await productAssetLinks.get(ctx.input.linkId);
 	if (!existing) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Asset link not found" });
+		throwCommerceApiError({ code: "ASSET_LINK_NOT_FOUND", message: "Asset link not found" });
 	}
 	const links = await queryAssetLinksForTarget(productAssetLinks, existing.targetType, existing.targetId);
 
@@ -2053,11 +2057,11 @@ export async function reorderCatalogAssetHandler(
 ): Promise<ProductAssetLinkResponse> {
 	requirePost(ctx);
 	const productAssetLinks = asCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const link = await productAssetLinks.get(ctx.input.linkId);
 	if (!link) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Asset link not found" });
+		throwCommerceApiError({ code: "ASSET_LINK_NOT_FOUND", message: "Asset link not found" });
 	}
 
 	const links = await queryAssetLinksForTarget(productAssetLinks, link.targetType, link.targetId);
@@ -2088,7 +2092,7 @@ export async function addBundleComponentHandler(
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
 	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const bundleProduct = await products.get(ctx.input.bundleProductId);
 	if (!bundleProduct) {
@@ -2159,11 +2163,11 @@ export async function removeBundleComponentHandler(
 ): Promise<BundleComponentUnlinkResponse> {
 	requirePost(ctx);
 	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const existing = await bundleComponents.get(ctx.input.bundleComponentId);
 	if (!existing) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component not found" });
+		throwCommerceApiError({ code: "BUNDLE_COMPONENT_NOT_FOUND", message: "Bundle component not found" });
 	}
 	const components = await queryBundleComponentsForProduct(bundleComponents, existing.bundleProductId);
 	await mutateOrderedChildren({
@@ -2183,11 +2187,11 @@ export async function reorderBundleComponentHandler(
 ): Promise<BundleComponentResponse> {
 	requirePost(ctx);
 	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const component = await bundleComponents.get(ctx.input.bundleComponentId);
 	if (!component) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component not found" });
+		throwCommerceApiError({ code: "BUNDLE_COMPONENT_NOT_FOUND", message: "Bundle component not found" });
 	}
 
 	const components = await queryBundleComponentsForProduct(bundleComponents, component.bundleProductId);
@@ -2267,7 +2271,7 @@ export async function createDigitalAssetHandler(
 	const isManualOnly = ctx.input.isManualOnly ?? false;
 	const isPrivate = ctx.input.isPrivate ?? true;
 	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const id = `digital_asset_${await randomHex(6)}`;
 	const asset: StoredDigitalAsset = {
@@ -2300,7 +2304,7 @@ export async function createDigitalEntitlementHandler(
 	const productDigitalEntitlements = asCollection<StoredDigitalEntitlement>(
 		ctx.storage.digitalEntitlements,
 	);
-	const nowIso = new Date(Date.now()).toISOString();
+	const nowIso = getNowIso();
 
 	const sku = await productSkus.get(ctx.input.skuId);
 	if (!sku) {
@@ -2312,7 +2316,7 @@ export async function createDigitalEntitlementHandler(
 
 	const digitalAsset = await productDigitalAssets.get(ctx.input.digitalAssetId);
 	if (!digitalAsset) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Digital asset not found" });
+		throwCommerceApiError({ code: "DIGITAL_ASSET_NOT_FOUND", message: "Digital asset not found" });
 	}
 
 	const id = `entitlement_${await randomHex(6)}`;
@@ -2341,7 +2345,7 @@ export async function removeDigitalEntitlementHandler(
 
 	const existing = await productDigitalEntitlements.get(ctx.input.entitlementId);
 	if (!existing) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Digital entitlement not found" });
+		throwCommerceApiError({ code: "DIGITAL_ENTITLEMENT_NOT_FOUND", message: "Digital entitlement not found" });
 	}
 	await productDigitalEntitlements.delete(ctx.input.entitlementId);
 	return { deleted: true };

@@ -34,9 +34,11 @@ import type {
 	BundleComputeInput,
 	CategoryCreateInput,
 	ProductCategoryLinkInput,
+	ProductCategoryUnlinkInput,
 	ProductListInput,
 	TagCreateInput,
 	ProductTagLinkInput,
+	ProductTagUnlinkInput,
 } from "../schemas.js";
 import {
 	productAssetLinkInputSchema,
@@ -80,9 +82,11 @@ import {
 	createCategoryHandler,
 	listCategoriesHandler,
 	createProductCategoryLinkHandler,
+	removeProductCategoryLinkHandler,
 	createTagHandler,
 	listTagsHandler,
 	createProductTagLinkHandler,
+	removeProductTagLinkHandler,
 	addBundleComponentHandler,
 	reorderBundleComponentHandler,
 	removeBundleComponentHandler,
@@ -2549,6 +2553,39 @@ describe("catalog asset handlers", () => {
 		).toBe(false);
 	});
 
+	it("returns asset_not_found when linking an unknown asset", async () => {
+		const products = new MemColl<StoredProduct>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "base",
+			title: "Base",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const missingAsset = linkCatalogAssetHandler(
+			catalogCtx<ProductAssetLinkInput>(
+				{
+					assetId: "asset_missing",
+					targetType: "product",
+					targetId: "prod_1",
+					role: "gallery_image",
+					position: 0,
+				},
+				products,
+			),
+		);
+		await expect(missingAsset).rejects.toMatchObject({ code: "asset_not_found" });
+	});
+
 	it("registers provider-agnostic asset metadata without binary payload", async () => {
 		const productAssets = new MemColl<StoredProductAsset>();
 
@@ -2792,6 +2829,19 @@ describe("catalog asset handlers", () => {
 		expect(removed).toBeNull();
 	});
 
+	it("returns asset_link_not_found when unlinking an unknown link", async () => {
+		const out = unlinkCatalogAssetHandler(
+			catalogCtx<ProductAssetUnlinkInput>(
+				{ linkId: "missing-link" },
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "asset_link_not_found" });
+	});
+
 	it("normalizes remaining asset link positions after unlink", async () => {
 		const products = new MemColl<StoredProduct>();
 		const productAssets = new MemColl<StoredProductAsset>();
@@ -3005,6 +3055,67 @@ describe("catalog digital entitlement handlers", () => {
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
+	it("returns digital_asset_not_found when creating entitlements for missing digital asset", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const digitalAssets = new MemColl<StoredDigitalAsset>();
+		const digitalEntitlements = new MemColl<StoredDigitalEntitlement>();
+
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "digital-product",
+			title: "Digital Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "DIGI",
+			status: "active",
+			unitPriceMinor: 199,
+			inventoryQuantity: 100,
+			inventoryVersion: 1,
+			requiresShipping: false,
+			isDigital: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const missing = createDigitalEntitlementHandler(
+			catalogCtx<DigitalEntitlementCreateInput>(
+				{
+					skuId: "sku_1",
+					digitalAssetId: "asset_missing",
+					grantedQuantity: 1,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				digitalAssets,
+				digitalEntitlements,
+			),
+		);
+		await expect(missing).rejects.toMatchObject({ code: "digital_asset_not_found" });
+	});
+
 	it("removes entitlement assignments", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
@@ -3043,6 +3154,27 @@ describe("catalog digital entitlement handlers", () => {
 
 		const missing = await digitalEntitlements.get("ent_1");
 		expect(missing).toBeNull();
+	});
+
+	it("returns digital_entitlement_not_found when removing a missing entitlement", async () => {
+		const out = removeDigitalEntitlementHandler(
+			catalogCtx(
+				{ entitlementId: "missing-entitlement" },
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "digital_entitlement_not_found" });
 	});
 });
 
@@ -3484,6 +3616,25 @@ describe("catalog bundle handlers", () => {
 		});
 		expect(list.items.find((row) => row.id === addedFirst.component.id)?.data.position).toBe(1);
 		expect(list.items.find((row) => row.id === addedThird.component.id)?.data.position).toBe(0);
+	});
+
+	it("returns bundle_component_not_found when removing an unknown bundle component", async () => {
+		const out = removeBundleComponentHandler(
+			catalogCtx<BundleComponentRemoveInput>(
+				{ bundleComponentId: "missing-component" },
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "bundle_component_not_found" });
 	});
 
 	it("rejects invalid bundle component composition", async () => {
@@ -3992,6 +4143,26 @@ describe("catalog organization", () => {
 			),
 		);
 		expect(filtered.items.map((item) => item.product.slug)).toEqual(["tumbler"]);
+	});
+
+	it("returns category_link_not_found when unlinking a missing product-category link", async () => {
+		const out = removeProductCategoryLinkHandler(
+			catalogCtx<ProductCategoryUnlinkInput>(
+				{ linkId: "missing-link" },
+				new MemColl(),
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "category_link_not_found" });
+	});
+
+	it("returns tag_link_not_found when unlinking a missing product-tag link", async () => {
+		const out = removeProductTagLinkHandler(
+			catalogCtx<ProductTagUnlinkInput>(
+				{ linkId: "missing-link" },
+				new MemColl(),
+			),
+		);
+		await expect(out).rejects.toMatchObject({ code: "tag_link_not_found" });
 	});
 
 	it("validates category and tag schema helpers", () => {

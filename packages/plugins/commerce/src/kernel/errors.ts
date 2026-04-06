@@ -13,8 +13,15 @@ export const COMMERCE_ERRORS = {
 	INSUFFICIENT_STOCK: { httpStatus: 409, retryable: false },
 
 	// Product / catalog
+	ASSET_LINK_NOT_FOUND: { httpStatus: 404, retryable: false },
+	ASSET_NOT_FOUND: { httpStatus: 404, retryable: false },
+	BUNDLE_COMPONENT_NOT_FOUND: { httpStatus: 404, retryable: false },
+	CATEGORY_LINK_NOT_FOUND: { httpStatus: 404, retryable: false },
 	PRODUCT_UNAVAILABLE: { httpStatus: 404, retryable: false },
+	DIGITAL_ASSET_NOT_FOUND: { httpStatus: 404, retryable: false },
+	DIGITAL_ENTITLEMENT_NOT_FOUND: { httpStatus: 404, retryable: false },
 	VARIANT_UNAVAILABLE: { httpStatus: 404, retryable: false },
+	TAG_LINK_NOT_FOUND: { httpStatus: 404, retryable: false },
 
 	// Cart
 	CART_NOT_FOUND: { httpStatus: 404, retryable: false },
@@ -65,6 +72,13 @@ export const COMMERCE_ERROR_WIRE_CODES = {
 	INVENTORY_CHANGED: "inventory_changed",
 	INSUFFICIENT_STOCK: "insufficient_stock",
 	PRODUCT_UNAVAILABLE: "product_unavailable",
+	ASSET_LINK_NOT_FOUND: "asset_link_not_found",
+	ASSET_NOT_FOUND: "asset_not_found",
+	BUNDLE_COMPONENT_NOT_FOUND: "bundle_component_not_found",
+	CATEGORY_LINK_NOT_FOUND: "category_link_not_found",
+	DIGITAL_ASSET_NOT_FOUND: "digital_asset_not_found",
+	DIGITAL_ENTITLEMENT_NOT_FOUND: "digital_entitlement_not_found",
+	TAG_LINK_NOT_FOUND: "tag_link_not_found",
 	VARIANT_UNAVAILABLE: "variant_unavailable",
 	CART_NOT_FOUND: "cart_not_found",
 	CART_EXPIRED: "cart_expired",
