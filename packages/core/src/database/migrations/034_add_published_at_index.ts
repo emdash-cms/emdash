@@ -48,7 +48,9 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 		const table = { name: tableName };
 
 		// Drop published_at composite index
-		await sql`DROP INDEX IF EXISTS ${sql.ref(`idx_${table.name}_deleted_published_id`)}`.execute(db);
+		await sql`DROP INDEX IF EXISTS ${sql.ref(`idx_${table.name}_deleted_published_id`)}`.execute(
+			db,
+		);
 	}
 
 	// Drop redirect table indexes
