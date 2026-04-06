@@ -500,7 +500,7 @@ https://twitter.com/user/status/123
 			});
 		});
 
-		it.each(knownProviders)("detects provider from URL when not specified", (domain, provider) => {
+		it.each(knownProviders)("detects provider from URL when not specified for %s", (domain, provider) => {
 			const content = `<!-- wp:embed {"url":"https://${domain}/123456"} -->
 <figure class="wp-block-embed">
 <div class="wp-block-embed__wrapper">
