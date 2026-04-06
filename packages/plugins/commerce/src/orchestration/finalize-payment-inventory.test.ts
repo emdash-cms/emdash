@@ -191,4 +191,49 @@ describe("finalize-payment-inventory bundle expansion", () => {
 		const after = await inventoryStock.get(stockId);
 		expect(after?.quantity).toBe(4);
 	});
+
+	it("throws PRODUCT_UNAVAILABLE when authoritative stock row is missing", async () => {
+		const line: OrderLineItem = {
+			productId: "simple_legacy_1",
+			quantity: 1,
+			inventoryVersion: 3,
+			unitPriceMinor: 500,
+			snapshot: {
+				productId: "simple_legacy_1",
+				skuId: "simple_legacy_1",
+				productType: "simple",
+				productTitle: "Simple Legacy",
+				skuCode: "SIMPLE-LEGACY",
+				selectedOptions: [],
+				currency: "USD",
+			unitPriceMinor: 500,
+				lineSubtotalMinor: 500,
+				lineDiscountMinor: 0,
+				lineTotalMinor: 500,
+				requiresShipping: true,
+				isDigital: false,
+			},
+		};
+	const missingStockNow = "2026-04-10T12:00:00.000Z";
+	const inventoryStock = new MemColl<StoredInventoryStock>(
+		new Map([
+			[
+				inventoryStockDocId("simple_legacy_1", "legacy_sku"),
+				{
+					productId: "simple_legacy_1",
+					variantId: "legacy_sku",
+					version: 3,
+					quantity: 3,
+					updatedAt: missingStockNow,
+				},
+			],
+		]),
+	);
+		const inventoryLedger = new MemColl<StoredInventoryLedgerEntry>();
+
+	await expect(applyInventoryForOrder({ inventoryStock, inventoryLedger }, { lineItems: [line] }, "legacy-order", missingStockNow)).rejects.toMatchObject({
+			code: "PRODUCT_UNAVAILABLE",
+		});
+		expect(inventoryLedger.rows.size).toBe(0);
+	});
 });

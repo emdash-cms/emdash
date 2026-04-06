@@ -793,6 +793,60 @@ describe("catalog product handlers", () => {
 		expect(detail.skus?.[0]).toMatchObject({ id: "sku_1", inventoryQuantity: 6, inventoryVersion: 6 });
 	});
 
+	it("falls back to product-level inventory stock when a simple SKU stock row is missing", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const createCtx = catalogCtx<ProductSkuCreateInput>(
+			{
+				productId: "prod_1",
+				skuCode: "STOCK",
+				status: "active",
+				unitPriceMinor: 500,
+				inventoryQuantity: 6,
+				inventoryVersion: 1,
+				requiresShipping: true,
+				isDigital: false,
+			},
+			products,
+			skus,
+		);
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "stock-product",
+			title: "Stock Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const created = await createProductSkuHandler(createCtx);
+		const inventoryStock = (createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		await inventoryStock.delete(inventoryStockDocId(created.sku.productId, created.sku.id));
+
+		const readCtx = { ...createCtx, input: { productId: "prod_1" } } as unknown as RouteContext<{
+			productId: string;
+		}>;
+		const detail = await getProductHandler(readCtx);
+		expect(detail.skus?.[0]).toMatchObject({
+			id: created.sku.id,
+			inventoryQuantity: created.sku.inventoryQuantity,
+			inventoryVersion: 1,
+		});
+		expect(await inventoryStock.get(inventoryStockDocId("prod_1", ""))).toMatchObject({
+			productId: "prod_1",
+			variantId: "",
+			quantity: created.sku.inventoryQuantity,
+			version: 1,
+		});
+	});
+
 	it("returns the same category/tag/image metadata from product detail and listing", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
@@ -1472,6 +1526,81 @@ describe("catalog SKU handlers", () => {
 			quantity: 3,
 			version: 4,
 		});
+	});
+
+	it("creates only variant-level inventoryStock for variable SKUs", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const productAttributes = new MemColl<StoredProductAttribute>();
+		const productAttributeValues = new MemColl<StoredProductAttributeValue>();
+		const productSkuOptionValues = new MemColl<StoredProductSkuOptionValue>();
+
+		const product = await createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "active",
+					visibility: "public",
+					slug: "variable-stock-product",
+					title: "Variable stock product",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [{ value: "Red", code: "red", position: 0 }],
+						},
+					],
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+			),
+		);
+		const colorAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.productId === product.product.id);
+		const colorValue = [...productAttributeValues.rows.values()].find((value) => value.attributeId === colorAttribute!.id);
+		const createCtx = catalogCtx<ProductSkuCreateInput>(
+			{
+				productId: product.product.id,
+				skuCode: "VAR-1",
+				status: "active",
+				unitPriceMinor: 1099,
+				inventoryQuantity: 7,
+				inventoryVersion: 1,
+				requiresShipping: true,
+				isDigital: false,
+				optionValues: [{ attributeId: colorAttribute!.id, attributeValueId: colorValue!.id }],
+			},
+			products,
+			skus,
+			new MemColl(),
+			new MemColl(),
+			productAttributes,
+			productAttributeValues,
+			productSkuOptionValues,
+		);
+		const created = await createProductSkuHandler(createCtx);
+		const inventoryStock = (createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+
+		const variantStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, created.sku.id));
+		const productLevelStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, ""));
+		expect(inventoryStock.rows.size).toBe(1);
+		expect(variantStock).toMatchObject({
+			productId: product.product.id,
+			variantId: created.sku.id,
+			quantity: 7,
+			version: 1,
+		});
+		expect(productLevelStock).toBeNull();
 	});
 
 	it("rejects variable SKU creation when option coverage is incomplete", async () => {

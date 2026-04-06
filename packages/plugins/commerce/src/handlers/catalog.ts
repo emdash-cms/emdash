@@ -321,20 +321,8 @@ export type ProductTagLinkUnlinkResponse = {
 	deleted: boolean;
 };
 
-function sortAssetLinksByPosition(links: StoredProductAssetLink[]): StoredProductAssetLink[] {
-	const sorted = sortedImmutable(links, (left, right) => {
-		if (left.position === right.position) {
-			return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
-		}
-		return left.position - right.position;
-	});
-	return sorted;
-}
-
-function sortBundleComponentsByPosition(
-	components: StoredBundleComponent[],
-): StoredBundleComponent[] {
-	const sorted = sortedImmutable(components, (left, right) => {
+function sortOrderedRowsByPosition<T extends { createdAt?: string; position: number }>(rows: T[]): T[] {
+	const sorted = sortedImmutable(rows, (left, right) => {
 		if (left.position === right.position) {
 			return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
 		}
@@ -402,6 +390,42 @@ async function persistOrderedRows<T extends OrderedRow>(
 	return normalized;
 }
 
+type OrderedChildMutation<T extends OrderedRow> =
+	| { kind: "add"; row: T; requestedPosition: number }
+	| { kind: "remove"; removedRowId: string }
+	| {
+		kind: "move";
+		rowId: string;
+		requestedPosition: number;
+		notFoundMessage?: string;
+	};
+
+async function mutateOrderedChildren<T extends OrderedRow>(params: {
+	collection: Collection<T>;
+	rows: T[];
+	mutation: OrderedChildMutation<T>;
+	nowIso: string;
+}): Promise<T[]> {
+	const { collection, rows, mutation, nowIso } = params;
+	const normalized = (() => {
+		switch (mutation.kind) {
+			case "add":
+				return addOrderedRow(rows, mutation.row, mutation.requestedPosition);
+			case "remove":
+				return removeOrderedRow(rows, mutation.removedRowId);
+			case "move": {
+				const { rowId, requestedPosition } = mutation;
+				const fromIndex = rows.findIndex((candidate) => candidate.id === rowId);
+				if (fromIndex === -1) {
+					throw PluginRouteError.badRequest(mutation.notFoundMessage ?? "Ordered row not found in target list");
+				}
+				return moveOrderedRow(rows, rowId, requestedPosition);
+			}
+		}
+	})();
+	return persistOrderedRows(collection, normalized, nowIso);
+}
+
 async function queryBundleComponentsForProduct(
 	bundleComponents: Collection<StoredBundleComponent>,
 	bundleProductId: string,
@@ -409,7 +433,7 @@ async function queryBundleComponentsForProduct(
 	const query = await bundleComponents.query({
 		where: { bundleProductId },
 	});
-	const rows = sortBundleComponentsByPosition(query.items.map((row) => row.data));
+	const rows = sortOrderedRowsByPosition(query.items.map((row) => row.data));
 	return normalizeOrderedChildren(rows);
 }
 
@@ -429,15 +453,6 @@ function toProductTagDTO(row: StoredProductTag): ProductTagDTO {
 		name: row.name,
 		slug: row.slug,
 	};
-}
-
-async function queryCategoryDtos(
-	productCategoryLinks: Collection<StoredProductCategoryLink>,
-	categories: Collection<StoredCategory>,
-	productId: string,
-): Promise<ProductCategoryDTO[]> {
-	const results = await queryCategoryDtosForProducts(productCategoryLinks, categories, [productId]);
-	return results.get(productId) ?? [];
 }
 
 async function queryCategoryDtosForProducts(
@@ -469,15 +484,6 @@ async function queryCategoryDtosForProducts(
 		rowsByProduct.set(link.data.productId, current);
 	}
 	return rowsByProduct;
-}
-
-async function queryTagDtos(
-	productTagLinks: Collection<StoredProductTagLink>,
-	tags: Collection<StoredProductTag>,
-	productId: string,
-): Promise<ProductTagDTO[]> {
-	const results = await queryTagDtosForProducts(productTagLinks, tags, [productId]);
-	return results.get(productId) ?? [];
 }
 
 async function queryTagDtosForProducts(
@@ -643,22 +649,6 @@ function summarizeSkuPricing(skus: StoredProductSku[]): ProductPriceRangeDTO {
 	return { minUnitPriceMinor: min, maxUnitPriceMinor: max };
 }
 
-async function queryPrimaryImageForProduct(
-	productAssetLinks: Collection<StoredProductAssetLink>,
-	productAssets: Collection<StoredProductAsset>,
-	targetType: ProductAssetLinkTarget,
-	targetId: string,
-): Promise<ProductPrimaryImageDTO | undefined> {
-	const images = await queryProductImagesByRoleForTargets(
-		productAssetLinks,
-		productAssets,
-		targetType,
-		[targetId],
-		["primary_image"],
-	);
-	return images.get(targetId)?.[0];
-}
-
 async function queryProductImagesByRoleForTargets(
 	productAssetLinks: Collection<StoredProductAssetLink>,
 	productAssets: Collection<StoredProductAsset>,
@@ -672,11 +662,18 @@ async function queryProductImagesByRoleForTargets(
 		return new Map();
 	}
 
+	const targetIdFilter: string | InFilter = normalizedTargetIds.length === 1
+		? normalizedTargetIds[0]!
+		: { in: normalizedTargetIds };
+	const roleFilter: string | InFilter = normalizedRoles.length === 1
+		? normalizedRoles[0]!
+		: { in: normalizedRoles };
+
 	const query: { where: Record<string, string | number | InFilter> } = {
 		where: {
 			targetType,
-			targetId: normalizedTargetIds.length === 1 ? normalizedTargetIds[0] : ({ in: normalizedTargetIds } as InFilter),
-			role: normalizedRoles.length === 1 ? normalizedRoles[0] : ({ in: normalizedRoles } as InFilter),
+			targetId: targetIdFilter,
+			role: roleFilter,
 		},
 	};
 	const links = await productAssetLinks.query(query).then((result) => result.items);
@@ -691,7 +688,7 @@ async function queryProductImagesByRoleForTargets(
 
 	const imagesByTarget = new Map<string, ProductPrimaryImageDTO[]>();
 	for (const [targetId, targetLinks] of linksByTarget) {
-		const sortedLinks = sortAssetLinksByPosition(targetLinks);
+		const sortedLinks = sortOrderedRowsByPosition(targetLinks);
 		const rows: ProductPrimaryImageDTO[] = [];
 		for (const link of sortedLinks) {
 			const asset = assetsById.get(link.assetId);
@@ -736,11 +733,22 @@ async function querySkuOptionValuesBySkuIds(
 	return bySkuId;
 }
 
+type ProductDigitalEntitlementSummaryRow = {
+	entitlementId: string;
+	digitalAssetId: string;
+	digitalAssetLabel?: string;
+	downloadLimit?: number;
+	downloadExpiryDays?: number;
+	grantedQuantity: number;
+	isManualOnly: boolean;
+	isPrivate: boolean;
+};
+
 async function queryDigitalEntitlementSummariesBySkuIds(
 	productDigitalEntitlements: Collection<StoredDigitalEntitlement>,
 	productDigitalAssets: Collection<StoredDigitalAsset>,
 	skuIds: string[],
-): Promise<Map<string, ProductDigitalEntitlementSummary[]>> {
+): Promise<Map<string, ProductDigitalEntitlementSummaryRow[]>> {
 	const normalizedSkuIds = toUniqueStringList(skuIds);
 	if (normalizedSkuIds.length === 0) {
 		return new Map();
@@ -753,7 +761,7 @@ async function queryDigitalEntitlementSummariesBySkuIds(
 		entitlementRows.items.map((row) => row.data.digitalAssetId),
 	);
 	const assetsById = await getManyByIds(productDigitalAssets, assetIds);
-	const summariesBySku = new Map<string, ProductDigitalEntitlementSummary[]>();
+	const summariesBySku = new Map<string, ProductDigitalEntitlementSummaryRow[]>();
 	for (const entitlement of entitlementRows.items) {
 		const asset = assetsById.get(entitlement.data.digitalAssetId);
 		if (!asset) {
@@ -1560,7 +1568,7 @@ async function queryAssetLinksForTarget(
 	targetId: string,
 ): Promise<StoredProductAssetLink[]> {
 	const result = await productAssetLinks.query({ where: { targetType, targetId } });
-	return sortAssetLinksByPosition(result.items.map((row) => row.data));
+	return normalizeOrderedChildren(sortOrderedRowsByPosition(result.items.map((row) => row.data)));
 }
 
 async function loadCatalogTargetExists(
@@ -1655,8 +1663,7 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 	}
 
 	const linkId = `asset_link_${await randomHex(6)}`;
-	const desiredPosition = normalizeOrderedPosition(position);
-	const requestedPosition = Math.min(desiredPosition, links.length);
+	const requestedPosition = normalizeOrderedPosition(position);
 
 	const link: StoredProductAssetLink = {
 		id: linkId,
@@ -1669,11 +1676,16 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 		updatedAt: nowIso,
 	};
 
-	const normalized = await persistOrderedRows(
-		productAssetLinks,
-		addOrderedRow(links, link, requestedPosition),
+	const normalized = await mutateOrderedChildren({
+		collection: productAssetLinks,
+		rows: links,
+		mutation: {
+			kind: "add",
+			row: link,
+			requestedPosition,
+		},
 		nowIso,
-	);
+	});
 
 	const created = normalized.find((candidate) => candidate.id === linkId);
 	if (!created) {
@@ -1695,7 +1707,15 @@ export async function unlinkCatalogAssetHandler(
 	const links = await queryAssetLinksForTarget(productAssetLinks, existing.targetType, existing.targetId);
 
 	await productAssetLinks.delete(ctx.input.linkId);
-	const normalized = await persistOrderedRows(productAssetLinks, removeOrderedRow(links, ctx.input.linkId), nowIso);
+	await mutateOrderedChildren({
+		collection: productAssetLinks,
+		rows: links,
+		mutation: {
+			kind: "remove",
+			removedRowId: ctx.input.linkId,
+		},
+		nowIso,
+	});
 
 	return { deleted: true };
 }
@@ -1714,16 +1734,17 @@ export async function reorderCatalogAssetHandler(
 
 	const links = await queryAssetLinksForTarget(productAssetLinks, link.targetType, link.targetId);
 	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
-	const fromIndex = links.findIndex((candidate) => candidate.id === ctx.input.linkId);
-	if (fromIndex === -1) {
-		throw PluginRouteError.badRequest("Asset link not found in target links");
-	}
-
-	const normalized = await persistOrderedRows(
-		productAssetLinks,
-		moveOrderedRow(links, ctx.input.linkId, requestedPosition),
+	const normalized = await mutateOrderedChildren({
+		collection: productAssetLinks,
+		rows: links,
+		mutation: {
+			kind: "move",
+			rowId: ctx.input.linkId,
+			requestedPosition,
+			notFoundMessage: "Asset link not found in target links",
+		},
 		nowIso,
-	);
+	});
 
 	const updated = normalized.find((candidate) => candidate.id === ctx.input.linkId);
 	if (!updated) {
@@ -1773,23 +1794,28 @@ export async function addBundleComponentHandler(
 	}
 
 	const existingComponents = await queryBundleComponentsForProduct(bundleComponents, bundleProduct.id);
-	const desiredPosition = Math.max(0, Math.min(ctx.input.position, existingComponents.length));
+	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
 	const componentId = `bundle_comp_${await randomHex(6)}`;
 	const component: StoredBundleComponent = {
 		id: componentId,
 		bundleProductId: bundleProduct.id,
 		componentSkuId: componentSku.id,
 		quantity: ctx.input.quantity,
-		position: desiredPosition,
+		position: requestedPosition,
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
 
-	const normalized = await persistOrderedRows(
-		bundleComponents,
-		addOrderedRow(existingComponents, component, desiredPosition),
+	const normalized = await mutateOrderedChildren({
+		collection: bundleComponents,
+		rows: existingComponents,
+		mutation: {
+			kind: "add",
+			row: component,
+			requestedPosition,
+		},
 		nowIso,
-	);
+	});
 
 	const added = normalized.find((candidate) => candidate.id === componentId);
 	if (!added) {
@@ -1812,7 +1838,15 @@ export async function removeBundleComponentHandler(
 	const components = await queryBundleComponentsForProduct(bundleComponents, existing.bundleProductId);
 
 	await bundleComponents.delete(ctx.input.bundleComponentId);
-	await persistOrderedRows(bundleComponents, removeOrderedRow(components, ctx.input.bundleComponentId), nowIso);
+	await mutateOrderedChildren({
+		collection: bundleComponents,
+		rows: components,
+		mutation: {
+			kind: "remove",
+			removedRowId: ctx.input.bundleComponentId,
+		},
+		nowIso,
+	});
 	return { deleted: true };
 }
 
@@ -1829,13 +1863,18 @@ export async function reorderBundleComponentHandler(
 	}
 
 	const components = await queryBundleComponentsForProduct(bundleComponents, component.bundleProductId);
-	const fromIndex = components.findIndex((row) => row.id === ctx.input.bundleComponentId);
-	if (fromIndex === -1) {
-		throw PluginRouteError.badRequest("Bundle component not found in target bundle");
-	}
-
-	const nextOrder = moveOrderedRow(components, ctx.input.bundleComponentId, ctx.input.position);
-	const normalized = await persistOrderedRows(bundleComponents, nextOrder, nowIso);
+	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
+	const normalized = await mutateOrderedChildren({
+		collection: bundleComponents,
+		rows: components,
+		mutation: {
+			kind: "move",
+			rowId: ctx.input.bundleComponentId,
+			requestedPosition,
+			notFoundMessage: "Bundle component not found in target bundle",
+		},
+		nowIso,
+	});
 
 	const updated = normalized.find((row) => row.id === ctx.input.bundleComponentId);
 	if (!updated) {

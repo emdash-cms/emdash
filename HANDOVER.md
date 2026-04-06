@@ -1,5 +1,29 @@
 # HANDOVER
 
+## 0) First 60 minutes checklist
+
+1. Open and read `HANDOVER.md`, `emdash-commerce-external-review-update-latest.md`, `external_review.md`, and `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`.
+2. Run `pnpm --silent lint:quick`, `pnpm typecheck`, and `pnpm test` in `packages/plugins/commerce` to confirm the baseline is clean.
+3. Tag review findings into `Must fix`, `Should fix`, and `Nice to know`; immediately map each `Must fix` to a small reproducer or test scenario.
+4. Implement only one `Must fix` at a time with the smallest possible patch (prefer shared helper or guard-function reuse over ad-hoc logic).
+5. Re-run targeted package tests and add/adjust assertions that prevent regressions in bundle ordering, inventory snapshot behavior, and idempotent finalize semantics.
+6. Before handoff, run `git status`, capture the commit hash, and record what changed versus what was explicitly required by feedback.
+
+## 0.1) Pre-merge release gates
+
+Before merging each feedback-driven batch:
+- `pnpm --silent lint:quick`
+- `pnpm typecheck`
+- `pnpm test` in `packages/plugins/commerce`
+- review-item checklist updated in `HANDOVER.md`/task notes
+- commit hash captured with a short “why this changed” summary
+
+Acceptance:
+- No lint/type regressions in touched packages.
+- No failing commerce tests in the updated area.
+- No contract/API drift unless explicitly justified and reviewed.
+- External review feedback item marked complete with a linked test.
+
 ## 1) Purpose
 
 This repository is an EmDash plugin monorepo; the current active work is the commerce plugin in `packages/plugins/commerce`. The product goal is to keep catalog read and write behavior correct and performant while preserving the existing checkout/finalization kernel behavior.

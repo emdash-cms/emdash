@@ -668,6 +668,86 @@ describe("checkout route guardrails", () => {
 		expect(consumeKvRateLimit).toHaveBeenCalledTimes(1);
 	});
 
+	it("rejects checkout when simple-item product-level stock row is missing", async () => {
+		const cartId = "cart_authority";
+		const now = "2026-04-02T12:00:00.000Z";
+		const ownerToken = "owner-token-inventory-16";
+		const product: StoredProduct = {
+			id: "authority-product",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "authority-product",
+			title: "Authority Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: now,
+			updatedAt: now,
+			publishedAt: now,
+		};
+		const sku: StoredProductSku = {
+			id: "sku_authority",
+			productId: product.id,
+			skuCode: "AUTH-SKU",
+			status: "active",
+			unitPriceMinor: 1000,
+			inventoryQuantity: 50,
+			inventoryVersion: 4,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const cart: StoredCart = {
+			currency: "USD",
+			lineItems: [{ productId: product.id, quantity: 1, inventoryVersion: 4, unitPriceMinor: 1000 }],
+			ownerTokenHash: await sha256HexAsync(ownerToken),
+			createdAt: now,
+			updatedAt: now,
+		};
+		const idempotencyKey = "idem-key-strong-18";
+		const ctx = contextFor({
+			idempotencyKeys: new MemColl<StoredIdempotencyKey>(),
+			orders: new MemColl<StoredOrder>(),
+			paymentAttempts: new MemColl<StoredPaymentAttempt>(),
+			carts: new MemColl(new Map([[cartId, cart]])),
+			// Missing product-level stock row for simple item checkout path on purpose.
+			inventoryStock: new MemColl(
+				new Map([
+					[
+						inventoryStockDocId(product.id, sku.id),
+						{
+							productId: product.id,
+							variantId: sku.id,
+							version: 4,
+							quantity: 100,
+							updatedAt: now,
+						},
+					],
+				]),
+			),
+			kv: new MemKv(),
+			idempotencyKey,
+			cartId,
+			ownerToken,
+			extras: {
+				products: new MemColl(new Map([[product.id, product]])),
+				productSkus: new MemColl(new Map([[sku.id, sku]])),
+				productSkuOptionValues: new MemColl(),
+				digitalAssets: new MemColl(),
+				digitalEntitlements: new MemColl(),
+				productAssetLinks: new MemColl(),
+				productAssets: new MemColl(),
+				bundleComponents: new MemColl(),
+			},
+		});
+
+		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "product_unavailable" });
+	});
+
 	it("rejects mismatched header/body idempotency input", async () => {
 		const cartId = "cart_conflict";
 		const now = "2026-04-02T12:00:00.000Z";

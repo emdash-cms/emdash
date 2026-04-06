@@ -123,6 +123,10 @@ async function focusAndSelectAll(screen: Awaited<ReturnType<typeof render>>) {
 	await userEvent.keyboard(`${mod}{a}${modUp}`);
 }
 
+function getBoldButton(screen: Awaited<ReturnType<typeof render>>) {
+	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name: "Bold" });
+}
+
 // =============================================================================
 // 1. Toolbar Presence and Structure
 // =============================================================================
@@ -136,7 +140,7 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("has all formatting buttons", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeVisible();
+		await expect.element(getBoldButton(screen)).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeVisible();
@@ -205,7 +209,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Bold" });
+		const btn = getBoldButton(screen);
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -357,7 +361,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Bold" });
+		const btn = getBoldButton(screen);
 
 		// First click: on
 		btn.element().click();
@@ -452,7 +456,7 @@ describe("Undo/Redo", () => {
 		await focusAndSelectAll(screen);
 
 		// Make a change - toggle bold
-		screen.getByRole("button", { name: "Bold" }).element().click();
+		getBoldButton(screen).element().click();
 
 		const undo = screen.getByRole("button", { name: "Undo" });
 		await vi.waitFor(
@@ -468,7 +472,7 @@ describe("Undo/Redo", () => {
 		await focusAndSelectAll(screen);
 
 		// Make a change
-		screen.getByRole("button", { name: "Bold" }).element().click();
+		getBoldButton(screen).element().click();
 
 		const undo = screen.getByRole("button", { name: "Undo" });
 		const redo = screen.getByRole("button", { name: "Redo" });
@@ -495,7 +499,7 @@ describe("Undo/Redo", () => {
 		await focusAndSelectAll(screen);
 
 		// Make a change
-		screen.getByRole("button", { name: "Bold" }).element().click();
+		getBoldButton(screen).element().click();
 
 		const undo = screen.getByRole("button", { name: "Undo" });
 		const redo = screen.getByRole("button", { name: "Redo" });
@@ -706,7 +710,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 	it("ArrowRight from Bold moves focus to Italic", async () => {
 		const { screen } = await renderEditor();
 
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const bold = getBoldButton(screen);
 		const italic = screen.getByRole("button", { name: "Italic" });
 
 		// Focus the Bold button
@@ -724,7 +728,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 	it("ArrowLeft from Italic moves focus to Bold", async () => {
 		const { screen } = await renderEditor();
 
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const bold = getBoldButton(screen);
 		const italic = screen.getByRole("button", { name: "Italic" });
 
 		// Focus the Italic button
@@ -742,7 +746,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 	it("Home moves focus to first button", async () => {
 		const { screen } = await renderEditor();
 
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const bold = getBoldButton(screen);
 		const alignCenter = screen.getByRole("button", { name: "Align Center" });
 
 		// Focus a button in the middle
@@ -759,7 +763,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 	it("End moves focus to last button", async () => {
 		const { screen } = await renderEditor();
 
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const bold = getBoldButton(screen);
 
 		// Focus the first button
 		bold.element().focus();
@@ -778,7 +782,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		const { screen } = await renderEditor();
 
 		const spotlightBtn = screen.getByRole("button", { name: "Spotlight Mode" });
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const bold = getBoldButton(screen);
 
 		// Focus the last button
 		spotlightBtn.element().focus();
@@ -794,7 +798,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 	it("ArrowLeft wraps from first to last button", async () => {
 		const { screen } = await renderEditor();
 
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const bold = getBoldButton(screen);
 
 		// Focus the first button
 		bold.element().focus();
