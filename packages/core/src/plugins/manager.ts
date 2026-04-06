@@ -17,8 +17,8 @@ import type { Database } from "../database/types.js";
 import type { Storage } from "../storage/types.js";
 import type { PluginContextFactoryOptions } from "./context.js";
 import { setCronTasksEnabled } from "./cron.js";
-import type { EmailPipeline } from "./email.js";
 import { definePlugin } from "./define-plugin.js";
+import type { EmailPipeline } from "./email.js";
 import {
 	HookPipeline,
 	type HookResult,
