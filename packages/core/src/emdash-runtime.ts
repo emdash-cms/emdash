@@ -1786,7 +1786,10 @@ export class EmDashRuntime {
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
 		const trustedPlugin = this.configuredPlugins.find((p) => p.id === pluginId);
 		if (trustedPlugin && this.enabledPlugins.has(trustedPlugin.id)) {
-			const routeRegistry = new PluginRouteRegistry({ db: this.db });
+			const routeRegistry = new PluginRouteRegistry({
+				db: this.db,
+				emailPipeline: this.email ?? undefined,
+			});
 			routeRegistry.register(trustedPlugin);
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
