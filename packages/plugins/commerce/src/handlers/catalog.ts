@@ -223,7 +223,7 @@ async function getManyByIds<T>(collection: Collection<T>, ids: string[]): Promis
 	const uniqueIds = toUniqueStringList(ids);
 	const getMany = (collection as { getMany?: (ids: string[]) => Promise<Map<string, T>> }).getMany;
 	if (getMany) {
-		return getMany(uniqueIds);
+		return getMany.call(collection, uniqueIds);
 	}
 
 	const rows = await Promise.all(uniqueIds.map((id) => collection.get(id)));
@@ -587,7 +587,7 @@ async function loadProductsReadMetadata(
 		productIds.map(async (productId) => {
 			const product = productsById.get(productId);
 			const skus = skusByProduct.get(productId) ?? [];
-			return [productId, product ? await hydrateSkusWithInventoryStock(product, skus, collections.inventoryStock)] as const;
+			return [productId, product ? await hydrateSkusWithInventoryStock(product, skus, collections.inventoryStock) : []] as const;
 		}),
 	);
 	const hydratedSkusByProduct = new Map(hydratedSkusByProductEntries);
