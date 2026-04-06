@@ -2,21 +2,18 @@
  * Scheduled maintenance (idempotency TTL, future retention jobs).
  */
 
-import type { PluginContext, StorageCollection } from "emdash";
+import type { PluginContext } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import type { StoredIdempotencyKey } from "../types.js";
-
-function idempotencyKeys(ctx: PluginContext): StorageCollection<StoredIdempotencyKey> {
-	return ctx.storage.idempotencyKeys as StorageCollection<StoredIdempotencyKey>;
-}
+import { asCollection } from "./catalog-conflict.js";
 
 /**
  * Delete idempotency records older than {@link COMMERCE_LIMITS.idempotencyRecordTtlMs}
  * (same window used for replay; expired rows are safe to remove).
  */
 export async function handleIdempotencyCleanup(ctx: PluginContext): Promise<void> {
-	const coll = idempotencyKeys(ctx);
+	const coll = asCollection<StoredIdempotencyKey>(ctx.storage.idempotencyKeys);
 	const cutoffIso = new Date(Date.now() - COMMERCE_LIMITS.idempotencyRecordTtlMs).toISOString();
 	let cursor: string | undefined;
 	let deleted = 0;

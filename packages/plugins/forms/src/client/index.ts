@@ -460,8 +460,12 @@ function restoreState(form: HTMLFormElement) {
 		// Restore field values
 		for (const [name, value] of Object.entries(state.values)) {
 			const input = form.elements.namedItem(name);
-			if (input && "value" in input) {
-				(input as unknown as HTMLInputElement).value = value;
+			if (
+				input instanceof HTMLInputElement ||
+				input instanceof HTMLTextAreaElement ||
+				input instanceof HTMLSelectElement
+			) {
+				input.value = value;
 			}
 		}
 
@@ -525,11 +529,13 @@ function initTurnstile(form: HTMLFormElement) {
 }
 
 function renderTurnstile(container: HTMLElement, siteKey: string) {
-	const w = window as unknown as {
+	interface TurnstileWindow {
 		turnstile?: {
 			render: (el: HTMLElement, opts: Record<string, unknown>) => void;
 		};
-	};
+	}
+
+	const w = window as Window & TurnstileWindow;
 	if (w.turnstile) {
 		w.turnstile.render(container, { sitekey: siteKey });
 	}

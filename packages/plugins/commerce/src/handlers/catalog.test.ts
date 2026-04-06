@@ -168,7 +168,7 @@ class MemColl<T extends object> {
 	}
 }
 
-class ConstraintConflictMemColl<T extends Record<string, unknown>> extends MemColl<T> {
+class ConstraintConflictMemColl<T extends object> extends MemColl<T> {
 	constructor(
 		private readonly conflicts: (existing: T, next: T) => boolean,
 		rows: Map<string, T> = new Map<string, T>(),
@@ -186,7 +186,7 @@ class ConstraintConflictMemColl<T extends Record<string, unknown>> extends MemCo
 		return true;
 	}
 
-	async query(
+	override async query(
 		_options?: {
 			[key: string]: unknown;
 		},
@@ -198,7 +198,7 @@ class ConstraintConflictMemColl<T extends Record<string, unknown>> extends MemCo
 class QueryCountingMemColl<T extends object> extends MemColl<T> {
 	queryCount = 0;
 
-	async query(options?: {
+	override async query(options?: {
 		where?: Record<string, unknown>;
 		limit?: number;
 	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
@@ -1052,7 +1052,9 @@ describe("catalog product handlers", () => {
 			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
-		const out = await listStorefrontProductSkusHandler(catalogCtx({ productId: "prod_1" }, products, skus));
+	const out = await listStorefrontProductSkusHandler(
+		catalogCtx({ productId: "prod_1", limit: 100 }, products, skus),
+	);
 		expect(out.items).toHaveLength(1);
 		expect(out.items[0]).toMatchObject({ id: "sku_1", availability: "in_stock" });
 		expect("inventoryQuantity" in (out.items[0] as object)).toBe(false);
@@ -1091,7 +1093,9 @@ describe("catalog product handlers", () => {
 			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
-		await expect(listStorefrontProductSkusHandler(catalogCtx({ productId: "prod_hidden" }, products, skus))).rejects.toThrow("Product not available");
+		await expect(
+			listStorefrontProductSkusHandler(catalogCtx({ productId: "prod_hidden", limit: 100 }, products, skus)),
+		).rejects.toThrow("Product not available");
 	});
 
 	it("reads simple product SKU inventory from inventoryStock in product detail", async () => {
@@ -2265,8 +2269,8 @@ describe("catalog SKU handlers", () => {
 					requiresShipping: true,
 					isDigital: false,
 					optionValues: [
-						{ attributeId: colorAttribute.id, attributeValueId: colorValues[0].id },
-						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[0].id },
+						{ attributeId: colorAttribute.id, attributeValueId: colorValues[0]!.id },
+						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[0]!.id },
 					],
 				},
 				products,
@@ -2291,8 +2295,8 @@ describe("catalog SKU handlers", () => {
 					requiresShipping: true,
 					isDigital: false,
 					optionValues: [
-						{ attributeId: colorAttribute.id, attributeValueId: colorValues[1].id },
-						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[1].id },
+						{ attributeId: colorAttribute.id, attributeValueId: colorValues[1]!.id },
+						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[1]!.id },
 					],
 				},
 				products,
@@ -2323,8 +2327,8 @@ describe("catalog SKU handlers", () => {
 					requiresShipping: true,
 					isDigital: false,
 					optionValues: [
-						{ attributeId: colorAttribute.id, attributeValueId: colorValues[0].id },
-						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[1].id },
+						{ attributeId: colorAttribute.id, attributeValueId: colorValues[0]!.id },
+						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[1]!.id },
 					],
 				},
 				products,
@@ -3322,7 +3326,7 @@ describe("catalog bundle handlers", () => {
 	it("sanitizes storefront bundle compute response", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
-		const inventoryStock = new MemColl<InventoryStockRecord>();
+	const inventoryStock = new MemColl<StoredInventoryStock>();
 		const bundleComponents = new MemColl<StoredBundleComponent>();
 
 		await products.put("prod_bundle", {
@@ -3383,15 +3387,24 @@ describe("catalog bundle handlers", () => {
 				new MemColl(),
 				new MemColl(),
 				new MemColl(),
-				inventoryStock,
+				new MemColl<StoredProductSkuOptionValue>(),
 				bundleComponents,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				inventoryStock,
 			),
 		);
 
 		await inventoryStock.put("stock_component", {
-			skuId: "sku_component",
+			productId: "prod_component",
+			variantId: "sku_component",
 			quantity: 10,
 			version: 1,
+			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
 		const summary = await bundleComputeStorefrontHandler(
@@ -3401,12 +3414,19 @@ describe("catalog bundle handlers", () => {
 				},
 				products,
 				skus,
-				new MemColl(),
-				new MemColl(),
-				inventoryStock,
-				new MemColl(),
-				new MemColl(),
+				new MemColl<StoredProductAsset>(),
+				new MemColl<StoredProductAssetLink>(),
+				new MemColl<StoredProductAttribute>(),
+				new MemColl<StoredProductAttributeValue>(),
+				new MemColl<StoredProductSkuOptionValue>(),
 				bundleComponents,
+				new MemColl<StoredCategory>(),
+				new MemColl<StoredProductCategoryLink>(),
+				new MemColl<StoredProductTag>(),
+				new MemColl<StoredProductTagLink>(),
+				new MemColl<StoredDigitalAsset>(),
+				new MemColl<StoredDigitalEntitlement>(),
+				inventoryStock,
 			),
 		);
 

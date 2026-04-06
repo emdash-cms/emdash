@@ -11,6 +11,19 @@ export type MergeableLine = {
 	unitPriceMinor: number;
 };
 
+export class LineConflictError extends Error {
+	constructor(
+		message: string,
+		public readonly productId: string,
+		public readonly variantId: string | undefined,
+		public readonly expected: { inventoryVersion: number; unitPriceMinor: number },
+		public readonly actual: { inventoryVersion: number; unitPriceMinor: number },
+	) {
+		super(message);
+		this.name = "LineConflictError";
+	}
+}
+
 function lineKey(line: MergeableLine): string {
 	return `${line.productId}\u0000${line.variantId ?? ""}`;
 }
@@ -25,13 +38,21 @@ export function mergeLineItemsBySku<T extends MergeableLine>(lines: T[]): T[] {
 			continue;
 		}
 		if (cur.inventoryVersion !== line.inventoryVersion) {
-			throw new Error(
+			throw new LineConflictError(
 				`mergeLineItemsBySku: conflicting inventoryVersion for ${line.productId}/${line.variantId ?? ""}`,
+				line.productId,
+				line.variantId,
+				{ inventoryVersion: cur.inventoryVersion, unitPriceMinor: cur.unitPriceMinor },
+				{ inventoryVersion: line.inventoryVersion, unitPriceMinor: line.unitPriceMinor },
 			);
 		}
 		if (cur.unitPriceMinor !== line.unitPriceMinor) {
-			throw new Error(
+			throw new LineConflictError(
 				`mergeLineItemsBySku: conflicting unitPriceMinor for ${line.productId}/${line.variantId ?? ""}`,
+				line.productId,
+				line.variantId,
+				{ inventoryVersion: cur.inventoryVersion, unitPriceMinor: cur.unitPriceMinor },
+				{ inventoryVersion: line.inventoryVersion, unitPriceMinor: line.unitPriceMinor },
 			);
 		}
 		map.set(k, { ...cur, quantity: cur.quantity + line.quantity });

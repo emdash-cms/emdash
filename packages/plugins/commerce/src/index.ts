@@ -13,7 +13,12 @@
  * ```
  */
 
-import type { PluginDescriptor, PluginRoute, RouteContext } from "emdash";
+import type {
+	PluginDefinition,
+	PluginDescriptor,
+	PluginRoute,
+	RouteContext,
+} from "emdash";
 import { definePlugin } from "emdash";
 
 import {
@@ -28,24 +33,24 @@ import {
 	removeBundleComponentHandler,
 	reorderBundleComponentHandler,
 	bundleComputeStorefrontHandler,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 import {
 	createCategoryHandler,
 	listCategoriesHandler,
 	createProductCategoryLinkHandler,
 	removeProductCategoryLinkHandler,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 import {
 	createDigitalAssetHandler,
 	createDigitalEntitlementHandler,
 	removeDigitalEntitlementHandler,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 import {
 	reorderCatalogAssetHandler,
 	linkCatalogAssetHandler,
 	registerProductAssetHandler,
 	unlinkCatalogAssetHandler,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 import {
 	createProductHandler,
 	updateProductHandler,
@@ -56,8 +61,8 @@ import {
 	setSkuStatusHandler,
 	listStorefrontProductsHandler,
 	listStorefrontProductSkusHandler,
-} from "./handlers/catalog.ts";
-import { createTagHandler, listTagsHandler, createProductTagLinkHandler, removeProductTagLinkHandler } from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
+import { createTagHandler, listTagsHandler, createProductTagLinkHandler, removeProductTagLinkHandler } from "./handlers/catalog.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
@@ -102,52 +107,46 @@ import { createRecommendationsRoute } from "./services/commerce-extension-seams.
 import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 
 /**
- * The EmDash `definePlugin` route handler type requires handlers typed against
- * the specific plugin's storage shape, which TypeScript cannot infer from the
- * generic `PluginDescriptor`. All casts are isolated here so they do not
- * spread into handler files.
+ * The EmDash `definePlugin` route surface is bound to the commerce input contract
+ * per route. Route helpers keep public/admin registration centralized.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyHandler = (ctx: RouteContext<any>) => Promise<unknown>;
-
-function asRouteHandler(fn: AnyHandler): never {
-	return fn as never;
-}
+type CommerceRouteHandler<TInput = unknown> = (ctx: RouteContext<TInput>) => Promise<unknown>;
 
 /**
  * Route helper constructors to keep public/private registration explicit and avoid
  * accidental exposure of mutation endpoints.
  */
-function adminRoute<T>(input: PluginRoute<T>["input"], handler: AnyHandler): PluginRoute<T> {
+function adminRoute<T>(input: PluginRoute<T>["input"], handler: CommerceRouteHandler<T>): PluginRoute {
 	return {
 		input,
-		handler: asRouteHandler(handler),
-	};
+		handler,
+	} as PluginRoute;
 }
 
-function publicRoute<T>(input: PluginRoute<T>["input"], handler: AnyHandler): PluginRoute<T> {
+function publicRoute<T>(input: PluginRoute<T>["input"], handler: CommerceRouteHandler<T>): PluginRoute {
 	return {
 		public: true,
 		input,
-		handler: asRouteHandler(handler),
-	};
+		handler,
+	} as PluginRoute;
 }
 
 /** Outbound Stripe API (`api.stripe.com`, `connect.stripe.com`, etc.). */
 const STRIPE_ALLOWED_HOSTS = ["*.stripe.com"] as const;
 
 /**
- * Manifest-style descriptor; uses the same storage declaration as {@link createPlugin}.
- * Cast matches `PluginDescriptor`’s simplified typing; composite indexes match runtime config.
+ * Manifest-style descriptor uses the same storage declaration as {@link createPlugin}.
+ * Composite indexes are mirrored from runtime config for consistency.
  */
 export function commercePlugin(): PluginDescriptor {
+	const storage = COMMERCE_STORAGE_CONFIG;
 	return {
 		id: "emdash-commerce",
 		version: "0.1.0",
 		entrypoint: "@emdash-cms/plugin-commerce",
 		capabilities: ["network:fetch"],
 		allowedHosts: [...STRIPE_ALLOWED_HOSTS],
-		storage: COMMERCE_STORAGE_CONFIG as unknown as PluginDescriptor["storage"],
+		storage,
 	};
 }
 
@@ -170,14 +169,12 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 		resolver: options.extensions?.recommendationResolver,
 		providerId: options.extensions?.recommendationProviderId,
 	});
-	return definePlugin({
+	const pluginDefinition: PluginDefinition = {
 		id: "emdash-commerce",
 		version: "0.1.0",
 		capabilities: ["network:fetch"],
 		allowedHosts: [...STRIPE_ALLOWED_HOSTS],
-
 		storage: COMMERCE_STORAGE_CONFIG,
-
 		admin: {
 			settingsSchema: {
 				stripePublishableKey: {
@@ -273,7 +270,8 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 			"catalog/sku/update": adminRoute(productSkuUpdateInputSchema, updateProductSkuHandler),
 			"catalog/sku/state": adminRoute(productSkuStateInputSchema, setSkuStatusHandler),
 		},
-	});
+	};
+	return definePlugin(pluginDefinition);
 }
 
 export default createPlugin;
@@ -326,32 +324,32 @@ export type {
 	StorefrontProductDetail,
 	StorefrontProductListResponse,
 	StorefrontSkuListResponse,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 export type {
 	CategoryResponse,
 	CategoryListResponse,
 	ProductCategoryLinkResponse,
 	ProductCategoryLinkUnlinkResponse,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 export type {
 	TagResponse,
 	TagListResponse,
 	ProductTagLinkResponse,
 	ProductTagLinkUnlinkResponse,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 export type {
 	ProductAssetResponse,
 	ProductAssetLinkResponse,
 	ProductAssetUnlinkResponse,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 export type {
 	BundleComponentResponse,
 	BundleComponentUnlinkResponse,
 	BundleComputeResponse,
 	StorefrontBundleComputeResponse,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";
 export type {
 	DigitalAssetResponse,
 	DigitalEntitlementResponse,
 	DigitalEntitlementUnlinkResponse,
-} from "./handlers/catalog.ts";
+} from "./handlers/catalog.js";

@@ -357,16 +357,17 @@ async function rewriteUrls(
 
 				if (rowUpdated) {
 					try {
-						// Build update query dynamically
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely dynamic table requires type assertion
-						let query = db.updateTable(tableName as any).where("id", "=", row.id);
+						const setClauses = Object.entries(updates).map(
+							([key, value]) => sql`${sql.ref(key)} = ${value}`,
+						);
 
-						for (const [key, value] of Object.entries(updates)) {
-							// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely dynamic column update requires type assertion
-							query = query.set({ [key]: value } as any);
+						if (setClauses.length > 0) {
+							await sql`
+								UPDATE ${sql.ref(tableName)}
+								SET ${sql.join(setClauses, sql`, `)}
+								WHERE id = ${row.id}
+							`.execute(db);
 						}
-
-						await query.execute();
 
 						result.updated++;
 						result.urlsRewritten += rowUrlsRewritten;

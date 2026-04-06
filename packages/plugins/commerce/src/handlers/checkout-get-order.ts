@@ -4,21 +4,18 @@
  * must present the raw `finalizeToken` to read it.
  */
 
-import type { RouteContext, StorageCollection } from "emdash";
+import type { RouteContext } from "emdash";
 
 import { equalSha256HexDigestAsync, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutGetOrderInput } from "../schemas.js";
 import type { StoredOrder } from "../types.js";
+import { asCollection } from "./catalog-conflict.js";
 
 export type CheckoutGetOrderResponse = {
 	order: Omit<StoredOrder, "finalizeTokenHash">;
 };
-
-function asCollection<T>(raw: unknown): StorageCollection<T> {
-	return raw as StorageCollection<T>;
-}
 
 function toPublicOrder(order: StoredOrder): CheckoutGetOrderResponse["order"] {
 	const { finalizeTokenHash: _omit, ...rest } = order;

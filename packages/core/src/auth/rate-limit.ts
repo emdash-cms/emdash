@@ -112,8 +112,7 @@ export function rateLimitResponse(retryAfterSeconds: number): Response {
  */
 export function getClientIp(request: Request): string | null {
 	const headers = request.headers;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CF Workers runtime shape
-	const cf = (request as unknown as { cf?: Record<string, unknown> }).cf;
+	const cf = (request as { cf?: Record<string, unknown> }).cf;
 
 	if (!cf) {
 		// Not on Cloudflare — no trusted source of client IP

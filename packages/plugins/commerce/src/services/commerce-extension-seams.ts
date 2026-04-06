@@ -5,7 +5,7 @@
  * packages can integrate without replacing kernel-owned mutation logic.
  */
 
-import type { RouteContext, StorageCollection } from "emdash";
+import type { RouteContext } from "emdash";
 
 import {
 	createRecommendationsHandler,
@@ -32,12 +32,7 @@ import type {
 	StoredPaymentAttempt,
 	StoredWebhookReceipt,
 } from "../types.js";
-
-type Collection<T> = StorageCollection<T>;
-
-function asCollection<T>(raw: unknown): Collection<T> {
-	return raw as Collection<T>;
-}
+import { asCollection } from "../handlers/catalog-conflict.js";
 
 function buildFinalizePorts(ctx: RouteContext<unknown>): FinalizePaymentPorts {
 	return {

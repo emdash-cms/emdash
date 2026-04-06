@@ -26,6 +26,7 @@ import { runWithContext } from "emdash/request-context";
 import { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import type { Database } from "emdash";
 import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
@@ -220,13 +221,12 @@ export function createPreviewMiddleware(config: PreviewMiddlewareConfig): Middle
 		// --- 4. Create Kysely dialect pointing at the DO ---
 		const getStub = (): PreviewDBStub => {
 			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- RPC type limitation
-			return stub as unknown as PreviewDBStub;
+			return stub as PreviewDBStub;
 		};
 		const dialect = new PreviewDODialect({ getStub });
 
 		// --- 5. Create Kysely instance and override request-context DB ---
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const previewDb = new Kysely<any>({ dialect });
+	const previewDb = new Kysely<Database>({ dialect });
 
 		return runWithContext(
 			{

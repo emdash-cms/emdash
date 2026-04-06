@@ -18,7 +18,7 @@
  * storefront origin does not exhaust a single IP bucket.
  */
 
-import type { RouteContext, StorageCollection } from "emdash";
+import type { RouteContext } from "emdash";
 import { PluginRouteError } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
@@ -32,10 +32,7 @@ import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CartGetInput, CartUpsertInput } from "../schemas.js";
 import type { StoredBundleComponent, StoredCart, StoredInventoryStock, StoredProduct, StoredProductSku } from "../types.js";
-
-function asCollection<T>(raw: unknown): StorageCollection<T> {
-	return raw as StorageCollection<T>;
-}
+import { asCollection } from "./catalog-conflict.js";
 
 // ---------------------------------------------------------------------------
 // cart/upsert

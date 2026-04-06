@@ -45,6 +45,8 @@
 import type { PluginDefinition, PluginContext, RouteContext, ContentHookEvent } from "emdash";
 import { extractPlainText } from "emdash";
 
+const ASTRO_LOCALS_SYMBOL = Symbol.for("astro.locals");
+
 /** Safely extract a string from an unknown value */
 function toString(value: unknown): string {
 	return typeof value === "string" ? value : "";
@@ -53,6 +55,27 @@ function toString(value: unknown): string {
 /** Type guard: check if value is a record-like object */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+interface AstroRequestLocals {
+	runtime?: {
+		env?: CloudflareEnv;
+	};
+}
+
+interface PortableTextLikeBlock {
+	_type: string;
+	[key: string]: unknown;
+}
+
+function isPortableTextLikeArray(value: unknown[]): value is PortableTextLikeBlock[] {
+	return value.every(
+		(item) =>
+			item !== null &&
+			typeof item === "object" &&
+			"_type" in item &&
+			typeof (item as { _type?: unknown })._type === "string",
+	);
 }
 
 /**
@@ -84,8 +107,7 @@ export interface VectorizeSearchConfig {
 function getCloudflareEnv(request: Request): CloudflareEnv | null {
 	// Access runtime.env from Astro's Cloudflare adapter
 	// This is available when running on Cloudflare Workers
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint(no-unsafe-type-assertion) -- Astro locals accessed via internal symbol; no typed API available
-	const locals = (request as any)[Symbol.for("astro.locals")];
+	const locals = (request as { [ASTRO_LOCALS_SYMBOL]?: AstroRequestLocals })[ASTRO_LOCALS_SYMBOL];
 	if (locals?.runtime?.env) {
 		return locals.runtime.env;
 	}
@@ -112,9 +134,7 @@ function extractSearchableText(content: Record<string, unknown>): string {
 			const text = extractPlainText(value);
 			if (text) parts.push(text);
 		} else if (Array.isArray(value)) {
-			// Assume Portable Text array
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint(no-unsafe-type-assertion) -- Portable Text arrays are untyped at this point; extractPlainText handles validation
-			const text = extractPlainText(value as any);
+			const text = isPortableTextLikeArray(value) ? extractPlainText(value) : JSON.stringify(value);
 			if (text) parts.push(text);
 		}
 	}

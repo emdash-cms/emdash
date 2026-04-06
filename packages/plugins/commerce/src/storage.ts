@@ -122,10 +122,10 @@ export type CommerceStorage = PluginStorageConfig & {
 	};
 };
 
-export const COMMERCE_STORAGE_CONFIG = {
+export const COMMERCE_STORAGE_CONFIG: PluginStorageConfig = {
 	products: {
-		indexes: ["type", "status", "visibility", "slug", "createdAt", "updatedAt", "featured"] as const,
-		uniqueIndexes: [["slug"]] as const,
+		indexes: ["type", "status", "visibility", "slug", "createdAt", "updatedAt", "featured"],
+		uniqueIndexes: [["slug"]],
 	},
 	productAttributes: {
 		indexes: [
@@ -135,8 +135,8 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"position",
 			["productId", "kind"],
 			["productId", "code"],
-		] as const,
-		uniqueIndexes: [["productId", "code"]] as const,
+		],
+		uniqueIndexes: [["productId", "code"]],
 	},
 	productAttributeValues: {
 		indexes: [
@@ -144,12 +144,12 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"code",
 			"position",
 			["attributeId", "code"],
-		] as const,
-		uniqueIndexes: [["attributeId", "code"]] as const,
+		],
+		uniqueIndexes: [["attributeId", "code"]],
 	},
 	productSkuOptionValues: {
-		indexes: ["skuId", "attributeId", "attributeValueId"] as const,
-		uniqueIndexes: [["skuId", "attributeId"]] as const,
+		indexes: ["skuId", "attributeId", "attributeValueId"],
+		uniqueIndexes: [["skuId", "attributeId"]],
 	},
 	digitalAssets: {
 		indexes: [
@@ -160,28 +160,28 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"isManualOnly",
 			"createdAt",
 			["provider", "externalAssetId"],
-		] as const,
-		uniqueIndexes: [["provider", "externalAssetId"]] as const,
+		],
+		uniqueIndexes: [["provider", "externalAssetId"]],
 	},
 	digitalEntitlements: {
-		indexes: ["skuId", "digitalAssetId", "createdAt"] as const,
-		uniqueIndexes: [["skuId", "digitalAssetId"]] as const,
+		indexes: ["skuId", "digitalAssetId", "createdAt"],
+		uniqueIndexes: [["skuId", "digitalAssetId"]],
 	},
 	categories: {
-		indexes: ["slug", "name", "parentId", "position", ["parentId", "position"], ["parentId", "slug"]] as const,
-		uniqueIndexes: [["slug"]] as const,
+		indexes: ["slug", "name", "parentId", "position", ["parentId", "position"], ["parentId", "slug"]],
+		uniqueIndexes: [["slug"]],
 	},
 	productCategoryLinks: {
-		indexes: ["productId", "categoryId"] as const,
-		uniqueIndexes: [["productId", "categoryId"]] as const,
+		indexes: ["productId", "categoryId"],
+		uniqueIndexes: [["productId", "categoryId"]],
 	},
 	productTags: {
-		indexes: ["slug", "name", "createdAt"] as const,
-		uniqueIndexes: [["slug"]] as const,
+		indexes: ["slug", "name", "createdAt"],
+		uniqueIndexes: [["slug"]],
 	},
 	productTagLinks: {
-		indexes: ["productId", "tagId"] as const,
-		uniqueIndexes: [["productId", "tagId"]] as const,
+		indexes: ["productId", "tagId"],
+		uniqueIndexes: [["productId", "tagId"]],
 	},
 	bundleComponents: {
 		indexes: [
@@ -190,8 +190,8 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"position",
 			"createdAt",
 			["bundleProductId", "position"],
-		] as const,
-		uniqueIndexes: [["bundleProductId", "componentSkuId"]] as const,
+		],
+		uniqueIndexes: [["bundleProductId", "componentSkuId"]],
 	},
 	productAssets: {
 		indexes: [
@@ -200,8 +200,8 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"createdAt",
 			"updatedAt",
 			["provider", "externalAssetId"],
-		] as const,
-		uniqueIndexes: [["provider", "externalAssetId"]] as const,
+		],
+		uniqueIndexes: [["provider", "externalAssetId"]],
 	},
 	productAssetLinks: {
 		indexes: [
@@ -212,18 +212,18 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"createdAt",
 			"assetId",
 			["targetType", "targetId"],
-		] as const,
-		uniqueIndexes: [["targetType", "targetId", "assetId"]] as const,
+		],
+		uniqueIndexes: [["targetType", "targetId", "assetId"]],
 	},
 	productSkus: {
-		indexes: ["productId", "status", "requiresShipping", "createdAt", "skuCode"] as const,
-		uniqueIndexes: [["skuCode"]] as const,
+		indexes: ["productId", "status", "requiresShipping", "createdAt", "skuCode"],
+		uniqueIndexes: [["skuCode"]],
 	},
 	orders: {
-		indexes: ["paymentPhase", "createdAt", "cartId"] as const,
+		indexes: ["paymentPhase", "createdAt", "cartId"],
 	},
 	carts: {
-		indexes: ["updatedAt"] as const,
+		indexes: ["updatedAt"],
 	},
 	paymentAttempts: {
 		indexes: [
@@ -234,7 +234,7 @@ export const COMMERCE_STORAGE_CONFIG = {
 			["orderId", "status"],
 			["orderId", "providerId", "status"],
 			["providerId", "createdAt"],
-		] as const,
+		],
 	},
 	webhookReceipts: {
 		indexes: [
@@ -245,12 +245,12 @@ export const COMMERCE_STORAGE_CONFIG = {
 			"createdAt",
 			["providerId", "externalEventId"],
 			["orderId", "createdAt"],
-		] as const,
-		uniqueIndexes: [["providerId", "externalEventId"]] as const,
+		],
+		uniqueIndexes: [["providerId", "externalEventId"]],
 	},
 	idempotencyKeys: {
-		indexes: ["route", "createdAt", ["keyHash", "route"]] as const,
-		uniqueIndexes: [["keyHash", "route"]] as const,
+		indexes: ["route", "createdAt", ["keyHash", "route"]],
+		uniqueIndexes: [["keyHash", "route"]],
 	},
 	inventoryLedger: {
 		indexes: [
@@ -262,11 +262,11 @@ export const COMMERCE_STORAGE_CONFIG = {
 			["productId", "createdAt"],
 			["variantId", "createdAt"],
 			["referenceType", "referenceId"],
-		] as const,
-		uniqueIndexes: [["referenceType", "referenceId", "productId", "variantId"]] as const,
+		],
+		uniqueIndexes: [["referenceType", "referenceId", "productId", "variantId"]],
 	},
 	inventoryStock: {
-		indexes: ["productId", "variantId", "updatedAt", ["productId", "variantId"]] as const,
-		uniqueIndexes: [["productId", "variantId"]] as const,
+		indexes: ["productId", "variantId", "updatedAt", ["productId", "variantId"]],
+		uniqueIndexes: [["productId", "variantId"]],
 	},
-} satisfies PluginStorageConfig;
+};

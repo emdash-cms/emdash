@@ -1,6 +1,7 @@
-import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import type { StorageCollection } from "emdash";
+import { LineConflictError, mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import { inventoryStockDocId } from "../lib/inventory-stock.js";
-import { toInventoryDeductionLines } from "../lib/order-inventory-lines.js";
+import { BundleSnapshotError, toInventoryDeductionLines } from "../lib/order-inventory-lines.js";
 import type { CommerceErrorCode } from "../kernel/errors.js";
 import type {
 	OrderLineItem,
@@ -10,21 +11,8 @@ import type {
 
 export { inventoryStockDocId };
 
-type QueryOptions<T> = {
-	where?: Record<string, unknown>;
-	limit?: number;
-	orderBy?: Partial<Record<keyof T, "asc" | "desc">>;
-	cursor?: string;
-};
-
-type CollectionGetPut<T> = {
-	get(id: string): Promise<T | null>;
-	put(id: string, data: T): Promise<void>;
-};
-
-type QueryCollection<T> = CollectionGetPut<T> & {
-	query(options?: QueryOptions<T>): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean; cursor?: string }>;
-};
+type CollectionGetPut<T> = Pick<StorageCollection<T>, "get" | "put">;
+type QueryCollection<T> = Pick<StorageCollection<T>, "query" | "put">;
 
 type FinalizeInventoryPorts = {
 	inventoryLedger: QueryCollection<StoredInventoryLedgerEntry>;
@@ -63,8 +51,18 @@ function normalizeInventoryMutations(
 	let merged: OrderLineItem[];
 	try {
 		merged = mergeLineItemsBySku(lineItems);
-	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+	} catch (error) {
+		if (error instanceof LineConflictError) {
+			throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", error.message, {
+				orderId,
+				reason: "line_conflict",
+				productId: error.productId,
+				variantId: error.variantId ?? null,
+				expected: error.expected,
+				actual: error.actual,
+			});
+		}
+		const msg = error instanceof Error ? error.message : String(error);
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
 	}
 
@@ -172,8 +170,27 @@ async function applyInventoryMutations(
 	let merged: OrderLineItem[];
 	try {
 		merged = toInventoryDeductionLines(orderLines);
-	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+	} catch (error) {
+		if (error instanceof BundleSnapshotError) {
+			throw new InventoryFinalizeError(
+				"ORDER_STATE_CONFLICT",
+				error.message,
+				{
+					reason: error.code === "MISSING_BUNDLE_SNAPSHOT" ? "bundle_snapshot_incomplete" : "bundle_component_invalid_inventory",
+					productId: error.productId,
+				},
+			);
+		}
+		if (error instanceof LineConflictError) {
+			throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", error.message, {
+				reason: "line_conflict",
+				productId: error.productId,
+				variantId: error.variantId ?? null,
+				expected: error.expected,
+				actual: error.actual,
+			});
+		}
+		const msg = error instanceof Error ? error.message : String(error);
 		throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", msg, { orderId });
 	}
 
@@ -232,28 +249,59 @@ export function readCurrentStockRows(
 ): Promise<Map<string, StoredInventoryStock>> {
 	return (async () => {
 		const out = new Map<string, StoredInventoryStock>();
+		const stockLineById = new Map<string, OrderLineItem>();
 		let deductionLines: OrderLineItem[];
 		try {
 			deductionLines = toInventoryDeductionLines(lines);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
+		if (error instanceof BundleSnapshotError) {
 			throw new InventoryFinalizeError(
 				"ORDER_STATE_CONFLICT",
-				`Unable to build inventory deduction lines: ${message}`,
+				`Unable to build inventory deduction lines: ${error.message}`,
 				{
-					reason: "bundle_snapshot_incomplete",
+					reason:
+						error.code === "MISSING_BUNDLE_SNAPSHOT" ? "bundle_snapshot_incomplete" : "bundle_component_invalid_inventory",
+					productId: error.productId,
 				},
 			);
 		}
+		if (error instanceof LineConflictError) {
+			throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", `Unable to build inventory deduction lines: ${error.message}`, {
+				reason: "line_conflict",
+				productId: error.productId,
+				variantId: error.variantId ?? null,
+				expected: error.expected,
+				actual: error.actual,
+			});
+		}
+		const message = error instanceof Error ? error.message : String(error);
+		throw new InventoryFinalizeError(
+			"ORDER_STATE_CONFLICT",
+			`Unable to build inventory deduction lines: ${message}`,
+			{
+				reason: "bundle_snapshot_incomplete",
+			},
+		);
+		}
 		for (const line of deductionLines) {
 			const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
-			const stock = await inventoryStock.get(stockId);
+			stockLineById.set(stockId, line);
+		}
+
+		const stockRows = await Promise.all(
+			Array.from(stockLineById.entries()).map(async ([stockId, line]) => ({
+				stockId,
+				productId: line.productId,
+				stock: await inventoryStock.get(stockId),
+			})),
+		);
+		for (const { stockId, productId, stock } of stockRows) {
 			if (!stock) {
 				throw new InventoryFinalizeError(
 					"PRODUCT_UNAVAILABLE",
-					`No inventory record for product ${line.productId}`,
+					`No inventory record for product ${productId}`,
 					{
-						productId: line.productId,
+						productId,
 					},
 				);
 			}

@@ -223,7 +223,7 @@ function toStorefrontSkuSummary(sku: StoredProductSku) {
 
 function toStorefrontVariantMatrixRow(row: VariantMatrixDTO) {
 	const { inventoryQuantity } = row;
-	const sanitized = row as Omit<VariantMatrixDTO, "inventoryQuantity" | "inventoryVersion">;
+	const { inventoryVersion, ...sanitized } = row;
 	return {
 		...sanitized,
 		availability: resolveProductAvailability(inventoryQuantity),

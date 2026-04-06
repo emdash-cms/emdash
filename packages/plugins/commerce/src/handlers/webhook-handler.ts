@@ -6,7 +6,7 @@
  * this contract instead of writing storage directly.
  */
 
-import type { RouteContext, StorageCollection } from "emdash";
+import type { RouteContext } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
@@ -31,13 +31,8 @@ import type {
 	StoredPaymentAttempt,
 	StoredWebhookReceipt,
 } from "../types.js";
-
-type Col<T> = StorageCollection<T>;
+import { asCollection } from "./catalog-conflict.js";
 const inFlightWebhookFinalizeByKey = new Map<string, Promise<WebhookFinalizeResponse>>();
-
-function asCollection<T>(raw: unknown): Col<T> {
-	return raw as Col<T>;
-}
 
 export type WebhookProviderInput = CommerceWebhookInput;
 

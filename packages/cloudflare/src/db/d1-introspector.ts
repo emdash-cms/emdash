@@ -7,29 +7,25 @@
  * This introspector queries tables individually instead.
  */
 
-import type { DatabaseIntrospector, DatabaseMetadata, SchemaMetadata, TableMetadata } from "kysely";
+import type { DatabaseIntrospector, DatabaseMetadata, Kysely, SchemaMetadata, TableMetadata } from "kysely";
 import { sql } from "kysely";
 
 // Kysely's default migration table names
 const DEFAULT_MIGRATION_TABLE = "kysely_migration";
 const DEFAULT_MIGRATION_LOCK_TABLE = "kysely_migration_lock";
 
-// Kysely's DatabaseIntrospector.createIntrospector receives Kysely<any>.
-// We must use `any` here to match Kysely's own interface contract —
-// it needs untyped schema access to query sqlite_master dynamically.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyKysely = any;
+type IntrospectorShape = Record<string, Record<string, unknown>>;
 
 // Regex patterns for parsing CREATE TABLE statements
 const SPLIT_PARENS_PATTERN = /[(),]/;
 const WHITESPACE_PATTERN = /\s+/;
 const QUOTES_PATTERN = /["`]/g;
 
-export class D1Introspector implements DatabaseIntrospector {
-	readonly #db: AnyKysely;
+export class D1Introspector<DB extends object = IntrospectorShape> implements DatabaseIntrospector {
+	readonly #db: Kysely<DB & IntrospectorShape>;
 
-	constructor(db: AnyKysely) {
-		this.#db = db;
+	constructor(db: Kysely<DB>) {
+		this.#db = db as Kysely<DB & IntrospectorShape>;
 	}
 
 	async getSchemas(): Promise<SchemaMetadata[]> {

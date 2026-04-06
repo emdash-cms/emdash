@@ -1,5 +1,6 @@
 import { Kysely } from "kysely";
 import { describe, it, expect } from "vitest";
+import type { Database } from "emdash";
 
 import { PreviewDODialect } from "../../src/db/do-dialect.js";
 import type { PreviewDBStub } from "../../src/db/do-dialect.js";
@@ -32,7 +33,7 @@ describe("playground dummy dialect", () => {
 
 	it("throws when a query is executed (no middleware ALS override)", async () => {
 		const dialect = createTestDialect();
-		const db = new Kysely<any>({ dialect });
+		const db = new Kysely<Database>({ dialect });
 
 		await expect(
 			db

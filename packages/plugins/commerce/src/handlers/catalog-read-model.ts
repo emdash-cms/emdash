@@ -24,6 +24,17 @@ export type StorageQueryResult<T> = {
 	cursor?: string;
 };
 
+type ProductDigitalEntitlementSummaryRow = {
+	entitlementId: string;
+	digitalAssetId: string;
+	digitalAssetLabel?: string;
+	grantedQuantity: number;
+	downloadLimit?: number;
+	downloadExpiryDays?: number;
+	isManualOnly: boolean;
+	isPrivate: boolean;
+};
+
 type InFilter = { in: string[] };
 
 export async function queryAllPages<T>(

@@ -16,7 +16,7 @@ import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
 import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
-import { mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import { LineConflictError, mergeLineItemsBySku } from "../lib/merge-line-items.js";
 import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { buildRateLimitActorKey } from "../lib/rate-limit-identity.js";
 import { requirePost } from "../lib/require-post.js";
@@ -51,10 +51,7 @@ import {
 	toCheckoutClientResponse,
 	validateCachedCheckoutCompleted,
 } from "./checkout-state.js";
-
-function asCollection<T>(raw: unknown): StorageCollection<T> {
-	return raw as StorageCollection<T>;
-}
+import { asCollection } from "./catalog-conflict.js";
 
 type SnapshotQueryCollection<T> = {
 	get(id: string): Promise<T | null>;
@@ -197,7 +194,20 @@ export async function checkoutHandler(
 	let orderLineItems: OrderLineItem[];
 	try {
 		orderLineItems = mergeLineItemsBySku(projectCartLineItemsForStorage(cart.lineItems));
-	} catch {
+	} catch (error) {
+		if (error instanceof LineConflictError) {
+			throwCommerceApiError({
+				code: "ORDER_STATE_CONFLICT",
+				message: error.message,
+				details: {
+					reason: "line_conflict",
+					productId: error.productId,
+					variantId: error.variantId ?? null,
+					expected: error.expected,
+					actual: error.actual,
+				},
+			});
+		}
 		throw PluginRouteError.badRequest(
 			"Cart has duplicate SKUs with conflicting price or inventory version snapshots",
 		);

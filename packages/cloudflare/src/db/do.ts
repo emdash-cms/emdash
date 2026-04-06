@@ -48,7 +48,7 @@ export function createDialect(config: PreviewDOConfig & { name: string }): Diale
 	const getStub = (): PreviewDBStub => {
 		const stub = namespace.get(id);
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Rpc type limitation with unknown in return types
-		return stub as unknown as PreviewDBStub;
+		return stub as PreviewDBStub;
 	};
 
 	return new PreviewDODialect({ getStub });

@@ -1,3 +1,4 @@
+import type { StorageCollection } from "emdash";
 import { computeBundleSummary } from "./catalog-bundles.js";
 import { inventoryStockDocId } from "./inventory-stock.js";
 import { sortedImmutable } from "./sort-immutable.js";
@@ -19,28 +20,20 @@ import type {
 	StoredProductSkuOptionValue,
 } from "../types.js";
 
-type QueryResult<T> = {
-	items: Array<{ id: string; data: T }>;
-	hasMore: boolean;
-};
-
-type QueryCollection<T> = {
-	get(id: string): Promise<T | null>;
-	query(options?: { where?: Record<string, unknown>; limit?: number }): Promise<QueryResult<T>>;
-};
-
 export type CatalogSnapshotCollections = {
-	products: QueryCollection<StoredProduct>;
-	productSkus: QueryCollection<StoredProductSku>;
-	productSkuOptionValues: QueryCollection<StoredProductSkuOptionValue>;
-	productDigitalAssets: QueryCollection<StoredDigitalAsset>;
-	productDigitalEntitlements: QueryCollection<StoredDigitalEntitlement>;
-	productAssetLinks: QueryCollection<StoredProductAssetLink>;
-	productAssets: QueryCollection<StoredProductAsset>;
-	bundleComponents: QueryCollection<StoredBundleComponent>;
+	products: Pick<StorageCollection<StoredProduct>, "get" | "query">;
+	productSkus: Pick<StorageCollection<StoredProductSku>, "get" | "query">;
+	productSkuOptionValues: Pick<StorageCollection<StoredProductSkuOptionValue>, "get" | "query">;
+	productDigitalAssets: Pick<StorageCollection<StoredDigitalAsset>, "get" | "query">;
+	productDigitalEntitlements: Pick<StorageCollection<StoredDigitalEntitlement>, "get" | "query">;
+	productAssetLinks: Pick<StorageCollection<StoredProductAssetLink>, "get" | "query">;
+	productAssets: Pick<StorageCollection<StoredProductAsset>, "get" | "query">;
+	bundleComponents: Pick<StorageCollection<StoredBundleComponent>, "get" | "query">;
 	/** Required for bundle snapshots: per-component stock versions at checkout. */
 	inventoryStock: { get(id: string): Promise<StoredInventoryStock | null> };
 };
+
+type QueryCollection<T> = Pick<StorageCollection<T>, "get" | "query">;
 
 type SnapshotLineInput = {
 	productId: string;
@@ -169,7 +162,7 @@ async function buildOrderLineSnapshot(
 async function resolveSkuForSnapshot(
 	line: SnapshotLineInput,
 	product: StoredProduct,
-	productSkus: QueryCollection<StoredProductSku>,
+	productSkus: Pick<StorageCollection<StoredProductSku>, "get" | "query">,
 ): Promise<StoredProductSku | null> {
 	if (line.variantId) {
 		const sku = await productSkus.get(line.variantId);

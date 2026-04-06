@@ -1,4 +1,5 @@
 import type { CartLineItem } from "../types.js";
+import { sortedImmutable } from "./sort-immutable.js";
 
 export type CanonicalCartLineItem = {
 	productId: string;
@@ -14,12 +15,6 @@ type CartFingerprintLine = {
 	quantity: number;
 	inventoryVersion: number;
 	unitPriceMinor: number;
-};
-
-type SortableCartFingerprintLineItems = Array<CartFingerprintLine> & {
-	toSorted: (
-		compareFn?: (left: CartFingerprintLine, right: CartFingerprintLine) => number,
-	) => CartFingerprintLine[];
 };
 
 export function projectCartLineItemsForStorage(
@@ -53,6 +48,5 @@ export function projectCartLineItemsForFingerprint(
 		inventoryVersion: line.inventoryVersion,
 		unitPriceMinor: line.unitPriceMinor,
 	}));
-	const sortedInput = projected as unknown as SortableCartFingerprintLineItems;
-	return sortedInput.toSorted((left, right) => compareByProductAndVariant(left, right));
+	return sortedImmutable(projected, compareByProductAndVariant);
 }

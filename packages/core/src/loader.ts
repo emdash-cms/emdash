@@ -218,9 +218,8 @@ export type OrderBySpec = Record<string, SortDirection>;
  * When filtering for 'published' status, also include scheduled content
  * whose scheduled_at time has passed (treating it as effectively published).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 function buildStatusCondition(
-	db: Kysely<any>,
+	db: Kysely<Database>,
 	status: string,
 	tablePrefix?: string,
 ): ReturnType<typeof sql> {

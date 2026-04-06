@@ -7,16 +7,25 @@
 import { mergeLineItemsBySku } from "./merge-line-items.js";
 import type { OrderLineItem } from "../types.js";
 
+export class BundleSnapshotError extends Error {
+	constructor(message: string, public readonly productId: string, public readonly code: "MISSING_BUNDLE_SNAPSHOT" | "INVALID_COMPONENT_INVENTORY") {
+		super(message);
+		this.name = "BundleSnapshotError";
+	}
+}
+
 function expandBundleLineToComponents(line: OrderLineItem): OrderLineItem[] {
 	const bundle = line.snapshot?.bundleSummary;
 	if (!bundle || bundle.components.length === 0) {
-		throw new Error(`Bundle snapshot is incomplete for product ${line.productId}`);
+		throw new BundleSnapshotError(`Bundle snapshot is incomplete for product ${line.productId}`, line.productId, "MISSING_BUNDLE_SNAPSHOT");
 	}
 
 	for (const component of bundle.components) {
 		if (!Number.isFinite(component.componentInventoryVersion) || component.componentInventoryVersion < 0) {
-			throw new Error(
+			throw new BundleSnapshotError(
 				`Bundle snapshot missing component inventory version for product ${line.productId} component ${component.componentId}`,
+				line.productId,
+				"INVALID_COMPONENT_INVENTORY",
 			);
 		}
 	}
