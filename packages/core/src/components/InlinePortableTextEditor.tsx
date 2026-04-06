@@ -387,6 +387,7 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	if (block._type === "image") {
 		const ib = block as PTBlock & {
 			asset?: { _ref?: string; url?: string; provider?: string };
+			url?: string;
 			alt?: string;
 			caption?: string;
 			width?: number;
@@ -394,15 +395,16 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
+		const asset = ib.asset;
 		return {
 			type: "image",
 			attrs: {
-				src: ib.asset?.url || `/_emdash/api/media/file/${ib.asset?._ref}`,
+				src: asset?.url || ib.url || `/_emdash/api/media/file/${asset?._ref}`,
 				alt: ib.alt || "",
 				title: ib.caption || "",
 				caption: ib.caption || "",
-				mediaId: ib.asset?._ref,
-				provider: ib.asset?.provider,
+				mediaId: asset?._ref,
+				provider: asset?.provider,
 				width: ib.width,
 				height: ib.height,
 				displayWidth: ib.displayWidth,
