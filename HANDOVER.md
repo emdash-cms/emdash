@@ -2,7 +2,7 @@
 
 ## 0) First 60 minutes checklist
 
-1. Open and read `HANDOVER.md`, `emdash-commerce-external-review-update-latest.md`, `external_review.md`, and `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`.
+1. Open and read `HANDOVER.md`, `emdash_commerce_review_update_ordered_children.md`, `external_review.md`, and `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`.
 2. Run `pnpm --silent lint:quick`, `pnpm typecheck`, and `pnpm test` in `packages/plugins/commerce` to confirm the baseline is clean.
 3. Tag review findings into `Must fix`, `Should fix`, and `Nice to know`; immediately map each `Must fix` to a small reproducer or test scenario.
 4. Implement only one `Must fix` at a time with the smallest possible patch (prefer shared helper or guard-function reuse over ad-hoc logic).

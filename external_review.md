@@ -1,6 +1,6 @@
 # External developer review — pointer
 
-The full briefing for reviewers is **[`external_review.md`](./external_review.md)**.  
+The full briefing for reviewers is in **[`@THIRD_PARTY_REVIEW_PACKAGE.md`](./@THIRD_PARTY_REVIEW_PACKAGE.md)**, then `HANDOVER.md`, `commerce-plugin-architecture.md`, and `3rd-party-checklist.md`.
 
 Use `@THIRD_PARTY_REVIEW_PACKAGE.md` as the canonical entrypoint.
 

@@ -18,6 +18,7 @@ REVIEW_FILES=(
   "commerce-plugin-architecture.md"
   "3rd-party-checklist.md"
   "emdash-commerce-third-party-review-memo.md"
+  "emdash_commerce_review_update_ordered_children.md"
 )
 
 for file in "${REVIEW_FILES[@]}"; do
