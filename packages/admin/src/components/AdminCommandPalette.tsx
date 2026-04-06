@@ -128,22 +128,19 @@ async function searchContent(query: string): Promise<SearchResponse> {
 	return body.data;
 }
 
+/**
+ * Pure function — builds dynamic nav items from manifest and merges with static items.
+ * No i18n dependency; translated labels come in via staticItems.
+ */
 function buildNavItems(
 	manifest: AdminCommandPaletteProps["manifest"],
 	userRole: number,
-	t: (template: TemplateStringsArray, ...args: unknown[]) => string,
+	dashboardItem: NavItem,
+	coreItems: NavItem[],
 ): NavItem[] {
-	const items: NavItem[] = [
-		{
-			id: "dashboard",
-			title: t`Dashboard`,
-			to: "/",
-			icon: SquaresFour,
-			keywords: ["home", "overview"],
-		},
-	];
+	const items: NavItem[] = [dashboardItem];
 
-	// Add collection links
+	// Add collection links (after Dashboard, before core admin links — preserves original ordering)
 	for (const [name, config] of Object.entries(manifest.collections)) {
 		items.push({
 			id: `collection-${name}`,
@@ -155,106 +152,8 @@ function buildNavItems(
 		});
 	}
 
-	// Add core admin links
-	items.push(
-		{
-			id: "media",
-			title: t`Media Library`,
-			to: "/media",
-			icon: Image,
-			keywords: ["images", "files", "uploads"],
-		},
-		{
-			id: "menus",
-			title: t`Menus`,
-			to: "/menus",
-			icon: List,
-			minRole: ROLE_EDITOR,
-			keywords: ["navigation"],
-		},
-		{
-			id: "widgets",
-			title: t`Widgets`,
-			to: "/widgets",
-			icon: GridFour,
-			minRole: ROLE_EDITOR,
-			keywords: ["sidebar", "footer"],
-		},
-		{
-			id: "sections",
-			title: t`Sections`,
-			to: "/sections",
-			icon: Stack,
-			minRole: ROLE_EDITOR,
-			keywords: ["page builder", "blocks"],
-		},
-		{
-			id: "content-types",
-			title: t`Content Types`,
-			to: "/content-types",
-			icon: Database,
-			minRole: ROLE_ADMIN,
-			keywords: ["schema", "collections"],
-		},
-		{
-			id: "categories",
-			title: t`Categories`,
-			to: "/taxonomies/$taxonomy",
-			params: { taxonomy: "category" },
-			icon: FileText,
-			minRole: ROLE_EDITOR,
-			keywords: ["taxonomy"],
-		},
-		{
-			id: "tags",
-			title: t`Tags`,
-			to: "/taxonomies/$taxonomy",
-			params: { taxonomy: "tag" },
-			icon: FileText,
-			minRole: ROLE_EDITOR,
-			keywords: ["taxonomy"],
-		},
-		{
-			id: "users",
-			title: t`Users`,
-			to: "/users",
-			icon: Users,
-			minRole: ROLE_ADMIN,
-			keywords: ["accounts", "team"],
-		},
-		{
-			id: "plugins",
-			title: t`Plugins`,
-			to: "/plugins-manager",
-			icon: PuzzlePiece,
-			minRole: ROLE_ADMIN,
-			keywords: ["extensions", "add-ons"],
-		},
-		{
-			id: "import",
-			title: t`Import`,
-			to: "/import/wordpress",
-			icon: Upload,
-			minRole: ROLE_ADMIN,
-			keywords: ["wordpress", "migrate"],
-		},
-		{
-			id: "settings",
-			title: t`Settings`,
-			to: "/settings",
-			icon: Gear,
-			minRole: ROLE_ADMIN,
-			keywords: ["configuration", "preferences"],
-		},
-		{
-			id: "security",
-			title: t`Security Settings`,
-			to: "/settings/security",
-			icon: Gear,
-			minRole: ROLE_ADMIN,
-			keywords: ["passkeys", "authentication"],
-		},
-	);
+	// Add core admin links (after collections)
+	items.push(...coreItems);
 
 	// Add plugin pages
 	for (const [pluginId, config] of Object.entries(manifest.plugins)) {
@@ -281,6 +180,122 @@ function buildNavItems(
 
 	// Filter by role
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
+}
+
+/**
+ * Hook — translatable nav items with t in scope, delegates to pure buildNavItems.
+ */
+function useNavItems(manifest: AdminCommandPaletteProps["manifest"], userRole: number): NavItem[] {
+	const { t } = useLingui();
+	return React.useMemo(() => {
+		const dashboardItem: NavItem = {
+			id: "dashboard",
+			title: t`Dashboard`,
+			to: "/",
+			icon: SquaresFour,
+			keywords: ["home", "overview"],
+		};
+		const coreItems: NavItem[] = [
+			{
+				id: "media",
+				title: t`Media Library`,
+				to: "/media",
+				icon: Image,
+				keywords: ["images", "files", "uploads"],
+			},
+			{
+				id: "menus",
+				title: t`Menus`,
+				to: "/menus",
+				icon: List,
+				minRole: ROLE_EDITOR,
+				keywords: ["navigation"],
+			},
+			{
+				id: "widgets",
+				title: t`Widgets`,
+				to: "/widgets",
+				icon: GridFour,
+				minRole: ROLE_EDITOR,
+				keywords: ["sidebar", "footer"],
+			},
+			{
+				id: "sections",
+				title: t`Sections`,
+				to: "/sections",
+				icon: Stack,
+				minRole: ROLE_EDITOR,
+				keywords: ["page builder", "blocks"],
+			},
+			{
+				id: "content-types",
+				title: t`Content Types`,
+				to: "/content-types",
+				icon: Database,
+				minRole: ROLE_ADMIN,
+				keywords: ["schema", "collections"],
+			},
+			{
+				id: "categories",
+				title: t`Categories`,
+				to: "/taxonomies/$taxonomy",
+				params: { taxonomy: "category" },
+				icon: FileText,
+				minRole: ROLE_EDITOR,
+				keywords: ["taxonomy"],
+			},
+			{
+				id: "tags",
+				title: t`Tags`,
+				to: "/taxonomies/$taxonomy",
+				params: { taxonomy: "tag" },
+				icon: FileText,
+				minRole: ROLE_EDITOR,
+				keywords: ["taxonomy"],
+			},
+			{
+				id: "users",
+				title: t`Users`,
+				to: "/users",
+				icon: Users,
+				minRole: ROLE_ADMIN,
+				keywords: ["accounts", "team"],
+			},
+			{
+				id: "plugins",
+				title: t`Plugins`,
+				to: "/plugins-manager",
+				icon: PuzzlePiece,
+				minRole: ROLE_ADMIN,
+				keywords: ["extensions", "add-ons"],
+			},
+			{
+				id: "import",
+				title: t`Import`,
+				to: "/import/wordpress",
+				icon: Upload,
+				minRole: ROLE_ADMIN,
+				keywords: ["wordpress", "migrate"],
+			},
+			{
+				id: "settings",
+				title: t`Settings`,
+				to: "/settings",
+				icon: Gear,
+				minRole: ROLE_ADMIN,
+				keywords: ["configuration", "preferences"],
+			},
+			{
+				id: "security",
+				title: t`Security Settings`,
+				to: "/settings/security",
+				icon: Gear,
+				minRole: ROLE_ADMIN,
+				keywords: ["passkeys", "authentication"],
+			},
+		];
+		return buildNavItems(manifest, userRole, dashboardItem, coreItems);
+	}, [manifest, userRole, t]);
 }
 
 function filterNavItems(items: NavItem[], query: string): NavItem[] {
@@ -319,10 +334,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
 	// Build navigation items
-	const allNavItems = React.useMemo(
-		() => buildNavItems(manifest, userRole, t),
-		[manifest, userRole, t],
-	);
+	const allNavItems = useNavItems(manifest, userRole);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(

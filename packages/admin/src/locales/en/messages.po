@@ -913,6 +913,7 @@ msgstr "Capability consent"
 msgid "Caption"
 msgstr "Caption"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:240
 #: packages/admin/src/components/Sidebar.tsx:191
 msgid "Categories"
 msgstr "Categories"
@@ -1126,7 +1127,7 @@ msgstr "Connect with WordPress"
 msgid "Connected"
 msgstr "Connected"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:367
+#: packages/admin/src/components/AdminCommandPalette.tsx:379
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:163
@@ -1161,6 +1162,7 @@ msgstr "Content snapshot:"
 msgid "Content to Import"
 msgstr "Content to Import"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:232
 #: packages/admin/src/components/ContentTypeList.tsx:38
 #: packages/admin/src/components/Sidebar.tsx:207
 msgid "Content Types"
@@ -1413,6 +1415,7 @@ msgstr "Custom Section"
 msgid "Dark"
 msgstr "Dark"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:193
 #: packages/admin/src/components/ContentTypeList.tsx:245
 #: packages/admin/src/components/Dashboard.tsx:41
 #: packages/admin/src/components/Sidebar.tsx:166
@@ -2467,6 +2470,7 @@ msgstr "Image Settings"
 msgid "Image URL"
 msgstr "Image URL"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:274
 #: packages/admin/src/components/Sidebar.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:653
 msgid "Import"
@@ -3005,6 +3009,7 @@ msgstr "Media Import Complete"
 msgid "Media import was skipped"
 msgstr "Media import was skipped"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:201
 #: packages/admin/src/components/MediaLibrary.tsx:226
 msgid "Media Library"
 msgstr "Media Library"
@@ -3050,6 +3055,7 @@ msgstr "Menu not found"
 msgid "Menu order has been updated."
 msgstr "Menu order has been updated."
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:208
 #: packages/admin/src/components/MenuList.tsx:84
 #: packages/admin/src/components/Sidebar.tsx:185
 msgid "Menus"
@@ -3162,7 +3168,7 @@ msgstr "Name and label are required"
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:340
+#: packages/admin/src/components/AdminCommandPalette.tsx:352
 msgid "Navigation"
 msgstr "Navigation"
 
@@ -3197,7 +3203,7 @@ msgstr "New Redirect"
 msgid "New Section"
 msgstr "New Section"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:468
+#: packages/admin/src/components/AdminCommandPalette.tsx:480
 msgid "new tab"
 msgstr "new tab"
 
@@ -3419,7 +3425,7 @@ msgstr "No results for \"{debouncedQuery}\". Try a different search term."
 msgid "No results for \"{searchQuery}\""
 msgstr "No results for \"{searchQuery}\""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:454
+#: packages/admin/src/components/AdminCommandPalette.tsx:466
 msgid "No results found"
 msgstr "No results found"
 
@@ -3731,6 +3737,7 @@ msgstr "Plugin updated"
 msgid "Plugin widget error"
 msgstr "Plugin widget error"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:266
 #: packages/admin/src/components/PluginManager.tsx:125
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
@@ -4291,7 +4298,7 @@ msgstr "Search engine optimization and verification"
 msgid "Search media"
 msgstr "Search media"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:427
+#: packages/admin/src/components/AdminCommandPalette.tsx:439
 msgid "Search pages and content..."
 msgstr "Search pages and content..."
 
@@ -4358,6 +4365,7 @@ msgstr "Section saved"
 msgid "Section title"
 msgstr "Section title"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:224
 #: packages/admin/src/components/Sections.tsx:132
 #: packages/admin/src/components/Sidebar.tsx:188
 msgid "Sections"
@@ -4392,6 +4400,7 @@ msgstr "Security audit passed"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Security error. Make sure you're on a secure connection."
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:290
 #: packages/admin/src/components/Header.tsx:84
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/SecuritySettings.tsx:116
@@ -4554,6 +4563,7 @@ msgstr "Set up your site"
 msgid "Setting up..."
 msgstr "Setting up..."
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:282
 #: packages/admin/src/components/ContentTypeEditor.tsx:315
 #: packages/admin/src/components/Header.tsx:92
 #: packages/admin/src/components/PluginManager.tsx:382
@@ -4800,6 +4810,7 @@ msgstr "System Fields"
 msgid "Tagline"
 msgstr "Tagline"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:249
 #: packages/admin/src/components/Sidebar.tsx:198
 msgid "Tags"
 msgstr "Tags"
@@ -5036,7 +5047,7 @@ msgstr "Title (Tooltip)"
 msgid "Title Separator"
 msgstr "Title Separator"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:472
+#: packages/admin/src/components/AdminCommandPalette.tsx:484
 msgid "to close"
 msgstr "to close"
 
@@ -5044,7 +5055,7 @@ msgstr "to close"
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "to install plugins, or add them to your astro.config.mjs."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:462
+#: packages/admin/src/components/AdminCommandPalette.tsx:474
 msgid "to select"
 msgstr "to select"
 
@@ -5416,6 +5427,7 @@ msgstr "User Details"
 msgid "User not found"
 msgstr "User not found"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:258
 #: packages/admin/src/components/Sidebar.tsx:208
 #: packages/admin/src/components/users/UserList.tsx:44
 msgid "Users"
@@ -5561,6 +5573,7 @@ msgstr "Widget title"
 msgid "Widget updated"
 msgstr "Widget updated"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:333
 #: packages/admin/src/components/Sidebar.tsx:187
 #: packages/admin/src/components/Widgets.tsx:292
