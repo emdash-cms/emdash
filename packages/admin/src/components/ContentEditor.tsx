@@ -936,6 +936,71 @@ interface FieldRendererProps {
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 }
 
+function formatJsonValue(value: unknown): string {
+	if (value == null) return "";
+	if (typeof value === "string") return value;
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return "";
+	}
+}
+
+function JsonFieldEditor({
+	id,
+	label,
+	labelClass,
+	value,
+	onChange,
+}: {
+	id: string;
+	label: string;
+	labelClass?: string;
+	value: unknown;
+	onChange: (value: unknown) => void;
+}) {
+	const [textValue, setTextValue] = React.useState(() => formatJsonValue(value));
+
+	React.useEffect(() => {
+		setTextValue(formatJsonValue(value));
+	}, [value]);
+
+	return (
+		<InputArea
+			label={<span className={labelClass}>{label}</span>}
+			id={id}
+			value={textValue}
+			onChange={(e) => {
+				const nextValue = e.target.value;
+				setTextValue(nextValue);
+				if (!nextValue.trim()) {
+					onChange(null);
+					return;
+				}
+				try {
+					onChange(JSON.parse(nextValue));
+				} catch {
+					// Preserve in-progress invalid JSON locally until the user finishes typing.
+				}
+			}}
+			onBlur={() => {
+				if (!textValue.trim()) return;
+				try {
+					setTextValue(JSON.stringify(JSON.parse(textValue), null, 2));
+				} catch {
+					// Keep the user's draft text unchanged when JSON is still invalid.
+				}
+			}}
+			rows={12}
+			placeholder='{
+  "key": "value"
+}'
+			description="Valid JSON is formatted automatically."
+			className="font-mono text-sm"
+		/>
+	);
+}
+
 /**
  * Render field based on type
  */
@@ -1092,6 +1157,17 @@ function FieldRenderer({
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
 					placeholder="Enter markdown content..."
+				/>
+			);
+
+		case "json":
+			return (
+				<JsonFieldEditor
+					id={id}
+					label={label}
+					labelClass={labelClass}
+					value={value}
+					onChange={handleChange}
 				/>
 			);
 

@@ -367,6 +367,8 @@ Arbitrary JSON data. Use for complex nested structures, third-party integrations
 }
 ```
 
+In the admin UI, JSON fields render as an auto-formatting textarea. Existing values load pretty-printed, and valid JSON is reformatted as you edit so nested objects stay readable.
+
 Stored as-is in SQLite JSON column.
 
 <Aside type="caution">JSON fields have no validation. Use sparingly for truly dynamic data.</Aside>

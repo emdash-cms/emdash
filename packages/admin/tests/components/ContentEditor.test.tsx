@@ -143,6 +143,18 @@ describe("ContentEditor", () => {
 			const input = screen.getByLabelText("Order");
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
+
+		it("loads json fields into a formatted textarea for existing items", async () => {
+			const metadata = { theme: "dark", nested: { enabled: true } };
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				isNew: false,
+				item: makeItem({ data: { metadata } }),
+			});
+
+			const input = screen.getByLabelText("Metadata");
+			await expect.element(input).toHaveValue(JSON.stringify(metadata, null, 2));
+		});
 	});
 
 	describe("saving", () => {
@@ -161,6 +173,30 @@ describe("ContentEditor", () => {
 					data: expect.objectContaining({ title: "Test Title" }),
 					slug: "test-title",
 					bylines: [],
+				}),
+			);
+		});
+
+		it("save form parses json textarea content back into structured data", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				item: makeItem({ data: { metadata: { enabled: false } } }),
+			});
+
+			const input = screen.getByLabelText("Metadata");
+			await input.fill('{"enabled":true,"count":2}');
+
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						metadata: { enabled: true, count: 2 },
+					}),
 				}),
 			);
 		});
