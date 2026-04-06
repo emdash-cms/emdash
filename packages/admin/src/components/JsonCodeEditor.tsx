@@ -1,9 +1,7 @@
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { json, jsonParseLinter } from "@codemirror/lang-json";
+import { json } from "@codemirror/lang-json";
 import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { linter } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
-import { EditorView, type ViewUpdate, keymap, placeholder } from "@codemirror/view";
+import { EditorView, type ViewUpdate, placeholder } from "@codemirror/view";
 import * as React from "react";
 
 import { cn } from "../lib/utils";
@@ -79,10 +77,7 @@ export function JsonCodeEditor({
 				doc: formatJsonValue(value),
 				extensions: [
 					json(),
-					linter(jsonParseLinter()),
 					syntaxHighlighting(defaultHighlightStyle),
-					history(),
-					keymap.of([...defaultKeymap, ...historyKeymap]),
 					EditorView.lineWrapping,
 					EditorView.contentAttributes.of({ "aria-labelledby": `${id}-label` }),
 					placeholder('{\n  "key": "value"\n}'),
