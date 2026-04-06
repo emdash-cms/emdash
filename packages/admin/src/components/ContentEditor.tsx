@@ -1008,8 +1008,6 @@ function JsonCodeEditor({
 }) {
 	const containerRef = React.useRef<HTMLDivElement>(null);
 	const viewRef = React.useRef<EditorView | null>(null);
-	// Prevents the value-change effect from re-syncing edits we originated.
-	const skipSyncRef = React.useRef(false);
 	// Always-current handler refs so the EditorView closure never goes stale.
 	const onChangeRef = React.useRef(onChange);
 	const onValidationRef = React.useRef(onValidationChange);
@@ -1023,7 +1021,6 @@ function JsonCodeEditor({
 		const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
 			if (!update.docChanged) return;
 			const content = update.state.doc.toString();
-			skipSyncRef.current = true;
 			if (!content.trim()) {
 				onChangeRef.current(null);
 				onValidationRef.current?.(null);
@@ -1065,19 +1062,39 @@ function JsonCodeEditor({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Apply external value changes (e.g. after item loads from server)
-	// without disrupting the user's active editing session.
+	// Apply external value changes (e.g. after a different item is loaded).
+	// Skip the sync when the editor already holds equivalent data so that
+	// autosave round-trips and React re-renders never reformat the user's
+	// in-progress text. Also skip when the editor contains invalid JSON the
+	// user is still working on — don't discard it.
 	React.useEffect(() => {
-		if (skipSyncRef.current) {
-			skipSyncRef.current = false;
-			return;
-		}
 		const view = viewRef.current;
 		if (!view) return;
+
+		const currentContent = view.state.doc.toString();
 		const newContent = formatJsonValue(value);
-		if (newContent !== view.state.doc.toString()) {
-			view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newContent } });
+
+		// Exact match — nothing to do.
+		if (newContent === currentContent) return;
+
+		const trimmed = currentContent.trim();
+		if (trimmed) {
+			try {
+				// Semantic match: editor already contains this data, possibly in a
+				// different format (e.g. user typed compact JSON, value is pretty).
+				// Skip to avoid reformatting the editor without the user asking.
+				if (JSON.stringify(JSON.parse(trimmed)) === JSON.stringify(value)) return;
+			} catch {
+				// Editor has in-progress invalid JSON — don't overwrite it.
+				return;
+			}
+		} else if (value == null) {
+			return; // Both sides are empty.
 		}
+
+		// Value genuinely changed to something the editor doesn't have
+		// (different item loaded, server-side normalisation, etc.) — sync.
+		view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newContent } });
 		onValidationRef.current?.(null);
 	}, [value]);
 

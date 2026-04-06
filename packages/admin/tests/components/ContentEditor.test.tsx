@@ -157,10 +157,10 @@ describe("ContentEditor", () => {
 			const editor = screen.getByRole("textbox", { name: "Metadata" });
 			await expect.element(editor).toBeInTheDocument();
 			// CodeMirror renders each line in a separate div, so DOM textContent
-			// has no newlines between lines. Check for key strings instead.
-			await expect.element(editor).toHaveTextContent(/"theme"/);
-			await expect.element(editor).toHaveTextContent(/"dark"/);
-			await expect.element(editor).toHaveTextContent(/"nested"/);
+			// has no newlines between lines. Check key strings are present.
+			await expect.element(editor).toHaveTextContent('"theme"');
+			await expect.element(editor).toHaveTextContent('"dark"');
+			await expect.element(editor).toHaveTextContent('"nested"');
 		});
 	});
 
