@@ -290,6 +290,7 @@ export {
 	probeUrl,
 	clearSources,
 	wxrSource,
+	parseWxrDate,
 	wordpressRestSource,
 	importReusableBlocksAsSections,
 } from "./import/index.js";

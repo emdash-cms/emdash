@@ -302,7 +302,7 @@ function wxrPostToNormalizedItem(
 		title: post.title || "Untitled",
 		content,
 		excerpt: post.excerpt,
-		date: parseWxrDate(post.postDateGmt, post.pubDate, post.postDate),
+		date: parseWxrDate(post.postDateGmt, post.pubDate, post.postDate) ?? new Date(),
 		modified: parseWxrDate(post.postModifiedGmt, undefined, post.postModified),
 		author: post.creator,
 		categories: post.categories,
@@ -321,20 +321,22 @@ function wxrPostToNormalizedItem(
  * WordPress uses "0000-00-00 00:00:00" as a sentinel for missing GMT dates
  * (e.g. unpublished drafts). This must be treated as absent.
  */
-const WXR_ZERO_DATE = "0000-00-00 00:00:00";
+export const WXR_ZERO_DATE = "0000-00-00 00:00:00";
 
 /**
  * Parse a WXR date with the correct fallback chain:
  * 1. GMT date (always UTC, most reliable)
  * 2. pubDate (RFC 2822, includes timezone offset)
- * 3. Site-local date (MySQL datetime without timezone — imprecise but best available)
- * 4. Current time
+ * 3. Site-local date (MySQL datetime without timezone, imprecise but best available)
+ *
+ * Returns undefined when none of the inputs yield a valid date.
+ * Callers that need a guaranteed Date should use `?? new Date()`.
  */
-function parseWxrDate(
+export function parseWxrDate(
 	gmtDate: string | undefined,
 	pubDate: string | undefined,
 	localDate: string | undefined,
-): Date {
+): Date | undefined {
 	if (gmtDate && gmtDate !== WXR_ZERO_DATE) {
 		// GMT dates from WordPress are "YYYY-MM-DD HH:MM:SS" in UTC.
 		// Append "Z" so the JS Date constructor treats them as UTC.
@@ -348,14 +350,14 @@ function parseWxrDate(
 	}
 
 	if (localDate) {
-		// Site-local time without timezone — normalize to ISO-like form so
+		// Site-local time without timezone. Normalize to ISO-like form so
 		// runtimes that reject "YYYY-MM-DD HH:MM:SS" can still parse it as
-		// local time. If parsing still fails, continue to the final fallback.
+		// local time. If parsing still fails, return undefined.
 		const d = new Date(localDate.replace(" ", "T"));
 		if (!isNaN(d.getTime())) return d;
 	}
 
-	return new Date();
+	return undefined;
 }
 
 // Export for use in other sources

@@ -13,6 +13,7 @@ import {
 	ContentRepository,
 	importReusableBlocksAsSections,
 	type WxrPost,
+	parseWxrDate,
 } from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
@@ -232,20 +233,10 @@ async function importContent(
 				bylineCache,
 			);
 
-			// Preserve original WordPress dates.
+			// Preserve original WordPress dates using the shared WXR date parser.
 			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
-			// Skip the "0000-00-00 00:00:00" sentinel WordPress uses for unpublished drafts.
-			const WXR_ZERO = "0000-00-00 00:00:00";
-			const rawGmt =
-				post.postDateGmt && post.postDateGmt !== WXR_ZERO ? post.postDateGmt : undefined;
-			let createdAt: string | undefined;
-			if (rawGmt) {
-				createdAt = toISOSafe(rawGmt, true);
-			} else if (post.pubDate) {
-				createdAt = toISOSafe(post.pubDate, false);
-			} else if (post.postDate) {
-				createdAt = toISOSafe(post.postDate, false);
-			}
+			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
+			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
 			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
 
 			// Create the content item
@@ -298,16 +289,4 @@ function mapStatus(wpStatus: string | undefined): string {
 		default:
 			return "draft";
 	}
-}
-
-/**
- * Safely convert a WXR date string to ISO 8601.
- * Returns undefined if the date is invalid.
- */
-function toISOSafe(dateStr: string, isUtc: boolean): string | undefined {
-	// WordPress WXR dates are "YYYY-MM-DD HH:MM:SS" — normalize to ISO-like format
-	const normalized = dateStr.replace(" ", "T");
-	const input = isUtc ? normalized + "Z" : normalized;
-	const d = new Date(input);
-	return isNaN(d.getTime()) ? undefined : d.toISOString();
 }

@@ -128,4 +128,40 @@ describe("wxrPostToNormalizedItem date handling", () => {
 		expect(item.modified).toBeInstanceOf(Date);
 		expect(item.modified!.toISOString()).toBe("2023-07-01T14:00:00.000Z");
 	});
+
+	it("returns undefined for modified when no modified dates exist", () => {
+		const post = makePost({
+			id: 7,
+			title: "Never Modified",
+			postType: "post",
+			status: "publish",
+			postName: "never-modified",
+			postDate: "2023-06-15 08:30:00",
+			postDateGmt: "2023-06-15 12:30:00",
+		});
+
+		const item = wxrPostToNormalizedItem(post, new Map());
+
+		expect(item.modified).toBeUndefined();
+	});
+
+	it("skips sentinel '0000-00-00 00:00:00' for postModifiedGmt and falls back", () => {
+		const post = makePost({
+			id: 8,
+			title: "Draft with zero modified GMT",
+			postType: "post",
+			status: "draft",
+			postName: "zero-modified-gmt",
+			postDate: "2023-06-15 08:30:00",
+			postDateGmt: "2023-06-15 12:30:00",
+			postModified: "2023-07-01 10:00:00",
+			postModifiedGmt: "0000-00-00 00:00:00",
+		});
+
+		const item = wxrPostToNormalizedItem(post, new Map());
+
+		// Should skip the sentinel and fall back to postModified
+		expect(item.modified).toBeInstanceOf(Date);
+		expect(item.modified!.getTime()).not.toBeNaN();
+	});
 });
