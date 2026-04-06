@@ -447,8 +447,15 @@ async function generateSiteHash(siteOrigin?: string): Promise<string> {
 		const arr = new Uint8Array(hash);
 		return Array.from(arr.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
 	} catch {
-		// Fallback for environments without crypto.subtle
-		return seed.length > 16 ? seed.slice(0, 16) : seed.padEnd(16, "0");
+		// Fallback for environments without crypto.subtle: FNV-1a hash encoded as hex.
+		// Deterministic, uniform distribution, no origin leakage.
+		let h = 0x811c9dc5;
+		for (let i = 0; i < seed.length; i++) {
+			h ^= seed.charCodeAt(i);
+			h = Math.imul(h, 0x01000193);
+		}
+		const h2 = h ^ (h >>> 16);
+		return (h >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
 	}
 }
 
