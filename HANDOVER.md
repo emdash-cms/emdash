@@ -14,7 +14,7 @@ Recent work before this handoff also includes:
 - fixes for initial failures in collection helper usage and batching return-shape handling.
 - 5F staged rollout and proof follow-through for strict claim-lease finalization:
   - strict/legacy finalize test families were validated,
-  - strict-metadata replay behavior is documented in `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`,
+  - strict-metadata replay behavior is documented in current strategy/regression notes,
   - rollout evidence artifacts were recorded for audit and ops promotion.
 
 The branch was pushed at commit `ab065b3` with passing typecheck/tests/lint for the commerce package at handoff.

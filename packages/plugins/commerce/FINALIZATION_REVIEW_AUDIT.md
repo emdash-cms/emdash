@@ -46,8 +46,8 @@ Preferred operational events:
 - finalization remains bounded by live claim validation before each mutable write stage (`inventory`, `order`, `attempt`, `receipt`),
 - strict mode still allows reclaim of valid stale claims (`now > claimExpiresAt`) and preserves in-flight lock semantics.
 
-Operational evidence for this stage is recorded in
-`COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` as archived rollout proof.
+Operational evidence for this stage is recorded in the current strategy and regression
+checklists as active proof trails.
 
 ## 2) Duplicate delivery & partial-failure replay matrix
 

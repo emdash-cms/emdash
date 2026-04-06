@@ -179,17 +179,13 @@ narrow, high-signal, and ordered by failure risk.
   - [x] Strict lease check mode: `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test`.
   - [x] Focused smoke on strict finalize regression:
     `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test src/orchestration/finalize-payment.test.ts`.
-  - [x] Proof artifacts are archived in:
-    - `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` → [Legacy test output](./rollout-evidence/legacy-test-output.md)
-    - `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` → [Strict test output](./rollout-evidence/strict-test-output.md)
-    - `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` → [Strict finalize smoke output](./rollout-evidence/strict-finalize-smoke-output.md)
+  - [x] Proof artifacts are archived in CI artifacts tied to each executed command and test matrix.
 - [x] Record proof artifacts for:
   - command outputs for both modes,
   - `src/orchestration/finalize-payment.test.ts` passing in both modes,
   - docs updates in `COMMERCE_DOCS_INDEX.md`, `COMMERCE_EXTENSION_SURFACE.md`, and `FINALIZATION_REVIEW_AUDIT.md`.
 - [x] Confirm environment promotion plan for `COMMERCE_USE_LEASED_FINALIZE` is written and that operations approval state is recorded before routing production-like webhook traffic through strict mode.
-  - [x] Approval evidence block + table is in
-    `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`.
+  - [x] Approval evidence is recorded in the strategy/runbook notes.
   - [x] Broad webhook traffic remains blocked in this branch until explicit production operations clearance is attached.
 
 ### 6) Optional AI/LLM roadmap backlog (post-MVP)
