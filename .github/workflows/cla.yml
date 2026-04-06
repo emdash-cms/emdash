@@ -8,6 +8,7 @@ on:
 
 permissions:
   actions: write
+  checks: read
   contents: write
   pull-requests: write
   statuses: write
@@ -42,14 +43,14 @@ jobs:
             // Get the PR to read head SHA
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
 
-            // Read the CLA commit status
-            const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+            // Read the CLA check run (the CLA Assistant uses check runs, not commit statuses)
+            const { data: checkRuns } = await github.rest.checks.listForRef({
               owner, repo, ref: pr.head.sha,
             });
-            const claStatus = statuses.find(s => s.context === 'license/cla');
-            if (!claStatus) return;
+            const claCheck = checkRuns.check_runs.find(cr => cr.name === 'CLAssistant');
+            if (!claCheck || claCheck.status !== 'completed') return;
 
-            const signed = claStatus.state === 'success';
+            const signed = claCheck.conclusion === 'success';
             const addLabel = signed ? 'cla: signed' : 'cla: needed';
             const removeLabel = signed ? 'cla: needed' : 'cla: signed';
 
