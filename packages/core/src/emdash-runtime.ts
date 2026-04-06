@@ -9,6 +9,8 @@
 
 import type { Element } from "@emdash-cms/blocks";
 import { Kysely, sql, type Dialect } from "kysely";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { validateRev } from "./api/rev.js";
 import type {
@@ -1299,11 +1301,10 @@ export class EmDashRuntime {
 		const authMode = getAuthMode(this.config);
 		const authModeValue = authMode.type === "external" ? authMode.providerType : "passkey";
 
-		// Include i18n config if enabled
-		const { getI18nConfig, isI18nEnabled } = await import("./i18n/config.js");
-		const i18nConfig = getI18nConfig();
+		// Include i18n config if enabled (read from virtual module to avoid SSR module singleton mismatch)
+		const i18nConfig = virtualConfig?.i18n;
 		const i18n =
-			isI18nEnabled() && i18nConfig
+			i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
 				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
 				: undefined;
 
