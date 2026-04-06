@@ -128,6 +128,9 @@ CREATE TRIGGER IF NOT EXISTS plugins_fts_update AFTER UPDATE ON plugins BEGIN
   VALUES (NEW.rowid, NEW.name, NEW.description, NEW.keywords);
 END;
 
+-- Backfill FTS index with any existing plugin rows
+INSERT INTO plugins_fts(plugins_fts) VALUES ('rebuild');
+
 -- ── Seed categories ─────────────────────────────────────────────
 
 INSERT OR IGNORE INTO categories (id, slug, name, description, sort_order) VALUES
