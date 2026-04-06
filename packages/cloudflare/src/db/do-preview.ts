@@ -22,11 +22,11 @@
 
 import type { MiddlewareHandler } from "astro";
 import { env } from "cloudflare:workers";
+import type { Database } from "emdash";
 import { runWithContext } from "emdash/request-context";
 import { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
-import type { Database } from "emdash";
 import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
@@ -227,7 +227,7 @@ export function createPreviewMiddleware(config: PreviewMiddlewareConfig): Middle
 		const dialect = new PreviewDODialect({ getStub });
 
 		// --- 5. Create Kysely instance and override request-context DB ---
-	const previewDb = new Kysely<Database>({ dialect });
+		const previewDb = new Kysely<Database>({ dialect });
 
 		return runWithContext(
 			{

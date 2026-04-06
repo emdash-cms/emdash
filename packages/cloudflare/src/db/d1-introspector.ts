@@ -7,7 +7,13 @@
  * This introspector queries tables individually instead.
  */
 
-import type { DatabaseIntrospector, DatabaseMetadata, Kysely, SchemaMetadata, TableMetadata } from "kysely";
+import type {
+	DatabaseIntrospector,
+	DatabaseMetadata,
+	Kysely,
+	SchemaMetadata,
+	TableMetadata,
+} from "kysely";
 import { sql } from "kysely";
 
 // Kysely's default migration table names

@@ -15,12 +15,12 @@
 
 import { defineMiddleware } from "astro:middleware";
 import { env } from "cloudflare:workers";
+import type { Database } from "emdash";
 import { Kysely, sql } from "kysely";
 import { ulid } from "ulidx";
 // @ts-ignore - virtual module populated by EmDash integration at build time
 import virtualConfig from "virtual:emdash/config";
 
-import type { Database } from "emdash";
 import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
@@ -119,10 +119,7 @@ function getSessionCreatedAt(token: string): string {
 /**
  * Initialize a playground DO: run migrations, apply seed, create admin user.
  */
-async function initializePlayground(
-	db: Kysely<Database>,
-	token: string,
-): Promise<void> {
+async function initializePlayground(db: Kysely<Database>, token: string): Promise<void> {
 	// Check if already initialized (persisted in the DO)
 	try {
 		const { rows } = await sql<{ value: string }>`
@@ -288,7 +285,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const stub = getStub(binding, token);
 		const dialect = new PreviewDODialect({ getStub: () => stub });
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = new Kysely<Database>({ dialect });
+		const db = new Kysely<Database>({ dialect });
 
 		try {
 			await initializePlayground(db, token);

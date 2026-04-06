@@ -41,13 +41,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isPostTypeMapping(value: unknown): value is PostTypeMapping {
 	if (!isRecord(value)) return false;
-	return (
-		typeof value.collection === "string" &&
-		typeof value.enabled === "boolean"
-	);
+	return typeof value.collection === "string" && typeof value.enabled === "boolean";
 }
 
-function parseWpPluginImportConfig(rawConfig: Record<string, unknown>): WpPluginImportConfig | null {
+function parseWpPluginImportConfig(
+	rawConfig: Record<string, unknown>,
+): WpPluginImportConfig | null {
 	if (!isRecord(rawConfig.postTypeMappings)) return null;
 	const postTypeMappings: Record<string, PostTypeMapping> = {};
 	for (const [postType, rawMapping] of Object.entries(rawConfig.postTypeMappings)) {
@@ -108,11 +107,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		const config = parseWpPluginImportConfig(body.config);
 		if (!config) {
-			return apiError(
-				"VALIDATION_ERROR",
-				`Invalid import config`,
-				400,
-			);
+			return apiError("VALIDATION_ERROR", `Invalid import config`, 400);
 		}
 
 		// Get the WordPress plugin source
