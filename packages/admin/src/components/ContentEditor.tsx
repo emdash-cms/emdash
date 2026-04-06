@@ -614,7 +614,9 @@ export function ContentEditor({
 										field={field}
 										value={formData[name]}
 										onChange={handleFieldChange}
-										onEditorReady={field.kind === "portableText" ? setPortableTextEditor : undefined}
+										onEditorReady={
+											field.kind === "portableText" ? setPortableTextEditor : undefined
+										}
 										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
 										onBlockSidebarOpen={
@@ -1198,7 +1200,13 @@ interface ImageFieldRendererProps {
 	required?: boolean;
 }
 
-function ImageFieldRenderer({ label, description, value, onChange, required }: ImageFieldRendererProps) {
+function ImageFieldRenderer({
+	label,
+	description,
+	value,
+	onChange,
+	required,
+}: ImageFieldRendererProps) {
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
@@ -1273,9 +1281,7 @@ function ImageFieldRenderer({ label, description, value, onChange, required }: I
 				mimeTypeFilter="image/"
 				title={`Select ${label}`}
 			/>
-			{description && (
-				<p className="text-xs text-kumo-subtle mt-1">{description}</p>
-			)}
+			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
 				<p className="text-sm text-kumo-danger mt-1">This field is required</p>
 			)}
