@@ -42,7 +42,7 @@ export function Header() {
 			<Sidebar.Trigger />
 
 			{/* Right side actions */}
-			<div className="flex items-center space-x-2">
+			<div className="flex items-center gap-2">
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 mr-1" />
