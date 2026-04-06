@@ -21,7 +21,7 @@ EmDash supports multiple database backends. Choose based on your deployment targ
 D1 is Cloudflare's serverless SQLite database. Use it when deploying to Cloudflare Workers.
 
 ```js title="astro.config.mjs"
-import { d1 } from "emdash/db";
+import { d1 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	integrations: [
@@ -301,7 +301,8 @@ wrangler d1 migrations apply DB
 Use different databases per environment:
 
 ```js title="astro.config.mjs"
-import { d1, sqlite, libsql, postgres } from "emdash/db";
+import { sqlite, libsql, postgres } from "emdash/db";
+import { d1 } from "@emdash-cms/cloudflare";
 
 const database = import.meta.env.PROD ? d1({ binding: "DB" }) : sqlite({ url: "file:./data.db" });
 

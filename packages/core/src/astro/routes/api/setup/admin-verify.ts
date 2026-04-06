@@ -21,6 +21,7 @@ import { OptionsRepository } from "#db/repositories/options.js";
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
+	const passkeyPublicOrigin = emdash?.config.passkeyPublicOrigin;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -57,7 +58,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Get passkey config
 		const url = new URL(request.url);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
-		const passkeyConfig = getPasskeyConfig(url, siteName);
+		const passkeyConfig = getPasskeyConfig(url, siteName, passkeyPublicOrigin);
 
 		// Verify the registration response
 		const challengeStore = createChallengeStore(emdash.db);
