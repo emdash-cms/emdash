@@ -635,7 +635,11 @@ export function ContentEditor({
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => (
 								<FieldRenderer
-									key={name}
+									// JSON fields use CodeMirror as an uncontrolled editor.
+									// Including item?.id in the key ensures the editor remounts
+									// when navigating between items, while autosave round-trips
+									// (same item id, different updatedAt) leave it alone.
+									key={field.kind === "json" ? `${name}-${item?.id ?? "new"}` : name}
 									name={name}
 									field={field}
 									value={formData[name]}
@@ -1062,41 +1066,11 @@ function JsonCodeEditor({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Apply external value changes (e.g. after a different item is loaded).
-	// Skip the sync when the editor already holds equivalent data so that
-	// autosave round-trips and React re-renders never reformat the user's
-	// in-progress text. Also skip when the editor contains invalid JSON the
-	// user is still working on — don't discard it.
-	React.useEffect(() => {
-		const view = viewRef.current;
-		if (!view) return;
-
-		const currentContent = view.state.doc.toString();
-		const newContent = formatJsonValue(value);
-
-		// Exact match — nothing to do.
-		if (newContent === currentContent) return;
-
-		const trimmed = currentContent.trim();
-		if (trimmed) {
-			try {
-				// Semantic match: editor already contains this data, possibly in a
-				// different format (e.g. user typed compact JSON, value is pretty).
-				// Skip to avoid reformatting the editor without the user asking.
-				if (JSON.stringify(JSON.parse(trimmed)) === JSON.stringify(value)) return;
-			} catch {
-				// Editor has in-progress invalid JSON — don't overwrite it.
-				return;
-			}
-		} else if (value == null) {
-			return; // Both sides are empty.
-		}
-
-		// Value genuinely changed to something the editor doesn't have
-		// (different item loaded, server-side normalisation, etc.) — sync.
-		view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newContent } });
-		onValidationRef.current?.(null);
-	}, [value]);
+	// No value sync effect. The CodeMirror editor is uncontrolled after mount:
+	// it initialises from `value` once and owns its content from that point on.
+	// Navigation to a different item is handled by the `key` on <FieldRenderer>
+	// (which includes item.id for json fields), causing a remount and a fresh
+	// initialisation — not by syncing `value` changes into a live editor.
 
 	return (
 		<div className="space-y-1.5">
