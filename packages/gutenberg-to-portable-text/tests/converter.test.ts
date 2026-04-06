@@ -522,7 +522,7 @@ https://${domain}/123456
 
 		it("converts audio embeds", () => {
 			const content = `<!-- wp:audio {"src":"https://example.com/audio.mp3"} -->
-<figure class="wp-block-audio"><audio controls src="https://example.com/audio.mp3"></audio></figure>
+<audio controls src="https://example.com/audio.mp3"></audio>
 <!-- /wp:audio -->`;
 
 			const result = gutenbergToPortableText(content);
@@ -535,7 +535,7 @@ https://${domain}/123456
 
 		it("converts video embeds", () => {
 			const content = `<!-- wp:video {"src":"https://example.com/video.mp4"} -->
-<figure class="wp-block-video"><video controls src="https://example.com/video.mp4"></video></figure>
+<video controls src="https://example.com/video.mp4"></video>
 <!-- /wp:video -->`;
 
 			const result = gutenbergToPortableText(content);
@@ -548,7 +548,7 @@ https://${domain}/123456
 
 		it("infers video source from <video> tag when URL not in attrs", () => {
 			const content = `<!-- wp:video -->
-<figure class="wp-block-video"><video controls src="https://example.com/video.mp4"></video></figure>
+<video controls src="https://example.com/video.mp4"></video>
 <!-- /wp:video -->`;
 
 			const result = gutenbergToPortableText(content);
@@ -561,7 +561,7 @@ https://${domain}/123456
 
 		it("infers audio source from <audio> tag when URL not in attrs", () => {
 			const content = `<!-- wp:audio -->
-<figure class="wp-block-audio"><audio controls src="https://example.com/audio.mp3"></audio></figure>
+<audio controls src="https://example.com/audio.mp3"></audio>
 <!-- /wp:audio -->`;
 
 			const result = gutenbergToPortableText(content);
@@ -636,7 +636,6 @@ https://${domain}/123456
 	describe("table blocks", () => {
 		it("converts table with header and body", () => {
 			const content = `<!-- wp:table -->
-<figure class="wp-block-table">
 <table>
 <thead><tr><th>Name</th><th>Age</th><th>Country</th></tr></thead>
 <tbody>
@@ -644,7 +643,6 @@ https://${domain}/123456
 <tr><td>Bob</td><td>92</td><td>Canada</td></tr>
 </tbody>
 </table>
-</figure>
 <!-- /wp:table -->`;
 
 			const result = gutenbergToPortableText(content);
