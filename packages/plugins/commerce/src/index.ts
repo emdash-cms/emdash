@@ -28,19 +28,24 @@ import {
 	removeBundleComponentHandler,
 	reorderBundleComponentHandler,
 	bundleComputeStorefrontHandler,
-} from "./handlers/catalog-bundles.js";
-import { createCategoryHandler, listCategoriesHandler, createProductCategoryLinkHandler, removeProductCategoryLinkHandler } from "./handlers/catalog-categories.js";
+} from "./handlers/catalog.ts";
+import {
+	createCategoryHandler,
+	listCategoriesHandler,
+	createProductCategoryLinkHandler,
+	removeProductCategoryLinkHandler,
+} from "./handlers/catalog.ts";
 import {
 	createDigitalAssetHandler,
 	createDigitalEntitlementHandler,
 	removeDigitalEntitlementHandler,
-} from "./handlers/catalog-digital.js";
+} from "./handlers/catalog.ts";
 import {
 	reorderCatalogAssetHandler,
 	linkCatalogAssetHandler,
 	registerProductAssetHandler,
 	unlinkCatalogAssetHandler,
-} from "./handlers/catalog-assets.js";
+} from "./handlers/catalog.ts";
 import {
 	createProductHandler,
 	updateProductHandler,
@@ -51,8 +56,8 @@ import {
 	setSkuStatusHandler,
 	listStorefrontProductsHandler,
 	listStorefrontProductSkusHandler,
-} from "./handlers/catalog-products.js";
-import { createTagHandler, listTagsHandler, createProductTagLinkHandler, removeProductTagLinkHandler } from "./handlers/catalog-tags.js";
+} from "./handlers/catalog.ts";
+import { createTagHandler, listTagsHandler, createProductTagLinkHandler, removeProductTagLinkHandler } from "./handlers/catalog.ts";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
@@ -321,32 +326,32 @@ export type {
 	StorefrontProductDetail,
 	StorefrontProductListResponse,
 	StorefrontSkuListResponse,
-} from "./handlers/catalog-products.js";
+} from "./handlers/catalog.ts";
 export type {
 	CategoryResponse,
 	CategoryListResponse,
 	ProductCategoryLinkResponse,
 	ProductCategoryLinkUnlinkResponse,
-} from "./handlers/catalog-categories.js";
+} from "./handlers/catalog.ts";
 export type {
 	TagResponse,
 	TagListResponse,
 	ProductTagLinkResponse,
 	ProductTagLinkUnlinkResponse,
-} from "./handlers/catalog-tags.js";
+} from "./handlers/catalog.ts";
 export type {
 	ProductAssetResponse,
 	ProductAssetLinkResponse,
 	ProductAssetUnlinkResponse,
-} from "./handlers/catalog-assets.js";
+} from "./handlers/catalog.ts";
 export type {
 	BundleComponentResponse,
 	BundleComponentUnlinkResponse,
 	BundleComputeResponse,
 	StorefrontBundleComputeResponse,
-} from "./handlers/catalog-bundles.js";
+} from "./handlers/catalog.ts";
 export type {
 	DigitalAssetResponse,
 	DigitalEntitlementResponse,
 	DigitalEntitlementUnlinkResponse,
-} from "./handlers/catalog-digital.js";
+} from "./handlers/catalog.ts";
