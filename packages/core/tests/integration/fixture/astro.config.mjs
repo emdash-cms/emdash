@@ -25,8 +25,8 @@ export default defineConfig({
 	],
 	i18n: {
 		defaultLocale: "en",
-		locales: ["en", "fr", "es", "pt-br"],
-		fallback: { fr: "en", es: "en", "pt-br": "en" },
+		locales: ["en", "fr", "es"],
+		fallback: { fr: "en", es: "en" },
 	},
 	devToolbar: { enabled: false },
 	vite: {

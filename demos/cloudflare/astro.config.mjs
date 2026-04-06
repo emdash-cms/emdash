@@ -22,11 +22,10 @@ export default defineConfig({
 	}),
 	i18n: {
 		defaultLocale: "en",
-		locales: ["en", "fr", "es", "pt-br"],
+		locales: ["en", "fr", "es"],
 		fallback: {
 			fr: "en",
 			es: "en",
-			"pt-br": "en",
 		},
 	},
 	image: {

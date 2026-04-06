@@ -10,13 +10,6 @@ export default defineConfig({
 	adapter: node({
 		mode: "standalone",
 	}),
-	i18n: {
-		defaultLocale: "en",
-		locales: ["en", "pt-br"],
-		fallback: {
-			"pt-br": "en",
-		},
-	},
 	// Example: allowed domains for reverse proxy
 	// security: {
 	// 	allowedDomains: [
