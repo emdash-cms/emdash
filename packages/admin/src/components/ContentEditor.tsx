@@ -10,6 +10,7 @@ import {
 	Switch,
 	buttonVariants,
 } from "@cloudflare/kumo";
+import { CodeHighlighted, ShikiProvider } from "@cloudflare/kumo/code";
 import {
 	ArrowLeft,
 	Check,
@@ -212,6 +213,7 @@ export function ContentEditor({
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
+	const [fieldErrors, setFieldErrors] = React.useState<Record<string, string | null>>({});
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
@@ -255,6 +257,7 @@ export function ContentEditor({
 	React.useEffect(() => {
 		if (item) {
 			setFormData(item.data);
+			setFieldErrors({});
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
 			setStatus(item.status);
@@ -301,6 +304,16 @@ export function ContentEditor({
 		[formData, slug, activeBylines],
 	);
 	const isDirty = isNew || currentData !== lastSavedData;
+	const hasFieldErrors = React.useMemo(
+		() => Object.values(fieldErrors).some((error) => typeof error === "string" && error.length > 0),
+		[fieldErrors],
+	);
+	const handleFieldValidationChange = React.useCallback((name: string, error: string | null) => {
+		setFieldErrors((prev) => {
+			if ((prev[name] ?? null) === error) return prev;
+			return { ...prev, [name]: error };
+		});
+	}, []);
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -534,7 +547,12 @@ export function ContentEditor({
 							{hasPendingChanges ? "Preview draft" : "Preview"}
 						</Button>
 					)}
-					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+					<SaveButton
+						type="submit"
+						isDirty={isDirty}
+						isSaving={isSaving || false}
+						disabled={hasFieldErrors}
+					/>
 					{!isNew && (
 						<>
 							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
@@ -627,6 +645,7 @@ export function ContentEditor({
 										field.kind === "portableText" ? handleBlockSidebarClose : undefined
 									}
 									manifest={manifest}
+									onValidationChange={handleFieldValidationChange}
 								/>
 							))}
 						</div>
@@ -922,6 +941,7 @@ interface FieldRendererProps {
 	field: FieldDescriptor;
 	value: unknown;
 	onChange: (name: string, value: unknown) => void;
+	onValidationChange?: (name: string, error: string | null) => void;
 	/** Callback when a portableText editor is ready */
 	onEditorReady?: (editor: Editor) => void;
 	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
@@ -952,52 +972,83 @@ function JsonFieldEditor({
 	labelClass,
 	value,
 	onChange,
+	onValidationChange,
 }: {
 	id: string;
 	label: string;
 	labelClass?: string;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	onValidationChange?: (error: string | null) => void;
 }) {
 	const [textValue, setTextValue] = React.useState(() => formatJsonValue(value));
+	const [error, setError] = React.useState<string | null>(null);
+
+	const setValidationError = React.useCallback(
+		(nextError: string | null) => {
+			setError(nextError);
+			onValidationChange?.(nextError);
+		},
+		[onValidationChange],
+	);
 
 	React.useEffect(() => {
 		setTextValue(formatJsonValue(value));
-	}, [value]);
+		setValidationError(null);
+	}, [value, setValidationError]);
 
 	return (
-		<InputArea
-			label={<span className={labelClass}>{label}</span>}
-			id={id}
-			value={textValue}
-			onChange={(e) => {
-				const nextValue = e.target.value;
-				setTextValue(nextValue);
-				if (!nextValue.trim()) {
-					onChange(null);
-					return;
-				}
-				try {
-					onChange(JSON.parse(nextValue));
-				} catch {
-					// Preserve in-progress invalid JSON locally until the user finishes typing.
-				}
-			}}
-			onBlur={() => {
-				if (!textValue.trim()) return;
-				try {
-					setTextValue(JSON.stringify(JSON.parse(textValue), null, 2));
-				} catch {
-					// Keep the user's draft text unchanged when JSON is still invalid.
-				}
-			}}
-			rows={12}
-			placeholder='{
+		<div className="space-y-3">
+			<InputArea
+				label={<span className={labelClass}>{label}</span>}
+				id={id}
+				value={textValue}
+				onChange={(e) => {
+					const nextValue = e.target.value;
+					setTextValue(nextValue);
+					if (!nextValue.trim()) {
+						setValidationError(null);
+						onChange(null);
+						return;
+					}
+					try {
+						onChange(JSON.parse(nextValue));
+						setValidationError(null);
+					} catch (parseError) {
+						setValidationError(parseError instanceof Error ? parseError.message : "Invalid JSON");
+					}
+				}}
+				onBlur={() => {
+					if (!textValue.trim()) return;
+					try {
+						const formatted = JSON.stringify(JSON.parse(textValue), null, 2);
+						setTextValue(formatted);
+						setValidationError(null);
+					} catch (parseError) {
+						setValidationError(parseError instanceof Error ? parseError.message : "Invalid JSON");
+					}
+				}}
+				rows={12}
+				placeholder='{
   "key": "value"
 }'
-			description="Valid JSON is formatted automatically."
-			className="font-mono text-sm"
-		/>
+				description={error ?? "Valid JSON is formatted automatically."}
+				className="font-mono text-sm"
+			/>
+			<div className="overflow-hidden rounded-lg border bg-kumo-base">
+				<div
+					data-testid={`${id}-json-preview-label`}
+					className="border-b px-3 py-2 text-xs font-medium text-kumo-subtle"
+				>
+					Preview
+				</div>
+				<div className="max-h-96 overflow-auto p-3">
+					<ShikiProvider engine="javascript" languages={["json"]}>
+						<CodeHighlighted code={textValue || "{}"} lang="json" />
+					</ShikiProvider>
+				</div>
+			</div>
+		</div>
 	);
 }
 
@@ -1015,6 +1066,7 @@ function FieldRenderer({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
+	onValidationChange,
 }: FieldRendererProps) {
 	const pluginAdmins = usePluginAdmins();
 	const label = field.label || name.charAt(0).toUpperCase() + name.slice(1);
@@ -1022,6 +1074,10 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+	const handleValidationChange = React.useCallback(
+		(error: string | null) => onValidationChange?.(name, error),
+		[name, onValidationChange],
+	);
 
 	// Check for plugin field widget override
 	if (field.widget) {
@@ -1168,6 +1224,7 @@ function FieldRenderer({
 					labelClass={labelClass}
 					value={value}
 					onChange={handleChange}
+					onValidationChange={handleValidationChange}
 				/>
 			);
 

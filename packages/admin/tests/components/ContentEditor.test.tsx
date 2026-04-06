@@ -154,6 +154,9 @@ describe("ContentEditor", () => {
 
 			const input = screen.getByLabelText("Metadata");
 			await expect.element(input).toHaveValue(JSON.stringify(metadata, null, 2));
+			await expect
+				.element(screen.getByTestId("field-metadata-json-preview-label"))
+				.toBeInTheDocument();
 		});
 	});
 
@@ -199,6 +202,23 @@ describe("ContentEditor", () => {
 					}),
 				}),
 			);
+		});
+
+		it("disables save when json content is invalid", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				item: makeItem({ data: { metadata: { enabled: false } } }),
+			});
+
+			const input = screen.getByLabelText("Metadata");
+			await input.fill('{"enabled": true');
+
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await expect.element(saveBtn).toBeDisabled();
+			expect(onSave).not.toHaveBeenCalled();
 		});
 
 		it("SaveButton shows correct dirty state for new items", async () => {
