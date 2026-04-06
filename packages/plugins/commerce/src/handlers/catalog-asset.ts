@@ -1,4 +1,4 @@
-import type { RouteContext, StorageCollection } from "emdash";
+import type { RouteContext } from "emdash";
 import { PluginRouteError } from "emdash";
 
 import { randomHex } from "../lib/crypto-adapter.js";
@@ -10,7 +10,7 @@ import {
 	normalizeOrderedPosition,
 	sortOrderedRowsByPosition,
 } from "../lib/ordered-rows.js";
-import {
+import type {
 	ProductAssetLinkInput,
 	ProductAssetReorderInput,
 	ProductAssetRegisterInput,
@@ -23,108 +23,12 @@ import type {
 	ProductAssetUnlinkResponse,
 } from "./catalog.js";
 import { queryAllPages } from "./catalog-read-model.js";
-
-type Collection<T> = StorageCollection<T>;
-type CollectionWithUniqueInsert<T> = Collection<T> & {
-	putIfAbsent?: (id: string, data: T) => Promise<boolean>;
-};
-
-type ConflictHint = {
-	where: Record<string, unknown>;
-	message: string;
-};
-
-function getNowIso(): string {
-	return new Date(Date.now()).toISOString();
-}
-
-function asCollection<T>(raw: unknown): Collection<T> {
-	return raw as Collection<T>;
-}
-
-function looksLikeUniqueConstraintMessage(message: string): boolean {
-	const normalized = message.toLowerCase();
-	return (
-		normalized.includes("unique constraint failed") ||
-		normalized.includes("uniqueness violation") ||
-		normalized.includes("duplicate key value violates unique constraint") ||
-		normalized.includes("duplicate entry") ||
-		normalized.includes("constraint failed:") ||
-		normalized.includes("sqlerrorcode=primarykey")
-	);
-}
-
-function readErrorCode(error: unknown): string | undefined {
-	if (!error || typeof error !== "object") return undefined;
-	const maybeCode = (error as Record<string, unknown>).code;
-	if (typeof maybeCode === "string" && maybeCode.length > 0) {
-		return maybeCode;
-	}
-	if (typeof maybeCode === "number") {
-		return String(maybeCode);
-	}
-	const maybeCause = (error as Record<string, unknown>).cause;
-	return typeof maybeCause === "object" ? readErrorCode(maybeCause) : undefined;
-}
-
-function isUniqueConstraintViolation(error: unknown, seen = new Set<unknown>()): boolean {
-	if (error == null || seen.has(error)) return false;
-	seen.add(error);
-
-	if (readErrorCode(error) === "23505") return true;
-
-	if (error instanceof Error) {
-		if (looksLikeUniqueConstraintMessage(error.message)) return true;
-		return isUniqueConstraintViolation((error as Error & { cause?: unknown }).cause, seen);
-	}
-
-	if (typeof error === "object") {
-		const record = error as Record<string, unknown>;
-		const message = record.message;
-		if (typeof message === "string" && looksLikeUniqueConstraintMessage(message)) return true;
-		const cause = record.cause;
-		if (cause) {
-			return isUniqueConstraintViolation(cause, seen);
-		}
-	}
-
-	return false;
-}
-
-function throwConflict(message: string): never {
-	throw PluginRouteError.badRequest(message);
-}
-
-async function putWithConflictHandling<T extends object>(
-	collection: CollectionWithUniqueInsert<T>,
-	id: string,
-	data: T,
-	conflict?: ConflictHint,
-): Promise<void> {
-	if (collection.putIfAbsent) {
-		try {
-			const inserted = await collection.putIfAbsent(id, data);
-			if (!inserted) {
-				throwConflict(conflict?.message ?? "Resource already exists");
-			}
-			return;
-		} catch (error) {
-			if (isUniqueConstraintViolation(error) && conflict) {
-				throwConflict(conflict.message);
-			}
-			throw error;
-		}
-	}
-
-	if (conflict) {
-		const rows = await collection.query({ where: conflict.where, limit: 2 });
-		for (const item of rows.items) {
-			throwConflict(conflict.message ?? "Resource already exists");
-		}
-	}
-
-	await collection.put(id, data);
-}
+import type { Collection } from "./catalog-conflict.js";
+import {
+	asCollection,
+	getNowIso,
+	putWithConflictHandling,
+} from "./catalog-conflict.js";
 
 async function queryAssetLinksForTarget(
 	productAssetLinks: Collection<StoredProductAssetLink>,
