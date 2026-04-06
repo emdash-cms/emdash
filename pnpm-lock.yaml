@@ -485,6 +485,9 @@ importers:
       '@lingui/babel-plugin-lingui-macro':
         specifier: 'catalog:'
         version: 5.9.4(typescript@5.9.3)
+      '@lingui/vite-plugin':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       astro:
         specifier: 'catalog:'
         version: 6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)

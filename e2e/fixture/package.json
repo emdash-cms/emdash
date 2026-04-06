@@ -8,6 +8,7 @@
 		"@emdash-cms/auth": "workspace:*",
 		"@emdash-cms/plugin-color": "workspace:*",
 		"@lingui/babel-plugin-lingui-macro": "catalog:",
+		"@lingui/vite-plugin": "catalog:",
 		"astro": "catalog:",
 		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",
