@@ -77,8 +77,15 @@ export async function persistOrderedRows<T extends OrderedRow>(
 		...row,
 		updatedAt: nowIso,
 	}));
-	for (const row of normalized) {
-		await collection.put(row.id, row);
+	const items = normalized.map((row) => ({ id: row.id, data: row }));
+	if (items.length > 0) {
+		if ("putMany" in collection && typeof collection.putMany === "function") {
+			await collection.putMany(items);
+		} else {
+			for (const item of items) {
+				await collection.put(item.id, item.data);
+			}
+		}
 	}
 	return normalized;
 }
@@ -90,22 +97,36 @@ export async function mutateOrderedChildren<T extends OrderedRow>(params: {
 	nowIso: string;
 }): Promise<T[]> {
 	const { collection, rows, mutation, nowIso } = params;
-	const normalized = (() => {
-		switch (mutation.kind) {
-			case "add":
-				return addOrderedRow(rows, mutation.row, mutation.requestedPosition);
-			case "remove":
-				return removeOrderedRow(rows, mutation.removedRowId);
-			case "move": {
-				const { rowId, requestedPosition } = mutation;
-				const fromIndex = rows.findIndex((candidate) => candidate.id === rowId);
-				if (fromIndex === -1) {
-					throw PluginRouteError.badRequest(mutation.notFoundMessage ?? "Ordered row not found in target list");
-				}
-				return moveOrderedRow(rows, rowId, requestedPosition);
+	let normalized: T[] = [];
+	const removeIds: string[] = [];
+	switch (mutation.kind) {
+		case "add":
+			normalized = addOrderedRow(rows, mutation.row, mutation.requestedPosition);
+			break;
+		case "remove":
+			normalized = removeOrderedRow(rows, mutation.removedRowId);
+			removeIds.push(mutation.removedRowId);
+			break;
+		case "move": {
+			const { rowId, requestedPosition } = mutation;
+			const fromIndex = rows.findIndex((candidate) => candidate.id === rowId);
+			if (fromIndex === -1) {
+				throw PluginRouteError.badRequest(mutation.notFoundMessage ?? "Ordered row not found in target list");
+			}
+			normalized = moveOrderedRow(rows, rowId, requestedPosition);
+			break;
+		}
+	}
+	const persisted = await persistOrderedRows(collection, normalized, nowIso);
+	if (removeIds.length > 0) {
+		if ("deleteMany" in collection && typeof collection.deleteMany === "function") {
+			await collection.deleteMany(removeIds);
+		} else {
+			for (const removeId of removeIds) {
+				await collection.delete(removeId);
 			}
 		}
-	})();
-	return persistOrderedRows(collection, normalized, nowIso);
+	}
+	return persisted;
 }
 

@@ -65,6 +65,7 @@ import {
 	setProductStateHandler,
 	createProductSkuHandler,
 	getProductHandler,
+	getStorefrontProductHandler,
 	setSkuStatusHandler,
 	updateProductHandler,
 	updateProductSkuHandler,
@@ -73,7 +74,9 @@ import {
 	registerProductAssetHandler,
 	unlinkCatalogAssetHandler,
 	listProductsHandler,
+	listStorefrontProductsHandler,
 	listProductSkusHandler,
+	listStorefrontProductSkusHandler,
 	createCategoryHandler,
 	listCategoriesHandler,
 	createProductCategoryLinkHandler,
@@ -84,6 +87,7 @@ import {
 	reorderBundleComponentHandler,
 	removeBundleComponentHandler,
 	bundleComputeHandler,
+	bundleComputeStorefrontHandler,
 	createDigitalAssetHandler,
 	createDigitalEntitlementHandler,
 	removeDigitalEntitlementHandler,
@@ -120,6 +124,16 @@ class MemColl<T extends object> {
 		return this.rows.delete(id);
 	}
 
+	async deleteMany(ids: string[]): Promise<number> {
+		let count = 0;
+		for (const id of ids) {
+			if (this.rows.delete(id)) {
+				count++;
+			}
+		}
+		return count;
+	}
+
 	async query(options?: {
 		where?: Record<string, unknown>;
 		limit?: number;
@@ -141,6 +155,51 @@ class MemColl<T extends object> {
 			.slice(0, options?.limit ?? 50)
 			.map(([id, row]) => ({ id, data: structuredClone(row) }));
 		return { items, hasMore: false };
+	}
+
+	async putMany(items: Array<{ id: string; data: T }>): Promise<void> {
+		for (const item of items) {
+			await this.put(item.id, structuredClone(item.data));
+		}
+	}
+}
+
+class ConstraintConflictMemColl<T extends Record<string, unknown>> extends MemColl<T> {
+	constructor(
+		private readonly conflicts: (existing: T, next: T) => boolean,
+		rows: Map<string, T> = new Map<string, T>(),
+	) {
+		super(rows);
+	}
+
+	async putIfAbsent(id: string, data: T): Promise<boolean> {
+		for (const existing of this.rows.values()) {
+			if (this.conflicts(existing, data)) {
+				return false;
+			}
+		}
+		await this.put(id, structuredClone(data));
+		return true;
+	}
+
+	async query(
+		_options?: {
+			[key: string]: unknown;
+		},
+	): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
+		return { items: [], hasMore: false };
+	}
+}
+
+class QueryCountingMemColl<T extends object> extends MemColl<T> {
+	queryCount = 0;
+
+	async query(options?: {
+		where?: Record<string, unknown>;
+		limit?: number;
+	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
+		this.queryCount += 1;
+		return super.query(options);
 	}
 }
 
@@ -246,6 +305,48 @@ describe("catalog product handlers", () => {
 			products,
 		);
 		await expect(createProductHandler(ctx)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	it("uses storage conflict on duplicate product slug insert", async () => {
+		const products = new ConstraintConflictMemColl<StoredProduct>((existing, next) => {
+			return existing.slug === next.slug;
+		});
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "dup",
+			title: "Existing",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const ctx = catalogCtx<ProductCreateInput>(
+			{
+				type: "simple",
+				status: "draft",
+				visibility: "hidden",
+				slug: "dup",
+				title: "Duplicate",
+				shortDescription: "",
+				longDescription: "",
+				featured: false,
+				sortOrder: 1,
+				requiresShippingDefault: true,
+			},
+			products,
+		);
+
+		await expect(createProductHandler(ctx)).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+			message: "Product slug already exists: dup",
+		});
 	});
 
 	it("rejects duplicate slugs on product update", async () => {
@@ -745,6 +846,248 @@ describe("catalog product handlers", () => {
 		expect(out.items).toHaveLength(1);
 		expect(out.items[0]!.inventorySummary.totalInventoryQuantity).toBe(0);
 		expect(out.items[0]!.lowStockSkuCount).toBe(1);
+	});
+
+	it("returns storefront list products with active/public defaults and safe payload", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "active-product",
+			title: "Active Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_2", {
+			id: "prod_2",
+			type: "simple",
+			status: "active",
+			visibility: "hidden",
+			slug: "hidden-product",
+			title: "Hidden Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 1,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_3", {
+			id: "prod_3",
+			type: "simple",
+			status: "draft",
+			visibility: "public",
+			slug: "draft-product",
+			title: "Draft Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 2,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "SKU1",
+			status: "active",
+			unitPriceMinor: 1000,
+			inventoryQuantity: 5,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = await listStorefrontProductsHandler(
+			catalogCtx(
+				{
+					type: "simple",
+					limit: 10,
+				},
+				products,
+				skus,
+			),
+		);
+		expect(out.items).toHaveLength(1);
+		expect(out.items[0]).toMatchObject({
+			product: { id: "prod_1", status: "active", visibility: "public" },
+		});
+		expect("inventorySummary" in out.items[0]!).toBe(false);
+		expect("longDescription" in out.items[0]!.product).toBe(false);
+	});
+
+	it("returns storefront product detail without raw inventory fields", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "safe-product",
+			title: "Safe Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "SKU1",
+			status: "active",
+			unitPriceMinor: 500,
+			inventoryQuantity: 100,
+			inventoryVersion: 4,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const detail = await getStorefrontProductHandler(catalogCtx({ productId: "prod_1" }, products, skus));
+		expect(detail.product).toMatchObject({ id: "prod_1", title: "Safe Product" });
+		expect("longDescription" in detail.product).toBe(false);
+		expect(detail.skus?.[0]).toMatchObject({ id: "sku_1", availability: "in_stock" });
+		expect("inventoryQuantity" in (detail.skus?.[0] as object)).toBe(false);
+		expect("inventoryVersion" in (detail.skus?.[0] as object)).toBe(false);
+	});
+
+	it("hides storefront product detail for non-public products", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_hidden", {
+			id: "prod_hidden",
+			type: "simple",
+			status: "active",
+			visibility: "hidden",
+			slug: "hidden-product",
+			title: "Hidden Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_hidden", {
+			id: "sku_hidden",
+			productId: "prod_hidden",
+			skuCode: "HID",
+			status: "active",
+			unitPriceMinor: 100,
+			inventoryQuantity: 10,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await expect(getStorefrontProductHandler(catalogCtx({ productId: "prod_hidden" }, products, skus))).rejects.toThrow("Product not available");
+	});
+
+	it("returns storefront sku list without raw inventory fields", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_1", {
+			id: "prod_1",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "stock-product",
+			title: "Stock Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_1", {
+			id: "sku_1",
+			productId: "prod_1",
+			skuCode: "SKU1",
+			status: "active",
+			unitPriceMinor: 500,
+			inventoryQuantity: 100,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_2", {
+			id: "sku_2",
+			productId: "prod_1",
+			skuCode: "SKU2",
+			status: "inactive",
+			unitPriceMinor: 600,
+			inventoryQuantity: 0,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const out = await listStorefrontProductSkusHandler(catalogCtx({ productId: "prod_1" }, products, skus));
+		expect(out.items).toHaveLength(1);
+		expect(out.items[0]).toMatchObject({ id: "sku_1", availability: "in_stock" });
+		expect("inventoryQuantity" in (out.items[0] as object)).toBe(false);
+		expect("inventoryVersion" in (out.items[0] as object)).toBe(false);
+	});
+
+	it("hides storefront SKU lists for non-public products", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		await products.put("prod_hidden", {
+			id: "prod_hidden",
+			type: "simple",
+			status: "active",
+			visibility: "hidden",
+			slug: "hidden-product",
+			title: "Hidden Product",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_hidden", {
+			id: "sku_hidden",
+			productId: "prod_hidden",
+			skuCode: "HID",
+			status: "active",
+			unitPriceMinor: 100,
+			inventoryQuantity: 10,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await expect(listStorefrontProductSkusHandler(catalogCtx({ productId: "prod_hidden" }, products, skus))).rejects.toThrow("Product not available");
 	});
 
 	it("reads simple product SKU inventory from inventoryStock in product detail", async () => {
@@ -1839,6 +2182,163 @@ describe("catalog SKU handlers", () => {
 		await expect(duplicateCombination).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
+	it("batches variable SKU validation reads for better scalability", async () => {
+		const products = new QueryCountingMemColl<StoredProduct>();
+		const skus = new (class extends QueryCountingMemColl<StoredProductSku> {
+			async putIfAbsent(id: string, data: StoredProductSku): Promise<boolean> {
+				await this.put(id, data);
+				return true;
+			}
+		})();
+		const productAttributes = new QueryCountingMemColl<StoredProductAttribute>();
+		const productAttributeValues = new QueryCountingMemColl<StoredProductAttributeValue>();
+		const productSkuOptionValues = new QueryCountingMemColl<StoredProductSkuOptionValue>();
+
+		const product = await createProductHandler(
+			catalogCtx<ProductCreateInput>(
+				{
+					type: "variable",
+					status: "active",
+					visibility: "public",
+					slug: "scalable-variable",
+					title: "Scalable variable",
+					shortDescription: "",
+					longDescription: "",
+					featured: false,
+					sortOrder: 0,
+					requiresShippingDefault: true,
+					attributes: [
+						{
+							name: "Color",
+							code: "color",
+							kind: "variant_defining",
+							position: 0,
+							values: [
+								{ value: "Red", code: "red", position: 0 },
+								{ value: "Blue", code: "blue", position: 1 },
+							],
+						},
+						{
+							name: "Size",
+							code: "size",
+							kind: "variant_defining",
+							position: 1,
+							values: [
+								{ value: "Small", code: "s", position: 0 },
+								{ value: "Large", code: "l", position: 1 },
+							],
+						},
+					],
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+			),
+		);
+
+		const colorAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "color");
+		const sizeAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "size");
+		const colorValues = [...productAttributeValues.rows.values()].filter((value) =>
+			value.attributeId === colorAttribute?.id,
+		);
+		const sizeValues = [...productAttributeValues.rows.values()].filter((value) => value.attributeId === sizeAttribute?.id);
+		if (!colorAttribute || !sizeAttribute || colorValues.length < 2 || sizeValues.length < 2) {
+			throw new Error("Test fixture missing required attributes");
+		}
+
+		await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "V-ONE",
+					status: "active",
+					unitPriceMinor: 1100,
+					inventoryQuantity: 5,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{ attributeId: colorAttribute.id, attributeValueId: colorValues[0].id },
+						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[0].id },
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+
+		await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "V-TWO",
+					status: "active",
+					unitPriceMinor: 1200,
+					inventoryQuantity: 5,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{ attributeId: colorAttribute.id, attributeValueId: colorValues[1].id },
+						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[1].id },
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+
+		products.queryCount = 0;
+		skus.queryCount = 0;
+		productAttributes.queryCount = 0;
+		productAttributeValues.queryCount = 0;
+		productSkuOptionValues.queryCount = 0;
+
+		await createProductSkuHandler(
+			catalogCtx<ProductSkuCreateInput>(
+				{
+					productId: product.product.id,
+					skuCode: "V-THREE",
+					status: "active",
+					unitPriceMinor: 1300,
+					inventoryQuantity: 5,
+					inventoryVersion: 1,
+					requiresShipping: true,
+					isDigital: false,
+					optionValues: [
+						{ attributeId: colorAttribute.id, attributeValueId: colorValues[0].id },
+						{ attributeId: sizeAttribute.id, attributeValueId: sizeValues[1].id },
+					],
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				productAttributes,
+				productAttributeValues,
+				productSkuOptionValues,
+			),
+		);
+
+		expect(skus.queryCount).toBe(2);
+		expect(productAttributes.queryCount).toBe(1);
+		expect(productAttributeValues.queryCount).toBe(1);
+		expect(productSkuOptionValues.queryCount).toBe(1);
+	});
+
 	it("updates SKU fields without changing immutable identifiers", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
@@ -2687,6 +3187,103 @@ describe("catalog bundle handlers", () => {
 		expect(summary.components).toHaveLength(2);
 	});
 
+	it("sanitizes storefront bundle compute response", async () => {
+		const products = new MemColl<StoredProduct>();
+		const skus = new MemColl<StoredProductSku>();
+		const inventoryStock = new MemColl<InventoryStockRecord>();
+		const bundleComponents = new MemColl<StoredBundleComponent>();
+
+		await products.put("prod_bundle", {
+			id: "prod_bundle",
+			type: "bundle",
+			status: "active",
+			visibility: "public",
+			slug: "winter-bundle",
+			title: "Winter Bundle",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await products.put("prod_component", {
+			id: "prod_component",
+			type: "simple",
+			status: "active",
+			visibility: "public",
+			slug: "component",
+			title: "Component",
+			shortDescription: "",
+			longDescription: "",
+			featured: false,
+			sortOrder: 0,
+			requiresShippingDefault: true,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await skus.put("sku_component", {
+			id: "sku_component",
+			productId: "prod_component",
+			skuCode: "CMP",
+			status: "active",
+			unitPriceMinor: 50,
+			inventoryQuantity: 10,
+			inventoryVersion: 1,
+			requiresShipping: true,
+			isDigital: false,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await addBundleComponentHandler(
+			catalogCtx<BundleComponentAddInput>(
+				{
+					bundleProductId: "prod_bundle",
+					componentSkuId: "sku_component",
+					quantity: 2,
+					position: 0,
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				inventoryStock,
+				bundleComponents,
+			),
+		);
+
+		await inventoryStock.put("stock_component", {
+			skuId: "sku_component",
+			quantity: 10,
+			version: 1,
+		});
+
+		const summary = await bundleComputeStorefrontHandler(
+			catalogCtx<BundleComputeInput>(
+				{
+					productId: "prod_bundle",
+				},
+				products,
+				skus,
+				new MemColl(),
+				new MemColl(),
+				inventoryStock,
+				new MemColl(),
+				new MemColl(),
+				bundleComponents,
+			),
+		);
+
+		expect(summary.components).toHaveLength(1);
+		const component = summary.components[0];
+		expect((component as unknown as Record<string, unknown>).componentSkuId).toBeUndefined();
+		expect((component as unknown as Record<string, unknown>).componentProductId).toBeUndefined();
+	});
+
 	it("supports component reorder and removal with position normalizing", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
@@ -3173,6 +3770,101 @@ describe("catalog organization", () => {
 			),
 		);
 		expect(filtered.items.map((item) => item.product.slug)).toEqual(["camera"]);
+	});
+
+	it("includes paged category members even when matched outside the product query default window", async () => {
+		const products = new MemColl<StoredProduct>();
+		const categories = new MemColl<StoredCategory>();
+		const productCategoryLinks = new MemColl<StoredProductCategoryLink>();
+
+		const category = await createCategoryHandler(
+			catalogCtx<CategoryCreateInput>(
+				{
+					name: "Catalog",
+					slug: "catalog",
+					position: 0,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+
+		let tailProductId = "";
+		let tailProductSlug = "";
+		for (let index = 0; index < 60; index += 1) {
+			const response = await createProductHandler(
+				catalogCtx<ProductCreateInput>(
+					{
+						type: "simple",
+						status: "active",
+						visibility: "public",
+						slug: `product-${String(index).padStart(2, "0")}`,
+						title: `Product ${index}`,
+						shortDescription: "",
+						longDescription: "",
+						featured: false,
+						sortOrder: index,
+						requiresShippingDefault: true,
+					},
+					products,
+				),
+			);
+			if (index === 59) {
+				tailProductId = response.product.id;
+				tailProductSlug = response.product.slug;
+			}
+		}
+
+		await createProductCategoryLinkHandler(
+			catalogCtx<ProductCategoryLinkInput>(
+				{
+					productId: tailProductId,
+					categoryId: category.category.id,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+
+		const filtered = await listProductsHandler(
+			catalogCtx<ProductListInput>(
+				{
+					type: "simple",
+					status: "active",
+					visibility: "public",
+					categoryId: category.category.id,
+					limit: 50,
+				},
+				products,
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				new MemColl(),
+				categories,
+				productCategoryLinks,
+			),
+		);
+
+		expect(filtered.items.map((item) => item.product.slug)).toEqual([tailProductSlug]);
 	});
 
 	it("creates tags and filters listing by tag", async () => {

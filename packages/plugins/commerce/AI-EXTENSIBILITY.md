@@ -28,12 +28,14 @@ Implementation guardrails:
    finalization convergence), 5B (pending-state contract visibility and non-terminal
    resume transitions), 5C (possession checks on order/cart entrypoints),
    5D (scope lock reaffirmation), 5E (deterministic claim lease policy), and
-   5F (rollout docs/proof plan for strict lease mode).
+   5F (rollout/docs proof completed for strict lease mode with staged promotion controls in
+  `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`).
 - Post-5F optional AI roadmap items are tracked in `COMMERCE_AI_ROADMAP.md` and remain
-  non-blocking to Stage-1 money-path behavior.
-- Runtime behavior for checkout/finalize/routing remains unchanged while we continue
-  to enforce the same scope lock for provider topology (`webhooks/stripe` only) until
-  staged rollout approval for strict claim-lease mode (`COMMERCE_USE_LEASED_FINALIZE=1`).
+   non-blocking to Stage-1 money-path behavior.
+Runtime behavior for checkout/finalize/routing remains unchanged while we continue
+to enforce the same scope lock for provider topology (`webhooks/stripe` only) until
+strict claim-lease mode (`COMMERCE_USE_LEASED_FINALIZE=1`) is promoted through the staged
+rollout checklist in `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`.
 
 ### Strategy A acceptance guidance (contract hardening only)
 

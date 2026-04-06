@@ -232,7 +232,19 @@ export function readCurrentStockRows(
 ): Promise<Map<string, StoredInventoryStock>> {
 	return (async () => {
 		const out = new Map<string, StoredInventoryStock>();
-		const deductionLines = toInventoryDeductionLines(lines);
+		let deductionLines: OrderLineItem[];
+		try {
+			deductionLines = toInventoryDeductionLines(lines);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			throw new InventoryFinalizeError(
+				"ORDER_STATE_CONFLICT",
+				`Unable to build inventory deduction lines: ${message}`,
+				{
+					reason: "bundle_snapshot_incomplete",
+				},
+			);
+		}
 		for (const line of deductionLines) {
 			const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");
 			const stock = await inventoryStock.get(stockId);

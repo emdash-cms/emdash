@@ -66,19 +66,18 @@ must pass through `finalizePaymentFromWebhook`.
   webhook finalization convergence (5A), pending-state resume-status visibility (5B),
   possession-guard coverage (5C), and deterministic claim lease/expiry behavior (5E)
   with active ownership revalidation on all critical finalize-write stages.
-- 5F staged rollout behavior and documentation has been specified and validated in docs+tests.
+- 5F strict lease proof artifacts were specified and validated in docs+tests, with evidence tracked in `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` (historical record).
 - Optional post-5F operational/AI work is tracked in `COMMERCE_AI_ROADMAP.md` and remains
   advisory until explicitly staged.
 - Continue to enforce read-only rules for diagnostics via `queryFinalizationState`.
 
-### Staged rollout control for strict claim lease enforcement
+### Canonical claim lease enforcement
 
-- `COMMERCE_USE_LEASED_FINALIZE` controls strict lease semantics for webhook finalization:
-  - absent / not `"1"` (default): legacy mode for compatibility.
-  - `"1"`: strict mode — malformed or missing `claimExpiresAt` is treated as replay-safe stale lease.
-- Strict mode still permits reclaiming valid stale leases (where `now > claimExpiresAt`) and keeps valid in-flight
-  lock semantics unchanged.
-- Recommended rollout: enable on canary/staging first, capture strict-mode proof artifacts, then promote.
+- Strict claim lease checks (ownership revalidation and malformed-lease replay behavior) are the active finalize path.
+- `COMMERCE_USE_LEASED_FINALIZE` is retained only for rollout/evidence parity and
+  for re-running the historical strict-mode command families when needed.
+- `COMMERCE_USE_LEASED_FINALIZE` does **not** represent an alternative runtime mode in this branch; strict lease behavior remains canonical and should stay in production.
+- Historical rollout steps and rollback criteria are retained for context in `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`, but operational controls should treat the strict behavior as baseline.
 
 ### Read-only MCP service seam
 

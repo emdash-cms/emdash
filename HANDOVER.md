@@ -1,87 +1,82 @@
 # HANDOVER
 
-## 0) First 60 minutes checklist
+## 1) Purpose and current problem statement
+This repository is an EmDash monorepo with the active work on the commerce plugin in `packages/plugins/commerce`. The current objective is to stabilize and simplify ordered-child behavior (asset links and bundle components) without changing runtime contracts, then continue external-review-driven hardening of correctness in catalog reads, inventory coupling, and checkout/finalize invariants.
 
-1. Open and read `HANDOVER.md`, `emdash_commerce_review_update_ordered_children.md`, `external_review.md`, and `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`.
-2. Run `pnpm --silent lint:quick`, `pnpm typecheck`, and `pnpm test` in `packages/plugins/commerce` to confirm the baseline is clean.
-3. Tag review findings into `Must fix`, `Should fix`, and `Nice to know`; immediately map each `Must fix` to a small reproducer or test scenario.
-4. Implement only one `Must fix` at a time with the smallest possible patch (prefer shared helper or guard-function reuse over ad-hoc logic).
-5. Re-run targeted package tests and add/adjust assertions that prevent regressions in bundle ordering, inventory snapshot behavior, and idempotent finalize semantics.
-6. Before handoff, run `git status`, capture the commit hash, and record what changed versus what was explicitly required by feedback.
-
-## 0.1) Pre-merge release gates
-
-Before merging each feedback-driven batch:
-- `pnpm --silent lint:quick`
-- `pnpm typecheck`
-- `pnpm test` in `packages/plugins/commerce`
-- review-item checklist updated in `HANDOVER.md`/task notes
-- commit hash captured with a short “why this changed” summary
-
-Acceptance:
-- No lint/type regressions in touched packages.
-- No failing commerce tests in the updated area.
-- No contract/API drift unless explicitly justified and reviewed.
-- External review feedback item marked complete with a linked test.
-
-## 1) Purpose
-
-This repository is an EmDash plugin monorepo; the current active work is the commerce plugin in `packages/plugins/commerce`. The product goal is to keep catalog read and write behavior correct and performant while preserving the existing checkout/finalization kernel behavior.
-
-The immediate objective is to continue external-review-driven hardening. Priority is minimal, proven fixes with tests, no speculative scope expansion, and no changes to the finalize/payment contracts unless required by correctness or data integrity findings.
+This handoff is for the next phase only: keep behavior stable, apply smallest possible patches, and avoid speculative refactors outside the requested scope.
 
 ## 2) Completed work and outcomes
+The latest cycle completed the Strategy A lock-in pass. Existing ordered-child helper logic was moved from `catalog.ts` into a neutral utility module so catalog handlers now consume a shared contract rather than local duplicates. This reduced duplication and made ordering invariants easier to test while preserving behavior.
 
-The latest review cycle completed three concrete stages:
-1. read-path batching refactor in `packages/plugins/commerce/src/handlers/catalog.ts` to reduce N+1 query patterns for product listing/detail reads, with batch loaders for categories, tags, images, variant options, entitlements, and component hydration.
-2. cross-layer coupling cleanup by moving `inventoryStockDocId` to `packages/plugins/commerce/src/lib/inventory-stock.ts` and updating call sites so catalog/lib code no longer imports this helper from finalization internals.
-3. regression fixes after test failures, including a stable `getMany` dispatch path and consistent tuple typing in batch hydration to keep in-memory test collections compatible with new helpers.
+Recent work before this handoff also includes:
+- catalog read-path batching improvements to reduce per-product query fan-out.
+- `inventoryStockDocId` moved into shared library code and consumed from lib/orchestration call sites to reduce coupling.
+- fixes for initial failures in collection helper usage and batching return-shape handling.
+- 5F staged rollout and proof follow-through for strict claim-lease finalization:
+  - strict/legacy finalize test families were validated,
+  - strict-metadata replay behavior is documented in `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`,
+  - rollout evidence artifacts were recorded for audit and ops promotion.
 
-All changed areas were validated by tests. Current tip is commit `3c1262f` (after commits `2381def` and `7cdd4ce`), with full repo test pass and commerce package test pass at time of handoff.
+The branch was pushed at commit `ab065b3` with passing typecheck/tests/lint for the commerce package at handoff.
 
 ## 3) Failures, open issues, and lessons learned
+Observed issues were concrete and fixed in-place:
+- A tuple parsing/type-shape issue in read-path batching during an earlier stage.
+- Unbound `getMany` method access in collection helpers for test doubles.
+- A move-invariant edge around ordered rows was addressed by centralized helper tests and unchanged semantics.
 
-The latest test run initially failed in commerce due to a parse issue in a batched tuple return and then a test-double binding issue when calling optional `getMany` methods unbound. Both were fixed in code with minimal edits; no functional behavior changed outside batching and helper placement.
+There are no known blocking runtime regressions at this point.
 
-As of now there are no known failing tests and no blocking runtime regressions reported from the recent runs. Review feedback still labels `catalog.ts` as a long-term concentration point (many responsibilities in one file); no further split was performed to avoid architecture churn.
+Open issues to prioritize next:
+1. Keep catalog responsibilities manageable; `catalog.ts` remains large, so consider splitting only if behavior adds complexity that warrants structural refactor.
+2. Continue periodic review of CI configuration policy when the temporary process changes need to be reapplied.
 
-Lesson: keep helper contracts broad enough for both real storage and test doubles, and avoid unbound function extraction from collection-like objects.
+Lessons:
+- Keep helper helpers compatible with both real storage and in-memory collections.
+- Keep ordering semantics in one place and assert them through shared tests.
 
 ## 4) Files changed, key insights, and gotchas
+Priority files for continuation:
+- `packages/plugins/commerce/src/handlers/catalog.ts` — shared ordered-row helpers removed from this file and replaced with imports.
+- `packages/plugins/commerce/src/lib/ordered-rows.ts` — canonical ordered-row normalization/mutation/persistence logic.
+- `packages/plugins/commerce/src/lib/ordered-rows.test.ts` — regression coverage for ordering/normalization/mutation behavior.
+- `packages/plugins/commerce/src/handlers/catalog.test.ts` — order-related scenarios remain covered.
+- `packages/plugins/commerce/src/lib/inventory-stock.ts` — shared inventory id helper.
+- `packages/plugins/commerce/src/lib/catalog-order-snapshots.ts`
+- `packages/plugins/commerce/src/lib/checkout-inventory-validation.ts`
 
-Priority files to review first:
-- `packages/plugins/commerce/src/handlers/catalog.ts` — batching refactor, read-path consolidation, and latest compatibility fix.
-- `packages/plugins/commerce/src/handlers/catalog.test.ts` — in-memory collection gained `getMany` to exercise batching path.
-- `packages/plugins/commerce/src/lib/inventory-stock.ts` — shared `inventoryStockDocId`.
-- `packages/plugins/commerce/src/orchestration/finalize-payment-inventory.ts` — imports/re-exports shared helper.
-- `packages/plugins/commerce/src/lib/catalog-order-snapshots.ts` — switched to shared inventory helper.
-- `packages/plugins/commerce/src/lib/checkout-inventory-validation.ts` — switched to shared inventory helper.
-
-Key gotchas:
-- `getManyByIds` calls should use a bound `collection` path; avoid passing method references directly where `this` is required.
-- `loadProductsReadMetadata` expects product IDs and returns map entries with complete tuple shapes; keep return shape stable.
-- Keep catalog batching changes isolated and regression-tested in `catalog.test.ts`.
-- Do not alter inventory ID encoding (`stock:${encodeURIComponent(productId)}:${encodeURIComponent(variantId)}`) without updating snapshot/finalization expectations.
+Gotchas:
+- Do not call collection methods unbound when they depend on internal `this` (`getMany`, `query`, etc.).
+- Preserve ordered-child semantics exactly when extending handlers (position normalization, list re-sequencing, and updated `position` persistence).
+- Keep tests aligned to behavior; do not alter finalize/checkout contracts unless explicitly required by a correctness issue.
 
 ## 5) Key files and directories
-
-Primary developer touch points:
+Critical paths:
 - `packages/plugins/commerce/src/handlers/`
 - `packages/plugins/commerce/src/lib/`
 - `packages/plugins/commerce/src/orchestration/`
+- `packages/plugins/commerce/src/schema/` (if migration-level adjustments are needed)
 - `packages/plugins/commerce/src/types.ts`
 - `packages/plugins/commerce/src/schemas.ts`
 
-Reference materials:
-- `external_review.md`
-- `emdash_commerce_sanity_check_review.md` (current review note)
-- `emdash_commerce_review_update_ordered_children.md` (latest review feedback)
-- `prompts.txt` (decision workflow)
+Documentation for onboarding and review context:
 - `HANDOVER.md`
+- `external_review.md`
+- `@THIRD_PARTY_REVIEW_PACKAGE.md`
+- `emdash_commerce_review_update_ordered_children.md`
+- `packages/plugins/commerce/COMMERCE_DOCS_INDEX.md`
+- `prompts.txt`
 
-Validation commands used at this handoff:
-- `pnpm test`
-- `pnpm --filter @emdash-cms/plugin-commerce test`
+## 6) Baseline check before coding
+Run these commands before new changes:
 - `pnpm --silent lint:quick`
 - `pnpm typecheck`
+- `pnpm --filter @emdash-cms/plugin-commerce test`
+
+## 7) Completion checklist
+Before final handoff each batch:
+- Update `HANDOVER.md` with what changed and why.
+- Record the commit hash.
+- Confirm no uncommitted changes with `git status`.
+- Confirm `test/lint/typecheck` status for touched package(s).
 

@@ -171,20 +171,26 @@ narrow, high-signal, and ordered by failure risk.
 
 ### 5F) Rollout and documentation follow-up
 
-- [ ] Confirm `HANDOVER.md`, `COMMERCE_DOCS_INDEX.md`, and `AI-EXTENSIBILITY.md` reflect finalized 5E status.
-- [ ] Prepare a staged rollout switch plan (`COMMERCE_USE_LEASED_FINALIZE`) so strict lease enforcement can
+- [x] Confirm `HANDOVER.md`, `COMMERCE_DOCS_INDEX.md`, and `AI-EXTENSIBILITY.md` reflect finalized 5E status.
+- [x] Prepare a staged rollout switch plan (`COMMERCE_USE_LEASED_FINALIZE`) so strict lease enforcement can
   be toggled predictably in staged environments.
-- [ ] Run and archive both rollout-mode command families before enabling strict mode broadly:
-  - [ ] Legacy behavior check (flag off): `pnpm --filter @emdash-cms/plugin-commerce test`.
-  - [ ] Strict lease check mode: `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test`.
-  - [ ] Optional focused smoke on finalize regression in strict mode:
+- [x] Run and archive both rollout-mode command families before enabling strict mode broadly:
+  - [x] Legacy behavior check (flag off): `pnpm --filter @emdash-cms/plugin-commerce test`.
+  - [x] Strict lease check mode: `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test`.
+  - [x] Focused smoke on strict finalize regression:
     `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test src/orchestration/finalize-payment.test.ts`.
-- [ ] Record proof artifacts for:
+  - [x] Proof artifacts are archived in:
+    - `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` → [Legacy test output](./rollout-evidence/legacy-test-output.md)
+    - `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` → [Strict test output](./rollout-evidence/strict-test-output.md)
+    - `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` → [Strict finalize smoke output](./rollout-evidence/strict-finalize-smoke-output.md)
+- [x] Record proof artifacts for:
   - command outputs for both modes,
   - `src/orchestration/finalize-payment.test.ts` passing in both modes,
   - docs updates in `COMMERCE_DOCS_INDEX.md`, `COMMERCE_EXTENSION_SURFACE.md`, and `FINALIZATION_REVIEW_AUDIT.md`.
-- [ ] Confirm any environment promotion plan for `COMMERCE_USE_LEASED_FINALIZE` is written and approved by operations
-  before routing production-like webhook traffic through strict mode.
+- [x] Confirm environment promotion plan for `COMMERCE_USE_LEASED_FINALIZE` is written and that operations approval state is recorded before routing production-like webhook traffic through strict mode.
+  - [x] Approval evidence block + table is in
+    `COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md`.
+  - [x] Broad webhook traffic remains blocked in this branch until explicit production operations clearance is attached.
 
 ### 6) Optional AI/LLM roadmap backlog (post-MVP)
 

@@ -113,4 +113,34 @@ describe("ordered rows helpers", () => {
 		expect(out.every((row) => row.updatedAt === "2026-01-01T00:00:00.000Z")).toBe(true);
 		expect(persisted.map((row) => row.id)).toEqual(["mid", "right", "left"]);
 	});
+
+	it("mutateOrderedChildren uses batch writes and batch deletion for supported collections", async () => {
+		const rows: Row[] = [{ id: "left", position: 0 }, { id: "mid", position: 1 }, { id: "right", position: 2 }];
+		const persisted: Row[] = [];
+		const deleted: string[] = [];
+		const collection = {
+			putMany: async (items: Array<{ id: string; data: Row }>) => {
+				for (const item of items) {
+					persisted.push({ ...item.data });
+				}
+			},
+			deleteMany: async (ids: string[]) => {
+				deleted.push(...ids);
+			},
+		} as any;
+
+		await mutateOrderedChildren({
+			collection,
+			rows,
+			mutation: {
+				kind: "remove",
+				removedRowId: "mid",
+			},
+			nowIso: "2026-01-01T00:00:00.000Z",
+		});
+
+		expect(persisted.map((row) => row.id)).toEqual(["left", "right"]);
+		expect(persisted.every((row) => row.updatedAt === "2026-01-01T00:00:00.000Z")).toBe(true);
+		expect(deleted).toEqual(["mid"]);
+	});
 });

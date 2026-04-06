@@ -13,7 +13,7 @@
  * ```
  */
 
-import type { PluginDescriptor, RouteContext } from "emdash";
+import type { PluginDescriptor, PluginRoute, RouteContext } from "emdash";
 import { definePlugin } from "emdash";
 
 import {
@@ -25,34 +25,34 @@ import {
 import { cartGetHandler, cartUpsertHandler } from "./handlers/cart.js";
 import {
 	addBundleComponentHandler,
-	reorderBundleComponentHandler,
-	bundleComputeHandler,
 	removeBundleComponentHandler,
-	linkCatalogAssetHandler,
+	reorderBundleComponentHandler,
+	bundleComputeStorefrontHandler,
+} from "./handlers/catalog-bundles.js";
+import { createCategoryHandler, listCategoriesHandler, createProductCategoryLinkHandler, removeProductCategoryLinkHandler } from "./handlers/catalog-categories.js";
+import {
 	createDigitalAssetHandler,
 	createDigitalEntitlementHandler,
 	removeDigitalEntitlementHandler,
+} from "./handlers/catalog-digital.js";
+import {
 	reorderCatalogAssetHandler,
+	linkCatalogAssetHandler,
 	registerProductAssetHandler,
 	unlinkCatalogAssetHandler,
-	createCategoryHandler,
-	listCategoriesHandler,
-	createProductCategoryLinkHandler,
-	removeProductCategoryLinkHandler,
-	createTagHandler,
-	listTagsHandler,
-	createProductTagLinkHandler,
-	removeProductTagLinkHandler,
-	setProductStateHandler,
+} from "./handlers/catalog-assets.js";
+import {
 	createProductHandler,
-	createProductSkuHandler,
-	getProductHandler,
-	setSkuStatusHandler,
 	updateProductHandler,
+	setProductStateHandler,
+	getStorefrontProductHandler,
+	createProductSkuHandler,
 	updateProductSkuHandler,
-	listProductSkusHandler,
-	listProductsHandler,
-} from "./handlers/catalog.js";
+	setSkuStatusHandler,
+	listStorefrontProductsHandler,
+	listStorefrontProductSkusHandler,
+} from "./handlers/catalog-products.js";
+import { createTagHandler, listTagsHandler, createProductTagLinkHandler, removeProductTagLinkHandler } from "./handlers/catalog-tags.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
@@ -107,6 +107,25 @@ type AnyHandler = (ctx: RouteContext<any>) => Promise<unknown>;
 
 function asRouteHandler(fn: AnyHandler): never {
 	return fn as never;
+}
+
+/**
+ * Route helper constructors to keep public/private registration explicit and avoid
+ * accidental exposure of mutation endpoints.
+ */
+function adminRoute<T>(input: PluginRoute<T>["input"], handler: AnyHandler): PluginRoute<T> {
+	return {
+		input,
+		handler: asRouteHandler(handler),
+	};
+}
+
+function publicRoute<T>(input: PluginRoute<T>["input"], handler: AnyHandler): PluginRoute<T> {
+	return {
+		public: true,
+		input,
+		handler: asRouteHandler(handler),
+	};
 }
 
 /** Outbound Stripe API (`api.stripe.com`, `connect.stripe.com`, etc.). */
@@ -199,176 +218,55 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 		},
 
 		routes: {
-			"cart/upsert": {
-				public: true,
-				input: cartUpsertInputSchema,
-				handler: asRouteHandler(cartUpsertHandler),
-			},
-			"cart/get": {
-				public: true,
-				input: cartGetInputSchema,
-				handler: asRouteHandler(cartGetHandler),
-			},
-			"product-assets/register": {
-				public: true,
-				input: productAssetRegisterInputSchema,
-				handler: asRouteHandler(registerProductAssetHandler),
-			},
-			"catalog/asset/link": {
-				public: true,
-				input: productAssetLinkInputSchema,
-				handler: asRouteHandler(linkCatalogAssetHandler),
-			},
-			"catalog/asset/unlink": {
-				public: true,
-				input: productAssetUnlinkInputSchema,
-				handler: asRouteHandler(unlinkCatalogAssetHandler),
-			},
-			"catalog/asset/reorder": {
-				public: true,
-				input: productAssetReorderInputSchema,
-				handler: asRouteHandler(reorderCatalogAssetHandler),
-			},
-			"bundle-components/add": {
-				public: true,
-				input: bundleComponentAddInputSchema,
-				handler: asRouteHandler(addBundleComponentHandler),
-			},
-			"bundle-components/remove": {
-				public: true,
-				input: bundleComponentRemoveInputSchema,
-				handler: asRouteHandler(removeBundleComponentHandler),
-			},
-			"bundle-components/reorder": {
-				public: true,
-				input: bundleComponentReorderInputSchema,
-				handler: asRouteHandler(reorderBundleComponentHandler),
-			},
-			"bundle/compute": {
-				public: true,
-				input: bundleComputeInputSchema,
-				handler: asRouteHandler(bundleComputeHandler),
-			},
-			"digital-assets/create": {
-				public: true,
-				input: digitalAssetCreateInputSchema,
-				handler: asRouteHandler(createDigitalAssetHandler),
-			},
-			"digital-entitlements/create": {
-				public: true,
-				input: digitalEntitlementCreateInputSchema,
-				handler: asRouteHandler(createDigitalEntitlementHandler),
-			},
-			"digital-entitlements/remove": {
-				public: true,
-				input: digitalEntitlementRemoveInputSchema,
-				handler: asRouteHandler(removeDigitalEntitlementHandler),
-			},
-			"catalog/product/create": {
-				public: true,
-				input: productCreateInputSchema,
-				handler: asRouteHandler(createProductHandler),
-			},
-			"catalog/product/get": {
-				public: true,
-				input: productGetInputSchema,
-				handler: asRouteHandler(getProductHandler),
-			},
-			"catalog/product/update": {
-				public: true,
-				input: productUpdateInputSchema,
-				handler: asRouteHandler(updateProductHandler),
-			},
-			"catalog/product/state": {
-				public: true,
-				input: productStateInputSchema,
-				handler: asRouteHandler(setProductStateHandler),
-			},
-			"catalog/category/create": {
-				public: true,
-				input: categoryCreateInputSchema,
-				handler: asRouteHandler(createCategoryHandler),
-			},
-			"catalog/category/list": {
-				public: true,
-				input: categoryListInputSchema,
-				handler: asRouteHandler(listCategoriesHandler),
-			},
-			"catalog/category/link": {
-				public: true,
-				input: productCategoryLinkInputSchema,
-				handler: asRouteHandler(createProductCategoryLinkHandler),
-			},
-			"catalog/category/unlink": {
-				public: true,
-				input: productCategoryUnlinkInputSchema,
-				handler: asRouteHandler(removeProductCategoryLinkHandler),
-			},
-			"catalog/tag/create": {
-				public: true,
-				input: tagCreateInputSchema,
-				handler: asRouteHandler(createTagHandler),
-			},
-			"catalog/tag/list": {
-				public: true,
-				input: tagListInputSchema,
-				handler: asRouteHandler(listTagsHandler),
-			},
-			"catalog/tag/link": {
-				public: true,
-				input: productTagLinkInputSchema,
-				handler: asRouteHandler(createProductTagLinkHandler),
-			},
-			"catalog/tag/unlink": {
-				public: true,
-				input: productTagUnlinkInputSchema,
-				handler: asRouteHandler(removeProductTagLinkHandler),
-			},
-			"catalog/products": {
-				public: true,
-				input: productListInputSchema,
-				handler: asRouteHandler(listProductsHandler),
-			},
-			"catalog/sku/create": {
-				public: true,
-				input: productSkuCreateInputSchema,
-				handler: asRouteHandler(createProductSkuHandler),
-			},
-			"catalog/sku/update": {
-				public: true,
-				input: productSkuUpdateInputSchema,
-				handler: asRouteHandler(updateProductSkuHandler),
-			},
-			"catalog/sku/state": {
-				public: true,
-				input: productSkuStateInputSchema,
-				handler: asRouteHandler(setSkuStatusHandler),
-			},
-			"catalog/sku/list": {
-				public: true,
-				input: productSkuListInputSchema,
-				handler: asRouteHandler(listProductSkusHandler),
-			},
-			checkout: {
-				public: true,
-				input: checkoutInputSchema,
-				handler: asRouteHandler(checkoutHandler),
-			},
-			"checkout/get-order": {
-				public: true,
-				input: checkoutGetOrderInputSchema,
-				handler: asRouteHandler(checkoutGetOrderHandler),
-			},
-			recommendations: {
-				public: true,
-				input: recommendationsInputSchema,
-				handler: asRouteHandler(recommendationsRouteHandler),
-			},
-			"webhooks/stripe": {
-				public: true,
-				input: stripeWebhookInputSchema,
-				handler: asRouteHandler(stripeWebhookHandler),
-			},
+			// Storefront-safe read and action routes (public API surface).
+			"cart/upsert": publicRoute(cartUpsertInputSchema, cartUpsertHandler),
+			"cart/get": publicRoute(cartGetInputSchema, cartGetHandler),
+			"bundle/compute": publicRoute(bundleComputeInputSchema, bundleComputeStorefrontHandler),
+			"catalog/product/get": publicRoute(productGetInputSchema, getStorefrontProductHandler),
+			"catalog/category/list": publicRoute(categoryListInputSchema, listCategoriesHandler),
+			"catalog/tag/list": publicRoute(tagListInputSchema, listTagsHandler),
+			"catalog/products": publicRoute(productListInputSchema, listStorefrontProductsHandler),
+			"catalog/sku/list": publicRoute(productSkuListInputSchema, listStorefrontProductSkusHandler),
+			checkout: publicRoute(checkoutInputSchema, checkoutHandler),
+			"checkout/get-order": publicRoute(checkoutGetOrderInputSchema, checkoutGetOrderHandler),
+			recommendations: publicRoute(recommendationsInputSchema, recommendationsRouteHandler),
+			"webhooks/stripe": publicRoute(stripeWebhookInputSchema, stripeWebhookHandler),
+
+			// Admin/auth-required catalog and commerce-admin mutation routes.
+			"product-assets/register": adminRoute(productAssetRegisterInputSchema, registerProductAssetHandler),
+			"catalog/asset/link": adminRoute(productAssetLinkInputSchema, linkCatalogAssetHandler),
+			"catalog/asset/unlink": adminRoute(productAssetUnlinkInputSchema, unlinkCatalogAssetHandler),
+			"catalog/asset/reorder": adminRoute(productAssetReorderInputSchema, reorderCatalogAssetHandler),
+			"bundle-components/add": adminRoute(bundleComponentAddInputSchema, addBundleComponentHandler),
+			"bundle-components/remove": adminRoute(
+				bundleComponentRemoveInputSchema,
+				removeBundleComponentHandler,
+			),
+			"bundle-components/reorder": adminRoute(
+				bundleComponentReorderInputSchema,
+				reorderBundleComponentHandler,
+			),
+			"digital-assets/create": adminRoute(digitalAssetCreateInputSchema, createDigitalAssetHandler),
+			"digital-entitlements/create": adminRoute(
+				digitalEntitlementCreateInputSchema,
+				createDigitalEntitlementHandler,
+			),
+			"digital-entitlements/remove": adminRoute(
+				digitalEntitlementRemoveInputSchema,
+				removeDigitalEntitlementHandler,
+			),
+			"catalog/product/create": adminRoute(productCreateInputSchema, createProductHandler),
+			"catalog/product/update": adminRoute(productUpdateInputSchema, updateProductHandler),
+			"catalog/product/state": adminRoute(productStateInputSchema, setProductStateHandler),
+			"catalog/category/create": adminRoute(categoryCreateInputSchema, createCategoryHandler),
+			"catalog/category/link": adminRoute(productCategoryLinkInputSchema, createProductCategoryLinkHandler),
+			"catalog/category/unlink": adminRoute(productCategoryUnlinkInputSchema, removeProductCategoryLinkHandler),
+			"catalog/tag/create": adminRoute(tagCreateInputSchema, createTagHandler),
+			"catalog/tag/link": adminRoute(productTagLinkInputSchema, createProductTagLinkHandler),
+			"catalog/tag/unlink": adminRoute(productTagUnlinkInputSchema, removeProductTagLinkHandler),
+			"catalog/sku/create": adminRoute(productSkuCreateInputSchema, createProductSkuHandler),
+			"catalog/sku/update": adminRoute(productSkuUpdateInputSchema, updateProductSkuHandler),
+			"catalog/sku/state": adminRoute(productSkuStateInputSchema, setSkuStatusHandler),
 		},
 	});
 }
@@ -416,25 +314,39 @@ export type { RecommendationsResponse } from "./handlers/recommendations.js";
 export type { CheckoutGetOrderResponse } from "./handlers/checkout-get-order.js";
 export type { CartUpsertResponse, CartGetResponse } from "./handlers/cart.js";
 export type {
-	ProductAssetLinkResponse,
-	ProductAssetResponse,
-	ProductAssetUnlinkResponse,
-	BundleComponentResponse,
-	BundleComponentUnlinkResponse,
-	DigitalAssetResponse,
-	DigitalEntitlementResponse,
-	DigitalEntitlementUnlinkResponse,
-	BundleComputeResponse,
 	ProductResponse,
 	ProductListResponse,
+	ProductSkuResponse,
+	ProductSkuListResponse,
+	StorefrontProductDetail,
+	StorefrontProductListResponse,
+	StorefrontSkuListResponse,
+} from "./handlers/catalog-products.js";
+export type {
 	CategoryResponse,
 	CategoryListResponse,
 	ProductCategoryLinkResponse,
 	ProductCategoryLinkUnlinkResponse,
+} from "./handlers/catalog-categories.js";
+export type {
 	TagResponse,
 	TagListResponse,
 	ProductTagLinkResponse,
 	ProductTagLinkUnlinkResponse,
-	ProductSkuResponse,
-	ProductSkuListResponse,
-} from "./handlers/catalog.js";
+} from "./handlers/catalog-tags.js";
+export type {
+	ProductAssetResponse,
+	ProductAssetLinkResponse,
+	ProductAssetUnlinkResponse,
+} from "./handlers/catalog-assets.js";
+export type {
+	BundleComponentResponse,
+	BundleComponentUnlinkResponse,
+	BundleComputeResponse,
+	StorefrontBundleComputeResponse,
+} from "./handlers/catalog-bundles.js";
+export type {
+	DigitalAssetResponse,
+	DigitalEntitlementResponse,
+	DigitalEntitlementUnlinkResponse,
+} from "./handlers/catalog-digital.js";

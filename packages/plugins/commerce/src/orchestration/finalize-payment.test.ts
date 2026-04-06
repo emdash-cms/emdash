@@ -1862,85 +1862,79 @@ describe("finalizePaymentFromWebhook", () => {
 		expect(receipt?.claimState).toBe("released");
 	});
 
-	it.runIf(process.env.COMMERCE_USE_LEASED_FINALIZE === "1")(
-		"strict mode treats malformed claimExpiresAt as retry-safe stale lease",
-		async () => {
-			const orderId = "order_strict_bad_claim_expires_at";
-			const extId = "evt_strict_bad_claim_expires_at";
-			const stockDocId = inventoryStockDocId("p1", "");
-			const state = {
-				orders: new Map([
-					[
+	it("treats malformed claimExpiresAt as a replay-safe lease boundary", async () => {
+		const orderId = "order_strict_bad_claim_expires_at";
+		const extId = "evt_strict_bad_claim_expires_at";
+		const stockDocId = inventoryStockDocId("p1", "");
+		const state = {
+			orders: new Map([
+				[
+					orderId,
+					baseOrder({
+						lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
+					}),
+				],
+			]),
+			webhookReceipts: new Map<string, StoredWebhookReceipt>([
+				[
+					webhookReceiptDocId("stripe", extId),
+					{
+						providerId: "stripe",
+						externalEventId: extId,
 						orderId,
-						baseOrder({
-							lineItems: [{ productId: "p1", quantity: 2, inventoryVersion: 3, unitPriceMinor: 500 }],
-						}),
-					],
-				]),
-				webhookReceipts: new Map<string, StoredWebhookReceipt>([
-					[
-						webhookReceiptDocId("stripe", extId),
-						{
-							providerId: "stripe",
-							externalEventId: extId,
-							orderId,
-							status: "pending",
-							correlationId: "cid",
-							createdAt: now,
-							updatedAt: now,
-							claimState: "claimed",
-							claimOwner: "other-worker",
-							claimToken: "other-token",
-							claimVersion: now,
-							claimExpiresAt: "definitely-not-an-rfc3339-timestamp",
-						},
-					],
-				]),
-				paymentAttempts: new Map<string, StoredPaymentAttempt>([
-					[
-						"pa_strict_bad_claim_expires_at",
-						{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
-					],
-				]),
-				inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
-				inventoryStock: new Map<string, StoredInventoryStock>([
-					[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
-				]),
-			};
+						status: "pending",
+						correlationId: "cid",
+						createdAt: now,
+						updatedAt: now,
+						claimState: "claimed",
+						claimOwner: "other-worker",
+						claimToken: "other-token",
+						claimVersion: now,
+						claimExpiresAt: "definitely-not-an-rfc3339-timestamp",
+					},
+				],
+			]),
+			paymentAttempts: new Map<string, StoredPaymentAttempt>([
+				[
+					"pa_strict_bad_claim_expires_at",
+					{ orderId, providerId: "stripe", status: "pending", createdAt: now, updatedAt: now },
+				],
+			]),
+			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
+			inventoryStock: new Map<string, StoredInventoryStock>([
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
+			]),
+		};
 
-			const basePorts = portsFromState(state);
-			const ports = {
-				...basePorts,
-				webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
-			} as FinalizePaymentPorts;
+		const basePorts = portsFromState(state);
+		const ports = {
+			...basePorts,
+			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+		} as FinalizePaymentPorts;
 
-			const res = await finalizePaymentFromWebhook(ports, {
-				orderId,
-				providerId: "stripe",
-				externalEventId: extId,
-				correlationId: "cid",
-				finalizeToken: FINALIZE_RAW,
-				nowIso: now,
-			});
+		const res = await finalizePaymentFromWebhook(ports, {
+			orderId,
+			providerId: "stripe",
+			externalEventId: extId,
+			correlationId: "cid",
+			finalizeToken: FINALIZE_RAW,
+			nowIso: now,
+		});
 
-			expect(res.kind).toBe("replay");
-			if (res.kind === "replay") {
-				expect(["webhook_receipt_claim_retry_failed", "webhook_receipt_in_flight"]).toContain(res.reason);
-			}
+		expect(res).toEqual({ kind: "replay", reason: "webhook_receipt_claim_retry_failed" });
 
-			const order = await basePorts.orders.get(orderId);
-			expect(order?.paymentPhase).toBe("payment_pending");
-			const pa = await basePorts.paymentAttempts.get("pa_strict_bad_claim_expires_at");
-			expect(pa?.status).toBe("pending");
-			const stock = await basePorts.inventoryStock.get(stockDocId);
-			expect(stock?.quantity).toBe(10);
-			const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
-			expect(ledger.items).toHaveLength(0);
-			const receipt = await basePorts.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
-			expect(receipt?.status).toBe("pending");
-			expect(receipt?.claimState).toBe("claimed");
-		},
-	);
+		const order = await basePorts.orders.get(orderId);
+		expect(order?.paymentPhase).toBe("payment_pending");
+		const pa = await basePorts.paymentAttempts.get("pa_strict_bad_claim_expires_at");
+		expect(pa?.status).toBe("pending");
+		const stock = await basePorts.inventoryStock.get(stockDocId);
+		expect(stock?.quantity).toBe(10);
+		const ledger = await basePorts.inventoryLedger.query({ limit: 10 });
+		expect(ledger.items).toHaveLength(0);
+		const receipt = await basePorts.webhookReceipts.get(webhookReceiptDocId("stripe", extId));
+		expect(receipt?.status).toBe("pending");
+		expect(receipt?.claimState).toBe("claimed");
+	});
 
 	it("aborts before side-effects when observed claim lease is already expired", async () => {
 		const orderId = "order_claim_expired_while_inflight";

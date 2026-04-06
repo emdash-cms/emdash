@@ -79,7 +79,8 @@ export interface OrderLineItemBundleComponentSummary {
 	availableBundleQuantity: number;
 	/**
 	 * Component SKU stock `version` captured at checkout for optimistic finalize.
-	 * When missing at snapshot time (-1), finalization falls back to legacy bundle-line stock rows.
+	 * Missing or negative values indicate an incomplete bundle snapshot and should
+	 * fail finalize reconciliation.
 	 */
 	componentInventoryVersion: number;
 }

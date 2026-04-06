@@ -3,7 +3,7 @@
  *
  * This file implements the Phase 1 foundation slice from the catalog
  * specification: products and product SKUs with basic write/read paths and
- * invariant checks for unique product slug / SKU code.
+ * invariant checks for catalog mutability and uniqueness constraints.
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -12,6 +12,7 @@ import { PluginRouteError } from "emdash";
 import {
 	applyProductUpdatePatch,
 	applyProductSkuUpdatePatch,
+	applyProductStatusTransition,
 } from "../lib/catalog-domain.js";
 import {
 	collectVariantDefiningAttributes,
@@ -136,6 +137,130 @@ function assertSimpleProductSkuCapacity(product: StoredProduct, existingSkuCount
 
 type Collection<T> = StorageCollection<T>;
 
+type CollectionWithUniqueInsert<T> = Collection<T> & {
+	putIfAbsent?: (id: string, data: T) => Promise<boolean>;
+};
+
+type ConflictHint = {
+	where: Record<string, unknown>;
+	message: string;
+};
+
+function looksLikeUniqueConstraintMessage(message: string): boolean {
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("unique constraint failed") ||
+		normalized.includes("uniqueness violation") ||
+		normalized.includes("duplicate key value violates unique constraint") ||
+		normalized.includes("duplicate entry") ||
+		normalized.includes("constraint failed:") ||
+		normalized.includes("sqlerrorcode=primarykey")
+	);
+}
+
+function readErrorCode(error: unknown): string | undefined {
+	if (!error || typeof error !== "object") return undefined;
+	const maybeCode = (error as Record<string, unknown>).code;
+	if (typeof maybeCode === "string" && maybeCode.length > 0) {
+		return maybeCode;
+	}
+	if (typeof maybeCode === "number") {
+		return String(maybeCode);
+	}
+	const maybeCause = (error as Record<string, unknown>).cause;
+	return typeof maybeCause === "object" ? readErrorCode(maybeCause) : undefined;
+}
+
+function isUniqueConstraintViolation(error: unknown, seen = new Set<unknown>()): boolean {
+	if (error == null || seen.has(error)) return false;
+	seen.add(error);
+
+	if (readErrorCode(error) === "23505") return true;
+
+	if (error instanceof Error) {
+		if (looksLikeUniqueConstraintMessage(error.message)) return true;
+		return isUniqueConstraintViolation((error as Error & { cause?: unknown }).cause, seen);
+	}
+
+	if (typeof error === "object") {
+		const record = error as Record<string, unknown>;
+		const message = record.message;
+		if (typeof message === "string" && looksLikeUniqueConstraintMessage(message)) return true;
+		const cause = record.cause;
+		if (cause) {
+			return isUniqueConstraintViolation(cause, seen);
+		}
+	}
+
+	return false;
+}
+
+async function assertNoConflict<T extends object>(
+	collection: Collection<T>,
+	where: Record<string, unknown>,
+	excludeId?: string,
+	message?: string,
+): Promise<void> {
+	const result = await collection.query({ where, limit: 2 });
+	for (const item of result.items) {
+		if (item.id !== excludeId) {
+			throwConflict(message ?? "Resource already exists");
+		}
+	}
+}
+
+function throwConflict(message: string): never {
+	throw PluginRouteError.badRequest(message);
+}
+
+async function putWithConflictHandling<T extends object>(
+	collection: CollectionWithUniqueInsert<T>,
+	id: string,
+	data: T,
+	conflict?: ConflictHint,
+): Promise<void> {
+	if (collection.putIfAbsent) {
+		try {
+			const inserted = await collection.putIfAbsent(id, data);
+			if (!inserted) {
+				throwConflict(conflict?.message ?? "Resource already exists");
+			}
+			return;
+		} catch (error) {
+			if (isUniqueConstraintViolation(error) && conflict) {
+				throwConflict(conflict.message);
+			}
+			throw error;
+		}
+	}
+
+	if (conflict) {
+		await assertNoConflict(collection, conflict.where, undefined, conflict.message);
+	}
+	await collection.put(id, data);
+}
+
+async function putWithUpdateConflictHandling<T extends object>(
+	collection: CollectionWithUniqueInsert<T>,
+	id: string,
+	data: T,
+	conflict?: ConflictHint,
+): Promise<void> {
+	if (conflict && !collection.putIfAbsent) {
+		await assertNoConflict(collection, conflict.where, id, conflict.message);
+	}
+
+	try {
+		await collection.put(id, data);
+		return;
+	} catch (error) {
+		if (isUniqueConstraintViolation(error) && conflict) {
+			throwConflict(conflict.message);
+		}
+		throw error;
+	}
+}
+
 function asOptionalCollection<T>(raw: unknown): Collection<T> | null {
 	return raw ? (raw as Collection<T>) : null;
 }
@@ -221,6 +346,179 @@ function toWhere(input: { type?: string; status?: string; visibility?: string })
 	return where;
 }
 
+type StorageQueryResult<T> = {
+	items: Array<{ id: string; data: T }>;
+	hasMore: boolean;
+	cursor?: string;
+};
+
+async function queryAllPages<T>(queryPage: (cursor?: string) => Promise<StorageQueryResult<T>>): Promise<Array<{ id: string; data: T }>> {
+	const all: Array<{ id: string; data: T }> = [];
+	let cursor: string | undefined;
+	while (true) {
+		const page = await queryPage(cursor);
+		all.push(...page.items);
+		if (!page.hasMore || !page.cursor) {
+			break;
+		}
+		cursor = page.cursor;
+	}
+	return all;
+}
+
+function toStorefrontProductRecord(product: StoredProduct): StorefrontProductRecord {
+	return {
+		id: product.id,
+		type: product.type,
+		status: product.status,
+		visibility: product.visibility,
+		slug: product.slug,
+		title: product.title,
+		shortDescription: product.shortDescription,
+		brand: product.brand,
+		vendor: product.vendor,
+		featured: product.featured,
+		sortOrder: product.sortOrder,
+		requiresShippingDefault: product.requiresShippingDefault,
+		taxClassDefault: product.taxClassDefault,
+		bundleDiscountType: product.bundleDiscountType,
+		bundleDiscountValueMinor: product.bundleDiscountValueMinor,
+		bundleDiscountValueBps: product.bundleDiscountValueBps,
+		createdAt: product.createdAt,
+		updatedAt: product.updatedAt,
+	};
+}
+
+function resolveProductAvailability(quantity: number): StorefrontProductAvailability {
+	if (quantity <= 0) {
+		return "out_of_stock";
+	}
+	if (quantity <= COMMERCE_LIMITS.lowStockThreshold) {
+		return "low_stock";
+	}
+	return "in_stock";
+}
+
+function assertStorefrontProductVisible(product: StoredProduct): void {
+	if (product.status !== "active" || product.visibility !== "public") {
+		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not available" });
+	}
+}
+
+function normalizeStorefrontProductListInput(input: ProductListInput): ProductListInput {
+	return {
+		...input,
+		status: "active",
+		visibility: "public",
+	};
+}
+
+function toStorefrontSkuSummary(sku: StoredProductSku): StorefrontSkuSummary {
+	return {
+		id: sku.id,
+		productId: sku.productId,
+		skuCode: sku.skuCode,
+		status: sku.status,
+		unitPriceMinor: sku.unitPriceMinor,
+		compareAtPriceMinor: sku.compareAtPriceMinor,
+		requiresShipping: sku.requiresShipping,
+		isDigital: sku.isDigital,
+		availability: resolveProductAvailability(sku.inventoryQuantity),
+	};
+}
+
+function toStorefrontVariantMatrixRow(row: VariantMatrixDTO): StorefrontVariantMatrixRow {
+	const { inventoryQuantity } = row;
+	const sanitized = row as Omit<VariantMatrixDTO, "inventoryQuantity" | "inventoryVersion">;
+	return {
+		...sanitized,
+		availability: resolveProductAvailability(inventoryQuantity),
+	};
+}
+
+function toStorefrontProductDetail(response: ProductResponse): StorefrontProductDetail {
+	return {
+		product: toStorefrontProductRecord(response.product),
+		skus: response.skus?.map(toStorefrontSkuSummary),
+		attributes: response.attributes,
+		variantMatrix: response.variantMatrix?.map(toStorefrontVariantMatrixRow),
+		categories: response.categories ?? [],
+		tags: response.tags ?? [],
+		primaryImage: response.primaryImage,
+		galleryImages: response.galleryImages,
+	};
+}
+
+function toStorefrontProductListResponse(response: ProductListResponse): StorefrontProductListResponse {
+	return {
+		items: response.items.map((item) => ({
+			product: toStorefrontProductRecord(item.product),
+			priceRange: item.priceRange,
+			availability: resolveProductAvailability(item.inventorySummary.totalInventoryQuantity),
+			primaryImage: item.primaryImage,
+			galleryImages: item.galleryImages,
+			lowStockSkuCount: item.lowStockSkuCount,
+			categories: item.categories,
+			tags: item.tags,
+		})),
+	};
+}
+
+function toStorefrontBundleComputeResponse(response: BundleComputeSummary): StorefrontBundleComputeResponse {
+	return {
+		productId: response.productId,
+		subtotalMinor: response.subtotalMinor,
+		discountType: response.discountType,
+		discountValueMinor: response.discountValueMinor,
+		discountValueBps: response.discountValueBps,
+		discountAmountMinor: response.discountAmountMinor,
+		finalPriceMinor: response.finalPriceMinor,
+		availability: response.availability,
+		components: response.components.map((component) => ({
+			componentId: component.componentId,
+			componentSkuCode: component.componentSkuCode,
+			componentPriceMinor: component.componentPriceMinor,
+			quantityPerBundle: component.quantityPerBundle,
+			subtotalContributionMinor: component.subtotalContributionMinor,
+			availableBundleQuantity: component.availableBundleQuantity,
+		})),
+	};
+}
+
+function intersectProductIdSets(left: Set<string>, right: Set<string>): Set<string> {
+	if (left.size > right.size) {
+		const swapped = left;
+		left = right;
+		right = swapped;
+	}
+	const result = new Set<string>();
+	for (const value of left) {
+		if (right.has(value)) {
+			result.add(value);
+		}
+	}
+	return result;
+}
+
+async function collectLinkedProductIds(
+	links: Collection<{ productId: string }>,
+	where: Record<string, string>,
+): Promise<Set<string>> {
+	const ids = new Set<string>();
+	let cursor: string | undefined;
+	while (true) {
+		const result = await links.query({ where, cursor, limit: 100 });
+		for (const row of result.items) {
+			ids.add(row.data.productId);
+		}
+		if (!result.hasMore || !result.cursor) {
+			break;
+		}
+		cursor = result.cursor;
+	}
+	return ids;
+}
+
 function toUniqueStringList(values: string[]): string[] {
 	return [...new Set(values)];
 }
@@ -291,8 +589,77 @@ export type BundleComponentUnlinkResponse = {
 
 export type BundleComputeResponse = BundleComputeSummary;
 
+export type StorefrontBundleComputeComponentSummary = Omit<BundleComputeSummary["components"][number], "componentSkuId" | "componentProductId">;
+
+export type StorefrontBundleComputeResponse = Omit<BundleComputeSummary, "components"> & {
+	components: StorefrontBundleComputeComponentSummary[];
+};
+
 export type ProductListResponse = {
 	items: CatalogListingDTO[];
+};
+
+export type StorefrontProductAvailability = "in_stock" | "low_stock" | "out_of_stock";
+
+export type StorefrontProductRecord = {
+	id: string;
+	type: StoredProduct["type"];
+	status: StoredProduct["status"];
+	visibility: StoredProduct["visibility"];
+	slug: string;
+	title: string;
+	shortDescription: string;
+	brand?: string;
+	vendor?: string;
+	featured: boolean;
+	sortOrder: number;
+	requiresShippingDefault: boolean;
+	taxClassDefault?: string;
+	bundleDiscountType?: StoredProduct["bundleDiscountType"];
+	bundleDiscountValueMinor?: number;
+	bundleDiscountValueBps?: number;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type StorefrontVariantMatrixRow = Omit<VariantMatrixDTO, "inventoryQuantity" | "inventoryVersion"> & {
+	availability: StorefrontProductAvailability;
+};
+
+export type StorefrontSkuSummary = {
+	id: string;
+	productId: string;
+	skuCode: string;
+	status: StoredProductSku["status"];
+	unitPriceMinor: number;
+	compareAtPriceMinor?: number;
+	requiresShipping: boolean;
+	isDigital: boolean;
+	availability: StorefrontProductAvailability;
+};
+
+export type StorefrontProductDetail = {
+	product: StorefrontProductRecord;
+	skus?: StorefrontSkuSummary[];
+	attributes?: StoredProductAttribute[];
+	variantMatrix?: StorefrontVariantMatrixRow[];
+	categories: ProductCategoryDTO[];
+	tags: ProductTagDTO[];
+	primaryImage?: ProductPrimaryImageDTO;
+	galleryImages?: ProductPrimaryImageDTO[];
+};
+
+export type StorefrontProductListResponse = {
+	items: Array<
+		Omit<CatalogListingDTO, "product" | "inventorySummary"> & {
+			product: StorefrontProductRecord;
+			availability?: StorefrontProductAvailability;
+		}
+	>;
+};
+
+export type StorefrontSkuListResponse = {
+	items: StorefrontSkuSummary[];
 };
 
 export type CategoryResponse = {
@@ -331,10 +698,14 @@ async function queryBundleComponentsForProduct(
 	bundleComponents: Collection<StoredBundleComponent>,
 	bundleProductId: string,
 ): Promise<StoredBundleComponent[]> {
-	const query = await bundleComponents.query({
-		where: { bundleProductId },
-	});
-	const rows = sortOrderedRowsByPosition(query.items.map((row) => row.data));
+	const links = await queryAllPages((cursor) =>
+		bundleComponents.query({
+			where: { bundleProductId },
+			cursor,
+			limit: 100,
+		}),
+	);
+	const rows = sortOrderedRowsByPosition(links.map((row) => row.data));
 	return normalizeOrderedChildren(rows);
 }
 
@@ -366,16 +737,20 @@ async function queryCategoryDtosForProducts(
 		return new Map();
 	}
 
-	const links = await productCategoryLinks.query({
-		where: { productId: { in: normalizedProductIds } },
-	});
+	const links = await queryAllPages((cursor) =>
+		productCategoryLinks.query({
+			where: { productId: { in: normalizedProductIds } },
+			cursor,
+			limit: 100,
+		}),
+	);
 	const categoryRows = await getManyByIds(
 		categories,
-		toUniqueStringList(links.items.map((link) => link.data.categoryId)),
+		toUniqueStringList(links.map((link) => link.data.categoryId)),
 	);
 	const rowsByProduct = new Map<string, ProductCategoryDTO[]>();
 
-	for (const link of links.items) {
+	for (const link of links) {
 		const category = categoryRows.get(link.data.categoryId);
 		if (!category) {
 			continue;
@@ -397,13 +772,17 @@ async function queryTagDtosForProducts(
 		return new Map();
 	}
 
-	const links = await productTagLinks.query({
-		where: { productId: { in: normalizedProductIds } },
-	});
-	const tagRows = await getManyByIds(tags, toUniqueStringList(links.items.map((link) => link.data.tagId)));
+	const links = await queryAllPages((cursor) =>
+		productTagLinks.query({
+			where: { productId: { in: normalizedProductIds } },
+			cursor,
+			limit: 100,
+		}),
+	);
+	const tagRows = await getManyByIds(tags, toUniqueStringList(links.map((link) => link.data.tagId)));
 	const rowsByProduct = new Map<string, ProductTagDTO[]>();
 
-	for (const link of links.items) {
+	for (const link of links) {
 		const tag = tagRows.get(link.data.tagId);
 		if (!tag) {
 			continue;
@@ -480,11 +859,15 @@ async function loadProductsReadMetadata(
 	}
 
 	const productsById = new Map<string, StoredProduct>(context.products.map((product) => [product.id, product]));
-	const skusResult = await collections.productSkus.query({
-		where: { productId: { in: productIds } },
-	});
+	const skusResult = await queryAllPages((cursor) =>
+		collections.productSkus.query({
+			where: { productId: { in: productIds } },
+			cursor,
+			limit: 100,
+		}),
+	);
 	const skusByProduct = new Map<string, StoredProductSku[]>();
-	for (const row of skusResult.items) {
+	for (const row of skusResult) {
 		const current = skusByProduct.get(row.data.productId) ?? [];
 		current.push(row.data);
 		skusByProduct.set(row.data.productId, current);
@@ -577,7 +960,13 @@ async function queryProductImagesByRoleForTargets(
 			role: roleFilter,
 		},
 	};
-	const links = await productAssetLinks.query(query).then((result) => result.items);
+	const links = await queryAllPages((cursor) =>
+		productAssetLinks.query({
+			...query,
+			cursor,
+			limit: 100,
+		}),
+	);
 	const assetIds = toUniqueStringList(links.map((link) => link.data.assetId));
 	const assetsById = await getManyByIds(productAssets, assetIds);
 	const linksByTarget = new Map<string, StoredProductAssetLink[]>();
@@ -619,11 +1008,15 @@ async function querySkuOptionValuesBySkuIds(
 		return new Map();
 	}
 
-	const result = await productSkuOptionValues.query({
-		where: { skuId: { in: normalizedSkuIds } },
-	});
+	const rows = await queryAllPages((cursor) =>
+		productSkuOptionValues.query({
+			where: { skuId: { in: normalizedSkuIds } },
+			cursor,
+			limit: 100,
+		}),
+	);
 	const bySkuId = new Map<string, Array<{ attributeId: string; attributeValueId: string }>>();
-	for (const row of result.items) {
+	for (const row of rows) {
 		const current = bySkuId.get(row.data.skuId) ?? [];
 		current.push({
 			attributeId: row.data.attributeId,
@@ -655,15 +1048,19 @@ async function queryDigitalEntitlementSummariesBySkuIds(
 		return new Map();
 	}
 
-	const entitlementRows = await productDigitalEntitlements.query({
-		where: { skuId: { in: normalizedSkuIds } },
-	});
+	const entitlementRows = await queryAllPages((cursor) =>
+		productDigitalEntitlements.query({
+			where: { skuId: { in: normalizedSkuIds } },
+			cursor,
+			limit: 100,
+		}),
+	);
 	const assetIds = toUniqueStringList(
-		entitlementRows.items.map((row) => row.data.digitalAssetId),
+		entitlementRows.map((row) => row.data.digitalAssetId),
 	);
 	const assetsById = await getManyByIds(productDigitalAssets, assetIds);
 	const summariesBySku = new Map<string, ProductDigitalEntitlementSummaryRow[]>();
-	for (const entitlement of entitlementRows.items) {
+	for (const entitlement of entitlementRows) {
 		const asset = assetsById.get(entitlement.data.digitalAssetId);
 		if (!asset) {
 			continue;
@@ -707,14 +1104,6 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 	}));
 	const nowMs = Date.now();
 	const nowIso = new Date(nowMs).toISOString();
-
-	const existing = await products.query({
-		where: { slug: ctx.input.slug },
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest(`Product slug already exists: ${ctx.input.slug}`);
-	}
 
 	const id = `prod_${await randomHex(6)}`;
 
@@ -772,7 +1161,10 @@ export async function createProductHandler(ctx: RouteContext<ProductCreateInput>
 		archivedAt: status === "archived" ? nowIso : undefined,
 	};
 
-	await products.put(id, product);
+	await putWithConflictHandling(products, id, product, {
+		where: { slug: ctx.input.slug },
+		message: `Product slug already exists: ${ctx.input.slug}`,
+	});
 
 	for (const attributeInput of inputAttributes) {
 		const attributeId = `${id}_attr_${await randomHex(6)}`;
@@ -815,20 +1207,14 @@ export async function updateProductHandler(ctx: RouteContext<ProductUpdateInput>
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
 	const { productId, ...patch } = ctx.input;
-	if (patch.slug !== undefined && patch.slug !== existing.slug) {
-		const slugRows = await products.query({
-			where: { slug: patch.slug },
-			limit: 1,
-		});
-		if (slugRows.items.some((row) => row.id !== productId)) {
-			throw PluginRouteError.badRequest(`Product slug already exists: ${patch.slug}`);
-		}
-	}
 	assertBundleDiscountPatchForProduct(existing, patch);
 
 	const product = applyProductUpdatePatch(existing, patch, nowIso);
-
-	await products.put(productId, product);
+	const conflict = patch.slug !== undefined ? {
+		where: { slug: patch.slug },
+		message: `Product slug already exists: ${patch.slug}`,
+	} : undefined;
+	await putWithUpdateConflictHandling(products, productId, product, conflict);
 	return { product };
 }
 
@@ -842,17 +1228,7 @@ export async function setProductStateHandler(ctx: RouteContext<ProductStateInput
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
 	}
 
-	const updated: StoredProduct = {
-		...product,
-		status: ctx.input.status,
-		updatedAt: nowIso,
-		publishedAt: ctx.input.status === "active" ? nowIso : product.publishedAt,
-		archivedAt: ctx.input.status === "archived" ? nowIso : product.archivedAt,
-	};
-	if (ctx.input.status === "draft") {
-		updated.archivedAt = undefined;
-	}
-
+	const updated = applyProductStatusTransition(product, ctx.input.status, nowIso);
 	await products.put(ctx.input.productId, updated);
 	return { product: updated };
 }
@@ -1004,22 +1380,51 @@ export async function listProductsHandler(ctx: RouteContext<ProductListInput>): 
 	const where = toWhere(ctx.input);
 	const includeCategoryId = ctx.input.categoryId;
 	const includeTagId = ctx.input.tagId;
+	const hasProductAttributeFilter = Object.keys(where).length > 0;
 
-	const result = await products.query({
-		where,
-	});
-	let rows = result.items.map((row) => row.data);
+	let rows: StoredProduct[] = [];
+	if (includeCategoryId || includeTagId) {
+		let filteredProductIds: Set<string> | null = null;
+		if (includeCategoryId) {
+			filteredProductIds = await collectLinkedProductIds(productCategoryLinks, { categoryId: includeCategoryId });
+		}
+		if (includeTagId) {
+			const tagProductIds = await collectLinkedProductIds(productTagLinks, { tagId: includeTagId });
+			filteredProductIds = filteredProductIds
+				? intersectProductIdSets(filteredProductIds, tagProductIds)
+				: tagProductIds;
+		}
+		if (!filteredProductIds || filteredProductIds.size === 0) {
+			return { items: [] };
+		}
 
-	if (includeCategoryId) {
-		const categoryLinks = await productCategoryLinks.query({ where: { categoryId: includeCategoryId } });
-		const allowedProductIds = new Set(categoryLinks.items.map((item) => item.data.productId));
-		rows = rows.filter((row) => allowedProductIds.has(row.id));
-	}
-
-	if (includeTagId) {
-		const tagLinks = await productTagLinks.query({ where: { tagId: includeTagId } });
-		const allowedProductIds = new Set(tagLinks.items.map((item) => item.data.productId));
-		rows = rows.filter((row) => allowedProductIds.has(row.id));
+		if (!hasProductAttributeFilter) {
+			const rowsById = await getManyByIds(products, [...filteredProductIds]);
+			rows = [...rowsById.values()];
+		} else {
+			let cursor: string | undefined;
+			while (true) {
+				const result = await products.query({ where, cursor, limit: 100 });
+				for (const row of result.items) {
+					if (filteredProductIds.has(row.id)) {
+						rows.push(row.data);
+					}
+				}
+				if (!result.hasMore || !result.cursor) {
+					break;
+				}
+				cursor = result.cursor;
+			}
+		}
+	} else {
+		const result = await queryAllPages((cursor) =>
+			products.query({
+				where,
+				cursor,
+				limit: 100,
+			}),
+		);
+		rows = result.map((row) => row.data);
 	}
 
 	const sortedRows = sortedImmutable(rows, (left, right) => left.sortOrder - right.sortOrder || left.slug.localeCompare(right.slug)).slice(
@@ -1072,13 +1477,6 @@ export async function createCategoryHandler(ctx: RouteContext<CategoryCreateInpu
 	requirePost(ctx);
 	const categories = asCollection<StoredCategory>(ctx.storage.categories);
 	const nowIso = new Date(Date.now()).toISOString();
-	const existing = await categories.query({
-		where: { slug: ctx.input.slug },
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest(`Category slug already exists: ${ctx.input.slug}`);
-	}
 
 	if (ctx.input.parentId) {
 		const parent = await categories.get(ctx.input.parentId);
@@ -1097,7 +1495,10 @@ export async function createCategoryHandler(ctx: RouteContext<CategoryCreateInpu
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-	await categories.put(id, category);
+	await putWithConflictHandling(categories, id, category, {
+		where: { slug: ctx.input.slug },
+		message: `Category slug already exists: ${ctx.input.slug}`,
+	});
 	return { category };
 }
 
@@ -1139,17 +1540,6 @@ export async function createProductCategoryLinkHandler(
 		throw PluginRouteError.badRequest(`Category not found: ${ctx.input.categoryId}`);
 	}
 
-	const existing = await productCategoryLinks.query({
-		where: {
-			productId: ctx.input.productId,
-			categoryId: ctx.input.categoryId,
-		},
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest("Product-category link already exists");
-	}
-
 	const id = `prod_cat_link_${await randomHex(6)}`;
 	const link: StoredProductCategoryLink = {
 		id,
@@ -1158,7 +1548,13 @@ export async function createProductCategoryLinkHandler(
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-	await productCategoryLinks.put(id, link);
+	await putWithConflictHandling(productCategoryLinks, id, link, {
+		where: {
+			productId: ctx.input.productId,
+			categoryId: ctx.input.categoryId,
+		},
+		message: "Product-category link already exists",
+	});
 	return { link };
 }
 
@@ -1180,13 +1576,6 @@ export async function createTagHandler(ctx: RouteContext<TagCreateInput>): Promi
 	requirePost(ctx);
 	const tags = asCollection<StoredProductTag>(ctx.storage.productTags);
 	const nowIso = new Date(Date.now()).toISOString();
-	const existing = await tags.query({
-		where: { slug: ctx.input.slug },
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest(`Tag slug already exists: ${ctx.input.slug}`);
-	}
 
 	const id = `tag_${await randomHex(6)}`;
 	const tag: StoredProductTag = {
@@ -1196,7 +1585,10 @@ export async function createTagHandler(ctx: RouteContext<TagCreateInput>): Promi
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-	await tags.put(id, tag);
+	await putWithConflictHandling(tags, id, tag, {
+		where: { slug: ctx.input.slug },
+		message: `Tag slug already exists: ${ctx.input.slug}`,
+	});
 	return { tag };
 }
 
@@ -1228,17 +1620,6 @@ export async function createProductTagLinkHandler(
 		throw PluginRouteError.badRequest(`Tag not found: ${ctx.input.tagId}`);
 	}
 
-	const existing = await productTagLinks.query({
-		where: {
-			productId: ctx.input.productId,
-			tagId: ctx.input.tagId,
-		},
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest("Product-tag link already exists");
-	}
-
 	const id = `prod_tag_link_${await randomHex(6)}`;
 	const link: StoredProductTagLink = {
 		id,
@@ -1247,7 +1628,13 @@ export async function createProductTagLinkHandler(
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-	await productTagLinks.put(id, link);
+	await putWithConflictHandling(productTagLinks, id, link, {
+		where: {
+			productId: ctx.input.productId,
+			tagId: ctx.input.tagId,
+		},
+		message: "Product-tag link already exists",
+	});
 	return { link };
 }
 
@@ -1284,13 +1671,6 @@ export async function createProductSkuHandler(
 		throw PluginRouteError.badRequest("Cannot add SKUs to an archived product");
 	}
 
-	const existingSku = await productSkus.query({
-		where: { skuCode: ctx.input.skuCode },
-		limit: 1,
-	});
-	if (existingSku.items.length > 0) {
-		throw PluginRouteError.badRequest(`SKU code already exists: ${ctx.input.skuCode}`);
-	}
 	const existingSkuCount = (await productSkus.query({ where: { productId: product.id } })).items.length;
 	assertSimpleProductSkuCapacity(product, existingSkuCount);
 
@@ -1307,20 +1687,30 @@ export async function createProductSkuHandler(
 			throw PluginRouteError.badRequest(`Product ${product.id} has no variant-defining attributes`);
 		}
 
-		let attributeValueRows: StoredProductAttributeValue[] = [];
-		for (const attribute of variantAttributes) {
-			const valueResult = await productAttributeValues.query({ where: { attributeId: attribute.id } });
-			attributeValueRows = [...attributeValueRows, ...valueResult.items.map((row) => row.data)];
-		}
+		const attributeIds = variantAttributes.map((attribute) => attribute.id);
+		const attributeValueRows = attributeIds.length === 0
+			? []
+			: (await productAttributeValues.query({
+				where: { attributeId: { in: attributeIds } },
+			})).items.map((row) => row.data);
 
 		const existingSkuResult = await productSkus.query({ where: { productId: product.id } });
+		const existingSkuIds = existingSkuResult.items.map((row) => row.data.id);
+		const optionValueRows = existingSkuIds.length === 0
+			? []
+			: (await productSkuOptionValues.query({
+				where: { skuId: { in: existingSkuIds } },
+			})).items.map((row) => row.data);
+		const optionValuesBySku = new Map<string, Array<{ attributeId: string; attributeValueId: string }>>();
+		for (const option of optionValueRows) {
+			const current = optionValuesBySku.get(option.skuId) ?? [];
+			current.push({ attributeId: option.attributeId, attributeValueId: option.attributeValueId });
+			optionValuesBySku.set(option.skuId, current);
+		}
+
 		const existingSignatures = new Set<string>();
 		for (const row of existingSkuResult.items) {
-			const optionResult = await productSkuOptionValues.query({ where: { skuId: row.data.id } });
-			const options = optionResult.items.map((option) => ({
-				attributeId: option.data.attributeId,
-				attributeValueId: option.data.attributeValueId,
-			}));
+			const options = optionValuesBySku.get(row.data.id) ?? [];
 			const signature = normalizeSkuOptionSignature(options);
 			if (options.length > 0) {
 				existingSignatures.add(signature);
@@ -1357,7 +1747,10 @@ export async function createProductSkuHandler(
 		updatedAt: nowIso,
 	};
 
-	await productSkus.put(id, sku);
+	await putWithConflictHandling(productSkus, id, sku, {
+		where: { skuCode: ctx.input.skuCode },
+		message: `SKU code already exists: ${ctx.input.skuCode}`,
+	});
 	await syncInventoryStockForSku(
 		inventoryStock,
 		product,
@@ -1398,17 +1791,12 @@ export async function updateProductSkuHandler(
 	}
 
 	const { skuId, ...patch } = ctx.input;
-	if (patch.skuCode !== undefined && patch.skuCode !== existing.skuCode) {
-		const existingSkuRows = await productSkus.query({
-			where: { skuCode: patch.skuCode },
-			limit: 1,
-		});
-		if (existingSkuRows.items.some((row) => row.id !== skuId)) {
-			throw PluginRouteError.badRequest(`SKU code already exists: ${patch.skuCode}`);
-		}
-	}
 	const sku = applyProductSkuUpdatePatch(existing, patch, nowIso);
-	await productSkus.put(skuId, sku);
+	const conflict = patch.skuCode !== undefined ? {
+		where: { skuCode: patch.skuCode },
+		message: `SKU code already exists: ${patch.skuCode}`,
+	} : undefined;
+	await putWithUpdateConflictHandling(productSkus, skuId, sku, conflict);
 	const shouldSyncInventoryStock =
 		patch.inventoryQuantity !== undefined || patch.inventoryVersion !== undefined;
 	if (shouldSyncInventoryStock) {
@@ -1463,13 +1851,49 @@ export async function listProductSkusHandler(
 	return { items };
 }
 
+export async function getStorefrontProductHandler(ctx: RouteContext<ProductGetInput>): Promise<StorefrontProductDetail> {
+	const internal = await getProductHandler(ctx);
+	assertStorefrontProductVisible(internal.product);
+	return toStorefrontProductDetail(internal);
+}
+
+export async function listStorefrontProductsHandler(ctx: RouteContext<ProductListInput>): Promise<StorefrontProductListResponse> {
+	const storefrontCtx = {
+		...ctx,
+		input: normalizeStorefrontProductListInput(ctx.input),
+	} as RouteContext<ProductListInput>;
+	const internal = await listProductsHandler(storefrontCtx);
+	return toStorefrontProductListResponse(internal);
+}
+
+export async function listStorefrontProductSkusHandler(
+	ctx: RouteContext<ProductSkuListInput>,
+): Promise<StorefrontSkuListResponse> {
+	const products = asCollection<StoredProduct>(ctx.storage.products);
+	const product = await products.get(ctx.input.productId);
+	if (!product) {
+		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
+	}
+	assertStorefrontProductVisible(product);
+	const internal = await listProductSkusHandler(ctx);
+	return {
+		items: internal.items.filter((sku) => sku.status === "active").map(toStorefrontSkuSummary),
+	};
+}
+
 async function queryAssetLinksForTarget(
 	productAssetLinks: Collection<StoredProductAssetLink>,
 	targetType: ProductAssetLinkTarget,
 	targetId: string,
 ): Promise<StoredProductAssetLink[]> {
-	const result = await productAssetLinks.query({ where: { targetType, targetId } });
-	return normalizeOrderedChildren(sortOrderedRowsByPosition(result.items.map((row) => row.data)));
+	const rows = await queryAllPages((cursor) =>
+		productAssetLinks.query({
+			where: { targetType, targetId },
+			cursor,
+			limit: 100,
+		}),
+	);
+	return normalizeOrderedChildren(sortOrderedRowsByPosition(rows.map((row) => row.data)));
 }
 
 async function loadCatalogTargetExists(
@@ -1499,17 +1923,6 @@ export async function registerProductAssetHandler(
 	const productAssets = asCollection<StoredProductAsset>(ctx.storage.productAssets);
 	const nowIso = new Date(Date.now()).toISOString();
 
-	const existing = await productAssets.query({
-		where: {
-			provider: ctx.input.provider,
-			externalAssetId: ctx.input.externalAssetId,
-		},
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest("Asset metadata already registered for provider asset key");
-	}
-
 	const id = `asset_${await randomHex(6)}`;
 	const asset: StoredProductAsset = {
 		id,
@@ -1526,7 +1939,13 @@ export async function registerProductAssetHandler(
 		updatedAt: nowIso,
 	};
 
-	await productAssets.put(id, asset);
+	await putWithConflictHandling(productAssets, id, asset, {
+		where: {
+			provider: ctx.input.provider,
+			externalAssetId: ctx.input.externalAssetId,
+		},
+		message: "Asset metadata already registered for provider asset key",
+	});
 	return { asset };
 }
 
@@ -1558,11 +1977,6 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 		}
 	}
 
-	const duplicate = links.some((link) => link.assetId === ctx.input.assetId);
-	if (duplicate) {
-		throw PluginRouteError.badRequest("Asset already linked to this target");
-	}
-
 	const linkId = `asset_link_${await randomHex(6)}`;
 	const requestedPosition = normalizeOrderedPosition(position);
 
@@ -1576,17 +1990,31 @@ export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLink
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-
-	const normalized = await mutateOrderedChildren({
-		collection: productAssetLinks,
-		rows: links,
-		mutation: {
-			kind: "add",
-			row: link,
-			requestedPosition,
+	await putWithConflictHandling(productAssetLinks, linkId, link, {
+		where: {
+			targetType,
+			targetId,
+			assetId: ctx.input.assetId,
 		},
-		nowIso,
+		message: "Asset already linked to this target",
 	});
+
+	let normalized: StoredProductAssetLink[];
+	try {
+		normalized = await mutateOrderedChildren({
+			collection: productAssetLinks,
+			rows: links,
+			mutation: {
+				kind: "add",
+				row: link,
+				requestedPosition,
+			},
+			nowIso,
+		});
+	} catch (error) {
+		await productAssetLinks.delete(linkId);
+		throw error;
+	}
 
 	const created = normalized.find((candidate) => candidate.id === linkId);
 	if (!created) {
@@ -1607,7 +2035,6 @@ export async function unlinkCatalogAssetHandler(
 	}
 	const links = await queryAssetLinksForTarget(productAssetLinks, existing.targetType, existing.targetId);
 
-	await productAssetLinks.delete(ctx.input.linkId);
 	await mutateOrderedChildren({
 		collection: productAssetLinks,
 		rows: links,
@@ -1686,14 +2113,6 @@ export async function addBundleComponentHandler(
 		throw PluginRouteError.badRequest("Bundle cannot include component products that are themselves bundles");
 	}
 
-	const existingComponent = await bundleComponents.query({
-		where: { bundleProductId: bundleProduct.id, componentSkuId: ctx.input.componentSkuId },
-		limit: 1,
-	});
-	if (existingComponent.items.length > 0) {
-		throw PluginRouteError.badRequest("Bundle already contains this component SKU");
-	}
-
 	const existingComponents = await queryBundleComponentsForProduct(bundleComponents, bundleProduct.id);
 	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
 	const componentId = `bundle_comp_${await randomHex(6)}`;
@@ -1706,17 +2125,27 @@ export async function addBundleComponentHandler(
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-
-	const normalized = await mutateOrderedChildren({
-		collection: bundleComponents,
-		rows: existingComponents,
-		mutation: {
-			kind: "add",
-			row: component,
-			requestedPosition,
-		},
-		nowIso,
+	await putWithConflictHandling(bundleComponents, componentId, component, {
+		where: { bundleProductId: bundleProduct.id, componentSkuId: ctx.input.componentSkuId },
+		message: "Bundle already contains this component SKU",
 	});
+
+	let normalized: StoredBundleComponent[];
+	try {
+		normalized = await mutateOrderedChildren({
+			collection: bundleComponents,
+			rows: existingComponents,
+			mutation: {
+				kind: "add",
+				row: component,
+				requestedPosition,
+			},
+			nowIso,
+		});
+	} catch (error) {
+		await bundleComponents.delete(componentId);
+		throw error;
+	}
 
 	const added = normalized.find((candidate) => candidate.id === componentId);
 	if (!added) {
@@ -1737,8 +2166,6 @@ export async function removeBundleComponentHandler(
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component not found" });
 	}
 	const components = await queryBundleComponentsForProduct(bundleComponents, existing.bundleProductId);
-
-	await bundleComponents.delete(ctx.input.bundleComponentId);
 	await mutateOrderedChildren({
 		collection: bundleComponents,
 		rows: components,
@@ -1825,6 +2252,13 @@ export async function bundleComputeHandler(
 	);
 }
 
+export async function bundleComputeStorefrontHandler(
+	ctx: RouteContext<BundleComputeInput>,
+): Promise<StorefrontBundleComputeResponse> {
+	const internal = await bundleComputeHandler(ctx);
+	return toStorefrontBundleComputeResponse(internal);
+}
+
 export async function createDigitalAssetHandler(
 	ctx: RouteContext<DigitalAssetCreateInput>,
 ): Promise<DigitalAssetResponse> {
@@ -1834,14 +2268,6 @@ export async function createDigitalAssetHandler(
 	const isPrivate = ctx.input.isPrivate ?? true;
 	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
 	const nowIso = new Date(Date.now()).toISOString();
-
-	const existing = await productDigitalAssets.query({
-		where: { provider, externalAssetId: ctx.input.externalAssetId },
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest("Digital asset already registered for provider key");
-	}
 
 	const id = `digital_asset_${await randomHex(6)}`;
 	const asset: StoredDigitalAsset = {
@@ -1858,7 +2284,10 @@ export async function createDigitalAssetHandler(
 		updatedAt: nowIso,
 	};
 
-	await productDigitalAssets.put(id, asset);
+	await putWithConflictHandling(productDigitalAssets, id, asset, {
+		where: { provider, externalAssetId: ctx.input.externalAssetId },
+		message: "Digital asset already registered for provider key",
+	});
 	return { asset };
 }
 
@@ -1886,14 +2315,6 @@ export async function createDigitalEntitlementHandler(
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Digital asset not found" });
 	}
 
-	const existing = await productDigitalEntitlements.query({
-		where: { skuId: ctx.input.skuId, digitalAssetId: ctx.input.digitalAssetId },
-		limit: 1,
-	});
-	if (existing.items.length > 0) {
-		throw PluginRouteError.badRequest("SKU already has this digital entitlement");
-	}
-
 	const id = `entitlement_${await randomHex(6)}`;
 	const entitlement: StoredDigitalEntitlement = {
 		id,
@@ -1903,7 +2324,10 @@ export async function createDigitalEntitlementHandler(
 		createdAt: nowIso,
 		updatedAt: nowIso,
 	};
-	await productDigitalEntitlements.put(id, entitlement);
+	await putWithConflictHandling(productDigitalEntitlements, id, entitlement, {
+		where: { skuId: ctx.input.skuId, digitalAssetId: ctx.input.digitalAssetId },
+		message: "SKU already has this digital entitlement",
+	});
 	return { entitlement };
 }
 

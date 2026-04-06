@@ -118,7 +118,7 @@ describe("finalize-payment-inventory bundle expansion", () => {
 		expect(after?.version).toBe(5);
 	});
 
-	it("legacy bundle snapshot without valid component versions still uses bundle product stock row", async () => {
+	it("throws ORDER_STATE_CONFLICT when a bundle snapshot lacks valid component versions", async () => {
 		const bundleProductId = "bundle_legacy_1";
 		const line: OrderLineItem = {
 			productId: bundleProductId,
@@ -181,15 +181,16 @@ describe("finalize-payment-inventory bundle expansion", () => {
 		);
 		const inventoryLedger = new MemColl<StoredInventoryLedgerEntry>();
 
-		await applyInventoryForOrder(
-			{ inventoryStock, inventoryLedger },
-			{ lineItems: [line] },
-			"order_legacy_bundle",
-			now,
-		);
-
-		const after = await inventoryStock.get(stockId);
-		expect(after?.quantity).toBe(4);
+		await expect(
+			applyInventoryForOrder(
+				{ inventoryStock, inventoryLedger },
+				{ lineItems: [line] },
+				"order_legacy_bundle",
+				now,
+			),
+		).rejects.toMatchObject({
+			code: "ORDER_STATE_CONFLICT",
+		});
 	});
 
 	it("throws PRODUCT_UNAVAILABLE when authoritative stock row is missing", async () => {

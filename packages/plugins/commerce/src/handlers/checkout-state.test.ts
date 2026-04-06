@@ -83,6 +83,38 @@ describe("decideCheckoutReplayState", () => {
 	});
 
 	it("returns cached_completed for finalized idempotency payload", () => {
+		const cachedResponse = {
+			orderId: "order-1",
+			paymentPhase: "payment_pending" as const,
+			paymentAttemptId: "attempt-1",
+			totalMinor: 1500,
+			currency: "USD",
+			finalizeToken: "pending-token-123",
+			replayIntegrity: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+		};
+		const cached = {
+			route: CHECKOUT_ROUTE,
+			keyHash: "k2",
+			httpStatus: 200,
+			responseBody: cachedResponse,
+			createdAt: NOW,
+		} as StoredIdempotencyKey;
+
+		expect(decideCheckoutReplayState(cached)).toMatchObject({
+			kind: "cached_completed",
+			response: {
+				orderId: "order-1",
+				paymentPhase: "payment_pending",
+				paymentAttemptId: "attempt-1",
+				totalMinor: 1500,
+				currency: "USD",
+				finalizeToken: "pending-token-123",
+				replayIntegrity: cachedResponse.replayIntegrity,
+			},
+		});
+	});
+
+	it("returns not_cached when replayIntegrity is missing from completed payload", () => {
 		const cached = {
 			route: CHECKOUT_ROUTE,
 			keyHash: "k2",
@@ -96,19 +128,9 @@ describe("decideCheckoutReplayState", () => {
 				finalizeToken: "pending-token-123",
 			},
 			createdAt: NOW,
-		} as StoredIdempotencyKey;
+		} as unknown as StoredIdempotencyKey;
 
-		expect(decideCheckoutReplayState(cached)).toMatchObject({
-			kind: "cached_completed",
-			response: {
-				orderId: "order-1",
-				paymentPhase: "payment_pending",
-				paymentAttemptId: "attempt-1",
-				totalMinor: 1500,
-				currency: "USD",
-				finalizeToken: "pending-token-123",
-			},
-		});
+		expect(decideCheckoutReplayState(cached)).toEqual({ kind: "not_cached" });
 	});
 
 	it("returns cached_pending for pending checkout recovery payload", () => {
@@ -342,8 +364,39 @@ describe("validateCachedCheckoutCompleted", () => {
 			totalMinor: 100,
 			currency: "USD",
 			finalizeToken: "tok_______________________________",
+			replayIntegrity: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
 		};
 		expect(await validateCachedCheckoutCompleted("kh", cached, null, null)).toBe(false);
+	});
+
+	it("returns false when replayIntegrity is missing", async () => {
+		const token = "tok_______________________________";
+		const order: StoredOrder = {
+			cartId: "c1",
+			paymentPhase: "payment_pending",
+			currency: "USD",
+			lineItems: [],
+			totalMinor: 100,
+			finalizeTokenHash: await sha256HexAsync(token),
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const attempt: StoredPaymentAttempt = {
+			orderId: "o1",
+			providerId: "stripe",
+			status: "pending",
+			createdAt: NOW,
+			updatedAt: NOW,
+		};
+		const cached = {
+			orderId: "o1",
+			paymentPhase: "payment_pending" as const,
+			paymentAttemptId: "a1",
+			totalMinor: 100,
+			currency: "USD",
+			finalizeToken: token,
+		};
+		expect(await validateCachedCheckoutCompleted("kh", cached as never, order, attempt)).toBe(false);
 	});
 
 	it("returns false when replayIntegrity does not match payload", async () => {

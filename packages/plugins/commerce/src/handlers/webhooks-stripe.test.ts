@@ -218,6 +218,59 @@ describe("stripe webhook signature helpers", () => {
 		);
 	});
 
+	it("rejects legacy direct payload shape now that webhook compatibility mode is removed", async () => {
+		const webhookSecret = "whsec_live_test";
+		const legacyBody = JSON.stringify({
+			orderId: "order_1",
+			externalEventId: "evt_legacy",
+			finalizeToken: "token_legacy_12345678901234",
+		});
+		const testTimestamp = 1_760_001_001;
+		const sig = `t=${testTimestamp},v1=${await hashWithSecret(webhookSecret, testTimestamp, legacyBody)}`;
+		const clock = vi.spyOn(Date, "now").mockReturnValue(testTimestamp * 1000);
+
+		const ctx = {
+			request: new Request("https://example.test/webhooks/stripe", {
+				method: "POST",
+				body: legacyBody,
+				headers: {
+					"content-length": String(legacyBody.length),
+					"Stripe-Signature": sig,
+				},
+			}),
+			input: JSON.parse(legacyBody),
+			storage: {
+				orders: {},
+				webhookReceipts: {},
+				paymentAttempts: {},
+				inventoryLedger: {},
+				inventoryStock: {},
+			},
+			kv: {
+				get: vi.fn(async (key: string) => {
+					if (key === "settings:stripeWebhookSecret") return webhookSecret;
+					if (key === "settings:stripeWebhookToleranceSeconds") return "300";
+					return null;
+				}),
+			},
+			requestMeta: { ip: "127.0.0.1" },
+			log: {
+				info: () => undefined,
+				warn: () => undefined,
+				error: () => undefined,
+				debug: () => undefined,
+			},
+		} as never;
+
+		try {
+			await expect(stripeWebhookHandler(ctx)).rejects.toMatchObject({
+				code: "order_state_conflict",
+			});
+		} finally {
+			clock.mockRestore();
+		}
+	});
+
 	it("rejects Stripe event payloads missing metadata", async () => {
 		const webhookSecret = "whsec_live_test";
 		const body = JSON.stringify({

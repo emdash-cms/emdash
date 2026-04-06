@@ -38,6 +38,17 @@ Preferred operational events:
 - `commerce.finalize.receipt_processed`
 - `commerce.finalize.completed`
 
+## 1c) 5E/5F lease enforcement follow-through
+
+`finalizePaymentFromWebhook()` applies strict lease boundary checks as the default behavior:
+
+- malformed or missing `claimExpiresAt` is treated as replay-safe (`claim_retry_failed`) instead of silently continuing side-effect writes,
+- finalization remains bounded by live claim validation before each mutable write stage (`inventory`, `order`, `attempt`, `receipt`),
+- strict mode still allows reclaim of valid stale claims (`now > claimExpiresAt`) and preserves in-flight lock semantics.
+
+Operational evidence for this stage is recorded in
+`COMMERCE_USE_LEASED_FINALIZE_ROLLOUT.md` as archived rollout proof.
+
 ## 2) Duplicate delivery & partial-failure replay matrix
 
 | Scenario                                                                              | Expected outcome                                                             | Why it is safe today                                                                                             |

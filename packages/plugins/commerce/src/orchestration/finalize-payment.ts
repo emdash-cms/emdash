@@ -83,7 +83,11 @@ export type FinalizePaymentPorts = {
 
 const WEBHOOK_RECEIPT_CLAIM_LEASE_WINDOW_MS = 30_000;
 const FINALIZE_INVARIANT_CHECKS = process.env.COMMERCE_ENABLE_FINALIZE_INVARIANT_CHECKS === "1";
-const USE_LEASED_FINALIZE = process.env.COMMERCE_USE_LEASED_FINALIZE === "1";
+/**
+ * Canonical finalize control-flow now always uses strict lease semantics.
+ * `COMMERCE_USE_LEASED_FINALIZE` is retained for rollout evidence and
+ * operational command parity only.
+ */
 
 export type FinalizeWebhookInput = {
 	orderId: string;
@@ -244,17 +248,7 @@ function parseClaimTimestampMs(timestamp: string | undefined): number | null {
 	return Number.isFinite(value) ? value : null;
 }
 
-function isClaimLeaseExpiredLegacy(claimExpiresAt: string | undefined, nowIso: string): boolean {
-	const nowMs = parseClaimTimestampMs(nowIso);
-	const expiresMs = parseClaimTimestampMs(claimExpiresAt);
-	if (nowMs === null || expiresMs === null) return true;
-	return nowMs > expiresMs;
-}
-
 function isClaimLeaseExpired(claimExpiresAt: string | undefined, nowIso: string): boolean {
-	if (!USE_LEASED_FINALIZE) {
-		return isClaimLeaseExpiredLegacy(claimExpiresAt, nowIso);
-	}
 	const nowMs = parseClaimTimestampMs(nowIso);
 	const expiresMs = parseClaimTimestampMs(claimExpiresAt);
 	if (nowMs === null || expiresMs === null) return true;
@@ -267,10 +261,7 @@ function canTakeClaim(existing: StoredWebhookReceipt, nowIso: string): { canTake
 			const nowMs = parseClaimTimestampMs(nowIso);
 			const expiresMs = parseClaimTimestampMs(existing.claimExpiresAt);
 			if (nowMs === null || expiresMs === null) {
-				if (USE_LEASED_FINALIZE) {
-					return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
-				}
-				return { canTake: true, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
 			}
 			const isInFlight = nowMs <= expiresMs;
 			if (isInFlight) {
@@ -360,11 +351,11 @@ async function claimWebhookReceipt({
 		return { kind: "replay", result: { kind: "replay", reason: "webhook_error" } };
 	}
 
-	const { canTake } = canTakeClaim(existing, nowIso);
+	const { canTake, reason } = canTakeClaim(existing, nowIso);
 	if (!canTake) {
 		return {
 			kind: "replay",
-			result: { kind: "replay", reason: "webhook_receipt_in_flight" },
+			result: reason,
 		};
 	}
 

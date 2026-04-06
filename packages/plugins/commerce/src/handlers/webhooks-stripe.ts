@@ -177,15 +177,6 @@ const stripeWebhookAdapter: CommerceWebhookAdapter<StripeWebhookInput> = {
 	providerId: STRIPE_PROVIDER_ID,
 	verifyRequest: ensureValidStripeWebhookSignature,
 	buildFinalizeInput(ctx) {
-		if ("orderId" in ctx.input) {
-			return {
-				orderId: ctx.input.orderId,
-				externalEventId: ctx.input.externalEventId,
-				providerId: ctx.input.providerId ?? STRIPE_PROVIDER_ID,
-				finalizeToken: ctx.input.finalizeToken,
-			};
-		}
-
 		const parsedMetadata = extractStripeFinalizeMetadata(ctx.input);
 		if (!parsedMetadata) {
 			throwCommerceApiError({
@@ -202,9 +193,6 @@ const stripeWebhookAdapter: CommerceWebhookAdapter<StripeWebhookInput> = {
 		};
 	},
 	buildCorrelationId(ctx) {
-		if ("correlationId" in ctx.input && ctx.input.correlationId) {
-			return ctx.input.correlationId;
-		}
 		const parsedMetadata = extractStripeFinalizeMetadata(ctx.input);
 		if (parsedMetadata) {
 			return parsedMetadata.externalEventId;

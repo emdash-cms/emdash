@@ -35,7 +35,10 @@ export type CheckoutResponse = {
 	totalMinor: number;
 	currency: string;
 	finalizeToken: string;
-	/** Present on new writes; validates idempotency replay against live storage. */
+	/**
+	 * Replay seal persisted on completed cache entries. Required for replay validation
+	 * and reconstructed checkpoints, but omitted from client wire responses.
+	 */
 	replayIntegrity?: string;
 };
 
@@ -73,7 +76,8 @@ export function isCheckoutCompletedResponse(value: unknown): value is CheckoutRe
 		typeof candidate.finalizeToken === "string" &&
 		candidate.cartId === undefined &&
 		candidate.lineItems === undefined &&
-		(candidate.replayIntegrity === undefined || typeof candidate.replayIntegrity === "string")
+		typeof candidate.replayIntegrity === "string" &&
+		candidate.replayIntegrity.length > 0
 	);
 }
 
@@ -132,7 +136,7 @@ export async function computeCheckoutReplayIntegrity(
 
 /**
  * Returns true when cached completed response matches live order + attempt rows.
- * When `replayIntegrity` is absent (legacy cache), only structural + token-hash checks apply.
+ * `replayIntegrity` must be present for a completed response to be accepted.
  */
 export async function validateCachedCheckoutCompleted(
 	keyHash: string,
@@ -146,10 +150,10 @@ export async function validateCachedCheckoutCompleted(
 	if (order.totalMinor !== cached.totalMinor) return false;
 	if (order.currency !== cached.currency) return false;
 	if ((await sha256HexAsync(cached.finalizeToken)) !== order.finalizeTokenHash) return false;
-	if (cached.replayIntegrity != null && cached.replayIntegrity.length > 0) {
-		const expected = await computeCheckoutReplayIntegrity(keyHash, cached);
-		if (expected !== cached.replayIntegrity) return false;
-	}
+	if (!cached.replayIntegrity || cached.replayIntegrity.length === 0) return false;
+
+	const expected = await computeCheckoutReplayIntegrity(keyHash, cached);
+	if (expected !== cached.replayIntegrity) return false;
 	return true;
 }
 

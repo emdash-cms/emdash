@@ -62,6 +62,20 @@ export function applyProductUpdatePatch<T extends ProductPatch>(
 	return next;
 }
 
+export function applyProductStatusTransition(
+	existing: StoredProduct,
+	nextStatus: StoredProduct["status"],
+	nowIso: string,
+): StoredProduct {
+	return applyProductLifecycle(
+		{
+			...existing,
+			status: nextStatus,
+		},
+		nowIso,
+	);
+}
+
 export function applyProductSkuUpdatePatch<T extends ProductSkuPatch>(
 	existing: StoredProductSku,
 	patch: T,
