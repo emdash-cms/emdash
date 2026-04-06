@@ -1,0 +1,122 @@
+name: Auto Format
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: Format
+    # Skip bot-authored commits to avoid infinite loops
+    if: github.actor != 'emdashbot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const pr = context.payload.pull_request;
+            const isFork = pr.head.repo.fork || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('sha', pr.head.sha);
+            core.setOutput('number', pr.number.toString());
+            core.setOutput('is_fork', isFork.toString());
+            core.setOutput('full_name', pr.head.repo.full_name);
+
+      # --- Same-repo PRs: checkout and push directly ---
+
+      - name: Checkout (same-repo)
+        if: steps.pr.outputs.is_fork == 'false'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.pr.outputs.ref }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      # --- Fork PRs: checkout the fork at the pinned SHA ---
+
+      - name: Checkout (fork)
+        if: steps.pr.outputs.is_fork == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ steps.pr.outputs.full_name }}
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 22
+
+      - name: Run formatter
+        run: npx oxfmt --ignore-path .gitignore
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --- Same-repo: push directly ---
+
+      - name: Commit and push (same-repo)
+        if: steps.pr.outputs.is_fork == 'false' && steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "style: format"
+          git push
+
+      # --- Fork: push via git with GIT_ASKPASS ---
+
+      - name: Commit and push (fork)
+        if: steps.pr.outputs.is_fork == 'true' && steps.diff.outputs.changed == 'true'
+        id: push-fork
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "style: format"
+          # Push to the fork using the app token via GIT_ASKPASS to avoid
+          # leaking the token in process args or git config
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add fork "https://x-access-token@github.com/${{ steps.pr.outputs.full_name }}.git"
+          if git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
+            echo "push_failed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f "$GIT_ASKPASS"
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Comment on push failure
+        if: steps.push-fork.outputs.push_failed == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr.outputs.number }},
+              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
+            });
