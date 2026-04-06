@@ -9,9 +9,9 @@
 import type { Kysely } from "kysely";
 
 import { jsonExtractExpr } from "../database/dialect-helpers.js";
+import type { Database } from "../database/types.js";
 import { validateJsonFieldName } from "../database/validate.js";
 import type { WhereClause, WhereValue, RangeFilter, InFilter, StartsWithFilter } from "./types.js";
-import type { Database } from "../database/types.js";
 
 /**
  * Error thrown when querying non-indexed fields

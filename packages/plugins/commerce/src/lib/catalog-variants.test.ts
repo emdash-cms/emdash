@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { collectVariantDefiningAttributes, validateVariableSkuOptions } from "./catalog-variants.js";
-
 import type { StoredProductAttribute, StoredProductAttributeValue } from "../types.js";
+import {
+	collectVariantDefiningAttributes,
+	validateVariableSkuOptions,
+} from "./catalog-variants.js";
 
 describe("catalog variant invariants", () => {
 	const colorAttribute: StoredProductAttribute = {

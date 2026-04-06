@@ -1,4 +1,3 @@
-import type { BundleComputeSummary } from "./catalog-bundles.js";
 import type {
 	StoredCategory,
 	StoredProduct,
@@ -6,6 +5,7 @@ import type {
 	StoredProductSku,
 	StoredProductTag,
 } from "../types.js";
+import type { BundleComputeSummary } from "./catalog-bundles.js";
 
 export type BundleSummaryDTO = BundleComputeSummary;
 

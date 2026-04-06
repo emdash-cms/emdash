@@ -4,11 +4,15 @@
  * Duplicate component SKUs are merged after expansion via {@link mergeLineItemsBySku}.
  */
 
-import { mergeLineItemsBySku } from "./merge-line-items.js";
 import type { OrderLineItem } from "../types.js";
+import { mergeLineItemsBySku } from "./merge-line-items.js";
 
 export class BundleSnapshotError extends Error {
-	constructor(message: string, public readonly productId: string, public readonly code: "MISSING_BUNDLE_SNAPSHOT" | "INVALID_COMPONENT_INVENTORY") {
+	constructor(
+		message: string,
+		public readonly productId: string,
+		public readonly code: "MISSING_BUNDLE_SNAPSHOT" | "INVALID_COMPONENT_INVENTORY",
+	) {
 		super(message);
 		this.name = "BundleSnapshotError";
 	}
@@ -17,11 +21,18 @@ export class BundleSnapshotError extends Error {
 function expandBundleLineToComponents(line: OrderLineItem): OrderLineItem[] {
 	const bundle = line.snapshot?.bundleSummary;
 	if (!bundle || bundle.components.length === 0) {
-		throw new BundleSnapshotError(`Bundle snapshot is incomplete for product ${line.productId}`, line.productId, "MISSING_BUNDLE_SNAPSHOT");
+		throw new BundleSnapshotError(
+			`Bundle snapshot is incomplete for product ${line.productId}`,
+			line.productId,
+			"MISSING_BUNDLE_SNAPSHOT",
+		);
 	}
 
 	for (const component of bundle.components) {
-		if (!Number.isFinite(component.componentInventoryVersion) || component.componentInventoryVersion < 0) {
+		if (
+			!Number.isFinite(component.componentInventoryVersion) ||
+			component.componentInventoryVersion < 0
+		) {
 			throw new BundleSnapshotError(
 				`Bundle snapshot missing component inventory version for product ${line.productId} component ${component.componentId}`,
 				line.productId,

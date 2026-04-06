@@ -1,13 +1,10 @@
 import type { StorageCollection } from "emdash";
-import { LineConflictError, mergeLineItemsBySku } from "../lib/merge-line-items.js";
-import { inventoryStockDocId } from "../lib/inventory-stock.js";
-import { BundleSnapshotError, toInventoryDeductionLines } from "../lib/order-inventory-lines.js";
+
 import type { CommerceErrorCode } from "../kernel/errors.js";
-import type {
-	OrderLineItem,
-	StoredInventoryLedgerEntry,
-	StoredInventoryStock,
-} from "../types.js";
+import { inventoryStockDocId } from "../lib/inventory-stock.js";
+import { LineConflictError, mergeLineItemsBySku } from "../lib/merge-line-items.js";
+import { BundleSnapshotError, toInventoryDeductionLines } from "../lib/order-inventory-lines.js";
+import type { OrderLineItem, StoredInventoryLedgerEntry, StoredInventoryStock } from "../types.js";
 
 export { inventoryStockDocId };
 
@@ -172,14 +169,13 @@ async function applyInventoryMutations(
 		merged = toInventoryDeductionLines(orderLines);
 	} catch (error) {
 		if (error instanceof BundleSnapshotError) {
-			throw new InventoryFinalizeError(
-				"ORDER_STATE_CONFLICT",
-				error.message,
-				{
-					reason: error.code === "MISSING_BUNDLE_SNAPSHOT" ? "bundle_snapshot_incomplete" : "bundle_component_invalid_inventory",
-					productId: error.productId,
-				},
-			);
+			throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", error.message, {
+				reason:
+					error.code === "MISSING_BUNDLE_SNAPSHOT"
+						? "bundle_snapshot_incomplete"
+						: "bundle_component_invalid_inventory",
+				productId: error.productId,
+			});
 		}
 		if (error instanceof LineConflictError) {
 			throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", error.message, {
@@ -254,34 +250,40 @@ export function readCurrentStockRows(
 		try {
 			deductionLines = toInventoryDeductionLines(lines);
 		} catch (error) {
-		if (error instanceof BundleSnapshotError) {
+			if (error instanceof BundleSnapshotError) {
+				throw new InventoryFinalizeError(
+					"ORDER_STATE_CONFLICT",
+					`Unable to build inventory deduction lines: ${error.message}`,
+					{
+						reason:
+							error.code === "MISSING_BUNDLE_SNAPSHOT"
+								? "bundle_snapshot_incomplete"
+								: "bundle_component_invalid_inventory",
+						productId: error.productId,
+					},
+				);
+			}
+			if (error instanceof LineConflictError) {
+				throw new InventoryFinalizeError(
+					"ORDER_STATE_CONFLICT",
+					`Unable to build inventory deduction lines: ${error.message}`,
+					{
+						reason: "line_conflict",
+						productId: error.productId,
+						variantId: error.variantId ?? null,
+						expected: error.expected,
+						actual: error.actual,
+					},
+				);
+			}
+			const message = error instanceof Error ? error.message : String(error);
 			throw new InventoryFinalizeError(
 				"ORDER_STATE_CONFLICT",
-				`Unable to build inventory deduction lines: ${error.message}`,
+				`Unable to build inventory deduction lines: ${message}`,
 				{
-					reason:
-						error.code === "MISSING_BUNDLE_SNAPSHOT" ? "bundle_snapshot_incomplete" : "bundle_component_invalid_inventory",
-					productId: error.productId,
+					reason: "bundle_snapshot_incomplete",
 				},
 			);
-		}
-		if (error instanceof LineConflictError) {
-			throw new InventoryFinalizeError("ORDER_STATE_CONFLICT", `Unable to build inventory deduction lines: ${error.message}`, {
-				reason: "line_conflict",
-				productId: error.productId,
-				variantId: error.variantId ?? null,
-				expected: error.expected,
-				actual: error.actual,
-			});
-		}
-		const message = error instanceof Error ? error.message : String(error);
-		throw new InventoryFinalizeError(
-			"ORDER_STATE_CONFLICT",
-			`Unable to build inventory deduction lines: ${message}`,
-			{
-				reason: "bundle_snapshot_incomplete",
-			},
-		);
 		}
 		for (const line of deductionLines) {
 			const stockId = inventoryStockDocId(line.productId, line.variantId ?? "");

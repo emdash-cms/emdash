@@ -101,5 +101,4 @@ describe("checkoutGetOrderHandler", () => {
 			} as unknown as RouteContext<CheckoutGetOrderInput>),
 		).rejects.toMatchObject({ code: "order_token_invalid" });
 	});
-
 });

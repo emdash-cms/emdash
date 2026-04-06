@@ -13,6 +13,7 @@ This roadmap tracks 5 specific ideas, including the two you selected:
 - #9 (catalog/metadata quality guardrails)
 
 and the three must-have reliability extensions proposed next:
+
 - customer incident forensics copilot
 - webhook event semantic drift guardrail
 - paid-but-wrong-stock reconciliation copilot
@@ -49,23 +50,25 @@ and the three must-have reliability extensions proposed next:
 
 ## Priority list (likely to be needed first)
 
-| Rank | Feature | Category | Why this is near-term likely needed | Primary owner |
-| --- | --- | --- | --- | --- |
-| 1 | Finalization Incident Forensics Copilot | Reliability / Ops | Prevents long manual debugging loops on webhook replay/claim edge cases. | Platform/ops tooling |
-| 2 | Webhook Semantic Drift Guardrail | Security / Integrity | Stops semantically unusual events from becoming silent recovery incidents. | Platform security + finance ops |
-| 3 | Paid-vs-Wrong-Stock Reconciliation Copilot | Operations / CX trust | Directly protects fulfilled orders and support costs on inventory desync. | Ops + customer support |
-| 4 | Customer Incident Communication Copilot | Support / UX / Merchant ops | Improves merchant and customer confidence during delayed/edge-case finalization states. | Growth + support tooling |
-| 5 | LLM Catalog Intent QA | Content quality / Merchandising | Improves catalog quality and reduces merchant support on listing confusion. | Merchandising/content |
+| Rank | Feature                                    | Category                        | Why this is near-term likely needed                                                     | Primary owner                   |
+| ---- | ------------------------------------------ | ------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------- |
+| 1    | Finalization Incident Forensics Copilot    | Reliability / Ops               | Prevents long manual debugging loops on webhook replay/claim edge cases.                | Platform/ops tooling            |
+| 2    | Webhook Semantic Drift Guardrail           | Security / Integrity            | Stops semantically unusual events from becoming silent recovery incidents.              | Platform security + finance ops |
+| 3    | Paid-vs-Wrong-Stock Reconciliation Copilot | Operations / CX trust           | Directly protects fulfilled orders and support costs on inventory desync.               | Ops + customer support          |
+| 4    | Customer Incident Communication Copilot    | Support / UX / Merchant ops     | Improves merchant and customer confidence during delayed/edge-case finalization states. | Growth + support tooling        |
+| 5    | LLM Catalog Intent QA                      | Content quality / Merchandising | Improves catalog quality and reduces merchant support on listing confusion.             | Merchandising/content           |
 
 ---
 
 ## 1) Finalization Incident Forensics Copilot
 
 ### Problem
+
 When claims/retries behave unexpectedly (e.g., `claim_in_flight` / `claim_retry_failed`
 with mixed side effects), operators currently read logs manually and reconstruct a timeline.
 
 ### Proposed behavior
+
 - Consume structured finalize telemetry:
   - `resumeState`, `receiptStatus`, `isOrderPaid`, `isInventoryApplied`
   - `isPaymentAttemptSucceeded`, `isReceiptProcessed`
@@ -78,21 +81,25 @@ with mixed side effects), operators currently read logs manually and reconstruct
 - Include a machine-readable playbook step sequence (copy/paste) for operators.
 
 ### Inputs
+
 - `queryFinalizationStatus` and storage reads from finalize collections.
 - Correlation fields: `orderId`, `providerId`, `externalEventId`, `claimToken`.
 
 ### Non-functional constraints
+
 - Never auto-finalizes in advisory mode.
 - Supports replay: running the same query twice should return the same explanation given same input.
 - Response includes redaction of sensitive order/customer context.
 
 ### Acceptance criteria
+
 - Given representative edge-case fixture data, explanation includes one likely cause and one
   safe action.
 - Includes command snippet proving required proof artifacts.
 - Can be run for merchant-facing support queue triage with bounded latency.
 
 ### Proposed rollout
+
 1. Shadow mode (`/api` assistant returns analysis only, no actions).
 2. Add audit logging for every suggestion.
 3. Optional one-click follow-up tasks behind auth + permission checks.
@@ -102,10 +109,12 @@ with mixed side effects), operators currently read logs manually and reconstruct
 ## 2) Webhook Semantic Drift Guardrail
 
 ### Problem
+
 Webhook signature verification and schema validation can pass while payload semantics drift
 or look inconsistent with internal invariants.
 
 ### Proposed behavior
+
 - Compare incoming event semantics against order/payment expectations:
   - provider metadata coherence (`orderId`, `externalEventId`, finalize binding)
   - impossible or suspicious transition markers
@@ -119,19 +128,23 @@ or look inconsistent with internal invariants.
   if governance policy enables stricter mode.
 
 ### Inputs
+
 - Raw event payload + metadata from webhook adapter input.
 - Current payment/order state + existing receipt rows.
 
 ### Non-functional constraints
+
 - Must not reject valid events silently in default compatibility mode.
 - Policy toggle controls enforcement (observe, warn, block).
 
 ### Acceptance criteria
+
 - Deterministic flags for known synthetic suspicious patterns.
 - No change to existing finalized orders in non-blocking mode.
 - When strict mode is enabled, flagged cases become auditable and traceable in logs.
 
 ### Suggested implementation strategy
+
 - Separate "evidence extractor" and "judge" functions for testability.
 - Keep in a read/write-guarded service seam so the kernel can still enforce exact semantics.
 
@@ -140,10 +153,12 @@ or look inconsistent with internal invariants.
 ## 3) Reconciliation Copilot for Paid-but-Wrong-Stock
 
 ### Problem
+
 Complex partial-write/retry states can still produce merchant-visible mismatch where one
 side of stock/payment state progressed and another did not.
 
 ### Proposed behavior
+
 - Detect candidate mismatch classes by correlating:
   - stock movements from `inventoryLedger`
   - `inventoryStock` quantity/version
@@ -159,19 +174,23 @@ side of stock/payment state progressed and another did not.
   - reversibility checklist.
 
 ### Inputs
+
 - `inventoryStock`, `inventoryLedger`, `orders`, `paymentAttempts`, `webhookReceipts`.
 
 ### Non-functional constraints
+
 - No direct stock updates by default.
 - Recommendations always include audit fingerprint (ticket-ready evidence).
 - Actions require explicit operator confirmation and actor tagging.
 
 ### Acceptance criteria
+
 - For known mismatches, report at least one repair plan with safe guardrails.
 - Never suggests blind auto-correct without constraints check.
 - Supports dry-run mode that proves invariants before commit.
 
 ### Suggested rollout
+
 - Start as support-tool integration only (view + copy suggestions).
 - Promote to workflow assistant command after 2 release cycles with no false positives.
 
@@ -180,10 +199,12 @@ side of stock/payment state progressed and another did not.
 ## 4) Customer Incident Communication Copilot (#8)
 
 ### Problem
+
 After delay, replay, or partial finalization visibility, merchants need high-quality,
 policy-safe language quickly.
 
 ### Proposed behavior
+
 - Generate localized message drafts for:
   - delayed/under-review payments,
   - resumed finalization success,
@@ -195,15 +216,18 @@ policy-safe language quickly.
   - customer-facing tone with policy-safe wording (if configured).
 
 ### Inputs
+
 - Finalization state + recent event history + resume state.
 - Route-level locale and merchant communication style config.
 
 ### Non-functional constraints
+
 - Must only compose from normalized state symbols (no free-text inference).
 - Compliance-safe defaults (no speculative legal or payment claims).
 - No automatic outbound communication initially.
 
 ### Acceptance criteria
+
 - For each edge-case state, generated copy is non-empty and does not contradict kernel status.
 - No path can generate a customer message while order/receipt state is inconsistent.
 
@@ -212,10 +236,12 @@ policy-safe language quickly.
 ## 5) LLM Catalog Intent QA (#9)
 
 ### Problem
+
 Catalog copy/metadata drift often causes support tickets, poor search results, and poor
 conversion; this is hard to police with rule-only checks.
 
 ### Proposed behavior
+
 - Analyze product/copy against structured constraints:
   - price/variant consistency with product type data
   - shipping/stock policy conflicts
@@ -227,14 +253,17 @@ conversion; this is hard to police with rule-only checks.
   - suggested minimal edits.
 
 ### Inputs
+
 - `shortDescription`, product/variant copy, tags, attributes, and pricing snapshots.
 
 ### Non-functional constraints
+
 - Must never mutate product data.
 - Suggestion output is structured and versioned by model/call timestamp.
 - Optional "apply suggestions" flow only with explicit review and version bump.
 
 ### Acceptance criteria
+
 - In QA report, each finding maps back to a field-level anchor.
 - Low false-positive threshold from a small validation set before rollout.
 - No edits are committed without explicit approval.

@@ -1,6 +1,7 @@
 # Third-party technical review (round 2) — EmDash-native commerce
 
 > Historical review packet (round 2). Current canonical review entrypoint is:
+>
 > - `@THIRD_PARTY_REVIEW_PACKAGE.md`
 > - `external_review.md`
 > - `SHARE_WITH_REVIEWER.md`
@@ -75,12 +76,12 @@ Reflects an internal “shrink v1, prove correctness first” pass (**`emdash-co
 
 See **`commerce-plugin-architecture.md` §15**:
 
-| Topic | Decision |
-|--------|-----------|
-| Gateways | Stripe **and** Authorize.net (implementation **sequenced**; see §3.3). |
-| Inventory | **Payment-first** finalize; explicit **`inventory_changed` / `payment_conflict`** handling. |
+| Topic          | Decision                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Gateways       | Stripe **and** Authorize.net (implementation **sequenced**; see §3.3).                                            |
+| Inventory      | **Payment-first** finalize; explicit **`inventory_changed` / `payment_conflict`** handling.                       |
 | Shipping / tax | **Separate module**; no shipping address/quote in core without it; multi-currency/localized tax with that family. |
-| Identity | Logged-in **purchase history** + **durable cart**; guest cart **merge** on login (§17). |
+| Identity       | Logged-in **purchase history** + **durable cart**; guest cart **merge** on login (§17).                           |
 
 ### 3.5 Robustness, scale, and platform (new since round 1)
 
@@ -105,24 +106,24 @@ Cart **revalidate on read**, **rounding policy**, **outgoing merchant webhooks**
 
 Extract and read in this order:
 
-| # | Path | Role |
-|---|------|------|
-| 1 | `3rdpary_review_2.md` | This briefing + questions. |
-| 2 | `commerce-plugin-architecture.md` | **Authoritative** full architecture (§1–21). |
-| 3 | `emdash-commerce-final-review-plan.md` | External “tighten foundation” review that influenced §13–§19. |
-| 4 | `commerce-vs-x402-merchants.md` | One-page **commerce vs x402** for product positioning. |
-| 5 | `high-level-plan.md` | Original short sketch; superseded where it conflicts with (2). |
-| 6 | `3rdpary_review.md` | **Round 1** review packet (historical context). |
-| 7 | `skills/creating-plugins/SKILL.md` | EmDash plugin model **ground truth**. |
-| 8 | `packages/plugins/forms/src/index.ts` | Reference: descriptor + `definePlugin` + routes + hooks. |
-| 9 | `packages/plugins/forms/src/storage.ts` | Storage index / `uniqueIndexes` pattern. |
-| 10 | `packages/plugins/forms/src/schemas.ts` | Zod route inputs. |
-| 11 | `packages/plugins/forms/src/types.ts` | Domain types. |
-| 12 | `packages/plugins/forms/src/handlers/submit.ts` | Public handler: validation, media, storage, email, webhook. |
-| 13 | `packages/plugins/commerce/package.json` | Commerce package metadata + exports. |
-| 14 | `packages/plugins/commerce/tsconfig.json` | TS config. |
-| 15 | `packages/plugins/commerce/vitest.config.ts` | Tests. |
-| 16 | `packages/plugins/commerce/src/kernel/*.ts` | Kernel modules + tests. |
+| #   | Path                                            | Role                                                           |
+| --- | ----------------------------------------------- | -------------------------------------------------------------- |
+| 1   | `3rdpary_review_2.md`                           | This briefing + questions.                                     |
+| 2   | `commerce-plugin-architecture.md`               | **Authoritative** full architecture (§1–21).                   |
+| 3   | `emdash-commerce-final-review-plan.md`          | External “tighten foundation” review that influenced §13–§19.  |
+| 4   | `commerce-vs-x402-merchants.md`                 | One-page **commerce vs x402** for product positioning.         |
+| 5   | `high-level-plan.md`                            | Original short sketch; superseded where it conflicts with (2). |
+| 6   | `3rdpary_review.md`                             | **Round 1** review packet (historical context).                |
+| 7   | `skills/creating-plugins/SKILL.md`              | EmDash plugin model **ground truth**.                          |
+| 8   | `packages/plugins/forms/src/index.ts`           | Reference: descriptor + `definePlugin` + routes + hooks.       |
+| 9   | `packages/plugins/forms/src/storage.ts`         | Storage index / `uniqueIndexes` pattern.                       |
+| 10  | `packages/plugins/forms/src/schemas.ts`         | Zod route inputs.                                              |
+| 11  | `packages/plugins/forms/src/types.ts`           | Domain types.                                                  |
+| 12  | `packages/plugins/forms/src/handlers/submit.ts` | Public handler: validation, media, storage, email, webhook.    |
+| 13  | `packages/plugins/commerce/package.json`        | Commerce package metadata + exports.                           |
+| 14  | `packages/plugins/commerce/tsconfig.json`       | TS config.                                                     |
+| 15  | `packages/plugins/commerce/vitest.config.ts`    | Tests.                                                         |
+| 16  | `packages/plugins/commerce/src/kernel/*.ts`     | Kernel modules + tests.                                        |
 
 **Not bundled:** `node_modules`, full `packages/core` sources, WooCommerce tree, upstream EmDash `docs/` tree (use [GitHub](https://github.com/emdash-cms/emdash) for `PluginContext` and plugin overview MDX).
 

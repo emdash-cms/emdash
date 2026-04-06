@@ -1,15 +1,15 @@
 import type { StorageCollection } from "emdash";
 
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
+import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutInput } from "../schemas.js";
+import { resolvePaymentProviderId as resolvePaymentProviderIdFromContracts } from "../services/commerce-provider-contracts.js";
 import type {
 	StoredIdempotencyKey,
 	StoredOrder,
 	StoredPaymentAttempt,
 	OrderLineItem,
 } from "../types.js";
-import { resolvePaymentProviderId as resolvePaymentProviderIdFromContracts } from "../services/commerce-provider-contracts.js";
-import { throwCommerceApiError } from "../route-errors.js";
 
 export const CHECKOUT_ROUTE = "checkout";
 export const CHECKOUT_PENDING_KIND = "checkout_pending";
@@ -97,7 +97,9 @@ export function isCheckoutPendingState(value: unknown): value is CheckoutPending
 	);
 }
 
-export function decideCheckoutReplayState(response: StoredIdempotencyKey | null): CheckoutReplayDecision {
+export function decideCheckoutReplayState(
+	response: StoredIdempotencyKey | null,
+): CheckoutReplayDecision {
 	if (!response) return { kind: "not_cached" };
 	if (isCheckoutCompletedResponse(response.responseBody)) {
 		return { kind: "cached_completed", response: response.responseBody };

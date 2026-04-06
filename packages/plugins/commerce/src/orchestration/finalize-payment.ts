@@ -12,6 +12,7 @@
  */
 
 import type { CommerceApiErrorInput } from "../kernel/api-errors.js";
+import type { CommerceErrorCode } from "../kernel/errors.js";
 import { decidePaymentFinalize, type WebhookReceiptView } from "../kernel/finalize-decision.js";
 import { equalSha256HexDigestAsync, sha256HexAsync } from "../lib/crypto-adapter.js";
 import type {
@@ -23,7 +24,6 @@ import type {
 	WebhookReceiptErrorCode,
 	WebhookReceiptClaimState,
 } from "../types.js";
-import type { CommerceErrorCode } from "../kernel/errors.js";
 import {
 	InventoryFinalizeError,
 	applyInventoryForOrder,
@@ -232,8 +232,9 @@ function createClaimContext(nowIso: string): {
 			? globalThis.crypto.randomUUID()
 			: `${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 10)}`;
 	const nowMs = Date.parse(nowIso);
-	const claimExpiresAt =
-		Number.isFinite(nowMs) ? new Date(nowMs + WEBHOOK_RECEIPT_CLAIM_LEASE_WINDOW_MS).toISOString() : nowIso;
+	const claimExpiresAt = Number.isFinite(nowMs)
+		? new Date(nowMs + WEBHOOK_RECEIPT_CLAIM_LEASE_WINDOW_MS).toISOString()
+		: nowIso;
 
 	return {
 		claimOwner: `worker:${claimToken}`,
@@ -255,24 +256,36 @@ function isClaimLeaseExpired(claimExpiresAt: string | undefined, nowIso: string)
 	return nowMs > expiresMs;
 }
 
-function canTakeClaim(existing: StoredWebhookReceipt, nowIso: string): { canTake: boolean; reason: FinalizeWebhookResult } {
+function canTakeClaim(
+	existing: StoredWebhookReceipt,
+	nowIso: string,
+): { canTake: boolean; reason: FinalizeWebhookResult } {
 	switch (existing.claimState) {
 		case "claimed": {
 			const nowMs = parseClaimTimestampMs(nowIso);
 			const expiresMs = parseClaimTimestampMs(existing.claimExpiresAt);
 			if (nowMs === null || expiresMs === null) {
-				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+				return {
+					canTake: false,
+					reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" },
+				};
 			}
 			const isInFlight = nowMs <= expiresMs;
 			if (isInFlight) {
 				return { canTake: false, reason: { kind: "replay", reason: "webhook_receipt_in_flight" } };
 			}
-			return { canTake: true, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+			return {
+				canTake: true,
+				reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" },
+			};
 		}
 		case "unclaimed":
 		case "released":
 		default:
-			return { canTake: true, reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+			return {
+				canTake: true,
+				reason: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" },
+			};
 	}
 }
 
@@ -359,7 +372,12 @@ async function claimWebhookReceipt({
 		};
 	}
 
-	const claimedExistingReceipt = withClaimedMetadata(existing, claimContext, existing.updatedAt, nowIso);
+	const claimedExistingReceipt = withClaimedMetadata(
+		existing,
+		claimContext,
+		existing.updatedAt,
+		nowIso,
+	);
 	if (!ports.webhookReceipts.compareAndSwap) {
 		return { kind: "acquired", persisted: false, receipt: claimedExistingReceipt };
 	}
@@ -370,7 +388,10 @@ async function claimWebhookReceipt({
 		claimedExistingReceipt,
 	);
 	if (!stolen) {
-		return { kind: "replay", result: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" } };
+		return {
+			kind: "replay",
+			result: { kind: "replay", reason: "webhook_receipt_claim_retry_failed" },
+		};
 	}
 
 	return { kind: "acquired", persisted: true, receipt: claimedExistingReceipt };
@@ -430,7 +451,7 @@ async function persistReceiptStatus(
 		...receipt,
 		status,
 		errorCode: status === "error" ? errorCode : undefined,
-		errorDetails: status === "error" ? errorDetails ?? receipt.errorDetails : undefined,
+		errorDetails: status === "error" ? (errorDetails ?? receipt.errorDetails) : undefined,
 		claimState: isTerminal ? "released" : receipt.claimState,
 		claimOwner: isTerminal ? undefined : receipt.claimOwner,
 		claimToken: isTerminal ? undefined : receipt.claimToken,
@@ -440,10 +461,20 @@ async function persistReceiptStatus(
 	});
 }
 
-function getActiveClaim(receipt: StoredWebhookReceipt):
-	| { claimOwner: string; claimToken: string; claimVersion: string; claimExpiresAt?: string }
-	| null {
-	if (receipt.claimState !== "claimed" || !receipt.claimOwner || !receipt.claimToken || !receipt.claimVersion) {
+function getActiveClaim(
+	receipt: StoredWebhookReceipt,
+): {
+	claimOwner: string;
+	claimToken: string;
+	claimVersion: string;
+	claimExpiresAt?: string;
+} | null {
+	if (
+		receipt.claimState !== "claimed" ||
+		!receipt.claimOwner ||
+		!receipt.claimToken ||
+		!receipt.claimVersion
+	) {
 		return null;
 	}
 
@@ -626,8 +657,8 @@ export async function finalizePaymentFromWebhook(
 		stage: "pending_receipt_written",
 		priorReceiptStatus: decision.existingReceipt?.status,
 	});
-		{
-			const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+	{
+		const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
 		if (claimCheck) return claimCheck;
 	}
 
@@ -726,7 +757,12 @@ export async function finalizePaymentFromWebhook(
 						details: err.details,
 					});
 					{
-						const claimCheck = await assertClaimStillActive(ports, receiptId, pendingReceipt, nowIso);
+						const claimCheck = await assertClaimStillActive(
+							ports,
+							receiptId,
+							pendingReceipt,
+							nowIso,
+						);
 						if (claimCheck) return claimCheck;
 					}
 					await persistReceiptStatus(

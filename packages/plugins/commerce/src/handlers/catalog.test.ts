@@ -1,23 +1,9 @@
 import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
-import type {
-	StoredProduct,
-	StoredProductAsset,
-	StoredProductAssetLink,
-	StoredProductAttribute,
-	StoredProductAttributeValue,
-	StoredBundleComponent,
-	StoredDigitalAsset,
-	StoredDigitalEntitlement,
-	StoredCategory,
-	StoredProductCategoryLink,
-	StoredProductTag,
-	StoredProductTagLink,
-	StoredProductSku,
-	StoredProductSkuOptionValue,
-	StoredInventoryStock,
-} from "../types.js";
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
+import { inventoryStockDocId } from "../lib/inventory-stock.js";
+import { sortedImmutable } from "../lib/sort-immutable.js";
 import type {
 	ProductAssetLinkInput,
 	ProductAssetReorderInput,
@@ -59,9 +45,23 @@ import {
 	bundleComponentAddInputSchema,
 	productUpdateInputSchema,
 } from "../schemas.js";
-import { COMMERCE_LIMITS } from "../kernel/limits.js";
-import { sortedImmutable } from "../lib/sort-immutable.js";
-import { inventoryStockDocId } from "../lib/inventory-stock.js";
+import type {
+	StoredProduct,
+	StoredProductAsset,
+	StoredProductAssetLink,
+	StoredProductAttribute,
+	StoredProductAttributeValue,
+	StoredBundleComponent,
+	StoredDigitalAsset,
+	StoredDigitalEntitlement,
+	StoredCategory,
+	StoredProductCategoryLink,
+	StoredProductTag,
+	StoredProductTagLink,
+	StoredProductSku,
+	StoredProductSkuOptionValue,
+	StoredInventoryStock,
+} from "../types.js";
 import {
 	createProductHandler,
 	setProductStateHandler,
@@ -186,11 +186,9 @@ class ConstraintConflictMemColl<T extends object> extends MemColl<T> {
 		return true;
 	}
 
-	override async query(
-		_options?: {
-			[key: string]: unknown;
-		},
-	): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
+	override async query(_options?: {
+		[key: string]: unknown;
+	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }> {
 		return { items: [], hasMore: false };
 	}
 }
@@ -643,11 +641,14 @@ describe("catalog product handlers", () => {
 		});
 
 		const out = updateProductHandler(
-			catalogCtx({
-				productId: "prod_1",
-				bundleDiscountType: "fixed_amount",
-				bundleDiscountValueMinor: 100,
-			}, products),
+			catalogCtx(
+				{
+					productId: "prod_1",
+					bundleDiscountType: "fixed_amount",
+					bundleDiscountValueMinor: 100,
+				},
+				products,
+			),
 		);
 		await expect(out).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
@@ -836,8 +837,14 @@ describe("catalog product handlers", () => {
 			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
-		const listCtx = catalogCtx<ProductListInput>({ type: "simple", visibility: "public", limit: 10 }, products, skus);
-		const inventoryStock = (listCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		const listCtx = catalogCtx<ProductListInput>(
+			{ type: "simple", visibility: "public", limit: 10 },
+			products,
+			skus,
+		);
+		const inventoryStock = (
+			listCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }
+		).inventoryStock;
 		await inventoryStock.put(inventoryStockDocId("prod_1", ""), {
 			productId: "prod_1",
 			variantId: "",
@@ -964,7 +971,9 @@ describe("catalog product handlers", () => {
 			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
-		const detail = await getStorefrontProductHandler(catalogCtx({ productId: "prod_1" }, products, skus));
+		const detail = await getStorefrontProductHandler(
+			catalogCtx({ productId: "prod_1" }, products, skus),
+		);
 		expect(detail.product).toMatchObject({ id: "prod_1", title: "Safe Product" });
 		expect("longDescription" in detail.product).toBe(false);
 		expect(detail.skus?.[0]).toMatchObject({ id: "sku_1", availability: "in_stock" });
@@ -1004,7 +1013,9 @@ describe("catalog product handlers", () => {
 			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
-		await expect(getStorefrontProductHandler(catalogCtx({ productId: "prod_hidden" }, products, skus))).rejects.toThrow("Product not available");
+		await expect(
+			getStorefrontProductHandler(catalogCtx({ productId: "prod_hidden" }, products, skus)),
+		).rejects.toThrow("Product not available");
 	});
 
 	it("returns storefront sku list without raw inventory fields", async () => {
@@ -1052,9 +1063,9 @@ describe("catalog product handlers", () => {
 			updatedAt: "2026-01-01T00:00:00.000Z",
 		});
 
-	const out = await listStorefrontProductSkusHandler(
-		catalogCtx({ productId: "prod_1", limit: 100 }, products, skus),
-	);
+		const out = await listStorefrontProductSkusHandler(
+			catalogCtx({ productId: "prod_1", limit: 100 }, products, skus),
+		);
 		expect(out.items).toHaveLength(1);
 		expect(out.items[0]).toMatchObject({ id: "sku_1", availability: "in_stock" });
 		expect("inventoryQuantity" in (out.items[0] as object)).toBe(false);
@@ -1094,7 +1105,9 @@ describe("catalog product handlers", () => {
 		});
 
 		await expect(
-			listStorefrontProductSkusHandler(catalogCtx({ productId: "prod_hidden", limit: 100 }, products, skus)),
+			listStorefrontProductSkusHandler(
+				catalogCtx({ productId: "prod_hidden", limit: 100 }, products, skus),
+			),
 		).rejects.toThrow("Product not available");
 	});
 
@@ -1131,7 +1144,9 @@ describe("catalog product handlers", () => {
 		});
 
 		const getCtx = catalogCtx({ productId: "prod_1" }, products, skus);
-		const inventoryStock = (getCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		const inventoryStock = (
+			getCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }
+		).inventoryStock;
 		await inventoryStock.put(inventoryStockDocId("prod_1", "sku_1"), {
 			productId: "prod_1",
 			variantId: "sku_1",
@@ -1141,7 +1156,11 @@ describe("catalog product handlers", () => {
 		});
 
 		const detail = await getProductHandler(getCtx);
-		expect(detail.skus?.[0]).toMatchObject({ id: "sku_1", inventoryQuantity: 6, inventoryVersion: 6 });
+		expect(detail.skus?.[0]).toMatchObject({
+			id: "sku_1",
+			inventoryQuantity: 6,
+			inventoryVersion: 6,
+		});
 	});
 
 	it("falls back to product-level inventory stock when a simple SKU stock row is missing", async () => {
@@ -1178,7 +1197,9 @@ describe("catalog product handlers", () => {
 		});
 
 		const created = await createProductSkuHandler(createCtx);
-		const inventoryStock = (createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		const inventoryStock = (
+			createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }
+		).inventoryStock;
 		await inventoryStock.delete(inventoryStockDocId(created.sku.productId, created.sku.id));
 
 		const readCtx = { ...createCtx, input: { productId: "prod_1" } } as unknown as RouteContext<{
@@ -1368,9 +1389,14 @@ describe("catalog product handlers", () => {
 		expect(listed.tags).toEqual(detail.tags);
 		expect(listed.primaryImage).toEqual(detail.primaryImage);
 		expect(listed.galleryImages).toEqual(detail.galleryImages);
-		expect(listed.inventorySummary.totalInventoryQuantity).toBe(detail.skus?.[0]?.inventoryQuantity);
+		expect(listed.inventorySummary.totalInventoryQuantity).toBe(
+			detail.skus?.[0]?.inventoryQuantity,
+		);
 		expect(listed.lowStockSkuCount).toBe(
-			detail.skus?.filter((sku) => sku.status === "active" && sku.inventoryQuantity <= COMMERCE_LIMITS.lowStockThreshold).length ?? 0,
+			detail.skus?.filter(
+				(sku) =>
+					sku.status === "active" && sku.inventoryQuantity <= COMMERCE_LIMITS.lowStockThreshold,
+			).length ?? 0,
 		);
 	});
 
@@ -1659,11 +1685,17 @@ describe("catalog SKU handlers", () => {
 			),
 		);
 
-		const colorAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "color");
+		const colorAttribute = [...productAttributes.rows.values()].find(
+			(attribute) => attribute.code === "color",
+		);
 		expect(colorAttribute).toBeDefined();
-		const sizeAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "size");
+		const sizeAttribute = [...productAttributes.rows.values()].find(
+			(attribute) => attribute.code === "size",
+		);
 		expect(sizeAttribute).toBeDefined();
-		const valueByCode = new Map(Array.from(productAttributeValues.rows.values(), (row) => [row.code, row.id]));
+		const valueByCode = new Map(
+			Array.from(productAttributeValues.rows.values(), (row) => [row.code, row.id]),
+		);
 
 		const skuA = await createProductSkuHandler(
 			catalogCtx<ProductSkuCreateInput>(
@@ -1784,9 +1816,13 @@ describe("catalog SKU handlers", () => {
 			skus,
 		);
 		const created = await createProductSkuHandler(createCtx);
-		const inventoryStock = (createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		const inventoryStock = (
+			createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }
+		).inventoryStock;
 
-		const variantStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, created.sku.id));
+		const variantStock = await inventoryStock.get(
+			inventoryStockDocId(created.sku.productId, created.sku.id),
+		);
 		const productStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, ""));
 		expect(inventoryStock.rows.size).toBe(2);
 		expect(variantStock).toMatchObject({
@@ -1863,7 +1899,9 @@ describe("catalog SKU handlers", () => {
 			}) as Parameters<typeof updateProductSkuHandler>[0],
 		);
 
-		const variantStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, created.sku.id));
+		const variantStock = await inventoryStock.get(
+			inventoryStockDocId(created.sku.productId, created.sku.id),
+		);
 		const productStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, ""));
 		expect(variantStock).toMatchObject({
 			productId: "parent",
@@ -1917,8 +1955,12 @@ describe("catalog SKU handlers", () => {
 				productAttributeValues,
 			),
 		);
-		const colorAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.productId === product.product.id);
-		const colorValue = [...productAttributeValues.rows.values()].find((value) => value.attributeId === colorAttribute!.id);
+		const colorAttribute = [...productAttributes.rows.values()].find(
+			(attribute) => attribute.productId === product.product.id,
+		);
+		const colorValue = [...productAttributeValues.rows.values()].find(
+			(value) => value.attributeId === colorAttribute!.id,
+		);
 		const createCtx = catalogCtx<ProductSkuCreateInput>(
 			{
 				productId: product.product.id,
@@ -1940,10 +1982,16 @@ describe("catalog SKU handlers", () => {
 			productSkuOptionValues,
 		);
 		const created = await createProductSkuHandler(createCtx);
-		const inventoryStock = (createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }).inventoryStock;
+		const inventoryStock = (
+			createCtx.storage as unknown as { inventoryStock: MemColl<StoredInventoryStock> }
+		).inventoryStock;
 
-		const variantStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, created.sku.id));
-		const productLevelStock = await inventoryStock.get(inventoryStockDocId(created.sku.productId, ""));
+		const variantStock = await inventoryStock.get(
+			inventoryStockDocId(created.sku.productId, created.sku.id),
+		);
+		const productLevelStock = await inventoryStock.get(
+			inventoryStockDocId(created.sku.productId, ""),
+		);
 		expect(inventoryStock.rows.size).toBe(1);
 		expect(variantStock).toMatchObject({
 			productId: product.product.id,
@@ -2247,12 +2295,18 @@ describe("catalog SKU handlers", () => {
 			),
 		);
 
-		const colorAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "color");
-		const sizeAttribute = [...productAttributes.rows.values()].find((attribute) => attribute.code === "size");
-		const colorValues = [...productAttributeValues.rows.values()].filter((value) =>
-			value.attributeId === colorAttribute?.id,
+		const colorAttribute = [...productAttributes.rows.values()].find(
+			(attribute) => attribute.code === "color",
 		);
-		const sizeValues = [...productAttributeValues.rows.values()].filter((value) => value.attributeId === sizeAttribute?.id);
+		const sizeAttribute = [...productAttributes.rows.values()].find(
+			(attribute) => attribute.code === "size",
+		);
+		const colorValues = [...productAttributeValues.rows.values()].filter(
+			(value) => value.attributeId === colorAttribute?.id,
+		);
+		const sizeValues = [...productAttributeValues.rows.values()].filter(
+			(value) => value.attributeId === sizeAttribute?.id,
+		);
 		if (!colorAttribute || !sizeAttribute || colorValues.length < 2 || sizeValues.length < 2) {
 			throw new Error("Test fixture missing required attributes");
 		}
@@ -2763,11 +2817,19 @@ describe("catalog asset handlers", () => {
 		);
 
 		const reordered = await reorderCatalogAssetHandler(
-			catalogCtx<ProductAssetReorderInput>({ linkId: second.link.id, position: 0 }, products, skus, productAssets, productAssetLinks),
+			catalogCtx<ProductAssetReorderInput>(
+				{ linkId: second.link.id, position: 0 },
+				products,
+				skus,
+				productAssets,
+				productAssetLinks,
+			),
 		);
 		expect(reordered.link.position).toBe(0);
 
-		const byTarget = await productAssetLinks.query({ where: { targetType: "sku", targetId: "sku_1" } });
+		const byTarget = await productAssetLinks.query({
+			where: { targetType: "sku", targetId: "sku_1" },
+		});
 		const inOrder = byTarget.items.map((item) => item.data);
 		const ordered = sortedImmutable(inOrder, (left, right) => left.position - right.position);
 		expect(ordered[0]?.id).toBe(second.link.id);
@@ -2922,7 +2984,9 @@ describe("catalog asset handlers", () => {
 		);
 		expect(removed.deleted).toBe(true);
 
-		const remaining = await productAssetLinks.query({ where: { targetType: "product", targetId: "prod_1" } });
+		const remaining = await productAssetLinks.query({
+			where: { targetType: "product", targetId: "prod_1" },
+		});
 		expect(remaining.items).toHaveLength(1);
 		expect(remaining.items[0]!.data.id).toBe(secondLink.link.id);
 		expect(remaining.items[0]!.data.position).toBe(0);
@@ -3326,7 +3390,7 @@ describe("catalog bundle handlers", () => {
 	it("sanitizes storefront bundle compute response", async () => {
 		const products = new MemColl<StoredProduct>();
 		const skus = new MemColl<StoredProductSku>();
-	const inventoryStock = new MemColl<StoredInventoryStock>();
+		const inventoryStock = new MemColl<StoredInventoryStock>();
 		const bundleComponents = new MemColl<StoredBundleComponent>();
 
 		await products.put("prod_bundle", {
@@ -3793,12 +3857,14 @@ describe("catalog bundle handlers", () => {
 				),
 			),
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
-		expect(bundleComponentAddInputSchema.safeParse({
-			bundleProductId: "prod_bundle",
-			componentSkuId: "sku_simple",
-			quantity: 0,
-			position: 0,
-		}).success).toBe(false);
+		expect(
+			bundleComponentAddInputSchema.safeParse({
+				bundleProductId: "prod_bundle",
+				componentSkuId: "sku_simple",
+				quantity: 0,
+				position: 0,
+			}).success,
+		).toBe(false);
 	});
 });
 
@@ -4167,20 +4233,14 @@ describe("catalog organization", () => {
 
 	it("returns category_link_not_found when unlinking a missing product-category link", async () => {
 		const out = removeProductCategoryLinkHandler(
-			catalogCtx<ProductCategoryUnlinkInput>(
-				{ linkId: "missing-link" },
-				new MemColl(),
-			),
+			catalogCtx<ProductCategoryUnlinkInput>({ linkId: "missing-link" }, new MemColl()),
 		);
 		await expect(out).rejects.toMatchObject({ code: "category_link_not_found" });
 	});
 
 	it("returns tag_link_not_found when unlinking a missing product-tag link", async () => {
 		const out = removeProductTagLinkHandler(
-			catalogCtx<ProductTagUnlinkInput>(
-				{ linkId: "missing-link" },
-				new MemColl(),
-			),
+			catalogCtx<ProductTagUnlinkInput>({ linkId: "missing-link" }, new MemColl()),
 		);
 		await expect(out).rejects.toMatchObject({ code: "tag_link_not_found" });
 	});
@@ -4208,9 +4268,13 @@ describe("catalog organization", () => {
 				bundleDiscountValueMinor: 100,
 			}).success,
 		).toBe(true);
-		expect(categoryCreateInputSchema.safeParse({ name: "Tools", slug: "tools", position: 0 }).success).toBe(true);
+		expect(
+			categoryCreateInputSchema.safeParse({ name: "Tools", slug: "tools", position: 0 }).success,
+		).toBe(true);
 		expect(categoryListInputSchema.safeParse({}).success).toBe(true);
-		expect(productCategoryLinkInputSchema.safeParse({ productId: "p", categoryId: "c" }).success).toBe(true);
+		expect(
+			productCategoryLinkInputSchema.safeParse({ productId: "p", categoryId: "c" }).success,
+		).toBe(true);
 		expect(productCategoryUnlinkInputSchema.safeParse({ linkId: "link_1" }).success).toBe(true);
 		expect(tagCreateInputSchema.safeParse({ name: "Gift", slug: "gift" }).success).toBe(true);
 		expect(tagListInputSchema.safeParse({}).success).toBe(true);

@@ -13,12 +13,7 @@
  * ```
  */
 
-import type {
-	PluginDefinition,
-	PluginDescriptor,
-	PluginRoute,
-	RouteContext,
-} from "emdash";
+import type { PluginDefinition, PluginDescriptor, PluginRoute, RouteContext } from "emdash";
 import { definePlugin } from "emdash";
 
 import {
@@ -62,7 +57,12 @@ import {
 	listStorefrontProductsHandler,
 	listStorefrontProductSkusHandler,
 } from "./handlers/catalog.js";
-import { createTagHandler, listTagsHandler, createProductTagLinkHandler, removeProductTagLinkHandler } from "./handlers/catalog.js";
+import {
+	createTagHandler,
+	listTagsHandler,
+	createProductTagLinkHandler,
+	removeProductTagLinkHandler,
+} from "./handlers/catalog.js";
 import { checkoutGetOrderHandler } from "./handlers/checkout-get-order.js";
 import { checkoutHandler } from "./handlers/checkout.js";
 import { handleIdempotencyCleanup } from "./handlers/cron.js";
@@ -116,14 +116,20 @@ type CommerceRouteHandler<TInput = unknown> = (ctx: RouteContext<TInput>) => Pro
  * Route helper constructors to keep public/private registration explicit and avoid
  * accidental exposure of mutation endpoints.
  */
-function adminRoute<T>(input: PluginRoute<T>["input"], handler: CommerceRouteHandler<T>): PluginRoute {
+function adminRoute<T>(
+	input: PluginRoute<T>["input"],
+	handler: CommerceRouteHandler<T>,
+): PluginRoute {
 	return {
 		input,
 		handler,
 	} as PluginRoute;
 }
 
-function publicRoute<T>(input: PluginRoute<T>["input"], handler: CommerceRouteHandler<T>): PluginRoute {
+function publicRoute<T>(
+	input: PluginRoute<T>["input"],
+	handler: CommerceRouteHandler<T>,
+): PluginRoute {
 	return {
 		public: true,
 		input,
@@ -235,10 +241,16 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 			"webhooks/stripe": publicRoute(stripeWebhookInputSchema, stripeWebhookHandler),
 
 			// Admin/auth-required catalog and commerce-admin mutation routes.
-			"product-assets/register": adminRoute(productAssetRegisterInputSchema, registerProductAssetHandler),
+			"product-assets/register": adminRoute(
+				productAssetRegisterInputSchema,
+				registerProductAssetHandler,
+			),
 			"catalog/asset/link": adminRoute(productAssetLinkInputSchema, linkCatalogAssetHandler),
 			"catalog/asset/unlink": adminRoute(productAssetUnlinkInputSchema, unlinkCatalogAssetHandler),
-			"catalog/asset/reorder": adminRoute(productAssetReorderInputSchema, reorderCatalogAssetHandler),
+			"catalog/asset/reorder": adminRoute(
+				productAssetReorderInputSchema,
+				reorderCatalogAssetHandler,
+			),
 			"bundle-components/add": adminRoute(bundleComponentAddInputSchema, addBundleComponentHandler),
 			"bundle-components/remove": adminRoute(
 				bundleComponentRemoveInputSchema,
@@ -261,8 +273,14 @@ export function createPlugin(options: CommercePluginOptions = {}) {
 			"catalog/product/update": adminRoute(productUpdateInputSchema, updateProductHandler),
 			"catalog/product/state": adminRoute(productStateInputSchema, setProductStateHandler),
 			"catalog/category/create": adminRoute(categoryCreateInputSchema, createCategoryHandler),
-			"catalog/category/link": adminRoute(productCategoryLinkInputSchema, createProductCategoryLinkHandler),
-			"catalog/category/unlink": adminRoute(productCategoryUnlinkInputSchema, removeProductCategoryLinkHandler),
+			"catalog/category/link": adminRoute(
+				productCategoryLinkInputSchema,
+				createProductCategoryLinkHandler,
+			),
+			"catalog/category/unlink": adminRoute(
+				productCategoryUnlinkInputSchema,
+				removeProductCategoryLinkHandler,
+			),
 			"catalog/tag/create": adminRoute(tagCreateInputSchema, createTagHandler),
 			"catalog/tag/link": adminRoute(productTagLinkInputSchema, createProductTagLinkHandler),
 			"catalog/tag/unlink": adminRoute(productTagUnlinkInputSchema, removeProductTagLinkHandler),

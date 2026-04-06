@@ -1,6 +1,6 @@
+import type { Database } from "emdash";
 import { Kysely } from "kysely";
 import { describe, it, expect } from "vitest";
-import type { Database } from "emdash";
 
 import { PreviewDODialect } from "../../src/db/do-dialect.js";
 import type { PreviewDBStub } from "../../src/db/do-dialect.js";

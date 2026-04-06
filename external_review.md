@@ -8,6 +8,7 @@ Regenerating **`commerce-plugin-external-review.zip`** copies the canonical revi
 packets plus the commerce plugin sources. Zip files are not included in the bundle.
 
 Priority review areas:
+
 - same-event concurrent webhook delivery remains the primary residual production risk,
 - receipt `pending` semantics must remain replay-safe and resumable,
 - concentrate on duplicate delivery, partial writes, and ownership/possession boundaries before suggesting broader architecture changes.

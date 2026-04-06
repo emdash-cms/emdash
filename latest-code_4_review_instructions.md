@@ -10,4 +10,3 @@ This document is a historical review instruction packet for an earlier snapshot 
 - `SHARE_WITH_REVIEWER.md` describes the current single-file handoff flow for external reviewers.
 
 For archival context, this packet remains in the repo to preserve the original review progression.
-

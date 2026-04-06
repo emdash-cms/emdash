@@ -1,6 +1,7 @@
 # Third-Party Evaluation Brief — Commerce Finalize Hardening (Option A execution)
 
 > Historical review packet (Option A). Canonical current entrypoint is:
+>
 > - `@THIRD_PARTY_REVIEW_PACKAGE.md`
 > - `external_review.md`
 > - `SHARE_WITH_REVIEWER.md`
@@ -74,7 +75,7 @@ Three categories of risk were addressed:
     - preflight failure leaves stock/ledger unchanged (partial-write prevention)
   - In-memory storage mock now supports `orderBy` for deterministic pending-attempt behavior.
 
-- `packages/plugins/commerce/src/handlers/webhooks-stripe.test.ts` *(new)*
+- `packages/plugins/commerce/src/handlers/webhooks-stripe.test.ts` _(new)_
   - Added signature helper unit coverage:
     - parse format
     - valid v1 signature
@@ -165,4 +166,3 @@ If reviewer confirms current delivery profile needs stronger concurrency guarant
 1. introduce a storage-level claim primitive (or explicit lock emulation) for webhook receipts, then
 2. fold claim + mutation into one atomic boundary where backend storage allows it,
 3. keep current deterministic IDs as a second line of defense for replay safety.
-

@@ -146,9 +146,7 @@ type MemCollWithClaiming<T extends object> = MemCollWithPutIfAbsent<T> & {
 	compareAndSwap(id: string, expectedVersion: string, data: T): Promise<boolean>;
 };
 
-function memCollWithPutIfAbsent<T extends object>(
-	collection: MemColl<T>,
-): MemCollWithClaiming<T> {
+function memCollWithPutIfAbsent<T extends object>(collection: MemColl<T>): MemCollWithClaiming<T> {
 	return {
 		get rows() {
 			return collection.rows;
@@ -172,7 +170,10 @@ function memCollWithPutIfAbsent<T extends object>(
 	} as MemCollWithClaiming<T>;
 }
 
-function stealWebhookClaim(webhookRows: Map<string, StoredWebhookReceipt>, receiptId: string): void {
+function stealWebhookClaim(
+	webhookRows: Map<string, StoredWebhookReceipt>,
+	receiptId: string,
+): void {
 	const current = webhookRows.get(receiptId);
 	if (!current) return;
 	webhookRows.set(receiptId, {
@@ -548,7 +549,7 @@ describe("finalizePaymentFromWebhook", () => {
 		};
 		const ports = {
 			...basePorts,
-		orders: withOneTimePutFailure(asMemCollection(basePorts.orders)),
+			orders: withOneTimePutFailure(asMemCollection(basePorts.orders)),
 		};
 
 		const first = await finalizePaymentFromWebhook(ports, {
@@ -617,7 +618,7 @@ describe("finalizePaymentFromWebhook", () => {
 		const ports = portsFromState(state);
 		const basePorts = {
 			...ports,
-		paymentAttempts: withOneTimePutFailure(asMemCollection(ports.paymentAttempts)),
+			paymentAttempts: withOneTimePutFailure(asMemCollection(ports.paymentAttempts)),
 		} as typeof ports;
 
 		const first = await finalizePaymentFromWebhook(basePorts, {
@@ -1259,9 +1260,7 @@ describe("finalizePaymentFromWebhook", () => {
 		// Wrap inventoryStock so the first put (stock update) fails.
 		const ports = {
 			...basePorts,
-			inventoryStock: withOneTimePutFailure(
-			asMemCollection(basePorts.inventoryStock),
-			),
+			inventoryStock: withOneTimePutFailure(asMemCollection(basePorts.inventoryStock)),
 		} as FinalizePaymentPorts;
 
 		// First attempt: ledger write succeeds, stock write throws (hard storage error).
@@ -1462,10 +1461,7 @@ describe("finalizePaymentFromWebhook", () => {
 		// (status→pending) must succeed so the receipt is left in pending state.
 		const ports = {
 			...basePorts,
-			webhookReceipts: withNthPutFailure(
-			asMemCollection(basePorts.webhookReceipts),
-			2,
-			),
+			webhookReceipts: withNthPutFailure(asMemCollection(basePorts.webhookReceipts), 2),
 		};
 
 		// First attempt: throws when writing status→processed.
@@ -1645,8 +1641,12 @@ describe("finalizePaymentFromWebhook", () => {
 			resumeState: "replay_processed",
 		});
 
-		expect(logs.some((entry) => entry.message === "commerce.finalize.inventory_reconcile")).toBe(true);
-		expect(logs.some((entry) => entry.message === "commerce.finalize.payment_attempt_update_attempt")).toBe(true);
+		expect(logs.some((entry) => entry.message === "commerce.finalize.inventory_reconcile")).toBe(
+			true,
+		);
+		expect(
+			logs.some((entry) => entry.message === "commerce.finalize.payment_attempt_update_attempt"),
+		).toBe(true);
 		expect(logs.some((entry) => entry.message === "commerce.finalize.completed")).toBe(true);
 		expect(logs.some((entry) => entry.message === "commerce.finalize.noop")).toBe(true);
 	});
@@ -1844,7 +1844,9 @@ describe("finalizePaymentFromWebhook", () => {
 		const basePorts = portsFromState(state);
 		const ports = {
 			...basePorts,
-			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+			webhookReceipts: memCollWithPutIfAbsent(
+				basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+			),
 		} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {
@@ -1909,7 +1911,9 @@ describe("finalizePaymentFromWebhook", () => {
 		const basePorts = portsFromState(state);
 		const ports = {
 			...basePorts,
-			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+			webhookReceipts: memCollWithPutIfAbsent(
+				basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+			),
 		} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {
@@ -1958,15 +1962,14 @@ describe("finalizePaymentFromWebhook", () => {
 			]),
 			inventoryLedger: new Map<string, StoredInventoryLedgerEntry>(),
 			inventoryStock: new Map<string, StoredInventoryStock>([
-				[
-					stockDocId,
-					{ productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now },
-				],
+				[stockDocId, { productId: "p1", variantId: "", version: 3, quantity: 10, updatedAt: now }],
 			]),
 		};
 
 		const basePorts = portsFromState(state);
-		const claimableReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const claimableReceipts = memCollWithPutIfAbsent(
+			basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+		);
 		const webhookRows = claimableReceipts.rows;
 		const ports = {
 			...basePorts,
@@ -1990,7 +1993,7 @@ describe("finalizePaymentFromWebhook", () => {
 					return inserted;
 				},
 			},
-	} as FinalizePaymentPorts;
+		} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {
 			orderId,
@@ -2048,7 +2051,9 @@ describe("finalizePaymentFromWebhook", () => {
 
 		const basePorts = portsFromState(state);
 		const webhookRows = basePorts.webhookReceipts.rows;
-		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const webhookReceipts = memCollWithPutIfAbsent(
+			basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+		);
 		const rid = webhookReceiptDocId("stripe", extId);
 		const ports = {
 			...basePorts,
@@ -2063,7 +2068,7 @@ describe("finalizePaymentFromWebhook", () => {
 				},
 			},
 			webhookReceipts,
-	} as FinalizePaymentPorts;
+		} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {
 			orderId,
@@ -2115,7 +2120,9 @@ describe("finalizePaymentFromWebhook", () => {
 
 		const basePorts = portsFromState(state);
 		const webhookRows = basePorts.webhookReceipts.rows;
-		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const webhookReceipts = memCollWithPutIfAbsent(
+			basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+		);
 		const rid = webhookReceiptDocId("stripe", extId);
 		const ports = {
 			...basePorts,
@@ -2183,7 +2190,9 @@ describe("finalizePaymentFromWebhook", () => {
 
 		const basePorts = portsFromState(state);
 		const webhookRows = basePorts.webhookReceipts.rows;
-		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const webhookReceipts = memCollWithPutIfAbsent(
+			basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+		);
 		const rid = webhookReceiptDocId("stripe", extId);
 		const ports = {
 			...basePorts,
@@ -2251,7 +2260,9 @@ describe("finalizePaymentFromWebhook", () => {
 
 		const basePorts = portsFromState(state);
 		const webhookRows = basePorts.webhookReceipts.rows;
-		const webhookReceipts = memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>);
+		const webhookReceipts = memCollWithPutIfAbsent(
+			basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+		);
 		const rid = webhookReceiptDocId("stripe", extId);
 		const ports = {
 			...basePorts,
@@ -2346,7 +2357,9 @@ describe("finalizePaymentFromWebhook", () => {
 		const basePorts = portsFromState(state);
 		const ports = {
 			...basePorts,
-			webhookReceipts: memCollWithPutIfAbsent(basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>),
+			webhookReceipts: memCollWithPutIfAbsent(
+				basePorts.webhookReceipts as MemColl<StoredWebhookReceipt>,
+			),
 		} as FinalizePaymentPorts;
 
 		const res = await finalizePaymentFromWebhook(ports, {

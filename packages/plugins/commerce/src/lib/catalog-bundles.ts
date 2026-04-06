@@ -41,7 +41,8 @@ export function computeBundleSummary(
 
 	const summaryLines: BundleComputeComponentSummary[] = lines.map((line) => {
 		const qty = Math.max(1, line.component.quantity);
-		const componentAvailable = line.sku.status !== "active" ? 0 : Math.floor(line.sku.inventoryQuantity / qty);
+		const componentAvailable =
+			line.sku.status !== "active" ? 0 : Math.floor(line.sku.inventoryQuantity / qty);
 		return {
 			componentId: line.component.id,
 			componentSkuId: line.component.componentSkuId,

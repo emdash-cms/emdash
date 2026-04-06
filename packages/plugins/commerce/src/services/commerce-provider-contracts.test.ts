@@ -19,12 +19,7 @@ describe("commerce-provider-contracts", () => {
 	});
 
 	it("exports deterministic MCP actor contract", () => {
-		expect(Object.keys(COMMERCE_MCP_ACTORS)).toEqual([
-			"system",
-			"merchant",
-			"agent",
-			"customer",
-		]);
+		expect(Object.keys(COMMERCE_MCP_ACTORS)).toEqual(["system", "merchant", "agent", "customer"]);
 		expect(COMMERCE_MCP_ACTORS.system).toBe("system");
 		expect(COMMERCE_MCP_ACTORS.customer).toBe("customer");
 	});

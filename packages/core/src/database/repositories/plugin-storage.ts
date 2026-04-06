@@ -23,9 +23,9 @@ import type {
 	PaginatedResult,
 	WhereClause,
 } from "../../plugins/types.js";
-import { isUniqueConstraintViolation } from "../unique-constraint.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
+import { isUniqueConstraintViolation } from "../unique-constraint.js";
 import { encodeCursor, decodeCursor } from "./types.js";
 
 /**

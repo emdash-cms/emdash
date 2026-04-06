@@ -108,7 +108,7 @@ For deeper drift detection, set `COMMERCE_ENABLE_FINALIZE_INVARIANT_CHECKS=1` so
 completed finalize calls also log warning-level invariant signals when order paid,
 attempt success, and ledger/stock application are unexpectedly out of sync.
 This flag should be used as a temporary safety net during incident response only,
- not as part of normal fast-path processing.
+not as part of normal fast-path processing.
 
 ### Paid-vs-receipt semantics for storefront and support tooling
 
@@ -161,6 +161,7 @@ Use this as a practical playbook before scaling to precomputed status projection
   - Prefer caller-side jitter/backoff over unlimited polling loops.
 
 If you regularly see sustained saturation even after these knobs:
+
 - move diagnostics calls to larger `finalizationDiagnosticsCacheTtlMs` window,
 - or adopt the next step (snapshot projection) for high-throughput, always-on polling.
 

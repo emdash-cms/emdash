@@ -30,7 +30,8 @@ vi.mock("../orchestration/finalize-payment.js", () => ({
 }));
 vi.mock("../lib/rate-limit-kv.js", () => ({
 	__esModule: true,
-	consumeKvRateLimit: (...args: Parameters<typeof consumeKvRateLimit>) => consumeKvRateLimit(...args),
+	consumeKvRateLimit: (...args: Parameters<typeof consumeKvRateLimit>) =>
+		consumeKvRateLimit(...args),
 }));
 
 describe("stripe webhook signature helpers", () => {
@@ -303,7 +304,7 @@ describe("stripe webhook signature helpers", () => {
 					},
 					kv: {
 						get: vi.fn(async (key: string) => {
-						if (key === "settings:stripeWebhookSecret") return webhookSecret;
+							if (key === "settings:stripeWebhookSecret") return webhookSecret;
 							if (key === "settings:stripeWebhookToleranceSeconds") return "300";
 							return null;
 						}),

@@ -8,6 +8,7 @@
 
 import type { RouteContext } from "emdash";
 
+import { type BundleComputeSummary } from "../lib/catalog-bundles.js";
 import type {
 	CatalogListingDTO,
 	ProductCategoryDTO,
@@ -19,50 +20,6 @@ import type {
 	ProductTagDTO,
 	VariantMatrixDTO,
 } from "../lib/catalog-dto.js";
-import {
-	type BundleComputeSummary,
-} from "../lib/catalog-bundles.js";
-import {
-	handleLinkCatalogAsset,
-	handleReorderCatalogAsset,
-	handleRegisterProductAsset,
-	handleUnlinkCatalogAsset,
-} from "./catalog-asset.js";
-import {
-	handleAddBundleComponent,
-	handleBundleCompute,
-	handleRemoveBundleComponent,
-	handleReorderBundleComponent,
-} from "./catalog-bundle.js";
-import {
-	handleCreateDigitalAsset,
-	handleCreateDigitalEntitlement,
-	handleRemoveDigitalEntitlement,
-} from "./catalog-digital.js";
-import {
-	handleCreateProduct,
-	handleGetProduct,
-	handleListProducts,
-	handleSetProductState,
-	handleUpdateProduct,
-	handleCreateProductSku,
-	handleUpdateProductSku,
-	handleSetSkuStatus,
-	handleListProductSkus,
-	handleGetStorefrontProduct,
-	handleListStorefrontProducts,
-	handleListStorefrontProductSkus,
-} from "./catalog-product.js";
-import {
-	handleCreateCategory,
-	handleCreateTag,
-	handleListCategories,
-	handleCreateProductCategoryLink,
-	handleCreateProductTagLink,
-	handleRemoveProductCategoryLink,
-	handleRemoveProductTagLink,
-	handleListTags,
-} from "./catalog-association.js";
 import type {
 	ProductCreateInput,
 	ProductAssetLinkInput,
@@ -110,7 +67,50 @@ import type {
 	StoredProductSkuOptionValue,
 	StoredProductSku,
 } from "../types.js";
-function toStorefrontBundleComputeResponse(response: BundleComputeSummary): StorefrontBundleComputeResponse {
+import {
+	handleLinkCatalogAsset,
+	handleReorderCatalogAsset,
+	handleRegisterProductAsset,
+	handleUnlinkCatalogAsset,
+} from "./catalog-asset.js";
+import {
+	handleCreateCategory,
+	handleCreateTag,
+	handleListCategories,
+	handleCreateProductCategoryLink,
+	handleCreateProductTagLink,
+	handleRemoveProductCategoryLink,
+	handleRemoveProductTagLink,
+	handleListTags,
+} from "./catalog-association.js";
+import {
+	handleAddBundleComponent,
+	handleBundleCompute,
+	handleRemoveBundleComponent,
+	handleReorderBundleComponent,
+} from "./catalog-bundle.js";
+import {
+	handleCreateDigitalAsset,
+	handleCreateDigitalEntitlement,
+	handleRemoveDigitalEntitlement,
+} from "./catalog-digital.js";
+import {
+	handleCreateProduct,
+	handleGetProduct,
+	handleListProducts,
+	handleSetProductState,
+	handleUpdateProduct,
+	handleCreateProductSku,
+	handleUpdateProductSku,
+	handleSetSkuStatus,
+	handleListProductSkus,
+	handleGetStorefrontProduct,
+	handleListStorefrontProducts,
+	handleListStorefrontProductSkus,
+} from "./catalog-product.js";
+function toStorefrontBundleComputeResponse(
+	response: BundleComputeSummary,
+): StorefrontBundleComputeResponse {
 	return {
 		productId: response.productId,
 		subtotalMinor: response.subtotalMinor,
@@ -179,7 +179,10 @@ export type BundleComponentUnlinkResponse = {
 
 export type BundleComputeResponse = BundleComputeSummary;
 
-export type StorefrontBundleComputeComponentSummary = Omit<BundleComputeSummary["components"][number], "componentSkuId" | "componentProductId">;
+export type StorefrontBundleComputeComponentSummary = Omit<
+	BundleComputeSummary["components"][number],
+	"componentSkuId" | "componentProductId"
+>;
 
 export type StorefrontBundleComputeResponse = Omit<BundleComputeSummary, "components"> & {
 	components: StorefrontBundleComputeComponentSummary[];
@@ -212,7 +215,10 @@ export type StorefrontProductRecord = {
 	updatedAt: string;
 };
 
-export type StorefrontVariantMatrixRow = Omit<VariantMatrixDTO, "inventoryQuantity" | "inventoryVersion"> & {
+export type StorefrontVariantMatrixRow = Omit<
+	VariantMatrixDTO,
+	"inventoryQuantity" | "inventoryVersion"
+> & {
 	availability: StorefrontProductAvailability;
 };
 
@@ -284,32 +290,45 @@ export type ProductTagLinkUnlinkResponse = {
 	deleted: boolean;
 };
 
-
-export async function createProductHandler(ctx: RouteContext<ProductCreateInput>): Promise<ProductResponse> {
+export async function createProductHandler(
+	ctx: RouteContext<ProductCreateInput>,
+): Promise<ProductResponse> {
 	return handleCreateProduct(ctx);
 }
 
-export async function updateProductHandler(ctx: RouteContext<ProductUpdateInput>): Promise<ProductResponse> {
+export async function updateProductHandler(
+	ctx: RouteContext<ProductUpdateInput>,
+): Promise<ProductResponse> {
 	return handleUpdateProduct(ctx);
 }
 
-export async function setProductStateHandler(ctx: RouteContext<ProductStateInput>): Promise<ProductResponse> {
+export async function setProductStateHandler(
+	ctx: RouteContext<ProductStateInput>,
+): Promise<ProductResponse> {
 	return handleSetProductState(ctx);
 }
 
-export async function getProductHandler(ctx: RouteContext<ProductGetInput>): Promise<ProductResponse> {
+export async function getProductHandler(
+	ctx: RouteContext<ProductGetInput>,
+): Promise<ProductResponse> {
 	return handleGetProduct(ctx);
 }
 
-export async function listProductsHandler(ctx: RouteContext<ProductListInput>): Promise<ProductListResponse> {
+export async function listProductsHandler(
+	ctx: RouteContext<ProductListInput>,
+): Promise<ProductListResponse> {
 	return handleListProducts(ctx);
 }
 
-export async function createCategoryHandler(ctx: RouteContext<CategoryCreateInput>): Promise<CategoryResponse> {
+export async function createCategoryHandler(
+	ctx: RouteContext<CategoryCreateInput>,
+): Promise<CategoryResponse> {
 	return handleCreateCategory(ctx);
 }
 
-export async function listCategoriesHandler(ctx: RouteContext<CategoryListInput>): Promise<CategoryListResponse> {
+export async function listCategoriesHandler(
+	ctx: RouteContext<CategoryListInput>,
+): Promise<CategoryListResponse> {
 	return handleListCategories(ctx);
 }
 
@@ -393,7 +412,9 @@ export async function registerProductAssetHandler(
 	return handleRegisterProductAsset(ctx);
 }
 
-export async function linkCatalogAssetHandler(ctx: RouteContext<ProductAssetLinkInput>): Promise<ProductAssetLinkResponse> {
+export async function linkCatalogAssetHandler(
+	ctx: RouteContext<ProductAssetLinkInput>,
+): Promise<ProductAssetLinkResponse> {
 	return handleLinkCatalogAsset(ctx);
 }
 

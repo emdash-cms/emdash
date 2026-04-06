@@ -5,6 +5,7 @@
  * Preview mode is read-only — no transaction support needed.
  */
 
+import type { Database } from "emdash";
 import type {
 	CompiledQuery,
 	DatabaseConnection,
@@ -16,7 +17,6 @@ import type {
 } from "kysely";
 import { SqliteAdapter, SqliteQueryCompiler } from "kysely";
 
-import type { Database } from "emdash";
 import { D1Introspector } from "./d1-introspector.js";
 import type { QueryResult as DOQueryResult } from "./do-class.js";
 

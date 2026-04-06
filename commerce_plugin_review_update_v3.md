@@ -172,9 +172,11 @@ So the code pays the cost of a multi-file design while still living with a monol
 Choose one of two honest options:
 
 #### Option A — keep the monolith temporarily
+
 If you are not ready to truly split the module, keep `catalog.ts` as the canonical implementation and remove the fake split.
 
 #### Option B — perform a real split
+
 Move real implementations into domain files such as:
 
 - products

@@ -116,7 +116,10 @@ export function adaptSandboxEntry(
 			// We store it as the generic type and let HookPipeline's typed dispatch
 			// methods handle the type narrowing at call time.
 			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- bridging untyped map to typed interface
-			(resolvedHooks as Record<string, unknown>)[hookName] = resolveStandardHook(standardHook, pluginId);
+			(resolvedHooks as Record<string, unknown>)[hookName] = resolveStandardHook(
+				standardHook,
+				pluginId,
+			);
 		}
 	}
 

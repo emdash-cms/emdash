@@ -58,20 +58,21 @@ For a quick reviewer entrypoint: `@THIRD_PARTY_REVIEW_PACKAGE.md` → `external_
 
 Use this when opening follow-up work:
 
-1) Set scope to Strategy A only (contract drift hardening, no topology change).
-2) Execute the Strategy A checklist in `CI_REGRESSION_CHECKLIST.md` sections 0–5, with optional 5F follow-through.
-3) Confirm docs updates are in scope:
+1. Set scope to Strategy A only (contract drift hardening, no topology change).
+2. Execute the Strategy A checklist in `CI_REGRESSION_CHECKLIST.md` sections 0–5, with optional 5F follow-through.
+3. Confirm docs updates are in scope:
    - `COMMERCE_DOCS_INDEX.md`
    - `COMMERCE_EXTENSION_SURFACE.md`
    - `AI-EXTENSIBILITY.md`
    - `HANDOVER.md`
    - `FINALIZATION_REVIEW_AUDIT.md`
-4) Run proof commands:
+4. Run proof commands:
    - `pnpm --filter @emdash-cms/plugin-commerce test services/commerce-provider-contracts.test.ts`
    - `pnpm --filter @emdash-cms/plugin-commerce test`
-5) Proof artifacts for strict lease rollout:
-  - `COMMERCE_USE_LEASED_FINALIZE` is retained for replay parity and evidence reruns when needed; strict claim-lease checks are otherwise canonical.
-  - Runbooks and proof outputs are now captured directly in this repo’s regression log trail.
+5. Proof artifacts for strict lease rollout:
+
+- `COMMERCE_USE_LEASED_FINALIZE` is retained for replay parity and evidence reruns when needed; strict claim-lease checks are otherwise canonical.
+- Runbooks and proof outputs are now captured directly in this repo’s regression log trail.
 
 ## External review continuation roadmap
 
@@ -86,19 +87,19 @@ reliability-support-catalog extension backlog.
 
 ## Plugin HTTP routes
 
-| Route                | Role                                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
-| `cart/upsert`        | Create or update a `StoredCart`; issues `ownerToken` on first creation                           |
-| `cart/get`           | Read-only cart snapshot; `ownerToken` when cart has `ownerTokenHash`                             |
-| `checkout`           | Create `payment_pending` order + attempt; idempotency; `ownerToken` if cart has `ownerTokenHash` |
-| `checkout/get-order` | Read-only order snapshot; always requires matching `finalizeToken`                               |
-| `webhooks/stripe`    | Verify signature → finalize                                                                      |
-| `recommendations`    | Disabled contract for UIs                                                                        |
+| Route                    | Role                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| `cart/upsert`            | Create or update a `StoredCart`; issues `ownerToken` on first creation                           |
+| `cart/get`               | Read-only cart snapshot; `ownerToken` when cart has `ownerTokenHash`                             |
+| `checkout`               | Create `payment_pending` order + attempt; idempotency; `ownerToken` if cart has `ownerTokenHash` |
+| `checkout/get-order`     | Read-only order snapshot; always requires matching `finalizeToken`                               |
+| `webhooks/stripe`        | Verify signature → finalize                                                                      |
+| `recommendations`        | Disabled contract for UIs                                                                        |
 | `catalog/product/create` | Validate and create a product row                                                                |
-| `catalog/product/get`    | Retrieve one product by id                                                                        |
-| `catalog/products`       | List products by type/status/visibility                                                            |
-| `catalog/sku/create`     | Create a SKU for an existing product                                                               |
-| `catalog/sku/list`       | List SKUs for one product                                                                         |
+| `catalog/product/get`    | Retrieve one product by id                                                                       |
+| `catalog/products`       | List products by type/status/visibility                                                          |
+| `catalog/sku/create`     | Create a SKU for an existing product                                                             |
+| `catalog/sku/list`       | List SKUs for one product                                                                        |
 
 ## Diagnostics and runbook surfaces
 

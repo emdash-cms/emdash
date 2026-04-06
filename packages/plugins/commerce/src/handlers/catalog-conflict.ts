@@ -83,7 +83,9 @@ export async function assertNoConflict<T extends object>(
 	excludeId?: string,
 	message = "Resource already exists",
 ): Promise<void> {
-	const result = await collection.query({ where, limit: 2 } as Parameters<Collection<T>["query"]>[0]);
+	const result = await collection.query({ where, limit: 2 } as Parameters<
+		Collection<T>["query"]
+	>[0]);
 	for (const item of result.items) {
 		if (item.id !== excludeId) {
 			throwConflict(message);

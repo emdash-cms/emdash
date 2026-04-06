@@ -124,7 +124,9 @@ async function focusAndSelectAll(screen: Awaited<ReturnType<typeof render>>) {
 }
 
 function getBoldButton(screen: Awaited<ReturnType<typeof render>>) {
-	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name: "Bold" });
+	return screen
+		.getByRole("toolbar", { name: "Text formatting" })
+		.getByRole("button", { name: "Bold" });
 }
 
 // =============================================================================

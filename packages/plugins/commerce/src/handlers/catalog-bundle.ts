@@ -1,25 +1,28 @@
 import type { RouteContext } from "emdash";
 import { PluginRouteError } from "emdash";
 
-import { normalizeOrderedChildren, normalizeOrderedPosition, mutateOrderedChildren, sortOrderedRowsByPosition } from "../lib/ordered-rows.js";
+import { computeBundleSummary } from "../lib/catalog-bundles.js";
 import { randomHex } from "../lib/crypto-adapter.js";
+import {
+	normalizeOrderedChildren,
+	normalizeOrderedPosition,
+	mutateOrderedChildren,
+	sortOrderedRowsByPosition,
+} from "../lib/ordered-rows.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
-import { hydrateSkusWithInventoryStock } from "./catalog-read-model.js";
-import { computeBundleSummary } from "../lib/catalog-bundles.js";
 import type {
 	BundleComponentAddInput,
 	BundleComponentRemoveInput,
 	BundleComponentReorderInput,
 	BundleComputeInput,
 } from "../schemas.js";
-import type { StoredBundleComponent, StoredInventoryStock, StoredProduct, StoredProductSku } from "../types.js";
 import type {
-	BundleComponentResponse,
-	BundleComponentUnlinkResponse,
-	BundleComputeResponse,
-} from "./catalog.js";
-import { queryAllPages } from "./catalog-read-model.js";
+	StoredBundleComponent,
+	StoredInventoryStock,
+	StoredProduct,
+	StoredProductSku,
+} from "../types.js";
 import type { Collection } from "./catalog-conflict.js";
 import {
 	asCollection,
@@ -27,6 +30,13 @@ import {
 	getNowIso,
 	putWithConflictHandling,
 } from "./catalog-conflict.js";
+import { hydrateSkusWithInventoryStock } from "./catalog-read-model.js";
+import { queryAllPages } from "./catalog-read-model.js";
+import type {
+	BundleComponentResponse,
+	BundleComponentUnlinkResponse,
+	BundleComputeResponse,
+} from "./catalog.js";
 
 export async function queryBundleComponentsForProduct(
 	bundleComponents: Collection<StoredBundleComponent>,
@@ -72,10 +82,15 @@ export async function handleAddBundleComponent(
 		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Component product not found" });
 	}
 	if (componentProduct.type === "bundle") {
-		throw PluginRouteError.badRequest("Bundle cannot include component products that are themselves bundles");
+		throw PluginRouteError.badRequest(
+			"Bundle cannot include component products that are themselves bundles",
+		);
 	}
 
-	const existingComponents = await queryBundleComponentsForProduct(bundleComponents, bundleProduct.id);
+	const existingComponents = await queryBundleComponentsForProduct(
+		bundleComponents,
+		bundleProduct.id,
+	);
 	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
 	const componentId = `bundle_comp_${await randomHex(6)}`;
 	const component: StoredBundleComponent = {
@@ -125,9 +140,15 @@ export async function handleRemoveBundleComponent(
 
 	const existing = await bundleComponents.get(ctx.input.bundleComponentId);
 	if (!existing) {
-		throwCommerceApiError({ code: "BUNDLE_COMPONENT_NOT_FOUND", message: "Bundle component not found" });
+		throwCommerceApiError({
+			code: "BUNDLE_COMPONENT_NOT_FOUND",
+			message: "Bundle component not found",
+		});
 	}
-	const components = await queryBundleComponentsForProduct(bundleComponents, existing.bundleProductId);
+	const components = await queryBundleComponentsForProduct(
+		bundleComponents,
+		existing.bundleProductId,
+	);
 	await mutateOrderedChildren({
 		collection: bundleComponents,
 		rows: components,
@@ -149,10 +170,16 @@ export async function handleReorderBundleComponent(
 
 	const component = await bundleComponents.get(ctx.input.bundleComponentId);
 	if (!component) {
-		throwCommerceApiError({ code: "BUNDLE_COMPONENT_NOT_FOUND", message: "Bundle component not found" });
+		throwCommerceApiError({
+			code: "BUNDLE_COMPONENT_NOT_FOUND",
+			message: "Bundle component not found",
+		});
 	}
 
-	const components = await queryBundleComponentsForProduct(bundleComponents, component.bundleProductId);
+	const components = await queryBundleComponentsForProduct(
+		bundleComponents,
+		component.bundleProductId,
+	);
 	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
 	const normalized = await mutateOrderedChildren({
 		collection: bundleComponents,
@@ -195,13 +222,23 @@ export async function handleBundleCompute(
 	for (const component of components) {
 		const sku = await productSkus.get(component.componentSkuId);
 		if (!sku) {
-			throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Bundle component SKU not found" });
+			throwCommerceApiError({
+				code: "VARIANT_UNAVAILABLE",
+				message: "Bundle component SKU not found",
+			});
 		}
 		const componentProduct = await products.get(sku.productId);
 		if (!componentProduct) {
-			throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component product not found" });
+			throwCommerceApiError({
+				code: "PRODUCT_UNAVAILABLE",
+				message: "Bundle component product not found",
+			});
 		}
-		const hydratedSkus = await hydrateSkusWithInventoryStock(componentProduct, [sku], inventoryStock);
+		const hydratedSkus = await hydrateSkusWithInventoryStock(
+			componentProduct,
+			[sku],
+			inventoryStock,
+		);
 		lines.push({ component, sku: hydratedSkus[0] ?? sku });
 	}
 

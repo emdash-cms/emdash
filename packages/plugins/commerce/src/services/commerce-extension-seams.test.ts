@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import * as rateLimitKv from "../lib/rate-limit-kv.js";
 import { webhookReceiptDocId } from "../orchestration/finalize-payment.js";
-import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -278,7 +278,10 @@ describe("queryFinalizationState", () => {
 			externalEventId: "evt_1",
 		};
 
-		await Promise.all([queryFinalizationState(ctxBase, input), queryFinalizationState(ctxBase, input)]);
+		await Promise.all([
+			queryFinalizationState(ctxBase, input),
+			queryFinalizationState(ctxBase, input),
+		]);
 
 		expect(getSpy.mock.calls.filter((c) => c[0] === "order_1").length).toBe(1);
 		getSpy.mockRestore();

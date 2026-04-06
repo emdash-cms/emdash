@@ -7,6 +7,7 @@
 
 import type { RouteContext } from "emdash";
 
+import { asCollection } from "../handlers/catalog-conflict.js";
 import {
 	createRecommendationsHandler,
 	type RecommendationsHandlerOptions,
@@ -17,7 +18,6 @@ import {
 	type CommerceWebhookAdapter,
 	type WebhookFinalizeResponse,
 } from "../handlers/webhook-handler.js";
-import { COMMERCE_MCP_ACTORS, type CommerceMcpActor, type CommerceMcpOperationContext } from "./commerce-provider-contracts.js";
 import { readFinalizationStatusWithGuards } from "../lib/finalization-diagnostics-readthrough.js";
 import {
 	queryFinalizationStatus,
@@ -32,7 +32,11 @@ import type {
 	StoredPaymentAttempt,
 	StoredWebhookReceipt,
 } from "../types.js";
-import { asCollection } from "../handlers/catalog-conflict.js";
+import {
+	COMMERCE_MCP_ACTORS,
+	type CommerceMcpActor,
+	type CommerceMcpOperationContext,
+} from "./commerce-provider-contracts.js";
 
 function buildFinalizePorts(ctx: RouteContext<unknown>): FinalizePaymentPorts {
 	return {

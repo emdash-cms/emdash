@@ -9,14 +9,9 @@
 import type { RouteContext } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
-import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { buildRateLimitActorKey } from "../lib/rate-limit-identity.js";
+import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { requirePost } from "../lib/require-post.js";
-import type {
-	CommerceWebhookAdapter,
-	CommerceWebhookFinalizeResponse,
-	CommerceWebhookInput,
-} from "../services/commerce-provider-contracts.js";
 import {
 	finalizePaymentFromWebhook,
 	type FinalizeWebhookInput,
@@ -24,6 +19,11 @@ import {
 	type FinalizePaymentPorts,
 } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
+import type {
+	CommerceWebhookAdapter,
+	CommerceWebhookFinalizeResponse,
+	CommerceWebhookInput,
+} from "../services/commerce-provider-contracts.js";
 import type {
 	StoredInventoryLedgerEntry,
 	StoredInventoryStock,
@@ -98,7 +98,10 @@ export async function handlePaymentWebhook<TInput>(
 		pending = (async () => {
 			try {
 				const nowMs = Date.now();
-				const ipHash = await buildRateLimitActorKey(ctx, `webhook:${adapter.buildRateLimitSuffix(ctx)}`);
+				const ipHash = await buildRateLimitActorKey(
+					ctx,
+					`webhook:${adapter.buildRateLimitSuffix(ctx)}`,
+				);
 				const allowed = await consumeKvRateLimit({
 					kv: ctx.kv,
 					keySuffix: `webhook:${adapter.buildRateLimitSuffix(ctx)}:${ipHash}`,

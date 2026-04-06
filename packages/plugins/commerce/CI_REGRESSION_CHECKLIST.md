@@ -7,10 +7,12 @@ Use this as a ticket-ready acceptance gate for follow-on work.
 ### Ticket: Strategy A — Provider Contract Hardening
 
 **Summary**
+
 - Scope: Strategy A only (contract drift hardening, no topology changes).
 - Goal: centralize provider defaults/contracts/adapters without changing runtime behavior.
 
 **Acceptance checklist**
+
 - [ ] Scope lock verified (see section 0).
 - [ ] T1 canonical provider contract source in place.
 - [ ] T2 seam exports consolidated.
@@ -19,6 +21,7 @@ Use this as a ticket-ready acceptance gate for follow-on work.
 - [ ] DoD (section 0) complete.
 
 **Blocking assumptions**
+
 - Do not include second-provider routing until a second provider is active.
 - Do not include MCP command surfaces unless commerce MCP command package is actively scoped.
 
@@ -116,12 +119,12 @@ narrow, high-signal, and ordered by failure risk.
 ### 5A) Concurrency and duplicate delivery safety
 
 - [ ] Add/extend a race-focused test that drives same-event concurrent `webhooks/stripe`
-  handlers with identical `providerId` + `externalEventId`.
+      handlers with identical `providerId` + `externalEventId`.
 - [ ] Assert exactly one terminal side-effect set is produced for the event:
   - one order-payment success
   - one ledger movement set at most
 - [ ] Assert follow-up flights return replay-safe statuses (`replay_processed` or
-  `replay_duplicate`) without duplicate stock/ledger side effects.
+      `replay_duplicate`) without duplicate stock/ledger side effects.
 - [ ] Preserve diagnostic visibility for replay transitions and finalization completion log points.
 
 ### 5B) Pending-state contract safety
@@ -143,9 +146,9 @@ narrow, high-signal, and ordered by failure risk.
 ### 5D) Roadmap gate before money-path expansion
 
 - [ ] Re-affirm the "narrow kernel first" guardrail in `HANDOVER.md` and
-  `COMMERCE_DOCS_INDEX.md` before any new provider runtime expansion.
+      `COMMERCE_DOCS_INDEX.md` before any new provider runtime expansion.
 - [ ] Keep Scope lock active: no provider routing/MCP command surface expansion until a second
-  provider or active `@emdash-cms/plugin-commerce-mcp` scope request.
+      provider or active `@emdash-cms/plugin-commerce-mcp` scope request.
 - [ ] Keep ticket order:
   1. 5A
   2. 5B
@@ -155,15 +158,15 @@ narrow, high-signal, and ordered by failure risk.
 ### 5E) Deterministic lease/expiry policy for claim reuse
 
 - [ ] Document claim lease semantics (`claimOwner`/`claimToken`/`claimVersion`/`claimExpiresAt`) in
-  `COMMERCE_EXTENSION_SURFACE.md` and `FINALIZATION_REVIEW_AUDIT.md`.
+      `COMMERCE_EXTENSION_SURFACE.md` and `FINALIZATION_REVIEW_AUDIT.md`.
 - [ ] Ensure `assertClaimStillActive()` checks lease ownership + lease expiry at every mutable finalize
-  boundary before performing:
+      boundary before performing:
   - inventory writes,
   - order settlement,
   - payment-attempt transition,
   - final receipt write.
 - [ ] Verify behavior for malformed or missing claim state metadata returns safe replay semantics instead of
-  partial mutation.
+      partial mutation.
 - [ ] Keep race-focused replay tests passing for:
   - stale claim reclamation,
   - in-flight claim steal,
@@ -173,12 +176,12 @@ narrow, high-signal, and ordered by failure risk.
 
 - [x] Confirm `HANDOVER.md`, `COMMERCE_DOCS_INDEX.md`, and `AI-EXTENSIBILITY.md` reflect finalized 5E status.
 - [x] Prepare a staged rollout switch plan (`COMMERCE_USE_LEASED_FINALIZE`) so strict lease enforcement can
-  be toggled predictably in staged environments.
+      be toggled predictably in staged environments.
 - [x] Run and archive both rollout-mode command families before enabling strict mode broadly:
   - [x] Legacy behavior check (flag off): `pnpm --filter @emdash-cms/plugin-commerce test`.
   - [x] Strict lease check mode: `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test`.
   - [x] Focused smoke on strict finalize regression:
-    `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test src/orchestration/finalize-payment.test.ts`.
+        `COMMERCE_USE_LEASED_FINALIZE=1 pnpm --filter @emdash-cms/plugin-commerce test src/orchestration/finalize-payment.test.ts`.
   - [x] Proof artifacts are archived in CI artifacts tied to each executed command and test matrix.
 - [x] Record proof artifacts for:
   - command outputs for both modes,

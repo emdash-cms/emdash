@@ -5,11 +5,15 @@ import { applyProductSkuUpdatePatch, applyProductUpdatePatch } from "./catalog-d
 
 const isoNow = "2026-01-01T00:00:00.000Z";
 
-function asProductPatch(value: Parameters<typeof applyProductUpdatePatch>[1]): Parameters<typeof applyProductUpdatePatch>[1] {
+function asProductPatch(
+	value: Parameters<typeof applyProductUpdatePatch>[1],
+): Parameters<typeof applyProductUpdatePatch>[1] {
 	return value as Parameters<typeof applyProductUpdatePatch>[1];
 }
 
-function asSkuPatch(value: Parameters<typeof applyProductSkuUpdatePatch>[1]): Parameters<typeof applyProductSkuUpdatePatch>[1] {
+function asSkuPatch(
+	value: Parameters<typeof applyProductSkuUpdatePatch>[1],
+): Parameters<typeof applyProductSkuUpdatePatch>[1] {
 	return value as Parameters<typeof applyProductSkuUpdatePatch>[1];
 }
 
@@ -31,7 +35,9 @@ describe("catalog-domain helpers", () => {
 			updatedAt: "2025-12-01T00:00:00.000Z",
 		};
 
-		expect(() => applyProductUpdatePatch(product, asProductPatch({ type: "bundle" }), isoNow)).toThrow();
+		expect(() =>
+			applyProductUpdatePatch(product, asProductPatch({ type: "bundle" }), isoNow),
+		).toThrow();
 	});
 
 	it("prevents slug rewrites on active products", () => {
@@ -51,7 +57,9 @@ describe("catalog-domain helpers", () => {
 			updatedAt: "2025-12-01T00:00:00.000Z",
 		};
 
-		expect(() => applyProductUpdatePatch(product, asProductPatch({ slug: "new-slug" }), isoNow)).toThrow();
+		expect(() =>
+			applyProductUpdatePatch(product, asProductPatch({ slug: "new-slug" }), isoNow),
+		).toThrow();
 	});
 
 	it("applies safe mutable product and sku updates", () => {
@@ -71,7 +79,11 @@ describe("catalog-domain helpers", () => {
 			updatedAt: "2025-12-01T00:00:00.000Z",
 		};
 
-		const productResult = applyProductUpdatePatch(product, asProductPatch({ title: "Updated" }), isoNow);
+		const productResult = applyProductUpdatePatch(
+			product,
+			asProductPatch({ title: "Updated" }),
+			isoNow,
+		);
 		expect(productResult.title).toBe("Updated");
 		expect(productResult.updatedAt).toBe(isoNow);
 		expect(productResult.id).toBe("prod_1");

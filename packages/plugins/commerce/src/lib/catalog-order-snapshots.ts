@@ -1,7 +1,5 @@
 import type { StorageCollection } from "emdash";
-import { computeBundleSummary } from "./catalog-bundles.js";
-import { inventoryStockDocId } from "./inventory-stock.js";
-import { sortedImmutable } from "./sort-immutable.js";
+
 import type {
 	OrderLineItemBundleComponentSummary,
 	OrderLineItemBundleSummary,
@@ -19,6 +17,9 @@ import type {
 	StoredProductSku,
 	StoredProductSkuOptionValue,
 } from "../types.js";
+import { computeBundleSummary } from "./catalog-bundles.js";
+import { inventoryStockDocId } from "./inventory-stock.js";
+import { sortedImmutable } from "./sort-immutable.js";
 
 export type CatalogSnapshotCollections = {
 	products: Pick<StorageCollection<StoredProduct>, "get" | "query">;
@@ -54,7 +55,10 @@ export async function buildOrderLineSnapshots(
 	return snapshots;
 }
 
-function createFallbackLineSnapshot(line: SnapshotLineInput, currency: string): OrderLineItemSnapshot {
+function createFallbackLineSnapshot(
+	line: SnapshotLineInput,
+	currency: string,
+): OrderLineItemSnapshot {
 	const lineSubtotalMinor = line.unitPriceMinor * line.quantity;
 	return {
 		productId: line.productId,
@@ -189,7 +193,9 @@ async function buildBundleSummary(
 	productId: string,
 	catalog: CatalogSnapshotCollections,
 ): Promise<{ summary: OrderLineItemBundleSummary; requiresShipping: boolean } | undefined> {
-	const componentRows = await catalog.bundleComponents.query({ where: { bundleProductId: productId } });
+	const componentRows = await catalog.bundleComponents.query({
+		where: { bundleProductId: productId },
+	});
 	if (componentRows.items.length === 0) return undefined;
 
 	const componentLines: { component: StoredBundleComponent; sku: StoredProductSku }[] = [];
@@ -251,7 +257,10 @@ async function collectDigitalEntitlements(
 	skuId: string,
 	catalog: CatalogSnapshotCollections,
 ): Promise<OrderLineItemDigitalEntitlementSnapshot[]> {
-	const entitlements = await catalog.productDigitalEntitlements.query({ where: { skuId }, limit: 200 });
+	const entitlements = await catalog.productDigitalEntitlements.query({
+		where: { skuId },
+		limit: 200,
+	});
 	const out: OrderLineItemDigitalEntitlementSnapshot[] = [];
 	for (const row of entitlements.items) {
 		const entitlement = row.data;
@@ -295,9 +304,9 @@ async function queryRepresentativeImage(input: {
 	targetId: string;
 	roles: readonly StoredProductAssetLink["role"][];
 }): Promise<OrderLineItemImageSnapshot | undefined> {
-		const links = await input.productAssetLinks.query({
-			where: { targetType: input.targetType, targetId: input.targetId },
-		});
+	const links = await input.productAssetLinks.query({
+		where: { targetType: input.targetType, targetId: input.targetId },
+	});
 	const sorted = sortedImmutable(
 		links.items.map((row) => row.data),
 		(left, right) => left.position - right.position || left.id.localeCompare(right.id),
@@ -318,4 +327,3 @@ async function queryRepresentativeImage(input: {
 	}
 	return undefined;
 }
-

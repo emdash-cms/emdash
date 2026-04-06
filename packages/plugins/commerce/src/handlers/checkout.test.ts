@@ -2,8 +2,8 @@ import type { RouteContext } from "emdash";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
-import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
+import { sha256HexAsync } from "../lib/crypto-adapter.js";
 import { inventoryStockDocId } from "../orchestration/finalize-payment.js";
 import type { CheckoutInput } from "../schemas.js";
 import type {
@@ -21,12 +21,12 @@ import type {
 	StoredOrder,
 	StoredPaymentAttempt,
 } from "../types.js";
-import { checkoutHandler } from "./checkout.js";
 import {
 	CHECKOUT_ROUTE,
 	deterministicOrderId,
 	deterministicPaymentAttemptId,
 } from "./checkout-state.js";
+import { checkoutHandler } from "./checkout.js";
 
 function asRouteContext<T>(context: unknown): RouteContext<T> {
 	return context as RouteContext<T>;
@@ -215,7 +215,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const cartId = "cart_1";
 		const idempotencyKey = "idem-key-strong-16";
 		const now = "2026-04-02T12:00:00.000Z";
-	const ownerToken = "owner-token-for-idempotent-retry";
+		const ownerToken = "owner-token-for-idempotent-retry";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [
@@ -226,7 +226,7 @@ describe("checkout idempotency persistence recovery", () => {
 					unitPriceMinor: 500,
 				},
 			],
-		ownerTokenHash: await sha256HexAsync(ownerToken),
+			ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -387,7 +387,7 @@ describe("checkout idempotency persistence recovery", () => {
 		const cartId = "cart_2";
 		const idempotencyKey = "idem-key-strong-2";
 		const now = "2026-04-02T12:00:00.000Z";
-	const ownerToken = "owner-token-for-idempotent-replay";
+		const ownerToken = "owner-token-for-idempotent-replay";
 		const cart: StoredCart = {
 			currency: "USD",
 			lineItems: [
@@ -398,7 +398,7 @@ describe("checkout idempotency persistence recovery", () => {
 					unitPriceMinor: 200,
 				},
 			],
-		ownerTokenHash: await sha256HexAsync(ownerToken),
+			ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -564,7 +564,6 @@ describe("checkout idempotency persistence recovery", () => {
 
 		await expect(checkoutHandler(ctx)).rejects.toMatchObject({ code: "cart_token_invalid" });
 	});
-
 });
 
 describe("checkout route guardrails", () => {
@@ -622,7 +621,7 @@ describe("checkout route guardrails", () => {
 						{
 							currency: "USD",
 							lineItems: tooMany,
-						ownerTokenHash: await sha256HexAsync(ownerToken),
+							ownerTokenHash: await sha256HexAsync(ownerToken),
 							createdAt: now,
 							updatedAt: now,
 						},
@@ -703,7 +702,9 @@ describe("checkout route guardrails", () => {
 		};
 		const cart: StoredCart = {
 			currency: "USD",
-			lineItems: [{ productId: product.id, quantity: 1, inventoryVersion: 4, unitPriceMinor: 1000 }],
+			lineItems: [
+				{ productId: product.id, quantity: 1, inventoryVersion: 4, unitPriceMinor: 1000 },
+			],
 			ownerTokenHash: await sha256HexAsync(ownerToken),
 			createdAt: now,
 			updatedAt: now,

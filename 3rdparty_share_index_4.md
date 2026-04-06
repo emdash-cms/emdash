@@ -11,4 +11,3 @@ This index is historical and refers to an earlier review zip layout.
 - `SHARE_WITH_REVIEWER.md` (single-file handoff instructions)
 
 Use this file only for artifact history; current review work should follow the canonical packet chain above.
-

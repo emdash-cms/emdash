@@ -11,14 +11,16 @@ export type SkuOptionAssignment = {
 export type VariantDefiningAttribute = StoredProductAttribute & { kind: "variant_defining" };
 
 export function normalizeSkuOptionSignature(options: readonly SkuOptionAssignment[]): string {
-	return sortedImmutableNoCompare(Array.from(options, (row) => `${row.attributeId}:${row.attributeValueId}`)).join("|");
+	return sortedImmutableNoCompare(
+		Array.from(options, (row) => `${row.attributeId}:${row.attributeValueId}`),
+	).join("|");
 }
 
 export function collectVariantDefiningAttributes(
 	attributes: readonly StoredProductAttribute[],
 ): VariantDefiningAttribute[] {
-	return attributes.filter((attribute): attribute is VariantDefiningAttribute =>
-		attribute.kind === "variant_defining",
+	return attributes.filter(
+		(attribute): attribute is VariantDefiningAttribute => attribute.kind === "variant_defining",
 	);
 }
 
@@ -63,7 +65,9 @@ export function validateVariableSkuOptions({
 
 	for (const option of optionValues) {
 		if (!expectedSet.has(option.attributeId)) {
-			throw PluginRouteError.badRequest(`Option attribute ${option.attributeId} is not variant-defining`);
+			throw PluginRouteError.badRequest(
+				`Option attribute ${option.attributeId} is not variant-defining`,
+			);
 		}
 		if (usedAttributeIds.has(option.attributeId)) {
 			throw PluginRouteError.badRequest(`Duplicate option for attribute ${option.attributeId}`);
@@ -97,4 +101,3 @@ export function validateVariableSkuOptions({
 
 	return signature;
 }
-

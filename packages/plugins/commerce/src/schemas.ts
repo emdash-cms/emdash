@@ -34,11 +34,9 @@ function validateBundleDiscountForProductType(
 
 	if (productType !== "bundle") {
 		if (hasDiscountType || hasFixedAmountValue || hasBpsValue) {
-			addBundleDiscountIssue(
-				ctx,
-				"Bundle discount fields are only supported for bundle products",
-				["bundleDiscountType"],
-			);
+			addBundleDiscountIssue(ctx, "Bundle discount fields are only supported for bundle products", [
+				"bundleDiscountType",
+			]);
 		}
 		return;
 	}
@@ -51,9 +49,11 @@ function validateBundleDiscountForProductType(
 	}
 
 	if (discountType === "percentage" && hasFixedAmountValue) {
-		addBundleDiscountIssue(ctx, "bundleDiscountValueMinor can only be used with fixed-amount bundles", [
-			"bundleDiscountValueMinor",
-		]);
+		addBundleDiscountIssue(
+			ctx,
+			"bundleDiscountValueMinor can only be used with fixed-amount bundles",
+			["bundleDiscountValueMinor"],
+		);
 		return;
 	}
 
@@ -76,9 +76,11 @@ function validateBundleDiscountPatchShape(ctx: z.RefinementCtx, input: BundleDis
 	}
 
 	if (input.bundleDiscountType === "percentage" && hasFixedAmountValue) {
-		addBundleDiscountIssue(ctx, "bundleDiscountValueMinor can only be used with fixed-amount bundles", [
-			"bundleDiscountValueMinor",
-		]);
+		addBundleDiscountIssue(
+			ctx,
+			"bundleDiscountValueMinor can only be used with fixed-amount bundles",
+			["bundleDiscountValueMinor"],
+		);
 	}
 }
 
@@ -165,7 +167,9 @@ const stripeWebhookEventDataSchema = z.object({
 	data: z.object({
 		object: z.object({
 			id: z.string().min(1).max(COMMERCE_LIMITS.maxWebhookFieldLength).optional(),
-			metadata: z.record(z.string(), z.string().max(COMMERCE_LIMITS.maxWebhookFieldLength)).optional(),
+			metadata: z
+				.record(z.string(), z.string().max(COMMERCE_LIMITS.maxWebhookFieldLength))
+				.optional(),
 		}),
 	}),
 });
@@ -187,46 +191,48 @@ export const recommendationsInputSchema = z.object({
 
 export type RecommendationsInput = z.infer<typeof recommendationsInputSchema>;
 
-export const productCreateInputSchema = z.object({
-	type: z.enum(["simple", "variable", "bundle"]).default("simple"),
-	status: z.enum(["draft", "active", "archived"]).default("draft"),
-	visibility: z.enum(["public", "hidden"]).default("hidden"),
-	slug: z.string().trim().min(2).max(128).toLowerCase(),
-	title: z.string().trim().min(1).max(160),
-	shortDescription: z.string().trim().max(320).default(""),
-	longDescription: z.string().trim().max(8_000).default(""),
-	brand: z.string().trim().max(128).optional(),
-	vendor: z.string().trim().max(128).optional(),
-	featured: z.boolean().default(false),
-	sortOrder: z.number().int().min(0).max(10_000).default(0),
-	requiresShippingDefault: z.boolean().default(true),
-	taxClassDefault: z.string().trim().max(64).optional(),
-	attributes: z
-		.array(
-			z.object({
-				name: z.string().trim().min(1).max(128),
-				code: z.string().trim().min(1).max(64).toLowerCase(),
-				kind: z.enum(["variant_defining", "descriptive"]).default("descriptive"),
-				position: z.number().int().min(0).max(10_000).default(0),
-				values: z
-					.array(
-						z.object({
-							value: z.string().trim().min(1).max(128),
-							code: z.string().trim().min(1).max(64).toLowerCase(),
-							position: z.number().int().min(0).max(10_000).default(0),
-						}),
-					)
-					.min(1)
-					.default([]),
-			}),
-		)
-		.default([]),
-	bundleDiscountType: z.enum(["none", "fixed_amount", "percentage"]).default("none"),
-	bundleDiscountValueMinor: z.number().int().min(0).optional(),
-	bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
-}).superRefine((input, ctx) => {
-	validateBundleDiscountForProductType(ctx, input.type, input);
-});
+export const productCreateInputSchema = z
+	.object({
+		type: z.enum(["simple", "variable", "bundle"]).default("simple"),
+		status: z.enum(["draft", "active", "archived"]).default("draft"),
+		visibility: z.enum(["public", "hidden"]).default("hidden"),
+		slug: z.string().trim().min(2).max(128).toLowerCase(),
+		title: z.string().trim().min(1).max(160),
+		shortDescription: z.string().trim().max(320).default(""),
+		longDescription: z.string().trim().max(8_000).default(""),
+		brand: z.string().trim().max(128).optional(),
+		vendor: z.string().trim().max(128).optional(),
+		featured: z.boolean().default(false),
+		sortOrder: z.number().int().min(0).max(10_000).default(0),
+		requiresShippingDefault: z.boolean().default(true),
+		taxClassDefault: z.string().trim().max(64).optional(),
+		attributes: z
+			.array(
+				z.object({
+					name: z.string().trim().min(1).max(128),
+					code: z.string().trim().min(1).max(64).toLowerCase(),
+					kind: z.enum(["variant_defining", "descriptive"]).default("descriptive"),
+					position: z.number().int().min(0).max(10_000).default(0),
+					values: z
+						.array(
+							z.object({
+								value: z.string().trim().min(1).max(128),
+								code: z.string().trim().min(1).max(64).toLowerCase(),
+								position: z.number().int().min(0).max(10_000).default(0),
+							}),
+						)
+						.min(1)
+						.default([]),
+				}),
+			)
+			.default([]),
+		bundleDiscountType: z.enum(["none", "fixed_amount", "percentage"]).default("none"),
+		bundleDiscountValueMinor: z.number().int().min(0).optional(),
+		bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
+	})
+	.superRefine((input, ctx) => {
+		validateBundleDiscountForProductType(ctx, input.type, input);
+	});
 export type ProductCreateInput = z.input<typeof productCreateInputSchema>;
 
 export const productGetInputSchema = z.object({
@@ -271,29 +277,29 @@ export const productSkuListInputSchema = z.object({
 });
 export type ProductSkuListInput = z.infer<typeof productSkuListInputSchema>;
 
-export const productUpdateInputSchema = z.object({
-	productId: z.string().trim().min(3).max(128),
-	type: z.enum(["simple", "variable", "bundle"]).optional(),
-	status: z.enum(["draft", "active", "archived"]).optional(),
-	visibility: z.enum(["public", "hidden"]).optional(),
-	slug: z.string().trim().min(2).max(128).toLowerCase().optional(),
-	title: z.string().trim().min(1).max(160).optional(),
-	shortDescription: z.string().trim().max(320).optional(),
-	longDescription: z.string().trim().max(8_000).optional(),
-	brand: z.string().trim().max(128).optional(),
-	vendor: z.string().trim().max(128).optional(),
-	featured: z.boolean().optional(),
-	sortOrder: z.number().int().min(0).max(10_000).optional(),
-	requiresShippingDefault: z.boolean().optional(),
-	taxClassDefault: z.string().trim().max(64).optional(),
-	bundleDiscountType: z
-		.enum(["none", "fixed_amount", "percentage"])
-		.optional(),
-	bundleDiscountValueMinor: z.number().int().min(0).optional(),
-	bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
-}).superRefine((input, ctx) => {
-	validateBundleDiscountPatchShape(ctx, input);
-});
+export const productUpdateInputSchema = z
+	.object({
+		productId: z.string().trim().min(3).max(128),
+		type: z.enum(["simple", "variable", "bundle"]).optional(),
+		status: z.enum(["draft", "active", "archived"]).optional(),
+		visibility: z.enum(["public", "hidden"]).optional(),
+		slug: z.string().trim().min(2).max(128).toLowerCase().optional(),
+		title: z.string().trim().min(1).max(160).optional(),
+		shortDescription: z.string().trim().max(320).optional(),
+		longDescription: z.string().trim().max(8_000).optional(),
+		brand: z.string().trim().max(128).optional(),
+		vendor: z.string().trim().max(128).optional(),
+		featured: z.boolean().optional(),
+		sortOrder: z.number().int().min(0).max(10_000).optional(),
+		requiresShippingDefault: z.boolean().optional(),
+		taxClassDefault: z.string().trim().max(64).optional(),
+		bundleDiscountType: z.enum(["none", "fixed_amount", "percentage"]).optional(),
+		bundleDiscountValueMinor: z.number().int().min(0).optional(),
+		bundleDiscountValueBps: z.number().int().min(0).max(10_000).optional(),
+	})
+	.superRefine((input, ctx) => {
+		validateBundleDiscountPatchShape(ctx, input);
+	});
 export type ProductUpdateInput = z.infer<typeof productUpdateInputSchema>;
 
 export const productStateInputSchema = z.object({
@@ -321,130 +327,168 @@ export const productSkuStateInputSchema = z.object({
 });
 export type ProductSkuStateInput = z.infer<typeof productSkuStateInputSchema>;
 
-export const productAssetRegisterInputSchema = z.object({
-	externalAssetId: bounded(128),
-	provider: z.string().trim().min(1).max(64).default("media"),
-	fileName: z.string().trim().max(260).optional(),
-	altText: z.string().trim().max(260).optional(),
-	mimeType: z.string().trim().max(128).optional(),
-	byteSize: z.number().int().min(0).optional(),
-	width: z.number().int().min(1).max(20_000).optional(),
-	height: z.number().int().min(1).max(20_000).optional(),
-	metadata: z.record(z.string(), z.unknown()).optional(),
-}).strict();
+export const productAssetRegisterInputSchema = z
+	.object({
+		externalAssetId: bounded(128),
+		provider: z.string().trim().min(1).max(64).default("media"),
+		fileName: z.string().trim().max(260).optional(),
+		altText: z.string().trim().max(260).optional(),
+		mimeType: z.string().trim().max(128).optional(),
+		byteSize: z.number().int().min(0).optional(),
+		width: z.number().int().min(1).max(20_000).optional(),
+		height: z.number().int().min(1).max(20_000).optional(),
+		metadata: z.record(z.string(), z.unknown()).optional(),
+	})
+	.strict();
 export type ProductAssetRegisterInput = z.infer<typeof productAssetRegisterInputSchema>;
 
-export const productAssetLinkInputSchema = z.object({
-	assetId: z.string().trim().min(3).max(128),
-	targetType: z.enum(["product", "sku"]),
-	targetId: z.string().trim().min(3).max(128),
-	role: z.enum(["primary_image", "gallery_image", "variant_image"]).default("gallery_image"),
-	position: z.number().int().min(0).default(0),
-}).strict();
+export const productAssetLinkInputSchema = z
+	.object({
+		assetId: z.string().trim().min(3).max(128),
+		targetType: z.enum(["product", "sku"]),
+		targetId: z.string().trim().min(3).max(128),
+		role: z.enum(["primary_image", "gallery_image", "variant_image"]).default("gallery_image"),
+		position: z.number().int().min(0).default(0),
+	})
+	.strict();
 export type ProductAssetLinkInput = z.input<typeof productAssetLinkInputSchema>;
 
-export const productAssetUnlinkInputSchema = z.object({
-	linkId: z.string().trim().min(3).max(128),
-}).strict();
+export const productAssetUnlinkInputSchema = z
+	.object({
+		linkId: z.string().trim().min(3).max(128),
+	})
+	.strict();
 export type ProductAssetUnlinkInput = z.infer<typeof productAssetUnlinkInputSchema>;
 
-export const productAssetReorderInputSchema = z.object({
-	linkId: z.string().trim().min(3).max(128),
-	position: z.number().int().min(0),
-}).strict();
+export const productAssetReorderInputSchema = z
+	.object({
+		linkId: z.string().trim().min(3).max(128),
+		position: z.number().int().min(0),
+	})
+	.strict();
 export type ProductAssetReorderInput = z.infer<typeof productAssetReorderInputSchema>;
 
-export const bundleComponentAddInputSchema = z.object({
-	bundleProductId: bounded(128),
-	componentSkuId: bounded(128),
-	quantity: z.number().int().min(1),
-	position: z.number().int().min(0).default(0),
-}).strict();
+export const bundleComponentAddInputSchema = z
+	.object({
+		bundleProductId: bounded(128),
+		componentSkuId: bounded(128),
+		quantity: z.number().int().min(1),
+		position: z.number().int().min(0).default(0),
+	})
+	.strict();
 export type BundleComponentAddInput = z.infer<typeof bundleComponentAddInputSchema>;
 
-export const bundleComponentRemoveInputSchema = z.object({
-	bundleComponentId: bounded(128),
-}).strict();
+export const bundleComponentRemoveInputSchema = z
+	.object({
+		bundleComponentId: bounded(128),
+	})
+	.strict();
 export type BundleComponentRemoveInput = z.infer<typeof bundleComponentRemoveInputSchema>;
 
-export const bundleComponentReorderInputSchema = z.object({
-	bundleComponentId: bounded(128),
-	position: z.number().int().min(0),
-}).strict();
+export const bundleComponentReorderInputSchema = z
+	.object({
+		bundleComponentId: bounded(128),
+		position: z.number().int().min(0),
+	})
+	.strict();
 export type BundleComponentReorderInput = z.infer<typeof bundleComponentReorderInputSchema>;
 
-export const bundleComputeInputSchema = z.object({
-	productId: bounded(128),
-}).strict();
+export const bundleComputeInputSchema = z
+	.object({
+		productId: bounded(128),
+	})
+	.strict();
 export type BundleComputeInput = z.infer<typeof bundleComputeInputSchema>;
 
-export const categoryCreateInputSchema = z.object({
-	name: z.string().trim().min(1).max(128),
-	slug: z.string().trim().min(2).max(128).toLowerCase(),
-	parentId: z.string().trim().min(3).max(128).optional(),
-	position: z.number().int().min(0).max(10_000).default(0),
-}).strict();
+export const categoryCreateInputSchema = z
+	.object({
+		name: z.string().trim().min(1).max(128),
+		slug: z.string().trim().min(2).max(128).toLowerCase(),
+		parentId: z.string().trim().min(3).max(128).optional(),
+		position: z.number().int().min(0).max(10_000).default(0),
+	})
+	.strict();
 export type CategoryCreateInput = z.infer<typeof categoryCreateInputSchema>;
 
-export const categoryListInputSchema = z.object({
-	parentId: z.string().trim().min(3).max(128).optional(),
-	limit: z.coerce.number().int().min(1).max(100).default(100),
-}).strict();
+export const categoryListInputSchema = z
+	.object({
+		parentId: z.string().trim().min(3).max(128).optional(),
+		limit: z.coerce.number().int().min(1).max(100).default(100),
+	})
+	.strict();
 export type CategoryListInput = z.infer<typeof categoryListInputSchema>;
 
-export const productCategoryLinkInputSchema = z.object({
-	productId: bounded(128),
-	categoryId: bounded(128),
-}).strict();
+export const productCategoryLinkInputSchema = z
+	.object({
+		productId: bounded(128),
+		categoryId: bounded(128),
+	})
+	.strict();
 export type ProductCategoryLinkInput = z.infer<typeof productCategoryLinkInputSchema>;
 
-export const productCategoryUnlinkInputSchema = z.object({
-	linkId: bounded(128),
-}).strict();
+export const productCategoryUnlinkInputSchema = z
+	.object({
+		linkId: bounded(128),
+	})
+	.strict();
 export type ProductCategoryUnlinkInput = z.infer<typeof productCategoryUnlinkInputSchema>;
 
-export const tagCreateInputSchema = z.object({
-	name: z.string().trim().min(1).max(128),
-	slug: z.string().trim().min(2).max(128).toLowerCase(),
-}).strict();
+export const tagCreateInputSchema = z
+	.object({
+		name: z.string().trim().min(1).max(128),
+		slug: z.string().trim().min(2).max(128).toLowerCase(),
+	})
+	.strict();
 export type TagCreateInput = z.infer<typeof tagCreateInputSchema>;
 
-export const tagListInputSchema = z.object({
-	limit: z.coerce.number().int().min(1).max(100).default(100),
-}).strict();
+export const tagListInputSchema = z
+	.object({
+		limit: z.coerce.number().int().min(1).max(100).default(100),
+	})
+	.strict();
 export type TagListInput = z.infer<typeof tagListInputSchema>;
 
-export const productTagLinkInputSchema = z.object({
-	productId: bounded(128),
-	tagId: bounded(128),
-}).strict();
+export const productTagLinkInputSchema = z
+	.object({
+		productId: bounded(128),
+		tagId: bounded(128),
+	})
+	.strict();
 export type ProductTagLinkInput = z.infer<typeof productTagLinkInputSchema>;
 
-export const productTagUnlinkInputSchema = z.object({
-	linkId: bounded(128),
-}).strict();
+export const productTagUnlinkInputSchema = z
+	.object({
+		linkId: bounded(128),
+	})
+	.strict();
 export type ProductTagUnlinkInput = z.infer<typeof productTagUnlinkInputSchema>;
 
-export const digitalAssetCreateInputSchema = z.object({
-	externalAssetId: bounded(128),
-	provider: z.string().trim().min(1).max(64).default("media"),
-	label: z.string().trim().max(260).optional(),
-	downloadLimit: z.number().int().min(1).optional(),
-	downloadExpiryDays: z.number().int().min(1).optional(),
-	isManualOnly: z.boolean().default(false),
-	isPrivate: z.boolean().default(true),
-	metadata: z.record(z.string(), z.unknown()).optional(),
-}).strict();
+export const digitalAssetCreateInputSchema = z
+	.object({
+		externalAssetId: bounded(128),
+		provider: z.string().trim().min(1).max(64).default("media"),
+		label: z.string().trim().max(260).optional(),
+		downloadLimit: z.number().int().min(1).optional(),
+		downloadExpiryDays: z.number().int().min(1).optional(),
+		isManualOnly: z.boolean().default(false),
+		isPrivate: z.boolean().default(true),
+		metadata: z.record(z.string(), z.unknown()).optional(),
+	})
+	.strict();
 export type DigitalAssetCreateInput = z.input<typeof digitalAssetCreateInputSchema>;
 
-export const digitalEntitlementCreateInputSchema = z.object({
-	skuId: bounded(128),
-	digitalAssetId: bounded(128),
-	grantedQuantity: z.number().int().min(1).default(1),
-}).strict();
+export const digitalEntitlementCreateInputSchema = z
+	.object({
+		skuId: bounded(128),
+		digitalAssetId: bounded(128),
+		grantedQuantity: z.number().int().min(1).default(1),
+	})
+	.strict();
 export type DigitalEntitlementCreateInput = z.infer<typeof digitalEntitlementCreateInputSchema>;
 
-export const digitalEntitlementRemoveInputSchema = z.object({
-	entitlementId: bounded(128),
-}).strict();
+export const digitalEntitlementRemoveInputSchema = z
+	.object({
+		entitlementId: bounded(128),
+	})
+	.strict();
 export type DigitalEntitlementRemoveInput = z.infer<typeof digitalEntitlementRemoveInputSchema>;

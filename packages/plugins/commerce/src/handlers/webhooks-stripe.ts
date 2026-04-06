@@ -7,9 +7,9 @@ import type { RouteContext } from "emdash";
 
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { hmacSha256HexAsync, constantTimeEqualHexAsync } from "../lib/crypto-adapter.js";
-import { STRIPE_WEBHOOK_SIGNATURE } from "../services/commerce-provider-contracts.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { StripeWebhookEventInput, StripeWebhookInput } from "../schemas.js";
+import { STRIPE_WEBHOOK_SIGNATURE } from "../services/commerce-provider-contracts.js";
 import { handlePaymentWebhook, type CommerceWebhookAdapter } from "./webhook-handler.js";
 
 const MAX_WEBHOOK_BODY_BYTES = COMMERCE_LIMITS.maxWebhookBodyBytes;
@@ -45,12 +45,17 @@ function normalizeHeaderKeyValue(raw: string): [string, string] | null {
 function clampStripeTolerance(raw: unknown): number {
 	const parsed = typeof raw === "number" ? raw : Number.parseInt(String(raw), 10);
 	if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return STRIPE_SIGNATURE_TOLERANCE_SECONDS;
-	if (parsed < STRIPE_SIGNATURE_TOLERANCE_MIN_SECONDS) return STRIPE_SIGNATURE_TOLERANCE_MIN_SECONDS;
-	if (parsed > STRIPE_SIGNATURE_TOLERANCE_MAX_SECONDS) return STRIPE_SIGNATURE_TOLERANCE_MAX_SECONDS;
+	if (parsed < STRIPE_SIGNATURE_TOLERANCE_MIN_SECONDS)
+		return STRIPE_SIGNATURE_TOLERANCE_MIN_SECONDS;
+	if (parsed > STRIPE_SIGNATURE_TOLERANCE_MAX_SECONDS)
+		return STRIPE_SIGNATURE_TOLERANCE_MAX_SECONDS;
 	return parsed;
 }
 
-function selectFromMetadata(input: Record<string, unknown> | undefined, keys: readonly string[]): string | undefined {
+function selectFromMetadata(
+	input: Record<string, unknown> | undefined,
+	keys: readonly string[],
+): string | undefined {
 	for (const key of keys) {
 		const value = input?.[key];
 		if (typeof value === "string" && value.length > 0) return value;
@@ -165,7 +170,9 @@ async function ensureValidStripeWebhookSignature(
 	}
 }
 
-async function resolveWebhookSignatureToleranceSeconds(ctx: RouteContext<StripeWebhookInput>): Promise<number> {
+async function resolveWebhookSignatureToleranceSeconds(
+	ctx: RouteContext<StripeWebhookInput>,
+): Promise<number> {
 	const setting = await ctx.kv.get<unknown>("settings:stripeWebhookToleranceSeconds");
 	if (typeof setting === "number") {
 		return clampStripeTolerance(setting);

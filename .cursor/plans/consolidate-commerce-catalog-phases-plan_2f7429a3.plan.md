@@ -29,6 +29,7 @@ isProject: false
 # Consolidated Execution Plan
 
 ## Scope and constraints
+
 - Target module: `packages/plugins/commerce`.
 - Preserve Stage-1 scope lock: no payment provider routing changes, no MCP write surfaces, no changes to checkout webhook finalize semantics.
 - Follow the phased order in `emdash-commerce-product-catalog-v1-spec-updated.md`:
@@ -45,6 +46,7 @@ isProject: false
 - Feature flags should be used only where rollout risk or frontend surface maturity requires it.
 
 ## High-level architecture flow
+
 ```mermaid
 flowchart LR
 CatalogHandlers["handlers/catalog.ts"]
@@ -65,6 +67,7 @@ CheckoutHandlers --> Kernel
 ```
 
 ## Canonical catalog-domain contracts (before implementation)
+
 - Immutable updates:
   - `Product` immutable fields: `id`, `type`, `createdAt`, `productCode` (if present), and lifecycle governance of `status` if you introduce hard publication rules.
   - `SKU` immutable fields: `id`, `productId`, `createdAt`, and any immutable identity fields in the product type payload.
@@ -89,6 +92,7 @@ CheckoutHandlers --> Kernel
     - variant matrix DTO
 
 ## Data migration and backfill approach
+
 - Any new collection/table addition requires `storage` + `database` registration and migration notes for rollback and replay.
 - For existing rows, define defaults during migration (status, visibility, bundle pricing defaults, snapshot fields).
 - Add backfill tasks where historical rows are impacted:
@@ -96,14 +100,17 @@ CheckoutHandlers --> Kernel
   - For legacy orders without snapshots, render from live catalog when snapshot missing but emit monitoring alerts; prefer hardening `snapshot` as required in phase-7.
 
 ## Feature flags
+
 - Phase 1–3: no feature flag required (core invariants and foundation).
 - Phase 4–6: optional rollout flags if admin UI or search/readers are not yet ready.
 - Phase 7: gate snapshot writes behind a deployment flag only if you need a controlled rollout; keep read path backward-tolerant.
 
 ## PLQN approach per phase
+
 For each phase below, the strategy matrix is explicit and side-by-side comparisons are embedded so we always choose the highest-value implementation before coding.
 
 ### Phase 1 — Foundation hardening (update + lifecycle)
+
 - **Strategy A (chosen): Minimal additive handlers + schemas** in the existing catalog module.
   - Leverages current `StoredProduct`/`StoredProductSku` shapes and route style. Low risk, directly matches phase expectations.
 - **Strategy B:** introduce generic catalog command-service first.
@@ -116,6 +123,7 @@ For each phase below, the strategy matrix is explicit and side-by-side compariso
 **Why A wins:** lowest complexity, high YAGNI compliance, enough DRY via helper reuse, scalable for later endpoint growth.
 
 #### Implement
+
 1. Extend schemas for updates/state in [`packages/plugins/commerce/src/schemas.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/schemas.ts):
    - `productUpdateInputSchema`
    - `productSkuUpdateInputSchema`
@@ -135,16 +143,17 @@ For each phase below, the strategy matrix is explicit and side-by-side compariso
 // Phase-1 immutable-field merge intent
 const nowIso = new Date().toISOString();
 const immutable = {
-  id: existing.id,
-  createdAt: existing.createdAt,
-  type: existing.type,
-  updatedAt: nowIso,
+	id: existing.id,
+	createdAt: existing.createdAt,
+	type: existing.type,
+	updatedAt: nowIso,
 };
 const input = sanitizeMutableUpdates({ ...existing, ...ctx.input, ...immutable });
 await products.put(existing.id, input);
 ```
 
 ### Phase 2 — Media/assets abstraction (upload-first + links)
+
 - **Strategy A (chosen): Add explicit `product_assets` + `product_asset_links`.**
   - Provider-neutral records and link semantics support product and SKU images; aligns with spec and portability.
 - **Strategy B:** reuse content/assets directly on catalog rows.
@@ -157,6 +166,7 @@ await products.put(existing.id, input);
 **Why A wins:** direct spec alignment, strong DRY boundaries, safe future provider switch.
 
 #### Implement
+
 1. Add types in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts):
    - `StoredProductAsset`
    - `StoredProductAssetLink`
@@ -182,6 +192,7 @@ if (role === 'primary_image' && productId) {
 ```
 
 ### Phase 3 — Variable product model
+
 - **Strategy A (chosen): Add attribute tables + normalized option-mapping rows.**
   - Enforces uniqueness and variant-defining rules deterministically.
 - **Strategy B:** embed option JSON blobs per SKU.
@@ -194,6 +205,7 @@ if (role === 'primary_image' && productId) {
 **Why A wins:** correct constraints with manageable complexity and good long-term query behavior.
 
 #### Implement
+
 1. Storage additions:
    - `productAttributes`, `productAttributeValues`, `productSkuOptionValues` in [`packages/plugins/commerce/src/storage.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/storage.ts)
 2. Types in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts)
@@ -217,6 +229,7 @@ if (new Set(options.map((o) => o.attributeId)).size !== options.length) throw ..
 ```
 
 #### Notes
+
 - Implemented in this pass with:
   - separate attribute/value metadata rows,
   - `sku option map` rows for variable SKUs,
@@ -224,7 +237,8 @@ if (new Set(options.map((o) => o.attributeId)).size !== options.length) throw ..
   - exact variant-defining coverage checks in shared helper module + handler guardrails.
 
 ### Phase 4 — Digital entitlement model
-- **Strategy A (chosen): Separate `digital_assets` and `digital_entitlements`.
+
+- \*\*Strategy A (chosen): Separate `digital_assets` and `digital_entitlements`.
   - Keeps media vs entitlement semantics explicit and composable for mixed fulfilment.
 - **Strategy B:** coerce file assets into product image roles.
   - Leaks concerns and breaks access policy.
@@ -236,6 +250,7 @@ if (new Set(options.map((o) => o.attributeId)).size !== options.length) throw ..
 **Why A wins:** explicit, portable, and aligns with anti-pattern guidance.
 
 #### Implement
+
 1. Add types/storage:
    - `digitalAssets`, `digitalEntitlements` in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts)
    - corresponding storage collections in [`packages/plugins/commerce/src/storage.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/storage.ts)
@@ -248,6 +263,7 @@ if (new Set(options.map((o) => o.attributeId)).size !== options.length) throw ..
 4. Expose retrieval in product detail route: include entitlements summary.
 
 ### Phase 5 — Bundle model
+
 - **Strategy A (chosen): Explicit `bundle_components` and derived pricing/availability.**
   - Enforces non-owned bundle inventory and component-based computation.
 - **Strategy B:** synthetic discount-only metadata on products.
@@ -260,22 +276,25 @@ if (new Set(options.map((o) => o.attributeId)).size !== options.length) throw ..
 **Why A wins:** spec-aligned and scalable for mixed component types.
 
 #### Implement
+
 1. Add `bundleComponents` in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts).
 2. Store v1 bundle discount config on `StoredProduct` as:
    - `bundleDiscountType`
    - `bundleDiscountValueMinor` (fixed)
    - `bundleDiscountValueBps` (percentage)
-2. Add storage collections in [`packages/plugins/commerce/src/storage.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/storage.ts)
-3. Add schema + handlers:
+3. Add storage collections in [`packages/plugins/commerce/src/storage.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/storage.ts)
+4. Add schema + handlers:
    - `bundle-components/add`
    - `bundle-components/remove`
    - `bundle-components/reorder`
    - `bundle/compute`
-4. Add utility in [`packages/plugins/commerce/src/lib`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/lib) or new helper file for deterministic discount and availability.
-5. Add integration tests (price/availability, invalid component refs, recursive prevention where possible via validation).
+5. Add utility in [`packages/plugins/commerce/src/lib`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/lib) or new helper file for deterministic discount and availability.
+6. Add integration tests (price/availability, invalid component refs, recursive prevention where possible via validation).
 
 #### Execution status (current)
+
 Completed in this implementation pass with:
+
 - `bundleComponents` collection and indexes added in storage/types.
 - bundle discount fields stored on `StoredProduct`.
 - `bundle-components/*` and `bundle/compute` routes exposed in `index.ts`.
@@ -284,11 +303,15 @@ Completed in this implementation pass with:
 
 ```ts
 const derived = components.reduce((sum, c) => sum + c.priceMinor * c.qty, 0);
-const discountMinor = discountType === 'percentage' ? Math.floor(derived * (discountBps ?? 0) / 10_000) : Math.max(0, fixedAmount ?? 0);
+const discountMinor =
+	discountType === "percentage"
+		? Math.floor((derived * (discountBps ?? 0)) / 10_000)
+		: Math.max(0, fixedAmount ?? 0);
 const finalMinor = Math.max(0, derived - discountMinor);
 ```
 
 ### Phase 6 — Catalog organization and retrieval
+
 - **Strategy A (chosen): Explicit category/tag entities + links + filterable retrieval.**
   - Enables storefront/admin filtering without custom brittle parsing.
 - **Strategy B:** metadata tags in JSON.
@@ -301,6 +324,7 @@ const finalMinor = Math.max(0, derived - discountMinor);
 **Why A wins:** durable retrieval model and direct alignment with retrieval requirements.
 
 #### Implement
+
 1. Add collections/types:
    - `categories`, `productCategoryLinks`, `productTags`, `productTagLinks` in types/storage files.
 2. Add schemas for slug/name + relation operations.
@@ -318,15 +342,19 @@ const finalMinor = Math.max(0, derived - discountMinor);
 7. Route-level response-shape validation and filter/list behavior for `categoryId`/`tagId` included in `ProductResponse` and listing handlers.
 
 #### Execution status (current)
+
 Completed in this implementation pass with:
+
 - category/tag entities and link rows added in types/storage.
 - category/tag DTO members and catalog request filtering enabled in handlers.
 - category/tag routes exposed through `index.ts` with list/create/link/unlink endpoints.
 
 #### Residual checks before phase closure
+
 - Ensure all schema-level route contract tests include category/tag indexes/lookup paths.
 
 ### Phase 7 — Order snapshot integration
+
 - **Strategy A (chosen): Snapshot within order line payload at checkout write time.**
   - Immediate immutable history guarantee with minimal storage surface change.
 - **Strategy B:** separate order-line snapshot collection.
@@ -339,6 +367,7 @@ Completed in this implementation pass with:
 **Why A wins:** reaches required behavior quickly with smallest blast radius.
 
 #### Execution status (current)
+
 - Snapshot shape and snapshot line payload now extended in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts).
 - Snapshot utility added in [`packages/plugins/commerce/src/lib/catalog-order-snapshots.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/lib/catalog-order-snapshots.ts).
 - Checkout now enriches and persists snapshots in [`packages/plugins/commerce/src/handlers/checkout.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/handlers/checkout.ts) and stores them in pending state for replay.
@@ -349,6 +378,7 @@ Completed in this implementation pass with:
   - idempotent checkout replay invariance (frozen snapshot retained on repeated replay).
 
 #### Implement
+
 1. Expand `OrderLineItem` in [`packages/plugins/commerce/src/types.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/types.ts) with a `snapshot` field.
 2. Add snapshot builder utilities in [`packages/plugins/commerce/src/lib/catalog-order-snapshots.ts`](/Users/vidarbrekke/Dev/emDash/packages/plugins/commerce/src/lib/catalog-order-snapshots.ts) and domain helpers used by catalog reads as needed.
 3. Update checkout handler (`packages/plugins/commerce/src/handlers/checkout.ts`) to call snapshot helper:
@@ -361,6 +391,7 @@ Completed in this implementation pass with:
    - write path is stable under repeated checkout calls for idempotent carts
 
 ### Dependencies and file touches (planned sequence)
+
 1. `packages/plugins/commerce/src/storage.ts` (collection contracts, indexes, uniqueness)
 2. `packages/plugins/commerce/src/types.ts` (domain model growth)
 3. `packages/plugins/commerce/src/schemas.ts` (input validation for each endpoint)
@@ -373,6 +404,7 @@ Completed in this implementation pass with:
 10. Docs updates (`HANDOVER.md`, `COMMERCE_EXTENSION_SURFACE.md`, `COMMERCE_DOCS_INDEX.md`) where scope/phase states changed.
 
 ### Acceptance criteria by phase
+
 - **Phase 1:** create/read/update/get simple product + sku with invalid shape rejection.
 - **Phase 2:** upload-link-read path works; primary image uniqueness enforced per product.
 - **Phase 3:** variable attributes + option matrix works; each SKU has exactly one option for every variant-defining attribute; missing/extra/duplicate/skewed option values rejected.
@@ -382,11 +414,13 @@ Completed in this implementation pass with:
 - **Phase 7:** historical order lines are snapshot-driven; later catalog edits do not alter rendered history.
 
 ## Test emphasis additions
+
 - Unit invariants (always): immutable-field guards, variable SKU combination checks, primary image uniqueness, bundle availability formula.
 - Cross-phase regression (vital): idempotent cart checkout snapshot generation and repeat snapshot payloads.
 - Property-style checks (where practical): deterministic option signatures and bundle availability floor behavior.
 
 ### Risks and mitigation
+
 - **Cross-cutting index discipline:** keep index coverage in `storage.ts` for every new query path (`status`, `productId`, `skuId`, `role`, `categoryId`, `tagId`) to avoid read regressions.
 - **Rollback safety:** each phase can be feature-gated and merged independently.
 - **Validation coupling:** avoid silent overwrites by using merge-on-write updates and explicit immutable fields where required.

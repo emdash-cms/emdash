@@ -32,16 +32,32 @@ const skuB = {
 
 describe("bundle discount summary", () => {
 	it("computes fixed-discount availability and final price", () => {
-		const out = computeBundleSummary(
-			"bundle_1",
-			"fixed_amount",
-			180,
-			undefined,
-			[
-				{ component: { id: "c1", bundleProductId: "bundle_1", componentSkuId: "sku_1", quantity: 2, position: 0, createdAt: "2026", updatedAt: "2026" }, sku: skuA },
-				{ component: { id: "c2", bundleProductId: "bundle_1", componentSkuId: "sku_2", quantity: 1, position: 1, createdAt: "2026", updatedAt: "2026" }, sku: skuB },
-			],
-		);
+		const out = computeBundleSummary("bundle_1", "fixed_amount", 180, undefined, [
+			{
+				component: {
+					id: "c1",
+					bundleProductId: "bundle_1",
+					componentSkuId: "sku_1",
+					quantity: 2,
+					position: 0,
+					createdAt: "2026",
+					updatedAt: "2026",
+				},
+				sku: skuA,
+			},
+			{
+				component: {
+					id: "c2",
+					bundleProductId: "bundle_1",
+					componentSkuId: "sku_2",
+					quantity: 1,
+					position: 1,
+					createdAt: "2026",
+					updatedAt: "2026",
+				},
+				sku: skuB,
+			},
+		]);
 		expect(out.subtotalMinor).toBe(450);
 		expect(out.discountAmountMinor).toBe(180);
 		expect(out.finalPriceMinor).toBe(270);
@@ -51,34 +67,52 @@ describe("bundle discount summary", () => {
 	});
 
 	it("computes percentage discounts with floor behavior", () => {
-		const out = computeBundleSummary(
-			"bundle_1",
-			"percentage",
-			undefined,
-			2_000,
-			[
-				{ component: { id: "c1", bundleProductId: "bundle_1", componentSkuId: "sku_1", quantity: 2, position: 0, createdAt: "2026", updatedAt: "2026" }, sku: skuA },
-			],
-		);
+		const out = computeBundleSummary("bundle_1", "percentage", undefined, 2_000, [
+			{
+				component: {
+					id: "c1",
+					bundleProductId: "bundle_1",
+					componentSkuId: "sku_1",
+					quantity: 2,
+					position: 0,
+					createdAt: "2026",
+					updatedAt: "2026",
+				},
+				sku: skuA,
+			},
+		]);
 		expect(out.subtotalMinor).toBe(400);
 		expect(out.discountAmountMinor).toBe(80);
 		expect(out.finalPriceMinor).toBe(320);
 	});
 
 	it("sets availability to zero when any component is inactive", () => {
-		const out = computeBundleSummary(
-			"bundle_1",
-			"none",
-			undefined,
-			undefined,
-			[
-				{ component: { id: "c1", bundleProductId: "bundle_1", componentSkuId: "sku_1", quantity: 2, position: 0, createdAt: "2026", updatedAt: "2026" }, sku: skuA },
-				{
-					component: { id: "c2", bundleProductId: "bundle_1", componentSkuId: "sku_2", quantity: 1, position: 1, createdAt: "2026", updatedAt: "2026" },
-					sku: { ...skuB, status: "inactive" },
+		const out = computeBundleSummary("bundle_1", "none", undefined, undefined, [
+			{
+				component: {
+					id: "c1",
+					bundleProductId: "bundle_1",
+					componentSkuId: "sku_1",
+					quantity: 2,
+					position: 0,
+					createdAt: "2026",
+					updatedAt: "2026",
 				},
-			],
-		);
+				sku: skuA,
+			},
+			{
+				component: {
+					id: "c2",
+					bundleProductId: "bundle_1",
+					componentSkuId: "sku_2",
+					quantity: 1,
+					position: 1,
+					createdAt: "2026",
+					updatedAt: "2026",
+				},
+				sku: { ...skuB, status: "inactive" },
+			},
+		]);
 		expect(out.availability).toBe(0);
 		expect(out.components[1]!.availableBundleQuantity).toBe(0);
 	});

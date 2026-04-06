@@ -152,7 +152,10 @@ function upsertCtx(
 	});
 }
 
-function getCtx(input: CartGetInputForTest, carts: MemColl<StoredCart>): RouteContext<CartGetInput> {
+function getCtx(
+	input: CartGetInputForTest,
+	carts: MemColl<StoredCart>,
+): RouteContext<CartGetInput> {
 	return asRouteContext<CartGetInput>({
 		request: new Request("https://example.test/cart/get", { method: "POST" }),
 		input: {
@@ -407,7 +410,7 @@ describe("cartGetHandler", () => {
 		await carts.put("g_method", {
 			currency: "USD",
 			lineItems: [LINE],
-		ownerTokenHash: "owner-hash-method",
+			ownerTokenHash: "owner-hash-method",
 			createdAt: "2026-04-03T12:00:00.000Z",
 			updatedAt: "2026-04-03T12:00:00.000Z",
 		});
@@ -483,7 +486,6 @@ describe("cartGetHandler", () => {
 			cartGetHandler(getCtx({ cartId: "g4", ownerToken: "b".repeat(32) }, carts)),
 		).rejects.toMatchObject({ code: "cart_token_invalid" });
 	});
-
 });
 
 // ---------------------------------------------------------------------------
@@ -632,5 +634,4 @@ describe("cart → checkout integration chain", () => {
 		expect(orders.rows.size).toBe(1);
 		expect(paymentAttempts.rows.size).toBe(1);
 	});
-
 });

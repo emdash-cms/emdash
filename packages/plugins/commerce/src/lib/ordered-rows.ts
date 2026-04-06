@@ -1,6 +1,7 @@
 import { PluginRouteError } from "emdash";
-import { sortedImmutable } from "./sort-immutable.js";
 import type { StorageCollection } from "emdash";
+
+import { sortedImmutable } from "./sort-immutable.js";
 
 type Collection<T> = StorageCollection<T>;
 
@@ -17,9 +18,11 @@ export type OrderedChildMutation<T extends OrderedRow> =
 			rowId: string;
 			requestedPosition: number;
 			notFoundMessage?: string;
-		};
+	  };
 
-export function sortOrderedRowsByPosition<T extends { createdAt?: string; position: number }>(rows: T[]): T[] {
+export function sortOrderedRowsByPosition<T extends { createdAt?: string; position: number }>(
+	rows: T[],
+): T[] {
 	const sorted = sortedImmutable(rows, (left, right) => {
 		if (left.position === right.position) {
 			return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
@@ -40,7 +43,11 @@ export function normalizeOrderedChildren<T extends OrderedRow>(rows: T[]): T[] {
 	}));
 }
 
-export function addOrderedRow<T extends OrderedRow>(rows: T[], row: T, requestedPosition: number): T[] {
+export function addOrderedRow<T extends OrderedRow>(
+	rows: T[],
+	row: T,
+	requestedPosition: number,
+): T[] {
 	const normalizedPosition = Math.min(normalizeOrderedPosition(requestedPosition), rows.length);
 	const nextOrder = [...rows];
 	nextOrder.splice(normalizedPosition, 0, row);
@@ -51,7 +58,11 @@ export function removeOrderedRow<T extends OrderedRow>(rows: T[], removedRowId: 
 	return normalizeOrderedChildren(rows.filter((row) => row.id !== removedRowId));
 }
 
-export function moveOrderedRow<T extends OrderedRow>(rows: T[], rowId: string, requestedPosition: number): T[] {
+export function moveOrderedRow<T extends OrderedRow>(
+	rows: T[],
+	rowId: string,
+	requestedPosition: number,
+): T[] {
 	const fromIndex = rows.findIndex((row) => row.id === rowId);
 	if (fromIndex === -1) {
 		throw PluginRouteError.badRequest("Ordered row not found in target list");
@@ -111,7 +122,9 @@ export async function mutateOrderedChildren<T extends OrderedRow>(params: {
 			const { rowId, requestedPosition } = mutation;
 			const fromIndex = rows.findIndex((candidate) => candidate.id === rowId);
 			if (fromIndex === -1) {
-				throw PluginRouteError.badRequest(mutation.notFoundMessage ?? "Ordered row not found in target list");
+				throw PluginRouteError.badRequest(
+					mutation.notFoundMessage ?? "Ordered row not found in target list",
+				);
 			}
 			normalized = moveOrderedRow(rows, rowId, requestedPosition);
 			break;
@@ -129,4 +142,3 @@ export async function mutateOrderedChildren<T extends OrderedRow>(params: {
 	}
 	return persisted;
 }
-

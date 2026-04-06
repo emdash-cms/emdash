@@ -11,9 +11,9 @@ import type { RouteContext } from "emdash";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import type { FinalizationStatus } from "../orchestration/finalize-payment.js";
 import { throwCommerceApiError } from "../route-errors.js";
-import { consumeKvRateLimit } from "./rate-limit-kv.js";
-import { buildRateLimitActorKey } from "./rate-limit-identity.js";
 import { sha256HexAsync } from "./crypto-adapter.js";
+import { buildRateLimitActorKey } from "./rate-limit-identity.js";
+import { consumeKvRateLimit } from "./rate-limit-kv.js";
 
 const CACHE_KEY_PREFIX = "state:finalize_diag:v1:";
 

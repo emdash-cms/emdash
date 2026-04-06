@@ -2,6 +2,7 @@
 
 > Historical review packet. Superseded by `3rdpary_review_2.md` for the current project state.
 > Canonical current review path:
+>
 > - `@THIRD_PARTY_REVIEW_PACKAGE.md`
 > - `external_review.md`
 > - `SHARE_WITH_REVIEWER.md`
@@ -42,7 +43,7 @@ The product owner’s pain is **WooCommerce-style extensibility**: child themes,
 - **Contract-driven** — extensions integrate through **typed boundaries**, not mutable global hooks.
 - **EmDash-native** — storage, KV, routes, cron, email, capabilities—not a parallel framework inside the CMS.
 
-A local **WooCommerce PHP tree** was used only as a **reference** for cart/checkout *ideas* (session tokens, route decomposition, validation); it is **not** part of the deliverable and is **gitignored** in this repo.
+A local **WooCommerce PHP tree** was used only as a **reference** for cart/checkout _ideas_ (session tokens, route decomposition, validation); it is **not** part of the deliverable and is **gitignored** in this repo.
 
 ---
 
@@ -76,12 +77,12 @@ Details: **`commerce-plugin-architecture.md`** (Sections 10–11).
 
 Recorded in **`commerce-plugin-architecture.md` §15**:
 
-| Topic | Decision |
-|--------|-----------|
-| Payment gateways (v1) | **Stripe** and **Authorize.net**—two real implementations early to stress-test the provider contract. |
-| Inventory | **Payment-first; reserve/decrement at finalize** after successful payment. Explicit UX for **inventory changed** between cart and payment. |
-| Shipping / tax | **Separate module**. Without it: **no shipping address / quote flows** in core. Multi-currency and localized tax lean toward **that module family**, not duplicated in core v1. |
-| Logged-in users | **Purchase history** + **durable cart** across logout/login and devices; anonymous `cartToken` **merge/associate** on login. |
+| Topic                 | Decision                                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Payment gateways (v1) | **Stripe** and **Authorize.net**—two real implementations early to stress-test the provider contract.                                                                           |
+| Inventory             | **Payment-first; reserve/decrement at finalize** after successful payment. Explicit UX for **inventory changed** between cart and payment.                                      |
+| Shipping / tax        | **Separate module**. Without it: **no shipping address / quote flows** in core. Multi-currency and localized tax lean toward **that module family**, not duplicated in core v1. |
+| Logged-in users       | **Purchase history** + **durable cart** across logout/login and devices; anonymous `cartToken` **merge/associate** on login.                                                    |
 
 ---
 
@@ -89,17 +90,17 @@ Recorded in **`commerce-plugin-architecture.md` §15**:
 
 The archive **`lates-code.zip`** at the repository root contains exactly these **nine** paths (read in this order):
 
-| Order | Path in zip | Role |
-|-------|-------------|------|
-| 1 | `3rdpary_review.md` | Framing and review questions (this file). |
-| 2 | `commerce-plugin-architecture.md` | **Authoritative** architecture: data model, routes, phases, Step 1 spec, locked decisions. |
-| 3 | `high-level-plan.md` | Earlier, shorter sketch; useful for diffing scope drift; superseded by the architecture doc where they conflict. |
-| 4 | `skills/creating-plugins/SKILL.md` | EmDash plugin anatomy, trusted vs sandboxed, capabilities, routes—**platform ground truth** for “are we using EmDash correctly?”. |
-| 5 | `packages/plugins/forms/src/index.ts` | Forms plugin: descriptor + `definePlugin`, routes, hooks, admin. |
-| 6 | `packages/plugins/forms/src/storage.ts` | Storage collection/index declaration pattern. |
-| 7 | `packages/plugins/forms/src/schemas.ts` | Zod input schemas for routes. |
-| 8 | `packages/plugins/forms/src/types.ts` | Domain types stored in `ctx.storage`. |
-| 9 | `packages/plugins/forms/src/handlers/submit.ts` | Public route handler: validation, media, storage, email, webhooks. |
+| Order | Path in zip                                     | Role                                                                                                                              |
+| ----- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | `3rdpary_review.md`                             | Framing and review questions (this file).                                                                                         |
+| 2     | `commerce-plugin-architecture.md`               | **Authoritative** architecture: data model, routes, phases, Step 1 spec, locked decisions.                                        |
+| 3     | `high-level-plan.md`                            | Earlier, shorter sketch; useful for diffing scope drift; superseded by the architecture doc where they conflict.                  |
+| 4     | `skills/creating-plugins/SKILL.md`              | EmDash plugin anatomy, trusted vs sandboxed, capabilities, routes—**platform ground truth** for “are we using EmDash correctly?”. |
+| 5     | `packages/plugins/forms/src/index.ts`           | Forms plugin: descriptor + `definePlugin`, routes, hooks, admin.                                                                  |
+| 6     | `packages/plugins/forms/src/storage.ts`         | Storage collection/index declaration pattern.                                                                                     |
+| 7     | `packages/plugins/forms/src/schemas.ts`         | Zod input schemas for routes.                                                                                                     |
+| 8     | `packages/plugins/forms/src/types.ts`           | Domain types stored in `ctx.storage`.                                                                                             |
+| 9     | `packages/plugins/forms/src/handlers/submit.ts` | Public route handler: validation, media, storage, email, webhooks.                                                                |
 
 **Not bundled (too large or redundant):** full `packages/core/src/plugins/types.ts` — use the [repo](https://github.com/emdash-cms/emdash) or your checkout of EmDash for the complete `PluginContext` / capability types. Plugin overview docs live under `docs/src/content/docs/plugins/` in the upstream repo.
 

@@ -189,6 +189,7 @@ I do recommend a conceptual split immediately, but not necessarily a heavy packa
 ### Recommended conceptual layers
 
 #### Layer A — Commerce kernel
+
 Pure domain logic only:
 
 - product and variant domain rules
@@ -205,6 +206,7 @@ Pure domain logic only:
 No admin UI. No Astro. No React. No MCP.
 
 #### Layer B — EmDash plugin wrapper
+
 EmDash-specific glue:
 
 - plugin descriptor
@@ -215,9 +217,11 @@ EmDash-specific glue:
 - hook wiring
 
 #### Layer C — Admin UI
+
 Merchant-facing UI only.
 
 #### Layer D — Storefront UI
+
 Astro components and display primitives only.
 
 ### Practical instruction
@@ -233,6 +237,7 @@ Do **not** let kernel logic depend on admin/storefront concerns.
 There are a few areas where ambiguity is expensive. These must be explicitly written down before major coding continues.
 
 ### A. Order state machine
+
 Define the allowed order states and transitions centrally.
 
 Suggested initial order states:
@@ -248,6 +253,7 @@ Suggested initial order states:
 - `payment_conflict`
 
 ### B. Payment state machine
+
 Suggested initial payment states:
 
 - `requires_action`
@@ -261,6 +267,7 @@ Suggested initial payment states:
 - `partial_refund`
 
 ### C. Cart state machine
+
 Suggested initial cart states:
 
 - `active`
@@ -407,6 +414,7 @@ The product model direction is good. The v1 feature set should still be narrow.
 ### Product/variant fields worth settling now
 
 #### Product
+
 - `merchantSku` optional
 - `publishedAt`
 - `requiresShipping`
@@ -415,6 +423,7 @@ The product model direction is good. The v1 feature set should still be narrow.
 - denormalized `searchText` or equivalent
 
 #### Variant
+
 - normalized option values
 - `active`
 - `sortOrder`
@@ -464,9 +473,11 @@ Do not postpone this until after the first gateway lands. It is part of making t
 ## Final project shape I recommend
 
 ## Principle
+
 **Keep the architecture strong, but prove it with the smallest real flow possible.**
 
 ## Required approach
+
 - domain-first
 - correctness-first
 - small-scope
@@ -480,6 +491,7 @@ Do not postpone this until after the first gateway lands. It is part of making t
 ## Revised phased plan
 
 ## Phase 0 — Architecture hardening
+
 This is the current highest-priority phase.
 
 The developer should produce or revise the architecture docs so that the following are explicit and unambiguous:
@@ -499,6 +511,7 @@ The developer should produce or revise the architecture docs so that the followi
 This phase should end with a short, crisp architecture addendum. Not more sprawling prose.
 
 ## Phase 1 — Minimal kernel implementation
+
 Implement only the smallest kernel required for a real purchase flow:
 
 - simple product model
@@ -515,6 +528,7 @@ Implement only the smallest kernel required for a real purchase flow:
 No rich storefront library. No broad admin system. No AI/MCP work.
 
 ## Phase 2 — One real vertical slice
+
 Build one full flow end to end:
 
 - product display
@@ -530,6 +544,7 @@ Build one full flow end to end:
 Use one gateway only in this phase. Stripe is a sensible choice.
 
 ## Phase 3 — Hardening and test pressure
+
 Before expanding features, harden the first slice.
 
 Required tests:
@@ -546,6 +561,7 @@ Required tests:
 If the architecture bends badly here, adjust it now.
 
 ## Phase 4 — Second gateway to validate abstraction
+
 Add a second gateway only after the first path is solid.
 
 The point is not feature breadth. The point is testing whether the provider abstraction is actually correct.
@@ -553,6 +569,7 @@ The point is not feature breadth. The point is testing whether the provider abst
 If Authorize.net causes awkward branching or leaky abstractions, fix the contract before adding more providers.
 
 ## Phase 5 — Admin UX expansion
+
 Only after the core transaction path is stable:
 
 - better product editing
@@ -562,6 +579,7 @@ Only after the core transaction path is stable:
 - low-stock visibility
 
 ## Phase 6 — Storefront and extension growth
+
 After correctness is proven:
 
 - richer Astro components
@@ -576,6 +594,7 @@ After correctness is proven:
 ## Concrete instructions to the current developer
 
 ### Do next
+
 1. Revise the architecture doc with the frozen semantics listed above.
 2. Reduce the first milestone to one real end-to-end checkout path.
 3. Treat provider integrations as local adapters first.
@@ -585,6 +604,7 @@ After correctness is proven:
 7. Add tests around replay, concurrency, and state transitions before expanding features.
 
 ### Do not do yet
+
 - do not build wide provider ecosystems
 - do not formalize marketplace/plugin breadth too early
 - do not build MCP surfaces yet
@@ -593,6 +613,7 @@ After correctness is proven:
 - do not optimize prematurely for many execution paths
 
 ### Watch for these anti-patterns
+
 - HTTP-shaped architecture where simple local contracts would do
 - admin/storefront code importing kernel internals in uncontrolled ways
 - `meta` fields turning into a junk drawer
@@ -605,12 +626,15 @@ After correctness is proven:
 ## How I would rate the current project after this correction
 
 ### Current direction
+
 Good. Promising. Worth continuing.
 
 ### Current architectural maturity
+
 Not ready for broad implementation without one more tightening pass.
 
 ### Overall verdict
+
 > **Proceed, but only after shrinking the first executable scope and freezing the risky semantics.**
 
 That is the best path to a durable commerce foundation on EmDash.

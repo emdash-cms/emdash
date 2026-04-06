@@ -2,6 +2,7 @@
 
 > This is the historical Option A hardening checklist.
 > For the current external reviewer flow, use:
+>
 > - `@THIRD_PARTY_REVIEW_PACKAGE.md`
 > - `external_review.md`
 > - `SHARE_WITH_REVIEWER.md`
@@ -27,6 +28,7 @@
 ## Issue-level checklist (severity + owner)
 
 ### 1) Webhook signature gate is bypassable by malformed request
+
 - **Severity**: P1 (Integrity / Fraud)
 - **What to verify**
   - `Stripe-Signature` is parsed and validated before finalize side effects.
@@ -39,6 +41,7 @@
   - Current implementation: implemented in `packages/plugins/commerce/src/handlers/webhooks-stripe.ts`.
 
 ### 2) Replay safety on duplicate webhook events
+
 - **Severity**: P1 (Data integrity / Inventory)
 - **What to verify**
   - Duplicate event IDs return replay/error semantics via existing receipt decision path.
@@ -49,6 +52,7 @@
 - **Ownership**: **RE** (logic), **SRE** (runtime contention observations)
 
 ### 3) Partial mutation risk during preflight failures
+
 - **Severity**: P1 (Inventory correctness)
 - **What to verify**
   - Stock validation and normalization occur before stock/ledger writes.
@@ -59,6 +63,7 @@
 - **Ownership**: **RE**
 
 ### 4) Nondeterministic payment-attempt selection
+
 - **Severity**: P2 (State correctness)
 - **What to verify**
   - Selection uses deterministic filter/sort (`orderId + providerId + status`, ordered by stable field).
@@ -68,6 +73,7 @@
 - **Ownership**: **RE**
 
 ### 5) Inventory movement index / replay model mismatch
+
 - **Severity**: P2 (Idempotency)
 - **What to verify**
   - Unique index definition for movement identity exists in `storage.ts`.
@@ -77,6 +83,7 @@
 - **Ownership**: **SRE** + **RE**
 
 ### 6) Residual concurrent-race window under perfect simultaneity
+
 - **Severity**: P2 (Concurrency / Scaling)
 - **What to verify**
   - Confirm if remaining race window is acceptable for current traffic profile.
@@ -87,10 +94,9 @@
 
 ## Final recommendation block
 
-- **Recommended rollout readiness**: `[ ] Ready` / `[ ] Hold until fixes` / `[ ] Require follow-up`  
+- **Recommended rollout readiness**: `[ ] Ready` / `[ ] Hold until fixes` / `[ ] Require follow-up`
 - **Owner**: `_____________________`
-- **Review comments summary**:  
-  - ______________________________________________________________________  
-  - ______________________________________________________________________  
-  - ______________________________________________________________________
-
+- **Review comments summary**:
+  - ***
+  - ***
+  - ***

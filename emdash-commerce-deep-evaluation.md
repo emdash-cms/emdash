@@ -36,6 +36,7 @@ Design decisions locked since the original review:
 
 > **Note:** The material that follows reflects the historical deep review snapshot.
 > The latest project posture is captured in:
+>
 > - `Current status update (2026-04-03)` above
 > - `emdash-commerce-final-review-plan.md`
 > - `@THIRD_PARTY_REVIEW_PACKAGE.md`
@@ -133,6 +134,7 @@ The architecture may be right. It may also still contain hidden awkwardness that
 These are not fatal, but they are signals.
 
 ### A. Error-code naming is inconsistent
+
 At the time of this historical evaluation pass, the architecture document said error codes should be stable **snake_case strings**, but `src/kernel/errors.ts` exported uppercase internal keys.
 
 - `WEBHOOK_REPLAY_DETECTED`
@@ -142,11 +144,13 @@ At the time of this historical evaluation pass, the architecture document said e
 That mismatch was corrected in the later zero-legacy hardening pass; subsequent sections and current runbooks track the updated status.
 
 ### B. Rate-limit terminology is inconsistent
+
 The architecture talks about **KV sliding-window** rate limits, but `rate-limit-window.ts` implements a **fixed-window counter**.
 
 A fixed window may be perfectly acceptable for v1. In the current pass, this behavior is treated as explicit and documented in the runtime and review notes.
 
 ### C. Finalization logic is still narrower than the architecture promises
+
 `decidePaymentFinalize()` is useful, but it is still just a minimal guard. It does not yet embody the full architecture around:
 
 - auth vs capture flows
@@ -173,7 +177,7 @@ But the project has not yet shown the actual mutation choreography inside EmDash
 
 This is where the next real risk lives.
 
-The key unanswered implementation question is not whether the design *sounds* correct. It is whether the storage layer can enforce the design in a way that is:
+The key unanswered implementation question is not whether the design _sounds_ correct. It is whether the storage layer can enforce the design in a way that is:
 
 - deterministic
 - race-safe enough for the chosen concurrency assumptions
@@ -294,6 +298,7 @@ The project is still before the phase where the true design quality becomes visi
 ## Most important project-level recommendations
 
 ## 1. Freeze the semantics that already leaked into code
+
 Before broader implementation continues, normalize these:
 
 - canonical error code format
@@ -307,6 +312,7 @@ Before broader implementation continues, normalize these:
 Do this now, not after Stripe lands.
 
 ## 2. Treat the storage adapter as the next critical deliverable
+
 The next big milestone should not just be “Stripe integration.”
 
 It should be:
@@ -324,6 +330,7 @@ That means implementing and testing:
 - conflict path handling
 
 ## 3. Keep the first live product type brutally narrow
+
 For the first end-to-end slice, support:
 
 - simple product
@@ -332,6 +339,7 @@ For the first end-to-end slice, support:
 Do not let bundles, gift cards, subscriptions, advanced discounting, or rich addon logic creep into the first transaction slice.
 
 ## 4. Add a “resolved purchasable unit” concept before bundles get serious
+
 This matters for your bundle requirement.
 
 At checkout/finalization time, the system should resolve every purchasable thing into a normalized unit that the inventory and order snapshot layers can reason about consistently.
@@ -355,9 +363,11 @@ This can stay internal. But without a normalized resolved-unit concept, advanced
 ## Feature 1 — Variant swatches with uploaded visual swatches instead of only dropdowns
 
 ## Verdict
+
 **The current architecture is aligned with this feature, but the current data model is only partially complete for it.**
 
 ### Why I say that
+
 The architecture already has a proper concept of product attributes and explicitly includes attribute display modes such as:
 
 - `select`
@@ -369,18 +379,19 @@ That is a very good start.
 This means the architecture already understands that variant selection is not just raw dropdown data — it includes presentation metadata. That is exactly the right foundation.
 
 ### What is missing
+
 Right now the model appears to support **color value swatches** via a term field like `color`, but not clearly **uploaded image swatches**.
 
 For the use case you described, you will likely want the attribute-term model to support something like:
 
 ```ts
 interface ProductAttributeTerm {
-  label: string;
-  value: string;
-  sortOrder: number;
-  color?: string;
-  swatchMediaId?: string;
-  swatchAlt?: string;
+	label: string;
+	value: string;
+	sortOrder: number;
+	color?: string;
+	swatchMediaId?: string;
+	swatchAlt?: string;
 }
 ```
 
@@ -392,6 +403,7 @@ And possibly broaden `displayType` to:
 - `image_swatch`
 
 ### My recommendation
+
 Add image swatches as a **small, explicit extension** of the attribute model, not as generic metadata.
 
 That means:
@@ -403,11 +415,13 @@ That means:
 - make variant resolution depend on term values, not on the UI widget type
 
 ### Complexity and risk
+
 - **Complexity:** low to moderate
 - **Architectural risk:** low
 - **Best timing:** after variable products are working in the first usable storefront/admin pass
 
 ### Bottom line
+
 This feature is **well-aligned** with the current architecture and should be **easy to add cleanly**, provided the term model is extended deliberately for uploaded image swatches.
 
 ---
@@ -415,11 +429,13 @@ This feature is **well-aligned** with the current architecture and should be **e
 ## Feature 2 — Product bundles composed of multiple SKUs/products, with variable products inside the bundle and optional add-ons
 
 ## Verdict
+
 **The current architecture is directionally aligned with bundles, but it is not yet fully modeled for the bundle behavior you actually want.**
 
 This is the more important and more difficult feature.
 
 ### What is already good
+
 The architecture already includes:
 
 - a `bundle` product type
@@ -433,6 +449,7 @@ The architecture already includes:
 That proves the system is already thinking in the right direction.
 
 ### Where the current model falls short
+
 Your real requirement is more advanced than a static bundle.
 
 You want all of the following:
@@ -455,30 +472,32 @@ It currently reads more like:
 That is fine for a simple starter bundle model, but not enough for configurable bundle composition.
 
 ### What the data model needs instead
+
 I would evolve bundle modeling toward **bundle components** rather than just bundle items.
 
 Something more like:
 
 ```ts
 interface BundleComponent {
-  id: string;
-  productId: string;
-  required: boolean;
-  defaultIncluded: boolean;
-  minQty: number;
-  maxQty: number;
-  allowCustomerQtyChange: boolean;
-  selectionMode: "fixed_variant" | "choose_variant" | "simple_only";
-  fixedVariantId?: string;
-  allowedVariantIds?: string[];
-  addonPricingMode?: "included" | "fixed" | "delta";
-  addonPrice?: number;
+	id: string;
+	productId: string;
+	required: boolean;
+	defaultIncluded: boolean;
+	minQty: number;
+	maxQty: number;
+	allowCustomerQtyChange: boolean;
+	selectionMode: "fixed_variant" | "choose_variant" | "simple_only";
+	fixedVariantId?: string;
+	allowedVariantIds?: string[];
+	addonPricingMode?: "included" | "fixed" | "delta";
+	addonPrice?: number;
 }
 ```
 
 And then the shopper’s actual cart line for the bundle would need a **resolved selection payload** recording which components and variants were chosen.
 
 ### Architectural implication
+
 The key is this:
 
 > A bundle should not remain an abstract product at finalization time.
@@ -488,6 +507,7 @@ Before pricing, inventory decrement, and order snapshotting complete, the bundle
 That does **not** mean you must expose separate visible cart lines to the shopper. It means the backend needs a normalized resolved representation.
 
 ### How this affects inventory
+
 This is where the current architecture can support the feature, but only if implemented carefully.
 
 Inventory must be checked and finalized against the actual resolved components:
@@ -501,14 +521,17 @@ Inventory must be checked and finalized against the actual resolved components:
   - the fulfillment/accounting-facing component resolution
 
 ### My recommendation
+
 Treat bundle support in two levels:
 
 #### Level 1 — simple bundles
+
 - fixed components
 - optional fixed add-ons
 - no customer variant choice inside bundle, or very limited variant choice
 
 #### Level 2 — configurable bundles
+
 - customer chooses variants for component products
 - optional add-ons
 - per-component quantity rules
@@ -517,11 +540,13 @@ Treat bundle support in two levels:
 That lets the project land bundles incrementally without corrupting the underlying order and inventory model.
 
 ### Complexity and risk
+
 - **Complexity:** moderate to high
 - **Architectural risk:** moderate
 - **Best timing:** after the first simple/variable product checkout path is stable
 
 ### Bottom line
+
 This feature is **possible within the current architecture**, but it is **not yet fully modeled**.
 
 So the honest answer is:
@@ -535,11 +560,13 @@ It needs a more explicit bundle-component design before implementation starts.
 ## Final verdict on feature-fit
 
 ## Swatches
+
 - **Fit with current architecture:** strong
 - **Effort to add cleanly:** low to moderate
 - **Confidence:** high
 
 ## Configurable bundles with variants and optional add-ons
+
 - **Fit with current architecture:** moderate to strong
 - **Effort to add cleanly:** moderate to high
 - **Confidence:** medium
@@ -550,6 +577,7 @@ It needs a more explicit bundle-component design before implementation starts.
 ## What I would tell the developer to do next
 
 ## Priority 1 — prove the commerce core
+
 Implement the first real vertical slice:
 
 - simple product
@@ -564,6 +592,7 @@ Implement the first real vertical slice:
 - replay/conflict tests
 
 ## Priority 2 — make variable products real
+
 Before swatches or advanced bundles, prove:
 
 - product attributes
@@ -573,6 +602,7 @@ Before swatches or advanced bundles, prove:
 - inventory version checks on variants
 
 ## Priority 3 — add image swatches
+
 Once variable products are real:
 
 - extend attribute term schema with swatch media
@@ -581,6 +611,7 @@ Once variable products are real:
 - keep resolution logic independent of widget type
 
 ## Priority 4 — redesign bundle schema before implementing advanced bundles
+
 Do not start coding advanced bundles from the current `BundleTypeData` alone.
 
 First write a more explicit schema for:

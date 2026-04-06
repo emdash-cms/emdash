@@ -1,6 +1,8 @@
+import type { StorageCollection } from "emdash";
 import { describe, expect, it } from "vitest";
 
 import { sha256HexAsync } from "../lib/crypto-adapter.js";
+import type { StoredIdempotencyKey, StoredOrder, StoredPaymentAttempt } from "../types.js";
 import {
 	CHECKOUT_PENDING_KIND,
 	CHECKOUT_ROUTE,
@@ -13,8 +15,6 @@ import {
 	resolvePaymentProviderId,
 	validateCachedCheckoutCompleted,
 } from "./checkout-state.js";
-import type { StoredIdempotencyKey, StoredOrder, StoredPaymentAttempt } from "../types.js";
-import type { StorageCollection } from "emdash";
 
 type MemCollection<T extends object> = {
 	get(id: string): Promise<T | null>;
@@ -41,7 +41,9 @@ class MemColl<T extends object> implements MemCollection<T> {
 const NOW = "2026-04-02T12:00:00.000Z";
 const REPLAY_INTEGRITY_HEX64 = /^[a-f0-9]{64}$/;
 
-function checkoutPendingFixture(overrides: Partial<CheckoutPendingState> = {}): CheckoutPendingState {
+function checkoutPendingFixture(
+	overrides: Partial<CheckoutPendingState> = {},
+): CheckoutPendingState {
 	return {
 		kind: CHECKOUT_PENDING_KIND,
 		orderId: "order-1",
@@ -240,7 +242,9 @@ describe("restorePendingCheckout", () => {
 			updatedAt: "2026-04-01T00:00:00.000Z",
 		};
 		const orders = new MemColl<StoredOrder>(new Map([[pending.orderId, existingOrder]]));
-		const attempts = new MemColl<StoredPaymentAttempt>(new Map([[pending.paymentAttemptId, existingAttempt]]));
+		const attempts = new MemColl<StoredPaymentAttempt>(
+			new Map([[pending.paymentAttemptId, existingAttempt]]),
+		);
 		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
 
 		const response = await restorePendingCheckout(
@@ -289,7 +293,9 @@ describe("restorePendingCheckout", () => {
 			updatedAt: NOW,
 		};
 		const orders = new MemColl<StoredOrder>(new Map([[pending.orderId, existingOrder]]));
-		const attempts = new MemColl<StoredPaymentAttempt>(new Map([[pending.paymentAttemptId, existingAttempt]]));
+		const attempts = new MemColl<StoredPaymentAttempt>(
+			new Map([[pending.paymentAttemptId, existingAttempt]]),
+		);
 		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
 
 		await expect(
@@ -298,9 +304,9 @@ describe("restorePendingCheckout", () => {
 				cached,
 				pending,
 				NOW,
-			asStorageCollection(idempotencyKeys),
-			asStorageCollection(orders),
-			asStorageCollection(attempts),
+				asStorageCollection(idempotencyKeys),
+				asStorageCollection(orders),
+				asStorageCollection(attempts),
 			),
 		).rejects.toMatchObject({ code: "order_state_conflict" });
 		expect(await idempotencyKeys.get("idemp:order-mismatch")).toBeNull();
@@ -335,7 +341,9 @@ describe("restorePendingCheckout", () => {
 			updatedAt: NOW,
 		};
 		const orders = new MemColl<StoredOrder>(new Map([[pending.orderId, existingOrder]]));
-		const attempts = new MemColl<StoredPaymentAttempt>(new Map([[pending.paymentAttemptId, existingAttempt]]));
+		const attempts = new MemColl<StoredPaymentAttempt>(
+			new Map([[pending.paymentAttemptId, existingAttempt]]),
+		);
 		const idempotencyKeys = new MemColl<StoredIdempotencyKey>();
 
 		await expect(
@@ -396,7 +404,9 @@ describe("validateCachedCheckoutCompleted", () => {
 			currency: "USD",
 			finalizeToken: token,
 		};
-		expect(await validateCachedCheckoutCompleted("kh", cached as never, order, attempt)).toBe(false);
+		expect(await validateCachedCheckoutCompleted("kh", cached as never, order, attempt)).toBe(
+			false,
+		);
 	});
 
 	it("returns false when replayIntegrity does not match payload", async () => {

@@ -15,18 +15,18 @@ function includesIndex(
 		| "idempotencyKeys"
 		| "products"
 		| "productSkus"
-	| "productAttributes"
-	| "productAttributeValues"
-	| "productSkuOptionValues"
-	| "digitalAssets"
-	| "digitalEntitlements"
-	| "categories"
-	| "productCategoryLinks"
-	| "productTags"
-	| "productTagLinks"
-	| "bundleComponents"
-	| "inventoryLedger"
-	| "inventoryStock",
+		| "productAttributes"
+		| "productAttributeValues"
+		| "productSkuOptionValues"
+		| "digitalAssets"
+		| "digitalEntitlements"
+		| "categories"
+		| "productCategoryLinks"
+		| "productTags"
+		| "productTagLinks"
+		| "bundleComponents"
+		| "inventoryLedger"
+		| "inventoryStock",
 	index: readonly string[],
 	unique = false,
 ): boolean {
@@ -88,7 +88,9 @@ describe("storage index contracts", () => {
 
 	it("supports catalog asset link lookup and idempotent linking", () => {
 		expect(includesIndex("productAssetLinks", ["targetType", "targetId"])).toBe(true);
-		expect(includesIndex("productAssetLinks", ["targetType", "targetId", "assetId"], true)).toBe(true);
+		expect(includesIndex("productAssetLinks", ["targetType", "targetId", "assetId"], true)).toBe(
+			true,
+		);
 	});
 
 	it("supports variable attribute metadata lookups", () => {
@@ -115,7 +117,9 @@ describe("storage index contracts", () => {
 
 	it("supports bundle components and composition lookups", () => {
 		expect(includesIndex("bundleComponents", ["bundleProductId"])).toBe(true);
-		expect(includesIndex("bundleComponents", ["bundleProductId", "componentSkuId"], true)).toBe(true);
+		expect(includesIndex("bundleComponents", ["bundleProductId", "componentSkuId"], true)).toBe(
+			true,
+		);
 		expect(includesIndex("bundleComponents", ["bundleProductId", "position"])).toBe(true);
 	});
 

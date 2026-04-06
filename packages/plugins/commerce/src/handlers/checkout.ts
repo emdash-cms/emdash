@@ -9,16 +9,16 @@ import { PluginRouteError } from "emdash";
 import { validateIdempotencyKey } from "../kernel/idempotency-key.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { cartContentFingerprint } from "../lib/cart-fingerprint.js";
-import { buildOrderLineSnapshots } from "../lib/catalog-order-snapshots.js";
-import { validateLineItemsStockForCheckout } from "../lib/checkout-inventory-validation.js";
 import { projectCartLineItemsForStorage } from "../lib/cart-lines.js";
 import { assertCartOwnerToken } from "../lib/cart-owner-token.js";
 import { validateCartLineItems } from "../lib/cart-validation.js";
+import { buildOrderLineSnapshots } from "../lib/catalog-order-snapshots.js";
+import { validateLineItemsStockForCheckout } from "../lib/checkout-inventory-validation.js";
 import { randomHex, sha256HexAsync } from "../lib/crypto-adapter.js";
 import { isIdempotencyRecordFresh } from "../lib/idempotency-ttl.js";
 import { LineConflictError, mergeLineItemsBySku } from "../lib/merge-line-items.js";
-import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { buildRateLimitActorKey } from "../lib/rate-limit-identity.js";
+import { consumeKvRateLimit } from "../lib/rate-limit-kv.js";
 import { requirePost } from "../lib/require-post.js";
 import { throwCommerceApiError } from "../route-errors.js";
 import type { CheckoutInput } from "../schemas.js";
@@ -38,6 +38,7 @@ import type {
 	StoredInventoryStock,
 	OrderLineItem,
 } from "../types.js";
+import { asCollection } from "./catalog-conflict.js";
 import type { CheckoutPendingState, CheckoutResponse } from "./checkout-state.js";
 import {
 	CHECKOUT_PENDING_KIND,
@@ -51,19 +52,26 @@ import {
 	toCheckoutClientResponse,
 	validateCachedCheckoutCompleted,
 } from "./checkout-state.js";
-import { asCollection } from "./catalog-conflict.js";
 
 type SnapshotQueryCollection<T> = {
 	get(id: string): Promise<T | null>;
-	query(options?: { where?: Record<string, unknown>; limit?: number }): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
+	query(options?: {
+		where?: Record<string, unknown>;
+		limit?: number;
+	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
 };
 
 function asSnapshotCollection<T>(raw: unknown): SnapshotQueryCollection<T> {
 	if (raw) {
-		const collection = raw as { get: (id: string) => Promise<T | null>; query?: SnapshotQueryCollection<T>["query"] };
+		const collection = raw as {
+			get: (id: string) => Promise<T | null>;
+			query?: SnapshotQueryCollection<T>["query"];
+		};
 		return {
 			get: collection.get.bind(collection),
-			query: collection.query ? collection.query.bind(collection) : async () => ({ items: [], hasMore: false }),
+			query: collection.query
+				? collection.query.bind(collection)
+				: async () => ({ items: [], hasMore: false }),
 		};
 	}
 	return {
@@ -220,7 +228,9 @@ export async function checkoutHandler(
 			ctx.storage.productSkuOptionValues,
 		),
 		productDigitalAssets: asSnapshotCollection<StoredDigitalAsset>(ctx.storage.digitalAssets),
-		productDigitalEntitlements: asSnapshotCollection<StoredDigitalEntitlement>(ctx.storage.digitalEntitlements),
+		productDigitalEntitlements: asSnapshotCollection<StoredDigitalEntitlement>(
+			ctx.storage.digitalEntitlements,
+		),
 		productAssetLinks: asSnapshotCollection<StoredProductAssetLink>(ctx.storage.productAssetLinks),
 		productAssets: asSnapshotCollection<StoredProductAsset>(ctx.storage.productAssets),
 		bundleComponents: asSnapshotCollection<StoredBundleComponent>(ctx.storage.bundleComponents),
@@ -234,7 +244,10 @@ export async function checkoutHandler(
 		unitPriceMinor: productSnapshots[index]?.unitPriceMinor ?? line.unitPriceMinor,
 	}));
 
-	const totalMinor = orderLineItemsWithSnapshots.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
+	const totalMinor = orderLineItemsWithSnapshots.reduce(
+		(sum, l) => sum + l.unitPriceMinor * l.quantity,
+		0,
+	);
 	const orderId = deterministicOrderId(keyHash);
 
 	const finalizeToken = await randomHex(24);

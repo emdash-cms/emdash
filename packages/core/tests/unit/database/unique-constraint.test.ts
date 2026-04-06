@@ -4,9 +4,9 @@ import { isUniqueConstraintViolation } from "../../../src/database/unique-constr
 
 describe("isUniqueConstraintViolation", () => {
 	it("returns true for SQLite-style messages", () => {
-		expect(isUniqueConstraintViolation(new Error("UNIQUE constraint failed: _plugin_storage.id"))).toBe(
-			true,
-		);
+		expect(
+			isUniqueConstraintViolation(new Error("UNIQUE constraint failed: _plugin_storage.id")),
+		).toBe(true);
 		expect(isUniqueConstraintViolation(new Error("unique constraint failed"))).toBe(true);
 	});
 
@@ -20,7 +20,7 @@ describe("isUniqueConstraintViolation", () => {
 	});
 
 	it("returns true for Error with cause chain carrying message", () => {
-		const inner = new Error("duplicate key value violates unique constraint \"pk\"");
+		const inner = new Error('duplicate key value violates unique constraint "pk"');
 		const outer = new Error("wrap");
 		(outer as Error & { cause?: unknown }).cause = inner;
 		expect(isUniqueConstraintViolation(outer)).toBe(true);

@@ -4,9 +4,14 @@
  * no bundle-owned inventory row is required.
  */
 
-import { inventoryStockDocId } from "./inventory-stock.js";
 import { throwCommerceApiError } from "../route-errors.js";
-import type { StoredBundleComponent, StoredInventoryStock, StoredProduct, StoredProductSku } from "../types.js";
+import type {
+	StoredBundleComponent,
+	StoredInventoryStock,
+	StoredProduct,
+	StoredProductSku,
+} from "../types.js";
+import { inventoryStockDocId } from "./inventory-stock.js";
 
 type GetCollection<T> = { get(id: string): Promise<T | null> };
 

@@ -3,8 +3,8 @@ import { PluginRouteError } from "emdash";
 
 import { randomHex } from "../lib/crypto-adapter.js";
 import { requirePost } from "../lib/require-post.js";
-import { throwCommerceApiError } from "../route-errors.js";
 import { sortedImmutable } from "../lib/sort-immutable.js";
+import { throwCommerceApiError } from "../route-errors.js";
 import type {
 	CategoryCreateInput,
 	CategoryListInput,
@@ -22,6 +22,8 @@ import type {
 	StoredProductTag,
 	StoredProductTagLink,
 } from "../types.js";
+import type { Collection } from "./catalog-conflict.js";
+import { asCollection, getNowIso, putWithConflictHandling } from "./catalog-conflict.js";
 import type {
 	CategoryResponse,
 	CategoryListResponse,
@@ -32,10 +34,10 @@ import type {
 	ProductTagLinkResponse,
 	ProductTagLinkUnlinkResponse,
 } from "./catalog.js";
-import type { Collection } from "./catalog-conflict.js";
-import { asCollection, getNowIso, putWithConflictHandling } from "./catalog-conflict.js";
 
-export async function handleCreateCategory(ctx: RouteContext<CategoryCreateInput>): Promise<CategoryResponse> {
+export async function handleCreateCategory(
+	ctx: RouteContext<CategoryCreateInput>,
+): Promise<CategoryResponse> {
 	requirePost(ctx);
 	const categories = asCollection<StoredCategory>(ctx.storage.categories);
 	const nowIso = getNowIso();
@@ -64,7 +66,9 @@ export async function handleCreateCategory(ctx: RouteContext<CategoryCreateInput
 	return { category };
 }
 
-export async function handleListCategories(ctx: RouteContext<CategoryListInput>): Promise<CategoryListResponse> {
+export async function handleListCategories(
+	ctx: RouteContext<CategoryListInput>,
+): Promise<CategoryListResponse> {
 	requirePost(ctx);
 	const categories = asCollection<StoredCategory>(ctx.storage.categories);
 
@@ -90,7 +94,9 @@ export async function handleCreateProductCategoryLink(
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const categories = asCollection<StoredCategory>(ctx.storage.categories);
-	const productCategoryLinks = asCollection<StoredProductCategoryLink>(ctx.storage.productCategoryLinks);
+	const productCategoryLinks = asCollection<StoredProductCategoryLink>(
+		ctx.storage.productCategoryLinks,
+	);
 	const nowIso = getNowIso();
 
 	const product = await products.get(ctx.input.productId);
@@ -124,10 +130,15 @@ export async function handleRemoveProductCategoryLink(
 	ctx: RouteContext<ProductCategoryUnlinkInput>,
 ): Promise<ProductCategoryLinkUnlinkResponse> {
 	requirePost(ctx);
-	const productCategoryLinks = asCollection<StoredProductCategoryLink>(ctx.storage.productCategoryLinks);
+	const productCategoryLinks = asCollection<StoredProductCategoryLink>(
+		ctx.storage.productCategoryLinks,
+	);
 	const link = await productCategoryLinks.get(ctx.input.linkId);
 	if (!link) {
-		throwCommerceApiError({ code: "CATEGORY_LINK_NOT_FOUND", message: "Product-category link not found" });
+		throwCommerceApiError({
+			code: "CATEGORY_LINK_NOT_FOUND",
+			message: "Product-category link not found",
+		});
 	}
 
 	await productCategoryLinks.delete(ctx.input.linkId);
@@ -160,11 +171,16 @@ export async function handleListTags(ctx: RouteContext<TagListInput>): Promise<T
 	const result = await tags.query({
 		limit: ctx.input.limit,
 	});
-	const items = sortedImmutable(result.items.map((row) => row.data), (left, right) => left.slug.localeCompare(right.slug));
+	const items = sortedImmutable(
+		result.items.map((row) => row.data),
+		(left, right) => left.slug.localeCompare(right.slug),
+	);
 	return { items };
 }
 
-export async function handleCreateProductTagLink(ctx: RouteContext<ProductTagLinkInput>): Promise<ProductTagLinkResponse> {
+export async function handleCreateProductTagLink(
+	ctx: RouteContext<ProductTagLinkInput>,
+): Promise<ProductTagLinkResponse> {
 	requirePost(ctx);
 	const products = asCollection<StoredProduct>(ctx.storage.products);
 	const tags = asCollection<StoredProductTag>(ctx.storage.productTags);
@@ -198,7 +214,9 @@ export async function handleCreateProductTagLink(ctx: RouteContext<ProductTagLin
 	return { link };
 }
 
-export async function handleRemoveProductTagLink(ctx: RouteContext<ProductTagUnlinkInput>): Promise<ProductTagLinkUnlinkResponse> {
+export async function handleRemoveProductTagLink(
+	ctx: RouteContext<ProductTagUnlinkInput>,
+): Promise<ProductTagLinkUnlinkResponse> {
 	requirePost(ctx);
 	const productTagLinks = asCollection<StoredProductTagLink>(ctx.storage.productTagLinks);
 	const link = await productTagLinks.get(ctx.input.linkId);

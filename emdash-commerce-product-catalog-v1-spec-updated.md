@@ -773,6 +773,7 @@ A sweater sold in sizes S/M/L and colors Blue/Red.
 ### Example
 
 A knitting starter bundle containing:
+
 - one yarn SKU
 - one needle SKU
 - one pattern PDF SKU
@@ -1002,6 +1003,7 @@ Given a variable product, return:
 ## 8.5 Admin retrieval
 
 Admin views must support:
+
 - draft/inactive products
 - archived products
 - hidden products
@@ -1035,6 +1037,7 @@ Must support updating:
 ## 9.3 Soft lifecycle updates
 
 Must support:
+
 - publish/unpublish
 - archive/unarchive
 - activate/deactivate SKU
@@ -1247,6 +1250,7 @@ That means:
 If live product rows change later, the order must still show exactly what the customer bought.
 
 Without snapshots, old orders can become incorrect when:
+
 - titles change
 - prices change
 - variants are archived

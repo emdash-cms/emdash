@@ -38,7 +38,10 @@ describe("ordered rows helpers", () => {
 	});
 
 	it("normalizes positions when adding a row (clamps oversized and negative input)", () => {
-		const rows: Row[] = [{ id: "first", position: 0 }, { id: "second", position: 2 }];
+		const rows: Row[] = [
+			{ id: "first", position: 0 },
+			{ id: "second", position: 2 },
+		];
 
 		const withHead = addOrderedRow([...rows], { id: "head", position: 99 }, -9);
 		expect(withHead.map((row) => row.position)).toEqual([0, 1, 2]);
@@ -50,22 +53,35 @@ describe("ordered rows helpers", () => {
 	});
 
 	it("removes by id and re-normalizes", () => {
-		const rows: Row[] = [{ id: "keep", position: 0 }, { id: "drop", position: 1 }, { id: "keep2", position: 2 }];
+		const rows: Row[] = [
+			{ id: "keep", position: 0 },
+			{ id: "drop", position: 1 },
+			{ id: "keep2", position: 2 },
+		];
 		const kept = removeOrderedRow(rows, "drop");
 		expect(kept.map((row) => row.id)).toEqual(["keep", "keep2"]);
 		expect(kept.map((row) => row.position)).toEqual([0, 1]);
 	});
 
 	it("moves a row and keeps index behavior stable", () => {
-		const rows: Row[] = [{ id: "left", position: 0 }, { id: "mid", position: 1 }, { id: "right", position: 2 }];
+		const rows: Row[] = [
+			{ id: "left", position: 0 },
+			{ id: "mid", position: 1 },
+			{ id: "right", position: 2 },
+		];
 		const reordered = moveOrderedRow([...rows], "right", 0);
 		expect(reordered.map((row) => row.id)).toEqual(["right", "left", "mid"]);
 		expect(reordered.map((row) => row.position)).toEqual([0, 1, 2]);
 	});
 
 	it("moveOrderedRow throws for missing row ids", () => {
-		const rows: Row[] = [{ id: "left", position: 0 }, { id: "mid", position: 1 }];
-		expect(() => moveOrderedRow([...rows], "missing", 0)).toThrowError("Ordered row not found in target list");
+		const rows: Row[] = [
+			{ id: "left", position: 0 },
+			{ id: "mid", position: 1 },
+		];
+		expect(() => moveOrderedRow([...rows], "missing", 0)).toThrowError(
+			"Ordered row not found in target list",
+		);
 	});
 
 	it("mutateOrderedChildren preserves move not found message overrides", async () => {
@@ -90,7 +106,11 @@ describe("ordered rows helpers", () => {
 	});
 
 	it("mutateOrderedChildren persists normalized rows after mutation", async () => {
-		const rows: Row[] = [{ id: "left", position: 0 }, { id: "mid", position: 1 }, { id: "right", position: 2 }];
+		const rows: Row[] = [
+			{ id: "left", position: 0 },
+			{ id: "mid", position: 1 },
+			{ id: "right", position: 2 },
+		];
 		const persisted: Row[] = [];
 		const collection = {
 			put: async (_id: string, row: Row) => {
@@ -115,7 +135,11 @@ describe("ordered rows helpers", () => {
 	});
 
 	it("mutateOrderedChildren uses batch writes and batch deletion for supported collections", async () => {
-		const rows: Row[] = [{ id: "left", position: 0 }, { id: "mid", position: 1 }, { id: "right", position: 2 }];
+		const rows: Row[] = [
+			{ id: "left", position: 0 },
+			{ id: "mid", position: 1 },
+			{ id: "right", position: 2 },
+		];
 		const persisted: Row[] = [];
 		const deleted: string[] = [];
 		const collection = {

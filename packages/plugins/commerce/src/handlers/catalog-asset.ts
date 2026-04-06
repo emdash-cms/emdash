@@ -2,33 +2,35 @@ import type { RouteContext } from "emdash";
 import { PluginRouteError } from "emdash";
 
 import { randomHex } from "../lib/crypto-adapter.js";
-import { requirePost } from "../lib/require-post.js";
-import { throwCommerceApiError } from "../route-errors.js";
 import {
 	mutateOrderedChildren,
 	normalizeOrderedChildren,
 	normalizeOrderedPosition,
 	sortOrderedRowsByPosition,
 } from "../lib/ordered-rows.js";
+import { requirePost } from "../lib/require-post.js";
+import { throwCommerceApiError } from "../route-errors.js";
 import type {
 	ProductAssetLinkInput,
 	ProductAssetReorderInput,
 	ProductAssetRegisterInput,
 	ProductAssetUnlinkInput,
 } from "../schemas.js";
-import type { ProductAssetLinkTarget, StoredProduct, StoredProductAsset, StoredProductAssetLink, StoredProductSku } from "../types.js";
+import type {
+	ProductAssetLinkTarget,
+	StoredProduct,
+	StoredProductAsset,
+	StoredProductAssetLink,
+	StoredProductSku,
+} from "../types.js";
+import type { Collection } from "./catalog-conflict.js";
+import { asCollection, getNowIso, putWithConflictHandling } from "./catalog-conflict.js";
+import { queryAllPages } from "./catalog-read-model.js";
 import type {
 	ProductAssetResponse,
 	ProductAssetLinkResponse,
 	ProductAssetUnlinkResponse,
 } from "./catalog.js";
-import { queryAllPages } from "./catalog-read-model.js";
-import type { Collection } from "./catalog-conflict.js";
-import {
-	asCollection,
-	getNowIso,
-	putWithConflictHandling,
-} from "./catalog-conflict.js";
 
 async function queryAssetLinksForTarget(
 	productAssetLinks: Collection<StoredProductAssetLink>,
@@ -184,7 +186,11 @@ export async function handleUnlinkCatalogAsset(
 	if (!existing) {
 		throwCommerceApiError({ code: "ASSET_LINK_NOT_FOUND", message: "Asset link not found" });
 	}
-	const links = await queryAssetLinksForTarget(productAssetLinks, existing.targetType, existing.targetId);
+	const links = await queryAssetLinksForTarget(
+		productAssetLinks,
+		existing.targetType,
+		existing.targetId,
+	);
 
 	await mutateOrderedChildren({
 		collection: productAssetLinks,

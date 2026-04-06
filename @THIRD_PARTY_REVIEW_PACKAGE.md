@@ -32,4 +32,3 @@ For one-line onboarding:
 The current package is intentionally narrow: this is a Stage-1 commerce kernel,
 not a generalized provider platform. Evaluate correctness, replay safety, and
 boundary discipline before asking for broader architecture.
-

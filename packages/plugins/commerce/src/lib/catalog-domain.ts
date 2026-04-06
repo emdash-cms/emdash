@@ -1,13 +1,10 @@
 import { PluginRouteError } from "emdash";
 
 import type {
-	StoredProduct,
-	StoredProductSku,
-} from "../types.js";
-import type {
 	ProductSkuUpdateInput as ProductSkuUpdateInputSchema,
 	ProductUpdateInput as ProductUpdateInputSchema,
 } from "../schemas.js";
+import type { StoredProduct, StoredProductSku } from "../types.js";
 
 export const PRODUCT_IMMUTABLE_FIELDS = [
 	"id",
@@ -24,10 +21,7 @@ export const PRODUCT_SKU_IMMUTABLE_FIELDS = [
 type ProductPatch = Omit<ProductUpdateInputSchema, "productId">;
 type ProductSkuPatch = Omit<ProductSkuUpdateInputSchema, "skuId">;
 
-type DraftProductForLifecycle = Pick<
-	StoredProduct,
-	"publishedAt" | "archivedAt" | "status"
->;
+type DraftProductForLifecycle = Pick<StoredProduct, "publishedAt" | "archivedAt" | "status">;
 
 export function applyProductUpdatePatch<T extends ProductPatch>(
 	existing: StoredProduct,
@@ -43,11 +37,7 @@ export function applyProductUpdatePatch<T extends ProductPatch>(
 		}
 	}
 
-	if (
-		patch.slug !== undefined &&
-		existing.status === "active" &&
-		patch.slug !== existing.slug
-	) {
+	if (patch.slug !== undefined && existing.status === "active" && patch.slug !== existing.slug) {
 		throw PluginRouteError.badRequest("Cannot change slug after a product is active");
 	}
 
@@ -121,4 +111,3 @@ function applyProductLifecycle<T extends DraftProductForLifecycle & StoredProduc
 		publishedAt: product.publishedAt,
 	};
 }
-

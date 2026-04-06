@@ -362,6 +362,7 @@ Useful, but not first.
 ## Recommended sequence
 
 ### First: Strategy 1
+
 Fix inventory consistency first.
 
 Why:
@@ -371,6 +372,7 @@ Why:
 - It reduces the chance of shipping a catalog that looks correct but fails at checkout.
 
 ### Second: Strategy 3
+
 Consolidate ordered-child mutation logic.
 
 Why:
@@ -380,6 +382,7 @@ Why:
 - It improves DRY and reduces maintenance burden without widening scope.
 
 ### Third: Strategy 2, only if needed soon
+
 Extract read assembly if catalog complexity is actively growing.
 
 Why:
@@ -388,6 +391,7 @@ Why:
 - It should be done based on real pressure, not speculative elegance.
 
 ### Fourth: Strategy 4, only as a mechanical cleanup
+
 Split `catalog.ts` after the higher-value refactors are done.
 
 Why:

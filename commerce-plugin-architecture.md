@@ -22,14 +22,14 @@ WooCommerce's extensibility problems are not implementation bugs — they are
 
 Our solution makes different foundational decisions:
 
-| Problem | Our answer |
-|---|---|
-| Layout coupling | Headless by default. Frontend is pure Astro. Plugin ships components, not themes. |
-| Untyped hooks | Typed TypeScript event catalog. Hooks are observations, not filters. |
-| Mutable global state | Immutable data flow. Cart/order state transitions are explicit and guarded. |
-| Inheritance-based product types | Discriminated union + `typeData` blob. New types are additive, not invasive. |
-| WP admin complexity | Block Kit (declarative JSON) for standard UI; React only where complexity demands it. |
-| Extension plugin fragility | Provider registry contract. Extensions register themselves; core calls them via typed route contracts. |
+| Problem                         | Our answer                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Layout coupling                 | Headless by default. Frontend is pure Astro. Plugin ships components, not themes.                      |
+| Untyped hooks                   | Typed TypeScript event catalog. Hooks are observations, not filters.                                   |
+| Mutable global state            | Immutable data flow. Cart/order state transitions are explicit and guarded.                            |
+| Inheritance-based product types | Discriminated union + `typeData` blob. New types are additive, not invasive.                           |
+| WP admin complexity             | Block Kit (declarative JSON) for standard UI; React only where complexity demands it.                  |
+| Extension plugin fragility      | Provider registry contract. Extensions register themselves; core calls them via typed route contracts. |
 
 ---
 
@@ -77,6 +77,7 @@ EmDash CMS Core
 ### Why native for the core plugin?
 
 The commerce core requires:
+
 - Complex React admin UI (product variant editor, order management, media upload).
 - Astro components for frontend rendering (`<ProductCard>`, `<CartWidget>`, etc.).
 - Portable Text block types (embed product in a content body).
@@ -151,10 +152,10 @@ FulfillmentProviderContract
 The contract interface is identical in both modes. **Execution mode** depends on
 how the provider plugin is installed:
 
-| Mode | When | How the core calls the provider |
-|------|------|---------------------------------|
-| **In-process adapter** | Plugin installed as trusted (in-process, `plugins: []`) | Direct TypeScript function call. No HTTP. No subrequest. |
-| **Route delegation** | Plugin installed as sandboxed (`sandboxed: []`) or across isolate boundary | Core calls `ctx.http.fetch` to the provider's plugin route. Required by the EmDash sandbox model — the only permitted cross-isolate boundary. |
+| Mode                   | When                                                                       | How the core calls the provider                                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **In-process adapter** | Plugin installed as trusted (in-process, `plugins: []`)                    | Direct TypeScript function call. No HTTP. No subrequest.                                                                                      |
+| **Route delegation**   | Plugin installed as sandboxed (`sandboxed: []`) or across isolate boundary | Core calls `ctx.http.fetch` to the provider's plugin route. Required by the EmDash sandbox model — the only permitted cross-isolate boundary. |
 
 **Default rule:** First-party provider plugins (Stripe, Authorize.net) run as
 trusted in-process adapters. External API calls (to Stripe/Authorize.net APIs)
@@ -179,13 +180,13 @@ in `typeData` and are validated in route handlers, not at the storage layer.
 
 ### Product type taxonomy
 
-| Type | Description |
-|---|---|
-| `simple` | Single SKU, fixed price, tracked inventory |
-| `variable` | Parent product with variants (color × size, etc.) |
-| `bundle` | Composed of other products with optional pricing rules |
-| `digital` | Downloadable file(s), no shipping, optional license limits |
-| `gift_card` | Fixed or custom denomination, delivered by email |
+| Type        | Description                                                |
+| ----------- | ---------------------------------------------------------- |
+| `simple`    | Single SKU, fixed price, tracked inventory                 |
+| `variable`  | Parent product with variants (color × size, etc.)          |
+| `bundle`    | Composed of other products with optional pricing rules     |
+| `digital`   | Downloadable file(s), no shipping, optional license limits |
+| `gift_card` | Fixed or custom denomination, delivered by email           |
 
 New types are additive: define new `typeData` shape, add a validator, add a
 route handler branch. Nothing in core changes.
@@ -194,29 +195,29 @@ route handler branch. Nothing in core changes.
 
 ```typescript
 interface ProductBase {
-  type: "simple" | "variable" | "bundle" | "digital" | "gift_card";
-  name: string;
-  slug: string;                          // URL-safe, unique
-  status: "draft" | "active" | "archived";
-  publishedAt?: string;                  // When first made active; null = never published
-  descriptionBlocks?: unknown[];          // Portable Text
-  shortDescription?: string;             // Plain text summary (for AI/search/embeddings)
-  searchText?: string;                   // Denormalized: name + sku + tags for full-text queries
-  basePrice: number;                     // Cents / smallest currency unit
-  compareAtPrice?: number;               // Strike-through price
-  currency: string;                      // ISO 4217
-  mediaIds: string[];                    // References to ctx.media
-  categoryIds: string[];
-  tags: string[];
-  requiresShipping: boolean;             // false for digital, gift cards; affects checkout flow
-  taxCategory?: string;                  // For tax module: "standard" | "reduced" | "zero" | custom
-  defaultVariantId?: string;             // For variable products: pre-selected variant on product page
-  seoTitle?: string;
-  seoDescription?: string;
-  typeData: Record<string, unknown>;     // Validated per type in handlers
-  meta: Record<string, unknown>;         // Extension plugins store data here; not a junk drawer
-  createdAt: string;
-  updatedAt: string;
+	type: "simple" | "variable" | "bundle" | "digital" | "gift_card";
+	name: string;
+	slug: string; // URL-safe, unique
+	status: "draft" | "active" | "archived";
+	publishedAt?: string; // When first made active; null = never published
+	descriptionBlocks?: unknown[]; // Portable Text
+	shortDescription?: string; // Plain text summary (for AI/search/embeddings)
+	searchText?: string; // Denormalized: name + sku + tags for full-text queries
+	basePrice: number; // Cents / smallest currency unit
+	compareAtPrice?: number; // Strike-through price
+	currency: string; // ISO 4217
+	mediaIds: string[]; // References to ctx.media
+	categoryIds: string[];
+	tags: string[];
+	requiresShipping: boolean; // false for digital, gift cards; affects checkout flow
+	taxCategory?: string; // For tax module: "standard" | "reduced" | "zero" | custom
+	defaultVariantId?: string; // For variable products: pre-selected variant on product page
+	seoTitle?: string;
+	seoDescription?: string;
+	typeData: Record<string, unknown>; // Validated per type in handlers
+	meta: Record<string, unknown>; // Extension plugins store data here; not a junk drawer
+	createdAt: string;
+	updatedAt: string;
 }
 ```
 
@@ -224,46 +225,46 @@ interface ProductBase {
 
 ```typescript
 interface SimpleTypeData {
-  sku: string;
-  stockQty: number;
-  stockPolicy: "track" | "ignore" | "backorder";
-  weight?: number;                       // grams
-  dimensions?: { length: number; width: number; height: number }; // mm
-  shippingClass?: string;
-  taxClass?: string;
+	sku: string;
+	stockQty: number;
+	stockPolicy: "track" | "ignore" | "backorder";
+	weight?: number; // grams
+	dimensions?: { length: number; width: number; height: number }; // mm
+	shippingClass?: string;
+	taxClass?: string;
 }
 
 interface VariableTypeData {
-  attributeIds: string[];                // References productAttributes collection
-  // Variants stored separately in productVariants collection
+	attributeIds: string[]; // References productAttributes collection
+	// Variants stored separately in productVariants collection
 }
 
 interface BundleTypeData {
-  items: Array<{
-    productId: string;
-    variantId?: string;
-    qty: number;
-    priceOverride?: number;              // Override individual item price in bundle
-  }>;
-  pricingMode: "fixed" | "calculated" | "discount";
-  discountPercent?: number;              // For pricingMode: "discount"
+	items: Array<{
+		productId: string;
+		variantId?: string;
+		qty: number;
+		priceOverride?: number; // Override individual item price in bundle
+	}>;
+	pricingMode: "fixed" | "calculated" | "discount";
+	discountPercent?: number; // For pricingMode: "discount"
 }
 
 interface DigitalTypeData {
-  downloads: Array<{
-    fileId: string;
-    name: string;
-    downloadLimit?: number;
-  }>;
-  licenseType: "single" | "multi" | "unlimited";
-  downloadExpiryDays?: number;
+	downloads: Array<{
+		fileId: string;
+		name: string;
+		downloadLimit?: number;
+	}>;
+	licenseType: "single" | "multi" | "unlimited";
+	downloadExpiryDays?: number;
 }
 
 interface GiftCardTypeData {
-  denominations: number[];               // Fixed amount options
-  allowCustomAmount: boolean;
-  minCustomAmount?: number;
-  maxCustomAmount?: number;
+	denominations: number[]; // Fixed amount options
+	allowCustomAmount: boolean;
+	minCustomAmount?: number;
+	maxCustomAmount?: number;
 }
 ```
 
@@ -274,20 +275,20 @@ a complete purchasable unit with its own SKU, price, and stock.
 
 ```typescript
 interface ProductVariant {
-  productId: string;
-  sku: string;
-  attributeValues: Record<string, string>; // { color: "Red", size: "L" }
-  price: number;
-  compareAtPrice?: number;
-  stockQty: number;
-  stockPolicy: "track" | "ignore" | "backorder";
-  inventoryVersion: number;              // Monotonic counter; used in finalize-time optimistic check
-  mediaIds: string[];
-  active: boolean;
-  sortOrder: number;
-  meta: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
+	productId: string;
+	sku: string;
+	attributeValues: Record<string, string>; // { color: "Red", size: "L" }
+	price: number;
+	compareAtPrice?: number;
+	stockQty: number;
+	stockPolicy: "track" | "ignore" | "backorder";
+	inventoryVersion: number; // Monotonic counter; used in finalize-time optimistic check
+	mediaIds: string[];
+	active: boolean;
+	sortOrder: number;
+	meta: Record<string, unknown>;
+	createdAt: string;
+	updatedAt: string;
 }
 ```
 
@@ -298,17 +299,17 @@ Attributes define the axis of variation (Color, Size). Terms define the values
 
 ```typescript
 interface ProductAttribute {
-  name: string;
-  slug: string;
-  displayType: "select" | "color_swatch" | "button";
-  terms: Array<{
-    label: string;
-    value: string;
-    color?: string;                      // For displayType: "color_swatch"
-    sortOrder: number;
-  }>;
-  sortOrder: number;
-  createdAt: string;
+	name: string;
+	slug: string;
+	displayType: "select" | "color_swatch" | "button";
+	terms: Array<{
+		label: string;
+		value: string;
+		color?: string; // For displayType: "color_swatch"
+		sortOrder: number;
+	}>;
+	sortOrder: number;
+	createdAt: string;
 }
 ```
 
@@ -320,38 +321,38 @@ interface ProductAttribute {
 
 ```typescript
 type CartStatus =
-  | "active"      // In use; items can be added/removed
-  | "merged"      // Anonymous cart merged into a logged-in user's cart on login
-  | "abandoned"   // No activity for configured TTL; cron marks it; triggers recovery flow
-  | "converted"   // Checkout completed; order created from this cart
-  | "expired";    // Past expiresAt without conversion or abandonment action
+	| "active" // In use; items can be added/removed
+	| "merged" // Anonymous cart merged into a logged-in user's cart on login
+	| "abandoned" // No activity for configured TTL; cron marks it; triggers recovery flow
+	| "converted" // Checkout completed; order created from this cart
+	| "expired"; // Past expiresAt without conversion or abandonment action
 
 interface Cart {
-  cartToken: string;                     // Opaque, used in Cookie / Authorization header
-  userId?: string;                       // Set when authenticated user is identified
-  status: CartStatus;
-  currency: string;
-  discountCode?: string;
-  discountAmount?: number;
-  shippingRateId?: string;              // Selected shipping rate ID from provider
-  shippingAmount?: number;
-  taxAmount?: number;
-  note?: string;
-  expiresAt: string;
-  createdAt: string;
-  updatedAt: string;
+	cartToken: string; // Opaque, used in Cookie / Authorization header
+	userId?: string; // Set when authenticated user is identified
+	status: CartStatus;
+	currency: string;
+	discountCode?: string;
+	discountAmount?: number;
+	shippingRateId?: string; // Selected shipping rate ID from provider
+	shippingAmount?: number;
+	taxAmount?: number;
+	note?: string;
+	expiresAt: string;
+	createdAt: string;
+	updatedAt: string;
 }
 
 interface CartItem {
-  cartId: string;
-  productId: string;
-  variantId?: string;
-  qty: number;
-  unitPrice: number;                     // Cents. Frozen at time of add.
-  lineTotal: number;                     // qty × unitPrice
-  meta: Record<string, unknown>;         // Extension data (e.g., bundle composition)
-  createdAt: string;
-  updatedAt: string;
+	cartId: string;
+	productId: string;
+	variantId?: string;
+	qty: number;
+	unitPrice: number; // Cents. Frozen at time of add.
+	lineTotal: number; // qty × unitPrice
+	meta: Record<string, unknown>; // Extension data (e.g., bundle composition)
+	createdAt: string;
+	updatedAt: string;
 }
 ```
 
@@ -389,71 +390,71 @@ Exceptional:
 
 ```typescript
 type OrderStatus =
-  | "draft"             // Order record created; payment not yet initiated
-  | "payment_pending"   // Payment session initiated; awaiting gateway event
-  | "authorized"        // Payment authorized but not yet captured (auth+capture flows)
-  | "paid"              // Payment captured; inventory decremented
-  | "processing"        // Paid; merchant/fulfillment is preparing the shipment
-  | "fulfilled"         // Shipped or delivered; order complete
-  | "canceled"          // Canceled before/without successful payment
-  | "refund_pending"    // Refund initiated; awaiting gateway confirmation
-  | "refunded"          // Fully refunded
-  | "partial_refund"    // Partially refunded
-  | "payment_conflict"; // Payment succeeded but finalization failed; needs resolution
+	| "draft" // Order record created; payment not yet initiated
+	| "payment_pending" // Payment session initiated; awaiting gateway event
+	| "authorized" // Payment authorized but not yet captured (auth+capture flows)
+	| "paid" // Payment captured; inventory decremented
+	| "processing" // Paid; merchant/fulfillment is preparing the shipment
+	| "fulfilled" // Shipped or delivered; order complete
+	| "canceled" // Canceled before/without successful payment
+	| "refund_pending" // Refund initiated; awaiting gateway confirmation
+	| "refunded" // Fully refunded
+	| "partial_refund" // Partially refunded
+	| "payment_conflict"; // Payment succeeded but finalization failed; needs resolution
 
 type PaymentStatus =
-  | "requires_action"   // Awaiting customer action (3DS, redirect, bank confirmation)
-  | "pending"           // Submitted to gateway; no confirmation yet
-  | "authorized"        // Authorized but not captured
-  | "captured"          // Funds captured (equivalent to "paid" at payment level)
-  | "failed"            // Gateway rejected or timed out
-  | "voided"            // Authorization canceled before capture
-  | "refund_pending"    // Refund in flight
-  | "refunded"          // Fully refunded
-  | "partial_refund";   // Partially refunded
+	| "requires_action" // Awaiting customer action (3DS, redirect, bank confirmation)
+	| "pending" // Submitted to gateway; no confirmation yet
+	| "authorized" // Authorized but not captured
+	| "captured" // Funds captured (equivalent to "paid" at payment level)
+	| "failed" // Gateway rejected or timed out
+	| "voided" // Authorization canceled before capture
+	| "refund_pending" // Refund in flight
+	| "refunded" // Fully refunded
+	| "partial_refund"; // Partially refunded
 
 interface Order {
-  orderNumber: string;                   // Human-readable, unique: ORD-2026-00001
-  cartId?: string;
-  userId?: string;
-  customer: CustomerSnapshot;            // Frozen at checkout time
-  lineItems: OrderLineItem[];            // Frozen at checkout time
-  subtotal: number;
-  discountCode?: string;
-  discountAmount: number;
-  shippingAmount: number;
-  taxAmount: number;
-  total: number;
-  currency: string;
-  status: OrderStatus;
-  paymentStatus: PaymentStatus;
-  paymentProviderId?: string;
-  paymentProviderRef?: string;           // Provider's transaction / charge ID
-  fulfillmentProviderId?: string;
-  fulfillmentRef?: string;
-  notes?: string;
-  meta: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
+	orderNumber: string; // Human-readable, unique: ORD-2026-00001
+	cartId?: string;
+	userId?: string;
+	customer: CustomerSnapshot; // Frozen at checkout time
+	lineItems: OrderLineItem[]; // Frozen at checkout time
+	subtotal: number;
+	discountCode?: string;
+	discountAmount: number;
+	shippingAmount: number;
+	taxAmount: number;
+	total: number;
+	currency: string;
+	status: OrderStatus;
+	paymentStatus: PaymentStatus;
+	paymentProviderId?: string;
+	paymentProviderRef?: string; // Provider's transaction / charge ID
+	fulfillmentProviderId?: string;
+	fulfillmentRef?: string;
+	notes?: string;
+	meta: Record<string, unknown>;
+	createdAt: string;
+	updatedAt: string;
 }
 
 interface OrderLineItem {
-  productId: string;
-  variantId?: string;
-  productName: string;                   // Snapshot — survives product deletion
-  sku: string;                           // Snapshot
-  qty: number;
-  unitPrice: number;
-  lineTotal: number;
-  meta: Record<string, unknown>;
+	productId: string;
+	variantId?: string;
+	productName: string; // Snapshot — survives product deletion
+	sku: string; // Snapshot
+	qty: number;
+	unitPrice: number;
+	lineTotal: number;
+	meta: Record<string, unknown>;
 }
 
 interface OrderEvent {
-  orderId: string;
-  eventType: string;                     // "status_changed" | "note_added" | "refund_initiated" | etc.
-  actor: "customer" | "merchant" | "system" | "agent";
-  payload: Record<string, unknown>;
-  createdAt: string;
+	orderId: string;
+	eventType: string; // "status_changed" | "note_added" | "refund_initiated" | etc.
+	actor: "customer" | "merchant" | "system" | "agent";
+	payload: Record<string, unknown>;
+	createdAt: string;
 }
 ```
 
@@ -461,21 +462,21 @@ interface OrderEvent {
 
 ```typescript
 interface CustomerSnapshot {
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  billingAddress: Address;
-  shippingAddress: Address;
+	email: string;
+	firstName: string;
+	lastName: string;
+	phone?: string;
+	billingAddress: Address;
+	shippingAddress: Address;
 }
 
 interface Address {
-  line1: string;
-  line2?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;                       // ISO 3166-1 alpha-2
+	line1: string;
+	line2?: string;
+	city: string;
+	state: string;
+	postalCode: string;
+	country: string; // ISO 3166-1 alpha-2
 }
 ```
 
@@ -485,129 +486,106 @@ interface Address {
 
 ```typescript
 export const COMMERCE_STORAGE_CONFIG = {
-  products: {
-    indexes: [
-      "status",
-      "type",
-      "createdAt",
-      "updatedAt",
-      ["status", "type"],
-      ["status", "createdAt"],
-    ] as const,
-    uniqueIndexes: ["slug"] as const,
-  },
-  productVariants: {
-    indexes: [
-      "productId",
-      "active",
-      ["productId", "active"],
-      ["productId", "sortOrder"],
-    ] as const,
-    uniqueIndexes: ["sku"] as const,
-  },
-  productAttributes: {
-    indexes: ["sortOrder"] as const,
-    uniqueIndexes: ["slug"] as const,
-  },
-  carts: {
-    indexes: [
-      "userId",
-      "status",
-      "expiresAt",
-      "createdAt",
-      ["status", "expiresAt"],
-      ["userId", "status"],
-    ] as const,
-    uniqueIndexes: ["cartToken"] as const,
-  },
-  cartItems: {
-    indexes: [
-      "cartId",
-      "productId",
-      ["cartId", "productId"],
-    ] as const,
-  },
-  orders: {
-    indexes: [
-      "status",
-      "paymentStatus",
-      "userId",
-      "createdAt",
-      ["status", "createdAt"],
-      ["userId", "createdAt"],
-      ["paymentStatus", "createdAt"],
-    ] as const,
-    uniqueIndexes: ["orderNumber"] as const,
-  },
-  orderEvents: {
-    indexes: [
-      "orderId",
-      "createdAt",
-      ["orderId", "createdAt"],
-    ] as const,
-  },
-  providers: {
-    indexes: [
-      "providerType",
-      "active",
-      "pluginId",
-      ["providerType", "active"],
-    ] as const,
-    uniqueIndexes: ["providerId"] as const,
-  },
+	products: {
+		indexes: [
+			"status",
+			"type",
+			"createdAt",
+			"updatedAt",
+			["status", "type"],
+			["status", "createdAt"],
+		] as const,
+		uniqueIndexes: ["slug"] as const,
+	},
+	productVariants: {
+		indexes: ["productId", "active", ["productId", "active"], ["productId", "sortOrder"]] as const,
+		uniqueIndexes: ["sku"] as const,
+	},
+	productAttributes: {
+		indexes: ["sortOrder"] as const,
+		uniqueIndexes: ["slug"] as const,
+	},
+	carts: {
+		indexes: [
+			"userId",
+			"status",
+			"expiresAt",
+			"createdAt",
+			["status", "expiresAt"],
+			["userId", "status"],
+		] as const,
+		uniqueIndexes: ["cartToken"] as const,
+	},
+	cartItems: {
+		indexes: ["cartId", "productId", ["cartId", "productId"]] as const,
+	},
+	orders: {
+		indexes: [
+			"status",
+			"paymentStatus",
+			"userId",
+			"createdAt",
+			["status", "createdAt"],
+			["userId", "createdAt"],
+			["paymentStatus", "createdAt"],
+		] as const,
+		uniqueIndexes: ["orderNumber"] as const,
+	},
+	orderEvents: {
+		indexes: ["orderId", "createdAt", ["orderId", "createdAt"]] as const,
+	},
+	providers: {
+		indexes: ["providerType", "active", "pluginId", ["providerType", "active"]] as const,
+		uniqueIndexes: ["providerId"] as const,
+	},
 
-  // Append-only ledger of every inventory movement. stockQty is derived from this.
-  // Never update or delete rows; always insert a new record.
-  inventoryLedger: {
-    indexes: [
-      "productId",
-      "variantId",
-      "referenceType",
-      "referenceId",
-      "createdAt",
-      ["productId", "createdAt"],
-      ["variantId", "createdAt"],
-    ] as const,
-  },
+	// Append-only ledger of every inventory movement. stockQty is derived from this.
+	// Never update or delete rows; always insert a new record.
+	inventoryLedger: {
+		indexes: [
+			"productId",
+			"variantId",
+			"referenceType",
+			"referenceId",
+			"createdAt",
+			["productId", "createdAt"],
+			["variantId", "createdAt"],
+		] as const,
+	},
 
-  // One record per payment attempt, regardless of outcome.
-  paymentAttempts: {
-    indexes: [
-      "orderId",
-      "providerId",
-      "status",
-      "createdAt",
-      ["orderId", "status"],
-      ["providerId", "createdAt"],
-    ] as const,
-  },
+	// One record per payment attempt, regardless of outcome.
+	paymentAttempts: {
+		indexes: [
+			"orderId",
+			"providerId",
+			"status",
+			"createdAt",
+			["orderId", "status"],
+			["providerId", "createdAt"],
+		] as const,
+	},
 
-  // Deduplicated log of every inbound webhook. Used for idempotency and replay detection.
-  // Composite unique: event IDs are only guaranteed unique per provider, not globally.
-  webhookReceipts: {
-    indexes: [
-      "providerId",
-      "externalEventId",
-      "orderId",
-      "status",
-      "createdAt",
-      ["providerId", "externalEventId"],
-      ["orderId", "createdAt"],
-    ] as const,
-    uniqueIndexes: [["providerId", "externalEventId"]] as const,
-  },
+	// Deduplicated log of every inbound webhook. Used for idempotency and replay detection.
+	// Composite unique: event IDs are only guaranteed unique per provider, not globally.
+	webhookReceipts: {
+		indexes: [
+			"providerId",
+			"externalEventId",
+			"orderId",
+			"status",
+			"createdAt",
+			["providerId", "externalEventId"],
+			["orderId", "createdAt"],
+		] as const,
+		uniqueIndexes: [["providerId", "externalEventId"]] as const,
+	},
 
-  // Server-side idempotency for mutating routes (e.g. checkout.create).
-  // Survives restarts; TTL enforced by cron deleting rows older than N hours.
-  idempotencyKeys: {
-    indexes: [
-      "route",
-      "createdAt",
-      ["keyHash", "route"],
-    ] as const,
-    uniqueIndexes: [["keyHash", "route"]] as const,
-  },
-
+	// Server-side idempotency for mutating routes (e.g. checkout.create).
+	// Survives restarts; TTL enforced by cron deleting rows older than N hours.
+	idempotencyKeys: {
+		indexes: ["route", "createdAt", ["keyHash", "route"]] as const,
+		uniqueIndexes: [["keyHash", "route"]] as const,
+	},
 } satisfies PluginStorageConfig;
 ```
 
@@ -626,41 +604,41 @@ export const COMMERCE_STORAGE_CONFIG = {
 
 ```typescript
 export const KV_KEYS = {
-  // Merchant settings (set via admin, read at request time)
-  settings: {
-    currency: "settings:currency:default",              // "USD"
-    currencySymbol: "settings:currency:symbol",         // "$"
-    taxEnabled: "settings:tax:enabled",                 // boolean
-    taxDisplayMode: "settings:tax:displayMode",         // "inclusive" | "exclusive"
-    shippingOriginAddress: "settings:shipping:origin",  // Address JSON
-    orderNumberPrefix: "settings:order:prefix",         // "ORD"
-    lowStockThreshold: "settings:inventory:lowStock",   // number
-    storeEmail: "settings:store:email",
-    storeName: "settings:store:name",
-  },
+	// Merchant settings (set via admin, read at request time)
+	settings: {
+		currency: "settings:currency:default", // "USD"
+		currencySymbol: "settings:currency:symbol", // "$"
+		taxEnabled: "settings:tax:enabled", // boolean
+		taxDisplayMode: "settings:tax:displayMode", // "inclusive" | "exclusive"
+		shippingOriginAddress: "settings:shipping:origin", // Address JSON
+		orderNumberPrefix: "settings:order:prefix", // "ORD"
+		lowStockThreshold: "settings:inventory:lowStock", // number
+		storeEmail: "settings:store:email",
+		storeName: "settings:store:name",
+	},
 
-  // Operational state (managed by the plugin, not merchant)
-  state: {
-    cartExpiryMinutes: "state:cart:expiryMinutes",              // default: 4320 (72h)
-    checkoutWindowMinutes: "state:checkout:windowMinutes",      // default: 30
-    orderNumberCounter: "state:order:numberCounter",            // monotonic counter
-  },
+	// Operational state (managed by the plugin, not merchant)
+	state: {
+		cartExpiryMinutes: "state:cart:expiryMinutes", // default: 4320 (72h)
+		checkoutWindowMinutes: "state:checkout:windowMinutes", // default: 30
+		orderNumberCounter: "state:order:numberCounter", // monotonic counter
+	},
 
-  // Optional hot-path cache only — authoritative dedupe remains `webhookReceipts` in storage.
-  webhookDedupe: (eventId: string) => `state:webhook:dedupe:${eventId}`,
+	// Optional hot-path cache only — authoritative dedupe remains `webhookReceipts` in storage.
+	webhookDedupe: (eventId: string) => `state:webhook:dedupe:${eventId}`,
 
-  // Rate limits (fixed-window counters; values are JSON { count, windowStart })
-  rateLimit: {
-    checkoutPerIp: (ipHash: string) => `state:ratelimit:checkout:ip:${ipHash}`,
-    cartMutatePerToken: (tokenHash: string) => `state:ratelimit:cart:token:${tokenHash}`,
-    webhookPerProvider: (providerId: string) => `state:ratelimit:webhook:prov:${providerId}`,
-  },
+	// Rate limits (fixed-window counters; values are JSON { count, windowStart })
+	rateLimit: {
+		checkoutPerIp: (ipHash: string) => `state:ratelimit:checkout:ip:${ipHash}`,
+		cartMutatePerToken: (tokenHash: string) => `state:ratelimit:cart:token:${tokenHash}`,
+		webhookPerProvider: (providerId: string) => `state:ratelimit:webhook:prov:${providerId}`,
+	},
 
-  // Provider cache (invalidated when providers/register is called)
-  activeProviderCache: "state:providers:cache",
+	// Provider cache (invalidated when providers/register is called)
+	activeProviderCache: "state:providers:cache",
 
-  // Circuit breaker: after N failures in window, short-circuit outbound provider calls
-  providerCircuit: (providerId: string) => `state:circuit:provider:${providerId}`,
+	// Circuit breaker: after N failures in window, short-circuit outbound provider calls
+	providerCircuit: (providerId: string) => `state:circuit:provider:${providerId}`,
 } as const;
 ```
 
@@ -672,53 +650,53 @@ All routes live at `/_emdash/api/plugins/emdash-commerce/<route-name>`.
 
 ### Public routes (no auth required)
 
-| Route | Input | Output |
-|---|---|---|
-| `products/list` | `{ cursor?, limit?, status?, type?, categoryId?, tag? }` | `{ items: Product[], cursor?, hasMore }` |
-| `products/get` | `{ id } \| { slug }` | `Product` |
-| `products/variants` | `{ productId }` | `{ variants: ProductVariant[], attributes: ProductAttribute[] }` |
-| `cart/get` | `{ cartToken }` | `CartWithTotals` |
-| `cart/create` | `{ currency?, cartToken? }` | `Cart` |
-| `cart/add-item` | `{ cartToken, productId, variantId?, qty, meta? }` | `CartWithTotals` |
-| `cart/update-item` | `{ cartToken, itemId, qty }` | `CartWithTotals` |
-| `cart/remove-item` | `{ cartToken, itemId }` | `CartWithTotals` |
-| `cart/apply-discount` | `{ cartToken, code }` | `CartWithTotals` |
-| `cart/remove-discount` | `{ cartToken }` | `CartWithTotals` |
-| `cart/shipping-rates` | `{ cartToken, destination: Address }` | `{ rates: ShippingRate[] }` — **only when shipping module enabled** |
-| `cart/select-shipping` | `{ cartToken, rateId }` | `CartWithTotals` — **only when shipping module enabled** |
-| `checkout/create` | `{ cartToken, customer, shippingRateId? }` | `{ orderId, orderNumber, paymentSession }` — `shippingRateId` **required** only if cart contains shippable items and the shipping module is active; otherwise omit |
-| `checkout/get-order` | `{ orderNumber }` | `Order` |
-| `checkout/webhook` | raw + provider signature headers | void |
+| Route                  | Input                                                    | Output                                                                                                                                                             |
+| ---------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `products/list`        | `{ cursor?, limit?, status?, type?, categoryId?, tag? }` | `{ items: Product[], cursor?, hasMore }`                                                                                                                           |
+| `products/get`         | `{ id } \| { slug }`                                     | `Product`                                                                                                                                                          |
+| `products/variants`    | `{ productId }`                                          | `{ variants: ProductVariant[], attributes: ProductAttribute[] }`                                                                                                   |
+| `cart/get`             | `{ cartToken }`                                          | `CartWithTotals`                                                                                                                                                   |
+| `cart/create`          | `{ currency?, cartToken? }`                              | `Cart`                                                                                                                                                             |
+| `cart/add-item`        | `{ cartToken, productId, variantId?, qty, meta? }`       | `CartWithTotals`                                                                                                                                                   |
+| `cart/update-item`     | `{ cartToken, itemId, qty }`                             | `CartWithTotals`                                                                                                                                                   |
+| `cart/remove-item`     | `{ cartToken, itemId }`                                  | `CartWithTotals`                                                                                                                                                   |
+| `cart/apply-discount`  | `{ cartToken, code }`                                    | `CartWithTotals`                                                                                                                                                   |
+| `cart/remove-discount` | `{ cartToken }`                                          | `CartWithTotals`                                                                                                                                                   |
+| `cart/shipping-rates`  | `{ cartToken, destination: Address }`                    | `{ rates: ShippingRate[] }` — **only when shipping module enabled**                                                                                                |
+| `cart/select-shipping` | `{ cartToken, rateId }`                                  | `CartWithTotals` — **only when shipping module enabled**                                                                                                           |
+| `checkout/create`      | `{ cartToken, customer, shippingRateId? }`               | `{ orderId, orderNumber, paymentSession }` — `shippingRateId` **required** only if cart contains shippable items and the shipping module is active; otherwise omit |
+| `checkout/get-order`   | `{ orderNumber }`                                        | `Order`                                                                                                                                                            |
+| `checkout/webhook`     | raw + provider signature headers                         | void                                                                                                                                                               |
 
 ### Admin routes (authenticated)
 
-| Route | Input | Output |
-|---|---|---|
-| `products/create` | `ProductCreateInput` | `Product` |
-| `products/update` | `{ id } & Partial<ProductCreateInput>` | `Product` |
-| `products/archive` | `{ id }` | `Product` |
-| `products/delete` | `{ id }` | void |
-| `products/inventory-adjust` | `{ id, variantId?, delta, reason }` | `{ newStockQty }` |
-| `variants/create` | `VariantCreateInput` | `ProductVariant` |
-| `variants/update` | `{ id } & Partial<VariantCreateInput>` | `ProductVariant` |
-| `variants/delete` | `{ id }` | void |
-| `attributes/list` | `{ cursor?, limit? }` | `{ items: ProductAttribute[] }` |
-| `attributes/create` | `AttributeCreateInput` | `ProductAttribute` |
-| `attributes/update` | `{ id } & Partial<AttributeCreateInput>` | `ProductAttribute` |
-| `orders/list` | `{ status?, cursor?, limit? }` | `{ items: Order[], cursor?, hasMore }` |
-| `orders/get` | `{ id } \| { orderNumber }` | `Order` |
-| `orders/update-status` | `{ id, status, note? }` | `Order` |
-| `orders/add-note` | `{ id, note, visibility }` | `OrderEvent` |
-| `orders/refund` | `{ id, amount, reason, lineItems? }` | `Order` |
-| `providers/register` | `ProviderRegistration` | void |
-| `providers/unregister` | `{ providerId }` | void |
-| `providers/list` | `{ providerType? }` | `ProviderRegistration[]` |
-| `settings/get` | void | `CommerceSettings` |
-| `settings/update` | `Partial<CommerceSettings>` | `CommerceSettings` |
-| `analytics/summary` | `{ from, to, currency? }` | `AnalyticsSummary` |
-| `analytics/top-products` | `{ from, to, limit? }` | `TopProductsReport` |
-| `analytics/low-stock` | `{ threshold? }` | `LowStockItem[]` |
-| `ai/draft-product` | `{ description: string }` | `ProductCreateInput` |
+| Route                       | Input                                    | Output                                 |
+| --------------------------- | ---------------------------------------- | -------------------------------------- |
+| `products/create`           | `ProductCreateInput`                     | `Product`                              |
+| `products/update`           | `{ id } & Partial<ProductCreateInput>`   | `Product`                              |
+| `products/archive`          | `{ id }`                                 | `Product`                              |
+| `products/delete`           | `{ id }`                                 | void                                   |
+| `products/inventory-adjust` | `{ id, variantId?, delta, reason }`      | `{ newStockQty }`                      |
+| `variants/create`           | `VariantCreateInput`                     | `ProductVariant`                       |
+| `variants/update`           | `{ id } & Partial<VariantCreateInput>`   | `ProductVariant`                       |
+| `variants/delete`           | `{ id }`                                 | void                                   |
+| `attributes/list`           | `{ cursor?, limit? }`                    | `{ items: ProductAttribute[] }`        |
+| `attributes/create`         | `AttributeCreateInput`                   | `ProductAttribute`                     |
+| `attributes/update`         | `{ id } & Partial<AttributeCreateInput>` | `ProductAttribute`                     |
+| `orders/list`               | `{ status?, cursor?, limit? }`           | `{ items: Order[], cursor?, hasMore }` |
+| `orders/get`                | `{ id } \| { orderNumber }`              | `Order`                                |
+| `orders/update-status`      | `{ id, status, note? }`                  | `Order`                                |
+| `orders/add-note`           | `{ id, note, visibility }`               | `OrderEvent`                           |
+| `orders/refund`             | `{ id, amount, reason, lineItems? }`     | `Order`                                |
+| `providers/register`        | `ProviderRegistration`                   | void                                   |
+| `providers/unregister`      | `{ providerId }`                         | void                                   |
+| `providers/list`            | `{ providerType? }`                      | `ProviderRegistration[]`               |
+| `settings/get`              | void                                     | `CommerceSettings`                     |
+| `settings/update`           | `Partial<CommerceSettings>`              | `CommerceSettings`                     |
+| `analytics/summary`         | `{ from, to, currency? }`                | `AnalyticsSummary`                     |
+| `analytics/top-products`    | `{ from, to, limit? }`                   | `TopProductsReport`                    |
+| `analytics/low-stock`       | `{ threshold? }`                         | `LowStockItem[]`                       |
+| `ai/draft-product`          | `{ description: string }`                | `ProductCreateInput`                   |
 
 ---
 
@@ -832,6 +810,7 @@ Store tools:
 ```
 
 AI agents can use these tools to:
+
 - **Bulk import** product catalogs from CSV descriptions.
 - **Fulfillment automation**: mark orders fulfilled when tracking number arrives.
 - **Customer service**: look up order status and issue refunds.
@@ -877,6 +856,7 @@ buy-button          ← standalone "Add to cart" button
 ## 13. Phased Implementation Plan
 
 The original phase plan was too broad too early. The revised plan below:
+
 - Freezes dangerous semantics before coding starts (Phase 0)
 - Proves one complete real flow before expanding (Phases 1–3)
 - Validates the provider abstraction with a second gateway before growing the ecosystem (Phase 4)
@@ -889,6 +869,7 @@ Package scaffold. TypeScript types. Storage schema. KV namespace. Route contract
 catalog constants. **No business logic yet.**
 
 **Exit criteria:**
+
 - `packages/plugins/commerce` builds with TypeScript; exports all types and schemas.
 - State machine transition tables are in code as constants (not just docs).
 - Error catalog is in code as a typed `const` object.
@@ -902,6 +883,7 @@ directory structure (`src/kernel/`). All business functions are pure or take
 explicit I/O dependencies via injection — no direct `ctx.*` calls inside kernel.
 
 Scope:
+
 - Simple product domain rules and validation.
 - Cart service: create, add item, update qty, remove, totals, expiry.
 - Inventory service: `adjustStock(delta, reason, referenceType, referenceId)` — writes ledger + updates qty atomically.
@@ -917,6 +899,7 @@ Scope:
 - Domain event records for `orderEvents`.
 
 **Exit criteria:**
+
 - All kernel functions are pure / injected; zero `ctx.*` imports inside `src/kernel/`.
 - `finalizePayment` is idempotent (calling twice with same `externalEventId` is a no-op).
 - Tests cover: duplicate finalize, stock-change conflict, stale cart, state transition guards.
@@ -924,6 +907,7 @@ Scope:
 ### Phase 2 — One real vertical slice (Stripe + EmDash plugin wrapper)
 
 One complete purchase flow, end-to-end:
+
 - View a simple product (public `products/get` route).
 - Add to cart, view cart, update/remove items (cart routes).
 - Checkout start: create `draft` order, initiate Stripe Payment Intent.
@@ -940,6 +924,7 @@ No `<CartDrawer>` component library yet — that is Phase 5. Goal: prove the flo
 not ship a UI framework.
 
 **Exit criteria:**
+
 - A test customer can buy a real simple product in Stripe test mode, end to end.
 - Order finalizes correctly. Inventory decrements. Email sends.
 - Duplicate Stripe webhook does not double-decrement stock.
@@ -950,6 +935,7 @@ not ship a UI framework.
 No new features. Pressure-test Phase 2 against expected failure cases:
 
 Required tests added in this phase:
+
 - Duplicate webhook (same `externalEventId`).
 - Retry after webhook timeout (second delivery after first partially processed).
 - Inventory changed between cart creation and finalize.
@@ -975,6 +961,7 @@ is a required order state (and was not removed from the state machine despite th
 reviewer's suggestion).
 
 **Exit criteria:**
+
 - Test-mode checkout completes with Authorize.net.
 - Auth-only flow (authorize → captured later) works through the existing state machine.
 - No branching in kernel code for Stripe vs Authorize.net — all differences are in adapters.
@@ -983,6 +970,7 @@ reviewer's suggestion).
 ### Phase 5 — Admin UX expansion
 
 Replace Block Kit admin with React (native plugin `adminEntry`):
+
 - Rich product editor (variant builder, image upload, pricing).
 - Order management table with status transitions, notes, refund flow.
 - Merchant settings page (provider selection, store config).
@@ -995,6 +983,7 @@ order management, refund) without touching the API directly.
 ### Phase 6 — Storefront and extensions
 
 After correctness is proven and admin is stable:
+
 - Full Astro component library (`<ProductCard>`, `<CartDrawer>`, `<CheckoutForm>`, etc.).
 - Portable Text blocks for product embeds.
 - Variable product support (variant selector).
@@ -1047,23 +1036,23 @@ packages/plugins/commerce/
 
 ```json
 {
-  "name": "@emdash-cms/plugin-commerce",
-  "version": "0.1.0",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./sandbox": "./src/sandbox-entry.ts",
-    "./admin": "./src/admin.tsx",
-    "./astro": "./src/astro/index.ts"
-  },
-  "peerDependencies": {
-    "emdash": "^0.1.0",
-    "astro": "^5.0.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "zod": "^3.22.0"
-  }
+	"name": "@emdash-cms/plugin-commerce",
+	"version": "0.1.0",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts",
+		"./admin": "./src/admin.tsx",
+		"./astro": "./src/astro/index.ts"
+	},
+	"peerDependencies": {
+		"emdash": "^0.1.0",
+		"astro": "^5.0.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.0.0",
+		"zod": "^3.22.0"
+	}
 }
 ```
 
@@ -1076,42 +1065,40 @@ import type { PluginDescriptor } from "emdash";
 import { COMMERCE_STORAGE_CONFIG } from "./storage/schema.js";
 
 export interface CommercePluginOptions {
-  currency?: string;
-  taxIncluded?: boolean;
+	currency?: string;
+	taxIncluded?: boolean;
 }
 
 export function commercePlugin(
-  options: CommercePluginOptions = {},
+	options: CommercePluginOptions = {},
 ): PluginDescriptor<CommercePluginOptions> {
-  return {
-    id: "emdash-commerce",
-    version: "0.1.0",
-    entrypoint: "@emdash-cms/plugin-commerce/sandbox",
-    adminEntry: "@emdash-cms/plugin-commerce/admin",
-    componentsEntry: "@emdash-cms/plugin-commerce/astro",
-    options,
-    capabilities: [
-      "network:fetch",   // payment gateway, shipping, tax, fulfillment APIs
-      "email:send",      // order confirmations, abandoned cart, notifications
-      "read:users",      // link orders to authenticated users
-      "read:media",      // read product media
-      "write:media",     // upload product media
-    ],
-    allowedHosts: [
-      // Narrowed at runtime via settings. Stub wildcard for dev.
-      // Phase 5 narrows to specific gateway hosts.
-      "*",
-    ],
-    storage: COMMERCE_STORAGE_CONFIG,
-    adminPages: [
-      { path: "/products", label: "Products", icon: "tag" },
-      { path: "/orders", label: "Orders", icon: "shopping-cart" },
-      { path: "/settings", label: "Commerce Settings", icon: "settings" },
-    ],
-    adminWidgets: [
-      { id: "commerce-kpi", title: "Store Overview", size: "full" },
-    ],
-  };
+	return {
+		id: "emdash-commerce",
+		version: "0.1.0",
+		entrypoint: "@emdash-cms/plugin-commerce/sandbox",
+		adminEntry: "@emdash-cms/plugin-commerce/admin",
+		componentsEntry: "@emdash-cms/plugin-commerce/astro",
+		options,
+		capabilities: [
+			"network:fetch", // payment gateway, shipping, tax, fulfillment APIs
+			"email:send", // order confirmations, abandoned cart, notifications
+			"read:users", // link orders to authenticated users
+			"read:media", // read product media
+			"write:media", // upload product media
+		],
+		allowedHosts: [
+			// Narrowed at runtime via settings. Stub wildcard for dev.
+			// Phase 5 narrows to specific gateway hosts.
+			"*",
+		],
+		storage: COMMERCE_STORAGE_CONFIG,
+		adminPages: [
+			{ path: "/products", label: "Products", icon: "tag" },
+			{ path: "/orders", label: "Orders", icon: "shopping-cart" },
+			{ path: "/settings", label: "Commerce Settings", icon: "settings" },
+		],
+		adminWidgets: [{ id: "commerce-kpi", title: "Store Overview", size: "full" }],
+	};
 }
 ```
 
@@ -1141,115 +1128,114 @@ See Section 6 (Order) above — implement verbatim.
 export type ProviderType = "payment" | "shipping" | "tax" | "fulfillment";
 
 export interface ProviderRegistration {
-  providerId: string;                    // e.g., "stripe-v1"
-  providerType: ProviderType;
-  displayName: string;                   // e.g., "Stripe"
-  pluginId: string;                      // e.g., "emdash-commerce-stripe"
-  routeBase: string;                     // e.g., "/_emdash/api/plugins/emdash-commerce-stripe"
-  active: boolean;
-  config: Record<string, unknown>;       // Provider-specific (non-secret) config
-  registeredAt: string;
+	providerId: string; // e.g., "stripe-v1"
+	providerType: ProviderType;
+	displayName: string; // e.g., "Stripe"
+	pluginId: string; // e.g., "emdash-commerce-stripe"
+	routeBase: string; // e.g., "/_emdash/api/plugins/emdash-commerce-stripe"
+	active: boolean;
+	config: Record<string, unknown>; // Provider-specific (non-secret) config
+	registeredAt: string;
 }
 
 // Payment provider contract
 export interface PaymentInitiateRequest {
-  orderId: string;
-  orderNumber: string;
-  total: number;                         // Cents
-  currency: string;
-  customer: import("./customer.js").CustomerSnapshot;
-  lineItems: import("./order.js").OrderLineItem[];
-  successUrl: string;
-  cancelUrl: string;
-  meta?: Record<string, unknown>;
+	orderId: string;
+	orderNumber: string;
+	total: number; // Cents
+	currency: string;
+	customer: import("./customer.js").CustomerSnapshot;
+	lineItems: import("./order.js").OrderLineItem[];
+	successUrl: string;
+	cancelUrl: string;
+	meta?: Record<string, unknown>;
 }
 
 export interface PaymentInitiateResponse {
-  sessionId: string;
-  redirectUrl?: string;                  // For redirect-based flows (PayPal, etc.)
-  clientSecret?: string;                 // For embedded flows (Stripe Elements)
-  expiresAt: string;
+	sessionId: string;
+	redirectUrl?: string; // For redirect-based flows (PayPal, etc.)
+	clientSecret?: string; // For embedded flows (Stripe Elements)
+	expiresAt: string;
 }
 
 export interface PaymentConfirmRequest {
-  sessionId: string;
-  orderId: string;
-  rawWebhookPayload: unknown;
-  rawWebhookHeaders: Record<string, string>;
+	sessionId: string;
+	orderId: string;
+	rawWebhookPayload: unknown;
+	rawWebhookHeaders: Record<string, string>;
 }
 
 export interface PaymentConfirmResponse {
-  success: boolean;
-  paymentRef: string;
-  amountCaptured: number;
-  currency: string;
-  failureReason?: string;
+	success: boolean;
+	paymentRef: string;
+	amountCaptured: number;
+	currency: string;
+	failureReason?: string;
 }
 
 export interface PaymentRefundRequest {
-  orderId: string;
-  paymentRef: string;
-  amount: number;
-  reason: string;
+	orderId: string;
+	paymentRef: string;
+	amount: number;
+	reason: string;
 }
 
 export interface PaymentRefundResponse {
-  success: boolean;
-  refundRef: string;
-  amountRefunded: number;
+	success: boolean;
+	refundRef: string;
+	amountRefunded: number;
 }
 
 // Shipping provider contract
 export interface ShippingRateRequest {
-  items: Array<{
-    productId: string;
-    variantId?: string;
-    qty: number;
-    weight?: number;                     // grams
-  }>;
-  origin: import("./customer.js").Address;
-  destination: import("./customer.js").Address;
-  currency: string;
+	items: Array<{
+		productId: string;
+		variantId?: string;
+		qty: number;
+		weight?: number; // grams
+	}>;
+	origin: import("./customer.js").Address;
+	destination: import("./customer.js").Address;
+	currency: string;
 }
 
 export interface ShippingRate {
-  rateId: string;
-  carrier: string;
-  service: string;
-  displayName: string;
-  price: number;
-  estimatedDays?: number;
-  meta?: Record<string, unknown>;
+	rateId: string;
+	carrier: string;
+	service: string;
+	displayName: string;
+	price: number;
+	estimatedDays?: number;
+	meta?: Record<string, unknown>;
 }
 
 // Tax provider contract
 export interface TaxCalculationRequest {
-  items: Array<{
-    productId: string;
-    variantId?: string;
-    qty: number;
-    unitPrice: number;
-    taxClass?: string;
-  }>;
-  billingAddress: import("./customer.js").Address;
-  shippingAddress: import("./customer.js").Address;
-  currency: string;
+	items: Array<{
+		productId: string;
+		variantId?: string;
+		qty: number;
+		unitPrice: number;
+		taxClass?: string;
+	}>;
+	billingAddress: import("./customer.js").Address;
+	shippingAddress: import("./customer.js").Address;
+	currency: string;
 }
 
 export interface TaxCalculationResponse {
-  totalTax: number;
-  breakdown: Array<{
-    label: string;
-    rate: number;
-    amount: number;
-  }>;
+	totalTax: number;
+	breakdown: Array<{
+		label: string;
+		rate: number;
+		amount: number;
+	}>;
 }
 ```
 
 ### `src/routes/contracts.ts`
 
-Define Zod schemas for the public and admin route inputs catalogued in Section
-9. These are used in Phase 1 and beyond. At Step 1, define them as commented
+Define Zod schemas for the public and admin route inputs catalogued in Section 9. These are used in Phase 1 and beyond. At Step 1, define them as commented
 stubs so the shapes are locked, even without handler implementations.
 
 Pattern: one Zod schema per route, named `<routeName>Schema`. One inferred type
@@ -1262,164 +1248,182 @@ import type { infer as ZInfer } from "astro/zod";
 // ─── Shared ──────────────────────────────────────────────────────
 
 export const addressSchema = z.object({
-  line1: z.string().min(1),
-  line2: z.string().optional(),
-  city: z.string().min(1),
-  state: z.string().min(1),
-  postalCode: z.string().min(1),
-  country: z.string().length(2),        // ISO 3166-1 alpha-2
+	line1: z.string().min(1),
+	line2: z.string().optional(),
+	city: z.string().min(1),
+	state: z.string().min(1),
+	postalCode: z.string().min(1),
+	country: z.string().length(2), // ISO 3166-1 alpha-2
 });
 
 export const paginationSchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.number().int().min(1).max(100).default(50),
+	cursor: z.string().optional(),
+	limit: z.number().int().min(1).max(100).default(50),
 });
 
 // ─── Products ────────────────────────────────────────────────────
 
 export const productListSchema = paginationSchema.extend({
-  status: z.enum(["draft", "active", "archived"]).optional(),
-  type: z.enum(["simple", "variable", "bundle", "digital", "gift_card"]).optional(),
-  categoryId: z.string().optional(),
-  tag: z.string().optional(),
+	status: z.enum(["draft", "active", "archived"]).optional(),
+	type: z.enum(["simple", "variable", "bundle", "digital", "gift_card"]).optional(),
+	categoryId: z.string().optional(),
+	tag: z.string().optional(),
 });
 
 export const productGetSchema = z.union([
-  z.object({ id: z.string().min(1) }),
-  z.object({ slug: z.string().min(1) }),
+	z.object({ id: z.string().min(1) }),
+	z.object({ slug: z.string().min(1) }),
 ]);
 
 export const productCreateSchema = z.object({
-  type: z.enum(["simple", "variable", "bundle", "digital", "gift_card"]),
-  name: z.string().min(1).max(500),
-  slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/),
-  status: z.enum(["draft", "active", "archived"]).default("draft"),
-  descriptionBlocks: z.array(z.unknown()).optional(),
-  shortDescription: z.string().max(500).optional(),
-  basePrice: z.number().int().min(0),
-  compareAtPrice: z.number().int().min(0).optional(),
-  currency: z.string().length(3).default("USD"),
-  mediaIds: z.array(z.string()).default([]),
-  categoryIds: z.array(z.string()).default([]),
-  tags: z.array(z.string()).default([]),
-  seoTitle: z.string().max(200).optional(),
-  seoDescription: z.string().max(500).optional(),
-  typeData: z.record(z.unknown()),
+	type: z.enum(["simple", "variable", "bundle", "digital", "gift_card"]),
+	name: z.string().min(1).max(500),
+	slug: z
+		.string()
+		.min(1)
+		.max(200)
+		.regex(/^[a-z0-9-]+$/),
+	status: z.enum(["draft", "active", "archived"]).default("draft"),
+	descriptionBlocks: z.array(z.unknown()).optional(),
+	shortDescription: z.string().max(500).optional(),
+	basePrice: z.number().int().min(0),
+	compareAtPrice: z.number().int().min(0).optional(),
+	currency: z.string().length(3).default("USD"),
+	mediaIds: z.array(z.string()).default([]),
+	categoryIds: z.array(z.string()).default([]),
+	tags: z.array(z.string()).default([]),
+	seoTitle: z.string().max(200).optional(),
+	seoDescription: z.string().max(500).optional(),
+	typeData: z.record(z.unknown()),
 });
 
 export const inventoryAdjustSchema = z.object({
-  id: z.string().min(1),
-  variantId: z.string().optional(),
-  delta: z.number().int(),              // positive = restock, negative = correction
-  reason: z.string().min(1),
+	id: z.string().min(1),
+	variantId: z.string().optional(),
+	delta: z.number().int(), // positive = restock, negative = correction
+	reason: z.string().min(1),
 });
 
 // ─── Cart ────────────────────────────────────────────────────────
 
 export const cartCreateSchema = z.object({
-  currency: z.string().length(3).optional(),
-  cartToken: z.string().optional(),     // Resume existing cart
+	currency: z.string().length(3).optional(),
+	cartToken: z.string().optional(), // Resume existing cart
 });
 
 export const cartGetSchema = z.object({
-  cartToken: z.string().min(1),
+	cartToken: z.string().min(1),
 });
 
 export const cartAddItemSchema = z.object({
-  cartToken: z.string().min(1),
-  productId: z.string().min(1),
-  variantId: z.string().optional(),
-  qty: z.number().int().min(1).max(999),
-  meta: z.record(z.unknown()).optional(),
+	cartToken: z.string().min(1),
+	productId: z.string().min(1),
+	variantId: z.string().optional(),
+	qty: z.number().int().min(1).max(999),
+	meta: z.record(z.unknown()).optional(),
 });
 
 export const cartUpdateItemSchema = z.object({
-  cartToken: z.string().min(1),
-  itemId: z.string().min(1),
-  qty: z.number().int().min(0).max(999), // 0 = remove
+	cartToken: z.string().min(1),
+	itemId: z.string().min(1),
+	qty: z.number().int().min(0).max(999), // 0 = remove
 });
 
 export const cartRemoveItemSchema = z.object({
-  cartToken: z.string().min(1),
-  itemId: z.string().min(1),
+	cartToken: z.string().min(1),
+	itemId: z.string().min(1),
 });
 
 export const cartApplyDiscountSchema = z.object({
-  cartToken: z.string().min(1),
-  code: z.string().min(1).max(100),
+	cartToken: z.string().min(1),
+	code: z.string().min(1).max(100),
 });
 
 export const cartShippingRatesSchema = z.object({
-  cartToken: z.string().min(1),
-  destination: addressSchema,
+	cartToken: z.string().min(1),
+	destination: addressSchema,
 });
 
 export const cartSelectShippingSchema = z.object({
-  cartToken: z.string().min(1),
-  rateId: z.string().min(1),
+	cartToken: z.string().min(1),
+	rateId: z.string().min(1),
 });
 
 // ─── Checkout ────────────────────────────────────────────────────
 
 const customerSnapshotSchema = z.object({
-  email: z.string().email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  phone: z.string().optional(),
-  billingAddress: addressSchema,
-  shippingAddress: addressSchema,
+	email: z.string().email(),
+	firstName: z.string().min(1),
+	lastName: z.string().min(1),
+	phone: z.string().optional(),
+	billingAddress: addressSchema,
+	shippingAddress: addressSchema,
 });
 
 export const checkoutCreateSchema = z.object({
-  cartToken: z.string().min(1),
-  customer: customerSnapshotSchema,
-  /** Required when shipping module is active and cart has shippable items */
-  shippingRateId: z.string().min(1).optional(),
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
-  meta: z.record(z.unknown()).optional(),
+	cartToken: z.string().min(1),
+	customer: customerSnapshotSchema,
+	/** Required when shipping module is active and cart has shippable items */
+	shippingRateId: z.string().min(1).optional(),
+	successUrl: z.string().url(),
+	cancelUrl: z.string().url(),
+	meta: z.record(z.unknown()).optional(),
 });
 
 // ─── Orders ──────────────────────────────────────────────────────
 
 export const orderListSchema = paginationSchema.extend({
-  status: z.enum([
-    "pending", "payment_pending", "authorized", "paid",
-    "processing", "fulfilled", "canceled", "refunded", "partial_refund",
-  ]).optional(),
-  userId: z.string().optional(),
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+	status: z
+		.enum([
+			"pending",
+			"payment_pending",
+			"authorized",
+			"paid",
+			"processing",
+			"fulfilled",
+			"canceled",
+			"refunded",
+			"partial_refund",
+		])
+		.optional(),
+	userId: z.string().optional(),
+	from: z.string().datetime().optional(),
+	to: z.string().datetime().optional(),
 });
 
 export const orderUpdateStatusSchema = z.object({
-  id: z.string().min(1),
-  status: z.enum([
-    "processing", "fulfilled", "canceled", "refunded", "partial_refund",
-  ]),
-  note: z.string().optional(),
-  actor: z.enum(["merchant", "agent"]).default("merchant"),
+	id: z.string().min(1),
+	status: z.enum(["processing", "fulfilled", "canceled", "refunded", "partial_refund"]),
+	note: z.string().optional(),
+	actor: z.enum(["merchant", "agent"]).default("merchant"),
 });
 
 export const orderRefundSchema = z.object({
-  id: z.string().min(1),
-  amount: z.number().int().min(1),
-  reason: z.string().min(1),
-  lineItems: z.array(z.object({
-    lineItemIndex: z.number().int().min(0),
-    qty: z.number().int().min(1),
-  })).optional(),
+	id: z.string().min(1),
+	amount: z.number().int().min(1),
+	reason: z.string().min(1),
+	lineItems: z
+		.array(
+			z.object({
+				lineItemIndex: z.number().int().min(0),
+				qty: z.number().int().min(1),
+			}),
+		)
+		.optional(),
 });
 
 // ─── Providers ───────────────────────────────────────────────────
 
 export const providerRegisterSchema = z.object({
-  providerId: z.string().min(1).regex(/^[a-z0-9-]+$/),
-  providerType: z.enum(["payment", "shipping", "tax", "fulfillment"]),
-  displayName: z.string().min(1),
-  pluginId: z.string().min(1),
-  routeBase: z.string().url(),
-  config: z.record(z.unknown()).default({}),
+	providerId: z
+		.string()
+		.min(1)
+		.regex(/^[a-z0-9-]+$/),
+	providerType: z.enum(["payment", "shipping", "tax", "fulfillment"]),
+	displayName: z.string().min(1),
+	pluginId: z.string().min(1),
+	routeBase: z.string().url(),
+	config: z.record(z.unknown()).default({}),
 });
 
 // ─── Type Exports ────────────────────────────────────────────────
@@ -1481,8 +1485,8 @@ through Step 1, keep scrolling to the file end to reach Section 15.
    **UX implication:** Between “add to cart” and “payment succeeded”, counts can
    change. The API must return **clear, machine-readable error codes** (e.g.
    `inventory_changed`, `insufficient_stock`) and copy-ready **human messages** so
-   the storefront can explain: *“While you were checking out, availability for one
-   or more items changed.”*
+   the storefront can explain: _“While you were checking out, availability for one
+   or more items changed.”_
 
 3. **Tax and shipping as a separate module**  
    Without the **fulfillment / shipping & tax** module installed and active:
@@ -1492,10 +1496,10 @@ through Step 1, keep scrolling to the file end to reach Section 15.
    - Core checkout may assume **no shippable line items** or a merchant-configured
      “digital / no shipping” mode; physical goods that need a quote **require** the
      module.  
-   **Multi-currency and localized tax rules** are **in scope for that same module
-   family** (not in commerce core v1), so currency display, conversion, and
-   region-specific tax live there or behind additional providers — not duplicated
-   in core.
+     **Multi-currency and localized tax rules** are **in scope for that same module
+     family** (not in commerce core v1), so currency display, conversion, and
+     region-specific tax live there or behind additional providers — not duplicated
+     in core.
 
 4. **Authenticated purchase history + cart across sessions and devices**  
    Logged-in users must have:
@@ -1503,8 +1507,8 @@ through Step 1, keep scrolling to the file end to reach Section 15.
    - **Cart continuity** when they log out and back in, or open another client:
      server-side cart bound to `userId` (with optional merge from anonymous
      `cartToken` on login).  
-   Anonymous browsing may still use `cartToken`; **login associates or merges**
-   into the durable user cart.
+     Anonymous browsing may still use `cartToken`; **login associates or merges**
+     into the durable user cart.
 
 ### Small defaults (still open to tweak, low risk)
 
@@ -1521,11 +1525,11 @@ Every route error must use this structure:
 
 ```typescript
 interface CommerceError {
-  code: CommerceErrorCode;       // Machine-stable; safe for AI branching
-  message: string;               // Human-readable; safe to display
-  httpStatus: number;
-  retryable: boolean;            // Whether the client may safely retry
-  details?: Record<string, unknown>; // Structured context (e.g. which itemId, which field)
+	code: CommerceErrorCode; // Machine-stable; safe for AI branching
+	message: string; // Human-readable; safe to display
+	httpStatus: number;
+	retryable: boolean; // Whether the client may safely retry
+	details?: Record<string, unknown>; // Structured context (e.g. which itemId, which field)
 }
 ```
 
@@ -1533,52 +1537,53 @@ interface CommerceError {
 
 ```typescript
 export const COMMERCE_ERRORS = {
-  // Inventory
-  INVENTORY_CHANGED:          { httpStatus: 409, retryable: false },
-  INSUFFICIENT_STOCK:         { httpStatus: 409, retryable: false },
+	// Inventory
+	INVENTORY_CHANGED: { httpStatus: 409, retryable: false },
+	INSUFFICIENT_STOCK: { httpStatus: 409, retryable: false },
 
-  // Product / catalog
-  PRODUCT_UNAVAILABLE:        { httpStatus: 404, retryable: false },
-  VARIANT_UNAVAILABLE:        { httpStatus: 404, retryable: false },
+	// Product / catalog
+	PRODUCT_UNAVAILABLE: { httpStatus: 404, retryable: false },
+	VARIANT_UNAVAILABLE: { httpStatus: 404, retryable: false },
 
-  // Cart
-  CART_NOT_FOUND:             { httpStatus: 404, retryable: false },
-  CART_EXPIRED:               { httpStatus: 410, retryable: false },
-  CART_EMPTY:                 { httpStatus: 422, retryable: false },
+	// Cart
+	CART_NOT_FOUND: { httpStatus: 404, retryable: false },
+	CART_EXPIRED: { httpStatus: 410, retryable: false },
+	CART_EMPTY: { httpStatus: 422, retryable: false },
 
-  // Order
-  ORDER_NOT_FOUND:            { httpStatus: 404, retryable: false },
-  ORDER_STATE_CONFLICT:       { httpStatus: 409, retryable: false },
-  PAYMENT_CONFLICT:           { httpStatus: 409, retryable: false },
+	// Order
+	ORDER_NOT_FOUND: { httpStatus: 404, retryable: false },
+	ORDER_STATE_CONFLICT: { httpStatus: 409, retryable: false },
+	PAYMENT_CONFLICT: { httpStatus: 409, retryable: false },
 
-  // Payment
-  PAYMENT_INITIATION_FAILED:  { httpStatus: 502, retryable: true },
-  PAYMENT_CONFIRMATION_FAILED:{ httpStatus: 502, retryable: false },
-  PAYMENT_ALREADY_PROCESSED:  { httpStatus: 409, retryable: false },
-  PROVIDER_UNAVAILABLE:       { httpStatus: 503, retryable: true },
+	// Payment
+	PAYMENT_INITIATION_FAILED: { httpStatus: 502, retryable: true },
+	PAYMENT_CONFIRMATION_FAILED: { httpStatus: 502, retryable: false },
+	PAYMENT_ALREADY_PROCESSED: { httpStatus: 409, retryable: false },
+	PROVIDER_UNAVAILABLE: { httpStatus: 503, retryable: true },
 
-  // Webhooks
-  WEBHOOK_SIGNATURE_INVALID:  { httpStatus: 401, retryable: false },
-  WEBHOOK_REPLAY_DETECTED:    { httpStatus: 200, retryable: false }, // 200 — tell provider we got it
+	// Webhooks
+	WEBHOOK_SIGNATURE_INVALID: { httpStatus: 401, retryable: false },
+	WEBHOOK_REPLAY_DETECTED: { httpStatus: 200, retryable: false }, // 200 — tell provider we got it
 
-  // Discounts / coupons
-  INVALID_DISCOUNT:           { httpStatus: 422, retryable: false },
-  DISCOUNT_EXPIRED:           { httpStatus: 410, retryable: false },
+	// Discounts / coupons
+	INVALID_DISCOUNT: { httpStatus: 422, retryable: false },
+	DISCOUNT_EXPIRED: { httpStatus: 410, retryable: false },
 
-  // Features / config
-  FEATURE_NOT_ENABLED:        { httpStatus: 501, retryable: false },
-  CURRENCY_MISMATCH:          { httpStatus: 422, retryable: false },
-  SHIPPING_REQUIRED:          { httpStatus: 422, retryable: false },
+	// Features / config
+	FEATURE_NOT_ENABLED: { httpStatus: 501, retryable: false },
+	CURRENCY_MISMATCH: { httpStatus: 422, retryable: false },
+	SHIPPING_REQUIRED: { httpStatus: 422, retryable: false },
 
-  // Abuse / limits
-  RATE_LIMITED:               { httpStatus: 429, retryable: true },
-  PAYLOAD_TOO_LARGE:          { httpStatus: 413, retryable: false },
+	// Abuse / limits
+	RATE_LIMITED: { httpStatus: 429, retryable: true },
+	PAYLOAD_TOO_LARGE: { httpStatus: 413, retryable: false },
 } as const satisfies Record<string, { httpStatus: number; retryable: boolean }>;
 
 export type CommerceErrorCode = keyof typeof COMMERCE_ERRORS;
 ```
 
 Rules:
+
 - `WEBHOOK_REPLAY_DETECTED` returns **200** (not 4xx) so that payment gateways do
   not retry the delivery — they treat non-2xx as failures and retry aggressively.
 - `PAYMENT_CONFLICT` is used when payment captured but inventory finalize failed.
@@ -1636,6 +1641,7 @@ The frontend should display a notice.
 ### Past orders ↔ account association
 
 If a guest places an order and later creates an account with the same email:
+
 - The `orders/list` route, when called by an authenticated user, also queries
   for guest orders matching `customer.email`. These are returned in purchase
   history with a flag `guestOrder: true`.
@@ -1708,7 +1714,7 @@ be debuggable from day one.
 
 - **Inventory mutation log**: Every stock change is a row in `inventoryLedger`.
   `reason` and `referenceType`/`referenceId` are mandatory — never allow `reason:
-  "unknown"`.
+"unknown"`.
 
 - **Actor attribution**: Every `orderEvent` records `actor` as one of:
   `"customer"` | `"merchant"` | `"system"` | `"agent"`. AI agent operations are
@@ -1738,11 +1744,11 @@ This section tightens production behavior without reopening locked product decis
 
 Apply before expensive work:
 
-| Surface | Key basis | Purpose |
-|---------|-----------|---------|
-| `checkout.create` | Hashed client IP + optional `userId` | Slow brute-force / card testing |
-| Cart mutations | Hashed `cartToken` | Scraping / bot add-to-cart |
-| Inbound webhooks | `providerId` + source IP hash | Flood protection (still verify signature first when cheap) |
+| Surface           | Key basis                            | Purpose                                                    |
+| ----------------- | ------------------------------------ | ---------------------------------------------------------- |
+| `checkout.create` | Hashed client IP + optional `userId` | Slow brute-force / card testing                            |
+| Cart mutations    | Hashed `cartToken`                   | Scraping / bot add-to-cart                                 |
+| Inbound webhooks  | `providerId` + source IP hash        | Flood protection (still verify signature first when cheap) |
 
 Return **429** with `retryAfter` seconds when exceeded. Log with `correlationId` only.
 
@@ -1825,8 +1831,8 @@ Workers binding model. It does **not** change locked commerce semantics (§15); 
 - **License and distribution** are decoupled from the core repo; payment provider
   packages can stay proprietary while the core stays MIT-aligned with the host
   project.
-- **x402** is a first-class EmDash primitive for *HTTP-native, pay-per-access
-  content*. It is **complementary** to cart checkout, not a replacement: use x402
+- **x402** is a first-class EmDash primitive for _HTTP-native, pay-per-access
+  content_. It is **complementary** to cart checkout, not a replacement: use x402
   for gated content or micropayments; use commerce for SKUs, carts, and fulfillment
   workflows. Avoid folding cart totals into x402 in v1.
 

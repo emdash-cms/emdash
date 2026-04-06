@@ -10,7 +10,14 @@ export type CommerceStorage = PluginStorageConfig & {
 		uniqueIndexes: [["slug"]];
 	};
 	productAttributes: {
-		indexes: ["productId", "kind", "code", "position", ["productId", "kind"], ["productId", "code"]];
+		indexes: [
+			"productId",
+			"kind",
+			"code",
+			"position",
+			["productId", "kind"],
+			["productId", "code"],
+		];
 		uniqueIndexes: [["productId", "code"]];
 	};
 	productAttributeValues: {
@@ -22,7 +29,15 @@ export type CommerceStorage = PluginStorageConfig & {
 		uniqueIndexes: [["skuId", "attributeId"]];
 	};
 	digitalAssets: {
-		indexes: ["provider", "externalAssetId", "label", "isPrivate", "isManualOnly", "createdAt", ["provider", "externalAssetId"]];
+		indexes: [
+			"provider",
+			"externalAssetId",
+			"label",
+			"isPrivate",
+			"isManualOnly",
+			"createdAt",
+			["provider", "externalAssetId"],
+		];
 		uniqueIndexes: [["provider", "externalAssetId"]];
 	};
 	digitalEntitlements: {
@@ -30,7 +45,14 @@ export type CommerceStorage = PluginStorageConfig & {
 		uniqueIndexes: [["skuId", "digitalAssetId"]];
 	};
 	categories: {
-		indexes: ["slug", "name", "parentId", "position", ["parentId", "position"], ["parentId", "slug"]];
+		indexes: [
+			"slug",
+			"name",
+			"parentId",
+			"position",
+			["parentId", "position"],
+			["parentId", "slug"],
+		];
 		uniqueIndexes: [["slug"]];
 	};
 	productCategoryLinks: {
@@ -46,11 +68,23 @@ export type CommerceStorage = PluginStorageConfig & {
 		uniqueIndexes: [["productId", "tagId"]];
 	};
 	bundleComponents: {
-		indexes: ["bundleProductId", "componentSkuId", "position", "createdAt", ["bundleProductId", "position"]];
+		indexes: [
+			"bundleProductId",
+			"componentSkuId",
+			"position",
+			"createdAt",
+			["bundleProductId", "position"],
+		];
 		uniqueIndexes: [["bundleProductId", "componentSkuId"]];
 	};
 	productAssets: {
-		indexes: ["provider", "externalAssetId", "createdAt", "updatedAt", ["provider", "externalAssetId"]];
+		indexes: [
+			"provider",
+			"externalAssetId",
+			"createdAt",
+			"updatedAt",
+			["provider", "externalAssetId"],
+		];
 		uniqueIndexes: [["provider", "externalAssetId"]];
 	};
 	productAssetLinks: {
@@ -139,12 +173,7 @@ export const COMMERCE_STORAGE_CONFIG: PluginStorageConfig = {
 		uniqueIndexes: [["productId", "code"]],
 	},
 	productAttributeValues: {
-		indexes: [
-			"attributeId",
-			"code",
-			"position",
-			["attributeId", "code"],
-		],
+		indexes: ["attributeId", "code", "position", ["attributeId", "code"]],
 		uniqueIndexes: [["attributeId", "code"]],
 	},
 	productSkuOptionValues: {
@@ -168,7 +197,14 @@ export const COMMERCE_STORAGE_CONFIG: PluginStorageConfig = {
 		uniqueIndexes: [["skuId", "digitalAssetId"]],
 	},
 	categories: {
-		indexes: ["slug", "name", "parentId", "position", ["parentId", "position"], ["parentId", "slug"]],
+		indexes: [
+			"slug",
+			"name",
+			"parentId",
+			"position",
+			["parentId", "position"],
+			["parentId", "slug"],
+		],
 		uniqueIndexes: [["slug"]],
 	},
 	productCategoryLinks: {

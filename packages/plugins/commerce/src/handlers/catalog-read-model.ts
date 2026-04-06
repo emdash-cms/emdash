@@ -1,4 +1,10 @@
-import type { ProductCategoryDTO, ProductPrimaryImageDTO, ProductTagDTO } from "../lib/catalog-dto.js";
+import type {
+	ProductCategoryDTO,
+	ProductPrimaryImageDTO,
+	ProductTagDTO,
+} from "../lib/catalog-dto.js";
+import { inventoryStockDocId } from "../lib/inventory-stock.js";
+import { sortOrderedRowsByPosition } from "../lib/ordered-rows.js";
 import type {
 	ProductAssetRole,
 	ProductAssetLinkTarget,
@@ -15,8 +21,6 @@ import type {
 	StoredProductTag,
 	StoredProductTagLink,
 } from "../types.js";
-import { sortOrderedRowsByPosition } from "../lib/ordered-rows.js";
-import { inventoryStockDocId } from "../lib/inventory-stock.js";
 
 export type StorageQueryResult<T> = {
 	items: Array<{ id: string; data: T }>;
@@ -57,7 +61,10 @@ export function toUniqueStringList(values: string[]): string[] {
 	return [...new Set(values)];
 }
 
-export async function getManyByIds<T>(collection: Collection<T>, ids: string[]): Promise<Map<string, T>> {
+export async function getManyByIds<T>(
+	collection: Collection<T>,
+	ids: string[],
+): Promise<Map<string, T>> {
 	const uniqueIds = toUniqueStringList(ids);
 	const getMany = (collection as { getMany?: (ids: string[]) => Promise<Map<string, T>> }).getMany;
 	if (getMany) {
@@ -108,12 +115,14 @@ export async function loadProductReadMetadata(
 		products: [product],
 		includeGalleryImages,
 	});
-	return metadataByProduct.get(product.id) ?? {
-		skus: [],
-		categories: [],
-		tags: [],
-		galleryImages: [],
-	};
+	return (
+		metadataByProduct.get(product.id) ?? {
+			skus: [],
+			categories: [],
+			tags: [],
+			galleryImages: [],
+		}
+	);
 }
 
 export async function loadProductsReadMetadata(
@@ -129,7 +138,9 @@ export async function loadProductsReadMetadata(
 		return new Map();
 	}
 
-	const productsById = new Map<string, StoredProduct>(context.products.map((product) => [product.id, product]));
+	const productsById = new Map<string, StoredProduct>(
+		context.products.map((product) => [product.id, product]),
+	);
 	const skusResult = await queryAllPages((cursor) =>
 		collections.productSkus.query({
 			where: { productId: { in: productIds } },
@@ -148,7 +159,9 @@ export async function loadProductsReadMetadata(
 		productIds.map(async (productId) => {
 			const product = productsById.get(productId);
 			const skus = skusByProduct.get(productId) ?? [];
-			const hydratedSkus = product ? await hydrateSkusWithInventoryStock(product, skus, collections.inventoryStock) : [];
+			const hydratedSkus = product
+				? await hydrateSkusWithInventoryStock(product, skus, collections.inventoryStock)
+				: [];
 			return [productId, hydratedSkus] as const;
 		}),
 	);
@@ -173,12 +186,12 @@ export async function loadProductsReadMetadata(
 	);
 	const galleryImageByProduct = includeGalleryImages
 		? await queryProductImagesByRoleForTargets(
-			collections.productAssetLinks,
-			collections.productAssets,
-			"product",
-			productIds,
-			["gallery_image"],
-		  )
+				collections.productAssetLinks,
+				collections.productAssets,
+				"product",
+				productIds,
+				["gallery_image"],
+			)
 		: new Map();
 
 	const metadataByProduct = new Map<string, ProductReadMetadata>();
@@ -284,7 +297,10 @@ export async function queryTagDtosForProducts(
 			limit: 100,
 		}),
 	);
-	const tagRows = await getManyByIds(tags, toUniqueStringList(links.map((link) => link.data.tagId)));
+	const tagRows = await getManyByIds(
+		tags,
+		toUniqueStringList(links.map((link) => link.data.tagId)),
+	);
 	const rowsByProduct = new Map<string, ProductTagDTO[]>();
 
 	for (const link of links) {
@@ -312,12 +328,10 @@ export async function queryProductImagesByRoleForTargets(
 		return new Map();
 	}
 
-	const targetIdFilter: string | InFilter = normalizedTargetIds.length === 1
-		? normalizedTargetIds[0]!
-		: { in: normalizedTargetIds };
-	const roleFilter: string | InFilter = normalizedRoles.length === 1
-		? normalizedRoles[0]!
-		: { in: normalizedRoles };
+	const targetIdFilter: string | InFilter =
+		normalizedTargetIds.length === 1 ? normalizedTargetIds[0]! : { in: normalizedTargetIds };
+	const roleFilter: string | InFilter =
+		normalizedRoles.length === 1 ? normalizedRoles[0]! : { in: normalizedRoles };
 
 	const query: { where: Record<string, string | number | InFilter> } = {
 		where: {
@@ -446,9 +460,10 @@ export function hydrateSkusWithInventoryStock(
 	return Promise.all(
 		skuRows.map(async (sku) => {
 			const variantStock = await inventoryStock.get(inventoryStockDocId(product.id, sku.id));
-			const productLevelStock = product.type === "simple" && skuRows.length === 1
-				? await inventoryStock.get(inventoryStockDocId(product.id, ""))
-				: null;
+			const productLevelStock =
+				product.type === "simple" && skuRows.length === 1
+					? await inventoryStock.get(inventoryStockDocId(product.id, ""))
+					: null;
 			const stock = variantStock ?? productLevelStock;
 			if (!stock) {
 				return sku;
@@ -482,6 +497,7 @@ function toProductTagDTO(row: StoredProductTag): ProductTagDTO {
 
 interface Collection<T> {
 	get: (id: string) => Promise<T | null>;
-	query: (options: Record<string, unknown>) => Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean; cursor?: string }>;
+	query: (
+		options: Record<string, unknown>,
+	) => Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean; cursor?: string }>;
 }
-

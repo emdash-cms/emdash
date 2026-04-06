@@ -1193,10 +1193,10 @@ export interface ResolvedPluginHooks {
  * Plugin authors annotate their event parameters with specific types for IDE
  * support. At the type level, we accept any function with compatible arity.
  */
-export type StandardHookHandler<TEvent = unknown, TContext extends PluginContext = PluginContext> = (
-	event: TEvent,
-	ctx: TContext,
-) => Promise<unknown>;
+export type StandardHookHandler<
+	TEvent = unknown,
+	TContext extends PluginContext = PluginContext,
+> = (event: TEvent, ctx: TContext) => Promise<unknown>;
 
 /**
  * Standard plugin hook entry -- either a bare handler or a config object.
@@ -1218,7 +1218,10 @@ export type StandardHookEntry =
  * Route context fields are intentionally narrow so sandbox and trusted handlers can
  * share a single signature while remaining explicit in intent.
  */
-export type StandardRouteContext<TInput = unknown> = Pick<RouteContext<TInput>, "input" | "request" | "requestMeta"> & {
+export type StandardRouteContext<TInput = unknown> = Pick<
+	RouteContext<TInput>,
+	"input" | "request" | "requestMeta"
+> & {
 	// Compatibility fallback for handlers that still expect optional PluginContext-like
 	// fields in the first argument (legacy standard-route shape).
 	[K in keyof Partial<PluginContext>]?: PluginContext[K];

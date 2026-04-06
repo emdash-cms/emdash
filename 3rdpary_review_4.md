@@ -1,6 +1,7 @@
 # 3rd Party Technical Review Request Pack
 
 > Historical review packet. For the current external review entrypoint, use:
+>
 > - `@THIRD_PARTY_REVIEW_PACKAGE.md`
 > - `external_review.md`
 > - `SHARE_WITH_REVIEWER.md`
@@ -24,17 +25,20 @@ The current edits align the code with the architectural contracts in the handove
 ## Why this approach was chosen
 
 ### Problem framing
+
 - EmDash can support digital-first and traditional products in one place, but the previous path in many stacks starts with broad integration layers and only later fixes correctness issues.
 - Mission-critical commerce systems fail most on correctness gaps: duplicate capture, non-idempotent checkout, replaying webhook side effects, inconsistent state transitions, and poor observability.
 - The strategy here is therefore: **kernel-first, correctness-first, payment-first, then feature expansion**.
 
 ### What makes this path robust
+
 - A single source of truth for commerce behavior in `packages/plugins/commerce/src/kernel`.
 - Canonical enums + contracts for errors, states, and policies.
 - Strongly typed provider interfaces with explicit extension boundaries.
 - Storage-backed behavior for idempotency and state transitions as code evolves.
 
 ### Why this is “phase 1” rather than full marketplace
+
 - Full merchant/platform features are intentionally deferred.
 - The current scope is to prove one safe path in production-like conditions before adding:
   - admin dashboards,
@@ -100,6 +104,7 @@ File: `packages/plugins/commerce/src/kernel/errors.ts`
 ### B. Rate-limit semantics correction
 
 Files:
+
 - `packages/plugins/commerce/src/kernel/limits.ts`
 - `packages/plugins/commerce/src/kernel/rate-limit-window.ts`
 - `packages/plugins/commerce/src/kernel/rate-limit-window.test.ts`
@@ -111,6 +116,7 @@ Files:
 ### C. Finalization decision logic hardening
 
 Files:
+
 - `packages/plugins/commerce/src/kernel/finalize-decision.ts`
 - `packages/plugins/commerce/src/kernel/finalize-decision.test.ts`
 
@@ -207,4 +213,3 @@ This package contains:
 ## Delivery
 
 This document is named `3rdpary_review_4.md` and should be reviewed before `latest-code_4.zip`.
-
