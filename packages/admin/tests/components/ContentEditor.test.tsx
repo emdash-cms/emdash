@@ -144,7 +144,7 @@ describe("ContentEditor", () => {
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
 
-		it("loads json fields into a formatted textarea for existing items", async () => {
+		it("loads json fields into a syntax-highlighted editor for existing items", async () => {
 			const metadata = { theme: "dark", nested: { enabled: true } };
 			const screen = await renderEditor({
 				fields: { metadata: { kind: "json", label: "Metadata" } },
@@ -152,11 +152,15 @@ describe("ContentEditor", () => {
 				item: makeItem({ data: { metadata } }),
 			});
 
-			const input = screen.getByLabelText("Metadata");
-			await expect.element(input).toHaveValue(JSON.stringify(metadata, null, 2));
-			await expect
-				.element(screen.getByTestId("field-metadata-json-preview-label"))
-				.toBeInTheDocument();
+			// The CodeMirror editor has role="textbox" and is labelled by the
+			// "Metadata" heading via aria-labelledby.
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await expect.element(editor).toBeInTheDocument();
+			// CodeMirror renders each line in a separate div, so DOM textContent
+			// has no newlines between lines. Check for key strings instead.
+			await expect.element(editor).toHaveTextContent(/"theme"/);
+			await expect.element(editor).toHaveTextContent(/"dark"/);
+			await expect.element(editor).toHaveTextContent(/"nested"/);
 		});
 	});
 
@@ -180,7 +184,7 @@ describe("ContentEditor", () => {
 			);
 		});
 
-		it("save form parses json textarea content back into structured data", async () => {
+		it("save form parses json editor content back into structured data", async () => {
 			const onSave = vi.fn();
 			const screen = await renderEditor({
 				isNew: false,
@@ -189,8 +193,8 @@ describe("ContentEditor", () => {
 				item: makeItem({ data: { metadata: { enabled: false } } }),
 			});
 
-			const input = screen.getByLabelText("Metadata");
-			await input.fill('{"enabled":true,"count":2}');
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"enabled":true,"count":2}');
 
 			const saveBtn = screen.getByRole("button", { name: "Save" });
 			await saveBtn.click();
@@ -204,7 +208,7 @@ describe("ContentEditor", () => {
 			);
 		});
 
-		it("disables save when json content is invalid", async () => {
+		it("disables save when json editor content is invalid", async () => {
 			const onSave = vi.fn();
 			const screen = await renderEditor({
 				isNew: false,
@@ -213,8 +217,8 @@ describe("ContentEditor", () => {
 				item: makeItem({ data: { metadata: { enabled: false } } }),
 			});
 
-			const input = screen.getByLabelText("Metadata");
-			await input.fill('{"enabled": true');
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"enabled": true');
 
 			const saveBtn = screen.getByRole("button", { name: "Save" });
 			await expect.element(saveBtn).toBeDisabled();

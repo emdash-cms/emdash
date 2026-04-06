@@ -10,7 +10,12 @@ import {
 	Switch,
 	buttonVariants,
 } from "@cloudflare/kumo";
-import { CodeHighlighted, ShikiProvider } from "@cloudflare/kumo/code";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { json, jsonParseLinter } from "@codemirror/lang-json";
+import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { linter } from "@codemirror/lint";
+import { EditorState } from "@codemirror/state";
+import { EditorView, type ViewUpdate, keymap, placeholder } from "@codemirror/view";
 import {
 	ArrowLeft,
 	Check,
@@ -966,7 +971,27 @@ function formatJsonValue(value: unknown): string {
 	}
 }
 
-function JsonFieldEditor({
+/** Minimal CodeMirror theme that integrates with the Kumo design tokens. */
+const jsonEditorTheme = EditorView.theme({
+	"&": {
+		fontFamily:
+			'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+		fontSize: "13px",
+	},
+	".cm-scroller": { overflow: "auto", maxHeight: "20rem", minHeight: "10rem" },
+	".cm-content": { padding: "0.625rem 0.75rem", caretColor: "currentColor" },
+	".cm-line": { padding: "0" },
+	"&.cm-focused": { outline: "none" },
+	".cm-gutters": { display: "none" },
+});
+
+/**
+ * Editable JSON field with inline syntax highlighting and lint errors.
+ * Uses CodeMirror 6 so the editor itself is the highlighted input — no
+ * separate preview panel. Value sync is one-directional: changes we make
+ * never feed back through the parent to reset the editor state.
+ */
+function JsonCodeEditor({
 	id,
 	label,
 	labelClass,
@@ -981,72 +1006,96 @@ function JsonFieldEditor({
 	onChange: (value: unknown) => void;
 	onValidationChange?: (error: string | null) => void;
 }) {
-	const [textValue, setTextValue] = React.useState(() => formatJsonValue(value));
-	const [error, setError] = React.useState<string | null>(null);
+	const containerRef = React.useRef<HTMLDivElement>(null);
+	const viewRef = React.useRef<EditorView | null>(null);
+	// Prevents the value-change effect from re-syncing edits we originated.
+	const skipSyncRef = React.useRef(false);
+	// Always-current handler refs so the EditorView closure never goes stale.
+	const onChangeRef = React.useRef(onChange);
+	const onValidationRef = React.useRef(onValidationChange);
+	onChangeRef.current = onChange;
+	onValidationRef.current = onValidationChange;
 
-	const setValidationError = React.useCallback(
-		(nextError: string | null) => {
-			setError(nextError);
-			onValidationChange?.(nextError);
-		},
-		[onValidationChange],
-	);
-
+	// Mount the CodeMirror editor once.
 	React.useEffect(() => {
-		setTextValue(formatJsonValue(value));
-		setValidationError(null);
-	}, [value, setValidationError]);
+		if (!containerRef.current) return;
+
+		const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
+			if (!update.docChanged) return;
+			const content = update.state.doc.toString();
+			skipSyncRef.current = true;
+			if (!content.trim()) {
+				onChangeRef.current(null);
+				onValidationRef.current?.(null);
+				return;
+			}
+			try {
+				onChangeRef.current(JSON.parse(content));
+				onValidationRef.current?.(null);
+			} catch (e) {
+				onValidationRef.current?.(e instanceof Error ? e.message : "Invalid JSON");
+			}
+		});
+
+		const view = new EditorView({
+			state: EditorState.create({
+				doc: formatJsonValue(value),
+				extensions: [
+					json(),
+					linter(jsonParseLinter()),
+					syntaxHighlighting(defaultHighlightStyle),
+					history(),
+					keymap.of([...defaultKeymap, ...historyKeymap]),
+					EditorView.lineWrapping,
+					EditorView.contentAttributes.of({ "aria-labelledby": `${id}-label` }),
+					placeholder('{\n  "key": "value"\n}'),
+					jsonEditorTheme,
+					updateListener,
+				],
+			}),
+			parent: containerRef.current,
+		});
+		viewRef.current = view;
+
+		return () => {
+			view.destroy();
+			viewRef.current = null;
+		};
+		// Only runs on mount; all live handlers use refs.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// Apply external value changes (e.g. after item loads from server)
+	// without disrupting the user's active editing session.
+	React.useEffect(() => {
+		if (skipSyncRef.current) {
+			skipSyncRef.current = false;
+			return;
+		}
+		const view = viewRef.current;
+		if (!view) return;
+		const newContent = formatJsonValue(value);
+		if (newContent !== view.state.doc.toString()) {
+			view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newContent } });
+		}
+		onValidationRef.current?.(null);
+	}, [value]);
 
 	return (
-		<div className="space-y-3">
-			<InputArea
-				label={<span className={labelClass}>{label}</span>}
-				id={id}
-				value={textValue}
-				onChange={(e) => {
-					const nextValue = e.target.value;
-					setTextValue(nextValue);
-					if (!nextValue.trim()) {
-						setValidationError(null);
-						onChange(null);
-						return;
-					}
-					try {
-						onChange(JSON.parse(nextValue));
-						setValidationError(null);
-					} catch (parseError) {
-						setValidationError(parseError instanceof Error ? parseError.message : "Invalid JSON");
-					}
-				}}
-				onBlur={() => {
-					if (!textValue.trim()) return;
-					try {
-						const formatted = JSON.stringify(JSON.parse(textValue), null, 2);
-						setTextValue(formatted);
-						setValidationError(null);
-					} catch (parseError) {
-						setValidationError(parseError instanceof Error ? parseError.message : "Invalid JSON");
-					}
-				}}
-				rows={12}
-				placeholder='{
-  "key": "value"
-}'
-				description={error ?? "Valid JSON is formatted automatically."}
-				className="font-mono text-sm"
-			/>
-			<div className="overflow-hidden rounded-lg border bg-kumo-base">
-				<div
-					data-testid={`${id}-json-preview-label`}
-					className="border-b px-3 py-2 text-xs font-medium text-kumo-subtle"
-				>
-					Preview
-				</div>
-				<div className="max-h-96 overflow-auto p-3">
-					<ShikiProvider engine="javascript" languages={["json"]}>
-						<CodeHighlighted code={textValue || "{}"} lang="json" />
-					</ShikiProvider>
-				</div>
+		<div className="space-y-1.5">
+			<div
+				id={`${id}-label`}
+				className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}
+			>
+				{label}
+			</div>
+			<div
+				className={cn(
+					"overflow-hidden rounded-md border border-kumo-line bg-transparent",
+					"focus-within:ring-2 focus-within:ring-kumo-ring focus-within:ring-offset-2",
+				)}
+			>
+				<div ref={containerRef} />
 			</div>
 		</div>
 	);
@@ -1218,7 +1267,7 @@ function FieldRenderer({
 
 		case "json":
 			return (
-				<JsonFieldEditor
+				<JsonCodeEditor
 					id={id}
 					label={label}
 					labelClass={labelClass}
