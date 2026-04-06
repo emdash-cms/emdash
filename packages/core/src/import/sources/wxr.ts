@@ -302,8 +302,8 @@ function wxrPostToNormalizedItem(
 		title: post.title || "Untitled",
 		content,
 		excerpt: post.excerpt,
-		date: post.postDate ? new Date(post.postDate) : new Date(),
-		modified: post.postModified ? new Date(post.postModified) : undefined,
+		date: parseWxrDate(post.postDateGmt, post.pubDate, post.postDate),
+		modified: parseWxrDate(post.postModifiedGmt, undefined, post.postModified),
 		author: post.creator,
 		categories: post.categories,
 		tags: post.tags,
@@ -315,6 +315,45 @@ function wxrPostToNormalizedItem(
 		// Custom taxonomy assignments
 		customTaxonomies,
 	};
+}
+
+/**
+ * WordPress uses "0000-00-00 00:00:00" as a sentinel for missing GMT dates
+ * (e.g. unpublished drafts). This must be treated as absent.
+ */
+const WXR_ZERO_DATE = "0000-00-00 00:00:00";
+
+/**
+ * Parse a WXR date with the correct fallback chain:
+ * 1. GMT date (always UTC, most reliable)
+ * 2. pubDate (RFC 2822, includes timezone offset)
+ * 3. Site-local date (MySQL datetime without timezone — imprecise but best available)
+ * 4. Current time
+ */
+function parseWxrDate(
+	gmtDate: string | undefined,
+	pubDate: string | undefined,
+	localDate: string | undefined,
+): Date {
+	if (gmtDate && gmtDate !== WXR_ZERO_DATE) {
+		// GMT dates from WordPress are "YYYY-MM-DD HH:MM:SS" in UTC.
+		// Append "Z" so the JS Date constructor treats them as UTC.
+		return new Date(gmtDate.replace(" ", "T") + "Z");
+	}
+
+	if (pubDate) {
+		// RFC 2822 format includes timezone offset, JS Date parses it correctly
+		const d = new Date(pubDate);
+		if (!isNaN(d.getTime())) return d;
+	}
+
+	if (localDate) {
+		// Site-local time without timezone — parsed in the runtime's local timezone.
+		// This is imprecise but the best we have.
+		return new Date(localDate);
+	}
+
+	return new Date();
 }
 
 // Export for use in other sources

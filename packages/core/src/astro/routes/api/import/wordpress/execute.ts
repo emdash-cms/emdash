@@ -232,6 +232,16 @@ async function importContent(
 				bylineCache,
 			);
 
+			// Preserve original WordPress dates.
+			// postDateGmt is always UTC; fall back to postDate if GMT is absent
+			// or the "0000-00-00 00:00:00" sentinel used for unpublished drafts.
+			const WXR_ZERO = "0000-00-00 00:00:00";
+			const rawGmt =
+				post.postDateGmt && post.postDateGmt !== WXR_ZERO ? post.postDateGmt : undefined;
+			const sourceDateStr = rawGmt || post.postDate;
+			const createdAt = sourceDateStr ? toISOSafe(sourceDateStr, !!rawGmt) : undefined;
+			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
 				data,
@@ -240,6 +250,8 @@ async function importContent(
 				authorId,
 				bylines: bylineId ? [{ bylineId }] : undefined,
 				locale,
+				createdAt,
+				publishedAt,
 			});
 
 			if (createResult.success) {
@@ -280,4 +292,15 @@ function mapStatus(wpStatus: string | undefined): string {
 		default:
 			return "draft";
 	}
+}
+
+/**
+ * Safely convert a WXR date string to ISO 8601.
+ * Returns undefined if the date is invalid.
+ */
+function toISOSafe(dateStr: string, isUtc: boolean): string | undefined {
+	// WordPress GMT dates are "YYYY-MM-DD HH:MM:SS" in UTC — append "Z"
+	const input = isUtc ? dateStr.replace(" ", "T") + "Z" : dateStr;
+	const d = new Date(input);
+	return isNaN(d.getTime()) ? undefined : d.toISOString();
 }
