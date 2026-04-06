@@ -500,8 +500,10 @@ https://twitter.com/user/status/123
 			});
 		});
 
-		it.each(knownProviders)("detects provider from URL when not specified for %s", (domain, provider) => {
-			const content = `<!-- wp:embed {"url":"https://${domain}/123456"} -->
+		it.each(knownProviders)(
+			"detects provider from URL when not specified for %s",
+			(domain, provider) => {
+				const content = `<!-- wp:embed {"url":"https://${domain}/123456"} -->
 <figure class="wp-block-embed">
 <div class="wp-block-embed__wrapper">
 https://${domain}/123456
@@ -509,13 +511,14 @@ https://${domain}/123456
 </figure>
 <!-- /wp:embed -->`;
 
-			const result = gutenbergToPortableText(content);
+				const result = gutenbergToPortableText(content);
 
-			expect(result[0]).toMatchObject({
-				_type: "embed",
-				provider,
-			});
-		});
+				expect(result[0]).toMatchObject({
+					_type: "embed",
+					provider,
+				});
+			},
+		);
 
 		it("converts audio embeds", () => {
 			const content = `<!-- wp:audio {"src":"https://example.com/audio.mp3"} -->
