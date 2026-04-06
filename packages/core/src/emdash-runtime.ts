@@ -9,6 +9,8 @@
 
 import type { Element } from "@emdash-cms/blocks";
 import { Kysely, sql, type Dialect } from "kysely";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { validateRev } from "./api/rev.js";
 import type {
@@ -37,9 +39,6 @@ import type {
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
-
-// @ts-ignore - virtual module
-import virtualConfig from "virtual:emdash/config";
 
 const LEADING_SLASH_PATTERN = /^\//;
 
