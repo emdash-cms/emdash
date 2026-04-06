@@ -233,13 +233,19 @@ async function importContent(
 			);
 
 			// Preserve original WordPress dates.
-			// postDateGmt is always UTC; fall back to postDate if GMT is absent
-			// or the "0000-00-00 00:00:00" sentinel used for unpublished drafts.
+			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
+			// Skip the "0000-00-00 00:00:00" sentinel WordPress uses for unpublished drafts.
 			const WXR_ZERO = "0000-00-00 00:00:00";
 			const rawGmt =
 				post.postDateGmt && post.postDateGmt !== WXR_ZERO ? post.postDateGmt : undefined;
-			const sourceDateStr = rawGmt || post.postDate;
-			const createdAt = sourceDateStr ? toISOSafe(sourceDateStr, !!rawGmt) : undefined;
+			let createdAt: string | undefined;
+			if (rawGmt) {
+				createdAt = toISOSafe(rawGmt, true);
+			} else if (post.pubDate) {
+				createdAt = toISOSafe(post.pubDate, false);
+			} else if (post.postDate) {
+				createdAt = toISOSafe(post.postDate, false);
+			}
 			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
 
 			// Create the content item
@@ -299,8 +305,9 @@ function mapStatus(wpStatus: string | undefined): string {
  * Returns undefined if the date is invalid.
  */
 function toISOSafe(dateStr: string, isUtc: boolean): string | undefined {
-	// WordPress GMT dates are "YYYY-MM-DD HH:MM:SS" in UTC — append "Z"
-	const input = isUtc ? dateStr.replace(" ", "T") + "Z" : dateStr;
+	// WordPress WXR dates are "YYYY-MM-DD HH:MM:SS" — normalize to ISO-like format
+	const normalized = dateStr.replace(" ", "T");
+	const input = isUtc ? normalized + "Z" : normalized;
 	const d = new Date(input);
 	return isNaN(d.getTime()) ? undefined : d.toISOString();
 }

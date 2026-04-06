@@ -287,7 +287,11 @@ async function importContent(
 			}
 
 			// Preserve original dates from the source
-			const createdAt = item.date ? item.date.toISOString() : undefined;
+			const itemDateTime = item.date?.getTime();
+			const createdAt =
+				itemDateTime !== undefined && !Number.isNaN(itemDateTime)
+					? item.date.toISOString()
+					: undefined;
 			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
 
 			// Create the content item

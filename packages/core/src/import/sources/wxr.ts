@@ -348,9 +348,11 @@ function parseWxrDate(
 	}
 
 	if (localDate) {
-		// Site-local time without timezone — parsed in the runtime's local timezone.
-		// This is imprecise but the best we have.
-		return new Date(localDate);
+		// Site-local time without timezone — normalize to ISO-like form so
+		// runtimes that reject "YYYY-MM-DD HH:MM:SS" can still parse it as
+		// local time. If parsing still fails, continue to the final fallback.
+		const d = new Date(localDate.replace(" ", "T"));
+		if (!isNaN(d.getTime())) return d;
 	}
 
 	return new Date();

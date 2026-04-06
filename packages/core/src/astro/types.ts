@@ -189,6 +189,8 @@ export interface EmDashHandlers {
 			authorId?: string;
 			locale?: string;
 			translationOf?: string;
+			createdAt?: string | null;
+			publishedAt?: string | null;
 		},
 	) => Promise<HandlerResponse>;
 
