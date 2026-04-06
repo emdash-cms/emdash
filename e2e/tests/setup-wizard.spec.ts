@@ -11,6 +11,7 @@
  */
 
 import { test, expect } from "../fixtures";
+import { refreshServerPatAfterDevBypass } from "../fixtures/refresh-server-pat";
 
 const BASE_URL = "http://localhost:4444";
 const ADMIN_DASHBOARD_PATTERN = /\/_emdash\/admin\/?$/;
@@ -26,10 +27,7 @@ async function resetSetup(): Promise<void> {
 }
 
 async function restoreSetup(): Promise<void> {
-	const res = await fetch(`${BASE_URL}/_emdash/api/setup/dev-bypass?token=1`);
-	if (!res.ok) {
-		throw new Error(`dev-bypass failed (${res.status}): ${await res.text()}`);
-	}
+	await refreshServerPatAfterDevBypass(BASE_URL);
 }
 
 test.describe("Setup Wizard", () => {
