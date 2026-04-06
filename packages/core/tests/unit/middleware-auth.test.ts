@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { buildEmDashCsp } from "../../src/astro/middleware/csp";
+import { buildEmDashCsp } from "../../src/astro/middleware/csp.js";
 
 const CONNECT_RE = /connect-src[^;]*https:\/\/storage\.example\.test/;
 const IMG_RE = /img-src[^;]*https:\/\/storage\.example\.test/;

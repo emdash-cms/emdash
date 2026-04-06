@@ -30,7 +30,7 @@ import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import type { EmDashHandlers, EmDashManifest } from "../types.js";
-import { buildEmDashCsp } from "./csp";
+import { buildEmDashCsp } from "./csp.js";
 
 declare global {
 	namespace App {
