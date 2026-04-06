@@ -41,12 +41,6 @@ import { throwCommerceApiError } from "../route-errors.js";
 import { COMMERCE_LIMITS } from "../kernel/limits.js";
 import { sortedImmutable } from "../lib/sort-immutable.js";
 import {
-	mutateOrderedChildren,
-	normalizeOrderedChildren,
-	normalizeOrderedPosition,
-	sortOrderedRowsByPosition,
-} from "../lib/ordered-rows.js";
-import {
 	queryAllPages,
 	queryDigitalEntitlementSummariesBySkuIds,
 	queryProductImagesByRoleForTargets,
@@ -65,6 +59,18 @@ import {
 	handleRegisterProductAsset,
 	handleUnlinkCatalogAsset,
 } from "./catalog-asset.js";
+import {
+	handleAddBundleComponent,
+	handleBundleCompute,
+	handleRemoveBundleComponent,
+	handleReorderBundleComponent,
+	queryBundleComponentsForProduct,
+} from "./catalog-bundle.js";
+import {
+	handleCreateDigitalAsset,
+	handleCreateDigitalEntitlement,
+	handleRemoveDigitalEntitlement,
+} from "./catalog-digital.js";
 import type {
 	ProductCreateInput,
 	ProductAssetLinkInput,
@@ -636,20 +642,6 @@ export type ProductTagLinkUnlinkResponse = {
 	deleted: boolean;
 };
 
-async function queryBundleComponentsForProduct(
-	bundleComponents: Collection<StoredBundleComponent>,
-	bundleProductId: string,
-): Promise<StoredBundleComponent[]> {
-	const links = await queryAllPages((cursor) =>
-		bundleComponents.query({
-			where: { bundleProductId },
-			cursor,
-			limit: 100,
-		}),
-	);
-	const rows = sortOrderedRowsByPosition(links.map((row) => row.data));
-	return normalizeOrderedChildren(rows);
-}
 export async function createProductHandler(ctx: RouteContext<ProductCreateInput>): Promise<ProductResponse> {
 	requirePost(ctx);
 
@@ -1475,172 +1467,25 @@ export async function reorderCatalogAssetHandler(
 export async function addBundleComponentHandler(
 	ctx: RouteContext<BundleComponentAddInput>,
 ): Promise<BundleComponentResponse> {
-	requirePost(ctx);
-	const products = asCollection<StoredProduct>(ctx.storage.products);
-	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
-	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-	const nowIso = getNowIso();
-
-	const bundleProduct = await products.get(ctx.input.bundleProductId);
-	if (!bundleProduct) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle product not found" });
-	}
-	if (bundleProduct.type !== "bundle") {
-		throw PluginRouteError.badRequest("Target product is not a bundle");
-	}
-
-	const componentSku = await productSkus.get(ctx.input.componentSkuId);
-	if (!componentSku) {
-		throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Component SKU not found" });
-	}
-	if (componentSku.productId === bundleProduct.id) {
-		throw PluginRouteError.badRequest("Bundle cannot include component from itself");
-	}
-	const componentProduct = await products.get(componentSku.productId);
-	if (!componentProduct) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Component product not found" });
-	}
-	if (componentProduct.type === "bundle") {
-		throw PluginRouteError.badRequest("Bundle cannot include component products that are themselves bundles");
-	}
-
-	const existingComponents = await queryBundleComponentsForProduct(bundleComponents, bundleProduct.id);
-	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
-	const componentId = `bundle_comp_${await randomHex(6)}`;
-	const component: StoredBundleComponent = {
-		id: componentId,
-		bundleProductId: bundleProduct.id,
-		componentSkuId: componentSku.id,
-		quantity: ctx.input.quantity,
-		position: requestedPosition,
-		createdAt: nowIso,
-		updatedAt: nowIso,
-	};
-	await putWithConflictHandling(bundleComponents, componentId, component, {
-		where: { bundleProductId: bundleProduct.id, componentSkuId: ctx.input.componentSkuId },
-		message: "Bundle already contains this component SKU",
-	});
-
-	let normalized: StoredBundleComponent[];
-	try {
-		normalized = await mutateOrderedChildren({
-			collection: bundleComponents,
-			rows: existingComponents,
-			mutation: {
-				kind: "add",
-				row: component,
-				requestedPosition,
-			},
-			nowIso,
-		});
-	} catch (error) {
-		await bundleComponents.delete(componentId);
-		throw error;
-	}
-
-	const added = normalized.find((candidate) => candidate.id === componentId);
-	if (!added) {
-		throw PluginRouteError.badRequest("Bundle component not found after add");
-	}
-	return { component: added };
+	return handleAddBundleComponent(ctx);
 }
 
 export async function removeBundleComponentHandler(
 	ctx: RouteContext<BundleComponentRemoveInput>,
 ): Promise<BundleComponentUnlinkResponse> {
-	requirePost(ctx);
-	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-	const nowIso = getNowIso();
-
-	const existing = await bundleComponents.get(ctx.input.bundleComponentId);
-	if (!existing) {
-		throwCommerceApiError({ code: "BUNDLE_COMPONENT_NOT_FOUND", message: "Bundle component not found" });
-	}
-	const components = await queryBundleComponentsForProduct(bundleComponents, existing.bundleProductId);
-	await mutateOrderedChildren({
-		collection: bundleComponents,
-		rows: components,
-		mutation: {
-			kind: "remove",
-			removedRowId: ctx.input.bundleComponentId,
-		},
-		nowIso,
-	});
-	return { deleted: true };
+	return handleRemoveBundleComponent(ctx);
 }
 
 export async function reorderBundleComponentHandler(
 	ctx: RouteContext<BundleComponentReorderInput>,
 ): Promise<BundleComponentResponse> {
-	requirePost(ctx);
-	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-	const nowIso = getNowIso();
-
-	const component = await bundleComponents.get(ctx.input.bundleComponentId);
-	if (!component) {
-		throwCommerceApiError({ code: "BUNDLE_COMPONENT_NOT_FOUND", message: "Bundle component not found" });
-	}
-
-	const components = await queryBundleComponentsForProduct(bundleComponents, component.bundleProductId);
-	const requestedPosition = normalizeOrderedPosition(ctx.input.position);
-	const normalized = await mutateOrderedChildren({
-		collection: bundleComponents,
-		rows: components,
-		mutation: {
-			kind: "move",
-			rowId: ctx.input.bundleComponentId,
-			requestedPosition,
-			notFoundMessage: "Bundle component not found in target bundle",
-		},
-		nowIso,
-	});
-
-	const updated = normalized.find((row) => row.id === ctx.input.bundleComponentId);
-	if (!updated) {
-		throw PluginRouteError.badRequest("Bundle component not found after reorder");
-	}
-	return { component: updated };
+	return handleReorderBundleComponent(ctx);
 }
 
 export async function bundleComputeHandler(
 	ctx: RouteContext<BundleComputeInput>,
 ): Promise<BundleComputeResponse> {
-	requirePost(ctx);
-	const products = asCollection<StoredProduct>(ctx.storage.products);
-	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
-	const inventoryStock = asOptionalCollection<StoredInventoryStock>(ctx.storage.inventoryStock);
-	const bundleComponents = asCollection<StoredBundleComponent>(ctx.storage.bundleComponents);
-
-	const product = await products.get(ctx.input.productId);
-	if (!product) {
-		throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Product not found" });
-	}
-	if (product.type !== "bundle") {
-		throw PluginRouteError.badRequest("Product is not a bundle");
-	}
-
-	const components = await queryBundleComponentsForProduct(bundleComponents, product.id);
-	const lines: Array<{ component: StoredBundleComponent; sku: StoredProductSku }> = [];
-	for (const component of components) {
-		const sku = await productSkus.get(component.componentSkuId);
-		if (!sku) {
-			throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "Bundle component SKU not found" });
-		}
-		const componentProduct = await products.get(sku.productId);
-		if (!componentProduct) {
-			throwCommerceApiError({ code: "PRODUCT_UNAVAILABLE", message: "Bundle component product not found" });
-		}
-		const hydratedSkus = await hydrateSkusWithInventoryStock(componentProduct, [sku], inventoryStock);
-		lines.push({ component, sku: hydratedSkus[0] ?? sku });
-	}
-
-	return computeBundleSummary(
-		product.id,
-		product.bundleDiscountType,
-		product.bundleDiscountValueMinor,
-		product.bundleDiscountValueBps,
-		lines,
-	);
+	return handleBundleCompute(ctx);
 }
 
 export async function bundleComputeStorefrontHandler(
@@ -1653,87 +1498,17 @@ export async function bundleComputeStorefrontHandler(
 export async function createDigitalAssetHandler(
 	ctx: RouteContext<DigitalAssetCreateInput>,
 ): Promise<DigitalAssetResponse> {
-	requirePost(ctx);
-	const provider = ctx.input.provider ?? "media";
-	const isManualOnly = ctx.input.isManualOnly ?? false;
-	const isPrivate = ctx.input.isPrivate ?? true;
-	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
-	const nowIso = getNowIso();
-
-	const id = `digital_asset_${await randomHex(6)}`;
-	const asset: StoredDigitalAsset = {
-		id,
-		provider,
-		externalAssetId: ctx.input.externalAssetId,
-		label: ctx.input.label,
-		downloadLimit: ctx.input.downloadLimit,
-		downloadExpiryDays: ctx.input.downloadExpiryDays,
-		isManualOnly,
-		isPrivate,
-		metadata: ctx.input.metadata,
-		createdAt: nowIso,
-		updatedAt: nowIso,
-	};
-
-	await putWithConflictHandling(productDigitalAssets, id, asset, {
-		where: { provider, externalAssetId: ctx.input.externalAssetId },
-		message: "Digital asset already registered for provider key",
-	});
-	return { asset };
+	return handleCreateDigitalAsset(ctx);
 }
 
 export async function createDigitalEntitlementHandler(
 	ctx: RouteContext<DigitalEntitlementCreateInput>,
 ): Promise<DigitalEntitlementResponse> {
-	requirePost(ctx);
-	const productSkus = asCollection<StoredProductSku>(ctx.storage.productSkus);
-	const productDigitalAssets = asCollection<StoredDigitalAsset>(ctx.storage.digitalAssets);
-	const productDigitalEntitlements = asCollection<StoredDigitalEntitlement>(
-		ctx.storage.digitalEntitlements,
-	);
-	const nowIso = getNowIso();
-
-	const sku = await productSkus.get(ctx.input.skuId);
-	if (!sku) {
-		throwCommerceApiError({ code: "VARIANT_UNAVAILABLE", message: "SKU not found" });
-	}
-	if (sku.status !== "active") {
-		throw PluginRouteError.badRequest(`Cannot attach entitlement to inactive SKU ${ctx.input.skuId}`);
-	}
-
-	const digitalAsset = await productDigitalAssets.get(ctx.input.digitalAssetId);
-	if (!digitalAsset) {
-		throwCommerceApiError({ code: "DIGITAL_ASSET_NOT_FOUND", message: "Digital asset not found" });
-	}
-
-	const id = `entitlement_${await randomHex(6)}`;
-	const entitlement: StoredDigitalEntitlement = {
-		id,
-		skuId: ctx.input.skuId,
-		digitalAssetId: ctx.input.digitalAssetId,
-		grantedQuantity: ctx.input.grantedQuantity,
-		createdAt: nowIso,
-		updatedAt: nowIso,
-	};
-	await putWithConflictHandling(productDigitalEntitlements, id, entitlement, {
-		where: { skuId: ctx.input.skuId, digitalAssetId: ctx.input.digitalAssetId },
-		message: "SKU already has this digital entitlement",
-	});
-	return { entitlement };
+	return handleCreateDigitalEntitlement(ctx);
 }
 
 export async function removeDigitalEntitlementHandler(
 	ctx: RouteContext<DigitalEntitlementRemoveInput>,
 ): Promise<DigitalEntitlementUnlinkResponse> {
-	requirePost(ctx);
-	const productDigitalEntitlements = asCollection<StoredDigitalEntitlement>(
-		ctx.storage.digitalEntitlements,
-	);
-
-	const existing = await productDigitalEntitlements.get(ctx.input.entitlementId);
-	if (!existing) {
-		throwCommerceApiError({ code: "DIGITAL_ENTITLEMENT_NOT_FOUND", message: "Digital entitlement not found" });
-	}
-	await productDigitalEntitlements.delete(ctx.input.entitlementId);
-	return { deleted: true };
+	return handleRemoveDigitalEntitlement(ctx);
 }
