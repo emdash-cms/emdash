@@ -1154,15 +1154,64 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
 
     dimPromise.then(function(dims) {
-      var formData = new FormData();
-      formData.append("file", file);
-      if (dims.width) formData.append("width", String(dims.width));
-      if (dims.height) formData.append("height", String(dims.height));
+      // Generate a thumbnail for large images to avoid OOM in server-side
+      // blurhash generation on memory-constrained runtimes (Workers).
+      // Thumbnail fits within a 64x64 box (scale by max dimension) so that
+      // extreme aspect ratios don't explode into a huge canvas client-side.
+      var thumbPromise;
+      if (dims.width && dims.height && dims.width * dims.height * 4 > 32 * 1024 * 1024) {
+        thumbPromise = new Promise(function(resolve) {
+          try {
+            var maxDim = Math.max(dims.width, dims.height);
+            var scale = Math.min(1, 64 / maxDim);
+            var thumbW = Math.max(1, Math.round(dims.width * scale));
+            var thumbH = Math.max(1, Math.round(dims.height * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = thumbW;
+            canvas.height = thumbH;
+            var ctx = canvas.getContext("2d");
+            if (ctx) {
+              var img = new Image();
+              img.onload = function() {
+                try {
+                  ctx.drawImage(img, 0, 0, thumbW, thumbH);
+                  canvas.toBlob(function(blob) {
+                    URL.revokeObjectURL(img.src);
+                    resolve(blob);
+                  }, "image/png");
+                } catch (e) {
+                  URL.revokeObjectURL(img.src);
+                  resolve(null);
+                }
+              };
+              img.onerror = function() {
+                URL.revokeObjectURL(img.src);
+                resolve(null);
+              };
+              img.src = URL.createObjectURL(file);
+            } else {
+              resolve(null);
+            }
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      } else {
+        thumbPromise = Promise.resolve(null);
+      }
 
-      return ecFetch("/_emdash/api/media", {
-        method: "POST",
-        credentials: "same-origin",
-        body: formData
+      return thumbPromise.then(function(thumbnail) {
+        var formData = new FormData();
+        formData.append("file", file);
+        if (dims.width) formData.append("width", String(dims.width));
+        if (dims.height) formData.append("height", String(dims.height));
+        if (thumbnail) formData.append("thumbnail", thumbnail, "thumb.png");
+
+        return ecFetch("/_emdash/api/media", {
+          method: "POST",
+          credentials: "same-origin",
+          body: formData
+        });
       });
     })
     .then(function(r) { return r.json(); })
