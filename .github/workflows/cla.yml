@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "CLA Assistant"
+        continue-on-error: true
         if: (github.event.issue.pull_request && (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target'
         uses: contributor-assistant/github-action@v2.6.1
         env:
@@ -27,7 +28,9 @@ jobs:
           path-to-signatures: "signatures/version1/cla.json"
           path-to-document: "https://www.cloudflare.com/cla/"
           branch: "cla-signatures"
-          allowlist: dependabot[bot]
+          allowlist: |
+            dependabot[bot]
+            VMASPAD
           lock-pullrequest-aftermerge: false
 
   label:
