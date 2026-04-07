@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(plugin_id, author_id)
 );
-CREATE INDEX IF NOT EXISTS idx_reviews_plugin ON reviews(plugin_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_plugin ON reviews(plugin_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reviews_author ON reviews(author_id);
 
 -- ── Themes ──────────────────────────────────────────────────────

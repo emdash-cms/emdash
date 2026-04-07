@@ -99,7 +99,8 @@ export async function searchPlugins(
 			orderBy = "p.updated_at DESC";
 			break;
 		case "rating":
-			orderBy = "p.rating_avg DESC, p.rating_count DESC, p.created_at DESC";
+			orderBy =
+				"CASE WHEN p.rating_count >= 3 THEN p.rating_avg END DESC, p.rating_count DESC, p.created_at DESC";
 			break;
 		case "installs":
 		default:
@@ -275,6 +276,7 @@ export async function updateReview(
 	reviewId: string,
 	authorId: string,
 	data: { rating?: number; body?: string },
+	pluginId?: string,
 ): Promise<ReviewWithAuthor | null> {
 	const existing = await db
 		.prepare("SELECT * FROM reviews WHERE id = ? AND author_id = ?")
@@ -282,6 +284,7 @@ export async function updateReview(
 		.first<{ id: string; plugin_id: string }>();
 
 	if (!existing) return null;
+	if (pluginId && existing.plugin_id !== pluginId) return null;
 
 	const sets: string[] = [];
 	const bindings: unknown[] = [];
@@ -328,6 +331,7 @@ export async function deleteReview(
 	db: D1Database,
 	reviewId: string,
 	authorId: string,
+	pluginId?: string,
 ): Promise<{ deleted: boolean; pluginId?: string }> {
 	const existing = await db
 		.prepare("SELECT plugin_id FROM reviews WHERE id = ? AND author_id = ?")
@@ -335,6 +339,7 @@ export async function deleteReview(
 		.first<{ plugin_id: string }>();
 
 	if (!existing) return { deleted: false };
+	if (pluginId && existing.plugin_id !== pluginId) return { deleted: false };
 
 	await db.prepare("DELETE FROM reviews WHERE id = ?").bind(reviewId).run();
 	await recalculatePluginRating(db, existing.plugin_id);
@@ -347,6 +352,7 @@ export async function addPublisherReply(
 	reviewId: string,
 	pluginOwnerId: string,
 	reply: string,
+	pluginId?: string,
 ): Promise<ReviewWithAuthor | null> {
 	// Verify the review exists and the caller owns the plugin
 	const review = await db
@@ -359,10 +365,16 @@ export async function addPublisherReply(
 		.first<{ plugin_id: string }>();
 
 	if (!review) return null;
+	if (pluginId && review.plugin_id !== pluginId) return null;
+
+	const sanitizedReply = sanitizeReviewText(reply);
+	if (!sanitizedReply) return null;
 
 	await db
-		.prepare("UPDATE reviews SET publisher_reply = ?, replied_at = datetime('now') WHERE id = ?")
-		.bind(sanitizeReviewText(reply), reviewId)
+		.prepare(
+			"UPDATE reviews SET publisher_reply = ?, replied_at = datetime('now'), updated_at = datetime('now') WHERE id = ?",
+		)
+		.bind(sanitizedReply, reviewId)
 		.run();
 
 	return db

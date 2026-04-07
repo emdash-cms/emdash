@@ -61,22 +61,35 @@ reviewRoutes.post("/plugins/:id/reviews/*/reply", reviewAuthMiddleware);
 // ── Rate limiting (simple in-memory, per author) ────────────────
 
 const REVIEW_RATE_LIMIT_MS = 60_000; // 1 review per minute per author
+const MAX_TRACKED_AUTHORS = 1000;
 const recentReviews = new Map<string, number>();
 
-function checkRateLimit(authorId: string): boolean {
-	const now = Date.now();
-	const last = recentReviews.get(authorId);
-	if (last && now - last < REVIEW_RATE_LIMIT_MS) {
-		return false;
-	}
-	recentReviews.set(authorId, now);
-	// Clean old entries periodically
-	if (recentReviews.size > 1000) {
-		for (const [key, ts] of recentReviews) {
-			if (now - ts > REVIEW_RATE_LIMIT_MS) recentReviews.delete(key);
+function pruneRecentReviews(now: number): void {
+	for (const [key, ts] of recentReviews) {
+		if (now - ts > REVIEW_RATE_LIMIT_MS) {
+			recentReviews.delete(key);
+		} else {
+			break;
 		}
 	}
-	return true;
+	// Hard cap: evict oldest entries if still over limit
+	while (recentReviews.size > MAX_TRACKED_AUTHORS) {
+		const oldest = recentReviews.keys().next().value;
+		if (oldest === undefined) break;
+		recentReviews.delete(oldest);
+	}
+}
+
+function isRateLimited(authorId: string): boolean {
+	const now = Date.now();
+	pruneRecentReviews(now);
+	const last = recentReviews.get(authorId);
+	return !!last && now - last < REVIEW_RATE_LIMIT_MS;
+}
+
+function recordRateLimit(authorId: string): void {
+	recentReviews.delete(authorId);
+	recentReviews.set(authorId, Date.now());
 }
 
 /** Reset rate limiter state. Exported for tests only. */
@@ -141,7 +154,7 @@ reviewRoutes.post("/plugins/:id/reviews", async (c) => {
 		return c.json({ error: "Invalid JSON" }, 400);
 	}
 
-	if (!checkRateLimit(author.id)) {
+	if (isRateLimited(author.id)) {
 		return c.json({ error: "Too many reviews. Please wait before submitting another." }, 429);
 	}
 
@@ -156,6 +169,9 @@ reviewRoutes.post("/plugins/:id/reviews", async (c) => {
 			rating: body.rating,
 			body: body.body,
 		});
+
+		// Only record rate limit after successful creation
+		recordRateLimit(author.id);
 
 		return c.json(
 			{
@@ -185,6 +201,7 @@ const updateReviewSchema = z.object({
 });
 
 reviewRoutes.put("/plugins/:id/reviews/:reviewId", async (c) => {
+	const pluginId = c.req.param("id");
 	const reviewId = c.req.param("reviewId");
 	const author = c.get("author");
 
@@ -200,7 +217,7 @@ reviewRoutes.put("/plugins/:id/reviews/:reviewId", async (c) => {
 	}
 
 	try {
-		const updated = await updateReview(c.env.DB, reviewId, author.id, body);
+		const updated = await updateReview(c.env.DB, reviewId, author.id, body, pluginId);
 		if (!updated) return c.json({ error: "Review not found or not yours" }, 404);
 
 		return c.json({
@@ -218,11 +235,12 @@ reviewRoutes.put("/plugins/:id/reviews/:reviewId", async (c) => {
 // ── DELETE /plugins/:id/reviews/:reviewId — Delete own review ──
 
 reviewRoutes.delete("/plugins/:id/reviews/:reviewId", async (c) => {
+	const pluginId = c.req.param("id");
 	const reviewId = c.req.param("reviewId");
 	const author = c.get("author");
 
 	try {
-		const result = await deleteReview(c.env.DB, reviewId, author.id);
+		const result = await deleteReview(c.env.DB, reviewId, author.id, pluginId);
 		if (!result.deleted) return c.json({ error: "Review not found or not yours" }, 404);
 
 		return c.json({ ok: true });
@@ -239,6 +257,7 @@ const replySchema = z.object({
 });
 
 reviewRoutes.post("/plugins/:id/reviews/:reviewId/reply", async (c) => {
+	const pluginId = c.req.param("id");
 	const reviewId = c.req.param("reviewId");
 	const author = c.get("author");
 
@@ -254,7 +273,7 @@ reviewRoutes.post("/plugins/:id/reviews/:reviewId/reply", async (c) => {
 	}
 
 	try {
-		const updated = await addPublisherReply(c.env.DB, reviewId, author.id, body.body);
+		const updated = await addPublisherReply(c.env.DB, reviewId, author.id, body.body, pluginId);
 		if (!updated) {
 			return c.json({ error: "Review not found or you don't own the plugin" }, 404);
 		}

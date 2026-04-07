@@ -334,6 +334,41 @@ describe("review CRUD", () => {
 		expect(res.status).toBe(404);
 	});
 
+	it("rate limits repeated submissions", async () => {
+		// Create a second plugin so same author can review a different one
+		seedPlugin(d1._db, "other-plugin", "publisher-1");
+
+		// First review succeeds
+		const res1 = await app.request(
+			"/api/v1/plugins/test-plugin/reviews",
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${reviewerToken}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ rating: 5 }),
+			},
+			env,
+		);
+		expect(res1.status).toBe(201);
+
+		// Second review within rate limit window is rejected
+		const res2 = await app.request(
+			"/api/v1/plugins/other-plugin/reviews",
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${reviewerToken}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ rating: 4 }),
+			},
+			env,
+		);
+		expect(res2.status).toBe(429);
+	});
+
 	it("sanitizes HTML in review body", async () => {
 		const res = await app.request(
 			"/api/v1/plugins/test-plugin/reviews",
