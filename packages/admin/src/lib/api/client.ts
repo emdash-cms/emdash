@@ -29,11 +29,20 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 	if (typeof body === "object" && body !== null && "error" in body) {
 		const { error } = body;
 		if (typeof error === "object" && error !== null) {
-			const errorObj = error as { message?: string; details?: { issues?: Array<{ path: string; message: string }> } };
+			const errorObj = error as {
+				message?: string;
+				details?: { issues?: Array<{ path: string; message: string }> };
+			};
 
 			// Check if this is a validation error with detailed issues
-			if (errorObj.details?.issues && Array.isArray(errorObj.details.issues) && errorObj.details.issues.length > 0) {
-				const issues = errorObj.details.issues.map(issue => `${issue.path}: ${issue.message}`).join("; ");
+			if (
+				errorObj.details?.issues &&
+				Array.isArray(errorObj.details.issues) &&
+				errorObj.details.issues.length > 0
+			) {
+				const issues = errorObj.details.issues
+					.map((issue) => `${issue.path}: ${issue.message}`)
+					.join("; ");
 				message = issues;
 			} else if (errorObj.message) {
 				message = errorObj.message;
