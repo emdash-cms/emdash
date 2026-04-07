@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS plugins (
   capabilities TEXT NOT NULL,
   keywords TEXT,
   has_icon INTEGER DEFAULT 0,
+  rating_avg REAL NOT NULL DEFAULT 0,
+  rating_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -85,6 +87,25 @@ CREATE TABLE IF NOT EXISTS installs (
   PRIMARY KEY (plugin_id, site_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_installs_plugin ON installs(plugin_id);
+
+-- ── Reviews ─────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  plugin_id TEXT NOT NULL REFERENCES plugins(id),
+  author_id TEXT NOT NULL REFERENCES authors(id),
+  rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+  body TEXT,
+  publisher_reply TEXT,
+  replied_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(plugin_id, author_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_plugin ON reviews(plugin_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_author ON reviews(author_id);
+
+-- ── Themes ──────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS themes (
   id TEXT PRIMARY KEY,

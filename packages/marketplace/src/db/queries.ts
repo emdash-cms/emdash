@@ -6,6 +6,7 @@ import type {
 	PluginSearchResult,
 	PluginVersionRow,
 	PluginWithAuthor,
+	ReviewWithAuthor,
 	SearchOptions,
 	ThemeRow,
 	ThemeSearchOptions,
@@ -96,6 +97,9 @@ export async function searchPlugins(
 			break;
 		case "updated":
 			orderBy = "p.updated_at DESC";
+			break;
+		case "rating":
+			orderBy = "p.rating_avg DESC, p.rating_count DESC, p.created_at DESC";
 			break;
 		case "installs":
 		default:
@@ -197,6 +201,190 @@ export async function getPluginVersion(
 		.prepare("SELECT * FROM plugin_versions WHERE plugin_id = ? AND version = ?")
 		.bind(pluginId, version)
 		.first<PluginVersionRow>();
+}
+
+// ── Review queries ──────────────────────────────────────────────
+
+/** Strip HTML/script tags from review text. Plain text only. */
+const HTML_TAG_RE = /<[^>]*>/g;
+
+function sanitizeReviewText(text: string): string {
+	return text.replace(HTML_TAG_RE, "").trim();
+}
+
+export async function getPluginReviews(
+	db: D1Database,
+	pluginId: string,
+	opts?: { cursor?: string; limit?: number },
+): Promise<{ items: ReviewWithAuthor[]; nextCursor?: string }> {
+	const limit = clampLimit(opts?.limit);
+	const offset = decodeCursor(opts?.cursor);
+
+	const result = await db
+		.prepare(
+			`SELECT r.*, a.name AS author_name, a.avatar_url AS author_avatar_url
+			FROM reviews r
+			JOIN authors a ON a.id = r.author_id
+			WHERE r.plugin_id = ?
+			ORDER BY r.created_at DESC
+			LIMIT ? OFFSET ?`,
+		)
+		.bind(pluginId, limit + 1, offset)
+		.all<ReviewWithAuthor>();
+
+	const items = result.results ?? [];
+	let nextCursor: string | undefined;
+	if (items.length > limit) {
+		items.pop();
+		nextCursor = encodeCursor(offset + limit);
+	}
+
+	return { items, nextCursor };
+}
+
+export async function createReview(
+	db: D1Database,
+	data: { pluginId: string; authorId: string; rating: number; body?: string },
+): Promise<ReviewWithAuthor> {
+	const id = generateId();
+	const sanitizedBody = data.body ? sanitizeReviewText(data.body) : null;
+
+	await db
+		.prepare(
+			`INSERT INTO reviews (id, plugin_id, author_id, rating, body)
+			VALUES (?, ?, ?, ?, ?)`,
+		)
+		.bind(id, data.pluginId, data.authorId, data.rating, sanitizedBody)
+		.run();
+
+	// Atomically recalculate rating on the plugins table
+	await recalculatePluginRating(db, data.pluginId);
+
+	return (await db
+		.prepare(
+			`SELECT r.*, a.name AS author_name, a.avatar_url AS author_avatar_url
+			FROM reviews r JOIN authors a ON a.id = r.author_id
+			WHERE r.id = ?`,
+		)
+		.bind(id)
+		.first<ReviewWithAuthor>())!;
+}
+
+export async function updateReview(
+	db: D1Database,
+	reviewId: string,
+	authorId: string,
+	data: { rating?: number; body?: string },
+): Promise<ReviewWithAuthor | null> {
+	const existing = await db
+		.prepare("SELECT * FROM reviews WHERE id = ? AND author_id = ?")
+		.bind(reviewId, authorId)
+		.first<{ id: string; plugin_id: string }>();
+
+	if (!existing) return null;
+
+	const sets: string[] = [];
+	const bindings: unknown[] = [];
+
+	if (data.rating !== undefined) {
+		sets.push("rating = ?");
+		bindings.push(data.rating);
+	}
+	if (data.body !== undefined) {
+		sets.push("body = ?");
+		bindings.push(sanitizeReviewText(data.body));
+	}
+
+	if (sets.length === 0) {
+		return db
+			.prepare(
+				`SELECT r.*, a.name AS author_name, a.avatar_url AS author_avatar_url
+				FROM reviews r JOIN authors a ON a.id = r.author_id WHERE r.id = ?`,
+			)
+			.bind(reviewId)
+			.first<ReviewWithAuthor>();
+	}
+
+	sets.push("updated_at = datetime('now')");
+	bindings.push(reviewId);
+
+	await db
+		.prepare(`UPDATE reviews SET ${sets.join(", ")} WHERE id = ?`)
+		.bind(...bindings)
+		.run();
+
+	await recalculatePluginRating(db, existing.plugin_id);
+
+	return db
+		.prepare(
+			`SELECT r.*, a.name AS author_name, a.avatar_url AS author_avatar_url
+			FROM reviews r JOIN authors a ON a.id = r.author_id WHERE r.id = ?`,
+		)
+		.bind(reviewId)
+		.first<ReviewWithAuthor>();
+}
+
+export async function deleteReview(
+	db: D1Database,
+	reviewId: string,
+	authorId: string,
+): Promise<{ deleted: boolean; pluginId?: string }> {
+	const existing = await db
+		.prepare("SELECT plugin_id FROM reviews WHERE id = ? AND author_id = ?")
+		.bind(reviewId, authorId)
+		.first<{ plugin_id: string }>();
+
+	if (!existing) return { deleted: false };
+
+	await db.prepare("DELETE FROM reviews WHERE id = ?").bind(reviewId).run();
+	await recalculatePluginRating(db, existing.plugin_id);
+
+	return { deleted: true, pluginId: existing.plugin_id };
+}
+
+export async function addPublisherReply(
+	db: D1Database,
+	reviewId: string,
+	pluginOwnerId: string,
+	reply: string,
+): Promise<ReviewWithAuthor | null> {
+	// Verify the review exists and the caller owns the plugin
+	const review = await db
+		.prepare(
+			`SELECT r.plugin_id FROM reviews r
+			JOIN plugins p ON p.id = r.plugin_id
+			WHERE r.id = ? AND p.author_id = ?`,
+		)
+		.bind(reviewId, pluginOwnerId)
+		.first<{ plugin_id: string }>();
+
+	if (!review) return null;
+
+	await db
+		.prepare("UPDATE reviews SET publisher_reply = ?, replied_at = datetime('now') WHERE id = ?")
+		.bind(sanitizeReviewText(reply), reviewId)
+		.run();
+
+	return db
+		.prepare(
+			`SELECT r.*, a.name AS author_name, a.avatar_url AS author_avatar_url
+			FROM reviews r JOIN authors a ON a.id = r.author_id WHERE r.id = ?`,
+		)
+		.bind(reviewId)
+		.first<ReviewWithAuthor>();
+}
+
+/** Atomically recalculate rating_avg and rating_count from the reviews table. */
+async function recalculatePluginRating(db: D1Database, pluginId: string): Promise<void> {
+	await db
+		.prepare(
+			`UPDATE plugins SET
+				rating_avg = COALESCE((SELECT AVG(CAST(rating AS REAL)) FROM reviews WHERE plugin_id = ?), 0),
+				rating_count = (SELECT COUNT(*) FROM reviews WHERE plugin_id = ?)
+			WHERE id = ?`,
+		)
+		.bind(pluginId, pluginId, pluginId)
+		.run();
 }
 
 // ── Install queries ─────────────────────────────────────────────

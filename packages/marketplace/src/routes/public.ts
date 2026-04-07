@@ -33,11 +33,11 @@ publicRoutes.get("/plugins", async (c) => {
 	const q = url.searchParams.get("q") ?? undefined;
 	const capability = url.searchParams.get("capability") ?? undefined;
 	const sortParam = url.searchParams.get("sort");
-	const validSorts = new Set(["installs", "updated", "created", "name"]);
-	let sort: "installs" | "updated" | "created" | "name" | undefined;
+	const validSorts = new Set(["installs", "updated", "created", "name", "rating"]);
+	let sort: "installs" | "updated" | "created" | "name" | "rating" | undefined;
 	if (sortParam && validSorts.has(sortParam)) {
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by Set.has check above
-		sort = sortParam as "installs" | "updated" | "created" | "name";
+		sort = sortParam as "installs" | "updated" | "created" | "name" | "rating";
 	}
 	const cursor = url.searchParams.get("cursor") ?? undefined;
 	const limitStr = url.searchParams.get("limit");
@@ -123,6 +123,10 @@ publicRoutes.get("/plugins/:id", async (c) => {
 			hasIcon: plugin.has_icon === 1,
 			iconUrl: `${baseUrl}/api/v1/plugins/${plugin.id}/icon`,
 			installCount,
+			rating:
+				plugin.rating_count >= 3
+					? { average: Math.round(plugin.rating_avg * 10) / 10, count: plugin.rating_count }
+					: null,
 			createdAt: plugin.created_at,
 			updatedAt: plugin.updated_at,
 		};
