@@ -1,24 +1,22 @@
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import * as React from "react";
-import { render as baseRender } from "vitest-browser-react";
+import { render as baseRender, type ComponentRenderOptions } from "vitest-browser-react";
 
 if (!i18n.locale) {
 	i18n.loadAndActivate({ locale: "en", messages: {} });
 }
 
-function I18nWrapper({ children }: { children: React.ReactNode }) {
-	return <I18nProvider i18n={i18n}>{children}</I18nProvider>;
-}
+type RenderWrapper = ComponentRenderOptions["wrapper"];
 
-export function render(ui: React.ReactElement, options?: Parameters<typeof baseRender>[1]) {
-	const UserWrapper = options?.wrapper;
-	const CombinedWrapper = UserWrapper
-		? ({ children }: { children: React.ReactNode }) => (
-				<I18nWrapper>
-					<UserWrapper>{children}</UserWrapper>
-				</I18nWrapper>
-			)
-		: I18nWrapper;
-	return baseRender(ui, { ...options, wrapper: CombinedWrapper });
-}
+const I18nWrapper = (InnerWrapper: RenderWrapper = React.Fragment) => {
+	return ({ children }: React.PropsWithChildren) => (
+		<I18nProvider i18n={i18n}>
+			<InnerWrapper>{children}</InnerWrapper>
+		</I18nProvider>
+	);
+};
+
+export const render: typeof baseRender = (ui, { wrapper: UserWrapper, ...options } = {}) => {
+	return baseRender(ui, { ...options, wrapper: I18nWrapper(UserWrapper) });
+};
