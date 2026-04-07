@@ -57,6 +57,33 @@ function rowToByline(row: BylineRow): BylineSummary {
 export class BylineRepository {
 	constructor(private db: Kysely<Database>) {}
 
+	/** Single batched SELECT for getContentBylinesMany. Caller must keep
+	 *  `contentIds` under D1's 100-parameter statement limit. */
+	private async fetchBylineCreditsChunk(collectionSlug: string, contentIds: string[]) {
+		return this.db
+			.selectFrom("_emdash_content_bylines as cb")
+			.innerJoin("_emdash_bylines as b", "b.id", "cb.byline_id")
+			.select([
+				"cb.content_id as content_id",
+				"cb.sort_order as sort_order",
+				"cb.role_label as role_label",
+				"b.id as id",
+				"b.slug as slug",
+				"b.display_name as display_name",
+				"b.bio as bio",
+				"b.avatar_media_id as avatar_media_id",
+				"b.website_url as website_url",
+				"b.user_id as user_id",
+				"b.is_guest as is_guest",
+				"b.created_at as created_at",
+				"b.updated_at as updated_at",
+			])
+			.where("cb.collection_slug", "=", collectionSlug)
+			.where("cb.content_id", "in", contentIds)
+			.orderBy("cb.sort_order", "asc")
+			.execute();
+	}
+
 	async findById(id: string): Promise<BylineSummary | null> {
 		const row = await this.db
 			.selectFrom("_emdash_bylines")
@@ -249,8 +276,11 @@ export class BylineRepository {
 	}
 
 	/**
-	 * Batch-fetch byline credits for multiple content items in a single query.
+	 * Batch-fetch byline credits for multiple content items.
 	 * Returns a Map keyed by contentId.
+	 *
+	 * Chunked to stay under D1's 100-parameter statement limit (one slot is
+	 * consumed by `collectionSlug`, leaving room for 99 ids; chunk 90 for headroom).
 	 */
 	async getContentBylinesMany(
 		collectionSlug: string,
@@ -259,41 +289,22 @@ export class BylineRepository {
 		const result = new Map<string, ContentBylineCredit[]>();
 		if (contentIds.length === 0) return result;
 
-		const rows = await this.db
-			.selectFrom("_emdash_content_bylines as cb")
-			.innerJoin("_emdash_bylines as b", "b.id", "cb.byline_id")
-			.select([
-				"cb.content_id as content_id",
-				"cb.sort_order as sort_order",
-				"cb.role_label as role_label",
-				"b.id as id",
-				"b.slug as slug",
-				"b.display_name as display_name",
-				"b.bio as bio",
-				"b.avatar_media_id as avatar_media_id",
-				"b.website_url as website_url",
-				"b.user_id as user_id",
-				"b.is_guest as is_guest",
-				"b.created_at as created_at",
-				"b.updated_at as updated_at",
-			])
-			.where("cb.collection_slug", "=", collectionSlug)
-			.where("cb.content_id", "in", contentIds)
-			.orderBy("cb.sort_order", "asc")
-			.execute();
-
-		for (const row of rows) {
-			const contentId = row.content_id;
-			const credit: ContentBylineCredit = {
-				byline: rowToByline(row),
-				sortOrder: row.sort_order,
-				roleLabel: row.role_label,
-			};
-			const existing = result.get(contentId);
-			if (existing) {
-				existing.push(credit);
-			} else {
-				result.set(contentId, [credit]);
+		const CHUNK_SIZE = 90;
+		for (let i = 0; i < contentIds.length; i += CHUNK_SIZE) {
+			const chunk = contentIds.slice(i, i + CHUNK_SIZE);
+			const rows = await this.fetchBylineCreditsChunk(collectionSlug, chunk);
+			for (const row of rows) {
+				const credit: ContentBylineCredit = {
+					byline: rowToByline(row),
+					sortOrder: row.sort_order,
+					roleLabel: row.role_label,
+				};
+				const existing = result.get(row.content_id);
+				if (existing) {
+					existing.push(credit);
+				} else {
+					result.set(row.content_id, [credit]);
+				}
 			}
 		}
 
@@ -308,15 +319,19 @@ export class BylineRepository {
 		const result = new Map<string, BylineSummary>();
 		if (userIds.length === 0) return result;
 
-		const rows = await this.db
-			.selectFrom("_emdash_bylines")
-			.selectAll()
-			.where("user_id", "in", userIds)
-			.execute();
-
-		for (const row of rows) {
-			if (row.user_id) {
-				result.set(row.user_id, rowToByline(row));
+		// Chunked to stay under D1's 100-parameter statement limit.
+		const CHUNK_SIZE = 90;
+		for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+			const chunk = userIds.slice(i, i + CHUNK_SIZE);
+			const rows = await this.db
+				.selectFrom("_emdash_bylines")
+				.selectAll()
+				.where("user_id", "in", chunk)
+				.execute();
+			for (const row of rows) {
+				if (row.user_id) {
+					result.set(row.user_id, rowToByline(row));
+				}
 			}
 		}
 		return result;

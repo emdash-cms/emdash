@@ -36,6 +36,17 @@ function hasAnyField(input: ContentSeoInput): boolean {
 export class SeoRepository {
 	constructor(private db: Kysely<Database>) {}
 
+	/** Single batched SELECT for an IN-clause chunk. Caller is responsible for
+	 *  keeping the chunk under D1's 100-parameter statement limit. */
+	private async fetchSeoChunk(collection: string, contentIds: string[]) {
+		return this.db
+			.selectFrom("_emdash_seo")
+			.selectAll()
+			.where("collection", "=", collection)
+			.where("content_id", "in", contentIds)
+			.execute();
+	}
+
 	/**
 	 * Get SEO data for a content item. Returns null defaults if no row exists.
 	 */
@@ -61,36 +72,36 @@ export class SeoRepository {
 	}
 
 	/**
-	 * Get SEO data for multiple content items in a single query.
+	 * Get SEO data for multiple content items.
 	 * Returns a Map keyed by content_id. Items without SEO rows get defaults.
+	 *
+	 * The IN clause is chunked because D1 (and SQLite by default) caps a single
+	 * statement at 100 bound parameters. With one slot consumed by `collection`,
+	 * we can fit at most 99 ids per batch — chunk size 90 leaves headroom.
 	 */
 	async getMany(collection: string, contentIds: string[]): Promise<Map<string, ContentSeo>> {
 		const result = new Map<string, ContentSeo>();
 
 		if (contentIds.length === 0) return result;
 
-		// Batch query — single SELECT with IN clause
-		const rows = await this.db
-			.selectFrom("_emdash_seo")
-			.selectAll()
-			.where("collection", "=", collection)
-			.where("content_id", "in", contentIds)
-			.execute();
-
-		// Index fetched rows by content_id
-		const rowMap = new Map(rows.map((r) => [r.content_id, r]));
-
-		for (const id of contentIds) {
-			const row = rowMap.get(id);
-			if (row) {
-				result.set(id, {
+		const CHUNK_SIZE = 90;
+		for (let i = 0; i < contentIds.length; i += CHUNK_SIZE) {
+			const chunk = contentIds.slice(i, i + CHUNK_SIZE);
+			const rows = await this.fetchSeoChunk(collection, chunk);
+			for (const row of rows) {
+				result.set(row.content_id, {
 					title: row.seo_title ?? null,
 					description: row.seo_description ?? null,
 					image: row.seo_image ?? null,
 					canonical: row.seo_canonical ?? null,
 					noIndex: row.seo_no_index === 1,
 				});
-			} else {
+			}
+		}
+
+		// Fill in defaults for ids that had no SEO row.
+		for (const id of contentIds) {
+			if (!result.has(id)) {
 				result.set(id, { ...SEO_DEFAULTS });
 			}
 		}
