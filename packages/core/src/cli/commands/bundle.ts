@@ -38,6 +38,7 @@ import {
 } from "./bundle-utils.js";
 
 const TS_EXT_RE = /\.tsx?$/;
+const TS_SOURCE_EXPORT_RE = /\.(?:ts|tsx|mts|cts|jsx)$/;
 const SLASH_RE = /\//g;
 const LEADING_AT_RE = /^@/;
 const emdash_SCOPE_RE = /^@emdash-cms\//;
@@ -494,6 +495,28 @@ export const bundleCommand = defineCommand({
 
 			consola.start("Validating bundle...");
 			let hasErrors = false;
+
+			// Check that package.json exports point to built files, not source.
+			// Plugins published to npm with source exports will break site builds
+			// because the sandbox module generator embeds the resolved file as-is.
+			if (pkg.exports) {
+				for (const [exportPath, exportValue] of Object.entries(pkg.exports)) {
+					const resolved =
+						typeof exportValue === "string"
+							? exportValue
+							: exportValue && typeof exportValue === "object" && "import" in exportValue
+								? (exportValue as { import: string }).import
+								: null;
+					if (resolved && TS_SOURCE_EXPORT_RE.test(resolved)) {
+						consola.error(
+							`Export "${exportPath}" points to source (${resolved}). ` +
+								`Package exports must point to built files (e.g. dist/*.mjs). ` +
+								`Add a build step and update the exports map.`,
+						);
+						hasErrors = true;
+					}
+				}
+			}
 
 			// Check for Node.js builtins in backend.js
 			const backendPath = join(bundleDir, "backend.js");
