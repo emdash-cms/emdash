@@ -5,22 +5,32 @@ description: Plugin hooks for extending EmDash functionality.
 
 import { Aside } from "@astrojs/starlight/components";
 
-Hooks allow plugins to intercept and modify EmDash behavior at specific points in the content and media lifecycle.
+Hooks allow plugins to intercept and modify EmDash behavior at specific points in the content, media, email, comment, and page lifecycle.
 
 ## Hook Overview
 
-| Hook                   | Trigger                        | Can Modify    |
-| ---------------------- | ------------------------------ | ------------- |
-| `content:beforeSave`   | Before content is saved        | Content data  |
-| `content:afterSave`    | After content is saved         | Nothing       |
-| `content:beforeDelete` | Before content is deleted      | Can cancel    |
-| `content:afterDelete`  | After content is deleted       | Nothing       |
-| `media:beforeUpload`   | Before file is uploaded        | File metadata |
-| `media:afterUpload`    | After file is uploaded         | Nothing       |
-| `plugin:install`       | When plugin is first installed | Nothing       |
-| `plugin:activate`      | When plugin is enabled         | Nothing       |
-| `plugin:deactivate`    | When plugin is disabled        | Nothing       |
-| `plugin:uninstall`     | When plugin is removed         | Nothing       |
+| Hook                    | Trigger                               | Can Modify        | Exclusive |
+| ----------------------- | ------------------------------------- | ----------------- | --------- |
+| `content:beforeSave`    | Before content is saved               | Content data      | No        |
+| `content:afterSave`     | After content is saved                | Nothing           | No        |
+| `content:beforeDelete`  | Before content is deleted             | Can cancel        | No        |
+| `content:afterDelete`   | After content is deleted              | Nothing           | No        |
+| `media:beforeUpload`    | Before file is uploaded               | File metadata     | No        |
+| `media:afterUpload`     | After file is uploaded                | Nothing           | No        |
+| `cron`                  | Scheduled task fires                  | Nothing           | No        |
+| `email:beforeSend`      | Before email delivery                 | Message, can cancel | No      |
+| `email:deliver`         | Deliver email via transport           | Nothing           | Yes       |
+| `email:afterSend`       | After successful email delivery       | Nothing           | No        |
+| `comment:beforeCreate`  | Before comment is stored              | Comment, can cancel | No      |
+| `comment:moderate`      | Decide comment approval status        | Status            | Yes       |
+| `comment:afterCreate`   | After comment is stored               | Nothing           | No        |
+| `comment:afterModerate` | After admin changes comment status    | Nothing           | No        |
+| `page:metadata`         | Rendering public page head            | Contribute tags   | No        |
+| `page:fragments`        | Rendering public page body            | Inject scripts    | No        |
+| `plugin:install`        | When plugin is first installed        | Nothing           | No        |
+| `plugin:activate`       | When plugin is enabled                | Nothing           | No        |
+| `plugin:deactivate`     | When plugin is disabled               | Nothing           | No        |
+| `plugin:uninstall`      | When plugin is removed                | Nothing           | No        |
 
 ## Content Hooks
 
@@ -290,6 +300,320 @@ interface UninstallEvent {
 }
 ```
 
+## Cron Hook
+
+### `cron`
+
+Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`.
+
+```ts
+hooks: {
+  "cron": async (event, ctx) => {
+    if (event.name === "daily-sync") {
+      const data = await ctx.http?.fetch("https://api.example.com/data");
+      ctx.log.info("Sync complete");
+    }
+  },
+}
+```
+
+#### Event
+
+```ts
+interface CronEvent {
+	name: string;
+	data?: Record<string, unknown>;
+	scheduledAt: string;
+}
+```
+
+## Email Hooks
+
+Email hooks form a pipeline: `email:beforeSend` → `email:deliver` → `email:afterSend`.
+
+### `email:beforeSend`
+
+**Capability:** `email:intercept`
+
+Middleware hook that runs before delivery. Transform messages or cancel delivery.
+
+```ts
+hooks: {
+  "email:beforeSend": async (event, ctx) => {
+    // Add footer to all emails
+    return {
+      ...event.message,
+      text: event.message.text + "\n\n—Sent from My Site",
+    };
+
+    // Or return false to cancel delivery
+  },
+}
+```
+
+#### Event
+
+```ts
+interface EmailBeforeSendEvent {
+	message: { to: string; subject: string; text: string; html?: string };
+	source: string;
+}
+```
+
+#### Return Value
+
+- Return modified message to transform
+- Return `false` to cancel delivery
+- Return `void` to pass through unchanged
+
+### `email:deliver`
+
+**Capability:** `email:provide` | **Exclusive:** Yes
+
+The transport provider. Only one plugin can deliver emails. Responsible for actually sending the message via an email service.
+
+```ts
+hooks: {
+  "email:deliver": {
+    exclusive: true,
+    handler: async (event, ctx) => {
+      await sendViaSES(event.message);
+    },
+  },
+}
+```
+
+### `email:afterSend`
+
+**Capability:** `email:intercept`
+
+Fire-and-forget hook after successful delivery. Errors are logged but do not propagate.
+
+```ts
+hooks: {
+  "email:afterSend": async (event, ctx) => {
+    await ctx.kv.set(`email:log:${Date.now()}`, {
+      to: event.message.to,
+      subject: event.message.subject,
+    });
+  },
+}
+```
+
+## Comment Hooks
+
+Comment hooks form a pipeline: `comment:beforeCreate` → `comment:moderate` → `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
+
+### `comment:beforeCreate`
+
+**Capability:** `read:users`
+
+Middleware hook before a comment is stored. Enrich, validate, or reject comments.
+
+```ts
+hooks: {
+  "comment:beforeCreate": async (event, ctx) => {
+    // Reject comments with links
+    if (event.comment.body.includes("http")) {
+      return false;
+    }
+  },
+}
+```
+
+#### Event
+
+```ts
+interface CommentBeforeCreateEvent {
+	comment: {
+		collection: string;
+		contentId: string;
+		parentId: string | null;
+		authorName: string;
+		authorEmail: string;
+		authorUserId: string | null;
+		body: string;
+		ipHash: string | null;
+		userAgent: string | null;
+	};
+	metadata: Record<string, unknown>;
+}
+```
+
+#### Return Value
+
+- Return modified event to transform
+- Return `false` to reject
+- Return `void` to pass through
+
+### `comment:moderate`
+
+**Capability:** `read:users` | **Exclusive:** Yes
+
+Decide whether a comment is approved, pending, or spam. Only one moderation provider is active.
+
+```ts
+hooks: {
+  "comment:moderate": {
+    exclusive: true,
+    handler: async (event, ctx) => {
+      const score = await checkSpam(event.comment);
+      return {
+        status: score > 0.8 ? "spam" : score > 0.5 ? "pending" : "approved",
+        reason: `Spam score: ${score}`,
+      };
+    },
+  },
+}
+```
+
+#### Event
+
+```ts
+interface CommentModerateEvent {
+	comment: { /* same as beforeCreate */ };
+	metadata: Record<string, unknown>;
+	collectionSettings: {
+		commentsEnabled: boolean;
+		commentsModeration: "all" | "first_time" | "none";
+		commentsClosedAfterDays: number;
+		commentsAutoApproveUsers: boolean;
+	};
+	priorApprovedCount: number;
+}
+```
+
+#### Return Value
+
+```ts
+{ status: "approved" | "pending" | "spam"; reason?: string }
+```
+
+### `comment:afterCreate`
+
+**Capability:** `read:users`
+
+Fire-and-forget hook after a comment is stored. Use for notifications.
+
+```ts
+hooks: {
+  "comment:afterCreate": async (event, ctx) => {
+    if (event.comment.status === "approved") {
+      await ctx.email?.send({
+        to: event.contentAuthor?.email,
+        subject: `New comment on "${event.content.title}"`,
+        text: `${event.comment.authorName} commented: ${event.comment.body}`,
+      });
+    }
+  },
+}
+```
+
+### `comment:afterModerate`
+
+**Capability:** `read:users`
+
+Fire-and-forget hook when an admin manually changes a comment's status.
+
+#### Event
+
+```ts
+interface CommentAfterModerateEvent {
+	comment: { id: string; /* ... */ };
+	previousStatus: string;
+	newStatus: string;
+	moderator: { id: string; name: string | null };
+}
+```
+
+## Page Hooks
+
+Page hooks run when rendering public pages. They allow plugins to inject metadata and scripts.
+
+### `page:metadata`
+
+**Capability:** `page:inject`
+
+Contribute meta tags, Open Graph properties, JSON-LD structured data, or link tags to the page head.
+
+```ts
+hooks: {
+  "page:metadata": async (event, ctx) => {
+    return [
+      { kind: "meta", name: "generator", content: "EmDash" },
+      { kind: "property", property: "og:site_name", content: event.page.siteName },
+      { kind: "jsonld", graph: { "@type": "WebSite", name: event.page.siteName } },
+    ];
+  },
+}
+```
+
+#### Contribution Types
+
+```ts
+type PageMetadataContribution =
+	| { kind: "meta"; name: string; content: string; key?: string }
+	| { kind: "property"; property: string; content: string; key?: string }
+	| { kind: "link"; rel: string; href: string; hreflang?: string; key?: string }
+	| { kind: "jsonld"; id?: string; graph: Record<string, unknown> };
+```
+
+The `key` field deduplicates contributions — only the last contribution with a given key is used.
+
+### `page:fragments`
+
+**Capability:** `page:inject`
+
+Inject scripts or HTML into pages. Only available to trusted (native) plugins.
+
+```ts
+hooks: {
+  "page:fragments": async (event, ctx) => {
+    return [
+      {
+        kind: "external-script",
+        placement: "body:end",
+        src: "https://analytics.example.com/script.js",
+        async: true,
+      },
+      {
+        kind: "inline-script",
+        placement: "head",
+        code: `window.siteId = "abc123";`,
+      },
+    ];
+  },
+}
+```
+
+#### Contribution Types
+
+```ts
+type PageFragmentContribution =
+	| {
+			kind: "external-script";
+			placement: "head" | "body:start" | "body:end";
+			src: string;
+			async?: boolean;
+			defer?: boolean;
+			attributes?: Record<string, string>;
+			key?: string;
+		}
+	| {
+			kind: "inline-script";
+			placement: "head" | "body:start" | "body:end";
+			code: string;
+			attributes?: Record<string, string>;
+			key?: string;
+		}
+	| {
+			kind: "html";
+			placement: "head" | "body:start" | "body:end";
+			html: string;
+			key?: string;
+		};
+```
+
 ## Hook Configuration
 
 Hooks accept either a handler function or a configuration object:
@@ -312,12 +636,13 @@ hooks: {
 
 ### Configuration Options
 
-| Option         | Type       | Default   | Description                        |
-| -------------- | ---------- | --------- | ---------------------------------- |
-| `priority`     | `number`   | `100`     | Execution order (lower = earlier)  |
-| `timeout`      | `number`   | `5000`    | Max execution time in milliseconds |
-| `dependencies` | `string[]` | `[]`      | Plugin IDs that must run first     |
-| `errorPolicy`  | `string`   | `"abort"` | `"continue"` to ignore errors      |
+| Option         | Type       | Default   | Description                                          |
+| -------------- | ---------- | --------- | ---------------------------------------------------- |
+| `priority`     | `number`   | `100`     | Execution order (lower = earlier)                    |
+| `timeout`      | `number`   | `5000`    | Max execution time in milliseconds                   |
+| `dependencies` | `string[]` | `[]`      | Plugin IDs that must run first                       |
+| `errorPolicy`  | `string`   | `"abort"` | `"continue"` to ignore errors                        |
+| `exclusive`    | `boolean`  | `false`   | Only one plugin can be the active provider (for provider-pattern hooks like `email:deliver`, `comment:moderate`) |
 
 ## Plugin Context
 
@@ -326,14 +651,21 @@ All hooks receive a context object with access to plugin APIs:
 ```ts
 interface PluginContext {
 	plugin: { id: string; version: string };
-	storage: PluginStorage; // Declared storage collections
-	kv: KVAccess; // Key-value store
-	content?: ContentAccess; // If read:content or write:content capability
-	media?: MediaAccess; // If read:media or write:media capability
-	http?: HttpAccess; // If network:fetch capability
-	log: LogAccess; // Always available
+	storage: PluginStorage;
+	kv: KVAccess;
+	content?: ContentAccess;
+	media?: MediaAccess;
+	http?: HttpAccess;
+	log: LogAccess;
+	site: { name: string; url: string; locale: string };
+	url(path: string): string;
+	users?: UserAccess;
+	cron?: CronAccess;
+	email?: EmailAccess;
 }
 ```
+
+See [Plugin Overview — Plugin Context](/plugins/overview/#plugin-context) for capability requirements and method details.
 
 <Aside>
 	Context APIs are gated by plugin capabilities. Declare required capabilities in the plugin
