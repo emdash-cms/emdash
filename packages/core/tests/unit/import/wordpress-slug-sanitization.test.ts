@@ -4,9 +4,11 @@
  * Regression test for emdash-cms/emdash#79: WordPress import crashes on
  * collections with hyphens in slug (e.g. Elementor `elementor-hf`).
  *
- * EmDash collection slugs now allow hyphens (`[a-z][a-z0-9_-]*`), so
- * WordPress post type slugs with hyphens pass through without conversion.
- * Only truly invalid characters (spaces, dots, etc.) are sanitized.
+ * WordPress post type slugs commonly use hyphens (e.g. `elementor-hf`,
+ * `my-custom-type`), but EmDash collection slugs require `[a-z][a-z0-9_]*`.
+ * The fix sanitizes all unknown post type slugs so they conform to the
+ * collection slug format, rather than trying to enumerate every plugin's
+ * internal post types.
  */
 
 import { describe, expect, it } from "vitest";
@@ -17,12 +19,12 @@ import {
 } from "../../../src/astro/routes/api/import/wordpress/analyze.js";
 
 describe("sanitizeSlug", () => {
-	it("preserves hyphens", () => {
-		expect(sanitizeSlug("elementor-hf")).toBe("elementor-hf");
+	it("replaces hyphens with underscores", () => {
+		expect(sanitizeSlug("elementor-hf")).toBe("elementor_hf");
 	});
 
-	it("preserves multiple hyphens", () => {
-		expect(sanitizeSlug("my-custom-type")).toBe("my-custom-type");
+	it("replaces multiple hyphens", () => {
+		expect(sanitizeSlug("my-custom-type")).toBe("my_custom_type");
 	});
 
 	it("strips leading non-letter characters", () => {
@@ -47,8 +49,8 @@ describe("sanitizeSlug", () => {
 		expect(sanitizeSlug("")).toBe("imported");
 	});
 
-	it("preserves hyphens including leading hyphens after stripping", () => {
-		expect(sanitizeSlug("-elementor-hf")).toBe("elementor-hf");
+	it("handles leading hyphens in realistic WP slugs", () => {
+		expect(sanitizeSlug("-elementor-hf")).toBe("elementor_hf");
 	});
 
 	it("lowercases uppercase letters instead of dropping them", () => {
@@ -79,16 +81,16 @@ describe("mapPostTypeToCollection", () => {
 		expect(mapPostTypeToCollection("attachment")).toBe("media");
 	});
 
-	it("preserves hyphens in unknown post types (fixes #79)", () => {
-		expect(mapPostTypeToCollection("elementor-hf")).toBe("elementor-hf");
-		expect(mapPostTypeToCollection("my-custom-type")).toBe("my-custom-type");
+	it("sanitizes unknown post types with hyphens (fixes #79)", () => {
+		expect(mapPostTypeToCollection("elementor-hf")).toBe("elementor_hf");
+		expect(mapPostTypeToCollection("my-custom-type")).toBe("my_custom_type");
 	});
 
-	it("preserves hyphens in post types from common plugins", () => {
+	it("sanitizes post types from other common plugins", () => {
 		// WooCommerce
-		expect(mapPostTypeToCollection("shop-order")).toBe("shop-order");
+		expect(mapPostTypeToCollection("shop-order")).toBe("shop_order");
 		// ACF
-		expect(mapPostTypeToCollection("acf-field-group")).toBe("acf-field-group");
+		expect(mapPostTypeToCollection("acf-field-group")).toBe("acf_field_group");
 	});
 
 	it("passes through valid unknown post types unchanged", () => {

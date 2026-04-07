@@ -19,7 +19,7 @@ import type { EmDashHandlers } from "#types";
 export const prerender = false;
 
 const NUMERIC_PATTERN = /^-?\d+(\.\d+)?$/;
-const INVALID_SLUG_CHARS = /[^a-z0-9_-]/g;
+const INVALID_SLUG_CHARS = /[^a-z0-9_]/g;
 const LEADING_NON_ALPHA = /^[^a-z]+/;
 
 /** Field compatibility status */

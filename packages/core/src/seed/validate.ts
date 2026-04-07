@@ -7,7 +7,7 @@
 import { FIELD_TYPES } from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
 
-const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
+const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const REDIRECT_TYPES = new Set([301, 302, 307, 308]);
 const CRLF_PATTERN = /[\r\n]/;
@@ -74,7 +74,7 @@ export function validateSeed(data: unknown): ValidationResult {
 					// Check for valid slug format
 					if (!COLLECTION_FIELD_SLUG_PATTERN.test(collection.slug)) {
 						errors.push(
-							`${prefix}.slug: must start with a letter and contain only lowercase letters, numbers, underscores, and hyphens`,
+							`${prefix}.slug: must start with a letter and contain only lowercase letters, numbers, and underscores`,
 						);
 					}
 
@@ -105,7 +105,7 @@ export function validateSeed(data: unknown): ValidationResult {
 							// Check for valid slug format
 							if (!COLLECTION_FIELD_SLUG_PATTERN.test(field.slug)) {
 								errors.push(
-									`${fieldPrefix}.slug: must start with a letter and contain only lowercase letters, numbers, underscores, and hyphens`,
+									`${fieldPrefix}.slug: must start with a letter and contain only lowercase letters, numbers, and underscores`,
 								);
 							}
 

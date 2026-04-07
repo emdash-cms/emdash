@@ -41,8 +41,8 @@ export const offsetPaginationQuery = z
 // Shared primitives
 // ---------------------------------------------------------------------------
 
-/** Slug pattern: lowercase letters, digits, underscores, hyphens; starts with letter */
-export const slugPattern = /^[a-z][a-z0-9_-]*$/;
+/** Slug pattern: lowercase letters, digits, underscores; starts with letter */
+export const slugPattern = /^[a-z][a-z0-9_]*$/;
 
 /** Matches http(s) scheme at start of URL */
 const HTTP_SCHEME_RE = /^https?:\/\//i;

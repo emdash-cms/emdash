@@ -9,8 +9,8 @@ import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
-/** Taxonomy name validation pattern: lowercase alphanumeric + underscores/hyphens, starts with letter */
-const NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
+/** Taxonomy name validation pattern: lowercase alphanumeric + underscores, starts with letter */
+const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -156,7 +156,7 @@ export async function handleTaxonomyCreate(
 				error: {
 					code: "VALIDATION_ERROR",
 					message:
-						"Taxonomy name must start with a letter and contain only lowercase letters, numbers, underscores, and hyphens",
+						"Taxonomy name must start with a letter and contain only lowercase letters, numbers, and underscores",
 				},
 			};
 		}

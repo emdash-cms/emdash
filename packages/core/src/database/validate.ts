@@ -10,9 +10,9 @@
 
 /**
  * Pattern for safe SQL identifiers.
- * Must start with a lowercase letter, followed by lowercase letters, digits, underscores, or hyphens.
+ * Must start with a lowercase letter, followed by lowercase letters, digits, or underscores.
  */
-const IDENTIFIER_PATTERN = /^[a-z][a-z0-9_-]*$/;
+const IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 /**
  * Pattern for generic alphanumeric identifiers (case-insensitive).
@@ -48,7 +48,7 @@ export class IdentifierError extends Error {
 /**
  * Validate that a string is a safe SQL identifier.
  *
- * Safe identifiers match `/^[a-z][a-z0-9_-]*$/` and are at most 128 characters.
+ * Safe identifiers match `/^[a-z][a-z0-9_]*$/` and are at most 128 characters.
  * This prevents SQL injection when identifiers must be interpolated into raw SQL
  * (e.g., dynamic table names, column names in json_extract paths).
  *
@@ -75,7 +75,7 @@ export function validateIdentifier(value: string, label = "identifier"): void {
 	}
 
 	if (!IDENTIFIER_PATTERN.test(value)) {
-		throw new IdentifierError(`${label} must match /^[a-z][a-z0-9_-]*$/ (got "${value}")`, value);
+		throw new IdentifierError(`${label} must match /^[a-z][a-z0-9_]*$/ (got "${value}")`, value);
 	}
 }
 
