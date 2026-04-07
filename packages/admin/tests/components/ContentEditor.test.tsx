@@ -184,6 +184,53 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByText("Sports")).toBeInTheDocument();
 		});
 
+		it("toggling a multiSelect checkbox updates the saved value", async () => {
+			const onSave = vi.fn();
+			const item = makeItem({
+				data: { title: "Test", tags: ["news", "sports"] },
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			const all = checkboxes.all();
+
+			// Uncheck "sports" (index 2, currently checked)
+			await all[2]!.click();
+			await expect.element(all[2]!).not.toBeChecked();
+
+			// Check "tech" (index 1, currently unchecked)
+			await all[1]!.click();
+			await expect.element(all[1]!).toBeChecked();
+
+			// Save and verify the data sent to onSave
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						tags: ["news", "tech"],
+					}),
+				}),
+			);
+		});
+
 		it("multiSelect checkboxes reflect existing values", async () => {
 			const item = makeItem({
 				data: { title: "Test", tags: ["news", "sports"] },
