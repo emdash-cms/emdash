@@ -122,6 +122,8 @@ export interface ContentEditorProps {
 	supportsDrafts?: boolean;
 	/** Whether this collection supports revisions */
 	supportsRevisions?: boolean;
+	/** Whether this collection supports preview */
+	supportsPreview?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
 	/** Available users for author selection (only shown to editors+) */
@@ -190,6 +192,7 @@ export function ContentEditor({
 	isScheduling,
 	supportsDrafts = false,
 	supportsRevisions = false,
+	supportsPreview = false,
 	currentUser,
 	users,
 	onAuthorChange,
@@ -523,7 +526,7 @@ export function ContentEditor({
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
 					)}
-					{!isNew && (
+					{!isNew && supportsPreview && (
 						<Button
 							variant="outline"
 							type="button"
