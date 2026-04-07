@@ -180,7 +180,46 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 	throw lastError instanceof Error ? lastError : new Error(`Request failed for ${url}`);
 }
 
-describe.sequential("Site smoke matrix", () => {
+// ---------------------------------------------------------------------------
+// Build verification — runs a single recursive `pnpm build` across all demos
+// and templates in parallel, then verifies each site produced output.
+// ---------------------------------------------------------------------------
+
+describe("Site build verification", () => {
+	it("all demos and templates build successfully", { timeout: 300_000 }, async () => {
+		await ensureBuilt();
+
+		try {
+			await execAsync(
+				"pnpm",
+				["run", "--recursive", "--filter", "{./demos/*}", "--filter", "{./templates/*}", "build"],
+				{
+					cwd: WORKSPACE_ROOT,
+					timeout: 240_000,
+					env: {
+						...process.env,
+						CI: "true",
+					},
+				},
+			);
+		} catch (error) {
+			const stderr =
+				error instanceof Error && "stderr" in error ? (error as { stderr: string }).stderr : "";
+			const stdout =
+				error instanceof Error && "stdout" in error ? (error as { stdout: string }).stdout : "";
+			throw new Error(`Site builds failed:\n\n${stderr || stdout}`.slice(0, 5000), {
+				cause: error,
+			});
+		}
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Runtime verification — boots each site with `astro dev` and checks that
+// admin + frontend respond.
+// ---------------------------------------------------------------------------
+
+describe.sequential("Site runtime verification", () => {
 	for (const site of SITE_MATRIX) {
 		if (site.mode === "typecheck") {
 			it(`${site.name} typechecks`, { timeout: 120_000 }, async () => {
