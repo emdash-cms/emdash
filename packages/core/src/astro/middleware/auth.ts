@@ -51,8 +51,6 @@ declare global {
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 
-export { buildEmDashCsp };
-
 /**
  * API routes that skip auth — each handles its own access control.
  *
