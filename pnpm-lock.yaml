@@ -234,6 +234,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
+      '@lingui/babel-plugin-lingui-macro':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@6.0.0-beta)
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
@@ -271,6 +274,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
+      '@lingui/babel-plugin-lingui-macro':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@6.0.0-beta)
       wrangler:
         specifier: 'catalog:'
         version: 4.71.0(@cloudflare/workers-types@4.20260305.1)
@@ -317,6 +323,9 @@ importers:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
     devDependencies:
+      '@lingui/babel-plugin-lingui-macro':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@5.9.3)
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
@@ -351,6 +360,9 @@ importers:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
     devDependencies:
+      '@lingui/babel-plugin-lingui-macro':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@5.9.3)
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
@@ -391,6 +403,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
+      '@lingui/babel-plugin-lingui-macro':
+        specifier: 'catalog:'
+        version: 5.9.4(typescript@6.0.0-beta)
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13

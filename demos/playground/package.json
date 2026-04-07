@@ -22,6 +22,7 @@
 	"devDependencies": {
 		"@astrojs/check": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
+		"@lingui/babel-plugin-lingui-macro": "catalog:",
 		"wrangler": "catalog:"
 	},
 	"emdash": {
