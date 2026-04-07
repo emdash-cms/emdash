@@ -33,6 +33,7 @@ import * as m029 from "./029_redirects.js";
 import * as m030 from "./030_widen_scheduled_index.js";
 import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
+import * as m033 from "./033_optimize_content_indexes.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
