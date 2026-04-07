@@ -6,6 +6,7 @@ import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
 
 const NO_RESULTS_PATTERN = /No results for/;
+const HAS_MORE_ITEMS_PATTERN = /21\+ items/;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -299,6 +300,52 @@ describe("ContentList", () => {
 
 			// Effect should fire on mount since page 0 is the last page
 			expect(onLoadMore).toHaveBeenCalledOnce();
+		});
+
+		it("auto-fetches when user navigates to the last client-side page", async () => {
+			const onLoadMore = vi.fn();
+			// 21 items = 2 pages of 20; user starts on page 0 (not the last page)
+			const items = Array.from({ length: 21 }, (_, i) => makeItem({ id: `item_${i}` }));
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
+			);
+
+			// On mount, page 0 is not the last page — no fetch yet
+			expect(onLoadMore).not.toHaveBeenCalled();
+
+			// Navigate to page 2 (the last page)
+			await screen.getByRole("button", { name: "Next page" }).click();
+
+			expect(onLoadMore).toHaveBeenCalledOnce();
+		});
+
+		it("does not auto-fetch when a search query is active", async () => {
+			const onLoadMore = vi.fn();
+			// 21 items so pagination exists, but search will collapse to 1 result / 1 page
+			const items = [
+				...Array.from({ length: 20 }, (_, i) =>
+					makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+				),
+				makeItem({ id: "unique", data: { title: "Unique Title" } }),
+			];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
+			);
+
+			// No fetch on mount (page 0 is not the last page with 21 items)
+			expect(onLoadMore).not.toHaveBeenCalled();
+
+			// Search collapses results to 1 item — totalPages becomes 1, but should NOT fetch
+			await screen.getByRole("searchbox").fill("Unique Title");
+
+			expect(onLoadMore).not.toHaveBeenCalled();
+		});
+
+		it("shows '+' suffix on item count when hasMore is true and no search is active", async () => {
+			const items = Array.from({ length: 21 }, (_, i) => makeItem({ id: `item_${i}` }));
+			const screen = await render(<ContentList {...defaultProps} items={items} hasMore={true} />);
+
+			await expect.element(screen.getByText(HAS_MORE_ITEMS_PATTERN)).toBeInTheDocument();
 		});
 
 		it("does not auto-fetch when hasMore is false", async () => {

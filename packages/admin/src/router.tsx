@@ -349,7 +349,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={() => void fetchNextPage()}
+			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
