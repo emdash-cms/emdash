@@ -2,7 +2,6 @@ import { Hono } from "hono";
 
 import {
 	getCategories,
-	getInstallCount,
 	getLatestVersion,
 	getPluginCategories,
 	getPluginVersion,
@@ -122,11 +121,11 @@ publicRoutes.get("/plugins/:id", async (c) => {
 		const plugin = await getPluginWithAuthor(c.env.DB, id);
 		if (!plugin) return c.json({ error: "Plugin not found" }, 404);
 
-		const [latestVersion, installCount, pluginCategories] = await Promise.all([
+		const [latestVersion, pluginCategories] = await Promise.all([
 			getLatestVersion(c.env.DB, id),
-			getInstallCount(c.env.DB, id),
 			getPluginCategories(c.env.DB, id),
 		]);
+		const installCount = plugin.install_count ?? 0;
 
 		const capabilities = safeJsonParse<string[]>(plugin.capabilities, []);
 		const keywords = safeJsonParse<string[]>(plugin.keywords, []);

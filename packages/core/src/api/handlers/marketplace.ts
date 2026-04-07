@@ -83,9 +83,12 @@ function validateVersion(version: string): void {
 	}
 }
 
-function getClient(marketplaceUrl: string | undefined): MarketplaceClient | null {
+function getClient(
+	marketplaceUrl: string | undefined,
+	siteOrigin?: string,
+): MarketplaceClient | null {
 	if (!marketplaceUrl) return null;
-	return createMarketplaceClient(marketplaceUrl);
+	return createMarketplaceClient(marketplaceUrl, siteOrigin);
 }
 
 function diffCapabilities(
@@ -289,9 +292,9 @@ export async function handleMarketplaceInstall(
 	sandboxRunner: SandboxRunner | null,
 	marketplaceUrl: string | undefined,
 	pluginId: string,
-	opts?: { version?: string; configuredPluginIds?: Set<string> },
+	opts?: { version?: string; configuredPluginIds?: Set<string>; siteOrigin?: string },
 ): Promise<ApiResult<MarketplaceInstallResult>> {
-	const client = getClient(marketplaceUrl);
+	const client = getClient(marketplaceUrl, opts?.siteOrigin);
 	if (!client) {
 		return {
 			success: false,
