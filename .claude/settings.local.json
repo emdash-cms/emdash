@@ -27,7 +27,11 @@
       "Bash(cp \"D:/NFClientProjects/RGBAnimation/src/pages/en/index.astro\" \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/pages/en/\")",
       "Bash(cp \"D:/NFClientProjects/RGBAnimation/src/layouts/BaseLayout.astro\" \"D:/NFClientProjects/emdash-coolify/templates/rgb-animation/src/layouts/\")",
       "Bash(docker compose:*)",
-      "Bash(pnpm install:*)"
+      "Bash(pnpm install:*)",
+      "Read(//c/Users/minhh/.claude/**)",
+      "Bash(ls:*)",
+      "Bash(claude mcp:*)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")"
     ]
   }
 }

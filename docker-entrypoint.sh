@@ -48,5 +48,31 @@ echo "EMDASH_AUTH_SECRET:    ${EMDASH_AUTH_SECRET:+set (hidden)}${EMDASH_AUTH_SE
 echo "DATABASE_URL:          ${DATABASE_URL:-not set (using default)}"
 
 echo ""
+echo "--- Checking EMDASH_RESET_SETUP ---"
+if [ "${EMDASH_RESET_SETUP}" = "true" ]; then
+  echo "EMDASH_RESET_SETUP=true detected — clearing setup_complete flag..."
+  node -e "
+    const Database = require('better-sqlite3');
+    const dbPath = process.env.DATABASE_URL
+      ? process.env.DATABASE_URL.replace(/^file:/, '')
+      : './data/data.db';
+    try {
+      const db = new Database(dbPath);
+      const result = db.prepare(\"DELETE FROM _emdash_options WHERE key = 'emdash:setup_complete'\").run();
+      db.close();
+      if (result.changes > 0) {
+        console.log('OK: setup_complete flag cleared — setup wizard will appear on next visit');
+      } else {
+        console.log('OK: setup_complete flag was not set (already cleared or fresh install)');
+      }
+    } catch (e) {
+      console.error('WARN: could not clear setup flag (DB may not exist yet — that is fine on first boot):', e.message);
+    }
+  "
+else
+  echo "OK: skipped (set EMDASH_RESET_SETUP=true to trigger a setup reset)"
+fi
+
+echo ""
 echo "=== Starting EmDash server ==="
 exec node ./dist/server/entry.mjs

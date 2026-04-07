@@ -11,6 +11,9 @@ services:
       # Set these in Coolify's Environment Variables panel
       EMDASH_AUTH_SECRET: "${EMDASH_AUTH_SECRET:-change-me-in-production}"
       EMDASH_PREVIEW_SECRET: "${EMDASH_PREVIEW_SECRET:-}"
+      # Set to "true" to clear the setup_complete flag on next boot (resets the setup wizard).
+      # Remove or set back to "false" after the setup is done to prevent repeated resets.
+      EMDASH_RESET_SETUP: "${EMDASH_RESET_SETUP:-false}"
     volumes:
       # SQLite database — persisted across container restarts/redeploys
       - emdash-data:/app/data
