@@ -644,10 +644,7 @@ export function ContentEditor({
 									onSeoChange
 								) {
 									return (
-										<div
-											key={`${name}-with-seo`}
-											className="grid grid-cols-1 gap-6 md:grid-cols-2"
-										>
+										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
 											<div>{fieldEl}</div>
 											<div>
 												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
