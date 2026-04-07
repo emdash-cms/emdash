@@ -243,7 +243,6 @@ function ContentListPage() {
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam as string | undefined,
-					limit: 100,
 				}),
 			initialPageParam: undefined as string | undefined,
 			// Explicitly return undefined when no cursor to ensure React Query correctly calculates hasNextPage
