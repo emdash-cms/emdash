@@ -34,7 +34,7 @@ import * as m030 from "./030_widen_scheduled_index.js";
 import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
 
-const MIGRATIONS: Record<string, Migration> = {
+const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
 	"002_media_status": m002,
 	"003_schema_registry": m003,
@@ -66,7 +66,7 @@ const MIGRATIONS: Record<string, Migration> = {
 	"030_widen_scheduled_index": m030,
 	"031_bylines": m031,
 	"032_rate_limits": m032,
-};
+});
 
 /** Total number of registered migrations. Exported for use in tests. */
 export const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
