@@ -140,7 +140,9 @@ export async function fetchContentList(
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
-	if (options?.limit) params.set("limit", String(options.limit));
+	// Always include limit to ensure pagination works correctly
+	// Use provided value, or default to 100 for better UX in admin lists
+	params.set("limit", String(options?.limit ?? 100));
 	if (options?.status) params.set("status", options.status);
 	if (options?.locale) params.set("locale", options.locale);
 
