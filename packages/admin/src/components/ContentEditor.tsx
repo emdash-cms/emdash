@@ -38,7 +38,13 @@ import { usePluginAdmins } from "../lib/plugin-context.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
+import type { JsonCodeEditorProps } from "./JsonCodeEditor.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+
+const LazyJsonCodeEditor = React.lazy(async () => {
+	const module = await import("./JsonCodeEditor.js");
+	return { default: module.JsonCodeEditor };
+});
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -215,6 +221,11 @@ export function ContentEditor({
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
+	const [fieldErrors, setFieldErrors] = React.useState<Record<string, string | null>>({});
+	const fieldErrorsRef = React.useRef(fieldErrors);
+	fieldErrorsRef.current = fieldErrors;
+	const [jsonEditorEpoch, setJsonEditorEpoch] = React.useState(0);
+	const previousItemIdRef = React.useRef(item?.id);
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
@@ -257,7 +268,21 @@ export function ContentEditor({
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
 	React.useEffect(() => {
 		if (item) {
+			const didItemIdChange = item.id !== previousItemIdRef.current;
+			const hasActiveFieldErrors = Object.values(fieldErrorsRef.current).some(
+				(error) => typeof error === "string" && error.length > 0,
+			);
+
+			if (!didItemIdChange && hasActiveFieldErrors) {
+				return;
+			}
+
 			setFormData(item.data);
+			if (didItemIdChange) {
+				setFieldErrors({});
+				setJsonEditorEpoch((epoch) => epoch + 1);
+			}
+			previousItemIdRef.current = item.id;
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
 			setStatus(item.status);
@@ -304,6 +329,16 @@ export function ContentEditor({
 		[formData, slug, activeBylines],
 	);
 	const isDirty = isNew || currentData !== lastSavedData;
+	const hasFieldErrors = React.useMemo(
+		() => Object.values(fieldErrors).some((error) => typeof error === "string" && error.length > 0),
+		[fieldErrors],
+	);
+	const handleFieldValidationChange = React.useCallback((name: string, error: string | null) => {
+		setFieldErrors((prev) => {
+			if ((prev[name] ?? null) === error) return prev;
+			return { ...prev, [name]: error };
+		});
+	}, []);
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -319,8 +354,8 @@ export function ContentEditor({
 			return;
 		}
 
-		// Don't autosave if not dirty or already saving
-		if (!isDirty || isSaving || isAutosaving) {
+		// Don't autosave if not dirty, invalid, or already saving
+		if (!isDirty || hasFieldErrors || isSaving || isAutosaving) {
 			return;
 		}
 
@@ -343,7 +378,17 @@ export function ContentEditor({
 				clearTimeout(autosaveTimeoutRef.current);
 			}
 		};
-	}, [currentData, isNew, onAutosave, item?.id, isDirty, isSaving, isAutosaving, activeBylines]);
+	}, [
+		currentData,
+		isNew,
+		onAutosave,
+		item?.id,
+		isDirty,
+		hasFieldErrors,
+		isSaving,
+		isAutosaving,
+		activeBylines,
+	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
@@ -537,7 +582,12 @@ export function ContentEditor({
 							{hasPendingChanges ? "Preview draft" : "Preview"}
 						</Button>
 					)}
-					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+					<SaveButton
+						type="submit"
+						isDirty={isDirty}
+						isSaving={isSaving || false}
+						disabled={hasFieldErrors}
+					/>
 					{!isNew && (
 						<>
 							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
@@ -615,7 +665,7 @@ export function ContentEditor({
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => (
 								<FieldRenderer
-									key={name}
+									key={field.kind === "json" ? `${name}-${jsonEditorEpoch}` : name}
 									name={name}
 									field={field}
 									value={formData[name]}
@@ -630,6 +680,7 @@ export function ContentEditor({
 										field.kind === "portableText" ? handleBlockSidebarClose : undefined
 									}
 									manifest={manifest}
+									onValidationChange={handleFieldValidationChange}
 								/>
 							))}
 						</div>
@@ -925,6 +976,7 @@ interface FieldRendererProps {
 	field: FieldDescriptor;
 	value: unknown;
 	onChange: (name: string, value: unknown) => void;
+	onValidationChange?: (name: string, error: string | null) => void;
 	/** Callback when a portableText editor is ready */
 	onEditorReady?: (editor: Editor) => void;
 	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
@@ -937,6 +989,26 @@ interface FieldRendererProps {
 	onBlockSidebarClose?: () => void;
 	/** Admin manifest for resolving sandboxed field widget elements */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
+}
+
+function JsonEditorFallback({
+	id,
+	label,
+	labelClass,
+}: Pick<JsonCodeEditorProps, "id" | "label" | "labelClass">) {
+	return (
+		<div className="space-y-1.5" aria-live="polite">
+			<div
+				id={`${id}-label`}
+				className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}
+			>
+				{label}
+			</div>
+			<div className="rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm text-kumo-subtle">
+				Loading editor...
+			</div>
+		</div>
+	);
 }
 
 /**
@@ -953,6 +1025,7 @@ function FieldRenderer({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
+	onValidationChange,
 }: FieldRendererProps) {
 	const pluginAdmins = usePluginAdmins();
 	const label = field.label || name.charAt(0).toUpperCase() + name.slice(1);
@@ -960,6 +1033,10 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+	const handleValidationChange = React.useCallback(
+		(error: string | null) => onValidationChange?.(name, error),
+		[name, onValidationChange],
+	);
 
 	// Check for plugin field widget override
 	if (field.widget) {
@@ -1096,6 +1173,22 @@ function FieldRenderer({
 					rows={10}
 					placeholder="Enter markdown content..."
 				/>
+			);
+
+		case "json":
+			return (
+				<React.Suspense
+					fallback={<JsonEditorFallback id={id} label={label} labelClass={labelClass} />}
+				>
+					<LazyJsonCodeEditor
+						id={id}
+						label={label}
+						labelClass={labelClass}
+						value={value}
+						onChange={handleChange}
+						onValidationChange={handleValidationChange}
+					/>
+				</React.Suspense>
 			);
 
 		case "select": {

@@ -143,6 +143,111 @@ describe("ContentEditor", () => {
 			const input = screen.getByLabelText("Order");
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
+
+		it("loads json fields into a syntax-highlighted editor for existing items", async () => {
+			const metadata = { theme: "dark", nested: { enabled: true } };
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				isNew: false,
+				item: makeItem({ data: { metadata } }),
+			});
+
+			// The CodeMirror editor has role="textbox" and is labelled by the
+			// "Metadata" heading via aria-labelledby.
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await expect.element(editor).toBeInTheDocument();
+			// CodeMirror renders each line in a separate div, so DOM textContent
+			// has no newlines between lines. Check key strings are present.
+			await expect.element(editor).toHaveTextContent('"theme"');
+			await expect.element(editor).toHaveTextContent('"dark"');
+			await expect.element(editor).toHaveTextContent('"nested"');
+		});
+
+		it("loads json string values as valid JSON string scalars", async () => {
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				isNew: false,
+				item: makeItem({ data: { metadata: "dark" } }),
+			});
+
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await expect.element(editor).toHaveTextContent('"dark"');
+		});
+
+		it("keeps in-progress json text when same item refreshes", async () => {
+			const fields = { metadata: { kind: "json", label: "Metadata" } } satisfies Record<
+				string,
+				FieldDescriptor
+			>;
+			const item = makeItem({
+				id: "item-1",
+				data: { metadata: { theme: "dark" } },
+				updatedAt: "2025-01-15T10:30:00Z",
+			});
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields,
+				isNew: false,
+				item,
+				onSave: vi.fn(),
+			};
+
+			const screen = await render(<ContentEditor {...props} />);
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"theme":"light","draft":true}');
+
+			await screen.rerender(
+				<ContentEditor
+					{...props}
+					item={makeItem({
+						id: "item-1",
+						data: { metadata: { theme: "dark" } },
+						updatedAt: "2025-01-15T10:31:00Z",
+					})}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('"light"');
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('"draft"');
+		});
+
+		it("resets json editor when switching to another item", async () => {
+			const fields = { metadata: { kind: "json", label: "Metadata" } } satisfies Record<
+				string,
+				FieldDescriptor
+			>;
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields,
+				isNew: false,
+				item: makeItem({ id: "item-1", data: { metadata: { theme: "dark" } } }),
+				onSave: vi.fn(),
+			};
+
+			const screen = await render(<ContentEditor {...props} />);
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"theme":"light"}');
+
+			await screen.rerender(
+				<ContentEditor
+					{...props}
+					item={makeItem({ id: "item-2", data: { metadata: { theme: "other" } } })}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('"other"');
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.not.toHaveTextContent('"light"');
+		});
 	});
 
 	describe("saving", () => {
@@ -163,6 +268,114 @@ describe("ContentEditor", () => {
 					bylines: [],
 				}),
 			);
+		});
+
+		it("save form parses json editor content back into structured data", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				item: makeItem({ data: { metadata: { enabled: false } } }),
+			});
+
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"enabled":true,"count":2}');
+
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						metadata: { enabled: true, count: 2 },
+					}),
+				}),
+			);
+		});
+
+		it("disables save when json editor content is invalid", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				item: makeItem({ data: { metadata: { enabled: false } } }),
+			});
+
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"enabled": true');
+
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await expect.element(saveBtn).toBeDisabled();
+			expect(onSave).not.toHaveBeenCalled();
+		});
+
+		it("keeps json error state when same item refreshes", async () => {
+			const fields = { metadata: { kind: "json", label: "Metadata" } } satisfies Record<
+				string,
+				FieldDescriptor
+			>;
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields,
+				isNew: false,
+				item: makeItem({
+					id: "item-1",
+					data: { metadata: { theme: "dark" } },
+					updatedAt: "2025-01-15T10:30:00Z",
+				}),
+				onSave: vi.fn(),
+			};
+
+			const screen = await render(<ContentEditor {...props} />);
+			const editor = screen.getByRole("textbox", { name: "Metadata" });
+			await editor.fill('{"theme": ');
+
+			let saveBtn = screen.getByRole("button", { name: "Save" });
+			await expect.element(saveBtn).toBeDisabled();
+
+			await screen.rerender(
+				<ContentEditor
+					{...props}
+					item={makeItem({
+						id: "item-1",
+						data: { metadata: { theme: "dark" } },
+						updatedAt: "2025-01-15T10:31:00Z",
+					})}
+				/>,
+			);
+
+			saveBtn = screen.getByRole("button", { name: "Save" });
+			await expect.element(saveBtn).toBeDisabled();
+			await expect
+				.element(screen.getByRole("textbox", { name: "Metadata" }))
+				.toHaveTextContent('{"theme":');
+		});
+
+		it("does not autosave while json field has validation errors", async () => {
+			vi.useFakeTimers();
+			try {
+				const onAutosave = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					onAutosave,
+					fields: {
+						title: { kind: "string", label: "Title" },
+						metadata: { kind: "json", label: "Metadata" },
+					},
+					item: makeItem({ data: { title: "Initial", metadata: { theme: "dark" } } }),
+				});
+
+				await screen.getByLabelText("Title").fill("Changed title");
+				await screen.getByRole("textbox", { name: "Metadata" }).fill('{"theme": ');
+
+				await vi.advanceTimersByTimeAsync(2100);
+				expect(onAutosave).not.toHaveBeenCalled();
+			} finally {
+				vi.useRealTimers();
+			}
 		});
 
 		it("SaveButton shows correct dirty state for new items", async () => {
