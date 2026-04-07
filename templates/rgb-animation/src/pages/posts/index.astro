@@ -1,0 +1,177 @@
+---
+import { getEmDashCollection, getEntryTerms } from "emdash";
+import Base from "../../layouts/Base.astro";
+import PostCard from "../../components/PostCard.astro";
+import { getReadingTime } from "../../utils/reading-time";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+Astro.cache.set(cacheHint);
+
+const sortedPosts = posts.toSorted((a, b) => {
+	const dateA = a.data.publishedAt?.getTime() ?? 0;
+	const dateB = b.data.publishedAt?.getTime() ?? 0;
+	return dateB - dateA;
+});
+
+const postsWithTags = await Promise.all(
+	sortedPosts.map(async (post) => {
+		const tags = await getEntryTerms("posts", post.data.id, "tag");
+		return { post, tags };
+	})
+);
+---
+
+<Base title="All Posts" description="Browse all posts">
+	<section class="posts-page">
+		<div class="posts-inner">
+			<header class="page-head">
+				<h1 class="page-title">All Posts</h1>
+				<p class="page-count">
+					{posts.length} {posts.length === 1 ? "article" : "articles"}
+				</p>
+			</header>
+
+			{
+				postsWithTags.length === 0 ? (
+					<p class="empty">Nothing here yet.</p>
+				) : (
+					<div class="posts-list">
+						{postsWithTags.map(({ post, tags }) => (
+							<article class="post-row">
+								<a href={`/posts/${post.id}`} class="row-link">
+									<div class="row-meta">
+										{(post.data.bylines ?? []).length > 0 && (
+											<>
+												<span class="row-author">
+													{(post.data.bylines ?? [])
+														.slice(0, 2)
+														.map((c) => c.byline.displayName)
+														.join(", ")}
+												</span>
+												<span class="row-sep">·</span>
+											</>
+										)}
+										{post.data.publishedAt && (
+											<>
+												<time>
+													{post.data.publishedAt.toLocaleDateString("en-US", {
+														year: "numeric",
+														month: "short",
+														day: "numeric",
+													})}
+												</time>
+												<span class="row-sep">·</span>
+											</>
+										)}
+										<span>{getReadingTime(post.data.content)} min</span>
+									</div>
+									<h2 class="row-title">{post.data.title}</h2>
+									{post.data.excerpt && (
+										<p class="row-excerpt">{post.data.excerpt}</p>
+									)}
+								</a>
+								{tags.length > 0 && (
+									<div class="row-tags">
+										{tags.slice(0, 3).map((t) => (
+											<a href={`/tag/${t.slug}`} class="row-tag">{t.label}</a>
+										))}
+									</div>
+								)}
+							</article>
+						))}
+					</div>
+				)
+			}
+		</div>
+	</section>
+</Base>
+
+<style>
+	.posts-page {
+		padding: var(--spacing-16) 0;
+	}
+
+	.posts-inner {
+		max-width: var(--content-width);
+		margin: 0 auto;
+		padding: 0 var(--spacing-6);
+	}
+
+	.page-head { margin-bottom: var(--spacing-12); }
+
+	.page-title {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-4xl);
+		font-weight: 300;
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.page-count {
+		font-size: var(--font-size-base);
+		color: var(--color-muted);
+	}
+
+	.empty {
+		color: var(--color-muted);
+		font-size: var(--font-size-lg);
+	}
+
+	.posts-list { display: flex; flex-direction: column; }
+
+	.post-row {
+		padding: var(--spacing-8) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+	.post-row:first-child { padding-top: 0; }
+	.post-row:last-child { border-bottom: none; }
+
+	.row-link { display: block; text-decoration: none; color: inherit; }
+
+	.row-meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-3);
+	}
+	.row-author { font-weight: 500; color: var(--color-text-secondary); }
+	.row-sep { color: var(--color-border); }
+
+	.row-title {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-2xl);
+		font-weight: 400;
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-snug);
+		margin-bottom: var(--spacing-3);
+		transition: color var(--transition-fast);
+	}
+	.row-link:hover .row-title { color: var(--color-accent); }
+
+	.row-excerpt {
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.row-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-2); margin-top: var(--spacing-4); }
+	.row-tag {
+		display: inline-block;
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		text-decoration: none;
+		transition: all var(--transition-fast);
+	}
+	.row-tag:hover { color: var(--color-text); background: var(--color-border); }
+
+	@media (max-width: 640px) {
+		.page-title { font-size: var(--font-size-3xl); }
+		.row-title { font-size: var(--font-size-xl); }
+	}
+</style>

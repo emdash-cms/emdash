@@ -1,0 +1,110 @@
+/*
+  theme.css — override any :root variable here to retheme the blog.
+
+  This is the only file you need to edit to customize the site's visual
+  appearance. All defaults are listed below as comments. Uncomment and
+  change any value to override it.
+
+  Note: this template defines explicit dark mode colors in Base.astro.
+  Overriding light-mode --color-* variables here won't affect dark mode.
+  To customize dark mode, also override --color-* variables inside a
+  @media (prefers-color-scheme: dark) block and/or in the :root.dark rule.
+*/
+
+:root {
+	/* --- Colors ---
+	--color-bg: #ffffff;
+	--color-bg-subtle: #fafafa;
+	--color-text: #1a1a1a;
+	--color-text-secondary: #525252;
+	--color-muted: #8b8b8b;
+	--color-border: #e5e5e5;
+	--color-border-subtle: #f0f0f0;
+	--color-surface: #f7f7f7;
+	--color-accent: #0066cc;
+	--color-accent-hover: #0052a3;
+	--color-on-accent: white;
+	--color-accent-ring: color-mix(in srgb, var(--color-accent) 25%, transparent);
+	*/
+
+	/* --- Fonts ---
+	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+	*/
+
+	/* --- Type scale ---
+	--font-size-xs: 0.8125rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+	--font-size-3xl: 2rem;
+	--font-size-4xl: 2.5rem;
+	--font-size-5xl: 3.5rem;
+	*/
+
+	/* --- Line heights ---
+	--leading-tight: 1.15;
+	--leading-snug: 1.3;
+	--leading-normal: 1.5;
+	--leading-relaxed: 1.7;
+	*/
+
+	/* --- Letter spacing ---
+	--tracking-tight: -0.03em;    used on h1 and large titles
+	--tracking-snug: -0.02em;     used on h2–h6, site/card titles
+	--tracking-wide: 0.06em;      used on meta labels, TOC/widget titles
+	--tracking-wider: 0.08em;     used on footer headings, section labels
+	*/
+
+	/* --- Spacing ---
+	--spacing-1: 0.25rem;
+	--spacing-2: 0.5rem;
+	--spacing-3: 0.75rem;
+	--spacing-4: 1rem;
+	--spacing-5: 1.25rem;
+	--spacing-6: 1.5rem;
+	--spacing-8: 2rem;
+	--spacing-10: 2.5rem;
+	--spacing-12: 3rem;
+	--spacing-16: 4rem;
+	--spacing-20: 5rem;
+	--spacing-24: 6rem;
+	*/
+
+	/* --- Layout ---
+	--content-width: 680px;       article/page body column width
+	--wide-width: 1200px;         max container width (home, archives)
+	--gutter-width: 200px;        right sidebar column (TOC) on article pages
+	--meta-col-width: 180px;      left meta column on article pages
+	--nav-height: 64px;           sticky header height
+	--search-input-width: 180px;  nav search box width
+	*/
+
+	/* --- Borders & radius ---
+	--radius: 4px;
+	--radius-lg: 8px;
+	*/
+
+	/* --- Transitions ---
+	--transition-fast: 120ms ease;
+	--transition-base: 180ms ease;
+	*/
+
+	/* --- Avatars ---
+	--avatar-size-xs: 18px;    card byline avatars
+	--avatar-size-sm: 20px;    post list byline avatars
+	--avatar-size-md: 24px;    featured post byline avatars
+	--avatar-size-lg: 32px;    single post byline avatars
+	*/
+
+	/* --- Shadows ---
+	--shadow-dropdown: 0 8px 30px rgba(0, 0, 0, 0.12);
+	--shadow-btn-active: 0 1px 2px rgba(0, 0, 0, 0.05);
+	*/
+
+	/* --- Misc ---
+	--tag-padding-y: 2px;    vertical padding on tag pills
+	*/
+}

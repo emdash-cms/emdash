@@ -1,57 +1,33 @@
 {
-	"name": "emdash-workspace",
-	"private": true,
-	"type": "module",
-	"version": "1.0.0",
-	"description": "Agent-portable reimplementation of WordPress on Astro",
-	"scripts": {
-		"typecheck": "pnpm run --filter {./packages/**} typecheck",
-		"typecheck:demos": "pnpm run --workspace-concurrency=1 --filter {./demos/*} --filter !@emdash-cms/demo-cloudflare typecheck",
-		"typecheck:templates": "pnpm run --workspace-concurrency=1 --filter {./templates/*} typecheck",
-		"check": "pnpm run typecheck && pnpm run --filter {./packages/*} check",
-		"test": "pnpm run --filter {./packages/*} test",
-		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace test",
-		"test:browser": "pnpm run --filter @emdash-cms/admin test",
-		"test:e2e": "playwright test",
-		"test:e2e:ui": "playwright test --ui",
-		"build": "pnpm run --filter {./packages/**} build",
-		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
-		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
-		"format:astro": "prettier --write .",
-		"lint": "oxlint --type-aware",
-		"lint:quick": "oxlint -f json",
-		"lint:json": "oxlint --type-aware -f json",
-		"lint:fix": "oxlint --type-aware --fix",
-		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
-		"new": "create-emdash",
-		"screenshots": "node scripts/screenshot-all-templates.mjs"
-	},
-	"keywords": [],
-	"author": "Matt Kane",
-	"license": "MIT",
-	"devDependencies": {
-		"@axe-core/playwright": "^4.11.1",
-		"@changesets/changelog-github": "^0.5.2",
-		"@changesets/cli": "^2.29.8",
-		"@e18e/eslint-plugin": "^0.2.0",
-		"@playwright/test": "^1.58.0",
-		"@types/node": "catalog:",
-		"@typescript/native-preview": "^7.0.0-dev",
-		"emdash": "workspace:*",
-		"knip": "^5.84.1",
-		"oxfmt": "^0.34.0",
-		"oxlint": "^1.49.0",
-		"oxlint-tsgolint": "^0.15.0",
-		"prettier": "^3.8.1",
-		"prettier-plugin-astro": "^0.14.1",
-		"typescript": "6.0.0-beta"
-	},
-	"packageManager": "pnpm@10.33.0",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"better-sqlite3",
-			"esbuild",
-			"workerd"
-		]
-	}
+  "name": "@emdash-cms/template-blog",
+  "version": "0.0.3",
+  "private": true,
+  "type": "module",
+  "emdash": {
+    "seed": "seed/seed.json"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "bootstrap": "emdash init && emdash seed",
+    "seed": "emdash seed",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/node": "catalog:",
+    "@astrojs/react": "catalog:",
+    "@emdash-cms/plugin-audit-log": "workspace:*",
+    "astro": "catalog:",
+    "better-sqlite3": "catalog:",
+    "emdash": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@astrojs/check": "catalog:"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {}
 }

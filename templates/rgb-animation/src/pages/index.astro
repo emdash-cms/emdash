@@ -1,86 +1,286 @@
 ---
-import BaseLayout from '@/layouts/BaseLayout.astro';
-import Header from '@/components/common/Header.astro';
-import Footer from '@/components/common/Footer.astro';
-import ScrollToTop from '@/components/common/ScrollToTop.astro';
-import Preloader from '@/components/common/Preloader';
-import HeroVideo from '@/components/home/HeroVideo';
-import WorksGrid from '@/components/home/WorksGrid.astro';
-import ProjectCarousel from '@/components/home/ProjectCarousel';
-import CompanyProjects from '@/components/home/CompanyProjects.astro';
-import OutsourcedGallery from '@/components/home/OutsourcedGallery';
-import { t } from '@/i18n';
-import { getEmDashCollection } from 'emdash';
+import { getEmDashCollection, getEntryTerms } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import PostCard from "../components/PostCard.astro";
+import { getReadingTime } from "../utils/reading-time";
 
-const locale = 'ja';
+const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+Astro.cache.set(cacheHint);
 
-const { entries: carouselEntries } = await getEmDashCollection('carousel_images');
-const carouselImages = carouselEntries.map((entry) => ({
-  id: entry.id,
-  src: entry.data.featured_image?.src ?? '/images/placeholder-carousel-1.svg',
-  alt: entry.data.title ?? '',
-  altEn: entry.data.title_en ?? '',
-}));
+const sortedPosts = posts.toSorted((a, b) => {
+	const dateA = a.data.publishedAt?.getTime() ?? 0;
+	const dateB = b.data.publishedAt?.getTime() ?? 0;
+	return dateB - dateA;
+});
 
-const { entries: outsourcedEntries } = await getEmDashCollection('outsourced');
-const outsourcedItems = outsourcedEntries.map((entry) => ({
-  id: entry.id,
-  title: entry.data.title ?? '',
-  titleEn: entry.data.title_en ?? '',
-  mediaType: entry.data.media_type ?? 'image',
-  src: entry.data.featured_image?.src ?? '/images/placeholder-outsourced-1.svg',
-  aspectRatio: entry.data.aspect_ratio ?? 'landscape',
-  category: entry.data.outsourced_category?.[0] ?? 'VFX',
-}));
+const featuredPost = sortedPosts.find((p) => p.data.featured_image);
+const featuredIndex = featuredPost ? sortedPosts.indexOf(featuredPost) : -1;
+const gridPosts = sortedPosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
+const totalShown = (featuredPost ? 1 : 0) + gridPosts.length;
+const hasMorePosts = sortedPosts.length > totalShown;
+
+let featuredTags: Array<{ slug: string; label: string }> = [];
+if (featuredPost) {
+	const tags = await getEntryTerms("posts", featuredPost.data.id, "tag");
+	featuredTags = tags.map((t) => ({ slug: t.slug, label: t.label }));
+}
+
+const gridPostsWithTags = await Promise.all(
+	gridPosts.map(async (post) => {
+		const tags = await getEntryTerms("posts", post.data.id, "tag");
+		return { post, tags: tags.map((t) => ({ slug: t.slug, label: t.label })) };
+	})
+);
+
+function formatDate(date: Date | null | undefined) {
+	if (!date) return null;
+	return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
 ---
 
-<BaseLayout
-  title={t(locale, 'site.title')}
-  description={t(locale, 'site.description')}
->
-  <!-- Preloader — hydrate immediately -->
-  <Preloader client:load />
+<Base title="My Blog" description="Welcome to my blog">
+	{
+		posts.length === 0 ? (
+			<div class="empty-state">
+				<p class="empty-kicker">Nothing yet</p>
+				<h1 class="empty-title">No posts here.</h1>
+				<p class="empty-sub">Create your first post in the admin panel.</p>
+				<a href="/_emdash/admin/content/posts/new" class="btn">Write something</a>
+			</div>
+		) : (
+			<div class="home">
+				{/* ── Hero / Featured ─────────────────────────────────── */}
+				{featuredPost && (
+					<section class="hero-section">
+						<div class="hero-inner">
+							<a href={`/posts/${featuredPost.id}`} class="hero-image-link">
+								<div class="hero-image">
+									<Image image={featuredPost.data.featured_image} />
+								</div>
+							</a>
+							<div class="hero-content">
+								{featuredTags.length > 0 && (
+									<div class="hero-tags">
+										{featuredTags.slice(0, 2).map((tag) => (
+											<a href={`/tag/${tag.slug}`} class="tag-pill">{tag.label}</a>
+										))}
+									</div>
+								)}
+								<a href={`/posts/${featuredPost.id}`} class="hero-title-link">
+									<h1 class="hero-title">{featuredPost.data.title}</h1>
+								</a>
+								{featuredPost.data.excerpt && (
+									<p class="hero-excerpt">{featuredPost.data.excerpt}</p>
+								)}
+								<div class="hero-meta">
+									{formatDate(featuredPost.data.publishedAt) && (
+										<time class="meta-item">{formatDate(featuredPost.data.publishedAt)}</time>
+									)}
+									<span class="meta-sep">·</span>
+									<span class="meta-item">{getReadingTime(featuredPost.data.content)} min read</span>
+								</div>
+							</div>
+						</div>
+					</section>
+				)}
 
-  <Header slot="header" />
+				{/* ── Latest Grid ─────────────────────────────────────── */}
+				{gridPostsWithTags.length > 0 && (
+					<section class="grid-section">
+						<div class="grid-inner">
+							<header class="section-head">
+								<span class="section-label">Latest</span>
+								{hasMorePosts && (
+									<a href="/posts" class="section-more">View all →</a>
+								)}
+							</header>
+							<div class="posts-grid">
+								{gridPostsWithTags.map(({ post, tags }) => (
+									<PostCard
+										title={post.data.title ?? "Untitled"}
+										excerpt={post.data.excerpt}
+										featuredImage={post.data.featured_image}
+										href={`/posts/${post.id}`}
+										date={post.data.publishedAt ?? undefined}
+										readingTime={getReadingTime(post.data.content)}
+										tags={tags}
+										bylines={post.data.bylines ?? []}
+									/>
+								))}
+							</div>
+						</div>
+					</section>
+				)}
+			</div>
+		)
+	}
+</Base>
 
-  <!-- §2. Hero Video Player -->
-  <HeroVideo
-    client:load
-    poster="/images/hero-poster.svg"
-    title={t(locale, 'home.hero.title')}
-  />
+<style>
+	/* ── Empty state ────────────────────────────────────────── */
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		padding: var(--spacing-24) var(--spacing-6);
+		gap: var(--spacing-3);
+	}
+	.empty-kicker {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--color-muted);
+	}
+	.empty-title {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-4xl);
+		font-weight: 300;
+	}
+	.empty-sub { color: var(--color-muted); }
+	.btn {
+		display: inline-block;
+		margin-top: var(--spacing-4);
+		padding: var(--spacing-3) var(--spacing-6);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		text-decoration: none;
+		border-radius: var(--radius);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		transition: background var(--transition-fast);
+	}
+	.btn:hover { background: var(--color-accent-hover); }
 
-  <!-- §3. Works Grid — Movies/Anime -->
-  <WorksGrid locale={locale} />
+	/* ── Hero ─────────────────────────────────────────────── */
+	.hero-section {
+		border-bottom: 1px solid var(--color-border-subtle);
+		padding: var(--spacing-16) 0;
+	}
 
-  <!-- §4. Project Images Carousel -->
-  <ProjectCarousel
-    client:visible
-    images={carouselImages}
-    locale={locale}
-    title={t(locale, 'home.carousel.title')}
-    subtitle={t(locale, 'home.carousel.subtitle')}
-  />
+	.hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: 0 var(--spacing-6);
+		display: grid;
+		grid-template-columns: 5fr 4fr;
+		gap: var(--spacing-12);
+		align-items: center;
+	}
 
-  <!-- §5. Company Projects -->
-  <CompanyProjects locale={locale} />
+	.hero-image-link { display: block; overflow: hidden; border-radius: var(--radius-xl); }
+	.hero-image { overflow: hidden; border-radius: var(--radius-xl); }
+	.hero-image img {
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		object-fit: cover;
+		transition: transform 0.5s ease;
+	}
+	.hero-image-link:hover .hero-image img,
+	.hero-inner:has(.hero-title-link:hover) .hero-image img {
+		transform: scale(1.03);
+	}
 
-  <!-- §6. Outsourced Works Gallery -->
-  <OutsourcedGallery
-    client:visible
-    items={outsourcedItems}
-    locale={locale}
-    title={t(locale, 'home.outsourced.title')}
-    subtitle={t(locale, 'home.outsourced.subtitle')}
-  />
+	.hero-content {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-5);
+	}
 
-  <Footer slot="footer" />
-  <ScrollToTop />
-</BaseLayout>
+	.hero-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-2); }
+	.tag-pill {
+		display: inline-block;
+		padding: 4px var(--spacing-3);
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-accent);
+		border: 1px solid currentColor;
+		border-radius: 100px;
+		text-decoration: none;
+		transition: all var(--transition-fast);
+	}
+	.tag-pill:hover { background: var(--color-accent); color: white; }
 
-<style is:global>
-  /* Homepage uses dark background */
-  body {
-    background-color: var(--color-bg-dark);
-  }
+	.hero-title-link { text-decoration: none; color: inherit; }
+	.hero-title {
+		font-family: var(--font-serif);
+		font-size: clamp(var(--font-size-3xl), 4vw, var(--font-size-5xl));
+		font-weight: 300;
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+		transition: color var(--transition-fast);
+	}
+	.hero-title-link:hover .hero-title,
+	.hero-inner:has(.hero-image-link:hover) .hero-title {
+		color: var(--color-accent);
+	}
+
+	.hero-excerpt {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.hero-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+	}
+	.meta-sep { color: var(--color-border); }
+
+	/* ── Latest grid ─────────────────────────────────────── */
+	.grid-section { padding: var(--spacing-16) 0; }
+	.grid-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: 0 var(--spacing-6);
+	}
+
+	.section-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: var(--spacing-10);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+	.section-label {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wider);
+		color: var(--color-muted);
+	}
+	.section-more {
+		font-size: var(--font-size-sm);
+		color: var(--color-accent);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+	.section-more:hover { color: var(--color-accent-hover); }
+
+	.posts-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-12) var(--spacing-8);
+	}
+
+	/* ── Responsive ─────────────────────────────────────── */
+	@media (max-width: 1024px) {
+		.hero-inner { grid-template-columns: 1fr; gap: var(--spacing-8); }
+		.hero-image img { aspect-ratio: 16 / 9; }
+	}
+	@media (max-width: 900px) {
+		.posts-grid { grid-template-columns: repeat(2, 1fr); }
+	}
+	@media (max-width: 640px) {
+		.hero-section, .grid-section { padding: var(--spacing-10) 0; }
+		.posts-grid { grid-template-columns: 1fr; gap: var(--spacing-8); }
+	}
 </style>

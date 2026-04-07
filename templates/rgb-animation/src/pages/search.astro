@@ -1,0 +1,120 @@
+---
+export const prerender = false;
+
+import { getEmDashCollection } from "emdash";
+import Base from "../layouts/Base.astro";
+import PostCard from "../components/PostCard.astro";
+import { getReadingTime, extractText } from "../utils/reading-time";
+
+const query = Astro.url.searchParams.get("q")?.trim() || "";
+
+const { entries: allPosts } = await getEmDashCollection("posts");
+
+function matchesQuery(post: (typeof allPosts)[0], q: string): boolean {
+	if (!q) return false;
+	const lower = q.toLowerCase();
+	const title = (post.data.title || "").toLowerCase();
+	const excerpt = (post.data.excerpt || "").toLowerCase();
+	const content = extractText(post.data.content).toLowerCase();
+	return title.includes(lower) || excerpt.includes(lower) || content.includes(lower);
+}
+
+const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
+---
+
+<Base
+	title={query ? `"${query}" — Search` : "Search"}
+	description="Search posts"
+>
+	<section class="search-page">
+		<div class="search-inner">
+			<h1 class="search-title">Search</h1>
+
+			<form method="get" action="/search" class="search-form">
+				<input
+					type="search"
+					name="q"
+					value={query}
+					placeholder="Search posts…"
+					class="search-input"
+					autofocus
+				/>
+				<button type="submit" class="search-btn">Search</button>
+			</form>
+
+			{
+				query && (
+					<p class="search-summary">
+						{results.length === 0
+							? `No results for "${query}"`
+							: `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
+					</p>
+				)
+			}
+
+			{
+				results.length > 0 && (
+					<div class="search-results">
+						{results.map((post) => (
+							<PostCard
+								title={post.data.title}
+								excerpt={post.data.excerpt}
+								featuredImage={post.data.featured_image}
+								href={`/posts/${post.id}`}
+								date={post.data.publishedAt ?? undefined}
+								readingTime={getReadingTime(post.data.content)}
+								bylines={post.data.bylines ?? []}
+							/>
+						))}
+					</div>
+				)
+			}
+
+			{!query && <p class="search-hint">Enter a term to find posts.</p>}
+		</div>
+	</section>
+</Base>
+
+<style>
+	.search-page { padding: var(--spacing-16) 0; }
+	.search-inner { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--spacing-6); }
+
+	.search-title {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-3xl);
+		font-weight: 300;
+		margin-bottom: var(--spacing-8);
+	}
+
+	.search-form { display: flex; gap: var(--spacing-2); margin-bottom: var(--spacing-8); }
+	.search-input {
+		flex: 1;
+		padding: var(--spacing-3) var(--spacing-4);
+		font-family: var(--font-sans);
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+		transition: border-color var(--transition-fast);
+	}
+	.search-input:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-ring); }
+
+	.search-btn {
+		padding: var(--spacing-3) var(--spacing-6);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		border: none;
+		border-radius: var(--radius);
+		font-family: var(--font-sans);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		cursor: pointer;
+		transition: background var(--transition-fast);
+	}
+	.search-btn:hover { background: var(--color-accent-hover); }
+
+	.search-summary, .search-hint { color: var(--color-muted); margin-bottom: var(--spacing-8); }
+
+	.search-results { display: flex; flex-direction: column; gap: var(--spacing-10); }
+</style>

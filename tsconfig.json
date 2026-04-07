@@ -1,25 +1,7 @@
 {
+	"extends": "astro/tsconfigs/base",
 	"compilerOptions": {
-		/* Base Options: */
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"target": "es2023",
-		"allowJs": true,
-		"resolveJsonModule": true,
-		"moduleDetection": "force",
-		"isolatedModules": true,
-		"verbatimModuleSyntax": true,
-		/* Strictness */
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"noImplicitOverride": true,
-		/* AND if you're building for a library: */
-		"declaration": true,
-		"declarationMap": true,
-		/* If NOT transpiling with TypeScript: */
-		"module": "preserve",
-		"noEmit": true,
-		/* If your code doesn't run in the DOM: */
-		"lib": ["es2023", "esnext.typedarrays"]
-	}
+		"types": ["node"]
+	},
+	"include": ["src", ".astro/types.d.ts", "emdash-env.d.ts"]
 }

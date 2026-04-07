@@ -1,0 +1,207 @@
+---
+import type { MediaValue, ContentBylineCredit } from "emdash";
+import { Image } from "emdash/ui";
+
+interface Props {
+	title: string;
+	excerpt?: string | null;
+	featuredImage?: MediaValue | string | null;
+	href: string;
+	date?: Date;
+	readingTime?: number;
+	tags?: Array<{ slug: string; label: string }>;
+	bylines?: ContentBylineCredit[];
+	size?: "default" | "compact";
+}
+
+const {
+	title,
+	excerpt,
+	featuredImage,
+	href,
+	date,
+	readingTime,
+	tags,
+	bylines,
+	size = "default",
+} = Astro.props;
+
+const formattedDate = date
+	? date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+	: null;
+---
+
+<article class:list={["post-card", `post-card--${size}`]}>
+	<a href={href} class="card-link">
+		{
+			featuredImage ? (
+				<div class="card-image">
+					<Image image={featuredImage} />
+				</div>
+			) : (
+				<div class="card-placeholder" />
+			)
+		}
+		<div class="card-body">
+			<div class="card-meta">
+				{
+					bylines && bylines.length > 0 && (
+						<>
+							<div class="card-bylines">
+								{bylines.slice(0, 1).map((credit) => (
+									<span class="card-byline">
+										{credit.byline.avatarMediaId && (
+											<img
+												src={`/_emdash/api/media/file/${credit.byline.avatarMediaId}`}
+												alt={credit.byline.displayName}
+												class="card-byline-avatar"
+											/>
+										)}
+										<span class="card-byline-name">{credit.byline.displayName}</span>
+									</span>
+								))}
+								{bylines.length > 1 && (
+									<span
+										class="byline-more"
+										title={bylines.slice(1).map((c) => c.byline.displayName).join(", ")}
+									>
+										+{bylines.length - 1}
+									</span>
+								)}
+							</div>
+							{(formattedDate || readingTime) && <span class="meta-sep">·</span>}
+						</>
+					)
+				}
+				{formattedDate && <time>{formattedDate}</time>}
+				{formattedDate && readingTime && <span class="meta-sep">·</span>}
+				{readingTime && <span>{readingTime} min</span>}
+			</div>
+			<h2 class="card-title">{title}</h2>
+			{excerpt && <p class="card-excerpt">{excerpt}</p>}
+		</div>
+	</a>
+	{
+		tags && tags.length > 0 && (
+			<div class="card-tags">
+				{tags.slice(0, 2).map((tag) => (
+					<a href={`/tag/${tag.slug}`} class="card-tag">
+						{tag.label}
+					</a>
+				))}
+			</div>
+		)
+	}
+</article>
+
+<style>
+	.post-card {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.card-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+		flex: 1;
+	}
+
+	.card-image {
+		aspect-ratio: 3 / 2;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+		background: var(--color-surface);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.card-image img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		transition: transform 0.4s ease;
+	}
+
+	.card-link:hover .card-image img {
+		transform: scale(1.04);
+	}
+
+	.card-placeholder {
+		aspect-ratio: 3 / 2;
+		border-radius: var(--radius-lg);
+		background: var(--color-surface);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.card-meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-2);
+		font-family: var(--font-sans);
+	}
+
+	.meta-sep { color: var(--color-border); }
+
+	.card-title {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-xl);
+		font-weight: 400;
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-snug);
+		margin-bottom: var(--spacing-2);
+		transition: color var(--transition-fast);
+		color: var(--color-text);
+	}
+
+	.card-link:hover .card-title { color: var(--color-accent); }
+
+	.card-excerpt {
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.card-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-top: var(--spacing-3);
+	}
+
+	.card-tag {
+		display: inline-block;
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
+		font-family: var(--font-sans);
+		color: var(--color-muted);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		text-decoration: none;
+		transition: color var(--transition-fast), background var(--transition-fast);
+	}
+	.card-tag:hover { color: var(--color-text); background: var(--color-border); }
+
+	/* Bylines */
+	.card-bylines { display: flex; align-items: center; gap: 2px; }
+	.card-byline { display: inline-flex; align-items: center; gap: var(--spacing-1); }
+	.card-byline-avatar {
+		width: var(--avatar-size-xs);
+		height: var(--avatar-size-xs);
+		border-radius: 50%;
+		object-fit: cover;
+	}
+	.card-byline-name { font-weight: 500; color: var(--color-text-secondary); }
+	.byline-more { font-size: var(--font-size-xs); color: var(--color-muted); cursor: default; }
+
+	/* Compact variant */
+	.post-card--compact .card-image { display: none; }
+	.post-card--compact .card-title { font-size: var(--font-size-base); }
+</style>

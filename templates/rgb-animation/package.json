@@ -18,7 +18,6 @@
 	"dependencies": {
 		"@astrojs/node": "catalog:",
 		"@astrojs/react": "catalog:",
-		"@astrojs/sitemap": "^3.7.2",
 		"astro": "catalog:",
 		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",

@@ -1,0 +1,56 @@
+---
+import { getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+if (!page) return Astro.redirect("/404");
+
+Astro.cache.set(cacheHint);
+---
+
+<Base
+	title={page.data.title}
+	content={{ collection: "pages", id: page.data.id, slug }}
+>
+	<article class="page-article">
+		<div class="page-inner">
+			<header class="page-header">
+				<h1 class="page-title" {...page.edit.title}>{page.data.title}</h1>
+			</header>
+			<div class="page-content">
+				<PortableText value={page.data.content} />
+			</div>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.page-article { padding: var(--spacing-16) 0; }
+	.page-inner { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--spacing-6); }
+
+	.page-header { margin-bottom: var(--spacing-10); border-bottom: 1px solid var(--color-border-subtle); padding-bottom: var(--spacing-8); }
+
+	.page-title {
+		font-family: var(--font-serif);
+		font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
+		font-weight: 300;
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+	}
+
+	.page-content { font-size: var(--font-size-lg); line-height: var(--leading-relaxed); }
+	.page-content :global(p) { margin-bottom: 1.6em; }
+	.page-content :global(h2) { font-family: var(--font-serif); font-size: var(--font-size-2xl); font-weight: 400; margin-top: 2.5em; margin-bottom: 0.8em; }
+	.page-content :global(h3) { font-family: var(--font-serif); font-size: var(--font-size-xl); font-weight: 400; margin-top: 2em; margin-bottom: 0.6em; }
+	.page-content :global(blockquote) { margin: 2em 0; padding: var(--spacing-4) var(--spacing-6); border-left: 3px solid var(--color-accent); background: var(--color-bg-subtle); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; color: var(--color-text-secondary); font-style: italic; }
+	.page-content :global(pre) { margin: 2em 0; padding: var(--spacing-5); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow-x: auto; font-family: var(--font-mono); font-size: var(--font-size-sm); }
+	.page-content :global(code) { font-family: var(--font-mono); font-size: 0.88em; background: var(--color-surface); padding: 0.15em 0.4em; border-radius: var(--radius); }
+	.page-content :global(pre code) { background: none; padding: 0; }
+	.page-content :global(ul), .page-content :global(ol) { margin-bottom: 1.5em; padding-left: 1.5em; }
+	.page-content :global(li) { margin-bottom: 0.5em; list-style: revert; }
+	.page-content :global(a) { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+</style>
