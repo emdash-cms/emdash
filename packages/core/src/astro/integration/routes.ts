@@ -701,6 +701,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/setup/dev-reset.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/dev/emails",
+		entrypoint: resolveRoute("api/dev/emails.ts"),
+	});
+
 	// Current user endpoint (always available)
 	injectRoute({
 		pattern: "/_emdash/api/auth/me",
