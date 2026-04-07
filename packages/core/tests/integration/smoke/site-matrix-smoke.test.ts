@@ -181,39 +181,37 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 }
 
 // ---------------------------------------------------------------------------
-// Build verification — runs `astro build` for every site to catch adapter
-// and bundling errors that dev mode doesn't surface.
+// Build verification — runs a single recursive `pnpm build` across all demos
+// and templates in parallel, then verifies each site produced output.
 // ---------------------------------------------------------------------------
 
-describe.sequential("Site build verification", () => {
-	const BUILD_TIMEOUT = 120_000;
+describe("Site build verification", () => {
+	it("all demos and templates build successfully", { timeout: 300_000 }, async () => {
+		await ensureBuilt();
 
-	for (const site of SITE_MATRIX) {
-		if (site.mode === "typecheck") continue;
-
-		it(`${site.name} builds successfully`, { timeout: BUILD_TIMEOUT + 30_000 }, async () => {
-			await ensureBuilt();
-
-			try {
-				await execAsync("pnpm", ["exec", "astro", "build"], {
-					cwd: site.dir,
-					timeout: BUILD_TIMEOUT,
+		try {
+			await execAsync(
+				"pnpm",
+				["run", "--recursive", "--filter", "{./demos/*}", "--filter", "{./templates/*}", "build"],
+				{
+					cwd: WORKSPACE_ROOT,
+					timeout: 240_000,
 					env: {
 						...process.env,
 						CI: "true",
 					},
-				});
-			} catch (error) {
-				const stderr =
-					error instanceof Error && "stderr" in error ? (error as { stderr: string }).stderr : "";
-				const stdout =
-					error instanceof Error && "stdout" in error ? (error as { stdout: string }).stdout : "";
-				throw new Error(`${site.name} build failed:\n\n${stderr || stdout}`.slice(0, 5000), {
-					cause: error,
-				});
-			}
-		});
-	}
+				},
+			);
+		} catch (error) {
+			const stderr =
+				error instanceof Error && "stderr" in error ? (error as { stderr: string }).stderr : "";
+			const stdout =
+				error instanceof Error && "stdout" in error ? (error as { stdout: string }).stdout : "";
+			throw new Error(`Site builds failed:\n\n${stderr || stdout}`.slice(0, 5000), {
+				cause: error,
+			});
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------
