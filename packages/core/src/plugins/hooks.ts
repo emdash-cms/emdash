@@ -17,6 +17,7 @@ import type {
 	PluginContext,
 	ContentHookEvent,
 	ContentDeleteEvent,
+	ContentPublishEvent,
 	MediaUploadEvent,
 	MediaAfterUploadEvent,
 	LifecycleEvent,
@@ -30,6 +31,8 @@ import type {
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
+	ContentAfterPublishHandler,
+	ContentAfterUnpublishHandler,
 	MediaBeforeUploadHandler,
 	MediaAfterUploadHandler,
 	LifecycleHandler,
@@ -61,6 +64,8 @@ type HookNameV2 =
 	| "content:afterSave"
 	| "content:beforeDelete"
 	| "content:afterDelete"
+	| "content:afterPublish"
+	| "content:afterUnpublish"
 	| "media:beforeUpload"
 	| "media:afterUpload"
 	| "cron"
@@ -86,6 +91,8 @@ interface HookHandlerMap {
 	"content:afterSave": ContentAfterSaveHandler;
 	"content:beforeDelete": ContentBeforeDeleteHandler;
 	"content:afterDelete": ContentAfterDeleteHandler;
+	"content:afterPublish": ContentAfterPublishHandler;
+	"content:afterUnpublish": ContentAfterUnpublishHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -211,6 +218,8 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "content:afterSave");
 			this.registerPluginHook(plugin, "content:beforeDelete");
 			this.registerPluginHook(plugin, "content:afterDelete");
+			this.registerPluginHook(plugin, "content:afterPublish");
+			this.registerPluginHook(plugin, "content:afterUnpublish");
 			this.registerPluginHook(plugin, "media:beforeUpload");
 			this.registerPluginHook(plugin, "media:afterUpload");
 			this.registerPluginHook(plugin, "cron");
@@ -249,6 +258,8 @@ export class HookPipeline {
 		["content:afterSave", "read:content"],
 		["content:beforeDelete", "read:content"],
 		["content:afterDelete", "read:content"],
+		["content:afterPublish", "read:content"],
+		["content:afterUnpublish", "read:content"],
 		// Media
 		["media:beforeUpload", "write:media"],
 		["media:afterUpload", "read:media"],
@@ -593,6 +604,86 @@ export class HookPipeline {
 		for (const hook of hooks) {
 			const { handler } = hook;
 			const event: ContentDeleteEvent = { id, collection };
+			const ctx = this.getContext(hook.pluginId);
+			const start = Date.now();
+
+			try {
+				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				results.push({
+					success: true,
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+			} catch (error) {
+				results.push({
+					success: false,
+					error: error instanceof Error ? error : new Error(String(error)),
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+
+				if (hook.errorPolicy === "abort") {
+					throw error;
+				}
+			}
+		}
+
+		return results;
+	}
+
+	/**
+	 * Run content:afterPublish hooks (fire-and-forget).
+	 */
+	async runContentAfterPublish(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		const hooks = this.getTypedHooks("content:afterPublish");
+		const results: HookResult<void>[] = [];
+
+		for (const hook of hooks) {
+			const { handler } = hook;
+			const event: ContentPublishEvent = { content, collection };
+			const ctx = this.getContext(hook.pluginId);
+			const start = Date.now();
+
+			try {
+				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				results.push({
+					success: true,
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+			} catch (error) {
+				results.push({
+					success: false,
+					error: error instanceof Error ? error : new Error(String(error)),
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+
+				if (hook.errorPolicy === "abort") {
+					throw error;
+				}
+			}
+		}
+
+		return results;
+	}
+
+	/**
+	 * Run content:afterUnpublish hooks (fire-and-forget).
+	 */
+	async runContentAfterUnpublish(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		const hooks = this.getTypedHooks("content:afterUnpublish");
+		const results: HookResult<void>[] = [];
+
+		for (const hook of hooks) {
+			const { handler } = hook;
+			const event: ContentPublishEvent = { content, collection };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
