@@ -253,6 +253,34 @@ describe("parseInlineContent", () => {
 			expect(span?.marks).toContain("strong");
 			expect(span?.marks?.length).toBe(2); // strong + link key
 		});
+
+		it("handles links with empty href", () => {
+			const result = parseInlineContent('<a href="">empty link</a>', generateKey);
+
+			expect(result.markDefs).toHaveLength(1);
+			expect(result.markDefs[0]).toMatchObject({
+				_type: "link",
+				href: "",
+			});
+
+			const linkSpan = result.children.find((c) =>
+				c.marks?.includes(result.markDefs[0]?._key ?? ""),
+			);
+			expect(linkSpan?.text).toBe("empty link");
+		});
+
+		it("ignores unknown schemes in links", () => {
+			const result = parseInlineContent('<a href="ftp://foo.bar">bad link</a>', generateKey);
+
+			expect(result.markDefs).toHaveLength(1);
+			expect(result.markDefs[0]).toMatchObject({
+				_type: "link",
+				href: "",
+			});
+
+			const linkSpan = result.children.find((c) => c.marks?.includes(result.markDefs[0]!._key));
+			expect(linkSpan?.text).toBe("bad link");
+		});
 	});
 
 	describe("line breaks", () => {
