@@ -60,11 +60,11 @@ function applyCssClasses(
 	if (!cssClasses) return result;
 
 	if (Array.isArray(result)) {
-		// Apply to first block in array (e.g., blockquote paragraphs, list items)
-		if (result.length > 0) {
-			result[0] = { ...result[0], cssClasses } as PortableTextBlock;
-		}
-		return result;
+		// Apply to every produced block. Each PT block round-trips back to its
+		// own PM container (e.g., a styled blockquote with N paragraphs becomes
+		// N styled PT blockquote blocks → N styled PM blockquotes), so the
+		// styling lives on every block, not just the first.
+		return result.map((b) => ({ ...b, cssClasses }) as PortableTextBlock);
 	}
 	return { ...result, cssClasses } as PortableTextBlock;
 }

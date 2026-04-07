@@ -35,7 +35,7 @@ export const BlockStyleExtension = Extension.create({
 	addGlobalAttributes() {
 		return [
 			{
-				types: ["paragraph", "heading"],
+				types: ["paragraph", "heading", "blockquote", "listItem", "codeBlock", "horizontalRule"],
 				attributes: {
 					cssClasses: {
 						default: null,
@@ -57,19 +57,15 @@ export const BlockStyleExtension = Extension.create({
 		return {
 			setBlockCssClasses:
 				(classes: string) =>
-				({ commands }) => {
-					return (
-						commands.updateAttributes("paragraph", { cssClasses: classes }) ||
-						commands.updateAttributes("heading", { cssClasses: classes })
-					);
+				({ editor, commands }) => {
+					const { $from } = editor.state.selection;
+					return commands.updateAttributes($from.parent.type.name, { cssClasses: classes });
 				},
 			unsetBlockCssClasses:
 				() =>
-				({ commands }) => {
-					return (
-						commands.updateAttributes("paragraph", { cssClasses: null }) ||
-						commands.updateAttributes("heading", { cssClasses: null })
-					);
+				({ editor, commands }) => {
+					const { $from } = editor.state.selection;
+					return commands.updateAttributes($from.parent.type.name, { cssClasses: null });
 				},
 			toggleBlockCssClasses:
 				(classes: string) =>
