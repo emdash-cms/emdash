@@ -7,7 +7,7 @@
  */
 
 import { Button, Label } from "@cloudflare/kumo";
-import { Image as ImageIcon, X } from "lucide-react";
+import { Image as ImageIcon, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { ContentSeo, ContentSeoInput, MediaItem } from "../lib/api";
@@ -27,11 +27,11 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 		const url = isLocalProvider
 			? `/_emdash/api/media/file/${item.storageKey || item.id}`
 			: item.url;
-		onChange({ ...seo, image: url });
+		onChange({ image: url });
 	};
 
 	const handleRemove = () => {
-		onChange({ ...seo, image: null });
+		onChange({ image: null });
 	};
 
 	return (

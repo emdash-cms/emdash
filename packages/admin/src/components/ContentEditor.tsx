@@ -636,9 +636,18 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
-								if (field.kind === "image" && hasSeo && !isNew && onSeoChange) {
+								if (
+									name === "featured_image" &&
+									field.kind === "image" &&
+									hasSeo &&
+									!isNew &&
+									onSeoChange
+								) {
 									return (
-										<div key={`${name}-with-seo`} className="grid grid-cols-2 gap-6">
+										<div
+											key={`${name}-with-seo`}
+											className="grid grid-cols-1 gap-6 md:grid-cols-2"
+										>
 											<div>{fieldEl}</div>
 											<div>
 												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
@@ -1154,7 +1163,11 @@ function FieldRenderer({
 			return (
 				<ImageFieldRenderer
 					label={label}
-					description="Used as the main visual for this post on listing pages and at the top of the post"
+					description={
+						name === "featured_image"
+							? "Used as the main visual for this post on listing pages and at the top of the post"
+							: undefined
+					}
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
