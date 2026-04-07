@@ -74,5 +74,29 @@ else
 fi
 
 echo ""
+echo "--- Checking first-boot seed ---"
+node -e "
+  const fs = require('fs');
+  const dbPath = (process.env.DATABASE_URL || 'file:./data/data.db').replace(/^file:/, '');
+  const seedFlag = './data/.seeded';
+  const seedFile = './seed/seed.json';
+  if (!fs.existsSync(dbPath) && !fs.existsSync(seedFlag) && fs.existsSync(seedFile)) {
+    console.log('First boot detected — applying seed...');
+    try {
+      require('child_process').execSync(
+        'node ./node_modules/.bin/emdash seed ' + seedFile,
+        { stdio: 'inherit' }
+      );
+      fs.writeFileSync(seedFlag, '');
+      console.log('OK: seed applied');
+    } catch (e) {
+      console.error('WARN: seed failed (non-fatal):', e.message);
+    }
+  } else {
+    console.log('OK: skipped (DB already exists or already seeded)');
+  }
+"
+
+echo ""
 echo "=== Starting EmDash server ==="
 exec node ./dist/server/entry.mjs

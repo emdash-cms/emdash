@@ -69,6 +69,9 @@ COPY --from=builder /deploy .
 # ── Copy the compiled dist/ (excluded by .gitignore, so pnpm deploy skips it) -
 COPY --from=builder /app/templates/rgb-animation/dist/ ./dist/
 
+# ── Copy seed file for first-boot seeding ────────────────────────────────────
+COPY --from=builder /app/templates/rgb-animation/seed/ ./seed/
+
 # ── Persistent data volumes ───────────────────────────────────────────────────
 RUN mkdir -p data uploads
 
