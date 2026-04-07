@@ -6,6 +6,7 @@ import {
 	ArrowsLeftRight,
 	Trash,
 	PencilSimple,
+	WarningCircle,
 	X,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -314,6 +315,7 @@ export function Redirects() {
 	}
 
 	const redirects = redirectsQuery.data?.items ?? [];
+	const loopRedirectIds = new Set(redirectsQuery.data?.loopRedirectIds ?? []);
 
 	return (
 		<div className="space-y-6">
@@ -397,6 +399,29 @@ export function Redirects() {
 						</select>
 					</div>
 
+					{/* Loop warning banner */}
+					{loopRedirectIds.size > 0 && (
+						<div
+							role="alert"
+							className="flex items-start gap-3 rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4"
+						>
+							<WarningCircle
+								size={20}
+								className="mt-0.5 shrink-0 text-kumo-warning"
+								weight="fill"
+								aria-hidden="true"
+							/>
+							<div>
+								<p className="text-sm font-medium text-kumo-warning">Redirect loop detected</p>
+								<p className="mt-1 text-sm text-kumo-subtle">
+									{loopRedirectIds.size}{" "}
+									{loopRedirectIds.size === 1 ? "redirect is" : "redirects are"} part of a loop.
+									Visitors hitting these paths will see an error.
+								</p>
+							</div>
+						</div>
+					)}
+
 					{/* Redirect list */}
 					{redirectsQuery.isLoading ? (
 						<div className="py-12 text-center text-kumo-subtle">Loading redirects...</div>
@@ -451,6 +476,16 @@ export function Redirects() {
 										/>
 									</div>
 									<div className="w-20 flex items-center justify-end gap-1">
+										{loopRedirectIds.has(r.id) && (
+											<WarningCircle
+												size={14}
+												weight="fill"
+												className="mr-1 text-kumo-warning"
+												role="img"
+												aria-label="Part of a redirect loop"
+												title="Part of a redirect loop"
+											/>
+										)}
 										{r.auto && (
 											<Badge variant="outline" className="mr-1 text-xs">
 												auto

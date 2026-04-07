@@ -120,6 +120,7 @@ export const redirectListResponseSchema = z
 	.object({
 		items: z.array(redirectSchema),
 		nextCursor: z.string().optional(),
+		loopRedirectIds: z.array(z.string()).optional(),
 	})
 	.meta({ id: "RedirectListResponse" });
 
