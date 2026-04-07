@@ -399,8 +399,6 @@ export class FTSManager {
 			return true;
 		}
 
-		// Do not run FTS5 "integrity-check": on D1 it can corrupt FTS shadow tables
-		// and trigger SQLITE_CORRUPT_VTAB failures (see issue #252).
 
 		return false;
 	}
