@@ -3,13 +3,16 @@
 	"version": "0.1.0",
 	"description": "Webhook notification plugin for EmDash CMS - posts to external URLs on content changes",
 	"type": "module",
-	"main": "src/index.ts",
+	"main": "dist/index.mjs",
 	"exports": {
-		".": "./src/index.ts",
-		"./sandbox": "./src/sandbox-entry.ts"
+		".": {
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.mts"
+		},
+		"./sandbox": "./dist/sandbox-entry.mjs"
 	},
 	"files": [
-		"src"
+		"dist"
 	],
 	"keywords": [
 		"emdash",
@@ -21,14 +24,18 @@
 	],
 	"author": "Matt Kane",
 	"license": "MIT",
-	"peerDependencies": {
+	"dependencies": {
 		"emdash": "workspace:*"
 	},
-	"devDependencies": {},
+	"devDependencies": {
+		"tsdown": "catalog:",
+		"typescript": "catalog:"
+	},
 	"scripts": {
+		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
+		"dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {},
 	"optionalDependencies": {},
 	"repository": {
 		"type": "git",
