@@ -17,20 +17,6 @@ export interface Page {
   bylines?: ContentBylineCredit[];
 }
 
-export interface Post {
-  id: string;
-  slug: string | null;
-  status: string;
-  title: string;
-  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
-  content?: PortableTextBlock[];
-  excerpt?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
-}
-
 export interface Project {
   id: string;
   slug: string | null;
@@ -52,7 +38,6 @@ export interface Project {
 declare module "emdash" {
   interface EmDashCollections {
     pages: Page;
-    posts: Post;
     projects: Project;
   }
 }
