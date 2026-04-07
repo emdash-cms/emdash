@@ -76,6 +76,7 @@ import {
 	createField,
 	updateField,
 	deleteField,
+	reorderFields,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -243,10 +244,19 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
-	const { data, isLoading, error } = useQuery({
-		queryKey: ["content", collection, { locale: activeLocale }],
-		queryFn: () => fetchContentList(collection, { locale: activeLocale }),
-	});
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+		useInfiniteQuery({
+			queryKey: ["content", collection, { locale: activeLocale }],
+			queryFn: ({ pageParam }) =>
+				fetchContentList(collection, {
+					locale: activeLocale,
+					cursor: pageParam as string | undefined,
+					limit: 100,
+				}),
+			initialPageParam: undefined as string | undefined,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+			enabled: !!manifest,
+		});
 
 	// Fetch trashed items
 	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
@@ -335,14 +345,20 @@ function ContentListPage() {
 		});
 	};
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	return (
 		<ContentList
 			collection={collection}
 			collectionLabel={collectionConfig.label}
-			items={data?.items || []}
+			items={items}
 			trashedItems={trashedData?.items || []}
-			isLoading={isLoading}
+			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
+			hasMore={!!hasNextPage}
+			onLoadMore={() => void fetchNextPage()}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
@@ -824,6 +840,7 @@ function ContentEditPage() {
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
+			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
@@ -1449,6 +1466,16 @@ function ContentTypesEditPage() {
 		},
 	});
 
+	const reorderFieldsMutation = useMutation({
+		mutationFn: (fieldSlugs: string[]) => reorderFields(slug, fieldSlugs),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["schema", "collections", slug],
+			});
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
@@ -1465,6 +1492,7 @@ function ContentTypesEditPage() {
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}
+			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
 		/>
 	);
 }

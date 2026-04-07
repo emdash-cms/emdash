@@ -111,8 +111,10 @@ export function ApiTokenSettings() {
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex items-center gap-3">
-				<Link to="/settings" className="text-kumo-subtle hover:text-kumo-default transition-colors">
-					<ArrowLeft className="h-5 w-5" />
+				<Link to="/settings">
+					<Button variant="ghost" shape="square" aria-label="Back to settings">
+						<ArrowLeft className="h-4 w-4" />
+					</Button>
 				</Link>
 				<div>
 					<h1 className="text-2xl font-bold">API Tokens</h1>

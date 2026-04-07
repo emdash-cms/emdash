@@ -71,7 +71,6 @@ export async function createInviteToken(
 	// The admin SPA handles token validation and passkey registration.
 	const url = new URL(`${config.baseUrl}/admin/invite/accept`);
 	url.searchParams.set("token", token);
-
 	return { url: url.toString(), email };
 }
 

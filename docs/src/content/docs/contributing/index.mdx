@@ -61,8 +61,8 @@ packages/core/src/
 
 ## Prerequisites
 
-- **Node.js** 20 or higher
-- **pnpm** 9 or higher
+- **Node.js** 22 or higher
+- **pnpm** 10 or higher
 - **Git**
 
 ```bash
@@ -151,7 +151,7 @@ pnpm --filter emdash test --watch
 </TabItem>
 <TabItem label="E2E tests">
 ```bash
-pnpm --filter emdash-demo test:e2e
+pnpm test:e2e
 ```
 </TabItem>
 </Tabs>
@@ -182,7 +182,7 @@ pnpm lint:json
 pnpm format
 ```
 
-EmDash uses **oxfmt** (Oxc formatter). The config is in `.prettierrc` (oxfmt uses the same config file format). Tabs, not spaces.
+EmDash uses **oxfmt** (Oxc formatter). The config is in `.oxfmtrc.json`. Tabs, not spaces.
 
 ## Architecture Overview
 
