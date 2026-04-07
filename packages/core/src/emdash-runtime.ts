@@ -1238,8 +1238,8 @@ export class EmDashRuntime {
 				version: plugin.version,
 				enabled,
 				adminMode,
-				adminPages: plugin.admin?.pages,
-				dashboardWidgets: plugin.admin?.widgets,
+				adminPages: plugin.admin?.pages ?? [],
+				dashboardWidgets: plugin.admin?.widgets ?? [],
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
 			};
@@ -1261,8 +1261,8 @@ export class EmDashRuntime {
 				enabled,
 				sandboxed: true,
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
-				adminPages: entry.adminPages,
-				dashboardWidgets: entry.adminWidgets,
+				adminPages: entry.adminPages ?? [],
+				dashboardWidgets: entry.adminWidgets ?? [],
 			};
 		}
 
@@ -1284,8 +1284,8 @@ export class EmDashRuntime {
 				enabled,
 				sandboxed: true,
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
-				adminPages: pages,
-				dashboardWidgets: widgets,
+				adminPages: pages ?? [],
+				dashboardWidgets: widgets ?? [],
 			};
 		}
 
