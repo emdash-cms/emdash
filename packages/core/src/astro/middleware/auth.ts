@@ -30,6 +30,7 @@ import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import type { EmDashHandlers, EmDashManifest } from "../types.js";
+import { buildEmDashCsp } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -50,34 +51,7 @@ declare global {
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 
-/**
- * Strict Content-Security-Policy for /_emdash routes (admin + API).
- *
- * Applied via middleware header rather than Astro's built-in CSP because
- * Astro's auto-hashing defeats 'unsafe-inline' (CSP3 ignores 'unsafe-inline'
- * when hashes are present), which would break user-facing pages.
- */
-function buildEmDashCsp(marketplaceUrl?: string): string {
-	const imgSources = ["'self'", "data:", "blob:"];
-	if (marketplaceUrl) {
-		try {
-			imgSources.push(new URL(marketplaceUrl).origin);
-		} catch {
-			// ignore invalid marketplace URL
-		}
-	}
-	return [
-		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
-		"style-src 'self' 'unsafe-inline'",
-		"connect-src 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'none'",
-		`img-src ${imgSources.join(" ")}`,
-		"object-src 'none'",
-		"base-uri 'self'",
-	].join("; ");
-}
+export { buildEmDashCsp };
 
 /**
  * API routes that skip auth — each handles its own access control.
