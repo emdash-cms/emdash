@@ -266,9 +266,8 @@ async function handleEmDashAuth(
 	const { url, locals } = context;
 	const { emdash } = locals;
 
-	const isLoginRoute = url.pathname.startsWith("/_emdash/admin/login");
 	const isPublicAdminRoute =
-		isLoginRoute ||
+		url.pathname.startsWith("/_emdash/admin/login") ||
 		url.pathname.startsWith("/_emdash/admin/invite/accept") ||
 		url.pathname.startsWith("/_emdash/admin/signup");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");

@@ -16,6 +16,7 @@ import * as React from "react";
 
 import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
+import { LogoLockup } from "./Logo.js";
 
 // ============================================================================
 // Types
@@ -218,7 +219,7 @@ export function InviteAcceptPage() {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<div className="text-4xl font-bold mb-2">— EmDash</div>
+					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{step === "register" && "Accept Invite"}
 						{step === "error" && "Invite Error"}
