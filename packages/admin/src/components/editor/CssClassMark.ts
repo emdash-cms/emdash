@@ -85,9 +85,38 @@ export const CssClassMark = Mark.create<CssClassMarkOptions>({
 					return commands.toggleMark(this.name, { classes });
 				},
 			unsetCssClass:
-				(_classes: string) =>
-				({ commands }) => {
-					return commands.unsetMark(this.name);
+				(classes: string) =>
+				({ state, tr, dispatch }) => {
+					const { from, to, empty } = state.selection;
+					const markType = state.schema.marks[this.name];
+					if (!markType) return false;
+
+					if (empty) {
+						// Remove matching stored mark so it doesn't apply to next typed input
+						const stored = state.storedMarks ?? state.selection.$from.marks();
+						const match = stored.find((m) => m.type === markType && m.attrs?.classes === classes);
+						if (match && dispatch) {
+							tr.removeStoredMark(markType);
+							dispatch(tr);
+						}
+						return !!match;
+					}
+
+					let removed = false;
+					state.doc.nodesBetween(from, to, (node, pos) => {
+						if (!node.isInline) return;
+						for (const mark of node.marks) {
+							if (mark.type === markType && mark.attrs?.classes === classes) {
+								const start = Math.max(pos, from);
+								const end = Math.min(pos + node.nodeSize, to);
+								tr.removeMark(start, end, mark);
+								removed = true;
+							}
+						}
+					});
+
+					if (removed && dispatch) dispatch(tr);
+					return removed;
 				},
 		};
 	},

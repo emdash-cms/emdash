@@ -32,6 +32,7 @@ import type {
 	BylineCreditInput,
 	BylineSummary,
 	ContentItem,
+	EditorStyleEntry,
 	MediaItem,
 	UserListItem,
 	TranslationSummary,
@@ -163,21 +164,7 @@ export interface ContentEditorProps {
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];
 	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
-	editorStyles?: Array<{
-		type: "button" | "dropdown";
-		label: string;
-		icon?: string;
-		scope?: "inline" | "block";
-		classes?: string;
-		nodes?: string[];
-		items?: Array<{
-			type?: "separator";
-			label?: string;
-			scope?: "inline" | "block";
-			classes?: string;
-			nodes?: string[];
-		}>;
-	}>;
+	editorStyles?: EditorStyleEntry[];
 	/** Whether this collection has SEO fields enabled */
 	hasSeo?: boolean;
 	/** Callback when SEO fields change */
@@ -1056,21 +1043,7 @@ interface FieldRendererProps {
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];
 	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
-	editorStyles?: Array<{
-		type: "button" | "dropdown";
-		label: string;
-		icon?: string;
-		scope?: "inline" | "block";
-		classes?: string;
-		nodes?: string[];
-		items?: Array<{
-			type?: "separator";
-			label?: string;
-			scope?: "inline" | "block";
-			classes?: string;
-			nodes?: string[];
-		}>;
-	}>;
+	editorStyles?: EditorStyleEntry[];
 	/** Callback when a block node requests sidebar space */
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */

@@ -22,29 +22,12 @@ import { useEditorState, type Editor } from "@tiptap/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import type {
+	EditorStyleEntry,
+	EditorStyleItem,
+	EditorStyleSeparator,
+} from "../../lib/api/client.js";
 import { cn } from "../../lib/utils";
-
-// ---------------------------------------------------------------------------
-// Types (accepts the manifest shape directly — all optional fields)
-// ---------------------------------------------------------------------------
-
-interface StyleItem {
-	label?: string;
-	scope?: "inline" | "block";
-	classes?: string;
-	nodes?: string[];
-	type?: "separator";
-}
-
-interface StyleEntry {
-	type: "button" | "dropdown";
-	label: string;
-	icon?: string;
-	scope?: "inline" | "block";
-	classes?: string;
-	nodes?: string[];
-	items?: StyleItem[];
-}
 
 /** Narrowed style item with required fields for toggle logic */
 interface ResolvedStyleItem {
@@ -78,8 +61,12 @@ function resolveStyleIcon(key?: string): React.ComponentType<{ className?: strin
 // Style helpers
 // ---------------------------------------------------------------------------
 
-function resolveItem(item: StyleItem): ResolvedStyleItem | null {
-	if (item.type === "separator" || !item.label || !item.scope || !item.classes) return null;
+function isSeparator(item: EditorStyleItem | EditorStyleSeparator): item is EditorStyleSeparator {
+	return (item as EditorStyleSeparator).type === "separator";
+}
+
+function resolveItem(item: EditorStyleItem | EditorStyleSeparator): ResolvedStyleItem | null {
+	if (isSeparator(item)) return null;
 	return { label: item.label, scope: item.scope, classes: item.classes, nodes: item.nodes };
 }
 
@@ -100,7 +87,7 @@ function isNodeMatch(editor: Editor, nodes?: string[]): boolean {
 function toggleStyle(editor: Editor, item: ResolvedStyleItem) {
 	if (item.scope === "inline") {
 		if (editor.isActive("cssClass", { classes: item.classes })) {
-			editor.chain().focus().unsetMark("cssClass").run();
+			editor.chain().focus().unsetCssClass(item.classes).run();
 		} else {
 			editor.chain().focus().setMark("cssClass", { classes: item.classes }).run();
 		}
@@ -115,7 +102,7 @@ function toggleStyle(editor: Editor, item: ResolvedStyleItem) {
 
 interface EditorStyleToolbarProps {
 	editor: Editor;
-	styles: StyleEntry[];
+	styles: EditorStyleEntry[];
 }
 
 /**
@@ -131,7 +118,10 @@ export function EditorStyleToolbar({ editor, styles }: EditorStyleToolbarProps) 
 				if (entry.type === "button") {
 					return <StyleToggleButton key={`btn-${i}`} editor={editor} entry={entry} />;
 				}
-				return <StyleDropdownMenu key={`dd-${i}`} editor={editor} entry={entry} />;
+				if (entry.type === "dropdown") {
+					return <StyleDropdownMenu key={`dd-${i}`} editor={editor} entry={entry} />;
+				}
+				return null;
 			})}
 		</>
 	);
@@ -141,24 +131,28 @@ export function EditorStyleToolbar({ editor, styles }: EditorStyleToolbarProps) 
 // StyleToggleButton — standalone toolbar button
 // ---------------------------------------------------------------------------
 
-function StyleToggleButton({ editor, entry }: { editor: Editor; entry: StyleEntry }) {
+function StyleToggleButton({
+	editor,
+	entry,
+}: {
+	editor: Editor;
+	entry: import("../../lib/api/client.js").EditorStyleButton;
+}) {
 	const IconComponent = resolveStyleIcon(entry.icon);
-	const resolved =
-		entry.scope && entry.classes
-			? { label: entry.label, scope: entry.scope, classes: entry.classes, nodes: entry.nodes }
-			: null;
+	const resolved: ResolvedStyleItem = {
+		label: entry.label,
+		scope: entry.scope,
+		classes: entry.classes,
+		nodes: entry.nodes,
+	};
 
 	const editorState = useEditorState({
 		editor,
 		selector: (ctx) => ({
-			active: resolved ? isStyleActive(ctx.editor, resolved) : false,
-			enabled: resolved
-				? resolved.scope === "inline" || isNodeMatch(ctx.editor, resolved.nodes)
-				: false,
+			active: isStyleActive(ctx.editor, resolved),
+			enabled: resolved.scope === "inline" || isNodeMatch(ctx.editor, resolved.nodes),
 		}),
 	});
-
-	if (!resolved) return null;
 
 	return (
 		<Button
@@ -182,11 +176,22 @@ function StyleToggleButton({ editor, entry }: { editor: Editor; entry: StyleEntr
 // StyleDropdownMenu — dropdown with multiple items
 // ---------------------------------------------------------------------------
 
-function StyleDropdownMenu({ editor, entry }: { editor: Editor; entry: StyleEntry }) {
+function StyleDropdownMenu({
+	editor,
+	entry,
+}: {
+	editor: Editor;
+	entry: import("../../lib/api/client.js").EditorStyleDropdown;
+}) {
 	const [open, setOpen] = React.useState(false);
 	const triggerRef = React.useRef<HTMLButtonElement>(null);
 	const floatingRef = React.useRef<HTMLDivElement>(null);
 	const IconComponent = resolveStyleIcon(entry.icon);
+
+	const closeAndFocusTrigger = React.useCallback(() => {
+		setOpen(false);
+		triggerRef.current?.focus();
+	}, []);
 
 	// Floating UI for portal-based positioning (escapes overflow: hidden)
 	const { refs, floatingStyles } = useFloating({
@@ -219,8 +224,21 @@ function StyleDropdownMenu({ editor, entry }: { editor: Editor; entry: StyleEntr
 		return () => document.removeEventListener("mousedown", handler);
 	}, [open]);
 
+	// Close on Escape and return focus to the trigger
+	React.useEffect(() => {
+		if (!open) return;
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				closeAndFocusTrigger();
+			}
+		};
+		document.addEventListener("keydown", handler);
+		return () => document.removeEventListener("keydown", handler);
+	}, [open, closeAndFocusTrigger]);
+
 	// Resolve items to get only valid style items (not separators)
-	const items = entry.items || [];
+	const items: Array<EditorStyleItem | EditorStyleSeparator> = entry.items || [];
 	const resolvedItems = items.map(resolveItem);
 
 	const editorState = useEditorState({
@@ -253,7 +271,7 @@ function StyleDropdownMenu({ editor, entry }: { editor: Editor; entry: StyleEntr
 				onClick={() => setOpen(!open)}
 				aria-label={entry.label}
 				aria-expanded={open}
-				aria-haspopup="true"
+				aria-haspopup="menu"
 				tabIndex={0}
 			>
 				<IconComponent className="h-4 w-4" aria-hidden="true" />
@@ -267,14 +285,22 @@ function StyleDropdownMenu({ editor, entry }: { editor: Editor; entry: StyleEntr
 							refs.setFloating(node);
 						}}
 						style={floatingStyles}
+						role="menu"
+						aria-label={entry.label}
 						className="z-50 rounded-md border bg-kumo-overlay shadow-lg w-56 max-h-80 overflow-y-auto"
 					>
 						<div className="p-1.5 flex flex-col gap-0.5">
 							{items.map((rawItem, i) => {
 								const resolved = resolvedItems[i];
 								if (!resolved) {
-									if (rawItem.type === "separator") {
-										return <div key={`sep-${i}`} className="border-t border-kumo-line my-1" />;
+									if (isSeparator(rawItem)) {
+										return (
+											<div
+												key={`sep-${i}`}
+												role="separator"
+												className="border-t border-kumo-line my-1"
+											/>
+										);
 									}
 									return null;
 								}
@@ -286,6 +312,7 @@ function StyleDropdownMenu({ editor, entry }: { editor: Editor; entry: StyleEntr
 									<button
 										key={resolved.classes}
 										type="button"
+										role="menuitem"
 										className={cn(
 											"flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded text-left",
 											disabled ? "text-kumo-subtle/40 cursor-not-allowed" : "hover:bg-kumo-tint",
@@ -293,7 +320,9 @@ function StyleDropdownMenu({ editor, entry }: { editor: Editor; entry: StyleEntr
 										)}
 										onMouseDown={(e) => e.preventDefault()}
 										onClick={() => {
-											if (!disabled) toggleStyle(editor, resolved);
+											if (disabled) return;
+											toggleStyle(editor, resolved);
+											closeAndFocusTrigger();
 										}}
 										disabled={disabled}
 									>

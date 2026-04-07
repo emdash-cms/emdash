@@ -80,7 +80,7 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
-import type { MediaItem } from "../lib/api";
+import type { EditorStyleEntry, MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { BlockStyleExtension } from "./editor/BlockStyleExtension";
@@ -203,10 +203,8 @@ function convertPMNode(node: {
 	const cssClasses = typeof node.attrs?.cssClasses === "string" ? node.attrs.cssClasses : undefined;
 	if (!cssClasses) return result;
 	if (Array.isArray(result)) {
-		if (result.length > 0) {
-			result[0] = { ...result[0], cssClasses } as PortableTextBlock;
-		}
-		return result;
+		// Apply to every produced block — see core converter for rationale.
+		return result.map((b) => ({ ...b, cssClasses }) as PortableTextBlock);
 	}
 	return { ...result, cssClasses } as PortableTextBlock;
 }
@@ -1757,21 +1755,7 @@ export interface PortableTextEditorProps {
 	/** Callback when a block node closes its sidebar */
 	onBlockSidebarClose?: () => void;
 	/** Editor toolbar styles — plugin-declared buttons and dropdowns for CSS class toggles */
-	editorStyles?: Array<{
-		type: "button" | "dropdown";
-		label: string;
-		icon?: string;
-		scope?: "inline" | "block";
-		classes?: string;
-		nodes?: string[];
-		items?: Array<{
-			type?: "separator";
-			label?: string;
-			scope?: "inline" | "block";
-			classes?: string;
-			nodes?: string[];
-		}>;
-	}>;
+	editorStyles?: EditorStyleEntry[];
 }
 
 /**
