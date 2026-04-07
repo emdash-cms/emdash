@@ -207,6 +207,8 @@ export interface CollectionTable {
 	label_singular: string | null;
 	description: string | null;
 	icon: string | null;
+	group: string | null; // Admin UI group name (e.g., "Trading", "LMS")
+	sort_order: Generated<number>; // Sort order within group
 	supports: string | null; // JSON array
 	source: string | null;
 	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }

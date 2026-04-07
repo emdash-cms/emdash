@@ -82,6 +82,7 @@ export class SchemaRegistry {
 		const rows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy("sort_order", "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -147,6 +148,8 @@ export class SchemaRegistry {
 					label_singular: input.labelSingular ?? null,
 					description: input.description ?? null,
 					icon: input.icon ?? null,
+					group: input.group ?? null,
+					sort_order: input.sortOrder ?? 0,
 					supports: input.supports ? JSON.stringify(input.supports) : null,
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
@@ -194,6 +197,8 @@ export class SchemaRegistry {
 				label_singular: input.labelSingular ?? existing.labelSingular ?? null,
 				description: input.description ?? existing.description ?? null,
 				icon: input.icon ?? existing.icon ?? null,
+				group: input.group !== undefined ? (input.group ?? null) : (existing.group ?? null),
+				sort_order: input.sortOrder !== undefined ? input.sortOrder : (existing.sortOrder ?? 0),
 				supports: input.supports
 					? JSON.stringify(input.supports)
 					: JSON.stringify(existing.supports),
@@ -796,6 +801,8 @@ export class SchemaRegistry {
 			labelSingular: row.label_singular ?? undefined,
 			description: row.description ?? undefined,
 			icon: row.icon ?? undefined,
+			group: row.group ?? undefined,
+			sortOrder: row.sort_order ?? 0,
 			supports: row.supports ? JSON.parse(row.supports) : [],
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,

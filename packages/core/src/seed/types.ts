@@ -63,6 +63,10 @@ export interface SeedCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	/** Admin UI group name (e.g., "Trading", "LMS", "Community") */
+	group?: string;
+	/** Sort order within group (lower = earlier) */
+	sortOrder?: number;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
 	/** Enable comments on this collection */

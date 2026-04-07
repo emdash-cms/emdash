@@ -199,6 +199,61 @@ body {
 	margin-top: 0 !important;
 }
 
+/* TipTap Table Styles */
+.ProseMirror table {
+	border-collapse: collapse;
+	width: 100%;
+	margin: 1rem 0;
+	table-layout: fixed;
+	overflow: hidden;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+	border: 1px solid #d1d5db;
+	padding: 0.5rem 0.75rem;
+	vertical-align: top;
+	position: relative;
+	min-width: 80px;
+}
+
+.ProseMirror th {
+	background-color: #f3f4f6;
+	font-weight: 600;
+}
+
+.ProseMirror .selectedCell {
+	background-color: #dbeafe;
+}
+
+.ProseMirror .column-resize-handle {
+	position: absolute;
+	right: -2px;
+	top: 0;
+	bottom: -2px;
+	width: 4px;
+	background-color: #3b82f6;
+	pointer-events: none;
+}
+
+.ProseMirror.resize-cursor {
+	cursor: col-resize;
+}
+
+/* Dark mode table styles */
+.dark .ProseMirror td,
+.dark .ProseMirror th {
+	border-color: #4b5563;
+}
+
+.dark .ProseMirror th {
+	background-color: #374151;
+}
+
+.dark .ProseMirror .selectedCell {
+	background-color: #1e3a5f;
+}
+
 /**
  * Isolate the admin root's stacking context.
  */

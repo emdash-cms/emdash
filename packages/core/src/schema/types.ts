@@ -124,6 +124,10 @@ export interface Collection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	/** Admin UI group name (e.g., "Trading", "LMS", "Community") */
+	group?: string;
+	/** Sort order within group (lower = earlier) */
+	sortOrder: number;
 	supports: CollectionSupport[];
 	source?: CollectionSource;
 	/** Whether this collection has SEO metadata fields enabled */
@@ -174,6 +178,10 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	/** Admin UI group name (e.g., "Trading", "LMS", "Community") */
+	group?: string;
+	/** Sort order within group (lower = earlier) */
+	sortOrder?: number;
 	supports?: CollectionSupport[];
 	source?: CollectionSource;
 	urlPattern?: string;
@@ -189,6 +197,10 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	/** Admin UI group name (e.g., "Trading", "LMS", "Community") */
+	group?: string;
+	/** Sort order within group (lower = earlier) */
+	sortOrder?: number;
 	supports?: CollectionSupport[];
 	urlPattern?: string;
 	hasSeo?: boolean;
