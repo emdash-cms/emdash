@@ -7,7 +7,6 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { colorPlugin } from "@emdash-cms/plugin-color";
-import { lingui } from "@lingui/vite-plugin";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sqlite } from "emdash/db";
@@ -38,7 +37,6 @@ export default defineConfig({
 	},
 	devToolbar: { enabled: false },
 	vite: {
-		plugins: [lingui()],
 		server: {
 			fs: { strict: false },
 		},
