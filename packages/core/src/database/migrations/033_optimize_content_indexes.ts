@@ -28,19 +28,19 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 		// Composite index for listing queries: WHERE deleted_at IS NULL ORDER BY updated_at DESC
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${table.name}_deleted_updated_id`)}
+			CREATE INDEX IF NOT EXISTS ${sql.ref(`idx_${table.name}_deleted_updated_id`)}
 			ON ${sql.ref(table.name)} (deleted_at, updated_at DESC, id DESC)
 		`.execute(db);
 
 		// Composite index for count-by-status queries: WHERE deleted_at IS NULL AND status = ?
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${table.name}_deleted_status`)}
+			CREATE INDEX IF NOT EXISTS ${sql.ref(`idx_${table.name}_deleted_status`)}
 			ON ${sql.ref(table.name)} (deleted_at, status)
 		`.execute(db);
 
 		// Composite index for created-at ordering: WHERE deleted_at IS NULL ORDER BY created_at DESC
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${table.name}_deleted_created_id`)}
+			CREATE INDEX IF NOT EXISTS ${sql.ref(`idx_${table.name}_deleted_created_id`)}
 			ON ${sql.ref(table.name)} (deleted_at, created_at DESC, id DESC)
 		`.execute(db);
 	}
@@ -48,25 +48,25 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	// Add partial indexes for efficient comment status counting
 	// Each index contains only rows for one status, enabling fast COUNT queries
 	await sql`
-		CREATE INDEX idx_comments_pending
+		CREATE INDEX IF NOT EXISTS idx_comments_pending
 		ON _emdash_comments (id)
 		WHERE status = 'pending'
 	`.execute(db);
 
 	await sql`
-		CREATE INDEX idx_comments_approved
+		CREATE INDEX IF NOT EXISTS idx_comments_approved
 		ON _emdash_comments (id)
 		WHERE status = 'approved'
 	`.execute(db);
 
 	await sql`
-		CREATE INDEX idx_comments_spam
+		CREATE INDEX IF NOT EXISTS idx_comments_spam
 		ON _emdash_comments (id)
 		WHERE status = 'spam'
 	`.execute(db);
 
 	await sql`
-		CREATE INDEX idx_comments_trash
+		CREATE INDEX IF NOT EXISTS idx_comments_trash
 		ON _emdash_comments (id)
 		WHERE status = 'trash'
 	`.execute(db);

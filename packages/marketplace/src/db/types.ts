@@ -19,6 +19,7 @@ export interface PluginRow {
 	capabilities: string;
 	keywords: string | null;
 	has_icon: number;
+	install_count: number;
 	rating_avg: number;
 	rating_count: number;
 	created_at: string;
