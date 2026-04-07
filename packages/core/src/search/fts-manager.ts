@@ -399,7 +399,6 @@ export class FTSManager {
 			return true;
 		}
 
-
 		return false;
 	}
 
