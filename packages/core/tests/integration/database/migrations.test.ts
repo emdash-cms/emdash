@@ -57,7 +57,7 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(31);
+		expect(migrations).toHaveLength(32);
 		expect(migrations[0]?.name).toBe("001_initial");
 		expect(migrations[0]?.timestamp).toBeDefined();
 		expect(migrations[1]?.name).toBe("002_media_status");
@@ -98,8 +98,8 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		// Should still only have thirty-one migration records
-		expect(migrations).toHaveLength(31);
+		// Should still only have thirty-two migration records
+		expect(migrations).toHaveLength(32);
 	});
 
 	it("should report correct migration status", async () => {
