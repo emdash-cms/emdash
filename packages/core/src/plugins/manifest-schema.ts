@@ -53,6 +53,8 @@ export const HOOK_NAMES = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:afterPublish",
+	"content:afterUnpublish",
 	"media:beforeUpload",
 	"media:afterUpload",
 	"cron",
