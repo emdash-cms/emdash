@@ -68,7 +68,7 @@ export async function createInviteToken(
 	});
 
 	// Build invite URL
-	const url = new URL("/api/auth/invite/accept", config.baseUrl);
+	const url = new URL("/_emdash/api/auth/invite/accept", config.baseUrl);
 	url.searchParams.set("token", token);
 
 	return { url: url.toString(), email };
