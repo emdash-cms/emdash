@@ -79,15 +79,15 @@ msgid "Dashboard"
 msgstr "Armaturenbrett"
 ```
 
-Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly. Refresh the browser to see changes — no compile or restart needed in dev.
+Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly.
 
-**5. Before committing**, compile for production:
+**5. After editing translations**, compile to see changes:
 
 ```bash
 pnpm --filter @emdash-cms/admin exec lingui compile --namespace es
 ```
 
-This creates `messages.mjs` alongside the `.po` — committed as a build artifact for published packages.
+This creates `messages.mjs` alongside the `.po`. Refresh the browser to see your changes. Always run this before committing — the `.mjs` files are committed as build artifacts for published packages.
 
 ## Adding Translatable Strings
 
