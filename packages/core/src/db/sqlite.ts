@@ -8,6 +8,7 @@
 import type { Dialect } from "kysely";
 
 import type { SqliteConfig } from "./adapters.js";
+import { wrapWithLazyMigrations } from "./lazy-migrations.js";
 
 /**
  * Create a SQLite dialect from config
@@ -23,5 +24,5 @@ export function createDialect(config: SqliteConfig): Dialect {
 
 	const database = new BetterSqlite3(filePath);
 
-	return new SqliteDialect({ database });
+	return wrapWithLazyMigrations(new SqliteDialect({ database }));
 }

@@ -61,6 +61,10 @@
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
     },
+    "./db/lazy-migrations": {
+      "types": "./dist/db/lazy-migrations.d.mts",
+      "default": "./dist/db/lazy-migrations.mjs"
+    },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
       "default": "./dist/storage/local.mjs"

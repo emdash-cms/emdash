@@ -9,6 +9,7 @@
  */
 
 import { env } from "cloudflare:workers";
+import { wrapWithLazyMigrations } from "emdash/db/lazy-migrations";
 import type { DatabaseIntrospector, Dialect, Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
@@ -58,7 +59,11 @@ export function createDialect(config: D1Config): Dialect {
 	// Use our custom dialect with D1-compatible introspector
 	// db is unknown from env access; D1Dialect expects D1Database
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- D1Database binding from untyped env object
-	return new EmDashD1Dialect({ database: db as D1Database });
+	const dialect = new EmDashD1Dialect({ database: db as D1Database });
+
+	// Wrap with lazy migration retry — migrations only run on first schema
+	// error instead of checking 30+ migrations on every cold start
+	return wrapWithLazyMigrations(dialect);
 }
 
 // =========================================================================
