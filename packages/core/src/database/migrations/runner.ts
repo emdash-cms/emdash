@@ -33,6 +33,44 @@ import * as m029 from "./029_redirects.js";
 import * as m030 from "./030_widen_scheduled_index.js";
 import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
+import * as m033 from "./033_optimize_content_indexes.js";
+
+const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
+	"001_initial": m001,
+	"002_media_status": m002,
+	"003_schema_registry": m003,
+	"004_plugins": m004,
+	"005_menus": m005,
+	"006_taxonomy_defs": m006,
+	"007_widgets": m007,
+	"008_auth": m008,
+	"009_user_disabled": m009,
+	"011_sections": m011,
+	"012_search": m012,
+	"013_scheduled_publishing": m013,
+	"014_draft_revisions": m014,
+	"015_indexes": m015,
+	"016_api_tokens": m016,
+	"017_authorization_codes": m017,
+	"018_seo": m018,
+	"019_i18n": m019,
+	"020_collection_url_pattern": m020,
+	"021_remove_section_categories": m021,
+	"022_marketplace_plugin_state": m022,
+	"023_plugin_metadata": m023,
+	"024_media_placeholders": m024,
+	"025_oauth_clients": m025,
+	"026_cron_tasks": m026,
+	"027_comments": m027,
+	"028_drop_author_url": m028,
+	"029_redirects": m029,
+	"030_widen_scheduled_index": m030,
+	"031_bylines": m031,
+	"032_rate_limits": m032,
+});
+
+/** Total number of registered migrations. Exported for use in tests. */
+export const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -40,39 +78,7 @@ import * as m032 from "./032_rate_limits.js";
  */
 class StaticMigrationProvider implements MigrationProvider {
 	async getMigrations(): Promise<Record<string, Migration>> {
-		return {
-			"001_initial": m001,
-			"002_media_status": m002,
-			"003_schema_registry": m003,
-			"004_plugins": m004,
-			"005_menus": m005,
-			"006_taxonomy_defs": m006,
-			"007_widgets": m007,
-			"008_auth": m008,
-			"009_user_disabled": m009,
-			"011_sections": m011,
-			"012_search": m012,
-			"013_scheduled_publishing": m013,
-			"014_draft_revisions": m014,
-			"015_indexes": m015,
-			"016_api_tokens": m016,
-			"017_authorization_codes": m017,
-			"018_seo": m018,
-			"019_i18n": m019,
-			"020_collection_url_pattern": m020,
-			"021_remove_section_categories": m021,
-			"022_marketplace_plugin_state": m022,
-			"023_plugin_metadata": m023,
-			"024_media_placeholders": m024,
-			"025_oauth_clients": m025,
-			"026_cron_tasks": m026,
-			"027_comments": m027,
-			"028_drop_author_url": m028,
-			"029_redirects": m029,
-			"030_widen_scheduled_index": m030,
-			"031_bylines": m031,
-			"032_rate_limits": m032,
-		};
+		return MIGRATIONS;
 	}
 }
 
