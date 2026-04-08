@@ -17,6 +17,7 @@ import {
 } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
+import { getPublicOrigin } from "#api/public-url.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 
 type ProviderName = "github" | "google";
@@ -126,7 +127,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		}
 
 		const config: OAuthConsumerConfig = {
-			baseUrl: `${url.origin}/_emdash`,
+			baseUrl: `${getPublicOrigin(url, emdash?.config)}/_emdash`,
 			providers,
 			canSelfSignup: async (email: string) => {
 				// Extract domain from email
