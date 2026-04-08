@@ -688,6 +688,11 @@ export function renderToolbar(config: ToolbarConfig): string {
     return f ? f.kind : null;
   }
 
+  // Load manifest early so the first click can resolve field kinds without racing the event.
+  if (isEditMode) {
+    fetchManifest();
+  }
+
   // Save a single field value
   function saveField(collection, id, field, value) {
     setSaveState("saving");
@@ -1149,15 +1154,64 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
 
     dimPromise.then(function(dims) {
-      var formData = new FormData();
-      formData.append("file", file);
-      if (dims.width) formData.append("width", String(dims.width));
-      if (dims.height) formData.append("height", String(dims.height));
+      // Generate a thumbnail for large images to avoid OOM in server-side
+      // blurhash generation on memory-constrained runtimes (Workers).
+      // Thumbnail fits within a 64x64 box (scale by max dimension) so that
+      // extreme aspect ratios don't explode into a huge canvas client-side.
+      var thumbPromise;
+      if (dims.width && dims.height && dims.width * dims.height * 4 > 32 * 1024 * 1024) {
+        thumbPromise = new Promise(function(resolve) {
+          try {
+            var maxDim = Math.max(dims.width, dims.height);
+            var scale = Math.min(1, 64 / maxDim);
+            var thumbW = Math.max(1, Math.round(dims.width * scale));
+            var thumbH = Math.max(1, Math.round(dims.height * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = thumbW;
+            canvas.height = thumbH;
+            var ctx = canvas.getContext("2d");
+            if (ctx) {
+              var img = new Image();
+              img.onload = function() {
+                try {
+                  ctx.drawImage(img, 0, 0, thumbW, thumbH);
+                  canvas.toBlob(function(blob) {
+                    URL.revokeObjectURL(img.src);
+                    resolve(blob);
+                  }, "image/png");
+                } catch (e) {
+                  URL.revokeObjectURL(img.src);
+                  resolve(null);
+                }
+              };
+              img.onerror = function() {
+                URL.revokeObjectURL(img.src);
+                resolve(null);
+              };
+              img.src = URL.createObjectURL(file);
+            } else {
+              resolve(null);
+            }
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      } else {
+        thumbPromise = Promise.resolve(null);
+      }
 
-      return ecFetch("/_emdash/api/media", {
-        method: "POST",
-        credentials: "same-origin",
-        body: formData
+      return thumbPromise.then(function(thumbnail) {
+        var formData = new FormData();
+        formData.append("file", file);
+        if (dims.width) formData.append("width", String(dims.width));
+        if (dims.height) formData.append("height", String(dims.height));
+        if (thumbnail) formData.append("thumbnail", thumbnail, "thumb.png");
+
+        return ecFetch("/_emdash/api/media", {
+          method: "POST",
+          credentials: "same-origin",
+          body: formData
+        });
       });
     })
     .then(function(r) { return r.json(); })
@@ -1187,31 +1241,39 @@ export function renderToolbar(config: ToolbarConfig): string {
 
         var ref = target.getAttribute && target.getAttribute("data-emdash-ref");
         if (ref) {
-          e.preventDefault();
-          e.stopPropagation();
-
           try {
             var annotation = JSON.parse(ref);
 
-            // Entry-level annotation (no field) — ignore, it's a container
-            if (!annotation.field) return;
+            // Entry-level annotation (no field) — keep walking for a field-level ancestor
+            if (!annotation.field) {
+              target = target.parentElement;
+              continue;
+            }
 
-            // Fetch manifest to determine field type, then dispatch
-            fetchManifest().then(function(manifest) {
-              var kind = getFieldKind(manifest, annotation.collection, annotation.field);
-
-              // Close any open image popover before starting a new edit
+            function dispatchInline(kind) {
               closeImagePopover();
-
+              // Portable Text is edited in-page by InlinePortableTextEditor — do not open admin
+              if (kind === "portableText") {
+                return;
+              }
+              e.preventDefault();
+              e.stopPropagation();
               if (kind === "string" || kind === "text") {
                 startTextEdit(target, annotation);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {
-                // Fallback: open admin for unsupported types
                 openAdmin(annotation);
               }
-            });
+            }
+
+            if (manifestCache) {
+              dispatchInline(getFieldKind(manifestCache, annotation.collection, annotation.field));
+            } else {
+              fetchManifest().then(function(manifest) {
+                dispatchInline(getFieldKind(manifest, annotation.collection, annotation.field));
+              });
+            }
           } catch (err) {
             console.error("Failed to parse emdash ref:", err);
           }

@@ -9,7 +9,7 @@
 import { parse } from "@wordpress/block-serialization-default-parser";
 
 import { parseInlineContent } from "./inline.js";
-import { getTransformer, defaultTransformers, fallbackTransformer } from "./transformers/index.js";
+import { getTransformer } from "./transformers/index.js";
 import type {
 	GutenbergBlock,
 	PortableTextBlock,
