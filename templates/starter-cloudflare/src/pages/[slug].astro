@@ -33,8 +33,6 @@ const seo = getSeoMeta(page, {
 	<article>
 		<h1 {...page.edit.title}>{page.data.title}</h1>
 
-		<div {...page.edit.content}>
-			<PortableText value={page.data.content} />
-		</div>
+		<PortableText value={page.data.content} />
 	</article>
 </Base>

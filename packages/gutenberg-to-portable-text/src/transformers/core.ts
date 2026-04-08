@@ -550,8 +550,6 @@ export const group: BlockTransformer = (block, _options, context) => {
  * core/table → table block
  */
 export const table: BlockTransformer = (block, _options, context) => {
-	const _hasFixedLayout = attrBoolean(block.attrs, "hasFixedLayout");
-
 	// Parse the table HTML
 	const tableMatch = block.innerHTML.match(TABLE_TAG_PATTERN);
 	if (!tableMatch) {
