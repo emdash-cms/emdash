@@ -269,7 +269,7 @@ export function MenuEditor() {
 								/>
 							</div>
 							<form onSubmit={handleAddCustomLink} className="space-y-4">
-								<Input label={t`Label`} name="label" required placeholder="Home" />
+								<Input label={t`Label`} name="label" required placeholder={t`Home`} />
 								<Input
 									label={t`URL`}
 									name="url"

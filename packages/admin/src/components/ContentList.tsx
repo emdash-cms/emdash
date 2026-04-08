@@ -375,7 +375,7 @@ function ContentListItem({
 							href={contentUrl(collection, item.slug, urlPattern)}
 							target="_blank"
 							rel="noopener noreferrer"
-							aria-label={`View published ${title}`}
+							aria-label={t`View published ${title}`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
 							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
