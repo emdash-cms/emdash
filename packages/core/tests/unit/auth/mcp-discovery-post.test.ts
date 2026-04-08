@@ -51,9 +51,7 @@ async function runAuthMiddleware(opts: {
 }) {
 	const url = new URL(opts.pathname, "https://example.com");
 	const session = {
-		get: vi.fn().mockResolvedValue(
-			opts.sessionUserId ? { id: opts.sessionUserId } : null,
-		),
+		get: vi.fn().mockResolvedValue(opts.sessionUserId ? { id: opts.sessionUserId } : null),
 		set: vi.fn(),
 		destroy: vi.fn(),
 	};
