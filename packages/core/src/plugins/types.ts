@@ -660,9 +660,9 @@ export interface ContentDeleteEvent {
 }
 
 /**
- * Content publish hook event (fired after publish or unpublish)
+ * Content publish state change hook event (fired after publish or unpublish)
  */
-export interface ContentPublishEvent {
+export interface ContentPublishStateChangeEvent {
 	content: Record<string, unknown>;
 	collection: string;
 }
@@ -717,12 +717,12 @@ export type ContentAfterDeleteHandler = (
 ) => Promise<void>;
 
 export type ContentAfterPublishHandler = (
-	event: ContentPublishEvent,
+	event: ContentPublishStateChangeEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
 
 export type ContentAfterUnpublishHandler = (
-	event: ContentPublishEvent,
+	event: ContentPublishStateChangeEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
 

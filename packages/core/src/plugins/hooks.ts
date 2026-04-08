@@ -17,7 +17,7 @@ import type {
 	PluginContext,
 	ContentHookEvent,
 	ContentDeleteEvent,
-	ContentPublishEvent,
+	ContentPublishStateChangeEvent,
 	MediaUploadEvent,
 	MediaAfterUploadEvent,
 	LifecycleEvent,
@@ -643,7 +643,7 @@ export class HookPipeline {
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentPublishEvent = { content, collection };
+			const event: ContentPublishStateChangeEvent = { content, collection };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -683,7 +683,7 @@ export class HookPipeline {
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentPublishEvent = { content, collection };
+			const event: ContentPublishStateChangeEvent = { content, collection };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
