@@ -8,6 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { EditorStyleEntry } from "../plugins/types.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -88,22 +90,13 @@ export interface ManifestPlugin {
 		placeholder?: string;
 		fields?: Element[];
 	}>;
-	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
-	editorStyles?: Array<{
-		type: "button" | "dropdown";
-		label: string;
-		icon?: string;
-		scope?: "inline" | "block";
-		classes?: string;
-		nodes?: string[];
-		items?: Array<{
-			type?: "separator";
-			label?: string;
-			scope?: "inline" | "block";
-			classes?: string;
-			nodes?: string[];
-		}>;
-	}>;
+	/**
+	 * Editor toolbar styles — buttons and dropdowns for CSS class toggles.
+	 * Uses the canonical discriminated union from `plugins/types.ts` so that
+	 * required fields (icon, scope, classes, items) are enforced rather than
+	 * silently passing through as optional.
+	 */
+	editorStyles?: EditorStyleEntry[];
 }
 
 /**
