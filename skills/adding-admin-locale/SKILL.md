@@ -133,17 +133,17 @@ This updates all `.po` files with the new strings. Existing translations are pre
 
 ## Key Files
 
-| File                                               | Purpose                                                       |
-| -------------------------------------------------- | ------------------------------------------------------------- |
-| `lingui.config.ts` (repo root)                     | Lingui config: locales, catalog paths, source scanning        |
-| `packages/admin/src/locales/config.ts`             | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()`      |
-| `packages/admin/src/locales/useLocale.ts`          | `useLocale()` hook — client-side locale switching with cookie |
-| `packages/admin/src/locales/index.ts`              | Barrel export for locale utilities                            |
-| `packages/admin/src/locales/{locale}/messages.po`  | Translation catalogs (gettext `.po` format, source of truth)  |
-| `packages/admin/src/locales/{locale}/messages.mjs` | Pre-compiled JS catalogs (generated, committed)               |
-| `packages/core/src/astro/routes/admin.astro`       | Server-side locale resolution and catalog loading             |
-| `packages/admin/tsdown.config.ts`                  | Build-time Babel macro transform (Lingui → runtime calls)     |
-| `packages/core/src/astro/integration/vite-config.ts` | Dev-time Babel macro transform (Vite plugin for HMR)        |
+| File                                                 | Purpose                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------- |
+| `lingui.config.ts` (repo root)                       | Lingui config: locales, catalog paths, source scanning        |
+| `packages/admin/src/locales/config.ts`               | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE`, `resolveLocale()`      |
+| `packages/admin/src/locales/useLocale.ts`            | `useLocale()` hook — client-side locale switching with cookie |
+| `packages/admin/src/locales/index.ts`                | Barrel export for locale utilities                            |
+| `packages/admin/src/locales/{locale}/messages.po`    | Translation catalogs (gettext `.po` format, source of truth)  |
+| `packages/admin/src/locales/{locale}/messages.mjs`   | Pre-compiled JS catalogs (generated, committed)               |
+| `packages/core/src/astro/routes/admin.astro`         | Server-side locale resolution and catalog loading             |
+| `packages/admin/tsdown.config.ts`                    | Build-time Babel macro transform (Lingui → runtime calls)     |
+| `packages/core/src/astro/integration/vite-config.ts` | Dev-time Babel macro transform (Vite plugin for HMR)          |
 
 ## Macro Reference
 
