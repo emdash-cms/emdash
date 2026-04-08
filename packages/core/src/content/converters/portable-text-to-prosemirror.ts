@@ -144,13 +144,8 @@ function convertBlockInner(block: PortableTextBlock): ProseMirrorNode | null {
 		return convertCodeBlock(block);
 	}
 	if (block._type === "break") {
-		const variant =
-			typeof (block as Record<string, unknown>).variant === "string"
-				? (block as Record<string, unknown>).variant
-				: undefined;
 		return {
 			type: "horizontalRule",
-			attrs: variant ? { variant } : undefined,
 		};
 	}
 	// Unknown block - wrap in a div or preserve as placeholder
