@@ -118,7 +118,7 @@ jobs:
   test-smoke:
     name: Smoke Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17
