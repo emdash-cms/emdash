@@ -56,6 +56,8 @@ export default defineConfig({
 		"pg",
 		// Build tooling (CLI-time dependency with native bindings)
 		"tsdown",
+		// Babel (dev-time only — used by emdash-lingui-macro Vite plugin)
+		"@babel/core",
 		// Astro virtual modules
 		"astro:middleware",
 		"astro:content",
