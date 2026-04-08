@@ -4,6 +4,9 @@ A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudfla
 
 ## Get Started
 
+> [!IMPORTANT]
+> EmDash depends on Dynamic Workers to run secure sandboxed plugins. Dynamic Workers are currently only available on paid accounts. [Upgrade your account](https://www.cloudflare.com/plans/developer-platform/) (starting at $5/mo) or comment out the `worker_loaders` block of your `wrangler.jsonc` configuration file to disable plugins.
+
 ```bash
 npm create emdash@latest
 ```
@@ -24,35 +27,37 @@ EmDash ships with three starter templates:
 
 ### Blog
 
+<a href="assets/templates/blog/latest/"><img src="assets/templates/blog/latest/homepage-light-desktop.jpg" alt="Blog template" width="100%"></a>
+
 A classic blog with sidebar widgets, search, and RSS.
 
 - Categories & tags
 - Full-text search
-- RSS feed
 - Comment-ready
-- Dark/light mode
-
-<a href="assets/templates/blog/latest/"><img src="assets/templates/blog/latest/homepage-light-desktop.jpg" alt="Blog template" width="100%"></a>
+- RSS feed
+- Dark / light mode
 
 </td>
 <td width="33%" valign="top">
 
 ### Marketing
 
+<a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
+
 A conversion-focused landing page with pricing and contact form.
 
 - Hero with CTAs
 - Feature grid
 - Pricing cards
-- FAQ accordion
-- Contact form
-
-<a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
+- FAQ and contact form
+- Dark / light mode
 
 </td>
 <td width="33%" valign="top">
 
 ### Portfolio
+
+<a href="assets/templates/portfolio/latest/"><img src="assets/templates/portfolio/latest/work-light-desktop.jpg" alt="Portfolio template" width="100%"></a>
 
 A visual portfolio for showcasing creative work.
 
@@ -60,10 +65,8 @@ A visual portfolio for showcasing creative work.
 - Tag filtering
 - Case study pages
 - RSS feed
-- Dark/light mode
-
-<a href="assets/templates/portfolio/latest/"><img src="assets/templates/portfolio/latest/work-light-desktop.jpg" alt="Portfolio template" width="100%"></a>
-
+- Dark / light mode
+<br /><br />
 </td>
 </tr>
 </table>

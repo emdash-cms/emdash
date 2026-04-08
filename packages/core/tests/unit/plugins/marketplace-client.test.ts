@@ -21,6 +21,7 @@ import {
 } from "../../../src/plugins/marketplace.js";
 
 const HEX_64_PATTERN = /^[a-f0-9]{64}$/;
+const HEX_16_PATTERN = /^[a-f0-9]{16}$/;
 
 // ── Helpers ───────────���────────────────────────────────────────────
 
@@ -431,6 +432,40 @@ describe("MarketplaceClient", () => {
 
 			// Should not throw
 			await client.reportInstall("test-seo", "1.0.0");
+		});
+
+		it("sends a stable site hash across multiple calls", async () => {
+			const clientWithOrigin = createMarketplaceClient(BASE_URL, "https://myblog.example.com");
+
+			fetchSpy.mockResolvedValue(new Response("OK", { status: 200 }));
+
+			await clientWithOrigin.reportInstall("test-seo", "1.0.0");
+			await clientWithOrigin.reportInstall("test-seo", "1.0.0");
+
+			const calls = fetchSpy.mock.calls;
+			expect(calls.length).toBe(2);
+
+			const body1 = JSON.parse(calls[0]![1]!.body as string);
+			const body2 = JSON.parse(calls[1]![1]!.body as string);
+
+			// Same origin produces the same hash every time
+			expect(body1.siteHash).toBe(body2.siteHash);
+			expect(body1.siteHash).toMatch(HEX_16_PATTERN);
+		});
+
+		it("produces different hashes for different site origins", async () => {
+			const client1 = createMarketplaceClient(BASE_URL, "https://site-a.example.com");
+			const client2 = createMarketplaceClient(BASE_URL, "https://site-b.example.com");
+
+			fetchSpy.mockResolvedValue(new Response("OK", { status: 200 }));
+
+			await client1.reportInstall("test-seo", "1.0.0");
+			await client2.reportInstall("test-seo", "1.0.0");
+
+			const body1 = JSON.parse(fetchSpy.mock.calls[0]![1]!.body as string);
+			const body2 = JSON.parse(fetchSpy.mock.calls[1]![1]!.body as string);
+
+			expect(body1.siteHash).not.toBe(body2.siteHash);
 		});
 	});
 
