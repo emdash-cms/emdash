@@ -9,7 +9,6 @@
  */
 
 import { Badge, Button } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	ArrowSquareOut,
@@ -43,7 +42,6 @@ export interface ThemeMarketplaceDetailProps {
 }
 
 export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps) {
-	const { t } = useLingui();
 	const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
 
 	const {
@@ -85,12 +83,12 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 					className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 				>
 					<ArrowLeft className="h-4 w-4" />
-					{t`Back to Themes`}
+					Back to Themes
 				</Link>
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6 text-center">
-					<h3 className="font-medium text-kumo-danger">{t`Failed to load theme`}</h3>
+					<h3 className="font-medium text-kumo-danger">Failed to load theme</h3>
 					<p className="mt-1 text-sm text-kumo-subtle">
-						{error instanceof Error ? error.message : t`Theme not found`}
+						{error instanceof Error ? error.message : "Theme not found"}
 					</p>
 				</div>
 			</div>
@@ -109,7 +107,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 				className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 			>
 				<ArrowLeft className="h-4 w-4" />
-				{t`Back to Themes`}
+				Back to Themes
 			</Link>
 
 			{/* Header */}
@@ -142,7 +140,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 						disabled={previewMutation.isPending}
 					>
 						<Eye className="mr-2 h-4 w-4" />
-						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
+						{previewMutation.isPending ? "Loading..." : "Try with my data"}
 					</Button>
 					{theme.demoUrl && isSafeUrl(theme.demoUrl) && (
 						<Button
@@ -150,7 +148,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
 						>
 							<ArrowSquareOut className="mr-2 h-4 w-4" />
-							{t`Demo`}
+							Demo
 						</Button>
 					)}
 				</div>
@@ -160,14 +158,14 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 				<div className="rounded-md border border-kumo-danger/50 bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
 					{previewMutation.error instanceof Error
 						? previewMutation.error.message
-						: t`Failed to generate preview URL`}
+						: "Failed to generate preview URL"}
 				</div>
 			)}
 
 			{/* Screenshot gallery */}
 			{theme.screenshotCount > 0 && (
 				<div>
-					<h2 className="text-lg font-semibold mb-3">{t`Screenshots`}</h2>
+					<h2 className="text-lg font-semibold mb-3">Screenshots</h2>
 					<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 						{theme.screenshotUrls.map((url, i) => (
 							<button
@@ -192,7 +190,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 				{/* Keywords */}
 				{theme.keywords.length > 0 && (
 					<div>
-						<h3 className="text-sm font-medium text-kumo-subtle mb-2">{t`Keywords`}</h3>
+						<h3 className="text-sm font-medium text-kumo-subtle mb-2">Keywords</h3>
 						<div className="flex flex-wrap gap-1">
 							{theme.keywords.map((kw) => (
 								<Badge key={kw} variant="secondary">
@@ -206,14 +204,14 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 				{/* License */}
 				{theme.license && (
 					<div>
-						<h3 className="text-sm font-medium text-kumo-subtle mb-2">{t`License`}</h3>
+						<h3 className="text-sm font-medium text-kumo-subtle mb-2">License</h3>
 						<p className="text-sm">{theme.license}</p>
 					</div>
 				)}
 
 				{/* Links */}
 				<div>
-					<h3 className="text-sm font-medium text-kumo-subtle mb-2">{t`Links`}</h3>
+					<h3 className="text-sm font-medium text-kumo-subtle mb-2">Links</h3>
 					<div className="flex flex-col gap-1.5">
 						{theme.repositoryUrl && isSafeUrl(theme.repositoryUrl) && (
 							<a
@@ -223,7 +221,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 								className="inline-flex items-center gap-1.5 text-sm text-kumo-brand hover:underline"
 							>
 								<GithubLogo className="h-4 w-4" />
-								{t`Repository`}
+								Repository
 							</a>
 						)}
 						{theme.homepageUrl && isSafeUrl(theme.homepageUrl) && (
@@ -234,7 +232,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 								className="inline-flex items-center gap-1.5 text-sm text-kumo-brand hover:underline"
 							>
 								<Globe className="h-4 w-4" />
-								{t`Homepage`}
+								Homepage
 							</a>
 						)}
 					</div>
@@ -276,7 +274,6 @@ function Lightbox({
 	onPrev: () => void;
 	onNext: () => void;
 }) {
-	const { t } = useLingui();
 	React.useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
 			if (e.key === "Escape") onClose();
@@ -296,12 +293,12 @@ function Lightbox({
 			onClick={onClose}
 		>
 			<div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-				<img src={url} alt={t`Screenshot ${index + 1}`} className="max-h-[85vh] rounded-lg" />
+				<img src={url} alt={`Screenshot ${index + 1}`} className="max-h-[85vh] rounded-lg" />
 
 				<button
 					onClick={onClose}
 					className="absolute -top-3 -right-3 rounded-full bg-kumo-base p-1.5 shadow-lg hover:bg-kumo-tint"
-					aria-label={t`Close`}
+					aria-label="Close"
 				>
 					<X className="h-4 w-4" />
 				</button>
@@ -311,14 +308,14 @@ function Lightbox({
 						<button
 							onClick={onPrev}
 							className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
-							aria-label={t`Previous`}
+							aria-label="Previous"
 						>
 							<CaretLeft className="h-5 w-5" />
 						</button>
 						<button
 							onClick={onNext}
 							className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
-							aria-label={t`Next`}
+							aria-label="Next"
 						>
 							<CaretRight className="h-5 w-5" />
 						</button>

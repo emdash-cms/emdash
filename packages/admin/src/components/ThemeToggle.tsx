@@ -1,6 +1,6 @@
 import { Button } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { Sun, Moon, Monitor } from "@phosphor-icons/react";
+import * as React from "react";
 
 import { useTheme } from "./ThemeProvider";
 
@@ -8,7 +8,6 @@ import { useTheme } from "./ThemeProvider";
  * Theme toggle button that cycles through: system -> light -> dark
  */
 export function ThemeToggle() {
-	const { t } = useLingui();
 	const { theme, setTheme, resolvedTheme } = useTheme();
 
 	const cycleTheme = () => {
@@ -19,15 +18,15 @@ export function ThemeToggle() {
 	};
 
 	const label =
-		theme === "system" ? t`System (${resolvedTheme})` : theme === "light" ? t`Light` : t`Dark`;
+		theme === "system" ? `System (${resolvedTheme})` : theme === "light" ? "Light" : "Dark";
 
 	return (
 		<Button
 			variant="ghost"
 			shape="square"
-			aria-label={t`Toggle theme (current: ${label})`}
+			aria-label={`Toggle theme (current: ${label})`}
 			onClick={cycleTheme}
-			title={t`Theme: ${label}`}
+			title={`Theme: ${label}`}
 		>
 			{theme === "system" ? (
 				<Monitor className="h-5 w-5" />
@@ -36,7 +35,7 @@ export function ThemeToggle() {
 			) : (
 				<Moon className="h-5 w-5" />
 			)}
-			<span className="sr-only">{t`Toggle theme (current: ${label})`}</span>
+			<span className="sr-only">Toggle theme (current: {label})</span>
 		</Button>
 	);
 }

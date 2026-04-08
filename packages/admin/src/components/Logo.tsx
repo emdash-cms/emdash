@@ -1,4 +1,3 @@
-import { useLingui } from "@lingui/react/macro";
 import type * as React from "react";
 
 /**
@@ -65,7 +64,6 @@ export function LogoIcon(props: React.SVGProps<SVGSVGElement>) {
  * Renders both dark-text and light-text variants, switching via CSS `light-dark()`.
  */
 export function LogoLockup({ className, ...props }: React.SVGProps<SVGSVGElement>) {
-	const { t } = useLingui();
 	return (
 		<svg
 			viewBox="0 0 471 118"
@@ -73,7 +71,7 @@ export function LogoLockup({ className, ...props }: React.SVGProps<SVGSVGElement
 			xmlns="http://www.w3.org/2000/svg"
 			className={className}
 			role="img"
-			aria-label={t`EmDash`}
+			aria-label="EmDash"
 			{...props}
 		>
 			{/* Icon mark */}

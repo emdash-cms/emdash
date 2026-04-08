@@ -11,7 +11,6 @@
  */
 
 import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
-import { Plural, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -112,7 +111,6 @@ interface SiteStepProps {
 }
 
 function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
-	const { t } = useLingui();
 	const [title, setTitle] = React.useState("");
 	const [tagline, setTagline] = React.useState("");
 	const [includeContent, setIncludeContent] = React.useState(true);
@@ -121,7 +119,7 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const validate = (): boolean => {
 		const newErrors: Record<string, string> = {};
 		if (!title.trim()) {
-			newErrors.title = t`Site title is required`;
+			newErrors.title = "Site title is required";
 		}
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
@@ -137,29 +135,29 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 		<form onSubmit={handleSubmit} className="space-y-6">
 			<div className="space-y-4">
 				<Input
-					label={t`Site Title`}
+					label="Site Title"
 					type="text"
 					value={title}
 					onChange={(e) => setTitle(e.target.value)}
-					placeholder={t`My Awesome Blog`}
+					placeholder="My Awesome Blog"
 					className={errors.title ? "border-kumo-danger" : ""}
 					disabled={isLoading}
 				/>
 				{errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>}
 
 				<Input
-					label={t`Tagline`}
+					label="Tagline"
 					type="text"
 					value={tagline}
 					onChange={(e) => setTagline(e.target.value)}
-					placeholder={t`Thoughts, tutorials, and more`}
+					placeholder="Thoughts, tutorials, and more"
 					disabled={isLoading}
 				/>
 			</div>
 
 			{seedInfo?.hasContent && (
 				<Checkbox
-					label={t`Include sample content (recommended for new sites)`}
+					label="Include sample content (recommended for new sites)"
 					checked={includeContent}
 					onCheckedChange={(checked) => setIncludeContent(checked)}
 					disabled={isLoading}
@@ -171,16 +169,13 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 			)}
 
 			<Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary">
-				{isLoading ? t`Setting up...` : t`Continue →`}
+				{isLoading ? <>Setting up...</> : "Continue →"}
 			</Button>
 
 			{seedInfo && (
 				<p className="text-xs text-kumo-subtle text-center">
-					<Plural
-						value={seedInfo.collections}
-						one={t`Template: ${seedInfo.name} (# collection)`}
-						other={t`Template: ${seedInfo.name} (# collections)`}
-					/>
+					Template: {seedInfo.name} ({seedInfo.collections} collection
+					{seedInfo.collections !== 1 ? "s" : ""})
 				</p>
 			)}
 		</form>
@@ -195,7 +190,6 @@ interface AdminStepProps {
 }
 
 function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
-	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [name, setName] = React.useState("");
 	const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -203,9 +197,9 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 	const validate = (): boolean => {
 		const newErrors: Record<string, string> = {};
 		if (!email.trim()) {
-			newErrors.email = t`Email is required`;
+			newErrors.email = "Email is required";
 		} else if (!email.includes("@")) {
-			newErrors.email = t`Please enter a valid email`;
+			newErrors.email = "Please enter a valid email";
 		}
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
@@ -221,7 +215,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 		<form onSubmit={handleSubmit} className="space-y-6">
 			<div className="space-y-4">
 				<Input
-					label={t`Your Email`}
+					label="Your Email"
 					type="email"
 					value={email}
 					onChange={(e) => setEmail(e.target.value)}
@@ -233,7 +227,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 				{errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>}
 
 				<Input
-					label={t`Your Name`}
+					label="Your Name"
 					type="text"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
@@ -249,7 +243,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 
 			<div className="flex gap-3">
 				<Button type="button" variant="outline" onClick={onBack} disabled={isLoading}>
-					{t`Back`}
+					← Back
 				</Button>
 				<Button
 					type="submit"
@@ -257,7 +251,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 					loading={isLoading}
 					variant="primary"
 				>
-					{isLoading ? <>{t`Preparing...`}</> : t`Continue →`}
+					{isLoading ? <>Preparing...</> : "Continue →"}
 				</Button>
 			</div>
 		</form>
@@ -275,7 +269,6 @@ function handlePasskeySuccess() {
 }
 
 function PasskeyStep({ adminData, onBack }: PasskeyStepProps) {
-	const { t } = useLingui();
 	return (
 		<div className="space-y-6">
 			<div className="text-center">
@@ -294,9 +287,10 @@ function PasskeyStep({ adminData, onBack }: PasskeyStepProps) {
 						/>
 					</svg>
 				</div>
-				<h3 className="text-lg font-medium">{t`Set up your passkey`}</h3>
+				<h3 className="text-lg font-medium">Set up your passkey</h3>
 				<p className="text-sm text-kumo-subtle mt-1">
-					{t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`}
+					Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or
+					security key to sign in.
 				</p>
 			</div>
 
@@ -304,12 +298,12 @@ function PasskeyStep({ adminData, onBack }: PasskeyStepProps) {
 				optionsEndpoint="/_emdash/api/setup/admin"
 				verifyEndpoint="/_emdash/api/setup/admin/verify"
 				onSuccess={handlePasskeySuccess}
-				buttonText={t`Create Passkey`}
+				buttonText="Create Passkey"
 				additionalData={{ ...adminData }}
 			/>
 
 			<Button type="button" variant="ghost" onClick={onBack} className="w-full">
-				{t`Back`}
+				← Back
 			</Button>
 		</div>
 	);
@@ -325,14 +319,13 @@ interface StepIndicatorProps {
 }
 
 function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
-	const { t } = useLingui();
 	// In Access mode, only show the site step
 	const steps = useAccessAuth
-		? ([{ key: "site", label: t`Site Settings` }] as const)
+		? ([{ key: "site", label: "Site Settings" }] as const)
 		: ([
-				{ key: "site", label: t`Site` },
-				{ key: "admin", label: t`Account` },
-				{ key: "passkey", label: t`Passkey` },
+				{ key: "site", label: "Site" },
+				{ key: "admin", label: "Account" },
+				{ key: "passkey", label: "Passkey" },
 			] as const);
 
 	const currentIndex = steps.findIndex((s) => s.key === currentStep);
@@ -391,7 +384,6 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 // ============================================================================
 
 export function SetupWizard() {
-	const { t } = useLingui();
 	const [currentStep, setCurrentStep] = React.useState<WizardStep>("site");
 	const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null);
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
@@ -465,7 +457,7 @@ export function SetupWizard() {
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base">
 				<div className="text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p>
+					<p className="mt-4 text-kumo-subtle">Loading setup...</p>
 				</div>
 			</div>
 		);
@@ -476,9 +468,9 @@ export function SetupWizard() {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base">
 				<div className="text-center">
-					<h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1>
+					<h1 className="text-xl font-bold text-kumo-danger">Error</h1>
 					<p className="mt-2 text-kumo-subtle">
-						{statusError instanceof Error ? statusError.message : t`Failed to load setup`}
+						{statusError instanceof Error ? statusError.message : "Failed to load setup"}
 					</p>
 				</div>
 			</div>
@@ -492,12 +484,12 @@ export function SetupWizard() {
 				<div className="text-center mb-6">
 					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
-						{currentStep === "site" && t`Set up your site`}
-						{currentStep === "admin" && t`Create your account`}
-						{currentStep === "passkey" && t`Secure your account`}
+						{currentStep === "site" && "Set up your site"}
+						{currentStep === "admin" && "Create your account"}
+						{currentStep === "passkey" && "Secure your account"}
 					</h1>
 					{useAccessAuth && currentStep === "site" && (
-						<p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p>
+						<p className="text-sm text-kumo-subtle mt-2">You're signed in via Cloudflare Access</p>
 					)}
 				</div>
 

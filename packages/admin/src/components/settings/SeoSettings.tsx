@@ -5,7 +5,6 @@
  */
 
 import { Button, Input, InputArea } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	FloppyDisk,
@@ -20,7 +19,6 @@ import * as React from "react";
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
 
 export function SeoSettings() {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 
 	const { data: settings, isLoading } = useQuery({
@@ -50,12 +48,12 @@ export function SeoSettings() {
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
-			setSaveStatus({ type: "success", message: t`SEO settings saved` });
+			setSaveStatus({ type: "success", message: "SEO settings saved" });
 		},
 		onError: (error) => {
 			setSaveStatus({
 				type: "error",
-				message: error instanceof Error ? error.message : t`Failed to save settings`,
+				message: error instanceof Error ? error.message : "Failed to save settings",
 			});
 		},
 	});
@@ -80,14 +78,14 @@ export function SeoSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
+						<Button variant="ghost" shape="square" aria-label="Back to settings">
 							<ArrowLeft className="h-4 w-4" />
 						</Button>
 					</Link>
-					<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
+					<h1 className="text-2xl font-bold">SEO Settings</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
+					<p className="text-kumo-subtle">Loading settings...</p>
 				</div>
 			</div>
 		);
@@ -98,11 +96,11 @@ export function SeoSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
+					<Button variant="ghost" shape="square" aria-label="Back to settings">
 						<ArrowLeft className="h-4 w-4" />
 					</Button>
 				</Link>
-				<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
+				<h1 className="text-2xl font-bold">SEO Settings</h1>
 			</div>
 
 			{/* Status banner */}
@@ -127,33 +125,33 @@ export function SeoSettings() {
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-center gap-2 mb-4">
 						<MagnifyingGlass className="h-5 w-5 text-kumo-subtle" />
-						<h2 className="text-lg font-semibold">{t`Search Engine Optimization`}</h2>
+						<h2 className="text-lg font-semibold">Search Engine Optimization</h2>
 					</div>
 					<div className="space-y-4">
 						<Input
-							label={t`Title Separator`}
+							label="Title Separator"
 							value={formData.seo?.titleSeparator || "|"}
 							onChange={(e) => handleSeoChange("titleSeparator", e.target.value)}
-							description={t`Character between page title and site name (e.g., "My Post | My Site")`}
+							description='Character between page title and site name (e.g., "My Post | My Site")'
 						/>
 						<Input
-							label={t`Google Verification`}
+							label="Google Verification"
 							value={formData.seo?.googleVerification || ""}
 							onChange={(e) => handleSeoChange("googleVerification", e.target.value)}
-							description={t`Meta tag content for Google Search Console verification`}
+							description="Meta tag content for Google Search Console verification"
 						/>
 						<Input
-							label={t`Bing Verification`}
+							label="Bing Verification"
 							value={formData.seo?.bingVerification || ""}
 							onChange={(e) => handleSeoChange("bingVerification", e.target.value)}
-							description={t`Meta tag content for Bing Webmaster Tools verification`}
+							description="Meta tag content for Bing Webmaster Tools verification"
 						/>
 						<InputArea
 							label="robots.txt"
 							value={formData.seo?.robotsTxt || ""}
 							onChange={(e) => handleSeoChange("robotsTxt", e.target.value)}
 							rows={5}
-							description={t`Custom robots.txt content. Leave empty to use the default.`}
+							description="Custom robots.txt content. Leave empty to use the default."
 						/>
 					</div>
 				</div>
@@ -161,7 +159,7 @@ export function SeoSettings() {
 				{/* Save Button */}
 				<div className="flex justify-end">
 					<Button type="submit" disabled={saveMutation.isPending} icon={<FloppyDisk />}>
-						{saveMutation.isPending ? t`Saving...` : t`Save SEO Settings`}
+						{saveMutation.isPending ? "Saving..." : "Save SEO Settings"}
 					</Button>
 				</div>
 			</form>

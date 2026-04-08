@@ -7,7 +7,6 @@
  */
 
 import { Input, InputArea, Label, Switch } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import type { ContentSeo, ContentSeoInput } from "../lib/api";
@@ -21,7 +20,6 @@ export interface SeoPanelProps {
  * Compact SEO metadata editor for the content sidebar.
  */
 export function SeoPanel({ seo, onChange }: SeoPanelProps) {
-	const { t } = useLingui();
 	const [title, setTitle] = React.useState(seo?.title ?? "");
 	const [description, setDescription] = React.useState(seo?.description ?? "");
 	const [canonical, setCanonical] = React.useState(seo?.canonical ?? "");
@@ -48,8 +46,8 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 	return (
 		<div className="space-y-3">
 			<Input
-				label={t`SEO Title`}
-				description={t`Overrides the page title in search engine results`}
+				label="SEO Title"
+				description="Overrides the page title in search engine results"
 				value={title}
 				onChange={(e) => {
 					setTitle(e.target.value);
@@ -59,11 +57,11 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 
 			<div>
 				<InputArea
-					label={t`Meta Description`}
+					label="Meta Description"
 					description={
 						description
-							? t`${description.length}/160 characters`
-							: t`Brief summary shown below the title in search results`
+							? `${description.length}/160 characters`
+							: "Brief summary shown below the title in search results"
 					}
 					value={description}
 					onChange={(e) => {
@@ -75,8 +73,8 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 			</div>
 
 			<Input
-				label={t`Canonical URL`}
-				description={t`Points search engines to the original version of this page, if it's duplicated from another URL`}
+				label="Canonical URL"
+				description="Points search engines to the original version of this page, if it's duplicated from another URL"
 				value={canonical}
 				onChange={(e) => {
 					setCanonical(e.target.value);
@@ -86,8 +84,8 @@ export function SeoPanel({ seo, onChange }: SeoPanelProps) {
 
 			<div className="flex items-center justify-between pt-1">
 				<div>
-					<Label>{t`Hide from search engines`}</Label>
-					<p className="text-xs text-kumo-subtle">{t`Add noindex meta tag`}</p>
+					<Label>Hide from search engines</Label>
+					<p className="text-xs text-kumo-subtle">Add noindex meta tag</p>
 				</div>
 				<Switch
 					checked={noIndex}

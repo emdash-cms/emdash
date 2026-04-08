@@ -5,7 +5,6 @@
  */
 
 import { Button, Dialog, Input, InputArea, Toast } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	MagnifyingGlass,
@@ -46,7 +45,6 @@ const sourceLabels: Record<SectionSource, string> = {
 };
 
 export function Sections() {
-	const { t } = useLingui();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -88,7 +86,7 @@ export function Sections() {
 		onSuccess: (section) => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			setIsCreateOpen(false);
-			toastManager.add({ title: t`Section created` });
+			toastManager.add({ title: "Section created" });
 			// Navigate to edit the new section
 			void navigate({ to: "/sections/$slug", params: { slug: section.slug } });
 		},
@@ -102,7 +100,7 @@ export function Sections() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			setDeleteSlug(null);
-			toastManager.add({ title: t`Section deleted` });
+			toastManager.add({ title: "Section deleted" });
 		},
 	});
 
@@ -119,7 +117,7 @@ export function Sections() {
 
 	const handleCopySlug = (slug: string) => {
 		void navigator.clipboard.writeText(slug);
-		toastManager.add({ title: t`Slug copied to clipboard` });
+		toastManager.add({ title: "Slug copied to clipboard" });
 	};
 
 	const sectionToDelete = sections.find((s) => s.slug === deleteSlug);
@@ -129,32 +127,32 @@ export function Sections() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Sections`}</h1>
+					<h1 className="text-3xl font-bold">Sections</h1>
 					<p className="text-kumo-subtle">
-						{t`Reusable content blocks you can insert into any content`}
+						Reusable content blocks you can insert into any content
 					</p>
 				</div>
 				<Dialog.Root open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 					<Dialog.Trigger
 						render={(props) => (
 							<Button {...props} icon={<Plus />}>
-								{t`New Section`}
+								New Section
 							</Button>
 						)}
 					/>
 					<Dialog className="p-6" size="lg">
 						<div className="flex items-start justify-between gap-4 mb-4">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create Section`}
+								Create Section
 							</Dialog.Title>
 							<Dialog.Close
-								aria-label={t`Close`}
+								aria-label="Close"
 								render={(props) => (
 									<Button
 										{...props}
 										variant="ghost"
 										shape="square"
-										aria-label={t`Close`}
+										aria-label="Close"
 										className="absolute right-4 top-4"
 									>
 										<X className="h-4 w-4" />
@@ -165,7 +163,7 @@ export function Sections() {
 						</div>
 						<form onSubmit={handleCreate} className="space-y-4">
 							<Input
-								label={t`Title`}
+								label="Title"
 								value={createTitle}
 								onChange={(e) => {
 									const title = e.target.value;
@@ -175,11 +173,11 @@ export function Sections() {
 									}
 								}}
 								required
-								placeholder={t`Hero Banner`}
+								placeholder="Hero Banner"
 							/>
 							<div>
 								<Input
-									label={t`Slug`}
+									label="Slug"
 									value={createSlug}
 									onChange={(e) => {
 										setCreateSlug(e.target.value);
@@ -188,26 +186,26 @@ export function Sections() {
 									required
 									placeholder="hero-banner"
 									pattern="[a-z0-9-]+"
-									title={t`Lowercase letters, numbers, and hyphens only`}
+									title="Lowercase letters, numbers, and hyphens only"
 								/>
 								<p className="text-xs text-kumo-subtle mt-1">
-									{t`Used to identify this section. Lowercase letters, numbers, and hyphens only.`}
+									Used to identify this section. Lowercase letters, numbers, and hyphens only.
 								</p>
 							</div>
 							<InputArea
-								label={t`Description`}
+								label="Description"
 								value={createDescription}
 								onChange={(e) => setCreateDescription(e.target.value)}
-								placeholder={t`A full-width hero banner with heading, text, and CTA button`}
+								placeholder="A full-width hero banner with heading, text, and CTA button"
 								rows={3}
 							/>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-									{t`Cancel`}
+									Cancel
 								</Button>
 								<Button type="submit" disabled={createMutation.isPending}>
-									{createMutation.isPending ? t`Creating...` : t`Create`}
+									{createMutation.isPending ? "Creating..." : "Create"}
 								</Button>
 							</div>
 						</form>
@@ -221,7 +219,7 @@ export function Sections() {
 				<div className="relative flex-1 max-w-md">
 					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
-						placeholder={t`Search sections...`}
+						placeholder="Search sections..."
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="pl-10"
@@ -237,35 +235,35 @@ export function Sections() {
 					}}
 					className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2"
 				>
-					<option value="">{t`All Sources`}</option>
-					<option value="theme">{t`Theme`}</option>
-					<option value="user">{t`Custom`}</option>
-					<option value="import">{t`Imported`}</option>
+					<option value="">All Sources</option>
+					<option value="theme">Theme</option>
+					<option value="user">Custom</option>
+					<option value="import">Imported</option>
 				</select>
 			</div>
 
 			{/* Section Grid */}
 			{sectionsLoading ? (
 				<div className="flex items-center justify-center h-64">
-					<div className="text-kumo-subtle">{t`Loading sections...`}</div>
+					<div className="text-kumo-subtle">Loading sections...</div>
 				</div>
 			) : sections.length === 0 ? (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					{searchQuery || selectedSource ? (
 						<>
 							<MagnifyingGlass className="mx-auto h-12 w-12 text-kumo-subtle" />
-							<h3 className="mt-4 text-lg font-semibold">{t`No sections found`}</h3>
-							<p className="mt-2 text-kumo-subtle">{t`Try adjusting your search or filters.`}</p>
+							<h3 className="mt-4 text-lg font-semibold">No sections found</h3>
+							<p className="mt-2 text-kumo-subtle">Try adjusting your search or filters.</p>
 						</>
 					) : (
 						<>
 							<FolderOpen className="mx-auto h-12 w-12 text-kumo-subtle" />
-							<h3 className="mt-4 text-lg font-semibold">{t`No sections yet`}</h3>
+							<h3 className="mt-4 text-lg font-semibold">No sections yet</h3>
 							<p className="mt-2 text-kumo-subtle">
-								{t`Create your first reusable content section to get started.`}
+								Create your first reusable content section to get started.
 							</p>
 							<Button className="mt-4" icon={<Plus />} onClick={() => setIsCreateOpen(true)}>
-								{t`Create Section`}
+								Create Section
 							</Button>
 						</>
 					)}
@@ -291,14 +289,21 @@ export function Sections() {
 					setDeleteSlug(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete Section?`}
+				title="Delete Section?"
 				description={
-					sectionToDelete?.source === "theme"
-						? t`Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that.`
-						: t`This will permanently delete "${sectionToDelete?.title}". This action cannot be undone.`
+					sectionToDelete?.source === "theme" ? (
+						<>
+							Theme-provided sections cannot be deleted. Edit the section to create a custom copy,
+							then delete that.
+						</>
+					) : (
+						<>
+							This will permanently delete "{sectionToDelete?.title}". This action cannot be undone.
+						</>
+					)
 				}
-				confirmLabel={t`Delete`}
-				pendingLabel={t`Deleting...`}
+				confirmLabel="Delete"
+				pendingLabel="Deleting..."
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteSlug && deleteMutation.mutate(deleteSlug)}
@@ -318,7 +323,6 @@ function SectionCard({
 	onDelete: () => void;
 	onCopySlug: () => void;
 }) {
-	const { t } = useLingui();
 	const SourceIcon = sourceIcons[section.source];
 
 	return (
@@ -332,7 +336,7 @@ function SectionCard({
 						className="w-full h-full object-cover"
 					/>
 				) : (
-					<div className="text-kumo-subtle text-sm">{t`No preview`}</div>
+					<div className="text-kumo-subtle text-sm">No preview</div>
 				)}
 			</div>
 
@@ -367,7 +371,7 @@ function SectionCard({
 							</span>
 						))}
 						{section.keywords.length > 3 && (
-							<span className="text-xs text-kumo-subtle">{t`+${section.keywords.length - 3} more`}</span>
+							<span className="text-xs text-kumo-subtle">+{section.keywords.length - 3} more</span>
 						)}
 					</div>
 				)}
@@ -381,14 +385,14 @@ function SectionCard({
 						onClick={onEdit}
 						className="flex-1"
 					>
-						{t`Edit`}
+						Edit
 					</Button>
 					<Button
 						variant="ghost"
 						size="sm"
 						onClick={onCopySlug}
-						title={t`Copy slug`}
-						aria-label={t`Copy ${section.slug} to clipboard`}
+						title="Copy slug"
+						aria-label={`Copy ${section.slug} to clipboard`}
 					>
 						<Copy className="h-4 w-4" />
 					</Button>
@@ -396,8 +400,8 @@ function SectionCard({
 						variant="ghost"
 						size="sm"
 						onClick={onDelete}
-						title={section.source === "theme" ? t`Cannot delete theme sections` : t`Delete`}
-						aria-label={t`Delete ${section.title}`}
+						title={section.source === "theme" ? "Cannot delete theme sections" : "Delete"}
+						aria-label={`Delete ${section.title}`}
 						disabled={section.source === "theme"}
 					>
 						<Trash className="h-4 w-4" />

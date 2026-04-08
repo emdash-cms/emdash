@@ -15,10 +15,10 @@ import type { Editor } from "@tiptap/react";
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { render } from "vitest-browser-react";
 
 import { BlockMenu } from "../../src/components/editor/BlockMenu";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
-import { render } from "../utils/render.js";
 
 // ---------------------------------------------------------------------------
 // Mocks — same as other editor tests

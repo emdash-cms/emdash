@@ -12,7 +12,6 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../../lib/api/client";
@@ -130,10 +129,8 @@ export function PasskeyLogin({
 	onSuccess,
 	onError,
 	showEmailInput = false,
-	buttonText,
+	buttonText = "Sign in with Passkey",
 }: PasskeyLoginProps) {
-	const { t } = useLingui();
-	const resolvedButtonText = buttonText ?? t`Sign in with Passkey`;
 	const [state, setState] = React.useState<LoginState>({ status: "idle" });
 	const [email, setEmail] = React.useState("");
 	const [supportsConditional, setSupportsConditional] = React.useState(false);
@@ -155,15 +152,15 @@ export function PasskeyLogin({
 				setState({
 					status: "error",
 					message: insecureContext
-						? t`Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context.`
-						: t`WebAuthn is not supported in this browser`,
+						? "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
+						: "WebAuthn is not supported in this browser",
 				});
 				return;
 			}
 
 			try {
 				// Step 1: Get authentication options from server
-				setState({ status: "loading", message: t`Preparing...` });
+				setState({ status: "loading", message: "Preparing..." });
 
 				const optionsResponse = await apiFetch(optionsEndpoint, {
 					method: "POST",
@@ -177,7 +174,7 @@ export function PasskeyLogin({
 				const { options } = optionsData;
 
 				// Step 2: Get assertion from browser
-				setState({ status: "loading", message: t`Waiting for passkey...` });
+				setState({ status: "loading", message: "Waiting for passkey..." });
 
 				// Convert options to the format expected by the browser
 				const publicKeyOptions: PublicKeyCredentialRequestOptions = {
@@ -210,7 +207,7 @@ export function PasskeyLogin({
 				}
 
 				// Step 3: Send credential to server for verification
-				setState({ status: "loading", message: t`Verifying...` });
+				setState({ status: "loading", message: "Verifying..." });
 
 				// navigator.credentials.get() with publicKey returns PublicKeyCredential
 				const credential = rawCredential as PublicKeyCredential;
@@ -253,30 +250,30 @@ export function PasskeyLogin({
 				setState({ status: "success" });
 				onSuccess(result);
 			} catch (error) {
-				const message = error instanceof Error ? error.message : t`Authentication failed`;
+				const message = error instanceof Error ? error.message : "Authentication failed";
 
 				// Handle specific WebAuthn errors
 				let userMessage = message;
 				if (error instanceof DOMException) {
 					switch (error.name) {
 						case "NotAllowedError":
-							userMessage = t`Authentication was cancelled or timed out. Please try again.`;
+							userMessage = "Authentication was cancelled or timed out. Please try again.";
 							break;
 						case "InvalidStateError":
-							userMessage = t`No matching passkey found for this account.`;
+							userMessage = "No matching passkey found for this account.";
 							break;
 						case "NotSupportedError":
-							userMessage = t`Your device doesn't support the required security features.`;
+							userMessage = "Your device doesn't support the required security features.";
 							break;
 						case "SecurityError":
-							userMessage = t`Security error. Make sure you're on a secure connection.`;
+							userMessage = "Security error. Make sure you're on a secure connection.";
 							break;
 						case "AbortError":
 							// User cancelled - don't show error
 							setState({ status: "idle" });
 							return;
 						default:
-							userMessage = t`Authentication error: ${error.message}`;
+							userMessage = `Authentication error: ${error.message}`;
 					}
 				}
 
@@ -299,7 +296,7 @@ export function PasskeyLogin({
 	if (!isSupported) {
 		return (
 			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4">
-				<h3 className="font-medium text-kumo-danger">{t`Passkeys Not Available Here`}</h3>
+				<h3 className="font-medium text-kumo-danger">Passkeys Not Available Here</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
 					{insecureContext ? (
 						<>
@@ -326,7 +323,7 @@ export function PasskeyLogin({
 			{showEmailInput && (
 				<div>
 					<Input
-						label={t`Email (optional)`}
+						label="Email (optional)"
 						type="email"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
@@ -335,7 +332,7 @@ export function PasskeyLogin({
 						autoComplete="username webauthn"
 					/>
 					<p className="mt-1 text-xs text-kumo-subtle">
-						{t`Leave blank to use a discoverable passkey.`}
+						Leave blank to use a discoverable passkey.
 					</p>
 				</div>
 			)}
@@ -355,12 +352,12 @@ export function PasskeyLogin({
 				className="w-full justify-center"
 				variant="primary"
 			>
-				{state.status === "loading" ? <>{state.message}</> : resolvedButtonText}
+				{state.status === "loading" ? <>{state.message}</> : buttonText}
 			</Button>
 
 			{/* Help text */}
 			<p className="text-xs text-kumo-subtle text-center">
-				{t`Use your device's biometric authentication, security key, or PIN to sign in.`}
+				Use your device's biometric authentication, security key, or PIN to sign in.
 			</p>
 		</div>
 	);

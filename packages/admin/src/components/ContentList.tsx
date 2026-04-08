@@ -1,5 +1,4 @@
 import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
-import { Plural, useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	Pencil,
@@ -84,7 +83,6 @@ export function ContentList({
 	onLocaleChange,
 	urlPattern,
 }: ContentListProps) {
-	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
@@ -122,7 +120,7 @@ export function ContentList({
 				</div>
 				<Link to="/content/$collection/new" params={{ collection }} className={buttonVariants()}>
 					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-					{t`Add New`}
+					Add New
 				</Link>
 			</div>
 
@@ -132,8 +130,8 @@ export function ContentList({
 					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
-						placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
-						aria-label={t`Search ${collectionLabel.toLowerCase()}`}
+						placeholder={`Search ${collectionLabel.toLowerCase()}...`}
+						aria-label={`Search ${collectionLabel.toLowerCase()}`}
 						value={searchQuery}
 						onChange={handleSearchChange}
 						className="pl-9"
@@ -149,13 +147,13 @@ export function ContentList({
 					if (v === "all" || v === "trash") setActiveTab(v);
 				}}
 				tabs={[
-					{ value: "all", label: t`All` },
+					{ value: "all", label: "All" },
 					{
 						value: "trash",
 						label: (
 							<span className="flex items-center gap-2">
 								<Trash className="h-4 w-4" aria-hidden="true" />
-								{t`Trash`}
+								Trash
 								{trashedCount > 0 && <Badge variant="secondary">{trashedCount}</Badge>}
 							</span>
 						),
@@ -172,21 +170,21 @@ export function ContentList({
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Title`}
+										Title
 									</th>
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Status`}
+										Status
 									</th>
 									{i18n && (
 										<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-											{t`Locale`}
+											Locale
 										</th>
 									)}
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Date`}
+										Date
 									</th>
 									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
-										{t`Actions`}
+										Actions
 									</th>
 								</tr>
 							</thead>
@@ -194,20 +192,20 @@ export function ContentList({
 								{items.length === 0 && !isLoading ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
+											No {collectionLabel.toLowerCase()} yet.{" "}
 											<Link
 												to="/content/$collection/new"
 												params={{ collection }}
 												className="text-kumo-brand underline"
 											>
-												{t`Create your first one`}
+												Create your first one
 											</Link>
 										</td>
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${searchQuery}"`}
+											No results for &ldquo;{searchQuery}&rdquo;
 										</td>
 									</tr>
 								) : (
@@ -231,8 +229,8 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								<Plural value={filteredItems.length} one="# item" other="# items" />
-								{searchQuery && t` matching "${searchQuery}"`}
+								{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+								{searchQuery && ` matching "${searchQuery}"`}
 							</span>
 							<div className="flex items-center gap-2">
 								<Button
@@ -240,7 +238,7 @@ export function ContentList({
 									shape="square"
 									disabled={page === 0}
 									onClick={() => setPage(page - 1)}
-									aria-label={t`Previous page`}
+									aria-label="Previous page"
 								>
 									<CaretLeft className="h-4 w-4" aria-hidden="true" />
 								</Button>
@@ -252,7 +250,7 @@ export function ContentList({
 									shape="square"
 									disabled={page >= totalPages - 1}
 									onClick={() => setPage(page + 1)}
-									aria-label={t`Next page`}
+									aria-label="Next page"
 								>
 									<CaretRight className="h-4 w-4" aria-hidden="true" />
 								</Button>
@@ -264,7 +262,7 @@ export function ContentList({
 					{hasMore && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
-								{isLoading ? t`Loading...` : t`Load More`}
+								{isLoading ? "Loading..." : "Load More"}
 							</Button>
 						</div>
 					)}
@@ -277,13 +275,13 @@ export function ContentList({
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Title`}
+										Title
 									</th>
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Deleted`}
+										Deleted
 									</th>
 									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
-										{t`Actions`}
+										Actions
 									</th>
 								</tr>
 							</thead>
@@ -291,7 +289,7 @@ export function ContentList({
 								{trashedItems.length === 0 && !isTrashedLoading ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`Trash is empty`}
+											Trash is empty
 										</td>
 									</tr>
 								) : (
@@ -312,7 +310,7 @@ export function ContentList({
 					{hasMoreTrashed && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMoreTrashed} disabled={isTrashedLoading}>
-								{isTrashedLoading ? t`Loading...` : t`Load More`}
+								{isTrashedLoading ? "Loading..." : "Load More"}
 							</Button>
 						</div>
 					)}
@@ -339,7 +337,6 @@ function ContentListItem({
 	showLocale,
 	urlPattern,
 }: ContentListItemProps) {
-	const { t } = useLingui();
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
 
@@ -375,7 +372,7 @@ function ContentListItem({
 							href={contentUrl(collection, item.slug, urlPattern)}
 							target="_blank"
 							rel="noopener noreferrer"
-							aria-label={t`View published ${title}`}
+							aria-label={`View published ${title}`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
 							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
@@ -384,7 +381,7 @@ function ContentListItem({
 					<Link
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
-						aria-label={t`Edit ${title}`}
+						aria-label={`Edit ${title}`}
 						className={buttonVariants({ variant: "ghost", shape: "square" })}
 					>
 						<Pencil className="h-4 w-4" aria-hidden="true" />
@@ -392,7 +389,7 @@ function ContentListItem({
 					<Button
 						variant="ghost"
 						shape="square"
-						aria-label={t`Duplicate ${title}`}
+						aria-label={`Duplicate ${title}`}
 						onClick={() => onDuplicate?.(item.id)}
 					>
 						<Copy className="h-4 w-4" aria-hidden="true" />
@@ -400,33 +397,28 @@ function ContentListItem({
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Move ${title} to trash`}
-								>
+								<Button {...p} variant="ghost" shape="square" aria-label={`Move ${title} to trash`}>
 									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+							<Dialog.Title className="text-lg font-semibold">Move to Trash?</Dialog.Title>
 							<Dialog.Description className="text-kumo-subtle">
-								{t`Move "${title}" to trash? You can restore it later.`}
+								Move "{title}" to trash? You can restore it later.
 							</Dialog.Description>
 							<div className="mt-6 flex justify-end gap-2">
 								<Dialog.Close
 									render={(p) => (
 										<Button {...p} variant="secondary">
-											{t`Cancel`}
+											Cancel
 										</Button>
 									)}
 								/>
 								<Dialog.Close
 									render={(p) => (
 										<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-											{t`Move to Trash`}
+											Move to Trash
 										</Button>
 									)}
 								/>
@@ -446,7 +438,6 @@ interface TrashedListItemProps {
 }
 
 function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItemProps) {
-	const { t } = useLingui();
 	const title = getItemTitle(item);
 	const deletedDate = new Date(item.deletedAt);
 
@@ -461,7 +452,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 					<Button
 						variant="ghost"
 						shape="square"
-						aria-label={t`Restore ${title}`}
+						aria-label={`Restore ${title}`}
 						onClick={() => onRestore?.(item.id)}
 					>
 						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
@@ -473,22 +464,22 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 									{...p}
 									variant="ghost"
 									shape="square"
-									aria-label={t`Permanently delete ${title}`}
+									aria-label={`Permanently delete ${title}`}
 								>
 									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Delete Permanently?`}</Dialog.Title>
+							<Dialog.Title className="text-lg font-semibold">Delete Permanently?</Dialog.Title>
 							<Dialog.Description className="text-kumo-subtle">
-								{t`Permanently delete "${title}"? This cannot be undone.`}
+								Permanently delete "{title}"? This cannot be undone.
 							</Dialog.Description>
 							<div className="mt-6 flex justify-end gap-2">
 								<Dialog.Close
 									render={(p) => (
 										<Button {...p} variant="secondary">
-											{t`Cancel`}
+											Cancel
 										</Button>
 									)}
 								/>
@@ -499,7 +490,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 											variant="destructive"
 											onClick={() => onPermanentDelete?.(item.id)}
 										>
-											{t`Delete Permanently`}
+											Delete Permanently
 										</Button>
 									)}
 								/>
@@ -519,7 +510,6 @@ function StatusBadge({
 	status: string;
 	hasPendingChanges?: boolean;
 }) {
-	const { t } = useLingui();
 	return (
 		<span className="inline-flex items-center gap-1.5">
 			<span
@@ -536,7 +526,7 @@ function StatusBadge({
 			>
 				{status}
 			</span>
-			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
+			{hasPendingChanges && <Badge variant="secondary">pending</Badge>}
 		</span>
 	);
 }

@@ -7,7 +7,6 @@
  */
 
 import { Badge, Button, Switch, Toast } from "@cloudflare/kumo";
-import { Plural, useLingui } from "@lingui/react/macro";
 import {
 	PuzzlePiece,
 	Gear,
@@ -50,7 +49,6 @@ export interface PluginManagerProps {
 }
 
 export function PluginManager({ manifest }: PluginManagerProps) {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const hasMarketplace = !!manifest?.marketplace;
@@ -80,14 +78,14 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
-				title: t`Plugin enabled`,
-				description: t`${plugin.name} is now active`,
+				title: "Plugin enabled",
+				description: `${plugin.name} is now active`,
 			});
 		},
 		onError: (err) => {
 			toastManager.add({
-				title: t`Failed to enable plugin`,
-				description: err instanceof Error ? err.message : t`An error occurred`,
+				title: "Failed to enable plugin",
+				description: err instanceof Error ? err.message : "An error occurred",
 				type: "error",
 			});
 		},
@@ -99,14 +97,14 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
-				title: t`Plugin disabled`,
-				description: t`${plugin.name} has been deactivated`,
+				title: "Plugin disabled",
+				description: `${plugin.name} has been deactivated`,
 			});
 		},
 		onError: (err) => {
 			toastManager.add({
-				title: t`Failed to disable plugin`,
-				description: err instanceof Error ? err.message : t`An error occurred`,
+				title: "Failed to disable plugin",
+				description: err instanceof Error ? err.message : "An error occurred",
 				type: "error",
 			});
 		},
@@ -122,8 +120,8 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	if (isLoading) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
-				<div className="text-kumo-subtle">{t`Loading plugins...`}</div>
+				<h1 className="text-3xl font-bold">Plugins</h1>
+				<div className="text-kumo-subtle">Loading plugins...</div>
 			</div>
 		);
 	}
@@ -131,8 +129,8 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	if (error) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
-				<div className="text-kumo-danger">{t`Failed to load plugins: ${error.message}`}</div>
+				<h1 className="text-3xl font-bold">Plugins</h1>
+				<div className="text-kumo-danger">Failed to load plugins: {error.message}</div>
 			</div>
 		);
 	}
@@ -140,7 +138,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
+				<h1 className="text-3xl font-bold">Plugins</h1>
 				<div className="flex items-center gap-3">
 					{hasMarketplacePlugins && (
 						<Button
@@ -151,23 +149,23 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							<ArrowsClockwise
 								className={cn("mr-2 h-4 w-4", isCheckingUpdates && "animate-spin")}
 							/>
-							{t`Check for updates`}
+							Check for updates
 						</Button>
 					)}
 					{hasMarketplace && (
 						<Link to="/plugins/marketplace">
 							<Button variant="ghost">
 								<Storefront className="mr-2 h-4 w-4" />
-								{t`Marketplace`}
+								Marketplace
 							</Button>
 						</Link>
 					)}
-					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
+					<span className="text-sm text-kumo-subtle">{plugins?.length ?? 0} plugins</span>
 				</div>
 			</div>
 
 			<p className="text-kumo-subtle">
-				{t`Manage installed plugins. Enable or disable plugins to control their functionality.`}
+				Manage installed plugins. Enable or disable plugins to control their functionality.
 			</p>
 
 			<div className="grid gap-4">
@@ -187,18 +185,18 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			{plugins?.length === 0 && (
 				<div className="rounded-lg border bg-kumo-base p-8 text-center">
 					<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
-					<h3 className="mt-4 text-lg font-medium">{t`No plugins configured`}</h3>
+					<h3 className="mt-4 text-lg font-medium">No plugins configured</h3>
 					<p className="mt-2 text-sm text-kumo-subtle">
 						{hasMarketplace ? (
 							<>
-								{t`Browse the`}{" "}
+								Browse the{" "}
 								<Link to="/plugins/marketplace" className="text-kumo-brand hover:underline">
-									{t`marketplace`}
+									marketplace
 								</Link>{" "}
-								{t`to install plugins, or add them to your astro.config.mjs.`}
+								to install plugins, or add them to your astro.config.mjs.
 							</>
 						) : (
-							t`Add plugins to your astro.config.mjs to extend EmDash functionality.`
+							"Add plugins to your astro.config.mjs to extend EmDash functionality."
 						)}
 					</p>
 				</div>
@@ -225,7 +223,6 @@ function PluginCard({
 	isToggling,
 	hasMarketplace,
 }: PluginCardProps) {
-	const { t } = useLingui();
 	const [expanded, setExpanded] = React.useState(false);
 	const [showUpdateConsent, setShowUpdateConsent] = React.useState(false);
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
@@ -243,8 +240,8 @@ function PluginCard({
 			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
-				title: t`Plugin updated`,
-				description: t`${plugin.name} updated to v${updateInfo?.latest}`,
+				title: "Plugin updated",
+				description: `${plugin.name} updated to v${updateInfo?.latest}`,
 			});
 		},
 	});
@@ -256,8 +253,8 @@ function PluginCard({
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
-				title: t`Plugin uninstalled`,
-				description: t`${plugin.name} has been removed`,
+				title: "Plugin uninstalled",
+				description: `${plugin.name} has been removed`,
 			});
 		},
 	});
@@ -305,11 +302,11 @@ function PluginCard({
 						<div className="flex items-center gap-2">
 							<h3 className="font-semibold truncate">{plugin.name}</h3>
 							<span className="text-xs text-kumo-subtle">v{plugin.version}</span>
-							{!plugin.enabled && <Badge variant="secondary">{t`Disabled`}</Badge>}
-							{isMarketplace && <Badge variant="secondary">{t`Marketplace`}</Badge>}
+							{!plugin.enabled && <Badge variant="secondary">Disabled</Badge>}
+							{isMarketplace && <Badge variant="secondary">Marketplace</Badge>}
 							{hasUpdate && (
 								<Badge variant="outline" className="border-kumo-brand text-kumo-brand">
-									{t`v${updateInfo.latest} available`}
+									v{updateInfo.latest} available
 								</Badge>
 							)}
 						</div>
@@ -324,19 +321,19 @@ function PluginCard({
 							{plugin.hasAdminPages && (
 								<span className="flex items-center gap-1">
 									<FileText className="h-3 w-3" />
-									{t`Pages`}
+									Pages
 								</span>
 							)}
 							{plugin.hasDashboardWidgets && (
 								<span className="flex items-center gap-1">
 									<SquaresFour className="h-3 w-3" />
-									{t`Widgets`}
+									Widgets
 								</span>
 							)}
 							{plugin.hasHooks && (
 								<span className="flex items-center gap-1">
 									<WebhooksLogo className="h-3 w-3" />
-									{t`Hooks`}
+									Hooks
 								</span>
 							)}
 							{plugin.capabilities.length > 0 && (
@@ -345,11 +342,8 @@ function PluginCard({
 									title={plugin.capabilities.map((c) => CAPABILITY_LABELS[c] ?? c).join(", ")}
 								>
 									<ShieldCheck className="h-3 w-3" />
-									<Plural
-										value={plugin.capabilities.length}
-										one="# permission"
-										other="# permissions"
-									/>
+									{plugin.capabilities.length} permission
+									{plugin.capabilities.length !== 1 ? "s" : ""}
 								</span>
 							)}
 						</div>
@@ -364,7 +358,7 @@ function PluginCard({
 								onClick={() => setShowUpdateConsent(true)}
 								disabled={updateMutation.isPending}
 							>
-								{updateMutation.isPending ? t`Updating...` : t`Update to v${updateInfo.latest}`}
+								{updateMutation.isPending ? "Updating..." : `Update to v${updateInfo.latest}`}
 							</Button>
 						)}
 
@@ -372,16 +366,16 @@ function PluginCard({
 							<Link to="/plugins/marketplace/$pluginId" params={{ pluginId: plugin.id }}>
 								<Button variant="ghost" size="sm">
 									<Storefront className="mr-1.5 h-3.5 w-3.5" />
-									{t`View in Marketplace`}
+									View in Marketplace
 								</Button>
 							</Link>
 						)}
 
 						{plugin.hasAdminPages && plugin.enabled && (
 							<Link to="/plugins/$pluginId/$" params={{ pluginId: plugin.id, _splat: "settings" }}>
-								<Button variant="ghost" shape="square" aria-label={t`Settings`}>
+								<Button variant="ghost" shape="square" aria-label="Settings">
 									<Gear className="h-4 w-4" />
-									<span className="sr-only">{t`Settings`}</span>
+									<span className="sr-only">Settings</span>
 								</Button>
 							</Link>
 						)}
@@ -390,18 +384,18 @@ function PluginCard({
 							checked={plugin.enabled}
 							onCheckedChange={handleToggle}
 							disabled={isToggling}
-							aria-label={plugin.enabled ? t`Disable plugin` : t`Enable plugin`}
+							aria-label={plugin.enabled ? "Disable plugin" : "Enable plugin"}
 						/>
 
 						<Button
 							variant="ghost"
 							shape="square"
-							aria-label={expanded ? t`Collapse details` : t`Expand details`}
+							aria-label={expanded ? "Collapse details" : "Expand details"}
 							onClick={() => setExpanded(!expanded)}
 							aria-expanded={expanded}
 						>
 							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
-							<span className="sr-only">{expanded ? t`Collapse details` : t`Expand details`}</span>
+							<span className="sr-only">{expanded ? "Collapse" : "Expand"} details</span>
 						</Button>
 					</div>
 				</div>
@@ -413,7 +407,7 @@ function PluginCard({
 						{plugin.capabilities.length > 0 && (
 							<div>
 								<h4 className="text-xs font-medium text-kumo-subtle uppercase tracking-wider mb-1">
-									{t`Capabilities`}
+									Capabilities
 								</h4>
 								<div className="flex flex-wrap gap-1">
 									{plugin.capabilities.map((cap) => (
@@ -433,10 +427,10 @@ function PluginCard({
 						{isMarketplace && (
 							<div>
 								<h4 className="text-xs font-medium text-kumo-subtle uppercase tracking-wider mb-1">
-									{t`Source`}
+									Source
 								</h4>
 								<span className="text-xs text-kumo-subtle">
-									{t`Installed from marketplace (v${plugin.marketplaceVersion || plugin.version})`}
+									Installed from marketplace (v{plugin.marketplaceVersion || plugin.version})
 								</span>
 							</div>
 						)}
@@ -445,7 +439,7 @@ function PluginCard({
 						{plugin.package && (
 							<div>
 								<h4 className="text-xs font-medium text-kumo-subtle uppercase tracking-wider mb-1">
-									{t`Package`}
+									Package
 								</h4>
 								<code className="text-xs bg-kumo-tint px-2 py-0.5 rounded">{plugin.package}</code>
 							</div>
@@ -455,19 +449,19 @@ function PluginCard({
 						<div className="grid grid-cols-2 gap-4 text-xs">
 							{plugin.installedAt && (
 								<div>
-									<span className="text-kumo-subtle">{t`Installed:`}</span>{" "}
+									<span className="text-kumo-subtle">Installed:</span>{" "}
 									{new Date(plugin.installedAt).toLocaleDateString()}
 								</div>
 							)}
 							{plugin.activatedAt && (
 								<div>
-									<span className="text-kumo-subtle">{t`Last enabled:`}</span>{" "}
+									<span className="text-kumo-subtle">Last enabled:</span>{" "}
 									{new Date(plugin.activatedAt).toLocaleDateString()}
 								</div>
 							)}
 							{plugin.deactivatedAt && !plugin.enabled && (
 								<div>
-									<span className="text-kumo-subtle">{t`Disabled:`}</span>{" "}
+									<span className="text-kumo-subtle">Disabled:</span>{" "}
 									{new Date(plugin.deactivatedAt).toLocaleDateString()}
 								</div>
 							)}
@@ -483,7 +477,7 @@ function PluginCard({
 									disabled={uninstallMutation.isPending}
 								>
 									<Trash className="mr-2 h-4 w-4" />
-									{t`Uninstall`}
+									Uninstall
 								</Button>
 							</div>
 						)}
@@ -544,7 +538,6 @@ export function UninstallConfirmDialog({
 	onConfirm,
 	onCancel,
 }: UninstallConfirmDialogProps) {
-	const { t } = useLingui();
 	const [deleteData, setDeleteData] = React.useState(false);
 
 	return (
@@ -552,14 +545,14 @@ export function UninstallConfirmDialog({
 			className="fixed inset-0 z-50 flex items-center justify-center"
 			role="dialog"
 			aria-modal="true"
-			aria-label={t`Uninstall confirmation`}
+			aria-label="Uninstall confirmation"
 		>
 			<div className="absolute inset-0 bg-black/50" onClick={() => !isPending && onCancel()} />
 			<div className="relative w-full max-w-sm rounded-lg border bg-kumo-base shadow-lg">
 				<div className="p-6 space-y-4">
-					<h2 className="text-lg font-semibold">{t`Uninstall ${pluginName}?`}</h2>
+					<h2 className="text-lg font-semibold">Uninstall {pluginName}?</h2>
 					<p className="text-sm text-kumo-subtle">
-						{t`This will remove the plugin and its bundle from your site.`}
+						This will remove the plugin and its bundle from your site.
 					</p>
 					<label className="flex items-center gap-2 text-sm">
 						<input
@@ -568,16 +561,16 @@ export function UninstallConfirmDialog({
 							onChange={(e) => setDeleteData(e.target.checked)}
 							className="rounded border"
 						/>
-						{t`Also delete plugin storage data`}
+						Also delete plugin storage data
 					</label>
 					<DialogError message={error} />
 				</div>
 				<div className="flex justify-end gap-3 border-t px-6 py-4">
 					<Button variant="ghost" onClick={onCancel} disabled={isPending}>
-						{t`Cancel`}
+						Cancel
 					</Button>
 					<Button variant="destructive" onClick={() => onConfirm(deleteData)} disabled={isPending}>
-						{isPending ? t`Uninstalling...` : t`Uninstall`}
+						{isPending ? "Uninstalling..." : "Uninstall"}
 					</Button>
 				</div>
 			</div>

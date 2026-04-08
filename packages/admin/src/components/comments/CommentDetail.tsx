@@ -6,7 +6,6 @@
  */
 
 import { Badge, Button } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { X, Check, Trash, Warning, UserCircle, EnvelopeSimple } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -30,8 +29,6 @@ export function CommentDetail({
 	isAdmin,
 	isStatusPending,
 }: CommentDetailProps) {
-	const { t } = useLingui();
-
 	// Close on Escape
 	React.useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -55,8 +52,8 @@ export function CommentDetail({
 			<div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto bg-kumo-base border-l shadow-lg">
 				{/* Header */}
 				<div className="flex items-center justify-between border-b px-6 py-4">
-					<h2 className="text-lg font-semibold">{t`Comment Detail`}</h2>
-					<Button variant="ghost" shape="square" onClick={onClose} aria-label={t`Close`}>
+					<h2 className="text-lg font-semibold">Comment Detail</h2>
+					<Button variant="ghost" shape="square" onClick={onClose} aria-label="Close">
 						<X className="h-5 w-5" />
 					</Button>
 				</div>
@@ -74,13 +71,13 @@ export function CommentDetail({
 					{/* Author info */}
 					<div className="rounded-lg border p-4 space-y-3">
 						<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
-							{t`Author`}
+							Author
 						</h3>
 						<div className="space-y-2">
 							<div className="flex items-center gap-2">
 								<UserCircle className="h-4 w-4 text-kumo-subtle" />
 								<span className="font-medium">{comment.authorName}</span>
-								{comment.authorUserId && <Badge variant="secondary">{t`Registered user`}</Badge>}
+								{comment.authorUserId && <Badge variant="secondary">Registered user</Badge>}
 							</div>
 							<div className="flex items-center gap-2">
 								<EnvelopeSimple className="h-4 w-4 text-kumo-subtle" />
@@ -92,7 +89,7 @@ export function CommentDetail({
 					{/* Comment body */}
 					<div className="rounded-lg border p-4 space-y-3">
 						<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
-							{t`Comment`}
+							Comment
 						</h3>
 						<p className="text-sm whitespace-pre-wrap break-words">{comment.body}</p>
 					</div>
@@ -100,21 +97,21 @@ export function CommentDetail({
 					{/* Content reference */}
 					<div className="rounded-lg border p-4 space-y-2">
 						<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
-							{t`Content`}
+							Content
 						</h3>
 						<p className="text-sm">
-							<span className="text-kumo-subtle">{t`Collection:`}</span>{" "}
+							<span className="text-kumo-subtle">Collection:</span>{" "}
 							<span className="font-medium">{comment.collection}</span>
 						</p>
 						<p className="text-sm">
-							<span className="text-kumo-subtle">{t`Content ID:`}</span>{" "}
+							<span className="text-kumo-subtle">Content ID:</span>{" "}
 							<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 								{comment.contentId}
 							</code>
 						</p>
 						{comment.parentId && (
 							<p className="text-sm">
-								<span className="text-kumo-subtle">{t`Reply to:`}</span>{" "}
+								<span className="text-kumo-subtle">Reply to:</span>{" "}
 								<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 									{comment.parentId}
 								</code>
@@ -126,7 +123,7 @@ export function CommentDetail({
 					{comment.moderationMetadata && Object.keys(comment.moderationMetadata).length > 0 && (
 						<div className="rounded-lg border p-4 space-y-3">
 							<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
-								{t`Moderation Signals`}
+								Moderation Signals
 							</h3>
 							<pre className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
 								{JSON.stringify(comment.moderationMetadata, null, 2)}
@@ -145,7 +142,7 @@ export function CommentDetail({
 								disabled={isStatusPending}
 								className="flex-1"
 							>
-								{t`Approve`}
+								Approve
 							</Button>
 						)}
 						{comment.status !== "spam" && (
@@ -156,7 +153,7 @@ export function CommentDetail({
 								disabled={isStatusPending}
 								className="flex-1"
 							>
-								{t`Spam`}
+								Spam
 							</Button>
 						)}
 						{comment.status !== "trash" && (
@@ -167,7 +164,7 @@ export function CommentDetail({
 								disabled={isStatusPending}
 								className="flex-1"
 							>
-								{t`Trash`}
+								Trash
 							</Button>
 						)}
 					</div>
@@ -179,7 +176,7 @@ export function CommentDetail({
 							disabled={isStatusPending}
 							className="w-full"
 						>
-							{t`Delete Permanently`}
+							Delete Permanently
 						</Button>
 					)}
 				</div>

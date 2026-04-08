@@ -6,7 +6,6 @@
  */
 
 import { Button, Dialog, Input, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -34,7 +33,6 @@ function getItemTitle(item: { data: Record<string, unknown>; slug: string | null
 }
 
 export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPickerModalProps) {
-	const { t } = useLingui();
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	const [selectedCollection, setSelectedCollection] = React.useState<string>("");
@@ -114,20 +112,20 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 			<Dialog className="p-6 w-2xl h-[80vh] flex flex-col" size="lg">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{t`Select Content`}
+						Select Content
 					</Dialog.Title>
 					<Dialog.Close
-						aria-label={t`Close`}
+						aria-label="Close"
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label={t`Close`}
+								aria-label="Close"
 								className="absolute right-4 top-4"
 							>
 								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
+								<span className="sr-only">Close</span>
 							</Button>
 						)}
 					/>
@@ -138,7 +136,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 					<div className="relative flex-1">
 						<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 						<Input
-							placeholder={t`Search content...`}
+							placeholder="Search content..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="pl-10"
@@ -166,20 +164,20 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 				<div className="flex-1 overflow-y-auto py-4">
 					{contentLoading ? (
 						<div className="flex items-center justify-center h-32">
-							<div className="text-kumo-subtle">{t`Loading content...`}</div>
+							<div className="text-kumo-subtle">Loading content...</div>
 						</div>
 					) : filteredItems.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-32 text-center">
 							{searchQuery ? (
 								<>
 									<MagnifyingGlass className="h-8 w-8 text-kumo-subtle mb-2" />
-									<p className="text-kumo-subtle">{t`No content found`}</p>
-									<p className="text-sm text-kumo-subtle">{t`Try adjusting your search`}</p>
+									<p className="text-kumo-subtle">No content found</p>
+									<p className="text-sm text-kumo-subtle">Try adjusting your search</p>
 								</>
 							) : (
 								<>
 									<FolderOpen className="h-8 w-8 text-kumo-subtle mb-2" />
-									<p className="text-kumo-subtle">{t`No content in this collection`}</p>
+									<p className="text-kumo-subtle">No content in this collection</p>
 								</>
 							)}
 						</div>
@@ -211,10 +209,10 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 												)}
 											/>
 											{status === "published"
-												? t`Published`
+												? "Published"
 												: status === "published_with_changes"
-													? t`Modified`
-													: t`Draft`}
+													? "Modified"
+													: "Draft"}
 											{item.slug && (
 												<>
 													<span className="text-kumo-subtle/50">/</span>
@@ -235,10 +233,10 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 									>
 										{isLoadingMore ? (
 											<>
-												<Loader size="sm" /> {t`Loading...`}
+												<Loader size="sm" /> Loading...
 											</>
 										) : (
-											t`Load more`
+											"Load more"
 										)}
 									</Button>
 								</div>
@@ -250,7 +248,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 				{/* Footer */}
 				<div className="flex justify-end gap-2 pt-4 border-t">
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
-						{t`Cancel`}
+						Cancel
 					</Button>
 				</div>
 			</Dialog>

@@ -3,7 +3,6 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { Pencil, Trash, Check, X, DeviceMobile, Cloud } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -57,7 +56,6 @@ export function PasskeyItem({
 	isDeleting,
 	isRenaming,
 }: PasskeyItemProps) {
-	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editName, setEditName] = React.useState(passkey.name || "");
 	const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
@@ -127,7 +125,7 @@ export function PasskeyItem({
 								onChange={(e) => setEditName(e.target.value)}
 								onKeyDown={handleKeyDown}
 								className="h-8 w-48"
-								placeholder={t`Passkey name`}
+								placeholder="Passkey name"
 								disabled={isRenaming}
 							/>
 							<Button
@@ -135,7 +133,7 @@ export function PasskeyItem({
 								variant="ghost"
 								onClick={handleSave}
 								disabled={isRenaming}
-								aria-label={t`Save name`}
+								aria-label="Save name"
 							>
 								<Check className="h-4 w-4" />
 							</Button>
@@ -144,13 +142,13 @@ export function PasskeyItem({
 								variant="ghost"
 								onClick={handleCancel}
 								disabled={isRenaming}
-								aria-label={t`Cancel rename`}
+								aria-label="Cancel rename"
 							>
 								<X className="h-4 w-4" />
 							</Button>
 						</div>
 					) : (
-						<div className="font-medium">{passkey.name || t`Unnamed passkey`}</div>
+						<div className="font-medium">{passkey.name || "Unnamed passkey"}</div>
 					)}
 					<div className="text-sm text-kumo-subtle">
 						{formatDeviceType(passkey.deviceType)}
@@ -174,8 +172,8 @@ export function PasskeyItem({
 							setEditName(passkey.name || "");
 							setIsEditing(true);
 						}}
-						title={t`Rename`}
-						aria-label={t`Rename ${passkey.name || "passkey"}`}
+						title="Rename"
+						aria-label={`Rename ${passkey.name || "passkey"}`}
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -185,8 +183,8 @@ export function PasskeyItem({
 							size="sm"
 							onClick={() => setShowDeleteDialog(true)}
 							className="text-kumo-danger hover:text-kumo-danger"
-							title={t`Remove`}
-							aria-label={t`Remove ${passkey.name || "passkey"}`}
+							title="Remove"
+							aria-label={`Remove ${passkey.name || "passkey"}`}
 						>
 							<Trash className="h-4 w-4" />
 						</Button>
@@ -201,10 +199,10 @@ export function PasskeyItem({
 					setShowDeleteDialog(false);
 					setDeleteError(null);
 				}}
-				title={t`Remove passkey?`}
-				description={t`You won't be able to use "${passkey.name || "this passkey"}" to sign in anymore. This action cannot be undone.`}
-				confirmLabel={t`Remove`}
-				pendingLabel={t`Removing...`}
+				title="Remove passkey?"
+				description={`You won't be able to use "${passkey.name || "this passkey"}" to sign in anymore. This action cannot be undone.`}
+				confirmLabel="Remove"
+				pendingLabel="Removing..."
 				isPending={!!isDeleting}
 				error={deleteError}
 				onConfirm={handleDelete}

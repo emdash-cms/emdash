@@ -6,7 +6,6 @@
  */
 
 import { Button, Checkbox, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { Plus, Pencil, Trash, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -38,7 +37,7 @@ const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
  * Flatten tree to get all terms
  */
 function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
-	return terms.flatMap((term) => [term, ...flattenTerms(term.children)]);
+	return terms.flatMap((t) => [t, ...flattenTerms(t.children)]);
 }
 
 /**
@@ -55,7 +54,6 @@ function TermRow({
 	onEdit: (term: TaxonomyTerm) => void;
 	onDelete: (term: TaxonomyTerm) => void;
 }) {
-	const { t } = useLingui();
 	return (
 		<>
 			<div className="flex items-center gap-4 py-2 px-4 border-b hover:bg-kumo-tint/50">
@@ -68,7 +66,7 @@ function TermRow({
 					<Button
 						variant="ghost"
 						size="sm"
-						aria-label={t`Edit ${term.label}`}
+						aria-label={`Edit ${term.label}`}
 						onClick={() => onEdit(term)}
 					>
 						<Pencil className="w-4 h-4" />
@@ -76,7 +74,7 @@ function TermRow({
 					<Button
 						variant="ghost"
 						size="sm"
-						aria-label={t`Delete ${term.label}`}
+						aria-label={`Delete ${term.label}`}
 						onClick={() => onDelete(term)}
 					>
 						<Trash className="w-4 h-4" />
@@ -114,7 +112,6 @@ function TermFormDialog({
 	term?: TaxonomyTerm;
 	allTerms: TaxonomyTerm[];
 }) {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [label, setLabel] = React.useState(term?.label || "");
 	const [slug, setSlug] = React.useState(term?.slug || "");
@@ -122,6 +119,16 @@ function TermFormDialog({
 	const [description, setDescription] = React.useState(term?.description || "");
 	const [autoSlug, setAutoSlug] = React.useState(!term);
 	const [error, setError] = React.useState<string | null>(null);
+
+	// Sync form state when term prop changes (for edit mode)
+	React.useEffect(() => {
+		setLabel(term?.label || "");
+		setSlug(term?.slug || "");
+		setParentId(term?.parentId || "");
+		setDescription(term?.description || "");
+		setAutoSlug(!term);
+		setError(null);
+	}, [term]);
 
 	// Auto-generate slug from label
 	React.useEffect(() => {
@@ -183,7 +190,7 @@ function TermFormDialog({
 	// Flatten terms for parent selector (exclude current term and its children)
 	const flatTerms = flattenTerms(allTerms);
 	const availableParents = term
-		? flatTerms.filter((ft) => ft.id !== term.id && ft.parentId !== term.id)
+		? flatTerms.filter((t) => t.id !== term.id && t.parentId !== term.id)
 		: flatTerms;
 
 	return (
@@ -201,24 +208,22 @@ function TermFormDialog({
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<div className="flex flex-col space-y-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{term
-									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
-									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
+								{term ? "Edit" : "Add"} {taxonomyDef.labelSingular || "Term"}
 							</Dialog.Title>
 							<Dialog.Description className="text-sm text-kumo-subtle">
 								{term
-									? t`Update the ${taxonomyDef.labelSingular?.toLowerCase() || t`term`} details`
-									: t`Create a new ${taxonomyDef.labelSingular?.toLowerCase() || t`term`}`}
+									? `Update the ${taxonomyDef.labelSingular?.toLowerCase() || "term"} details`
+									: `Create a new ${taxonomyDef.labelSingular?.toLowerCase() || "term"}`}
 							</Dialog.Description>
 						</div>
 						<Dialog.Close
-							aria-label={t`Close`}
+							aria-label="Close"
 							render={(props) => (
 								<Button
 									{...props}
 									variant="ghost"
 									shape="square"
-									aria-label={t`Close`}
+									aria-label="Close"
 									className="absolute right-4 top-4"
 								>
 									<X className="h-4 w-4" />
@@ -230,7 +235,7 @@ function TermFormDialog({
 
 					<div className="space-y-4 py-4">
 						<Input
-							label={t`Name`}
+							label="Name"
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
 							placeholder="News"
@@ -239,7 +244,7 @@ function TermFormDialog({
 
 						<div>
 							<Input
-								label={t`Slug`}
+								label="Slug"
 								value={slug}
 								onChange={(e) => {
 									setSlug(e.target.value);
@@ -249,34 +254,34 @@ function TermFormDialog({
 								required
 							/>
 							<p className="text-sm text-kumo-subtle mt-1">
-								{t`Auto-generated from name (you can edit)`}
+								Auto-generated from name (you can edit)
 							</p>
 						</div>
 
 						{taxonomyDef.hierarchical && (
 							<Select
-								label={t`Parent`}
+								label="Parent"
 								value={parentId}
 								onValueChange={(v) => setParentId(v ?? "")}
 								items={{
-									"": t`None (top level)`,
-									...Object.fromEntries(availableParents.map((p) => [p.id, p.label])),
+									"": "None (top level)",
+									...Object.fromEntries(availableParents.map((t) => [t.id, t.label])),
 								}}
 							>
-								<Select.Option value="">{t`None (top level)`}</Select.Option>
-								{availableParents.map((p) => (
-									<Select.Option key={p.id} value={p.id}>
-										{p.label}
+								<Select.Option value="">None (top level)</Select.Option>
+								{availableParents.map((t) => (
+									<Select.Option key={t.id} value={t.id}>
+										{t.label}
 									</Select.Option>
 								))}
 							</Select>
 						)}
 
 						<InputArea
-							label={t`Description (optional)`}
+							label="Description (optional)"
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
-							placeholder={t`Optional description`}
+							placeholder="Optional description"
 							rows={3}
 						/>
 
@@ -291,14 +296,14 @@ function TermFormDialog({
 
 					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
 						<Button type="button" variant="outline" onClick={onClose}>
-							{t`Cancel`}
+							Cancel
 						</Button>
 						<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
 							{createMutation.isPending || updateMutation.isPending
-								? t`Saving...`
+								? "Saving..."
 								: term
-									? t`Update`
-									: t`Create`}
+									? "Update"
+									: "Create"}
 						</Button>
 					</div>
 				</form>
@@ -319,7 +324,6 @@ function CreateTaxonomyDialog({
 	onClose: () => void;
 	onCreated: () => void;
 }) {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [name, setName] = React.useState("");
 	const [label, setLabel] = React.useState("");
@@ -377,13 +381,13 @@ function CreateTaxonomyDialog({
 		setError(null);
 
 		if (!name || !label) {
-			setError(t`Name and label are required`);
+			setError("Name and label are required");
 			return;
 		}
 
 		if (!TAXONOMY_NAME_PATTERN.test(name)) {
 			setError(
-				t`Name must start with a letter and contain only lowercase letters, numbers, and underscores`,
+				"Name must start with a letter and contain only lowercase letters, numbers, and underscores",
 			);
 			return;
 		}
@@ -417,20 +421,20 @@ function CreateTaxonomyDialog({
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<div className="flex flex-col space-y-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create Taxonomy`}
+								Create Taxonomy
 							</Dialog.Title>
 							<Dialog.Description className="text-sm text-kumo-subtle">
-								{t`Define a new taxonomy for classifying content`}
+								Define a new taxonomy for classifying content
 							</Dialog.Description>
 						</div>
 						<Dialog.Close
-							aria-label={t`Close`}
+							aria-label="Close"
 							render={(props) => (
 								<Button
 									{...props}
 									variant="ghost"
 									shape="square"
-									aria-label={t`Close`}
+									aria-label="Close"
 									className="absolute right-4 top-4"
 								>
 									<X className="h-4 w-4" />
@@ -442,7 +446,7 @@ function CreateTaxonomyDialog({
 
 					<div className="space-y-4 py-4">
 						<Input
-							label={t`Label`}
+							label="Label"
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
 							placeholder="Genres"
@@ -451,7 +455,7 @@ function CreateTaxonomyDialog({
 
 						<div>
 							<Input
-								label={t`Name`}
+								label="Name"
 								value={name}
 								onChange={(e) => {
 									setName(e.target.value);
@@ -460,24 +464,24 @@ function CreateTaxonomyDialog({
 								placeholder="genre"
 								required
 								pattern="[a-z][a-z0-9_]*"
-								title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
+								title="Lowercase letters, numbers, and underscores only, starting with a letter"
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
-								{t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
+								Used as the identifier. Lowercase letters, numbers, and underscores only.
 							</p>
 						</div>
 
 						<Checkbox
-							label={t`Hierarchical (like categories, with parent/child relationships)`}
+							label="Hierarchical (like categories, with parent/child relationships)"
 							checked={hierarchical}
 							onCheckedChange={(checked) => setHierarchical(checked)}
 						/>
 
 						{collectionEntries.length > 0 && (
 							<div>
-								<label className="text-sm font-medium">{t`Collections`}</label>
+								<label className="text-sm font-medium">Collections</label>
 								<p className="text-xs text-kumo-subtle mb-2">
-									{t`Which content types can use this taxonomy`}
+									Which content types can use this taxonomy
 								</p>
 								<div className="border rounded-md p-2 space-y-1">
 									{collectionEntries.map(({ slug, label: collLabel }) => (
@@ -510,10 +514,10 @@ function CreateTaxonomyDialog({
 								onClose();
 							}}
 						>
-							{t`Cancel`}
+							Cancel
 						</Button>
 						<Button type="submit" disabled={createMutation.isPending}>
-							{createMutation.isPending ? t`Creating...` : t`Create Taxonomy`}
+							{createMutation.isPending ? "Creating..." : "Create Taxonomy"}
 						</Button>
 					</div>
 				</form>
@@ -526,7 +530,6 @@ function CreateTaxonomyDialog({
  * Main TaxonomyManager component
  */
 export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [formOpen, setFormOpen] = React.useState(false);
@@ -551,7 +554,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				queryKey: ["taxonomy-terms", taxonomyName],
 			});
 			setDeleteTarget(null);
-			toastManager.add({ title: t`Term deleted` });
+			toastManager.add({ title: "Term deleted" });
 		},
 	});
 
@@ -570,11 +573,11 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	};
 
 	if (defLoading) {
-		return <div>{t`Loading...`}</div>;
+		return <div>Loading...</div>;
 	}
 
 	if (!taxonomyDef) {
-		return <div>{t`Taxonomy not found: ${taxonomyName}`}</div>;
+		return <div>Taxonomy not found: {taxonomyName}</div>;
 	}
 
 	const flatTerms = flattenTerms(terms);
@@ -585,31 +588,31 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				<div>
 					<h1 className="text-3xl font-bold">{taxonomyDef.label}</h1>
 					<p className="text-kumo-subtle mt-1">
-						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
+						Manage {taxonomyDef.label.toLowerCase()} for {taxonomyDef.collections.join(", ")}
 					</p>
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" icon={<Plus />} onClick={() => setCreateTaxonomyOpen(true)}>
-						{t`New Taxonomy`}
+						New Taxonomy
 					</Button>
 					<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
-						{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
+						Add {taxonomyDef.labelSingular || "Term"}
 					</Button>
 				</div>
 			</div>
 
 			<div className="border rounded-lg">
 				<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
-					<div className="flex-1">{t`Name`}</div>
-					<div className="w-16 text-center">{t`Count`}</div>
-					<div className="w-24 text-center">{t`Actions`}</div>
+					<div className="flex-1">Name</div>
+					<div className="w-16 text-center">Count</div>
+					<div className="w-24 text-center">Actions</div>
 				</div>
 
 				{termsLoading ? (
-					<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
+					<div className="p-8 text-center text-kumo-subtle">Loading terms...</div>
 				) : terms.length === 0 ? (
 					<div className="p-8 text-center text-kumo-subtle">
-						{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
+						No {taxonomyDef.label.toLowerCase()} yet. Create one to get started.
 					</div>
 				) : (
 					<div>
@@ -635,10 +638,12 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 					setDeleteTarget(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete ${taxonomyDef.labelSingular || t`Term`}?`}
-				description={t`This will permanently delete "${deleteTarget?.label}" and remove it from all content.`}
-				confirmLabel={t`Delete`}
-				pendingLabel={t`Deleting...`}
+				title={`Delete ${taxonomyDef.labelSingular || "Term"}?`}
+				description={
+					<>This will permanently delete "{deleteTarget?.label}" and remove it from all content.</>
+				}
+				confirmLabel="Delete"
+				pendingLabel="Deleting..."
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
@@ -649,7 +654,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				onClose={() => setCreateTaxonomyOpen(false)}
 				onCreated={() => {
 					setCreateTaxonomyOpen(false);
-					toastManager.add({ title: t`Taxonomy created` });
+					toastManager.add({ title: "Taxonomy created" });
 				}}
 			/>
 		</div>

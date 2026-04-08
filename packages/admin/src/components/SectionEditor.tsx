@@ -5,7 +5,6 @@
  */
 
 import { Button, Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
@@ -17,7 +16,6 @@ import { PortableTextEditor } from "./PortableTextEditor";
 import { SaveButton } from "./SaveButton";
 
 export function SectionEditor() {
-	const { t } = useLingui();
 	const { slug } = useParams({ from: "/_admin/sections/$slug" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -38,7 +36,7 @@ export function SectionEditor() {
 		onSuccess: (updated) => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			void queryClient.invalidateQueries({ queryKey: ["sections", slug] });
-			toastManager.add({ title: t`Section saved` });
+			toastManager.add({ title: "Section saved" });
 			// If slug changed, navigate to new URL
 			if (updated.slug !== slug) {
 				void navigate({ to: "/sections/$slug", params: { slug: updated.slug } });
@@ -46,7 +44,7 @@ export function SectionEditor() {
 		},
 		onError: (mutationError: Error) => {
 			toastManager.add({
-				title: t`Error saving section`,
+				title: "Error saving section",
 				description: mutationError.message,
 				type: "error",
 			});
@@ -66,15 +64,15 @@ export function SectionEditor() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-4">
 					<Link to="/sections">
-						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
+						<Button variant="ghost" shape="square" aria-label="Back to sections">
 							<ArrowLeft className="h-5 w-5" />
 						</Button>
 					</Link>
-					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
+					<h1 className="text-2xl font-bold">Section Not Found</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">
-						{error ? error.message : t`Section "${slug}" could not be found.`}
+						{error ? error.message : `Section "${slug}" could not be found.`}
 					</p>
 				</div>
 			</div>
@@ -98,7 +96,6 @@ interface SectionEditorFormProps {
 }
 
 function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps) {
-	const { t } = useLingui();
 	const [title, setTitle] = React.useState(section.title);
 	const [sectionSlug, setSectionSlug] = React.useState(section.slug);
 	const [slugTouched, setSlugTouched] = React.useState(true); // Existing sections have touched slugs
@@ -151,14 +148,14 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
 					<Link to="/sections">
-						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
+						<Button variant="ghost" shape="square" aria-label="Back to sections">
 							<ArrowLeft className="h-5 w-5" />
 						</Button>
 					</Link>
 					<div>
 						<h1 className="text-2xl font-bold">{section.title}</h1>
 						<p className="text-sm text-kumo-subtle">
-							{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
+							{section.source === "theme" ? "Theme Section" : "Custom Section"} &middot;{" "}
 							{section.slug}
 						</p>
 					</div>
@@ -171,7 +168,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				<div className="col-span-8 space-y-6">
 					{/* Content editor */}
 					<div className="rounded-lg border bg-kumo-base p-6">
-						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
+						<Label className="text-lg font-semibold mb-4 block">Content</Label>
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
 							onChange={(value) => setContent(value as unknown[])}
@@ -183,18 +180,18 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				<div className="col-span-4 space-y-6">
 					{/* Metadata */}
 					<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-						<h2 className="text-lg font-semibold">{t`Section Details`}</h2>
+						<h2 className="text-lg font-semibold">Section Details</h2>
 
 						<Input
-							label={t`Title`}
+							label="Title"
 							value={title}
 							onChange={(e) => setTitle(e.target.value)}
-							placeholder={t`Section title`}
+							placeholder="Section title"
 						/>
 
 						<div>
 							<Input
-								label={t`Slug`}
+								label="Slug"
 								value={sectionSlug}
 								onChange={(e) => {
 									setSectionSlug(e.target.value);
@@ -204,42 +201,41 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 								pattern="[a-z0-9-]+"
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
-								{t`Used to identify this section. Lowercase letters, numbers, and hyphens only.`}
+								Used to identify this section. Lowercase letters, numbers, and hyphens only.
 							</p>
 						</div>
 
 						<InputArea
-							label={t`Description`}
+							label="Description"
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
-							placeholder={t`Describe what this section is for...`}
+							placeholder="Describe what this section is for..."
 							rows={3}
 						/>
 
 						<div>
 							<Input
-								label={t`Keywords`}
+								label="Keywords"
 								value={keywords}
 								onChange={(e) => setKeywords(e.target.value)}
 								placeholder="hero, banner, cta"
 							/>
-							<p className="text-xs text-kumo-subtle mt-1">{t`Comma-separated keywords for search.`}</p>
+							<p className="text-xs text-kumo-subtle mt-1">Comma-separated keywords for search.</p>
 						</div>
 					</div>
 
 					{/* Source info */}
 					<div className="rounded-lg border bg-kumo-base p-6">
-						<h2 className="text-lg font-semibold mb-2">{t`Source`}</h2>
+						<h2 className="text-lg font-semibold mb-2">Source</h2>
 						<p className="text-sm text-kumo-subtle">
 							{section.source === "theme" && (
 								<>
-									{t`This section is provided by the theme. Editing will create a custom copy that overrides the theme version.`}
+									This section is provided by the theme. Editing will create a custom copy that
+									overrides the theme version.
 								</>
 							)}
-							{section.source === "user" && <>{t`This is a custom section.`}</>}
-							{section.source === "import" && (
-								<>{t`This section was imported from another system.`}</>
-							)}
+							{section.source === "user" && <>This is a custom section.</>}
+							{section.source === "import" && <>This section was imported from another system.</>}
 						</p>
 						{section.themeId && (
 							<p className="text-xs text-kumo-subtle mt-2">Theme ID: {section.themeId}</p>

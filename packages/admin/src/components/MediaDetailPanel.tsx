@@ -6,7 +6,6 @@
  */
 
 import { Button, Input, InputArea } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { X, Trash, Calendar, HardDrive, Ruler } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -27,7 +26,6 @@ export interface MediaDetailPanelProps {
  * Slide-out panel for viewing and editing media metadata
  */
 export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelProps) {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 
 	// Form state - controlled inputs
@@ -128,8 +126,8 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b">
-					<h2 className="font-semibold truncate pr-2">{t`Media Details`}</h2>
-					<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
+					<h2 className="font-semibold truncate pr-2">Media Details</h2>
+					<Button variant="ghost" shape="square" aria-label="Close" onClick={onClose}>
 						<X className="h-4 w-4" />
 						<span className="sr-only">Close</span>
 					</Button>
@@ -168,13 +166,13 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 					<div className="p-4 border-b space-y-3">
 						<div className="flex items-center gap-2 text-sm">
 							<HardDrive className="h-4 w-4 text-kumo-subtle" />
-							<span className="text-kumo-subtle">{t`Size:`}</span>
+							<span className="text-kumo-subtle">Size:</span>
 							<span>{formatFileSize(item.size)}</span>
 						</div>
 						{item.width && item.height && (
 							<div className="flex items-center gap-2 text-sm">
 								<Ruler className="h-4 w-4 text-kumo-subtle" />
-								<span className="text-kumo-subtle">{t`Dimensions:`}</span>
+								<span className="text-kumo-subtle">Dimensions:</span>
 								<span>
 									{item.width} × {item.height}
 								</span>
@@ -182,7 +180,7 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 						)}
 						<div className="flex items-center gap-2 text-sm">
 							<Calendar className="h-4 w-4 text-kumo-subtle" />
-							<span className="text-kumo-subtle">{t`Uploaded:`}</span>
+							<span className="text-kumo-subtle">Uploaded:</span>
 							<span>{formatDate(item.createdAt)}</span>
 						</div>
 					</div>
@@ -190,28 +188,28 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 					{/* Editable Fields */}
 					<div className="p-4 space-y-4">
 						<Input
-							label={t`Filename`}
+							label="Filename"
 							value={filename}
 							onChange={(e) => setFilename(e.target.value)}
 							disabled // Filename editing needs backend support
-							description={t`Filename cannot be changed after upload`}
+							description="Filename cannot be changed after upload"
 						/>
 
 						{isImage && (
 							<>
 								<Input
-									label={t`Alt Text`}
+									label="Alt Text"
 									value={alt}
 									onChange={(e) => setAlt(e.target.value)}
-									placeholder={t`Describe this image for accessibility`}
-									description={t`Used by screen readers and when image fails to load`}
+									placeholder="Describe this image for accessibility"
+									description="Used by screen readers and when image fails to load"
 								/>
 
 								<InputArea
-									label={t`Caption`}
+									label="Caption"
 									value={caption}
 									onChange={(e) => setCaption(e.target.value)}
-									placeholder={t`Optional caption for display`}
+									placeholder="Optional caption for display"
 									rows={2}
 								/>
 							</>
@@ -228,18 +226,18 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 						onClick={handleDelete}
 						disabled={deleteMutation.isPending}
 					>
-						{deleteMutation.isPending ? t`Deleting...` : t`Delete`}
+						{deleteMutation.isPending ? "Deleting..." : "Delete"}
 					</Button>
 					<div className="flex gap-2">
 						<Button variant="outline" size="sm" onClick={onClose}>
-							{t`Cancel`}
+							Cancel
 						</Button>
 						<Button
 							size="sm"
 							onClick={handleSave}
 							disabled={!hasChanges || updateMutation.isPending}
 						>
-							{updateMutation.isPending ? t`Saving...` : t`Save`}
+							{updateMutation.isPending ? "Saving..." : "Save"}
 						</Button>
 					</div>
 				</div>
@@ -251,10 +249,10 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 					setShowDeleteConfirm(false);
 					deleteMutation.reset();
 				}}
-				title={t`Delete Media?`}
-				description={t`Delete "${item.filename}"? This cannot be undone.`}
-				confirmLabel={t`Delete`}
-				pendingLabel={t`Deleting...`}
+				title="Delete Media?"
+				description={`Delete "${item.filename}"? This cannot be undone.`}
+				confirmLabel="Delete"
+				pendingLabel="Deleting..."
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteMutation.mutate()}

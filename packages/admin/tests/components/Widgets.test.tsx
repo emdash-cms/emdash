@@ -2,9 +2,9 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render } from "vitest-browser-react";
 
 import { Widgets } from "../../src/components/Widgets";
-import { render } from "../utils/render.js";
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");

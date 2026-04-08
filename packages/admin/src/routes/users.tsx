@@ -4,7 +4,6 @@
  * Admin-only route for managing users, roles, and invites.
  */
 
-import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -42,7 +41,6 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function UsersPage() {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 
 	// State
@@ -200,12 +198,12 @@ export function UsersPage() {
 	if (usersQuery.error) {
 		return (
 			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6 text-center">
-				<p className="text-kumo-danger">{t`Failed to load users: ${usersQuery.error.message}`}</p>
+				<p className="text-kumo-danger">Failed to load users: {usersQuery.error.message}</p>
 				<button
 					onClick={() => usersQuery.refetch()}
 					className="mt-4 text-sm text-kumo-brand underline"
 				>
-					{t`Try again`}
+					Try again
 				</button>
 			</div>
 		);
@@ -213,9 +211,6 @@ export function UsersPage() {
 
 	const users = usersQuery.data?.pages.flatMap((p) => p.items) ?? [];
 	const selectedUser = userDetailQuery.data ?? null;
-	const selectedUserName = selectedUser?.name || selectedUser?.email;
-	const currentRoleLabel = getRoleLabel(selectedUser?.role ?? 0);
-	const newRoleLabel = getRoleLabel(pendingSaveData?.role ?? 0);
 
 	return (
 		<>
@@ -270,15 +265,15 @@ export function UsersPage() {
 					setShowDisableConfirm(false);
 					disableMutation.reset();
 				}}
-				title={t`Disable User?`}
+				title="Disable User?"
 				description={
-					<Trans>
-						Disabling <strong>{selectedUserName}</strong> will prevent them from logging in until
-						re-enabled. Their content will be preserved.
-					</Trans>
+					<>
+						Disabling <strong>{selectedUser?.name || selectedUser?.email}</strong> will prevent them
+						from logging in until re-enabled. Their content will be preserved.
+					</>
 				}
-				confirmLabel={t`Disable User`}
-				pendingLabel={t`Disabling...`}
+				confirmLabel="Disable User"
+				pendingLabel="Disabling..."
 				isPending={disableMutation.isPending}
 				error={disableMutation.error}
 				onConfirm={handleConfirmDisable}
@@ -292,15 +287,17 @@ export function UsersPage() {
 					setPendingSaveData(null);
 					updateUserMutation.reset();
 				}}
-				title={t`Demote User?`}
+				title="Demote User?"
 				description={
-					<Trans>
-						Change <strong>{selectedUserName}</strong> from <strong>{currentRoleLabel}</strong> to{" "}
-						<strong>{newRoleLabel}</strong>? They will lose access to higher-level features.
-					</Trans>
+					<>
+						Change <strong>{selectedUser?.name || selectedUser?.email}</strong> from{" "}
+						<strong>{getRoleLabel(selectedUser?.role ?? 0)}</strong> to{" "}
+						<strong>{getRoleLabel(pendingSaveData?.role ?? 0)}</strong>? They will lose access to
+						higher-level features.
+					</>
 				}
-				confirmLabel={t`Demote User`}
-				pendingLabel={t`Demoting...`}
+				confirmLabel="Demote User"
+				pendingLabel="Demoting..."
 				isPending={updateUserMutation.isPending}
 				error={updateUserMutation.error}
 				onConfirm={handleConfirmDemote}

@@ -7,7 +7,6 @@
 
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
-import { useLingui } from "@lingui/react/macro";
 import { CircleNotch } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -19,7 +18,6 @@ interface SandboxedPluginWidgetProps {
 }
 
 export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWidgetProps) {
-	const { t } = useLingui();
 	const [blocks, setBlocks] = useState<Block[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -43,7 +41,7 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 				setBlocks(data.blocks);
 				setError(null);
 			} catch {
-				setError(t`Failed to load widget`);
+				setError("Failed to load widget");
 			}
 		},
 		[pluginId],
@@ -77,7 +75,7 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	}
 
 	if (blocks.length === 0) {
-		return <p className="text-sm text-kumo-subtle">{t`No content`}</p>;
+		return <p className="text-sm text-kumo-subtle">No content</p>;
 	}
 
 	return <BlockRenderer blocks={blocks} onAction={handleAction} />;

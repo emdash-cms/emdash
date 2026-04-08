@@ -5,7 +5,6 @@
  */
 
 import { Button, Dialog, Input, Toast, buttonVariants } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +16,6 @@ import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
 export function MenuList() {
-	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
@@ -36,8 +34,8 @@ export function MenuList() {
 			void queryClient.invalidateQueries({ queryKey: ["menus"] });
 			setIsCreateOpen(false);
 			toastManager.add({
-				title: t`Menu created`,
-				description: t`Menu "${menu.label}" has been created.`,
+				title: "Menu created",
+				description: `Menu "${menu.label}" has been created.`,
 			});
 			void navigate({ to: "/menus/$name", params: { name: menu.name } });
 		},
@@ -52,8 +50,8 @@ export function MenuList() {
 			void queryClient.invalidateQueries({ queryKey: ["menus"] });
 			setDeleteMenuName(null);
 			toastManager.add({
-				title: t`Menu deleted`,
-				description: t`The menu has been deleted.`,
+				title: "Menu deleted",
+				description: "The menu has been deleted.",
 			});
 		},
 	});
@@ -72,7 +70,7 @@ export function MenuList() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
-				<div className="text-kumo-subtle">{t`Loading menus...`}</div>
+				<div className="text-kumo-subtle">Loading menus...</div>
 			</div>
 		);
 	}
@@ -81,8 +79,8 @@ export function MenuList() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Menus`}</h1>
-					<p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p>
+					<h1 className="text-3xl font-bold">Menus</h1>
+					<p className="text-kumo-subtle">Manage navigation menus for your site</p>
 				</div>
 				<Dialog.Root
 					open={isCreateOpen}
@@ -94,27 +92,27 @@ export function MenuList() {
 					<Dialog.Trigger
 						render={(props) => (
 							<Button {...props} icon={<Plus />}>
-								{t`Create Menu`}
+								Create Menu
 							</Button>
 						)}
 					/>
 					<Dialog className="p-6" size="lg">
 						<div className="flex items-start justify-between gap-4 mb-4">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create New Menu`}
+								Create New Menu
 							</Dialog.Title>
 							<Dialog.Close
-								aria-label={t`Close`}
+								aria-label="Close"
 								render={(props) => (
 									<Button
 										{...props}
 										variant="ghost"
 										shape="square"
-										aria-label={t`Close`}
+										aria-label="Close"
 										className="absolute right-4 top-4"
 									>
 										<X className="h-4 w-4" />
-										<span className="sr-only">{t`Close`}</span>
+										<span className="sr-only">Close</span>
 									</Button>
 								)}
 							/>
@@ -122,28 +120,28 @@ export function MenuList() {
 						<form onSubmit={handleCreate} className="space-y-4">
 							<div>
 								<Input
-									label={t`Name`}
+									label="Name"
 									name="name"
 									required
 									placeholder="primary"
 									pattern="[a-z0-9-]+"
-									title={t`Only lowercase letters, numbers, and hyphens`}
+									title="Only lowercase letters, numbers, and hyphens"
 								/>
 								<p className="text-sm text-kumo-subtle mt-1">
-									{t`URL-friendly identifier (e.g., "primary", "footer")`}
+									URL-friendly identifier (e.g., "primary", "footer")
 								</p>
 							</div>
 							<div>
-								<Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} />
-								<p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p>
+								<Input label="Label" name="label" required placeholder="Primary Navigation" />
+								<p className="text-sm text-kumo-subtle mt-1">Display name for admin interface</p>
 							</div>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-									{t`Cancel`}
+									Cancel
 								</Button>
 								<Button type="submit" disabled={createMutation.isPending}>
-									{createMutation.isPending ? t`Creating...` : t`Create`}
+									{createMutation.isPending ? "Creating..." : "Create"}
 								</Button>
 							</div>
 						</form>
@@ -154,10 +152,10 @@ export function MenuList() {
 			{!menus || menus.length === 0 ? (
 				<div className="border rounded-lg p-12 text-center">
 					<ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
-					<h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3>
-					<p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p>
+					<h3 className="text-lg font-semibold mb-2">No menus yet</h3>
+					<p className="text-kumo-subtle mb-4">Create your first navigation menu to get started</p>
 					<Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}>
-						{t`Create Menu`}
+						Create Menu
 					</Button>
 				</div>
 			) : (
@@ -171,7 +169,7 @@ export function MenuList() {
 								<div>
 									<h3 className="font-semibold text-lg">{menu.label}</h3>
 									<p className="text-sm text-kumo-subtle">
-										{menu.name} • {t`${menu.itemCount || 0} items`}
+										{menu.name} • {menu.itemCount || 0} items
 									</p>
 								</div>
 							</Link>
@@ -182,13 +180,13 @@ export function MenuList() {
 									className={buttonVariants({ variant: "outline", size: "sm" })}
 								>
 									<Pencil className="h-4 w-4 mr-2" />
-									{t`Edit`}
+									Edit
 								</Link>
 								<Button
 									variant="outline"
 									size="sm"
 									onClick={() => setDeleteMenuName(menu.name)}
-									aria-label={t`Delete ${menu.name} menu`}
+									aria-label={`Delete ${menu.name} menu`}
 								>
 									<Trash className="h-4 w-4" />
 								</Button>
@@ -204,10 +202,10 @@ export function MenuList() {
 					setDeleteMenuName(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete Menu`}
-				description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`}
-				confirmLabel={t`Delete`}
-				pendingLabel={t`Deleting...`}
+				title="Delete Menu"
+				description="Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
+				confirmLabel="Delete"
+				pendingLabel="Deleting..."
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)}

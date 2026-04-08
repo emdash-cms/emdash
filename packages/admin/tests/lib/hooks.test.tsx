@@ -1,9 +1,9 @@
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { render } from "vitest-browser-react";
 
 import { useStableCallback } from "../../src/lib/hooks";
-import { render } from "../utils/render.js";
 
 /**
  * Test component that attaches a keydown listener using useStableCallback.

@@ -1,9 +1,9 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render } from "vitest-browser-react";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
-import { render } from "../utils/render.js";
 
 const NO_RESULTS_PATTERN = /No results for/;
 

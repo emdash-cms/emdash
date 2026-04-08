@@ -11,7 +11,6 @@
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -36,7 +35,6 @@ interface EmailStepProps {
 }
 
 function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
-	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [validationError, setValidationError] = React.useState<string | null>(null);
 
@@ -45,12 +43,12 @@ function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
 		setValidationError(null);
 
 		if (!email.trim()) {
-			setValidationError(t`Email is required`);
+			setValidationError("Email is required");
 			return;
 		}
 
 		if (!email.includes("@") || !email.includes(".")) {
-			setValidationError(t`Please enter a valid email address`);
+			setValidationError("Please enter a valid email address");
 			return;
 		}
 
@@ -62,7 +60,7 @@ function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
 			<div className="space-y-4">
 				<div>
 					<Input
-						label={t`Email address`}
+						label="Email address"
 						type="email"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
@@ -84,15 +82,15 @@ function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
 				{isLoading ? (
 					<>
 						<Loader size="sm" />
-						{t`Sending...`}
+						Sending...
 					</>
 				) : (
-					t`Continue`
+					"Continue"
 				)}
 			</Button>
 
 			<p className="text-xs text-kumo-subtle text-center">
-				{t`Only email addresses from allowed domains can sign up.`}
+				Only email addresses from allowed domains can sign up.
 			</p>
 		</form>
 	);
@@ -106,7 +104,6 @@ interface CheckEmailStepProps {
 }
 
 function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckEmailStepProps) {
-	const { t } = useLingui();
 	return (
 		<div className="space-y-6 text-center">
 			<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto">
@@ -126,20 +123,20 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 			</div>
 
 			<div>
-				<h2 className="text-xl font-semibold">{t`Check your email`}</h2>
+				<h2 className="text-xl font-semibold">Check your email</h2>
 				<p className="text-kumo-subtle mt-2">
-					{t`We've sent a verification link to`}{" "}
+					We've sent a verification link to{" "}
 					<span className="font-medium text-kumo-default">{email}</span>
 				</p>
 			</div>
 
 			<div className="text-sm text-kumo-subtle">
-				<p>{t`Click the link in the email to continue setting up your account.`}</p>
-				<p className="mt-2">{t`The link will expire in 15 minutes.`}</p>
+				<p>Click the link in the email to continue setting up your account.</p>
+				<p className="mt-2">The link will expire in 15 minutes.</p>
 			</div>
 
 			<div className="pt-4 border-t">
-				<p className="text-sm text-kumo-subtle mb-2">{t`Didn't receive the email?`}</p>
+				<p className="text-sm text-kumo-subtle mb-2">Didn't receive the email?</p>
 				<Button
 					variant="outline"
 					size="sm"
@@ -147,10 +144,10 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 					disabled={isResending || resendCooldown > 0}
 				>
 					{isResending
-						? t`Sending...`
+						? "Sending..."
 						: resendCooldown > 0
-							? t`Resend in ${resendCooldown}s`
-							: t`Resend email`}
+							? `Resend in ${resendCooldown}s`
+							: "Resend email"}
 				</Button>
 			</div>
 		</div>
@@ -169,7 +166,6 @@ function handleSignupSuccess() {
 }
 
 function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
-	const { t } = useLingui();
 	const [name, setName] = React.useState("");
 
 	return (
@@ -185,19 +181,19 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 					</svg>
 				</div>
-				<h2 className="text-xl font-semibold">{t`Email verified!`}</h2>
+				<h2 className="text-xl font-semibold">Email verified!</h2>
 				<p className="text-kumo-subtle mt-2">
-					{t`You'll be signing up as`}{" "}
+					You'll be signing up as{" "}
 					<span className="font-medium text-kumo-default">{verifyResult.roleName}</span>
 				</p>
 			</div>
 
 			{/* Email display (read-only) */}
-			<Input label={t`Email`} value={verifyResult.email} disabled className="bg-kumo-tint" />
+			<Input label="Email" value={verifyResult.email} disabled className="bg-kumo-tint" />
 
 			{/* Name input (optional) */}
 			<Input
-				label={t`Your name (optional)`}
+				label="Your name (optional)"
 				type="text"
 				value={name}
 				onChange={(e) => setName(e.target.value)}
@@ -207,16 +203,17 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 
 			{/* Passkey registration */}
 			<div className="pt-4 border-t">
-				<h3 className="text-sm font-medium mb-3">{t`Create your passkey`}</h3>
+				<h3 className="text-sm font-medium mb-3">Create your passkey</h3>
 				<p className="text-sm text-kumo-subtle mb-4">
-					{t`Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key.`}
+					Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or
+					security key.
 				</p>
 
 				<PasskeyRegistration
 					optionsEndpoint="/_emdash/api/setup/admin"
 					verifyEndpoint="/_emdash/api/auth/signup/complete"
 					onSuccess={handleSignupSuccess}
-					buttonText={t`Create Account`}
+					buttonText="Create Account"
 					additionalData={{ token, name: name || undefined }}
 				/>
 			</div>
@@ -231,7 +228,6 @@ interface ErrorStepProps {
 }
 
 function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
-	const { t } = useLingui();
 	return (
 		<div className="space-y-6 text-center">
 			<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-danger/10 mx-auto">
@@ -253,12 +249,12 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 			<div>
 				<h2 className="text-xl font-semibold text-kumo-danger">
 					{code === "token_expired"
-						? t`Link expired`
+						? "Link expired"
 						: code === "invalid_token"
-							? t`Invalid link`
+							? "Invalid link"
 							: code === "user_exists"
-								? t`Account exists`
-								: t`Something went wrong`}
+								? "Account exists"
+								: "Something went wrong"}
 				</h2>
 				<p className="text-kumo-subtle mt-2">{message}</p>
 			</div>
@@ -266,18 +262,18 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 			<div className="space-y-2">
 				{code === "user_exists" ? (
 					<Link to="/login">
-						<Button className="w-full">{t`Sign in instead`}</Button>
+						<Button className="w-full">Sign in instead</Button>
 					</Link>
 				) : (
 					onRetry && (
 						<Button onClick={onRetry} className="w-full">
-							{t`Request a new link`}
+							Request a new link
 						</Button>
 					)
 				)}
 				<Link to="/login">
 					<Button variant="ghost" className="w-full">
-						{t`Back to login`}
+						Back to login
 					</Button>
 				</Link>
 			</div>
@@ -290,7 +286,6 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 // ============================================================================
 
 export function SignupPage() {
-	const { t } = useLingui();
 	const [step, setStep] = React.useState<SignupStep>("email");
 	const [email, setEmail] = React.useState("");
 	const [error, setError] = React.useState<string | undefined>();
@@ -348,7 +343,7 @@ export function SignupPage() {
 			await requestSignup(submittedEmail);
 			setStep("check-email");
 		} catch (err) {
-			setError(err instanceof Error ? err.message : t`Failed to send verification email`);
+			setError(err instanceof Error ? err.message : "Failed to send verification email");
 		} finally {
 			setIsLoading(false);
 		}
@@ -383,7 +378,7 @@ export function SignupPage() {
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base">
 				<div className="text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">{t`Verifying your link...`}</p>
+					<p className="mt-4 text-kumo-subtle">Verifying your link...</p>
 				</div>
 			</div>
 		);
@@ -396,10 +391,10 @@ export function SignupPage() {
 				<div className="text-center mb-8">
 					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
-						{step === "email" && t`Create an account`}
-						{step === "check-email" && t`Check your email`}
-						{step === "verify" && t`Complete signup`}
-						{step === "error" && t`Oops!`}
+						{step === "email" && "Create an account"}
+						{step === "check-email" && "Check your email"}
+						{step === "verify" && "Complete signup"}
+						{step === "error" && "Oops!"}
 					</h1>
 				</div>
 
@@ -424,7 +419,7 @@ export function SignupPage() {
 
 					{step === "error" && (
 						<ErrorStep
-							message={error ?? t`An unknown error occurred`}
+							message={error ?? "An unknown error occurred"}
 							code={errorCode}
 							onRetry={handleRetry}
 						/>
@@ -434,9 +429,9 @@ export function SignupPage() {
 				{/* Login link */}
 				{step === "email" && (
 					<p className="text-center mt-6 text-sm text-kumo-subtle">
-						{t`Already have an account?`}{" "}
+						Already have an account?{" "}
 						<Link to="/login" className="text-kumo-brand hover:underline font-medium">
-							{t`Sign in`}
+							Sign in
 						</Link>
 					</p>
 				)}

@@ -5,7 +5,6 @@
  */
 
 import { Button, Dialog, Input, Select, Toast } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	Trash,
@@ -32,7 +31,6 @@ import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 
 export function MenuEditor() {
-	const { t } = useLingui();
 	const { name } = useParams({ from: "/_admin/menus/$name" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -62,7 +60,7 @@ export function MenuEditor() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setIsAddOpen(false);
-			toastManager.add({ title: t`Item added`, description: t`Menu item has been added.` });
+			toastManager.add({ title: "Item added", description: "Menu item has been added." });
 		},
 		onError: (error: Error) => {
 			setAddError(error.message);
@@ -74,13 +72,13 @@ export function MenuEditor() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			toastManager.add({
-				title: t`Item deleted`,
-				description: t`Menu item has been deleted.`,
+				title: "Item deleted",
+				description: "Menu item has been deleted.",
 			});
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: t`Error`,
+				title: "Error",
 				description: error.message,
 				type: "error",
 			});
@@ -99,8 +97,8 @@ export function MenuEditor() {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setEditingItem(null);
 			toastManager.add({
-				title: t`Item updated`,
-				description: t`Menu item has been updated.`,
+				title: "Item updated",
+				description: "Menu item has been updated.",
 			});
 		},
 		onError: (error: Error) => {
@@ -113,13 +111,13 @@ export function MenuEditor() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			toastManager.add({
-				title: t`Order saved`,
-				description: t`Menu order has been updated.`,
+				title: "Order saved",
+				description: "Menu order has been updated.",
 			});
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: t`Error`,
+				title: "Error",
 				description: error.message,
 				type: "error",
 			});
@@ -195,7 +193,7 @@ export function MenuEditor() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
-				<div className="text-kumo-subtle">{t`Loading menu...`}</div>
+				<div className="text-kumo-subtle">Loading menu...</div>
 			</div>
 		);
 	}
@@ -203,7 +201,7 @@ export function MenuEditor() {
 	if (!menu) {
 		return (
 			<div className="text-center py-12">
-				<p className="text-kumo-subtle">{t`Menu not found`}</p>
+				<p className="text-kumo-subtle">Menu not found</p>
 			</div>
 		);
 	}
@@ -215,14 +213,14 @@ export function MenuEditor() {
 					<Button
 						variant="ghost"
 						size="sm"
-						aria-label={t`Back`}
+						aria-label="Back"
 						onClick={() => navigate({ to: "/menus" })}
 					>
 						<ArrowLeft className="h-4 w-4" />
 					</Button>
 					<div>
 						<h1 className="text-3xl font-bold">{menu.label}</h1>
-						<p className="text-kumo-subtle">{t`Edit menu items`}</p>
+						<p className="text-kumo-subtle">Edit menu items</p>
 					</div>
 				</div>
 				<div className="flex gap-2">
@@ -231,7 +229,7 @@ export function MenuEditor() {
 						variant="outline"
 						onClick={() => setIsContentPickerOpen(true)}
 					>
-						{t`Add Content`}
+						Add Content
 					</Button>
 					<Dialog.Root
 						open={isAddOpen}
@@ -243,56 +241,56 @@ export function MenuEditor() {
 						<Dialog.Trigger
 							render={(props) => (
 								<Button {...props} icon={<Plus />}>
-									{t`Add Custom Link`}
+									Add Custom Link
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="lg">
 							<div className="flex items-start justify-between gap-4 mb-4">
 								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									{t`Add Custom Link`}
+									Add Custom Link
 								</Dialog.Title>
 								<Dialog.Close
-									aria-label={t`Close`}
+									aria-label="Close"
 									render={(props) => (
 										<Button
 											{...props}
 											variant="ghost"
 											shape="square"
-											aria-label={t`Close`}
+											aria-label="Close"
 											className="absolute right-4 top-4"
 										>
 											<X className="h-4 w-4" />
-											<span className="sr-only">{t`Close`}</span>
+											<span className="sr-only">Close</span>
 										</Button>
 									)}
 								/>
 							</div>
 							<form onSubmit={handleAddCustomLink} className="space-y-4">
-								<Input label={t`Label`} name="label" required placeholder={t`Home`} />
+								<Input label="Label" name="label" required placeholder="Home" />
 								<Input
-									label={t`URL`}
+									label="URL"
 									name="url"
 									type="url"
 									required
 									placeholder="https://example.com"
 								/>
 								<Select
-									label={t`Target`}
+									label="Target"
 									name="target"
 									defaultValue=""
-									items={{ "": t`Same window`, _blank: t`New window` }}
+									items={{ "": "Same window", _blank: "New window" }}
 								>
-									<Select.Option value="">{t`Same window`}</Select.Option>
-									<Select.Option value="_blank">{t`New window`}</Select.Option>
+									<Select.Option value="">Same window</Select.Option>
+									<Select.Option value="_blank">New window</Select.Option>
 								</Select>
 								<DialogError message={addError || getMutationError(createMutation.error)} />
 								<div className="flex justify-end gap-2">
 									<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-										{t`Cancel`}
+										Cancel
 									</Button>
 									<Button type="submit" disabled={createMutation.isPending}>
-										{createMutation.isPending ? t`Adding...` : t`Add`}
+										{createMutation.isPending ? "Adding..." : "Add"}
 									</Button>
 								</div>
 							</form>
@@ -310,18 +308,18 @@ export function MenuEditor() {
 			{localItems.length === 0 ? (
 				<div className="border rounded-lg p-12 text-center">
 					<LinkIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
-					<h3 className="text-lg font-semibold mb-2">{t`No menu items yet`}</h3>
-					<p className="text-kumo-subtle mb-4">{t`Add links to build your navigation menu`}</p>
+					<h3 className="text-lg font-semibold mb-2">No menu items yet</h3>
+					<p className="text-kumo-subtle mb-4">Add links to build your navigation menu</p>
 					<div className="flex justify-center gap-2">
 						<Button
 							icon={<FileIcon />}
 							variant="outline"
 							onClick={() => setIsContentPickerOpen(true)}
 						>
-							{t`Add Content`}
+							Add Content
 						</Button>
 						<Button icon={<Plus />} onClick={() => setIsAddOpen(true)}>
-							{t`Add Custom Link`}
+							Add Custom Link
 						</Button>
 					</div>
 				</div>
@@ -339,14 +337,14 @@ export function MenuEditor() {
 											{item.reference_collection ?? item.type}
 										</span>
 									)}
-									{item.target === "_blank" && t` (opens in new window)`}
+									{item.target === "_blank" && " (opens in new window)"}
 								</div>
 							</div>
 							<div className="flex gap-2">
 								<Button
 									variant="ghost"
 									size="sm"
-									aria-label={t`Move up`}
+									aria-label="Move up"
 									onClick={() => moveItem(index, "up")}
 									disabled={index === 0}
 								>
@@ -355,19 +353,19 @@ export function MenuEditor() {
 								<Button
 									variant="ghost"
 									size="sm"
-									aria-label={t`Move down`}
+									aria-label="Move down"
 									onClick={() => moveItem(index, "down")}
 									disabled={index === localItems.length - 1}
 								>
 									<CaretDown className="h-4 w-4" />
 								</Button>
 								<Button variant="outline" size="sm" onClick={() => setEditingItem(item)}>
-									{t`Edit`}
+									Edit
 								</Button>
 								<Button
 									variant="outline"
 									size="sm"
-									aria-label={t`Delete`}
+									aria-label="Delete"
 									onClick={() => deleteMutation.mutate(item.id)}
 								>
 									<Trash className="h-4 w-4" />
@@ -390,30 +388,30 @@ export function MenuEditor() {
 				<Dialog className="p-6" size="lg">
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{t`Edit Menu Item`}
+							Edit Menu Item
 						</Dialog.Title>
 						<Dialog.Close
-							aria-label={t`Close`}
+							aria-label="Close"
 							render={(props) => (
 								<Button
 									{...props}
 									variant="ghost"
 									shape="square"
-									aria-label={t`Close`}
+									aria-label="Close"
 									className="absolute right-4 top-4"
 								>
 									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
+									<span className="sr-only">Close</span>
 								</Button>
 							)}
 						/>
 					</div>
 					{editingItem && (
 						<form onSubmit={handleUpdateItem} className="space-y-4">
-							<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
+							<Input label="Label" name="label" required defaultValue={editingItem.label} />
 							{editingItem.type === "custom" && (
 								<Input
-									label={t`URL`}
+									label="URL"
 									name="url"
 									type="url"
 									required
@@ -421,21 +419,21 @@ export function MenuEditor() {
 								/>
 							)}
 							<Select
-								label={t`Target`}
+								label="Target"
 								name="target"
 								defaultValue={editingItem.target || ""}
-								items={{ "": t`Same window`, _blank: t`New window` }}
+								items={{ "": "Same window", _blank: "New window" }}
 							>
-								<Select.Option value="">{t`Same window`}</Select.Option>
-								<Select.Option value="_blank">{t`New window`}</Select.Option>
+								<Select.Option value="">Same window</Select.Option>
+								<Select.Option value="_blank">New window</Select.Option>
 							</Select>
 							<DialogError message={editError || getMutationError(updateMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setEditingItem(null)}>
-									{t`Cancel`}
+									Cancel
 								</Button>
 								<Button type="submit" disabled={updateMutation.isPending}>
-									{updateMutation.isPending ? t`Saving...` : t`Save`}
+									{updateMutation.isPending ? "Saving..." : "Save"}
 								</Button>
 							</div>
 						</form>

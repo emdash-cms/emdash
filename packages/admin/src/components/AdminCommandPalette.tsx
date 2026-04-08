@@ -6,7 +6,6 @@
  */
 
 import { CommandPalette } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	SquaresFour,
 	FileText,
@@ -128,19 +127,21 @@ async function searchContent(query: string): Promise<SearchResponse> {
 	return body.data;
 }
 
-/**
- * Pure function — builds dynamic nav items from manifest and merges with static items.
- * No i18n dependency; translated labels come in via staticItems.
- */
 function buildNavItems(
 	manifest: AdminCommandPaletteProps["manifest"],
 	userRole: number,
-	dashboardItem: NavItem,
-	coreItems: NavItem[],
 ): NavItem[] {
-	const items: NavItem[] = [dashboardItem];
+	const items: NavItem[] = [
+		{
+			id: "dashboard",
+			title: "Dashboard",
+			to: "/",
+			icon: SquaresFour,
+			keywords: ["home", "overview"],
+		},
+	];
 
-	// Add collection links (after Dashboard, before core admin links — preserves original ordering)
+	// Add collection links
 	for (const [name, config] of Object.entries(manifest.collections)) {
 		items.push({
 			id: `collection-${name}`,
@@ -152,8 +153,106 @@ function buildNavItems(
 		});
 	}
 
-	// Add core admin links (after collections)
-	items.push(...coreItems);
+	// Add core admin links
+	items.push(
+		{
+			id: "media",
+			title: "Media Library",
+			to: "/media",
+			icon: Image,
+			keywords: ["images", "files", "uploads"],
+		},
+		{
+			id: "menus",
+			title: "Menus",
+			to: "/menus",
+			icon: List,
+			minRole: ROLE_EDITOR,
+			keywords: ["navigation"],
+		},
+		{
+			id: "widgets",
+			title: "Widgets",
+			to: "/widgets",
+			icon: GridFour,
+			minRole: ROLE_EDITOR,
+			keywords: ["sidebar", "footer"],
+		},
+		{
+			id: "sections",
+			title: "Sections",
+			to: "/sections",
+			icon: Stack,
+			minRole: ROLE_EDITOR,
+			keywords: ["page builder", "blocks"],
+		},
+		{
+			id: "content-types",
+			title: "Content Types",
+			to: "/content-types",
+			icon: Database,
+			minRole: ROLE_ADMIN,
+			keywords: ["schema", "collections"],
+		},
+		{
+			id: "categories",
+			title: "Categories",
+			to: "/taxonomies/$taxonomy",
+			params: { taxonomy: "category" },
+			icon: FileText,
+			minRole: ROLE_EDITOR,
+			keywords: ["taxonomy"],
+		},
+		{
+			id: "tags",
+			title: "Tags",
+			to: "/taxonomies/$taxonomy",
+			params: { taxonomy: "tag" },
+			icon: FileText,
+			minRole: ROLE_EDITOR,
+			keywords: ["taxonomy"],
+		},
+		{
+			id: "users",
+			title: "Users",
+			to: "/users",
+			icon: Users,
+			minRole: ROLE_ADMIN,
+			keywords: ["accounts", "team"],
+		},
+		{
+			id: "plugins",
+			title: "Plugins",
+			to: "/plugins-manager",
+			icon: PuzzlePiece,
+			minRole: ROLE_ADMIN,
+			keywords: ["extensions", "add-ons"],
+		},
+		{
+			id: "import",
+			title: "Import",
+			to: "/import/wordpress",
+			icon: Upload,
+			minRole: ROLE_ADMIN,
+			keywords: ["wordpress", "migrate"],
+		},
+		{
+			id: "settings",
+			title: "Settings",
+			to: "/settings",
+			icon: Gear,
+			minRole: ROLE_ADMIN,
+			keywords: ["configuration", "preferences"],
+		},
+		{
+			id: "security",
+			title: "Security Settings",
+			to: "/settings/security",
+			icon: Gear,
+			minRole: ROLE_ADMIN,
+			keywords: ["passkeys", "authentication"],
+		},
+	);
 
 	// Add plugin pages
 	for (const [pluginId, config] of Object.entries(manifest.plugins)) {
@@ -182,122 +281,6 @@ function buildNavItems(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
-/**
- * Hook — translatable nav items with t in scope, delegates to pure buildNavItems.
- */
-function useNavItems(manifest: AdminCommandPaletteProps["manifest"], userRole: number): NavItem[] {
-	const { t } = useLingui();
-	return React.useMemo(() => {
-		const dashboardItem: NavItem = {
-			id: "dashboard",
-			title: t`Dashboard`,
-			to: "/",
-			icon: SquaresFour,
-			keywords: ["home", "overview"],
-		};
-		const coreItems: NavItem[] = [
-			{
-				id: "media",
-				title: t`Media Library`,
-				to: "/media",
-				icon: Image,
-				keywords: ["images", "files", "uploads"],
-			},
-			{
-				id: "menus",
-				title: t`Menus`,
-				to: "/menus",
-				icon: List,
-				minRole: ROLE_EDITOR,
-				keywords: ["navigation"],
-			},
-			{
-				id: "widgets",
-				title: t`Widgets`,
-				to: "/widgets",
-				icon: GridFour,
-				minRole: ROLE_EDITOR,
-				keywords: ["sidebar", "footer"],
-			},
-			{
-				id: "sections",
-				title: t`Sections`,
-				to: "/sections",
-				icon: Stack,
-				minRole: ROLE_EDITOR,
-				keywords: ["page builder", "blocks"],
-			},
-			{
-				id: "content-types",
-				title: t`Content Types`,
-				to: "/content-types",
-				icon: Database,
-				minRole: ROLE_ADMIN,
-				keywords: ["schema", "collections"],
-			},
-			{
-				id: "categories",
-				title: t`Categories`,
-				to: "/taxonomies/$taxonomy",
-				params: { taxonomy: "category" },
-				icon: FileText,
-				minRole: ROLE_EDITOR,
-				keywords: ["taxonomy"],
-			},
-			{
-				id: "tags",
-				title: t`Tags`,
-				to: "/taxonomies/$taxonomy",
-				params: { taxonomy: "tag" },
-				icon: FileText,
-				minRole: ROLE_EDITOR,
-				keywords: ["taxonomy"],
-			},
-			{
-				id: "users",
-				title: t`Users`,
-				to: "/users",
-				icon: Users,
-				minRole: ROLE_ADMIN,
-				keywords: ["accounts", "team"],
-			},
-			{
-				id: "plugins",
-				title: t`Plugins`,
-				to: "/plugins-manager",
-				icon: PuzzlePiece,
-				minRole: ROLE_ADMIN,
-				keywords: ["extensions", "add-ons"],
-			},
-			{
-				id: "import",
-				title: t`Import`,
-				to: "/import/wordpress",
-				icon: Upload,
-				minRole: ROLE_ADMIN,
-				keywords: ["wordpress", "migrate"],
-			},
-			{
-				id: "settings",
-				title: t`Settings`,
-				to: "/settings",
-				icon: Gear,
-				minRole: ROLE_ADMIN,
-				keywords: ["configuration", "preferences"],
-			},
-			{
-				id: "security",
-				title: t`Security Settings`,
-				to: "/settings/security",
-				icon: Gear,
-				minRole: ROLE_ADMIN,
-				keywords: ["passkeys", "authentication"],
-			},
-		];
-		return buildNavItems(manifest, userRole, dashboardItem, coreItems);
-	}, [manifest, userRole, t]);
-}
-
 function filterNavItems(items: NavItem[], query: string): NavItem[] {
 	if (!query) return items;
 	const lowerQuery = query.toLowerCase();
@@ -309,7 +292,6 @@ function filterNavItems(items: NavItem[], query: string): NavItem[] {
 }
 
 export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
-	const { t } = useLingui();
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
@@ -334,7 +316,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
 	// Build navigation items
-	const allNavItems = useNavItems(manifest, userRole);
+	const allNavItems = React.useMemo(() => buildNavItems(manifest, userRole), [manifest, userRole]);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(
@@ -349,7 +331,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 		// Navigation group
 		if (filteredNavItems.length > 0) {
 			groups.push({
-				label: t`Navigation`,
+				label: "Navigation",
 				items: filteredNavItems.map((item) => ({
 					id: item.id,
 					title: item.title,
@@ -376,13 +358,13 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 			});
 
 			groups.push({
-				label: t`Content`,
+				label: "Content",
 				items: contentItems,
 			});
 		}
 
 		return groups;
-	}, [filteredNavItems, searchResults, manifest.collections, t]);
+	}, [filteredNavItems, searchResults, manifest.collections]);
 
 	// Keyboard shortcut to open (Cmd+K / Ctrl+K)
 	useHotkeys("mod+k", (e) => {
@@ -436,7 +418,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 			getSelectableItems={(groups) => groups.flatMap((g) => g.items)}
 		>
 			<CommandPalette.Input
-				placeholder={t`Search pages and content...`}
+				placeholder="Search pages and content..."
 				leading={<MagnifyingGlass className="h-4 w-4 text-kumo-subtle" weight="bold" />}
 			/>
 			<CommandPalette.List>
@@ -463,7 +445,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 								</CommandPalette.Group>
 							)}
 						</CommandPalette.Results>
-						<CommandPalette.Empty>{t`No results found`}</CommandPalette.Empty>
+						<CommandPalette.Empty>No results found</CommandPalette.Empty>
 					</>
 				)}
 			</CommandPalette.List>
@@ -471,17 +453,17 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 				<div className="flex items-center gap-4 text-kumo-subtle">
 					<span className="flex items-center gap-1">
 						<kbd className="rounded bg-kumo-control px-1.5 py-0.5 text-xs">Enter</kbd>
-						<span>{t`to select`}</span>
+						<span>to select</span>
 					</span>
 					<span className="flex items-center gap-1">
 						<kbd className="rounded bg-kumo-control px-1.5 py-0.5 text-xs">
 							{IS_MAC ? "Cmd" : "Ctrl"}+Enter
 						</kbd>
-						<span>{t`new tab`}</span>
+						<span>new tab</span>
 					</span>
 					<span className="flex items-center gap-1">
 						<kbd className="rounded bg-kumo-control px-1.5 py-0.5 text-xs">Esc</kbd>
-						<span>{t`to close`}</span>
+						<span>to close</span>
 					</span>
 				</div>
 			</CommandPalette.Footer>

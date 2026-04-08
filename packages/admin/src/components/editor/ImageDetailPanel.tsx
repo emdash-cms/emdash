@@ -6,7 +6,6 @@
  */
 
 import { Button, Input, InputArea, Label, LinkButton } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	X,
 	ArrowSquareOut,
@@ -62,8 +61,6 @@ export function ImageDetailPanel({
 	onClose,
 	inline = false,
 }: ImageDetailPanelProps) {
-	const { t } = useLingui();
-
 	// Form state
 	const [alt, setAlt] = React.useState(attributes.alt ?? "");
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
@@ -173,10 +170,10 @@ export function ImageDetailPanel({
 			<ConfirmDialog
 				open={showDeleteConfirm}
 				onClose={() => setShowDeleteConfirm(false)}
-				title={t`Remove Image?`}
-				description={t`Remove this image from the document?`}
-				confirmLabel={t`Remove`}
-				pendingLabel={t`Removing...`}
+				title="Remove Image?"
+				description="Remove this image from the document?"
+				confirmLabel="Remove"
+				pendingLabel="Removing..."
 				isPending={false}
 				error={null}
 				onConfirm={() => {
@@ -189,7 +186,7 @@ export function ImageDetailPanel({
 				onOpenChange={setShowMediaPicker}
 				onSelect={handleMediaSelect}
 				mimeTypeFilter="image/"
-				title={t`Replace Image`}
+				title="Replace Image"
 			/>
 		</>
 	);
@@ -201,11 +198,11 @@ export function ImageDetailPanel({
 				<div className="flex items-center justify-between p-4 border-b">
 					<div className="flex items-center gap-2">
 						<SlidersHorizontal className="h-4 w-4 text-kumo-subtle" />
-						<h3 className="text-sm font-semibold">{t`Image Settings`}</h3>
+						<h3 className="text-sm font-semibold">Image Settings</h3>
 					</div>
-					<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
+					<Button variant="ghost" shape="square" aria-label="Close" onClick={onClose}>
 						<X className="h-4 w-4" />
-						<span className="sr-only">{t`Close`}</span>
+						<span className="sr-only">Close</span>
 					</Button>
 				</div>
 
@@ -224,7 +221,7 @@ export function ImageDetailPanel({
 								icon={<ImageSquare />}
 								onClick={() => setShowMediaPicker(true)}
 							>
-								{t`Replace Image`}
+								Replace Image
 							</Button>
 						</div>
 					</div>
@@ -233,7 +230,7 @@ export function ImageDetailPanel({
 					{(attributes.width || attributes.height) && (
 						<div className="flex items-center gap-2 text-sm mt-3">
 							<Ruler className="h-4 w-4 text-kumo-subtle" />
-							<span className="text-kumo-subtle">{t`Original:`}</span>
+							<span className="text-kumo-subtle">Original:</span>
 							<span>
 								{attributes.width} × {attributes.height}
 							</span>
@@ -245,20 +242,20 @@ export function ImageDetailPanel({
 				{attributes.width && attributes.height && (
 					<div className="p-4 border-b space-y-3">
 						<div className="flex items-center justify-between">
-							<Label>{t`Display Size`}</Label>
+							<Label>Display Size</Label>
 							<Button
 								variant="ghost"
 								size="sm"
 								onClick={handleResetDimensions}
 								className="h-auto py-1 px-2 text-xs"
 							>
-								{t`Reset to original`}
+								Reset to original
 							</Button>
 						</div>
 						<div className="flex items-center gap-2">
 							<div className="flex-1">
 								<Input
-									label={t`Width`}
+									label="Width"
 									type="number"
 									value={displayWidth ?? ""}
 									onChange={(e) => handleWidthChange(e.target.value)}
@@ -269,8 +266,8 @@ export function ImageDetailPanel({
 								shape="square"
 								className="mt-5"
 								onClick={() => setLockAspectRatio(!lockAspectRatio)}
-								title={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
-								aria-label={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
+								title={lockAspectRatio ? "Unlock aspect ratio" : "Lock aspect ratio"}
+								aria-label={lockAspectRatio ? "Unlock aspect ratio" : "Lock aspect ratio"}
 							>
 								{lockAspectRatio ? (
 									<LinkSimple className="h-4 w-4" />
@@ -280,7 +277,7 @@ export function ImageDetailPanel({
 							</Button>
 							<div className="flex-1">
 								<Input
-									label={t`Height`}
+									label="Height"
 									type="number"
 									value={displayHeight ?? ""}
 									onChange={(e) => handleHeightChange(e.target.value)}
@@ -288,7 +285,7 @@ export function ImageDetailPanel({
 							</div>
 						</div>
 						<p className="text-xs text-kumo-subtle">
-							{t`Set a custom display size for this image instance.`}
+							Set a custom display size for this image instance.
 						</p>
 					</div>
 				)}
@@ -296,34 +293,34 @@ export function ImageDetailPanel({
 				{/* Editable Fields */}
 				<div className="p-4 space-y-4">
 					<Input
-						label={t`Alt Text`}
+						label="Alt Text"
 						value={alt}
 						onChange={(e) => setAlt(e.target.value)}
-						placeholder={t`Describe this image for accessibility`}
-						description={t`Required for accessibility. Describes the image for screen readers.`}
+						placeholder="Describe this image for accessibility"
+						description="Required for accessibility. Describes the image for screen readers."
 					/>
 
 					<InputArea
-						label={t`Caption`}
+						label="Caption"
 						value={caption}
 						onChange={(e) => setCaption(e.target.value)}
-						placeholder={t`Optional caption displayed below the image`}
-						description={t`Displayed below the image as a visible caption.`}
+						placeholder="Optional caption displayed below the image"
+						description="Displayed below the image as a visible caption."
 						rows={2}
 					/>
 
 					<Input
-						label={t`Title (Tooltip)`}
+						label="Title (Tooltip)"
 						value={title}
 						onChange={(e) => setTitle(e.target.value)}
-						placeholder={t`Optional tooltip on hover`}
-						description={t`Shown when hovering over the image.`}
+						placeholder="Optional tooltip on hover"
+						description="Shown when hovering over the image."
 					/>
 
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!attributes.mediaId && attributes.src && (
 						<div>
-							<Label>{t`Source`}</Label>
+							<Label>Source</Label>
 							<div className="mt-1.5 flex gap-2">
 								<Input value={attributes.src} readOnly className="text-xs font-mono flex-1" />
 								<LinkButton
@@ -331,8 +328,8 @@ export function ImageDetailPanel({
 									shape="square"
 									href={attributes.src}
 									external
-									title={t`Open in new tab`}
-									aria-label={t`Open in new tab`}
+									title="Open in new tab"
+									aria-label="Open in new tab"
 								>
 									<ArrowSquareOut className="h-4 w-4" />
 								</LinkButton>
@@ -344,10 +341,10 @@ export function ImageDetailPanel({
 				{/* Actions */}
 				<div className="p-4 border-t flex items-center justify-between gap-2">
 					<Button variant="destructive" size="sm" onClick={handleDelete}>
-						{t`Remove Image`}
+						Remove Image
 					</Button>
 					<Button size="sm" onClick={handleSave} disabled={!hasChanges}>
-						{t`Save`}
+						Save
 					</Button>
 				</div>
 
@@ -362,11 +359,11 @@ export function ImageDetailPanel({
 			<div className="flex items-center justify-between border-b p-4">
 				<div className="flex items-center gap-2">
 					<SlidersHorizontal className="h-4 w-4 text-kumo-subtle" />
-					<h2 className="font-semibold">{t`Image Settings`}</h2>
+					<h2 className="font-semibold">Image Settings</h2>
 				</div>
-				<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
+				<Button variant="ghost" shape="square" aria-label="Close" onClick={onClose}>
 					<X className="h-4 w-4" />
-					<span className="sr-only">{t`Close`}</span>
+					<span className="sr-only">Close</span>
 				</Button>
 			</div>
 
@@ -387,7 +384,7 @@ export function ImageDetailPanel({
 								icon={<ImageSquare />}
 								onClick={() => setShowMediaPicker(true)}
 							>
-								{t`Replace Image`}
+								Replace Image
 							</Button>
 						</div>
 					</div>
@@ -398,7 +395,7 @@ export function ImageDetailPanel({
 					<div className="p-4 border-b">
 						<div className="flex items-center gap-2 text-sm">
 							<Ruler className="h-4 w-4 text-kumo-subtle" />
-							<span className="text-kumo-subtle">{t`Original:`}</span>
+							<span className="text-kumo-subtle">Original:</span>
 							<span>
 								{attributes.width} × {attributes.height}
 							</span>
@@ -410,20 +407,20 @@ export function ImageDetailPanel({
 				{attributes.width && attributes.height && (
 					<div className="p-4 border-b space-y-3">
 						<div className="flex items-center justify-between">
-							<Label>{t`Display Size`}</Label>
+							<Label>Display Size</Label>
 							<Button
 								variant="ghost"
 								size="sm"
 								onClick={handleResetDimensions}
 								className="h-auto py-1 px-2 text-xs"
 							>
-								{t`Reset to original`}
+								Reset to original
 							</Button>
 						</div>
 						<div className="flex items-center gap-2">
 							<div className="flex-1">
 								<Input
-									label={t`Width`}
+									label="Width"
 									type="number"
 									value={displayWidth ?? ""}
 									onChange={(e) => handleWidthChange(e.target.value)}
@@ -434,8 +431,8 @@ export function ImageDetailPanel({
 								shape="square"
 								className="mt-5"
 								onClick={() => setLockAspectRatio(!lockAspectRatio)}
-								title={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
-								aria-label={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
+								title={lockAspectRatio ? "Unlock aspect ratio" : "Lock aspect ratio"}
+								aria-label={lockAspectRatio ? "Unlock aspect ratio" : "Lock aspect ratio"}
 							>
 								{lockAspectRatio ? (
 									<LinkSimple className="h-4 w-4" />
@@ -445,7 +442,7 @@ export function ImageDetailPanel({
 							</Button>
 							<div className="flex-1">
 								<Input
-									label={t`Height`}
+									label="Height"
 									type="number"
 									value={displayHeight ?? ""}
 									onChange={(e) => handleHeightChange(e.target.value)}
@@ -453,7 +450,7 @@ export function ImageDetailPanel({
 							</div>
 						</div>
 						<p className="text-xs text-kumo-subtle">
-							{t`Set a custom display size for this image instance.`}
+							Set a custom display size for this image instance.
 						</p>
 					</div>
 				)}
@@ -461,34 +458,34 @@ export function ImageDetailPanel({
 				{/* Editable Fields */}
 				<div className="p-4 space-y-4">
 					<Input
-						label={t`Alt Text`}
+						label="Alt Text"
 						value={alt}
 						onChange={(e) => setAlt(e.target.value)}
-						placeholder={t`Describe this image for accessibility`}
-						description={t`Required for accessibility. Describes the image for screen readers.`}
+						placeholder="Describe this image for accessibility"
+						description="Required for accessibility. Describes the image for screen readers."
 					/>
 
 					<InputArea
-						label={t`Caption`}
+						label="Caption"
 						value={caption}
 						onChange={(e) => setCaption(e.target.value)}
-						placeholder={t`Optional caption displayed below the image`}
-						description={t`Displayed below the image as a visible caption.`}
+						placeholder="Optional caption displayed below the image"
+						description="Displayed below the image as a visible caption."
 						rows={2}
 					/>
 
 					<Input
-						label={t`Title (Tooltip)`}
+						label="Title (Tooltip)"
 						value={title}
 						onChange={(e) => setTitle(e.target.value)}
-						placeholder={t`Optional tooltip on hover`}
-						description={t`Shown when hovering over the image.`}
+						placeholder="Optional tooltip on hover"
+						description="Shown when hovering over the image."
 					/>
 
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!attributes.mediaId && attributes.src && (
 						<div>
-							<Label>{t`Source`}</Label>
+							<Label>Source</Label>
 							<div className="mt-1.5 flex gap-2">
 								<Input value={attributes.src} readOnly className="text-xs font-mono flex-1" />
 								<LinkButton
@@ -496,8 +493,8 @@ export function ImageDetailPanel({
 									shape="square"
 									href={attributes.src}
 									external
-									title={t`Open in new tab`}
-									aria-label={t`Open in new tab`}
+									title="Open in new tab"
+									aria-label="Open in new tab"
 								>
 									<ArrowSquareOut className="h-4 w-4" />
 								</LinkButton>
@@ -514,10 +511,10 @@ export function ImageDetailPanel({
 				</Button>
 				<div className="flex gap-2">
 					<Button variant="outline" size="sm" onClick={onClose}>
-						{t`Cancel`}
+						Cancel
 					</Button>
 					<Button size="sm" onClick={handleSave} disabled={!hasChanges}>
-						{t`Save`}
+						Save
 					</Button>
 				</div>
 			</div>

@@ -11,7 +11,6 @@
 
 import { Button, Input } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
-import { useLingui } from "@lingui/react/macro";
 import {
 	DotsSixVertical,
 	Trash,
@@ -179,7 +178,6 @@ function PluginBlockNodeView({
 	editor,
 	getPos,
 }: NodeViewProps) {
-	const { t } = useLingui();
 	const blockType = typeof node.attrs.blockType === "string" ? node.attrs.blockType : "";
 	const id = typeof node.attrs.id === "string" ? node.attrs.id : "";
 	const data =
@@ -306,8 +304,8 @@ function PluginBlockNodeView({
 										shape="square"
 										className="h-8 w-8"
 										onClick={handleCopyUrl}
-										title={t`Copy URL`}
-										aria-label={t`Copy URL`}
+										title="Copy URL"
+										aria-label="Copy URL"
 									>
 										<Copy className="h-4 w-4" />
 									</Button>
@@ -317,8 +315,8 @@ function PluginBlockNodeView({
 										shape="square"
 										className="h-8 w-8"
 										onClick={handleOpenExternal}
-										title={t`Open in new tab`}
-										aria-label={t`Open in new tab`}
+										title="Open in new tab"
+										aria-label="Open in new tab"
 									>
 										<ArrowSquareOut className="h-4 w-4" />
 									</Button>
@@ -351,8 +349,8 @@ function PluginBlockNodeView({
 										setIsEditing(true);
 									}
 								}}
-								title={hasFields ? t`Edit` : t`Edit URL`}
-								aria-label={hasFields ? t`Edit` : t`Edit URL`}
+								title={hasFields ? "Edit" : "Edit URL"}
+								aria-label={hasFields ? "Edit" : "Edit URL"}
 							>
 								<Pencil className="h-4 w-4" />
 							</Button>
@@ -362,8 +360,8 @@ function PluginBlockNodeView({
 								shape="square"
 								className="h-8 w-8 text-kumo-danger hover:text-kumo-danger hover:bg-kumo-danger/10"
 								onClick={() => deleteNode()}
-								title={t`Delete`}
-								aria-label={t`Delete embed`}
+								title="Delete"
+								aria-label="Delete embed"
 							>
 								<Trash className="h-4 w-4" />
 							</Button>
@@ -389,8 +387,8 @@ function PluginBlockNodeView({
 									shape="square"
 									className="h-9 w-9"
 									onClick={handleCancel}
-									title={t`Cancel (Esc)`}
-									aria-label={t`Cancel`}
+									title="Cancel (Esc)"
+									aria-label="Cancel"
 								>
 									<X className="h-4 w-4" />
 								</Button>
@@ -400,8 +398,8 @@ function PluginBlockNodeView({
 									shape="square"
 									className="h-9 w-9"
 									onClick={handleSave}
-									title={t`Save (Enter)`}
-									aria-label={t`Save`}
+									title="Save (Enter)"
+									aria-label="Save"
 								>
 									<Check className="h-4 w-4" />
 								</Button>
