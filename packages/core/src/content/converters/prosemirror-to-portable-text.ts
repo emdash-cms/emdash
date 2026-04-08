@@ -494,7 +494,8 @@ function convertMark(
 		}
 
 		case "cssClass": {
-			const classes = (typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "") || "";
+			const raw = typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "";
+			const classes = raw.trim();
 			if (!classes) return null;
 
 			// Deduplicate: reuse existing markDef with same classes

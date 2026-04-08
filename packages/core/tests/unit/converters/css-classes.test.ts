@@ -259,6 +259,121 @@ describe("cssClass mark round-trip via markDefs", () => {
 		const roundTripped = prosemirrorToPortableText(pm) as PortableTextTextBlock[];
 		expect(roundTripped[0]?.markDefs).toHaveLength(2);
 	});
+
+	it("PM → PT drops a whitespace-only cssClass mark", () => {
+		const doc: ProseMirrorDocument = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "plain",
+							marks: [{ type: "cssClass", attrs: { classes: "   " } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as PortableTextTextBlock[];
+		expect(blocks).toHaveLength(1);
+		const block = blocks[0]!;
+		expect(block.markDefs ?? []).toHaveLength(0);
+		expect(block.children).toHaveLength(1);
+		expect(block.children[0]?.text).toBe("plain");
+		expect(block.children[0]?.marks ?? []).toHaveLength(0);
+	});
+
+	it("PM → PT trims padding from a cssClass mark before persisting", () => {
+		const doc: ProseMirrorDocument = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "highlighted",
+							marks: [{ type: "cssClass", attrs: { classes: "  highlight-yellow  " } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as PortableTextTextBlock[];
+		const def = blocks[0]!.markDefs![0]!;
+		expect((def as { classes: string }).classes).toBe("highlight-yellow");
+	});
+
+	it("PM → PT collapses padded variants of the same classes into a single markDef", () => {
+		const doc: ProseMirrorDocument = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "first ",
+							marks: [{ type: "cssClass", attrs: { classes: "highlight-yellow" } }],
+						},
+						{ type: "text", text: "middle " },
+						{
+							type: "text",
+							text: "second",
+							marks: [{ type: "cssClass", attrs: { classes: "  highlight-yellow  " } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as PortableTextTextBlock[];
+		const block = blocks[0]!;
+		expect(block.markDefs).toHaveLength(1);
+		const key = block.markDefs![0]!._key;
+		const styledSpans = block.children.filter((s) => s.marks?.includes(key));
+		expect(styledSpans).toHaveLength(2);
+	});
+
+	it("PT → PM ignores a whitespace-only block-level cssClasses", () => {
+		const ptBlocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				_key: "b1",
+				style: "normal",
+				cssClasses: "   ",
+				markDefs: [],
+				children: [{ _type: "span", _key: "s1", text: "plain", marks: [] }],
+			} as unknown as PortableTextBlock,
+		];
+
+		const pm = portableTextToProsemirror(ptBlocks);
+		const para = pm.content[0]!;
+		expect(para.attrs?.cssClasses).toBeUndefined();
+	});
+
+	it("round-trips a padded block-level cssClasses as the trimmed value", () => {
+		const doc: ProseMirrorDocument = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					attrs: { cssClasses: "  lead  " },
+					content: [{ type: "text", text: "Hello" }],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as PortableTextTextBlock[];
+		expect((blocks[0] as { cssClasses?: string }).cssClasses).toBe("lead");
+
+		const pm = portableTextToProsemirror(blocks);
+		expect(pm.content[0]?.attrs?.cssClasses).toBe("lead");
+	});
 });
 
 describe("nested cssClasses through PM ↔ PT", () => {

@@ -436,7 +436,8 @@ function convertPMMark(
 			return key;
 		}
 		case "cssClass": {
-			const classes = attrStrOpt(mark.attrs, "classes") || "";
+			const raw = attrStrOpt(mark.attrs, "classes") ?? "";
+			const classes = raw.trim();
 			if (!classes) return null;
 			const dedupeKey = `cssClass:${classes}`;
 			if (markDefMap.has(dedupeKey)) return markDefMap.get(dedupeKey)!;
@@ -491,7 +492,9 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 
 function ptCssClasses(block: PTBlock): string | undefined {
 	const v = readCssClasses(block);
-	return v && v.length > 0 ? v : undefined;
+	if (!v) return undefined;
+	const trimmed = v.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function convertPTBlock(block: PTBlock): JSONContent | null {
