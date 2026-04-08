@@ -54,7 +54,7 @@ jobs:
       - name: Create Release Pull Request or Publish
         if: ${{ !inputs.publish-only }}
         id: changesets
-        uses: changesets/action@c8bada60c408975afd1a20b3db81d6eee6789308 # v1.4.9
+        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
         with:
           version: pnpm changeset version
           publish: pnpm changeset publish
