@@ -1218,7 +1218,7 @@ function FieldRenderer({
 		}
 
 		case "repeater": {
-			const validation = field.validation as Record<string, unknown> | undefined;
+			const validation = field.validation;
 			const subFields = (validation?.subFields ?? []) as Array<{
 				slug: string;
 				type: string;

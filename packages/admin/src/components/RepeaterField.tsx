@@ -302,7 +302,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				<Input
 					label={subField.label}
 					type="number"
-					value={value != null ? String(value) : ""}
+					value={typeof value === "number" ? String(value) : ""}
 					onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
 					required={subField.required}
 					step={subField.type === "integer" ? "1" : "any"}
