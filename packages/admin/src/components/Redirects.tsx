@@ -477,14 +477,15 @@ export function Redirects() {
 									</div>
 									<div className="w-20 flex items-center justify-end gap-1">
 										{loopRedirectIds.has(r.id) && (
-											<WarningCircle
-												size={14}
-												weight="fill"
-												className="mr-1 text-kumo-warning"
-												role="img"
-												aria-label="Part of a redirect loop"
-												title="Part of a redirect loop"
-											/>
+											<span title="Part of a redirect loop" className="mr-1 inline-flex">
+												<WarningCircle
+													size={14}
+													weight="fill"
+													className="text-kumo-warning"
+													role="img"
+													aria-label="Part of a redirect loop"
+												/>
+											</span>
 										)}
 										{r.auto && (
 											<Badge variant="outline" className="mr-1 text-xs">
