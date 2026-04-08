@@ -242,7 +242,7 @@ function ContentListPage() {
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
-					cursor: pageParam as string | undefined,
+					cursor: pageParam,
 					limit: 100,
 				}),
 			initialPageParam: undefined as string | undefined,
@@ -607,6 +607,12 @@ function ContentEditPage() {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			// Invalidate the cached draft revision so stale data doesn't overwrite the form
+			if (rawItem?.draftRevisionId) {
+				void queryClient.invalidateQueries({
+					queryKey: ["revision", rawItem.draftRevisionId],
+				});
+			}
 		},
 		onError: (error) => {
 			toastManager.add({
@@ -627,8 +633,14 @@ function ContentEditPage() {
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
 		onSuccess: () => {
 			setLastAutosaveAt(new Date());
-			// Silently update the cache without full invalidation
+			// Invalidate content and draft revision so stale cached data
+			// doesn't overwrite the form via the sync effect
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			if (rawItem?.draftRevisionId) {
+				void queryClient.invalidateQueries({
+					queryKey: ["revision", rawItem.draftRevisionId],
+				});
+			}
 		},
 		onError: (err) => {
 			toastManager.add({
