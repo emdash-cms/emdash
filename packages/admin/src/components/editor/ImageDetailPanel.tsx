@@ -215,7 +215,7 @@ export function ImageDetailPanel({
 							<Button
 								key={`${entry.label}-${entry.classes}`}
 								type="button"
-								variant={active ? "default" : "outline"}
+								variant={active ? "primary" : "outline"}
 								size="sm"
 								onClick={() => handleStyleClick(entry.classes)}
 								aria-pressed={active}

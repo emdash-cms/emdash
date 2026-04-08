@@ -170,13 +170,17 @@ function prosemirrorToPortableText(doc: {
 
 const CSS_WHITESPACE_RE = /\s+/;
 
+function normalizeClassTokens(value: string | undefined): string[] {
+	if (!value) return [];
+	return value.trim().split(CSS_WHITESPACE_RE).filter(Boolean);
+}
+
 function mergeCssClassTokens(a: string | undefined, b: string | undefined): string | undefined {
-	if (!a) return b || undefined;
-	if (!b) return a || undefined;
-	const set = new Set<string>();
-	for (const token of `${a} ${b}`.split(CSS_WHITESPACE_RE)) {
-		if (token) set.add(token);
-	}
+	const aTokens = normalizeClassTokens(a);
+	const bTokens = normalizeClassTokens(b);
+	if (aTokens.length === 0) return bTokens.length > 0 ? bTokens.join(" ") : undefined;
+	if (bTokens.length === 0) return aTokens.join(" ");
+	const set = new Set<string>([...aTokens, ...bTokens]);
 	return set.size > 0 ? [...set].join(" ") : undefined;
 }
 
@@ -398,6 +402,10 @@ function convertInlineContent(nodes: unknown[]): {
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
+	// Dedupe map keyed by namespaced strings: `link:${href}` for link marks,
+	// `cssClass:${classes}` for cssClass marks. Namespacing prevents a link
+	// whose href happens to start with `cssClass:` from colliding with a
+	// cssClass entry.
 	const markDefMap = new Map<string, string>();
 
 	const typedNodes = nodes as Array<{
@@ -469,8 +477,9 @@ function convertMark(
 		case "link": {
 			const rawHref = mark.attrs?.href;
 			const href = typeof rawHref === "string" ? rawHref : "";
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			const dedupeKey = `link:${href}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
 			}
 			const key = generateKey();
 			markDefs.push({
@@ -479,7 +488,7 @@ function convertMark(
 				href,
 				blank: mark.attrs?.target === "_blank",
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(dedupeKey, key);
 			return key;
 		}
 		case "cssClass": {
@@ -781,12 +790,14 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 							},
 						});
 					} else if (markDef._type === "cssClass") {
-						pmMarks.push({
-							type: "cssClass",
-							attrs: {
-								classes: markDef.classes,
-							},
-						});
+						const raw = (markDef as { classes?: unknown }).classes;
+						const classes = typeof raw === "string" ? raw.trim() : "";
+						if (classes) {
+							pmMarks.push({
+								type: "cssClass",
+								attrs: { classes },
+							});
+						}
 					}
 				}
 				break;

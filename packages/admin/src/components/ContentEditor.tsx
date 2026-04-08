@@ -266,10 +266,11 @@ export function ContentEditor({
 				continue;
 			}
 			if (entry.type === "dropdown") {
-				for (const item of entry.items ?? []) {
-					if ("type" in item && item.type === "separator") continue;
-					if (item.scope === "block" && matchesImage(item.nodes)) {
-						out.push({ label: item.label, classes: item.classes });
+				for (const dropdownItem of entry.items ?? []) {
+					// Narrow away EditorStyleSeparator (which lacks `scope`/`label`/`classes`).
+					if (!("scope" in dropdownItem)) continue;
+					if (dropdownItem.scope === "block" && matchesImage(dropdownItem.nodes)) {
+						out.push({ label: dropdownItem.label, classes: dropdownItem.classes });
 					}
 				}
 			}

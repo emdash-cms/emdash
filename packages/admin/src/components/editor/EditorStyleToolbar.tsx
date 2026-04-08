@@ -101,7 +101,11 @@ function tidySeparators(
 		prevWasSep = sep;
 	}
 	// Trim trailing separator
-	while (out.length > 0 && isSeparator(out[out.length - 1]!)) out.pop();
+	while (out.length > 0) {
+		const last = out.at(-1);
+		if (!last || !isSeparator(last)) break;
+		out.pop();
+	}
 	return out;
 }
 
@@ -307,15 +311,21 @@ function StyleDropdownMenu({
 	const editorState = useEditorState({
 		editor,
 		selector: (ctx) => {
+			// Sets keyed by item index — NOT by item.classes — so that two items
+			// in the same dropdown sharing the same `classes` string (e.g., one
+			// scoped to paragraph, one to heading) don't toggle each other's
+			// active/disabled state.
 			const activeSet = new Set<string>();
 			const disabledSet = new Set<string>();
-			for (const item of resolvedItems) {
+			for (let i = 0; i < resolvedItems.length; i++) {
+				const item = resolvedItems[i];
 				if (!item) continue;
+				const indexKey = String(i);
 				if (isStyleActive(ctx.editor, item)) {
-					activeSet.add(item.classes);
+					activeSet.add(indexKey);
 				}
 				if (item.scope === "block" && !isNodeMatch(ctx.editor, item.nodes)) {
-					disabledSet.add(item.classes);
+					disabledSet.add(indexKey);
 				}
 			}
 			return { activeSet, disabledSet, hasAny: activeSet.size > 0 };
@@ -334,7 +344,7 @@ function StyleDropdownMenu({
 				onClick={() => setOpen(!open)}
 				aria-label={entry.label}
 				aria-expanded={open}
-				aria-haspopup="menu"
+				aria-haspopup="true"
 				tabIndex={0}
 			>
 				<IconComponent className="h-4 w-4" aria-hidden="true" />
@@ -342,13 +352,17 @@ function StyleDropdownMenu({
 
 			{open &&
 				createPortal(
+					// Plain popover container — intentionally NOT role="menu" because
+					// we don't implement the full ARIA menu keyboard model (arrow nav,
+					// roving tabindex, focus trap). Items are native buttons with
+					// `aria-pressed`, which AT handles cleanly without promising
+					// behaviors we don't deliver.
 					<div
 						ref={(node) => {
 							floatingRef.current = node;
 							refs.setFloating(node);
 						}}
 						style={floatingStyles}
-						role="menu"
 						aria-label={entry.label}
 						className="z-50 rounded-md border bg-kumo-overlay shadow-lg w-56 max-h-80 overflow-y-auto"
 					>
@@ -360,7 +374,7 @@ function StyleDropdownMenu({
 										return (
 											<div
 												key={`sep-${i}`}
-												role="separator"
+												aria-hidden="true"
 												className="border-t border-kumo-line my-1"
 											/>
 										);
@@ -368,14 +382,15 @@ function StyleDropdownMenu({
 									return null;
 								}
 
-								const active = editorState.activeSet.has(resolved.classes);
-								const disabled = editorState.disabledSet.has(resolved.classes);
+								const indexKey = String(i);
+								const active = editorState.activeSet.has(indexKey);
+								const disabled = editorState.disabledSet.has(indexKey);
 
 								return (
 									<button
 										key={`${i}-${resolved.scope}-${resolved.label}-${resolved.classes}`}
 										type="button"
-										role="menuitem"
+										aria-pressed={active}
 										className={cn(
 											"flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded text-left",
 											disabled ? "text-kumo-subtle/40 cursor-not-allowed" : "hover:bg-kumo-tint",

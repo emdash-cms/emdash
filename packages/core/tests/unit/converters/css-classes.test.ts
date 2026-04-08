@@ -549,4 +549,51 @@ describe("mergeCssClasses helper", () => {
 		expect(mergeCssClasses("a b", "b c")).toBe("a b c");
 		expect(mergeCssClasses("  a   b  ", "b\tc")).toBe("a b c");
 	});
+
+	it("normalizes whitespace-only input to undefined", () => {
+		// Regression: previously a whitespace-only string passed alongside
+		// undefined was returned verbatim, leaking garbage into PT.
+		expect(mergeCssClasses(undefined, "   ")).toBeUndefined();
+		expect(mergeCssClasses("   ", undefined)).toBeUndefined();
+		expect(mergeCssClasses("   ", "\t\n")).toBeUndefined();
+		expect(mergeCssClasses("   ", "lead")).toBe("lead");
+		expect(mergeCssClasses("lead", "   ")).toBe("lead");
+	});
+});
+
+describe("markDef key collision regression", () => {
+	it("does not collapse a link href and a cssClass classes string that share text", () => {
+		// Pre-fix: markDefMap keyed link by raw href and cssClass by `cssClass:${classes}`,
+		// so a link with href "cssClass:foo" would collide with a cssClass mark
+		// {classes: "foo"}. After namespacing both as `link:${href}` and
+		// `cssClass:${classes}`, they live in distinct map slots.
+		const doc: ProseMirrorDocument = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "anchor",
+							marks: [{ type: "link", attrs: { href: "cssClass:foo" } }],
+						},
+						{
+							type: "text",
+							text: " styled",
+							marks: [{ type: "cssClass", attrs: { classes: "foo" } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as PortableTextTextBlock[];
+		expect(blocks).toHaveLength(1);
+		const defs = blocks[0]!.markDefs ?? [];
+		// Two distinct markDefs, one link, one cssClass — never collapsed.
+		expect(defs).toHaveLength(2);
+		const types = defs.map((d) => d._type).toSorted(compareStrings);
+		expect(types).toEqual(["cssClass", "link"]);
+	});
 });
