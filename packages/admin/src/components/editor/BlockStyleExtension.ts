@@ -55,9 +55,19 @@ const STYLED_BLOCK_TYPE_SET: ReadonlySet<string> = new Set(STYLED_BLOCK_TYPES);
  *
  * - If the selection is a NodeSelection, the selected node is the target
  *   (this is how horizontalRule and other atom blocks are styled).
- * - Otherwise, walk from the deepest ancestor outward and return the
- *   innermost ancestor whose type is in `allowedTypes` (or the default
- *   styled-block set if `allowedTypes` is not provided).
+ * - Otherwise, walk from the deepest ancestor outward looking for a match.
+ *   Inside a list item, **prefer the listItem ancestor over the inner
+ *   paragraph** when both are eligible (`listItem` is in `allowedTypes`,
+ *   either explicitly or via the default set). This aligns the resolver
+ *   with the PT↔PM converters: `convertListItem` (PM→PT) merges classes
+ *   from both the listItem and its inner paragraph and stores them on the
+ *   PT block, and the PT→PM converter restores them onto the listItem
+ *   node — never the inner paragraph. If we targeted the inner paragraph
+ *   here, classes would "jump" from `<p>` to `<li>` after a save/reload,
+ *   confusing both the toolbar's active-state and any CSS rules scoped to
+ *   the chosen element.
+ * - Outside lists, return the innermost ancestor whose type is in
+ *   `allowedTypes` (or the default styled-block set).
  *
  * Returns `null` if no suitable target exists.
  */
@@ -78,16 +88,29 @@ export function resolveStyledBlock(
 	}
 
 	const { $from } = selection;
+	const listItemAllowed = allowed.has("listItem");
+	let listItemMatch: { pos: number; node: PMNode } | null = null;
+	let innermostMatch: { pos: number; node: PMNode } | null = null;
+
 	for (let depth = $from.depth; depth >= 0; depth--) {
 		const node = $from.node(depth);
-		if (allowed.has(node.type.name)) {
-			// $from.before(depth) is the position immediately before the node
-			// at this depth. depth=0 is the doc, which has no "before" — guard it.
-			const pos = depth === 0 ? 0 : $from.before(depth);
-			return { pos, node };
+		// $from.before(depth) is the position immediately before the node
+		// at this depth. depth=0 is the doc, which has no "before" — guard it.
+		const pos = depth === 0 ? 0 : $from.before(depth);
+
+		if (!innermostMatch && allowed.has(node.type.name)) {
+			innermostMatch = { pos, node };
 		}
+		if (!listItemMatch && listItemAllowed && node.type.name === "listItem") {
+			listItemMatch = { pos, node };
+		}
+		// Early exit once we have both candidates.
+		if (innermostMatch && (listItemMatch || !listItemAllowed)) break;
 	}
-	return null;
+
+	// Prefer the listItem when one exists in the chain — keeps the
+	// editor target consistent with where the converters persist classes.
+	return listItemMatch ?? innermostMatch;
 }
 
 export const BlockStyleExtension = Extension.create({
