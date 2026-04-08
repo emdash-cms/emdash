@@ -296,10 +296,17 @@ function convertListItem(
 		}
 	}
 
-	return {
+	// List items go straight into the list container (bypassing convertBlock),
+	// so apply cssClasses here instead of via the wrapper.
+	const cssClasses = getCssClasses(item);
+	const node: ProseMirrorNode = {
 		type: "listItem",
 		content,
 	};
+	if (cssClasses) {
+		node.attrs = { cssClasses };
+	}
+	return node;
 }
 
 /**

@@ -28,6 +28,7 @@ import type {
 	EditorStyleSeparator,
 } from "../../lib/api/client.js";
 import { cn } from "../../lib/utils";
+import { resolveStyledBlock } from "./BlockStyleExtension.js";
 
 /** Narrowed style item with required fields for toggle logic */
 interface ResolvedStyleItem {
@@ -70,18 +71,52 @@ function resolveItem(item: EditorStyleItem | EditorStyleSeparator): ResolvedStyl
 	return { label: item.label, scope: item.scope, classes: item.classes, nodes: item.nodes };
 }
 
+/**
+ * An entry is image-only iff it's block-scoped, has a non-empty `nodes` filter,
+ * and every node in the filter is "image". These entries are routed to the
+ * per-image detail panel exclusively (see ImageDetailPanel) and filtered out
+ * of the document toolbar to keep it uncluttered.
+ *
+ * Mixed entries (e.g. nodes: ["paragraph", "image"]) are NOT image-only and
+ * remain in the toolbar; the image detail panel will also surface them.
+ */
+function isImageOnly(item: EditorStyleItem | EditorStyleSeparator): boolean {
+	if (isSeparator(item)) return false;
+	if (item.scope !== "block") return false;
+	const nodes = item.nodes;
+	if (!nodes || nodes.length === 0) return false;
+	return nodes.every((n) => n === "image");
+}
+
+/** Trim leading/trailing/consecutive separators left over after filtering. */
+function tidySeparators(
+	items: Array<EditorStyleItem | EditorStyleSeparator>,
+): Array<EditorStyleItem | EditorStyleSeparator> {
+	const out: Array<EditorStyleItem | EditorStyleSeparator> = [];
+	let prevWasSep = true; // suppresses leading separators
+	for (const item of items) {
+		const sep = isSeparator(item);
+		if (sep && prevWasSep) continue;
+		out.push(item);
+		prevWasSep = sep;
+	}
+	// Trim trailing separator
+	while (out.length > 0 && isSeparator(out[out.length - 1]!)) out.pop();
+	return out;
+}
+
 function isStyleActive(editor: Editor, item: ResolvedStyleItem): boolean {
 	if (item.scope === "inline") {
 		return editor.isActive("cssClass", { classes: item.classes });
 	}
-	const { $from } = editor.state.selection;
-	return $from.parent.attrs.cssClasses === item.classes;
+	const target = resolveStyledBlock(editor.state, item.nodes);
+	return target?.node.attrs.cssClasses === item.classes;
 }
 
 function isNodeMatch(editor: Editor, nodes?: string[]): boolean {
-	if (!nodes || nodes.length === 0) return true;
-	const { $from } = editor.state.selection;
-	return nodes.includes($from.parent.type.name);
+	// For block styles, "matches" iff there is a styled-block ancestor whose
+	// type is in the allowed list (or any styled block if no list is given).
+	return resolveStyledBlock(editor.state, nodes) !== null;
 }
 
 function toggleStyle(editor: Editor, item: ResolvedStyleItem) {
@@ -92,7 +127,7 @@ function toggleStyle(editor: Editor, item: ResolvedStyleItem) {
 			editor.chain().focus().setMark("cssClass", { classes: item.classes }).run();
 		}
 	} else {
-		editor.chain().focus().toggleBlockCssClasses(item.classes).run();
+		editor.chain().focus().toggleBlockCssClasses(item.classes, item.nodes).run();
 	}
 }
 
@@ -108,23 +143,51 @@ interface EditorStyleToolbarProps {
 /**
  * Renders plugin-declared editor styles as toolbar buttons and dropdowns.
  * Returns a fragment — intended to be placed inside a toolbar group.
+ *
+ * Image-only entries (block-scope with `nodes: ["image"]`) are filtered out
+ * here — they're surfaced exclusively via the per-image detail panel.
  */
 export function EditorStyleToolbar({ editor, styles }: EditorStyleToolbarProps) {
-	if (styles.length === 0) return null;
+	const toolbarStyles = React.useMemo(() => filterToolbarStyles(styles), [styles]);
+	if (toolbarStyles.length === 0) return null;
 
 	return (
 		<>
-			{styles.map((entry, i) => {
+			{toolbarStyles.map((entry, i) => {
+				const stableKey = `${entry.type}-${entry.label}-${entry.icon ?? ""}-${i}`;
 				if (entry.type === "button") {
-					return <StyleToggleButton key={`btn-${i}`} editor={editor} entry={entry} />;
+					return <StyleToggleButton key={stableKey} editor={editor} entry={entry} />;
 				}
 				if (entry.type === "dropdown") {
-					return <StyleDropdownMenu key={`dd-${i}`} editor={editor} entry={entry} />;
+					return <StyleDropdownMenu key={stableKey} editor={editor} entry={entry} />;
 				}
 				return null;
 			})}
 		</>
 	);
+}
+
+/**
+ * Drop image-only entries from the top level and from inside dropdowns.
+ * Suppress dropdowns that become empty after filtering.
+ */
+function filterToolbarStyles(styles: EditorStyleEntry[]): EditorStyleEntry[] {
+	const out: EditorStyleEntry[] = [];
+	for (const entry of styles) {
+		if (entry.type === "button") {
+			if (!isImageOnly(entry)) out.push(entry);
+			continue;
+		}
+		if (entry.type === "dropdown") {
+			const filtered = (entry.items ?? []).filter((it) => !isImageOnly(it));
+			const tidy = tidySeparators(filtered);
+			const hasReal = tidy.some((it) => !isSeparator(it));
+			if (hasReal) {
+				out.push({ ...entry, items: tidy });
+			}
+		}
+	}
+	return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,7 +373,7 @@ function StyleDropdownMenu({
 
 								return (
 									<button
-										key={resolved.classes}
+										key={`${i}-${resolved.scope}-${resolved.label}-${resolved.classes}`}
 										type="button"
 										role="menuitem"
 										className={cn(

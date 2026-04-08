@@ -1,0 +1,20 @@
+---
+/**
+ * EmDash ListItem component for Portable Text
+ *
+ * Replaces astro-portabletext's default ListItem so that block-level
+ * `cssClasses` set on a list item via the editor's BlockStyleExtension are
+ * applied to the rendered `<li>` element.
+ */
+import type { ListItem, Props as $ } from "astro-portabletext/types";
+
+export type Props = $<ListItem>;
+
+const { node } = Astro.props;
+const cssClasses =
+	typeof (node as { cssClasses?: unknown }).cssClasses === "string"
+		? ((node as { cssClasses?: string }).cssClasses as string)
+		: undefined;
+---
+
+<li class={cssClasses}><slot /></li>
