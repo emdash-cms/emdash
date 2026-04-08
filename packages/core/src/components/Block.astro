@@ -1,0 +1,44 @@
+---
+/**
+ * EmDash Block component for Portable Text
+ *
+ * Replaces astro-portabletext's default Block component so that block-level
+ * `cssClasses` (set via the editor's BlockStyleExtension and persisted as a
+ * top-level property on the PT block) are applied to the rendered element's
+ * `class` attribute.
+ *
+ * Without this override, plugin-defined block styles would be silently dropped
+ * on the published site even though they round-trip correctly through the
+ * editor and storage.
+ */
+import type { Block, Props as $ } from "astro-portabletext/types";
+
+export type Props = $<Block>;
+
+const { node } = Astro.props;
+const cssClasses =
+	typeof (node as { cssClasses?: unknown }).cssClasses === "string"
+		? ((node as { cssClasses?: string }).cssClasses as string)
+		: undefined;
+const style = node.style ?? "normal";
+---
+
+{
+	style === "h1" ? (
+		<h1 class={cssClasses}><slot /></h1>
+	) : style === "h2" ? (
+		<h2 class={cssClasses}><slot /></h2>
+	) : style === "h3" ? (
+		<h3 class={cssClasses}><slot /></h3>
+	) : style === "h4" ? (
+		<h4 class={cssClasses}><slot /></h4>
+	) : style === "h5" ? (
+		<h5 class={cssClasses}><slot /></h5>
+	) : style === "h6" ? (
+		<h6 class={cssClasses}><slot /></h6>
+	) : style === "blockquote" ? (
+		<blockquote class={cssClasses}><slot /></blockquote>
+	) : (
+		<p class={cssClasses}><slot /></p>
+	)
+}

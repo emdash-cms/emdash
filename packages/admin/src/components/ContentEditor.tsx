@@ -63,7 +63,7 @@ function serializeEditorState(input: {
 
 import type { ContentSeoInput } from "../lib/api";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
-import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import type { ImageAttributes, ImageStyleOption } from "./editor/ImageDetailPanel";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -250,6 +250,32 @@ export function ContentEditor({
 			return null;
 		});
 	}, []);
+
+	// Flatten plugin-declared editorStyles to the subset that targets images.
+	// An entry qualifies if it's block-scope and its `nodes` filter explicitly
+	// includes "image". Walks dropdown items as well as top-level buttons.
+	const imageStyles = React.useMemo<ImageStyleOption[]>(() => {
+		const out: ImageStyleOption[] = [];
+		const matchesImage = (nodes: string[] | undefined): boolean =>
+			!!nodes && nodes.includes("image");
+		for (const entry of editorStyles ?? []) {
+			if (entry.type === "button") {
+				if (entry.scope === "block" && matchesImage(entry.nodes)) {
+					out.push({ label: entry.label, classes: entry.classes });
+				}
+				continue;
+			}
+			if (entry.type === "dropdown") {
+				for (const item of entry.items ?? []) {
+					if ("type" in item && item.type === "separator") continue;
+					if (item.scope === "block" && matchesImage(item.nodes)) {
+						out.push({ label: item.label, classes: item.classes });
+					}
+				}
+			}
+		}
+		return out;
+	}, [editorStyles]);
 
 	// Track the last saved state to determine if dirty
 	const [lastSavedData, setLastSavedData] = React.useState<string>(
@@ -690,6 +716,7 @@ export function ContentEditor({
 						blockSidebarPanel.type === "image" ? (
 							<ImageDetailPanel
 								attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+								imageStyles={imageStyles}
 								onUpdate={(attrs) =>
 									blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
 								}

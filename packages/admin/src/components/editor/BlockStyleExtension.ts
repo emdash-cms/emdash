@@ -1,32 +1,93 @@
 /**
  * Block Style Extension
  *
- * Extends TipTap's Paragraph and Heading nodes with a `cssClasses` attribute
- * for applying arbitrary CSS classes at the block level.
+ * Extends TipTap's paragraph, heading, blockquote, listItem, codeBlock,
+ * horizontalRule, and image nodes with a `cssClasses` attribute for applying
+ * arbitrary CSS classes at the block level.
  *
  * In Portable Text, stored as a `cssClasses` property on the block object.
+ *
+ * Note: image styling is plumbed through the same mechanism but is surfaced
+ * exclusively via the per-image detail panel (ImageDetailPanel) rather than
+ * the document toolbar — see EditorStyleToolbar's image-only filter.
  */
 import { Extension } from "@tiptap/core";
+import type { Node as PMNode } from "@tiptap/pm/model";
+import { NodeSelection, type EditorState } from "@tiptap/pm/state";
 
 declare module "@tiptap/core" {
 	interface Commands<ReturnType> {
 		blockStyle: {
 			/**
-			 * Set CSS classes on the current block
+			 * Set CSS classes on the styled block at the current selection.
+			 * If `allowedTypes` is provided, only nodes whose type name is in
+			 * that list are eligible.
 			 */
-			setBlockCssClasses: (classes: string) => ReturnType;
+			setBlockCssClasses: (classes: string, allowedTypes?: string[]) => ReturnType;
 			/**
-			 * Remove CSS classes from the current block
+			 * Remove CSS classes from the styled block at the current selection.
 			 */
-			unsetBlockCssClasses: () => ReturnType;
+			unsetBlockCssClasses: (allowedTypes?: string[]) => ReturnType;
 			/**
-			 * Toggle a CSS class string on the current block.
+			 * Toggle a CSS class string on the styled block at the current selection.
 			 * If the block already has this exact class string, remove it.
 			 * Otherwise, set it.
 			 */
-			toggleBlockCssClasses: (classes: string) => ReturnType;
+			toggleBlockCssClasses: (classes: string, allowedTypes?: string[]) => ReturnType;
 		};
 	}
+}
+
+export const STYLED_BLOCK_TYPES = [
+	"paragraph",
+	"heading",
+	"blockquote",
+	"listItem",
+	"codeBlock",
+	"horizontalRule",
+	"image",
+] as const;
+
+const STYLED_BLOCK_TYPE_SET: ReadonlySet<string> = new Set(STYLED_BLOCK_TYPES);
+
+/**
+ * Resolve which node should receive `cssClasses` for the current selection.
+ *
+ * - If the selection is a NodeSelection, the selected node is the target
+ *   (this is how horizontalRule and other atom blocks are styled).
+ * - Otherwise, walk from the deepest ancestor outward and return the
+ *   innermost ancestor whose type is in `allowedTypes` (or the default
+ *   styled-block set if `allowedTypes` is not provided).
+ *
+ * Returns `null` if no suitable target exists.
+ */
+export function resolveStyledBlock(
+	state: EditorState,
+	allowedTypes?: readonly string[],
+): { pos: number; node: PMNode } | null {
+	const allowed: ReadonlySet<string> =
+		allowedTypes && allowedTypes.length > 0 ? new Set(allowedTypes) : STYLED_BLOCK_TYPE_SET;
+
+	const { selection } = state;
+
+	if (selection instanceof NodeSelection) {
+		if (allowed.has(selection.node.type.name)) {
+			return { pos: selection.from, node: selection.node };
+		}
+		return null;
+	}
+
+	const { $from } = selection;
+	for (let depth = $from.depth; depth >= 0; depth--) {
+		const node = $from.node(depth);
+		if (allowed.has(node.type.name)) {
+			// $from.before(depth) is the position immediately before the node
+			// at this depth. depth=0 is the doc, which has no "before" — guard it.
+			const pos = depth === 0 ? 0 : $from.before(depth);
+			return { pos, node };
+		}
+	}
+	return null;
 }
 
 export const BlockStyleExtension = Extension.create({
@@ -35,7 +96,7 @@ export const BlockStyleExtension = Extension.create({
 	addGlobalAttributes() {
 		return [
 			{
-				types: ["paragraph", "heading", "blockquote", "listItem", "codeBlock", "horizontalRule"],
+				types: [...STYLED_BLOCK_TYPES],
 				attributes: {
 					cssClasses: {
 						default: null,
@@ -56,27 +117,39 @@ export const BlockStyleExtension = Extension.create({
 	addCommands() {
 		return {
 			setBlockCssClasses:
-				(classes: string) =>
-				({ editor, commands }) => {
-					const { $from } = editor.state.selection;
-					return commands.updateAttributes($from.parent.type.name, { cssClasses: classes });
+				(classes: string, allowedTypes?: string[]) =>
+				({ state, tr, dispatch }) => {
+					const target = resolveStyledBlock(state, allowedTypes);
+					if (!target) return false;
+					if (dispatch) {
+						tr.setNodeMarkup(target.pos, undefined, { ...target.node.attrs, cssClasses: classes });
+						dispatch(tr);
+					}
+					return true;
 				},
 			unsetBlockCssClasses:
-				() =>
-				({ editor, commands }) => {
-					const { $from } = editor.state.selection;
-					return commands.updateAttributes($from.parent.type.name, { cssClasses: null });
+				(allowedTypes?: string[]) =>
+				({ state, tr, dispatch }) => {
+					const target = resolveStyledBlock(state, allowedTypes);
+					if (!target) return false;
+					if (dispatch) {
+						tr.setNodeMarkup(target.pos, undefined, { ...target.node.attrs, cssClasses: null });
+						dispatch(tr);
+					}
+					return true;
 				},
 			toggleBlockCssClasses:
-				(classes: string) =>
-				({ editor, commands }) => {
-					const { $from } = editor.state.selection;
-					const node = $from.parent;
-					const current = node.attrs.cssClasses;
-					if (current === classes) {
-						return commands.updateAttributes(node.type.name, { cssClasses: null });
+				(classes: string, allowedTypes?: string[]) =>
+				({ state, tr, dispatch }) => {
+					const target = resolveStyledBlock(state, allowedTypes);
+					if (!target) return false;
+					const current = target.node.attrs.cssClasses;
+					const next = current === classes ? null : classes;
+					if (dispatch) {
+						tr.setNodeMarkup(target.pos, undefined, { ...target.node.attrs, cssClasses: next });
+						dispatch(tr);
 					}
-					return commands.updateAttributes(node.type.name, { cssClasses: classes });
+					return true;
 				},
 		};
 	},

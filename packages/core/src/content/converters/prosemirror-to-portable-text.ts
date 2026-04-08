@@ -47,26 +47,60 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 	return blocks;
 }
 
+const WHITESPACE_RE = /\s+/;
+
 /**
- * Apply cssClasses from ProseMirror node attrs to converted PT block(s).
- * Handles both single blocks and arrays (e.g., lists, blockquotes).
+ * Merge two CSS class strings, deduping whitespace tokens. Returns undefined
+ * if the merge result is empty.
+ */
+export function mergeCssClasses(a: string | undefined, b: string | undefined): string | undefined {
+	if (!a) return b || undefined;
+	if (!b) return a || undefined;
+	const set = new Set<string>();
+	for (const token of `${a} ${b}`.split(WHITESPACE_RE)) {
+		if (token) set.add(token);
+	}
+	if (set.size === 0) return undefined;
+	return [...set].join(" ");
+}
+
+function readCssClasses(obj: object | null | undefined): string | undefined {
+	if (!obj) return undefined;
+	const v = (obj as { cssClasses?: unknown }).cssClasses;
+	return typeof v === "string" ? v : undefined;
+}
+
+/**
+ * Merge cssClasses from a ProseMirror node onto converted PT block(s).
+ *
+ * Important: this MERGES (rather than overwrites) so that nested styling is
+ * preserved. For example, a `blockquote.cssClasses="card"` containing a
+ * `paragraph.cssClasses="lead"` produces PT blocks whose cssClasses is
+ * `"card lead"` — both classes survive even though PT collapses the visual
+ * hierarchy onto a single property.
  */
 function applyCssClasses(
 	node: ProseMirrorNode,
 	result: PortableTextBlock | PortableTextBlock[] | null,
 ): PortableTextBlock | PortableTextBlock[] | null {
 	if (!result) return null;
-	const cssClasses = typeof node.attrs?.cssClasses === "string" ? node.attrs.cssClasses : undefined;
-	if (!cssClasses) return result;
+	const outer = readCssClasses(node.attrs);
+	if (!outer) return result;
+
+	const merge = (block: PortableTextBlock): PortableTextBlock => {
+		const inner = readCssClasses(block);
+		const merged = mergeCssClasses(outer, inner);
+		return merged ? ({ ...block, cssClasses: merged } as PortableTextBlock) : block;
+	};
 
 	if (Array.isArray(result)) {
 		// Apply to every produced block. Each PT block round-trips back to its
 		// own PM container (e.g., a styled blockquote with N paragraphs becomes
 		// N styled PT blockquote blocks → N styled PM blockquotes), so the
 		// styling lives on every block, not just the first.
-		return result.map((b) => ({ ...b, cssClasses }) as PortableTextBlock);
+		return result.map(merge);
 	}
-	return { ...result, cssClasses } as PortableTextBlock;
+	return merge(result);
 }
 
 /**
@@ -210,13 +244,18 @@ function convertListItem(
 	level: number,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
+	const itemClasses =
+		typeof item.attrs?.cssClasses === "string" ? item.attrs.cssClasses : undefined;
 
 	for (const child of item.content || []) {
 		if (child.type === "paragraph") {
 			const { children, markDefs } = convertInlineContent(child.content || []);
 
 			if (children.length > 0) {
-				blocks.push({
+				const paraClasses =
+					typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+				const merged = mergeCssClasses(itemClasses, paraClasses);
+				const block: PortableTextTextBlock = {
 					_type: "block",
 					_key: generateKey(),
 					style: "normal",
@@ -224,7 +263,11 @@ function convertListItem(
 					level,
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
+				};
+				if (merged) {
+					block.cssClasses = merged;
+				}
+				blocks.push(block);
 			}
 		} else if (child.type === "bulletList") {
 			blocks.push(...convertListItemNested(child, "bullet", level + 1));
@@ -269,13 +312,19 @@ function convertBlockquote(
 			const { children, markDefs } = convertInlineContent(child.content || []);
 
 			if (children.length > 0) {
-				blocks.push({
+				const innerClasses =
+					typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+				const block: PortableTextTextBlock = {
 					_type: "block",
 					_key: generateKey(),
 					style: "blockquote",
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
+				};
+				if (innerClasses) {
+					block.cssClasses = innerClasses;
+				}
+				blocks.push(block);
 			}
 		}
 	}

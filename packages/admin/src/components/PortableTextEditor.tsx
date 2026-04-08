@@ -168,6 +168,24 @@ function prosemirrorToPortableText(doc: {
 	return blocks;
 }
 
+const CSS_WHITESPACE_RE = /\s+/;
+
+function mergeCssClassTokens(a: string | undefined, b: string | undefined): string | undefined {
+	if (!a) return b || undefined;
+	if (!b) return a || undefined;
+	const set = new Set<string>();
+	for (const token of `${a} ${b}`.split(CSS_WHITESPACE_RE)) {
+		if (token) set.add(token);
+	}
+	return set.size > 0 ? [...set].join(" ") : undefined;
+}
+
+function readCssClassesAttr(obj: unknown): string | undefined {
+	if (typeof obj !== "object" || obj === null) return undefined;
+	const v = (obj as Record<string, unknown>).cssClasses;
+	return typeof v === "string" ? v : undefined;
+}
+
 function convertPMNode(node: {
 	type: string;
 	attrs?: Record<string, unknown>;
@@ -176,15 +194,22 @@ function convertPMNode(node: {
 	text?: string;
 }): PortableTextBlock | PortableTextBlock[] | null {
 	const result = convertPMNodeInner(node);
-	// Apply cssClasses from any node type — one place, all blocks covered
+	// Merge cssClasses from this node with whatever the inner conversion already
+	// produced (e.g., paragraph cssClasses inside a styled blockquote).
 	if (!result) return null;
-	const cssClasses = typeof node.attrs?.cssClasses === "string" ? node.attrs.cssClasses : undefined;
-	if (!cssClasses) return result;
+	const outer = readCssClassesAttr(node.attrs);
+	if (!outer) return result;
+
+	const merge = (b: PortableTextBlock): PortableTextBlock => {
+		const inner = readCssClassesAttr(b);
+		const merged = mergeCssClassTokens(outer, inner);
+		return merged ? ({ ...b, cssClasses: merged } as PortableTextBlock) : b;
+	};
+
 	if (Array.isArray(result)) {
-		// Apply to every produced block — see core converter for rationale.
-		return result.map((b) => ({ ...b, cssClasses }) as PortableTextBlock);
+		return result.map(merge);
 	}
-	return { ...result, cssClasses } as PortableTextBlock;
+	return merge(result);
 }
 
 function convertPMNodeInner(node: {
@@ -235,19 +260,26 @@ function convertPMNodeInner(node: {
 			const blocks: PortableTextTextBlock[] = [];
 			const blockquoteContent = (node.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of blockquoteContent) {
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
-						blocks.push({
+						const innerClasses =
+							typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+						const block: PortableTextTextBlock = {
 							_type: "block",
 							_key: generateKey(),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
+						};
+						if (innerClasses) {
+							block.cssClasses = innerClasses;
+						}
+						blocks.push(block);
 					}
 				}
 			}
@@ -316,19 +348,29 @@ function convertPMNodeInner(node: {
 
 function convertList(items: unknown[], listItem: "bullet" | "number"): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
-	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
+	const typedItems = items as Array<{
+		type: string;
+		attrs?: Record<string, unknown>;
+		content?: unknown[];
+	}>;
 
 	for (const item of typedItems) {
 		if (item.type === "listItem") {
+			const itemClasses =
+				typeof item.attrs?.cssClasses === "string" ? item.attrs.cssClasses : undefined;
 			const listItemContent = (item.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of listItemContent) {
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
-						blocks.push({
+						const paraClasses =
+							typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+						const merged = mergeCssClassTokens(itemClasses, paraClasses);
+						const block: PortableTextTextBlock = {
 							_type: "block",
 							_key: generateKey(),
 							style: "normal",
@@ -336,7 +378,11 @@ function convertList(items: unknown[], listItem: "bullet" | "number"): PortableT
 							level: 1,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
+						};
+						if (merged) {
+							block.cssClasses = merged;
+						}
+						blocks.push(block);
 					}
 				}
 			}
@@ -645,7 +691,11 @@ function convertPTBlockInner(block: PortableTextBlock): unknown {
 function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
 	const listItems = items.map((item) => {
 		const pmContent = convertPTSpans(item.children, item.markDefs || []);
-		return {
+		const cssClasses =
+			typeof (item as { cssClasses?: unknown }).cssClasses === "string"
+				? ((item as { cssClasses?: string }).cssClasses as string)
+				: undefined;
+		const node: { type: "listItem"; content: unknown[]; attrs?: { cssClasses: string } } = {
 			type: "listItem",
 			content: [
 				{
@@ -654,6 +704,10 @@ function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "num
 				},
 			],
 		};
+		if (cssClasses) {
+			node.attrs = { cssClasses };
+		}
+		return node;
 	});
 
 	return {
