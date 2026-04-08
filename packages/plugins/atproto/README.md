@@ -8,20 +8,16 @@ Syndicate your EmDash content to Bluesky and the AT Protocol network.
 - Supports text posts with rich text formatting
 - Configurable post templates
 - Links back to original content on your site
-- Works with any AT Protocol-compatible service
+- Admin page for viewing publication status
 
 ## Capabilities
 
-- `network:fetch` - connects to AT Protocol services
 - `read:content` - reads published content for syndication
+- `network:fetch:any` - connects to AT Protocol services
 
 ## Installation
 
-Install from the EmDash admin panel under Plugins > Marketplace, or via CLI:
-
-```bash
-emdash plugin install atproto
-```
+Install from the EmDash admin panel under Plugins > Marketplace.
 
 ## Configuration
 

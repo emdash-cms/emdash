@@ -1,15 +1,14 @@
 # Audit Log
 
-Track every content and media change in your EmDash site.
+Track content changes and media uploads in your EmDash site.
 
 ## Features
 
 - Logs create, update, and delete operations on content
-- Tracks media uploads and deletions
+- Tracks media uploads
 - Records before/after state for updates
 - Admin UI page for browsing audit history
 - Dashboard widget showing recent activity
-- Configurable retention period via settings
 
 ## Capabilities
 
@@ -17,8 +16,4 @@ Track every content and media change in your EmDash site.
 
 ## Installation
 
-Install from the EmDash admin panel under Plugins > Marketplace, or via CLI:
-
-```bash
-emdash plugin install audit-log
-```
+Install from the EmDash admin panel under Plugins > Marketplace.

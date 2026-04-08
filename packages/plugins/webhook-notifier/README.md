@@ -4,29 +4,26 @@ Send webhook notifications when content changes in your EmDash site.
 
 ## Features
 
-- Fires HTTP POST to configured URLs on content create, update, and delete
-- Supports custom headers for authentication
-- Configurable per-collection or global triggers
-- Retries failed deliveries with exponential backoff
-- Admin UI for managing webhook endpoints
+- Fires HTTP POST to a configured URL on content and media events
+- Supports a secret token for webhook authentication
+- Toggle between all events, content-only, or media-only
+- Option to include full content data in payloads
+- Admin settings page for configuration
+- Dashboard widget showing delivery status
 
 ## Capabilities
 
-- `network:fetch` - sends HTTP requests to webhook endpoints
-- `read:content` - reads content data to include in webhook payloads
+- `network:fetch:any` - sends HTTP requests to webhook endpoints
 
 ## Installation
 
-Install from the EmDash admin panel under Plugins > Marketplace, or via CLI:
-
-```bash
-emdash plugin install webhook-notifier
-```
+Install from the EmDash admin panel under Plugins > Marketplace.
 
 ## Configuration
 
-After installation, add webhook endpoints in the plugin settings:
+After installation, configure the webhook in the plugin settings:
 
 1. Go to Plugins > Webhook Notifier > Settings
-2. Add a webhook URL
-3. Optionally configure headers and select which events trigger it
+2. Enter the webhook URL
+3. Optionally provide a secret token for authentication
+4. Choose which events to send (all, content-only, or media-only)
