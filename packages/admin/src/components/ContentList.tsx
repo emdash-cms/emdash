@@ -5,6 +5,7 @@ import {
 	Pencil,
 	Trash,
 	ArrowCounterClockwise,
+	ArrowSquareOut,
 	Copy,
 	MagnifyingGlass,
 	CaretLeft,
@@ -338,13 +339,26 @@ function ContentListItem({
 	return (
 		<tr className="border-b hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
-				<Link
-					to="/content/$collection/$id"
-					params={{ collection, id: item.id }}
-					className="font-medium hover:text-kumo-brand"
-				>
-					{title}
-				</Link>
+				<div className="flex items-center gap-1.5">
+					<Link
+						to="/content/$collection/$id"
+						params={{ collection, id: item.id }}
+						className="font-medium hover:text-kumo-brand"
+					>
+						{title}
+					</Link>
+					{item.status === "published" && item.slug && (
+						<a
+							href={`/${item.slug}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={`View published ${title}`}
+							className="text-kumo-subtle hover:text-kumo-brand"
+						>
+							<ArrowSquareOut className="h-3.5 w-3.5" aria-hidden="true" />
+						</a>
+					)}
+				</div>
 			</td>
 			<td className="px-4 py-3">
 				<StatusBadge

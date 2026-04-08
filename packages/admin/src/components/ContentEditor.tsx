@@ -21,6 +21,7 @@ import {
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
+	ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -594,6 +595,17 @@ export function ContentEditor({
 								<Button type="button" variant="secondary" onClick={onPublish}>
 									{t`Publish`}
 								</Button>
+							)}
+							{isLive && item?.slug && (
+								<a
+									href={`/${item.slug}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									aria-label="View published page"
+									className={buttonVariants({ variant: "ghost", shape: "square" })}
+								>
+									<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+								</a>
 							)}
 						</>
 					)}
