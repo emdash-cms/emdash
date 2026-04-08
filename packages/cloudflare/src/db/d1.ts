@@ -9,9 +9,9 @@
  */
 
 import { env } from "cloudflare:workers";
+import { wrapWithLazyMigrations } from "emdash/db/lazy-migrations";
 import type { DatabaseIntrospector, Dialect, Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
-import { wrapWithLazyMigrations } from "emdash/db/lazy-migrations";
 
 import { D1Introspector } from "./d1-introspector.js";
 

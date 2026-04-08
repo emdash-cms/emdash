@@ -19,10 +19,10 @@ import type {
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { isSqlite } from "./database/dialect-helpers.js";
-import { isLazyMigrationDialect } from "./db/lazy-migrations.js";
 import { runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
+import { isLazyMigrationDialect } from "./db/lazy-migrations.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import type { SandboxedPlugin, SandboxRunner } from "./plugins/sandbox/types.js";

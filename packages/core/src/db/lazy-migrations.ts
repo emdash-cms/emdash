@@ -149,9 +149,7 @@ class LazyMigrationConnection implements DatabaseConnection {
 				const { Kysely } = await import("kysely");
 				const db = new Kysely<Database>({ dialect: this.#dialect });
 				try {
-					const { runMigrations } = await import(
-						"../database/migrations/runner.js"
-					);
+					const { runMigrations } = await import("../database/migrations/runner.js");
 					await runMigrations(db);
 				} finally {
 					await db.destroy();
