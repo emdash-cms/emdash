@@ -37,6 +37,7 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -366,27 +367,29 @@ export function ContentEditor({
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
+	const urlPattern = manifest?.collections[collection]?.urlPattern;
+
 	const handlePreview = async () => {
 		if (!item?.id) return;
-
-		const contentUrl = (s: string) => {
-			const pattern = manifest?.collections[collection]?.urlPattern;
-			return pattern ? pattern.replace("{slug}", s) : `/${collection}/${s}`;
-		};
 
 		setIsLoadingPreview(true);
 		try {
 			const result = await getPreviewUrl(collection, item.id);
 			if (result?.url) {
-				// Open preview in new tab
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
-				// Fallback to direct URL if preview not configured
-				window.open(contentUrl(slug || item.id), "_blank", "noopener,noreferrer");
+				window.open(
+					contentUrl(collection, slug || item.id, urlPattern),
+					"_blank",
+					"noopener,noreferrer",
+				);
 			}
 		} catch {
-			// Fallback to direct URL on error
-			window.open(contentUrl(slug || item?.id || ""), "_blank", "noopener,noreferrer");
+			window.open(
+				contentUrl(collection, slug || item?.id || "", urlPattern),
+				"_blank",
+				"noopener,noreferrer",
+			);
 		} finally {
 			setIsLoadingPreview(false);
 		}
@@ -597,13 +600,13 @@ export function ContentEditor({
 							)}
 							{isLive && item?.slug && (
 								<a
-									href={`/${item.slug}`}
+									href={contentUrl(collection, item.slug, urlPattern)}
 									target="_blank"
 									rel="noopener noreferrer"
-									aria-label="View published page"
-									className={buttonVariants({ variant: "ghost", shape: "square" })}
+									className={buttonVariants({ variant: "outline" })}
 								>
-									<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+									<ArrowSquareOut className="mr-2 h-4 w-4" aria-hidden="true" />
+									Live View
 								</a>
 							)}
 						</>
