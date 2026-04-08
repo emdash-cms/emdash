@@ -243,10 +243,11 @@ function ContentListPage() {
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam as string | undefined,
-					limit: 100,
 				}),
 			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.nextCursor,
+			// Explicitly return undefined when no cursor to ensure React Query correctly calculates hasNextPage
+			getNextPageParam: (lastPage) =>
+				lastPage.nextCursor && lastPage.nextCursor.length > 0 ? lastPage.nextCursor : undefined,
 			enabled: !!manifest,
 		});
 
