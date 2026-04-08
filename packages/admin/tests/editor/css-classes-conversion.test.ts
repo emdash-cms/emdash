@@ -397,4 +397,125 @@ describe("admin editor: cssClass mark round trip", () => {
 		const types = defs.map((d) => d._type).toSorted(compareStrings);
 		expect(types).toEqual(["cssClass", "link"]);
 	});
+
+	it("PM → PT drops a whitespace-only cssClass mark", () => {
+		const doc = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "plain",
+							marks: [{ type: "cssClass", attrs: { classes: "   " } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as Array<{
+			markDefs?: Array<unknown>;
+			children: Array<{ marks?: string[] }>;
+		}>;
+		expect(blocks[0]?.markDefs ?? []).toHaveLength(0);
+		expect(blocks[0]?.children[0]?.marks ?? []).toHaveLength(0);
+	});
+
+	it("PM → PT trims padding from a cssClass mark before persisting", () => {
+		const doc = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "highlighted",
+							marks: [{ type: "cssClass", attrs: { classes: "  highlight-yellow  " } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as Array<{
+			markDefs?: Array<{ classes?: string }>;
+		}>;
+		expect(blocks[0]?.markDefs?.[0]?.classes).toBe("highlight-yellow");
+	});
+
+	it("PM → PT collapses padded variants of the same classes into one markDef", () => {
+		const doc = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: "first ",
+							marks: [{ type: "cssClass", attrs: { classes: "hl" } }],
+						},
+						{ type: "text", text: "middle " },
+						{
+							type: "text",
+							text: "second",
+							marks: [{ type: "cssClass", attrs: { classes: "  hl  " } }],
+						},
+					],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as Array<{
+			markDefs?: Array<{ _key: string }>;
+			children: Array<{ marks?: string[] }>;
+		}>;
+		const block = blocks[0]!;
+		expect(block.markDefs).toHaveLength(1);
+		const key = block.markDefs?.[0]?._key;
+		const styled = block.children.filter((s) => s.marks?.includes(key as string));
+		expect(styled).toHaveLength(2);
+	});
+
+	it("PT → PM ignores a whitespace-only block-level cssClasses", () => {
+		const ptBlocks = [
+			{
+				_type: "block",
+				_key: "b1",
+				style: "normal",
+				cssClasses: "   ",
+				markDefs: [],
+				children: [{ _type: "span", _key: "s1", text: "plain", marks: [] }],
+			},
+		] as unknown as Parameters<typeof portableTextToProsemirror>[0];
+
+		const pm = portableTextToProsemirror(ptBlocks);
+		const para = pm.content[0] as { attrs?: { cssClasses?: string } };
+		expect(para.attrs?.cssClasses).toBeUndefined();
+	});
+
+	it("round-trips a padded block-level cssClasses as the trimmed value", () => {
+		const doc = {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					attrs: { cssClasses: "  lead  " },
+					content: [{ type: "text", text: "Hello" }],
+				},
+			],
+		};
+
+		const blocks = prosemirrorToPortableText(doc) as Array<{ cssClasses?: string }>;
+		expect(blocks[0]?.cssClasses).toBe("lead");
+
+		const pm = portableTextToProsemirror(
+			blocks as unknown as Parameters<typeof portableTextToProsemirror>[0],
+		);
+		const para = pm.content[0] as { attrs?: { cssClasses?: string } };
+		expect(para.attrs?.cssClasses).toBe("lead");
+	});
 });

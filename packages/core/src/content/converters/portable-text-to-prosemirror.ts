@@ -100,7 +100,8 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
  */
 function getCssClasses(block: PortableTextBlock): string | undefined {
 	if ("cssClasses" in block && typeof block.cssClasses === "string") {
-		return block.cssClasses;
+		const trimmed = block.cssClasses.trim();
+		return trimmed.length > 0 ? trimmed : undefined;
 	}
 	return undefined;
 }

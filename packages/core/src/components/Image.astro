@@ -150,7 +150,10 @@ const baseStyle = aspectRatio
 	: "max-width: 100%; height: auto;";
 const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle;
 
-const extraClasses = typeof node.cssClasses === "string" ? node.cssClasses : undefined;
+const extraClasses =
+	typeof node.cssClasses === "string" && node.cssClasses.trim().length > 0
+		? node.cssClasses.trim()
+		: undefined;
 ---
 
 <figure class:list={["emdash-image", extraClasses]}>

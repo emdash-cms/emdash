@@ -492,7 +492,8 @@ function convertMark(
 			return key;
 		}
 		case "cssClass": {
-			const classes = (typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "") || "";
+			const raw = typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "";
+			const classes = raw.trim();
 			if (!classes) return null;
 			const dedupeKey = `cssClass:${classes}`;
 			if (markDefMap.has(dedupeKey)) {
@@ -576,13 +577,14 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 function convertPTBlock(block: PortableTextBlock): unknown {
 	const node = convertPTBlockInner(block);
 	if (!node || typeof node !== "object") return node;
-	const cssClasses =
-		typeof (block as Record<string, unknown>).cssClasses === "string"
-			? (block as Record<string, unknown>).cssClasses
-			: undefined;
-	if (!cssClasses) return node;
+	const raw = (block as Record<string, unknown>).cssClasses;
+	const trimmed = typeof raw === "string" ? raw.trim() : "";
+	if (!trimmed) return node;
 	const n = node as Record<string, unknown>;
-	return { ...n, attrs: { ...(n.attrs as Record<string, unknown> | undefined), cssClasses } };
+	return {
+		...n,
+		attrs: { ...(n.attrs as Record<string, unknown> | undefined), cssClasses: trimmed },
+	};
 }
 
 function convertPTBlockInner(block: PortableTextBlock): unknown {
@@ -697,9 +699,10 @@ function convertPTBlockInner(block: PortableTextBlock): unknown {
 function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
 	const listItems = items.map((item) => {
 		const pmContent = convertPTSpans(item.children, item.markDefs || []);
+		const rawClasses = (item as { cssClasses?: unknown }).cssClasses;
 		const cssClasses =
-			typeof (item as { cssClasses?: unknown }).cssClasses === "string"
-				? ((item as { cssClasses?: string }).cssClasses as string)
+			typeof rawClasses === "string" && rawClasses.trim().length > 0
+				? rawClasses.trim()
 				: undefined;
 		const node: { type: "listItem"; content: unknown[]; attrs?: { cssClasses: string } } = {
 			type: "listItem",

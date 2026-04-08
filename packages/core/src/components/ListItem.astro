@@ -11,9 +11,10 @@ import type { ListItem, Props as $ } from "astro-portabletext/types";
 export type Props = $<ListItem>;
 
 const { node } = Astro.props;
+const rawCssClasses = (node as { cssClasses?: unknown }).cssClasses;
 const cssClasses =
-	typeof (node as { cssClasses?: unknown }).cssClasses === "string"
-		? ((node as { cssClasses?: string }).cssClasses as string)
+	typeof rawCssClasses === "string" && rawCssClasses.trim().length > 0
+		? rawCssClasses.trim()
 		: undefined;
 ---
 

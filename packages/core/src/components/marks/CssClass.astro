@@ -23,10 +23,8 @@ export interface Props {
 }
 
 const { node } = Astro.props;
-const classes =
-	typeof node?.markDef?.classes === "string" && node.markDef.classes.length > 0
-		? node.markDef.classes
-		: undefined;
+const raw = typeof node?.markDef?.classes === "string" ? node.markDef.classes.trim() : "";
+const classes = raw.length > 0 ? raw : undefined;
 ---
 
 {classes ? <span class={classes}><slot /></span> : <slot />}
