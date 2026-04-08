@@ -76,13 +76,20 @@ function k(): string {
 
 const CSS_WHITESPACE_RE = /\s+/;
 
+function normalizeClassTokens(value: string | undefined): string[] {
+	if (!value) return [];
+	return value.trim().split(CSS_WHITESPACE_RE).filter(Boolean);
+}
+
 /** Merge two CSS class strings, deduping whitespace tokens. */
 function mergeClassTokens(a: string | undefined, b: string | undefined): string | undefined {
-	if (!a) return b || undefined;
-	if (!b) return a || undefined;
+	const aTokens = normalizeClassTokens(a);
+	const bTokens = normalizeClassTokens(b);
+	if (aTokens.length === 0) return bTokens.length > 0 ? bTokens.join(" ") : undefined;
+	if (bTokens.length === 0) return aTokens.join(" ");
 	const set = new Set<string>();
-	for (const token of `${a} ${b}`.split(CSS_WHITESPACE_RE)) {
-		if (token) set.add(token);
+	for (const token of [...aTokens, ...bTokens]) {
+		set.add(token);
 	}
 	return set.size > 0 ? [...set].join(" ") : undefined;
 }
