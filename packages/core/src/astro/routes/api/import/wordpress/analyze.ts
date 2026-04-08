@@ -255,10 +255,18 @@ function analyzeWxr(
 		.toSorted((a, b) => b.count - a.count);
 
 	// Build post type analysis with schema compatibility
+	const seenSlugs = new Map<string, number>();
 	const postTypes: PostTypeAnalysis[] = [...postTypeCounts.entries()]
 		.filter(([type]) => !isInternalPostType(type))
 		.map(([name, count]) => {
-			const suggestedCollection = mapPostTypeToCollection(name);
+			let suggestedCollection = mapPostTypeToCollection(name);
+
+			// Deduplicate: if multiple post types produce the same slug, append a suffix
+			const seen = seenSlugs.get(suggestedCollection) ?? 0;
+			seenSlugs.set(suggestedCollection, seen + 1);
+			if (seen > 0) {
+				suggestedCollection = `${suggestedCollection}_${seen}`;
+			}
 			const existingCollection = existingCollections.get(suggestedCollection);
 
 			// Build required fields - add featured_image only if posts have thumbnails

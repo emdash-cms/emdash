@@ -49,6 +49,13 @@ describe("sanitizeSlug", () => {
 		expect(sanitizeSlug("")).toBe("imported");
 	});
 
+	it("multiple degenerate slugs produce the same fallback (deduplicated during analysis)", () => {
+		// These all collapse to "imported" — analyzeWxr appends _1, _2, etc.
+		expect(sanitizeSlug("123")).toBe("imported");
+		expect(sanitizeSlug("456")).toBe("imported");
+		expect(sanitizeSlug("---")).toBe("imported");
+	});
+
 	it("handles leading hyphens in realistic WP slugs", () => {
 		expect(sanitizeSlug("-elementor-hf")).toBe("elementor_hf");
 	});
