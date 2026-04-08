@@ -201,13 +201,44 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	) {
 		const csrfHeader = context.request.headers.get("X-EmDash-Request");
 		if (csrfHeader !== "1") {
-			return new Response(
-				JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-				{
-					status: 403,
-					headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-				},
-			);
+			if (url.pathname === "/_emdash/api/mcp") {
+				try {
+					const sessionUser = await context.session?.get("user");
+					// Allow tokenless MCP discovery POSTs to reach the normal 401 path.
+					// Keep CSRF protection for cookie-backed session requests.
+					if (!sessionUser?.id) {
+						// Fall through to passkey/external auth below.
+					} else {
+						return new Response(
+							JSON.stringify({
+								error: { code: "CSRF_REJECTED", message: "Missing required header" },
+							}),
+							{
+								status: 403,
+								headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
+							},
+						);
+					}
+				} catch {
+					return new Response(
+						JSON.stringify({
+							error: { code: "CSRF_REJECTED", message: "Missing required header" },
+						}),
+						{
+							status: 403,
+							headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
+						},
+					);
+				}
+			} else {
+				return new Response(
+					JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
+					{
+						status: 403,
+						headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
+					},
+				);
+			}
 		}
 	}
 
