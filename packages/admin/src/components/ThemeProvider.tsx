@@ -44,29 +44,16 @@ export function ThemeProvider({ children, defaultTheme = "system" }: ThemeProvid
 		return theme;
 	});
 
-	// Update DOM and resolved theme when theme changes.
-	// Uses data-mode (not data-theme) for dark mode — kumo's convention.
-	// data-theme is reserved for visual identity overrides.
-	// Update DOM and resolved theme when theme changes.
-	// Uses data-mode (not data-theme) for dark mode — kumo's convention.
-	// data-theme is reserved for visual identity overrides (e.g. "classic").
+	// Resolve the effective theme whenever the user preference changes
 	React.useEffect(() => {
-		const root = document.documentElement;
-
-		// Apply classic visual identity at the root level
-		// so token overrides cascade to all kumo components including portals
-		root.setAttribute("data-theme", "classic");
-
 		if (theme === "system") {
-			root.removeAttribute("data-mode");
 			setResolvedTheme(getSystemTheme());
 		} else {
-			root.setAttribute("data-mode", theme);
 			setResolvedTheme(theme);
 		}
 	}, [theme]);
 
-	// Listen for system theme changes when in system mode
+	// Listen for OS preference changes when in system mode
 	React.useEffect(() => {
 		if (theme !== "system") return;
 
@@ -78,6 +65,17 @@ export function ThemeProvider({ children, defaultTheme = "system" }: ThemeProvid
 		mediaQuery.addEventListener("change", handler);
 		return () => mediaQuery.removeEventListener("change", handler);
 	}, [theme]);
+
+	// Sync DOM attributes with the resolved theme.
+	// data-mode drives Tailwind dark: utilities via @custom-variant.
+	// data-theme is reserved for visual identity overrides (e.g. "classic").
+	// Always set data-mode explicitly — relying on its absence + color-scheme
+	// does not activate Tailwind dark: utilities which require [data-mode="dark"].
+	React.useEffect(() => {
+		const root = document.documentElement;
+		root.setAttribute("data-theme", "classic");
+		root.setAttribute("data-mode", resolvedTheme);
+	}, [resolvedTheme]);
 
 	const setTheme = React.useCallback((newTheme: Theme) => {
 		setThemeState(newTheme);

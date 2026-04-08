@@ -75,6 +75,7 @@ import {
 	createField,
 	updateField,
 	deleteField,
+	reorderFields,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -358,6 +359,7 @@ function ContentListPage() {
 			i18n={i18n}
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
+			urlPattern={collectionConfig.urlPattern}
 		/>
 	);
 }
@@ -831,6 +833,7 @@ function ContentEditPage() {
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
+			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
@@ -1456,6 +1459,16 @@ function ContentTypesEditPage() {
 		},
 	});
 
+	const reorderFieldsMutation = useMutation({
+		mutationFn: (fieldSlugs: string[]) => reorderFields(slug, fieldSlugs),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["schema", "collections", slug],
+			});
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
@@ -1472,6 +1485,7 @@ function ContentTypesEditPage() {
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}
+			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
 		/>
 	);
 }

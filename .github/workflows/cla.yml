@@ -8,7 +8,9 @@ on:
 
 permissions:
   actions: write
+  checks: read
   contents: write
+  issues: write
   pull-requests: write
   statuses: write
 
@@ -18,12 +20,60 @@ jobs:
     steps:
       - name: "CLA Assistant"
         if: (github.event.issue.pull_request && (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target'
-        uses: contributor-assistant/github-action@v2.6.1
+        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           path-to-signatures: "signatures/version1/cla.json"
           path-to-document: "https://www.cloudflare.com/cla/"
           branch: "cla-signatures"
-          allowlist: dependabot[bot]
+          allowlist: dependabot[bot],emdashbot[bot]
           lock-pullrequest-aftermerge: false
+
+  label:
+    needs: CLAssistant
+    if: always() && (github.event_name == 'pull_request_target' || github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label CLA status
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.payload.pull_request?.number || context.payload.issue?.number;
+            if (!prNumber) return;
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get the PR to read head SHA
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+
+            // Read the CLA check run (the CLA Assistant uses check runs, not commit statuses)
+            const { data: checkRuns } = await github.rest.checks.listForRef({
+              owner, repo, ref: pr.head.sha,
+            });
+            const claCheck = checkRuns.check_runs.find(cr => cr.name === 'CLAssistant');
+            if (!claCheck || claCheck.status !== 'completed') return;
+
+            const signed = claCheck.conclusion === 'success';
+            const addLabel = signed ? 'cla: signed' : 'cla: needed';
+            const removeLabel = signed ? 'cla: needed' : 'cla: signed';
+
+            // Ensure labels exist
+            const labelColors = { 'cla: signed': '0e8a16', 'cla: needed': 'b60205' };
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: addLabel });
+            } catch {
+              await github.rest.issues.createLabel({ owner, repo, name: addLabel, color: labelColors[addLabel] });
+            }
+
+            // Add the correct label
+            const currentLabels = pr.labels.map(l => l.name);
+            if (!currentLabels.includes(addLabel)) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: prNumber, labels: [addLabel] });
+            }
+
+            // Remove the stale label
+            if (currentLabels.includes(removeLabel)) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: prNumber, name: removeLabel });
+            }
