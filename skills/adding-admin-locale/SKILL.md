@@ -7,7 +7,11 @@ description: Use when adding a new admin UI locale, translating admin strings, o
 
 The admin UI uses [Lingui](https://lingui.dev) for i18n. Translatable strings are written as English in the source code using macros (`` t`Save` ``, `<Trans>`). The `lingui extract` CLI scans components and generates `.po` catalogs per locale.
 
-In dev mode, the Lingui Vite plugin compiles `.po` on import — edit and refresh. In production, catalogs are pre-compiled to `.mjs` via `lingui compile` at build time — no plugin needed for consumers.
+Macro compilation is handled automatically — **consumers never need Babel config**.
+
+- **Dev mode**: The emdash integration injects a Vite plugin (`emdash-lingui-macro` in `vite-config.ts`) that compiles macros on the fly via `@babel/core` + `@lingui/babel-plugin-lingui-macro`. This only runs when the admin source is aliased for HMR (monorepo dev).
+- **Production build**: tsdown compiles macros via the same Babel plugin (`tsdown.config.ts`). The published npm package has zero macro imports in `dist/`.
+- **Catalogs**: `.po` files are compiled to `.mjs` by `lingui compile` in the admin build script. In dev, Vite imports `.po` directly.
 
 ## Architecture
 
@@ -15,15 +19,17 @@ In dev mode, the Lingui Vite plugin compiles `.po` on import — edit and refres
 lingui extract (CLI)
   └─ Scans src/**/*.{ts,tsx} for macros → generates .po catalogs
 
-Dev mode (Vite plugin)
-  └─ Compiles .po → JS on import, live in the browser after refresh
+Macro compilation (automatic — no consumer config needed)
+  ├─ Dev mode: emdash Vite plugin (vite-config.ts) → @babel/core transform
+  └─ Build: tsdown plugin (tsdown.config.ts) → @babel/core transform
 
-Production build (lingui compile in admin build script)
-  └─ Pre-compiles .po → .mjs for published packages
+Catalog compilation
+  ├─ Dev mode: Vite imports .po directly
+  └─ Build: lingui compile → .mjs (in admin build script)
 
 admin.astro (server)
   ├─ resolveLocale(request) — cookie → Accept-Language → 'en' fallback
-  ├─ Imports .po (dev) or .mjs (prod) via import.meta.env.DEV
+  ├─ Imports .mjs catalogs via dynamic import
   └─ Passes { locale, messages } as props to React
 
 I18nProvider (client, @lingui/react)
@@ -136,6 +142,8 @@ This updates all `.po` files with the new strings. Existing translations are pre
 | `packages/admin/src/locales/{locale}/messages.po`  | Translation catalogs (gettext `.po` format, source of truth)  |
 | `packages/admin/src/locales/{locale}/messages.mjs` | Pre-compiled JS catalogs (generated, committed)               |
 | `packages/core/src/astro/routes/admin.astro`       | Server-side locale resolution and catalog loading             |
+| `packages/admin/tsdown.config.ts`                  | Build-time Babel macro transform (Lingui → runtime calls)     |
+| `packages/core/src/astro/integration/vite-config.ts` | Dev-time Babel macro transform (Vite plugin for HMR)        |
 
 ## Macro Reference
 
