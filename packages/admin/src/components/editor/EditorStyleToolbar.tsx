@@ -9,7 +9,14 @@
  * what the specific styles are — it just maps config to TipTap commands.
  */
 import { Button } from "@cloudflare/kumo";
-import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import {
+	useFloating,
+	offset,
+	flip,
+	shift,
+	autoUpdate,
+	FloatingFocusManager,
+} from "@floating-ui/react";
 import {
 	HighlighterCircle,
 	Palette,
@@ -260,9 +267,14 @@ function StyleDropdownMenu({
 		triggerRef.current?.focus();
 	}, []);
 
-	// Floating UI for portal-based positioning (escapes overflow: hidden)
-	const { refs, floatingStyles } = useFloating({
+	// Floating UI for portal-based positioning (escapes overflow: hidden).
+	// `context` is needed by FloatingFocusManager below to manage focus
+	// transitions when the popover opens/closes — without it, keyboard
+	// users can't tab into the portaled buttons because they're appended
+	// at the end of <body>, far from the trigger in DOM order.
+	const { refs, floatingStyles, context } = useFloating({
 		open,
+		onOpenChange: setOpen,
 		placement: "bottom-start",
 		middleware: [offset(4), flip(), shift({ padding: 8 })],
 		whileElementsMounted: autoUpdate,
@@ -352,79 +364,88 @@ function StyleDropdownMenu({
 
 			{open &&
 				createPortal(
-					// Plain popover container — intentionally NOT role="menu" because
-					// we don't implement the full ARIA menu keyboard model (arrow nav,
-					// roving tabindex, focus trap). Items are native buttons with
-					// `aria-pressed`, which AT handles cleanly without promising
-					// behaviors we don't deliver.
-					<div
-						ref={(node) => {
-							floatingRef.current = node;
-							refs.setFloating(node);
-						}}
-						style={floatingStyles}
-						aria-label={entry.label}
-						className="z-50 rounded-md border bg-kumo-overlay shadow-lg w-56 max-h-80 overflow-y-auto"
-					>
-						<div className="p-1.5 flex flex-col gap-0.5">
-							{items.map((rawItem, i) => {
-								const resolved = resolvedItems[i];
-								if (!resolved) {
-									if (isSeparator(rawItem)) {
-										return (
-											<div
-												key={`sep-${i}`}
-												aria-hidden="true"
-												className="border-t border-kumo-line my-1"
-											/>
-										);
+					// FloatingFocusManager moves focus into the popover when it
+					// opens (so keyboard users can reach the items even though
+					// the portal lives at the end of <body>) and returns focus
+					// to the trigger on close. `modal={false}` keeps Tab able
+					// to escape outside the popover naturally rather than
+					// trapping the user inside.
+					//
+					// Plain popover container — intentionally NOT role="menu"
+					// because we don't implement the full ARIA menu keyboard
+					// model (arrow nav, roving tabindex). Items are native
+					// buttons with `aria-pressed`, which AT handles cleanly
+					// without promising behaviors we don't deliver.
+					<FloatingFocusManager context={context} modal={false} initialFocus={0} returnFocus>
+						<div
+							ref={(node) => {
+								floatingRef.current = node;
+								refs.setFloating(node);
+							}}
+							style={floatingStyles}
+							aria-label={entry.label}
+							className="z-50 rounded-md border bg-kumo-overlay shadow-lg w-56 max-h-80 overflow-y-auto"
+						>
+							<div className="p-1.5 flex flex-col gap-0.5">
+								{items.map((rawItem, i) => {
+									const resolved = resolvedItems[i];
+									if (!resolved) {
+										if (isSeparator(rawItem)) {
+											return (
+												<div
+													key={`sep-${i}`}
+													aria-hidden="true"
+													className="border-t border-kumo-line my-1"
+												/>
+											);
+										}
+										return null;
 									}
-									return null;
-								}
 
-								const indexKey = String(i);
-								const active = editorState.activeSet.has(indexKey);
-								const disabled = editorState.disabledSet.has(indexKey);
+									const indexKey = String(i);
+									const active = editorState.activeSet.has(indexKey);
+									const disabled = editorState.disabledSet.has(indexKey);
 
-								return (
-									<button
-										key={`${i}-${resolved.scope}-${resolved.label}-${resolved.classes}`}
-										type="button"
-										aria-pressed={active}
-										className={cn(
-											"flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded text-left",
-											disabled ? "text-kumo-subtle/40 cursor-not-allowed" : "hover:bg-kumo-tint",
-											active && !disabled && "bg-kumo-tint font-medium",
-										)}
-										onMouseDown={(e) => e.preventDefault()}
-										onClick={() => {
-											if (disabled) return;
-											toggleStyle(editor, resolved);
-											closeAndFocusTrigger();
-										}}
-										disabled={disabled}
-									>
-										<span
+									return (
+										<button
+											key={`${i}-${resolved.scope}-${resolved.label}-${resolved.classes}`}
+											type="button"
+											aria-pressed={active}
 											className={cn(
-												"w-3.5 h-3.5 rounded-sm border flex items-center justify-center text-[10px] shrink-0",
-												active && !disabled
-													? "bg-kumo-brand border-kumo-brand text-white"
-													: "border-kumo-line",
+												"flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded text-left",
+												disabled ? "text-kumo-subtle/40 cursor-not-allowed" : "hover:bg-kumo-tint",
+												active && !disabled && "bg-kumo-tint font-medium",
 											)}
+											onMouseDown={(e) => e.preventDefault()}
+											onClick={() => {
+												if (disabled) return;
+												toggleStyle(editor, resolved);
+												closeAndFocusTrigger();
+											}}
+											disabled={disabled}
 										>
-											{active && !disabled && "✓"}
-										</span>
-										<span className="truncate">{resolved.label}</span>
-										{resolved.nodes && resolved.nodes.length > 0 && (
-											<span className="text-[10px] text-kumo-subtle ml-auto shrink-0">
-												{resolved.nodes.join(", ")}
+											<span
+												className={cn(
+													"w-3.5 h-3.5 rounded-sm border flex items-center justify-center text-[10px] shrink-0",
+													active && !disabled
+														? "bg-kumo-brand border-kumo-brand text-white"
+														: "border-kumo-line",
+												)}
+											>
+												{active && !disabled && "✓"}
 											</span>
-										)}
-									</button>
-								);
-							})}
+											<span className="truncate">{resolved.label}</span>
+											{resolved.nodes && resolved.nodes.length > 0 && (
+												<span className="text-[10px] text-kumo-subtle ml-auto shrink-0">
+													{resolved.nodes.join(", ")}
+												</span>
+											)}
+										</button>
+									);
+								})}
+							</div>
 						</div>
-					</div>,
+					</FloatingFocusManager>,
 					document.body,
 				)}
 		</>
