@@ -18,11 +18,7 @@ export default defineConfig({
 	output: "server",
 	adapter: node({ mode: "standalone" }),
 	integrations: [
-		react({
-			babel: {
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
-			},
-		}),
+		react(),
 		emdash({
 			database: sqlite({ url: dbUrl }),
 			plugins: [colorPlugin()],

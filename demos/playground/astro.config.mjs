@@ -12,7 +12,7 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	integrations: [
-		react({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }),
+		react(),
 		emdash({
 			// Playground uses a DO-backed database, not D1
 			database: playgroundDatabase({ binding: "PLAYGROUND_DB" }),

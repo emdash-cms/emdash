@@ -207,7 +207,10 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
+    "@babel/core": "^7.29.0",
     "@emdash-cms/blocks": "workspace:*",
+    "@lingui/babel-plugin-lingui-macro": "catalog:",
+    "@types/babel__core": "^7.20.5",
     "@types/better-sqlite3": "^7.6.12",
     "@types/pg": "^8.16.0",
     "@types/sanitize-html": "^2.16.0",

@@ -8,7 +8,7 @@ export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
 	integrations: [
-		react({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }),
+		react(),
 		emdash({
 			// DO-backed preview database — populated from source site snapshots
 			database: previewDatabase({ binding: "PREVIEW_DB" }),

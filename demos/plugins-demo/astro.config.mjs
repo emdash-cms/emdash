@@ -14,7 +14,7 @@ export default defineConfig({
 		mode: "standalone",
 	}),
 	integrations: [
-		react({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }),
+		react(),
 		emdash({
 			// SQLite database for demo
 			database: sqlite({ url: "file:./data.db" }),

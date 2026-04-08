@@ -34,11 +34,7 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	integrations: [
-		react({
-			babel: {
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
-			},
-		}),
+		react(),
 		emdash({
 			// D1 database - binding name must match wrangler.jsonc
 			// session: "auto" enables read replicas (nearest replica for anon,

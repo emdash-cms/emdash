@@ -50,6 +50,29 @@ import {
 } from "./virtual-modules.js";
 
 /**
+ * Vite plugin that compiles Lingui macros in admin source files.
+ * Only needed in dev mode when the admin package is aliased to source for HMR.
+ * In production builds, macros are already compiled by tsdown in the admin package.
+ */
+function createLinguiMacroPlugin(adminSourcePath: string): Plugin {
+	return {
+		name: "emdash-lingui-macro",
+		enforce: "pre",
+		async transform(code, id) {
+			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
+			const { transformAsync } = await import("@babel/core");
+			const result = await transformAsync(code, {
+				filename: id,
+				plugins: ["@lingui/babel-plugin-lingui-macro"],
+				parserOpts: { plugins: ["jsx", "typescript"] },
+			});
+			if (!result?.code) return;
+			return { code: result.code, map: result.map ?? undefined };
+		},
+	};
+}
+
+/**
  * Resolve path to the admin package dist directory.
  * Used for Vite alias to ensure the package is found in pnpm's isolated node_modules.
  */
@@ -257,7 +280,12 @@ export function createViteConfig(
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
-		plugins: [createVirtualModulesPlugin(options)] as NonNullable<AstroConfig["vite"]>["plugins"],
+		plugins: [
+			createVirtualModulesPlugin(options),
+			// In dev mode with source alias, compile Lingui macros on the fly.
+			// In production, macros are pre-compiled by tsdown in the admin package.
+			...(useSource ? [createLinguiMacroPlugin(adminSourcePath!)] : []),
+		] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
 		// On Cloudflare: skip — the adapter handles externalization, and setting

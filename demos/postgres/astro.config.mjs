@@ -10,7 +10,7 @@ export default defineConfig({
 		mode: "standalone",
 	}),
 	integrations: [
-		react({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }),
+		react(),
 		emdash({
 			database: postgres({
 				connectionString: process.env.DATABASE_URL || "postgres://localhost:5432/emdash_dev",
