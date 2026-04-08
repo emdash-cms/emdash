@@ -26,6 +26,8 @@ import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
+const LEADING_SLASHES = /^\/+/;
+
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -365,13 +367,14 @@ export function ContentEditor({
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
+	const contentUrl = (s: string) => {
+		const safe = s.replace(LEADING_SLASHES, "");
+		const pattern = manifest?.collections[collection]?.urlPattern;
+		return pattern ? pattern.replace("{slug}", safe) : `/${collection}/${safe}`;
+	};
+
 	const handlePreview = async () => {
 		if (!item?.id) return;
-
-		const contentUrl = (s: string) => {
-			const pattern = manifest?.collections[collection]?.urlPattern;
-			return pattern ? pattern.replace("{slug}", s) : `/${collection}/${s}`;
-		};
 
 		setIsLoadingPreview(true);
 		try {
@@ -596,7 +599,7 @@ export function ContentEditor({
 							)}
 							{isLive && item?.slug && (
 								<a
-									href={`/${item.slug}`}
+									href={contentUrl(item.slug)}
 									target="_blank"
 									rel="noopener noreferrer"
 									aria-label="View published page"

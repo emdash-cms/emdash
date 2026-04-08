@@ -13,6 +13,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+const LEADING_SLASHES = /^\/+/;
+
 import type { ContentItem, TrashedContentItem } from "../lib/api";
 import { cn } from "../lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -346,7 +348,7 @@ function ContentListItem({
 					</Link>
 					{item.status === "published" && item.slug && (
 						<a
-							href={`/${item.slug}`}
+							href={`/${collection}/${item.slug.replace(LEADING_SLASHES, "")}`}
 							target="_blank"
 							rel="noopener noreferrer"
 							aria-label={`View published ${title}`}
