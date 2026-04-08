@@ -676,13 +676,8 @@ function convertPTBlockInner(block: PortableTextBlock): unknown {
 		}
 
 		case "break": {
-			const breakVariant =
-				typeof (block as Record<string, unknown>).variant === "string"
-					? (block as Record<string, unknown>).variant
-					: undefined;
 			return {
 				type: "horizontalRule",
-				attrs: breakVariant ? { variant: breakVariant } : undefined,
 			};
 		}
 
