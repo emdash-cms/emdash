@@ -10,13 +10,13 @@ export interface Props {
 	node: {
 		_type: "break";
 		_key: string;
-		style?: "line" | "dots" | "space";
+		style?: "line" | "lineBreak" | "dots" | "space";
 		cssClasses?: string;
 	};
 }
 
 const { node } = Astro.props;
-const style = node?.style || "line";
+const style = node?.style === "lineBreak" ? "line" : node?.style || "line";
 const extra = typeof node?.cssClasses === "string" ? node.cssClasses : undefined;
 ---
 
