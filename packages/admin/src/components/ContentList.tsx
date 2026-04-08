@@ -13,9 +13,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-const LEADING_SLASHES = /^\/+/;
-
 import type { ContentItem, TrashedContentItem } from "../lib/api";
+import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -41,6 +40,8 @@ export interface ContentListProps {
 	activeLocale?: string;
 	/** Callback when locale filter changes */
 	onLocaleChange?: (locale: string) => void;
+	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
+	urlPattern?: string;
 }
 
 type ViewTab = "all" | "trash";
@@ -80,6 +81,7 @@ export function ContentList({
 	i18n,
 	activeLocale,
 	onLocaleChange,
+	urlPattern,
 }: ContentListProps) {
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
@@ -215,6 +217,7 @@ export function ContentList({
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
+											urlPattern={urlPattern}
 										/>
 									))
 								)}
@@ -323,6 +326,7 @@ interface ContentListItemProps {
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	urlPattern?: string;
 }
 
 function ContentListItem({
@@ -331,6 +335,7 @@ function ContentListItem({
 	onDelete,
 	onDuplicate,
 	showLocale,
+	urlPattern,
 }: ContentListItemProps) {
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
@@ -364,7 +369,7 @@ function ContentListItem({
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
 						<a
-							href={`/${collection}/${item.slug.replace(LEADING_SLASHES, "")}`}
+							href={contentUrl(collection, item.slug, urlPattern)}
 							target="_blank"
 							rel="noopener noreferrer"
 							aria-label={`View published ${title}`}

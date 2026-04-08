@@ -26,8 +26,6 @@ import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
-const LEADING_SLASHES = /^\/+/;
-
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -38,6 +36,7 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -367,11 +366,7 @@ export function ContentEditor({
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
-	const contentUrl = (s: string) => {
-		const safe = s.replace(LEADING_SLASHES, "");
-		const pattern = manifest?.collections[collection]?.urlPattern;
-		return pattern ? pattern.replace("{slug}", safe) : `/${collection}/${safe}`;
-	};
+	const urlPattern = manifest?.collections[collection]?.urlPattern;
 
 	const handlePreview = async () => {
 		if (!item?.id) return;
@@ -380,15 +375,20 @@ export function ContentEditor({
 		try {
 			const result = await getPreviewUrl(collection, item.id);
 			if (result?.url) {
-				// Open preview in new tab
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
-				// Fallback to direct URL if preview not configured
-				window.open(contentUrl(slug || item.id), "_blank", "noopener,noreferrer");
+				window.open(
+					contentUrl(collection, slug || item.id, urlPattern),
+					"_blank",
+					"noopener,noreferrer",
+				);
 			}
 		} catch {
-			// Fallback to direct URL on error
-			window.open(contentUrl(slug || item?.id || ""), "_blank", "noopener,noreferrer");
+			window.open(
+				contentUrl(collection, slug || item?.id || "", urlPattern),
+				"_blank",
+				"noopener,noreferrer",
+			);
 		} finally {
 			setIsLoadingPreview(false);
 		}
@@ -599,7 +599,7 @@ export function ContentEditor({
 							)}
 							{isLive && item?.slug && (
 								<a
-									href={contentUrl(item.slug)}
+									href={contentUrl(collection, item.slug, urlPattern)}
 									target="_blank"
 									rel="noopener noreferrer"
 									className={buttonVariants({ variant: "outline" })}
