@@ -17,17 +17,18 @@
       "types": "./dist/locales/index.d.ts",
       "default": "./dist/locales/index.js"
     },
-    "./locales/*": "./src/locales/*"
+    "./locales/*": "./dist/locales/*"
   },
   "scripts": {
-    "build": "lingui compile --namespace es && tsdown && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "build": "node --run locale:compile && tsdown && node --run locale:copy && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
     "dev": "tsdown src/index.ts --format esm --dts --watch",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
     "test": "vitest",
     "typecheck": "tsgo --noEmit",
-    "locale:extract": "lingui extract --clean",
-    "locale:check": "lingui extract --clean && git diff --exit-code -- src/locales/"
+    "locale:compile": "lingui compile --namespace es",
+    "locale:copy": "node -e \"const {readdirSync,mkdirSync,copyFileSync}=require('fs');readdirSync('src/locales',{withFileTypes:true}).filter(d=>d.isDirectory()).forEach(d=>{mkdirSync('dist/locales/'+d.name,{recursive:true});copyFileSync('src/locales/'+d.name+'/messages.mjs','dist/locales/'+d.name+'/messages.mjs')})\"",
+    "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
     "@cloudflare/kumo": "^1.16.0",

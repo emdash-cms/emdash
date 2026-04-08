@@ -11,7 +11,7 @@ Macro compilation is handled automatically — **consumers never need Babel conf
 
 - **Dev mode**: The emdash integration injects a Vite plugin (`emdash-lingui-macro` in `vite-config.ts`) that compiles macros on the fly via `@babel/core` + `@lingui/babel-plugin-lingui-macro`. This only runs when the admin source is aliased for HMR (monorepo dev).
 - **Production build**: tsdown compiles macros via the same Babel plugin (`tsdown.config.ts`). The published npm package has zero macro imports in `dist/`.
-- **Catalogs**: `.po` files are compiled to `.mjs` by `lingui compile` in the admin build script. In dev, Vite imports `.po` directly.
+- **Catalogs**: `.po` files are compiled to `.mjs` by `lingui compile`. Both dev and production import the compiled `.mjs` files.
 
 ## Architecture
 
@@ -23,9 +23,9 @@ Macro compilation (automatic — no consumer config needed)
   ├─ Dev mode: emdash Vite plugin (vite-config.ts) → @babel/core transform
   └─ Build: tsdown plugin (tsdown.config.ts) → @babel/core transform
 
-Catalog compilation
-  ├─ Dev mode: Vite imports .po directly
-  └─ Build: lingui compile → .mjs (in admin build script)
+Catalog compilation (lingui compile → .mjs)
+  ├─ Dev: run locale:compile manually after editing .po
+  └─ Build: runs automatically as part of admin build script
 
 admin.astro (server)
   ├─ resolveLocale(request) — cookie → Accept-Language → 'en' fallback
@@ -81,11 +81,7 @@ msgstr "Armaturenbrett"
 
 Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly.
 
-**5. After editing translations**, compile to see changes:
-
-```bash
-pnpm --filter @emdash-cms/admin exec lingui compile --namespace es
-```
+**5. After editing translations**, run `pnpm --filter @emdash-cms/admin run locale:compile` to see changes.
 
 This creates `messages.mjs` alongside the `.po`. Refresh the browser to see your changes. Always run this before committing — the `.mjs` files are gitignored but needed at runtime.
 
@@ -140,7 +136,7 @@ This updates all `.po` files with the new strings. Existing translations are pre
 | `packages/admin/src/locales/useLocale.ts`            | `useLocale()` hook — client-side locale switching with cookie |
 | `packages/admin/src/locales/index.ts`                | Barrel export for locale utilities                            |
 | `packages/admin/src/locales/{locale}/messages.po`    | Translation catalogs (gettext `.po` format, source of truth)  |
-| `packages/admin/src/locales/{locale}/messages.mjs`   | Pre-compiled JS catalogs (generated, committed)               |
+| `packages/admin/src/locales/{locale}/messages.mjs`   | Pre-compiled JS catalogs (generated, gitignored)              |
 | `packages/core/src/astro/routes/admin.astro`         | Server-side locale resolution and catalog loading             |
 | `packages/admin/tsdown.config.ts`                    | Build-time Babel macro transform (Lingui → runtime calls)     |
 | `packages/core/src/astro/integration/vite-config.ts` | Dev-time Babel macro transform (Vite plugin for HMR)          |
