@@ -4,9 +4,9 @@ import { defineConfig } from "tsdown";
 
 const JS_TS_RE = /\.[jt]sx?$/;
 
-function linguiBabelPlugin(): Plugin {
+function linguiMacroPlugin(): Plugin {
 	return {
-		name: "lingui-babel-macro",
+		name: "lingui-macro",
 		transform: {
 			filter: { id: JS_TS_RE },
 			async handler(code: string, id: string) {
@@ -29,7 +29,7 @@ export default defineConfig({
 	dts: true,
 	clean: true,
 	platform: "browser",
-	plugins: [linguiBabelPlugin()],
+	plugins: [linguiMacroPlugin()],
 	// @tiptap/suggestion is intentionally bundled (devDependency)
 	inlineOnly: false,
 	external: [
