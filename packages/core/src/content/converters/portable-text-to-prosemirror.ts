@@ -144,9 +144,16 @@ function convertBlockInner(block: PortableTextBlock): ProseMirrorNode | null {
 		return convertCodeBlock(block);
 	}
 	if (block._type === "break") {
-		return {
-			type: "horizontalRule",
-		};
+		const variant =
+			"variant" in block && typeof block.variant === "string" ? block.variant : undefined;
+		return variant
+			? {
+					type: "horizontalRule",
+					attrs: { variant },
+				}
+			: {
+					type: "horizontalRule",
+				};
 	}
 	// Unknown block - wrap in a div or preserve as placeholder
 	return {
