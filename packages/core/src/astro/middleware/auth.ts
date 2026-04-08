@@ -30,6 +30,7 @@ import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import type { EmDashHandlers, EmDashManifest } from "../types.js";
+import { buildEmDashCsp } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -37,8 +38,8 @@ declare global {
 			user?: User;
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
-			emdash?: EmDashHandlers;
-			emdashManifest?: EmDashManifest;
+			emdash: EmDashHandlers;
+			emdashManifest: EmDashManifest;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -57,27 +58,7 @@ const ROLE_ADMIN = 50;
  * Astro's auto-hashing defeats 'unsafe-inline' (CSP3 ignores 'unsafe-inline'
  * when hashes are present), which would break user-facing pages.
  */
-function buildEmDashCsp(marketplaceUrl?: string): string {
-	const imgSources = ["'self'", "data:", "blob:"];
-	if (marketplaceUrl) {
-		try {
-			imgSources.push(new URL(marketplaceUrl).origin);
-		} catch {
-			// ignore invalid marketplace URL
-		}
-	}
-	return [
-		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
-		"style-src 'self' 'unsafe-inline'",
-		"connect-src 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'none'",
-		`img-src ${imgSources.join(" ")}`,
-		"object-src 'none'",
-		"base-uri 'self'",
-	].join("; ");
-}
+export { buildEmDashCsp };
 
 /**
  * API routes that skip auth — each handles its own access control.
@@ -240,7 +221,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const response = await next();
 		if (!import.meta.env.DEV) {
 			const marketplaceUrl = context.locals.emdash?.config.marketplace;
-			response.headers.set("Content-Security-Policy", buildEmDashCsp(marketplaceUrl));
+			const storageEndpoint = (
+				context.locals.emdash?.config.storage?.config as Record<string, unknown>
+			)?.endpoint as string | undefined;
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(marketplaceUrl, storageEndpoint),
+			);
 		}
 		return response;
 	}
@@ -250,7 +237,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Set strict CSP on all /_emdash responses (prod only)
 	if (!import.meta.env.DEV) {
 		const marketplaceUrl = context.locals.emdash?.config.marketplace;
-		response.headers.set("Content-Security-Policy", buildEmDashCsp(marketplaceUrl));
+		const storageEndpoint = (
+			context.locals.emdash?.config.storage?.config as Record<string, unknown>
+		)?.endpoint as string | undefined;
+		response.headers.set(
+			"Content-Security-Policy",
+			buildEmDashCsp(marketplaceUrl, storageEndpoint),
+		);
 	}
 
 	return response;
