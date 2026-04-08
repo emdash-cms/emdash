@@ -200,7 +200,10 @@ export function PasskeyLogin({
 				const rawCredential = await navigator.credentials.get(credentialOptions);
 
 				if (!rawCredential) {
-					throw new Error("No credential returned from authenticator");
+					const message = "No credential returned from authenticator";
+					setState({ status: "error", message });
+					onError?.(new Error(message));
+					return;
 				}
 
 				// Step 3: Send credential to server for verification

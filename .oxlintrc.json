@@ -55,7 +55,7 @@
 				"typescript/no-unsafe-type-assertion": "off",
 				"typescript/no-unnecessary-type-assertion": "off",
 				"unicorn/consistent-function-scoping": "off",
-				"e18e(prefer-static-regex)": "off"
+				"e18e/prefer-static-regex": "off"
 			}
 		},
 		{
