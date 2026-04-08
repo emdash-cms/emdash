@@ -87,7 +87,7 @@ Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly.
 pnpm --filter @emdash-cms/admin exec lingui compile --namespace es
 ```
 
-This creates `messages.mjs` alongside the `.po`. Refresh the browser to see your changes. Always run this before committing — the `.mjs` files are committed as build artifacts for published packages.
+This creates `messages.mjs` alongside the `.po`. Refresh the browser to see your changes. Always run this before committing — the `.mjs` files are gitignored but needed at runtime.
 
 ## Adding Translatable Strings
 
