@@ -395,12 +395,16 @@ function convertMarks(
 							},
 						});
 					} else if (markDef._type === "cssClass") {
-						pmMarks.push({
-							type: "cssClass",
-							attrs: {
-								classes: markDef.classes,
-							},
-						});
+						// markDef is PortableTextMarkDef with `[key: string]: unknown`,
+						// so `classes` reads as unknown and needs a runtime guard.
+						const raw: unknown = markDef.classes;
+						const classes = typeof raw === "string" ? raw.trim() : "";
+						if (classes) {
+							pmMarks.push({
+								type: "cssClass",
+								attrs: { classes },
+							});
+						}
 					} else {
 						// Unknown mark def type - preserve attrs
 						pmMarks.push({

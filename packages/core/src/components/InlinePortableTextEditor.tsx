@@ -367,6 +367,10 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 function convertInline(nodes: PMNode[]): { children: PTSpan[]; markDefs: PTMarkDef[] } {
 	const children: PTSpan[] = [];
 	const markDefs: PTMarkDef[] = [];
+	// Dedupe map keyed by namespaced strings: `link:${href}` for link marks,
+	// `cssClass:${classes}` for cssClass marks. Namespacing prevents a link
+	// whose href happens to start with `cssClass:` from colliding with a
+	// cssClass entry.
 	const markDefMap = new Map<string, string>();
 
 	for (const node of nodes) {
@@ -419,7 +423,8 @@ function convertPMMark(
 			return "code";
 		case "link": {
 			const href = attrStr(mark.attrs, "href");
-			if (markDefMap.has(href)) return markDefMap.get(href)!;
+			const dedupeKey = `link:${href}`;
+			if (markDefMap.has(dedupeKey)) return markDefMap.get(dedupeKey)!;
 			const key = k();
 			markDefs.push({
 				_type: "link",
@@ -427,7 +432,7 @@ function convertPMMark(
 				href,
 				blank: mark.attrs?.target === "_blank",
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(dedupeKey, key);
 			return key;
 		}
 		case "cssClass": {
@@ -658,10 +663,15 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PTMarkDef>): Mark
 						attrs: { href: md.href, target: md.blank ? "_blank" : null },
 					});
 				} else if (md && md._type === "cssClass") {
-					pm.push({
-						type: "cssClass",
-						attrs: { classes: md.classes },
-					});
+					// md is PTMarkDef with `[key: string]: unknown` — guard at runtime.
+					const raw: unknown = md.classes;
+					const classes = typeof raw === "string" ? raw.trim() : "";
+					if (classes) {
+						pm.push({
+							type: "cssClass",
+							attrs: { classes },
+						});
+					}
 				}
 				break;
 			}

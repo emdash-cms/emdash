@@ -49,19 +49,22 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 
 const WHITESPACE_RE = /\s+/;
 
+function normalizeClassTokens(value: string | undefined): string[] {
+	if (!value) return [];
+	return value.trim().split(WHITESPACE_RE).filter(Boolean);
+}
+
 /**
- * Merge two CSS class strings, deduping whitespace tokens. Returns undefined
- * if the merge result is empty.
+ * Merge two CSS class strings, deduping whitespace tokens. Whitespace-only
+ * input normalizes to `undefined` so it never persists as garbage.
  */
 export function mergeCssClasses(a: string | undefined, b: string | undefined): string | undefined {
-	if (!a) return b || undefined;
-	if (!b) return a || undefined;
-	const set = new Set<string>();
-	for (const token of `${a} ${b}`.split(WHITESPACE_RE)) {
-		if (token) set.add(token);
-	}
-	if (set.size === 0) return undefined;
-	return [...set].join(" ");
+	const aTokens = normalizeClassTokens(a);
+	const bTokens = normalizeClassTokens(b);
+	if (aTokens.length === 0) return bTokens.length > 0 ? bTokens.join(" ") : undefined;
+	if (bTokens.length === 0) return aTokens.join(" ");
+	const set = new Set<string>([...aTokens, ...bTokens]);
+	return set.size > 0 ? [...set].join(" ") : undefined;
 }
 
 function readCssClasses(obj: object | null | undefined): string | undefined {
@@ -391,7 +394,11 @@ function convertInlineContent(nodes: ProseMirrorNode[]): {
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
-	const markDefMap = new Map<string, string>(); // href -> key
+	// Dedupe map keyed by namespaced strings: `link:${href}` for link marks,
+	// `cssClass:${classes}` for cssClass marks. Namespacing prevents a link
+	// whose href happens to start with `cssClass:` from colliding with a
+	// cssClass entry.
+	const markDefMap = new Map<string, string>();
 
 	for (const node of nodes) {
 		if (node.type === "text" && node.text) {
@@ -467,9 +474,10 @@ function convertMark(
 		case "link": {
 			const href = (typeof mark.attrs?.href === "string" ? mark.attrs.href : "") || "";
 
-			// Check if we already have a mark def for this link
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			// Namespaced dedupe key — see markDefMap declaration.
+			const dedupeKey = `link:${href}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
 			}
 
 			// Create new mark def
@@ -480,7 +488,7 @@ function convertMark(
 				href,
 				blank: mark.attrs?.target === "_blank",
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(dedupeKey, key);
 
 			return key;
 		}
