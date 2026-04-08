@@ -19,6 +19,7 @@ import type {
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { isSqlite } from "./database/dialect-helpers.js";
+import { isLazyMigrationDialect } from "./db/lazy-migrations.js";
 import { runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
@@ -279,6 +280,9 @@ export class EmDashRuntime {
 	private cronScheduler: CronScheduler | null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
+
+	/** In-memory manifest cache — cleared by invalidateManifest() */
+	private _cachedManifest: EmDashManifest | null = null;
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -560,31 +564,76 @@ export class EmDashRuntime {
 		// Initialize database
 		const db = await EmDashRuntime.getDatabase(deps);
 
-		// Verify and repair FTS indexes (auto-heal crash corruption)
-		// FTS5 is SQLite-only; on other dialects, search is a no-op until
-		// the pluggable SearchProvider work lands.
-		if (isSqlite(db)) {
-			try {
-				const ftsManager = new FTSManager(db);
-				const repaired = await ftsManager.verifyAndRepairAll();
-				if (repaired > 0) {
-					console.log(`Repaired ${repaired} corrupted FTS index(es) at startup`);
-				}
-			} catch {
-				// FTS tables may not exist yet (pre-setup). Non-fatal.
-			}
-		}
+		// Skip FTS verification on init — run on FTS query errors instead.
+		// FTS corruption is rare; checking every cold start adds latency
+		// without benefit on stable sites.
 
 		// Initialize storage
 		const storage = EmDashRuntime.getStorage(deps);
 
-		// Fetch plugin states from database
+		// Try loading plugin states + site info from init cache (1 query
+		// instead of 2-4). The cache is invalidated whenever the manifest
+		// is invalidated (schema changes, plugin toggle, etc.).
 		let pluginStates: Map<string, string> = new Map();
+		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
+		let initCacheHit = false;
+
 		try {
-			const states = await db.selectFrom("_plugin_state").select(["plugin_id", "status"]).execute();
-			pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+			const options = new OptionsRepository(db);
+			const initCache = await options.get<{
+				pluginStates: [string, string][];
+				siteInfo: typeof siteInfo;
+			}>("emdash:init_cache");
+			if (initCache && typeof initCache === "object") {
+				if (initCache.pluginStates) {
+					pluginStates = new Map(initCache.pluginStates);
+				}
+				siteInfo = initCache.siteInfo;
+				initCacheHit = true;
+			}
 		} catch {
-			// Plugin state table may not exist yet
+			// Options table may not exist yet (pre-setup)
+		}
+
+		if (!initCacheHit) {
+			// Fetch plugin states from database
+			try {
+				const states = await db
+					.selectFrom("_plugin_state")
+					.select(["plugin_id", "status"])
+					.execute();
+				pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+			} catch {
+				// Plugin state table may not exist yet
+			}
+
+			// Load site info with a single batch query instead of 3 sequential gets
+			try {
+				const options = new OptionsRepository(db);
+				const siteOpts = await options.getMany<string>([
+					"emdash:site_title",
+					"emdash:site_url",
+					"emdash:locale",
+				]);
+				siteInfo = {
+					siteName: siteOpts.get("emdash:site_title") ?? undefined,
+					siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+					locale: siteOpts.get("emdash:locale") ?? undefined,
+				};
+			} catch {
+				// Options table may not exist yet (pre-setup)
+			}
+
+			// Persist for next cold start
+			try {
+				const options = new OptionsRepository(db);
+				await options.set("emdash:init_cache", {
+					pluginStates: [...pluginStates.entries()],
+					siteInfo,
+				});
+			} catch {
+				// Non-fatal — will just re-fetch next time
+			}
 		}
 
 		// Build set of enabled plugins
@@ -594,22 +643,6 @@ export class EmDashRuntime {
 			if (status === undefined || status === "active") {
 				enabledPlugins.add(plugin.id);
 			}
-		}
-
-		// Load site info for plugin context extensions
-		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
-		try {
-			const optionsRepo = new OptionsRepository(db);
-			const siteName = await optionsRepo.get<string>("emdash:site_title");
-			const siteUrl = await optionsRepo.get<string>("emdash:site_url");
-			const locale = await optionsRepo.get<string>("emdash:locale");
-			siteInfo = {
-				siteName: siteName ?? undefined,
-				siteUrl: siteUrl ?? undefined,
-				locale: locale ?? undefined,
-			};
-		} catch {
-			// Options table may not exist yet (pre-setup)
 		}
 
 		// Build the full list of pipeline-eligible plugins: all configured
@@ -871,11 +904,23 @@ export class EmDashRuntime {
 			const dialect = deps.createDialect(dbConfig.config);
 			const db = new Kysely<Database>({ dialect });
 
-			await runMigrations(db);
+			// Migrations are handled lazily by the dialect wrapper
+			// (wrapWithLazyMigrations) — on first schema error, migrations
+			// run and the query retries. This avoids checking 30+ migrations
+			// on every cold start for established sites.
+			//
+			// Adapters that don't use the lazy wrapper (e.g. third-party
+			// dialects) will hit schema errors on fresh installs, so we run
+			// migrations eagerly as a fallback when the dialect isn't wrapped.
+			if (!isLazyMigrationDialect(dialect)) {
+				await runMigrations(db);
+			}
 
 			// Auto-seed schema if no collections exist and setup hasn't run.
 			// This covers first-load on sites that skip the setup wizard.
 			// Dev-bypass and the wizard apply seeds explicitly.
+			// On lazy-migration dialects, the queries below will trigger
+			// migration if needed (e.g. fresh install).
 			try {
 				const [collectionCount, setupOption] = await Promise.all([
 					db
@@ -1133,9 +1178,46 @@ export class EmDashRuntime {
 	// =========================================================================
 
 	/**
-	 * Build the manifest (rebuilt on each request for freshness)
+	 * Get the manifest, using in-memory and DB caches to avoid N+1
+	 * schema registry queries on every request.
+	 *
+	 * Cache is invalidated by invalidateManifest() which is called
+	 * from the MCP server on schema changes, plugin toggles, etc.
 	 */
 	async getManifest(): Promise<EmDashManifest> {
+		// 1. In-memory cache (instant — same worker lifetime)
+		if (this._cachedManifest) return this._cachedManifest;
+
+		// 2. DB-persisted cache (1 query instead of N+1)
+		try {
+			const options = new OptionsRepository(this.db);
+			const cached = await options.get<EmDashManifest>("emdash:manifest_cache");
+			if (cached && typeof cached === "object" && cached.version) {
+				this._cachedManifest = cached;
+				return this._cachedManifest;
+			}
+		} catch {
+			// Options table may not exist yet
+		}
+
+		// 3. Full rebuild, then persist
+		const manifest = await this._buildManifest();
+		this._cachedManifest = manifest;
+
+		try {
+			const options = new OptionsRepository(this.db);
+			await options.set("emdash:manifest_cache", manifest);
+		} catch {
+			// Non-fatal — will just rebuild next time
+		}
+
+		return manifest;
+	}
+
+	/**
+	 * Build the manifest from database (expensive — N+1 collection queries).
+	 */
+	private async _buildManifest(): Promise<EmDashManifest> {
 		// Build collections from database.
 		// Use this.db (ALS-aware getter) so playground mode picks up the
 		// per-session DO database instead of the hardcoded singleton.
@@ -1319,11 +1401,20 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Invalidate the cached manifest (no-op now that we don't cache).
-	 * Kept for API compatibility.
+	 * Invalidate the cached manifest — clears both in-memory and DB caches.
+	 *
+	 * Called from the MCP server when schema changes, plugins are toggled,
+	 * etc. The next getManifest() call will do a full rebuild.
 	 */
 	invalidateManifest(): void {
-		// No-op - manifest is rebuilt on each request
+		this._cachedManifest = null;
+		try {
+			const options = new OptionsRepository(this.db);
+			void options.set("emdash:manifest_cache", null);
+			void options.set("emdash:init_cache", null);
+		} catch {
+			// Non-fatal
+		}
 	}
 
 	// =========================================================================
