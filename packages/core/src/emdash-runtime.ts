@@ -400,11 +400,14 @@ export class EmDashRuntime {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
 			this.enabledPlugins.add(pluginId);
+			await this.rebuildHookPipeline();
+			await this._hooks.runPluginActivate(pluginId);
 		} else {
+			// Fire deactivate on the current pipeline while the plugin is still in it
+			await this._hooks.runPluginDeactivate(pluginId);
 			this.enabledPlugins.delete(pluginId);
+			await this.rebuildHookPipeline();
 		}
-
-		await this.rebuildHookPipeline();
 	}
 
 	/**
