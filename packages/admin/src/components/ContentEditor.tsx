@@ -602,10 +602,10 @@ export function ContentEditor({
 									href={contentUrl(item.slug)}
 									target="_blank"
 									rel="noopener noreferrer"
-									aria-label="View published page"
-									className={buttonVariants({ variant: "ghost", shape: "square" })}
+									className={buttonVariants({ variant: "outline" })}
 								>
-									<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+									<ArrowSquareOut className="mr-2 h-4 w-4" aria-hidden="true" />
+									Live View
 								</a>
 							)}
 						</>
