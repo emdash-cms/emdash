@@ -178,6 +178,33 @@ describe("ContentEditor", () => {
 			const savedBtn = screen.getByRole("button", { name: "Saved" });
 			await expect.element(savedBtn).toBeDisabled();
 		});
+
+		it("ignores an autosave response once local state has advanced", async () => {
+			vi.useFakeTimers();
+			try {
+				const onAutosave = vi.fn();
+				const item = makeItem();
+				const screen = await renderEditor({ isNew: false, item, onAutosave });
+
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("First autosave snapshot");
+
+				// Wait for autosave to be triggered
+				await vi.advanceTimersByTimeAsync(2000);
+
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+				const payload = onAutosave.mock.calls[0]![0] as {
+					shouldApplyResponse?: () => boolean;
+				};
+				expect(payload.shouldApplyResponse?.()).toBe(true);
+
+				await titleInput.fill("Newer local edit");
+
+				expect(payload.shouldApplyResponse?.()).toBe(false);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("delete", () => {

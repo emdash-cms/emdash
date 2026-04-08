@@ -108,6 +108,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { applyAutosaveResultToQueryCache } from "./lib/autosave-cache";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
@@ -242,7 +243,7 @@ function ContentListPage() {
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
-					cursor: pageParam as string | undefined,
+					cursor: pageParam,
 					limit: 100,
 				}),
 			initialPageParam: undefined as string | undefined,
@@ -620,11 +621,19 @@ function ContentEditPage() {
 			data?: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => updateContent(collection, id, { ...data, skipRevision: true }),
-		onSuccess: () => {
+			shouldApplyResponse?: () => boolean;
+		}) => {
+			const { shouldApplyResponse: _shouldApplyResponse, ...request } = data;
+			return updateContent(collection, id, { ...request, skipRevision: true });
+		},
+		onSuccess: (savedItem, variables) => {
 			setLastAutosaveAt(new Date());
-			// Silently update the cache without full invalidation
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			// Ignore stale autosave responses once local editor state has advanced.
+			// A newer local snapshot should stay authoritative until the next save
+			if (!variables.shouldApplyResponse?.()) {
+				return;
+			}
+			applyAutosaveResultToQueryCache(queryClient, collection, id, savedItem);
 		},
 		onError: (err) => {
 			toastManager.add({
