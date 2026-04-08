@@ -20,6 +20,7 @@ import {
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
+	ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -66,6 +67,7 @@ import {
 } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
+import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
 
@@ -592,6 +594,17 @@ export function ContentEditor({
 									Publish
 								</Button>
 							)}
+							{isLive && item?.slug && (
+								<a
+									href={`/${item.slug}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									aria-label="View published page"
+									className={buttonVariants({ variant: "ghost", shape: "square" })}
+								>
+									<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+								</a>
+							)}
 						</>
 					)}
 				</div>
@@ -613,25 +626,46 @@ export function ContentEditor({
 						)}
 					>
 						<div className="space-y-4">
-							{Object.entries(fields).map(([name, field]) => (
-								<FieldRenderer
-									key={name}
-									name={name}
-									field={field}
-									value={formData[name]}
-									onChange={handleFieldChange}
-									onEditorReady={field.kind === "portableText" ? setPortableTextEditor : undefined}
-									minimal={isDistractionFree}
-									pluginBlocks={pluginBlocks}
-									onBlockSidebarOpen={
-										field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-									}
-									onBlockSidebarClose={
-										field.kind === "portableText" ? handleBlockSidebarClose : undefined
-									}
-									manifest={manifest}
-								/>
-							))}
+							{Object.entries(fields).map(([name, field]) => {
+								const fieldEl = (
+									<FieldRenderer
+										key={name}
+										name={name}
+										field={field}
+										value={formData[name]}
+										onChange={handleFieldChange}
+										onEditorReady={
+											field.kind === "portableText" ? setPortableTextEditor : undefined
+										}
+										minimal={isDistractionFree}
+										pluginBlocks={pluginBlocks}
+										onBlockSidebarOpen={
+											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+										}
+										onBlockSidebarClose={
+											field.kind === "portableText" ? handleBlockSidebarClose : undefined
+										}
+										manifest={manifest}
+									/>
+								);
+								if (
+									name === "featured_image" &&
+									field.kind === "image" &&
+									hasSeo &&
+									!isNew &&
+									onSeoChange
+								) {
+									return (
+										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
+											<div>{fieldEl}</div>
+											<div>
+												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
+											</div>
+										</div>
+									);
+								}
+								return fieldEl;
+							})}
 						</div>
 					</div>
 				</div>
@@ -1138,6 +1172,11 @@ function FieldRenderer({
 			return (
 				<ImageFieldRenderer
 					label={label}
+					description={
+						name === "featured_image"
+							? "Used as the main visual for this post on listing pages and at the top of the post"
+							: undefined
+					}
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
@@ -1185,12 +1224,19 @@ interface ImageFieldValue {
  */
 interface ImageFieldRendererProps {
 	label: string;
+	description?: string;
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | undefined) => void;
 	required?: boolean;
 }
 
-function ImageFieldRenderer({ label, value, onChange, required }: ImageFieldRendererProps) {
+function ImageFieldRenderer({
+	label,
+	description,
+	value,
+	onChange,
+	required,
+}: ImageFieldRendererProps) {
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
@@ -1265,6 +1311,7 @@ function ImageFieldRenderer({ label, value, onChange, required }: ImageFieldRend
 				mimeTypeFilter="image/"
 				title={`Select ${label}`}
 			/>
+			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
 				<p className="text-sm text-kumo-danger mt-1">This field is required</p>
 			)}
