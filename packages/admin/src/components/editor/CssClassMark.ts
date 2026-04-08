@@ -92,11 +92,11 @@ export const CssClassMark = Mark.create<CssClassMarkOptions>({
 					if (!markType) return false;
 
 					if (empty) {
-						// Remove matching stored mark so it doesn't apply to next typed input
+						// Remove only the matching stored mark so other cssClass marks remain active
 						const stored = state.storedMarks ?? state.selection.$from.marks();
 						const match = stored.find((m) => m.type === markType && m.attrs?.classes === classes);
 						if (match && dispatch) {
-							tr.removeStoredMark(markType);
+							tr.removeStoredMark(match);
 							dispatch(tr);
 						}
 						return !!match;
