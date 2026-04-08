@@ -114,7 +114,12 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link to="/content/$collection/new" params={{ collection }} className={buttonVariants()}>
+				<Link
+					to="/content/$collection/new"
+					params={{ collection }}
+					search={{ locale: activeLocale }}
+					className={buttonVariants()}
+				>
 					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
 					Add New
 				</Link>
@@ -192,6 +197,7 @@ export function ContentList({
 											<Link
 												to="/content/$collection/new"
 												params={{ collection }}
+												search={{ locale: activeLocale }}
 												className="text-kumo-brand underline"
 											>
 												Create your first one

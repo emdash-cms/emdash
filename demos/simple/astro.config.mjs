@@ -34,7 +34,12 @@ export default defineConfig({
 			// passkeyPublicOrigin: "https://emdash.local:8443",
 		}),
 	],
-	devToolbar: { enabled: false },
+  devToolbar: { enabled: false },
+  i18n: {
+    defaultLocale: "es",
+    locales: ["es", "en"],
+    fallback: { en: "es" },
+  },
 	// Example: allowed hosts for reverse proxy
 	// vite: {
 	// 	server: {
