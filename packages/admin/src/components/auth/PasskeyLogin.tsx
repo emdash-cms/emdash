@@ -15,6 +15,10 @@ import { Button, Input } from "@cloudflare/kumo";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../../lib/api/client";
+import {
+	isPasskeyEnvironmentUsable,
+	isWebAuthnSecureContext,
+} from "../../lib/webauthn-environment";
 
 // ============================================================================
 // Constants
@@ -75,21 +79,10 @@ type LoginState =
 	| { status: "success" };
 
 /**
- * Check if WebAuthn is supported in the current browser
- */
-function isWebAuthnSupported(): boolean {
-	return (
-		typeof window !== "undefined" &&
-		window.PublicKeyCredential !== undefined &&
-		typeof window.PublicKeyCredential === "function"
-	);
-}
-
-/**
  * Check if conditional mediation (autofill) is supported
  */
 async function isConditionalMediationSupported(): Promise<boolean> {
-	if (!isWebAuthnSupported()) return false;
+	if (!isPasskeyEnvironmentUsable()) return false;
 	try {
 		return (await PublicKeyCredential.isConditionalMediationAvailable?.()) ?? false;
 	} catch {
@@ -142,8 +135,11 @@ export function PasskeyLogin({
 	const [email, setEmail] = React.useState("");
 	const [supportsConditional, setSupportsConditional] = React.useState(false);
 
-	// Check WebAuthn support on mount
-	const isSupported = React.useMemo(() => isWebAuthnSupported(), []);
+	const isSupported = React.useMemo(() => isPasskeyEnvironmentUsable(), []);
+	const insecureContext = React.useMemo(
+		() => typeof window !== "undefined" && !isWebAuthnSecureContext(),
+		[],
+	);
 
 	// Check conditional mediation support
 	React.useEffect(() => {
@@ -155,7 +151,9 @@ export function PasskeyLogin({
 			if (!isSupported) {
 				setState({
 					status: "error",
-					message: "WebAuthn is not supported in this browser",
+					message: insecureContext
+						? "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
+						: "WebAuthn is not supported in this browser",
 				});
 				return;
 			}
@@ -202,7 +200,10 @@ export function PasskeyLogin({
 				const rawCredential = await navigator.credentials.get(credentialOptions);
 
 				if (!rawCredential) {
-					throw new Error("No credential returned from authenticator");
+					const message = "No credential returned from authenticator";
+					setState({ status: "error", message });
+					onError?.(new Error(message));
+					return;
 				}
 
 				// Step 3: Send credential to server for verification
@@ -280,17 +281,37 @@ export function PasskeyLogin({
 				onError?.(new Error(userMessage));
 			}
 		},
-		[isSupported, optionsEndpoint, verifyEndpoint, email, supportsConditional, onSuccess, onError],
+		[
+			isSupported,
+			insecureContext,
+			optionsEndpoint,
+			verifyEndpoint,
+			email,
+			supportsConditional,
+			onSuccess,
+			onError,
+		],
 	);
 
-	// Not supported message
 	if (!isSupported) {
 		return (
 			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4">
-				<h3 className="font-medium text-kumo-danger">Passkeys Not Supported</h3>
+				<h3 className="font-medium text-kumo-danger">Passkeys Not Available Here</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
-					Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari,
-					Firefox, or Edge.
+					{insecureContext ? (
+						<>
+							Passkeys require a <strong className="text-kumo-default">secure context</strong>: use{" "}
+							<strong className="text-kumo-default">HTTPS</strong>, or open the admin at{" "}
+							<strong className="text-kumo-default">http://localhost</strong> (with your dev port).
+							Plain <code className="text-xs">http://</code> on a custom hostname is not treated as
+							secure, even on loopback.
+						</>
+					) : (
+						<>
+							Your browser doesn't support passkeys. Please use a modern browser like Chrome,
+							Safari, Firefox, or Edge.
+						</>
+					)}
 				</p>
 			</div>
 		);
