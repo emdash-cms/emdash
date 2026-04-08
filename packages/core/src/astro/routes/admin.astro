@@ -14,10 +14,8 @@ export const prerender = false;
 
 import { resolveLocale } from "@emdash-cms/admin/locales";
 
-const catalogs = import.meta.glob("@emdash-cms/admin/locales/*/messages.mjs");
 const resolvedLocale = resolveLocale(Astro.request);
-const loader = catalogs[`@emdash-cms/admin/locales/${resolvedLocale}/messages.mjs`];
-const { messages } = loader ? await loader() as { messages: Record<string, string> } : { messages: {} };
+const { messages } = await import(`@emdash-cms/admin/locales/${resolvedLocale}/messages.mjs`);
 ---
 
 <!doctype html>
