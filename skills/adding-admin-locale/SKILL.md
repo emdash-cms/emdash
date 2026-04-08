@@ -83,7 +83,7 @@ Use any `.po` editor (Poedit, Crowdin, Weblate) or edit directly.
 
 **5. After editing translations**, run `pnpm --filter @emdash-cms/admin run locale:compile` to see changes.
 
-This creates `messages.mjs` alongside the `.po`. Refresh the browser to see your changes. Always run this before committing — the `.mjs` files are gitignored but needed at runtime.
+This creates `messages.mjs` alongside the `.po`. Refresh the browser to see your changes.
 
 ## Adding Translatable Strings
 
