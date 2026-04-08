@@ -51,23 +51,27 @@ export const STYLED_BLOCK_TYPES = [
 const STYLED_BLOCK_TYPE_SET: ReadonlySet<string> = new Set(STYLED_BLOCK_TYPES);
 
 /**
+ * Container node types that should be preferred over their inner paragraph
+ * when resolving the styling target. For both `listItem` and `blockquote`,
+ * the PT↔PM converters persist `cssClasses` on the container — not on the
+ * inner paragraph — so the editor must edit the container too. Otherwise
+ * classes would "jump" from `<p>` to `<li>`/`<blockquote>` after a save and
+ * reload, breaking the toolbar's active-state and any CSS rules scoped to
+ * the chosen element. (See `convertListItem` and `convertBlockquote` in the
+ * PM→PT converter, and `applyCssClasses` in the PT→PM converter.)
+ */
+const PREFERRED_CONTAINER_TYPES: ReadonlySet<string> = new Set(["listItem", "blockquote"]);
+
+/**
  * Resolve which node should receive `cssClasses` for the current selection.
  *
  * - If the selection is a NodeSelection, the selected node is the target
  *   (this is how horizontalRule and other atom blocks are styled).
  * - Otherwise, walk from the deepest ancestor outward looking for a match.
- *   Inside a list item, **prefer the listItem ancestor over the inner
- *   paragraph** when both are eligible (`listItem` is in `allowedTypes`,
- *   either explicitly or via the default set). This aligns the resolver
- *   with the PT↔PM converters: `convertListItem` (PM→PT) merges classes
- *   from both the listItem and its inner paragraph and stores them on the
- *   PT block, and the PT→PM converter restores them onto the listItem
- *   node — never the inner paragraph. If we targeted the inner paragraph
- *   here, classes would "jump" from `<p>` to `<li>` after a save/reload,
- *   confusing both the toolbar's active-state and any CSS rules scoped to
- *   the chosen element.
- * - Outside lists, return the innermost ancestor whose type is in
- *   `allowedTypes` (or the default styled-block set).
+ *   When a `listItem` or `blockquote` ancestor exists and is allowed, prefer
+ *   it over the inner paragraph (see `PREFERRED_CONTAINER_TYPES`).
+ * - Otherwise, return the innermost ancestor whose type is in `allowedTypes`
+ *   (or the default styled-block set).
  *
  * Returns `null` if no suitable target exists.
  */
@@ -88,8 +92,7 @@ export function resolveStyledBlock(
 	}
 
 	const { $from } = selection;
-	const listItemAllowed = allowed.has("listItem");
-	let listItemMatch: { pos: number; node: PMNode } | null = null;
+	let containerMatch: { pos: number; node: PMNode } | null = null;
 	let innermostMatch: { pos: number; node: PMNode } | null = null;
 
 	for (let depth = $from.depth; depth >= 0; depth--) {
@@ -101,16 +104,19 @@ export function resolveStyledBlock(
 		if (!innermostMatch && allowed.has(node.type.name)) {
 			innermostMatch = { pos, node };
 		}
-		if (!listItemMatch && listItemAllowed && node.type.name === "listItem") {
-			listItemMatch = { pos, node };
+		if (
+			!containerMatch &&
+			PREFERRED_CONTAINER_TYPES.has(node.type.name) &&
+			allowed.has(node.type.name)
+		) {
+			containerMatch = { pos, node };
 		}
-		// Early exit once we have both candidates.
-		if (innermostMatch && (listItemMatch || !listItemAllowed)) break;
 	}
 
-	// Prefer the listItem when one exists in the chain — keeps the
-	// editor target consistent with where the converters persist classes.
-	return listItemMatch ?? innermostMatch;
+	// Prefer a listItem/blockquote container when one exists in the chain —
+	// keeps the editor target consistent with where the converters persist
+	// classes, so styling survives a save/reload round trip.
+	return containerMatch ?? innermostMatch;
 }
 
 export const BlockStyleExtension = Extension.create({
