@@ -17,21 +17,17 @@ export interface PasskeyConfig {
  *
  * @param url The request URL (typically `new URL(Astro.request.url)` or `new URL(request.url)`)
  * @param siteName Optional site name for rpName (defaults to hostname from `url` or public origin)
- * @param passkeyPublicOrigin Optional browser-facing origin (see `EmDashConfig.passkeyPublicOrigin`).
+ * @param siteUrl Optional browser-facing origin (see `EmDashConfig.siteUrl`).
  *        When set, **origin** and **rpId** are taken from this URL so they match WebAuthn `clientData.origin`.
- * @throws If `passkeyPublicOrigin` is non-empty but not parseable by `new URL()`.
+ * @throws If `siteUrl` is non-empty but not parseable by `new URL()`.
  */
-export function getPasskeyConfig(
-	url: URL,
-	siteName?: string,
-	passkeyPublicOrigin?: string,
-): PasskeyConfig {
-	if (passkeyPublicOrigin) {
+export function getPasskeyConfig(url: URL, siteName?: string, siteUrl?: string): PasskeyConfig {
+	if (siteUrl) {
 		let publicUrl: URL;
 		try {
-			publicUrl = new URL(passkeyPublicOrigin);
+			publicUrl = new URL(siteUrl);
 		} catch (e) {
-			throw new Error(`Invalid passkeyPublicOrigin: "${passkeyPublicOrigin}"`, { cause: e });
+			throw new Error(`Invalid siteUrl: "${siteUrl}"`, { cause: e });
 		}
 		return {
 			rpName: siteName || publicUrl.hostname,
