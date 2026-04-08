@@ -30,6 +30,13 @@ export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.cod
 
 export const DEFAULT_LOCALE = SUPPORTED_LOCALES[0]!.code;
 
+const LOCALE_LABELS = new Map(SUPPORTED_LOCALES.map((l) => [l.code, l.label]));
+
+/** Get a display label for a locale code, falling back to uppercase code. */
+export function getLocaleLabel(code: string): string {
+	return LOCALE_LABELS.get(code) ?? code.toUpperCase();
+}
+
 const LOCALE_COOKIE_RE = /(?:^|;\s*)emdash-locale=([^;]+)/;
 
 /**

@@ -3,6 +3,7 @@ export {
 	SUPPORTED_LOCALES,
 	SUPPORTED_LOCALE_CODES,
 	DEFAULT_LOCALE,
+	getLocaleLabel,
 	resolveLocale,
 } from "./config.js";
 export type { SupportedLocale } from "./config.js";

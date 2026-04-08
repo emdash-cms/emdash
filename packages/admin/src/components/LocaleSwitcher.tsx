@@ -11,6 +11,7 @@ import { useLingui } from "@lingui/react/macro";
 import { GlobeSimple } from "@phosphor-icons/react";
 import React from "react";
 
+import { getLocaleLabel } from "../locales/config.js";
 import { cn } from "../lib/utils.js";
 
 interface LocaleSwitcherProps {
@@ -23,19 +24,6 @@ interface LocaleSwitcherProps {
 	className?: string;
 	/** Size variant */
 	size?: "sm" | "md";
-}
-
-/**
- * Get a display label for a locale code.
- * Uses Intl.DisplayNames when available, falls back to uppercase code.
- */
-function getLocaleLabel(code: string): string {
-	try {
-		const names = new Intl.DisplayNames(["en"], { type: "language" });
-		return names.of(code) ?? code.toUpperCase();
-	} catch {
-		return code.toUpperCase();
-	}
 }
 
 export function LocaleSwitcher({
@@ -68,7 +56,7 @@ export function LocaleSwitcher({
 				{showAll && <option value="">{t`All locales`}</option>}
 				{locales.map((locale) => (
 					<option key={locale} value={locale}>
-						{locale.toUpperCase()}
+						{getLocaleLabel(locale)}
 						{locale === defaultLocale ? t` (default)` : ""}
 					</option>
 				))}
