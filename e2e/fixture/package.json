@@ -7,7 +7,6 @@
 		"@astrojs/react": "catalog:",
 		"@emdash-cms/auth": "workspace:*",
 		"@emdash-cms/plugin-color": "workspace:*",
-		"@lingui/babel-plugin-lingui-macro": "catalog:",
 		"astro": "catalog:",
 		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",

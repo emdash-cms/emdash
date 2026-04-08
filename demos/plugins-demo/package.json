@@ -27,7 +27,6 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@lingui/babel-plugin-lingui-macro": "catalog:",
     "@types/node": "catalog:"
   },
   "peerDependencies": {},

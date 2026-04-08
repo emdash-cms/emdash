@@ -25,7 +25,6 @@
 		"seed": "seed/seed.json"
 	},
 	"devDependencies": {
-		"@lingui/babel-plugin-lingui-macro": "catalog:",
 		"@types/node": "catalog:"
 	}
 }
