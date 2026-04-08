@@ -209,11 +209,11 @@ export function ImageDetailPanel({
 			<div className="p-4 border-b space-y-3">
 				<Label>Style</Label>
 				<div className="flex flex-wrap gap-2">
-					{imageStyles.map((entry) => {
+					{imageStyles.map((entry, index) => {
 						const active = cssClasses === entry.classes;
 						return (
 							<Button
-								key={`${entry.label}-${entry.classes}`}
+								key={`${entry.label}-${entry.classes}-${index}`}
 								type="button"
 								variant={active ? "primary" : "outline"}
 								size="sm"
