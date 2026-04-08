@@ -27,7 +27,7 @@
     "test": "vitest",
     "typecheck": "tsgo --noEmit",
     "locale:compile": "lingui compile --namespace es",
-    "locale:copy": "node -e \"const {readdirSync,mkdirSync,copyFileSync}=require('fs');readdirSync('src/locales',{withFileTypes:true}).filter(d=>d.isDirectory()).forEach(d=>{mkdirSync('dist/locales/'+d.name,{recursive:true});copyFileSync('src/locales/'+d.name+'/messages.mjs','dist/locales/'+d.name+'/messages.mjs')})\"",
+    "locale:copy": "node ./scripts/copy-locales.js",
     "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
