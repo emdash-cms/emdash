@@ -27,6 +27,7 @@ import {
 	extractManifest,
 	findNodeBuiltinImports,
 	findBuildOutput,
+	findSourceExports,
 	resolveSourceEntry,
 	calculateDirectorySize,
 	createTarball,
@@ -494,6 +495,20 @@ export const bundleCommand = defineCommand({
 
 			consola.start("Validating bundle...");
 			let hasErrors = false;
+
+			// Check that package.json exports point to built files, not source.
+			// Plugins published to npm with source exports will break site builds
+			// because the sandbox module generator embeds the resolved file as-is.
+			if (pkg.exports) {
+				for (const issue of findSourceExports(pkg.exports as Record<string, unknown>)) {
+					consola.error(
+						`Export "${issue.exportPath}" points to source (${issue.resolvedPath}). ` +
+							`Package exports must point to built files (e.g. dist/*.mjs). ` +
+							`Add a build step and update the exports map.`,
+					);
+					hasErrors = true;
+				}
+			}
 
 			// Check for Node.js builtins in backend.js
 			const backendPath = join(bundleDir, "backend.js");

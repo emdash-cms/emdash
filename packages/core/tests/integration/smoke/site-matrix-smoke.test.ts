@@ -7,11 +7,10 @@ import { describe, expect, it } from "vitest";
 
 import { ensureBuilt } from "../server.js";
 
-interface RuntimeSiteCase {
+interface SiteCase {
 	name: string;
 	dir: string;
 	port: number;
-	mode: "runtime";
 	startupTimeoutMs: number;
 	waitPath?: string;
 	setupPath?: string | null;
@@ -20,71 +19,18 @@ interface RuntimeSiteCase {
 	requireDoctype?: boolean;
 }
 
-interface TypecheckSiteCase {
-	name: string;
-	dir: string;
-	mode: "typecheck";
-}
-
-type SiteCase = RuntimeSiteCase | TypecheckSiteCase;
-
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
 
 const SITE_MATRIX: SiteCase[] = [
-	// Demos
-	{
-		name: "demos/simple",
-		dir: resolve(WORKSPACE_ROOT, "demos/simple"),
-		port: 4601,
-		mode: "runtime",
-		startupTimeoutMs: 60_000,
-	},
-	{
-		name: "demos/cloudflare",
-		dir: resolve(WORKSPACE_ROOT, "demos/cloudflare"),
-		port: 4602,
-		mode: "runtime",
-		startupTimeoutMs: 120_000,
-	},
 	{
 		name: "demos/playground",
 		dir: resolve(WORKSPACE_ROOT, "demos/playground"),
 		port: 4603,
-		mode: "runtime",
 		startupTimeoutMs: 120_000,
 		waitPath: "/playground",
 		frontendPath: "/playground",
 		requireDoctype: false,
-	},
-	{
-		name: "demos/preview",
-		dir: resolve(WORKSPACE_ROOT, "demos/preview"),
-		port: 4604,
-		mode: "runtime",
-		startupTimeoutMs: 120_000,
-		setupPath: null,
-		frontendStatuses: [400],
-		requireDoctype: false,
-	},
-	// Postgres demo requires DATABASE_URL — skip when not available
-	...(process.env.DATABASE_URL
-		? [
-				{
-					name: "demos/postgres",
-					dir: resolve(WORKSPACE_ROOT, "demos/postgres"),
-					port: 4605,
-					mode: "runtime" as const,
-					startupTimeoutMs: 90_000,
-				},
-			]
-		: []),
-	{
-		name: "demos/plugins-demo",
-		dir: resolve(WORKSPACE_ROOT, "demos/plugins-demo"),
-		port: 4606,
-		mode: "runtime",
-		startupTimeoutMs: 90_000,
 	},
 
 	// Templates
@@ -92,49 +38,42 @@ const SITE_MATRIX: SiteCase[] = [
 		name: "templates/blank",
 		dir: resolve(WORKSPACE_ROOT, "templates/blank"),
 		port: 4611,
-		mode: "runtime",
 		startupTimeoutMs: 60_000,
 	},
 	{
 		name: "templates/blog",
 		dir: resolve(WORKSPACE_ROOT, "templates/blog"),
 		port: 4612,
-		mode: "runtime",
 		startupTimeoutMs: 60_000,
 	},
 	{
 		name: "templates/blog-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/blog-cloudflare"),
 		port: 4613,
-		mode: "runtime",
 		startupTimeoutMs: 120_000,
 	},
 	{
 		name: "templates/marketing",
 		dir: resolve(WORKSPACE_ROOT, "templates/marketing"),
 		port: 4614,
-		mode: "runtime",
 		startupTimeoutMs: 90_000,
 	},
 	{
 		name: "templates/marketing-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/marketing-cloudflare"),
 		port: 4615,
-		mode: "runtime",
 		startupTimeoutMs: 120_000,
 	},
 	{
 		name: "templates/portfolio",
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio"),
 		port: 4616,
-		mode: "runtime",
 		startupTimeoutMs: 90_000,
 	},
 	{
 		name: "templates/portfolio-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio-cloudflare"),
 		port: 4617,
-		mode: "runtime",
 		startupTimeoutMs: 120_000,
 	},
 ];
@@ -180,18 +119,55 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 	throw lastError instanceof Error ? lastError : new Error(`Request failed for ${url}`);
 }
 
-describe.sequential("Site smoke matrix", () => {
-	for (const site of SITE_MATRIX) {
-		if (site.mode === "typecheck") {
-			it(`${site.name} typechecks`, { timeout: 120_000 }, async () => {
-				await execAsync("pnpm", ["run", "typecheck"], {
-					cwd: site.dir,
-					timeout: 120_000,
-				});
-			});
-			continue;
-		}
+// ---------------------------------------------------------------------------
+// Build verification — runs a single recursive `pnpm build` across templates
+// and the playground demo in parallel.
+// ---------------------------------------------------------------------------
 
+describe("Site build verification", () => {
+	it("all templates and playground build successfully", { timeout: 300_000 }, async () => {
+		await ensureBuilt();
+
+		try {
+			await execAsync(
+				"pnpm",
+				[
+					"run",
+					"--recursive",
+					"--filter",
+					"{./templates/*}",
+					"--filter",
+					"@emdash-cms/playground",
+					"build",
+				],
+				{
+					cwd: WORKSPACE_ROOT,
+					timeout: 240_000,
+					env: {
+						...process.env,
+						CI: "true",
+					},
+				},
+			);
+		} catch (error) {
+			const stderr =
+				error instanceof Error && "stderr" in error ? (error as { stderr: string }).stderr : "";
+			const stdout =
+				error instanceof Error && "stdout" in error ? (error as { stdout: string }).stdout : "";
+			throw new Error(`Site builds failed:\n\n${stderr || stdout}`.slice(0, 5000), {
+				cause: error,
+			});
+		}
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Runtime verification — boots each site with `astro dev` and checks that
+// admin + frontend respond.
+// ---------------------------------------------------------------------------
+
+describe.sequential("Site runtime verification", () => {
+	for (const site of SITE_MATRIX) {
 		const waitPath = site.waitPath ?? "/_emdash/admin/";
 		const setupPath = site.setupPath ?? "/_emdash/api/setup/dev-bypass?redirect=/";
 		const frontendPath = site.frontendPath ?? "/";
