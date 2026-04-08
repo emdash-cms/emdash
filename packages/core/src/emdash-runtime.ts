@@ -160,6 +160,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	file: "file",
 	reference: "reference",
 	json: "json",
+	repeater: "repeater",
 };
 
 /**
@@ -1170,6 +1171,10 @@ export class EmDashRuntime {
 								value: v,
 								label: v.charAt(0).toUpperCase() + v.slice(1),
 							}));
+						}
+						// Include full validation for repeater fields (subFields, minItems, maxItems)
+						if (field.type === "repeater" && field.validation) {
+							(entry as Record<string, unknown>).validation = field.validation;
 						}
 						fields[field.slug] = entry;
 					}

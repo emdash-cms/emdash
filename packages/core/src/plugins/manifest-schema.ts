@@ -42,6 +42,7 @@ const FIELD_TYPES = [
 	"reference",
 	"json",
 	"slug",
+	"repeater",
 ] as const;
 
 export const HOOK_NAMES = [
