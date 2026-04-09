@@ -70,16 +70,22 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 	const { emdash } = locals;
 	const provider = params.provider;
 
+	// Determine where to redirect errors (setup wizard or login page)
+	const referer = request.headers.get("referer") ?? "";
+	const errorRedirectBase = referer.includes("/setup")
+		? "/_emdash/admin/setup"
+		: "/_emdash/admin/login";
+
 	// Validate provider
 	if (!provider || !isValidProvider(provider)) {
 		return redirect(
-			`/_emdash/admin/login?error=invalid_provider&message=${encodeURIComponent("Invalid OAuth provider")}`,
+			`${errorRedirectBase}?error=invalid_provider&message=${encodeURIComponent("Invalid OAuth provider")}`,
 		);
 	}
 
 	if (!emdash?.db) {
 		return redirect(
-			`/_emdash/admin/login?error=server_error&message=${encodeURIComponent("Database not configured")}`,
+			`${errorRedirectBase}?error=server_error&message=${encodeURIComponent("Database not configured")}`,
 		);
 	}
 
@@ -96,7 +102,7 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 
 		if (!providers[provider]) {
 			return redirect(
-				`/_emdash/admin/login?error=provider_not_configured&message=${encodeURIComponent(`OAuth provider ${provider} is not configured`)}`,
+				`${errorRedirectBase}?error=provider_not_configured&message=${encodeURIComponent(`OAuth provider ${provider} is not configured. Set either EMDASH_OAUTH_${provider.toUpperCase()}_CLIENT_ID and EMDASH_OAUTH_${provider.toUpperCase()}_CLIENT_SECRET, or ${provider.toUpperCase()}_CLIENT_ID and ${provider.toUpperCase()}_CLIENT_SECRET.`)}`,
 			);
 		}
 
@@ -113,7 +119,7 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 	} catch (error) {
 		console.error("OAuth initiation error:", error);
 		return redirect(
-			`/_emdash/admin/login?error=oauth_error&message=${encodeURIComponent("Failed to start OAuth flow. Please try again.")}`,
+			`${errorRedirectBase}?error=oauth_error&message=${encodeURIComponent("Failed to start OAuth flow. Please try again.")}`,
 		);
 	}
 };

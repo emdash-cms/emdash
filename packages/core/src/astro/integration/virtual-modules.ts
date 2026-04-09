@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
+import type { AuthProviderDescriptor } from "../../auth/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import { defaultSeed } from "../../seed/default.js";
 import type { PluginDescriptor } from "./runtime.js";
@@ -46,6 +47,9 @@ export const RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID = "\0" + VIRTUAL_SANDBOXED_PL
 
 export const VIRTUAL_AUTH_ID = "virtual:emdash/auth";
 export const RESOLVED_VIRTUAL_AUTH_ID = "\0" + VIRTUAL_AUTH_ID;
+
+export const VIRTUAL_AUTH_PROVIDERS_ID = "virtual:emdash/auth-providers";
+export const RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID = "\0" + VIRTUAL_AUTH_PROVIDERS_ID;
 
 export const VIRTUAL_MEDIA_PROVIDERS_ID = "virtual:emdash/media-providers";
 export const RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID = "\0" + VIRTUAL_MEDIA_PROVIDERS_ID;
@@ -149,6 +153,43 @@ export function generateAuthModule(authEntrypoint?: string): string {
 	return `
 import { authenticate as _authenticate } from "${authEntrypoint}";
 export const authenticate = _authenticate;
+`;
+}
+
+/**
+ * Generates the auth providers module.
+ *
+ * Statically imports each auth provider's `adminEntry` module and exports
+ * a registry keyed by provider ID. The admin UI uses this to render
+ * provider-specific login buttons/forms and setup steps.
+ *
+ * Follows the same pattern as `generateAdminRegistryModule()` for plugins.
+ */
+export function generateAuthProvidersModule(descriptors: AuthProviderDescriptor[]): string {
+	const withAdmin = descriptors.filter((d) => d.adminEntry);
+
+	if (withAdmin.length === 0) {
+		return `export const authProviders = {};`;
+	}
+
+	const imports: string[] = [];
+	const entries: string[] = [];
+
+	withAdmin.forEach((descriptor, index) => {
+		const varName = `authProvider${index}`;
+		imports.push(`import * as ${varName} from ${JSON.stringify(descriptor.adminEntry)};`);
+		entries.push(
+			`  ${JSON.stringify(descriptor.id)}: { ...${varName}, id: ${JSON.stringify(descriptor.id)}, label: ${JSON.stringify(descriptor.label)} },`,
+		);
+	});
+
+	return `
+// Auto-generated auth provider registry
+${imports.join("\n")}
+
+export const authProviders = {
+${entries.join("\n")}
+};
 `;
 }
 

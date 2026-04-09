@@ -17,6 +17,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
+import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { createAdminRouter } from "./router";
 
@@ -36,6 +37,8 @@ const router = createAdminRouter(queryClient);
 export interface AdminAppProps {
 	/** Plugin admin modules keyed by plugin ID */
 	pluginAdmins?: PluginAdmins;
+	/** Auth provider UI modules keyed by provider ID */
+	authProviders?: AuthProviders;
 	/** Active locale code */
 	locale?: string;
 	/** Compiled Lingui messages for the active locale */
@@ -46,9 +49,11 @@ export interface AdminAppProps {
  * Main Admin Application
  */
 const EMPTY_PLUGINS: PluginAdmins = {};
+const EMPTY_AUTH_PROVIDERS: AuthProviders = {};
 
 export function AdminApp({
 	pluginAdmins = EMPTY_PLUGINS,
+	authProviders = EMPTY_AUTH_PROVIDERS,
 	locale = "en",
 	messages = {},
 }: AdminAppProps) {
@@ -66,11 +71,13 @@ export function AdminApp({
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
 				<Toasty>
-					<PluginAdminProvider pluginAdmins={pluginAdmins}>
-						<QueryClientProvider client={queryClient}>
-							<RouterProvider router={router} />
-						</QueryClientProvider>
-					</PluginAdminProvider>
+					<AuthProviderProvider authProviders={authProviders}>
+						<PluginAdminProvider pluginAdmins={pluginAdmins}>
+							<QueryClientProvider client={queryClient}>
+								<RouterProvider router={router} />
+							</QueryClientProvider>
+						</PluginAdminProvider>
+					</AuthProviderProvider>
 				</Toasty>
 			</I18nProvider>
 		</ThemeProvider>

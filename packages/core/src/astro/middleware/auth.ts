@@ -17,6 +17,8 @@ import { ulid } from "ulidx";
 // Import auth provider via virtual module (statically bundled)
 // This avoids dynamic import issues in Cloudflare Workers
 import { authenticate as virtualAuthenticate } from "virtual:emdash/auth";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
@@ -106,13 +108,32 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
+	"/_emdash/api/auth/mode",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 ]);
 
+// Build merged public routes at module load from auth provider descriptors.
+// Routes ending with "/" are treated as prefixes; all others are exact matches.
+const { exact: _providerExactRoutes, prefixes: _providerPrefixRoutes } = (() => {
+	const exact = new Set<string>();
+	const prefixes: string[] = [];
+	if (!virtualConfig?.authProviders) return { exact, prefixes };
+	for (const route of virtualConfig.authProviders.flatMap((p) => p.publicRoutes ?? [])) {
+		if (route.endsWith("/")) {
+			prefixes.push(route);
+		} else {
+			exact.add(route);
+		}
+	}
+	return { exact, prefixes };
+})();
+
 function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_EXACT.has(pathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
 	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
 	return false;
 }

@@ -13,6 +13,7 @@ export {
 	type FindManyResult,
 	type AdminManifest,
 	fetchManifest,
+	fetchAuthMode,
 } from "./client.js";
 
 // Content CRUD and revisions

@@ -160,3 +160,20 @@ export async function fetchManifest(): Promise<AdminManifest> {
 	const response = await apiFetch(`${API_BASE}/manifest`);
 	return parseApiResponse<AdminManifest>(response, "Failed to fetch manifest");
 }
+
+/**
+ * Fetch auth mode (public endpoint — works without authentication).
+ * Used by the login page to determine which login UI to render.
+ */
+export async function fetchAuthMode(): Promise<{
+	authMode: string;
+	signupEnabled?: boolean;
+	providers?: Array<{ id: string; label: string }>;
+}> {
+	const response = await apiFetch(`${API_BASE}/auth/mode`);
+	return parseApiResponse<{
+		authMode: string;
+		signupEnabled?: boolean;
+		providers?: Array<{ id: string; label: string }>;
+	}>(response, "Failed to fetch auth mode");
+}

@@ -7,7 +7,7 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
-import type { AuthDescriptor } from "../../auth/types.js";
+import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
@@ -221,6 +221,24 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	auth?: AuthDescriptor;
+
+	/**
+	 * Pluggable auth providers (login methods on the login page).
+	 *
+	 * Auth providers appear as options alongside passkey on the login page
+	 * and setup wizard. Any provider can be used to create the initial
+	 * admin account. Passkey is built-in; providers listed here are additive.
+	 *
+	 * @example
+	 * ```ts
+	 * import { atproto } from "@emdash-cms/plugin-atproto/auth";
+	 *
+	 * emdash({
+	 *   authProviders: [atproto()],
+	 * })
+	 * ```
+	 */
+	authProviders?: AuthProviderDescriptor[];
 
 	/**
 	 * Enable the MCP (Model Context Protocol) server endpoint.

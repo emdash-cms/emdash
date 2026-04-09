@@ -80,7 +80,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// 5. Store setup state
 		// In external auth mode, mark setup complete immediately (first user to login becomes admin)
-		// In passkey mode, setup_complete is set after admin user is created
+		// Otherwise, setup_complete is set after admin user is created (passkey or auth provider)
 		const authMode = getAuthMode(emdash.config);
 		const useExternalAuth = authMode.type === "external";
 
@@ -101,7 +101,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 					await options.set("emdash:site_tagline", body.tagline);
 				}
 			} else {
-				// Passkey mode: store state for next step (admin creation)
+				// Passkey/provider mode: store state for next step (admin creation)
 				await options.set("emdash:setup_state", {
 					step: "site_complete",
 					title: body.title,

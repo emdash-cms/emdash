@@ -17,6 +17,7 @@ import {
 } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
+import { finalizeSetup } from "#api/setup-complete.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 
 type ProviderName = "github" | "google";
@@ -125,10 +126,19 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 			);
 		}
 
+		const adapter = createKyselyAdapter(emdash.db);
+		const stateStore = createOAuthStateStore(emdash.db);
+
 		const config: OAuthConsumerConfig = {
 			baseUrl: `${url.origin}/_emdash`,
 			providers,
 			canSelfSignup: async (email: string) => {
+				// During setup: first user becomes admin
+				const userCount = await adapter.countUsers();
+				if (userCount === 0) {
+					return { allowed: true, role: Role.ADMIN };
+				}
+
 				// Extract domain from email
 				const domain = email.split("@")[1]?.toLowerCase();
 				if (!domain) {
@@ -167,10 +177,15 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 			},
 		};
 
-		const adapter = createKyselyAdapter(emdash.db);
-		const stateStore = createOAuthStateStore(emdash.db);
-
+		const userCountBefore = await adapter.countUsers();
 		const user = await handleOAuthCallback(config, adapter, provider, code, state, stateStore);
+		const isFirstUser = userCountBefore === 0;
+
+		// Finalize setup outside the transaction (idempotent, safe if two callbacks race).
+		if (isFirstUser) {
+			await finalizeSetup(emdash.db);
+			console.log(`[oauth] Setup complete: created admin user via ${provider} (${user.email})`);
+		}
 
 		// Create session
 		if (session) {
