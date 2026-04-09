@@ -211,19 +211,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	const isTokenAuth = bearerResult === "authenticated";
 
+	// MCP discovery/tooling is bearer-only. Session/external auth should never
+	// be consulted for this endpoint, and unauthenticated requests must return
+	// the OAuth discovery-style 401 response.
+	const method = context.request.method.toUpperCase();
+	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
+	if (isMcpEndpoint && !isTokenAuth) {
+		return mcpUnauthorizedResponse(url);
+	}
+
 	// CSRF protection: require X-EmDash-Request header on state-changing requests.
 	// Skip for token-authenticated requests (tokens aren't ambient credentials).
 	// Browsers block cross-origin custom headers, so this prevents CSRF without tokens.
 	// OAuth authorize consent is exempt: it's a standard HTML form POST that can't
 	// include custom headers. The consent flow is protected by session + single-use codes.
-	const method = context.request.method.toUpperCase();
 	const isOAuthConsent = url.pathname.startsWith("/_emdash/oauth/authorize");
-	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
 	if (
 		isApiRoute &&
 		!isTokenAuth &&
 		!isOAuthConsent &&
-		!isMcpEndpoint &&
 		isUnsafeMethod(method) &&
 		!isPublicApiRoute
 	) {
@@ -576,20 +582,14 @@ async function handlePasskeyAuth(
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 	isApiRoute: boolean,
 ): Promise<Response> {
-	const { url, locals, request, session } = context;
+	const { url, locals, session } = context;
 	const { emdash } = locals;
-	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
-	const method = request.method.toUpperCase();
 
 	try {
 		// Check session for user (session.get returns a Promise)
 		const sessionUser = await session?.get("user");
 
 		if (!sessionUser?.id) {
-			// Not authenticated
-			if (isMcpEndpoint) {
-				return mcpUnauthorizedResponse(url);
-			}
 			if (isApiRoute) {
 				return Response.json(
 					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
@@ -599,13 +599,6 @@ async function handlePasskeyAuth(
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("redirect", url.pathname);
 			return context.redirect(loginUrl.toString());
-		}
-
-		if (isMcpEndpoint && isUnsafeMethod(method)) {
-			const csrfHeader = request.headers.get("X-EmDash-Request");
-			if (csrfHeader !== "1") {
-				return csrfRejectedResponse();
-			}
 		}
 
 		// Get full user from database

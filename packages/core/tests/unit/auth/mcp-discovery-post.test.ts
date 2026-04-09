@@ -109,7 +109,7 @@ describe("MCP discovery auth middleware", () => {
 		});
 	});
 
-	it("only reads the session once for anonymous MCP POST discovery requests", async () => {
+	it("does not read the session for anonymous MCP POST discovery requests", async () => {
 		const { response, next, session } = await runAuthMiddleware({
 			pathname: "/_emdash/api/mcp",
 			headers: { "Content-Type": "application/json" },
@@ -117,8 +117,7 @@ describe("MCP discovery auth middleware", () => {
 
 		expect(next).not.toHaveBeenCalled();
 		expect(response.status).toBe(401);
-		expect(session.get).toHaveBeenCalledTimes(1);
-		expect(session.get).toHaveBeenCalledWith("user");
+		expect(session.get).not.toHaveBeenCalled();
 	});
 
 	it("returns 401 with discovery metadata for invalid bearer tokens on MCP POST", async () => {
@@ -140,17 +139,21 @@ describe("MCP discovery auth middleware", () => {
 		});
 	});
 
-	it("still rejects session-backed MCP POST requests without the CSRF header", async () => {
-		const { response, next } = await runAuthMiddleware({
+	it("rejects MCP POST requests that only have session auth", async () => {
+		const { response, next, session } = await runAuthMiddleware({
 			pathname: "/_emdash/api/mcp",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"X-EmDash-Request": "1",
+			},
 			sessionUserId: "user_1",
 		});
 
 		expect(next).not.toHaveBeenCalled();
-		expect(response.status).toBe(403);
+		expect(response.status).toBe(401);
+		expect(session.get).not.toHaveBeenCalled();
 		await expect(response.json()).resolves.toEqual({
-			error: { code: "CSRF_REJECTED", message: "Missing required header" },
+			error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" },
 		});
 	});
 
