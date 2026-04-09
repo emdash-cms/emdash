@@ -69,9 +69,7 @@ const categories = await getEntryTerms("posts", post.data.id, "category");
 			)
 		}
 
-		<div {...post.edit.content}>
-			<PortableText value={post.data.content} />
-		</div>
+		<PortableText value={post.data.content} />
 
 		{
 			tags.length > 0 && (
