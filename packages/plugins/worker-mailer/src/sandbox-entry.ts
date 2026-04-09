@@ -86,7 +86,10 @@ async function buildSettingsPage(ctx: PluginContext) {
 			{
 				type: "fields",
 				fields: [
-					{ label: "Security", value: transportSecurity === "implicit_tls" ? "Implicit TLS" : "STARTTLS" },
+					{
+						label: "Security",
+						value: transportSecurity === "implicit_tls" ? "Implicit TLS" : "STARTTLS",
+					},
 					{ label: "Port", value: String(port) },
 					{ label: "Host", value: host || "Not configured" },
 					{ label: "Password", value: hasPassword ? "Stored" : "Not set" },
@@ -170,7 +173,8 @@ async function buildSettingsPage(ctx: PluginContext) {
 }
 
 async function saveSettings(ctx: PluginContext, values: Record<string, unknown>) {
-	const transportSecurity = values.transportSecurity === "implicit_tls" ? "implicit_tls" : "starttls";
+	const transportSecurity =
+		values.transportSecurity === "implicit_tls" ? "implicit_tls" : "starttls";
 	const port = toPortNumber(values.port, defaultPortForTransportSecurity(transportSecurity));
 
 	if (!Number.isFinite(port) || port < 1 || port > 65535) {

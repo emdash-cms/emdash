@@ -11,11 +11,7 @@ vi.mock("@workermailer/smtp", () => ({
 	},
 }));
 
-import {
-	createPlugin,
-	workerMailerPlugin,
-	workerMailerSandboxedPlugin,
-} from "../src/index.js";
+import { createPlugin, workerMailerPlugin, workerMailerSandboxedPlugin } from "../src/index.js";
 import sandboxEntry from "../src/sandbox-entry.js";
 
 function createMockContext(initial: Record<string, unknown> = {}) {
