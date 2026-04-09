@@ -93,6 +93,64 @@ EmDash supports OAuth login with GitHub and Google when configured. Users can li
 
 See the [Configuration guide](/reference/configuration#oauth) for setup instructions.
 
+## ATProto Login
+
+EmDash supports login via the [AT Protocol](https://atproto.com/) (the protocol behind Bluesky). Users can sign in with any AT Protocol handle — whether on `bsky.social` or a self-hosted PDS.
+
+### How It Works
+
+<Steps>
+
+1. Enable ATProto in your config:
+
+   ```js title="astro.config.mjs"
+   import emdash from "emdash/astro";
+
+   emdash({
+     atproto: true,
+   })
+   ```
+
+2. The login page shows a "Sign in via the Atmosphere" section with a handle input
+
+3. The user enters their handle (e.g., `alice.bsky.social`) and clicks **Sign in**
+
+4. They're redirected to their PDS to authorize the login
+
+5. After authorization, they're redirected back to EmDash
+
+</Steps>
+
+### Email Verification
+
+ATProto doesn't provide email addresses during OAuth. After authorizing on their PDS, users are asked to enter an email address and verify it via a confirmation link. This email is used for:
+
+- Matching with existing EmDash accounts
+- Checking against [allowed domains](#self-signup) for self-signup
+- Account communication (invites, magic links)
+
+<Aside>
+	In development, verification emails are logged to the server console instead of being sent.
+	Look for `[atproto] Verification URL:` in the logs.
+</Aside>
+
+### Access Control
+
+ATProto login follows the same access rules as GitHub/Google OAuth:
+
+- **Existing users** — If the email matches an existing user, the ATProto identity is linked to that account
+- **Allowed domains** — New users can sign up if their email domain is in the allowed domains list (with the domain's default role)
+- **No match** — Users without a matching account or allowed domain are rejected
+
+<Aside type="caution">
+	ATProto login doesn't bypass your access controls. An admin must either invite the user,
+	add their email domain to allowed domains, or create their account before they can sign in.
+</Aside>
+
+### Identity Storage
+
+When a user signs in via ATProto, their DID (Decentralized Identifier) is stored on their user profile. This is separate from the existing [ATProto plugin](/plugins/overview) which handles content syndication to Bluesky using app passwords.
+
 ## User Roles
 
 EmDash uses role-based access control with five levels:

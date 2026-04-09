@@ -173,6 +173,22 @@ oauth: {
 }
 ```
 
+### `atproto`
+
+**Optional.** Enable AT Protocol OAuth login. When `true`, the login page shows a handle input for signing in with a Bluesky handle or any PDS-hosted identity.
+
+```js
+emdash({
+  atproto: true,
+})
+```
+
+ATProto login is additive — it works alongside passkeys, OAuth, and magic links. It does not replace or disable any existing auth method.
+
+Users who sign in via ATProto must verify their email address before their account is created. Access is gated by the same [allowed domains](#authselfsignup) rules as other auth methods.
+
+See the [Authentication guide](/guides/authentication#atproto-login) for details.
+
 #### `auth.session`
 
 Session configuration.
