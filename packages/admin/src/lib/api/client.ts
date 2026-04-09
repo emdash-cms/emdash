@@ -82,6 +82,7 @@ export interface AdminManifest {
 					required?: boolean;
 					widget?: string;
 					options?: Array<{ value: string; label: string }>;
+					validation?: Record<string, unknown>;
 				}
 			>;
 		}

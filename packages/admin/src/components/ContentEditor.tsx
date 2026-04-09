@@ -1,6 +1,7 @@
 import {
 	Badge,
 	Button,
+	Checkbox,
 	Dialog,
 	Input,
 	InputArea,
@@ -36,10 +37,12 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { RepeaterField } from "./RepeaterField.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -80,6 +83,7 @@ export interface FieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }>;
 	widget?: string;
+	validation?: Record<string, unknown>;
 }
 
 /** Simplified user info for current user context */
@@ -365,27 +369,29 @@ export function ContentEditor({
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
+	const urlPattern = manifest?.collections[collection]?.urlPattern;
+
 	const handlePreview = async () => {
 		if (!item?.id) return;
-
-		const contentUrl = (s: string) => {
-			const pattern = manifest?.collections[collection]?.urlPattern;
-			return pattern ? pattern.replace("{slug}", s) : `/${collection}/${s}`;
-		};
 
 		setIsLoadingPreview(true);
 		try {
 			const result = await getPreviewUrl(collection, item.id);
 			if (result?.url) {
-				// Open preview in new tab
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
-				// Fallback to direct URL if preview not configured
-				window.open(contentUrl(slug || item.id), "_blank", "noopener,noreferrer");
+				window.open(
+					contentUrl(collection, slug || item.id, urlPattern),
+					"_blank",
+					"noopener,noreferrer",
+				);
 			}
 		} catch {
-			// Fallback to direct URL on error
-			window.open(contentUrl(slug || item?.id || ""), "_blank", "noopener,noreferrer");
+			window.open(
+				contentUrl(collection, slug || item?.id || "", urlPattern),
+				"_blank",
+				"noopener,noreferrer",
+			);
 		} finally {
 			setIsLoadingPreview(false);
 		}
@@ -596,13 +602,13 @@ export function ContentEditor({
 							)}
 							{isLive && item?.slug && (
 								<a
-									href={`/${item.slug}`}
+									href={contentUrl(collection, item.slug, urlPattern)}
 									target="_blank"
 									rel="noopener noreferrer"
-									aria-label="View published page"
-									className={buttonVariants({ variant: "ghost", shape: "square" })}
+									className={buttonVariants({ variant: "outline" })}
 								>
-									<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+									<ArrowSquareOut className="mr-2 h-4 w-4" aria-hidden="true" />
+									Live View
 								</a>
 							)}
 						</>
@@ -1153,6 +1159,33 @@ function FieldRenderer({
 			);
 		}
 
+		case "multiSelect": {
+			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
+			return (
+				<fieldset>
+					<Label className={labelClass}>{label}</Label>
+					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+						{field.options?.map((opt) => {
+							const isChecked = selected.includes(opt.value);
+							return (
+								<Checkbox
+									key={opt.value}
+									label={opt.label}
+									checked={isChecked}
+									onCheckedChange={(checked) => {
+										const next = checked
+											? [...selected, opt.value]
+											: selected.filter((v) => v !== opt.value);
+										handleChange(next);
+									}}
+								/>
+							);
+						})}
+					</div>
+				</fieldset>
+			);
+		}
+
 		case "datetime":
 			return (
 				<Input
@@ -1180,6 +1213,29 @@ function FieldRenderer({
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+				/>
+			);
+		}
+
+		case "repeater": {
+			const validation = field.validation;
+			const subFields = (validation?.subFields ?? []) as Array<{
+				slug: string;
+				type: string;
+				label: string;
+				required?: boolean;
+				options?: string[];
+			}>;
+			return (
+				<RepeaterField
+					label={label}
+					id={id}
+					value={value}
+					onChange={handleChange}
+					required={field.required}
+					subFields={subFields}
+					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
+					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
 				/>
 			);
 		}

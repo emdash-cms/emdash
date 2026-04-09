@@ -14,6 +14,7 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { ContentItem, TrashedContentItem } from "../lib/api";
+import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -39,6 +40,8 @@ export interface ContentListProps {
 	activeLocale?: string;
 	/** Callback when locale filter changes */
 	onLocaleChange?: (locale: string) => void;
+	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
+	urlPattern?: string;
 }
 
 type ViewTab = "all" | "trash";
@@ -78,6 +81,7 @@ export function ContentList({
 	i18n,
 	activeLocale,
 	onLocaleChange,
+	urlPattern,
 }: ContentListProps) {
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
@@ -213,6 +217,7 @@ export function ContentList({
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
+											urlPattern={urlPattern}
 										/>
 									))
 								)}
@@ -321,6 +326,7 @@ interface ContentListItemProps {
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	urlPattern?: string;
 }
 
 function ContentListItem({
@@ -329,6 +335,7 @@ function ContentListItem({
 	onDelete,
 	onDuplicate,
 	showLocale,
+	urlPattern,
 }: ContentListItemProps) {
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
@@ -336,26 +343,13 @@ function ContentListItem({
 	return (
 		<tr className="border-b hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
-				<div className="flex items-center gap-1.5">
-					<Link
-						to="/content/$collection/$id"
-						params={{ collection, id: item.id }}
-						className="font-medium hover:text-kumo-brand"
-					>
-						{title}
-					</Link>
-					{item.status === "published" && item.slug && (
-						<a
-							href={`/${item.slug}`}
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label={`View published ${title}`}
-							className="text-kumo-subtle hover:text-kumo-brand"
-						>
-							<ArrowSquareOut className="h-3.5 w-3.5" aria-hidden="true" />
-						</a>
-					)}
-				</div>
+				<Link
+					to="/content/$collection/$id"
+					params={{ collection, id: item.id }}
+					className="font-medium hover:text-kumo-brand"
+				>
+					{title}
+				</Link>
 			</td>
 			<td className="px-4 py-3">
 				<StatusBadge
@@ -373,6 +367,17 @@ function ContentListItem({
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
 			<td className="px-4 py-3 text-right">
 				<div className="flex items-center justify-end space-x-1">
+					{item.status === "published" && item.slug && (
+						<a
+							href={contentUrl(collection, item.slug, urlPattern)}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={`View published ${title}`}
+							className={buttonVariants({ variant: "ghost", shape: "square" })}
+						>
+							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+						</a>
+					)}
 					<Link
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
