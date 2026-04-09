@@ -72,12 +72,13 @@ export default defineConfig({
 			// Trusted plugins (run in host worker)
 			plugins: [
 				// SMTP delivery from the host Worker. Configure credentials in the
-				// plugin settings page or seed defaults in code. Workers requires an
-				// SMTP endpoint that starts already secure (implicit TLS / SMTPS).
+				// plugin settings page or seed defaults in code. This plugin supports
+				// STARTTLS (usually port 587) and implicit TLS / SMTPS (usually 465).
 				// Example:
 				// workerMailerPlugin({
 				// 	host: "smtp.example.com",
-				// 	port: 465,
+				// 	port: 587,
+				// 	transportSecurity: "starttls",
 				// 	authType: "plain",
 				// 	username: "smtp-user",
 				// 	password: "smtp-password",

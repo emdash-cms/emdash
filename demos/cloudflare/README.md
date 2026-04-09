@@ -63,7 +63,8 @@ If you want to seed defaults in code, use:
 ```js
 workerMailerPlugin({
 	host: "smtp.example.com",
-	port: 465,
+	port: 587,
+	transportSecurity: "starttls",
 	authType: "plain",
 	username: "smtp-user",
 	password: "smtp-password",
@@ -72,8 +73,8 @@ workerMailerPlugin({
 });
 ```
 
-Cloudflare Workers only supports SMTP connections that start already secure
-(implicit TLS / SMTPS). STARTTLS is not supported by this plugin.
+Cloudflare Workers TCP sockets support both STARTTLS and implicit TLS, and this
+plugin exposes both modes. Plaintext SMTP is intentionally not supported.
 
 ## Notes
 

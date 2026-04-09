@@ -2,36 +2,50 @@
  * Worker Mailer Plugin for EmDash CMS
  *
  * Provides an `email:deliver` transport implementation using
- * `@ribassu/worker-mailer` for Cloudflare Workers.
+ * `@workermailer/smtp` for Cloudflare Workers.
  *
- * Cloudflare Workers only supports SMTP connections that start secure
- * (implicit TLS / SMTPS). STARTTLS upgrades from plaintext are not supported.
+ * The plugin supports the two secure transport modes available via
+ * Cloudflare TCP sockets:
+ * - STARTTLS (typically port 587)
+ * - Implicit TLS / SMTPS (typically port 465)
+ *
+ * Plaintext SMTP is intentionally not exposed.
  */
 
-import type { EmailOptions, WorkerMailerOptions } from "@ribassu/worker-mailer";
+import type { AuthType, EmailOptions, WorkerMailerOptions } from "@workermailer/smtp";
 import { definePlugin } from "emdash";
 import type { PluginContext, PluginDescriptor, ResolvedPlugin } from "emdash";
 
 const PLUGIN_ID = "worker-mailer";
 const VERSION = "0.1.0";
-const DEFAULT_PORT = 465;
+const DEFAULT_TRANSPORT_SECURITY = "starttls";
 const DEFAULT_AUTH_TYPE = "plain";
-const IMPLICIT_TLS_REQUIRED_MESSAGE =
-	"Cloudflare Workers only supports SMTP connections that start secure (implicit TLS / SMTPS). Use a TLS-enabled SMTP port such as 465.";
+const IMPLICIT_TLS_PORT = 465;
+const STARTTLS_PORT = 587;
+const TLS_REQUIRED_MESSAGE =
+	"Choose STARTTLS on port 587 or implicit TLS on port 465. Plaintext SMTP is not supported.";
 
-type AuthType = "plain" | "login" | "cram-md5";
+type TransportSecurity = "starttls" | "implicit_tls";
 
 function isAuthType(value: string): value is AuthType {
 	return value === "plain" || value === "login" || value === "cram-md5";
 }
 
+function isTransportSecurity(value: string): value is TransportSecurity {
+	return value === "starttls" || value === "implicit_tls";
+}
+
+function defaultPortForTransportSecurity(transportSecurity: TransportSecurity): number {
+	return transportSecurity === "implicit_tls" ? IMPLICIT_TLS_PORT : STARTTLS_PORT;
+}
+
 export interface WorkerMailerPluginOptions {
 	/** SMTP host (e.g. smtp.example.com) */
 	host?: string;
-	/** SMTP port for an implicit TLS endpoint (e.g. 465) */
+	/** SMTP port (usually 587 for STARTTLS or 465 for implicit TLS) */
 	port?: number;
-	/** Only `true` is supported on Cloudflare Workers */
-	secure?: boolean;
+	/** SMTP transport security mode */
+	transportSecurity?: TransportSecurity;
 	/** SMTP auth type */
 	authType?: AuthType;
 	/** SMTP username */
@@ -47,6 +61,7 @@ export interface WorkerMailerPluginOptions {
 interface WorkerMailerConfig {
 	host: string;
 	port: number;
+	transportSecurity: TransportSecurity;
 	authType: AuthType;
 	username: string;
 	password: string;
@@ -68,6 +83,11 @@ export function workerMailerPlugin(
 		capabilities: ["email:provide"],
 		adminPages: [{ path: "/settings", label: "SMTP", icon: "envelope" }],
 	};
+}
+
+function coerceTransportSecurity(value: unknown, fallback: TransportSecurity): TransportSecurity {
+	if (typeof value !== "string") return fallback;
+	return isTransportSecurity(value) ? value : fallback;
 }
 
 function coerceAuthType(value: unknown, fallback: AuthType): AuthType {
@@ -94,12 +114,15 @@ async function readConfig(
 	ctx: PluginContext,
 	options: WorkerMailerPluginOptions,
 ): Promise<WorkerMailerConfig> {
+	const transportSecurity = coerceTransportSecurity(
+		await ctx.kv.get<string>("settings:transportSecurity"),
+		options.transportSecurity ?? DEFAULT_TRANSPORT_SECURITY,
+	);
 	const host = toNonEmpty(await ctx.kv.get<string>("settings:host")) ?? toNonEmpty(options.host);
 	const port = coerceNumber(
 		await ctx.kv.get<number>("settings:port"),
-		options.port ?? DEFAULT_PORT,
+		options.port ?? defaultPortForTransportSecurity(transportSecurity),
 	);
-	const secure = (await ctx.kv.get<boolean>("settings:secure")) ?? options.secure ?? true;
 	const authType = coerceAuthType(
 		await ctx.kv.get<string>("settings:authType"),
 		options.authType ?? DEFAULT_AUTH_TYPE,
@@ -128,15 +151,10 @@ async function readConfig(
 		);
 	}
 
-	if (!secure) {
-		throw new Error(
-			`Worker Mailer cannot use plaintext SMTP or STARTTLS. ${IMPLICIT_TLS_REQUIRED_MESSAGE}`,
-		);
-	}
-
 	return {
 		host: host!,
 		port,
+		transportSecurity,
 		authType,
 		username: username!,
 		password: password!,
@@ -156,13 +174,13 @@ async function setDefault(
 	await ctx.kv.set(key, value);
 }
 
-async function loadWorkerMailer(): Promise<typeof import("@ribassu/worker-mailer")> {
+async function loadWorkerMailer(): Promise<typeof import("@workermailer/smtp")> {
 	try {
-		return await import("@ribassu/worker-mailer");
+		return await import("@workermailer/smtp");
 	} catch (error) {
 		throw new Error(
-			`Failed to load @ribassu/worker-mailer. ` +
-				`Ensure this plugin runs on Cloudflare Workers with nodejs_compat enabled.`,
+			`Failed to load @workermailer/smtp. ` +
+				`Ensure this plugin runs on Cloudflare Workers with TCP sockets available.`,
 			{ cause: error },
 		);
 	}
@@ -178,7 +196,8 @@ async function sendWithWorkerMailer(
 	const mailerOptions: WorkerMailerOptions = {
 		host: config.host,
 		port: config.port,
-		secure: true,
+		secure: config.transportSecurity === "implicit_tls",
+		startTls: config.transportSecurity === "starttls",
 		authType: config.authType,
 		credentials: {
 			username: config.username,
@@ -196,10 +215,12 @@ async function sendWithWorkerMailer(
 
 	await WorkerMailer.send(mailerOptions, emailOptions);
 
-	ctx.log.info(`Delivered email to ${message.to} via Worker Mailer`);
+	ctx.log.info(`Delivered email to ${message.to} via Worker Mailer (${config.transportSecurity})`);
 }
 
 export function createPlugin(options: WorkerMailerPluginOptions = {}): ResolvedPlugin {
+	const transportSecurity = options.transportSecurity ?? DEFAULT_TRANSPORT_SECURITY;
+
 	return definePlugin({
 		id: PLUGIN_ID,
 		version: VERSION,
@@ -209,9 +230,15 @@ export function createPlugin(options: WorkerMailerPluginOptions = {}): ResolvedP
 			"plugin:install": {
 				handler: async (_event, ctx) => {
 					await setDefault(ctx, "settings:host", toNonEmpty(options.host));
-					await setDefault(ctx, "settings:port", options.port ?? DEFAULT_PORT);
-					await ctx.kv.set("settings:secure", true);
+					await setDefault(ctx, "settings:transportSecurity", transportSecurity);
+					await setDefault(
+						ctx,
+						"settings:port",
+						options.port ?? defaultPortForTransportSecurity(transportSecurity),
+					);
+					await ctx.kv.delete("settings:transportSecurityMode");
 					await ctx.kv.delete("settings:startTls");
+					await ctx.kv.delete("settings:secure");
 					await setDefault(ctx, "settings:authType", options.authType ?? DEFAULT_AUTH_TYPE);
 					await setDefault(ctx, "settings:username", toNonEmpty(options.username));
 					await setDefault(ctx, "settings:password", toNonEmpty(options.password));
@@ -234,14 +261,24 @@ export function createPlugin(options: WorkerMailerPluginOptions = {}): ResolvedP
 				host: {
 					type: "string",
 					label: "SMTP Host",
-					description: "SMTP server hostname for an implicit TLS endpoint (e.g. smtp.example.com)",
+					description: "SMTP server hostname (for example: smtp.example.com)",
 					default: options.host ?? "",
+				},
+				transportSecurity: {
+					type: "select",
+					label: "Transport Security",
+					options: [
+						{ value: "starttls", label: "STARTTLS" },
+						{ value: "implicit_tls", label: "Implicit TLS / SMTPS" },
+					],
+					description: TLS_REQUIRED_MESSAGE,
+					default: transportSecurity,
 				},
 				port: {
 					type: "number",
-					label: "SMTPS Port",
-					description: IMPLICIT_TLS_REQUIRED_MESSAGE,
-					default: options.port ?? DEFAULT_PORT,
+					label: "SMTP Port",
+					description: "Use 587 for STARTTLS or 465 for implicit TLS.",
+					default: options.port ?? defaultPortForTransportSecurity(transportSecurity),
 					min: 1,
 					max: 65535,
 				},

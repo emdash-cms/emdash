@@ -1,10 +1,13 @@
 # @emdash-cms/plugin-worker-mailer
 
-SMTP provider plugin for EmDash on Cloudflare Workers using
-`@ribassu/worker-mailer`.
+SMTP provider plugin for EmDash on Cloudflare Workers using `@workermailer/smtp`.
 
-Cloudflare Workers only supports SMTP connections that start already secure
-(implicit TLS / SMTPS). STARTTLS is not supported by this plugin.
+The plugin supports secure SMTP in both modes exposed by Cloudflare TCP sockets:
+
+- `starttls` on port `587`
+- `implicit_tls` on port `465`
+
+Plaintext SMTP is intentionally not exposed.
 
 ## Usage
 
@@ -27,7 +30,8 @@ Configure the SMTP connection in the EmDash admin UI, or seed defaults in code:
 ```js
 workerMailerPlugin({
 	host: "smtp.example.com",
-	port: 465,
+	port: 587,
+	transportSecurity: "starttls",
 	authType: "plain",
 	username: "smtp-user",
 	password: "smtp-password",
@@ -38,8 +42,9 @@ workerMailerPlugin({
 
 ## Settings
 
-- `host`: SMTP hostname for an implicit TLS endpoint
-- `port`: SMTP port for implicit TLS, usually `465`
+- `host`: SMTP hostname
+- `transportSecurity`: `starttls` or `implicit_tls`
+- `port`: SMTP port, usually `587` for STARTTLS or `465` for implicit TLS
 - `authType`: `plain`, `login`, or `cram-md5`
 - `username`: SMTP username
 - `password`: SMTP password
