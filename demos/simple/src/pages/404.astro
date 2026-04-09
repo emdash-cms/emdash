@@ -2,32 +2,63 @@
 import Base from "../layouts/Base.astro";
 ---
 
-<Base title="Page not found">
+<Base title="Page Not Found">
 	<div class="not-found">
-		<h1>404</h1>
-		<p>The page you're looking for doesn't exist.</p>
-		<a href="/">Go back home</a>
+		<h1 class="not-found-title">Page Not Found</h1>
+		<p class="not-found-desc">
+			The page you are looking for does not exist or may have been moved.
+		</p>
+		<a href="/" class="home-btn">Go Home</a>
 	</div>
 </Base>
 
 <style>
 	.not-found {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
 		text-align: center;
-		padding: var(--spacing-24) var(--spacing-6);
+		min-height: 50vh;
+		padding: var(--spacing-16) var(--spacing-6);
 	}
 
-	.not-found h1 {
-		font-size: var(--font-size-5xl);
-		margin-bottom: var(--spacing-2);
-		color: var(--color-border);
-	}
-
-	.not-found p {
-		color: var(--color-muted);
-		margin-bottom: var(--spacing-6);
-	}
-
-	.not-found a {
+	.not-found-title {
+		font-size: var(--font-size-4xl);
+		font-weight: 700;
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-4);
 		color: var(--color-text);
+	}
+
+	.not-found-desc {
+		font-size: var(--font-size-lg);
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+		max-width: 28rem;
+		margin-bottom: var(--spacing-8);
+	}
+
+	.home-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-3) var(--spacing-8);
+		font-family: var(--font-sans);
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		color: #fff;
+		background: linear-gradient(135deg, #b91c1c, #e11d48);
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition:
+			opacity var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.home-btn:hover {
+		opacity: 0.92;
+		transform: translateY(-1px);
+		color: #fff;
 	}
 </style>

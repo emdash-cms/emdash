@@ -2,23 +2,20 @@
 	"$schema": "https://emdashcms.com/seed.schema.json",
 	"version": "1",
 	"meta": {
-		"name": "Blog Starter",
-		"description": "A blog with posts and pages",
-		"author": "EmDash"
+		"name": "Texas Equipment Source",
+		"description": "Houston's trusted forklift and heavy equipment dealer",
+		"author": "Texas Equipment Source"
 	},
-
 	"settings": {
-		"title": "My Blog",
-		"tagline": "Thoughts on building for the web"
+		"title": "Texas Equipment Source",
+		"tagline": "Your Trusted Partner for Material Handling Equipment"
 	},
-
 	"collections": [
 		{
-			"slug": "posts",
-			"label": "Posts",
-			"labelSingular": "Post",
-			"supports": ["drafts", "revisions", "search", "seo"],
-			"commentsEnabled": true,
+			"slug": "services",
+			"label": "Services",
+			"labelSingular": "Service",
+			"supports": ["drafts", "revisions", "seo"],
 			"fields": [
 				{
 					"slug": "title",
@@ -27,28 +24,46 @@
 					"required": true,
 					"searchable": true
 				},
-				{
-					"slug": "featured_image",
-					"label": "Featured Image",
-					"type": "image"
-				},
-				{
-					"slug": "content",
-					"label": "Content",
-					"type": "portableText",
-					"searchable": true
-				},
-				{
-					"slug": "excerpt",
-					"label": "Excerpt",
-					"type": "text"
-				}
+				{ "slug": "subtitle", "label": "Subtitle", "type": "string" },
+				{ "slug": "excerpt", "label": "Excerpt", "type": "text" },
+				{ "slug": "featured_image", "label": "Featured Image", "type": "image" },
+				{ "slug": "icon", "label": "Icon Name", "type": "string" },
+				{ "slug": "color", "label": "Accent Color", "type": "string" },
+				{ "slug": "content", "label": "Content", "type": "portableText", "searchable": true },
+				{ "slug": "benefits", "label": "Benefits (JSON)", "type": "json" },
+				{ "slug": "options", "label": "Options (JSON)", "type": "json" }
 			]
 		},
 		{
-			"slug": "pages",
-			"label": "Pages",
-			"labelSingular": "Page",
+			"slug": "equipment",
+			"label": "Equipment",
+			"labelSingular": "Equipment",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{ "slug": "featured_image", "label": "Featured Image", "type": "image" },
+				{ "slug": "price", "label": "Price", "type": "number" },
+				{ "slug": "condition", "label": "Condition", "type": "string" },
+				{ "slug": "brand", "label": "Brand", "type": "string" },
+				{ "slug": "model", "label": "Model", "type": "string" },
+				{ "slug": "year", "label": "Year", "type": "integer" },
+				{ "slug": "capacity", "label": "Capacity", "type": "string" },
+				{ "slug": "fuel_type", "label": "Fuel Type", "type": "string" },
+				{ "slug": "hours", "label": "Hours", "type": "integer" },
+				{ "slug": "excerpt", "label": "Description", "type": "text", "searchable": true },
+				{ "slug": "content", "label": "Full Details", "type": "portableText" }
+			]
+		},
+		{
+			"slug": "parts",
+			"label": "Parts",
+			"labelSingular": "Part",
 			"supports": ["drafts", "revisions", "search"],
 			"fields": [
 				{
@@ -58,190 +73,174 @@
 					"required": true,
 					"searchable": true
 				},
+				{ "slug": "featured_image", "label": "Image", "type": "image" },
+				{ "slug": "price", "label": "Price", "type": "number" },
+				{ "slug": "part_number", "label": "Part Number", "type": "string" },
+				{ "slug": "manufacturer", "label": "Manufacturer", "type": "string" },
+				{ "slug": "excerpt", "label": "Description", "type": "text", "searchable": true }
+			]
+		},
+		{
+			"slug": "posts",
+			"label": "Blog Posts",
+			"labelSingular": "Blog Post",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
 				{
-					"slug": "content",
-					"label": "Content",
-					"type": "portableText",
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
 					"searchable": true
-				}
+				},
+				{ "slug": "featured_image", "label": "Featured Image", "type": "image" },
+				{ "slug": "excerpt", "label": "Excerpt", "type": "text" },
+				{ "slug": "content", "label": "Content", "type": "portableText", "searchable": true }
+			]
+		},
+		{
+			"slug": "faqs",
+			"label": "FAQs",
+			"labelSingular": "FAQ",
+			"supports": ["drafts"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Question",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{ "slug": "content", "label": "Answer", "type": "portableText" },
+				{ "slug": "category", "label": "Category", "type": "string" },
+				{ "slug": "sort_order", "label": "Sort Order", "type": "integer" }
+			]
+		},
+		{
+			"slug": "testimonials",
+			"label": "Testimonials",
+			"labelSingular": "Testimonial",
+			"supports": ["drafts"],
+			"fields": [
+				{ "slug": "title", "label": "Name", "type": "string", "required": true },
+				{ "slug": "content", "label": "Quote", "type": "portableText" },
+				{ "slug": "role", "label": "Role/Company", "type": "string" },
+				{ "slug": "rating", "label": "Rating", "type": "integer" }
+			]
+		},
+		{
+			"slug": "pages",
+			"label": "Pages",
+			"labelSingular": "Page",
+			"supports": ["drafts", "revisions", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{ "slug": "content", "label": "Content", "type": "portableText", "searchable": true }
 			]
 		}
 	],
-
 	"taxonomies": [
 		{
-			"name": "category",
-			"label": "Categories",
-			"labelSingular": "Category",
+			"name": "equipment_category",
+			"label": "Equipment Categories",
+			"labelSingular": "Equipment Category",
 			"hierarchical": true,
-			"collections": ["posts"],
+			"collections": ["equipment"],
 			"terms": [
-				{ "slug": "development", "label": "Development" },
-				{ "slug": "design", "label": "Design" },
-				{ "slug": "notes", "label": "Notes" }
+				{ "slug": "forklifts", "label": "Forklifts" },
+				{ "slug": "pallet-jacks", "label": "Pallet Jacks" },
+				{ "slug": "reach-trucks", "label": "Reach Trucks" },
+				{ "slug": "order-pickers", "label": "Order Pickers" }
 			]
 		},
 		{
-			"name": "tag",
-			"label": "Tags",
-			"labelSingular": "Tag",
+			"name": "faq_category",
+			"label": "FAQ Categories",
+			"labelSingular": "FAQ Category",
 			"hierarchical": false,
-			"collections": ["posts"],
+			"collections": ["faqs"],
 			"terms": [
-				{ "slug": "webdev", "label": "Web Development" },
-				{ "slug": "opinion", "label": "Opinion" },
-				{ "slug": "tools", "label": "Tools" },
-				{ "slug": "creativity", "label": "Creativity" }
+				{ "slug": "sales", "label": "Sales" },
+				{ "slug": "rentals", "label": "Rentals" },
+				{ "slug": "service-parts", "label": "Service & Parts" },
+				{ "slug": "training", "label": "Training" }
 			]
 		}
 	],
-
-	"bylines": [
-		{
-			"id": "byline-editorial",
-			"slug": "emdash-editorial",
-			"displayName": "EmDash Editorial"
-		},
-		{
-			"id": "byline-guest",
-			"slug": "guest-contributor",
-			"displayName": "Guest Contributor",
-			"isGuest": true
-		}
-	],
-
 	"menus": [
 		{
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
 				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "custom", "label": "About", "url": "/pages/about" },
-				{ "type": "custom", "label": "Posts", "url": "/posts" }
-			]
-		}
-	],
-
-	"widgetAreas": [
-		{
-			"name": "sidebar",
-			"label": "Sidebar",
-			"description": "Widget area displayed on single post pages",
-			"widgets": [
+				{ "type": "custom", "label": "Equipment", "url": "/equipment" },
+				{ "type": "custom", "label": "Parts", "url": "/parts" },
 				{
-					"type": "component",
-					"componentId": "core:search",
-					"title": "Search"
-				},
-				{
-					"type": "component",
-					"componentId": "core:categories",
-					"title": "Categories"
-				},
-				{
-					"type": "component",
-					"componentId": "core:tags",
-					"title": "Tags"
-				},
-				{
-					"type": "component",
-					"componentId": "core:recent-posts",
-					"title": "Recent Posts",
-					"settings": {
-						"count": 5,
-						"showDate": true
-					}
-				},
-				{
-					"type": "component",
-					"componentId": "core:archives",
-					"title": "Archives",
-					"settings": {
-						"type": "monthly",
-						"limit": 6
-					}
-				}
-			]
-		},
-		{
-			"name": "footer",
-			"label": "Footer",
-			"description": "Widget area displayed in the site footer",
-			"widgets": [
-				{
-					"type": "content",
-					"title": "About",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "A blog about software, design, and the occasional stray thought."
-								}
-							]
-						}
-					]
-				}
-			]
-		}
-	],
-
-	"sections": [
-		{
-			"slug": "newsletter-signup",
-			"title": "Newsletter Signup",
-			"description": "A call-to-action block for newsletter subscriptions",
-			"keywords": ["newsletter", "subscribe", "email", "cta"],
-			"source": "theme",
-			"content": [
-				{
-					"_type": "block",
-					"style": "h3",
-					"children": [{ "_type": "span", "text": "Stay in the loop" }]
-				},
-				{
-					"_type": "block",
-					"style": "normal",
+					"type": "custom",
+					"label": "Services",
+					"url": "/services/sales",
 					"children": [
-						{
-							"_type": "span",
-							"text": "Get notified when new posts are published. No spam, unsubscribe anytime."
-						}
+						{ "type": "custom", "label": "Forklift Sales", "url": "/services/sales" },
+						{ "type": "custom", "label": "Forklift Rentals", "url": "/services/rentals" },
+						{ "type": "custom", "label": "Forklift Repairs", "url": "/services/repairs" },
+						{ "type": "custom", "label": "Forklift Parts", "url": "/parts" },
+						{ "type": "custom", "label": "Operator Training", "url": "/services/training" }
 					]
-				}
-			]
-		},
-		{
-			"slug": "about-author",
-			"title": "About the Author",
-			"description": "Brief author bio for use in posts or pages",
-			"keywords": ["author", "bio", "about"],
-			"source": "theme",
-			"content": [
-				{
-					"_type": "block",
-					"style": "normal",
-					"children": [
-						{
-							"_type": "span",
-							"text": "A software developer who writes about building things on the web. Based somewhere with good coffee and reliable internet."
-						}
-					]
-				}
+				},
+				{ "type": "custom", "label": "Blog", "url": "/blog" },
+				{ "type": "custom", "label": "About", "url": "/about" },
+				{ "type": "custom", "label": "Contact", "url": "/contact" }
 			]
 		}
 	],
-
+	"widgetAreas": [],
+	"bylines": [
+		{
+			"id": "byline-tes",
+			"slug": "texas-equipment-source",
+			"displayName": "Texas Equipment Source"
+		}
+	],
 	"content": {
-		"pages": [
+		"services": [
 			{
-				"id": "about",
-				"slug": "about",
+				"id": "svc-sales",
+				"slug": "sales",
 				"status": "published",
 				"data": {
-					"title": "About",
+					"title": "Forklift Sales",
+					"subtitle": "New & Used Forklifts from Top Brands",
+					"excerpt": "New and used forklifts from top brands. Find the perfect lift truck for your warehouse, dock, or job site.",
+					"icon": "cart",
+					"color": "blue",
+					"benefits": [
+						"Wide selection of new and certified pre-owned forklifts",
+						"Competitive financing options available",
+						"Expert guidance to match the right equipment to your needs",
+						"Trade-in programs for your existing equipment",
+						"Comprehensive warranty packages",
+						"Delivery and setup included"
+					],
+					"options": [
+						{
+							"title": "New Forklifts",
+							"description": "Browse our selection of brand-new forklifts from manufacturers like Toyota, Hyster, Yale, and Crown. Full warranty and latest safety features included."
+						},
+						{
+							"title": "Pre-Owned Forklifts",
+							"description": "Quality inspected and certified pre-owned forklifts at competitive prices. Each unit undergoes a thorough multi-point inspection before sale."
+						},
+						{
+							"title": "Custom Configurations",
+							"description": "Need specialized attachments or configurations? We can customize equipment to match your exact operational requirements."
+						}
+					],
 					"content": [
 						{
 							"_type": "block",
@@ -249,17 +248,542 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "A place for writing about software, design, and the occasional stray thought. No posting schedule, no newsletter funnel. Just things I wanted to write down."
+									"text": "Texas Equipment Source offers a comprehensive selection of new and used forklifts from the industry's most trusted brands. Whether you need a compact warehouse forklift or a heavy-duty outdoor unit, our equipment specialists will help you find the perfect match for your operation."
 								}
 							]
+						}
+					]
+				}
+			},
+			{
+				"id": "svc-rentals",
+				"slug": "rentals",
+				"status": "published",
+				"data": {
+					"title": "Forklift Rentals",
+					"subtitle": "Flexible Rental Programs for Every Need",
+					"excerpt": "Flexible rental options for short-term projects or long-term needs. Get the equipment you need without the commitment of ownership.",
+					"icon": "clock",
+					"color": "blue",
+					"benefits": [
+						"Daily, weekly, monthly, and long-term rental options",
+						"Well-maintained fleet of diverse equipment",
+						"Delivery and pickup included in most areas",
+						"Maintenance and service support included",
+						"Flexible upgrade and swap options",
+						"Rent-to-own programs available"
+					],
+					"options": [
+						{
+							"title": "Short-Term Rentals",
+							"description": "Daily and weekly rentals perfect for seasonal peaks, special projects, or temporary equipment needs. No long-term commitment required."
 						},
+						{
+							"title": "Long-Term Rentals",
+							"description": "Monthly and annual rental programs with reduced rates. Includes scheduled maintenance and priority service response."
+						},
+						{
+							"title": "Rent-to-Own",
+							"description": "Apply your rental payments toward eventual ownership. A flexible path to owning equipment when you're ready to commit."
+						}
+					],
+					"content": [
 						{
 							"_type": "block",
 							"style": "normal",
 							"children": [
 								{
 									"_type": "span",
-									"text": "Built with Astro and EmDash. The source is open if you want to see how it works."
+									"text": "Our flexible rental programs are designed to keep your operations running smoothly without the capital expense of purchasing. From short-term project needs to long-term operational support, we have the right rental solution for your business."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "svc-repairs",
+				"slug": "repairs",
+				"status": "published",
+				"data": {
+					"title": "Forklift Repairs",
+					"subtitle": "Expert Maintenance & Repair Services",
+					"excerpt": "Expert maintenance and repair services to keep your equipment running at peak performance. Our certified technicians service all major brands.",
+					"icon": "wrench",
+					"color": "green",
+					"benefits": [
+						"Factory-trained and certified technicians",
+						"Service for all major forklift brands",
+						"Preventive maintenance programs",
+						"24/7 emergency repair service available",
+						"On-site and in-shop service options",
+						"Genuine OEM and quality aftermarket parts"
+					],
+					"options": [
+						{
+							"title": "Preventive Maintenance",
+							"description": "Scheduled maintenance programs to prevent costly breakdowns and extend equipment life. Customized plans based on your usage and environment."
+						},
+						{
+							"title": "On-Site Repairs",
+							"description": "Our mobile service technicians come to your location for repairs and maintenance. Minimize downtime with fast, on-site service."
+						},
+						{
+							"title": "Shop Repairs",
+							"description": "Full-service repair shop for major overhauls, rebuilds, and complex repairs. State-of-the-art diagnostic equipment and tools."
+						}
+					],
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Keep your material handling fleet in top condition with our comprehensive repair and maintenance services. Our factory-trained technicians use the latest diagnostic tools and genuine parts to ensure your equipment operates safely and efficiently."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "svc-parts",
+				"slug": "forklift-parts",
+				"status": "published",
+				"data": {
+					"title": "Forklift Parts",
+					"subtitle": "OEM & Aftermarket Parts for All Brands",
+					"excerpt": "Genuine OEM and aftermarket parts for all major forklift brands. Fast delivery to minimize your equipment downtime.",
+					"icon": "gear",
+					"color": "purple",
+					"benefits": [
+						"Extensive inventory of OEM and aftermarket parts",
+						"Parts for all major forklift brands and models",
+						"Same-day shipping on most in-stock items",
+						"Competitive pricing on all parts",
+						"Expert parts advisors to help find the right part",
+						"Bulk and fleet discount programs"
+					],
+					"options": [
+						{
+							"title": "OEM Parts",
+							"description": "Genuine manufacturer parts for exact-fit replacement. Backed by factory warranties and guaranteed compatibility."
+						},
+						{
+							"title": "Aftermarket Parts",
+							"description": "Quality aftermarket alternatives at competitive prices. Same performance standards at a lower cost."
+						},
+						{
+							"title": "Hard-to-Find Parts",
+							"description": "Need a part for an older or discontinued model? Our sourcing network can locate hard-to-find components."
+						}
+					],
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We stock a comprehensive selection of forklift parts for all major brands including Toyota, Hyster, Yale, Crown, and more. Our knowledgeable parts advisors can help you find exactly what you need to get your equipment back in service quickly."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "svc-training",
+				"slug": "training",
+				"status": "published",
+				"data": {
+					"title": "Operator Training",
+					"subtitle": "OSHA-Compliant Forklift Certification",
+					"excerpt": "OSHA-compliant forklift operator training and certification programs. Protect your team and your business with proper training.",
+					"icon": "graduation",
+					"color": "orange",
+					"benefits": [
+						"OSHA-compliant certification programs",
+						"On-site training at your facility",
+						"Classroom and hands-on instruction",
+						"New operator and refresher courses",
+						"Multiple equipment type certifications",
+						"Bilingual training available"
+					],
+					"options": [
+						{
+							"title": "New Operator Training",
+							"description": "Comprehensive training for new forklift operators covering safety procedures, equipment operation, and OSHA requirements."
+						},
+						{
+							"title": "Refresher Courses",
+							"description": "Keep your team's certifications current with periodic refresher training. Required every three years per OSHA standards."
+						},
+						{
+							"title": "On-Site Training",
+							"description": "We bring the training to your facility for maximum convenience. Customized to your specific equipment and work environment."
+						}
+					],
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Proper forklift operator training isn't just a legal requirement—it's an investment in safety that protects your employees and your bottom line. Our certified instructors deliver comprehensive, OSHA-compliant training programs tailored to your operation."
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"equipment": [
+			{
+				"id": "eq-1",
+				"slug": "toyota-8fgu25-pneumatic",
+				"status": "published",
+				"data": {
+					"title": "Toyota 8FGU25 Pneumatic Forklift",
+					"price": 28500,
+					"condition": "Used",
+					"brand": "Toyota",
+					"model": "8FGU25",
+					"year": 2019,
+					"capacity": "5,000 lbs",
+					"fuel_type": "LP Gas",
+					"hours": 3200,
+					"excerpt": "Well-maintained Toyota pneumatic forklift with low hours. Ideal for outdoor and warehouse applications."
+				},
+				"taxonomies": { "equipment_category": ["forklifts"] }
+			},
+			{
+				"id": "eq-2",
+				"slug": "hyster-h50ft",
+				"status": "published",
+				"data": {
+					"title": "Hyster H50FT Forklift",
+					"price": 22000,
+					"condition": "Used",
+					"brand": "Hyster",
+					"model": "H50FT",
+					"year": 2018,
+					"capacity": "5,000 lbs",
+					"fuel_type": "LP Gas",
+					"hours": 4800,
+					"excerpt": "Reliable Hyster forklift with Fortis engine. Great for general warehouse and loading dock use."
+				},
+				"taxonomies": { "equipment_category": ["forklifts"] }
+			},
+			{
+				"id": "eq-3",
+				"slug": "crown-rc5545-reach-truck",
+				"status": "published",
+				"data": {
+					"title": "Crown RC5545-40 Reach Truck",
+					"price": 18500,
+					"condition": "Used",
+					"brand": "Crown",
+					"model": "RC5545-40",
+					"year": 2020,
+					"capacity": "4,500 lbs",
+					"fuel_type": "Electric",
+					"hours": 2100,
+					"excerpt": "Low-hour Crown reach truck perfect for narrow aisle warehouse operations."
+				},
+				"taxonomies": { "equipment_category": ["reach-trucks"] }
+			},
+			{
+				"id": "eq-4",
+				"slug": "yale-glp050vx",
+				"status": "published",
+				"data": {
+					"title": "Yale GLP050VX Pneumatic Forklift",
+					"price": 35000,
+					"condition": "New",
+					"brand": "Yale",
+					"model": "GLP050VX",
+					"year": 2024,
+					"capacity": "5,000 lbs",
+					"fuel_type": "LP Gas",
+					"hours": 0,
+					"excerpt": "Brand new Yale pneumatic forklift with full manufacturer warranty. Advanced ergonomics and fuel efficiency."
+				},
+				"taxonomies": { "equipment_category": ["forklifts"] }
+			}
+		],
+		"faqs": [
+			{
+				"id": "faq-1",
+				"slug": "brands-we-sell",
+				"status": "published",
+				"data": {
+					"title": "What brands of forklifts do you sell?",
+					"category": "Sales",
+					"sort_order": 1,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We sell new and used forklifts from all major brands including Toyota, Hyster, Yale, Crown, Caterpillar, Komatsu, Mitsubishi, and more. Our equipment specialists can help you find the right brand and model for your specific needs."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["sales"] }
+			},
+			{
+				"id": "faq-2",
+				"slug": "financing-options",
+				"status": "published",
+				"data": {
+					"title": "Do you offer financing options?",
+					"category": "Sales",
+					"sort_order": 2,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Yes, we offer flexible financing options for both new and used equipment purchases. We work with multiple lenders to find competitive rates and terms that fit your budget. Contact our sales team to discuss financing options."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["sales"] }
+			},
+			{
+				"id": "faq-3",
+				"slug": "trade-in-forklift",
+				"status": "published",
+				"data": {
+					"title": "Can I trade in my old forklift?",
+					"category": "Sales",
+					"sort_order": 3,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Absolutely! We accept trade-ins on most makes and models. Our team will evaluate your current equipment and provide a fair trade-in value that can be applied toward your new purchase."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["sales"] }
+			},
+			{
+				"id": "faq-4",
+				"slug": "rental-rates",
+				"status": "published",
+				"data": {
+					"title": "What are your rental rates?",
+					"category": "Rentals",
+					"sort_order": 4,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Rental rates vary based on the type of equipment, rental duration, and specific requirements. We offer daily, weekly, and monthly rates with discounts for longer-term rentals. Contact us for a customized quote."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["rentals"] }
+			},
+			{
+				"id": "faq-5",
+				"slug": "rental-delivery",
+				"status": "published",
+				"data": {
+					"title": "Do you deliver rental equipment?",
+					"category": "Rentals",
+					"sort_order": 5,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Yes, we provide delivery and pickup service for all rental equipment throughout the Houston metro area and surrounding regions. Delivery charges may apply based on distance."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["rentals"] }
+			},
+			{
+				"id": "faq-6",
+				"slug": "emergency-repairs",
+				"status": "published",
+				"data": {
+					"title": "Do you offer emergency repair services?",
+					"category": "Service & Parts",
+					"sort_order": 6,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Yes, we offer 24/7 emergency repair services. Our mobile technicians can be dispatched to your location to minimize equipment downtime. Call our emergency line at (832) 400-4679 for immediate assistance."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["service-parts"] }
+			},
+			{
+				"id": "faq-7",
+				"slug": "service-frequency",
+				"status": "published",
+				"data": {
+					"title": "How often should I service my forklift?",
+					"category": "Service & Parts",
+					"sort_order": 7,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We recommend servicing your forklift every 200-250 operating hours, or at least every three months. Regular maintenance extends equipment life, improves safety, and prevents costly breakdowns."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["service-parts"] }
+			},
+			{
+				"id": "faq-8",
+				"slug": "osha-compliant-training",
+				"status": "published",
+				"data": {
+					"title": "Is your forklift training OSHA-compliant?",
+					"category": "Training",
+					"sort_order": 8,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Yes, all of our training programs are fully OSHA-compliant and meet 29 CFR 1910.178 standards. Upon completion, operators receive an official certification card valid for three years."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["training"] }
+			},
+			{
+				"id": "faq-9",
+				"slug": "onsite-training",
+				"status": "published",
+				"data": {
+					"title": "Can you provide on-site training?",
+					"category": "Training",
+					"sort_order": 9,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Absolutely! We offer on-site training at your facility for maximum convenience. Our instructors will work with your team using your specific equipment and in your actual work environment for the most relevant training experience."
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": { "faq_category": ["training"] }
+			}
+		],
+		"testimonials": [
+			{
+				"id": "test-1",
+				"slug": "nathan-caswell",
+				"status": "published",
+				"data": {
+					"title": "Nathan A. Caswell",
+					"role": "Operations Manager",
+					"rating": 5,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Texas Equipment Source has been our go-to for forklift maintenance and parts for over 5 years. Their response time is excellent and their technicians really know their stuff. Highly recommend!"
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "test-2",
+				"slug": "michael-slaughter",
+				"status": "published",
+				"data": {
+					"title": "Michael D. Slaughter",
+					"role": "Warehouse Director",
+					"rating": 5,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We purchased three forklifts from TES and the experience was outstanding. They helped us find the right equipment for our warehouse and the delivery was right on schedule. Great team to work with."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "test-3",
+				"slug": "somalia-silva",
+				"status": "published",
+				"data": {
+					"title": "Somalia D. Silva",
+					"role": "Safety Coordinator",
+					"rating": 5,
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The OSHA training program was thorough and professional. Our operators are now properly certified and more confident in their daily operations. The bilingual instruction was a huge plus for our diverse team."
 								}
 							]
 						}
@@ -270,18 +794,11 @@
 		"posts": [
 			{
 				"id": "post-1",
-				"slug": "building-for-the-long-term",
+				"slug": "forklift-maintenance-tips",
 				"status": "published",
 				"data": {
-					"title": "Building for the Long Term",
-					"excerpt": "The frameworks will change. The databases will change. What survives is the clarity of your thinking.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1200&h=800&fit=crop",
-							"alt": "Code on a monitor in a dark room",
-							"filename": "building-long-term.jpg"
-						}
-					},
+					"title": "5 Essential Forklift Maintenance Tips to Extend Equipment Life",
+					"excerpt": "Regular maintenance is key to keeping your forklifts running efficiently and safely. Here are five essential tips every operator and fleet manager should know.",
 					"content": [
 						{
 							"_type": "block",
@@ -289,24 +806,14 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Every few years the industry collectively decides that everything we've been doing is wrong and there's a better way. New frameworks, new paradigms, new build tools. The churn is relentless, and if you're not careful, you spend more time migrating than building."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "I've been writing software long enough to have seen several of these cycles. jQuery to Backbone to Angular to React to whatever comes next. Each transition felt urgent at the time. Looking back, the things that actually mattered were rarely about the framework."
+									"text": "Proper forklift maintenance is not just about preventing breakdowns — it's about ensuring the safety of your operators and the efficiency of your operations. Here are five maintenance tips that can significantly extend the life of your material handling equipment."
 								}
 							]
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "What survives" }]
+							"children": [{ "_type": "span", "text": "1. Check Fluids Regularly" }]
 						},
 						{
 							"_type": "block",
@@ -314,19 +821,14 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Clean data models survive. Clear boundaries between systems survive. Good naming survives. The decision to keep things simple when you could have made them clever - that definitely survives."
+									"text": "Engine oil, hydraulic fluid, coolant, and transmission fluid should be checked daily as part of your pre-shift inspection. Low fluid levels can lead to overheating, component failure, and costly repairs."
 								}
 							]
 						},
 						{
 							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "What doesn't survive is code that was written to impress, abstractions built for problems that never materialized, and architectures designed around a framework's opinions rather than the domain's reality."
-								}
-							]
+							"style": "h2",
+							"children": [{ "_type": "span", "text": "2. Inspect Tires and Wheels" }]
 						},
 						{
 							"_type": "block",
@@ -334,35 +836,36 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The best code I've written is boring. It reads like prose, does one thing well, and doesn't require a PhD in category theory to understand. The worst code I've written was technically impressive at the time."
+									"text": "Worn or damaged tires affect stability and can be a safety hazard. Check for chunking, flat spots, and proper inflation on pneumatic tires. Replace tires when tread is worn to the wear line."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [{ "_type": "span", "text": "3. Keep the Mast and Forks Clean" }]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Debris on the mast rails can cause premature wear and jerky operation. Regularly clean and grease the mast channels. Inspect forks for cracks, bends, and wear — replace if fork thickness is reduced by more than 10%."
 								}
 							]
 						}
 					]
 				},
-				"bylines": [
-					{ "byline": "byline-editorial" },
-					{ "byline": "byline-guest", "roleLabel": "Guest essay" }
-				],
-				"taxonomies": {
-					"category": ["development"],
-					"tag": ["opinion"]
-				}
+				"bylines": [{ "byline": "byline-tes" }]
 			},
 			{
 				"id": "post-2",
-				"slug": "the-case-for-static",
+				"slug": "choosing-right-forklift",
 				"status": "published",
 				"data": {
-					"title": "The Case for Static",
-					"excerpt": "Static sites aren't a step backwards. They're what you get when you take performance and simplicity seriously.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=800&fit=crop",
-							"alt": "Laptop and coffee on a wooden table",
-							"filename": "case-for-static.jpg"
-						}
-					},
+					"title": "How to Choose the Right Forklift for Your Business",
+					"excerpt": "With so many options available, selecting the right forklift can be overwhelming. This guide breaks down the key factors to consider when making your decision.",
 					"content": [
 						{
 							"_type": "block",
@@ -370,24 +873,14 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "There's a certain irony in the fact that the web started static, went dynamic, and is now swinging back toward static again. But the static sites of today aren't the hand-coded HTML pages of 1998. They're generated, optimized, and deployed to edge networks that serve them in milliseconds."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The pitch for server-rendered everything was compelling: dynamic content, personalization, real-time data. But most sites don't need most of that most of the time. A blog post doesn't need to be rendered on every request. A product page doesn't change every second."
+									"text": "Choosing the right forklift for your business involves more than just picking the first available option. The right equipment can improve productivity, reduce operating costs, and create a safer work environment. Here's what to consider."
 								}
 							]
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The performance argument" }]
+							"children": [{ "_type": "span", "text": "Assess Your Application" }]
 						},
 						{
 							"_type": "block",
@@ -395,42 +888,22 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "A static file served from a CDN is as fast as the web gets. No cold starts, no database queries, no server-side rendering overhead. The Time to First Byte is essentially the network latency to your nearest edge node. You can't beat physics."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "And when you do need dynamic behavior, you can add it surgically. An island of interactivity in a sea of static HTML. The best of both worlds, without paying the cost of either at all times."
+									"text": "Consider where the forklift will primarily operate. Indoor warehouse operations typically need electric forklifts with cushion tires, while outdoor use on rough terrain requires IC-powered units with pneumatic tires."
 								}
 							]
 						}
 					]
 				},
-				"bylines": [{ "byline": "byline-editorial" }],
-				"taxonomies": {
-					"category": ["development"],
-					"tag": ["webdev", "opinion"]
-				}
-			},
+				"bylines": [{ "byline": "byline-tes" }]
+			}
+		],
+		"pages": [
 			{
-				"id": "post-3",
-				"slug": "learning-in-public",
+				"id": "page-privacy",
+				"slug": "privacy-policy",
 				"status": "published",
 				"data": {
-					"title": "Learning in Public",
-					"excerpt": "Writing about what you're learning is the fastest way to find out what you don't actually understand.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=1200&h=800&fit=crop",
-							"alt": "Notebook and pen on a desk",
-							"filename": "learning-in-public.jpg"
-						}
-					},
+					"title": "Privacy Policy",
 					"content": [
 						{
 							"_type": "block",
@@ -438,66 +911,19 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "I started writing about things I was learning not because I had anything original to say, but because I kept forgetting what I'd figured out. The blog posts were notes to my future self, published publicly more out of laziness than courage."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "What I didn't expect was how much the writing itself would accelerate the learning. There's a particular kind of clarity that comes from trying to explain something to someone else. The gaps in your understanding, which you can happily ignore when the knowledge lives only in your head, become painfully obvious when you try to put it into sentences."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "h2",
-							"children": [{ "_type": "span", "text": "The fear of being wrong" }]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The biggest barrier isn't time or writing skill. It's the fear of publishing something that turns out to be wrong. But here's the thing: being wrong publicly is one of the most efficient ways to learn. Someone will correct you, often kindly, and you'll remember that correction forever."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The posts that helped me most weren't written by experts. They were written by people one step ahead of me on the same path, in language that hadn't yet been polished into abstraction. There's a place for that kind of writing, and it's more valuable than most people realize."
+									"text": "This privacy policy outlines how Texas Equipment Source collects, uses, and protects your personal information."
 								}
 							]
 						}
 					]
-				},
-				"taxonomies": {
-					"category": ["notes"],
-					"tag": ["opinion"]
 				}
 			},
 			{
-				"id": "post-4",
-				"slug": "small-tools-big-impact",
+				"id": "page-terms",
+				"slug": "terms-of-service",
 				"status": "published",
 				"data": {
-					"title": "Small Tools, Big Impact",
-					"excerpt": "The best developer tools do one thing well and get out of your way. A love letter to focused software.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1575026615908-666710ae5e47?w=1200&h=800&fit=crop",
-							"alt": "Wrenches and hand tools hanging on a workshop wall",
-							"filename": "small-tools.jpg"
-						}
-					},
+					"title": "Terms of Service",
 					"content": [
 						{
 							"_type": "block",
@@ -505,268 +931,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "There's a class of software that doesn't get enough appreciation. Not the frameworks or the platforms or the IDEs, but the small, sharp tools that solve one problem so well you stop thinking about them. They become invisible, which is the highest compliment you can pay a tool."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "I'm talking about things like ripgrep, which searches code so fast it changed how I think about searching. Or jq, which makes JSON feel like a first-class data format in the terminal. Or curl, which has been quietly powering the internet's plumbing for decades."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "h2",
-							"children": [{ "_type": "span", "text": "The Unix philosophy, revisited" }]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Do one thing well. The advice is old enough to be a cliche, but the best modern tools still follow it. They don't try to be platforms. They don't have plugin ecosystems or configuration languages or startup wizards. They do their job and they compose with other tools that do theirs."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The temptation is always to add more. One more feature, one more option, one more integration. But every addition is a decision someone has to make, a path through the code that has to be maintained, a thing that can break. The best tools resist this. They stay small, and in staying small, they stay reliable."
-								}
-							]
-						}
-					]
-				},
-				"taxonomies": {
-					"category": ["development"],
-					"tag": ["tools"]
-				}
-			},
-			{
-				"id": "post-5",
-				"slug": "designing-with-constraints",
-				"status": "published",
-				"data": {
-					"title": "Designing with Constraints",
-					"excerpt": "Limitations aren't obstacles to creativity. They're the structure that makes creativity possible.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1200&h=800&fit=crop",
-							"alt": "Pencils and design tools on a desk",
-							"filename": "designing-with-constraints.jpg"
-						}
-					},
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Give a designer a blank canvas and unlimited time, and they'll often produce something mediocre. Give them a tight brief, a small screen, and a deadline, and they'll surprise you. This isn't a paradox - it's how creativity actually works."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Constraints force decisions. When you can't use more than two typefaces, you have to choose carefully. When the page has to load in under a second, every element earns its place. When the interface has to work on a 320px screen, you discover what's truly essential."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "h2",
-							"children": [{ "_type": "span", "text": "Embracing the box" }]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The web itself is a constraint. HTML flows in one direction. CSS has a box model. Browsers have viewport sizes and font rendering quirks. You can fight these constraints or you can work with them, and the results are dramatically different."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The designs I admire most don't look like they were forced through a framework. They look like they grew naturally from the medium, respecting its grain rather than working against it. That only happens when you treat constraints as creative partners rather than enemies."
-								}
-							]
-						}
-					]
-				},
-				"taxonomies": {
-					"category": ["design"],
-					"tag": ["creativity"]
-				}
-			},
-			{
-				"id": "post-6",
-				"slug": "a-weekend-with-a-side-project",
-				"status": "published",
-				"data": {
-					"title": "A Weekend with a Side Project",
-					"excerpt": "No stakeholders, no deadlines, no Jira tickets. Just you and a dumb idea that might turn into something.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=1200&h=800&fit=crop",
-							"alt": "Code on a screen with a dark theme",
-							"filename": "weekend-side-project.jpg"
-						}
-					},
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Saturday morning. Coffee's made, the house is quiet, and I've got an idea that's been nagging at me all week. Not a good idea, necessarily - just a persistent one. A small tool that does a thing I keep doing manually. How hard could it be?"
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "This is the best kind of programming. No requirements document, no sprint planning, no pull request reviews. Just a text editor and a problem. The freedom to make terrible architectural decisions, rewrite everything twice, and follow tangents that turn out to be dead ends."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "h2",
-							"children": [{ "_type": "span", "text": "Why side projects matter" }]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Side projects are where you learn things your day job would never teach you. Not because the problems are harder, but because you're free to take risks. Try a language you've never used. Build something without a framework. Deploy to a platform you've only read about. The stakes are zero, which makes the learning maximum."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "By Sunday evening, the thing sort of works. It's rough, the error handling is nonexistent, and the README is a single sentence. But it solves the problem I set out to solve, and I learned three things I didn't know on Friday. Not a bad weekend."
-								}
-							]
-						}
-					]
-				},
-				"taxonomies": {
-					"category": ["development"],
-					"tag": ["creativity"]
-				}
-			},
-			{
-				"id": "post-7",
-				"slug": "notes-on-simplicity",
-				"status": "published",
-				"data": {
-					"title": "Notes on Simplicity",
-					"excerpt": "Simplicity isn't the absence of complexity. It's the result of understanding a problem well enough to solve it cleanly.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1559051668-e1fa58f25786?w=1200&h=800&fit=crop",
-							"alt": "Geometric pattern carved into white paper",
-							"filename": "notes-on-simplicity.jpg"
-						}
-					},
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Every piece of software starts simple. A few files, a clear purpose, a small surface area. Then features get added, edge cases get handled, and before long you're looking at something that requires a diagram to understand. This isn't inevitable, but it takes discipline to prevent."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The hard part of simplicity isn't the initial design. It's the ongoing resistance to complication. Every feature request, every bug fix, every refactor is an opportunity to add complexity. Saying no is the most important design skill, and the least celebrated."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "h2",
-							"children": [{ "_type": "span", "text": "Removing as a feature" }]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "The best version of a product often has fewer features than the previous one. Not because features were missing, but because someone had the courage to remove things that weren't earning their keep. Every feature has a cost - in maintenance, in cognitive load, in the weight of the interface."
-								}
-							]
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Simplicity is a practice, not a destination. You never arrive at simple. You just keep asking: is this necessary? Could this be clearer? Is there a way to solve this problem by removing something instead of adding something? The answer is yes more often than you'd expect."
-								}
-							]
-						}
-					]
-				},
-				"taxonomies": {
-					"category": ["notes"],
-					"tag": ["opinion"]
-				}
-			},
-			{
-				"id": "post-draft",
-				"slug": "work-in-progress",
-				"status": "draft",
-				"data": {
-					"title": "Work in Progress",
-					"excerpt": "This post is still being written.",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "This is a draft post that won't appear in the public listing."
+									"text": "These terms govern your use of the Texas Equipment Source website and services."
 								}
 							]
 						}
