@@ -11,7 +11,12 @@ vi.mock("@workermailer/smtp", () => ({
 	},
 }));
 
-import { createPlugin, workerMailerPlugin } from "../src/index.js";
+import {
+	createPlugin,
+	workerMailerPlugin,
+	workerMailerSandboxedPlugin,
+} from "../src/index.js";
+import sandboxEntry from "../src/sandbox-entry.js";
 
 function createMockContext(initial: Record<string, unknown> = {}) {
 	const store = new Map<string, unknown>(Object.entries(initial));
@@ -59,6 +64,20 @@ function getHook(
 	};
 }
 
+function getAdminRoute() {
+	const route = sandboxEntry.routes?.admin;
+	if (!route) {
+		throw new Error("Expected admin route to be defined");
+	}
+	return route.handler as (
+		routeCtx: { input: unknown; request?: { url: string } },
+		ctx: PluginContext,
+	) => Promise<{
+		blocks: Array<Record<string, unknown>>;
+		toast?: { message: string; type: string };
+	}>;
+}
+
 describe("workerMailerPlugin descriptor", () => {
 	it("returns a valid plugin descriptor", () => {
 		const descriptor = workerMailerPlugin();
@@ -79,6 +98,19 @@ describe("workerMailerPlugin descriptor", () => {
 			host: "smtp.example.com",
 			transportSecurity: "implicit_tls",
 		});
+	});
+
+	it("exposes a standard sandboxed descriptor", () => {
+		const descriptor = workerMailerSandboxedPlugin();
+
+		expect(descriptor).toMatchObject({
+			id: "worker-mailer",
+			version: "0.1.0",
+			format: "standard",
+			entrypoint: "@emdash-cms/plugin-worker-mailer/sandbox",
+			capabilities: ["email:provide"],
+		});
+		expect(descriptor.adminPages).toHaveLength(1);
 	});
 });
 
@@ -339,5 +371,91 @@ describe("createPlugin", () => {
 			),
 		).rejects.toThrow("Worker Mailer is not configured. Missing/invalid setting(s): port.");
 		expect(sendMock).not.toHaveBeenCalled();
+	});
+});
+
+describe("sandbox entry", () => {
+	it("renders the SMTP settings page via Block Kit", async () => {
+		const { ctx } = createMockContext({
+			"settings:host": "smtp.example.com",
+			"settings:transportSecurity": "implicit_tls",
+			"settings:port": 465,
+			"settings:authType": "login",
+			"settings:username": "mailer@example.com",
+			"settings:fromEmail": "sender@example.com",
+			"settings:password": "secret",
+		});
+
+		const result = await getAdminRoute()(
+			{
+				input: {
+					type: "page_load",
+					page: "/settings",
+				},
+			},
+			ctx,
+		);
+
+		expect(result.blocks[0]).toMatchObject({
+			type: "header",
+			text: "SMTP Settings",
+		});
+		expect(result.blocks).toContainEqual(
+			expect.objectContaining({
+				type: "form",
+				submit: {
+					label: "Save Settings",
+					action_id: "save_settings",
+				},
+			}),
+		);
+		expect(result.blocks).toContainEqual(
+			expect.objectContaining({
+				type: "fields",
+				fields: expect.arrayContaining([
+					{ label: "Security", value: "Implicit TLS" },
+					{ label: "Password", value: "Stored" },
+				]),
+			}),
+		);
+	});
+
+	it("saves SMTP settings from a Block Kit form submission", async () => {
+		const { ctx, store } = createMockContext({
+			"settings:password": "existing-secret",
+		});
+
+		const result = await getAdminRoute()(
+			{
+				input: {
+					type: "form_submit",
+					action_id: "save_settings",
+					values: {
+						host: "smtp.example.com",
+						transportSecurity: "implicit_tls",
+						port: "465",
+						authType: "login",
+						username: "mailer@example.com",
+						password: "",
+						fromEmail: "",
+						fromName: "Support",
+					},
+				},
+			},
+			ctx,
+		);
+
+		expect(store.get("settings:host")).toBe("smtp.example.com");
+		expect(store.get("settings:transportSecurity")).toBe("implicit_tls");
+		expect(store.get("settings:port")).toBe(465);
+		expect(store.get("settings:authType")).toBe("login");
+		expect(store.get("settings:username")).toBe("mailer@example.com");
+		expect(store.get("settings:password")).toBe("existing-secret");
+		expect(store.has("settings:fromEmail")).toBe(false);
+		expect(store.get("settings:fromName")).toBe("Support");
+		expect(result.toast).toEqual({
+			message: "Settings saved",
+			type: "success",
+		});
 	});
 });

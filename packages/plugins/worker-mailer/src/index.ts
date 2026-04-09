@@ -13,7 +13,7 @@ import {
 } from "./shared.js";
 
 /**
- * Descriptor for use in astro.config.mjs / live.config.ts.
+ * Native descriptor for use in plugins: [] with constructor options.
  */
 export function workerMailerPlugin(options: WorkerMailerPluginOptions = {}): PluginDescriptor {
 	return {
@@ -21,6 +21,21 @@ export function workerMailerPlugin(options: WorkerMailerPluginOptions = {}): Plu
 		version: VERSION,
 		entrypoint: "@emdash-cms/plugin-worker-mailer",
 		options,
+		capabilities: ["email:provide"],
+		adminPages: [{ path: "/settings", label: "SMTP", icon: "envelope" }],
+	};
+}
+
+/**
+ * Standard descriptor for use in sandboxed: [] or marketplace-style installs.
+ * Configuration is stored in plugin KV and edited through Block Kit pages.
+ */
+export function workerMailerSandboxedPlugin(): PluginDescriptor {
+	return {
+		id: PLUGIN_ID,
+		version: VERSION,
+		format: "standard",
+		entrypoint: "@emdash-cms/plugin-worker-mailer/sandbox",
 		capabilities: ["email:provide"],
 		adminPages: [{ path: "/settings", label: "SMTP", icon: "envelope" }],
 	};
