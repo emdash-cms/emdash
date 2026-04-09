@@ -464,4 +464,4 @@ The following are explicitly deferred to post-v1 or not planned:
 
 ---
 
-*Last updated: 2026-04-04*
+*Last updated: 2026-04-09*
