@@ -73,8 +73,7 @@ function mcpUnauthorizedResponse(url: URL): Response {
 		{
 			status: 401,
 			headers: {
-				"WWW-Authenticate":
-					`Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`,
+				"WWW-Authenticate": `Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`,
 				...MW_CACHE_HEADERS,
 			},
 		},
