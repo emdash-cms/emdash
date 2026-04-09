@@ -25,7 +25,16 @@ const fieldTypeValues = z.enum([
 	"reference",
 	"json",
 	"slug",
+	"repeater",
 ]);
+
+const repeaterSubFieldSchema = z.object({
+	slug: z.string().min(1).max(63).regex(slugPattern, "Invalid slug format"),
+	type: z.enum(["string", "text", "number", "integer", "boolean", "datetime", "select"]),
+	label: z.string().min(1),
+	required: z.boolean().optional(),
+	options: z.array(z.string()).optional(),
+});
 
 const fieldValidation = z
 	.object({
@@ -36,6 +45,9 @@ const fieldValidation = z
 		maxLength: z.number().int().min(0).optional(),
 		pattern: z.string().optional(),
 		options: z.array(z.string()).optional(),
+		subFields: z.array(repeaterSubFieldSchema).min(1).optional(),
+		minItems: z.number().int().min(0).optional(),
+		maxItems: z.number().int().min(1).optional(),
 	})
 	.optional();
 
