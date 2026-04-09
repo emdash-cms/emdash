@@ -14,6 +14,7 @@ function setCookie(code: string) {
  */
 export function useLocale() {
 	const { i18n } = useLingui();
+	const [locale, setLocaleState] = React.useState(i18n.locale);
 
 	const setLocale = React.useCallback(
 		(code: string) => {
@@ -29,5 +30,13 @@ export function useLocale() {
 		[i18n],
 	);
 
-	return { locale: i18n.locale, setLocale };
+	// Subscribe to i18n change events to trigger re-renders
+	React.useEffect(() => {
+		const unsubscribe = i18n.on("change", () => {
+			setLocaleState(i18n.locale);
+		});
+		return unsubscribe;
+	}, [i18n]);
+
+	return { locale, setLocale };
 }
