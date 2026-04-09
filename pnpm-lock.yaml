@@ -39,9 +39,6 @@ catalogs:
     '@lingui/react':
       specifier: ^5.9.4
       version: 5.9.4
-    '@lingui/vite-plugin':
-      specifier: ^5.9.4
-      version: 5.9.4
     '@phosphor-icons/react':
       specifier: ^2.1.10
       version: 2.1.10
@@ -606,9 +603,6 @@ importers:
       '@lingui/macro':
         specifier: 'catalog:'
         version: 5.9.4(@lingui/babel-plugin-lingui-macro@5.9.4(typescript@5.9.3))(react@19.2.4)
-      '@lingui/vite-plugin':
-        specifier: 'catalog:'
-        version: 5.9.4(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       '@tailwindcss/cli':
         specifier: ^4.1.10
         version: 4.1.18
@@ -980,18 +974,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.2
-      '@babel/core':
-        specifier: ^7.29.0
-        version: 7.29.0
       '@emdash-cms/blocks':
         specifier: workspace:*
         version: link:../blocks
-      '@lingui/babel-plugin-lingui-macro':
-        specifier: 'catalog:'
-        version: 5.9.4(typescript@5.9.3)
-      '@types/babel__core':
-        specifier: ^7.20.5
-        version: 7.20.5
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13
@@ -2877,12 +2862,6 @@ packages:
         optional: true
       babel-plugin-macros:
         optional: true
-
-  '@lingui/vite-plugin@5.9.4':
-    resolution: {integrity: sha512-qc5AFEOJjD3AIxDhCx9RZ3ELGnn0r/l3NQb4BZifz7wnYUYfbk1B2kNHCA8OMqb/sw3q36uWr3S4vORlmxPUkQ==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      vite: ^3 || ^4 || ^5.0.9 || ^6 || ^7 || ^8
 
   '@loaderkit/resolve@1.0.2':
     resolution: {integrity: sha512-yTCCjuQapvRz6S30B8DyqHu1WYsbYRCww6uNsmbQU4GQVf5gJzJSB60qUHj+qBSxReLtRL/mhmhYhrIc9jVFTw==}
@@ -10353,16 +10332,6 @@ snapshots:
       react: 19.2.4
     optionalDependencies:
       '@lingui/babel-plugin-lingui-macro': 5.9.4(typescript@5.9.3)
-
-  '@lingui/vite-plugin@5.9.4(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))':
-    dependencies:
-      '@lingui/cli': 5.9.4(typescript@5.9.3)
-      '@lingui/conf': 5.9.4(typescript@5.9.3)
-      vite: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
-    transitivePeerDependencies:
-      - babel-plugin-macros
-      - supports-color
-      - typescript
 
   '@loaderkit/resolve@1.0.2':
     dependencies:

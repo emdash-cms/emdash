@@ -50,29 +50,6 @@ import {
 } from "./virtual-modules.js";
 
 /**
- * Vite plugin that compiles Lingui macros in admin source files.
- * Only needed in dev mode when the admin package is aliased to source for HMR.
- * In production builds, macros are already compiled by tsdown in the admin package.
- */
-function createLinguiMacroPlugin(adminSourcePath: string): Plugin {
-	return {
-		name: "emdash-lingui-macro",
-		enforce: "pre",
-		async transform(code, id) {
-			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = await import("@babel/core");
-			const result = await transformAsync(code, {
-				filename: id,
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
-				parserOpts: { plugins: ["jsx", "typescript"] },
-			});
-			if (!result?.code) return;
-			return { code: result.code, map: result.map ?? undefined };
-		},
-	};
-}
-
-/**
  * Resolve path to the admin package dist directory.
  * Used for Vite alias to ensure the package is found in pnpm's isolated node_modules.
  */
@@ -81,33 +58,6 @@ function resolveAdminDist(): string {
 	const adminPath = require.resolve("@emdash-cms/admin");
 	// Return the directory containing the built package (dist/)
 	return dirname(adminPath);
-}
-
-/**
- * Resolve path to the admin package source directory.
- * In dev mode, we alias @emdash-cms/admin to the source so Vite processes it
- * directly — giving instant HMR instead of requiring a rebuild + restart.
- */
-function resolveAdminSource(): string | undefined {
-	const require = createRequire(import.meta.url);
-	const adminPath = require.resolve("@emdash-cms/admin");
-	// dist/index.js -> go up to package root, then into src/
-	const packageRoot = resolve(dirname(adminPath), "..");
-	const srcEntry = resolve(packageRoot, "src", "index.ts");
-
-	// Only use source alias if the source directory actually exists
-	// (won't exist in published packages, only in the monorepo)
-	try {
-		// Use require.resolve mechanics — if the file exists, return the source dir
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CJS require returns any
-		const fs = require("node:fs") as typeof import("node:fs");
-		if (fs.existsSync(srcEntry)) {
-			return resolve(packageRoot, "src");
-		}
-	} catch {
-		// Not in monorepo — fall back to dist
-	}
-	return undefined;
 }
 
 export interface VitePluginOptions {
@@ -252,18 +202,9 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
  */
 export function createViteConfig(
 	options: VitePluginOptions,
-	command: "dev" | "build" | "preview" | "sync",
 ): NonNullable<AstroConfig["vite"]> {
 	const adminDistPath = resolveAdminDist();
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
-	const isDev = command === "dev";
-
-	// In dev mode within the monorepo, alias JS imports to source for instant HMR.
-	// CSS always comes from dist/ (pre-compiled by @tailwindcss/cli) since Tailwind's
-	// Vite plugin has native deps that don't bundle well. Run `pnpm dev` in packages/admin
-	// alongside the demo server to get CSS watch-rebuilds too.
-	const adminSourcePath = isDev ? resolveAdminSource() : undefined;
-	const useSource = adminSourcePath !== undefined;
 
 	return {
 		resolve: {
@@ -273,18 +214,13 @@ export function createViteConfig(
 			// Vite's prefix matching on "@emdash-cms/admin" would resolve
 			// "@emdash-cms/admin/styles.css" through the source directory.
 			alias: [
-				// CSS: always dist (pre-compiled by @tailwindcss/cli)
 				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
-				// JS: source in dev (HMR), dist in build
-				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
+				{ find: "@emdash-cms/admin", replacement: adminDistPath },
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options),
-			// In dev mode with source alias, compile Lingui macros on the fly.
-			// In production, macros are pre-compiled by tsdown in the admin package.
-			...(useSource ? [createLinguiMacroPlugin(adminSourcePath!)] : []),
 		] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
@@ -352,11 +288,7 @@ export function createViteConfig(
 					noExternal: ["emdash", "@emdash-cms/admin"],
 				},
 		optimizeDeps: {
-			// When using source, don't pre-bundle JS — let Vite transform on the fly for HMR.
-			// When using dist, pre-bundle to avoid re-optimization on first hydration.
-			include: useSource
-				? ["@astrojs/react/client.js"]
-				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
+			include: ["@emdash-cms/admin", "@astrojs/react/client.js"],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
 	};

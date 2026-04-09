@@ -21,7 +21,6 @@ catalog:
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
   "@lingui/react": ^5.9.4
-  "@lingui/vite-plugin": ^5.9.4
   "@phosphor-icons/react": ^2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2

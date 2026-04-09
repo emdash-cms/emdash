@@ -72,7 +72,6 @@
     "@lingui/babel-plugin-lingui-macro": "catalog:",
     "@lingui/cli": "catalog:",
     "@lingui/macro": "catalog:",
-    "@lingui/vite-plugin": "catalog:",
     "@tailwindcss/cli": "^4.1.10",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/react": "^16.3.0",
