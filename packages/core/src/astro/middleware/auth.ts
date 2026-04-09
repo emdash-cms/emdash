@@ -51,6 +51,35 @@ declare global {
 
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
+const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
+
+function isUnsafeMethod(method: string): boolean {
+	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function csrfRejectedResponse(): Response {
+	return new Response(
+		JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
+		{
+			status: 403,
+			headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
+		},
+	);
+}
+
+function mcpUnauthorizedResponse(url: URL): Response {
+	return Response.json(
+		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
+		{
+			status: 401,
+			headers: {
+				"WWW-Authenticate":
+					`Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`,
+				...MW_CACHE_HEADERS,
+			},
+		},
+	);
+}
 
 /**
  * API routes that skip auth — each handles its own access control.
@@ -190,55 +219,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// include custom headers. The consent flow is protected by session + single-use codes.
 	const method = context.request.method.toUpperCase();
 	const isOAuthConsent = url.pathname.startsWith("/_emdash/oauth/authorize");
+	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
 	if (
 		isApiRoute &&
 		!isTokenAuth &&
 		!isOAuthConsent &&
-		method !== "GET" &&
-		method !== "HEAD" &&
-		method !== "OPTIONS" &&
+		!isMcpEndpoint &&
+		isUnsafeMethod(method) &&
 		!isPublicApiRoute
 	) {
 		const csrfHeader = context.request.headers.get("X-EmDash-Request");
 		if (csrfHeader !== "1") {
-			if (url.pathname === "/_emdash/api/mcp") {
-				try {
-					const sessionUser = await context.session?.get("user");
-					// Allow tokenless MCP discovery POSTs to reach the normal 401 path.
-					// Keep CSRF protection for cookie-backed session requests.
-					if (!sessionUser?.id) {
-						// Fall through to passkey/external auth below.
-					} else {
-						return new Response(
-							JSON.stringify({
-								error: { code: "CSRF_REJECTED", message: "Missing required header" },
-							}),
-							{
-								status: 403,
-								headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-							},
-						);
-					}
-				} catch {
-					return new Response(
-						JSON.stringify({
-							error: { code: "CSRF_REJECTED", message: "Missing required header" },
-						}),
-						{
-							status: 403,
-							headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-						},
-					);
-				}
-			} else {
-				return new Response(
-					JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-					{
-						status: 403,
-						headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-					},
-				);
-			}
+			return csrfRejectedResponse();
 		}
 	}
 
@@ -585,8 +577,10 @@ async function handlePasskeyAuth(
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 	isApiRoute: boolean,
 ): Promise<Response> {
-	const { url, locals, session } = context;
+	const { url, locals, request, session } = context;
 	const { emdash } = locals;
+	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
+	const method = request.method.toUpperCase();
 
 	try {
 		// Check session for user (session.get returns a Promise)
@@ -594,22 +588,25 @@ async function handlePasskeyAuth(
 
 		if (!sessionUser?.id) {
 			// Not authenticated
+			if (isMcpEndpoint) {
+				return mcpUnauthorizedResponse(url);
+			}
 			if (isApiRoute) {
-				const headers: Record<string, string> = { ...MW_CACHE_HEADERS };
-				// Add WWW-Authenticate on MCP endpoint 401s to trigger OAuth discovery
-				if (url.pathname === "/_emdash/api/mcp") {
-					const origin = getPublicOrigin(url, emdash?.config);
-					headers["WWW-Authenticate"] =
-						`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
-				}
 				return Response.json(
 					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-					{ status: 401, headers },
+					{ status: 401, headers: MW_CACHE_HEADERS },
 				);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("redirect", url.pathname);
 			return context.redirect(loginUrl.toString());
+		}
+
+		if (isMcpEndpoint && isUnsafeMethod(method)) {
+			const csrfHeader = request.headers.get("X-EmDash-Request");
+			if (csrfHeader !== "1") {
+				return csrfRejectedResponse();
+			}
 		}
 
 		// Get full user from database

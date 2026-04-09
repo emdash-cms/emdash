@@ -109,6 +109,18 @@ describe("MCP discovery auth middleware", () => {
 		});
 	});
 
+	it("only reads the session once for anonymous MCP POST discovery requests", async () => {
+		const { response, next, session } = await runAuthMiddleware({
+			pathname: "/_emdash/api/mcp",
+			headers: { "Content-Type": "application/json" },
+		});
+
+		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(401);
+		expect(session.get).toHaveBeenCalledTimes(1);
+		expect(session.get).toHaveBeenCalledWith("user");
+	});
+
 	it("returns 401 with discovery metadata for invalid bearer tokens on MCP POST", async () => {
 		const { response, next } = await runAuthMiddleware({
 			pathname: "/_emdash/api/mcp",
