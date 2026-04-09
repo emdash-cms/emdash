@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      publish-only:
+        description: "Skip versioning, just publish current versions"
+        type: boolean
+        default: false
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -46,6 +52,7 @@ jobs:
         run: pnpm build
 
       - name: Create Release Pull Request or Publish
+        if: ${{ !inputs.publish-only }}
         id: changesets
         uses: changesets/action@c8bada60c408975afd1a20b3db81d6eee6789308 # v1.4.9
         with:
@@ -55,3 +62,7 @@ jobs:
           title: "ci: release"
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Publish (manual)
+        if: ${{ inputs.publish-only }}
+        run: pnpm changeset publish
