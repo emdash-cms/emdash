@@ -60,6 +60,33 @@ function resolveAdminDist(): string {
 	return dirname(adminPath);
 }
 
+/**
+ * Resolve path to the admin package source directory.
+ * In dev mode, we alias @emdash-cms/admin to the source so Vite processes it
+ * directly — giving instant HMR instead of requiring a rebuild + restart.
+ */
+function resolveAdminSource(): string | undefined {
+	const require = createRequire(import.meta.url);
+	const adminPath = require.resolve("@emdash-cms/admin");
+	// dist/index.js -> go up to package root, then into src/
+	const packageRoot = resolve(dirname(adminPath), "..");
+	const srcEntry = resolve(packageRoot, "src", "index.ts");
+
+	// Only use source alias if the source directory actually exists
+	// (won't exist in published packages, only in the monorepo)
+	try {
+		// Use require.resolve mechanics — if the file exists, return the source dir
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CJS require returns any
+		const fs = require("node:fs") as typeof import("node:fs");
+		if (fs.existsSync(srcEntry)) {
+			return resolve(packageRoot, "src");
+		}
+	} catch {
+		// Not in monorepo — fall back to dist
+	}
+	return undefined;
+}
+
 export interface VitePluginOptions {
 	/** Serializable config (database, storage, auth descriptors) */
 	serializableConfig: Record<string, unknown>;
@@ -200,9 +227,20 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 /**
  * Creates the Vite config update for EmDash.
  */
-export function createViteConfig(options: VitePluginOptions): NonNullable<AstroConfig["vite"]> {
+export function createViteConfig(
+	options: VitePluginOptions,
+	command: "dev" | "build" | "preview" | "sync",
+): NonNullable<AstroConfig["vite"]> {
 	const adminDistPath = resolveAdminDist();
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
+	const isDev = command === "dev";
+
+	// In dev mode within the monorepo, alias JS imports to source for instant HMR.
+	// CSS always comes from dist/ (pre-compiled by @tailwindcss/cli) since Tailwind's
+	// Vite plugin has native deps that don't bundle well. Run `pnpm dev` in packages/admin
+	// alongside the demo server to get CSS watch-rebuilds too.
+	const adminSourcePath = isDev ? resolveAdminSource() : undefined;
+	const useSource = adminSourcePath !== undefined;
 
 	return {
 		resolve: {
@@ -212,8 +250,10 @@ export function createViteConfig(options: VitePluginOptions): NonNullable<AstroC
 			// Vite's prefix matching on "@emdash-cms/admin" would resolve
 			// "@emdash-cms/admin/styles.css" through the source directory.
 			alias: [
+				// CSS: always dist (pre-compiled by @tailwindcss/cli)
 				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
-				{ find: "@emdash-cms/admin", replacement: adminDistPath },
+				// JS: source in dev (HMR), dist in build
+				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
@@ -284,7 +324,11 @@ export function createViteConfig(options: VitePluginOptions): NonNullable<AstroC
 					noExternal: ["emdash", "@emdash-cms/admin"],
 				},
 		optimizeDeps: {
-			include: ["@emdash-cms/admin", "@astrojs/react/client.js"],
+			// When using source, don't pre-bundle JS — let Vite transform on the fly for HMR.
+			// When using dist, pre-bundle to avoid re-optimization on first hydration.
+			include: useSource
+				? ["@astrojs/react/client.js"]
+				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
 	};
