@@ -1,0 +1,295 @@
+---
+import { getMenu } from "emdash";
+import type { MenuItem } from "emdash";
+
+const menu = await getMenu("primary");
+
+const defaultServiceChildren: MenuItem[] = [
+	{ id: "svc-sales", label: "Forklift Sales", url: "/services/forklift-sales", children: [] },
+	{ id: "svc-rentals", label: "Rentals", url: "/services/rentals", children: [] },
+	{ id: "svc-repairs", label: "Repairs", url: "/services/repairs", children: [] },
+	{ id: "svc-parts", label: "Parts", url: "/services/parts", children: [] },
+	{ id: "svc-training", label: "Training", url: "/services/training", children: [] },
+];
+
+function isServicesItem(label: string): boolean {
+	return label.trim().toLowerCase() === "services";
+}
+
+function servicesSubitems(item: MenuItem): MenuItem[] {
+	return item.children.length > 0 ? item.children : defaultServiceChildren;
+}
+---
+
+<header class="tes-header">
+	<div class="tes-header__topbar">
+		<div class="tes-header__inner tes-header__inner--top">
+			<p class="tes-header__tagline">
+				Your Trusted Partner for Material Handling Equipment
+			</p>
+			<a class="tes-header__phone" href="tel:+18324004679">(832) 400-4679</a>
+		</div>
+	</div>
+	<div class="tes-header__main">
+		<div class="tes-header__inner tes-header__inner--nav">
+			<a href="/" class="tes-header__logo" aria-label="Texas Equipment Source home">
+				<span class="tes-header__logo-texas">TEXAS</span>
+				<span class="tes-header__logo-equipment-source">EQUIPMENT SOURCE</span>
+			</a>
+			<nav class="tes-header__nav" aria-label="Primary">
+				<ul class="tes-header__nav-list">
+					{
+						menu?.items.map((item) =>
+							isServicesItem(item.label) ? (
+								<li class="tes-header__nav-item tes-header__nav-item--dropdown">
+									<a href={item.url} class="tes-header__nav-link">
+										{item.label}
+									</a>
+									<ul class="tes-header__submenu" role="list">
+										{servicesSubitems(item).map((sub) => (
+											<li>
+												<a
+													href={sub.url}
+													class="tes-header__submenu-link"
+													target={sub.target}
+													rel={
+														sub.target === "_blank"
+															? "noopener noreferrer"
+															: undefined
+													}
+												>
+													{sub.label}
+												</a>
+											</li>
+										))}
+									</ul>
+								</li>
+							) : (
+								<li class="tes-header__nav-item">
+									<a
+										href={item.url}
+										class="tes-header__nav-link"
+										target={item.target}
+										rel={
+											item.target === "_blank"
+												? "noopener noreferrer"
+												: undefined
+										}
+									>
+										{item.label}
+									</a>
+								</li>
+							),
+						)
+					}
+				</ul>
+			</nav>
+			<div class="tes-header__actions">
+				<a href="/contact" class="tes-header__btn tes-header__btn--outline">
+					Get a Quote
+				</a>
+				<a href="tel:+18324004679" class="tes-header__btn tes-header__btn--call">
+					Call Now
+				</a>
+			</div>
+		</div>
+	</div>
+</header>
+
+<style>
+	.tes-header {
+		position: sticky;
+		top: 0;
+		z-index: 200;
+	}
+
+	.tes-header__topbar {
+		background: #1e3a5f;
+		color: #fff;
+		font-size: 0.8125rem;
+	}
+
+	.tes-header__inner {
+		max-width: 1200px;
+		margin-inline: auto;
+		padding-inline: 1.25rem;
+	}
+
+	.tes-header__inner--top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		min-height: 2.5rem;
+	}
+
+	.tes-header__tagline {
+		margin: 0;
+		font-weight: 500;
+		line-height: 1.4;
+	}
+
+	.tes-header__phone {
+		color: #fff;
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.tes-header__phone:hover {
+		text-decoration: underline;
+	}
+
+	.tes-header__main {
+		background: #fff;
+		box-shadow: 0 1px 0 rgb(30 58 95 / 0.08), 0 4px 12px rgb(30 58 95 / 0.06);
+	}
+
+	.tes-header__inner--nav {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem 1.5rem;
+		padding-block: 0.875rem;
+	}
+
+	.tes-header__logo {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.35rem 0.45rem;
+		text-decoration: none;
+		color: #1a1a1a;
+		letter-spacing: 0.04em;
+		line-height: 1.15;
+	}
+
+	.tes-header__logo-texas {
+		font-weight: 700;
+		font-size: 1.125rem;
+		color: #1e3a5f;
+	}
+
+	.tes-header__logo-equipment-source {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		color: #1e3a5f;
+		border-bottom: 3px solid #c9302c;
+		padding-bottom: 1px;
+	}
+
+	.tes-header__nav-list {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 1.25rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.tes-header__nav-link {
+		display: inline-block;
+		padding-block: 0.35rem;
+		font-size: 0.9375rem;
+		font-weight: 500;
+		color: #1e3a5f;
+		text-decoration: none;
+	}
+
+	.tes-header__nav-link:hover {
+		color: #c9302c;
+	}
+
+	.tes-header__nav-item--dropdown {
+		position: relative;
+	}
+
+	.tes-header__submenu {
+		position: absolute;
+		left: 0;
+		top: 100%;
+		min-width: 12rem;
+		margin: 0;
+		padding: 0.5rem 0;
+		list-style: none;
+		background: #fff;
+		border: 1px solid rgb(30 58 95 / 0.12);
+		border-radius: 0.375rem;
+		box-shadow: 0 10px 24px rgb(30 58 95 / 0.12);
+		opacity: 0;
+		visibility: hidden;
+		transform: translateY(0.35rem);
+		transition:
+			opacity 0.15s ease,
+			visibility 0.15s ease,
+			transform 0.15s ease;
+	}
+
+	.tes-header__nav-item--dropdown:hover .tes-header__submenu,
+	.tes-header__nav-item--dropdown:focus-within .tes-header__submenu {
+		opacity: 1;
+		visibility: visible;
+		transform: translateY(0);
+	}
+
+	.tes-header__submenu-link {
+		display: block;
+		padding: 0.5rem 1rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #1e3a5f;
+		text-decoration: none;
+	}
+
+	.tes-header__submenu-link:hover {
+		background: rgb(30 58 95 / 0.06);
+		color: #c9302c;
+	}
+
+	.tes-header__actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.625rem;
+	}
+
+	.tes-header__btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem 1rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		text-decoration: none;
+		border-radius: 0.375rem;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease,
+			border-color 0.15s ease;
+	}
+
+	.tes-header__btn--outline {
+		color: #1e3a5f;
+		border: 2px solid #1e3a5f;
+		background: transparent;
+	}
+
+	.tes-header__btn--outline:hover {
+		background: #1e3a5f;
+		color: #fff;
+	}
+
+	.tes-header__btn--call {
+		background: #1e3a5f;
+		color: #fff;
+		border: 2px solid #1e3a5f;
+	}
+
+	.tes-header__btn--call:hover {
+		background: #152d4a;
+		border-color: #152d4a;
+	}
+</style>

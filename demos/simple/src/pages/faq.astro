@@ -1,0 +1,289 @@
+---
+import { getEmDashCollection } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+
+const { entries: faqs, cacheHint } = await getEmDashCollection("faqs");
+
+Astro.cache.set(cacheHint);
+
+type FaqData = {
+	title: string;
+	category?: string | null;
+	sort_order?: number | null;
+	content?: unknown;
+};
+
+const categoriesMap = new Map<string, (typeof faqs)[number][]>();
+for (const faq of faqs) {
+	const data = faq.data as FaqData;
+	const category =
+		typeof data.category === "string" && data.category.trim()
+			? data.category.trim()
+			: "General";
+	const list = categoriesMap.get(category) ?? [];
+	list.push(faq);
+	categoriesMap.set(category, list);
+}
+
+for (const [cat, list] of categoriesMap) {
+	categoriesMap.set(
+		cat,
+		list.toSorted(
+			(a, b) =>
+				((a.data as FaqData).sort_order ?? 0) -
+				((b.data as FaqData).sort_order ?? 0),
+		),
+	);
+}
+
+const categoryGroups = [...categoriesMap.entries()].toSorted((a, b) => {
+	const minOrder = (items: (typeof faqs)[number][]) =>
+		Math.min(...items.map((f) => (f.data as FaqData).sort_order ?? 999));
+	return minOrder(a[1]) - minOrder(b[1]);
+});
+---
+
+<Base
+	title="Frequently Asked Questions"
+	description="Answers about forklift sales, rentals, service, parts, and training from Texas Equipment Source."
+>
+	<section class="hero">
+		<div class="hero-inner">
+			<h1 class="hero-title">Frequently Asked Questions</h1>
+			<p class="hero-desc">
+				Find quick answers about our equipment, services, and support. Still
+				stuck? We are one call away.
+			</p>
+		</div>
+	</section>
+
+	<div class="page">
+		{
+			categoryGroups.length === 0 ? (
+				<p class="empty">No FAQs yet.</p>
+			) : (
+				categoryGroups.map(([category, items], sectionIndex) => (
+					<section class="faq-section">
+						<h2 class="category-heading">{category}</h2>
+						<div class="accordion">
+							{items.map((faq) => {
+								const data = faq.data as FaqData;
+								return (
+									<details class="faq-item" name={`tes-faq-${sectionIndex}`}>
+										<summary class="faq-summary">{data.title}</summary>
+										<div class="faq-answer">
+											{data.content ? (
+												<PortableText value={data.content} />
+											) : (
+												<p class="no-answer">No answer provided yet.</p>
+											)}
+										</div>
+									</details>
+								);
+							})}
+						</div>
+					</section>
+				))
+			)
+		}
+
+		<section class="cta">
+			<h2 class="cta-title">Still Have Questions?</h2>
+			<p class="cta-desc">
+				Our team can walk you through options for sales, rentals, and service.
+			</p>
+			<div class="cta-actions">
+				<a href="/contact" class="btn btn-primary">Contact Us</a>
+				<a href="tel:+18324004679" class="btn btn-outline">Call Now</a>
+			</div>
+		</section>
+	</div>
+</Base>
+
+<style>
+	.hero {
+		background: linear-gradient(135deg, #b91c1c 0%, #fb7185 55%, #fda4af 100%);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.hero-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
+		font-weight: 700;
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-4);
+		color: #fff;
+	}
+
+	.hero-desc {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		max-width: 40rem;
+		opacity: 0.95;
+	}
+
+	.page {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-20);
+	}
+
+	.empty {
+		color: var(--color-muted);
+		font-size: var(--font-size-lg);
+	}
+
+	.faq-section {
+		margin-bottom: var(--spacing-12);
+	}
+
+	.category-heading {
+		font-size: var(--font-size-xl);
+		font-weight: 600;
+		margin-bottom: var(--spacing-4);
+		padding-bottom: var(--spacing-2);
+		border-bottom: 2px solid color-mix(in srgb, #b91c1c 35%, var(--color-border));
+	}
+
+	.accordion {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+	}
+
+	.faq-item {
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg);
+		overflow: hidden;
+	}
+
+	.faq-summary {
+		padding: var(--spacing-4) var(--spacing-5);
+		font-weight: 600;
+		font-size: var(--font-size-base);
+		cursor: pointer;
+		list-style: none;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+	}
+
+	.faq-summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.faq-summary::after {
+		content: "+";
+		font-size: var(--font-size-xl);
+		font-weight: 400;
+		color: #b91c1c;
+		line-height: 1;
+	}
+
+	.faq-item[open] .faq-summary::after {
+		content: "−";
+	}
+
+	.faq-summary:hover {
+		background: var(--color-surface);
+	}
+
+	.faq-answer {
+		padding: 0 var(--spacing-5) var(--spacing-5);
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		border-top: 1px solid var(--color-border-subtle);
+		padding-top: var(--spacing-4);
+	}
+
+	.faq-answer :global(p) {
+		margin: 0 0 var(--spacing-3);
+	}
+
+	.faq-answer :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.no-answer {
+		margin: 0;
+		font-style: italic;
+		color: var(--color-muted);
+	}
+
+	.cta {
+		margin-top: var(--spacing-16);
+		padding: var(--spacing-10) var(--spacing-8);
+		text-align: center;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border-subtle);
+		border-radius: var(--radius-lg);
+	}
+
+	.cta-title {
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		margin-bottom: var(--spacing-3);
+	}
+
+	.cta-desc {
+		color: var(--color-text-secondary);
+		margin-bottom: var(--spacing-8);
+		max-width: 28rem;
+		margin-left: auto;
+		margin-right: auto;
+		line-height: var(--leading-relaxed);
+	}
+
+	.cta-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-4);
+		justify-content: center;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-3) var(--spacing-8);
+		font-family: var(--font-sans);
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition:
+			opacity var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.btn:hover {
+		opacity: 0.92;
+		transform: translateY(-1px);
+	}
+
+	.btn-primary {
+		color: #fff;
+		background: linear-gradient(135deg, #b91c1c, #e11d48);
+		border: none;
+	}
+
+	.btn-outline {
+		color: var(--color-text);
+		background: var(--color-bg);
+		border: 2px solid var(--color-border);
+	}
+
+	.btn-outline:hover {
+		border-color: #b91c1c;
+		color: #b91c1c;
+	}
+</style>

@@ -1,0 +1,223 @@
+---
+import { getEmDashCollection } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+});
+
+Astro.cache.set(cacheHint);
+
+const formatDate = (date: Date) =>
+	date.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+---
+
+<Base
+	title="Blog & Resources"
+	description="Tips, guides, and news from Texas Equipment Source — Houston's forklift and equipment experts."
+>
+	<section class="hero">
+		<div class="hero-inner">
+			<h1 class="hero-title">Blog & Resources</h1>
+			<p class="hero-desc">
+				Practical advice on material handling, maintenance, safety, and
+				choosing the right equipment for your operation.
+			</p>
+		</div>
+	</section>
+
+	<div class="page">
+		{
+			posts.length === 0 ? (
+				<p class="empty">No posts yet. Check back soon.</p>
+			) : (
+				<div class="grid">
+					{posts.map((post) => (
+						<article class="card">
+							<a href={`/blog/${post.id}`} class="card-image-link">
+								{post.data.featured_image ? (
+									<div class="card-image">
+										<Image image={post.data.featured_image} />
+									</div>
+								) : (
+									<div class="card-placeholder" aria-hidden="true" />
+								)}
+							</a>
+							<div class="card-body">
+								{post.data.publishedAt && (
+									<time class="card-date" datetime={post.data.publishedAt.toISOString()}>
+										{formatDate(post.data.publishedAt)}
+									</time>
+								)}
+								<h2 class="card-title">
+									<a href={`/blog/${post.id}`}>{post.data.title}</a>
+								</h2>
+								{post.data.excerpt && <p class="card-excerpt">{post.data.excerpt}</p>}
+								<a href={`/blog/${post.id}`} class="read-more">
+									Read More
+								</a>
+							</div>
+						</article>
+					))}
+				</div>
+			)
+		}
+	</div>
+</Base>
+
+<style>
+	.hero {
+		background: linear-gradient(135deg, #b91c1c 0%, #fb7185 55%, #fda4af 100%);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.hero-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
+		font-weight: 700;
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-4);
+		color: #fff;
+	}
+
+	.hero-desc {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		max-width: 42rem;
+		opacity: 0.95;
+	}
+
+	.page {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-20);
+	}
+
+	.empty {
+		color: var(--color-muted);
+		font-size: var(--font-size-lg);
+	}
+
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-8);
+	}
+
+	.card {
+		display: flex;
+		flex-direction: column;
+		border: 1px solid var(--color-border-subtle);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		background: var(--color-bg);
+		transition: box-shadow var(--transition-base);
+	}
+
+	.card:hover {
+		box-shadow: 0 12px 40px color-mix(in srgb, #000 8%, transparent);
+	}
+
+	.card-image-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.card-image {
+		aspect-ratio: 16 / 10;
+		overflow: hidden;
+		background: var(--color-surface);
+	}
+
+	.card-image :global(img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.card-placeholder {
+		aspect-ratio: 16 / 10;
+		background: linear-gradient(
+			145deg,
+			var(--color-surface) 0%,
+			color-mix(in srgb, #b91c1c 12%, var(--color-surface)) 100%
+		);
+	}
+
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		padding: var(--spacing-5);
+		gap: var(--spacing-2);
+	}
+
+	.card-date {
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+	}
+
+	.card-title {
+		font-size: var(--font-size-xl);
+		font-weight: 600;
+		line-height: var(--leading-snug);
+		margin: 0;
+	}
+
+	.card-title a {
+		color: var(--color-text);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+
+	.card-title a:hover {
+		color: #b91c1c;
+	}
+
+	.card-excerpt {
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		margin: 0;
+		flex: 1;
+	}
+
+	.read-more {
+		margin-top: var(--spacing-3);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		color: #b91c1c;
+		text-decoration: none;
+	}
+
+	.read-more:hover {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	@media (max-width: 960px) {
+		.grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 600px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

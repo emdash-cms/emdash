@@ -1,0 +1,233 @@
+---
+import type { MediaValue } from "emdash";
+import { getEmDashCollection } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+
+const { entries: parts, cacheHint } = await getEmDashCollection("parts");
+
+Astro.cache.set(cacheHint);
+
+function formatPrice(value: unknown): string {
+	if (typeof value !== "number" || Number.isNaN(value)) {
+		return "—";
+	}
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
+		maximumFractionDigits: 2,
+	}).format(value);
+}
+---
+
+<Base
+	title="Forklift Parts — Texas Equipment Source"
+	description="OEM and quality aftermarket forklift parts with fast fulfillment."
+>
+	<section class="pt-hero">
+		<div class="pt-hero-inner">
+			<h1 class="pt-hero-title">Forklift Parts</h1>
+			<p class="pt-hero-desc">
+				Genuine OEM and aftermarket parts for major brands — matched quickly so you can get back to work.
+			</p>
+		</div>
+	</section>
+
+	<section class="pt-listing" aria-label="Parts catalog">
+		<div class="pt-listing-inner">
+			<p class="pt-count">{parts.length} part{parts.length === 1 ? "" : "s"} listed</p>
+			<div class="pt-grid">
+				{
+					parts.map((item) => (
+						<article class="pt-card">
+							<a href={`/parts/${item.id}`} class="pt-card-link">
+								<div class="pt-media">
+									{item.data.featured_image ? (
+										<Image image={item.data.featured_image as MediaValue} />
+									) : (
+										<div class="pt-placeholder" aria-hidden="true">
+											<svg
+												class="pt-placeholder-icon"
+												width="52"
+												height="52"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="1.25"
+											>
+												<circle cx="12" cy="12" r="3" />
+												<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+											</svg>
+										</div>
+									)}
+								</div>
+								<div class="pt-card-body">
+									<h2 class="pt-card-title" {...item.edit.title}>
+										{item.data.title}
+									</h2>
+									{item.data.part_number ? (
+										<p class="pt-part-no">
+											<span class="pt-label">Part #</span> {item.data.part_number}
+										</p>
+									) : null}
+									{item.data.manufacturer ? (
+										<p class="pt-mfr">
+											<span class="pt-label">Mfr</span> {item.data.manufacturer}
+										</p>
+									) : null}
+									<p class="pt-price">{formatPrice(item.data.price)}</p>
+									<span class="pt-cta">View Details</span>
+								</div>
+							</a>
+						</article>
+					))
+				}
+			</div>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.pt-hero {
+		background: linear-gradient(
+			135deg,
+			#8b1538 0%,
+			#c73e54 45%,
+			#e8927c 100%
+		);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.pt-hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.pt-hero-title {
+		font-size: clamp(2rem, 4vw, 3rem);
+		font-weight: 700;
+		margin-bottom: var(--spacing-4);
+		color: #fff;
+	}
+
+	.pt-hero-desc {
+		font-size: var(--font-size-lg);
+		max-width: 36rem;
+		opacity: 0.92;
+		line-height: var(--leading-relaxed);
+		margin: 0;
+	}
+
+	.pt-listing {
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-16);
+	}
+
+	.pt-listing-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.pt-count {
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.pt-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		gap: var(--spacing-8);
+	}
+
+	.pt-card {
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg);
+		overflow: hidden;
+		transition:
+			box-shadow var(--transition-base),
+			border-color var(--transition-fast);
+	}
+
+	.pt-card:hover {
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+		border-color: color-mix(in srgb, #c73e54 35%, var(--color-border));
+	}
+
+	.pt-card-link {
+		display: block;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.pt-card-link:hover .pt-cta {
+		color: #8b1538;
+	}
+
+	.pt-media {
+		aspect-ratio: 1;
+		background: var(--color-surface);
+	}
+
+	.pt-media :global(img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.pt-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #d4d4d8;
+		color: #71717a;
+	}
+
+	.pt-placeholder-icon {
+		opacity: 0.85;
+	}
+
+	.pt-card-body {
+		padding: var(--spacing-5);
+	}
+
+	.pt-card-title {
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		margin: 0 0 var(--spacing-3);
+		line-height: var(--leading-snug);
+	}
+
+	.pt-part-no,
+	.pt-mfr {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		margin: 0 0 var(--spacing-2);
+	}
+
+	.pt-label {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-right: var(--spacing-1);
+	}
+
+	.pt-price {
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+		margin: var(--spacing-4) 0;
+	}
+
+	.pt-cta {
+		display: inline-block;
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		color: #c73e54;
+		transition: color var(--transition-fast);
+	}
+</style>

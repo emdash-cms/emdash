@@ -1,0 +1,517 @@
+---
+import { getEmDashEntry, getSeoMeta } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+
+const { slug } = Astro.params;
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: service, cacheHint } = await getEmDashEntry("services", slug);
+
+if (!service) {
+	return Astro.redirect("/404");
+}
+
+Astro.cache.set(cacheHint);
+
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	if (typeof image.src === "string" && image.src) {
+		return image.src.startsWith("http")
+			? image.src
+			: `${Astro.url.origin}${image.src}`;
+	}
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	if (storageKey) {
+		return `${Astro.url.origin}/_emdash/api/media/file/${storageKey}`;
+	}
+	return undefined;
+}
+
+const featuredImageUrl = getImageUrl(service.data.featured_image);
+const seo = getSeoMeta(service, {
+	siteTitle: "Texas Equipment Source",
+	siteUrl: Astro.url.origin,
+	path: `/services/${slug}`,
+	defaultOgImage: featuredImageUrl,
+});
+
+const rawBenefits = service.data.benefits;
+const benefits: string[] = Array.isArray(rawBenefits)
+	? rawBenefits.filter((b): b is string => typeof b === "string")
+	: [];
+
+type ServiceOption = { title: string; description: string };
+const rawOptions = service.data.options;
+const options: ServiceOption[] = Array.isArray(rawOptions)
+	? rawOptions.filter(
+			(o): o is ServiceOption =>
+				!!o &&
+				typeof o === "object" &&
+				typeof (o as ServiceOption).title === "string" &&
+				typeof (o as ServiceOption).description === "string",
+		)
+	: [];
+
+const contactPhone = "(832) 400-4679";
+const contactPhoneTel = "+18324004679";
+
+const contentBlocks = service.data.content;
+const hasContent = Array.isArray(contentBlocks) && contentBlocks.length > 0;
+---
+
+<Base
+	title={seo.title}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{
+		collection: "services",
+		id: String(service.data.id),
+		slug,
+	}}
+>
+	<section class="svc-hero">
+		<div class="svc-hero-inner">
+			<p class="svc-hero-eyebrow">Texas Equipment Source</p>
+			<h1 class="svc-hero-title" {...service.edit.title}>{service.data.title}</h1>
+			{
+				service.data.subtitle && (
+					<p class="svc-hero-subtitle" {...service.edit.subtitle}>
+						{service.data.subtitle}
+					</p>
+				)
+			}
+			{
+				service.data.excerpt && (
+					<p class="svc-hero-desc" {...service.edit.excerpt}>
+						{service.data.excerpt}
+					</p>
+				)
+			}
+			<div class="svc-hero-ctas">
+				<a href="#svc-contact" class="svc-btn svc-btn--primary">Request a quote</a>
+				<a href={`tel:${contactPhoneTel}`} class="svc-btn svc-btn--outline">
+					Call {contactPhone}
+				</a>
+			</div>
+		</div>
+	</section>
+
+	{
+		benefits.length > 0 && (
+			<section class="svc-section svc-why" aria-labelledby="svc-why-heading">
+				<div class="svc-section-inner">
+					<h2 id="svc-why-heading" class="svc-section-title">
+						Why choose Texas Equipment Source
+					</h2>
+					<ul class="svc-benefits">
+						{benefits.map((b) => (
+							<li class="svc-benefit">
+								<span class="svc-check" aria-hidden="true">
+									<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+										<path
+											d="M20 6L9 17l-5-5"
+											stroke="currentColor"
+											stroke-width="2.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										/>
+									</svg>
+								</span>
+								<span>{b}</span>
+							</li>
+						))}
+					</ul>
+				</div>
+			</section>
+		)
+	}
+
+	{
+		options.length > 0 && (
+			<section class="svc-section svc-options" aria-labelledby="svc-options-heading">
+				<div class="svc-section-inner">
+					<h2 id="svc-options-heading" class="svc-section-title">
+						Options & programs
+					</h2>
+					<div class="svc-option-cards">
+						{options.map((opt) => (
+							<article class="svc-option-card">
+								<h3 class="svc-option-title">{opt.title}</h3>
+								<p class="svc-option-desc">{opt.description}</p>
+							</article>
+						))}
+					</div>
+				</div>
+			</section>
+		)
+	}
+
+	{
+		hasContent && (
+			<section class="svc-section svc-body" aria-label="Service details">
+				<div class="svc-section-inner svc-body-inner">
+					<div class="svc-prose">
+						<PortableText value={contentBlocks} />
+					</div>
+				</div>
+			</section>
+		)
+	}
+
+	<section class="svc-section svc-contact" id="svc-contact" aria-labelledby="svc-contact-heading">
+		<div class="svc-section-inner svc-contact-grid">
+			<div class="svc-contact-copy">
+				<h2 id="svc-contact-heading" class="svc-section-title">Get in touch</h2>
+				<p class="svc-contact-lead">
+					Ready to talk about this service? Our team responds quickly — call us or send a message
+					and we will follow up.
+				</p>
+				<p class="svc-contact-phone">
+					<a href={`tel:${contactPhoneTel}`} class="svc-phone-link">{contactPhone}</a>
+				</p>
+			</div>
+			<form class="svc-form" method="get" action="/contact" aria-label="Service inquiry">
+				<label class="svc-field">
+					<span class="svc-label">Name</span>
+					<input class="svc-input" type="text" name="name" autocomplete="name" required />
+				</label>
+				<label class="svc-field">
+					<span class="svc-label">Email</span>
+					<input class="svc-input" type="email" name="email" autocomplete="email" required />
+				</label>
+				<label class="svc-field">
+					<span class="svc-label">Phone</span>
+					<input class="svc-input" type="tel" name="phone" autocomplete="tel" />
+				</label>
+				<label class="svc-field">
+					<span class="svc-label">Company</span>
+					<input class="svc-input" type="text" name="company" autocomplete="organization" />
+				</label>
+				<label class="svc-field svc-field--full">
+					<span class="svc-label">Message</span>
+					<textarea class="svc-textarea" name="message" rows={4} required></textarea>
+				</label>
+				<input
+					type="hidden"
+					name="service"
+					value={typeof service.data.title === "string" ? service.data.title : ""}
+				/>
+				<button type="submit" class="svc-btn svc-btn--primary svc-form-submit">Send message</button>
+			</form>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.svc-hero {
+		background: linear-gradient(
+			135deg,
+			#8b1538 0%,
+			#c73e54 45%,
+			#e8927c 100%
+		);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.svc-hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.svc-hero-eyebrow {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		opacity: 0.9;
+		margin-bottom: var(--spacing-3);
+	}
+
+	.svc-hero-title {
+		font-size: clamp(2rem, 5vw, 3.25rem);
+		font-weight: 700;
+		line-height: var(--leading-tight);
+		margin-bottom: var(--spacing-4);
+		color: #fff;
+	}
+
+	.svc-hero-subtitle {
+		font-size: var(--font-size-xl);
+		font-weight: 500;
+		opacity: 0.95;
+		margin-bottom: var(--spacing-4);
+		max-width: 40rem;
+	}
+
+	.svc-hero-desc {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		opacity: 0.92;
+		max-width: 42rem;
+		margin-bottom: var(--spacing-8);
+	}
+
+	.svc-hero-ctas {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+	}
+
+	.svc-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-3) var(--spacing-6);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition:
+			transform var(--transition-fast),
+			box-shadow var(--transition-fast),
+			background var(--transition-fast);
+		border: 2px solid transparent;
+		cursor: pointer;
+		font-family: var(--font-sans);
+	}
+
+	.svc-btn--primary {
+		background: #fff;
+		color: #8b1538;
+	}
+
+	.svc-btn--primary:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+	}
+
+	.svc-btn--outline {
+		background: transparent;
+		color: #fff;
+		border-color: rgba(255, 255, 255, 0.85);
+	}
+
+	.svc-btn--outline:hover {
+		background: rgba(255, 255, 255, 0.12);
+	}
+
+	.svc-section {
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.svc-section-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.svc-section-title {
+		font-size: var(--font-size-3xl);
+		font-weight: 700;
+		margin-bottom: var(--spacing-10);
+	}
+
+	.svc-why {
+		background: var(--color-bg-subtle);
+	}
+
+	.svc-benefits {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--spacing-4) var(--spacing-10);
+	}
+
+	@media (max-width: 700px) {
+		.svc-benefits {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.svc-benefit {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-3);
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.svc-check {
+		flex-shrink: 0;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: color-mix(in srgb, #c73e54 18%, var(--color-bg));
+		color: #c73e54;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 2px;
+	}
+
+	.svc-options .svc-option-cards {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--spacing-6);
+	}
+
+	@media (max-width: 900px) {
+		.svc-options .svc-option-cards {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.svc-option-card {
+		padding: var(--spacing-6);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border);
+		background: var(--color-bg);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+	}
+
+	.svc-option-title {
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		margin-bottom: var(--spacing-3);
+	}
+
+	.svc-option-desc {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+		margin: 0;
+	}
+
+	.svc-body-inner {
+		max-width: 720px;
+	}
+
+	.svc-prose {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.svc-prose :global(p) {
+		margin-bottom: 1.25em;
+	}
+
+	.svc-prose :global(h2) {
+		font-size: var(--font-size-2xl);
+		margin-top: 1.75em;
+		margin-bottom: 0.6em;
+	}
+
+	.svc-prose :global(ul),
+	.svc-prose :global(ol) {
+		margin-bottom: 1.25em;
+		padding-left: 1.25em;
+	}
+
+	.svc-contact {
+		background: var(--color-bg-subtle);
+		border-top: 1px solid var(--color-border-subtle);
+	}
+
+	.svc-contact-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--spacing-12);
+		align-items: start;
+	}
+
+	@media (max-width: 800px) {
+		.svc-contact-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.svc-contact-lead {
+		font-size: var(--font-size-base);
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.svc-phone-link {
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+		color: #c73e54;
+		text-decoration: none;
+	}
+
+	.svc-phone-link:hover {
+		text-decoration: underline;
+	}
+
+	.svc-form {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--spacing-4);
+		padding: var(--spacing-6);
+		background: var(--color-bg);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border);
+	}
+
+	.svc-field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-1);
+	}
+
+	.svc-field--full {
+		grid-column: 1 / -1;
+	}
+
+	.svc-label {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+	}
+
+	.svc-input,
+	.svc-textarea {
+		font-family: var(--font-sans);
+		font-size: var(--font-size-sm);
+		padding: var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	.svc-input:focus,
+	.svc-textarea:focus {
+		outline: none;
+		border-color: #c73e54;
+		box-shadow: 0 0 0 3px color-mix(in srgb, #c73e54 22%, transparent);
+	}
+
+	.svc-form-submit {
+		grid-column: 1 / -1;
+		justify-self: start;
+		margin-top: var(--spacing-2);
+		border: none;
+	}
+
+	@media (max-width: 500px) {
+		.svc-form {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

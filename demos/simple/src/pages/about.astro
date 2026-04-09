@@ -1,0 +1,512 @@
+---
+import type { PortableTextBlock } from "emdash";
+import { getEmDashCollection } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+
+const { entries: testimonials, cacheHint } = await getEmDashCollection("testimonials");
+
+Astro.cache.set(cacheHint);
+
+type TestimonialData = {
+	title?: string;
+	role?: string;
+	content?: PortableTextBlock[];
+};
+---
+
+<Base
+	title="About Texas Equipment Source"
+	description="Learn about Texas Equipment Source — Houston's partner for forklifts, rentals, service, parts, and operator training."
+>
+	<section class="about-hero">
+		<div class="about-hero-inner">
+			<h1 class="about-hero-title">About Texas Equipment Source</h1>
+			<p class="about-hero-desc">
+				We are a Houston-area material handling dealer focused on honest recommendations, fast
+				response times, and equipment that holds up on the job. Whether you are buying your first lift
+				truck or supporting a large fleet, our team is built to help you move product safely and
+				efficiently.
+			</p>
+		</div>
+	</section>
+
+	<section class="about-story">
+		<div class="about-section-inner story-grid">
+			<div class="story-copy">
+				<h2 class="block-title">Our Story</h2>
+				<p class="story-lead">
+					Texas Equipment Source started with a simple mission: pair businesses with the right
+					forklifts and support — not just the easiest sale. Today we combine decades of field
+					experience with a full-service shop, rental fleet, and training programs that meet OSHA
+					expectations.
+				</p>
+				<ul class="story-checks">
+					<li>Local team that answers the phone</li>
+					<li>Transparent pricing on sales, rentals, and repairs</li>
+					<li>Parts inventory geared toward minimizing downtime</li>
+					<li>Training delivered on-site or at your facility</li>
+				</ul>
+			</div>
+			<div class="story-brand" aria-label="Texas Equipment Source initials">
+				<span class="brand-mark">TES</span>
+				<p class="brand-tag">Texas Equipment Source</p>
+				<p class="brand-line">Material handling. Done right.</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="about-team">
+		<div class="about-section-inner">
+			<h2 class="block-title centered">Our Team</h2>
+			<p class="block-sub centered">
+				Specialists across sales, service, and support — working as one team for your operation.
+			</p>
+			<div class="three-cards">
+				<article class="info-card">
+					<div class="info-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+						</svg>
+					</div>
+					<h3 class="info-card-title">Certified Technicians</h3>
+					<p class="info-card-text">
+						Factory-trained techs service major brands with diagnostics, preventive maintenance, and
+						emergency repairs.
+					</p>
+				</article>
+				<article class="info-card">
+					<div class="info-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+							<polyline points="9 22 9 12 15 12 15 22" />
+						</svg>
+					</div>
+					<h3 class="info-card-title">Equipment Specialists</h3>
+					<p class="info-card-text">
+						We match capacity, fuel type, and environment — warehouse, dock, or rugged outdoor — to
+						the right machine.
+					</p>
+				</article>
+				<article class="info-card">
+					<div class="info-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+						</svg>
+					</div>
+					<h3 class="info-card-title">Customer Support Experts</h3>
+					<p class="info-card-text">
+						Rental coordination, parts lookup, and quick answers so you spend less time waiting and
+						more time operating.
+					</p>
+				</article>
+			</div>
+		</div>
+	</section>
+
+	<section class="about-commitment">
+		<div class="about-section-inner">
+			<h2 class="block-title centered">Our Commitment</h2>
+			<p class="block-sub centered">
+				Four principles that guide every recommendation we make.
+			</p>
+			<div class="four-cards">
+				<article class="commit-card">
+					<h3 class="commit-title">Quality Equipment</h3>
+					<p class="commit-text">Inspected inventory and reputable brands you can run with confidence.</p>
+				</article>
+				<article class="commit-card">
+					<h3 class="commit-title">Expert Service</h3>
+					<p class="commit-text">Skilled technicians and the right parts to protect uptime.</p>
+				</article>
+				<article class="commit-card">
+					<h3 class="commit-title">Competitive Pricing</h3>
+					<p class="commit-text">Fair quotes on sales, rentals, and repairs — no surprises.</p>
+				</article>
+				<article class="commit-card">
+					<h3 class="commit-title">Local Expertise</h3>
+					<p class="commit-text">Texas-focused support from people who know your market.</p>
+				</article>
+			</div>
+		</div>
+	</section>
+
+	<section class="about-testimonials">
+		<div class="about-section-inner">
+			<h2 class="block-title centered">What Our Clients Say</h2>
+			<div class="testimonial-grid">
+				{
+					testimonials.map((entry) => {
+						const d = entry.data as TestimonialData;
+						return (
+							<blockquote class="testimonial-card">
+								<div class="testimonial-quote">
+									{d.content && d.content.length > 0 ? (
+										<PortableText value={d.content} />
+									) : (
+										<p>Great experience with Texas Equipment Source.</p>
+									)}
+								</div>
+								<footer class="testimonial-meta">
+									<cite class="testimonial-name">{d.title ?? "Customer"}</cite>
+									{d.role && <span class="testimonial-role">{d.role}</span>}
+								</footer>
+							</blockquote>
+						);
+					})
+				}
+			</div>
+		</div>
+	</section>
+
+	<section class="about-cta">
+		<div class="about-section-inner cta-wrap">
+			<h2 class="cta-heading">Ready to Get Started?</h2>
+			<p class="cta-copy">Request a quote or call us — we will respond quickly with next steps.</p>
+			<div class="cta-btns">
+				<a class="btn-contact" href="/contact">Contact</a>
+				<a class="btn-call" href="tel:+18324004679">Call (832) 400-4679</a>
+			</div>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.about-hero {
+		background: linear-gradient(135deg, #d9534f 0%, #c0392b 100%);
+		color: #fff;
+		padding: clamp(3rem, 7vw, 4.5rem) var(--spacing-6);
+	}
+
+	.about-hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.about-hero-title {
+		font-size: clamp(1.75rem, 4vw, 2.5rem);
+		color: #fff;
+		margin-bottom: var(--spacing-5);
+	}
+
+	.about-hero-desc {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		max-width: 40rem;
+		opacity: 0.95;
+	}
+
+	.about-section-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.block-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.block-title.centered {
+		text-align: center;
+	}
+
+	.block-sub {
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		margin-bottom: var(--spacing-10);
+	}
+
+	.block-sub.centered {
+		text-align: center;
+		max-width: 32rem;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.story-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--spacing-12);
+		align-items: center;
+	}
+
+	.story-lead {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.story-checks {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-3);
+	}
+
+	.story-checks li {
+		position: relative;
+		padding-left: var(--spacing-8);
+		font-weight: 500;
+	}
+
+	.story-checks li::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 0.3em;
+		width: 1.2rem;
+		height: 1.2rem;
+		border-radius: 4px;
+		background: #c0392b;
+		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E")
+			center / 70% no-repeat;
+		-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E")
+			center / 70% no-repeat;
+	}
+
+	.story-brand {
+		border-radius: var(--radius-lg);
+		padding: var(--spacing-10) var(--spacing-8);
+		background: linear-gradient(160deg, #1e3a5f 0%, #0f1f33 100%);
+		color: #fff;
+		text-align: center;
+		box-shadow: 0 20px 50px rgba(30, 58, 95, 0.35);
+	}
+
+	.brand-mark {
+		display: block;
+		font-size: clamp(3rem, 10vw, 5rem);
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		line-height: 1;
+		margin-bottom: var(--spacing-4);
+	}
+
+	.brand-tag {
+		font-size: var(--font-size-sm);
+		text-transform: uppercase;
+		letter-spacing: 0.15em;
+		opacity: 0.85;
+		margin-bottom: var(--spacing-2);
+	}
+
+	.brand-line {
+		font-size: var(--font-size-lg);
+		font-weight: 500;
+		opacity: 0.95;
+	}
+
+	.about-team {
+		background: #fff;
+	}
+
+	.three-cards {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-8);
+	}
+
+	.info-card {
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--spacing-6);
+		background: var(--color-bg);
+	}
+
+	.info-icon {
+		width: 56px;
+		height: 56px;
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, #d9534f 12%, transparent);
+		color: #c0392b;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: var(--spacing-4);
+	}
+
+	.info-card-title {
+		font-size: var(--font-size-lg);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.info-card-text {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+	}
+
+	.about-commitment {
+		background: #f0f2f5;
+	}
+
+	.four-cards {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: var(--spacing-6);
+	}
+
+	.commit-card {
+		background: #fff;
+		border-radius: var(--radius-lg);
+		padding: var(--spacing-6);
+		border: 1px solid var(--color-border-subtle);
+	}
+
+	.commit-title {
+		font-size: var(--font-size-base);
+		margin-bottom: var(--spacing-2);
+		color: #1e3a5f;
+	}
+
+	.commit-text {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+	}
+
+	.testimonial-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--spacing-8);
+	}
+
+	.testimonial-card {
+		margin: 0;
+		padding: var(--spacing-6);
+		background: #fff;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.testimonial-quote {
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	.testimonial-quote :global(p) {
+		margin: 0;
+	}
+
+	.testimonial-quote :global(p + p) {
+		margin-top: var(--spacing-3);
+	}
+
+	.testimonial-meta {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-1);
+		font-style: normal;
+	}
+
+	.testimonial-name {
+		font-size: var(--font-size-sm);
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.testimonial-role {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+	}
+
+	.about-cta {
+		background: #1e3a5f;
+		color: #fff;
+	}
+
+	.cta-wrap {
+		text-align: center;
+	}
+
+	.cta-heading {
+		font-size: var(--font-size-2xl);
+		color: #fff;
+		margin-bottom: var(--spacing-3);
+	}
+
+	.cta-copy {
+		opacity: 0.9;
+		margin-bottom: var(--spacing-8);
+		max-width: 28rem;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.cta-btns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-4);
+		justify-content: center;
+	}
+
+	.btn-contact {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-3) var(--spacing-8);
+		background: #d9534f;
+		color: #fff;
+		font-weight: 600;
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		border: 2px solid #d9534f;
+	}
+
+	.btn-contact:hover {
+		background: #c0392b;
+		border-color: #c0392b;
+		color: #fff;
+	}
+
+	.btn-call {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-3) var(--spacing-8);
+		background: transparent;
+		color: #fff;
+		font-weight: 600;
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		border: 2px solid rgba(255, 255, 255, 0.9);
+	}
+
+	.btn-call:hover {
+		background: rgba(255, 255, 255, 0.1);
+		color: #fff;
+	}
+
+	@media (max-width: 900px) {
+		.story-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.three-cards {
+			grid-template-columns: 1fr;
+		}
+
+		.four-cards {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.testimonial-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 520px) {
+		.four-cards {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

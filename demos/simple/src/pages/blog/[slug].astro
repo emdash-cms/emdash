@@ -1,0 +1,208 @@
+---
+import { getEmDashEntry } from "emdash";
+import { PortableText, Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+
+const { slug } = Astro.params;
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+
+if (!post) {
+	return Astro.redirect("/404");
+}
+
+Astro.cache.set(cacheHint);
+
+const bylines = post.data.bylines ?? [];
+
+const publishDate =
+	post.data.publishedAt?.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	}) ?? null;
+---
+
+<Base
+	title={post.data.title}
+	description={post.data.excerpt ?? undefined}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+	<section class="hero">
+		<div class="hero-inner">
+			<h1 class="hero-title">{post.data.title}</h1>
+			{
+				publishDate && (
+					<p class="hero-meta">
+						<time datetime={post.data.publishedAt?.toISOString()}>{publishDate}</time>
+					</p>
+				)
+			}
+		</div>
+	</section>
+
+	<article class="article">
+		<div class="article-inner">
+			{
+				post.data.featured_image && (
+					<div class="featured-wrap">
+						<Image image={post.data.featured_image} />
+					</div>
+				)
+			}
+
+			{
+				bylines.length > 0 && (
+					<div class="byline-row">
+						<span class="byline-label">By </span>
+						{bylines.map((credit, i) => (
+							<span class="byline-credit">
+								{i > 0 && ", "}
+								<span class="byline-name">{credit.byline.displayName}</span>
+								{credit.roleLabel && (
+									<span class="byline-role"> ({credit.roleLabel})</span>
+								)}
+							</span>
+						))}
+					</div>
+				)
+			}
+
+			<div class="article-body">
+				<PortableText value={post.data.content} />
+			</div>
+
+			<p class="back-wrap">
+				<a href="/blog" class="back-link">← Back to Blog</a>
+			</p>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.hero {
+		background: linear-gradient(135deg, #b91c1c 0%, #fb7185 55%, #fda4af 100%);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.hero-inner {
+		max-width: var(--content-width);
+		margin: 0 auto;
+	}
+
+	.hero-title {
+		font-size: clamp(1.75rem, 4vw, var(--font-size-4xl));
+		font-weight: 700;
+		letter-spacing: var(--tracking-tight);
+		line-height: var(--leading-tight);
+		margin-bottom: var(--spacing-3);
+		color: #fff;
+	}
+
+	.hero-meta {
+		font-size: var(--font-size-sm);
+		opacity: 0.9;
+		margin: 0;
+	}
+
+	.article {
+		padding: var(--spacing-10) var(--spacing-6) var(--spacing-20);
+	}
+
+	.article-inner {
+		max-width: var(--content-width);
+		margin: 0 auto;
+	}
+
+	.featured-wrap {
+		margin-bottom: var(--spacing-10);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		border: 1px solid var(--color-border-subtle);
+	}
+
+	.featured-wrap :global(img) {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
+
+	.byline-row {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.byline-credit {
+		display: inline;
+	}
+
+	.byline-label {
+		color: var(--color-muted);
+	}
+
+	.byline-name {
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.byline-role {
+		color: var(--color-muted);
+		font-weight: 400;
+	}
+
+	.article-body {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.article-body :global(p) {
+		margin-bottom: 1.25em;
+	}
+
+	.article-body :global(h2) {
+		font-size: var(--font-size-2xl);
+		margin-top: 2em;
+		margin-bottom: 0.75em;
+	}
+
+	.article-body :global(h3) {
+		font-size: var(--font-size-xl);
+		margin-top: 1.5em;
+		margin-bottom: 0.5em;
+	}
+
+	.article-body :global(ul),
+	.article-body :global(ol) {
+		margin-bottom: 1.25em;
+		padding-left: 1.25em;
+	}
+
+	.article-body :global(a) {
+		color: #b91c1c;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.back-wrap {
+		margin-top: var(--spacing-12);
+		padding-top: var(--spacing-8);
+		border-top: 1px solid var(--color-border-subtle);
+	}
+
+	.back-link {
+		font-weight: 600;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		text-decoration: none;
+	}
+
+	.back-link:hover {
+		color: #b91c1c;
+	}
+</style>

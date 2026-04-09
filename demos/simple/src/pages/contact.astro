@@ -1,0 +1,350 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+	title="Contact Us"
+	description="Reach Texas Equipment Source for forklift sales, rentals, parts, and service in the Houston area."
+>
+	<section class="hero">
+		<div class="hero-inner">
+			<h1 class="hero-title">Contact Us</h1>
+			<p class="hero-desc">
+				Have questions about equipment, rentals, or service? Our team is ready to
+				help you keep your operation moving.
+			</p>
+		</div>
+	</section>
+
+	<div class="page">
+		<div class="two-col">
+			<div class="col-form">
+				<h2 class="section-title">Send Us a Message</h2>
+				<form class="contact-form" method="post" action="#">
+					<label class="field">
+						<span class="label">Name <span class="req">*</span></span>
+						<input type="text" name="name" required autocomplete="name" />
+					</label>
+					<label class="field">
+						<span class="label">Email <span class="req">*</span></span>
+						<input type="email" name="email" required autocomplete="email" />
+					</label>
+					<label class="field">
+						<span class="label">Phone</span>
+						<input type="tel" name="phone" autocomplete="tel" />
+					</label>
+					<label class="field">
+						<span class="label">Company</span>
+						<input type="text" name="company" autocomplete="organization" />
+					</label>
+					<label class="field">
+						<span class="label">Message <span class="req">*</span></span>
+						<textarea name="message" rows="5" required></textarea>
+					</label>
+					<button type="submit" class="btn-submit">Submit Inquiry</button>
+				</form>
+			</div>
+
+			<div class="col-aside">
+				<div class="info-card">
+					<h3 class="card-label">Phone</h3>
+					<a href="tel:+18324004679" class="card-value">(832) 400-4679</a>
+				</div>
+				<div class="info-card">
+					<h3 class="card-label">Email</h3>
+					<a href="mailto:info@texasequipmentsource.com" class="card-value"
+						>info@texasequipmentsource.com</a
+					>
+				</div>
+				<div class="info-card">
+					<h3 class="card-label">Address</h3>
+					<p class="card-value card-text">
+						Houston metro area, Texas<br />
+						Call for directions to our facility.
+					</p>
+				</div>
+				<div class="info-card">
+					<h3 class="card-label">Business Hours</h3>
+					<p class="card-value card-text">
+						Mon–Fri: 7:00 AM – 6:00 PM<br />
+						Sat: 8:00 AM – 12:00 PM<br />
+						Sun: Closed
+					</p>
+				</div>
+
+				<div class="urgent-card">
+					<h3 class="urgent-title">Need Immediate Help?</h3>
+					<p class="urgent-desc">
+						For breakdowns and urgent service, call our team now.
+					</p>
+					<a href="tel:+18324004679" class="btn-call">Call (832) 400-4679</a>
+				</div>
+
+				<div class="quick-links">
+					<h3 class="quick-title">Quick Links</h3>
+					<ul class="quick-list">
+						<li><a href="/equipment">Browse Equipment</a></li>
+						<li><a href="/contact">Request a Quote</a></li>
+						<li><a href="/faq">View FAQ</a></li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</Base>
+
+<script>
+	const form = document.querySelector<HTMLFormElement>(".contact-form");
+	form?.addEventListener("submit", (e) => {
+		e.preventDefault();
+		const fd = new FormData(form);
+		const name = String(fd.get("name") ?? "");
+		const email = String(fd.get("email") ?? "");
+		const phone = String(fd.get("phone") ?? "");
+		const company = String(fd.get("company") ?? "");
+		const message = String(fd.get("message") ?? "");
+		const subject = encodeURIComponent(
+			`Website inquiry from ${name || "visitor"}`,
+		);
+		const body = encodeURIComponent(
+			[
+				`Name: ${name}`,
+				`Email: ${email}`,
+				`Phone: ${phone}`,
+				`Company: ${company}`,
+				"",
+				message,
+			].join("\n"),
+		);
+		window.location.href = `mailto:info@texasequipmentsource.com?subject=${subject}&body=${body}`;
+	});
+</script>
+
+<style>
+	.hero {
+		background: linear-gradient(135deg, #b91c1c 0%, #fb7185 55%, #fda4af 100%);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.hero-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
+		font-weight: 700;
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-4);
+		color: #fff;
+	}
+
+	.hero-desc {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+		max-width: 42rem;
+		opacity: 0.95;
+	}
+
+	.page {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-20);
+	}
+
+	.two-col {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--spacing-12);
+		align-items: start;
+	}
+
+	.section-title {
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		margin-bottom: var(--spacing-6);
+	}
+
+	.contact-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-5);
+	}
+
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+		font-size: var(--font-size-sm);
+	}
+
+	.label {
+		font-weight: 500;
+		color: var(--color-text-secondary);
+	}
+
+	.req {
+		color: #b91c1c;
+	}
+
+	.contact-form input,
+	.contact-form textarea {
+		font-family: var(--font-sans);
+		font-size: var(--font-size-base);
+		padding: var(--spacing-3) var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg);
+		color: var(--color-text);
+		transition:
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.contact-form input:focus,
+	.contact-form textarea:focus {
+		outline: none;
+		border-color: #b91c1c;
+		box-shadow: 0 0 0 3px color-mix(in srgb, #b91c1c 22%, transparent);
+	}
+
+	.btn-submit {
+		align-self: flex-start;
+		margin-top: var(--spacing-2);
+		padding: var(--spacing-3) var(--spacing-8);
+		font-family: var(--font-sans);
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		color: #fff;
+		background: linear-gradient(135deg, #b91c1c, #e11d48);
+		border: none;
+		border-radius: var(--radius-lg);
+		cursor: pointer;
+		transition:
+			opacity var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.btn-submit:hover {
+		opacity: 0.92;
+		transform: translateY(-1px);
+	}
+
+	.col-aside {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.info-card {
+		padding: var(--spacing-5);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border-subtle);
+		border-radius: var(--radius-lg);
+	}
+
+	.card-label {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.card-value {
+		font-size: var(--font-size-base);
+		font-weight: 500;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	a.card-value:hover {
+		color: #b91c1c;
+	}
+
+	.card-text {
+		font-weight: 400;
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+	}
+
+	.urgent-card {
+		padding: var(--spacing-6);
+		background: #1c1917;
+		color: #fafaf9;
+		border-radius: var(--radius-lg);
+	}
+
+	.urgent-title {
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		margin-bottom: var(--spacing-2);
+		color: #fff;
+	}
+
+	.urgent-desc {
+		font-size: var(--font-size-sm);
+		opacity: 0.85;
+		margin-bottom: var(--spacing-5);
+		line-height: var(--leading-relaxed);
+	}
+
+	.btn-call {
+		display: inline-block;
+		padding: var(--spacing-3) var(--spacing-6);
+		font-weight: 600;
+		font-size: var(--font-size-sm);
+		color: #1c1917;
+		background: #fff;
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition: opacity var(--transition-fast);
+	}
+
+	.btn-call:hover {
+		opacity: 0.9;
+		color: #1c1917;
+	}
+
+	.quick-links {
+		padding: var(--spacing-5);
+		border: 1px solid var(--color-border-subtle);
+		border-radius: var(--radius-lg);
+	}
+
+	.quick-title {
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.quick-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-3);
+	}
+
+	.quick-list a {
+		font-weight: 500;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.quick-list a:hover {
+		color: #b91c1c;
+	}
+
+	@media (max-width: 900px) {
+		.two-col {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

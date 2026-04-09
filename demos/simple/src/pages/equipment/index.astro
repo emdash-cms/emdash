@@ -1,0 +1,302 @@
+---
+import type { MediaValue } from "emdash";
+import { getEmDashCollection } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+
+const { entries: equipment, cacheHint } = await getEmDashCollection("equipment");
+
+Astro.cache.set(cacheHint);
+
+function formatPrice(value: unknown): string {
+	if (typeof value !== "number" || Number.isNaN(value)) {
+		return "Contact for price";
+	}
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
+		maximumFractionDigits: 0,
+	}).format(value);
+}
+
+function conditionClass(condition: unknown): "eq-badge--new" | "eq-badge--used" {
+	const c = typeof condition === "string" ? condition.toLowerCase() : "";
+	return c === "new" ? "eq-badge--new" : "eq-badge--used";
+}
+
+function conditionLabel(condition: unknown): string {
+	if (typeof condition === "string" && condition.trim()) return condition;
+	return "Used";
+}
+---
+
+<Base
+	title="Equipment Inventory — Texas Equipment Source"
+	description="Browse our inventory of new and used forklifts and material handling equipment."
+>
+	<section class="eq-hero">
+		<div class="eq-hero-inner">
+			<h1 class="eq-hero-title">Equipment Inventory</h1>
+			<p class="eq-hero-desc">
+				New and used forklifts, reach trucks, and more — inspected and ready for your operation.
+			</p>
+		</div>
+	</section>
+
+	<section class="eq-listing" aria-label="Equipment listings">
+		<div class="eq-listing-inner">
+			<p class="eq-count">{equipment.length} unit{equipment.length === 1 ? "" : "s"} available</p>
+			<div class="eq-grid">
+				{
+					equipment.map((item) => (
+						<article class="eq-card">
+							<a href={`/equipment/${item.id}`} class="eq-card-link">
+								<div class="eq-media">
+									{item.data.featured_image ? (
+										<Image image={item.data.featured_image as MediaValue} />
+									) : (
+										<div class="eq-placeholder" aria-hidden="true">
+											<svg
+												class="eq-placeholder-icon"
+												width="56"
+												height="56"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="1.25"
+											>
+												<rect x="2" y="8" width="15" height="10" rx="1" />
+												<path d="M17 12h3l2 3v3h-5v-6z" />
+												<circle cx="6.5" cy="20" r="1.5" />
+												<circle cx="16.5" cy="20" r="1.5" />
+												<path d="M4 18h14" />
+											</svg>
+										</div>
+									)}
+									<span class:list={["eq-badge", conditionClass(item.data.condition)]}>
+										{conditionLabel(item.data.condition)}
+									</span>
+								</div>
+								<div class="eq-card-body">
+									<h2 class="eq-card-title" {...item.edit.title}>
+										{item.data.title}
+									</h2>
+									<dl class="eq-specs">
+										{item.data.brand ? (
+											<div class="eq-spec">
+												<dt>Brand</dt>
+												<dd>{item.data.brand}</dd>
+											</div>
+										) : null}
+										{item.data.year != null ? (
+											<div class="eq-spec">
+												<dt>Year</dt>
+												<dd>{item.data.year}</dd>
+											</div>
+										) : null}
+										{item.data.capacity ? (
+											<div class="eq-spec">
+												<dt>Capacity</dt>
+												<dd>{item.data.capacity}</dd>
+											</div>
+										) : null}
+										{item.data.fuel_type ? (
+											<div class="eq-spec">
+												<dt>Fuel</dt>
+												<dd>{item.data.fuel_type}</dd>
+											</div>
+										) : null}
+										{typeof item.data.hours === "number" ? (
+											<div class="eq-spec">
+												<dt>Hours</dt>
+												<dd>
+													{new Intl.NumberFormat("en-US").format(item.data.hours)}
+												</dd>
+											</div>
+										) : null}
+									</dl>
+									<p class="eq-price">{formatPrice(item.data.price)}</p>
+									<span class="eq-cta">View Details</span>
+								</div>
+							</a>
+						</article>
+					))
+				}
+			</div>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.eq-hero {
+		background: linear-gradient(
+			135deg,
+			#8b1538 0%,
+			#c73e54 45%,
+			#e8927c 100%
+		);
+		color: #fff;
+		padding: var(--spacing-16) var(--spacing-6);
+	}
+
+	.eq-hero-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.eq-hero-title {
+		font-size: clamp(2rem, 4vw, 3rem);
+		font-weight: 700;
+		margin-bottom: var(--spacing-4);
+		color: #fff;
+	}
+
+	.eq-hero-desc {
+		font-size: var(--font-size-lg);
+		max-width: 36rem;
+		opacity: 0.92;
+		line-height: var(--leading-relaxed);
+		margin: 0;
+	}
+
+	.eq-listing {
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-16);
+	}
+
+	.eq-listing-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	.eq-count {
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.eq-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: var(--spacing-8);
+	}
+
+	.eq-card {
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg);
+		overflow: hidden;
+		transition:
+			box-shadow var(--transition-base),
+			border-color var(--transition-fast);
+	}
+
+	.eq-card:hover {
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+		border-color: color-mix(in srgb, #c73e54 35%, var(--color-border));
+	}
+
+	.eq-card-link {
+		display: block;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.eq-card-link:hover .eq-cta {
+		color: #8b1538;
+	}
+
+	.eq-media {
+		position: relative;
+		aspect-ratio: 4 / 3;
+		background: var(--color-surface);
+	}
+
+	.eq-media :global(img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.eq-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #d4d4d8;
+		color: #71717a;
+	}
+
+	.eq-placeholder-icon {
+		opacity: 0.85;
+	}
+
+	.eq-badge {
+		position: absolute;
+		top: var(--spacing-3);
+		right: var(--spacing-3);
+		font-size: var(--font-size-xs);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		padding: var(--spacing-1) var(--spacing-3);
+		border-radius: 999px;
+	}
+
+	.eq-badge--new {
+		background: #166534;
+		color: #fff;
+	}
+
+	.eq-badge--used {
+		background: #1d4ed8;
+		color: #fff;
+	}
+
+	.eq-card-body {
+		padding: var(--spacing-5);
+	}
+
+	.eq-card-title {
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		margin-bottom: var(--spacing-4);
+		line-height: var(--leading-snug);
+	}
+
+	.eq-specs {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--spacing-2) var(--spacing-4);
+		margin: 0 0 var(--spacing-4);
+	}
+
+	.eq-spec dt {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		margin: 0;
+	}
+
+	.eq-spec dd {
+		font-size: var(--font-size-sm);
+		margin: 0;
+		color: var(--color-text-secondary);
+	}
+
+	.eq-price {
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+		color: var(--color-text);
+		margin: 0 0 var(--spacing-4);
+	}
+
+	.eq-cta {
+		display: inline-block;
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		color: #c73e54;
+		transition: color var(--transition-fast);
+	}
+</style>

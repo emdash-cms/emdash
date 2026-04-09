@@ -5,6 +5,42 @@
 
 import type { ContentBylineCredit, PortableTextBlock } from "emdash";
 
+export interface Equipment {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
+  price?: number;
+  condition?: string;
+  brand?: string;
+  model?: string;
+  year?: number;
+  capacity?: string;
+  fuel_type?: string;
+  hours?: number;
+  excerpt?: string;
+  content?: PortableTextBlock[];
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface Faq {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  content?: PortableTextBlock[];
+  category?: string;
+  sort_order?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
 export interface Page {
   id: string;
   slug: string | null;
@@ -17,14 +53,63 @@ export interface Page {
   bylines?: ContentBylineCredit[];
 }
 
-export interface Post {
+export interface Part {
   id: string;
   slug: string | null;
   status: string;
   title: string;
   featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
-  content?: PortableTextBlock[];
+  price?: number;
+  part_number?: string;
+  manufacturer?: string;
   excerpt?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface BlogPost {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
+  excerpt?: string;
+  content?: PortableTextBlock[];
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface Service {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  subtitle?: string;
+  excerpt?: string;
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
+  icon?: string;
+  color?: string;
+  content?: PortableTextBlock[];
+  benefits?: unknown;
+  options?: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface Testimonial {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  content?: PortableTextBlock[];
+  role?: string;
+  rating?: number;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -33,7 +118,12 @@ export interface Post {
 
 declare module "emdash" {
   interface EmDashCollections {
+    equipment: Equipment;
+    faqs: Faq;
     pages: Page;
-    posts: Post;
+    parts: Part;
+    posts: BlogPost;
+    services: Service;
+    testimonials: Testimonial;
   }
 }
