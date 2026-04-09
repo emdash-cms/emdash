@@ -1,9 +1,8 @@
 /**
  * Sandbox Entry Point -- Worker Mailer SMTP
  *
- * Standard-format runtime entry for future sandboxed/marketplace use.
- * Configuration comes from plugin KV settings and Block Kit admin pages,
- * not constructor options.
+ * Standard-format runtime entry for isolated / marketplace-style use.
+ * Configuration comes from plugin KV settings and Block Kit admin pages.
  */
 
 import { definePlugin } from "emdash";
@@ -11,10 +10,9 @@ import type { PluginContext } from "emdash";
 
 import {
 	DEFAULT_AUTH_TYPE,
-	DEFAULT_TRANSPORT_SECURITY,
-	TLS_REQUIRED_MESSAGE,
+	DEFAULT_SECURE_PORT,
+	SECURE_CONNECTION_MESSAGE,
 	createWorkerMailerHooks,
-	defaultPortForTransportSecurity,
 } from "./shared.js";
 
 interface AdminInteraction {
@@ -61,8 +59,6 @@ function toPortNumber(value: unknown, fallback: number): number {
 }
 
 async function buildSettingsPage(ctx: PluginContext) {
-	const transportSecurity =
-		(await ctx.kv.get<string>("settings:transportSecurity")) ?? DEFAULT_TRANSPORT_SECURITY;
 	const host = (await ctx.kv.get<string>("settings:host")) ?? "";
 	const username = (await ctx.kv.get<string>("settings:username")) ?? "";
 	const fromEmail = (await ctx.kv.get<string>("settings:fromEmail")) ?? "";
@@ -70,9 +66,7 @@ async function buildSettingsPage(ctx: PluginContext) {
 	const authType = (await ctx.kv.get<string>("settings:authType")) ?? DEFAULT_AUTH_TYPE;
 	const port = toPortNumber(
 		await ctx.kv.get<number | string>("settings:port"),
-		defaultPortForTransportSecurity(
-			transportSecurity === "implicit_tls" ? "implicit_tls" : "starttls",
-		),
+		DEFAULT_SECURE_PORT,
 	);
 	const hasPassword = !!(await ctx.kv.get<string>("settings:password"));
 
@@ -81,15 +75,12 @@ async function buildSettingsPage(ctx: PluginContext) {
 			{ type: "header", text: "SMTP Settings" },
 			{
 				type: "context",
-				text: "Configure Worker Mailer for SMTP delivery in trusted or sandboxed mode.",
+				text: "Configure Worker Mailer for isolated SMTP delivery with Block Kit settings.",
 			},
 			{
 				type: "fields",
 				fields: [
-					{
-						label: "Security",
-						value: transportSecurity === "implicit_tls" ? "Implicit TLS" : "STARTTLS",
-					},
+					{ label: "Connection", value: "Implicit TLS / SMTPS" },
 					{ label: "Port", value: String(port) },
 					{ label: "Host", value: host || "Not configured" },
 					{ label: "Password", value: hasPassword ? "Stored" : "Not set" },
@@ -105,16 +96,6 @@ async function buildSettingsPage(ctx: PluginContext) {
 						action_id: "host",
 						label: "SMTP Host",
 						initial_value: host,
-					},
-					{
-						type: "select",
-						action_id: "transportSecurity",
-						label: "Transport Security",
-						options: [
-							{ label: "STARTTLS", value: "starttls" },
-							{ label: "Implicit TLS / SMTPS", value: "implicit_tls" },
-						],
-						initial_value: transportSecurity,
 					},
 					{
 						type: "number_input",
@@ -164,7 +145,7 @@ async function buildSettingsPage(ctx: PluginContext) {
 			{
 				type: "context",
 				text:
-					`${TLS_REQUIRED_MESSAGE} ` +
+					`${SECURE_CONNECTION_MESSAGE} ` +
 					"Leave From Email blank to fall back to the SMTP username. " +
 					"Leave Password blank to keep the stored secret.",
 			},
@@ -173,9 +154,7 @@ async function buildSettingsPage(ctx: PluginContext) {
 }
 
 async function saveSettings(ctx: PluginContext, values: Record<string, unknown>) {
-	const transportSecurity =
-		values.transportSecurity === "implicit_tls" ? "implicit_tls" : "starttls";
-	const port = toPortNumber(values.port, defaultPortForTransportSecurity(transportSecurity));
+	const port = toPortNumber(values.port, DEFAULT_SECURE_PORT);
 
 	if (!Number.isFinite(port) || port < 1 || port > 65535) {
 		return {
@@ -184,7 +163,10 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 		};
 	}
 
-	await ctx.kv.set("settings:transportSecurity", transportSecurity);
+	await ctx.kv.delete("settings:transportSecurity");
+	await ctx.kv.delete("settings:transportSecurityMode");
+	await ctx.kv.delete("settings:startTls");
+	await ctx.kv.delete("settings:secure");
 	await ctx.kv.set("settings:port", port);
 	await ctx.kv.set("settings:authType", toNonEmpty(values.authType) ?? DEFAULT_AUTH_TYPE);
 

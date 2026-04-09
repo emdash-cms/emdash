@@ -55,26 +55,11 @@ This builds and deploys to Cloudflare Workers. EmDash handles migrations automat
 
 This demo includes `@emdash-cms/plugin-worker-mailer` in `astro.config.mjs`.
 
-By default, `workerMailerPlugin()` just enables the SMTP settings page in EmDash so
-you can configure the connection in the admin UI.
+In this demo, `workerMailerPlugin()` runs as an isolated plugin and exposes its
+SMTP settings page in EmDash so you can configure the connection in the admin UI.
 
-If you want to seed defaults in code, use:
-
-```js
-workerMailerPlugin({
-	host: "smtp.example.com",
-	port: 587,
-	transportSecurity: "starttls",
-	authType: "plain",
-	username: "smtp-user",
-	password: "smtp-password",
-	fromEmail: "no-reply@example.com",
-	fromName: "EmDash Demo",
-});
-```
-
-Cloudflare Workers TCP sockets support both STARTTLS and implicit TLS, and this
-plugin exposes both modes. Plaintext SMTP is intentionally not supported.
+Cloudflare Workers SMTP connections must start secure, so this plugin uses an
+implicit TLS / SMTPS endpoint instead of upgrading a plaintext connection.
 
 ## Notes
 

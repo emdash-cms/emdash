@@ -4,38 +4,14 @@ import type { PluginHooks } from "emdash";
 
 export const PLUGIN_ID = "worker-mailer";
 export const VERSION = "0.1.0";
-export const DEFAULT_TRANSPORT_SECURITY = "starttls";
 export const DEFAULT_AUTH_TYPE = "plain";
-export const IMPLICIT_TLS_PORT = 465;
-export const STARTTLS_PORT = 587;
-export const TLS_REQUIRED_MESSAGE =
-	"Choose STARTTLS on port 587 or implicit TLS on port 465. Plaintext SMTP is not supported.";
-
-export type TransportSecurity = "starttls" | "implicit_tls";
-
-export interface WorkerMailerPluginOptions extends Record<string, unknown> {
-	/** SMTP host (e.g. smtp.example.com) */
-	host?: string;
-	/** SMTP port (usually 587 for STARTTLS or 465 for implicit TLS) */
-	port?: number;
-	/** SMTP transport security mode */
-	transportSecurity?: TransportSecurity;
-	/** SMTP auth type */
-	authType?: AuthType;
-	/** SMTP username */
-	username?: string;
-	/** SMTP password */
-	password?: string;
-	/** Optional sender email override (defaults to username) */
-	fromEmail?: string;
-	/** Optional sender display name */
-	fromName?: string;
-}
+export const DEFAULT_SECURE_PORT = 465;
+export const SECURE_CONNECTION_MESSAGE =
+	"Cloudflare Workers SMTP connections must start secure. Configure an implicit TLS / SMTPS endpoint, usually on port 465.";
 
 export interface WorkerMailerConfig {
 	host: string;
 	port: number;
-	transportSecurity: TransportSecurity;
 	authType: AuthType;
 	username: string;
 	password: string;
@@ -45,19 +21,6 @@ export interface WorkerMailerConfig {
 
 function isAuthType(value: string): value is AuthType {
 	return value === "plain" || value === "login" || value === "cram-md5";
-}
-
-function isTransportSecurity(value: string): value is TransportSecurity {
-	return value === "starttls" || value === "implicit_tls";
-}
-
-export function defaultPortForTransportSecurity(transportSecurity: TransportSecurity): number {
-	return transportSecurity === "implicit_tls" ? IMPLICIT_TLS_PORT : STARTTLS_PORT;
-}
-
-function coerceTransportSecurity(value: unknown, fallback: TransportSecurity): TransportSecurity {
-	if (typeof value !== "string") return fallback;
-	return isTransportSecurity(value) ? value : fallback;
 }
 
 function coerceAuthType(value: unknown, fallback: AuthType): AuthType {
@@ -80,33 +43,16 @@ function toNonEmpty(value: unknown): string | undefined {
 	return trimmed ? trimmed : undefined;
 }
 
-export async function readConfig(
-	ctx: PluginContext,
-	options: WorkerMailerPluginOptions,
-): Promise<WorkerMailerConfig> {
-	const transportSecurity = coerceTransportSecurity(
-		await ctx.kv.get<string>("settings:transportSecurity"),
-		options.transportSecurity ?? DEFAULT_TRANSPORT_SECURITY,
-	);
-	const host = toNonEmpty(await ctx.kv.get<string>("settings:host")) ?? toNonEmpty(options.host);
-	const port = coerceNumber(
-		await ctx.kv.get<number>("settings:port"),
-		options.port ?? defaultPortForTransportSecurity(transportSecurity),
-	);
-	const authType = coerceAuthType(
-		await ctx.kv.get<string>("settings:authType"),
-		options.authType ?? DEFAULT_AUTH_TYPE,
-	);
-	const username =
-		toNonEmpty(await ctx.kv.get<string>("settings:username")) ?? toNonEmpty(options.username);
-	const password =
-		toNonEmpty(await ctx.kv.get<string>("settings:password")) ?? toNonEmpty(options.password);
+export async function readConfig(ctx: PluginContext): Promise<WorkerMailerConfig> {
+	const host = toNonEmpty(await ctx.kv.get<string>("settings:host"));
+	const port = coerceNumber(await ctx.kv.get<number>("settings:port"), DEFAULT_SECURE_PORT);
+	const authType = coerceAuthType(await ctx.kv.get<string>("settings:authType"), DEFAULT_AUTH_TYPE);
+	const username = toNonEmpty(await ctx.kv.get<string>("settings:username"));
+	const password = toNonEmpty(await ctx.kv.get<string>("settings:password"));
 
-	const explicitFrom =
-		toNonEmpty(await ctx.kv.get<string>("settings:fromEmail")) ?? toNonEmpty(options.fromEmail);
+	const explicitFrom = toNonEmpty(await ctx.kv.get<string>("settings:fromEmail"));
 	const fromEmail = explicitFrom ?? username;
-	const fromName =
-		toNonEmpty(await ctx.kv.get<string>("settings:fromName")) ?? toNonEmpty(options.fromName);
+	const fromName = toNonEmpty(await ctx.kv.get<string>("settings:fromName"));
 
 	const missing: string[] = [];
 	if (!host) missing.push("host");
@@ -124,7 +70,6 @@ export async function readConfig(
 	return {
 		host: host!,
 		port,
-		transportSecurity,
 		authType,
 		username: username!,
 		password: password!,
@@ -144,27 +89,13 @@ async function setDefault(
 	await ctx.kv.set(key, value);
 }
 
-export async function installDefaults(
-	ctx: PluginContext,
-	options: WorkerMailerPluginOptions,
-): Promise<void> {
-	const transportSecurity = options.transportSecurity ?? DEFAULT_TRANSPORT_SECURITY;
-
-	await setDefault(ctx, "settings:host", toNonEmpty(options.host));
-	await setDefault(ctx, "settings:transportSecurity", transportSecurity);
-	await setDefault(
-		ctx,
-		"settings:port",
-		options.port ?? defaultPortForTransportSecurity(transportSecurity),
-	);
+export async function installDefaults(ctx: PluginContext): Promise<void> {
+	await setDefault(ctx, "settings:port", DEFAULT_SECURE_PORT);
+	await ctx.kv.delete("settings:transportSecurity");
 	await ctx.kv.delete("settings:transportSecurityMode");
 	await ctx.kv.delete("settings:startTls");
 	await ctx.kv.delete("settings:secure");
-	await setDefault(ctx, "settings:authType", options.authType ?? DEFAULT_AUTH_TYPE);
-	await setDefault(ctx, "settings:username", toNonEmpty(options.username));
-	await setDefault(ctx, "settings:password", toNonEmpty(options.password));
-	await setDefault(ctx, "settings:fromEmail", toNonEmpty(options.fromEmail));
-	await setDefault(ctx, "settings:fromName", toNonEmpty(options.fromName));
+	await setDefault(ctx, "settings:authType", DEFAULT_AUTH_TYPE);
 }
 
 async function loadWorkerMailer(): Promise<typeof import("@workermailer/smtp")> {
@@ -189,8 +120,8 @@ export async function sendWithWorkerMailer(
 	const mailerOptions: WorkerMailerOptions = {
 		host: config.host,
 		port: config.port,
-		secure: config.transportSecurity === "implicit_tls",
-		startTls: config.transportSecurity === "starttls",
+		secure: true,
+		startTls: false,
 		authType: config.authType,
 		credentials: {
 			username: config.username,
@@ -208,22 +139,20 @@ export async function sendWithWorkerMailer(
 
 	await WorkerMailer.send(mailerOptions, emailOptions);
 
-	ctx.log.info(`Delivered email to ${message.to} via Worker Mailer (${config.transportSecurity})`);
+	ctx.log.info(`Delivered email to ${message.to} via Worker Mailer (implicit TLS)`);
 }
 
-export function createWorkerMailerHooks(
-	options: WorkerMailerPluginOptions = {},
-): Pick<PluginHooks, "plugin:install" | "email:deliver"> {
+export function createWorkerMailerHooks(): Pick<PluginHooks, "plugin:install" | "email:deliver"> {
 	return {
 		"plugin:install": {
 			handler: async (_event, ctx) => {
-				await installDefaults(ctx, options);
+				await installDefaults(ctx);
 			},
 		},
 		"email:deliver": {
 			exclusive: true,
 			handler: async (event, ctx) => {
-				const config = await readConfig(ctx, options);
+				const config = await readConfig(ctx);
 				await sendWithWorkerMailer(ctx, config, event.message);
 			},
 		},

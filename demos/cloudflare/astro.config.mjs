@@ -71,26 +71,18 @@ export default defineConfig({
 			],
 			// Trusted plugins (run in host worker)
 			plugins: [
-				// SMTP delivery from the host Worker. Configure credentials in the
-				// plugin settings page or seed defaults in code. This plugin supports
-				// STARTTLS (usually port 587) and implicit TLS / SMTPS (usually 465).
-				// Example:
-				// workerMailerPlugin({
-				// 	host: "smtp.example.com",
-				// 	port: 587,
-				// 	transportSecurity: "starttls",
-				// 	authType: "plain",
-				// 	username: "smtp-user",
-				// 	password: "smtp-password",
-				// 	fromEmail: "no-reply@example.com",
-				// 	fromName: "EmDash Demo",
-				// }),
-				workerMailerPlugin(),
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
 			],
 			// Sandboxed plugins (run in isolated workers)
-			sandboxed: [webhookNotifierPlugin()],
+			sandboxed: [
+				// SMTP delivery with Block Kit settings in an isolated worker.
+				// Configure credentials in the plugin settings page. Cloudflare
+				// Workers must start SMTP connections secure, so this uses an
+				// implicit TLS / SMTPS endpoint, usually on port 465.
+				workerMailerPlugin(),
+				webhookNotifierPlugin(),
+			],
 			// Sandbox runner for Cloudflare
 			sandboxRunner: sandbox(),
 			// Plugin marketplace

@@ -5,4 +5,4 @@
 ### Minor Changes
 
 - Initial release of the Worker Mailer email provider plugin for EmDash.
-- Support secure SMTP via STARTTLS and implicit TLS on Cloudflare Workers.
+- Support secure SMTP over implicit TLS / SMTPS on Cloudflare Workers.
