@@ -233,6 +233,21 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to update collection", "UPDATE_FAILED");
 		}
 
+		if (input.supports !== undefined) {
+			const wasSearch = existing.supports.includes("search");
+			const nowSearch = input.supports.includes("search");
+			const ftsManager = new FTSManager(this.db);
+
+			if (!wasSearch && nowSearch) {
+				const searchableFields = await ftsManager.getSearchableFields(slug);
+				if (searchableFields.length > 0) {
+					await ftsManager.rebuildIndex(slug, searchableFields);
+				}
+			} else if (wasSearch && !nowSearch) {
+				await ftsManager.dropFtsTable(slug);
+			}
+		}
+
 		return updated;
 	}
 
@@ -255,6 +270,10 @@ export class SchemaRegistry {
 				);
 			}
 		}
+
+		// Drop the FTS virtual table before dropping the content table
+		const ftsManager = new FTSManager(this.db);
+		await ftsManager.dropFtsTable(slug);
 
 		// Drop the content table
 		await this.dropContentTable(slug);
@@ -368,6 +387,10 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create field", "CREATE_FAILED");
 		}
 
+		if (input.searchable) {
+			await this.rebuildSearchIndex(collectionSlug);
+		}
+
 		return field;
 	}
 
@@ -443,28 +466,23 @@ export class SchemaRegistry {
 	/**
 	 * Rebuild the search index for a collection
 	 *
-	 * Called when searchable fields change. If search is enabled for the collection,
-	 * this will rebuild the FTS table with the updated field list.
+	 * Called when searchable fields change. Uses supports.includes("search") as
+	 * the single source of truth for whether FTS should be active.
 	 */
 	private async rebuildSearchIndex(collectionSlug: string): Promise<void> {
-		const ftsManager = new FTSManager(this.db);
-
-		// Check if search is enabled for this collection
-		const config = await ftsManager.getSearchConfig(collectionSlug);
-		if (!config?.enabled) {
-			// Search not enabled, nothing to do
+		const collection = await this.getCollection(collectionSlug);
+		if (!collection?.supports.includes("search")) {
 			return;
 		}
 
-		// Get current searchable fields
+		const ftsManager = new FTSManager(this.db);
 		const searchableFields = await ftsManager.getSearchableFields(collectionSlug);
 
 		if (searchableFields.length === 0) {
-			// No searchable fields left, disable search
-			await ftsManager.disableSearch(collectionSlug);
+			await ftsManager.dropFtsTable(collectionSlug);
 		} else {
-			// Rebuild the index with updated fields
-			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config.weights);
+			const config = await ftsManager.getSearchConfig(collectionSlug);
+			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
 		}
 	}
 
@@ -480,11 +498,22 @@ export class SchemaRegistry {
 			);
 		}
 
+		// SQLite validates triggers when dropping a column. Drop the FTS table
+		// (and its triggers) before removing the column so ALTER TABLE succeeds.
+		if (field.searchable) {
+			const ftsManager = new FTSManager(this.db);
+			await ftsManager.dropFtsTable(collectionSlug);
+		}
+
 		// Drop column from content table
 		await this.dropColumn(collectionSlug, fieldSlug);
 
 		// Delete field record
 		await this.db.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
+
+		if (field.searchable) {
+			await this.rebuildSearchIndex(collectionSlug);
+		}
 	}
 
 	/**

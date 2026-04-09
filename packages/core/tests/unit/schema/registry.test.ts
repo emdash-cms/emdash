@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
+import { FTSManager } from "../../../src/search/fts-manager.js";
 
 describe("SchemaRegistry", () => {
 	let db: Kysely<EmDashDatabase>;
@@ -370,6 +371,226 @@ describe("SchemaRegistry", () => {
 			// Fields should be gone (cascade delete)
 			const field = await registry.getField("temp", "field1");
 			expect(field).toBeNull();
+		});
+	});
+
+	describe("FTS integration", () => {
+		let fts: FTSManager;
+
+		beforeEach(() => {
+			fts = new FTSManager(db);
+		});
+
+		describe("createField", () => {
+			it("creates FTS table when first searchable field is added to a search-enabled collection", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["search"],
+				});
+
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+			});
+
+			it("does not create FTS table when searchable field is added to collection without search support", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["drafts"],
+				});
+
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+
+				expect(await fts.ftsTableExists("posts")).toBe(false);
+			});
+
+			it("does not create FTS table when non-searchable field is added to search-enabled collection", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["search"],
+				});
+
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: false,
+				});
+
+				expect(await fts.ftsTableExists("posts")).toBe(false);
+			});
+
+			it("rebuilds FTS table to include a second searchable field", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["search"],
+				});
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+				await registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "text",
+					searchable: true,
+				});
+
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+				const fields = await fts.getSearchableFields("posts");
+				expect(fields).toContain("title");
+				expect(fields).toContain("body");
+			});
+		});
+
+		describe("deleteField", () => {
+			beforeEach(async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["search"],
+				});
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+				await registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "text",
+					searchable: true,
+				});
+			});
+
+			it("rebuilds FTS table after deleting one of multiple searchable fields", async () => {
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+
+				await registry.deleteField("posts", "body");
+
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+				const fields = await fts.getSearchableFields("posts");
+				expect(fields).toEqual(["title"]);
+			});
+
+			it("drops FTS table when the last searchable field is deleted", async () => {
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+
+				await registry.deleteField("posts", "title");
+				expect(await fts.ftsTableExists("posts")).toBe(true); // body still searchable
+
+				await registry.deleteField("posts", "body");
+				expect(await fts.ftsTableExists("posts")).toBe(false); // nothing searchable left
+			});
+
+			it("does not affect FTS table when a non-searchable field is deleted", async () => {
+				await registry.createField("posts", {
+					slug: "excerpt",
+					label: "Excerpt",
+					type: "text",
+					searchable: false,
+				});
+
+				await registry.deleteField("posts", "excerpt");
+
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+			});
+		});
+
+		describe("deleteCollection", () => {
+			it("drops FTS table when deleting a search-enabled collection", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["search"],
+				});
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+
+				await registry.deleteCollection("posts", { force: true });
+
+				expect(await fts.ftsTableExists("posts")).toBe(false);
+			});
+		});
+
+		describe("updateCollection supports", () => {
+			it("creates FTS table when search is added to supports and searchable fields exist", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["drafts"],
+				});
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+				expect(await fts.ftsTableExists("posts")).toBe(false);
+
+				await registry.updateCollection("posts", { supports: ["drafts", "search"] });
+
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+			});
+
+			it("drops FTS table when search is removed from supports", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["search"],
+				});
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: true,
+				});
+				expect(await fts.ftsTableExists("posts")).toBe(true);
+
+				await registry.updateCollection("posts", { supports: ["drafts"] });
+
+				expect(await fts.ftsTableExists("posts")).toBe(false);
+			});
+
+			it("does not create FTS table when search is added to supports but no searchable fields exist", async () => {
+				await registry.createCollection({
+					slug: "posts",
+					label: "Posts",
+					supports: ["drafts"],
+				});
+				await registry.createField("posts", {
+					slug: "title",
+					label: "Title",
+					type: "string",
+					searchable: false,
+				});
+
+				await registry.updateCollection("posts", { supports: ["drafts", "search"] });
+
+				expect(await fts.ftsTableExists("posts")).toBe(false);
+			});
 		});
 	});
 });
