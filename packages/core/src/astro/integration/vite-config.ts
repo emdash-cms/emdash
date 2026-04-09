@@ -200,9 +200,7 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 /**
  * Creates the Vite config update for EmDash.
  */
-export function createViteConfig(
-	options: VitePluginOptions,
-): NonNullable<AstroConfig["vite"]> {
+export function createViteConfig(options: VitePluginOptions): NonNullable<AstroConfig["vite"]> {
 	const adminDistPath = resolveAdminDist();
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 
@@ -219,9 +217,7 @@ export function createViteConfig(
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
-		plugins: [
-			createVirtualModulesPlugin(options),
-		] as NonNullable<AstroConfig["vite"]>["plugins"],
+		plugins: [createVirtualModulesPlugin(options)] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
 		// On Cloudflare: skip — the adapter handles externalization, and setting

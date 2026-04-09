@@ -11,8 +11,8 @@ import { useLingui } from "@lingui/react/macro";
 import { GlobeSimple } from "@phosphor-icons/react";
 import React from "react";
 
-import { getLocaleLabel } from "../locales/config.js";
 import { cn } from "../lib/utils.js";
+import { getLocaleLabel } from "../locales/config.js";
 
 interface LocaleSwitcherProps {
 	locales: string[];
