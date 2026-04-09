@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-audit-log",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Audit logging plugin for EmDash CMS - tracks content changes",
 	"type": "module",
 	"main": "dist/index.mjs",

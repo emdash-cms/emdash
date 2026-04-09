@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",

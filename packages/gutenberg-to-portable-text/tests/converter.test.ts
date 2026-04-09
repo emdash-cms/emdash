@@ -11,6 +11,7 @@ import type {
 	PortableTextGalleryBlock,
 	PortableTextTableBlock,
 	PortableTextButtonsBlock,
+	PortableTextCoverBlock,
 } from "../src/types.js";
 
 const HTML_TAG_PATTERN = /<[^>]+>/g;
@@ -858,6 +859,103 @@ https://${domain}/123456
 				caption: "Third photo",
 				asset: { url: "https://example.com/photo3.jpg" },
 			});
+		});
+	});
+
+	describe("cover blocks", () => {
+		it("converts a cover block", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","id":42} -->
+<div class="wp-block-cover">
+<!-- wp:paragraph -->
+<p>Overlay text</p>
+<!-- /wp:paragraph -->
+</div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "cover",
+				backgroundImage: "https://example.com/bg.jpg",
+			});
+
+			const cover = result[0] as PortableTextCoverBlock;
+			expect(cover.content).toHaveLength(1);
+			expect(cover.content[0]).toMatchObject({ _type: "block", style: "normal" });
+		});
+
+		it.each(["left", "center", "right"] as const)(
+			"maps contentPosition %s to equivalent alignment",
+			(position) => {
+				const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","contentPosition":"${position}"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+				const result = gutenbergToPortableText(content);
+
+				expect(result[0]).toMatchObject({ _type: "cover", alignment: position });
+			},
+		);
+
+		it("defaults minHeight unit to px when no unit is given", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","minHeight":400} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", minHeight: "400px" });
+		});
+
+		it("combines minHeight with explicit unit", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","minHeight":50,"minHeightUnit":"vh"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", minHeight: "50vh" });
+		});
+
+		it("handles zero minHeighjt", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","minHeight":0} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", minHeight: "0px" });
+		});
+
+		it("converts dimRatio to overlayOpacity", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","dimRatio":60} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", overlayOpacity: 0.6 });
+		});
+
+		it("uses customOverlayColor over overlayColor when both are present", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","overlayColor":"primary","customOverlayColor":"#ff0000"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", overlayColor: "#ff0000" });
+		});
+
+		it("falls back to overlayColor when no customOverlayColor", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","overlayColor":"primary"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", overlayColor: "primary" });
 		});
 	});
 
