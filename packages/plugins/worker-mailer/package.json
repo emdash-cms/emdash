@@ -8,7 +8,8 @@
 		".": {
 			"import": "./dist/index.mjs",
 			"types": "./dist/index.d.mts"
-		}
+		},
+		"./sandbox": "./dist/sandbox-entry.mjs"
 	},
 	"files": [
 		"dist"
@@ -25,8 +26,8 @@
 	"author": "Andre Ribas (@RibasSu)",
 	"license": "MIT",
 	"scripts": {
-		"build": "tsdown src/index.ts --format esm --dts --clean",
-		"dev": "tsdown src/index.ts --format esm --dts --watch",
+		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
+		"dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
 		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},

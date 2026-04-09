@@ -1,5 +1,6 @@
 import type { AuthType, EmailOptions, WorkerMailerOptions } from "@workermailer/smtp";
 import type { PluginContext } from "emdash";
+import type { PluginHooks } from "emdash";
 
 export const PLUGIN_ID = "worker-mailer";
 export const VERSION = "0.1.0";
@@ -208,4 +209,23 @@ export async function sendWithWorkerMailer(
 	await WorkerMailer.send(mailerOptions, emailOptions);
 
 	ctx.log.info(`Delivered email to ${message.to} via Worker Mailer (${config.transportSecurity})`);
+}
+
+export function createWorkerMailerHooks(
+	options: WorkerMailerPluginOptions = {},
+): Pick<PluginHooks, "plugin:install" | "email:deliver"> {
+	return {
+		"plugin:install": {
+			handler: async (_event, ctx) => {
+				await installDefaults(ctx, options);
+			},
+		},
+		"email:deliver": {
+			exclusive: true,
+			handler: async (event, ctx) => {
+				const config = await readConfig(ctx, options);
+				await sendWithWorkerMailer(ctx, config, event.message);
+			},
+		},
+	};
 }

@@ -7,10 +7,8 @@ import {
 	PLUGIN_ID,
 	TLS_REQUIRED_MESSAGE,
 	VERSION,
+	createWorkerMailerHooks,
 	defaultPortForTransportSecurity,
-	installDefaults,
-	readConfig,
-	sendWithWorkerMailer,
 	type WorkerMailerPluginOptions,
 } from "./shared.js";
 
@@ -35,22 +33,7 @@ export function createPlugin(options: WorkerMailerPluginOptions = {}): ResolvedP
 		id: PLUGIN_ID,
 		version: VERSION,
 		capabilities: ["email:provide"],
-
-		hooks: {
-			"plugin:install": {
-				handler: async (_event, ctx) => {
-					await installDefaults(ctx, options);
-				},
-			},
-
-			"email:deliver": {
-				exclusive: true,
-				handler: async (event, ctx) => {
-					const config = await readConfig(ctx, options);
-					await sendWithWorkerMailer(ctx, config, event.message);
-				},
-			},
-		},
+		hooks: createWorkerMailerHooks(options),
 
 		admin: {
 			settingsSchema: {
