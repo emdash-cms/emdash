@@ -120,15 +120,18 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			);
 		}
 
+		// Check setup_complete as the authoritative first-user gate.
+		// Using an option flag instead of countUsers() avoids a TOCTOU race
+		// where two concurrent callbacks both see 0 users and both create admins.
+		const adapter = createKyselyAdapter(emdash.db);
+		const options = new OptionsRepository(emdash.db);
+		const setupComplete = await options.get("emdash:setup_complete");
+		const isFirstUser = setupComplete !== true && setupComplete !== "true";
+
 		// Build synthetic email — AT Protocol doesn't guarantee email access.
 		// For the first user, read the real email from the setup wizard state.
-		const adapter = createKyselyAdapter(emdash.db);
-		const userCount = await adapter.countUsers();
-		const isFirstUser = userCount === 0;
-
 		let email: string;
 		if (isFirstUser) {
-			const options = new OptionsRepository(emdash.db);
 			const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
 			email = (setupState?.email as string) || `${did.replaceAll(":", "-")}@atproto.invalid`;
 		} else {
@@ -152,6 +155,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		});
 
 		if (isFirstUser) {
+			// finalizeSetup is idempotent — safe if two callbacks race past the check
 			await finalizeSetup(emdash.db);
 			console.log(`[atproto-auth] Setup complete: created admin user via atproto (${did})`);
 		}

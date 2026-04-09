@@ -22,7 +22,10 @@ interface AtprotoStoreDb {
 	_emdash_atproto_store: AtprotoStoreTable;
 }
 
+let _tableCreated = false;
+
 async function ensureTable(db: Kysely<unknown>): Promise<void> {
+	if (_tableCreated) return;
 	await sql`CREATE TABLE IF NOT EXISTS _emdash_atproto_store (
 		namespace TEXT NOT NULL,
 		key TEXT NOT NULL,
@@ -30,6 +33,7 @@ async function ensureTable(db: Kysely<unknown>): Promise<void> {
 		expires_at INTEGER,
 		PRIMARY KEY (namespace, key)
 	)`.execute(db);
+	_tableCreated = true;
 }
 
 /**
