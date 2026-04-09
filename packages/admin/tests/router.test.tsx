@@ -18,6 +18,8 @@
  */
 
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
@@ -87,15 +89,20 @@ const MANIFEST: AdminManifest = {
 function buildRouter() {
 	const queryClient = createTestQueryClient();
 	const router = createAdminRouter(queryClient);
-	// Toasty is provided by App.tsx (outside RouterProvider) in production.
-	// Mirror that here so Toast.useToastManager() works inside page components.
+	if (!i18n.locale) {
+		i18n.loadAndActivate({ locale: "en", messages: {} });
+	}
+	// Toasty and I18nProvider are provided by App.tsx in production.
+	// Mirror that here so useLingui() and Toast.useToastManager() work inside page components.
 	function TestApp() {
 		return (
-			<Toasty>
-				<QueryClientProvider client={queryClient}>
-					<RouterProvider router={router} />
-				</QueryClientProvider>
-			</Toasty>
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<QueryClientProvider client={queryClient}>
+						<RouterProvider router={router} />
+					</QueryClientProvider>
+				</Toasty>
+			</I18nProvider>
 		);
 	}
 	return { router, queryClient, TestApp };
