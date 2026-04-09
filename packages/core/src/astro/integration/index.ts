@@ -168,6 +168,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				logger,
 				updateConfig,
 				config: astroConfig,
+				command,
 			}) => {
 				printBanner(logger);
 				// Extract i18n config from Astro config
@@ -185,12 +186,15 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 				// Update Vite config with virtual modules and other settings
 				updateConfig({
-					vite: createViteConfig({
-						serializableConfig,
-						resolvedConfig,
-						pluginDescriptors,
-						astroConfig,
-					}),
+					vite: createViteConfig(
+						{
+							serializableConfig,
+							resolvedConfig,
+							pluginDescriptors,
+							astroConfig,
+						},
+						command,
+					),
 				});
 
 				// Inject all core routes
