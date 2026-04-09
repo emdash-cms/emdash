@@ -95,6 +95,7 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/invite/accept",
 	"/_emdash/api/auth/invite/complete",
 	"/_emdash/api/auth/oauth/",
+	"/_emdash/api/auth/atproto/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
 	"/_emdash/api/oauth/token",
@@ -108,6 +109,7 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
+	"/_emdash/api/manifest",
 ]);
 
 function isPublicEmDashRoute(pathname: string): boolean {
@@ -268,6 +270,7 @@ async function handleEmDashAuth(
 	const { emdash } = locals;
 
 	const isLoginRoute = url.pathname.startsWith("/_emdash/admin/login");
+	const isCompleteProfileRoute = url.pathname.startsWith("/_emdash/admin/complete-profile");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
 	if (!emdash?.db) {
@@ -293,7 +296,7 @@ async function handleEmDashAuth(
 	}
 
 	// Passkey authentication (default)
-	if (isLoginRoute) {
+	if (isLoginRoute || isCompleteProfileRoute) {
 		return next();
 	}
 

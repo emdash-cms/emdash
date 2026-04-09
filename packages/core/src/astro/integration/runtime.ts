@@ -223,6 +223,23 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
+	 * Enable ATProto OAuth login (Bluesky / AT Protocol handles).
+	 *
+	 * When true, the admin login page shows a handle input for signing in
+	 * with a Bluesky handle or any AT Protocol PDS-hosted identity.
+	 *
+	 * @default false
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   atproto: true,
+	 * })
+	 * ```
+	 */
+	atproto?: boolean;
+
+	/**
 	 * Enable the MCP (Model Context Protocol) server endpoint.
 	 *
 	 * When enabled, exposes an MCP Streamable HTTP server at

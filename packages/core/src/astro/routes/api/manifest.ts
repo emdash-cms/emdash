@@ -36,11 +36,14 @@ export const GET: APIRoute = async ({ locals }) => {
 		}
 	}
 
+	const atprotoEnabled = !!emdash?.config?.atproto;
+
 	const manifest: EmDashManifest = emdashManifest
 		? {
 				...emdashManifest,
 				authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 				signupEnabled,
+				atprotoEnabled,
 			}
 		: {
 				version: "0.1.0",
@@ -49,6 +52,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				plugins: {},
 				authMode: "passkey",
 				signupEnabled,
+				atprotoEnabled,
 			};
 
 	return Response.json(

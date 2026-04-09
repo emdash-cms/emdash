@@ -112,6 +112,11 @@ export interface EmDashManifest {
 	 */
 	signupEnabled?: boolean;
 	/**
+	 * Whether ATProto OAuth login is enabled.
+	 * When true, the login page shows a handle input for ATProto auth.
+	 */
+	atprotoEnabled?: boolean;
+	/**
 	 * i18n configuration from Astro config.
 	 * Only present when i18n is enabled (multiple locales configured).
 	 */

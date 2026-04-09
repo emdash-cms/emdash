@@ -154,6 +154,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@atproto/oauth-client-node": "^0.3.17",
     "@emdash-cms/admin": "workspace:*",
     "@emdash-cms/auth": "workspace:*",
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",

@@ -61,6 +61,7 @@ export class UserRepository {
 			avatar_url: input.avatarUrl ?? null,
 			email_verified: 0,
 			data: input.data ? JSON.stringify(input.data) : null,
+			atproto_did: null,
 		};
 
 		await this.db.insertInto("users").values(row).execute();

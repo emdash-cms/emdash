@@ -805,6 +805,32 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/auth/oauth/[provider]/callback.ts"),
 	});
 
+	// ATProto OAuth routes
+	injectRoute({
+		pattern: "/_emdash/api/auth/atproto/client-metadata.json",
+		entrypoint: resolveRoute("api/auth/atproto/client-metadata.json.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/atproto/login",
+		entrypoint: resolveRoute("api/auth/atproto/login.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/atproto/callback",
+		entrypoint: resolveRoute("api/auth/atproto/callback.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/atproto/complete-profile",
+		entrypoint: resolveRoute("api/auth/atproto/complete-profile.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/atproto/verify-email",
+		entrypoint: resolveRoute("api/auth/atproto/verify-email.ts"),
+	});
+
 	// Self-signup routes
 	injectRoute({
 		pattern: "/_emdash/api/auth/signup/request",

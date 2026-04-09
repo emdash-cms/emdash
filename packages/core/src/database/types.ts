@@ -65,6 +65,7 @@ export interface UserTable {
 	email_verified: number; // 0 or 1
 	data: string | null; // JSON
 	disabled: Generated<number>; // 0 or 1
+	atproto_did: string | null; // AT Protocol DID (did:plc:* or did:web:*)
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
