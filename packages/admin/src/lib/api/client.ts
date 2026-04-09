@@ -124,6 +124,11 @@ export interface AdminManifest {
 	 */
 	signupEnabled?: boolean;
 	/**
+	 * Whether ATProto OAuth login is enabled.
+	 * When true, the login page shows a handle input for ATProto auth.
+	 */
+	atprotoEnabled?: boolean;
+	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
 	i18n?: {

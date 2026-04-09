@@ -19,6 +19,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { CompleteProfilePage } from "./components/auth/CompleteProfilePage";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
 import { ContentList } from "./components/ContentList";
@@ -149,6 +150,13 @@ const signupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/signup",
 	component: SignupPage,
+});
+
+// Complete profile route (standalone, no Shell) - ATProto email collection
+const completeProfileRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/complete-profile",
+	component: CompleteProfilePage,
 });
 
 // Device authorization route (standalone, no Shell)
@@ -1561,6 +1569,7 @@ const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
 	signupRoute,
+	completeProfileRoute,
 	deviceRoute,
 	adminRoutes,
 ]);

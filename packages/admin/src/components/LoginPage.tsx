@@ -207,6 +207,71 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 }
 
 // ============================================================================
+// ATProto Login Form
+// ============================================================================
+
+function AtprotoLoginForm() {
+	const [handle, setHandle] = React.useState("");
+	const [isLoading, setIsLoading] = React.useState(false);
+	const [error, setError] = React.useState<string | null>(null);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setError(null);
+		setIsLoading(true);
+
+		try {
+			const response = await apiFetch("/_emdash/api/auth/atproto/login", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ handle: handle.trim() }),
+			});
+
+			if (!response.ok) {
+				const body: { error?: { message?: string } } = await response.json().catch(() => ({}));
+				throw new Error(body?.error?.message || "Failed to start login");
+			}
+
+			const result: { data?: { redirectUrl?: string } } = await response.json();
+			if (result.data?.redirectUrl) {
+				window.location.href = result.data.redirectUrl;
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to start login");
+			setIsLoading(false);
+		}
+	};
+
+	return (
+		<form onSubmit={handleSubmit} className="space-y-3">
+			<div className="flex gap-2">
+				<Input
+					type="text"
+					value={handle}
+					onChange={(e) => setHandle(e.target.value)}
+					placeholder="alice.bsky.social"
+					disabled={isLoading}
+					autoComplete="username"
+					className="flex-1"
+				/>
+				<Button
+					type="submit"
+					variant="outline"
+					loading={isLoading}
+					disabled={!handle.trim() || !handle.includes(".")}
+					className="shrink-0"
+				>
+					Sign in
+				</Button>
+			</div>
+			{error && (
+				<div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{error}</div>
+			)}
+		</form>
+	);
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -320,6 +385,24 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 									</Button>
 								))}
 							</div>
+
+							{/* ATProto Login */}
+							{manifest?.atprotoEnabled && (
+								<>
+									<div className="relative">
+										<div className="absolute inset-0 flex items-center">
+											<span className="w-full border-t" />
+										</div>
+										<div className="relative flex justify-center text-xs uppercase">
+											<span className="bg-kumo-base px-2 text-kumo-subtle">
+												Sign in via the Atmosphere
+											</span>
+										</div>
+									</div>
+
+									<AtprotoLoginForm />
+								</>
+							)}
 
 							{/* Magic Link Option */}
 							<Button
