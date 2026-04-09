@@ -500,7 +500,7 @@ export const bundleCommand = defineCommand({
 			// Plugins published to npm with source exports will break site builds
 			// because the sandbox module generator embeds the resolved file as-is.
 			if (pkg.exports) {
-				for (const issue of findSourceExports(pkg.exports as Record<string, unknown>)) {
+				for (const issue of findSourceExports(pkg.exports)) {
 					consola.error(
 						`Export "${issue.exportPath}" points to source (${issue.resolvedPath}). ` +
 							`Package exports must point to built files (e.g. dist/*.mjs). ` +
