@@ -108,6 +108,10 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
+	// Public site search — read-only. The query layer hardcodes status='published'
+	// so unauthenticated callers only see published content. Admin endpoints
+	// (/enable, /rebuild, /stats) remain private because they're not in this set.
+	"/_emdash/api/search",
 ]);
 
 function isPublicEmDashRoute(pathname: string): boolean {
