@@ -1543,13 +1543,19 @@ importers:
       emdash:
         specifier: workspace:*
         version: link:../core
-      kysely:
-        specifier: '>=0.27.0'
-        version: 0.27.6
       miniflare:
         specifier: ^4.20250408.0
         version: 4.20260401.0
     devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.12
+        version: 7.6.13
+      better-sqlite3:
+        specifier: 'catalog:'
+        version: 11.10.0
+      kysely:
+        specifier: ^0.27.0
+        version: 0.27.6
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260213.1)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@5.9.3)

@@ -29,6 +29,9 @@
 		"kysely": ">=0.27.0"
 	},
 	"devDependencies": {
+		"better-sqlite3": "catalog:",
+		"@types/better-sqlite3": "^7.6.12",
+		"kysely": "^0.27.0",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
