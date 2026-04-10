@@ -30,7 +30,7 @@ export function LoginButton() {
 			className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-kumo-tint bg-kumo-base px-4 py-2 text-sm font-medium text-kumo-default hover:bg-kumo-tint"
 		>
 			<AtprotoIcon className="h-5 w-5" />
-			<span>AT Protocol</span>
+			<span>Atmosphere</span>
 		</button>
 	);
 }
@@ -81,7 +81,7 @@ export function LoginForm() {
 					htmlFor="atproto-handle"
 					className="block text-sm font-medium text-kumo-default mb-1"
 				>
-					AT Protocol Handle
+					Atmosphere Handle
 				</label>
 				<input
 					id="atproto-handle"
@@ -103,7 +103,7 @@ export function LoginForm() {
 				disabled={isLoading || !handle.trim()}
 				className="w-full justify-center rounded-md bg-kumo-brand px-4 py-2 text-sm font-medium text-white hover:bg-kumo-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
 			>
-				{isLoading ? "Connecting..." : "Sign in with PDS"}
+				{isLoading ? "Connecting..." : "Sign in"}
 			</button>
 		</form>
 	);
@@ -156,7 +156,7 @@ export function SetupStep({ onComplete }: { onComplete: () => void }) {
 		<form onSubmit={handleSubmit} className="space-y-3">
 			<div className="text-center mb-2">
 				<p className="text-sm font-medium text-kumo-default">AT Protocol</p>
-				<p className="text-xs text-kumo-subtle">Sign in with your PDS handle</p>
+				<p className="text-xs text-kumo-subtle">Sign in with your Bluesky/Atmosphere handle</p>
 			</div>
 
 			<div>
@@ -179,7 +179,7 @@ export function SetupStep({ onComplete }: { onComplete: () => void }) {
 				disabled={isLoading || !handle.trim()}
 				className="w-full justify-center rounded-md border border-kumo-tint bg-kumo-base px-4 py-2 text-sm font-medium text-kumo-default hover:bg-kumo-tint disabled:opacity-50 disabled:cursor-not-allowed"
 			>
-				{isLoading ? "Connecting..." : "Sign in with PDS"}
+				{isLoading ? "Connecting..." : "Sign in"}
 			</button>
 		</form>
 	);

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { atproto, type AtprotoAuthConfig } from "../src/auth.js";
 
-const PLUGIN_ROUTES_RE = /^@emdash-cms\/plugin-atproto\/routes\//;
+const AUTH_ROUTES_RE = /^@emdash-cms\/auth-atproto\/routes\//;
 
 describe("atproto auth config", () => {
 	describe("AuthProviderDescriptor contract", () => {
@@ -18,7 +18,7 @@ describe("atproto auth config", () => {
 
 		it("points adminEntry to the admin module", () => {
 			const descriptor = atproto();
-			expect(descriptor.adminEntry).toBe("@emdash-cms/plugin-atproto/admin");
+			expect(descriptor.adminEntry).toBe("@emdash-cms/auth-atproto/admin");
 		});
 
 		it("defaults config to empty object when no options provided", () => {
@@ -31,13 +31,20 @@ describe("atproto auth config", () => {
 			expect(descriptor.config).toEqual({});
 		});
 
-		it("declares routes pointing to plugin package", () => {
+		it("declares routes pointing to auth package", () => {
 			const descriptor = atproto();
 			expect(descriptor.routes).toBeDefined();
 			expect(descriptor.routes!.length).toBe(4);
 			for (const route of descriptor.routes!) {
-				expect(route.entrypoint).toMatch(PLUGIN_ROUTES_RE);
+				expect(route.entrypoint).toMatch(AUTH_ROUTES_RE);
 			}
+		});
+
+		it("declares storage collections for OAuth state", () => {
+			const descriptor = atproto();
+			expect(descriptor.storage).toBeDefined();
+			expect(descriptor.storage).toHaveProperty("states");
+			expect(descriptor.storage).toHaveProperty("sessions");
 		});
 
 		it("declares publicRoutes with specific paths", () => {

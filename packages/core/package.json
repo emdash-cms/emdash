@@ -204,7 +204,7 @@
   },
   "peerDependencies": {
     "@astrojs/react": ">=5.0.0-beta.0",
-    "@emdash-cms/plugin-atproto": "workspace:*",
+    "@emdash-cms/auth-atproto": "workspace:*",
     "@tanstack/react-query": ">=5.0.0",
     "@tanstack/react-router": ">=1.100.0",
     "astro": ">=6.0.0-beta.0",
@@ -212,7 +212,7 @@
     "react-dom": ">=18.0.0"
   },
   "peerDependenciesMeta": {
-    "@emdash-cms/plugin-atproto": {
+    "@emdash-cms/auth-atproto": {
       "optional": true
     }
   },

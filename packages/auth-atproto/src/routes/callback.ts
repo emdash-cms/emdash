@@ -53,8 +53,10 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 
 		// Exchange code for session via atcute
 		const { getAtprotoOAuthClient, resolveAtprotoProfile } =
-			await import("@emdash-cms/plugin-atproto/oauth-client");
-		const client = await getAtprotoOAuthClient(baseUrl, emdash.db);
+			await import("@emdash-cms/auth-atproto/oauth-client");
+		const { getAtprotoStorage } = await import("../storage.js");
+		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
+		const client = await getAtprotoOAuthClient(baseUrl, storage);
 		const { session: atprotoSession } = await client.callback(url.searchParams);
 
 		const did = atprotoSession.did;
@@ -84,7 +86,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			if (!didAllowed && hasAllowedHandles) {
 				// Independently verify the handle→DID binding before trusting it.
 				// A malicious PDS could claim any handle — we verify via DNS/HTTP.
-				const { verifyHandleDID } = await import("@emdash-cms/plugin-atproto/resolve-handle");
+				const { verifyHandleDID } = await import("@emdash-cms/auth-atproto/resolve-handle");
 				const verifiedDid = await verifyHandleDID(handle);
 
 				if (verifiedDid === did) {
@@ -146,10 +148,15 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			emailVerified: isFirstUser,
 		};
 
-		// Use shared find-or-create with canSelfSignup policy
+		// Use shared find-or-create with canSelfSignup policy.
+		// When no allowlists are configured, forbid self-signup — only the
+		// initial admin (first user during setup) is allowed through.
 		const user = await findOrCreateOAuthUser(adapter, "atproto", profile, async () => {
 			if (isFirstUser) {
 				return { allowed: true, role: Role.ADMIN };
+			}
+			if (!hasAllowedDIDs && !hasAllowedHandles) {
+				return null;
 			}
 			return { allowed: true, role: defaultRole };
 		});

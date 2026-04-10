@@ -7,7 +7,7 @@
  *
  * @example
  * ```ts
- * import { atproto } from "@emdash-cms/plugin-atproto/auth";
+ * import { atproto } from "@emdash-cms/auth-atproto";
  *
  * export default defineConfig({
  *   integrations: [
@@ -74,27 +74,31 @@ export function atproto(config?: AtprotoAuthConfig): AuthProviderDescriptor {
 		id: "atproto",
 		label: "AT Protocol",
 		config: config ?? {},
-		adminEntry: "@emdash-cms/plugin-atproto/admin",
+		adminEntry: "@emdash-cms/auth-atproto/admin",
 		routes: [
 			{
 				pattern: "/_emdash/api/auth/atproto/login",
-				entrypoint: "@emdash-cms/plugin-atproto/routes/login.ts",
+				entrypoint: "@emdash-cms/auth-atproto/routes/login.ts",
 			},
 			{
 				pattern: "/_emdash/api/auth/atproto/callback",
-				entrypoint: "@emdash-cms/plugin-atproto/routes/callback.ts",
+				entrypoint: "@emdash-cms/auth-atproto/routes/callback.ts",
 			},
 			{
 				pattern: "/_emdash/api/setup/atproto-admin",
-				entrypoint: "@emdash-cms/plugin-atproto/routes/setup-admin.ts",
+				entrypoint: "@emdash-cms/auth-atproto/routes/setup-admin.ts",
 			},
 			{
 				// Served at root /.well-known/ (not /_emdash/) so PDS authorization
 				// servers can fetch them quickly without hitting the EmDash middleware chain.
 				pattern: "/.well-known/atproto-client-metadata.json",
-				entrypoint: "@emdash-cms/plugin-atproto/routes/client-metadata.ts",
+				entrypoint: "@emdash-cms/auth-atproto/routes/client-metadata.ts",
 			},
 		],
 		publicRoutes: ["/_emdash/api/auth/atproto/"],
+		storage: {
+			states: { indexes: [] },
+			sessions: { indexes: [] },
+		},
 	};
 }

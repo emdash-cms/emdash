@@ -1,7 +1,7 @@
 ---
 "emdash": minor
 "@emdash-cms/admin": minor
-"@emdash-cms/plugin-atproto": minor
+"@emdash-cms/auth-atproto": minor
 "@emdash-cms/auth": patch
 ---
 

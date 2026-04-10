@@ -84,7 +84,7 @@ export interface AuthProviderModule {
  * @example
  * ```ts
  * // astro.config.ts
- * import { atproto } from "@emdash-cms/plugin-atproto/auth";
+ * import { atproto } from "@emdash-cms/auth-atproto";
  *
  * emdash({
  *   authProviders: [atproto(), github(), google()],
@@ -121,6 +121,18 @@ export interface AuthProviderDescriptor {
 	 * for unauthenticated users.
 	 */
 	publicRoutes?: string[];
+
+	/**
+	 * Storage collections for persistent auth state (e.g., OAuth sessions).
+	 * Same format as plugin storage — collections are stored in the shared
+	 * `_plugin_storage` table namespaced under `auth:<providerId>`.
+	 *
+	 * Access via `getAuthProviderStorage()` from `emdash/api/route-utils`.
+	 */
+	storage?: Record<
+		string,
+		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+	>;
 }
 
 /**

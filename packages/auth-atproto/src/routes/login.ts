@@ -27,8 +27,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const url = new URL(request.url);
 		const baseUrl = url.origin;
 
-		const { getAtprotoOAuthClient } = await import("@emdash-cms/plugin-atproto/oauth-client");
-		const client = await getAtprotoOAuthClient(baseUrl, emdash.db);
+		const { getAtprotoOAuthClient } = await import("@emdash-cms/auth-atproto/oauth-client");
+		const { getAtprotoStorage } = await import("../storage.js");
+		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
+		const client = await getAtprotoOAuthClient(baseUrl, storage);
 
 		const { url: authUrl } = await client.authorize({
 			target: { type: "account", identifier: body.handle as ActorIdentifier },

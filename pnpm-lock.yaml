@@ -243,6 +243,9 @@ importers:
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.31.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tsx@4.21.0)(yaml@2.8.2)
+      '@emdash-cms/auth-atproto':
+        specifier: workspace:*
+        version: link:../../packages/auth-atproto
       '@emdash-cms/cloudflare':
         specifier: workspace:*
         version: link:../../packages/cloudflare
@@ -434,6 +437,9 @@ importers:
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.31.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tsx@4.21.0)(yaml@2.8.2)
+      '@emdash-cms/auth-atproto':
+        specifier: workspace:*
+        version: link:../../packages/auth-atproto
       '@emdash-cms/plugin-atproto':
         specifier: workspace:*
         version: link:../../packages/plugins/atproto
@@ -735,6 +741,40 @@ importers:
         specifier: 'catalog:'
         version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/auth-atproto:
+    dependencies:
+      '@atcute/identity-resolver':
+        specifier: ^1.2.2
+        version: 1.2.2(@atcute/identity@1.1.4)
+      '@atcute/oauth-node-client':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@emdash-cms/auth':
+        specifier: workspace:*
+        version: link:../auth
+      astro:
+        specifier: '>=5'
+        version: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      emdash:
+        specifier: workspace:*
+        version: link:../core
+      kysely:
+        specifier: ^0.27.6
+        version: 0.27.6
+      react:
+        specifier: '>=18'
+        version: 19.2.4
+    devDependencies:
+      '@atcute/lexicons':
+        specifier: ^1.2.10
+        version: 1.2.10
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/blocks:
     dependencies:
       '@cloudflare/kumo':
@@ -884,12 +924,12 @@ importers:
       '@emdash-cms/auth':
         specifier: workspace:*
         version: link:../auth
+      '@emdash-cms/auth-atproto':
+        specifier: workspace:*
+        version: link:../auth-atproto
       '@emdash-cms/gutenberg-to-portable-text':
         specifier: workspace:*
         version: link:../gutenberg-to-portable-text
-      '@emdash-cms/plugin-atproto':
-        specifier: workspace:*
-        version: link:../plugins/atproto
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1178,34 +1218,10 @@ importers:
 
   packages/plugins/atproto:
     dependencies:
-      '@atcute/identity-resolver':
-        specifier: ^1.2.2
-        version: 1.2.2(@atcute/identity@1.1.4)
-      '@atcute/oauth-node-client':
-        specifier: ^1.1.0
-        version: 1.1.0
-      '@emdash-cms/auth':
-        specifier: workspace:*
-        version: link:../../auth
-      astro:
-        specifier: '>=5'
-        version: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
         specifier: workspace:*
         version: link:../../core
-      kysely:
-        specifier: ^0.27.6
-        version: 0.27.6
-      react:
-        specifier: '>=18'
-        version: 19.2.4
     devDependencies:
-      '@atcute/lexicons':
-        specifier: ^1.2.10
-        version: 1.2.10
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.14
       vitest:
         specifier: 'catalog:'
         version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)

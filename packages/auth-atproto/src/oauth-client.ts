@@ -38,19 +38,28 @@ import {
 	type StoredSession,
 	type StoredState,
 } from "@atcute/oauth-node-client";
-import type { Kysely } from "kysely";
 
 import { createDbStore } from "./db-store.js";
 
 type Did = `did:${string}:${string}`;
 
+interface StorageCollectionLike<T = unknown> {
+	get(id: string): Promise<T | null>;
+	put(id: string, data: T): Promise<void>;
+	delete(id: string): Promise<boolean>;
+	deleteMany(ids: string[]): Promise<number>;
+	query(options?: { limit?: number }): Promise<{ items: Array<{ id: string; data: T }> }>;
+}
+
+type AuthProviderStorageMap = Record<string, StorageCollectionLike>;
+
 // Singleton OAuthClient instance (lazily created).
-// On Workers, the db binding changes per request, so we store a mutable
+// On Workers, the storage binding changes per request, so we store a mutable
 // reference that DB-backed stores read via a getter.
 let _client: OAuthClient | null = null;
 let _clientBaseUrl: string | null = null;
-let _currentDb: Kysely<unknown> | null = null;
-let _clientHasDb = false;
+let _currentStorage: AuthProviderStorageMap | null = null;
+let _clientHasStorage = false;
 
 function isLoopback(url: string): boolean {
 	try {
@@ -74,13 +83,13 @@ function isLoopback(url: string): boolean {
  * - Production (HTTPS): PDS fetches the client metadata document to verify
  *   the client. No JWKS or key management needed.
  *
- * @param db - Database instance for persistent OAuth state/session storage.
- *             Required for multi-instance deployments (e.g., Workers).
- *             Pass `null` to use in-memory storage (dev only).
+ * @param baseUrl - The site's public URL.
+ * @param storage - Auth provider storage collections from `getAuthProviderStorage()`.
+ *                  Pass `null` to use in-memory storage (dev only).
  */
 export async function getAtprotoOAuthClient(
 	baseUrl: string,
-	db?: Kysely<unknown> | null,
+	storage?: AuthProviderStorageMap | null,
 ): Promise<OAuthClient> {
 	// Normalize localhost ↔ 127.0.0.1 so the singleton survives the OAuth
 	// round-trip (authorize uses localhost, callback arrives on 127.0.0.1).
@@ -88,14 +97,14 @@ export async function getAtprotoOAuthClient(
 		baseUrl = baseUrl.replace("://localhost", "://127.0.0.1");
 	}
 
-	// Update the mutable db reference so cached DB-backed stores use
+	// Update the mutable storage reference so cached DB-backed stores use
 	// the current request's binding (critical on Workers).
-	if (db) _currentDb = db;
+	if (storage) _currentStorage = storage;
 
 	// Return cached client if baseUrl matches and store backend hasn't upgraded.
-	// If the cached client uses MemoryStore but a db is now available, recreate
+	// If the cached client uses MemoryStore but storage is now available, recreate
 	// with DB-backed stores so state survives across Workers requests.
-	if (_client && _clientBaseUrl === baseUrl && (!db || _clientHasDb)) {
+	if (_client && _clientBaseUrl === baseUrl && (!storage || _clientHasStorage)) {
 		return _client;
 	}
 
@@ -114,15 +123,26 @@ export async function getAtprotoOAuthClient(
 		}),
 	});
 
-	// Use database-backed stores when a db is provided (required for
-	// multi-instance deployments like Cloudflare Workers where in-memory
-	// state doesn't survive across requests). Fall back to MemoryStore
-	// for local dev where the singleton process persists.
-	const getDb = () => _currentDb!;
-	const stores = db
+	// Use plugin storage when available (required for multi-instance deployments
+	// like Cloudflare Workers where in-memory state doesn't survive across
+	// requests). Fall back to MemoryStore for local dev where the singleton
+	// process persists.
+	const stores = storage
 		? {
-				sessions: createDbStore<Did, StoredSession>(getDb, "sessions"),
-				states: createDbStore<string, StoredState>(getDb, "states"),
+				sessions: createDbStore<Did, StoredSession>(
+					() =>
+						_currentStorage!.sessions as StorageCollectionLike<{
+							value: StoredSession;
+							expiresAt: number | null;
+						}>,
+				),
+				states: createDbStore<string, StoredState>(
+					() =>
+						_currentStorage!.states as StorageCollectionLike<{
+							value: StoredState;
+							expiresAt: number | null;
+						}>,
+				),
 			}
 		: {
 				sessions: new MemoryStore<Did, StoredSession>(),
@@ -135,7 +155,7 @@ export async function getAtprotoOAuthClient(
 		// Loopback public client for local development.
 		// AT Protocol spec allows loopback IPs with public clients.
 		// No client metadata endpoints needed — the PDS derives
-		// metadata from the client_id URL parameters.
+		// metadata from the client_id URL parameters per RFC 8252.
 		// baseUrl is already normalized to 127.0.0.1 above (RFC 8252).
 		client = new OAuthClient({
 			metadata: {
@@ -162,7 +182,7 @@ export async function getAtprotoOAuthClient(
 
 	_client = client;
 	_clientBaseUrl = baseUrl;
-	_clientHasDb = !!db;
+	_clientHasStorage = !!storage;
 
 	return client;
 }

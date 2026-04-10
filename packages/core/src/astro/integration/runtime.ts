@@ -231,7 +231,7 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
-	 * import { atproto } from "@emdash-cms/plugin-atproto/auth";
+	 * import { atproto } from "@emdash-cms/auth-atproto";
 	 *
 	 * emdash({
 	 *   authProviders: [atproto()],
