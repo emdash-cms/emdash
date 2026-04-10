@@ -1,6 +1,7 @@
 import {
 	Badge,
 	Button,
+	Checkbox,
 	Dialog,
 	Input,
 	InputArea,
@@ -20,6 +21,7 @@ import {
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
+	ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -35,10 +37,12 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { RepeaterField } from "./RepeaterField.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -66,6 +70,7 @@ import {
 } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
+import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
 
@@ -78,6 +83,7 @@ export interface FieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }>;
 	widget?: string;
+	validation?: Record<string, unknown>;
 }
 
 /** Simplified user info for current user context */
@@ -122,6 +128,8 @@ export interface ContentEditorProps {
 	supportsDrafts?: boolean;
 	/** Whether this collection supports revisions */
 	supportsRevisions?: boolean;
+	/** Whether this collection supports preview */
+	supportsPreview?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
 	/** Available users for author selection (only shown to editors+) */
@@ -190,6 +198,7 @@ export function ContentEditor({
 	isScheduling,
 	supportsDrafts = false,
 	supportsRevisions = false,
+	supportsPreview = false,
 	currentUser,
 	users,
 	onAuthorChange,
@@ -360,27 +369,29 @@ export function ContentEditor({
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
+	const urlPattern = manifest?.collections[collection]?.urlPattern;
+
 	const handlePreview = async () => {
 		if (!item?.id) return;
-
-		const contentUrl = (s: string) => {
-			const pattern = manifest?.collections[collection]?.urlPattern;
-			return pattern ? pattern.replace("{slug}", s) : `/${collection}/${s}`;
-		};
 
 		setIsLoadingPreview(true);
 		try {
 			const result = await getPreviewUrl(collection, item.id);
 			if (result?.url) {
-				// Open preview in new tab
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
-				// Fallback to direct URL if preview not configured
-				window.open(contentUrl(slug || item.id), "_blank", "noopener,noreferrer");
+				window.open(
+					contentUrl(collection, slug || item.id, urlPattern),
+					"_blank",
+					"noopener,noreferrer",
+				);
 			}
 		} catch {
-			// Fallback to direct URL on error
-			window.open(contentUrl(slug || item?.id || ""), "_blank", "noopener,noreferrer");
+			window.open(
+				contentUrl(collection, slug || item?.id || "", urlPattern),
+				"_blank",
+				"noopener,noreferrer",
+			);
 		} finally {
 			setIsLoadingPreview(false);
 		}
@@ -523,7 +534,7 @@ export function ContentEditor({
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
 					)}
-					{!isNew && (
+					{!isNew && supportsPreview && (
 						<Button
 							variant="outline"
 							type="button"
@@ -538,7 +549,7 @@ export function ContentEditor({
 					{!isNew && (
 						<>
 							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-								<Dialog.Root disablePointerDismissal>
+								<Dialog.Root>
 									<Dialog.Trigger
 										render={(p) => (
 											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
@@ -589,6 +600,17 @@ export function ContentEditor({
 									Publish
 								</Button>
 							)}
+							{isLive && item?.slug && (
+								<a
+									href={contentUrl(collection, item.slug, urlPattern)}
+									target="_blank"
+									rel="noopener noreferrer"
+									className={buttonVariants({ variant: "outline" })}
+								>
+									<ArrowSquareOut className="mr-2 h-4 w-4" aria-hidden="true" />
+									Live View
+								</a>
+							)}
 						</>
 					)}
 				</div>
@@ -610,25 +632,46 @@ export function ContentEditor({
 						)}
 					>
 						<div className="space-y-4">
-							{Object.entries(fields).map(([name, field]) => (
-								<FieldRenderer
-									key={name}
-									name={name}
-									field={field}
-									value={formData[name]}
-									onChange={handleFieldChange}
-									onEditorReady={field.kind === "portableText" ? setPortableTextEditor : undefined}
-									minimal={isDistractionFree}
-									pluginBlocks={pluginBlocks}
-									onBlockSidebarOpen={
-										field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-									}
-									onBlockSidebarClose={
-										field.kind === "portableText" ? handleBlockSidebarClose : undefined
-									}
-									manifest={manifest}
-								/>
-							))}
+							{Object.entries(fields).map(([name, field]) => {
+								const fieldEl = (
+									<FieldRenderer
+										key={name}
+										name={name}
+										field={field}
+										value={formData[name]}
+										onChange={handleFieldChange}
+										onEditorReady={
+											field.kind === "portableText" ? setPortableTextEditor : undefined
+										}
+										minimal={isDistractionFree}
+										pluginBlocks={pluginBlocks}
+										onBlockSidebarOpen={
+											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+										}
+										onBlockSidebarClose={
+											field.kind === "portableText" ? handleBlockSidebarClose : undefined
+										}
+										manifest={manifest}
+									/>
+								);
+								if (
+									name === "featured_image" &&
+									field.kind === "image" &&
+									hasSeo &&
+									!isNew &&
+									onSeoChange
+								) {
+									return (
+										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
+											<div>{fieldEl}</div>
+											<div>
+												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
+											</div>
+										</div>
+									);
+								}
+								return fieldEl;
+							})}
 						</div>
 					</div>
 				</div>
@@ -1116,6 +1159,33 @@ function FieldRenderer({
 			);
 		}
 
+		case "multiSelect": {
+			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
+			return (
+				<fieldset>
+					<Label className={labelClass}>{label}</Label>
+					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+						{field.options?.map((opt) => {
+							const isChecked = selected.includes(opt.value);
+							return (
+								<Checkbox
+									key={opt.value}
+									label={opt.label}
+									checked={isChecked}
+									onCheckedChange={(checked) => {
+										const next = checked
+											? [...selected, opt.value]
+											: selected.filter((v) => v !== opt.value);
+										handleChange(next);
+									}}
+								/>
+							);
+						})}
+					</div>
+				</fieldset>
+			);
+		}
+
 		case "datetime":
 			return (
 				<Input
@@ -1135,9 +1205,37 @@ function FieldRenderer({
 			return (
 				<ImageFieldRenderer
 					label={label}
+					description={
+						name === "featured_image"
+							? "Used as the main visual for this post on listing pages and at the top of the post"
+							: undefined
+					}
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+				/>
+			);
+		}
+
+		case "repeater": {
+			const validation = field.validation;
+			const subFields = (validation?.subFields ?? []) as Array<{
+				slug: string;
+				type: string;
+				label: string;
+				required?: boolean;
+				options?: string[];
+			}>;
+			return (
+				<RepeaterField
+					label={label}
+					id={id}
+					value={value}
+					onChange={handleChange}
+					required={field.required}
+					subFields={subFields}
+					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
+					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
 				/>
 			);
 		}
@@ -1182,12 +1280,19 @@ interface ImageFieldValue {
  */
 interface ImageFieldRendererProps {
 	label: string;
+	description?: string;
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | undefined) => void;
 	required?: boolean;
 }
 
-function ImageFieldRenderer({ label, value, onChange, required }: ImageFieldRendererProps) {
+function ImageFieldRenderer({
+	label,
+	description,
+	value,
+	onChange,
+	required,
+}: ImageFieldRendererProps) {
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
@@ -1262,6 +1367,7 @@ function ImageFieldRenderer({ label, value, onChange, required }: ImageFieldRend
 				mimeTypeFilter="image/"
 				title={`Select ${label}`}
 			/>
+			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
 				<p className="text-sm text-kumo-danger mt-1">This field is required</p>
 			)}
