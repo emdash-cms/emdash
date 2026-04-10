@@ -15,6 +15,12 @@ catalog:
   "@astrojs/node": ^10.0.0
   "@astrojs/react": ^5.0.0
   "@cloudflare/workers-types": ^4.20260305.1
+  "@lingui/babel-plugin-lingui-macro": ^5.9.4
+  "@lingui/cli": ^5.9.4
+  "@lingui/conf": ^5.9.4
+  "@lingui/core": ^5.9.4
+  "@lingui/macro": ^5.9.4
+  "@lingui/react": ^5.9.4
   "@phosphor-icons/react": ^2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2
