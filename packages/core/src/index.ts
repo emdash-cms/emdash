@@ -192,6 +192,7 @@ export {
 	// Sandbox
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
+	SandboxUnavailableError,
 	createNoopSandboxRunner,
 } from "./plugins/index.js";
 export type {

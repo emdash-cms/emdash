@@ -35,6 +35,8 @@ import type {
 	SerializedRequest,
 } from "emdash";
 import type { PluginManifest } from "emdash";
+// @ts-ignore -- SandboxUnavailableError is a class export, not type-only
+import { SandboxUnavailableError } from "emdash";
 
 import { createBackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig } from "./capnp.js";
@@ -124,11 +126,27 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Whether workerd is currently healthy */
 	private healthy = false;
 
+	/** Crash restart state */
+	private crashCount = 0;
+	private crashWindowStart = 0;
+	private restartTimer: ReturnType<typeof setTimeout> | null = null;
+	private shuttingDown = false;
+
+	/** SIGTERM handler for clean shutdown */
+	private sigHandler: (() => void) | null = null;
+
 	constructor(options: SandboxOptions) {
 		this.options = options;
 		this.limits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+
+		// Forward SIGTERM to workerd child for clean shutdown
+		this.sigHandler = () => {
+			this.shuttingDown = true;
+			void this.terminateAll();
+		};
+		process.on("SIGTERM", this.sigHandler);
 	}
 
 	/**
@@ -190,6 +208,15 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Terminate all loaded plugins and shut down workerd.
 	 */
 	async terminateAll(): Promise<void> {
+		this.shuttingDown = true;
+		if (this.restartTimer) {
+			clearTimeout(this.restartTimer);
+			this.restartTimer = null;
+		}
+		if (this.sigHandler) {
+			process.removeListener("SIGTERM", this.sigHandler);
+			this.sigHandler = null;
+		}
 		this.plugins.clear();
 		await this.stopWorkerd();
 		await this.stopBackingServer();
@@ -197,6 +224,45 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			await rm(this.configDir, { recursive: true, force: true }).catch(() => {});
 			this.configDir = null;
 		}
+	}
+
+	/**
+	 * Schedule a restart with exponential backoff.
+	 * Backoff: 1s, 2s, 4s, cap at 30s.
+	 * Gives up after 5 failures within 60 seconds.
+	 */
+	private scheduleRestart(): void {
+		if (this.shuttingDown || this.plugins.size === 0) return;
+
+		const now = Date.now();
+
+		// Reset crash window if it's been more than 60 seconds
+		if (now - this.crashWindowStart > 60_000) {
+			this.crashCount = 0;
+			this.crashWindowStart = now;
+		}
+
+		this.crashCount++;
+
+		if (this.crashCount > 5) {
+			console.error(
+				"[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up. " +
+					"Plugins will run unsandboxed. Restart the server to retry.",
+			);
+			return;
+		}
+
+		// Exponential backoff: 1s, 2s, 4s, 8s, 16s, capped at 30s
+		const delayMs = Math.min(1000 * 2 ** (this.crashCount - 1), 30_000);
+		console.warn(`[emdash:workerd] restarting in ${delayMs}ms (attempt ${this.crashCount}/5)`);
+
+		this.restartTimer = setTimeout(() => {
+			this.restartTimer = null;
+			void this.restart().catch((err) => {
+				console.error("[emdash:workerd] restart failed:", err);
+				this.scheduleRestart();
+			});
+		}, delayMs);
 	}
 
 	/**
@@ -303,11 +369,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		this.epoch++;
 
-		// Handle workerd exit
+		// Handle workerd exit with auto-restart on crash
 		this.workerdProcess.on("exit", (code) => {
 			this.healthy = false;
+			if (this.shuttingDown) return;
 			if (code !== 0 && code !== null) {
 				console.error(`[emdash:workerd] workerd exited with code ${code}`);
+				this.scheduleRestart();
 			}
 		});
 
@@ -446,12 +514,13 @@ class WorkerdSandboxedPlugin implements SandboxedPlugin {
 	 */
 	private checkEpoch(): void {
 		if (this.createdEpoch !== this.runner.currentEpoch) {
-			throw new Error(
-				`Stale plugin handle for ${this.id}: workerd has restarted (epoch ${this.createdEpoch} -> ${this.runner.currentEpoch}). Re-load the plugin.`,
+			throw new SandboxUnavailableError(
+				this.id,
+				`workerd has restarted (epoch ${this.createdEpoch} -> ${this.runner.currentEpoch}). Re-load the plugin.`,
 			);
 		}
 		if (!this.runner.isHealthy()) {
-			throw new Error(`Plugin sandbox unavailable for ${this.id}: workerd is not running.`);
+			throw new SandboxUnavailableError(this.id, "workerd is not running");
 		}
 	}
 
