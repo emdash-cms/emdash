@@ -194,7 +194,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			// Generate sandbox runner module
 			if (id === RESOLVED_VIRTUAL_SANDBOX_RUNNER_ID) {
-				return generateSandboxRunnerModule(resolvedConfig.sandboxRunner);
+				// sandbox: false explicitly disables sandboxing (debugging escape hatch)
+				const sandboxDisabled = resolvedConfig.sandbox === false;
+				return generateSandboxRunnerModule(
+					sandboxDisabled ? undefined : resolvedConfig.sandboxRunner,
+				);
 			}
 			// Generate sandboxed plugins config module
 			if (id === RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID) {
