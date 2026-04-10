@@ -198,7 +198,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const playgroundDb = locals.__playgroundDb;
 
 	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
-		const sessionUser = await context.session?.get("user");
+		const sessionUser = context.isPrerendered ? null : await context.session?.get("user");
 		if (!sessionUser && !playgroundDb) {
 			// On a fresh deployment the database may be completely empty.
 			// Public pages call getSiteSettings() / getMenu() via getDb(), which
@@ -350,7 +350,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const d1Binding = (virtualGetD1Binding as (config: unknown) => unknown)(dbConfig);
 
 			if (d1Binding && typeof d1Binding === "object" && "withSession" in d1Binding) {
-				const isAuthenticated = !!(await context.session?.get("user"));
+				const isAuthenticated = context.isPrerendered
+					? false
+					: !!(await context.session?.get("user"));
 				const isWrite = request.method !== "GET" && request.method !== "HEAD";
 
 				// Determine session constraint:
