@@ -13,6 +13,9 @@
  * - Faster startup
  */
 
+import { randomBytes } from "node:crypto";
+import { createRequire } from "node:module";
+
 import type {
 	SandboxRunner,
 	SandboxedPlugin,
@@ -44,15 +47,31 @@ export class MiniflareDevRunner implements SandboxRunner {
 	/** Whether miniflare is running */
 	private running = false;
 
+	/**
+	 * Per-startup token sent on every hook/route invocation. Plugins reject
+	 * requests without this token. In dev mode the plugin worker is only
+	 * reachable through miniflare's dispatchFetch, but we still wire the
+	 * token for consistency with production and so the wrapper template
+	 * is identical in both modes.
+	 */
+	private devInvokeToken: string;
+
 	constructor(options: SandboxOptions) {
 		this.options = options;
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+		this.devInvokeToken = randomBytes(32).toString("hex");
+	}
+
+	/** Get the per-startup invoke token (sent on hook/route requests to plugins) */
+	get invokeAuthToken() {
+		return this.devInvokeToken;
 	}
 
 	isAvailable(): boolean {
 		try {
-			require.resolve("miniflare");
+			const esmRequire = createRequire(import.meta.url);
+			esmRequire.resolve("miniflare");
 			return true;
 		} catch {
 			return false;
@@ -87,6 +106,18 @@ export class MiniflareDevRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Unload a single plugin and rebuild miniflare without it.
+	 * Called from MiniflareDevPlugin.terminate() so marketplace
+	 * update/uninstall flows actually drop the old plugin from
+	 * the dev sandbox instead of leaving stale entries.
+	 */
+	async unloadPlugin(pluginId: string): Promise<void> {
+		if (this.plugins.delete(pluginId)) {
+			await this.rebuild();
+		}
+	}
+
+	/**
 	 * Rebuild miniflare with current plugin configuration.
 	 * Called on each plugin load/unload.
 	 */
@@ -109,21 +140,26 @@ export class MiniflareDevRunner implements SandboxRunner {
 		// calls to the Node handler function.
 		const workerConfigs = [];
 
-		for (const [pluginId, { manifest }] of this.plugins) {
+		for (const [pluginId, { manifest, code }] of this.plugins) {
 			const bridgeHandler = createBridgeHandler({
 				pluginId: manifest.id,
 				version: manifest.version || "0.0.0",
 				capabilities: manifest.capabilities || [],
 				allowedHosts: manifest.allowedHosts || [],
 				storageCollections: Object.keys(manifest.storage || {}),
+				storageConfig: manifest.storage as
+					| Record<string, { indexes?: Array<string | string[]> }>
+					| undefined,
 				db: this.options.db,
 				emailSend: () => this.emailSendCallback,
+				storage: this.options.mediaStorage,
 			});
 
 			const wrapperCode = generatePluginWrapper(manifest, {
 				site: this.siteInfo,
 				backingServiceUrl: "http://bridge",
 				authToken: "dev-mode",
+				invokeToken: this.devInvokeToken,
 			});
 
 			// outboundService intercepts all fetch() calls from this worker.
@@ -131,14 +167,28 @@ export class MiniflareDevRunner implements SandboxRunner {
 			// Other calls pass through for network:fetch.
 			workerConfigs.push({
 				name: pluginId.replace(SAFE_ID_RE, "_"),
-				modules: true,
-				script: wrapperCode,
+				// The wrapper imports "sandbox-plugin.js", so we provide both
+				// the wrapper as the main module and the plugin code as a
+				// named module that the wrapper can import.
+				modulesRoot: "/",
+				modules: [
+					{ type: "ESModule" as const, path: "worker.js", contents: wrapperCode },
+					{ type: "ESModule" as const, path: "sandbox-plugin.js", contents: code },
+				],
 				outboundService: async (request: Request) => {
 					const url = new URL(request.url);
+					// Only allow bridge calls. Any other outbound fetch is blocked
+					// to enforce that all network access goes through ctx.http.fetch
+					// (which routes via the bridge with capability + host validation).
+					// Without this, plugins could bypass network:fetch / allowedHosts
+					// by calling plain fetch() directly.
 					if (url.hostname === "bridge") {
 						return bridgeHandler(request);
 					}
-					return globalThis.fetch(request);
+					return new Response(
+						`Direct fetch() blocked in sandbox. Plugin "${manifest.id}" must use ctx.http.fetch() (requires network:fetch capability).`,
+						{ status: 403 },
+					);
 				},
 			});
 		}
@@ -180,7 +230,10 @@ class MiniflareDevPlugin implements SandboxedPlugin {
 		}
 		const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+			},
 			body: JSON.stringify({ event }),
 		});
 		if (!res.ok) {
@@ -201,7 +254,10 @@ class MiniflareDevPlugin implements SandboxedPlugin {
 		}
 		const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/route/${routeName}`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+			},
 			body: JSON.stringify({ input, request }),
 		});
 		if (!res.ok) {
@@ -212,6 +268,8 @@ class MiniflareDevPlugin implements SandboxedPlugin {
 	}
 
 	async terminate(): Promise<void> {
-		// Miniflare manages lifecycle
+		// Drop this plugin from the runner so marketplace update/uninstall
+		// actually removes it from the dev sandbox.
+		await this.runner.unloadPlugin(this.id);
 	}
 }

@@ -21,8 +21,14 @@ export interface WrapperOptions {
 	site?: { name: string; url: string; locale: string };
 	/** URL of the Node backing service (e.g., http://127.0.0.1:18787) */
 	backingServiceUrl: string;
-	/** Auth token for this plugin's backing service requests */
+	/** Auth token the plugin sends on outbound bridge calls to Node */
 	authToken: string;
+	/**
+	 * Auth token the Node runner must send on inbound hook/route invocations.
+	 * Prevents same-host attackers from invoking plugin hooks directly via
+	 * the per-plugin TCP listener (which is exposed on 127.0.0.1).
+	 */
+	invokeToken: string;
 }
 
 export function generatePluginWrapper(manifest: PluginManifest, options: WrapperOptions): string {
@@ -44,6 +50,7 @@ const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
 
 const BACKING_URL = ${JSON.stringify(options.backingServiceUrl)};
 const AUTH_TOKEN = ${JSON.stringify(options.authToken)};
+const INVOKE_TOKEN = ${JSON.stringify(options.invokeToken)};
 
 // -----------------------------------------------------------------------------
 // Bridge - HTTP calls to Node backing service
@@ -86,7 +93,13 @@ function createContext() {
 			exists: async (id) => (await bridgeCall("storage/get", { collection: collectionName, id })) !== null,
 			query: (opts) => bridgeCall("storage/query", { collection: collectionName, ...opts }),
 			count: (where) => bridgeCall("storage/count", { collection: collectionName, where }),
-			getMany: (ids) => bridgeCall("storage/getMany", { collection: collectionName, ids }),
+			getMany: async (ids) => {
+				// Bridge returns a list of [id, data] pairs (not a plain object)
+				// so special IDs like "__proto__" survive transport. Convert
+				// back to Map to match StorageCollection.getMany() contract.
+				const entries = await bridgeCall("storage/getMany", { collection: collectionName, ids });
+				return new Map(entries || []);
+			},
 			putMany: (items) => bridgeCall("storage/putMany", { collection: collectionName, items }),
 			deleteMany: (ids) => bridgeCall("storage/deleteMany", { collection: collectionName, ids }),
 		};
@@ -110,21 +123,151 @@ function createContext() {
 	const media = {
 		get: (id) => bridgeCall("media/get", { id }),
 		list: (opts) => bridgeCall("media/list", opts || {}),
-		upload: (filename, contentType, bytes) => bridgeCall("media/upload", { filename, contentType, bytes: Array.from(bytes) }),
+		upload: (filename, contentType, bytes) => {
+			// Convert any binary input into a Uint8Array view pointing at the
+			// SAME underlying bytes (not reinterpreted). For ArrayBufferView
+			// inputs (Uint16Array, Int32Array, DataView, etc.) we must use
+			// the view's buffer + byteOffset + byteLength so we don't
+			// reinterpret element-typed values as bytes and corrupt the file.
+			let view;
+			if (bytes instanceof Uint8Array) {
+				view = bytes;
+			} else if (bytes instanceof ArrayBuffer) {
+				view = new Uint8Array(bytes);
+			} else if (ArrayBuffer.isView(bytes)) {
+				view = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+			} else {
+				throw new TypeError("media.upload: bytes must be ArrayBuffer or ArrayBufferView");
+			}
+			return bridgeCall("media/upload", {
+				filename,
+				contentType,
+				bytes: Array.from(view),
+			});
+		},
 		getUploadUrl: () => { throw new Error("getUploadUrl is not available in sandbox mode. Use media.upload() instead."); },
 		delete: (id) => bridgeCall("media/delete", { id }),
 	};
 
+	// Marshal a RequestInit into a JSON-safe shape so headers, body, and other
+	// fields survive transport over the bridge. The bridge handler reverses
+	// this in unmarshalRequestInit().
+	async function marshalRequestInit(init) {
+		if (!init) return undefined;
+		const out = {};
+		if (init.method) out.method = init.method;
+		if (init.redirect) out.redirect = init.redirect;
+		// Headers: serialize as a list of [name, value] pairs so multi-value
+		// headers (Set-Cookie etc.) survive round-trip. A plain object would
+		// collapse duplicate names.
+		if (init.headers) {
+			const headers = [];
+			if (init.headers instanceof Headers) {
+				init.headers.forEach((v, k) => { headers.push([k, v]); });
+			} else if (Array.isArray(init.headers)) {
+				for (const [k, v] of init.headers) headers.push([k, v]);
+			} else {
+				for (const [k, v] of Object.entries(init.headers)) {
+					headers.push([k, v]);
+				}
+			}
+			out.headers = headers;
+		}
+		// Helper: convert a Uint8Array view to base64, preserving offset/length
+		function viewToBase64(view) {
+			let binary = "";
+			for (let i = 0; i < view.length; i++) binary += String.fromCharCode(view[i]);
+			return btoa(binary);
+		}
+
+		// Helper: get a Uint8Array view from any binary input, respecting
+		// the original byteOffset and byteLength so we don't serialize the
+		// entire backing buffer for views like Uint8Array.subarray().
+		function toBytes(input) {
+			if (input instanceof Uint8Array) return input;
+			if (input instanceof ArrayBuffer) return new Uint8Array(input);
+			if (ArrayBuffer.isView(input)) {
+				// DataView, Int8Array, Float32Array, etc. — preserve the window
+				return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+			}
+			// Should never reach here: callers gate with ArrayBuffer/isView checks.
+			// Throw loudly so unexpected body types surface as errors instead of
+			// silently dropping data.
+			throw new TypeError("toBytes: unsupported binary input type");
+		}
+
+		// Body: convert to base64 to preserve binary, or pass strings through
+		if (init.body !== undefined && init.body !== null) {
+			if (typeof init.body === "string") {
+				out.bodyType = "string";
+				out.body = init.body;
+			} else if (init.body instanceof ArrayBuffer || ArrayBuffer.isView(init.body)) {
+				out.bodyType = "base64";
+				out.body = viewToBase64(toBytes(init.body));
+			} else if (typeof Blob !== "undefined" && init.body instanceof Blob) {
+				// Blob/File (without going through FormData): read bytes and
+				// preserve content type if not already set
+				const bytes = new Uint8Array(await init.body.arrayBuffer());
+				out.bodyType = "base64";
+				out.body = viewToBase64(bytes);
+				if (init.body.type) {
+					out.headers = out.headers || {};
+					if (!out.headers["content-type"] && !out.headers["Content-Type"]) {
+						out.headers["content-type"] = init.body.type;
+					}
+				}
+			} else if (init.body instanceof FormData) {
+				// FormData: serialize entries as { name, value, filename? }
+				const parts = [];
+				for (const [k, v] of init.body.entries()) {
+					if (typeof v === "string") {
+						parts.push({ name: k, value: v });
+					} else {
+						// File/Blob: read as base64
+						const bytes = new Uint8Array(await v.arrayBuffer());
+						parts.push({
+							name: k,
+							value: viewToBase64(bytes),
+							filename: v.name,
+							type: v.type,
+							isBlob: true,
+						});
+					}
+				}
+				out.bodyType = "formdata";
+				out.body = parts;
+			} else if (init.body instanceof URLSearchParams) {
+				out.bodyType = "string";
+				out.body = init.body.toString();
+				out.headers = out.headers || {};
+				if (!out.headers["content-type"] && !out.headers["Content-Type"]) {
+					out.headers["content-type"] = "application/x-www-form-urlencoded";
+				}
+			} else {
+				// Fall back to JSON for plain objects
+				out.bodyType = "string";
+				out.body = JSON.stringify(init.body);
+			}
+		}
+		return out;
+	}
+
 	const http = {
 		fetch: async (url, init) => {
-			const result = await bridgeCall("http/fetch", { url, init });
-			return {
+			const marshaledInit = await marshalRequestInit(init);
+			const result = await bridgeCall("http/fetch", { url, init: marshaledInit });
+			// Decode base64 body back to bytes to preserve binary content
+			// (images, audio, etc.) so arrayBuffer()/blob() work correctly.
+			const binaryString = atob(result.bodyBase64);
+			const bytes = new Uint8Array(binaryString.length);
+			for (let i = 0; i < binaryString.length; i++) {
+				bytes[i] = binaryString.charCodeAt(i);
+			}
+			return new Response(bytes, {
 				status: result.status,
-				ok: result.status >= 200 && result.status < 300,
-				headers: new Headers(result.headers),
-				text: async () => result.text,
-				json: async () => JSON.parse(result.text),
-			};
+				statusText: result.statusText,
+				headers: result.headers,
+			});
 		}
 	};
 
@@ -180,9 +323,34 @@ function createContext() {
 // HTTP Handler (replaces WorkerEntrypoint for workerd-on-Node)
 // -----------------------------------------------------------------------------
 
+// Constant-time string comparison. workerd doesn't expose
+// crypto.timingSafeEqual, so XOR char codes manually. Always processes
+// the full length of the longer input to avoid early-exit timing leaks.
+function constantTimeEqual(a, b) {
+	let result = a.length === b.length ? 0 : 1;
+	const len = Math.max(a.length, b.length);
+	for (let i = 0; i < len; i++) {
+		const ac = i < a.length ? a.charCodeAt(i) : 0;
+		const bc = i < b.length ? b.charCodeAt(i) : 0;
+		result |= ac ^ bc;
+	}
+	return result === 0;
+}
+
 export default {
 	async fetch(request) {
 		const url = new URL(request.url);
+
+		// Authenticate the caller. The plugin's TCP listener is exposed on
+		// 127.0.0.1, so any local process could otherwise invoke hooks/routes
+		// directly. Only the Node runner has the per-startup invoke token.
+		// Use constant-time comparison: workerd doesn't expose timingSafeEqual,
+		// so we XOR character codes manually. Same length always required.
+		const authHeader = request.headers.get("authorization") || "";
+		const expected = "Bearer " + INVOKE_TOKEN;
+		if (!constantTimeEqual(authHeader, expected)) {
+			return new Response("Unauthorized", { status: 401 });
+		}
 
 		// Hook invocation: POST /hook/{hookName}
 		if (url.pathname.startsWith("/hook/")) {

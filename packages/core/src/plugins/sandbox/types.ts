@@ -75,6 +75,15 @@ export interface SandboxOptions {
 	siteInfo?: { name: string; url: string; locale: string };
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
+	/**
+	 * Media storage adapter for sandboxed plugin uploads and deletes.
+	 * When provided, plugins with write:media can upload and delete files
+	 * via ctx.media.upload() and ctx.media.delete().
+	 */
+	mediaStorage?: {
+		upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+		delete(key: string): Promise<unknown>;
+	};
 }
 
 /**

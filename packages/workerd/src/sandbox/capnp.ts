@@ -4,8 +4,9 @@
  * Generates workerd configuration from plugin manifests.
  * Each plugin becomes a nanoservice with:
  * - Its own listening socket (for hook/route invocation from Node)
- * - An external service binding pointing to the Node backing service
- * - Scoped environment variables (auth token, plugin metadata)
+ * - An external service definition for the Node backing service
+ * - globalOutbound set to the backing service (all fetch() calls route
+ *   through the backing service, which enforces capability checks)
  */
 
 import type { PluginManifest } from "emdash";
@@ -31,14 +32,23 @@ interface CapnpOptions {
  * Each plugin gets its own worker (nanoservice) with:
  * - A listener socket on its assigned port
  * - Modules for wrapper + plugin code
- * - Environment bindings for auth token and plugin metadata
+ * - globalOutbound pointing to the backing service external server
+ *   (all outbound fetch() goes through the backing service for
+ *   capability enforcement, SSRF protection, and host allowlist checks)
  *
- * The backing service is accessed via globalOutbound, which routes
- * all outbound fetch() calls from the plugin to the Node process.
- * The wrapper code prepends the backing service URL to bridge calls.
+ * KNOWN LIMITATION on resource limits:
+ * Standalone workerd does NOT support per-worker cpuMs/memoryMb/subrequests
+ * limits — those are Cloudflare platform features, not workerd capnp options.
+ * The only limit we enforce on the Node path is wallTimeMs, which is wrapped
+ * via Promise.race in WorkerdSandboxedPlugin.invokeHook/invokeRoute.
+ * For true CPU/memory isolation, deploy on Cloudflare Workers.
  */
 export function generateCapnpConfig(options: CapnpOptions): string {
-	const { plugins } = options;
+	const { plugins, backingServiceUrl } = options;
+
+	// Parse backing service URL for external server config
+	const backingUrl = new URL(backingServiceUrl);
+	const backingAddress = `${backingUrl.hostname}:${backingUrl.port}`;
 
 	const lines: string[] = [
 		`# Auto-generated workerd configuration for EmDash plugin sandbox`,
@@ -49,6 +59,8 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 		``,
 		`const config :Workerd.Config = (`,
 		`  services = [`,
+		// External service: the Node backing service
+		`    (name = "emdash-backing", external = (address = "${backingAddress}")),`,
 	];
 
 	// Add a service + socket for each plugin
@@ -87,8 +99,23 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 		lines.push(`  ],`);
 		lines.push(`  compatibilityDate = "2025-01-01",`);
 		lines.push(`  compatibilityFlags = ["nodejs_compat"],`);
-		// globalOutbound allows the plugin wrapper to fetch() the backing service
-		// The wrapper code uses absolute URLs to the backing service
+		// globalOutbound routes ALL outbound fetch() calls from the plugin
+		// through the backing service. This is intentional security posture:
+		//
+		// - Bridge calls (e.g., fetch("http://bridge/content/get")) are
+		//   dispatched normally by the backing service path router.
+		// - Direct fetch() calls to arbitrary URLs (e.g., fetch("https://evil.com"))
+		//   also arrive at the backing service. They will NOT match any known
+		//   bridge method and will return 500 "Unknown bridge method".
+		//
+		// In other words: plugins cannot reach the internet by calling plain
+		// fetch(). They must use ctx.http.fetch(), which goes through the
+		// http/fetch bridge handler, which enforces network:fetch capability
+		// and the allowedHosts allowlist.
+		lines.push(`  globalOutbound = "emdash-backing",`);
+		// Note: workerd capnp config does not support per-worker cpu/memory
+		// limits. Wall-time is enforced in WorkerdSandboxedPlugin via
+		// Promise.race. See generateCapnpConfig docstring above.
 		lines.push(`);`);
 		lines.push(``);
 	}

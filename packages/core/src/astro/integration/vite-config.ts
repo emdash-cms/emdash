@@ -233,11 +233,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			// Generate sandbox runner module
 			if (id === RESOLVED_VIRTUAL_SANDBOX_RUNNER_ID) {
-				// sandbox: false explicitly disables sandboxing (debugging escape hatch)
-				const sandboxDisabled = resolvedConfig.sandbox === false;
-				return generateSandboxRunnerModule(
-					sandboxDisabled ? undefined : resolvedConfig.sandboxRunner,
-				);
+				return generateSandboxRunnerModule(resolvedConfig.sandboxRunner, resolvedConfig.sandbox);
 			}
 			// Generate sandboxed plugins config module
 			if (id === RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID) {

@@ -12,6 +12,9 @@ export type {
 export {
 	ContentRepository,
 	MediaRepository,
+	PluginStorageRepository,
+	UserRepository,
+	OptionsRepository,
 	EmDashValidationError,
 	InvalidCursorError,
 } from "./database/repositories/index.js";
