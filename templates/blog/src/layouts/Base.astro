@@ -37,7 +37,7 @@ const {
 	author,
 	content,
 } = Astro.props;
-const { siteTitle, siteTagline } = resolveBlogSiteIdentity(await getSiteSettings());
+const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveBlogSiteIdentity(await getSiteSettings());
 // If title already includes site title (from getSeoMeta), use as-is
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 
@@ -79,6 +79,7 @@ const isLoggedIn = !!Astro.locals.user;
 			rel="stylesheet"
 		/>
 		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
 		<script is:inline>
 			// Apply theme immediately to prevent flash
@@ -98,7 +99,12 @@ const isLoggedIn = !!Astro.locals.user;
 		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav">
-				<a href="/" class="site-title">{siteTitle}</a>
+				<a href="/" class="site-title">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						: siteTitle
+					}
+				</a>
 				<div class="nav-right">
 					<LiveSearch
 						placeholder="Search..."
@@ -136,7 +142,12 @@ const isLoggedIn = !!Astro.locals.user;
 			<div class="footer-inner">
 				<div class="footer-grid">
 					<div class="footer-brand">
-						<a href="/" class="footer-logo">{siteTitle}</a>
+						<a href="/" class="footer-logo">
+							{siteLogo
+								? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+								: siteTitle
+							}
+						</a>
 						<p class="footer-tagline">{siteTagline}</p>
 					</div>
 					<div class="footer-nav">
@@ -592,6 +603,12 @@ const isLoggedIn = !!Astro.locals.user;
 				color: var(--color-accent);
 			}
 
+			.site-logo-img {
+				height: 32px;
+				width: auto;
+				display: block;
+			}
+
 			.nav-right {
 				display: flex;
 				align-items: center;
@@ -762,6 +779,11 @@ const isLoggedIn = !!Astro.locals.user;
 				color: var(--color-text);
 				text-decoration: none;
 				letter-spacing: var(--tracking-snug);
+			}
+
+			.footer-logo-img {
+				height: 24px;
+				width: auto;
 			}
 
 			.footer-tagline {
