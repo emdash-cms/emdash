@@ -42,6 +42,7 @@ catalog:
   "@tiptap/starter-kit": ^3.20.0
   "@tiptap/suggestion": ^3.20.0
   "@types/node": 24.10.13
+  "@types/better-sqlite3": ^7.6.12
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   astro: ^6.0.1

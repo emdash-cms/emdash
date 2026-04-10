@@ -208,7 +208,7 @@
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
     "@emdash-cms/blocks": "workspace:*",
-    "@types/better-sqlite3": "^7.6.12",
+    "@types/better-sqlite3": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",

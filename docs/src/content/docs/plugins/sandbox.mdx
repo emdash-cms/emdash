@@ -16,7 +16,7 @@ EmDash supports running plugins in two execution modes: **trusted** and **sandbo
 | **Resource limits** | None | CPU, memory, subrequests, wall-time |
 | **Network access** | Unrestricted | Blocked; only via `ctx.http` with host allowlist |
 | **Data access** | Full database access | Scoped to declared capabilities via RPC bridge |
-| **Available on** | All platforms | Cloudflare Workers only |
+| **Available on** | All platforms | Cloudflare Workers, Node.js (with workerd) |
 
 ## Trusted Mode
 
@@ -145,34 +145,80 @@ Sandboxing requires Dynamic Worker Loader. Add to your `wrangler.jsonc`:
 
 ## Node.js Deployments
 
-<Aside type="danger" title="No isolation on Node.js">
-	Node.js does not support plugin sandboxing. All plugins run in trusted mode regardless of configuration. There is no V8 isolate boundary, no resource limits, and no capability enforcement at the runtime level.
-</Aside>
+Node.js supports plugin sandboxing via [workerd](https://github.com/cloudflare/workerd), the open-source runtime that powers Cloudflare Workers. When configured, plugins run in isolated V8 isolates with the same capability enforcement as on Cloudflare.
 
-When deploying to Node.js (or any non-Cloudflare platform):
+### Enabling Sandboxing on Node.js
+
+<Steps>
+
+1. Install the workerd sandbox runner:
+
+   ```bash
+   npm install @emdash-cms/workerd
+   ```
+
+2. Configure it in your Astro config:
+
+   ```typescript title="astro.config.mjs"
+   export default defineConfig({
+     integrations: [
+       emdash({
+         sandboxRunner: "@emdash-cms/workerd/sandbox",
+       }),
+     ],
+   });
+   ```
+
+3. Restart your dev server. Sandboxed plugins will now run in workerd isolates.
+
+</Steps>
+
+In development, the runner uses miniflare (bundled with workerd) for faster startup. In production (`NODE_ENV=production`), it spawns workerd as a child process with a generated configuration.
+
+### Debugging Escape Hatch
+
+If you need to determine whether a bug is in your plugin code or in the sandbox, disable sandboxing temporarily:
+
+```typescript title="astro.config.mjs"
+emdash({
+  sandboxRunner: "@emdash-cms/workerd/sandbox",
+  sandbox: false, // Disable sandboxing, all plugins run in-process
+})
+```
+
+### Without workerd
+
+If workerd is not installed, EmDash falls back to trusted mode for all plugins. A warning is logged at startup:
+
+> Plugin sandbox is configured but not available on this platform. Sandboxed plugins will not be loaded. If using @emdash-cms/workerd/sandbox, ensure workerd is installed.
+
+In this mode:
 
 - The `NoopSandboxRunner` is used. It returns `isAvailable() === false`.
-- Attempting to load sandboxed plugins throws `SandboxNotAvailableError`.
 - All plugins must be registered as trusted plugins in the `plugins` array.
-- Capability declarations are purely informational — they are not enforced.
+- Capability declarations are purely informational.
 
-### What This Means for Security
+### Security Comparison
 
-| Threat | Cloudflare (Sandboxed) | Node.js (Trusted only) |
-|---|---|---|
-| Plugin reads data it shouldn't | Blocked by bridge capability checks | **Not prevented** — plugin has full DB access |
-| Plugin makes unauthorized network calls | Blocked by `globalOutbound: null` + host allowlist | **Not prevented** — plugin can call `fetch()` directly |
-| Plugin exhausts CPU | Isolate aborted by Worker Loader | **Not prevented** — blocks the event loop |
-| Plugin exhausts memory | Isolate terminated by Worker Loader | **Not prevented** — can crash the process |
-| Plugin accesses environment variables | No access (isolated V8 context) | **Not prevented** — shares `process.env` |
-| Plugin accesses filesystem | No filesystem in Workers | **Not prevented** — full `fs` access |
+| Threat | Cloudflare (Sandboxed) | Node.js + workerd (Sandboxed) | Node.js (Trusted only) |
+|---|---|---|---|
+| Plugin reads unauthorized data | Blocked by bridge | Blocked by bridge | **Not prevented** |
+| Plugin makes unauthorized network calls | Blocked by host allowlist | Blocked by host allowlist | **Not prevented** |
+| Plugin exhausts CPU | Isolate aborted | Isolate aborted | **Not prevented** |
+| Plugin accesses env vars | No access (isolated V8) | No access (isolated V8) | **Not prevented** |
+| Plugin accesses filesystem | No filesystem in Workers | No filesystem in workerd | **Not prevented** |
+| Defense against V8 zero-days | Rapid patching + kernel hardening | Dependent on workerd release cycle | N/A |
+
+<Aside type="note" title="Self-hosted security note">
+	The workerd sandbox provides the same V8 isolate boundaries as Cloudflare Workers, but without Cloudflare's infrastructure-level hardening (rapid V8 patches, kernel isolation, risk separation). For a CMS running trusted or semi-trusted plugins, this is appropriate. For hostile multi-tenant scenarios, deploy on Cloudflare.
+</Aside>
 
 ### Recommendations for Node.js Deployments
 
-1. **Only install plugins from trusted sources.** Review the source code of any plugin before installing. Prefer plugins published by known maintainers.
-2. **Use capability declarations as a review checklist.** Even though capabilities aren't enforced, they document the plugin's intended scope. A plugin declaring `["network:fetch"]` that doesn't need network access is suspicious.
-3. **Monitor resource usage.** Use process-level monitoring (e.g., `--max-old-space-size`, health checks) to catch runaway plugins.
-4. **Consider Cloudflare for untrusted plugins.** If you need to run plugins from unknown sources (e.g., a marketplace), deploy on Cloudflare Workers where sandboxing is available.
+1. **Install workerd for sandboxing.** It provides the same isolation as Cloudflare with no code changes to your plugins.
+2. **Use capability declarations as a review checklist.** Even in trusted mode, they document the plugin's intended scope.
+3. **Monitor resource usage.** Use process-level monitoring (e.g., `--max-old-space-size`, health checks) as a defense-in-depth layer.
+4. **Pin workerd versions.** The workerd binary is pinned via npm. Pin the version to avoid unexpected API changes.
 
 ## Same API, Different Guarantees
 

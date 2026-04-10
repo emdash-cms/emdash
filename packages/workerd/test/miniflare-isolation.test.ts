@@ -1,29 +1,21 @@
 /**
- * LOADER Spike Test
+ * Miniflare Isolation Tests
  *
- * Validates whether miniflare (which wraps workerd) supports the key
- * capabilities needed for Node plugin isolation:
+ * Integration tests verifying that miniflare (wrapping workerd) provides
+ * the isolation primitives needed for the MiniflareDevRunner:
  *
- * 1. Can we create a "host" worker that communicates with dynamically
- *    defined plugin workers via service bindings?
- * 2. Can plugin workers call back to a "bridge" service for capability-
- *    scoped operations (content read, KV, etc.)?
- * 3. Can we enforce resource limits (CPU time, memory)?
- * 4. Are plugins properly isolated from each other?
- *
- * This spike uses miniflare's multi-worker configuration, NOT the
- * Dynamic Worker Loader API (env.LOADER.get()). Miniflare's multi-worker
- * mode uses the same workerd isolate infrastructure but with static
- * configuration, which maps to the plan's "static capnp fallback" path.
- *
- * If this works, we have a viable path. The LOADER API (dynamic dispatch)
- * would be a future optimization for hot-add/remove without restart.
+ * - Service bindings scope capabilities per plugin
+ * - External service bindings route calls to Node handler functions
+ * - Plugin code loads from strings (bundles from DB/R2)
+ * - KV namespace bindings provide per-plugin isolated storage
+ * - Plugins without bindings cannot access unavailable capabilities
+ * - Worker reconfiguration supports plugin install/uninstall
  */
 
 import { Miniflare } from "miniflare";
-import { describe, it, expect, afterEach } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-describe("LOADER Spike: workerd plugin isolation via miniflare", () => {
+describe("miniflare plugin isolation", () => {
 	let mf: Miniflare | undefined;
 
 	afterEach(async () => {
