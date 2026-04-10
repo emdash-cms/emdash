@@ -288,7 +288,7 @@ export function createViteConfig(
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
-			...(useSource ? [linguiMacroPlugin(adminSourcePath!, adminDistPath)] : []),
+			...(useSource ? [linguiMacroPlugin(adminSourcePath, adminDistPath)] : []),
 		] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
