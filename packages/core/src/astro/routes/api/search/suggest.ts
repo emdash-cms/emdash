@@ -6,7 +6,6 @@
 
 import type { APIRoute } from "astro";
 
-import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { searchSuggestQuery } from "#api/schemas.js";
@@ -23,10 +22,7 @@ export const prerender = false;
  * - limit: Maximum suggestions (optional, defaults to 5)
  */
 export const GET: APIRoute = async ({ url, locals }) => {
-	const { emdash, user } = locals;
-
-	const denied = requirePerm(user, "search:read");
-	if (denied) return denied;
+	const { emdash } = locals;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
