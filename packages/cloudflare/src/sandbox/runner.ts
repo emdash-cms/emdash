@@ -128,6 +128,13 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Worker Loader runs in-process, always healthy if available.
+	 */
+	isHealthy(): boolean {
+		return this.isAvailable();
+	}
+
+	/**
 	 * Load a sandboxed plugin.
 	 *
 	 * @param manifest - Plugin manifest with capabilities and storage declarations
