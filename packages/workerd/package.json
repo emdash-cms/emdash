@@ -1,0 +1,37 @@
+{
+	"name": "@emdash-cms/workerd",
+	"version": "0.0.1",
+	"private": true,
+	"description": "workerd-based plugin sandbox for EmDash on Node.js",
+	"type": "module",
+	"main": "dist/index.mjs",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		},
+		"./sandbox": {
+			"types": "./dist/sandbox/index.d.mts",
+			"default": "./dist/sandbox/index.mjs"
+		}
+	},
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"test": "vitest run",
+		"test:spike": "vitest run test/loader-spike.test.ts"
+	},
+	"dependencies": {
+		"emdash": "workspace:*",
+		"miniflare": "^4.20250408.0"
+	},
+	"peerDependencies": {
+		"kysely": ">=0.27.0"
+	},
+	"devDependencies": {
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"license": "MIT"
+}
