@@ -1,11 +1,10 @@
 /**
- * Sitemap index endpoint
+ * Per-collection sitemap endpoint
  *
- * GET /sitemap.xml - Sitemap index listing one sitemap per collection.
+ * GET /sitemap-{collection}.xml - Sitemap for a single content collection.
  *
- * Each collection with published, indexable content gets its own
- * child sitemap at /sitemap-{collection}.xml. The index includes
- * a <lastmod> per child derived from the most recently updated entry.
+ * Uses the collection's url_pattern to build URLs. Falls back to
+ * /{collection}/{slug} when no pattern is configured.
  */
 
 import type { APIRoute } from "astro";
@@ -21,11 +20,13 @@ const LT_RE = /</g;
 const GT_RE = />/g;
 const QUOT_RE = /"/g;
 const APOS_RE = /'/g;
+const SLUG_PLACEHOLDER = "{slug}";
 
-export const GET: APIRoute = async ({ locals, url }) => {
+export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { emdash } = locals;
+	const collectionSlug = params.collection;
 
-	if (!emdash?.db) {
+	if (!emdash?.db || !collectionSlug) {
 		return new Response("<!-- EmDash not configured -->", {
 			status: 500,
 			headers: { "Content-Type": "application/xml" },
@@ -36,7 +37,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 		const settings = await getSiteSettingsWithDb(emdash.db);
 		const siteUrl = (settings.url || url.origin).replace(TRAILING_SLASH_RE, "");
 
-		const result = await handleSitemapData(emdash.db);
+		const result = await handleSitemapData(emdash.db, collectionSlug);
 
 		if (!result.success || !result.data) {
 			return new Response("<!-- Failed to generate sitemap -->", {
@@ -45,22 +46,33 @@ export const GET: APIRoute = async ({ locals, url }) => {
 			});
 		}
 
-		const { collections } = result.data;
+		const col = result.data.collections[0];
+		if (!col) {
+			return new Response("<!-- Collection not found or empty -->", {
+				status: 404,
+				headers: { "Content-Type": "application/xml" },
+			});
+		}
 
 		const lines: string[] = [
 			'<?xml version="1.0" encoding="UTF-8"?>',
-			'<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+			'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		];
 
-		for (const col of collections) {
-			const loc = `${siteUrl}/sitemap-${encodeURIComponent(col.collection)}.xml`;
-			lines.push("  <sitemap>");
+		for (const entry of col.entries) {
+			const path = col.urlPattern
+				? col.urlPattern.replace(SLUG_PLACEHOLDER, encodeURIComponent(entry.identifier))
+				: `/${encodeURIComponent(col.collection)}/${encodeURIComponent(entry.identifier)}`;
+
+			const loc = `${siteUrl}${path}`;
+
+			lines.push("  <url>");
 			lines.push(`    <loc>${escapeXml(loc)}</loc>`);
-			lines.push(`    <lastmod>${escapeXml(col.lastmod)}</lastmod>`);
-			lines.push("  </sitemap>");
+			lines.push(`    <lastmod>${escapeXml(entry.updatedAt)}</lastmod>`);
+			lines.push("  </url>");
 		}
 
-		lines.push("</sitemapindex>");
+		lines.push("</urlset>");
 
 		return new Response(lines.join("\n"), {
 			status: 200,

@@ -84,7 +84,7 @@ export {
 } from "./schema.js";
 
 // SEO handlers
-export { handleSitemapData, type SitemapContentEntry, type SitemapDataResponse } from "./seo.js";
+export { handleSitemapData, type SitemapCollectionData, type SitemapContentEntry, type SitemapDataResponse } from "./seo.js";
 
 // Plugin handlers
 export {
