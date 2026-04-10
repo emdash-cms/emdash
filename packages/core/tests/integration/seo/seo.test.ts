@@ -802,7 +802,12 @@ describe("SEO", () => {
 
 	describe("handleSitemapData", () => {
 		/** Flatten the per-collection response into a flat list with collection tag. */
-		function flatEntries(data: { collections: Array<{ collection: string; entries: Array<{ identifier: string; updatedAt: string }> }> }) {
+		function flatEntries(data: {
+			collections: Array<{
+				collection: string;
+				entries: Array<{ identifier: string; updatedAt: string }>;
+			}>;
+		}) {
 			return data.collections.flatMap((c) =>
 				c.entries.map((e) => ({ collection: c.collection, ...e })),
 			);
