@@ -11,6 +11,9 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+// @ts-ignore -- these are value exports used at runtime
+import { createHttpAccess, createUnrestrictedHttpAccess } from "emdash";
+
 import type { WorkerdSandboxRunner } from "./runner.js";
 
 /**
@@ -389,23 +392,15 @@ async function httpFetch(
 	init: RequestInit | undefined,
 	claims: Claims,
 ): Promise<unknown> {
-	// Validate hostname against allowedHosts
-	const parsed = new URL(url);
+	// Use the same HTTP access implementation as in-process plugins.
+	// This ensures identical behavior for redirect validation, SSRF protection,
+	// and credential stripping across Cloudflare, workerd, and in-process runners.
 	const hasAnyFetch = claims.capabilities.includes("network:fetch:any");
-	if (!hasAnyFetch) {
-		const allowed = claims.allowedHosts || [];
-		const hostname = parsed.hostname;
-		const isAllowed = allowed.some((pattern) => {
-			if (pattern === hostname) return true;
-			if (pattern.startsWith("*.") && hostname.endsWith(pattern.slice(1))) return true;
-			return false;
-		});
-		if (!isAllowed) {
-			throw new Error(`Plugin ${claims.pluginId} is not allowed to fetch: ${hostname}`);
-		}
-	}
+	const httpAccess = hasAnyFetch
+		? createUnrestrictedHttpAccess(claims.pluginId)
+		: createHttpAccess(claims.pluginId, claims.allowedHosts || []);
 
-	const res = await fetch(url, init);
+	const res = await httpAccess.fetch(url, init);
 	const text = await res.text();
 	const headers: Record<string, string> = {};
 	res.headers.forEach((v, k) => {

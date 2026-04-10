@@ -194,6 +194,9 @@ export {
 	SandboxNotAvailableError,
 	SandboxUnavailableError,
 	createNoopSandboxRunner,
+	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
+	createHttpAccess,
+	createUnrestrictedHttpAccess,
 } from "./plugins/index.js";
 export type {
 	PluginDefinition,
