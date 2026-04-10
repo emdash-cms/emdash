@@ -1,10 +1,13 @@
 {
 	"name": "@emdash-cms/workerd",
 	"version": "0.0.1",
-	"private": true,
 	"description": "workerd-based plugin sandbox for EmDash on Node.js",
 	"type": "module",
 	"main": "dist/index.mjs",
+	"files": [
+		"dist",
+		"src"
+	],
 	"exports": {
 		".": {
 			"types": "./dist/index.d.mts",
@@ -37,6 +40,20 @@
 		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/workerd"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash",
+	"keywords": [
+		"emdash",
+		"workerd",
+		"sandbox",
+		"plugins",
+		"isolation",
+		"v8-isolate"
+	],
 	"author": "Benjamin Price",
 	"license": "MIT"
 }
