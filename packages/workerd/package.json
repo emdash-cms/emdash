@@ -18,23 +18,24 @@
 	"scripts": {
 		"build": "tsdown",
 		"dev": "tsdown --watch",
-		"test": "vitest run",
-		"test:spike": "vitest run test/loader-spike.test.ts"
+		"test": "vitest run"
 	},
 	"dependencies": {
-		"emdash": "workspace:*",
-		"miniflare": "^4.20250408.0"
+		"emdash": "workspace:*"
 	},
 	"peerDependencies": {
-		"kysely": ">=0.27.0"
+		"kysely": ">=0.27.0",
+		"workerd": ">=1.0.0"
 	},
 	"devDependencies": {
+		"@types/better-sqlite3": "catalog:",
 		"better-sqlite3": "catalog:",
-		"@types/better-sqlite3": "^7.6.12",
 		"kysely": "^0.27.0",
+		"miniflare": "^4.20250408.0",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},
+	"author": "Benjamin Price",
 	"license": "MIT"
 }
