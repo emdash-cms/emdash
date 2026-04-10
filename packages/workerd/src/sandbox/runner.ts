@@ -602,7 +602,29 @@ class WorkerdSandboxedPlugin implements SandboxedPlugin {
 
 /**
  * Factory function for creating the workerd sandbox runner.
+ *
+ * In development (NODE_ENV !== "production"), uses miniflare if available.
+ * Miniflare provides the same isolation with faster startup and no
+ * HTTP backing service overhead.
+ *
+ * In production, uses raw workerd with capnp config and HTTP backing service.
  */
 export const createSandboxRunner: SandboxRunnerFactory = (options) => {
+	const isDev = process.env.NODE_ENV !== "production";
+
+	if (isDev) {
+		try {
+			require.resolve("miniflare");
+			// Lazy import to avoid bundling miniflare in production
+			const { MiniflareDevRunner } = require("./dev-runner.js") as typeof import("./dev-runner.js");
+			const devRunner = new MiniflareDevRunner(options);
+			if (devRunner.isAvailable()) {
+				return devRunner;
+			}
+		} catch {
+			// miniflare not installed, fall through to production runner
+		}
+	}
+
 	return new WorkerdSandboxRunner(options);
 };
