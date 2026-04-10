@@ -40,6 +40,7 @@
   "dependencies": {
     "@oslojs/crypto": "^1.0.1",
     "@oslojs/encoding": "^1.1.0",
+    "@oslojs/otp": "^1.1.0",
     "@oslojs/webauthn": "^1.0.0",
     "ulidx": "^2.4.1",
     "zod": "^4.3.5"
