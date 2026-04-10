@@ -48,6 +48,10 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	storageConfig?: Record<
+		string,
+		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+	>;
 }
 
 /**
@@ -243,6 +247,15 @@ class CloudflareSandboxedPlugin implements SandboxedPlugin {
 				capabilities: this.manifest.capabilities || [],
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
+				storageConfig: this.manifest.storage as
+					| Record<
+							string,
+							{
+								indexes?: Array<string | string[]>;
+								uniqueIndexes?: Array<string | string[]>;
+							}
+					  >
+					| undefined,
 			},
 		});
 

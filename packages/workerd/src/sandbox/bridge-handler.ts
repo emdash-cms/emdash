@@ -15,7 +15,7 @@
  */
 
 // @ts-ignore -- value exports used at runtime
-import { createHttpAccess, createUnrestrictedHttpAccess } from "emdash";
+import { createHttpAccess, createUnrestrictedHttpAccess, PluginStorageRepository } from "emdash";
 import type { Database } from "emdash";
 import type { SandboxEmailSendCallback } from "emdash";
 import { sql, type Kysely } from "kysely";
@@ -39,14 +39,31 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 ]);
 
+/** Minimal storage interface for media uploads and deletes */
+export interface BridgeStorage {
+	upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+	delete(key: string): Promise<unknown>;
+}
+
+/** Per-collection storage config (matches manifest.storage entries) */
+export interface BridgeStorageCollectionConfig {
+	indexes?: Array<string | string[]>;
+	uniqueIndexes?: Array<string | string[]>;
+}
+
 export interface BridgeHandlerOptions {
 	pluginId: string;
 	version: string;
 	capabilities: string[];
 	allowedHosts: string[];
+	/** Storage collection names declared by the plugin */
 	storageCollections: string[];
+	/** Full storage config (with indexes) for proper query/count delegation */
+	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
 	db: Kysely<Database>;
 	emailSend: () => SandboxEmailSendCallback | null;
+	/** Storage for media uploads. Optional; media/upload throws if not provided. */
+	storage?: BridgeStorage | null;
 }
 
 /**
@@ -134,14 +151,23 @@ async function dispatch(
 		case "media/list":
 			requireCapability(opts, "read:media");
 			return mediaList(db, body);
+		case "media/upload":
+			requireCapability(opts, "write:media");
+			return mediaUpload(
+				db,
+				requireString(body, "filename"),
+				requireString(body, "contentType"),
+				body.bytes as number[],
+				opts.storage,
+			);
 		case "media/delete":
 			requireCapability(opts, "write:media");
-			return mediaDelete(db, requireString(body, "id"));
+			return mediaDelete(db, requireString(body, "id"), opts.storage);
 
 		// ── HTTP ────────────────────────────────────────────────────────
 		case "http/fetch":
 			requireCapability(opts, "network:fetch");
-			return httpFetch(requireString(body, "url"), body.init as RequestInit | undefined, opts);
+			return httpFetch(requireString(body, "url"), body.init, opts);
 
 		// ── Email ───────────────────────────────────────────────────────
 		case "email/send": {
@@ -175,49 +201,41 @@ async function dispatch(
 		// ── Storage (document store, scoped to declared collections) ────
 		case "storage/get":
 			validateStorageCollection(opts, requireString(body, "collection"));
-			return storageGet(db, pluginId, requireString(body, "collection"), requireString(body, "id"));
+			return storageGet(opts, requireString(body, "collection"), requireString(body, "id"));
 		case "storage/put":
 			validateStorageCollection(opts, requireString(body, "collection"));
 			return storagePut(
-				db,
-				pluginId,
+				opts,
 				requireString(body, "collection"),
 				requireString(body, "id"),
 				body.data,
 			);
 		case "storage/delete":
 			validateStorageCollection(opts, requireString(body, "collection"));
-			return storageDelete(
-				db,
-				pluginId,
-				requireString(body, "collection"),
-				requireString(body, "id"),
-			);
+			return storageDelete(opts, requireString(body, "collection"), requireString(body, "id"));
 		case "storage/query":
 			validateStorageCollection(opts, requireString(body, "collection"));
-			return storageQuery(db, pluginId, requireString(body, "collection"), body);
+			return storageQuery(opts, requireString(body, "collection"), body);
 		case "storage/count":
 			validateStorageCollection(opts, requireString(body, "collection"));
-			return storageCount(db, pluginId, requireString(body, "collection"));
+			return storageCount(
+				opts,
+				requireString(body, "collection"),
+				body.where as Record<string, unknown> | undefined,
+			);
 		case "storage/getMany":
 			validateStorageCollection(opts, requireString(body, "collection"));
-			return storageGetMany(db, pluginId, requireString(body, "collection"), body.ids as string[]);
+			return storageGetMany(opts, requireString(body, "collection"), body.ids as string[]);
 		case "storage/putMany":
 			validateStorageCollection(opts, requireString(body, "collection"));
 			return storagePutMany(
-				db,
-				pluginId,
+				opts,
 				requireString(body, "collection"),
 				body.items as Array<{ id: string; data: unknown }>,
 			);
 		case "storage/deleteMany":
 			validateStorageCollection(opts, requireString(body, "collection"));
-			return storageDeleteMany(
-				db,
-				pluginId,
-				requireString(body, "collection"),
-				body.ids as string[],
-			);
+			return storageDeleteMany(opts, requireString(body, "collection"), body.ids as string[]);
 
 		// ── Logging ─────────────────────────────────────────────────────
 		case "log": {
@@ -228,6 +246,12 @@ async function dispatch(
 		}
 
 		default:
+			// All outbound fetch() from sandboxed plugins is routed to the
+			// backing service via workerd's globalOutbound config. If a plugin
+			// calls plain fetch("https://anywhere.com/path") instead of
+			// ctx.http.fetch(), we land here. This is intentional: plugins
+			// must use ctx.http.fetch (which goes through the http/fetch
+			// bridge with capability + host enforcement) to reach the network.
 			throw new Error(`Unknown bridge method: ${method}`);
 	}
 }
@@ -241,16 +265,30 @@ function requireString(body: Record<string, unknown>, key: string): string {
 }
 
 function requireCapability(opts: BridgeHandlerOptions, capability: string): void {
-	if (capability === "read:content" && opts.capabilities.includes("write:content")) return;
-	if (capability === "read:media" && opts.capabilities.includes("write:media")) return;
+	// Strict capability check matching the Cloudflare PluginBridge.
+	// We do NOT imply write → read here: a plugin that declares only
+	// write:content cannot call ctx.content.get/list. The plugin must
+	// declare read:content explicitly. This matches the Cloudflare bridge
+	// behavior and ensures sandboxed plugins behave the same on both runners.
+	//
+	// Note: the in-process PluginContextFactory in core does build the read
+	// API onto the write object, so a trusted plugin can read with only
+	// write:content. The sandbox bridges are stricter on purpose — they
+	// enforce the manifest as written.
+	//
+	// The one exception: network:fetch:any is documented as a strict
+	// superset of network:fetch, so the broader capability satisfies it.
+	if (capability === "network:fetch" && opts.capabilities.includes("network:fetch:any")) return;
 	if (!opts.capabilities.includes(capability)) {
-		throw new Error(`Plugin ${opts.pluginId} does not have capability: ${capability}`);
+		// Error message matches Cloudflare PluginBridge format
+		throw new Error(`Missing capability: ${capability}`);
 	}
 }
 
 function validateStorageCollection(opts: BridgeHandlerOptions, collection: string): void {
 	if (!opts.storageCollections.includes(collection)) {
-		throw new Error(`Plugin ${opts.pluginId} does not declare storage collection: ${collection}`);
+		// Error message matches Cloudflare PluginBridge format
+		throw new Error(`Storage collection not declared: ${collection}`);
 	}
 }
 
@@ -673,8 +711,86 @@ async function mediaList(
 	};
 }
 
-async function mediaDelete(db: Kysely<Database>, id: string): Promise<boolean> {
-	// Look up storage key before deleting (for future Storage cleanup)
+const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/", "application/pdf"];
+const FILE_EXT_RE = /^\.[a-z0-9]{1,10}$/i;
+
+async function mediaUpload(
+	db: Kysely<Database>,
+	filename: string,
+	contentType: string,
+	bytes: number[],
+	storage?: BridgeStorage | null,
+): Promise<{ mediaId: string; storageKey: string; url: string }> {
+	if (!storage) {
+		throw new Error(
+			"Media storage is not configured. Cannot upload files without a storage adapter.",
+		);
+	}
+
+	if (!ALLOWED_MIME_PREFIXES.some((prefix) => contentType.startsWith(prefix))) {
+		throw new Error(
+			`Unsupported content type: ${contentType}. Allowed: image/*, video/*, audio/*, application/pdf`,
+		);
+	}
+
+	const { ulid } = await import("ulidx");
+	const mediaId = ulid();
+	const basename = filename.includes("/")
+		? filename.slice(filename.lastIndexOf("/") + 1)
+		: filename;
+	const rawExt = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")) : "";
+	const ext = FILE_EXT_RE.test(rawExt) ? rawExt : "";
+	const storageKey = `${mediaId}${ext}`;
+	const now = new Date().toISOString();
+	const byteArray = new Uint8Array(bytes);
+
+	// Write bytes to storage first, then create DB record.
+	// If DB insert fails, delete the storage object so we don't leak files.
+	// (cleanupPendingUploads only deletes 'pending' DB rows; objects with no
+	// row are invisible to it.)
+	await storage.upload({ key: storageKey, body: byteArray, contentType });
+
+	try {
+		await db
+			.insertInto("media" as keyof Database)
+			.values({
+				id: mediaId,
+				filename,
+				mime_type: contentType,
+				size: byteArray.byteLength,
+				storage_key: storageKey,
+				status: "ready",
+				created_at: now,
+			} as never)
+			.execute();
+	} catch (error) {
+		// Best-effort cleanup of the orphaned storage object. Log if cleanup
+		// itself fails so operators see the leak instead of silently dropping it.
+		try {
+			await storage.delete(storageKey);
+		} catch (cleanupError) {
+			console.warn(
+				`[bridge] media/upload: DB insert failed and storage cleanup failed for ${storageKey}. ` +
+					`Storage object is leaked.`,
+				cleanupError,
+			);
+		}
+		throw error;
+	}
+
+	return {
+		mediaId,
+		storageKey,
+		url: `/_emdash/api/media/file/${storageKey}`,
+	};
+}
+
+async function mediaDelete(
+	db: Kysely<Database>,
+	id: string,
+	storage?: BridgeStorage | null,
+): Promise<boolean> {
+	// Look up storage key before deleting
 	const media = await db
 		.selectFrom("media" as keyof Database)
 		.where("id", "=", id)
@@ -683,38 +799,124 @@ async function mediaDelete(db: Kysely<Database>, id: string): Promise<boolean> {
 
 	if (!media) return false;
 
+	// Delete the DB row first
 	const result = await db
 		.deleteFrom("media" as keyof Database)
 		.where("id", "=", id)
 		.executeTakeFirst();
 
-	// Note: Storage object deletion requires the Storage interface,
-	// which is not yet wired into the bridge handler. The DB row is
-	// deleted; the storage object may become orphaned. The system
-	// cleanup cron handles orphaned storage objects.
+	// Delete the storage object. If this fails, log but don't throw —
+	// the DB row is already deleted and the orphan cleanup cron will
+	// catch it. Matches the Cloudflare bridge's behavior.
+	if (storage && (media as { storage_key: string }).storage_key) {
+		try {
+			await storage.delete((media as { storage_key: string }).storage_key);
+		} catch (error) {
+			console.warn(
+				`[bridge] Failed to delete storage object ${(media as { storage_key: string }).storage_key}:`,
+				error,
+			);
+		}
+	}
 
 	return BigInt(result.numDeletedRows) > 0n;
 }
 
 // ── HTTP Operations ──────────────────────────────────────────────────────
 
+/** Marshaled RequestInit shape sent over the bridge from the wrapper */
+interface MarshaledRequestInit {
+	method?: string;
+	redirect?: RequestRedirect;
+	/** List of [name, value] pairs to preserve multi-value headers */
+	headers?: Array<[string, string]>;
+	bodyType?: "string" | "base64" | "formdata";
+	body?: unknown;
+}
+
+/**
+ * Reverse the wrapper's marshalRequestInit() to reconstruct a real RequestInit
+ * with proper Headers, binary bodies, and FormData.
+ */
+function unmarshalRequestInit(
+	marshaled: MarshaledRequestInit | undefined,
+): RequestInit | undefined {
+	if (!marshaled) return undefined;
+	const init: RequestInit = {};
+	if (marshaled.method) init.method = marshaled.method;
+	if (marshaled.redirect) init.redirect = marshaled.redirect;
+	if (marshaled.headers && marshaled.headers.length > 0) {
+		// Use a Headers instance and append() so duplicates are preserved
+		// (e.g., multiple Set-Cookie). A plain Record would collapse them.
+		const headers = new Headers();
+		for (const [name, value] of marshaled.headers) {
+			headers.append(name, value);
+		}
+		init.headers = headers;
+	}
+	if (marshaled.bodyType && marshaled.body !== undefined) {
+		switch (marshaled.bodyType) {
+			case "string":
+				init.body = marshaled.body as string;
+				break;
+			case "base64":
+				init.body = Buffer.from(marshaled.body as string, "base64");
+				break;
+			case "formdata": {
+				const fd = new FormData();
+				const parts = marshaled.body as Array<{
+					name: string;
+					value: string;
+					filename?: string;
+					type?: string;
+					isBlob?: boolean;
+				}>;
+				for (const part of parts) {
+					if (part.isBlob) {
+						const bytes = Buffer.from(part.value, "base64");
+						const blob = new Blob([bytes], { type: part.type || "application/octet-stream" });
+						fd.append(part.name, blob, part.filename);
+					} else {
+						fd.append(part.name, part.value);
+					}
+				}
+				init.body = fd;
+				break;
+			}
+		}
+	}
+	return init;
+}
+
 async function httpFetch(
 	url: string,
-	init: RequestInit | undefined,
+	marshaledInit: unknown,
 	opts: BridgeHandlerOptions,
-): Promise<{ status: number; headers: Record<string, string>; text: string }> {
+): Promise<{
+	status: number;
+	statusText: string;
+	headers: Record<string, string>;
+	bodyBase64: string;
+}> {
 	const hasAnyFetch = opts.capabilities.includes("network:fetch:any");
 	const httpAccess = hasAnyFetch
 		? createUnrestrictedHttpAccess(opts.pluginId)
 		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);
 
+	const init = unmarshalRequestInit(marshaledInit as MarshaledRequestInit | undefined);
 	const res = await httpAccess.fetch(url, init);
-	const text = await res.text();
+	// Read as bytes to preserve binary content (images, audio, etc.)
+	const bytes = new Uint8Array(await res.arrayBuffer());
 	const headers: Record<string, string> = {};
 	res.headers.forEach((v, k) => {
 		headers[k] = v;
 	});
-	return { status: res.status, headers, text };
+	return {
+		status: res.status,
+		statusText: res.statusText,
+		headers,
+		bodyBase64: Buffer.from(bytes).toString("base64"),
+	};
 }
 
 // ── User Operations ──────────────────────────────────────────────────────
@@ -809,180 +1011,105 @@ async function userList(
 
 // ── Storage Operations ───────────────────────────────────────────────────
 
+/**
+ * Construct a PluginStorageRepository for the requested collection.
+ * Uses the indexes from the plugin's storage config (if provided) so
+ * query/count operations support the same WHERE/ORDER BY clauses as
+ * in-process plugins.
+ */
+function getStorageRepo(opts: BridgeHandlerOptions, collection: string): PluginStorageRepository {
+	const config = opts.storageConfig?.[collection];
+	// Merge unique indexes into the indexes list since both are queryable
+	const allIndexes: Array<string | string[]> = [
+		...(config?.indexes ?? []),
+		...(config?.uniqueIndexes ?? []),
+	];
+	return new PluginStorageRepository(opts.db, opts.pluginId, collection, allIndexes);
+}
+
 async function storageGet(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
 	id: string,
 ): Promise<unknown> {
-	const row = await db
-		.selectFrom("_plugin_storage" as keyof Database)
-		.where("plugin_id", "=", pluginId)
-		.where("collection", "=", collection)
-		.where("id", "=", id)
-		.select("data")
-		.executeTakeFirst();
-	if (!row) return null;
-	return JSON.parse(row.data as string);
+	return getStorageRepo(opts, collection).get(id);
 }
 
 async function storagePut(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
 	id: string,
 	data: unknown,
 ): Promise<void> {
-	const serialized = JSON.stringify(data);
-	const now = new Date().toISOString();
-	await db
-		.insertInto("_plugin_storage" as keyof Database)
-		.values({
-			plugin_id: pluginId,
-			collection,
-			id,
-			data: serialized,
-			created_at: now,
-			updated_at: now,
-		} as never)
-		.onConflict((oc) =>
-			oc.columns(["plugin_id", "collection", "id"] as never[]).doUpdateSet({
-				data: serialized,
-				updated_at: now,
-			} as never),
-		)
-		.execute();
+	await getStorageRepo(opts, collection).put(id, data);
 }
 
 async function storageDelete(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
 	id: string,
 ): Promise<boolean> {
-	const result = await db
-		.deleteFrom("_plugin_storage" as keyof Database)
-		.where("plugin_id", "=", pluginId)
-		.where("collection", "=", collection)
-		.where("id", "=", id)
-		.executeTakeFirst();
-	return BigInt(result.numDeletedRows) > 0n;
+	return getStorageRepo(opts, collection).delete(id);
 }
 
 async function storageQuery(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
-	opts: Record<string, unknown>,
+	queryOpts: Record<string, unknown>,
 ): Promise<{ items: Array<{ id: string; data: unknown }>; hasMore: boolean; cursor?: string }> {
-	const limit = Math.min(Number(opts.limit) || 50, 1000);
-	const rows = await db
-		.selectFrom("_plugin_storage" as keyof Database)
-		.where("plugin_id", "=", pluginId)
-		.where("collection", "=", collection)
-		.select(["id", "data"])
-		.limit(limit + 1)
-		.execute();
-
-	const pageRows = rows.slice(0, limit);
-	const items = pageRows.map((r) => ({
-		id: r.id as string,
-		data: JSON.parse(r.data as string),
-	}));
-	const hasMore = rows.length > limit;
-
+	const repo = getStorageRepo(opts, collection);
+	// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+	const result = await repo.query({
+		where: queryOpts.where as never,
+		orderBy: queryOpts.orderBy as Record<string, "asc" | "desc"> | undefined,
+		limit: typeof queryOpts.limit === "number" ? queryOpts.limit : undefined,
+		cursor: typeof queryOpts.cursor === "string" ? queryOpts.cursor : undefined,
+	});
 	return {
-		items,
-		hasMore,
-		cursor: items.length > 0 ? items.at(-1)!.id : undefined,
+		items: result.items,
+		hasMore: result.hasMore,
+		cursor: result.cursor,
 	};
 }
 
 async function storageCount(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
+	where?: Record<string, unknown>,
 ): Promise<number> {
-	const result = await db
-		.selectFrom("_plugin_storage" as keyof Database)
-		.where("plugin_id", "=", pluginId)
-		.where("collection", "=", collection)
-		.select(db.fn.countAll().as("count"))
-		.executeTakeFirst();
-	return Number(result?.count ?? 0);
+	const repo = getStorageRepo(opts, collection);
+	// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+	return repo.count(where as never);
 }
 
 async function storageGetMany(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
 	ids: string[],
-): Promise<Record<string, unknown>> {
-	if (!ids || ids.length === 0) return {};
-
-	const rows = await db
-		.selectFrom("_plugin_storage" as keyof Database)
-		.where("plugin_id", "=", pluginId)
-		.where("collection", "=", collection)
-		.where("id", "in", ids)
-		.select(["id", "data"])
-		.execute();
-
-	const result: Record<string, unknown> = {};
-	for (const row of rows) {
-		result[row.id as string] = JSON.parse(row.data as string);
-	}
-	return result;
+): Promise<Array<[string, unknown]>> {
+	if (!ids || ids.length === 0) return [];
+	const repo = getStorageRepo(opts, collection);
+	const result = await repo.getMany(ids);
+	// Return as a list of [id, data] pairs rather than a plain object so
+	// special property names like "__proto__" survive transport. The wrapper
+	// reconstructs a Map from these entries.
+	return [...result.entries()];
 }
 
 async function storagePutMany(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
 	items: Array<{ id: string; data: unknown }>,
 ): Promise<void> {
 	if (!items || items.length === 0) return;
-
-	const now = new Date().toISOString();
-	for (const item of items) {
-		const serialized = JSON.stringify(item.data);
-		await db
-			.insertInto("_plugin_storage" as keyof Database)
-			.values({
-				plugin_id: pluginId,
-				collection,
-				id: item.id,
-				data: serialized,
-				created_at: now,
-				updated_at: now,
-			} as never)
-			.onConflict((oc) =>
-				oc.columns(["plugin_id", "collection", "id"] as never[]).doUpdateSet({
-					data: serialized,
-					updated_at: now,
-				} as never),
-			)
-			.execute();
-	}
+	await getStorageRepo(opts, collection).putMany(items);
 }
 
 async function storageDeleteMany(
-	db: Kysely<Database>,
-	pluginId: string,
+	opts: BridgeHandlerOptions,
 	collection: string,
 	ids: string[],
 ): Promise<number> {
 	if (!ids || ids.length === 0) return 0;
-
-	let deleted = 0;
-	for (const id of ids) {
-		const result = await db
-			.deleteFrom("_plugin_storage" as keyof Database)
-			.where("plugin_id", "=", pluginId)
-			.where("collection", "=", collection)
-			.where("id", "=", id)
-			.executeTakeFirst();
-		deleted += Number(result.numDeletedRows);
-	}
-	return deleted;
+	return getStorageRepo(opts, collection).deleteMany(ids);
 }

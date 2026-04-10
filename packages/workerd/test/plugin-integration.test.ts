@@ -235,12 +235,14 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 
 	// ── Content lifecycle: create, read, update, soft-delete ─────────────
 
-	describe("content lifecycle (requires write:content)", () => {
+	describe("content lifecycle (requires read:content + write:content)", () => {
 		function makeWriteHandler() {
+			// Bridge enforces capabilities strictly: write:content does NOT
+			// imply read:content. Plugins that need both must declare both.
 			return createBridgeHandler({
 				pluginId: "sandboxed-test",
 				version: "0.0.1",
-				capabilities: ["write:content"],
+				capabilities: ["read:content", "write:content"],
 				allowedHosts: [],
 				storageCollections: [],
 				db,
@@ -309,7 +311,75 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			collection: "posts",
 			data: { title: "Should fail" },
 		});
-		expect(result.error).toContain("does not have capability: write:content");
+		expect(result.error).toContain("Missing capability: write:content");
+	});
+
+	it("write-only plugin cannot read content (no implicit upgrade)", async () => {
+		// Plugins with only write:content cannot call ctx.content.get/list.
+		// This matches the Cloudflare PluginBridge: capabilities are enforced
+		// strictly as declared in the manifest. A plugin that needs both
+		// reads and writes must declare both capabilities.
+		await db.schema
+			.createTable("ec_pages")
+			.addColumn("id", "text", (col) => col.primaryKey())
+			.addColumn("slug", "text")
+			.addColumn("status", "text", (col) => col.notNull().defaultTo("draft"))
+			.addColumn("author_id", "text")
+			.addColumn("created_at", "text", (col) => col.notNull())
+			.addColumn("updated_at", "text", (col) => col.notNull())
+			.addColumn("deleted_at", "text")
+			.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+			.addColumn("title", "text")
+			.execute();
+
+		const writeOnlyHandler = createBridgeHandler({
+			pluginId: "write-only-plugin",
+			version: "1.0.0",
+			capabilities: ["write:content"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+
+		// content/get should fail
+		const getResult = await call(writeOnlyHandler, "content/get", {
+			collection: "pages",
+			id: "any",
+		});
+		expect(getResult.error).toContain("Missing capability: read:content");
+
+		// content/list should also fail
+		const listResult = await call(writeOnlyHandler, "content/list", {
+			collection: "pages",
+		});
+		expect(listResult.error).toContain("Missing capability: read:content");
+
+		// content/create should still succeed (has write:content)
+		const createResult = await call(writeOnlyHandler, "content/create", {
+			collection: "pages",
+			data: { title: "Allowed" },
+		});
+		expect(createResult.error).toBeUndefined();
+	});
+
+	it("write-only media plugin cannot read media", async () => {
+		// Same enforcement for media: write:media does NOT imply read:media.
+		const writeOnlyHandler = createBridgeHandler({
+			pluginId: "write-only-media",
+			version: "1.0.0",
+			capabilities: ["write:media"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+
+		const getResult = await call(writeOnlyHandler, "media/get", { id: "any" });
+		expect(getResult.error).toContain("Missing capability: read:media");
+
+		const listResult = await call(writeOnlyHandler, "media/list", {});
+		expect(listResult.error).toContain("Missing capability: read:media");
 	});
 
 	it("sandboxed-test plugin cannot send email (not in capabilities)", async () => {
@@ -317,7 +387,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		const result = await call(handler, "email/send", {
 			message: { to: "a@b.com", subject: "hi", text: "hello" },
 		});
-		expect(result.error).toContain("does not have capability: email:send");
+		expect(result.error).toContain("Missing capability: email:send");
 	});
 
 	it("sandboxed-test plugin cannot access undeclared storage collections", async () => {
@@ -326,7 +396,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			collection: "secrets",
 			id: "1",
 		});
-		expect(result.error).toContain("does not declare storage collection: secrets");
+		expect(result.error).toContain("Storage collection not declared: secrets");
 	});
 
 	// ── Cross-plugin isolation ────────────────────────────────────────────

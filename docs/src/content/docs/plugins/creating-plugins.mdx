@@ -425,7 +425,7 @@ Your plugin code is the same in both modes, but the sandbox enforces restriction
 
 | What | Trusted mode | Sandboxed mode |
 |---|---|---|
-| **Undeclared capabilities** | `ctx.content`, `ctx.media`, etc. are always present | Missing from `ctx` if not declared in `capabilities` |
+| **Undeclared capabilities** | `ctx.content`, `ctx.media`, etc. are always present | Present on `ctx`, but methods throw capability errors when called |
 | **Network access** | `fetch()` works globally | Only via `ctx.http.fetch()`, restricted to `allowedHosts` |
 | **Node.js builtins** | `fs`, `path`, `child_process` available | Not available (V8 isolate, no Node APIs) |
 | **Environment variables** | `process.env` accessible | Not accessible |

@@ -31,11 +31,13 @@
 		"kysely": ">=0.27.0",
 		"workerd": ">=1.0.0"
 	},
+	"optionalDependencies": {
+		"miniflare": "^4.20250408.0"
+	},
 	"devDependencies": {
 		"@types/better-sqlite3": "catalog:",
 		"better-sqlite3": "catalog:",
 		"kysely": "^0.27.0",
-		"miniflare": "^4.20250408.0",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"

@@ -173,7 +173,11 @@ Node.js supports plugin sandboxing via [workerd](https://github.com/cloudflare/w
 
 </Steps>
 
-In development, the runner uses miniflare (bundled with workerd) for faster startup. In production (`NODE_ENV=production`), it spawns workerd as a child process with a generated configuration.
+In development, if [miniflare](https://miniflare.dev/) is installed, the runner uses it for faster startup. In production (`NODE_ENV=production`), it spawns workerd as a child process with a generated configuration. Install miniflare as a dev dependency for the best local development experience:
+
+```bash
+npm install -D miniflare
+```
 
 ### Debugging Escape Hatch
 
@@ -185,6 +189,12 @@ emdash({
   sandbox: false, // Disable sandboxing, all plugins run in-process
 })
 ```
+
+When `sandbox: false` is set:
+
+- Build-time sandboxed plugins (registered via `sandboxed: [...]` in your config) load in-process and run their hooks and routes normally. Plugin state (active/inactive) from the admin UI is respected.
+- Marketplace plugins also load in-process and run their hooks and routes. Cold-start loads them before the hook pipeline is built; runtime install/update/uninstall via the admin UI rebuilds the pipeline so changes take effect immediately without a server restart.
+- All plugin code runs with full Node.js privileges. Capability declarations are not enforced at the runtime level. Use this only for debugging — re-enable sandboxing for normal operation.
 
 ### Without workerd
 
@@ -204,21 +214,30 @@ In this mode:
 |---|---|---|---|
 | Plugin reads unauthorized data | Blocked by bridge | Blocked by bridge | **Not prevented** |
 | Plugin makes unauthorized network calls | Blocked by host allowlist | Blocked by host allowlist | **Not prevented** |
-| Plugin exhausts CPU | Isolate aborted | Isolate aborted | **Not prevented** |
+| Plugin exhausts CPU | Isolate aborted (per-request CPU limit) | Wall-time only (no per-request CPU limit) | **Not prevented** |
+| Plugin exhausts memory | 128MB per-isolate limit | **Not enforced by standalone workerd** | **Not prevented** |
+| Plugin makes excessive subrequests | Subrequest limit enforced | **Not enforced by standalone workerd** | **Not prevented** |
+| Plugin runs forever (wall-clock) | Wall-time limit | Wall-time limit (Promise.race wrapper) | **Not prevented** |
 | Plugin accesses env vars | No access (isolated V8) | No access (isolated V8) | **Not prevented** |
 | Plugin accesses filesystem | No filesystem in Workers | No filesystem in workerd | **Not prevented** |
 | Defense against V8 zero-days | Rapid patching + kernel hardening | Dependent on workerd release cycle | N/A |
 
-<Aside type="note" title="Self-hosted security note">
-	The workerd sandbox provides the same V8 isolate boundaries as Cloudflare Workers, but without Cloudflare's infrastructure-level hardening (rapid V8 patches, kernel isolation, risk separation). For a CMS running trusted or semi-trusted plugins, this is appropriate. For hostile multi-tenant scenarios, deploy on Cloudflare.
+<Aside type="caution" title="Resource limits on the workerd Node path">
+	Standalone workerd does **not** enforce per-worker `cpuMs`, `memoryMb`, or `subrequests` limits. Those are Cloudflare platform features, not workerd capnp options. The only resource limit enforced on the Node path is `wallTimeMs`, applied via `Promise.race` in the runner.
+
+	A misbehaving plugin can still consume arbitrary CPU and memory until it hits the wall-clock timeout. For full per-request resource isolation, deploy on Cloudflare Workers.
+
+	The plugin code is still isolated (V8 isolate boundaries, no filesystem, no env vars, capability-gated APIs) — only the resource limit enforcement is weaker.
 </Aside>
 
 ### Recommendations for Node.js Deployments
 
-1. **Install workerd for sandboxing.** It provides the same isolation as Cloudflare with no code changes to your plugins.
-2. **Use capability declarations as a review checklist.** Even in trusted mode, they document the plugin's intended scope.
-3. **Monitor resource usage.** Use process-level monitoring (e.g., `--max-old-space-size`, health checks) as a defense-in-depth layer.
-4. **Pin workerd versions.** The workerd binary is pinned via npm. Pin the version to avoid unexpected API changes.
+1. **Install workerd for sandboxing.** It provides the same V8 isolate boundaries and capability enforcement as Cloudflare with no code changes to your plugins.
+2. **Set NODE_ENV=production explicitly.** The runner uses the production hardening path (child process supervision, crash restart with backoff, wall-time wrapper) when NODE_ENV is "production". Other values fall back to the dev runner if miniflare is installed.
+3. **Use capability declarations as a review checklist.** Even in trusted mode, they document the plugin's intended scope.
+4. **Monitor resource usage.** Since CPU/memory limits are not enforced per worker, use process-level monitoring (`--max-old-space-size`, container memory limits, OS cgroups) as the primary defense.
+5. **Pin workerd versions.** The workerd binary is pinned via npm. Pin the version to avoid unexpected API changes.
+6. **For hostile multi-tenant plugins, deploy on Cloudflare.** The standalone workerd path is appropriate for trusted or semi-trusted plugins. Hostile multi-tenant scenarios need Cloudflare's per-request CPU/memory enforcement.
 
 ## Same API, Different Guarantees
 

@@ -184,7 +184,7 @@ describe("Bridge Handler Conformance", () => {
 				collection: "posts",
 				id: "123",
 			});
-			expect(result.error).toContain("does not have capability: read:content");
+			expect(result.error).toContain("Missing capability: read:content");
 		});
 
 		it("allows content read with read:content", async () => {
@@ -206,7 +206,11 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.result).toBeNull();
 		});
 
-		it("write:content implies read:content", async () => {
+		it("write:content does NOT imply read:content (matches Cloudflare bridge)", async () => {
+			// The bridge enforces capabilities strictly: a plugin that declares
+			// only write:content cannot call ctx.content.get/list. This matches
+			// the Cloudflare PluginBridge behavior. The plugin must declare
+			// read:content explicitly to read.
 			await db.schema
 				.createTable("ec_posts")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -219,13 +223,13 @@ describe("Bridge Handler Conformance", () => {
 				collection: "posts",
 				id: "123",
 			});
-			expect(result.error).toBeUndefined();
+			expect(result.error).toContain("Missing capability: read:content");
 		});
 
 		it("rejects user read without read:users capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "users/get", { id: "user-1" });
-			expect(result.error).toContain("does not have capability: read:users");
+			expect(result.error).toContain("Missing capability: read:users");
 		});
 
 		it("allows user read with read:users", async () => {
@@ -242,7 +246,7 @@ describe("Bridge Handler Conformance", () => {
 			const result = await call(handler, "http/fetch", {
 				url: "https://example.com",
 			});
-			expect(result.error).toContain("does not have capability: network:fetch");
+			expect(result.error).toContain("Missing capability: network:fetch");
 		});
 
 		it("rejects email send without email:send capability", async () => {
@@ -250,7 +254,7 @@ describe("Bridge Handler Conformance", () => {
 			const result = await call(handler, "email/send", {
 				message: { to: "a@b.com", subject: "hi", text: "hello" },
 			});
-			expect(result.error).toContain("does not have capability: email:send");
+			expect(result.error).toContain("Missing capability: email:send");
 		});
 	});
 
@@ -263,7 +267,7 @@ describe("Bridge Handler Conformance", () => {
 				collection: "secrets",
 				id: "1",
 			});
-			expect(result.error).toContain("does not declare storage collection: secrets");
+			expect(result.error).toContain("Storage collection not declared: secrets");
 		});
 
 		it("allows access to declared storage collection", async () => {

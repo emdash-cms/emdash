@@ -55,8 +55,12 @@ export function createBackingServiceHandler(
 					capabilities: claims.capabilities,
 					allowedHosts: claims.allowedHosts,
 					storageCollections: claims.storageCollections,
+					storageConfig: runner.getPluginStorageConfig(claims.pluginId, claims.version) as
+						| Record<string, { indexes?: Array<string | string[]> }>
+						| undefined,
 					db: runner.db,
 					emailSend: () => runner.emailSend,
+					storage: runner.mediaStorage,
 				});
 				handlerCache.set(token, handler);
 			}
