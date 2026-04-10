@@ -1076,7 +1076,11 @@ export class EmDashRuntime {
 
 		// Check if the runner is actually available (has required bindings)
 		if (!sandboxRunner.isAvailable()) {
-			console.debug("EmDash: Sandbox runner not available (missing bindings), skipping sandbox");
+			console.warn(
+				"EmDash: Plugin sandbox is configured but not available on this platform. " +
+					"Sandboxed plugins will not be loaded. " +
+					"If using @emdash-cms/workerd/sandbox, ensure workerd is installed.",
+			);
 			return sandboxedPluginCache;
 		}
 
