@@ -382,10 +382,14 @@ const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/new",
 	component: ContentNewPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		locale: typeof search.locale === "string" ? search.locale : undefined,
+	}),
 });
 
 function ContentNewPage() {
 	const { collection } = useParams({ from: "/_admin/content/$collection/new" });
+	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
@@ -400,7 +404,7 @@ function ContentNewPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => createContent(collection, data),
+		}) => createContent(collection, { ...data, locale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void navigate({
