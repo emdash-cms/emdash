@@ -21,7 +21,8 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"emdash": "workspace:*"
+		"emdash": "workspace:*",
+		"ulidx": "^2.4.1"
 	},
 	"peerDependencies": {
 		"kysely": ">=0.27.0",

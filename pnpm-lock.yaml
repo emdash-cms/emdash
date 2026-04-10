@@ -1261,6 +1261,9 @@ importers:
       emdash:
         specifier: workspace:*
         version: link:../core
+      ulidx:
+        specifier: ^2.4.1
+        version: 2.4.1
       workerd:
         specifier: '>=1.0.0'
         version: 1.20260401.1
