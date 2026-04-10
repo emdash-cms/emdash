@@ -53,9 +53,49 @@ vi.mock("../../../src/loader.js", () => ({
 	})),
 }));
 
+import { createSessionDialect, getD1Binding, isSessionEnabled } from "virtual:emdash/dialect";
+
 import onRequest from "../../../src/astro/middleware.js";
 
 describe("astro middleware prerendered routes", () => {
+	it("does not access session on prerendered public runtime routes", async () => {
+		const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		try {
+			vi.mocked(isSessionEnabled).mockReturnValue(true);
+			vi.mocked(getD1Binding).mockReturnValue({
+				withSession: () => {
+					throw new Error("withSession reached");
+				},
+			});
+			vi.mocked(createSessionDialect).mockReturnValue(undefined as never);
+
+			const cookies = {
+				get: vi.fn(() => undefined),
+			};
+
+			const context: Record<string, unknown> = {
+				request: new Request("https://example.com/robots.txt"),
+				url: new URL("https://example.com/robots.txt"),
+				cookies,
+				locals: {},
+				redirect: vi.fn(),
+				isPrerendered: true,
+			};
+
+			Object.defineProperty(context, "session", {
+				get() {
+					throw new Error("session should not be accessed during prerender");
+				},
+			});
+
+			await expect(
+				onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok")),
+			).rejects.toThrow("withSession reached");
+		} finally {
+			consoleErrorSpy.mockRestore();
+		}
+	});
+
 	it("does not access session when prerendering public pages", async () => {
 		const cookies = {
 			get: vi.fn(() => undefined),
