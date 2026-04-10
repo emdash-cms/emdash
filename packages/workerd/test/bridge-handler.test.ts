@@ -25,14 +25,7 @@ function createTestDb() {
 }
 
 async function setupTables(db: Kysely<any>) {
-	// Options table (for KV)
-	await db.schema
-		.createTable("_emdash_options")
-		.addColumn("key", "text", (col) => col.primaryKey())
-		.addColumn("value", "text", (col) => col.notNull())
-		.execute();
-
-	// Plugin storage table (composite primary key matching migration 004)
+	// Plugin storage table (used for both KV and document storage)
 	await db.schema
 		.createTable("_plugin_storage")
 		.addColumn("plugin_id", "text", (col) => col.notNull())
@@ -44,9 +37,9 @@ async function setupTables(db: Kysely<any>) {
 		.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])
 		.execute();
 
-	// Users table
+	// Users table (matches migration 001)
 	await db.schema
-		.createTable("_emdash_users")
+		.createTable("users")
 		.addColumn("id", "text", (col) => col.primaryKey())
 		.addColumn("email", "text", (col) => col.notNull())
 		.addColumn("name", "text")
@@ -56,7 +49,7 @@ async function setupTables(db: Kysely<any>) {
 
 	// Insert a test user
 	await db
-		.insertInto("_emdash_users")
+		.insertInto("users" as any)
 		.values({
 			id: "user-1",
 			email: "test@example.com",
@@ -144,7 +137,9 @@ describe("Bridge Handler Conformance", () => {
 			await call(handler, "kv/set", { key: "state:count", value: 42 });
 
 			const result = await call(handler, "kv/list", { prefix: "settings:" });
-			expect(result.result).toEqual(["settings:lang", "settings:theme"]);
+			const items = result.result as Array<{ key: string; value: unknown }>;
+			expect(items).toHaveLength(2);
+			expect(items.map((i) => i.key).toSorted()).toEqual(["settings:lang", "settings:theme"]);
 		});
 
 		it("KV is scoped per plugin (isolation)", async () => {
