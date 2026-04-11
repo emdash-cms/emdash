@@ -133,6 +133,6 @@ describe("SetupWizard", () => {
 		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
 		// Step indicator labels - use exact matching via role
 		await expect.element(screen.getByText("Account")).toBeInTheDocument();
-		await expect.element(screen.getByText("Passkey")).toBeInTheDocument();
+		await expect.element(screen.getByText("Sign In")).toBeInTheDocument();
 	});
 });
