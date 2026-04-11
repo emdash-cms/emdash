@@ -28,11 +28,12 @@ afterEach(async () => {
 	await db.destroy();
 });
 
+// RECOVERY_CODE_COUNT is 10; the type guard rejects rows with any other count.
 const stubChallenge = {
 	email: "alice@example.com",
 	name: "Alice" as string | null,
 	encryptedSecret: "stub-encrypted-blob",
-	recoveryCodeHashes: ["hash-1", "hash-2", "hash-3"],
+	recoveryCodeHashes: Array.from({ length: 10 }, (_, i) => `hash-${i + 1}`),
 };
 
 describe("createTOTPSetupChallenge + getTOTPSetupChallenge", () => {
@@ -163,6 +164,27 @@ describe("corrupt data guard", () => {
 				type: "totp_setup",
 				user_id: null,
 				data: JSON.stringify({ email: "only-email@example.com" }),
+				expires_at: new Date(Date.now() + 60_000).toISOString(),
+			})
+			.execute();
+		const got = await getTOTPSetupChallenge(db, id);
+		expect(got).toBeNull();
+	});
+
+	it("returns null when recoveryCodeHashes has the wrong length", async () => {
+		const id = "corrupt-short-codes";
+		await db
+			.insertInto("auth_challenges")
+			.values({
+				challenge: id,
+				type: "totp_setup",
+				user_id: null,
+				data: JSON.stringify({
+					email: "alice@example.com",
+					name: null,
+					encryptedSecret: "stub",
+					recoveryCodeHashes: ["one", "two", "three"],
+				}),
 				expires_at: new Date(Date.now() + 60_000).toISOString(),
 			})
 			.execute();

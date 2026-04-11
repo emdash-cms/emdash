@@ -5,6 +5,7 @@
  */
 
 import { generateToken } from "@emdash-cms/auth";
+import { RECOVERY_CODE_COUNT } from "@emdash-cms/auth/totp";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../database/types.js";
@@ -78,6 +79,10 @@ function isTOTPSetupChallengeData(value: unknown): value is TOTPSetupChallengeDa
 	if (!("name" in value) || (value.name !== null && typeof value.name !== "string")) return false;
 	if (!("encryptedSecret" in value) || typeof value.encryptedSecret !== "string") return false;
 	if (!("recoveryCodeHashes" in value) || !Array.isArray(value.recoveryCodeHashes)) return false;
+	// Reject any payload that lost (or gained) recovery code hashes so
+	// a corrupted row can't silently produce fewer codes than the user
+	// was shown at enrollment.
+	if (value.recoveryCodeHashes.length !== RECOVERY_CODE_COUNT) return false;
 	return value.recoveryCodeHashes.every((h: unknown) => typeof h === "string");
 }
 

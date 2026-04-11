@@ -605,9 +605,10 @@ export function SetupWizard() {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && "Set up your site"}
 						{currentStep === "admin" && "Create your account"}
-						{currentStep === "method" && "Secure your account"}
-							{currentStep === "passkey" && "Secure your account"}
-							{currentStep === "totp" && "Secure your account"}
+						{(currentStep === "method" ||
+							currentStep === "passkey" ||
+							currentStep === "totp") &&
+							"Secure your account"}
 					</h1>
 					{useAccessAuth && currentStep === "site" && (
 						<p className="text-sm text-kumo-subtle mt-2">You're signed in via Cloudflare Access</p>

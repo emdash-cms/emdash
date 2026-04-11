@@ -169,7 +169,7 @@ describe("TOTP setup flow end-to-end", () => {
 			email,
 			name: null,
 			encryptedSecret,
-			recoveryCodeHashes: [],
+			recoveryCodeHashes: Array.from({ length: 10 }, (_, i) => `stub-${i}`),
 		});
 
 		const challenge = await getTOTPSetupChallenge(db, challengeId);
@@ -191,7 +191,7 @@ describe("TOTP setup flow end-to-end", () => {
 			email: email.toLowerCase(),
 			name: "Carol",
 			encryptedSecret,
-			recoveryCodeHashes: [],
+			recoveryCodeHashes: Array.from({ length: 10 }, (_, i) => `stub-${i}`),
 		});
 
 		const got = await getTOTPSetupChallenge(db, challengeId);
