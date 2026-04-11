@@ -137,7 +137,13 @@ async function handleSubmit(e: Event) {
 		if (result.success) {
 			clearSavedState(form);
 			if (result.redirect) {
-				window.location.href = result.redirect;
+				// prevent xss
+				if (isSafeRedirectUrl(result.redirect)) {
+					window.location.href = result.redirect;
+				} else {
+					showStatus(form, result.message || "Submitted successfully.", "success");
+					form.reset();
+				}
 			} else {
 				showStatus(form, result.message || "Submitted successfully.", "success");
 				form.reset();
@@ -154,6 +160,16 @@ async function handleSubmit(e: Event) {
 			submitBtn.disabled = false;
 			submitBtn.textContent = form.dataset.submitLabel || "Submit";
 		}
+	}
+}
+
+/** validates that a redirect url uses a safe protocol */
+function isSafeRedirectUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url, window.location.href);
+		return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol);
+	} catch {
+		return false;
 	}
 }
 

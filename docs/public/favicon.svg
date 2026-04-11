@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path fill-rule="evenodd" d="M81 36 64 0 47 36l-1 2-9-10a6 6 0 0 0-9 9l10 10h-2L0 64l36 17h2L28 91a6 6 0 1 0 9 9l9-10 1 2 17 36 17-36v-2l9 10a6 6 0 1 0 9-9l-9-9 2-1 36-17-36-17-2-1 9-9a6 6 0 1 0-9-9l-9 10v-2Zm-17 2-2 5c-4 8-11 15-19 19l-5 2 5 2c8 4 15 11 19 19l2 5 2-5c4-8 11-15 19-19l5-2-5-2c-8-4-15-11-19-19l-2-5Z" clip-rule="evenodd"/><path d="M118 19a6 6 0 0 0-9-9l-3 3a6 6 0 1 0 9 9l3-3Zm-96 4c-2 2-6 2-9 0l-3-3a6 6 0 1 1 9-9l3 3c3 2 3 6 0 9Zm0 82c-2-2-6-2-9 0l-3 3a6 6 0 1 0 9 9l3-3c3-2 3-6 0-9Zm96 4a6 6 0 0 1-9 9l-3-3a6 6 0 1 1 9-9l3 3Z"/><style>path{fill:#000}@media (prefers-color-scheme:dark){path{fill:#fff}}</style></svg>
+<svg width="75" height="75" viewBox="0 0 75 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="3" y="3" width="69" height="69" rx="10.518" stroke="url(#fav-border)" stroke-width="6"/>
+<rect x="18" y="34" width="39.3661" height="6.56101" fill="url(#fav-dash)"/>
+<defs>
+<linearGradient id="fav-border" x1="-42.9996" y1="124" x2="92.4233" y2="-41.7456" gradientUnits="userSpaceOnUse">
+<stop stop-color="#0F006B"/><stop offset="0.0833" stop-color="#281A81"/><stop offset="0.1667" stop-color="#5D0C83"/><stop offset="0.25" stop-color="#911475"/><stop offset="0.3333" stop-color="#CE2F55"/><stop offset="0.4167" stop-color="#FF6633"/><stop offset="0.5" stop-color="#F6821F"/><stop offset="0.5833" stop-color="#FBAD41"/><stop offset="0.6667" stop-color="#FFCD89"/><stop offset="0.75" stop-color="#FFE9CB"/><stop offset="0.8333" stop-color="#FFF7EC"/><stop offset="0.9167" stop-color="#FFF8EE"/><stop offset="1" stop-color="white"/>
+</linearGradient>
+<linearGradient id="fav-dash" x1="91.4992" y1="27.4982" x2="28.1217" y2="54.1775" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/><stop offset="0.1293" stop-color="#FFF8EE"/><stop offset="0.6171" stop-color="#FBAD41"/><stop offset="0.848" stop-color="#F6821F"/><stop offset="1" stop-color="#FF6633"/>
+</linearGradient>
+</defs>
+</svg>

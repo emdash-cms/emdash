@@ -660,6 +660,14 @@ export interface ContentDeleteEvent {
 }
 
 /**
+ * Content publish state change hook event (fired after publish or unpublish)
+ */
+export interface ContentPublishStateChangeEvent {
+	content: Record<string, unknown>;
+	collection: string;
+}
+
+/**
  * Media hook event
  */
 export interface MediaUploadEvent {
@@ -705,6 +713,16 @@ export type ContentBeforeDeleteHandler = (
 
 export type ContentAfterDeleteHandler = (
 	event: ContentDeleteEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterPublishHandler = (
+	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterUnpublishHandler = (
+	event: ContentPublishStateChangeEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
 
@@ -857,6 +875,10 @@ export interface PluginHooks {
 	"content:afterSave"?: HookConfig<ContentAfterSaveHandler> | ContentAfterSaveHandler;
 	"content:beforeDelete"?: HookConfig<ContentBeforeDeleteHandler> | ContentBeforeDeleteHandler;
 	"content:afterDelete"?: HookConfig<ContentAfterDeleteHandler> | ContentAfterDeleteHandler;
+	"content:afterPublish"?: HookConfig<ContentAfterPublishHandler> | ContentAfterPublishHandler;
+	"content:afterUnpublish"?:
+		| HookConfig<ContentAfterUnpublishHandler>
+		| ContentAfterUnpublishHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -1171,6 +1193,8 @@ export interface ResolvedPluginHooks {
 	"content:afterSave"?: ResolvedHook<ContentAfterSaveHandler>;
 	"content:beforeDelete"?: ResolvedHook<ContentBeforeDeleteHandler>;
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
+	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
+	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;
