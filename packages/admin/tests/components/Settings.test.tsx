@@ -36,6 +36,7 @@ const defaultManifest: AdminManifest = {
 	authMode: "passkey",
 	collections: {},
 	plugins: {},
+	taxonomies: [],
 	version: "1",
 	hash: "",
 };

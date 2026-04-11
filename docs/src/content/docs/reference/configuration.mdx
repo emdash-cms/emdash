@@ -200,13 +200,13 @@ Use Cloudflare Access as the authentication provider instead of passkeys.
 	magic links, and self-signup are disabled.
 </Aside>
 
-### `passkeyPublicOrigin`
+### `siteUrl`
 
-**Optional.** Pass a full **browser-facing origin** (scheme + host + optional port, **no path**) so WebAuthn **`rpId`** and **`origin`** match what the user’s browser sends in `clientData.origin`.
+**Optional.** The public browser-facing origin for the site (scheme + host + optional port, **no path**).
 
-By default, passkeys follow **`Astro.url`** / **`request.url`**. Behind a **TLS-terminating reverse proxy**, the app often still sees **`http://`** on the internal hop while the tab is **`https://`**, or the reconstructed host does not match the public name — which breaks passkey verification. Set `passkeyPublicOrigin` to the origin users type in the address bar (for example `https://cms.example.com` or `https://cms.example.com:8443`).
+Behind a **TLS-terminating reverse proxy**, `Astro.url` returns the internal address (`http://localhost:4321`) instead of the public one (`https://cms.example.com`). This breaks passkeys, CSRF origin matching, OAuth redirects, login redirects, MCP discovery, snapshot exports, sitemap, robots.txt, and JSON-LD structured data. Set `siteUrl` to fix all of these at once.
 
-The integration **validates** this value at load time: it must be a valid URL with **`http:`** or **`https:`** protocol and is normalized to **`origin`**.
+The integration **validates** this value at load time: it must be a valid URL with **`http:`** or **`https:`** protocol and is normalized to **origin** (path is stripped).
 
 ```js
 emdash({
@@ -215,17 +215,23 @@ emdash({
 		directory: "./uploads",
 		baseUrl: "/_emdash/api/media/file",
 	}),
-	passkeyPublicOrigin: "https://cms.example.com",
+	siteUrl: "https://cms.example.com",
 });
 ```
 
-#### Reverse proxy and passkeys
+When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
+
+<Aside type="tip">
+	`siteUrl` replaces `passkeyPublicOrigin` (removed). If you were using `passkeyPublicOrigin`, rename it to `siteUrl` -- it now covers passkeys and all other origin-dependent features.
+</Aside>
+
+#### Reverse proxy setup
 
 Astro only reflects **`X-Forwarded-*`** when the public host is allowed. Configure [**`security.allowedDomains`**](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains) for the hostname (and schemes) your users hit. In **`astro dev`**, add matching **`vite.server.allowedHosts`** so Vite accepts the proxy **`Host`** header.
 
-Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`passkeyPublicOrigin`** when the reconstructed URL **still** diverges from the browser origin (typical when TLS is terminated in front and the upstream request stays **`http://`**).
+Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`siteUrl`** when the reconstructed URL **still** diverges from the browser origin (typical when TLS is terminated in front and the upstream request stays **`http://`**).
 
-With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`passkeyPublicOrigin`** matches the public HTTPS origin.
+With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`siteUrl`** matches the public HTTPS origin.
 
 <Aside type="caution">
 	Your reverse proxy should forward a **port-aware** `Host` / `X-Forwarded-Host` when you use non-default ports. If the proxy strips the port, **`rpId`** and Astro’s rebuilt URL can be wrong.
@@ -255,7 +261,7 @@ export default defineConfig({
 				directory: "./uploads",
 				baseUrl: "/_emdash/api/media/file",
 			}),
-			passkeyPublicOrigin: "https://cms.example.com",
+			siteUrl: "https://cms.example.com",
 		}),
 	],
 });
@@ -435,6 +441,7 @@ EmDash respects these environment variables:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
+| `EMDASH_SITE_URL`      | Public browser-facing origin (falls back to `SITE_URL`) |
 | `EMDASH_DATABASE_URL`   | Override database URL                    |
 | `EMDASH_AUTH_SECRET`    | Secret for passkey authentication        |
 | `EMDASH_PREVIEW_SECRET` | Secret for preview token generation      |

@@ -38,6 +38,19 @@ export class SeoRepository {
 	constructor(private db: Kysely<Database>) {}
 
 	/**
+	 * Check whether a collection has SEO enabled (`has_seo = 1`).
+	 * Returns `false` if the collection does not exist.
+	 */
+	async isEnabled(collection: string): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("_emdash_collections")
+			.select("has_seo")
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		return row?.has_seo === 1;
+	}
+
+	/**
 	 * Get SEO data for a content item. Returns null defaults if no row exists.
 	 */
 	async get(collection: string, contentId: string): Promise<ContentSeo> {

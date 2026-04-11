@@ -485,7 +485,7 @@ Core validates, deduplicates, and renders the contributions. Plugins return stru
     graph: {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
-      headline: event.page.title,
+      headline: event.page.pageTitle ?? event.page.title,
       description: event.page.description,
     },
   };
@@ -503,6 +503,7 @@ Core validates, deduplicates, and renders the contributions. Plugins return stru
     kind: "content" | "custom";
     pageType: string;
     title: string | null;
+    pageTitle?: string | null;
     description: string | null;
     canonical: string | null;
     image: string | null;

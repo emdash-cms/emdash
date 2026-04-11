@@ -12,6 +12,8 @@ import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
 
 import type { PluginContextFactoryOptions } from "../../../src/plugins/context.js";
+import { EmailPipeline } from "../../../src/plugins/email.js";
+import { HookPipeline } from "../../../src/plugins/hooks.js";
 import {
 	PluginRouteHandler,
 	PluginRouteRegistry,
@@ -300,6 +302,36 @@ describe("PluginRouteHandler", () => {
 			expect(result.status).toBe(500);
 			expect(result.error?.code).toBe("INTERNAL_ERROR");
 			expect(result.error?.message).toContain("Unexpected error");
+		});
+
+		it("includes ctx.email when email pipeline is configured", async () => {
+			const hookPipeline = new HookPipeline([], createMockFactoryOptions());
+			hookPipeline.setExclusiveSelection("email:deliver", "provider");
+			const emailPipeline = new EmailPipeline(hookPipeline);
+
+			const plugin = createTestPlugin({
+				capabilities: ["email:send"],
+				routes: {
+					checkEmail: {
+						handler: async (ctx) => ({
+							hasEmail: !!ctx.email,
+							hasSend: typeof ctx.email?.send === "function",
+						}),
+					},
+				},
+			});
+
+			const handler = new PluginRouteHandler(plugin, {
+				...createMockFactoryOptions(),
+				emailPipeline,
+			});
+
+			const result = await handler.invoke("checkEmail", {
+				request: new Request("http://test.com"),
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual({ hasEmail: true, hasSend: true });
 		});
 	});
 });

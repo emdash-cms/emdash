@@ -36,7 +36,13 @@ export interface ManifestCollection {
 			label?: string;
 			required?: boolean;
 			widget?: string;
-			options?: Array<{ value: string; label: string }>;
+			/**
+			 * Field options. Two shapes:
+			 *   - Legacy enum: `Array<{ value, label }>` for select / multiSelect widgets
+			 *   - Plugin widgets: `Record<string, unknown>` for arbitrary per-field config
+			 *     (e.g. a checkbox grid receiving its column definitions)
+			 */
+			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 		}
 	>;
 }
@@ -120,6 +126,16 @@ export interface EmDashManifest {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	/**
+	 * Taxonomy definitions for the admin sidebar.
+	 */
+	taxonomies: Array<{
+		name: string;
+		label: string;
+		labelSingular?: string;
+		hierarchical: boolean;
+		collections: string[];
+	}>;
 	/**
 	 * Whether the plugin marketplace is configured.
 	 * When true, the admin UI can show marketplace browse/install features.
