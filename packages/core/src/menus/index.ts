@@ -9,6 +9,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
 
 /**
@@ -235,7 +236,7 @@ async function resolveMenuItem(
 	return {
 		id: item.id,
 		label: item.label,
-		url,
+		url: sanitizeHref(url),
 		target: item.target || undefined,
 		titleAttr: item.title_attr || undefined,
 		cssClasses: item.css_classes || undefined,

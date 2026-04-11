@@ -337,7 +337,13 @@ export type {
 	GetPreviewUrlOptions,
 } from "./preview/index.js";
 // Site Settings
-export { getSiteSetting, getSiteSettings, setSiteSettings } from "./settings/index.js";
+export {
+	getPluginSetting,
+	getPluginSettings,
+	getSiteSetting,
+	getSiteSettings,
+	setSiteSettings,
+} from "./settings/index.js";
 export type {
 	SiteSettings,
 	SiteSettingKey,

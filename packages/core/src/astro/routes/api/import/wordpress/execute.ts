@@ -23,6 +23,8 @@ import { resolveImportByline } from "#import/utils.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
+import { sanitizeSlug } from "./analyze.js";
+
 export const prerender = false;
 
 export interface ImportConfig {
@@ -166,7 +168,9 @@ async function importContent(
 			continue;
 		}
 
-		const collection = mapping.collection;
+		// Defensive: mapping.collection is already sanitized by prepare, but the user
+		// could manually edit the import config between prepare and execute.
+		const collection = sanitizeSlug(mapping.collection);
 
 		// Check if collection exists in manifest
 		if (!manifest?.collections[collection]) {
