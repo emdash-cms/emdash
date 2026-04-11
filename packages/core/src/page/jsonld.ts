@@ -77,12 +77,16 @@ export function buildWebSiteJsonLd(page: PublicPageContext): Record<string, unkn
 	const siteName = page.siteName;
 	if (!siteName) return null;
 
-	// Use origin from the page URL for the site URL
+	// Use configured public origin, falling back to page URL origin
 	let siteUrl: string;
-	try {
-		siteUrl = new URL(page.url).origin;
-	} catch {
-		siteUrl = page.canonical || page.url;
+	if (page.siteUrl) {
+		siteUrl = page.siteUrl;
+	} else {
+		try {
+			siteUrl = new URL(page.url).origin;
+		} catch {
+			siteUrl = page.canonical || page.url;
+		}
 	}
 
 	return cleanJsonLd({

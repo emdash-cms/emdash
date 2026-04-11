@@ -748,6 +748,17 @@ export type UninstallHandler = (event: UninstallEvent, ctx: PluginContext) => Pr
 export type PagePlacement = "head" | "body:start" | "body:end";
 
 /**
+ * A single breadcrumb trail item. Used by `PublicPageContext.breadcrumbs`
+ * so themes can publish breadcrumb trails that SEO plugins consume.
+ */
+export interface BreadcrumbItem {
+	/** Display name for this crumb (e.g. "Home", "Blog", "My Post"). */
+	name: string;
+	/** Absolute or root-relative URL for this crumb. */
+	url: string;
+}
+
+/**
  * Describes the page being rendered. Passed to page hooks so plugins
  * can decide what to contribute without fetching content themselves.
  */
@@ -784,6 +795,23 @@ export interface PublicPageContext {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/**
+	 * Optional breadcrumb trail for this page, root first. When set,
+	 * SEO plugins should use this verbatim rather than deriving a trail
+	 * from `path`. Themes typically populate this at the point they
+	 * build the context (e.g. from a content hierarchy walk, taxonomy
+	 * lookup, or per-`pageType` routing logic).
+	 *
+	 * Semantics for consumers:
+	 *   - `undefined` — theme has no opinion; consumer falls back to
+	 *     its own derivation.
+	 *   - `[]` — this page has no breadcrumbs (e.g. homepage); consumer
+	 *     should skip `BreadcrumbList` emission entirely.
+	 *   - Non-empty array — used verbatim for `BreadcrumbList` output.
+	 */
+	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 // ── page:metadata ───────────────────────────────────────────────

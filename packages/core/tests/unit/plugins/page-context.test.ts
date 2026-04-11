@@ -116,4 +116,41 @@ describe("createPublicPageContext", () => {
 
 		expect(result.content).toBeUndefined();
 	});
+
+	it("passes breadcrumbs through verbatim when provided", () => {
+		const result = createPublicPageContext({
+			url: "https://example.com/blog/hello",
+			kind: "content",
+			breadcrumbs: [
+				{ name: "Home", url: "/" },
+				{ name: "Blog", url: "/blog/" },
+				{ name: "Hello", url: "/blog/hello" },
+			],
+		});
+
+		expect(result.breadcrumbs).toEqual([
+			{ name: "Home", url: "/" },
+			{ name: "Blog", url: "/blog/" },
+			{ name: "Hello", url: "/blog/hello" },
+		]);
+	});
+
+	it("leaves breadcrumbs undefined when not provided", () => {
+		const result = createPublicPageContext({
+			url: "https://example.com/about",
+			kind: "custom",
+		});
+
+		expect(result.breadcrumbs).toBeUndefined();
+	});
+
+	it("preserves explicit empty breadcrumbs array (opt-out signal)", () => {
+		const result = createPublicPageContext({
+			url: "https://example.com/",
+			kind: "custom",
+			breadcrumbs: [],
+		});
+
+		expect(result.breadcrumbs).toEqual([]);
+	});
 });

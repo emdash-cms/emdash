@@ -13,6 +13,7 @@
 import type { APIRoute } from "astro";
 
 import { handleSitemapData } from "#api/handlers/seo.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 export const prerender = false;
@@ -37,7 +38,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
 	try {
 		// Determine site URL from settings or request origin
 		const settings = await getSiteSettingsWithDb(emdash.db);
-		const siteUrl = (settings.url || url.origin).replace(TRAILING_SLASH_RE, "");
+		const siteUrl = (settings.url || getPublicOrigin(url, emdash?.config)).replace(
+			TRAILING_SLASH_RE,
+			"",
+		);
 
 		const result = await handleSitemapData(emdash.db);
 
