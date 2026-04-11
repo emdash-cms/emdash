@@ -230,7 +230,7 @@ This updates `packages/admin/src/locales/*/messages.po` with any new or changed 
 ### What to wrap
 
 - Button labels, headings, descriptions, error messages, placeholder text — anything a user reads.
-- Don't wrap: log messages, developer-facing errors, HTML attributes that aren't displayed (like `aria-label` on decorative elements), or strings that are the same in every language (brand names, URLs).
+- Don't wrap: log messages, developer-facing errors, HTML attributes that aren't user-visible, or strings that are the same in every language (brand names, URLs). Do wrap `aria-label` when it labels an interactive control, because screen readers announce it to users. For decorative elements, avoid `aria-label` and use `aria-hidden="true"` instead.
 
 For the full translation contributor guide, see [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).
 
