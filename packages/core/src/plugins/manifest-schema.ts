@@ -136,7 +136,7 @@ const settingFieldSchema = z.discriminatedUnion("type", [
 ]);
 
 const adminPageSchema = z.object({
-	path: z.string()
+	path: z.string(),
 	label: z.string(),
 	icon: z.string().optional(),
 });
