@@ -11,8 +11,8 @@ export default defineConfig({
 	},
 	locales: [
 		{
-			label: "Español",
-			lang: "es",
+			label: "Deutsch",
+			lang: "de",
 		},
 	],
 	files: [

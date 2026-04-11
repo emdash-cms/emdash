@@ -2,7 +2,7 @@ import type { LinguiConfig } from "@lingui/conf";
 
 const config: LinguiConfig = {
 	sourceLocale: "en",
-	locales: ["en", "es"],
+	locales: ["en", "de"],
 	catalogs: [
 		{
 			path: "<rootDir>/packages/admin/src/locales/{locale}/messages",
