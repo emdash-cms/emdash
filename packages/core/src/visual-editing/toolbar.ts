@@ -688,6 +688,11 @@ export function renderToolbar(config: ToolbarConfig): string {
     return f ? f.kind : null;
   }
 
+  // Load manifest early so the first click can resolve field kinds without racing the event.
+  if (isEditMode) {
+    fetchManifest();
+  }
+
   // Save a single field value
   function saveField(collection, id, field, value) {
     setSaveState("saving");
@@ -1236,31 +1241,39 @@ export function renderToolbar(config: ToolbarConfig): string {
 
         var ref = target.getAttribute && target.getAttribute("data-emdash-ref");
         if (ref) {
-          e.preventDefault();
-          e.stopPropagation();
-
           try {
             var annotation = JSON.parse(ref);
 
-            // Entry-level annotation (no field) — ignore, it's a container
-            if (!annotation.field) return;
+            // Entry-level annotation (no field) — keep walking for a field-level ancestor
+            if (!annotation.field) {
+              target = target.parentElement;
+              continue;
+            }
 
-            // Fetch manifest to determine field type, then dispatch
-            fetchManifest().then(function(manifest) {
-              var kind = getFieldKind(manifest, annotation.collection, annotation.field);
-
-              // Close any open image popover before starting a new edit
+            function dispatchInline(kind) {
               closeImagePopover();
-
+              // Portable Text is edited in-page by InlinePortableTextEditor — do not open admin
+              if (kind === "portableText") {
+                return;
+              }
+              e.preventDefault();
+              e.stopPropagation();
               if (kind === "string" || kind === "text") {
                 startTextEdit(target, annotation);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {
-                // Fallback: open admin for unsupported types
                 openAdmin(annotation);
               }
-            });
+            }
+
+            if (manifestCache) {
+              dispatchInline(getFieldKind(manifestCache, annotation.collection, annotation.field));
+            } else {
+              fetchManifest().then(function(manifest) {
+                dispatchInline(getFieldKind(manifest, annotation.collection, annotation.field));
+              });
+            }
           } catch (err) {
             console.error("Failed to parse emdash ref:", err);
           }

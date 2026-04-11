@@ -2,10 +2,12 @@ import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
+import { createMenuItemBody, updateMenuItemBody } from "../../../src/api/schemas/menus.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 import { getMenuWithDb, getMenusWithDb } from "../../../src/menus/index.js";
+import { sanitizeHref } from "../../../src/utils/url.js";
 
 describe("Navigation Menus", () => {
 	let db: Kysely<Database>;
@@ -206,6 +208,87 @@ describe("Navigation Menus", () => {
 			});
 		});
 
+		it("should sanitize dangerous URLs from the database", async () => {
+			const menuId = ulid();
+			const itemId = ulid();
+
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: menuId, name: "primary", label: "Primary" })
+				.execute();
+
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: itemId,
+					menu_id: menuId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "javascript:alert(1)",
+					label: "XSS",
+				})
+				.execute();
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("#");
+		});
+
+		it("should sanitize data: URLs from the database", async () => {
+			const menuId = ulid();
+			const itemId = ulid();
+
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: menuId, name: "primary", label: "Primary" })
+				.execute();
+
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: itemId,
+					menu_id: menuId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "data:text/html,<script>alert(1)</script>",
+					label: "XSS",
+				})
+				.execute();
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("#");
+		});
+
+		it("should sanitize vbscript: URLs from the database", async () => {
+			const menuId = ulid();
+			const itemId = ulid();
+
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: menuId, name: "primary", label: "Primary" })
+				.execute();
+
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: itemId,
+					menu_id: menuId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "vbscript:MsgBox",
+					label: "XSS",
+				})
+				.execute();
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("#");
+		});
+
 		it("should skip items with deleted content references", async () => {
 			const menuId = ulid();
 			const itemId = ulid();
@@ -336,6 +419,136 @@ describe("Navigation Menus", () => {
 			expect(menu!.items[0].label).toBe("Home");
 			expect(menu!.items[1].label).toBe("About");
 			expect(menu!.items[2].label).toBe("Contact");
+		});
+	});
+
+	describe("menu item URL validation", () => {
+		it("should reject javascript: URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "XSS",
+				customUrl: "javascript:alert(1)",
+			});
+			expect(result.success).toBe(false);
+		});
+
+		it("should reject data: URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "XSS",
+				customUrl: "data:text/html,<script>alert(1)</script>",
+			});
+			expect(result.success).toBe(false);
+		});
+
+		it("should reject vbscript: URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "XSS",
+				customUrl: "vbscript:MsgBox",
+			});
+			expect(result.success).toBe(false);
+		});
+
+		it("should allow https URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Link",
+				customUrl: "https://example.com",
+			});
+			expect(result.success).toBe(true);
+		});
+
+		it("should allow relative paths", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Link",
+				customUrl: "/about",
+			});
+			expect(result.success).toBe(true);
+		});
+
+		it("should allow fragment links", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Link",
+				customUrl: "#section",
+			});
+			expect(result.success).toBe(true);
+		});
+
+		it("should reject case-varied javascript: URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "XSS",
+				customUrl: "JAVASCRIPT:alert(1)",
+			});
+			expect(result.success).toBe(false);
+		});
+
+		it("should allow mailto URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Email",
+				customUrl: "mailto:user@example.com",
+			});
+			expect(result.success).toBe(true);
+		});
+
+		it("should reject javascript: in update schema", () => {
+			const result = updateMenuItemBody.safeParse({
+				customUrl: "javascript:alert(1)",
+			});
+			expect(result.success).toBe(false);
+		});
+
+		it("should allow tel: URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Call",
+				customUrl: "tel:+15551234567",
+			});
+			expect(result.success).toBe(true);
+		});
+
+		it("should reject empty string URLs", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Link",
+				customUrl: "",
+			});
+			expect(result.success).toBe(false);
+		});
+
+		it("should trim whitespace before validating", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "Link",
+				customUrl: "  https://example.com  ",
+			});
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.customUrl).toBe("https://example.com");
+			}
+		});
+
+		it("should reject whitespace-prefixed javascript: after trim", () => {
+			const result = createMenuItemBody.safeParse({
+				type: "custom",
+				label: "XSS",
+				customUrl: "  javascript:alert(1)",
+			});
+			expect(result.success).toBe(false);
+		});
+	});
+
+	describe("sanitizeHref", () => {
+		it("should return # for null input", () => {
+			expect(sanitizeHref(null)).toBe("#");
+		});
+
+		it("should return # for undefined input", () => {
+			expect(sanitizeHref(undefined)).toBe("#");
 		});
 	});
 });
