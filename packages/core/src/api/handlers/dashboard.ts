@@ -62,17 +62,13 @@ export async function handleDashboardStats(
 		const contentRepo = new ContentRepository(db);
 		const collectionStats: CollectionStats[] = await Promise.all(
 			collections.map(async (col) => {
-				const [total, published, draft] = await Promise.all([
-					contentRepo.count(col.slug),
-					contentRepo.count(col.slug, { status: "published" }),
-					contentRepo.count(col.slug, { status: "draft" }),
-				]);
+				const stats = await contentRepo.getStats(col.slug);
 				return {
 					slug: col.slug,
 					label: col.label,
-					total,
-					published,
-					draft,
+					total: stats.total,
+					published: stats.published,
+					draft: stats.draft,
 				};
 			}),
 		);
