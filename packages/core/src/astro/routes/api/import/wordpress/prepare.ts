@@ -16,7 +16,7 @@ import { wpPrepareBody } from "#api/schemas.js";
 import { FIELD_TYPES, type FieldType } from "#schema/types.js";
 import type { EmDashHandlers } from "#types";
 
-import { capitalize, singularize, type ImportFieldDef } from "./analyze.js";
+import { capitalize, sanitizeSlug, singularize, type ImportFieldDef } from "./analyze.js";
 
 /** Validate that a string is a known FieldType, returning undefined if not */
 function asFieldType(value: string): FieldType | undefined {
@@ -79,7 +79,7 @@ async function prepareImport(
 	};
 
 	for (const postType of request.postTypes) {
-		const collectionSlug = postType.collection;
+		const collectionSlug = sanitizeSlug(postType.collection);
 
 		try {
 			// Check if collection exists

@@ -1,6 +1,7 @@
 import {
 	Badge,
 	Button,
+	Checkbox,
 	Dialog,
 	Input,
 	InputArea,
@@ -41,6 +42,7 @@ import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { RepeaterField } from "./RepeaterField.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -81,6 +83,7 @@ export interface FieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }>;
 	widget?: string;
+	validation?: Record<string, unknown>;
 }
 
 /** Simplified user info for current user context */
@@ -546,7 +549,7 @@ export function ContentEditor({
 					{!isNew && (
 						<>
 							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-								<Dialog.Root disablePointerDismissal>
+								<Dialog.Root>
 									<Dialog.Trigger
 										render={(p) => (
 											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
@@ -1156,6 +1159,33 @@ function FieldRenderer({
 			);
 		}
 
+		case "multiSelect": {
+			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
+			return (
+				<fieldset>
+					<Label className={labelClass}>{label}</Label>
+					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+						{field.options?.map((opt) => {
+							const isChecked = selected.includes(opt.value);
+							return (
+								<Checkbox
+									key={opt.value}
+									label={opt.label}
+									checked={isChecked}
+									onCheckedChange={(checked) => {
+										const next = checked
+											? [...selected, opt.value]
+											: selected.filter((v) => v !== opt.value);
+										handleChange(next);
+									}}
+								/>
+							);
+						})}
+					</div>
+				</fieldset>
+			);
+		}
+
 		case "datetime":
 			return (
 				<Input
@@ -1183,6 +1213,29 @@ function FieldRenderer({
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+				/>
+			);
+		}
+
+		case "repeater": {
+			const validation = field.validation;
+			const subFields = (validation?.subFields ?? []) as Array<{
+				slug: string;
+				type: string;
+				label: string;
+				required?: boolean;
+				options?: string[];
+			}>;
+			return (
+				<RepeaterField
+					label={label}
+					id={id}
+					value={value}
+					onChange={handleChange}
+					required={field.required}
+					subFields={subFields}
+					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
+					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
 				/>
 			);
 		}
@@ -1514,7 +1567,14 @@ function BylineCreditsEditor({
 						<div className="mt-6 flex justify-end gap-2">
 							<Dialog.Close
 								render={(p) => (
-									<Button {...p} variant="secondary" onClick={resetQuickCreate}>
+									<Button
+										{...p}
+										variant="secondary"
+										onClick={(e) => {
+											resetQuickCreate();
+											p.onClick?.(e);
+										}}
+									>
 										Cancel
 									</Button>
 								)}
