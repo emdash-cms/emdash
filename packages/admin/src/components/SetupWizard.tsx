@@ -16,6 +16,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../lib/api/client";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
+import { TotpRegistration } from "./auth/TotpRegistration";
 import { LogoLockup } from "./Logo.js";
 
 // ============================================================================
@@ -68,7 +69,10 @@ interface SetupAdminResponse {
 	options?: unknown; // WebAuthn registration options
 }
 
-type WizardStep = "site" | "admin" | "passkey";
+type WizardStep = "site" | "admin" | "method" | "passkey" | "totp";
+
+/** Which auth method the user picked on the method-choice screen. */
+type AuthMethod = "passkey" | "totp";
 
 // ============================================================================
 // API Functions
@@ -258,6 +262,69 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 	);
 }
 
+interface MethodStepProps {
+	onNext: (method: AuthMethod) => void;
+	onBack: () => void;
+}
+
+function MethodStep({ onNext, onBack }: MethodStepProps) {
+	return (
+		<div className="space-y-4">
+			<div className="text-center mb-2">
+				<h3 className="text-lg font-medium">How do you want to sign in?</h3>
+				<p className="text-sm text-kumo-subtle mt-1">
+					You can change this later. Both methods are secure.
+				</p>
+			</div>
+
+			<button
+				type="button"
+				onClick={() => onNext("passkey")}
+				className="w-full text-left rounded-lg border border-kumo-border bg-kumo-base p-4 hover:border-kumo-brand hover:bg-kumo-tint/30 transition-colors focus:outline-none focus:ring-2 focus:ring-kumo-brand"
+			>
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex-1">
+						<div className="flex items-center gap-2">
+							<span className="text-base font-medium">Passkey</span>
+							<span className="rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-brand">
+								Recommended
+							</span>
+						</div>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							Sign in with Touch ID, Face ID, Windows Hello, or a security key. Most secure.
+						</p>
+					</div>
+					<span aria-hidden="true" className="text-kumo-subtle">
+						→
+					</span>
+				</div>
+			</button>
+
+			<button
+				type="button"
+				onClick={() => onNext("totp")}
+				className="w-full text-left rounded-lg border border-kumo-border bg-kumo-base p-4 hover:border-kumo-brand hover:bg-kumo-tint/30 transition-colors focus:outline-none focus:ring-2 focus:ring-kumo-brand"
+			>
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex-1">
+						<div className="text-base font-medium">Authenticator app</div>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							Use 1Password, Google Authenticator, Authy, or Bitwarden. Works on any device.
+						</p>
+					</div>
+					<span aria-hidden="true" className="text-kumo-subtle">
+						→
+					</span>
+				</div>
+			</button>
+
+			<Button type="button" variant="ghost" onClick={onBack} className="w-full mt-2">
+				← Back
+			</Button>
+		</div>
+	);
+}
+
 interface PasskeyStepProps {
 	adminData: SetupAdminRequest;
 	onBack: () => void;
@@ -266,6 +333,28 @@ interface PasskeyStepProps {
 function handlePasskeySuccess() {
 	// Redirect to admin dashboard after successful registration
 	window.location.href = "/_emdash/admin";
+}
+
+interface TotpStepProps {
+	adminData: SetupAdminRequest;
+	onBack: () => void;
+}
+
+function TotpStep({ adminData, onBack }: TotpStepProps) {
+	return (
+		<div className="space-y-4">
+			<TotpRegistration
+				email={adminData.email}
+				name={adminData.name}
+				onSuccess={() => {
+					window.location.href = "/_emdash/admin";
+				}}
+			/>
+			<Button type="button" variant="ghost" onClick={onBack} className="w-full">
+				← Back to method
+			</Button>
+		</div>
+	);
 }
 
 function PasskeyStep({ adminData, onBack }: PasskeyStepProps) {
@@ -325,10 +414,20 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 		: ([
 				{ key: "site", label: "Site" },
 				{ key: "admin", label: "Account" },
-				{ key: "passkey", label: "Passkey" },
+				{ key: "signin", label: "Sign-in" },
 			] as const);
 
-	const currentIndex = steps.findIndex((s) => s.key === currentStep);
+	// The internal wizard has 5 states (site/admin/method/passkey/totp) but
+	// the user only sees 3 visual steps — method, passkey, and totp all
+	// map to the same "Sign-in" indicator step so the indicator length
+	// doesn't flap when the user picks a method.
+	const visualStep: "site" | "admin" | "signin" =
+		currentStep === "site"
+			? "site"
+			: currentStep === "admin"
+				? "admin"
+				: "signin";
+	const currentIndex = steps.findIndex((s) => s.key === visualStep);
 
 	return (
 		<div className="flex items-center justify-center mb-8">
@@ -421,7 +520,11 @@ export function SetupWizard() {
 		},
 	});
 
-	// Admin setup mutation
+	// Admin setup mutation — only runs for the passkey path because the
+	// passkey flow's server-side state is seeded by POST /setup/admin
+	// before PasskeyRegistration fetches options. The TOTP path calls
+	// its own start endpoint (/setup/admin-totp) from TotpRegistration
+	// and doesn't need this intermediate call.
 	const adminMutation = useMutation({
 		mutationFn: executeAdminSetup,
 		onSuccess: () => {
@@ -439,10 +542,28 @@ export function SetupWizard() {
 		siteMutation.mutate(data);
 	};
 
-	// Handle admin step completion
+	// Handle admin step completion — collect the admin details and
+	// move to the method-choice screen WITHOUT calling any server
+	// route. Each method's start route (/setup/admin for passkey,
+	// /setup/admin-totp for totp) fires from the method-specific
+	// step component or from handleMethodNext below.
 	const handleAdminNext = (data: SetupAdminRequest) => {
 		setAdminData(data);
-		adminMutation.mutate(data);
+		setError(undefined);
+		setCurrentStep("method");
+	};
+
+	// Handle method-choice step completion — fire the passkey seed
+	// call for that path, or transition directly into the TOTP path
+	// which handles its own server calls.
+	const handleMethodNext = (method: AuthMethod) => {
+		if (!adminData) return;
+		setError(undefined);
+		if (method === "passkey") {
+			adminMutation.mutate(adminData);
+		} else {
+			setCurrentStep("totp");
+		}
 	};
 
 	// Redirect if setup already complete
@@ -486,7 +607,9 @@ export function SetupWizard() {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && "Set up your site"}
 						{currentStep === "admin" && "Create your account"}
-						{currentStep === "passkey" && "Secure your account"}
+						{currentStep === "method" && "Secure your account"}
+							{currentStep === "passkey" && "Secure your account"}
+							{currentStep === "totp" && "Secure your account"}
 					</h1>
 					{useAccessAuth && currentStep === "site" && (
 						<p className="text-sm text-kumo-subtle mt-2">You're signed in via Cloudflare Access</p>
@@ -519,12 +642,32 @@ export function SetupWizard() {
 						/>
 					)}
 
+					{currentStep === "method" && (
+						<MethodStep
+							onNext={handleMethodNext}
+							onBack={() => {
+								setError(undefined);
+								setCurrentStep("admin");
+							}}
+						/>
+					)}
+
 					{currentStep === "passkey" && adminData && (
 						<PasskeyStep
 							adminData={adminData}
 							onBack={() => {
 								setError(undefined);
-								setCurrentStep("admin");
+								setCurrentStep("method");
+							}}
+						/>
+					)}
+
+					{currentStep === "totp" && adminData && (
+						<TotpStep
+							adminData={adminData}
+							onBack={() => {
+								setError(undefined);
+								setCurrentStep("method");
 							}}
 						/>
 					)}

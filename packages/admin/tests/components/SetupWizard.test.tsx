@@ -131,8 +131,13 @@ describe("SetupWizard", () => {
 			</QueryWrapper>,
 		);
 		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
-		// Step indicator labels - use exact matching via role
+		// Step indicator labels - use exact matching via role. The third
+		// step is now labelled "Sign-in" instead of "Passkey" because the
+		// wizard has a method-choice screen between Account and the
+		// credential step, and the indicator collapses method + passkey/
+		// totp into the same visual step so the indicator length stays
+		// fixed regardless of which path the user picks.
 		await expect.element(screen.getByText("Account")).toBeInTheDocument();
-		await expect.element(screen.getByText("Passkey")).toBeInTheDocument();
+		await expect.element(screen.getByText("Sign-in")).toBeInTheDocument();
 	});
 });
