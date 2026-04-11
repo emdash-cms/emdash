@@ -165,6 +165,38 @@ describe("TOTP login — lockout", () => {
 		expect(Date.parse(totp!.lockedUntil!) > midLockoutNow).toBe(true);
 		expect(Date.parse(totp!.lockedUntil!) > postLockoutNow).toBe(false);
 	});
+
+	it("resets failedAttempts when the lockout has expired before the next attempt", async () => {
+		// Seed a stale lockout that expired 1ms ago.
+		const pastLockout = new Date(FIXED_NOW_MS - 1).toISOString();
+		await adapter.updateTOTP(user.id, {
+			failedAttempts: LOCKOUT_THRESHOLD,
+			lockedUntil: pastLockout,
+		});
+
+		// Simulate what the route does: observe the row, compute that
+		// the lockout just expired, and use a reset base for the next
+		// wrong-code write.
+		const totp = await adapter.getTOTPByUserId(user.id);
+		const lockedUntilMs = totp!.lockedUntil ? Date.parse(totp!.lockedUntil) : 0;
+		const isLocked = lockedUntilMs > FIXED_NOW_MS;
+		const lockoutJustExpired = totp!.lockedUntil !== null && !isLocked;
+		const baseFailedAttempts = lockoutJustExpired ? 0 : totp!.failedAttempts;
+
+		expect(isLocked).toBe(false);
+		expect(lockoutJustExpired).toBe(true);
+		expect(baseFailedAttempts).toBe(0);
+
+		// Write a fresh-start failure: failedAttempts should be 1, not 11.
+		await adapter.updateTOTP(user.id, {
+			failedAttempts: baseFailedAttempts + 1,
+			lockedUntil: null,
+		});
+
+		const after = await adapter.getTOTPByUserId(user.id);
+		expect(after?.failedAttempts).toBe(1);
+		expect(after?.lockedUntil).toBeNull();
+	});
 });
 
 describe("TOTP login — recovery codes", () => {

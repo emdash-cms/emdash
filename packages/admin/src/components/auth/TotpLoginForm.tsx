@@ -95,9 +95,6 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 
 				if (errorCode === "AUTH_SECRET_MISSING") {
 					setError(errorBody.error?.message ?? t`Server configuration needed.`);
-				} else if (errorCode === "TOTP_LOCKED") {
-					setError(t`Too many attempts. Use a recovery code instead.`);
-					setMode("recovery");
 				} else if (errorCode === "RATE_LIMITED") {
 					setError(t`Too many attempts. Wait a few minutes and try again.`);
 				} else {

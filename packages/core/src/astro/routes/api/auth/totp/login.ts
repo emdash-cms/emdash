@@ -38,15 +38,24 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 	}
 
 	try {
-		// Shared bucket across both methods so rotating method doesn't 2x the budget.
+		const body = await parseBody(request, totpLoginBody);
+		if (isParseError(body)) return body;
+
+		// Separate rate-limit buckets per method so a user who typos
+		// their TOTP code 5 times can still reach for a recovery code
+		// without waiting 15 minutes — the recovery path is the
+		// escape hatch and must not be throttled by the primary one.
 		const ip = getClientIp(request);
-		const rateLimit = await checkRateLimit(emdash.db, ip, "auth/totp/login", 5, 15 * 60);
+		const rateLimit = await checkRateLimit(
+			emdash.db,
+			ip,
+			`auth/totp/login:${body.method}`,
+			5,
+			15 * 60,
+		);
 		if (!rateLimit.allowed) {
 			return rateLimitResponse(15 * 60);
 		}
-
-		const body = await parseBody(request, totpLoginBody);
-		if (isParseError(body)) return body;
 
 		const adapter = createKyselyAdapter(emdash.db);
 
@@ -64,13 +73,18 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		const lockedUntilMs = totp.lockedUntil ? Date.parse(totp.lockedUntil) : 0;
 		const isLocked = lockedUntilMs > now;
 
+		// Lockout expired since last write — reset the counter so the
+		// next wrong code starts a fresh 10-attempt budget instead of
+		// immediately re-locking.
+		const lockoutJustExpired = totp.lockedUntil !== null && !isLocked;
+		const baseFailedAttempts = lockoutJustExpired ? 0 : totp.failedAttempts;
+		const baseLockedUntil = lockoutJustExpired ? null : totp.lockedUntil;
+
 		if (body.method === "totp") {
 			if (isLocked) {
-				return apiError(
-					"TOTP_LOCKED",
-					"Too many attempts. Use a recovery code instead.",
-					423,
-				);
+				// Match invalidCredentials exactly so response body + status
+				// don't distinguish locked from wrong-code from user-missing.
+				return invalidCredentials();
 			}
 
 			const secretResult = resolveAuthSecret();
@@ -98,13 +112,13 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			const isReplay =
 				result.valid && result.usedStep !== null && result.usedStep <= totp.lastUsedStep;
 			if (!result.valid || result.usedStep === null || isReplay) {
-				const newFailedAttempts = totp.failedAttempts + 1;
+				const newFailedAttempts = baseFailedAttempts + 1;
 				const shouldLock = newFailedAttempts >= LOCKOUT_THRESHOLD;
 				await adapter.updateTOTP(user.id, {
 					failedAttempts: newFailedAttempts,
 					lockedUntil: shouldLock
 						? new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString()
-						: totp.lockedUntil,
+						: baseLockedUntil,
 				});
 				return invalidCredentials();
 			}
