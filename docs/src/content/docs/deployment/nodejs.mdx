@@ -5,11 +5,11 @@ description: Deploy EmDash to any Node.js hosting platform.
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash runs on any Node.js 18+ hosting platform. This guide covers deployment to common providers using SQLite and local or S3-compatible storage.
+EmDash runs on any Node.js 22+ hosting platform. This guide covers deployment to common providers using SQLite and local or S3-compatible storage.
 
 ## Prerequisites
 
-- Node.js 18.17.1 or higher
+- Node.js v22.12.0 or higher
 - A Node.js hosting provider or VPS
 
 ## Configuration
@@ -88,27 +88,39 @@ export default defineConfig({
 
 ## Docker
 
+Add a `.dockerignore` to keep the build context small:
+
+```plain title=".dockerignore"
+node_modules
+dist
+.git
+```
+
 Create a `Dockerfile`:
 
 ```dockerfile title="Dockerfile"
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/seed ./seed
+COPY --from=builder /app/astro.config.mjs ./
+
+RUN mkdir -p data
 
 ENV HOST=0.0.0.0
 ENV PORT=4321
 
 EXPOSE 4321
-CMD ["node", "./dist/server/entry.mjs"]
+CMD ["sh", "-c", "npx emdash init && node ./dist/server/entry.mjs"]
 ```
 
 Build and run:
@@ -116,6 +128,26 @@ Build and run:
 ```bash
 docker build -t my-emdash-site .
 docker run -p 4321:4321 -v emdash-data:/app/data my-emdash-site
+```
+
+Or use Docker Compose:
+
+```yaml title="docker-compose.yml"
+services:
+  emdash:
+    build: .
+    ports:
+      - "4321:4321"
+    volumes:
+      - emdash-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  emdash-data:
+```
+
+```bash
+docker compose up -d
 ```
 
 ## Environment Variables

@@ -213,6 +213,32 @@ export async function resolveSourceEntry(
 	return undefined;
 }
 
+// ── Export validation ───────────────────────────────────────────────────────
+
+const TS_SOURCE_EXPORT_RE = /\.(?:ts|tsx|mts|cts|jsx)$/;
+
+/**
+ * Find package.json exports that point to source files instead of built output.
+ * Returns an array of `{ exportPath, resolvedPath }` for each offending export.
+ */
+export function findSourceExports(
+	exports: Record<string, unknown>,
+): Array<{ exportPath: string; resolvedPath: string }> {
+	const issues: Array<{ exportPath: string; resolvedPath: string }> = [];
+	for (const [exportPath, exportValue] of Object.entries(exports)) {
+		const resolved =
+			typeof exportValue === "string"
+				? exportValue
+				: exportValue && typeof exportValue === "object" && "import" in exportValue
+					? (exportValue as { import: string }).import
+					: null;
+		if (resolved && TS_SOURCE_EXPORT_RE.test(resolved)) {
+			issues.push({ exportPath, resolvedPath: resolved });
+		}
+	}
+	return issues;
+}
+
 // ── Directory helpers ────────────────────────────────────────────────────────
 
 /**
