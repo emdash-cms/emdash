@@ -22,6 +22,7 @@ import * as React from "react";
 
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
+import { fetchTaxonomyDefs } from "../lib/api/taxonomies";
 import { usePluginAdmins } from "../lib/plugin-context";
 import { cn } from "../lib/utils";
 import { LogoIcon } from "./Logo.js";
@@ -159,6 +160,15 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		enabled: userRole >= ROLE_EDITOR,
 	});
 
+	// Fetch taxonomy definitions for dynamic sidebar entries
+	const { data: taxonomyDefs } = useQuery({
+		queryKey: ["taxonomyDefs"],
+		queryFn: fetchTaxonomyDefs,
+		staleTime: 5 * 60 * 1000,
+		retry: false,
+		enabled: userRole >= ROLE_EDITOR,
+	});
+
 	// --- Build nav item groups ---
 
 	const contentItems: NavItem[] = [{ to: "/", label: "Dashboard", icon: SquaresFour }];
@@ -184,22 +194,23 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/redirects", label: "Redirects", icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
 		{ to: "/widgets", label: "Widgets", icon: GridFour, minRole: ROLE_EDITOR },
 		{ to: "/sections", label: "Sections", icon: Stack, minRole: ROLE_EDITOR },
-		{
-			to: "/taxonomies/$taxonomy",
-			label: "Categories",
-			icon: FileText,
-			params: { taxonomy: "category" },
-			minRole: ROLE_EDITOR,
-		},
-		{
-			to: "/taxonomies/$taxonomy",
-			label: "Tags",
-			icon: FileText,
-			params: { taxonomy: "tag" },
-			minRole: ROLE_EDITOR,
-		},
-		{ to: "/bylines", label: "Bylines", icon: FileText, minRole: ROLE_EDITOR },
+		// Taxonomy entries are added dynamically below
 	];
+
+	// Add taxonomy nav items dynamically from API definitions
+	if (taxonomyDefs) {
+		for (const def of taxonomyDefs) {
+			manageItems.push({
+				to: "/taxonomies/$taxonomy",
+				label: def.label,
+				icon: FileText,
+				params: { taxonomy: def.name },
+				minRole: ROLE_EDITOR,
+			});
+		}
+	}
+
+	manageItems.push({ to: "/bylines", label: "Bylines", icon: FileText, minRole: ROLE_EDITOR });
 
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: "Content Types", icon: Database, minRole: ROLE_ADMIN },
