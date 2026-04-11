@@ -89,7 +89,8 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 
 		// Get OAuth providers from environment
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
-		const env = cfEnv as unknown as Record<string, unknown> ?? (import.meta.env as Record<string, unknown>);
+		const env =
+			(cfEnv as unknown as Record<string, unknown>) ?? (import.meta.env as Record<string, unknown>);
 		const providers = getOAuthConfig(env);
 
 		if (!providers[provider]) {
