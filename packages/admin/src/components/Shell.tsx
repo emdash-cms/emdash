@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { useCurrentUser } from "../lib/api/current-user";
 import { AdminCommandPalette } from "./AdminCommandPalette";
+import { RecoveryCodesBanner } from "./auth/RecoveryCodesBanner";
 import { Header } from "./Header";
 import { Sidebar, SidebarNav } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
@@ -57,6 +58,7 @@ export function Shell({ children, manifest }: ShellProps) {
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
 				<Header />
+				<RecoveryCodesBanner />
 				<main className="flex-1 overflow-y-auto p-6">{children}</main>
 			</div>
 
