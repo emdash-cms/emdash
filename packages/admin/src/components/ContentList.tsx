@@ -4,6 +4,7 @@ import {
 	Pencil,
 	Trash,
 	ArrowCounterClockwise,
+	ArrowSquareOut,
 	Copy,
 	MagnifyingGlass,
 	CaretLeft,
@@ -13,6 +14,7 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { ContentItem, TrashedContentItem } from "../lib/api";
+import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -38,6 +40,8 @@ export interface ContentListProps {
 	activeLocale?: string;
 	/** Callback when locale filter changes */
 	onLocaleChange?: (locale: string) => void;
+	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
+	urlPattern?: string;
 }
 
 type ViewTab = "all" | "trash";
@@ -77,6 +81,7 @@ export function ContentList({
 	i18n,
 	activeLocale,
 	onLocaleChange,
+	urlPattern,
 }: ContentListProps) {
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
@@ -97,6 +102,15 @@ export function ContentList({
 	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
 	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+	// Auto-fetch next API page when user reaches the last client-side page.
+	// skip when a search query is active
+	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	React.useEffect(() => {
+		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+			onLoadMore();
+		}
+	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -113,7 +127,12 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link to="/content/$collection/new" params={{ collection }} className={buttonVariants()}>
+				<Link
+					to="/content/$collection/new"
+					params={{ collection }}
+					search={{ locale: activeLocale }}
+					className={buttonVariants()}
+				>
 					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
 					Add New
 				</Link>
@@ -191,6 +210,7 @@ export function ContentList({
 											<Link
 												to="/content/$collection/new"
 												params={{ collection }}
+												search={{ locale: activeLocale }}
 												className="text-kumo-brand underline"
 											>
 												Create your first one
@@ -212,6 +232,7 @@ export function ContentList({
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
+											urlPattern={urlPattern}
 										/>
 									))
 								)}
@@ -223,7 +244,8 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+								{filteredItems.length}
+								{hasMore && !searchQuery ? "+" : ""} {filteredItems.length === 1 ? "item" : "items"}
 								{searchQuery && ` matching "${searchQuery}"`}
 							</span>
 							<div className="flex items-center gap-2">
@@ -320,6 +342,7 @@ interface ContentListItemProps {
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	urlPattern?: string;
 }
 
 function ContentListItem({
@@ -328,6 +351,7 @@ function ContentListItem({
 	onDelete,
 	onDuplicate,
 	showLocale,
+	urlPattern,
 }: ContentListItemProps) {
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
@@ -359,6 +383,17 @@ function ContentListItem({
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
 			<td className="px-4 py-3 text-right">
 				<div className="flex items-center justify-end space-x-1">
+					{item.status === "published" && item.slug && (
+						<a
+							href={contentUrl(collection, item.slug, urlPattern)}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={`View published ${title}`}
+							className={buttonVariants({ variant: "ghost", shape: "square" })}
+						>
+							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+						</a>
+					)}
 					<Link
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}

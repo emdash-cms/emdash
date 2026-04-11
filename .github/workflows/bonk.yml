@@ -8,7 +8,7 @@ on:
 
 jobs:
   bonk:
-    if: github.event.sender.type != 'Bot'
+    if: github.event.sender.type != 'Bot' && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     concurrency:
@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Bonk
-        uses: ask-bonk/ask-bonk/github@c39e982defd0114385df54e72012a3fc4333c4d4 # main 2026-03-23
+        uses: ask-bonk/ask-bonk/github@7e200bbf14da0c79e86fe52d8fdf907db0798c1d # main 2026-03-23
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}

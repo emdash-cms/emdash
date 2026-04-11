@@ -336,7 +336,7 @@ export function MediaPickerModal({
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
-			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col" size="xl">
+			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col overflow-hidden" size="xl">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 						{title}
@@ -476,7 +476,7 @@ export function MediaPickerModal({
 				/>
 
 				{/* Media Grid */}
-				<div className="flex-1 overflow-y-auto min-h-[300px]">
+				<div className="flex-1 overflow-y-auto min-h-0">
 					{isLoading ? (
 						<div className="flex items-center justify-center h-full">
 							<Loader />
