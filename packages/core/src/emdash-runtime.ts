@@ -1313,9 +1313,7 @@ export class EmDashRuntime {
 				label: row.label,
 				labelSingular: row.label_singular ?? undefined,
 				hierarchical: row.hierarchical === 1,
-				collections: row.collections
-					? (JSON.parse(row.collections) as string[]).toSorted()
-					: [],
+				collections: row.collections ? (JSON.parse(row.collections) as string[]).toSorted() : [],
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
