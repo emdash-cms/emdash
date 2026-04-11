@@ -167,6 +167,16 @@ export interface KVAccess {
 export interface ContentItem {
 	id: string;
 	type: string;
+	/**
+	 * Human-readable slug, unique per collection. `null` when the item has
+	 * no slug yet (e.g. a freshly created draft before the first save).
+	 */
+	slug: string | null;
+	/**
+	 * Publication status of the item (`draft`, `published`, etc.). Mirrors
+	 * the top-level `status` column on the content row.
+	 */
+	status: string;
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;

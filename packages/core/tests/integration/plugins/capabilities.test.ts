@@ -121,12 +121,30 @@ describe("Capability Enforcement Integration (v2)", () => {
 				expect(post!.data.title).toBe("Hello World");
 			});
 
+			it("exposes slug and status on items returned from get()", async () => {
+				const access = createContentAccess(db);
+				const post = await access.get("posts", "post-1");
+
+				expect(post).not.toBeNull();
+				expect(post!.slug).toBe("hello-world");
+				expect(post!.status).toBe("published");
+			});
+
 			it("can list content", async () => {
 				const access = createContentAccess(db);
 				const result = await access.list("posts");
 
 				expect(result.items).toHaveLength(2);
 				expect(result.hasMore).toBe(false);
+			});
+
+			it("exposes slug and status on items returned from list()", async () => {
+				const access = createContentAccess(db);
+				const result = await access.list("posts", { orderBy: { slug: "asc" } });
+
+				const bySlug = new Map(result.items.map((item) => [item.slug, item]));
+				expect(bySlug.get("hello-world")?.status).toBe("published");
+				expect(bySlug.get("second-post")?.status).toBe("draft");
 			});
 
 			it("returns null for non-existent content", async () => {
@@ -162,6 +180,8 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 				expect(created.id).toBeDefined();
 				expect(created.data.title).toBe("New Post");
+				expect(created).toHaveProperty("slug");
+				expect(created).toHaveProperty("status");
 
 				// Verify it was created
 				const found = await access.get("posts", created.id);

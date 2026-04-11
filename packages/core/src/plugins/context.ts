@@ -162,6 +162,8 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 			return {
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
@@ -192,6 +194,8 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				items: result.items.map((item) => ({
 					id: item.id,
 					type: item.type,
+					slug: item.slug,
+					status: item.status,
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
@@ -222,6 +226,8 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 			return {
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
@@ -238,6 +244,8 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 			return {
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
