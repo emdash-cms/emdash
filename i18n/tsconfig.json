@@ -1,11 +1,7 @@
 {
 	"extends": "astro/tsconfigs/base",
 	"compilerOptions": {
-		"types": [
-			"node"
-		]
+		"types": ["node"]
 	},
-	"include": [
-		"build.ts"
-	]
+	"include": ["build.ts"]
 }
