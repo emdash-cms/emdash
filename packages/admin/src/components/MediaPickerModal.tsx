@@ -7,7 +7,6 @@
  */
 
 import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { Upload, Image, Check, Globe, MagnifyingGlass } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -66,7 +65,6 @@ export function MediaPickerModal({
 	mimeTypeFilter = "image/",
 	title = "Select Image",
 }: MediaPickerModalProps) {
-	const { i18n, t } = useLingui();
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -324,7 +322,7 @@ export function MediaPickerModal({
 	// Filter out "local" from API response since we add it manually
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: t`Library`, icon: undefined },
+			{ id: "local", name: "Library", icon: undefined },
 		];
 		if (providers) {
 			for (const p of providers) {
@@ -334,7 +332,7 @@ export function MediaPickerModal({
 			}
 		}
 		return tabs;
-	}, [providers, i18n.locale, t]);
+	}, [providers]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
