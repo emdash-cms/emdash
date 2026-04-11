@@ -233,6 +233,15 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to update collection", "UPDATE_FAILED");
 		}
 
+		// Sync FTS state when the supports array changes (e.g. search toggled on/off)
+		if (input.supports !== undefined) {
+			const hadSearch = existing.supports.includes("search");
+			const hasSearch = updated.supports.includes("search");
+			if (hadSearch !== hasSearch) {
+				await this.syncSearchState(slug);
+			}
+		}
+
 		return updated;
 	}
 
@@ -368,6 +377,11 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create field", "CREATE_FAILED");
 		}
 
+		// Sync FTS if this field is searchable and the collection supports search
+		if (input.searchable) {
+			await this.syncSearchState(collectionSlug);
+		}
+
 		return field;
 	}
 
@@ -430,41 +444,44 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to update field", "UPDATE_FAILED");
 		}
 
-		// If searchable changed, rebuild the FTS index for this collection
+		// If searchable changed, sync FTS state for this collection
 		const searchableChanged =
 			input.searchable !== undefined && input.searchable !== field.searchable;
 		if (searchableChanged) {
-			await this.rebuildSearchIndex(collectionSlug);
+			await this.syncSearchState(collectionSlug);
 		}
 
 		return updated;
 	}
 
 	/**
-	 * Rebuild the search index for a collection
+	 * Synchronize FTS state with the collection's current supports and searchable fields.
 	 *
-	 * Called when searchable fields change. If search is enabled for the collection,
-	 * this will rebuild the FTS table with the updated field list.
+	 * Called whenever supports or searchable fields change. Reconciles user intent
+	 * (supports includes "search") with FTS implementation reality.
+	 *
+	 * - supports search + has searchable fields → enable or rebuild FTS
+	 * - supports search + no searchable fields  → disable FTS if active
+	 * - does not support search                 → disable FTS if active
 	 */
-	private async rebuildSearchIndex(collectionSlug: string): Promise<void> {
+	private async syncSearchState(collectionSlug: string): Promise<void> {
 		const ftsManager = new FTSManager(this.db);
+		const collection = await this.getCollection(collectionSlug);
+		if (!collection) return;
 
-		// Check if search is enabled for this collection
-		const config = await ftsManager.getSearchConfig(collectionSlug);
-		if (!config?.enabled) {
-			// Search not enabled, nothing to do
-			return;
-		}
-
-		// Get current searchable fields
+		const wantsSearch = collection.supports.includes("search");
 		const searchableFields = await ftsManager.getSearchableFields(collectionSlug);
+		const config = await ftsManager.getSearchConfig(collectionSlug);
+		const ftsActive = config?.enabled === true;
 
-		if (searchableFields.length === 0) {
-			// No searchable fields left, disable search
+		if (wantsSearch && searchableFields.length > 0) {
+			if (ftsActive) {
+				await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
+			} else {
+				await ftsManager.enableSearch(collectionSlug);
+			}
+		} else if (ftsActive) {
 			await ftsManager.disableSearch(collectionSlug);
-		} else {
-			// Rebuild the index with updated fields
-			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config.weights);
 		}
 	}
 
@@ -480,11 +497,20 @@ export class SchemaRegistry {
 			);
 		}
 
-		// Drop column from content table
-		await this.dropColumn(collectionSlug, fieldSlug);
-
-		// Delete field record
+		// Delete the field record first so syncSearchState sees the updated field list.
+		// This ordering matters for searchable fields: SQLite prevents dropping a column
+		// that is still referenced by a trigger. syncSearchState drops and recreates the
+		// FTS triggers based on the remaining searchable fields, clearing the dependency
+		// before we attempt the ALTER TABLE DROP COLUMN below.
 		await this.db.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
+
+		// If the deleted field was searchable, sync FTS state (removes old triggers)
+		if (field.searchable) {
+			await this.syncSearchState(collectionSlug);
+		}
+
+		// Drop column from content table — safe now because FTS triggers are gone
+		await this.dropColumn(collectionSlug, fieldSlug);
 	}
 
 	/**

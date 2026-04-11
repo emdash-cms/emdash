@@ -1,10 +1,11 @@
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
+import { FTSManager } from "../../../src/search/fts-manager.js";
 
 describe("SchemaRegistry", () => {
 	let db: Kysely<EmDashDatabase>;
@@ -370,6 +371,149 @@ describe("SchemaRegistry", () => {
 			// Fields should be gone (cascade delete)
 			const field = await registry.getField("temp", "field1");
 			expect(field).toBeNull();
+		});
+	});
+
+	describe("Search (FTS) Integration", () => {
+		let ftsManager: FTSManager;
+
+		beforeEach(() => {
+			ftsManager = new FTSManager(db);
+		});
+
+		it("creates FTS table when adding a searchable field to a collection with search support", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+		});
+
+		it("creates FTS table when adding search support to a collection that already has searchable fields", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["drafts"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+
+			// FTS should not exist before enabling search
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+
+			await registry.updateCollection("articles", { supports: ["drafts", "search"] });
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+		});
+
+		it("disables FTS when search support is removed from a collection", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			// Enable FTS first
+			await ftsManager.enableSearch("articles");
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.updateCollection("articles", { supports: ["drafts"] });
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("rebuilds FTS table to include a new searchable field when collection already has search enabled", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+
+			// Add a second searchable field — FTS table must be rebuilt to include it
+			await registry.createField("articles", {
+				slug: "body",
+				label: "Body",
+				type: "text",
+				searchable: true,
+			});
+
+			// Verify the FTS table was rebuilt to include the body column.
+			// Selecting a non-existent column from the FTS virtual table throws an error.
+			await expect(
+				sql`SELECT body FROM "_emdash_fts_articles" LIMIT 0`.execute(db),
+			).resolves.toBeDefined();
+		});
+
+		it("deletes a searchable field from a search-enabled collection without error", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await registry.createField("articles", {
+				slug: "body",
+				label: "Body",
+				type: "text",
+				searchable: true,
+			});
+			// FTS is now active with title and body columns in its triggers
+
+			// Deleting a searchable field must not throw (SQLite rejects dropping a
+			// column still referenced by a trigger)
+			await expect(registry.deleteField("articles", "body")).resolves.toBeUndefined();
+
+			// FTS should be rebuilt around the remaining searchable field
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+			await expect(
+				sql`SELECT title FROM "_emdash_fts_articles" LIMIT 0`.execute(db),
+			).resolves.toBeDefined();
+		});
+
+		it("does not create FTS table when collection supports search but has no searchable fields", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: false,
+			});
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
 		});
 	});
 });
