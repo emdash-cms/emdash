@@ -31,10 +31,6 @@ interface TotpLoginResponse {
 	remainingRecoveryCodes?: number;
 }
 
-interface ErrorBody {
-	error?: { code?: string; message?: string };
-}
-
 export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 	const { t } = useLingui();
 	const [mode, setMode] = React.useState<Mode>("totp");
@@ -90,7 +86,9 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 			});
 
 			if (!response.ok) {
-				const errorBody: ErrorBody = await response.json().catch(() => ({}));
+				const errorBody: { error?: { code?: string; message?: string } } = await response
+					.json()
+					.catch(() => ({}));
 				const errorCode = errorBody.error?.code ?? "INVALID_CREDENTIALS";
 
 				if (errorCode === "AUTH_SECRET_MISSING") {
@@ -107,7 +105,9 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 				return;
 			}
 
-			const data: TotpLoginResponse = await response.json();
+			// Server wraps successes in { data: ... } — unwrap before reading.
+			const envelope: { data: TotpLoginResponse } = await response.json();
+			const data = envelope.data;
 
 			if (mode === "recovery" && typeof data.remainingRecoveryCodes === "number") {
 				try {
