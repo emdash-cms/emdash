@@ -41,8 +41,8 @@ msgstr "7 days"
 msgid "90 days"
 msgstr "90 days"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:27
-#: packages/admin/src/lib/api/api-tokens.ts:47
+#: packages/admin/src/components/users/RoleBadge.tsx:28
+#: packages/admin/src/lib/api/api-tokens.ts:52
 msgid "Admin"
 msgstr "Admin"
 
@@ -67,7 +67,7 @@ msgid "Authentication error: {error}"
 msgstr "Authentication error: {error}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:37
-#: packages/admin/src/components/users/RoleBadge.tsx:17
+#: packages/admin/src/components/users/RoleBadge.tsx:18
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
 msgstr "Author"
@@ -82,19 +82,19 @@ msgstr "Back to login"
 msgid "Bullet List"
 msgstr "Bullet List"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:14
+#: packages/admin/src/components/users/RoleBadge.tsx:15
 msgid "Can create content"
 msgstr "Can create content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:24
+#: packages/admin/src/components/users/RoleBadge.tsx:25
 msgid "Can manage all content"
 msgstr "Can manage all content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:19
+#: packages/admin/src/components/users/RoleBadge.tsx:20
 msgid "Can publish own content"
 msgstr "Can publish own content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:9
+#: packages/admin/src/components/users/RoleBadge.tsx:10
 msgid "Can view content"
 msgstr "Can view content"
 
@@ -128,7 +128,7 @@ msgstr "Content"
 msgid "Content Block"
 msgstr "Content Block"
 
-#: packages/admin/src/lib/api/api-tokens.ts:41
+#: packages/admin/src/lib/api/api-tokens.ts:42
 msgid "Content Read"
 msgstr "Content Read"
 
@@ -136,12 +136,12 @@ msgstr "Content Read"
 msgid "Content Types"
 msgstr "Content Types"
 
-#: packages/admin/src/lib/api/api-tokens.ts:42
+#: packages/admin/src/lib/api/api-tokens.ts:45
 msgid "Content Write"
 msgstr "Content Write"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:36
-#: packages/admin/src/components/users/RoleBadge.tsx:12
+#: packages/admin/src/components/users/RoleBadge.tsx:13
 #: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Contributor"
 msgstr "Contributor"
@@ -158,7 +158,7 @@ msgstr "Create a numbered list"
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Create personal access tokens for programmatic API access"
 
-#: packages/admin/src/lib/api/api-tokens.ts:42
+#: packages/admin/src/lib/api/api-tokens.ts:46
 msgid "Create, update, delete content"
 msgstr "Create, update, delete content"
 
@@ -191,7 +191,7 @@ msgid "Drafts"
 msgstr "Drafts"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
-#: packages/admin/src/components/users/RoleBadge.tsx:22
+#: packages/admin/src/components/users/RoleBadge.tsx:23
 #: packages/admin/src/components/WelcomeModal.tsx:26
 msgid "Editor"
 msgstr "Editor"
@@ -222,11 +222,11 @@ msgstr "Enable full-text search on this collection"
 msgid "Failed to send magic link"
 msgstr "Failed to send magic link"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:29
+#: packages/admin/src/components/users/RoleBadge.tsx:30
 msgid "Full access"
 msgstr "Full access"
 
-#: packages/admin/src/lib/api/api-tokens.ts:47
+#: packages/admin/src/lib/api/api-tokens.ts:52
 msgid "Full admin access"
 msgstr "Full admin access"
 
@@ -293,11 +293,6 @@ msgstr "Language"
 msgid "Large section heading"
 msgstr "Large section heading"
 
-#: packages/admin/src/components/MediaLibrary.tsx:201
-#: packages/admin/src/components/MediaPickerModal.tsx:327
-msgid "Library"
-msgstr "Library"
-
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Locale"
@@ -314,11 +309,11 @@ msgstr "Media"
 msgid "Media Library"
 msgstr "Media Library"
 
-#: packages/admin/src/lib/api/api-tokens.ts:43
+#: packages/admin/src/lib/api/api-tokens.ts:48
 msgid "Media Read"
 msgstr "Media Read"
 
-#: packages/admin/src/lib/api/api-tokens.ts:44
+#: packages/admin/src/lib/api/api-tokens.ts:49
 msgid "Media Write"
 msgstr "Media Write"
 
@@ -335,7 +330,7 @@ msgstr "Menu"
 msgid "Menus"
 msgstr "Menus"
 
-#: packages/admin/src/lib/api/api-tokens.ts:46
+#: packages/admin/src/lib/api/api-tokens.ts:51
 msgid "Modify collection schemas"
 msgstr "Modify collection schemas"
 
@@ -377,15 +372,15 @@ msgstr "Published At"
 msgid "Quote"
 msgstr "Quote"
 
-#: packages/admin/src/lib/api/api-tokens.ts:45
+#: packages/admin/src/lib/api/api-tokens.ts:50
 msgid "Read collection schemas"
 msgstr "Read collection schemas"
 
-#: packages/admin/src/lib/api/api-tokens.ts:41
+#: packages/admin/src/lib/api/api-tokens.ts:42
 msgid "Read content entries"
 msgstr "Read content entries"
 
-#: packages/admin/src/lib/api/api-tokens.ts:43
+#: packages/admin/src/lib/api/api-tokens.ts:48
 msgid "Read media files"
 msgstr "Read media files"
 
@@ -397,7 +392,7 @@ msgstr "Revisions"
 msgid "Rich text content"
 msgstr "Rich text content"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:37
+#: packages/admin/src/components/users/RoleBadge.tsx:38
 msgid "Role {role}"
 msgstr "Role {role}"
 
@@ -405,11 +400,11 @@ msgstr "Role {role}"
 msgid "Save content as draft before publishing"
 msgstr "Save content as draft before publishing"
 
-#: packages/admin/src/lib/api/api-tokens.ts:45
+#: packages/admin/src/lib/api/api-tokens.ts:50
 msgid "Schema Read"
 msgstr "Schema Read"
 
-#: packages/admin/src/lib/api/api-tokens.ts:46
+#: packages/admin/src/lib/api/api-tokens.ts:51
 msgid "Schema Write"
 msgstr "Schema Write"
 
@@ -499,7 +494,7 @@ msgid "Status"
 msgstr "Status"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:35
-#: packages/admin/src/components/users/RoleBadge.tsx:7
+#: packages/admin/src/components/users/RoleBadge.tsx:8
 #: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Subscriber"
 msgstr "Subscriber"
@@ -524,7 +519,7 @@ msgstr "Unique identifier (ULID)"
 msgid "Unknown"
 msgstr "Unknown"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:39
+#: packages/admin/src/components/users/RoleBadge.tsx:40
 msgid "Unknown role"
 msgstr "Unknown role"
 
@@ -532,7 +527,7 @@ msgstr "Unknown role"
 msgid "Updated At"
 msgstr "Updated At"
 
-#: packages/admin/src/lib/api/api-tokens.ts:44
+#: packages/admin/src/lib/api/api-tokens.ts:49
 msgid "Upload and delete media"
 msgstr "Upload and delete media"
 
