@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess } from "#api/error.js";
+import { getPublicOrigin } from "#api/public-url.js";
 
 export const prerender = false;
 
@@ -52,7 +53,7 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		return apiError("INVALID_REQUEST", "previewUrl must use HTTPS", 400);
 	}
 
-	const source = url.origin;
+	const source = getPublicOrigin(url, emdash?.config);
 	const ttl = 3600; // 1 hour
 	const exp = Math.floor(Date.now() / 1000) + ttl;
 

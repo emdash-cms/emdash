@@ -9,6 +9,7 @@
 
 import type { Element } from "@emdash-cms/blocks";
 import { Kysely, sql, type Dialect } from "kysely";
+import virtualConfig from "virtual:emdash/config";
 
 import { validateRev } from "./api/rev.js";
 import type {
@@ -1153,7 +1154,10 @@ export class EmDashRuntime {
 						label?: string;
 						required?: boolean;
 						widget?: string;
-						options?: Array<{ value: string; label: string }>;
+						// Two shapes: legacy enum-style `[{ value, label }]` for select widgets,
+						// or arbitrary `Record<string, unknown>` for plugin field widgets that
+						// need per-field config (e.g. a checkbox grid receiving its column defs).
+						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					}
 				> = {};
 
@@ -1165,7 +1169,14 @@ export class EmDashRuntime {
 							required: field.required,
 						};
 						if (field.widget) entry.widget = field.widget;
-						// Include select/multiSelect options from validation
+						// Plugin field widgets read their per-field config from `field.options`,
+						// which the seed schema types as `Record<string, unknown>`. Pass it
+						// through to the manifest so plugin widgets in the admin SPA receive it.
+						if (field.options) {
+							entry.options = field.options;
+						}
+						// Legacy: select/multiSelect enum options live on `field.validation.options`.
+						// Wins over `field.options` to preserve existing behavior for enum widgets.
 						if (field.validation?.options) {
 							entry.options = field.validation.options.map((v) => ({
 								value: v,
@@ -1243,8 +1254,8 @@ export class EmDashRuntime {
 				version: plugin.version,
 				enabled,
 				adminMode,
-				adminPages: plugin.admin?.pages,
-				dashboardWidgets: plugin.admin?.widgets,
+				adminPages: plugin.admin?.pages ?? [],
+				dashboardWidgets: plugin.admin?.widgets ?? [],
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
 			};
@@ -1266,8 +1277,8 @@ export class EmDashRuntime {
 				enabled,
 				sandboxed: true,
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
-				adminPages: entry.adminPages,
-				dashboardWidgets: entry.adminWidgets,
+				adminPages: entry.adminPages ?? [],
+				dashboardWidgets: entry.adminWidgets ?? [],
 			};
 		}
 
@@ -1289,8 +1300,8 @@ export class EmDashRuntime {
 				enabled,
 				sandboxed: true,
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
-				adminPages: pages,
-				dashboardWidgets: widgets,
+				adminPages: pages ?? [],
+				dashboardWidgets: widgets ?? [],
 			};
 		}
 
@@ -1304,11 +1315,10 @@ export class EmDashRuntime {
 		const authMode = getAuthMode(this.config);
 		const authModeValue = authMode.type === "external" ? authMode.providerType : "passkey";
 
-		// Include i18n config if enabled
-		const { getI18nConfig, isI18nEnabled } = await import("./i18n/config.js");
-		const i18nConfig = getI18nConfig();
+		// Include i18n config if enabled (read from virtual module to avoid SSR module singleton mismatch)
+		const i18nConfig = virtualConfig?.i18n;
 		const i18n =
-			isI18nEnabled() && i18nConfig
+			i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
 				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
 				: undefined;
 

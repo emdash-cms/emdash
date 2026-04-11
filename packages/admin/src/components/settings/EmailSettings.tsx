@@ -39,7 +39,11 @@ export function EmailSettings() {
 		return () => clearTimeout(timer);
 	}, [status]);
 
-	const { data: settings, isLoading } = useQuery({
+	const {
+		data: settings,
+		isLoading,
+		error: fetchError,
+	} = useQuery({
 		queryKey: ["email-settings"],
 		queryFn: fetchEmailSettings,
 	});
@@ -68,6 +72,25 @@ export function EmailSettings() {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Loader size="lg" />
+			</div>
+		);
+	}
+
+	if (fetchError) {
+		return (
+			<div className="space-y-6">
+				<div className="flex items-center gap-3">
+					<Link to="/settings">
+						<Button variant="ghost" shape="square" aria-label="Back to settings">
+							<ArrowLeft className="h-4 w-4" />
+						</Button>
+					</Link>
+					<h1 className="text-2xl font-bold">Email Settings</h1>
+				</div>
+				<div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
+					<WarningCircle className="h-4 w-4 flex-shrink-0" />
+					{getMutationError(fetchError) || "Failed to load email settings"}
+				</div>
 			</div>
 		);
 	}

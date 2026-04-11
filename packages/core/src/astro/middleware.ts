@@ -45,6 +45,7 @@ import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { runWithContext } from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
 let runtimeInstance: EmDashRuntime | null = null;
@@ -222,6 +223,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				}
 			}
 
+			// Initialize the runtime for page:metadata and page:fragments hooks.
+			// The runtime is a cached singleton — after the first request,
+			// getRuntime() is just a null-check. This enables SEO plugins to
+			// contribute meta tags for all visitors, not just logged-in editors.
+			const config = getConfig();
+			if (config) {
+				try {
+					const runtime = await getRuntime(config);
+					setupVerified = true;
+					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for these two methods
+					locals.emdash = {
+						collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+						collectPageFragments: runtime.collectPageFragments.bind(runtime),
+					} as EmDashHandlers;
+				} catch {
+					// Non-fatal — EmDashHead will fall back to base SEO contributions
+				}
+			}
+
 			const response = await next();
 			setBaselineSecurityHeaders(response);
 			return response;
@@ -297,6 +317,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Media provider methods
 				getMediaProvider: runtime.getMediaProvider.bind(runtime),
 				getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
+
+				// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+				collectPageFragments: runtime.collectPageFragments.bind(runtime),
 
 				// Direct access (for advanced use cases)
 				storage: runtime.storage,
