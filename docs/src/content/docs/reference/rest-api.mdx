@@ -139,7 +139,7 @@ Content-Type: application/json
 ### Update Content
 
 ```http
-PATCH /_emdash/api/content/:collection/:id
+PUT /_emdash/api/content/:collection/:id
 Content-Type: application/json
 ```
 
@@ -244,7 +244,7 @@ Content-Type: application/json
 ### Update Media
 
 ```http
-PATCH /_emdash/api/media/:id
+PUT /_emdash/api/media/:id
 Content-Type: application/json
 ```
 
@@ -626,7 +626,7 @@ GET /_emdash/api/settings
 ### Update Settings
 
 ```http
-PUT /_emdash/api/settings
+POST /_emdash/api/settings
 Content-Type: application/json
 
 {

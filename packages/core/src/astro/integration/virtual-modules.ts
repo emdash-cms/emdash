@@ -14,6 +14,8 @@ import type { MediaProviderDescriptor } from "../../media/types.js";
 import { defaultSeed } from "../../seed/default.js";
 import type { PluginDescriptor } from "./runtime.js";
 
+const TS_SOURCE_EXT_RE = /^\.(ts|tsx|mts|cts|jsx)$/;
+
 /** Pattern to remove scoped package prefix from plugin ID */
 const SCOPED_PREFIX_PATTERN = /^@[^/]+\/plugin-/;
 
@@ -435,7 +437,17 @@ export const sandboxedPlugins = [];
 
 		// Resolve the bundle to a file path using project's require context
 		const filePath = resolveModulePathFromProject(bundleSpecifier, projectRoot);
-		// Read the source code
+
+		const ext = filePath.slice(filePath.lastIndexOf("."));
+		if (TS_SOURCE_EXT_RE.test(ext)) {
+			throw new Error(
+				`Sandboxed plugin "${descriptor.id}" entrypoint "${bundleSpecifier}" resolves to ` +
+					`unbuilt source (${filePath}). Sandbox entries must be pre-built JavaScript. ` +
+					`Ensure the plugin's package.json exports point to built files (e.g. dist/*.mjs) ` +
+					`and run the plugin's build step before building the site.`,
+			);
+		}
+
 		const code = readFileSync(filePath, "utf-8");
 
 		// Create the plugin entry with embedded code and sandbox config
