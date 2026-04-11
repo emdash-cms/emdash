@@ -257,6 +257,7 @@ export function ContentEditor({
 				})) ?? [],
 		}),
 	);
+	const pendingAutosaveStateRef = React.useRef<string | null>(null);
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
@@ -282,6 +283,7 @@ export function ContentEditor({
 						})) ?? [],
 				}),
 			);
+			pendingAutosaveStateRef.current = null;
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
@@ -320,6 +322,15 @@ export function ContentEditor({
 	slugRef.current = slug;
 
 	React.useEffect(() => {
+		if (!lastAutosaveAt || !pendingAutosaveStateRef.current) {
+			return;
+		}
+
+		setLastSavedData(pendingAutosaveStateRef.current);
+		pendingAutosaveStateRef.current = null;
+	}, [lastAutosaveAt]);
+
+	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
 		if (isNew || !onAutosave || !item?.id) {
 			return;
@@ -337,11 +348,17 @@ export function ContentEditor({
 
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
-			onAutosave({
+			const payload = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
 				bylines: activeBylines,
+			};
+			pendingAutosaveStateRef.current = serializeEditorState({
+				data: payload.data,
+				slug: payload.slug || "",
+				bylines: payload.bylines,
 			});
+			onAutosave(payload);
 		}, AUTOSAVE_DELAY);
 
 		return () => {

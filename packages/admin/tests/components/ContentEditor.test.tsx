@@ -296,6 +296,47 @@ describe("ContentEditor", () => {
 			const savedBtn = screen.getByRole("button", { name: "Saved" });
 			await expect.element(savedBtn).toBeDisabled();
 		});
+
+		it("does not queue another autosave after a successful autosave", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					lastAutosaveAt: null,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Updated title");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor
+						{...props}
+						isAutosaving={false}
+						lastAutosaveAt={new Date("2026-04-11T17:12:35Z")}
+					/>,
+				);
+
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("delete", () => {
