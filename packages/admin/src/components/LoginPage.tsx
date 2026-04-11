@@ -24,6 +24,7 @@ import { sanitizeRedirectUrl } from "../lib/url";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
+import { TotpLoginForm } from "./auth/TotpLoginForm";
 import { LogoLockup } from "./Logo.js";
 
 // ============================================================================
@@ -35,7 +36,7 @@ interface LoginPageProps {
 	redirectUrl?: string;
 }
 
-type LoginMethod = "passkey" | "magic-link";
+type LoginMethod = "passkey" | "magic-link" | "totp";
 
 interface OAuthProvider {
 	id: string;
@@ -282,6 +283,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{method === "passkey" && t`Sign in to your site`}
 						{method === "magic-link" && t`Sign in with email`}
+						{method === "totp" && t`Sign in with authenticator`}
 					</h1>
 				</div>
 
@@ -339,17 +341,34 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 							>
 								{t`Sign in with email link`}
 							</Button>
+
+							{/* Authenticator App (TOTP) Option */}
+							<Button
+								variant="ghost"
+								className="w-full justify-center"
+								type="button"
+								onClick={() => setMethod("totp")}
+							>
+								{t`Sign in with authenticator app`}
+							</Button>
 						</div>
 					)}
 
 					{method === "magic-link" && <MagicLinkForm onBack={() => setMethod("passkey")} />}
+
+					{method === "totp" && (
+						<TotpLoginForm
+							onSuccess={handleSuccess}
+							onBack={() => setMethod("passkey")}
+						/>
+					)}
 				</div>
 
 				{/* Help text */}
 				<p className="text-center mt-6 text-sm text-kumo-subtle">
-					{method === "passkey"
-						? t`Use your registered passkey to sign in securely.`
-						: t`We'll send you a link to sign in without a password.`}
+					{method === "passkey" && t`Use your registered passkey to sign in securely.`}
+					{method === "magic-link" && t`We'll send you a link to sign in without a password.`}
+					{method === "totp" && t`Enter the code from your authenticator app.`}
 				</p>
 
 				{/* Signup link — only shown when self-signup is enabled */}
