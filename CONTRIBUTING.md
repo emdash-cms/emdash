@@ -325,15 +325,6 @@ When in doubt, run `pnpm changeset` and it will only show packages that aren't i
 - Ensure `pnpm typecheck` and `pnpm lint` pass before pushing.
 - Run relevant tests.
 
-## What's Intentionally Missing (For Now)
-
-These are known gaps — don't try to fix them unless specifically asked:
-
-- **Rate limiting** — no brute-force protection on auth endpoints
-- **Password auth** — passkeys + magic links + OAuth only, by design
-- **Plugin marketplace** — architecture exists, runtime installation is post-beta
-- **Real-time collaboration** — planned for v1
-
 ## Getting Help
 
 - Read `AGENTS.md` for architecture and code patterns
