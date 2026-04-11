@@ -185,6 +185,55 @@ Your site will use `workspace:*` links to the local packages, so any changes you
 4. Check authorization with `requirePerm()` on all state-changing routes.
 5. Register the route in `packages/core/src/astro/integration/routes.ts`.
 
+## Internationalization (i18n)
+
+The admin UI is translatable using [Lingui](https://lingui.dev). All user-visible strings in `packages/admin/src/` should be wrapped for translation.
+
+### Making strings translatable
+
+Use the `t` tagged template for plain strings and `<Trans>` for strings containing JSX:
+
+```tsx
+import { Trans, useLingui } from "@lingui/react/macro";
+
+function MyComponent() {
+	const { t } = useLingui();
+
+	return (
+		<div>
+			{/* Plain strings */}
+			<h1>{t`Settings`}</h1>
+			<label>{t`Email address`}</label>
+
+			{/* Strings with interpolation */}
+			<p>{t`Authentication error: ${error}`}</p>
+
+			{/* Strings containing JSX elements */}
+			<p>
+				<Trans>
+					Don't have an account? <a href="/signup">Sign up</a>
+				</Trans>
+			</p>
+		</div>
+	);
+}
+```
+
+After adding or changing translatable strings, run extraction to update the PO catalogs:
+
+```bash
+pnpm run locale:extract
+```
+
+This updates `packages/admin/src/locales/*/messages.po` with any new or changed strings. Commit the updated PO files alongside your code changes.
+
+### What to wrap
+
+- Button labels, headings, descriptions, error messages, placeholder text — anything a user reads.
+- Don't wrap: log messages, developer-facing errors, HTML attributes that aren't displayed (like `aria-label` on decorative elements), or strings that are the same in every language (brand names, URLs).
+
+For the full translation contributor guide, see [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).
+
 ## Contribution Policy
 
 ### What we accept
@@ -193,6 +242,7 @@ Your site will use `workspace:*` links to the local packages, so any changes you
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                                  |
 | **Docs / typos** | Open a PR directly.                                                                                                                  |
+| **Translations** | Open a PR directly. See [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).                                  |
 | **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first. Wait for approval before writing code. |
 | **Refactors**    | Open a Discussion first. Refactors are opinionated and need alignment.                                                               |
 | **Performance**  | Open a Discussion first with benchmarks showing the improvement.                                                                     |

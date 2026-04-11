@@ -96,7 +96,10 @@ export default defineConfig({
 				{
 					label: "Contributing",
 					collapsed: true,
-					items: [{ label: "Contributor Guide", slug: "contributing" }],
+					items: [
+						{ label: "Contributor Guide", slug: "contributing" },
+						{ label: "Translating EmDash", slug: "contributing/translating" },
+					],
 				},
 
 				{
