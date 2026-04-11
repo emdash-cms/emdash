@@ -360,9 +360,7 @@ export class FTSManager {
 	/**
 	 * Verify FTS index integrity and rebuild if corrupted.
 	 *
-	 * Checks for two corruption indicators:
-	 * 1. Row count mismatch between content table and FTS table
-	 * 2. FTS5 integrity-check failure (catches shadow table inconsistencies)
+	 * Checks for row count mismatch between content table and FTS table.
 	 *
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
@@ -393,21 +391,6 @@ export class FTSManager {
 			console.warn(
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
 			);
-			const fields = await this.getSearchableFields(collectionSlug);
-			const config = await this.getSearchConfig(collectionSlug);
-			if (fields.length > 0) {
-				await this.rebuildIndex(collectionSlug, fields, config?.weights);
-			}
-			return true;
-		}
-
-		// Check 2: FTS5 integrity check (catches shadow table corruption)
-		try {
-			await sql
-				.raw(`INSERT INTO "${ftsTable}"("${ftsTable}") VALUES('integrity-check')`)
-				.execute(this.db);
-		} catch {
-			console.warn(`FTS integrity check failed for "${collectionSlug}". Rebuilding index.`);
 			const fields = await this.getSearchableFields(collectionSlug);
 			const config = await this.getSearchConfig(collectionSlug);
 			if (fields.length > 0) {

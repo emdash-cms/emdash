@@ -201,3 +201,67 @@ export async function setSiteSettings(
 
 	await options.setMany(updates);
 }
+
+/**
+ * Get a single plugin setting by key.
+ *
+ * Plugin settings are stored in the options table under
+ * `plugin:<pluginId>:settings:<key>`.
+ */
+export async function getPluginSetting<T = unknown>(
+	pluginId: string,
+	key: string,
+): Promise<T | undefined> {
+	const db = await getDb();
+	return getPluginSettingWithDb<T>(pluginId, key, db);
+}
+
+/**
+ * Get a single plugin setting by key (with explicit db).
+ *
+ * @internal Use `getPluginSetting()` in templates and plugin rendering code.
+ */
+export async function getPluginSettingWithDb<T = unknown>(
+	pluginId: string,
+	key: string,
+	db: Kysely<Database>,
+): Promise<T | undefined> {
+	const options = new OptionsRepository(db);
+	const value = await options.get<T>(`plugin:${pluginId}:settings:${key}`);
+	return value ?? undefined;
+}
+
+/**
+ * Get all persisted plugin settings for a plugin.
+ *
+ * Defaults declared in `admin.settingsSchema` are not materialized
+ * automatically; callers should apply their own fallback defaults.
+ */
+export async function getPluginSettings(pluginId: string): Promise<Record<string, unknown>> {
+	const db = await getDb();
+	return getPluginSettingsWithDb(pluginId, db);
+}
+
+/**
+ * Get all persisted plugin settings for a plugin (with explicit db).
+ *
+ * @internal Use `getPluginSettings()` in templates and plugin rendering code.
+ */
+export async function getPluginSettingsWithDb(
+	pluginId: string,
+	db: Kysely<Database>,
+): Promise<Record<string, unknown>> {
+	const prefix = `plugin:${pluginId}:settings:`;
+	const options = new OptionsRepository(db);
+	const allOptions = await options.getByPrefix(prefix);
+
+	const settings: Record<string, unknown> = {};
+	for (const [key, value] of allOptions) {
+		if (!key.startsWith(prefix)) {
+			continue;
+		}
+		settings[key.slice(prefix.length)] = value;
+	}
+
+	return settings;
+}
