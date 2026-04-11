@@ -5,7 +5,7 @@
  * The resulting context is passed to EmDashHead / EmDashBodyStart / EmDashBodyEnd.
  */
 
-import type { PublicPageContext } from "../plugins/types.js";
+import type { BreadcrumbItem, PublicPageContext } from "../plugins/types.js";
 
 /** Fields shared by both input forms */
 interface PageContextFields {
@@ -31,6 +31,12 @@ interface PageContextFields {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/**
+	 * Breadcrumb trail for this page, root first. Pass an empty array
+	 * to explicitly opt out of breadcrumbs (e.g. homepage), or omit the
+	 * field to let consumers fall back to their own derivation.
+	 */
+	breadcrumbs?: BreadcrumbItem[];
 	/** Public-facing site URL (origin) for structured data */
 	siteUrl?: string;
 }
@@ -91,6 +97,7 @@ export function createPublicPageContext(input: CreatePublicPageContextInput): Pu
 		seo: input.seo,
 		articleMeta: input.articleMeta,
 		siteName: input.siteName,
+		breadcrumbs: input.breadcrumbs,
 		siteUrl: input.siteUrl,
 	};
 }
