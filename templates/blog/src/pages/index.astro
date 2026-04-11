@@ -1,11 +1,13 @@
 ---
-import { getEmDashCollection, getEntryTerms } from "emdash";
+import { getEmDashCollection, getEntryTerms, getSiteSettings } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 import PostCard from "../components/PostCard.astro";
 import { getReadingTime } from "../utils/reading-time";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+const { siteTitle, siteTagline } = resolveBlogSiteIdentity(await getSiteSettings());
 
 Astro.cache.set(cacheHint);
 
@@ -58,7 +60,7 @@ function formatDate(date: Date | null | undefined) {
 }
 ---
 
-<Base title="My Blog" description="Welcome to my blog">
+<Base title={siteTitle} description={siteTagline}>
 	{
 		posts.length === 0 ? (
 			<section class="empty-state">

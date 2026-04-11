@@ -22,7 +22,8 @@ export type FieldType =
 	| "file"
 	| "reference"
 	| "json"
-	| "slug";
+	| "slug"
+	| "repeater";
 
 /**
  * Array of all field types for validation
@@ -42,6 +43,7 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"reference",
 	"json",
 	"slug",
+	"repeater",
 ] as const;
 
 /**
@@ -67,6 +69,7 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 	reference: "TEXT",
 	json: "JSON",
 	slug: "TEXT",
+	repeater: "JSON",
 };
 
 /**
@@ -93,6 +96,26 @@ export type CollectionSource =
 /**
  * Validation rules for a field
  */
+/** Sub-field definition for repeater fields */
+export interface RepeaterSubField {
+	slug: string;
+	type: "string" | "text" | "number" | "integer" | "boolean" | "datetime" | "select";
+	label: string;
+	required?: boolean;
+	options?: string[]; // For select sub-fields
+}
+
+/** Allowed types for repeater sub-fields (no nesting, no complex types) */
+export const REPEATER_SUB_FIELD_TYPES = [
+	"string",
+	"text",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+] as const;
+
 export interface FieldValidation {
 	required?: boolean;
 	min?: number;
@@ -101,6 +124,9 @@ export interface FieldValidation {
 	maxLength?: number;
 	pattern?: string;
 	options?: string[]; // For select/multiSelect
+	subFields?: RepeaterSubField[]; // For repeater fields
+	minItems?: number; // For repeater fields
+	maxItems?: number; // For repeater fields
 }
 
 /**

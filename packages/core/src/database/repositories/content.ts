@@ -116,6 +116,7 @@ export class ContentRepository {
 			locale,
 			translationOf,
 			publishedAt,
+			createdAt,
 		} = input;
 
 		// Validate required fields
@@ -155,7 +156,7 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			now,
+			createdAt || now,
 			now,
 			publishedAt || null,
 			1,
@@ -765,6 +766,27 @@ export class ContentRepository {
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
+	}
+
+	// get overall statistics (total, published, draft) for a content type in a single query
+	async getStats(type: string): Promise<{ total: number; published: number; draft: number }> {
+		const tableName = getTableName(type);
+
+		const result = await this.db
+			.selectFrom(tableName as keyof Database)
+			.select((eb) => [
+				eb.fn.count("id").as("total"),
+				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
+				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
+			])
+			.where("deleted_at" as never, "is", null)
+			.executeTakeFirst();
+
+		return {
+			total: Number(result?.total || 0),
+			published: Number(result?.published || 0),
+			draft: Number(result?.draft || 0),
+		};
 	}
 
 	/**
