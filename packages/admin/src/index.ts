@@ -2,6 +2,7 @@
  * CRITICAL: This must be imported FIRST to pre-initialize i18n
  * before any module-level t`...` calls execute.
  */
+// eslint-disable-next-line import/no-unassigned-import
 import "./locales/init.js";
 
 // Main App
