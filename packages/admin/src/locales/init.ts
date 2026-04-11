@@ -8,12 +8,14 @@
  * This ensures i18n is initialized before any module-level t`...` calls
  * execute, regardless of Astro's island hydration order.
  *
+ * We activate with empty messages here; App.tsx will load the real catalog
+ * synchronously during render (via useRef). Since t`...` calls in builder
+ * functions execute lazily (from useMemo), they'll use the real messages.
+ *
  * Side-effect import - modifies global i18n instance.
  */
 import { i18n } from "@lingui/core";
 
-import { messages } from "./en/messages.mjs";
-
 if (!i18n.locale) {
-	i18n.loadAndActivate({ locale: "en", messages });
+	i18n.loadAndActivate({ locale: "en", messages: {} });
 }
