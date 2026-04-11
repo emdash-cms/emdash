@@ -10,7 +10,7 @@ export const prerender = false;
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
-import { isTotpEnabled } from "#auth/totp-config.js";
+import { isTotpAvailable } from "#auth/totp-config.js";
 import { loadUserSeed } from "#seed/load.js";
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -119,7 +119,7 @@ export const GET: APIRoute = async ({ locals }) => {
 			// Tell the wizard whether to offer the TOTP path in the
 			// method-choice step. When false, the wizard skips method
 			// choice entirely and goes straight to passkey.
-			totpEnabled: isTotpEnabled(emdash.config),
+			totpEnabled: isTotpAvailable(emdash.config),
 		});
 	} catch (error) {
 		return handleError(error, "Failed to check setup status", "SETUP_STATUS_ERROR");
