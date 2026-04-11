@@ -154,10 +154,13 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 				});
 			}
 
-			// Mark complete last so "user exists but setup incomplete" is
-			// never observable.
-			await options.set("emdash:setup_complete", true);
+			// Delete the pending challenge BEFORE marking setup complete
+			// so a failure here cannot leave setup_complete=true while
+			// the catch block rolls back the user — which would wedge
+			// every future setup attempt on a stale SETUP_COMPLETE flag.
+			// Setting the flag is the very last write in the try block.
 			await deleteTOTPSetupChallenge(emdash.db, body.challengeId);
+			await options.set("emdash:setup_complete", true);
 		} catch (persistError) {
 			try {
 				await adapter.deleteUser(user.id);
