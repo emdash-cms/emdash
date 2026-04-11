@@ -1,7 +1,8 @@
 ---
-import { getEmDashEntry, getEntryTerms, getSeoMeta } from "emdash";
+import { getEmDashEntry, getEntryTerms, getSeoMeta, getSiteSettings } from "emdash";
 import { Image, PortableText, WidgetArea } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import { resolveStarterSiteIdentity } from "../../utils/site-identity";
 
 const { slug } = Astro.params;
 
@@ -16,10 +17,11 @@ if (!post) {
 }
 
 Astro.cache.set(cacheHint);
+const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 
 // SEO meta from content fields
 const seo = getSeoMeta(post, {
-	siteTitle: "My Site",
+	siteTitle,
 	siteUrl: Astro.url.origin,
 	path: `/posts/${slug}`,
 });
@@ -31,6 +33,7 @@ const categories = await getEntryTerms("posts", post.data.id, "category");
 
 <Base
 	title={seo.title}
+	pageTitle={seo.ogTitle}
 	description={seo.description}
 	canonical={seo.canonical}
 	image={seo.ogImage}

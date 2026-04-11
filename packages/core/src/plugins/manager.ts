@@ -339,6 +339,28 @@ export class PluginManager {
 	}
 
 	/**
+	 * Run content:afterPublish hooks across all active plugins
+	 */
+	async runContentAfterPublish(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		this.ensureInitialized();
+		return this.hookPipeline!.runContentAfterPublish(content, collection);
+	}
+
+	/**
+	 * Run content:afterUnpublish hooks across all active plugins
+	 */
+	async runContentAfterUnpublish(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		this.ensureInitialized();
+		return this.hookPipeline!.runContentAfterUnpublish(content, collection);
+	}
+
+	/**
 	 * Run media:beforeUpload hooks across all active plugins
 	 */
 	async runMediaBeforeUpload(file: { name: string; type: string; size: number }): Promise<{

@@ -34,6 +34,7 @@ import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 const NOT_ALLOWED_FETCH_REGEX = /not allowed to fetch from host/;
 const NO_ALLOWED_FETCH_REGEX = /not allowed to fetch/;
 const NO_NETWORK_FETCH_REGEX = /does not have the "network:fetch" capability/;
+const SEO_NOT_ENABLED_REGEX = /does not have SEO enabled/;
 
 /**
  * Create a minimal resolved plugin for testing
@@ -166,6 +167,161 @@ describe("Capability Enforcement Integration (v2)", () => {
 				// Verify it was created
 				const found = await access.get("posts", created.id);
 				expect(found).not.toBeNull();
+			});
+		});
+
+		describe("SEO panel integration", () => {
+			beforeEach(async () => {
+				// Register the "posts" collection with SEO enabled so the plugin
+				// content API routes `seo` writes to the core SEO panel.
+				await sql`
+					INSERT INTO _emdash_collections (slug, label, label_singular, has_seo)
+					VALUES ('posts', 'Posts', 'Post', 1)
+				`.execute(db);
+			});
+
+			it("returns seo defaults from get() for SEO-enabled collections", async () => {
+				const access = createContentAccess(db);
+				const post = await access.get("posts", "post-1");
+
+				expect(post).not.toBeNull();
+				expect(post!.seo).toEqual({
+					title: null,
+					description: null,
+					image: null,
+					canonical: null,
+					noIndex: false,
+				});
+			});
+
+			it("omits seo from get() for collections without SEO enabled", async () => {
+				// Reset has_seo on posts so it behaves like a non-SEO collection
+				await db
+					.updateTable("_emdash_collections")
+					.set({ has_seo: 0 })
+					.where("slug", "=", "posts")
+					.execute();
+
+				const access = createContentAccess(db);
+				const post = await access.get("posts", "post-1");
+
+				expect(post).not.toBeNull();
+				expect(post!.seo).toBeUndefined();
+			});
+
+			it("update() routes `seo` to the SEO panel instead of failing on missing column", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				// Regression for #374: previously this threw
+				// "SQLite error: no such column: seo"
+				const updated = await access.update("posts", "post-1", {
+					seo: {
+						title: "Custom SEO Title",
+						description: "A better meta description",
+						canonical: "https://example.com/canonical",
+						noIndex: false,
+					},
+				});
+
+				expect(updated.seo).toEqual({
+					title: "Custom SEO Title",
+					description: "A better meta description",
+					image: null,
+					canonical: "https://example.com/canonical",
+					noIndex: false,
+				});
+
+				// Verify it persisted via a subsequent read
+				const fresh = await access.get("posts", "post-1");
+				expect(fresh!.seo?.title).toBe("Custom SEO Title");
+				expect(fresh!.seo?.description).toBe("A better meta description");
+			});
+
+			it("update() accepts field updates alongside seo in a single call", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const updated = await access.update("posts", "post-1", {
+					title: "Updated Title",
+					seo: {
+						title: "SEO Title",
+						description: "SEO Description",
+					},
+				});
+
+				expect(updated.data.title).toBe("Updated Title");
+				expect(updated.seo?.title).toBe("SEO Title");
+				expect(updated.seo?.description).toBe("SEO Description");
+			});
+
+			it("update() only overwrites explicitly-set seo fields (partial updates)", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				await access.update("posts", "post-1", {
+					seo: { title: "Initial Title", description: "Initial Description" },
+				});
+
+				const updated = await access.update("posts", "post-1", {
+					seo: { title: "Updated Title" },
+				});
+
+				expect(updated.seo?.title).toBe("Updated Title");
+				// description must not be clobbered by a partial update
+				expect(updated.seo?.description).toBe("Initial Description");
+			});
+
+			it("create() routes `seo` to the SEO panel", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", {
+					title: "New Post",
+					content: "Body",
+					seo: {
+						title: "Brand New SEO",
+						description: "New Description",
+					},
+				});
+
+				expect(created.data.title).toBe("New Post");
+				expect(created.seo?.title).toBe("Brand New SEO");
+				expect(created.seo?.description).toBe("New Description");
+
+				const fresh = await access.get("posts", created.id);
+				expect(fresh!.seo?.title).toBe("Brand New SEO");
+			});
+
+			it("update() throws when seo is provided on a collection without SEO enabled", async () => {
+				// Disable SEO on posts
+				await db
+					.updateTable("_emdash_collections")
+					.set({ has_seo: 0 })
+					.where("slug", "=", "posts")
+					.execute();
+
+				const access = createContentAccessWithWrite(db);
+
+				await expect(
+					access.update("posts", "post-1", {
+						seo: { title: "Won't work" },
+					}),
+				).rejects.toThrow(SEO_NOT_ENABLED_REGEX);
+			});
+
+			it("list() hydrates seo for each item in SEO-enabled collections", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				await access.update("posts", "post-1", {
+					seo: { title: "Post One SEO" },
+				});
+				await access.update("posts", "post-2", {
+					seo: { title: "Post Two SEO" },
+				});
+
+				const result = await access.list("posts");
+				expect(result.items).toHaveLength(2);
+
+				const byId = new Map(result.items.map((i) => [i.id, i]));
+				expect(byId.get("post-1")?.seo?.title).toBe("Post One SEO");
+				expect(byId.get("post-2")?.seo?.title).toBe("Post Two SEO");
 			});
 		});
 	});

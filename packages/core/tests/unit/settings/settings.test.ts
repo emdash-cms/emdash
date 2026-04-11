@@ -1,8 +1,11 @@
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach } from "vitest";
 
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import {
+	getPluginSettingWithDb,
+	getPluginSettingsWithDb,
 	getSiteSettingWithDb,
 	getSiteSettingsWithDb,
 	setSiteSettings,
@@ -150,6 +153,39 @@ describe("Site Settings", () => {
 			expect(settings.dateFormat).toBe("MMMM d, yyyy");
 			expect(settings.timezone).toBe("America/New_York");
 			expect(settings.social?.twitter).toBe("@test");
+		});
+	});
+
+	describe("Plugin settings", () => {
+		it("should return undefined for unset plugin settings", async () => {
+			await expect(getPluginSettingWithDb("demo-plugin", "title", db)).resolves.toBeUndefined();
+		});
+
+		it("should return stored plugin settings", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("plugin:demo-plugin:settings:title", "Hello world");
+			await options.set("plugin:demo-plugin:settings:enabled", true);
+
+			await expect(getPluginSettingWithDb("demo-plugin", "title", db)).resolves.toBe("Hello world");
+			await expect(getPluginSettingsWithDb("demo-plugin", db)).resolves.toEqual({
+				title: "Hello world",
+				enabled: true,
+			});
+		});
+
+		it("treats wildcard characters in plugin IDs as literal prefix text", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("plugin:alpha%beta:settings:title", "literal-percent");
+			await options.set("plugin:alphaxbeta:settings:title", "wrong-percent-match");
+			await options.set("plugin:alpha_beta:settings:title", "literal-underscore");
+			await options.set("plugin:alphazbeta:settings:title", "wrong-underscore-match");
+
+			await expect(getPluginSettingsWithDb("alpha%beta", db)).resolves.toEqual({
+				title: "literal-percent",
+			});
+			await expect(getPluginSettingsWithDb("alpha_beta", db)).resolves.toEqual({
+				title: "literal-underscore",
+			});
 		});
 	});
 

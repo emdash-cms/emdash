@@ -28,7 +28,7 @@ describe("passkey-config", () => {
 			expect(config.origin).toBe("http://emdash.local:8080");
 		});
 
-		it("HTTPS listener on proxy with HTTP upstream: passkeyPublicOrigin aligns origin with browser", () => {
+		it("HTTPS listener on proxy with HTTP upstream: siteUrl aligns origin with browser", () => {
 			const urlAstroSeesFromForwardedHttp = urlAfterTrustedProxy(
 				"/_emdash/api/setup/admin",
 				"emdash.local:8080",
@@ -43,11 +43,9 @@ describe("passkey-config", () => {
 	});
 
 	describe("getPasskeyConfig()", () => {
-		it("throws when passkeyPublicOrigin is not a valid URL", () => {
+		it("throws when siteUrl is not a valid URL", () => {
 			const url = new URL("http://localhost:4321/admin");
-			expect(() => getPasskeyConfig(url, "Site", "::not-a-url")).toThrow(
-				"Invalid passkeyPublicOrigin",
-			);
+			expect(() => getPasskeyConfig(url, "Site", "::not-a-url")).toThrow("Invalid siteUrl");
 		});
 
 		it("extracts rpId from localhost URL", () => {
@@ -139,7 +137,7 @@ describe("passkey-config", () => {
 			expect(fromServer.origin).not.toBe(fromBrowser.origin);
 		});
 
-		it("passkeyPublicOrigin overrides origin and rpId (TLS termination and loopback request URL)", () => {
+		it("siteUrl overrides origin and rpId (TLS termination and loopback request URL)", () => {
 			const fromForwardedHttp = getPasskeyConfig(
 				new URL("http://emdash.local:8443/_emdash/api/setup/admin"),
 				"My Site",

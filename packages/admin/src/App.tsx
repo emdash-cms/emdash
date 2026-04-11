@@ -9,6 +9,9 @@
  */
 
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import type { Messages } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
@@ -33,6 +36,10 @@ const router = createAdminRouter(queryClient);
 export interface AdminAppProps {
 	/** Plugin admin modules keyed by plugin ID */
 	pluginAdmins?: PluginAdmins;
+	/** Active locale code */
+	locale?: string;
+	/** Compiled Lingui messages for the active locale */
+	messages?: Messages;
 }
 
 /**
@@ -40,20 +47,32 @@ export interface AdminAppProps {
  */
 const EMPTY_PLUGINS: PluginAdmins = {};
 
-export function AdminApp({ pluginAdmins = EMPTY_PLUGINS }: AdminAppProps) {
+export function AdminApp({
+	pluginAdmins = EMPTY_PLUGINS,
+	locale = "en",
+	messages = {},
+}: AdminAppProps) {
 	React.useEffect(() => {
 		document.getElementById("emdash-boot-loader")?.remove();
 	}, []);
 
+	const i18nInitialized = React.useRef(false);
+	if (!i18nInitialized.current) {
+		i18n.loadAndActivate({ locale, messages });
+		i18nInitialized.current = true;
+	}
+
 	return (
 		<ThemeProvider>
-			<Toasty>
-				<PluginAdminProvider pluginAdmins={pluginAdmins}>
-					<QueryClientProvider client={queryClient}>
-						<RouterProvider router={router} />
-					</QueryClientProvider>
-				</PluginAdminProvider>
-			</Toasty>
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<PluginAdminProvider pluginAdmins={pluginAdmins}>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</PluginAdminProvider>
+				</Toasty>
+			</I18nProvider>
 		</ThemeProvider>
 	);
 }
