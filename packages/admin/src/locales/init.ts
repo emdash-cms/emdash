@@ -1,8 +1,12 @@
 /**
  * Pre-initialize i18n with English locale.
  *
- * This MUST be imported first in index.ts to ensure i18n is ready
- * before any other module executes module-level t`...` calls.
+ * This MUST be imported in BOTH:
+ * 1. index.ts (client-side entry point)
+ * 2. admin.astro (server-side Astro route)
+ *
+ * This ensures i18n is initialized before any module-level t`...` calls
+ * execute, regardless of Astro's island hydration order.
  *
  * Side-effect import - modifies global i18n instance.
  */
