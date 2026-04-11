@@ -10,6 +10,8 @@ export interface CreateContentInput {
 	locale?: string;
 	translationOf?: string;
 	publishedAt?: string | null;
+	/** Override created_at (ISO 8601). Used by importers to preserve original dates. */
+	createdAt?: string | null;
 }
 
 export interface UpdateContentInput {
