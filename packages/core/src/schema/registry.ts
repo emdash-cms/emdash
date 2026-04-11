@@ -595,6 +595,11 @@ export class SchemaRegistry {
 			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_created_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
 		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
+		`.execute(conn);
 	}
 
 	/**

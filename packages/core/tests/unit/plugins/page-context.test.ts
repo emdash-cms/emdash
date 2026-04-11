@@ -21,12 +21,14 @@ describe("createPublicPageContext", () => {
 			},
 			kind: "content",
 			title: "Hello",
+			pageTitle: "Hello",
 		});
 
 		expect(result.url).toBe("https://example.com/blog/hello");
 		expect(result.path).toBe("/blog/hello");
 		expect(result.locale).toBe("en");
 		expect(result.title).toBe("Hello");
+		expect(result.pageTitle).toBe("Hello");
 	});
 
 	it("accepts URL string input", () => {
@@ -81,6 +83,16 @@ describe("createPublicPageContext", () => {
 		});
 
 		expect(result.locale).toBeNull();
+	});
+
+	it("normalizes undefined pageTitle to null", () => {
+		const result = createPublicPageContext({
+			url: "https://example.com/about",
+			kind: "custom",
+			title: "About | My Site",
+		});
+
+		expect(result.pageTitle).toBeNull();
 	});
 
 	it("normalizes content slug undefined to null", () => {

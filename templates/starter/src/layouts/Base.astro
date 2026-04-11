@@ -12,6 +12,7 @@ import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 interface Props {
 	title: string;
+	pageTitle?: string | null;
 	description?: string | null;
 	image?: string | null;
 	canonical?: string | null;
@@ -19,7 +20,7 @@ interface Props {
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, canonical, content } = Astro.props;
+const { title, pageTitle, description, image, canonical, content } = Astro.props;
 const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveStarterSiteIdentity(await getSiteSettings());
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 const pageDescription = description ?? siteTagline;
@@ -31,6 +32,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: "website",
 	title: fullTitle,
+	pageTitle: pageTitle ?? title,
 	description: pageDescription,
 	canonical,
 	image,

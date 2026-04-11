@@ -25,6 +25,7 @@ const pageCtx = createPublicPageContext({
 	kind: "custom",
 	pageType: type,
 	title: fullTitle,
+	pageTitle: title ?? siteTitle,
 	description: description || siteDescription,
 	canonical: Astro.url.href,
 	image,

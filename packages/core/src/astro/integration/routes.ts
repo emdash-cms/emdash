@@ -671,6 +671,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/sitemap-[collection].xml",
+		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
+	});
+
+	injectRoute({
 		pattern: "/robots.txt",
 		entrypoint: resolveRoute("robots.txt.ts"),
 	});

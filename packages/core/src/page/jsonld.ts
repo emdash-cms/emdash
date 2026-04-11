@@ -33,7 +33,7 @@ export function cleanJsonLd(obj: Record<string, unknown>): Record<string, unknow
 export function buildBlogPostingJsonLd(page: PublicPageContext): Record<string, unknown> | null {
 	if (page.pageType !== "article" || !page.canonical) return null;
 
-	const ogTitle = page.seo?.ogTitle || page.title;
+	const ogTitle = page.seo?.ogTitle ?? page.pageTitle ?? page.title;
 	const description = page.seo?.ogDescription || page.description;
 	const ogImage = page.seo?.ogImage || page.image;
 	const publishedTime = page.articleMeta?.publishedTime;

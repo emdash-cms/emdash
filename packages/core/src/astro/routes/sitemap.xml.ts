@@ -1,13 +1,11 @@
 /**
- * Sitemap XML endpoint
+ * Sitemap index endpoint
  *
- * GET /sitemap.xml - Auto-generated sitemap from published content
+ * GET /sitemap.xml - Sitemap index listing one sitemap per collection.
  *
- * Includes all published, non-noindex content across all collections.
- * The site URL is read from site settings or the request URL origin.
- *
- * Default URL pattern: /{collection}/{slug-or-id}. Users can override
- * by creating their own /sitemap.xml route in their Astro project.
+ * Each collection with published, indexable content gets its own
+ * child sitemap at /sitemap-{collection}.xml. The index includes
+ * a <lastmod> per child derived from the most recently updated entry.
  */
 
 import type { APIRoute } from "astro";
@@ -36,7 +34,6 @@ export const GET: APIRoute = async ({ locals, url }) => {
 	}
 
 	try {
-		// Determine site URL from settings or request origin
 		const settings = await getSiteSettingsWithDb(emdash.db);
 		const siteUrl = (settings.url || getPublicOrigin(url, emdash?.config)).replace(
 			TRAILING_SLASH_RE,
@@ -52,28 +49,22 @@ export const GET: APIRoute = async ({ locals, url }) => {
 			});
 		}
 
-		const entries = result.data.entries;
+		const { collections } = result.data;
 
-		// Build XML
 		const lines: string[] = [
 			'<?xml version="1.0" encoding="UTF-8"?>',
-			'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+			'<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		];
 
-		for (const entry of entries) {
-			// Default URL pattern: /{collection}/{identifier}
-			// Encode path segments to handle slugs with spaces/unicode/reserved chars
-			const loc = `${siteUrl}/${encodeURIComponent(entry.collection)}/${encodeURIComponent(entry.identifier)}`;
-
-			lines.push("  <url>");
+		for (const col of collections) {
+			const loc = `${siteUrl}/sitemap-${encodeURIComponent(col.collection)}.xml`;
+			lines.push("  <sitemap>");
 			lines.push(`    <loc>${escapeXml(loc)}</loc>`);
-			lines.push(`    <lastmod>${escapeXml(entry.updatedAt)}</lastmod>`);
-			lines.push("    <changefreq>weekly</changefreq>");
-			lines.push("    <priority>0.7</priority>");
-			lines.push("  </url>");
+			lines.push(`    <lastmod>${escapeXml(col.lastmod)}</lastmod>`);
+			lines.push("  </sitemap>");
 		}
 
-		lines.push("</urlset>");
+		lines.push("</sitemapindex>");
 
 		return new Response(lines.join("\n"), {
 			status: 200,
