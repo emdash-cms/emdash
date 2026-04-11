@@ -235,33 +235,15 @@ export async function decrypt(encrypted: string, secret: string): Promise<string
 }
 
 // ============================================================================
-// HKDF-based encryption (for storing high-entropy secrets like TOTP keys)
+// HKDF-based encryption (for high-entropy secrets like TOTP keys)
 // ============================================================================
-//
-// PBKDF2 (the encrypt/decrypt path above) is the right primitive for
-// password-derived secrets — it deliberately costs ~50-100ms per call to
-// resist offline brute force. That cost is fine for OAuth client secrets
-// (decrypted rarely) but wrong for TOTP secrets, which are decrypted on
-// every login attempt and are already 160 bits of cryptographic randomness.
-//
-// HKDF (RFC 5869) is the correct KDF for already-random key material:
-// it's near-instant (microseconds), deterministic, and doesn't need a
-// process-local cache to be fast. We use it for the TOTP encryption path.
-//
-// Both paths target the same AES-GCM-256 cipher and the same on-disk format
-// (IV || ciphertext, base64url-encoded). The two paths are NOT interchangeable
-// at decrypt time — a value encrypted with PBKDF2 cannot be decrypted with
-// HKDF or vice versa, because the derived keys differ.
+// PBKDF2 is correct for password-derived secrets. For already-random
+// key material (RFC 5869 HKDF) is the right primitive — near-instant,
+// no cache needed. The two paths are NOT wire-compatible.
 
 const HKDF_SALT = new TextEncoder().encode("emdash-totp-encryption-v1");
 const HKDF_INFO = new TextEncoder().encode("emdash-totp-secret-encryption");
 
-/**
- * Derive an AES-GCM key from a high-entropy auth secret via HKDF-SHA256.
- *
- * Use this for encrypting already-random key material (TOTP secrets, etc.).
- * For password-derived secrets, use the PBKDF2 path via encrypt()/decrypt().
- */
 async function deriveKeyHKDF(secret: string): Promise<CryptoKey> {
 	const decoded = decodeBase64urlIgnorePadding(secret);
 	const buffer = new Uint8Array(decoded).buffer;
@@ -281,13 +263,7 @@ async function deriveKeyHKDF(secret: string): Promise<CryptoKey> {
 	);
 }
 
-/**
- * Encrypt a value using AES-GCM with an HKDF-derived key.
- *
- * Wire-format compatible with decryptWithHKDF only — values encrypted here
- * CANNOT be decrypted by decrypt() (and vice versa) because the key
- * derivation paths differ.
- */
+/** AES-GCM with an HKDF-derived key. Not wire-compatible with encrypt(). */
 export async function encryptWithHKDF(plaintext: string, secret: string): Promise<string> {
 	const key = await deriveKeyHKDF(secret);
 	const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
@@ -302,9 +278,6 @@ export async function encryptWithHKDF(plaintext: string, secret: string): Promis
 	return encodeBase64urlNoPadding(combined);
 }
 
-/**
- * Decrypt a value encrypted with encryptWithHKDF().
- */
 export async function decryptWithHKDF(encrypted: string, secret: string): Promise<string> {
 	const key = await deriveKeyHKDF(secret);
 	const combined = decodeBase64urlIgnorePadding(encrypted);
