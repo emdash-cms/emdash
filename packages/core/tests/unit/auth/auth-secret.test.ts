@@ -65,6 +65,26 @@ describe("resolveAuthSecret", () => {
 		const result = resolveAuthSecret();
 		expect(result.ok).toBe(true);
 	});
+
+	it("returns invalid_format for non-base64url characters", () => {
+		vi.stubEnv("EMDASH_AUTH_SECRET", "plain-text-secret-that-is-long@enough!!");
+		expect(resolveAuthSecret()).toEqual({ ok: false, reason: "invalid_format" });
+	});
+
+	it("returns invalid_format for standard base64 padding", () => {
+		// Standard base64 uses + and /; base64url uses - and _. A deployer
+		// who generates a 32-char secret with `openssl base64` without
+		// the url-safe flag hits this path.
+		vi.stubEnv("EMDASH_AUTH_SECRET", "abcdefghijklmnopqrstuvwxyz+/1234");
+		expect(resolveAuthSecret()).toEqual({ ok: false, reason: "invalid_format" });
+	});
+
+	it("accepts a 43-char base64url string (emdash auth secret output)", () => {
+		// 32 bytes -> ceil(32 * 8 / 6) = 43 base64url chars, no padding.
+		vi.stubEnv("EMDASH_AUTH_SECRET", "abcdef-_0123456789ABCDEFGHIJKLMNOPQRSTUVWXY");
+		const result = resolveAuthSecret();
+		expect(result.ok).toBe(true);
+	});
 });
 
 describe("authSecretFailureMessage", () => {
@@ -79,6 +99,12 @@ describe("authSecretFailureMessage", () => {
 		const msg = authSecretFailureMessage("too_short");
 		expect(msg).toContain("EMDASH_AUTH_SECRET");
 		expect(msg).toContain("32 characters");
+		expect(msg).toContain("emdash auth secret");
+	});
+
+	it("explains the base64url requirement when the format is invalid", () => {
+		const msg = authSecretFailureMessage("invalid_format");
+		expect(msg).toContain("base64url");
 		expect(msg).toContain("emdash auth secret");
 	});
 });
