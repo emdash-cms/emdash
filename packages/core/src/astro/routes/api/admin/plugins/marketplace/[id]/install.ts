@@ -41,13 +41,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			emdash.configuredPlugins.map((p: { id: string }) => p.id),
 		);
 
+		const siteOrigin = new URL(request.url).origin;
+
 		const result = await handleMarketplaceInstall(
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
 			emdash.config.marketplace,
 			id,
-			{ version: body.version, configuredPluginIds },
+			{ version: body.version, configuredPluginIds, siteOrigin },
 		);
 
 		if (!result.success) return unwrapResult(result);

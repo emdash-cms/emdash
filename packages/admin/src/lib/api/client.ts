@@ -55,6 +55,7 @@ export interface AdminManifest {
 			labelSingular: string;
 			supports: string[];
 			hasSeo: boolean;
+			urlPattern?: string;
 			fields: Record<
 				string,
 				{
@@ -63,6 +64,7 @@ export interface AdminManifest {
 					required?: boolean;
 					widget?: string;
 					options?: Array<{ value: string; label: string }>;
+					validation?: Record<string, unknown>;
 				}
 			>;
 		}
