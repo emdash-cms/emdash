@@ -77,6 +77,9 @@ export {
 // Passkey
 export * from "./passkey/index.js";
 
+// TOTP (authenticator app)
+export * from "./totp/index.js";
+
 // Magic Link
 export {
 	sendMagicLink,

@@ -17,6 +17,10 @@
       "types": "./dist/passkey/index.d.mts",
       "default": "./dist/passkey/index.mjs"
     },
+    "./totp": {
+      "types": "./dist/totp/index.d.mts",
+      "default": "./dist/totp/index.mjs"
+    },
     "./adapters/kysely": {
       "types": "./dist/adapters/kysely.d.mts",
       "default": "./dist/adapters/kysely.mjs"
