@@ -1,15 +1,17 @@
 ---
-import { getEmDashCollection } from "emdash";
+import { getEmDashCollection, getSiteSettings } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
+import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
 });
+const { siteTitle, siteTagline } = resolveStarterSiteIdentity(await getSiteSettings());
 Astro.cache.set(cacheHint);
 ---
 
-<Base title="My Site">
+<Base title={siteTitle} description={siteTagline}>
 	<h1>Recent Posts</h1>
 
 	{

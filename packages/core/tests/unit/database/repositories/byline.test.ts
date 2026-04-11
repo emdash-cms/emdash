@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { BylineRepository } from "../../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
 import type { Database } from "../../../../src/database/types.js";
+import { SQL_BATCH_SIZE } from "../../../../src/utils/chunks.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../../utils/test-db.js";
 
 describe("BylineRepository", () => {
@@ -137,6 +138,96 @@ describe("BylineRepository", () => {
 		const bylines = await bylineRepo.getContentBylines("post", content.id);
 		expect(bylines[0]?.byline.id).toBe(second.id);
 		expect(bylines[1]?.byline.id).toBe(first.id);
+	});
+
+	it("getContentBylinesMany handles more IDs than SQL_BATCH_SIZE", async () => {
+		const byline = await bylineRepo.create({
+			slug: "batch-author",
+			displayName: "Batch Author",
+		});
+
+		// Create a few real content entries with bylines
+		const realIds: string[] = [];
+		for (let i = 0; i < 3; i++) {
+			const content = await contentRepo.create({
+				type: "post",
+				slug: `batch-post-${i}`,
+				data: { title: `Batch Post ${i}` },
+			});
+			await bylineRepo.setContentBylines("post", content.id, [{ bylineId: byline.id }]);
+			realIds.push(content.id);
+		}
+
+		// Build an ID list larger than SQL_BATCH_SIZE with the real IDs spread across chunks
+		const ids: string[] = [];
+		for (let i = 0; i < SQL_BATCH_SIZE + 10; i++) {
+			ids.push(`fake-id-${i}`);
+		}
+		// Place real IDs so they span different chunks
+		ids[0] = realIds[0]!;
+		ids[SQL_BATCH_SIZE - 1] = realIds[1]!;
+		ids[SQL_BATCH_SIZE + 5] = realIds[2]!;
+
+		const result = await bylineRepo.getContentBylinesMany("post", ids);
+
+		// All 3 real entries should have their byline resolved
+		expect(result.get(realIds[0]!)).toHaveLength(1);
+		expect(result.get(realIds[1]!)).toHaveLength(1);
+		expect(result.get(realIds[2]!)).toHaveLength(1);
+		expect(result.get(realIds[0]!)![0]!.byline.id).toBe(byline.id);
+	});
+
+	it("getContentBylinesMany does not duplicate credits for repeated content IDs", async () => {
+		const byline = await bylineRepo.create({
+			slug: "duplicate-batch-author",
+			displayName: "Duplicate Batch Author",
+		});
+
+		const content = await contentRepo.create({
+			type: "post",
+			slug: "duplicate-batch-post",
+			data: { title: "Duplicate Batch Post" },
+		});
+		await bylineRepo.setContentBylines("post", content.id, [{ bylineId: byline.id }]);
+
+		const ids: string[] = [];
+		for (let i = 0; i < SQL_BATCH_SIZE + 10; i++) {
+			ids.push(`fake-id-${i}`);
+		}
+		ids[0] = content.id;
+		ids[SQL_BATCH_SIZE + 5] = content.id;
+
+		const result = await bylineRepo.getContentBylinesMany("post", ids);
+
+		expect(result.get(content.id)).toHaveLength(1);
+		expect(result.get(content.id)?.[0]?.byline.id).toBe(byline.id);
+	});
+
+	it("findByUserIds handles more IDs than SQL_BATCH_SIZE", async () => {
+		// Create a real user so the FK constraint is satisfied
+		const userId = "user-batch-test";
+		await db
+			.insertInto("users" as any)
+			.values({ id: userId, email: "batch@test.com", name: "Batch", role: 50 })
+			.execute();
+
+		const byline = await bylineRepo.create({
+			slug: "user-batch",
+			displayName: "User Batch",
+			userId,
+		});
+
+		// Build a user ID list larger than SQL_BATCH_SIZE
+		const userIds: string[] = [];
+		for (let i = 0; i < SQL_BATCH_SIZE + 10; i++) {
+			userIds.push(`user-fake-${i}`);
+		}
+		userIds[SQL_BATCH_SIZE + 5] = userId;
+
+		const result = await bylineRepo.findByUserIds(userIds);
+
+		expect(result.size).toBe(1);
+		expect(result.get(userId)?.id).toBe(byline.id);
 	});
 
 	it("deletes byline, removes links, and nulls primary_byline_id", async () => {
