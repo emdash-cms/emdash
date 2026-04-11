@@ -1,8 +1,13 @@
 /**
  * POST /_emdash/api/auth/totp/login — ongoing login via authenticator
- * app OR single-use recovery code. Returns the same INVALID_CREDENTIALS
- * shape for every wrong-credential path so response body + timing can't
- * distinguish "user missing" from "wrong code" from "disabled".
+ * app OR single-use recovery code. Every wrong-credential path returns
+ * the same INVALID_CREDENTIALS response body so the shape alone can't
+ * distinguish "user missing" from "wrong code" from "disabled" from
+ * "locked". Response timing is NOT uniform — missing users and users
+ * without TOTP return before the decrypt/HMAC step — so this route is
+ * not constant-time against an attacker who can measure network
+ * latency precisely. Upstream rate limiting (5/15min per IP per
+ * method) is the primary defense against enumeration probes.
  */
 
 import type { APIRoute } from "astro";

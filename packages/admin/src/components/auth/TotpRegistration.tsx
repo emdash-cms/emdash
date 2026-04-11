@@ -43,6 +43,7 @@ interface AdminTotpVerifyResponse {
 type Stage =
 	| { kind: "loading" }
 	| { kind: "config-error"; message: string }
+	| { kind: "start-error"; message: string }
 	| {
 			kind: "qr";
 			challengeId: string;
@@ -126,7 +127,10 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 				setStage({ kind: "config-error", message: err.message });
 				return;
 			}
-			setError(err.message || t`Couldn't start setup. Refresh and try again.`);
+			// Any other failure: transition to an error stage with a
+			// retry button so the user isn't stuck on a loading spinner.
+			const message = err.message || t`Couldn't start setup. Try again.`;
+			setStage({ kind: "start-error", message });
 		},
 	});
 
@@ -159,7 +163,7 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (stage.kind !== "qr") return;
+		if (stage.kind !== "qr" || verifyMutation.isPending) return;
 		if (code.length !== 6 || !SIX_DIGITS_REGEX.test(code)) return;
 		setError(null);
 		verifyMutation.mutate({ challengeId: stage.challengeId, code });
@@ -168,7 +172,12 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 	const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const sanitized = e.target.value.replace(SANITIZE_REGEX, "").slice(0, 6);
 		setCode(sanitized);
-		if (sanitized.length === 6 && SIX_DIGITS_REGEX.test(sanitized) && stage.kind === "qr") {
+		if (
+			sanitized.length === 6 &&
+			SIX_DIGITS_REGEX.test(sanitized) &&
+			stage.kind === "qr" &&
+			!verifyMutation.isPending
+		) {
 			verifyMutation.mutate({ challengeId: stage.challengeId, code: sanitized });
 		}
 	};
@@ -230,6 +239,25 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 					className="w-full justify-center"
 				>
 					{t`Retry`}
+				</Button>
+			</div>
+		);
+	}
+
+	if (stage.kind === "start-error") {
+		return (
+			<div className="space-y-4 text-center" role="alert">
+				<p className="text-sm text-kumo-danger">{stage.message}</p>
+				<Button
+					type="button"
+					variant="primary"
+					onClick={() => {
+						setStage({ kind: "loading" });
+						startMutation.mutate();
+					}}
+					className="w-full justify-center"
+				>
+					{t`Try again`}
 				</Button>
 			</div>
 		);
