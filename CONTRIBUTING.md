@@ -187,10 +187,122 @@ Your site will use `workspace:*` links to the local packages, so any changes you
 4. Check authorization with `requirePerm()` on all state-changing routes.
 5. Register the route in `packages/core/src/astro/integration/routes.ts`.
 
+## Contribution Policy
+
+### What we accept
+
+| Type             | Process                                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                                  |
+| **Docs / typos** | Open a PR directly.                                                                                                                  |
+| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first. Wait for approval before writing code. |
+| **Refactors**    | Open a Discussion first. Refactors are opinionated and need alignment.                                                               |
+| **Performance**  | Open a Discussion first with benchmarks showing the improvement.                                                                     |
+
+**PRs that add features without a prior approved Discussion will be closed.** This isn't about gatekeeping — it's about not wasting your time on work that might not align with the project's direction. Talk to us first and we'll figure out the right approach together.
+
+### AI-generated PRs
+
+We welcome AI-assisted contributions. They are held to the same quality bar as any other PR:
+
+- The submitter is responsible for the code's correctness, not the AI tool.
+- AI-generated PRs must pass all CI checks, follow the project's code patterns, and include tests.
+- The PR template has an AI disclosure checkbox — please check it. This isn't punitive; it helps reviewers know to pay extra attention to edge cases that AI tools commonly miss.
+- Bulk/spray PRs across the repo (e.g., "fix all lint warnings", "add types everywhere") will be closed. If you see a pattern worth fixing, open a Discussion first.
+
+### What we don't accept
+
+- **Drive-by feature additions.** If there's no Discussion, there's no PR.
+- **Speculative refactors** that don't solve a concrete problem.
+- **Dependency upgrades** outside of Renovate/Dependabot. We manage these centrally.
+- **"Improvements"** to code you haven't been asked to change (added logging, extra error handling, style changes in unrelated files).
+
+## Changesets
+
+Every PR that changes the behavior of a published package needs a **changeset** — a small Markdown file that describes the change for the CHANGELOG and determines the version bump. Without a changeset, the change won't trigger a package release.
+
+### When you need one
+
+- Bug fixes, features, refactors, or any other change that affects a published package's behavior or API.
+- Changes that span multiple packages need one changeset listing all affected packages.
+- If a PR makes more than one distinct change, add a separate changeset for each. Each one becomes its own CHANGELOG entry.
+
+### When you don't
+
+- Docs-only changes, test-only changes, CI/tooling changes, or changes to demo apps and templates (these are in the changeset ignore list).
+
+### How to add one
+
+Run from the repo root:
+
+```bash
+pnpm changeset
+```
+
+This walks you through selecting the affected package(s), the semver bump type, and a description. It creates a randomly-named `.md` file in `.changeset/`.
+
+You can also create one manually — see the existing files in `.changeset/` for the format.
+
+### Writing the description
+
+Start with a present-tense verb describing what the change does, as if completing "This PR...":
+
+- **Adds** — a new feature or capability
+- **Fixes** — a bug fix
+- **Updates** — an enhancement to existing behavior
+- **Removes** — removed functionality
+- **Refactors** — internal restructuring with no behavior change
+
+Focus on how the change affects someone **using** the package, not implementation details. The description ends up in the CHANGELOG, which people read once during upgrades.
+
+**Patch** (bug fixes, refactors, small improvements):
+
+```markdown
+---
+"emdash": patch
+---
+
+Fixes CLI `--json` flag so JSON output is clean. Log messages now go to stderr when `--json` is set.
+```
+
+**Minor** (new features, non-breaking additions):
+
+```markdown
+---
+"emdash": minor
+---
+
+Adds `scheduled_at` field to content entries, enabling scheduled publishing via the admin UI.
+```
+
+**Major** (breaking changes) — include migration guidance:
+
+```markdown
+---
+"emdash": major
+---
+
+Removes the `legacyAuth` option from the integration config. All sites must use passkey authentication.
+
+To migrate, remove `legacyAuth: true` from your `emdash()` config in `astro.config.mjs`.
+```
+
+### Which packages?
+
+Only published packages need changesets. Demos, templates, docs, and test fixtures are excluded. The main packages are:
+
+- `emdash` (core)
+- `@emdash-cms/admin`, `@emdash-cms/auth`, `@emdash-cms/cloudflare`, `@emdash-cms/blocks`
+- `create-emdash`
+- First-party plugins (`@emdash-cms/plugin-*`)
+
+When in doubt, run `pnpm changeset` and it will only show packages that aren't ignored.
+
 ## Commits and PRs
 
 - Branch from `main`.
 - Commit messages: describe _why_, not just _what_.
+- Fill out the PR template completely. PRs with an empty template will be closed.
 - Ensure `pnpm typecheck` and `pnpm --silent lint:json` pass before pushing.
 - Run relevant tests.
 

@@ -28,6 +28,7 @@ export interface ManifestCollection {
 	labelSingular: string;
 	supports: string[];
 	hasSeo: boolean;
+	urlPattern?: string;
 	fields: Record<
 		string,
 		{
