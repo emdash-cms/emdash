@@ -26,7 +26,9 @@
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
-		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
+		"lunaria:build": "node --experimental-strip-types i18n/build.ts",
+		"lunaria:deploy": "pnpm run lunaria:build && wrangler deploy --config i18n/wrangler.jsonc"
 	},
 	"keywords": [],
 	"author": "Matt Kane",
