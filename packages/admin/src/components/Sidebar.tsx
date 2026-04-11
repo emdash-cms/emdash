@@ -210,9 +210,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		}
 	}
 
-	manageItems.push(
-		{ to: "/bylines", label: "Bylines", icon: FileText, minRole: ROLE_EDITOR },
-	);
+	manageItems.push({ to: "/bylines", label: "Bylines", icon: FileText, minRole: ROLE_EDITOR });
 
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: "Content Types", icon: Database, minRole: ROLE_ADMIN },
