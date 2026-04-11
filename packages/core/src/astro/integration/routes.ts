@@ -691,6 +691,19 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/setup/admin-verify.ts"),
 	});
 
+	// TOTP (authenticator app) setup path — sibling to /setup/admin
+	// for deployers who want the authenticator-app flow instead of
+	// passkeys for first-run admin creation.
+	injectRoute({
+		pattern: "/_emdash/api/setup/admin-totp",
+		entrypoint: resolveRoute("api/setup/admin-totp.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/setup/admin-totp-verify",
+		entrypoint: resolveRoute("api/setup/admin-totp-verify.ts"),
+	});
+
 	injectRoute({
 		pattern: "/_emdash/api/setup/dev-bypass",
 		entrypoint: resolveRoute("api/setup/dev-bypass.ts"),
@@ -760,6 +773,15 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/auth/passkey/[id]",
 		entrypoint: resolveRoute("api/auth/passkey/[id].ts"),
+	});
+
+	// TOTP (authenticator app) login — accepts either a 6-digit code
+	// from the user's authenticator app OR a recovery code via a
+	// discriminated-union body. Sibling to /auth/passkey/verify and
+	// /auth/magic-link/verify.
+	injectRoute({
+		pattern: "/_emdash/api/auth/totp/login",
+		entrypoint: resolveRoute("api/auth/totp/login.ts"),
 	});
 
 	injectRoute({
