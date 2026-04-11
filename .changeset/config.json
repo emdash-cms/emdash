@@ -13,6 +13,10 @@
 	"baseBranch": "main",
 	"updateInternalDependencies": "minor",
 	"bumpVersionsWithWorkspaceProtocolOnly": true,
+	"___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+		"onlyUpdatePeerDependentsWhenOutOfRange": true,
+		"updateInternalDependents": "out-of-range"
+	},
 	"ignore": [
 		"@emdash-cms/blocks-playground",
 		"@emdash-cms/demo-cloudflare",
