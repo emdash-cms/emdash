@@ -4,8 +4,8 @@
  * Allows admins to list, create, and revoke Personal Access Tokens.
  */
 
-import { t } from "@lingui/core/macro";
 import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
+import { t } from "@lingui/core/macro";
 import {
 	ArrowLeft,
 	Copy,

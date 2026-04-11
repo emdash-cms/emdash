@@ -4,8 +4,8 @@
  * Shown to new users on their first login to welcome them to EmDash.
  */
 
-import { t } from "@lingui/core/macro";
 import { Button, Dialog } from "@cloudflare/kumo";
+import { t } from "@lingui/core/macro";
 import { X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";

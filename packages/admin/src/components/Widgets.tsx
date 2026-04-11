@@ -6,7 +6,6 @@
  * Widgets within an area can be reordered via drag-and-drop.
  */
 
-import { t } from "@lingui/core/macro";
 import { Button, Dialog, Input, Label, Select, Switch, Toast } from "@cloudflare/kumo";
 import {
 	DndContext,
@@ -30,6 +29,7 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { t } from "@lingui/core/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

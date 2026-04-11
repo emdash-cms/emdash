@@ -10,9 +10,9 @@
  * Uses Floating UI for positioning relative to the selected block.
  */
 
-import { t } from "@lingui/core/macro";
 import { Button } from "@cloudflare/kumo";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import { t } from "@lingui/core/macro";
 import {
 	DotsSixVertical,
 	Paragraph,

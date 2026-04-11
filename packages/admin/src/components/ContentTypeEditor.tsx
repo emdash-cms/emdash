@@ -1,4 +1,3 @@
-import { t } from "@lingui/core/macro";
 import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo";
 import {
 	DndContext,
@@ -17,6 +16,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { t } from "@lingui/core/macro";
 import {
 	ArrowLeft,
 	Plus,

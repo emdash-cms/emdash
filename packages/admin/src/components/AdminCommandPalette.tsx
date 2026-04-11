@@ -5,9 +5,9 @@
  * Opens with Cmd+K (Mac) or Ctrl+K (Windows/Linux).
  */
 
+import { CommandPalette } from "@cloudflare/kumo";
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { CommandPalette } from "@cloudflare/kumo";
 import {
 	SquaresFour,
 	FileText,

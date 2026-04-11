@@ -6,8 +6,8 @@
  * Used by the rich text editor and image field components.
  */
 
-import { useLingui } from "@lingui/react/macro";
 import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { Upload, Image, Check, Globe, MagnifyingGlass } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

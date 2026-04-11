@@ -11,11 +11,11 @@
  * - Floating menu on empty lines
  */
 
-import { t } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	TextB,
 	TextItalic,

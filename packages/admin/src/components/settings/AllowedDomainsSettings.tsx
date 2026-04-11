@@ -5,8 +5,8 @@
  * is configured, this page shows an informational message instead.
  */
 
-import { t } from "@lingui/core/macro";
 import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
+import { t } from "@lingui/core/macro";
 import {
 	Globe,
 	Plus,
