@@ -19,13 +19,10 @@
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 
 /*
- * When no data-mode is set (system preference mode), follow the OS preference.
- * Kumo's base layer sets color-scheme: light on :root — override to light dark
- * so the browser respects prefers-color-scheme until the user explicitly picks.
+ * ThemeProvider always sets data-mode to the resolved preference ("light" or "dark"),
+ * so Tailwind dark: utilities (mapped to [data-mode="dark"]) activate correctly
+ * for both explicit and system-preference themes.
  */
-:root:not([data-mode]) {
-	color-scheme: light dark;
-}
 
 /**
  * Classic theme token overrides
@@ -200,6 +197,18 @@ body {
 
 .ProseMirror.prose > *:first-child {
 	margin-top: 0 !important;
+}
+
+/**
+ * Prevent dialogs from overflowing the viewport on small screens.
+ * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
+ * which overrides max-width in CSS. We need to cap min-width too.
+ */
+@media (max-width: 639px) {
+	[role="dialog"] {
+		min-width: 0 !important;
+		max-width: calc(100vw - 2rem);
+	}
 }
 
 /**

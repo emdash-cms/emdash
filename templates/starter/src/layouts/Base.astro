@@ -1,5 +1,5 @@
 ---
-import { getMenu } from "emdash";
+import { getMenu, getSiteSettings } from "emdash";
 import {
 	WidgetArea,
 	EmDashHead,
@@ -8,6 +8,7 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
+import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 interface Props {
 	title: string;
@@ -19,6 +20,9 @@ interface Props {
 }
 
 const { title, description, image, canonical, content } = Astro.props;
+const { siteTitle, siteTagline } = resolveStarterSiteIdentity(await getSiteSettings());
+const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
+const pageDescription = description ?? siteTagline;
 
 const menu = await getMenu("primary");
 
@@ -26,11 +30,12 @@ const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",
 	pageType: "website",
-	title,
-	description,
+	title: fullTitle,
+	description: pageDescription,
 	canonical,
 	image,
 	content,
+	siteName: siteTitle,
 });
 ---
 
@@ -39,8 +44,8 @@ const pageCtx = createPublicPageContext({
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>{title}</title>
-		{description && <meta name="description" content={description} />}
+		<title>{fullTitle}</title>
+		{pageDescription && <meta name="description" content={pageDescription} />}
 		{canonical && <link rel="canonical" href={canonical} />}
 		<EmDashHead page={pageCtx} />
 	</head>
@@ -49,7 +54,7 @@ const pageCtx = createPublicPageContext({
 
 		<header>
 			<nav>
-				<a href="/">{title}</a>
+				<a href="/">{siteTitle}</a>
 				{
 					menu?.items.map((item) => (
 						<a href={item.url} target={item.target}>

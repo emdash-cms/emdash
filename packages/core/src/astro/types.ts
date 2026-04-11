@@ -28,6 +28,7 @@ export interface ManifestCollection {
 	labelSingular: string;
 	supports: string[];
 	hasSeo: boolean;
+	urlPattern?: string;
 	fields: Record<
 		string,
 		{
@@ -343,4 +344,12 @@ export interface EmDashHandlers {
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+
+	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+	collectPageMetadata: (
+		page: import("../plugins/types.js").PublicPageContext,
+	) => Promise<import("../plugins/types.js").PageMetadataContribution[]>;
+	collectPageFragments: (
+		page: import("../plugins/types.js").PublicPageContext,
+	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
 }
