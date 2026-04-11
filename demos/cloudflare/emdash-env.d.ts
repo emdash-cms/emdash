@@ -10,6 +10,7 @@ export interface Page {
   slug: string | null;
   status: string;
   title: string;
+  template?: "Default" | "Full Width";
   content?: PortableTextBlock[];
   createdAt: Date;
   updatedAt: Date;

@@ -32,6 +32,10 @@ export default defineConfig({
 });
 ```
 
+### Reverse proxy and passkeys
+
+Passkey `rpId` / `origin` follow Astro `context.url`, which only reflects `X-Forwarded-*` when you declare **allowed public hosts** ([`security.allowedDomains`](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains)). In dev, add matching **`vite.server.allowedHosts`** or Vite rejects the proxy `Host`. Use **`emdash({ passkeyPublicOrigin: "https://…" })`** when the browser origin and reconstructed URL still disagree (common with TLS termination). With TLS terminated in front, **`astro dev --host 127.0.0.1`** (loopback) is usually enough: the proxy reaches the dev server locally while **`passkeyPublicOrigin`** matches the browser’s HTTPS origin—without opening the Node port on the LAN.
+
 ### Cloudflare (D1 + R2)
 
 ```javascript
