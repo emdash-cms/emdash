@@ -112,6 +112,32 @@ export const authConfigSchema = z.object({
 			sliding: z.boolean().default(true),
 		})
 		.optional(),
+
+	/**
+	 * TOTP (authenticator app) configuration.
+	 *
+	 * TOTP is enabled by default because its whole reason for existing
+	 * is to unblock deployers who hit passkey-UX friction on first run.
+	 * Deployers in regulated environments (where TOTP is disallowed as
+	 * a phishable factor) can set `enabled: false` to hide the method
+	 * everywhere — the routes return 404 and the UI hides the picker.
+	 */
+	totp: z
+		.object({
+			/**
+			 * Whether TOTP is offered as an auth method. Default: true.
+			 * When false, all TOTP routes return 404 and the setup wizard
+			 * + login page hide the TOTP option.
+			 */
+			enabled: z.boolean().default(true),
+			/**
+			 * Optional custom issuer label shown by authenticator apps
+			 * when the user scans the QR code. Defaults to the site name
+			 * at resolve time.
+			 */
+			issuer: z.string().optional(),
+		})
+		.optional(),
 });
 
 export type AuthConfig = z.infer<typeof authConfigSchema>;
@@ -158,6 +184,11 @@ export interface ResolvedAuthConfig {
 	session: {
 		maxAge: number;
 		sliding: boolean;
+	};
+
+	totp: {
+		enabled: boolean;
+		issuer: string;
 	};
 }
 
@@ -209,6 +240,16 @@ export function resolveConfig(
 		session: {
 			maxAge: config.session?.maxAge ?? 30 * 24 * 60 * 60,
 			sliding: config.session?.sliding ?? true,
+		},
+
+		totp: {
+			// TOTP is enabled by default; a deployer who needs to disable
+			// it for compliance reasons has to opt out explicitly.
+			enabled: config.totp?.enabled ?? true,
+			// The issuer is shown by authenticator apps as the group label.
+			// Defaults to the site name so the QR code looks coherent out
+			// of the box.
+			issuer: config.totp?.issuer ?? siteName,
 		},
 	};
 }
