@@ -25,10 +25,7 @@ import { setupAdminTotpVerifyBody } from "#api/schemas.js";
 import { authSecretFailureMessage, resolveAuthSecret } from "#auth/auth-secret.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
 import { isTotpEnabled } from "#auth/totp-config.js";
-import {
-	deleteTOTPSetupChallenge,
-	getTOTPSetupChallenge,
-} from "#auth/totp-setup-store.js";
+import { deleteTOTPSetupChallenge, getTOTPSetupChallenge } from "#auth/totp-setup-store.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 /** Far-future sentinel — auth_tokens.expires_at is NOT NULL. */
@@ -47,13 +44,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 
 	try {
 		const ip = getClientIp(request);
-		const rateLimit = await checkRateLimit(
-			emdash.db,
-			ip,
-			"setup/admin-totp-verify",
-			5,
-			15 * 60,
-		);
+		const rateLimit = await checkRateLimit(emdash.db, ip, "setup/admin-totp-verify", 5, 15 * 60);
 		if (!rateLimit.allowed) {
 			return rateLimitResponse(15 * 60);
 		}
@@ -87,22 +78,13 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 
 		const secretResult = resolveAuthSecret();
 		if (!secretResult.ok) {
-			console.error(
-				`[setup/admin-totp-verify] ${authSecretFailureMessage(secretResult.reason)}`,
-			);
-			return apiError(
-				"AUTH_SECRET_MISSING",
-				authSecretFailureMessage(secretResult.reason),
-				500,
-			);
+			console.error(`[setup/admin-totp-verify] ${authSecretFailureMessage(secretResult.reason)}`);
+			return apiError("AUTH_SECRET_MISSING", authSecretFailureMessage(secretResult.reason), 500);
 		}
 
 		let keyBytes: Uint8Array;
 		try {
-			const base32Secret = await decryptWithHKDF(
-				challenge.encryptedSecret,
-				secretResult.secret,
-			);
+			const base32Secret = await decryptWithHKDF(challenge.encryptedSecret, secretResult.secret);
 			keyBytes = decodeBase32IgnorePadding(base32Secret);
 		} catch {
 			// Corrupt row or rotated auth secret — force a restart.

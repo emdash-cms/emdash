@@ -49,9 +49,7 @@ export function RecoveryCodesBanner() {
 		>
 			<div className="flex-1">
 				<p className="font-medium">
-					{urgent
-						? t`You're running low on recovery codes.`
-						: t`You just used a recovery code.`}
+					{urgent ? t`You're running low on recovery codes.` : t`You just used a recovery code.`}
 				</p>
 				<p className="mt-0.5 text-kumo-subtle">
 					<Trans>

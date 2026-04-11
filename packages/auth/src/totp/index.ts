@@ -22,8 +22,4 @@ export { generateTOTPSecret, buildOtpAuthURI } from "./setup.js";
 export type { VerifyTOTPOptions, VerifyTOTPResult } from "./verify.js";
 export { verifyTOTPCode } from "./verify.js";
 
-export {
-	generateRecoveryCode,
-	generateRecoveryCodes,
-	hashRecoveryCode,
-} from "./recovery-codes.js";
+export { generateRecoveryCode, generateRecoveryCodes, hashRecoveryCode } from "./recovery-codes.js";

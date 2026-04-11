@@ -89,14 +89,8 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 
 			const secretResult = resolveAuthSecret();
 			if (!secretResult.ok) {
-				console.error(
-					`[auth/totp/login] ${authSecretFailureMessage(secretResult.reason)}`,
-				);
-				return apiError(
-					"AUTH_SECRET_MISSING",
-					authSecretFailureMessage(secretResult.reason),
-					500,
-				);
+				console.error(`[auth/totp/login] ${authSecretFailureMessage(secretResult.reason)}`);
+				return apiError("AUTH_SECRET_MISSING", authSecretFailureMessage(secretResult.reason), 500);
 			}
 			let keyBytes: Uint8Array;
 			try {

@@ -265,17 +265,10 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 						viewBox="0 0 24 24"
 						aria-hidden="true"
 					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={3}
-							d="M5 13l4 4L19 7"
-						/>
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
 					</svg>
 				</div>
-				<p className="mt-4 text-lg font-medium text-kumo-default">
-					{t`Authenticator connected`}
-				</p>
+				<p className="mt-4 text-lg font-medium text-kumo-default">{t`Authenticator connected`}</p>
 			</div>
 		);
 	}

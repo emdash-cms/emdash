@@ -60,11 +60,7 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 			}
 		}
 	}
-	throw new ApiError(
-		code ?? "UNKNOWN",
-		message || `${fallback}: ${res.statusText}`,
-		res.status,
-	);
+	throw new ApiError(code ?? "UNKNOWN", message || `${fallback}: ${res.statusText}`, res.status);
 }
 
 /**

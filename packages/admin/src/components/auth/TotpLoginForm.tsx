@@ -195,7 +195,9 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 				variant="primary"
 				loading={isLoading}
 				disabled={
-					isLoading || !email || (mode === "totp" ? !SIX_DIGITS_REGEX.test(code) : !RECOVERY_CODE_REGEX.test(recoveryCode))
+					isLoading ||
+					!email ||
+					(mode === "totp" ? !SIX_DIGITS_REGEX.test(code) : !RECOVERY_CODE_REGEX.test(recoveryCode))
 				}
 			>
 				{isLoading ? t`Signing in…` : t`Sign in`}

@@ -27,8 +27,8 @@ import {
 	hashRecoveryCode,
 	verifyTOTPCode,
 } from "@emdash-cms/auth/totp";
-import { generateHOTP } from "@oslojs/otp";
 import { decodeBase32IgnorePadding } from "@oslojs/encoding";
+import { generateHOTP } from "@oslojs/otp";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -86,10 +86,7 @@ describe("TOTP setup flow end-to-end", () => {
 
 		// Decrypt and decode the secret from the stored blob back into
 		// usable key bytes — this is the path a real login would take.
-		const decryptedBase32 = await decryptWithHKDF(
-			challenge!.encryptedSecret,
-			authSecret,
-		);
+		const decryptedBase32 = await decryptWithHKDF(challenge!.encryptedSecret, authSecret);
 		expect(decryptedBase32).toBe(base32Secret);
 
 		const decryptedKeyBytes = decodeBase32IgnorePadding(decryptedBase32);
@@ -176,9 +173,7 @@ describe("TOTP setup flow end-to-end", () => {
 		expect(challenge).not.toBeNull();
 
 		const wrongSecret = generateAuthSecret();
-		await expect(
-			decryptWithHKDF(challenge!.encryptedSecret, wrongSecret),
-		).rejects.toThrow();
+		await expect(decryptWithHKDF(challenge!.encryptedSecret, wrongSecret)).rejects.toThrow();
 	});
 
 	it("preserves the email casing after lowercase normalization", async () => {

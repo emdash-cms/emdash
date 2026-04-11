@@ -358,10 +358,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					{method === "magic-link" && <MagicLinkForm onBack={() => setMethod("passkey")} />}
 
 					{method === "totp" && (
-						<TotpLoginForm
-							onSuccess={handleSuccess}
-							onBack={() => setMethod("passkey")}
-						/>
+						<TotpLoginForm onSuccess={handleSuccess} onBack={() => setMethod("passkey")} />
 					)}
 				</div>
 

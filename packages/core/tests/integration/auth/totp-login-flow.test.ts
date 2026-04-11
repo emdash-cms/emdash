@@ -139,9 +139,7 @@ describe("TOTP login — lockout", () => {
 			const shouldLock = next >= LOCKOUT_THRESHOLD;
 			await adapter.updateTOTP(user.id, {
 				failedAttempts: next,
-				lockedUntil: shouldLock
-					? new Date(FIXED_NOW_MS + LOCKOUT_DURATION_MS).toISOString()
-					: null,
+				lockedUntil: shouldLock ? new Date(FIXED_NOW_MS + LOCKOUT_DURATION_MS).toISOString() : null,
 			});
 		}
 

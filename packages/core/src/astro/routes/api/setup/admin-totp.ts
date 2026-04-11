@@ -9,8 +9,8 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { encryptWithHKDF } from "@emdash-cms/auth";
+import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import {
 	buildOtpAuthURI,
 	generateRecoveryCodes,
@@ -68,11 +68,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const secretResult = resolveAuthSecret();
 		if (!secretResult.ok) {
 			console.error(`[setup/admin-totp] ${authSecretFailureMessage(secretResult.reason)}`);
-			return apiError(
-				"AUTH_SECRET_MISSING",
-				authSecretFailureMessage(secretResult.reason),
-				500,
-			);
+			return apiError("AUTH_SECRET_MISSING", authSecretFailureMessage(secretResult.reason), 500);
 		}
 		const encryptedSecret = await encryptWithHKDF(base32Secret, secretResult.secret);
 

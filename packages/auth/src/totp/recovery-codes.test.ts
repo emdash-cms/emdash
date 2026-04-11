@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import {
-	generateRecoveryCode,
-	generateRecoveryCodes,
-	hashRecoveryCode,
-} from "./recovery-codes.js";
+import { generateRecoveryCode, generateRecoveryCodes, hashRecoveryCode } from "./recovery-codes.js";
 import { RECOVERY_CODE_COUNT } from "./types.js";
 
 const RECOVERY_FORMAT = /^[A-Z2-7]{4}-[A-Z2-7]{4}$/;

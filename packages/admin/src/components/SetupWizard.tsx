@@ -426,11 +426,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 	// map to the same "Sign-in" indicator step so the indicator length
 	// doesn't flap when the user picks a method.
 	const visualStep: "site" | "admin" | "signin" =
-		currentStep === "site"
-			? "site"
-			: currentStep === "admin"
-				? "admin"
-				: "signin";
+		currentStep === "site" ? "site" : currentStep === "admin" ? "admin" : "signin";
 	const currentIndex = steps.findIndex((s) => s.key === visualStep);
 
 	return (
@@ -605,9 +601,7 @@ export function SetupWizard() {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && "Set up your site"}
 						{currentStep === "admin" && "Create your account"}
-						{(currentStep === "method" ||
-							currentStep === "passkey" ||
-							currentStep === "totp") &&
+						{(currentStep === "method" || currentStep === "passkey" || currentStep === "totp") &&
 							"Secure your account"}
 					</h1>
 					{useAccessAuth && currentStep === "site" && (
