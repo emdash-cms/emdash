@@ -148,8 +148,8 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
-		pattern: "/_emdash/api/media/file/[key]",
-		entrypoint: resolveRoute("api/media/file/[key].ts"),
+		pattern: "/_emdash/api/media/file/[...key]",
+		entrypoint: resolveRoute("api/media/file/[...key].ts"),
 	});
 
 	injectRoute({

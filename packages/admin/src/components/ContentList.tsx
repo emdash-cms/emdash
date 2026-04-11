@@ -102,6 +102,15 @@ export function ContentList({
 	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
 	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+	// Auto-fetch next API page when user reaches the last client-side page.
+	// skip when a search query is active
+	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	React.useEffect(() => {
+		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+			onLoadMore();
+		}
+	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -118,7 +127,12 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link to="/content/$collection/new" params={{ collection }} className={buttonVariants()}>
+				<Link
+					to="/content/$collection/new"
+					params={{ collection }}
+					search={{ locale: activeLocale }}
+					className={buttonVariants()}
+				>
 					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
 					Add New
 				</Link>
@@ -196,6 +210,7 @@ export function ContentList({
 											<Link
 												to="/content/$collection/new"
 												params={{ collection }}
+												search={{ locale: activeLocale }}
 												className="text-kumo-brand underline"
 											>
 												Create your first one
@@ -229,7 +244,8 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+								{filteredItems.length}
+								{hasMore && !searchQuery ? "+" : ""} {filteredItems.length === 1 ? "item" : "items"}
 								{searchQuery && ` matching "${searchQuery}"`}
 							</span>
 							<div className="flex items-center gap-2">
