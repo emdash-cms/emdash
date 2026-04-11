@@ -177,7 +177,7 @@ function setBaselineSecurityHeaders(response: Response): void {
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-const SITEMAP_COLLECTION_RE = /^\/sitemap-[\w-]+\.xml$/;
+const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
 
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;

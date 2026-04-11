@@ -12,8 +12,10 @@ import type { ApiResult } from "../types.js";
 
 /** Raw content data for sitemap generation — the route builds the actual URLs */
 export interface SitemapContentEntry {
-	/** Content slug or ID */
-	identifier: string;
+	/** Content ID (ULID) */
+	id: string;
+	/** Content slug, or null when the entry has no slug */
+	slug: string | null;
 	/** ISO date of last modification */
 	updatedAt: string;
 }
@@ -109,7 +111,8 @@ export async function handleSitemapData(
 				const entries: SitemapContentEntry[] = [];
 				for (const row of rows.rows) {
 					entries.push({
-						identifier: row.slug || row.id,
+						id: row.id,
+						slug: row.slug,
 						updatedAt: row.updated_at,
 					});
 				}

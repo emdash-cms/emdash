@@ -21,6 +21,7 @@ const GT_RE = />/g;
 const QUOT_RE = /"/g;
 const APOS_RE = /'/g;
 const SLUG_PLACEHOLDER = "{slug}";
+const ID_PLACEHOLDER = "{id}";
 
 export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { emdash } = locals;
@@ -60,9 +61,12 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 		];
 
 		for (const entry of col.entries) {
+			const slug = entry.slug || entry.id;
 			const path = col.urlPattern
-				? col.urlPattern.replace(SLUG_PLACEHOLDER, encodeURIComponent(entry.identifier))
-				: `/${encodeURIComponent(col.collection)}/${encodeURIComponent(entry.identifier)}`;
+				? col.urlPattern
+						.replace(SLUG_PLACEHOLDER, encodeURIComponent(slug))
+						.replace(ID_PLACEHOLDER, encodeURIComponent(entry.id))
+				: `/${encodeURIComponent(col.collection)}/${encodeURIComponent(slug)}`;
 
 			const loc = `${siteUrl}${path}`;
 

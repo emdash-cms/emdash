@@ -805,7 +805,7 @@ describe("SEO", () => {
 		function flatEntries(data: {
 			collections: Array<{
 				collection: string;
-				entries: Array<{ identifier: string; updatedAt: string }>;
+				entries: Array<{ id: string; slug: string | null; updatedAt: string }>;
 			}>;
 		}) {
 			return data.collections.flatMap((c) =>
@@ -834,7 +834,7 @@ describe("SEO", () => {
 			const entries = flatEntries(result.data!);
 			expect(entries).toHaveLength(1);
 			expect(entries[0]!.collection).toBe("post");
-			expect(entries[0]!.identifier).toBe("published-post");
+			expect(entries[0]!.slug).toBe("published-post");
 		});
 
 		it("should exclude noindex content from sitemap", async () => {
@@ -860,7 +860,7 @@ describe("SEO", () => {
 			expect(result.success).toBe(true);
 			const entries = flatEntries(result.data!);
 			expect(entries).toHaveLength(1);
-			expect(entries[0]!.identifier).toBe("visible-post");
+			expect(entries[0]!.slug).toBe("visible-post");
 		});
 
 		it("should exclude deleted content from sitemap", async () => {
@@ -901,9 +901,9 @@ describe("SEO", () => {
 			expect(result.data!.collections).toHaveLength(2);
 
 			const entries = flatEntries(result.data!);
-			const identifiers = entries.map((e) => `${e.collection}/${e.identifier}`);
-			expect(identifiers).toContain("post/my-post");
-			expect(identifiers).toContain("page/about");
+			const slugs = entries.map((e) => `${e.collection}/${e.slug}`);
+			expect(slugs).toContain("post/my-post");
+			expect(slugs).toContain("page/about");
 		});
 
 		it("should exclude content from non-SEO collections", async () => {
@@ -940,7 +940,7 @@ describe("SEO", () => {
 			expect(result.data!.collections[0]!.collection).toBe("post");
 		});
 
-		it("should use ID when slug is null", async () => {
+		it("should return null slug and valid id when slug is null", async () => {
 			const created = await repo.create({
 				type: "post",
 				data: { title: "No Slug Post" },
@@ -952,7 +952,8 @@ describe("SEO", () => {
 			expect(result.success).toBe(true);
 			const entries = flatEntries(result.data!);
 			expect(entries[0]!.collection).toBe("post");
-			expect(entries[0]!.identifier).toBe(created.id);
+			expect(entries[0]!.slug).toBeNull();
+			expect(entries[0]!.id).toBe(created.id);
 		});
 
 		it("should include updatedAt and lastmod", async () => {
