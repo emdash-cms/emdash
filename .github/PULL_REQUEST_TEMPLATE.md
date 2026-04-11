@@ -9,8 +9,9 @@ Closes #
 <!-- Check one. If "Feature", a prior Discussion is required — see below. -->
 
 - [ ] Bug fix
-- [ ] Feature (requires [approved Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas))
+- [ ] Feature (requires [maintainer-approved Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas))
 - [ ] Refactor (no behavior change)
+- [ ] Translation
 - [ ] Documentation
 - [ ] Performance improvement
 - [ ] Tests
@@ -20,7 +21,7 @@ Closes #
 
 - [ ] I have read [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md)
 - [ ] `pnpm typecheck` passes
-- [ ] `pnpm --silent lint:json | jq '.diagnostics | length'` returns 0
+- [ ] `pnpm lint` passes
 - [ ] `pnpm test` passes (or targeted tests for my change)
 - [ ] `pnpm format` has been run
 - [ ] I have added/updated tests for my changes (if applicable)
