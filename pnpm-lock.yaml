@@ -986,6 +986,12 @@ importers:
       '@emdash-cms/blocks':
         specifier: workspace:*
         version: link:../blocks
+      '@oslojs/encoding':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@oslojs/otp':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13
