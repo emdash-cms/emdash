@@ -10,6 +10,7 @@
  * Uses Floating UI for positioning relative to the selected block.
  */
 
+import { t } from "@lingui/core/macro";
 import { Button } from "@cloudflare/kumo";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import {
@@ -47,7 +48,7 @@ interface BlockTransform {
 const blockTransforms: BlockTransform[] = [
 	{
 		id: "paragraph",
-		label: "Paragraph",
+		label: t`Paragraph`,
 		icon: Paragraph,
 		transform: (editor) => {
 			editor.chain().focus().setNode("paragraph").run();
@@ -55,7 +56,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "heading1",
-		label: "Heading 1",
+		label: t`Heading 1`,
 		icon: TextHOne,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 1 }).run();
@@ -63,7 +64,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "heading2",
-		label: "Heading 2",
+		label: t`Heading 2`,
 		icon: TextHTwo,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 2 }).run();
@@ -71,7 +72,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "heading3",
-		label: "Heading 3",
+		label: t`Heading 3`,
 		icon: TextHThree,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 3 }).run();
@@ -79,7 +80,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "blockquote",
-		label: "Quote",
+		label: t`Quote`,
 		icon: Quotes,
 		transform: (editor) => {
 			editor.chain().focus().toggleBlockquote().run();
@@ -87,7 +88,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "codeBlock",
-		label: "Code Block",
+		label: t`Code Block`,
 		icon: Code,
 		transform: (editor) => {
 			editor.chain().focus().toggleCodeBlock().run();
@@ -95,7 +96,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "bulletList",
-		label: "Bullet List",
+		label: t`Bullet List`,
 		icon: List,
 		transform: (editor) => {
 			editor.chain().focus().toggleBulletList().run();
@@ -103,7 +104,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "orderedList",
-		label: "Numbered List",
+		label: t`Numbered List`,
 		icon: ListNumbers,
 		transform: (editor) => {
 			editor.chain().focus().toggleOrderedList().run();

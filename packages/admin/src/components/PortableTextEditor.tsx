@@ -11,6 +11,8 @@
  * - Floating menu on empty lines
  */
 
+import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
@@ -692,8 +694,8 @@ interface SlashCommandItem {
 const defaultSlashCommands: SlashCommandItem[] = [
 	{
 		id: "heading1",
-		title: "Heading 1",
-		description: "Large section heading",
+		title: t`Heading 1`,
+		description: t`Large section heading`,
 		icon: TextHOne,
 		aliases: ["h1", "title"],
 		command: ({ editor, range }) => {
@@ -702,8 +704,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "heading2",
-		title: "Heading 2",
-		description: "Medium section heading",
+		title: t`Heading 2`,
+		description: t`Medium section heading`,
 		icon: TextHTwo,
 		aliases: ["h2", "subtitle"],
 		command: ({ editor, range }) => {
@@ -712,8 +714,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "heading3",
-		title: "Heading 3",
-		description: "Small section heading",
+		title: t`Heading 3`,
+		description: t`Small section heading`,
 		icon: TextHThree,
 		aliases: ["h3"],
 		command: ({ editor, range }) => {
@@ -722,8 +724,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "bulletList",
-		title: "Bullet List",
-		description: "Create a bullet list",
+		title: t`Bullet List`,
+		description: t`Create a bullet list`,
 		icon: List,
 		aliases: ["ul", "unordered"],
 		command: ({ editor, range }) => {
@@ -732,8 +734,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "numberedList",
-		title: "Numbered List",
-		description: "Create a numbered list",
+		title: t`Numbered List`,
+		description: t`Create a numbered list`,
 		icon: ListNumbers,
 		aliases: ["ol", "ordered"],
 		command: ({ editor, range }) => {
@@ -742,8 +744,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "quote",
-		title: "Quote",
-		description: "Insert a blockquote",
+		title: t`Quote`,
+		description: t`Insert a blockquote`,
 		icon: Quotes,
 		aliases: ["blockquote", "cite"],
 		command: ({ editor, range }) => {
@@ -752,8 +754,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "codeBlock",
-		title: "Code Block",
-		description: "Insert a code block",
+		title: t`Code Block`,
+		description: t`Insert a code block`,
 		icon: CodeBlock,
 		aliases: ["code", "pre", "```"],
 		command: ({ editor, range }) => {
@@ -762,8 +764,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "divider",
-		title: "Divider",
-		description: "Insert a horizontal rule",
+		title: t`Divider`,
+		description: t`Insert a horizontal rule`,
 		icon: Minus,
 		aliases: ["hr", "---", "separator"],
 		command: ({ editor, range }) => {
@@ -1346,6 +1348,7 @@ export function PortableTextEditor({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 }: PortableTextEditorProps) {
+	const { i18n } = useLingui();
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	React.useEffect(() => {
@@ -1399,11 +1402,11 @@ export function PortableTextEditor({
 		// Add image command
 		cmds.push({
 			id: "image",
-			title: "Image",
-			description: "Insert an image",
+			title: t`Image`,
+			description: t`Insert an image`,
 			icon: ImageIcon,
 			aliases: ["img", "photo", "picture", "url"],
-			category: "Media",
+			category: t`Media`,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
@@ -1413,11 +1416,11 @@ export function PortableTextEditor({
 		// Add section command
 		cmds.push({
 			id: "section",
-			title: "Section",
-			description: "Insert a reusable section",
+			title: t`Section`,
+			description: t`Insert a reusable section`,
 			icon: Stack,
 			aliases: ["pattern", "block", "template"],
-			category: "Content",
+			category: t`Content`,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setSectionPickerOpen(true);
@@ -1429,10 +1432,10 @@ export function PortableTextEditor({
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
 				title: block.label,
-				description: block.description || `Embed a ${block.label.toLowerCase()}`,
+				description: block.description || t`Embed a ${block.label.toLowerCase()}`,
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: "Embeds",
+				category: t`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -1441,7 +1444,7 @@ export function PortableTextEditor({
 		}
 
 		return cmds;
-	}, [pluginBlocks]);
+	}, [pluginBlocks, i18n.locale]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing

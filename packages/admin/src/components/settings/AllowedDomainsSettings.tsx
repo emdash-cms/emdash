@@ -5,6 +5,7 @@
  * is configured, this page shows an informational message instead.
  */
 
+import { t } from "@lingui/core/macro";
 import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
 import {
 	Globe,
@@ -31,14 +32,14 @@ import {
 } from "../../lib/api";
 
 const ROLES = [
-	{ value: 10, label: "Subscriber" },
-	{ value: 20, label: "Contributor" },
-	{ value: 30, label: "Author" },
-	{ value: 40, label: "Editor" },
+	{ value: 10, label: t`Subscriber` },
+	{ value: 20, label: t`Contributor` },
+	{ value: 30, label: t`Author` },
+	{ value: 40, label: t`Editor` },
 ] as const;
 
 function getRoleName(level: number): string {
-	return ROLES.find((r) => r.value === level)?.label ?? "Unknown";
+	return ROLES.find((r) => r.value === level)?.label ?? t`Unknown`;
 }
 
 export function AllowedDomainsSettings() {

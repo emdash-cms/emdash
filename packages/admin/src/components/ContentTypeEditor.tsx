@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo";
 import {
 	DndContext,
@@ -57,23 +58,23 @@ export interface ContentTypeEditorProps {
 const SUPPORT_OPTIONS = [
 	{
 		value: "drafts",
-		label: "Drafts",
-		description: "Save content as draft before publishing",
+		label: t`Drafts`,
+		description: t`Save content as draft before publishing`,
 	},
 	{
 		value: "revisions",
-		label: "Revisions",
-		description: "Track content history",
+		label: t`Revisions`,
+		description: t`Track content history`,
 	},
 	{
 		value: "preview",
-		label: "Preview",
-		description: "Preview content before publishing",
+		label: t`Preview`,
+		description: t`Preview content before publishing`,
 	},
 	{
 		value: "search",
-		label: "Search",
-		description: "Enable full-text search on this collection",
+		label: t`Search`,
+		description: t`Enable full-text search on this collection`,
 	},
 ];
 
@@ -84,39 +85,39 @@ const SUPPORT_OPTIONS = [
 const SYSTEM_FIELDS = [
 	{
 		slug: "id",
-		label: "ID",
+		label: t`ID`,
 		type: "text",
-		description: "Unique identifier (ULID)",
+		description: t`Unique identifier (ULID)`,
 	},
 	{
 		slug: "slug",
-		label: "Slug",
+		label: t`Slug`,
 		type: "text",
-		description: "URL-friendly identifier",
+		description: t`URL-friendly identifier`,
 	},
 	{
 		slug: "status",
-		label: "Status",
+		label: t`Status`,
 		type: "text",
-		description: "draft, published, or archived",
+		description: t`draft, published, or archived`,
 	},
 	{
 		slug: "created_at",
-		label: "Created At",
+		label: t`Created At`,
 		type: "datetime",
-		description: "When the entry was created",
+		description: t`When the entry was created`,
 	},
 	{
 		slug: "updated_at",
-		label: "Updated At",
+		label: t`Updated At`,
 		type: "datetime",
-		description: "When the entry was last modified",
+		description: t`When the entry was last modified`,
 	},
 	{
 		slug: "published_at",
-		label: "Published At",
+		label: t`Published At`,
 		type: "datetime",
-		description: "When the entry was published",
+		description: t`When the entry was published`,
 	},
 ];
 

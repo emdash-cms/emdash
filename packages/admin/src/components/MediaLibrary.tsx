@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { Button, Input, Loader } from "@cloudflare/kumo";
 import { Upload, Image, SquaresFour, List, MagnifyingGlass, Check, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ export function MediaLibrary({
 	onDelete,
 	onItemUpdated,
 }: MediaLibraryProps) {
+	const { i18n, t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [selectedItem, setSelectedItem] = React.useState<MediaItem | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -196,7 +198,7 @@ export function MediaLibrary({
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers) {
 			for (const p of providers) {
@@ -206,7 +208,7 @@ export function MediaLibrary({
 			}
 		}
 		return tabs;
-	}, [providers]);
+	}, [providers, i18n.locale, t]);
 
 	// Get current items based on active provider
 	const currentItems = activeProvider === "local" ? items : [];

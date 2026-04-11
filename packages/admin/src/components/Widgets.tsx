@@ -6,6 +6,7 @@
  * Widgets within an area can be reordered via drag-and-drop.
  */
 
+import { t } from "@lingui/core/macro";
 import { Button, Dialog, Input, Label, Select, Switch, Toast } from "@cloudflare/kumo";
 import {
 	DndContext,
@@ -82,15 +83,15 @@ const BUILTIN_WIDGETS: Array<{
 }> = [
 	{
 		id: "palette-content",
-		label: "Content Block",
-		description: "Rich text content",
-		input: { type: "content", title: "Content Block" },
+		label: t`Content Block`,
+		description: t`Rich text content`,
+		input: { type: "content", title: t`Content Block` },
 	},
 	{
 		id: "palette-menu",
-		label: "Menu",
-		description: "Display a navigation menu",
-		input: { type: "menu", title: "Menu" },
+		label: t`Menu`,
+		description: t`Display a navigation menu`,
+		input: { type: "menu", title: t`Menu` },
 	},
 ];
 

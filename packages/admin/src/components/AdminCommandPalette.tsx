@@ -5,6 +5,8 @@
  * Opens with Cmd+K (Mac) or Ctrl+K (Windows/Linux).
  */
 
+import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { CommandPalette } from "@cloudflare/kumo";
 import {
 	SquaresFour,
@@ -134,7 +136,7 @@ function buildNavItems(
 	const items: NavItem[] = [
 		{
 			id: "dashboard",
-			title: "Dashboard",
+			title: t`Dashboard`,
 			to: "/",
 			icon: SquaresFour,
 			keywords: ["home", "overview"],
@@ -157,14 +159,14 @@ function buildNavItems(
 	items.push(
 		{
 			id: "media",
-			title: "Media Library",
+			title: t`Media Library`,
 			to: "/media",
 			icon: Image,
 			keywords: ["images", "files", "uploads"],
 		},
 		{
 			id: "menus",
-			title: "Menus",
+			title: t`Menus`,
 			to: "/menus",
 			icon: List,
 			minRole: ROLE_EDITOR,
@@ -172,7 +174,7 @@ function buildNavItems(
 		},
 		{
 			id: "widgets",
-			title: "Widgets",
+			title: t`Widgets`,
 			to: "/widgets",
 			icon: GridFour,
 			minRole: ROLE_EDITOR,
@@ -180,7 +182,7 @@ function buildNavItems(
 		},
 		{
 			id: "sections",
-			title: "Sections",
+			title: t`Sections`,
 			to: "/sections",
 			icon: Stack,
 			minRole: ROLE_EDITOR,
@@ -188,7 +190,7 @@ function buildNavItems(
 		},
 		{
 			id: "content-types",
-			title: "Content Types",
+			title: t`Content Types`,
 			to: "/content-types",
 			icon: Database,
 			minRole: ROLE_ADMIN,
@@ -196,7 +198,7 @@ function buildNavItems(
 		},
 		{
 			id: "categories",
-			title: "Categories",
+			title: t`Categories`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "category" },
 			icon: FileText,
@@ -205,7 +207,7 @@ function buildNavItems(
 		},
 		{
 			id: "tags",
-			title: "Tags",
+			title: t`Tags`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "tag" },
 			icon: FileText,
@@ -214,7 +216,7 @@ function buildNavItems(
 		},
 		{
 			id: "users",
-			title: "Users",
+			title: t`Users`,
 			to: "/users",
 			icon: Users,
 			minRole: ROLE_ADMIN,
@@ -222,7 +224,7 @@ function buildNavItems(
 		},
 		{
 			id: "plugins",
-			title: "Plugins",
+			title: t`Plugins`,
 			to: "/plugins-manager",
 			icon: PuzzlePiece,
 			minRole: ROLE_ADMIN,
@@ -230,7 +232,7 @@ function buildNavItems(
 		},
 		{
 			id: "import",
-			title: "Import",
+			title: t`Import`,
 			to: "/import/wordpress",
 			icon: Upload,
 			minRole: ROLE_ADMIN,
@@ -238,7 +240,7 @@ function buildNavItems(
 		},
 		{
 			id: "settings",
-			title: "Settings",
+			title: t`Settings`,
 			to: "/settings",
 			icon: Gear,
 			minRole: ROLE_ADMIN,
@@ -246,7 +248,7 @@ function buildNavItems(
 		},
 		{
 			id: "security",
-			title: "Security Settings",
+			title: t`Security Settings`,
 			to: "/settings/security",
 			icon: Gear,
 			minRole: ROLE_ADMIN,
@@ -295,6 +297,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
+	const { i18n } = useLingui();
 
 	// Debounce the search query to avoid flickering on every keystroke
 	const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -315,8 +318,12 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isWaitingForDebounce = query.length >= 2 && query !== debouncedQuery;
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
-	// Build navigation items
-	const allNavItems = React.useMemo(() => buildNavItems(manifest, userRole), [manifest, userRole]);
+	// Build navigation items — i18n.locale in deps so items rebuild on locale change
+	const allNavItems = React.useMemo(
+		() => buildNavItems(manifest, userRole),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[manifest, userRole, i18n.locale],
+	);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(

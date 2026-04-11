@@ -4,6 +4,7 @@
  * Shown to new users on their first login to welcome them to EmDash.
  */
 
+import { t } from "@lingui/core/macro";
 import { Button, Dialog } from "@cloudflare/kumo";
 import { X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,11 +22,11 @@ interface WelcomeModalProps {
 
 // Role labels
 function getRoleLabel(role: number): string {
-	if (role >= 50) return "Administrator";
-	if (role >= 40) return "Editor";
-	if (role >= 30) return "Author";
-	if (role >= 20) return "Contributor";
-	return "Subscriber";
+	if (role >= 50) return t`Administrator`;
+	if (role >= 40) return t`Editor`;
+	if (role >= 30) return t`Author`;
+	if (role >= 20) return t`Contributor`;
+	return t`Subscriber`;
 }
 
 async function dismissWelcome(): Promise<void> {

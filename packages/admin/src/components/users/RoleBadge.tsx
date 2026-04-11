@@ -1,31 +1,32 @@
+import { t } from "@lingui/core/macro";
 import { cn } from "../../lib/utils";
 
 /** Role level to name mapping */
 const ROLE_CONFIG: Record<number, { label: string; color: string; description: string }> = {
 	10: {
-		label: "Subscriber",
+		label: t`Subscriber`,
 		color: "gray",
-		description: "Can view content",
+		description: t`Can view content`,
 	},
 	20: {
-		label: "Contributor",
+		label: t`Contributor`,
 		color: "blue",
-		description: "Can create content",
+		description: t`Can create content`,
 	},
 	30: {
-		label: "Author",
+		label: t`Author`,
 		color: "green",
-		description: "Can publish own content",
+		description: t`Can publish own content`,
 	},
 	40: {
-		label: "Editor",
+		label: t`Editor`,
 		color: "purple",
-		description: "Can manage all content",
+		description: t`Can manage all content`,
 	},
 	50: {
-		label: "Admin",
+		label: t`Admin`,
 		color: "red",
-		description: "Full access",
+		description: t`Full access`,
 	},
 };
 
@@ -33,9 +34,9 @@ const ROLE_CONFIG: Record<number, { label: string; color: string; description: s
 export function getRoleConfig(role: number) {
 	return (
 		ROLE_CONFIG[role] ?? {
-			label: `Role ${role}`,
+			label: t`Role ${role}`,
 			color: "gray",
-			description: "Unknown role",
+			description: t`Unknown role`,
 		}
 	);
 }

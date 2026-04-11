@@ -4,6 +4,7 @@
  * Allows admins to list, create, and revoke Personal Access Tokens.
  */
 
+import { t } from "@lingui/core/macro";
 import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
 import {
 	ArrowLeft,
@@ -33,11 +34,11 @@ import { getMutationError } from "../DialogError.js";
 // =============================================================================
 
 const EXPIRY_OPTIONS = [
-	{ value: "none", label: "No expiry" },
-	{ value: "7d", label: "7 days" },
-	{ value: "30d", label: "30 days" },
-	{ value: "90d", label: "90 days" },
-	{ value: "365d", label: "1 year" },
+	{ value: "none", label: t`No expiry` },
+	{ value: "7d", label: t`7 days` },
+	{ value: "30d", label: t`30 days` },
+	{ value: "90d", label: t`90 days` },
+	{ value: "365d", label: t`1 year` },
 ] as const;
 
 function computeExpiryDate(option: string): string | undefined {
