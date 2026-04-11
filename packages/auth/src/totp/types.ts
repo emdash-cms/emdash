@@ -55,6 +55,29 @@ export interface NewTOTPSecret {
 	verified?: boolean;
 }
 
+/**
+ * Partial update shape for the verify route's state-machine writes.
+ *
+ * Three fields are mutated during normal operation:
+ * - lastUsedStep — bumped on every successful verification (replay guard)
+ * - failedAttempts — incremented on each wrong code, reset to 0 on
+ *   successful verification or recovery code use
+ * - lockedUntil — set to a future timestamp when failedAttempts crosses
+ *   the lockout threshold; cleared when the user successfully unlocks
+ *   via recovery code
+ *
+ * The encrypted secret itself is intentionally NOT in this shape — once
+ * persisted, the secret is immutable for the credential's lifetime.
+ * Rotating a TOTP secret means deleteTOTP + createTOTP, not updateTOTP.
+ */
+export interface UpdateTOTPSecret {
+	lastUsedStep?: number;
+	failedAttempts?: number;
+	/** ISO timestamp string, or null to clear the lockout */
+	lockedUntil?: string | null;
+	verified?: boolean;
+}
+
 // ============================================================================
 // Constants
 // ============================================================================

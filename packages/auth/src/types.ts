@@ -303,6 +303,14 @@ export interface AuthAdapter {
 	createAllowedDomain(domain: string, defaultRole: RoleLevel): Promise<AllowedDomain>;
 	updateAllowedDomain(domain: string, enabled: boolean, defaultRole?: RoleLevel): Promise<void>;
 	deleteAllowedDomain(domain: string): Promise<void>;
+
+	// TOTP secrets (authenticator-app credentials, one row per user)
+	getTOTPByUserId(userId: string): Promise<import("./totp/types.js").TOTPSecret | null>;
+	createTOTP(
+		secret: import("./totp/types.js").NewTOTPSecret,
+	): Promise<import("./totp/types.js").TOTPSecret>;
+	updateTOTP(userId: string, data: import("./totp/types.js").UpdateTOTPSecret): Promise<void>;
+	deleteTOTP(userId: string): Promise<void>;
 }
 
 // ============================================================================

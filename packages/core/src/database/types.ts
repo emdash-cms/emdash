@@ -109,11 +109,25 @@ export interface AllowedDomainTable {
 
 export interface AuthChallengeTable {
 	challenge: string; // Base64url challenge (PK)
-	type: string; // 'registration' | 'authentication'
+	type: string; // 'registration' | 'authentication' | 'totp_setup'
 	user_id: string | null; // For registration, the user being registered
 	data: string | null; // JSON for additional context
 	expires_at: string;
 	created_at: Generated<string>;
+}
+
+export interface TOTPSecretTable {
+	user_id: string; // PK + FK to users(id)
+	encrypted_secret: string; // HKDF-encrypted TOTP key bytes
+	algorithm: Generated<string>; // 'SHA1' (RFC 6238 default)
+	digits: Generated<number>; // 6
+	period: Generated<number>; // 30 seconds
+	last_used_step: Generated<number>; // RFC 6238 §5.2 replay guard
+	failed_attempts: Generated<number>; // Reset to 0 on success
+	locked_until: string | null; // ISO timestamp; NULL when not locked
+	verified: Generated<number>; // 0 or 1
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
 }
 
 // API Tokens (programmatic access)
@@ -399,6 +413,7 @@ export interface Database {
 	oauth_accounts: OAuthAccountTable;
 	allowed_domains: AllowedDomainTable;
 	auth_challenges: AuthChallengeTable;
+	totp_secrets: TOTPSecretTable;
 	options: OptionTable;
 	audit_logs: AuditLogTable;
 	_emdash_migrations: MigrationTable;

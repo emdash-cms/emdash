@@ -5,6 +5,7 @@
 import type { Kysely, Insertable, Selectable, Updateable } from "kysely";
 import { ulid } from "ulidx";
 
+import type { NewTOTPSecret, TOTPSecret, UpdateTOTPSecret } from "../totp/types.js";
 import {
 	Role,
 	toRoleLevel,
@@ -35,6 +36,7 @@ export interface AuthTables {
 	auth_tokens: AuthTokenTable;
 	oauth_accounts: OAuthAccountTable;
 	allowed_domains: AllowedDomainTable;
+	totp_secrets: TOTPSecretTable;
 }
 
 interface UserTable {
@@ -86,6 +88,20 @@ interface AllowedDomainTable {
 	default_role: number;
 	enabled: number;
 	created_at: string;
+}
+
+interface TOTPSecretTable {
+	user_id: string;
+	encrypted_secret: string;
+	algorithm: string;
+	digits: number;
+	period: number;
+	last_used_step: number;
+	failed_attempts: number;
+	locked_until: string | null;
+	verified: number;
+	created_at: string;
+	updated_at: string;
 }
 
 // ============================================================================
@@ -575,6 +591,71 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 		async deleteAllowedDomain(domain: string): Promise<void> {
 			await kdb.deleteFrom("allowed_domains").where("domain", "=", domain.toLowerCase()).execute();
 		},
+
+		// ========================================================================
+		// TOTP Secrets
+		// ========================================================================
+
+		async getTOTPByUserId(userId: string): Promise<TOTPSecret | null> {
+			const row = await kdb
+				.selectFrom("totp_secrets")
+				.selectAll()
+				.where("user_id", "=", userId)
+				.executeTakeFirst();
+
+			return row ? rowToTOTPSecret(row) : null;
+		},
+
+		async createTOTP(secret: NewTOTPSecret): Promise<TOTPSecret> {
+			const now = new Date().toISOString();
+
+			const row: Insertable<TOTPSecretTable> = {
+				user_id: secret.userId,
+				encrypted_secret: secret.encryptedSecret,
+				algorithm: secret.algorithm ?? "SHA1",
+				digits: secret.digits ?? 6,
+				period: secret.period ?? 30,
+				last_used_step: 0,
+				failed_attempts: 0,
+				locked_until: null,
+				verified: secret.verified ? 1 : 0,
+				created_at: now,
+				updated_at: now,
+			};
+
+			await kdb.insertInto("totp_secrets").values(row).execute();
+
+			return {
+				userId: row.user_id,
+				encryptedSecret: row.encrypted_secret,
+				algorithm: "SHA1",
+				digits: row.digits,
+				period: row.period,
+				lastUsedStep: 0,
+				failedAttempts: 0,
+				lockedUntil: null,
+				verified: secret.verified ?? false,
+				createdAt: new Date(now),
+				updatedAt: new Date(now),
+			};
+		},
+
+		async updateTOTP(userId: string, data: UpdateTOTPSecret): Promise<void> {
+			const update: Updateable<TOTPSecretTable> = {
+				updated_at: new Date().toISOString(),
+			};
+
+			if (data.lastUsedStep !== undefined) update.last_used_step = data.lastUsedStep;
+			if (data.failedAttempts !== undefined) update.failed_attempts = data.failedAttempts;
+			if (data.lockedUntil !== undefined) update.locked_until = data.lockedUntil;
+			if (data.verified !== undefined) update.verified = data.verified ? 1 : 0;
+
+			await kdb.updateTable("totp_secrets").set(update).where("user_id", "=", userId).execute();
+		},
+
+		async deleteTOTP(userId: string): Promise<void> {
+			await kdb.deleteFrom("totp_secrets").where("user_id", "=", userId).execute();
+		},
 	};
 }
 
@@ -640,6 +721,25 @@ function rowToAllowedDomain(row: Selectable<AllowedDomainTable>): AllowedDomain 
 		defaultRole: toRoleLevel(row.default_role),
 		enabled: row.enabled === 1,
 		createdAt: new Date(row.created_at),
+	};
+}
+
+function rowToTOTPSecret(row: Selectable<TOTPSecretTable>): TOTPSecret {
+	return {
+		userId: row.user_id,
+		encryptedSecret: row.encrypted_secret,
+		// algorithm is constrained to "SHA1" today (the only RFC 6238
+		// algorithm we generate URIs for) — keep it narrow until we
+		// actually support a wider set
+		algorithm: "SHA1",
+		digits: row.digits,
+		period: row.period,
+		lastUsedStep: row.last_used_step,
+		failedAttempts: row.failed_attempts,
+		lockedUntil: row.locked_until,
+		verified: row.verified === 1,
+		createdAt: new Date(row.created_at),
+		updatedAt: new Date(row.updated_at),
 	};
 }
 

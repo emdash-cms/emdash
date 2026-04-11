@@ -5,7 +5,7 @@
  * Discussion: https://github.com/emdash-cms/emdash/discussions/432
  */
 
-export type { TOTPSecret, NewTOTPSecret, TOTPErrorCode } from "./types.js";
+export type { TOTPSecret, NewTOTPSecret, UpdateTOTPSecret, TOTPErrorCode } from "./types.js";
 export {
 	TOTPError,
 	TOTP_PERIOD_SECONDS,
