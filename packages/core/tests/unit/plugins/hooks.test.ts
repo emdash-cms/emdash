@@ -454,6 +454,8 @@ describe("HookPipeline", () => {
 					"content:afterSave": createTestHook("writer", vi.fn()),
 					"content:beforeDelete": createTestHook("writer", vi.fn()),
 					"content:afterDelete": createTestHook("writer", vi.fn()),
+					"content:afterPublish": createTestHook("writer", vi.fn()),
+					"content:afterUnpublish": createTestHook("writer", vi.fn()),
 				},
 			});
 
@@ -462,6 +464,60 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterSave")).toBe(true);
 			expect(pipeline.hasHooks("content:beforeDelete")).toBe(true);
 			expect(pipeline.hasHooks("content:afterDelete")).toBe(true);
+			expect(pipeline.hasHooks("content:afterPublish")).toBe(true);
+			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(true);
+		});
+
+		it("skips content:afterPublish without read:content capability", () => {
+			const plugin = createTestPlugin({
+				id: "no-cap",
+				capabilities: [],
+				hooks: {
+					"content:afterPublish": createTestHook("no-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterPublish")).toBe(false);
+		});
+
+		it("registers content:afterPublish with read:content capability", () => {
+			const plugin = createTestPlugin({
+				id: "has-cap",
+				capabilities: ["read:content"],
+				hooks: {
+					"content:afterPublish": createTestHook("has-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterPublish")).toBe(true);
+		});
+
+		it("skips content:afterUnpublish without read:content capability", () => {
+			const plugin = createTestPlugin({
+				id: "no-cap",
+				capabilities: [],
+				hooks: {
+					"content:afterUnpublish": createTestHook("no-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(false);
+		});
+
+		it("registers content:afterUnpublish with read:content capability", () => {
+			const plugin = createTestPlugin({
+				id: "has-cap",
+				capabilities: ["read:content"],
+				hooks: {
+					"content:afterUnpublish": createTestHook("has-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(true);
 		});
 	});
 

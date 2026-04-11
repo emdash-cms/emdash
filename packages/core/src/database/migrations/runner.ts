@@ -67,6 +67,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"030_widen_scheduled_index": m030,
 	"031_bylines": m031,
 	"032_rate_limits": m032,
+	"033_optimize_content_indexes": m033,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */
