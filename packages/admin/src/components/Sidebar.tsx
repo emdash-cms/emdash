@@ -51,7 +51,7 @@ export interface SidebarNavProps {
 				version?: string;
 			}
 		>;
-		taxonomies?: Array<{
+		taxonomies: Array<{
 			name: string;
 			label: string;
 		}>;
@@ -188,7 +188,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/redirects", label: "Redirects", icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
 		{ to: "/widgets", label: "Widgets", icon: GridFour, minRole: ROLE_EDITOR },
 		{ to: "/sections", label: "Sections", icon: Stack, minRole: ROLE_EDITOR },
-		...(manifest.taxonomies ?? []).map((tax) => ({
+		...manifest.taxonomies.map((tax) => ({
 			to: "/taxonomies/$taxonomy" as const,
 			label: tax.label,
 			icon: FileText,

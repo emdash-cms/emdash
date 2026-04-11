@@ -134,7 +134,7 @@ export interface AdminManifest {
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */
-	taxonomies?: Array<{
+	taxonomies: Array<{
 		name: string;
 		label: string;
 		labelSingular?: string;

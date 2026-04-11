@@ -1303,7 +1303,11 @@ export class EmDashRuntime {
 			collections: string[];
 		}> = [];
 		try {
-			const rows = await this.db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
+			const rows = await this.db
+				.selectFrom("_emdash_taxonomy_defs")
+				.selectAll()
+				.orderBy("name")
+				.execute();
 			manifestTaxonomies = rows.map((row) => ({
 				name: row.name,
 				label: row.label,
