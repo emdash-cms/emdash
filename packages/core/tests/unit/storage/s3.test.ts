@@ -6,6 +6,32 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 
+// The AWS SDK is a "bring-your-own" dependency of emdash core — it is NOT
+// installed in CI. Stub it here so loading s3.ts (which statically imports
+// both modules) does not require the real package.
+vi.mock("@aws-sdk/client-s3", () => {
+	class S3Client {
+		send(_command: unknown): Promise<unknown> {
+			return Promise.resolve({});
+		}
+	}
+	class Command {
+		constructor(public input: unknown) {}
+	}
+	return {
+		S3Client,
+		PutObjectCommand: Command,
+		GetObjectCommand: Command,
+		DeleteObjectCommand: Command,
+		HeadObjectCommand: Command,
+		ListObjectsV2Command: Command,
+	};
+});
+
+vi.mock("@aws-sdk/s3-request-presigner", () => ({
+	getSignedUrl: () => Promise.resolve("https://signed.example.com/fake"),
+}));
+
 import { resolveS3Config, createStorage } from "../../../src/storage/s3.js";
 import { EmDashStorageError } from "../../../src/storage/types.js";
 
