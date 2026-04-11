@@ -25,12 +25,13 @@ For the full contributor reference — repo layout, architecture, code conventio
 2. **Start the demo**
 
    ```bash
-   pnpm --filter emdash-demo dev
+   cd demos/simple
+   pnpm dev
    ```
 
    The setup wizard runs automatically on first launch — it creates the database, runs migrations, and prompts you to create an admin account.
 
-   To populate with sample content: `pnpm --filter emdash-demo seed`
+   To populate with sample content: `pnpm seed`
 
 3. **Open the admin**
 
@@ -48,25 +49,24 @@ For the full contributor reference — repo layout, architecture, code conventio
 
 ### Watch Mode
 
-For iterating on core packages alongside the demo:
+For iterating on core packages alongside the demo, run two terminals:
 
 ```bash
 # Terminal 1 — rebuild packages/core on change
-pnpm --filter emdash dev
+cd packages/core && pnpm dev
 
 # Terminal 2 — run the demo
-pnpm --filter emdash-demo dev
+cd demos/simple && pnpm dev
 ```
 
 ### Checks
 
-Run these before committing:
+Run these before committing (from the repo root):
 
 ```bash
-pnpm typecheck             # TypeScript
-pnpm --silent lint:quick   # fast lint (< 1s) — run often
-pnpm --silent lint:json    # full type-aware lint — run before commits
-pnpm format                # auto-format (oxfmt, tabs)
+pnpm typecheck    # TypeScript
+pnpm lint         # full type-aware lint
+pnpm format       # auto-format (oxfmt, tabs)
 ```
 
 <Aside type="caution">
@@ -83,17 +83,17 @@ pnpm test
 </TabItem>
 <TabItem label="Core only">
 ```bash
-pnpm --filter emdash test
+cd packages/core && pnpm test
 ```
 </TabItem>
 <TabItem label="Watch mode">
 ```bash
-pnpm --filter emdash test --watch
+cd packages/core && pnpm test --watch
 ```
 </TabItem>
 <TabItem label="E2E">
 ```bash
-pnpm test:e2e    # requires demo running
+pnpm test:e2e    # starts its own server
 ```
 </TabItem>
 </Tabs>
@@ -102,22 +102,14 @@ Tests use real in-memory SQLite — no mocking. Each test gets a fresh database.
 
 ## What We Accept
 
-| Type             | Process                                                                                             |
-| ---------------- | --------------------------------------------------------------------------------------------------- |
-| **Bug fixes**    | Open a PR directly. Include a failing test.                                                         |
-| **Docs / typos** | Open a PR directly.                                                                                 |
-| **Translations** | Open a PR directly. See [Translating EmDash](/contributing/translating/).                            |
-| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first.       |
-| **Refactors**    | Open a Discussion first.                                                                            |
+| Type             | Process                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| **Bug fixes**    | Open a PR directly. Include a failing test.                                                   |
+| **Docs / typos** | Open a PR directly.                                                                           |
+| **Translations** | Open a PR directly. See [Translating EmDash](/contributing/translating/).                      |
+| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) and wait for a maintainer to approve it. |
+| **Refactors**    | Open a Discussion first.                                                                      |
 
-Feature PRs without a prior approved Discussion will be closed.
+Feature PRs without prior maintainer approval will be closed.
 
-## Architecture at a Glance
-
-- **Schema lives in the database**, not in code. `_emdash_collections` and `_emdash_fields` are the source of truth. Each collection gets a real SQL table (`ec_posts`, `ec_products`) with typed columns.
-- **Kysely** for all queries. Never interpolate into SQL.
-- **Handler layer** (`api/handlers/*.ts`) holds business logic. Route files are thin wrappers that parse input, call handlers, and format responses.
-- **Middleware chain**: runtime init → setup check → auth → request context (AsyncLocalStorage).
-- **Plugins** use `definePlugin()` and hook into the request lifecycle. See [Plugin System](/plugins/overview/).
-
-For deeper architecture details, see [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) and `AGENTS.md` in the repo root.
+For the full contribution policy, changeset guide, repo layout, and architecture overview, see [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md).
