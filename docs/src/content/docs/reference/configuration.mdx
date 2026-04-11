@@ -200,6 +200,73 @@ Use Cloudflare Access as the authentication provider instead of passkeys.
 	magic links, and self-signup are disabled.
 </Aside>
 
+### `siteUrl`
+
+**Optional.** The public browser-facing origin for the site (scheme + host + optional port, **no path**).
+
+Behind a **TLS-terminating reverse proxy**, `Astro.url` returns the internal address (`http://localhost:4321`) instead of the public one (`https://cms.example.com`). This breaks passkeys, CSRF origin matching, OAuth redirects, login redirects, MCP discovery, snapshot exports, sitemap, robots.txt, and JSON-LD structured data. Set `siteUrl` to fix all of these at once.
+
+The integration **validates** this value at load time: it must be a valid URL with **`http:`** or **`https:`** protocol and is normalized to **origin** (path is stripped).
+
+```js
+emdash({
+	database: sqlite({ url: "file:./data.db" }),
+	storage: local({
+		directory: "./uploads",
+		baseUrl: "/_emdash/api/media/file",
+	}),
+	siteUrl: "https://cms.example.com",
+});
+```
+
+When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
+
+<Aside type="tip">
+	`siteUrl` replaces `passkeyPublicOrigin` (removed). If you were using `passkeyPublicOrigin`, rename it to `siteUrl` -- it now covers passkeys and all other origin-dependent features.
+</Aside>
+
+#### Reverse proxy setup
+
+Astro only reflects **`X-Forwarded-*`** when the public host is allowed. Configure [**`security.allowedDomains`**](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains) for the hostname (and schemes) your users hit. In **`astro dev`**, add matching **`vite.server.allowedHosts`** so Vite accepts the proxy **`Host`** header.
+
+Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`siteUrl`** when the reconstructed URL **still** diverges from the browser origin (typical when TLS is terminated in front and the upstream request stays **`http://`**).
+
+With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`siteUrl`** matches the public HTTPS origin.
+
+<Aside type="caution">
+	Your reverse proxy should forward a **port-aware** `Host` / `X-Forwarded-Host` when you use non-default ports. If the proxy strips the port, **`rpId`** and Astro’s rebuilt URL can be wrong.
+</Aside>
+
+```js title="astro.config.mjs (excerpt)"
+import { defineConfig } from "astro/config";
+import emdash, { local } from "emdash/astro";
+import { sqlite } from "emdash/db";
+
+export default defineConfig({
+	security: {
+		allowedDomains: [
+			{ hostname: "cms.example.com", protocol: "https" },
+			{ hostname: "cms.example.com", protocol: "http" },
+		],
+	},
+	vite: {
+		server: {
+			allowedHosts: ["cms.example.com"],
+		},
+	},
+	integrations: [
+		emdash({
+			database: sqlite({ url: "file:./data.db" }),
+			storage: local({
+				directory: "./uploads",
+				baseUrl: "/_emdash/api/media/file",
+			}),
+			siteUrl: "https://cms.example.com",
+		}),
+	],
+});
+```
+
 ## Database Adapters
 
 Import from `emdash/db`:
@@ -374,6 +441,7 @@ EmDash respects these environment variables:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
+| `EMDASH_SITE_URL`      | Public browser-facing origin (falls back to `SITE_URL`) |
 | `EMDASH_DATABASE_URL`   | Override database URL                    |
 | `EMDASH_AUTH_SECRET`    | Secret for passkey authentication        |
 | `EMDASH_PREVIEW_SECRET` | Secret for preview token generation      |

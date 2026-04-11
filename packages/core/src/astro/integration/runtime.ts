@@ -263,6 +263,21 @@ export interface EmDashConfig {
 	marketplace?: string;
 
 	/**
+	 * Public browser-facing origin for the site.
+	 *
+	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
+	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
+	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
+	 *
+	 * Set to the full origin users type in the address bar (no path), e.g.
+	 * `https://mysite.example.com`. When not set, falls back to environment variables
+	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 *
+	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
+	 */
+	siteUrl?: string;
+
+	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
 	 *
 	 * When set, the integration injects a playground middleware (order: "pre")

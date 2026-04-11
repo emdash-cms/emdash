@@ -25,6 +25,8 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { computeThumbnailSize } from "../media/thumbnail.js";
+
 // ── Portable Text types ────────────────────────────────────────────
 
 interface PTSpan {
@@ -385,6 +387,7 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	if (block._type === "image") {
 		const ib = block as PTBlock & {
 			asset?: { _ref?: string; url?: string; provider?: string };
+			url?: string;
 			alt?: string;
 			caption?: string;
 			width?: number;
@@ -392,15 +395,16 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
+		const asset = ib.asset;
 		return {
 			type: "image",
 			attrs: {
-				src: ib.asset?.url || `/_emdash/api/media/file/${ib.asset?._ref}`,
+				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 				alt: ib.alt || "",
 				title: ib.caption || "",
 				caption: ib.caption || "",
-				mediaId: ib.asset?._ref,
-				provider: ib.asset?.provider,
+				mediaId: asset?._ref,
+				provider: asset?.provider,
 				width: ib.width,
 				height: ib.height,
 				displayWidth: ib.displayWidth,
@@ -1112,13 +1116,40 @@ function InlineMediaPicker({
 	const handleUpload = async (file: File) => {
 		setUploading(true);
 		try {
-			// Detect dimensions
-			const dims = await new Promise<{ width?: number; height?: number }>((resolve) => {
+			// Detect dimensions and generate a thumbnail for large images to
+			// avoid OOM in server-side blurhash generation on Workers.
+			const dims = await new Promise<{
+				width?: number;
+				height?: number;
+				thumbnail?: Blob;
+			}>((resolve) => {
 				if (!file.type.startsWith("image/")) return resolve({});
 				const img = new window.Image();
 				img.onload = () => {
-					resolve({ width: img.naturalWidth, height: img.naturalHeight });
+					const w = img.naturalWidth;
+					const h = img.naturalHeight;
+					// 32 MB RGBA threshold — matches server MAX_DECODED_BYTES
+					if (w * h * 4 > 32 * 1024 * 1024) {
+						const { width: thumbW, height: thumbH } = computeThumbnailSize(w, h);
+						try {
+							const canvas = document.createElement("canvas");
+							canvas.width = thumbW;
+							canvas.height = thumbH;
+							const ctx = canvas.getContext("2d");
+							if (ctx) {
+								ctx.drawImage(img, 0, 0, thumbW, thumbH);
+								canvas.toBlob((blob) => {
+									URL.revokeObjectURL(img.src);
+									resolve({ width: w, height: h, thumbnail: blob ?? undefined });
+								}, "image/png");
+								return;
+							}
+						} catch {
+							// Canvas allocation or draw failed — fall through to no-thumbnail path
+						}
+					}
 					URL.revokeObjectURL(img.src);
+					resolve({ width: w, height: h });
 				};
 				img.onerror = () => {
 					resolve({});
@@ -1134,6 +1165,7 @@ function InlineMediaPicker({
 				formData.append("file", file);
 				if (dims.width) formData.append("width", String(dims.width));
 				if (dims.height) formData.append("height", String(dims.height));
+				if (dims.thumbnail) formData.append("thumbnail", dims.thumbnail, "thumb.png");
 				const res = await ecFetch(`${API_BASE}/media`, { method: "POST", body: formData });
 				const data = await res.json();
 				const unwrapped = data.data ?? data;

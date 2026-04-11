@@ -3,6 +3,7 @@
  */
 
 const DEFAULT_REDIRECT = "/_emdash/admin";
+const LEADING_SLASHES = /^\/+/;
 
 /**
  * Sanitize a redirect URL to prevent open-redirect and javascript: XSS attacks.
@@ -18,6 +19,18 @@ export function sanitizeRedirectUrl(raw: string): string {
 		return raw;
 	}
 	return DEFAULT_REDIRECT;
+}
+
+/**
+ * Build a public content URL from collection metadata and slug.
+ *
+ * Uses the collection's `urlPattern` when available (e.g. `/blog/{slug}`),
+ * otherwise falls back to `/{collection}/{slug}`. Leading slashes are
+ * stripped from the slug to prevent protocol-relative URLs.
+ */
+export function contentUrl(collection: string, slug: string, urlPattern?: string): string {
+	const safe = slug.replace(LEADING_SLASHES, "");
+	return urlPattern ? urlPattern.replace("{slug}", safe) : `/${collection}/${safe}`;
 }
 
 /** Matches http:// or https:// URLs */
