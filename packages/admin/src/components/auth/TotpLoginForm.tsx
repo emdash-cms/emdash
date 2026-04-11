@@ -1,20 +1,7 @@
 /**
- * TotpLoginForm — ongoing login via an authenticator app. Rendered from
- * LoginPage when the user picks the "Authenticator app" method.
- *
- * Two internal modes:
- *   - "totp":     email + 6-digit code
- *   - "recovery": email + XXXX-XXXX recovery code
- *
- * The user switches between modes via a single "Lost your authenticator?
- * Use a recovery code" link below the code input. The link swaps the
- * input shape (different field styling so users don't conflate) but
- * preserves the email so they don't have to retype it.
- *
- * On successful TOTP login: call onSuccess (which redirects to /admin).
- * On successful recovery login: store the remaining-codes count in a
- * session-storage key so LoginPage can surface a persistent banner on
- * the next page.
+ * TotpLoginForm — ongoing login via an authenticator app or recovery code.
+ * Swaps between "totp" and "recovery" modes in place, preserving the
+ * email when switching.
  */
 
 import { Button, Input } from "@cloudflare/kumo";
@@ -23,17 +10,12 @@ import * as React from "react";
 
 import { apiFetch } from "../../lib/api";
 
-// Module-scoped regexes to avoid re-compiling on every keystroke.
 const SANITIZE_TOTP_REGEX = /[\s-]/g;
 const SIX_DIGITS_REGEX = /^\d{6}$/;
 const RECOVERY_CODE_REGEX = /^[A-Z2-7]{4}-[A-Z2-7]{4}$/;
 const UPPERCASE_ALLOWED_REGEX = /[^A-Z2-7-]/g;
 
-/**
- * sessionStorage key LoginPage uses to surface the "N codes left"
- * banner on the next page after a successful recovery login.
- * Exported for the banner consumer.
- */
+/** Key RecoveryCodesBanner reads on mount after a recovery-code login. */
 export const REMAINING_RECOVERY_CODES_KEY = "emdash:totp:remainingRecoveryCodes";
 
 type Mode = "totp" | "recovery";
@@ -69,11 +51,6 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 	};
 
 	const handleRecoveryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		// Accept lowercase too — recovery codes are base32 uppercase but
-		// users writing them down may use lowercase. We uppercase and
-		// reject anything outside the base32 alphabet + hyphen, then
-		// clamp the length so the input can't grow past the expected
-		// format (9 chars: 4 + 1 hyphen + 4).
 		const upper = e.target.value.toUpperCase().replace(UPPERCASE_ALLOWED_REGEX, "");
 		setRecoveryCode(upper.slice(0, 9));
 	};
@@ -113,19 +90,10 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 			});
 
 			if (!response.ok) {
-				// Parse the structured error body and map error codes to
-				// friendly copy. Anything we don't recognize falls back
-				// to the generic INVALID_CREDENTIALS message.
 				const errorBody: ErrorBody = await response.json().catch(() => ({}));
 				const errorCode = errorBody.error?.code ?? "INVALID_CREDENTIALS";
 
 				if (errorCode === "AUTH_SECRET_MISSING") {
-					// Server config problem, not a wrong code. Show the
-					// server's verbatim message which tells the deployer
-					// exactly which env var to set. Don't increment the
-					// failed-attempts counter — this isn't a login
-					// failure, it's a 500 that'll happen on every try
-					// until the deployer fixes the server.
 					setError(errorBody.error?.message ?? t`Server configuration needed.`);
 				} else if (errorCode === "TOTP_LOCKED") {
 					setError(t`Too many attempts. Use a recovery code instead.`);
@@ -135,8 +103,6 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 				} else {
 					setError(t`Email or code is wrong. Try again.`);
 					setFailedAttempts((n) => n + 1);
-					// Clear the code field on error so the user can
-					// retype without having to select-and-delete.
 					if (mode === "totp") setCode("");
 					else setRecoveryCode("");
 				}
@@ -146,8 +112,6 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 
 			const data: TotpLoginResponse = await response.json();
 
-			// If recovery path, stash the remaining count so LoginPage
-			// can show a persistent banner on the next page.
 			if (mode === "recovery" && typeof data.remainingRecoveryCodes === "number") {
 				try {
 					window.sessionStorage.setItem(
@@ -155,8 +119,7 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 						String(data.remainingRecoveryCodes),
 					);
 				} catch {
-					// sessionStorage can be unavailable in private modes
-					// on some browsers — swallow and skip the banner.
+					/* sessionStorage unavailable — skip banner */
 				}
 			}
 

@@ -342,9 +342,6 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 								{t`Sign in with email link`}
 							</Button>
 
-							{/* Authenticator App (TOTP) Option — hidden when
-							    the deployer has disabled TOTP via
-							    config.totp.enabled. Default: shown. */}
 							{manifest?.totpEnabled !== false && (
 								<Button
 									variant="ghost"

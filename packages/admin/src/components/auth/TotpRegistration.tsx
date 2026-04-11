@@ -1,31 +1,8 @@
 /**
- * TotpRegistration — enrollment component for the authenticator-app
- * setup path in the first-run wizard.
- *
- * Internal stages (driven by a discriminated-union state):
- *   1. "loading": fetching the otpauth URI from /setup/admin-totp
- *   2. "qr": showing the QR code, the base32 fallback, and the 6-digit
- *      input. User scans + types code + hits Verify.
- *   3. "verifying": spinner while /setup/admin-totp-verify is running
- *   4. "success-bridge": 800ms green check — "Authenticator connected"
- *   5. "recovery": 10 codes in a 2×5 grid, required acknowledgement
- *      checkbox, copy/download, `beforeunload` guard, Continue button
- *
- * Props:
- *   - adminData: email + name collected in the previous wizard step
- *   - onSuccess: callback fired when the user clicks Continue on the
- *     recovery codes screen (after acknowledging)
- *
- * Design decisions sourced from the Phase 2 review:
- *   - Single 6-digit <input> with inputMode="numeric",
- *     autoComplete="one-time-code", NOT six separate boxes
- *   - QR code renders on pure white (not the kumo-base tint) so
- *     scanner apps see maximum contrast
- *   - Base32 secret is shown in a collapsed "Can't scan?" disclosure
- *   - Recovery codes screen BLOCKS navigation until the acknowledgement
- *     checkbox is ticked (beforeunload + disabled Continue button)
- *   - Error copy tells the user WHY the code might have been rejected
- *     ("Check your device clock and try again")
+ * TotpRegistration — authenticator-app enrollment component for the
+ * first-run setup wizard. Fetches the secret, renders the QR code,
+ * verifies the first code, and gates Continue on acknowledging the
+ * recovery codes.
  */
 
 import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
@@ -36,14 +13,8 @@ import * as React from "react";
 
 import { ApiError, apiFetch, parseApiResponse } from "../../lib/api/client";
 
-// Module-level regexes — moving these out of handlers avoids re-compiling
-// on every keystroke.
 const SANITIZE_REGEX = /[\s-]/g;
 const SIX_DIGITS_REGEX = /^\d{6}$/;
-
-// ============================================================================
-// Props & state
-// ============================================================================
 
 interface TotpRegistrationProps {
 	email: string;
@@ -111,10 +82,6 @@ async function verifyTotpSetup(data: {
 	return parseApiResponse<AdminTotpVerifyResponse>(response, "Failed to verify code");
 }
 
-// ============================================================================
-// Stage 1+2: Start TOTP setup, render QR
-// ============================================================================
-
 export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationProps) {
 	const { t } = useLingui();
 	const [stage, setStage] = React.useState<Stage>({ kind: "loading" });
@@ -123,10 +90,6 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 	const [code, setCode] = React.useState("");
 	const codeInputRef = React.useRef<HTMLInputElement | null>(null);
 
-	// Kick off the start request on mount. We deliberately do NOT use
-	// react-query's useQuery here because this call has side effects
-	// (it generates and persists a TOTP secret on the server), so it
-	// shouldn't be cached, retried automatically, or refetched.
 	const startMutation = useMutation({
 		mutationFn: () => startTotpSetup({ email, name }),
 		onSuccess: async (data) => {
@@ -135,9 +98,7 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 					errorCorrectionLevel: "M",
 					margin: 1,
 					width: 240,
-					// Pure black on pure white — scanner apps need maximum
-					// contrast and the kumo background tint would hurt
-					// recognition on some devices.
+					// Pure white required for scanner contrast.
 					color: { dark: "#000000", light: "#FFFFFF" },
 				});
 				setStage({
@@ -150,8 +111,6 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 				});
 			} catch {
 				setError(t`Couldn't render the QR code. Try the manual code below.`);
-				// Still move to the qr stage so the base32 fallback is
-				// visible even though the QR image failed.
 				setStage({
 					kind: "qr",
 					challengeId: data.challengeId,
@@ -163,11 +122,6 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 			}
 		},
 		onError: (err: Error) => {
-			// Some error codes from the server are configuration
-			// problems the deployer must fix (e.g., missing auth
-			// secret). Surface those as a distinct stage with the
-			// server's actionable message rather than a generic
-			// "try again" banner that can't help.
 			if (err instanceof ApiError && err.code === "AUTH_SECRET_MISSING") {
 				setStage({ kind: "config-error", message: err.message });
 				return;
@@ -186,10 +140,6 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 		onSuccess: () => {
 			if (stage.kind !== "qr") return;
 			const codes = stage.recoveryCodes;
-			// Success bridge: show the green check for 800ms, then hand
-			// the user off to the recovery codes screen. Without this
-			// brief pause, the recovery codes screen reads as an error
-			// state ("what just happened?") instead of a reward.
 			setStage({ kind: "success-bridge", recoveryCodes: codes });
 			const reducedMotion =
 				typeof window !== "undefined" &&
@@ -203,8 +153,6 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 			setFailedAttempts((n) => n + 1);
 			setCode("");
 			setError(err.message || t`Code didn't match. Check your device clock and try again.`);
-			// Return focus to the code input so the user can retry
-			// without mouse/touch.
 			requestAnimationFrame(() => codeInputRef.current?.focus());
 		},
 	});
@@ -217,12 +165,9 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 		verifyMutation.mutate({ challengeId: stage.challengeId, code });
 	};
 
-	// Sanitize paste events so "123 456" or "123-456" still works.
 	const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const sanitized = e.target.value.replace(SANITIZE_REGEX, "").slice(0, 6);
 		setCode(sanitized);
-		// Auto-submit once 6 digits are entered — matches the
-		// authenticator-app ergonomic of "type the code, done".
 		if (sanitized.length === 6 && SIX_DIGITS_REGEX.test(sanitized) && stage.kind === "qr") {
 			verifyMutation.mutate({ challengeId: stage.challengeId, code: sanitized });
 		}
@@ -247,10 +192,6 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 	}
 
 	if (stage.kind === "config-error") {
-		// Deployer-facing error card. Shows the server's actionable
-		// message verbatim (which tells them exactly which env var
-		// to set), plus a Retry button for after they've fixed it
-		// and restarted the dev server.
 		return (
 			<div
 				className="space-y-4 rounded-lg border border-kumo-warning/40 bg-kumo-warning/10 p-4"
@@ -339,13 +280,8 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 		);
 	}
 
-	// stage.kind === "recovery"
 	return <RecoveryCodesStage codes={stage.recoveryCodes} onContinue={onSuccess} />;
 }
-
-// ============================================================================
-// QR stage subcomponent
-// ============================================================================
 
 interface QrStageProps {
 	qrDataUrl: string;
@@ -379,9 +315,7 @@ function QrStage({
 			setCopied(true);
 			window.setTimeout(setCopied, 1500, false);
 		} catch {
-			// Clipboard API can fail on insecure contexts or if the
-			// user denies permission — the user can still manually
-			// select the text, so swallow the error silently.
+			/* clipboard unavailable — user can select manually */
 		}
 	};
 
@@ -394,8 +328,7 @@ function QrStage({
 				</p>
 			</div>
 
-			{/* Pure white background — required for scanner contrast,
-			    do NOT swap for a kumo-base color token. */}
+			{/* Pure white background required for scanner contrast. */}
 			<div className="mx-auto flex w-fit items-center justify-center rounded-lg bg-white p-4 shadow-sm ring-1 ring-black/5">
 				{qrDataUrl ? (
 					<img
@@ -411,8 +344,6 @@ function QrStage({
 				)}
 			</div>
 
-			{/* Manual code disclosure — collapsed by default so the
-			    primary path (QR) stays visually dominant. */}
 			<details className="rounded-md bg-kumo-tint/40 p-3">
 				<summary className="cursor-pointer text-sm text-kumo-default">
 					{t`Can't scan? Enter this code instead`}
@@ -482,10 +413,6 @@ function QrStage({
 	);
 }
 
-// ============================================================================
-// Recovery codes stage
-// ============================================================================
-
 interface RecoveryCodesStageProps {
 	codes: string[];
 	onContinue: () => void;
@@ -496,17 +423,12 @@ function RecoveryCodesStage({ codes, onContinue }: RecoveryCodesStageProps) {
 	const [acknowledged, setAcknowledged] = React.useState(false);
 	const [copied, setCopied] = React.useState(false);
 
-	// beforeunload guard — warn the user if they try to close the tab
-	// or navigate away without acknowledging. Detached once the user
-	// ticks the box, because at that point they've committed to saving
-	// the codes and further warnings are just noise.
+	// beforeunload guard stays attached until the user acknowledges,
+	// so closing the tab without saving the codes triggers a warning.
 	React.useEffect(() => {
 		if (acknowledged) return;
 		const handler = (e: BeforeUnloadEvent) => {
 			e.preventDefault();
-			// Modern browsers ignore the returned string, but setting
-			// returnValue is still required for the prompt to fire in
-			// some Chromium versions.
 			e.returnValue = "";
 		};
 		window.addEventListener("beforeunload", handler);
@@ -519,14 +441,11 @@ function RecoveryCodesStage({ codes, onContinue }: RecoveryCodesStageProps) {
 			setCopied(true);
 			window.setTimeout(setCopied, 1500, false);
 		} catch {
-			// Clipboard failures are silent — user can still
-			// hand-copy or use the download.
+			/* clipboard unavailable */
 		}
 	};
 
 	const handleDownload = () => {
-		// Plain-text file so the user can save it anywhere. One code
-		// per line + a header line with the context.
 		const content = [
 			"EmDash recovery codes",
 			"Save these somewhere safe. Each code can be used exactly once.",
@@ -554,8 +473,6 @@ function RecoveryCodesStage({ codes, onContinue }: RecoveryCodesStageProps) {
 				</p>
 			</div>
 
-			{/* 2-column grid of monospace codes. Uses <ol> with an
-			    aria-label so screen readers can enumerate them. */}
 			<ol
 				aria-label={t`Recovery codes`}
 				className="grid grid-cols-2 gap-2 rounded-md bg-kumo-tint/40 p-4"

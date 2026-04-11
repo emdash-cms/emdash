@@ -524,11 +524,7 @@ export function SetupWizard() {
 		},
 	});
 
-	// Admin setup mutation — only runs for the passkey path because the
-	// passkey flow's server-side state is seeded by POST /setup/admin
-	// before PasskeyRegistration fetches options. The TOTP path calls
-	// its own start endpoint (/setup/admin-totp) from TotpRegistration
-	// and doesn't need this intermediate call.
+	// Only fires for the passkey path — TOTP has its own start route.
 	const adminMutation = useMutation({
 		mutationFn: executeAdminSetup,
 		onSuccess: () => {
@@ -546,19 +542,11 @@ export function SetupWizard() {
 		siteMutation.mutate(data);
 	};
 
-	// Handle admin step completion — collect the admin details and
-	// move to the method-choice screen WITHOUT calling any server
-	// route. Each method's start route (/setup/admin for passkey,
-	// /setup/admin-totp for totp) fires from the method-specific
-	// step component or from handleMethodNext below.
-	//
-	// When the deployer has disabled TOTP via config.totp.enabled,
-	// the method-choice screen is meaningless (only one option) so
-	// we skip it and fire the passkey seed call directly. This
-	// matches the original 3-step flow exactly.
 	const handleAdminNext = (data: SetupAdminRequest) => {
 		setAdminData(data);
 		setError(undefined);
+		// Skip the method-choice screen when TOTP is disabled — the
+		// original 3-step flow with only passkey available.
 		if (status?.totpEnabled === false) {
 			adminMutation.mutate(data);
 		} else {
@@ -566,9 +554,6 @@ export function SetupWizard() {
 		}
 	};
 
-	// Handle method-choice step completion — fire the passkey seed
-	// call for that path, or transition directly into the TOTP path
-	// which handles its own server calls.
 	const handleMethodNext = (method: AuthMethod) => {
 		if (!adminData) return;
 		setError(undefined);
@@ -670,9 +655,6 @@ export function SetupWizard() {
 							adminData={adminData}
 							onBack={() => {
 								setError(undefined);
-								// When TOTP is disabled, the "method" step
-								// was skipped entirely, so Back should
-								// return to "admin" not "method".
 								setCurrentStep(status?.totpEnabled === false ? "admin" : "method");
 							}}
 						/>
