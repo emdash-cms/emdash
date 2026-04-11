@@ -10,7 +10,11 @@ const menuItemType = z.string().min(1);
 
 const safeHref = z
 	.string()
-	.refine(isSafeHref, "URL must use http, https, mailto, tel, or a relative path");
+	.trim()
+	.refine(
+		isSafeHref,
+		"URL must use http, https, mailto, tel, a relative path, or a fragment identifier",
+	);
 
 export const createMenuBody = z
 	.object({
