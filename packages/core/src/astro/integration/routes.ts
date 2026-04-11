@@ -154,8 +154,8 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
-		pattern: "/_emdash/api/media/file/[key]",
-		entrypoint: resolveRoute("api/media/file/[key].ts"),
+		pattern: "/_emdash/api/media/file/[...key]",
+		entrypoint: resolveRoute("api/media/file/[...key].ts"),
 	});
 
 	injectRoute({
@@ -283,6 +283,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/settings",
 		entrypoint: resolveRoute("api/settings.ts"),
+	});
+
+	// Email settings route
+	injectRoute({
+		pattern: "/_emdash/api/settings/email",
+		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
 	// Snapshot route (for DO preview database population)
@@ -668,6 +674,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/sitemap.xml",
 		entrypoint: resolveRoute("sitemap.xml.ts"),
+	});
+
+	injectRoute({
+		pattern: "/sitemap-[collection].xml",
+		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
 	});
 
 	injectRoute({

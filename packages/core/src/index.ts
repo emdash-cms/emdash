@@ -290,6 +290,7 @@ export {
 	probeUrl,
 	clearSources,
 	wxrSource,
+	parseWxrDate,
 	wordpressRestSource,
 	importReusableBlocksAsSections,
 } from "./import/index.js";
@@ -336,7 +337,13 @@ export type {
 	GetPreviewUrlOptions,
 } from "./preview/index.js";
 // Site Settings
-export { getSiteSetting, getSiteSettings, setSiteSettings } from "./settings/index.js";
+export {
+	getPluginSetting,
+	getPluginSettings,
+	getSiteSetting,
+	getSiteSettings,
+	setSiteSettings,
+} from "./settings/index.js";
 export type {
 	SiteSettings,
 	SiteSettingKey,
@@ -352,6 +359,7 @@ export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
 export type {
 	PagePlacement,
 	PublicPageContext,
+	BreadcrumbItem,
 	PageMetadataEvent,
 	PageMetadataContribution,
 	PageMetadataHandler,

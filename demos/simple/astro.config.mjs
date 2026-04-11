@@ -34,8 +34,8 @@ export default defineConfig({
 			}),
 			authProviders: [github(), google(), atproto()],
 			plugins: [auditLogPlugin()],
-			// HTTPS reverse proxy: uncomment so passkey verify matches browser origin
-			// passkeyPublicOrigin: "https://emdash.local:8443",
+			// HTTPS reverse proxy: uncomment so all origin-dependent features match browser
+			// siteUrl: "https://emdash.local:8443",
 		}),
 	],
 	devToolbar: { enabled: false },

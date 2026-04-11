@@ -17,6 +17,10 @@ export interface ShellProps {
 				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 			}
 		>;
+		taxonomies: Array<{
+			name: string;
+			label: string;
+		}>;
 		version?: string;
 	};
 }

@@ -271,9 +271,11 @@ export function MenuEditor() {
 								<Input
 									label="URL"
 									name="url"
-									type="url"
+									type="text"
 									required
-									placeholder="https://example.com"
+									pattern="(https?://.+|/.*)"
+									title="Enter a URL (https://…) or a relative path (/…)"
+									placeholder="https://example.com or /about"
 								/>
 								<Select
 									label="Target"
@@ -413,8 +415,10 @@ export function MenuEditor() {
 								<Input
 									label="URL"
 									name="url"
-									type="url"
+									type="text"
 									required
+									pattern="(https?://.+|/.*)"
+									title="Enter a URL (https://…) or a relative path (/…)"
 									defaultValue={editingItem.custom_url || ""}
 								/>
 							)}

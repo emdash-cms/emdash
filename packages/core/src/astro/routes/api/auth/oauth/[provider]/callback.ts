@@ -17,6 +17,7 @@ import {
 } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
+import { getPublicOrigin } from "#api/public-url.js";
 import { finalizeSetup } from "#api/setup-complete.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -131,7 +132,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		const stateStore = createOAuthStateStore(emdash.db);
 
 		const config: OAuthConsumerConfig = {
-			baseUrl: `${url.origin}/_emdash`,
+			baseUrl: `${getPublicOrigin(url, emdash?.config)}/_emdash`,
 			providers,
 			canSelfSignup: async (email: string) => {
 				// During setup: first user becomes admin.

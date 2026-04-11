@@ -281,17 +281,19 @@ export interface EmDashConfig {
 	marketplace?: string;
 
 	/**
-	 * Public browser origin for passkey verification (rpId + expected WebAuthn origin).
+	 * Public browser-facing origin for the site.
 	 *
 	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
 	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
-	 * while the browser uses `https://`, which breaks WebAuthn origin checks.
+	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
 	 *
 	 * Set to the full origin users type in the address bar (no path), e.g.
-	 * `https://emdash.local:8443`. Prefer fixing `security.allowedDomains` for the proxy first;
-	 * use this when the reconstructed URL still diverges from the browser.
+	 * `https://mysite.example.com`. When not set, falls back to environment variables
+	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 *
+	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
 	 */
-	passkeyPublicOrigin?: string;
+	siteUrl?: string;
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
