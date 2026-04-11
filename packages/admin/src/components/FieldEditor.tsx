@@ -13,6 +13,9 @@ import {
 	LinkSimple,
 	BracketsCurly,
 	Link,
+	Rows,
+	Plus,
+	Trash,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import * as React from "react";
@@ -129,7 +132,20 @@ const FIELD_TYPES: {
 		description: "URL-friendly identifier",
 		icon: Link,
 	},
+	{
+		type: "repeater",
+		label: "Repeater",
+		description: "Repeating group of fields",
+		icon: Rows,
+	},
 ];
+
+interface RepeaterSubFieldState {
+	slug: string;
+	type: string;
+	label: string;
+	required: boolean;
+}
 
 interface FieldFormState {
 	step: "type" | "config";
@@ -145,6 +161,9 @@ interface FieldFormState {
 	max: string;
 	pattern: string;
 	options: string;
+	subFields: RepeaterSubFieldState[];
+	minItems: string;
+	maxItems: string;
 }
 
 function getInitialFormState(field?: SchemaField): FieldFormState {
@@ -163,6 +182,11 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			max: field.validation?.max?.toString() ?? "",
 			pattern: field.validation?.pattern ?? "",
 			options: field.validation?.options?.join("\n") ?? "",
+			subFields: (field.validation as Record<string, unknown>)?.subFields
+				? ((field.validation as Record<string, unknown>).subFields as RepeaterSubFieldState[])
+				: [],
+			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
+			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
 		};
 	}
 	return {
@@ -179,6 +203,9 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		max: "",
 		pattern: "",
 		options: "",
+		subFields: [],
+		minItems: "",
+		maxItems: "",
 	};
 }
 
@@ -244,6 +271,21 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			if (optionList.length > 0) {
 				validation.options = optionList;
 			}
+		}
+
+		if (selectedType === "repeater") {
+			if (formState.subFields.length > 0) {
+				(validation as Record<string, unknown>).subFields = formState.subFields.map((sf) => ({
+					slug: sf.slug,
+					type: sf.type,
+					label: sf.label,
+					required: sf.required || undefined,
+				}));
+			}
+			if (formState.minItems)
+				(validation as Record<string, unknown>).minItems = parseInt(formState.minItems, 10);
+			if (formState.maxItems)
+				(validation as Record<string, unknown>).maxItems = parseInt(formState.maxItems, 10);
 		}
 
 		// Only include searchable for text-based fields
@@ -461,15 +503,141 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								rows={5}
 							/>
 						)}
+
+						{selectedType === "repeater" && (
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<h4 className="font-medium text-sm">Sub-Fields</h4>
+									<Button
+										variant="outline"
+										size="sm"
+										icon={<Plus />}
+										onClick={() =>
+											setFormState((prev) => ({
+												...prev,
+												subFields: [
+													...prev.subFields,
+													{ slug: "", type: "string", label: "", required: false },
+												],
+											}))
+										}
+									>
+										Add Sub-Field
+									</Button>
+								</div>
+
+								{formState.subFields.length === 0 && (
+									<p className="text-sm text-kumo-subtle text-center py-4">
+										Add at least one sub-field to define the repeater structure.
+									</p>
+								)}
+
+								{formState.subFields.map((sf, i) => (
+									<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
+										<div className="flex-1 space-y-2">
+											<div className="grid grid-cols-2 gap-2">
+												<Input
+													label="Label"
+													value={sf.label}
+													onChange={(e) => {
+														const updated = [...formState.subFields];
+														updated[i] = {
+															...sf,
+															label: e.target.value,
+															slug: e.target.value
+																.toLowerCase()
+																.replace(SLUG_INVALID_CHARS_REGEX, "_")
+																.replace(SLUG_LEADING_TRAILING_REGEX, ""),
+														};
+														setFormState((prev) => ({ ...prev, subFields: updated }));
+													}}
+													placeholder="Field label"
+												/>
+												<div>
+													<label className="text-sm font-medium">Type</label>
+													<select
+														className="w-full mt-1 rounded-md border px-3 py-2 text-sm"
+														value={sf.type}
+														onChange={(e) => {
+															const updated = [...formState.subFields];
+															updated[i] = { ...sf, type: e.target.value };
+															setFormState((prev) => ({ ...prev, subFields: updated }));
+														}}
+													>
+														<option value="string">Short Text</option>
+														<option value="text">Long Text</option>
+														<option value="number">Number</option>
+														<option value="integer">Integer</option>
+														<option value="boolean">Boolean</option>
+														<option value="datetime">Date & Time</option>
+														<option value="select">Select</option>
+													</select>
+												</div>
+											</div>
+											<label className="flex items-center gap-2 text-sm">
+												<input
+													type="checkbox"
+													checked={sf.required}
+													onChange={(e) => {
+														const updated = [...formState.subFields];
+														updated[i] = { ...sf, required: e.target.checked };
+														setFormState((prev) => ({ ...prev, subFields: updated }));
+													}}
+												/>
+												Required
+											</label>
+										</div>
+										<Button
+											variant="ghost"
+											shape="square"
+											onClick={() =>
+												setFormState((prev) => ({
+													...prev,
+													subFields: prev.subFields.filter((_, j) => j !== i),
+												}))
+											}
+											aria-label="Remove sub-field"
+										>
+											<Trash className="h-4 w-4 text-kumo-danger" />
+										</Button>
+									</div>
+								))}
+
+								<div className="grid grid-cols-2 gap-4">
+									<Input
+										label="Min Items"
+										type="number"
+										value={formState.minItems}
+										onChange={(e) => setField("minItems", e.target.value)}
+										placeholder="0"
+									/>
+									<Input
+										label="Max Items"
+										type="number"
+										value={formState.maxItems}
+										onChange={(e) => setField("maxItems", e.target.value)}
+										placeholder="No limit"
+									/>
+								</div>
+							</div>
+						)}
 					</div>
 				)}
 
 				{step === "config" && (
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+					<div className="flex flex-col-reverse gap-2 py-2 sm:flex-row sm:justify-end sm:space-x-2">
 						<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
 							Cancel
 						</Button>
-						<Button onClick={handleSave} disabled={!slug || !label || isSaving}>
+						<Button
+							onClick={handleSave}
+							disabled={
+								!slug ||
+								!label ||
+								isSaving ||
+								(selectedType === "repeater" && formState.subFields.length === 0)
+							}
+						>
 							{isSaving ? "Saving..." : field ? "Update Field" : "Add Field"}
 						</Button>
 					</div>

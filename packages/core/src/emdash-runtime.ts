@@ -161,6 +161,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	file: "file",
 	reference: "reference",
 	json: "json",
+	repeater: "repeater",
 };
 
 /**
@@ -1172,6 +1173,10 @@ export class EmDashRuntime {
 								label: v.charAt(0).toUpperCase() + v.slice(1),
 							}));
 						}
+						// Include full validation for repeater fields (subFields, minItems, maxItems)
+						if (field.type === "repeater" && field.validation) {
+							(entry as Record<string, unknown>).validation = field.validation;
+						}
 						fields[field.slug] = entry;
 					}
 				}
@@ -1602,11 +1607,25 @@ export class EmDashRuntime {
 	// =========================================================================
 
 	async handleContentPublish(collection: string, id: string) {
-		return handleContentPublish(this.db, collection, id);
+		const result = await handleContentPublish(this.db, collection, id);
+
+		// Run afterPublish hooks (fire-and-forget)
+		if (result.success && result.data) {
+			this.runAfterPublishHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentUnpublish(collection: string, id: string) {
-		return handleContentUnpublish(this.db, collection, id);
+		const result = await handleContentUnpublish(this.db, collection, id);
+
+		// Run afterUnpublish hooks (fire-and-forget)
+		if (result.success && result.data) {
+			this.runAfterUnpublishHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
@@ -1961,6 +1980,48 @@ export class EmDashRuntime {
 				.invokeHook("content:afterDelete", { id, collection })
 				.catch((err) =>
 					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
+				);
+		}
+	}
+
+	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+		// Trusted plugins
+		if (this.hooks.hasHooks("content:afterPublish")) {
+			this.hooks
+				.runContentAfterPublish(content, collection)
+				.catch((err) => console.error("EmDash afterPublish hook error:", err));
+		}
+
+		// Sandboxed plugins
+		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+			const [pluginId] = pluginKey.split(":");
+			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+
+			plugin
+				.invokeHook("content:afterPublish", { content, collection })
+				.catch((err) =>
+					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err),
+				);
+		}
+	}
+
+	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
+		// Trusted plugins
+		if (this.hooks.hasHooks("content:afterUnpublish")) {
+			this.hooks
+				.runContentAfterUnpublish(content, collection)
+				.catch((err) => console.error("EmDash afterUnpublish hook error:", err));
+		}
+
+		// Sandboxed plugins
+		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+			const [pluginId] = pluginKey.split(":");
+			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+
+			plugin
+				.invokeHook("content:afterUnpublish", { content, collection })
+				.catch((err) =>
+					console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnpublish error:`, err),
 				);
 		}
 	}
