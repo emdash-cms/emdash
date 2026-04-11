@@ -19,6 +19,8 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { encryptWithHKDF } from "@emdash-cms/auth";
+import { generateHOTP } from "@oslojs/otp";
 import { ulid } from "ulidx";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
@@ -30,6 +32,15 @@ import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
+
+/**
+ * Well-known test TOTP secret — the 20-byte ASCII string "12345678901234567890"
+ * from RFC 6238 Appendix B. Agent-browser tests can generate the current
+ * code deterministically from this secret, so the test doesn't need to
+ * poke at the authenticator UI.
+ */
+const DEV_TOTP_SECRET_BYTES = new TextEncoder().encode("12345678901234567890");
+const DEV_TOTP_SECRET_BASE32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
 // RBAC role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
@@ -130,6 +141,48 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 			session.set("user", { id: user.id });
 		}
 
+		// Optionally provision a known-seed TOTP credential (?totp=1)
+		// so agent-browser tests can exercise the TOTP login flow.
+		// The secret is the RFC 6238 Appendix B test vector, so the
+		// current 6-digit code can be computed deterministically from
+		// Date.now() without any server round-trip.
+		let currentTotpCode: string | undefined;
+		if (url.searchParams.has("totp")) {
+			const authSecret =
+				import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "";
+			if (authSecret && authSecret.length >= 32) {
+				// Encrypt the base32 secret and upsert a totp_secrets row
+				// for the dev user. If one already exists from a prior
+				// dev-bypass call, overwrite it so tests get a clean
+				// state machine (last_used_step=0, failed_attempts=0,
+				// no lockout).
+				const encrypted = await encryptWithHKDF(DEV_TOTP_SECRET_BASE32, authSecret);
+				await emdash.db.deleteFrom("totp_secrets").where("user_id", "=", user.id).execute();
+				const now = new Date().toISOString();
+				await emdash.db
+					.insertInto("totp_secrets")
+					.values({
+						user_id: user.id,
+						encrypted_secret: encrypted,
+						algorithm: "SHA1",
+						digits: 6,
+						period: 30,
+						last_used_step: 0,
+						failed_attempts: 0,
+						locked_until: null,
+						verified: 1,
+						created_at: now,
+						updated_at: now,
+					})
+					.execute();
+
+				// Compute the current code so the caller can use it
+				// immediately without having to know the secret.
+				const step = BigInt(Math.floor(Date.now() / 30000));
+				currentTotpCode = generateHOTP(DEV_TOTP_SECRET_BYTES, step, 6);
+			}
+		}
+
 		// Optionally create a PAT token (?token=1) for headless/CLI testing.
 		let token: string | undefined;
 		if (url.searchParams.has("token")) {
@@ -188,6 +241,9 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 				role: user.role,
 			},
 			...(token ? { token } : {}),
+			...(currentTotpCode
+				? { totp: { secret: DEV_TOTP_SECRET_BASE32, currentCode: currentTotpCode } }
+				: {}),
 		});
 	} catch (error) {
 		return handleError(error, "Dev bypass failed", "DEV_BYPASS_ERROR");
