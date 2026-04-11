@@ -27,6 +27,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
 import { handleApiTokenCreate } from "#api/handlers/api-tokens.js";
 import { isSafeRedirect } from "#api/redirect.js";
+import { resolveAuthSecret } from "#auth/auth-secret.js";
 import { runMigrations } from "#db/migrations/runner.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeed } from "#seed/apply.js";
@@ -148,15 +149,14 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		// Date.now() without any server round-trip.
 		let currentTotpCode: string | undefined;
 		if (url.searchParams.has("totp")) {
-			const authSecret =
-				import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "";
-			if (authSecret && authSecret.length >= 32) {
+			const secretResult = resolveAuthSecret();
+			if (secretResult.ok) {
 				// Encrypt the base32 secret and upsert a totp_secrets row
 				// for the dev user. If one already exists from a prior
 				// dev-bypass call, overwrite it so tests get a clean
 				// state machine (last_used_step=0, failed_attempts=0,
 				// no lockout).
-				const encrypted = await encryptWithHKDF(DEV_TOTP_SECRET_BASE32, authSecret);
+				const encrypted = await encryptWithHKDF(DEV_TOTP_SECRET_BASE32, secretResult.secret);
 				await emdash.db.deleteFrom("totp_secrets").where("user_id", "=", user.id).execute();
 				const now = new Date().toISOString();
 				await emdash.db

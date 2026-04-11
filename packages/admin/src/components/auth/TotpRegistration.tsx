@@ -34,7 +34,7 @@ import { useMutation } from "@tanstack/react-query";
 import QRCode from "qrcode";
 import * as React from "react";
 
-import { apiFetch, parseApiResponse } from "../../lib/api/client";
+import { ApiError, apiFetch, parseApiResponse } from "../../lib/api/client";
 
 // Module-level regexes — moving these out of handlers avoids re-compiling
 // on every keystroke.
@@ -71,6 +71,7 @@ interface AdminTotpVerifyResponse {
 
 type Stage =
 	| { kind: "loading" }
+	| { kind: "config-error"; message: string }
 	| {
 			kind: "qr";
 			challengeId: string;
@@ -162,6 +163,15 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 			}
 		},
 		onError: (err: Error) => {
+			// Some error codes from the server are configuration
+			// problems the deployer must fix (e.g., missing auth
+			// secret). Surface those as a distinct stage with the
+			// server's actionable message rather than a generic
+			// "try again" banner that can't help.
+			if (err instanceof ApiError && err.code === "AUTH_SECRET_MISSING") {
+				setStage({ kind: "config-error", message: err.message });
+				return;
+			}
 			setError(err.message || t`Couldn't start setup. Refresh and try again.`);
 		},
 	});
@@ -232,6 +242,54 @@ export function TotpRegistration({ email, name, onSuccess }: TotpRegistrationPro
 						{error}
 					</p>
 				)}
+			</div>
+		);
+	}
+
+	if (stage.kind === "config-error") {
+		// Deployer-facing error card. Shows the server's actionable
+		// message verbatim (which tells them exactly which env var
+		// to set), plus a Retry button for after they've fixed it
+		// and restarted the dev server.
+		return (
+			<div
+				className="space-y-4 rounded-lg border border-kumo-warning/40 bg-kumo-warning/10 p-4"
+				role="alert"
+			>
+				<div className="flex items-start gap-3">
+					<svg
+						className="mt-0.5 h-5 w-5 flex-shrink-0 text-kumo-warning"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={2}
+							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+						/>
+					</svg>
+					<div className="flex-1">
+						<h3 className="text-sm font-medium text-kumo-default">
+							{t`Server configuration needed`}
+						</h3>
+						<p className="mt-1 text-sm text-kumo-default">{stage.message}</p>
+					</div>
+				</div>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onClick={() => {
+						setStage({ kind: "loading" });
+						startMutation.mutate();
+					}}
+					className="w-full justify-center"
+				>
+					{t`Retry`}
+				</Button>
 			</div>
 		);
 	}

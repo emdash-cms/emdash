@@ -30,6 +30,7 @@ import { decodeBase32IgnorePadding } from "@oslojs/encoding";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { setupAdminTotpVerifyBody } from "#api/schemas.js";
+import { authSecretFailureMessage, resolveAuthSecret } from "#auth/auth-secret.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
 import { isTotpEnabled } from "#auth/totp-config.js";
 import {
@@ -42,17 +43,6 @@ import { OptionsRepository } from "#db/repositories/options.js";
  * expires_at constraint on auth_tokens is satisfied without the codes
  * ever actually expiring in practice. */
 const RECOVERY_CODE_EXPIRY_YEARS = 100;
-
-function resolveAuthSecret(): string {
-	const secret = import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "";
-	if (!secret || secret.length < 32) {
-		throw new Error(
-			"EMDASH_AUTH_SECRET is not set or is too short (min 32 chars). " +
-				"Generate one with `emdash auth secret` and set it in your env.",
-		);
-	}
-	return secret;
-}
 
 export const POST: APIRoute = async ({ request, locals, session }) => {
 	const { emdash } = locals;
@@ -114,12 +104,29 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			);
 		}
 
+		// Check the auth secret before we try to decrypt — cleaner to
+		// surface a structured "config missing" error than to let the
+		// decrypt fail with a cryptic exception.
+		const secretResult = resolveAuthSecret();
+		if (!secretResult.ok) {
+			console.error(
+				`[setup/admin-totp-verify] ${authSecretFailureMessage(secretResult.reason)}`,
+			);
+			return apiError(
+				"AUTH_SECRET_MISSING",
+				authSecretFailureMessage(secretResult.reason),
+				500,
+			);
+		}
+
 		// Decrypt the stored base32 secret and decode it to raw bytes
 		// for the verify primitive.
-		const authSecret = resolveAuthSecret();
 		let keyBytes: Uint8Array;
 		try {
-			const base32Secret = await decryptWithHKDF(challenge.encryptedSecret, authSecret);
+			const base32Secret = await decryptWithHKDF(
+				challenge.encryptedSecret,
+				secretResult.secret,
+			);
 			keyBytes = decodeBase32IgnorePadding(base32Secret);
 		} catch {
 			// A decrypt failure here means either the challenge row is

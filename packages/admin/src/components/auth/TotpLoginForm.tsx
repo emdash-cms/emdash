@@ -119,7 +119,15 @@ export function TotpLoginForm({ onSuccess, onBack }: TotpLoginFormProps) {
 				const errorBody: ErrorBody = await response.json().catch(() => ({}));
 				const errorCode = errorBody.error?.code ?? "INVALID_CREDENTIALS";
 
-				if (errorCode === "TOTP_LOCKED") {
+				if (errorCode === "AUTH_SECRET_MISSING") {
+					// Server config problem, not a wrong code. Show the
+					// server's verbatim message which tells the deployer
+					// exactly which env var to set. Don't increment the
+					// failed-attempts counter — this isn't a login
+					// failure, it's a 500 that'll happen on every try
+					// until the deployer fixes the server.
+					setError(errorBody.error?.message ?? t`Server configuration needed.`);
+				} else if (errorCode === "TOTP_LOCKED") {
 					setError(t`Too many attempts. Use a recovery code instead.`);
 					setMode("recovery");
 				} else if (errorCode === "RATE_LIMITED") {

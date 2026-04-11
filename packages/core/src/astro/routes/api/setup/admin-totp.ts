@@ -30,28 +30,11 @@ import {
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { setupAdminTotpBody } from "#api/schemas.js";
+import { authSecretFailureMessage, resolveAuthSecret } from "#auth/auth-secret.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
 import { isTotpEnabled } from "#auth/totp-config.js";
 import { createTOTPSetupChallenge } from "#auth/totp-setup-store.js";
 import { OptionsRepository } from "#db/repositories/options.js";
-
-/**
- * Read the EMDASH_AUTH_SECRET env var. Throws a user-visible error if
- * unset — you cannot encrypt secrets without a key, and silently falling
- * back to a hardcoded value would leak the encrypted blob. The checked
- * name is the same one `emdash auth secret` outputs and the docs
- * instruct deployers to set.
- */
-function resolveAuthSecret(): string {
-	const secret = import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "";
-	if (!secret || secret.length < 32) {
-		throw new Error(
-			"EMDASH_AUTH_SECRET is not set or is too short (min 32 chars). " +
-				"Generate one with `emdash auth secret` and set it in your env.",
-		);
-	}
-	return secret;
-}
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
@@ -105,8 +88,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// already text and survives round-tripping through the HKDF
 		// path untouched). The decrypt side in admin-totp-verify will
 		// decode it back into bytes before handing it to verifyTOTPCode.
-		const authSecret = resolveAuthSecret();
-		const encryptedSecret = await encryptWithHKDF(base32Secret, authSecret);
+		//
+		// Check the auth secret AFTER we know we'd otherwise do real
+		// work. On failure, surface a structured error code the
+		// admin UI can map to a deployer-facing "fix your env" card
+		// rather than throwing a generic 500.
+		const secretResult = resolveAuthSecret();
+		if (!secretResult.ok) {
+			console.error(`[setup/admin-totp] ${authSecretFailureMessage(secretResult.reason)}`);
+			return apiError(
+				"AUTH_SECRET_MISSING",
+				authSecretFailureMessage(secretResult.reason),
+				500,
+			);
+		}
+		const encryptedSecret = await encryptWithHKDF(base32Secret, secretResult.secret);
 
 		// Generate the recovery codes NOW so their hashes can be stored
 		// in the setup-challenge row alongside the encrypted secret.

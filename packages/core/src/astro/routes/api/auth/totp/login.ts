@@ -40,21 +40,9 @@ import { decodeBase32IgnorePadding } from "@oslojs/encoding";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { totpLoginBody } from "#api/schemas.js";
+import { authSecretFailureMessage, resolveAuthSecret } from "#auth/auth-secret.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
 import { isTotpEnabled } from "#auth/totp-config.js";
-
-/** Resolve EMDASH_AUTH_SECRET with hard failure on absence — silently
- * falling back to a default would leak the encrypted TOTP blob. */
-function resolveAuthSecret(): string {
-	const secret = import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "";
-	if (!secret || secret.length < 32) {
-		throw new Error(
-			"EMDASH_AUTH_SECRET is not set or is too short (min 32 chars). " +
-				"Generate one with `emdash auth secret` and set it in your env.",
-		);
-	}
-	return secret;
-}
 
 export const POST: APIRoute = async ({ request, locals, session }) => {
 	const { emdash } = locals;
@@ -122,12 +110,27 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			}
 
 			// Decrypt the stored secret and decode to raw bytes for the
-			// verify primitive. A decrypt failure here means corruption
-			// or auth-secret rotation — surface as INVALID_CREDENTIALS
-			// (vague) rather than leaking the cause.
+			// verify primitive. Two failure modes:
+			//   1. Auth secret missing from env — return a structured
+			//      500 the UI can map to a deployer-facing error card
+			//      (this is a server config problem, not a wrong code).
+			//   2. Decrypt fails with the secret present — means
+			//      corruption or secret rotation; surface as
+			//      INVALID_CREDENTIALS (vague) to avoid leaking cause.
+			const secretResult = resolveAuthSecret();
+			if (!secretResult.ok) {
+				console.error(
+					`[auth/totp/login] ${authSecretFailureMessage(secretResult.reason)}`,
+				);
+				return apiError(
+					"AUTH_SECRET_MISSING",
+					authSecretFailureMessage(secretResult.reason),
+					500,
+				);
+			}
 			let keyBytes: Uint8Array;
 			try {
-				const base32Secret = await decryptWithHKDF(totp.encryptedSecret, resolveAuthSecret());
+				const base32Secret = await decryptWithHKDF(totp.encryptedSecret, secretResult.secret);
 				keyBytes = decodeBase32IgnorePadding(base32Secret);
 			} catch {
 				return invalidCredentials();

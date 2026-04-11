@@ -17,21 +17,54 @@ export function apiFetch(input: string | URL | Request, init?: RequestInit): Pro
 }
 
 /**
+ * Structured error for API failures. Carries the server-side error
+ * code (e.g., "AUTH_SECRET_MISSING", "RATE_LIMITED", "NOT_FOUND") so
+ * callers can map specific codes to targeted UX — like showing a
+ * "fix your env" panel instead of a generic "something went wrong"
+ * banner. Extends Error so existing callers that only read `.message`
+ * keep working unchanged.
+ */
+export class ApiError extends Error {
+	constructor(
+		public readonly code: string,
+		message: string,
+		public readonly status: number,
+	) {
+		super(message);
+		this.name = "ApiError";
+	}
+}
+
+/**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
  * `{ error: { code, message } }`.
+ *
+ * Always throws an ApiError (an Error subclass), so new callers can
+ * `instanceof ApiError` and read `err.code` / `err.status` for targeted
+ * error UX, while existing callers that only check `err.message` keep
+ * working unchanged.
  */
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
 	let message: string | undefined;
+	let code: string | undefined;
 	if (typeof body === "object" && body !== null && "error" in body) {
 		const { error } = body;
-		if (typeof error === "object" && error !== null && "message" in error) {
-			const { message: msg } = error;
-			if (typeof msg === "string") message = msg;
+		if (typeof error === "object" && error !== null) {
+			if ("message" in error && typeof error.message === "string") {
+				message = error.message;
+			}
+			if ("code" in error && typeof error.code === "string") {
+				code = error.code;
+			}
 		}
 	}
-	throw new Error(message || `${fallback}: ${res.statusText}`);
+	throw new ApiError(
+		code ?? "UNKNOWN",
+		message || `${fallback}: ${res.statusText}`,
+		res.status,
+	);
 }
 
 /**
