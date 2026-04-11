@@ -470,3 +470,24 @@ This will:
 4. Redirect to the admin dashboard
 
 **Note**: These endpoints only work when `import.meta.env.DEV` is true. They return 403 in production.
+
+### Exercising the TOTP login path
+
+Add `?totp=1` to the setup-bypass URL to provision a known-seed TOTP credential on the dev user (the RFC 6238 Appendix B test vector, `12345678901234567890`). The JSON response body includes `{ totp: { secret, currentCode } }` where `currentCode` is the 6-digit code valid for the current 30-second period. Use it to drive the TOTP login flow from an agent-browser test without polling the authenticator state.
+
+```bash
+curl "http://localhost:4321/_emdash/api/setup/dev-bypass?totp=1" | jq
+```
+
+Requires `EMDASH_AUTH_SECRET` to be set (a valid 32+ char base64url string). Without it, the `?totp=1` branch silently skips provisioning so the default dev-bypass still works.
+
+### Editing the Astro integration plugin
+
+Routes registered via `injectRoute` in `packages/core/src/astro/integration/routes.ts` are only mounted at server startup. If you add, remove, or rename a registered route, **rebuild the core package and restart the dev server**:
+
+```bash
+pnpm --filter emdash build
+# then restart pnpm dev in demos/simple
+```
+
+Vite HMR reloads Astro route files but NOT the integration plugin itself. A stale plugin will keep serving the old route table until the process is restarted, which surfaces as confusing 404s on routes you just added.

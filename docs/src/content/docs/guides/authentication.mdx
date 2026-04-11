@@ -7,7 +7,7 @@ import { Aside, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components
 
 EmDash uses passkey authentication as its primary login method. Passkeys are phishing-resistant, don't require passwords, and work across devices through your browser or password manager.
 
-For Cloudflare deployments, you can optionally use [Cloudflare Access](#cloudflare-access) as an alternative authentication provider.
+For users who can't use passkeys (unsupported browser, shared device, or just preference), [authenticator apps](#authenticator-app-totp) provide an alternative using the familiar "scan a QR code, type 6 digits" pattern. For Cloudflare deployments, you can optionally use [Cloudflare Access](#cloudflare-access) as the sole authentication provider.
 
 ## How It Works
 
@@ -86,6 +86,93 @@ If you can't use your passkey (e.g., lost device), magic links provide an altern
 <Aside type="caution">
 	Magic links are single-use and expire after 15 minutes. Request a new link if yours has expired.
 </Aside>
+
+## Authenticator App (TOTP)
+
+EmDash supports time-based one-time passwords (RFC 6238) via any standard authenticator app — 1Password, Google Authenticator, Authy, Bitwarden, or similar. TOTP is available as both a first-run setup method (an alternative to passkeys when passkey UX fails) and an ongoing login method.
+
+Unlike magic links, TOTP requires no email configuration — it works on the very first run of a fresh install.
+
+### Prerequisites
+
+TOTP is enabled by default, but it needs `EMDASH_AUTH_SECRET` to be set because the TOTP secret is encrypted at rest. Generate one and add it to your environment:
+
+```bash
+# Generate a 32-byte base64url secret
+openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+```
+
+Put it in `.env` at the root of your Astro project:
+
+```bash title=".env"
+EMDASH_AUTH_SECRET=your-generated-secret-here
+```
+
+<Aside type="caution">
+	The secret must be at least 32 characters and use the base64url alphabet (`A-Z`, `a-z`, `0-9`,
+	`-`, `_`). Plain text or standard base64 (`+/`) won't work — both encryption paths decode it as
+	base64url. In production, set this via your hosting platform's env var UI (Fly secrets, Cloudflare
+	Worker bindings, etc.), never in a checked-in file.
+</Aside>
+
+### First-run Setup
+
+When you hit the setup wizard for the first time with TOTP available, you'll see a method choice between Passkey and Authenticator app. Pick Authenticator app to walk through the TOTP flow.
+
+<Steps>
+
+1. Scan the QR code with your authenticator app, or tap **Can't scan?** to copy the base32 secret into the app manually.
+
+2. Enter the 6-digit code your app displays.
+
+3. Save the 10 recovery codes shown on the next screen. You'll need one if you lose access to your authenticator. The server only stores hashes — there is no way to recover these codes later.
+
+4. Check the **I have saved these codes in a safe place** box, then click **Continue**.
+
+</Steps>
+
+### Ongoing Login
+
+On the login page, click **Sign in with authenticator app**, enter your email and current 6-digit code, and submit.
+
+If you've lost your authenticator, click **Lost your authenticator? Use a recovery code** below the code input and enter one of your saved recovery codes. Each recovery code can be used exactly once, and a banner in the admin will tell you how many you have left after the login.
+
+### Disabling TOTP
+
+TOTP is enabled by default. To turn it off entirely (e.g., for compliance environments that disallow phishable factors), set it explicitly in your Astro config:
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			totp: { enabled: false },
+		}),
+	],
+});
+```
+
+When disabled, every TOTP route returns 404, the setup wizard skips the method-choice screen, and the login page hides the **Sign in with authenticator app** button.
+
+### Customizing the Issuer Label
+
+Authenticator apps show an "issuer" label to help users tell multiple TOTP accounts apart. By default, EmDash uses your site title. To override it:
+
+```js title="astro.config.mjs"
+emdash({
+	totp: { issuer: "Acme Editorial" },
+});
+```
+
+### Security Notes
+
+- **Rate limiting** — each method has its own 5-attempts-per-15-minutes budget per IP, so a user who typos their TOTP code five times can still try a recovery code without waiting.
+- **Account lockout** — 10 consecutive failed TOTP codes lock the account for 15 minutes. Recovery codes still work during the lockout. Expired lockouts reset the failure counter automatically.
+- **Replay protection** — the epoch counter of the most recent successful code is stored; a captured code can't be reused within its 30-second window.
+- **Uniform error responses** — wrong email, wrong code, disabled user, and locked account all return the same `INVALID_CREDENTIALS` shape. Response timing and body can't enumerate valid accounts.
+- **Encryption at rest** — TOTP secrets are encrypted with AES-GCM-256 using a key derived from `EMDASH_AUTH_SECRET` via HKDF-SHA256.
 
 ## OAuth Login
 

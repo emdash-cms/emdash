@@ -76,20 +76,22 @@ When you first visit the admin panel, EmDash's Setup Wizard guides you through i
    - **Tagline** — A short description
    - **Admin Email** — Your email address
 
-3. Click **Create Site** to register your passkey
+3. Click **Create Site**
 
-4. Your browser will prompt you to create a passkey using Touch ID, Face ID, Windows Hello, or a security key
+4. Pick how you want to sign in:
+   - **Passkey** — Touch ID, Face ID, Windows Hello, or a security key. Most secure.
+   - **Authenticator app** — 1Password, Google Authenticator, Authy, Bitwarden, or similar. Works on any device. Requires `EMDASH_AUTH_SECRET` to be set (see the [authentication guide](/guides/authentication/#authenticator-app-totp)).
 
 </Steps>
 
-Once your passkey is registered, you're logged in and redirected to the admin dashboard.
+Once your credential is registered, you're logged in and redirected to the admin dashboard. If you chose the authenticator app path, make sure to save the recovery codes — you'll need one if you ever lose access to your authenticator.
 
 <img src={dashboardImg.src} alt="EmDash admin dashboard showing content overview, recent activity, and navigation sidebar" />
 
 <Aside>
-	EmDash uses passkey authentication instead of passwords. Passkeys are more secure and work with
-	your browser's built-in password manager. See the [Authentication guide](/guides/authentication/)
-	for more details.
+	EmDash supports passkeys as the primary login method, with an authenticator app (TOTP) alternative
+	and magic link fallback. See the [Authentication guide](/guides/authentication/) for the full
+	picture.
 </Aside>
 
 ## Your First Post
