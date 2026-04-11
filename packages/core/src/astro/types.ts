@@ -36,7 +36,13 @@ export interface ManifestCollection {
 			label?: string;
 			required?: boolean;
 			widget?: string;
-			options?: Array<{ value: string; label: string }>;
+			/**
+			 * Field options. Two shapes:
+			 *   - Legacy enum: `Array<{ value, label }>` for select / multiSelect widgets
+			 *   - Plugin widgets: `Record<string, unknown>` for arbitrary per-field config
+			 *     (e.g. a checkbox grid receiving its column definitions)
+			 */
+			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 		}
 	>;
 }
@@ -189,6 +195,8 @@ export interface EmDashHandlers {
 			authorId?: string;
 			locale?: string;
 			translationOf?: string;
+			createdAt?: string | null;
+			publishedAt?: string | null;
 		},
 	) => Promise<HandlerResponse>;
 
@@ -344,4 +352,12 @@ export interface EmDashHandlers {
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+
+	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+	collectPageMetadata: (
+		page: import("../plugins/types.js").PublicPageContext,
+	) => Promise<import("../plugins/types.js").PageMetadataContribution[]>;
+	collectPageFragments: (
+		page: import("../plugins/types.js").PublicPageContext,
+	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
 }

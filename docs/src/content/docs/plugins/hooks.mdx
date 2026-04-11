@@ -262,6 +262,62 @@ Runs after content is successfully deleted.
 
 **Returns:** `Promise<void>`
 
+### `content:afterPublish`
+
+Runs after content is published (promoted from draft to live). Use for side effects like cache invalidation, notifications, or syncing to external systems.
+Requires `read:content` capability.
+
+```typescript
+"content:afterPublish": async (event, ctx) => {
+  const { content, collection } = event;
+
+  ctx.log.info(`Published ${collection}/${content.id}`);
+
+  // Notify external system
+  if (ctx.http) {
+    await ctx.http.fetch("https://api.example.com/webhook", {
+      method: "POST",
+      body: JSON.stringify({ event: "content:publish", id: content.id })
+    });
+  }
+}
+```
+
+**Event:**
+
+```typescript
+{
+	content: Record<string, unknown>; // Published content (includes id, timestamps)
+	collection: string;
+}
+```
+
+**Returns:** `Promise<void>`
+
+### `content:afterUnpublish`
+
+Runs after content is unpublished (reverted from live to draft). Use for side effects like cache invalidation or notifying external systems.
+Requires `read:content` capability.
+
+```typescript
+"content:afterUnpublish": async (event, ctx) => {
+  const { content, collection } = event;
+
+  ctx.log.info(`Unpublished ${collection}/${content.id}`);
+}
+```
+
+**Event:**
+
+```typescript
+{
+	content: Record<string, unknown>; // Unpublished content
+	collection: string;
+}
+```
+
+**Returns:** `Promise<void>`
+
 ## Media Hooks
 
 Media hooks run during file uploads.
@@ -505,6 +561,8 @@ Placements: `"head"`, `"body:start"`, `"body:end"`. Templates that omit a compon
 | `content:afterSave`     | After content save             | `void`                         | No        |
 | `content:beforeDelete`  | Before content delete          | `false` to cancel, else allow  | No        |
 | `content:afterDelete`   | After content delete           | `void`                         | No        |
+| `content:afterPublish`  | After content publish          | `void`                         | No        |
+| `content:afterUnpublish`| After content unpublish        | `void`                         | No        |
 | `media:beforeUpload`    | Before file upload             | Modified file info or `void`   | No        |
 | `media:afterUpload`     | After file upload              | `void`                         | No        |
 | `cron`                  | Scheduled task fires           | `void`                         | No        |
