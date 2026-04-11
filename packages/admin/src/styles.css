@@ -82,6 +82,12 @@ body {
 	color: var(--text-color-kumo-default);
 }
 
+/* Fix text selection contrast */
+::selection {
+	background-color: var(--color-kumo-interact);
+	color: var(--text-color-kumo-default);
+}
+
 /**
  * Editor-specific prose overrides
  */
