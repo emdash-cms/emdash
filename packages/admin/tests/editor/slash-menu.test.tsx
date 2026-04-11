@@ -12,7 +12,7 @@
 import type { Editor } from "@tiptap/react";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../utils/render.js";
 
 import type { PortableTextEditorProps } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";

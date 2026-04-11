@@ -9,10 +9,11 @@
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
+import { render } from "../utils/render.js";
+import { TestWrapper } from "../utils/test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Mocks — heavy components that need network / Astro context
@@ -130,6 +131,7 @@ async function renderAndGetEditor(props: Partial<Parameters<typeof PortableTextE
 			}}
 			{...props}
 		/>,
+		{ wrapper: TestWrapper },
 	);
 	const pm = await waitForEditor();
 	await vi.waitFor(() => expect(capturedEditor).toBeTruthy(), { timeout: 2000 });
@@ -178,7 +180,7 @@ function textBlock(
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
 	it("renders a paragraph from PT value", async () => {
-		await render(<PortableTextEditor value={[textBlock("Hello world")]} />);
+		await render(<PortableTextEditor value={[textBlock("Hello world")]} />, { wrapper: TestWrapper });
 		const pm = await waitForEditor();
 		const p = pm.querySelector("p");
 		expect(p).toBeTruthy();

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../utils/render.js";
 
 import { FieldEditor } from "../../src/components/FieldEditor";
 import type { SchemaField } from "../../src/lib/api";

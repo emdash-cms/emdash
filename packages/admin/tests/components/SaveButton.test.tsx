@@ -1,6 +1,6 @@
 import * as React from "react";
 import { describe, it, expect } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../utils/render.js";
 
 import { SaveButton } from "../../src/components/SaveButton";
 

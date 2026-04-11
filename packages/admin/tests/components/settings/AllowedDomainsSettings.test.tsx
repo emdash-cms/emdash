@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../utils/render.js";
 
 import { AllowedDomainsSettings } from "../../../src/components/settings/AllowedDomainsSettings";
 

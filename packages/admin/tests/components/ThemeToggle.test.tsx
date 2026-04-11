@@ -1,6 +1,6 @@
 import * as React from "react";
 import { describe, it, expect, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../utils/render.js";
 
 import { ThemeProvider } from "../../src/components/ThemeProvider";
 import { ThemeToggle } from "../../src/components/ThemeToggle";

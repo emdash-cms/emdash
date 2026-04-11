@@ -1,7 +1,7 @@
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../utils/render.js";
 
 import { useStableCallback } from "../../src/lib/hooks";
 
