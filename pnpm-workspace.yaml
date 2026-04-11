@@ -45,7 +45,7 @@ catalog:
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   astro: ^6.0.1
-  better-sqlite3: ^11.10.0
+  better-sqlite3: ^12.8.0
   publint: 0.3.17
   react: 19.2.4
   react-dom: 19.2.4

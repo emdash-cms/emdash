@@ -37,6 +37,8 @@ interface PageContextFields {
 	 * field to let consumers fall back to their own derivation.
 	 */
 	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 /** Input with Astro global -- used in .astro files */
@@ -96,5 +98,6 @@ export function createPublicPageContext(input: CreatePublicPageContextInput): Pu
 		articleMeta: input.articleMeta,
 		siteName: input.siteName,
 		breadcrumbs: input.breadcrumbs,
+		siteUrl: input.siteUrl,
 	};
 }

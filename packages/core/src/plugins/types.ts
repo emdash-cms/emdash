@@ -807,6 +807,8 @@ export interface PublicPageContext {
 	 *   - Non-empty array — used verbatim for `BreadcrumbList` output.
 	 */
 	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 // ── page:metadata ───────────────────────────────────────────────
