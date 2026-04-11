@@ -2,7 +2,9 @@
 	"extends": "../plugins/tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src"
+		"rootDir": "./src",
+		"noUncheckedIndexedAccess": false,
+		"lib": ["es2023", "DOM", "DOM.Iterable", "esnext.typedarrays"]
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"]

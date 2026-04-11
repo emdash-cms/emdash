@@ -1063,6 +1063,9 @@ importers:
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
       '@types/sanitize-html':
         specifier: ^2.16.0
         version: 2.16.0

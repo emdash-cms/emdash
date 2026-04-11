@@ -37,16 +37,16 @@ msgstr "Allow users from specific domains to sign up"
 msgid "API Tokens"
 msgstr "API Tokens"
 
-#: packages/admin/src/components/LoginPage.tsx:253
+#: packages/admin/src/components/LoginPage.tsx:195
 msgid "Authentication error: {error}"
 msgstr "Authentication error: {error}"
 
-#: packages/admin/src/components/LoginPage.tsx:174
-#: packages/admin/src/components/LoginPage.tsx:210
+#: packages/admin/src/components/LoginPage.tsx:117
+#: packages/admin/src/components/LoginPage.tsx:153
 msgid "Back to login"
 msgstr "Back to login"
 
-#: packages/admin/src/components/LoginPage.tsx:158
+#: packages/admin/src/components/LoginPage.tsx:101
 msgid "Check your email"
 msgstr "Check your email"
 
@@ -54,7 +54,7 @@ msgstr "Check your email"
 msgid "Choose your preferred admin language"
 msgstr "Choose your preferred admin language"
 
-#: packages/admin/src/components/LoginPage.tsx:169
+#: packages/admin/src/components/LoginPage.tsx:112
 msgid "Click the link in the email to sign in."
 msgstr "Click the link in the email to sign in."
 
@@ -62,7 +62,7 @@ msgstr "Click the link in the email to sign in."
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Create personal access tokens for programmatic API access"
 
-#: packages/admin/src/components/LoginPage.tsx:358
+#: packages/admin/src/components/LoginPage.tsx:332
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Don't have an account? <0>Sign up</0>"
 
@@ -70,12 +70,16 @@ msgstr "Don't have an account? <0>Sign up</0>"
 msgid "Email"
 msgstr "Email"
 
-#: packages/admin/src/components/LoginPage.tsx:183
+#: packages/admin/src/components/LoginPage.tsx:126
 msgid "Email address"
 msgstr "Email address"
 
-#: packages/admin/src/components/LoginPage.tsx:127
-#: packages/admin/src/components/LoginPage.tsx:132
+#: packages/admin/src/components/LoginPage.tsx:325
+msgid "Enter your handle to sign in."
+msgstr "Enter your handle to sign in."
+
+#: packages/admin/src/components/LoginPage.tsx:70
+#: packages/admin/src/components/LoginPage.tsx:75
 msgid "Failed to send magic link"
 msgstr "Failed to send magic link"
 
@@ -83,7 +87,7 @@ msgstr "Failed to send magic link"
 msgid "General"
 msgstr "General"
 
-#: packages/admin/src/components/LoginPage.tsx:160
+#: packages/admin/src/components/LoginPage.tsx:103
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 
@@ -99,7 +103,7 @@ msgstr "Locale"
 msgid "Manage your passkeys and authentication"
 msgstr "Manage your passkeys and authentication"
 
-#: packages/admin/src/components/LoginPage.tsx:313
+#: packages/admin/src/components/LoginPage.tsx:261
 msgid "Or continue with"
 msgstr "Or continue with"
 
@@ -115,11 +119,11 @@ msgstr "Security"
 msgid "Self-Signup Domains"
 msgstr "Self-Signup Domains"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 msgid "Send magic link"
 msgstr "Send magic link"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 msgid "Sending..."
 msgstr "Sending..."
 
@@ -131,19 +135,24 @@ msgstr "SEO"
 msgid "Settings"
 msgstr "Settings"
 
-#: packages/admin/src/components/LoginPage.tsx:283
+#: packages/admin/src/components/LoginPage.tsx:232
 msgid "Sign in to your site"
 msgstr "Sign in to your site"
 
-#: packages/admin/src/components/LoginPage.tsx:284
+#. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
+#: packages/admin/src/components/LoginPage.tsx:231
+msgid "Sign in with {0}"
+msgstr "Sign in with {0}"
+
+#: packages/admin/src/components/LoginPage.tsx:229
 msgid "Sign in with email"
 msgstr "Sign in with email"
 
-#: packages/admin/src/components/LoginPage.tsx:340
+#: packages/admin/src/components/LoginPage.tsx:290
 msgid "Sign in with email link"
 msgstr "Sign in with email link"
 
-#: packages/admin/src/components/LoginPage.tsx:304
+#: packages/admin/src/components/LoginPage.tsx:252
 msgid "Sign in with Passkey"
 msgstr "Sign in with Passkey"
 
@@ -159,11 +168,11 @@ msgstr "Social Links"
 msgid "Social media profile links"
 msgstr "Social media profile links"
 
-#: packages/admin/src/components/LoginPage.tsx:170
+#: packages/admin/src/components/LoginPage.tsx:113
 msgid "The link will expire in 15 minutes."
 msgstr "The link will expire in 15 minutes."
 
-#: packages/admin/src/components/LoginPage.tsx:351
+#: packages/admin/src/components/LoginPage.tsx:326
 msgid "Use your registered passkey to sign in securely."
 msgstr "Use your registered passkey to sign in securely."
 
@@ -171,6 +180,6 @@ msgstr "Use your registered passkey to sign in securely."
 msgid "View email provider status and send test emails"
 msgstr "View email provider status and send test emails"
 
-#: packages/admin/src/components/LoginPage.tsx:352
+#: packages/admin/src/components/LoginPage.tsx:323
 msgid "We'll send you a link to sign in without a password."
 msgstr "We'll send you a link to sign in without a password."

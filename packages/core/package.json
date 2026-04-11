@@ -221,6 +221,7 @@
     "@arethetypeswrong/cli": "catalog:",
     "@emdash-cms/blocks": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
+    "@types/react": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
