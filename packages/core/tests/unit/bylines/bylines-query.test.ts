@@ -243,7 +243,9 @@ describe("Byline query functions", () => {
 				slug: "large-batch-explicit-1",
 				data: { title: "Large Batch Explicit 1" },
 			});
-			await bylineRepo.setContentBylines("post", explicitPost1.id, [{ bylineId: explicitByline.id }]);
+			await bylineRepo.setContentBylines("post", explicitPost1.id, [
+				{ bylineId: explicitByline.id },
+			]);
 
 			const inferredPostIds: string[] = [];
 			for (let i = 0; i < SQL_BATCH_SIZE + 2; i++) {
@@ -273,7 +275,9 @@ describe("Byline query functions", () => {
 				slug: "large-batch-explicit-2",
 				data: { title: "Large Batch Explicit 2" },
 			});
-			await bylineRepo.setContentBylines("post", explicitPost2.id, [{ bylineId: explicitByline.id }]);
+			await bylineRepo.setContentBylines("post", explicitPost2.id, [
+				{ bylineId: explicitByline.id },
+			]);
 
 			const entryIds = [explicitPost1.id, ...inferredPostIds, explicitPost2.id];
 			const result = await getBylinesForEntries("post", entryIds);
