@@ -286,6 +286,14 @@ async function importContent(
 				}
 			}
 
+			// Preserve original dates from the source
+			const itemDateTime = item.date?.getTime();
+			const createdAt =
+				itemDateTime !== undefined && !Number.isNaN(itemDateTime)
+					? item.date.toISOString()
+					: undefined;
+			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
 				data,
@@ -295,6 +303,8 @@ async function importContent(
 				bylines: bylineId ? [{ bylineId }] : undefined,
 				locale: item.locale,
 				translationOf,
+				createdAt,
+				publishedAt,
 			});
 
 			if (createResult.success) {

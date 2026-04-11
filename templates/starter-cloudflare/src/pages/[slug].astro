@@ -1,7 +1,8 @@
 ---
-import { getEmDashEntry, getSeoMeta } from "emdash";
+import { getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "../layouts/Base.astro";
+import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 const { slug } = Astro.params;
 
@@ -16,9 +17,10 @@ if (!page) {
 }
 
 Astro.cache.set(cacheHint);
+const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 
 const seo = getSeoMeta(page, {
-	siteTitle: "My Site",
+	siteTitle,
 	siteUrl: Astro.url.origin,
 	path: `/${slug}`,
 });

@@ -2,7 +2,11 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../src/database/connection.js";
-import { runMigrations, getMigrationStatus } from "../../src/database/migrations/runner.js";
+import {
+	runMigrations,
+	getMigrationStatus,
+	MIGRATION_COUNT,
+} from "../../src/database/migrations/runner.js";
 import type { Database } from "../../src/database/types.js";
 
 describe("Database Migrations", () => {
@@ -70,7 +74,7 @@ describe("Database Migrations", () => {
 			await expect(runMigrations(db)).resolves.not.toThrow();
 
 			const status = await getMigrationStatus(db);
-			expect(status.applied).toHaveLength(32); // 001_initial through 033_optimize_content_indexes (no 010)
+			expect(status.applied).toHaveLength(MIGRATION_COUNT); // derived from MIGRATIONS map in runner.ts
 		});
 
 		it("should record migration in tracking table", async () => {
@@ -78,7 +82,7 @@ describe("Database Migrations", () => {
 
 			const records = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-			expect(records).toHaveLength(32);
+			expect(records).toHaveLength(MIGRATION_COUNT);
 			expect(records[0].name).toBe("001_initial");
 			expect(records[0].timestamp).toBeDefined();
 			expect(records[1].name).toBe("002_media_status");
