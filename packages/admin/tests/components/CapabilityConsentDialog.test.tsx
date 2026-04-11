@@ -1,8 +1,8 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "../utils/render.js";
 
 import { CapabilityConsentDialog } from "../../src/components/CapabilityConsentDialog";
+import { render } from "../utils/render.js";
 
 describe("CapabilityConsentDialog", () => {
 	let onConfirm: ReturnType<typeof vi.fn>;

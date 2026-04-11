@@ -7,11 +7,7 @@ type RenderWrapper = ComponentRenderOptions["wrapper"];
 
 const I18nWrapper = (InnerWrapper: RenderWrapper = React.Fragment) => {
 	return ({ children }: React.PropsWithChildren) =>
-		React.createElement(
-			I18nProvider,
-			{ i18n },
-			React.createElement(InnerWrapper, null, children),
-		);
+		React.createElement(I18nProvider, { i18n }, React.createElement(InnerWrapper, null, children));
 };
 
 export const render: typeof baseRender = (ui, { wrapper: UserWrapper, ...options } = {}) => {

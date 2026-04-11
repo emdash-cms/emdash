@@ -180,7 +180,9 @@ function textBlock(
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
 	it("renders a paragraph from PT value", async () => {
-		await render(<PortableTextEditor value={[textBlock("Hello world")]} />, { wrapper: TestWrapper });
+		await render(<PortableTextEditor value={[textBlock("Hello world")]} />, {
+			wrapper: TestWrapper,
+		});
 		const pm = await waitForEditor();
 		const p = pm.querySelector("p");
 		expect(p).toBeTruthy();

@@ -1,8 +1,8 @@
 import * as React from "react";
 import { describe, it, expect } from "vitest";
-import { render } from "../utils/render.js";
 
 import { SaveButton } from "../../src/components/SaveButton";
+import { render } from "../utils/render.js";
 
 describe("SaveButton", () => {
 	it("shows 'Save' when dirty and not saving", async () => {

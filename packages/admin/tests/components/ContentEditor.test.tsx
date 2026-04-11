@@ -1,6 +1,5 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "../utils/render.js";
 
 import {
 	ContentEditor,
@@ -8,6 +7,7 @@ import {
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
 import type { ContentItem } from "../../src/lib/api";
+import { render } from "../utils/render.js";
 
 // Mock child components that have complex dependencies
 vi.mock("../../src/components/PortableTextEditor", () => ({
