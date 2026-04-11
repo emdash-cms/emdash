@@ -67,7 +67,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}>
-			<Dialog className="p-6 sm:max-w-md" size="lg">
+			<Dialog className="p-6 sm:max-w-md">
 				<div className="flex items-start justify-between gap-4">
 					<div className="flex-1" />
 					<Dialog.Close

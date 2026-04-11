@@ -513,6 +513,56 @@ describe("ContentRepository", () => {
 			);
 		});
 
+		it("should persist removal of array items in JSON fields (multiSelect)", async () => {
+			// Add a multiSelect (JSON) field to the post collection
+			await registry.createField("post", {
+				slug: "tags",
+				label: "Tags",
+				type: "multiSelect",
+			});
+
+			const created = await repo.create({
+				type: "post",
+				data: { title: "Test", tags: ["news", "sports", "tech"] },
+			});
+
+			expect(created.data.tags).toEqual(["news", "sports", "tech"]);
+
+			// Remove "sports" from the array (simulates unchecking a checkbox)
+			const updated = await repo.update("post", created.id, {
+				data: { title: "Test", tags: ["news", "tech"] },
+			});
+
+			expect(updated.data.tags).toEqual(["news", "tech"]);
+
+			// Verify it persists when re-reading
+			const fetched = await repo.findById("post", updated.id);
+			expect(fetched!.data.tags).toEqual(["news", "tech"]);
+		});
+
+		it("should persist empty array in JSON fields (multiSelect)", async () => {
+			await registry.createField("post", {
+				slug: "categories",
+				label: "Categories",
+				type: "multiSelect",
+			});
+
+			const created = await repo.create({
+				type: "post",
+				data: { title: "Test", categories: ["news"] },
+			});
+
+			// Uncheck all items
+			const updated = await repo.update("post", created.id, {
+				data: { title: "Test", categories: [] },
+			});
+
+			expect(updated.data.categories).toEqual([]);
+
+			const fetched = await repo.findById("post", updated.id);
+			expect(fetched!.data.categories).toEqual([]);
+		});
+
 		it("should not update soft-deleted content", async () => {
 			const created = await repo.create({
 				type: "post",
