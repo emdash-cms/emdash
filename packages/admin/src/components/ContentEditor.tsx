@@ -525,7 +525,12 @@ export function ContentEditor({
 				<div className="flex items-center space-x-2">
 					{/* Autosave indicator */}
 					{!isNew && onAutosave && (
-						<div className="flex items-center text-xs text-kumo-subtle">
+						<div
+							className="flex items-center text-xs text-kumo-subtle"
+							role="status"
+							aria-label="Autosave status"
+							aria-live="polite"
+						>
 							{isAutosaving ? (
 								<>
 									<Loader size="sm" />

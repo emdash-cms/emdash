@@ -335,7 +335,9 @@ test.describe("Autosave after perf optimizations", () => {
 		expect(response.status()).toBe(200);
 
 		// The autosave indicator should show "Saved"
-		await expect(page.locator("text=Saved")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByRole("status", { name: "Autosave status" })).toContainText("Saved", {
+			timeout: 5000,
+		});
 	});
 
 	test("multiple rapid edits result in single autosave (debounce still works)", async ({

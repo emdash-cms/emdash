@@ -163,7 +163,9 @@ test.describe("Revisions", () => {
 		expect(response.status()).toBe(200);
 
 		// Wait for autosave indicator
-		await expect(page.locator("text=Saved")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByRole("status", { name: "Autosave status" })).toContainText("Saved", {
+			timeout: 5000,
+		});
 
 		// Now publish to create a new live revision
 		const publishButton = page.getByRole("button", { name: "Publish" });
