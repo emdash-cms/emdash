@@ -384,6 +384,7 @@ const MAX_PLUGIN_REDIRECTS = 5;
 
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
 	return allowedHosts.some((pattern) => {
+		if (pattern === "*") return true;
 		if (pattern.startsWith("*.")) {
 			const suffix = pattern.slice(1); // ".example.com"
 			return host.endsWith(suffix) || host === pattern.slice(2);

@@ -1,6 +1,10 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely, type SqlBool } from "kysely";
 
 import type { Database, OptionTable } from "../types.js";
+
+function escapeLike(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
 
 /**
  * Options repository for key-value settings storage
@@ -122,10 +126,11 @@ export class OptionsRepository {
 	 * Get all options matching a prefix
 	 */
 	async getByPrefix<T = unknown>(prefix: string): Promise<Map<string, T>> {
+		const pattern = `${escapeLike(prefix)}%`;
 		const rows = await this.db
 			.selectFrom("options")
 			.select(["name", "value"])
-			.where("name", "like", `${prefix}%`)
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
 			.execute();
 
 		const result = new Map<string, T>();
@@ -140,9 +145,10 @@ export class OptionsRepository {
 	 * Delete all options matching a prefix
 	 */
 	async deleteByPrefix(prefix: string): Promise<number> {
+		const pattern = `${escapeLike(prefix)}%`;
 		const result = await this.db
 			.deleteFrom("options")
-			.where("name", "like", `${prefix}%`)
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
 			.executeTakeFirst();
 
 		return Number(result.numDeletedRows ?? 0);
