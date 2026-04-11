@@ -33,6 +33,7 @@ const categories = await getEntryTerms("posts", post.data.id, "category");
 
 <Base
 	title={seo.title}
+	pageTitle={seo.ogTitle}
 	description={seo.description}
 	canonical={seo.canonical}
 	image={seo.ogImage}

@@ -47,6 +47,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				hash: "default",
 				collections: {},
 				plugins: {},
+				taxonomies: [],
 				authMode: "passkey",
 				signupEnabled,
 			};

@@ -41,6 +41,35 @@ function headersOfCall(callIndex: number): Headers {
 // createHttpAccess – host-restricted
 // =============================================================================
 
+describe("createHttpAccess host allowlist matching", () => {
+	const pluginId = "test-plugin";
+
+	it('allows any hostname when allowedHosts contains standalone "*"', async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["*"]);
+		await expect(http.fetch("https://api.example.com/v1")).resolves.toBeInstanceOf(Response);
+		await expect(http.fetch("https://random.host.io/path")).resolves.toBeInstanceOf(Response);
+	});
+
+	it('allows requests when "*" is mixed with explicit hosts', async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["*", "api.example.com"]);
+		await expect(http.fetch("https://another.example.net/ok")).resolves.toBeInstanceOf(Response);
+	});
+
+	it('still supports "*.domain" wildcard matching', async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["*.example.com"]);
+		await expect(http.fetch("https://api.example.com/v1")).resolves.toBeInstanceOf(Response);
+		await expect(http.fetch("https://evil.com")).rejects.toThrow(
+			'is not allowed to fetch from host "evil.com"',
+		);
+	});
+});
+
 describe("createHttpAccess credential stripping", () => {
 	const pluginId = "test-plugin";
 	const allowedHosts = ["a.example.com", "b.example.com"];

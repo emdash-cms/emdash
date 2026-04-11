@@ -12,16 +12,28 @@ import type { ApiResult } from "../types.js";
 
 /** Raw content data for sitemap generation — the route builds the actual URLs */
 export interface SitemapContentEntry {
-	/** Collection slug (e.g., "post", "page") */
-	collection: string;
-	/** Content slug or ID */
-	identifier: string;
+	/** Content ID (ULID) */
+	id: string;
+	/** Content slug, or null when the entry has no slug */
+	slug: string | null;
 	/** ISO date of last modification */
 	updatedAt: string;
 }
 
-export interface SitemapDataResponse {
+/** Per-collection sitemap data with entries and URL pattern */
+export interface SitemapCollectionData {
+	/** Collection slug (e.g., "post", "page") */
+	collection: string;
+	/** URL pattern with {slug} placeholder, or null for default /{collection}/{slug} */
+	urlPattern: string | null;
+	/** Most recent updated_at across all entries (for sitemap index lastmod) */
+	lastmod: string;
+	/** Individual content entries */
 	entries: SitemapContentEntry[];
+}
+
+export interface SitemapDataResponse {
+	collections: SitemapCollectionData[];
 }
 
 /** Maximum entries per sitemap (per spec) */
@@ -29,31 +41,36 @@ const SITEMAP_MAX_ENTRIES = 50_000;
 
 /**
  * Collect all published, indexable content across SEO-enabled collections
- * for sitemap generation.
+ * for sitemap generation, grouped by collection.
  *
  * Only includes content from collections with `has_seo = 1`.
  * Excludes content with `seo_no_index = 1` in the `_emdash_seo` table.
  *
- * Returns raw data (collection + identifier + date). The caller (route)
- * is responsible for building absolute URLs — this handler does NOT
+ * Returns raw data grouped per collection. The caller (route) is
+ * responsible for building absolute URLs — this handler does NOT
  * assume a URL structure.
  */
 export async function handleSitemapData(
 	db: Kysely<Database>,
+	/** When set, only return data for this collection. */
+	collectionSlug?: string,
 ): Promise<ApiResult<SitemapDataResponse>> {
 	try {
-		// Find all SEO-enabled collections
-		const collections = await db
+		// Find SEO-enabled collections (optionally filtered)
+		let query = db
 			.selectFrom("_emdash_collections")
-			.select(["slug"])
-			.where("has_seo", "=", 1)
-			.execute();
+			.select(["slug", "url_pattern"])
+			.where("has_seo", "=", 1);
 
-		const entries: SitemapContentEntry[] = [];
+		if (collectionSlug) {
+			query = query.where("slug", "=", collectionSlug);
+		}
+
+		const collections = await query.execute();
+
+		const result: SitemapCollectionData[] = [];
 
 		for (const col of collections) {
-			if (entries.length >= SITEMAP_MAX_ENTRIES) break;
-
 			// Validate the slug before using it as a table name identifier.
 			// Should always pass (slugs are validated on creation), but
 			// guards against corrupted DB data.
@@ -65,7 +82,6 @@ export async function handleSitemapData(
 			}
 
 			const tableName = `ec_${col.slug}`;
-			const remaining = SITEMAP_MAX_ENTRIES - entries.length;
 
 			// Query published, non-deleted content.
 			// LEFT JOIN _emdash_seo to check noindex flag.
@@ -87,16 +103,27 @@ export async function handleSitemapData(
 					AND c.deleted_at IS NULL
 					AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
 					ORDER BY c.updated_at DESC
-					LIMIT ${remaining}
+					LIMIT ${SITEMAP_MAX_ENTRIES}
 				`.execute(db);
 
+				if (rows.rows.length === 0) continue;
+
+				const entries: SitemapContentEntry[] = [];
 				for (const row of rows.rows) {
 					entries.push({
-						collection: col.slug,
-						identifier: row.slug || row.id,
+						id: row.id,
+						slug: row.slug,
 						updatedAt: row.updated_at,
 					});
 				}
+
+				result.push({
+					collection: col.slug,
+					urlPattern: col.url_pattern,
+					// Rows are ordered by updated_at DESC, so first row is the latest
+					lastmod: rows.rows[0].updated_at,
+					entries,
+				});
 			} catch (err) {
 				// Table missing or query error — skip this collection
 				console.warn(`[SITEMAP] Failed to query collection "${col.slug}":`, err);
@@ -104,7 +131,7 @@ export async function handleSitemapData(
 			}
 		}
 
-		return { success: true, data: { entries } };
+		return { success: true, data: { collections: result } };
 	} catch (error) {
 		console.error("[SITEMAP_ERROR]", error);
 		return {
