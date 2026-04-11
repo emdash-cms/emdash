@@ -6,7 +6,7 @@ packages:
   - packages/blocks/playground
   - e2e/fixture
   - docs
-  - slidev
+  - i18n
 
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
