@@ -37,20 +37,22 @@ export interface CreateApiTokenInput {
 	expiresAt?: string;
 }
 
-/** Available scopes for API tokens */
-export const API_TOKEN_SCOPES = [
-	{ value: "content:read", label: t`Content Read`, description: t`Read content entries` },
-	{
-		value: "content:write",
-		label: t`Content Write`,
-		description: t`Create, update, delete content`,
-	},
-	{ value: "media:read", label: t`Media Read`, description: t`Read media files` },
-	{ value: "media:write", label: t`Media Write`, description: t`Upload and delete media` },
-	{ value: "schema:read", label: t`Schema Read`, description: t`Read collection schemas` },
-	{ value: "schema:write", label: t`Schema Write`, description: t`Modify collection schemas` },
-	{ value: "admin", label: t`Admin`, description: t`Full admin access` },
-] as const;
+/** Available scopes for API tokens (call at render time so locale is current). */
+export function buildApiTokenScopes() {
+	return [
+		{ value: "content:read", label: t`Content Read`, description: t`Read content entries` },
+		{
+			value: "content:write",
+			label: t`Content Write`,
+			description: t`Create, update, delete content`,
+		},
+		{ value: "media:read", label: t`Media Read`, description: t`Read media files` },
+		{ value: "media:write", label: t`Media Write`, description: t`Upload and delete media` },
+		{ value: "schema:read", label: t`Schema Read`, description: t`Read collection schemas` },
+		{ value: "schema:write", label: t`Schema Write`, description: t`Modify collection schemas` },
+		{ value: "admin", label: t`Admin`, description: t`Full admin access` },
+	] as const;
+}
 
 // =============================================================================
 // API Functions

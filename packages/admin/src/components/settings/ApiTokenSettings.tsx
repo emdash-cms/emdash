@@ -6,6 +6,7 @@
 
 import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Copy,
@@ -24,7 +25,7 @@ import {
 	fetchApiTokens,
 	createApiToken,
 	revokeApiToken,
-	API_TOKEN_SCOPES,
+	buildApiTokenScopes,
 	type ApiTokenCreateResult,
 } from "../../lib/api/api-tokens.js";
 import { getMutationError } from "../DialogError.js";
@@ -33,13 +34,15 @@ import { getMutationError } from "../DialogError.js";
 // Expiry options
 // =============================================================================
 
-const EXPIRY_OPTIONS = [
-	{ value: "none", label: t`No expiry` },
-	{ value: "7d", label: t`7 days` },
-	{ value: "30d", label: t`30 days` },
-	{ value: "90d", label: t`90 days` },
-	{ value: "365d", label: t`1 year` },
-] as const;
+function buildExpiryOptions() {
+	return [
+		{ value: "none", label: t`No expiry` },
+		{ value: "7d", label: t`7 days` },
+		{ value: "30d", label: t`30 days` },
+		{ value: "90d", label: t`90 days` },
+		{ value: "365d", label: t`1 year` },
+	] as const;
+}
 
 function computeExpiryDate(option: string): string | undefined {
 	if (option === "none") return undefined;
@@ -289,6 +292,10 @@ interface CreateTokenFormProps {
 }
 
 function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenFormProps) {
+	const { i18n } = useLingui();
+	const apiTokenScopes = React.useMemo(() => buildApiTokenScopes(), [i18n.locale]);
+	const expiryOptions = React.useMemo(() => buildExpiryOptions(), [i18n.locale]);
+
 	const [name, setName] = React.useState("");
 	const [selectedScopes, setSelectedScopes] = React.useState<Set<string>>(new Set());
 	const [expiry, setExpiry] = React.useState("30d");
@@ -340,7 +347,7 @@ function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenF
 				<div>
 					<div className="text-sm font-medium mb-2">Scopes</div>
 					<div className="space-y-2">
-						{API_TOKEN_SCOPES.map((scope) => (
+						{apiTokenScopes.map((scope) => (
 							<label key={scope.value} className="flex items-start gap-2 cursor-pointer">
 								<Checkbox
 									checked={selectedScopes.has(scope.value)}
@@ -359,9 +366,9 @@ function CreateTokenForm({ isCreating, error, onSubmit, onCancel }: CreateTokenF
 					label="Expiry"
 					value={expiry}
 					onValueChange={(v) => v !== null && setExpiry(v)}
-					items={Object.fromEntries(EXPIRY_OPTIONS.map((o) => [o.value, o.label]))}
+					items={Object.fromEntries(expiryOptions.map((o) => [o.value, o.label]))}
 				>
-					{EXPIRY_OPTIONS.map((option) => (
+					{expiryOptions.map((option) => (
 						<Select.Option key={option.value} value={option.value}>
 							{option.label}
 						</Select.Option>

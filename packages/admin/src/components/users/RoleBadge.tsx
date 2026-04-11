@@ -1,40 +1,50 @@
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import { useMemo } from "react";
 
 import { cn } from "../../lib/utils";
 
-/** Role level to name mapping */
-const ROLE_CONFIG: Record<number, { label: string; color: string; description: string }> = {
-	10: {
-		label: t`Subscriber`,
-		color: "gray",
-		description: t`Can view content`,
-	},
-	20: {
-		label: t`Contributor`,
-		color: "blue",
-		description: t`Can create content`,
-	},
-	30: {
-		label: t`Author`,
-		color: "green",
-		description: t`Can publish own content`,
-	},
-	40: {
-		label: t`Editor`,
-		color: "purple",
-		description: t`Can manage all content`,
-	},
-	50: {
-		label: t`Admin`,
-		color: "red",
-		description: t`Full access`,
-	},
-};
+/** Role level to name mapping (call at render time so locale is current). */
+export function buildRoleConfig(): Record<
+	number,
+	{ label: string; color: string; description: string }
+> {
+	return {
+		10: {
+			label: t`Subscriber`,
+			color: "gray",
+			description: t`Can view content`,
+		},
+		20: {
+			label: t`Contributor`,
+			color: "blue",
+			description: t`Can create content`,
+		},
+		30: {
+			label: t`Author`,
+			color: "green",
+			description: t`Can publish own content`,
+		},
+		40: {
+			label: t`Editor`,
+			color: "purple",
+			description: t`Can manage all content`,
+		},
+		50: {
+			label: t`Admin`,
+			color: "red",
+			description: t`Full access`,
+		},
+	};
+}
 
 /** Get role config, with fallback for unknown roles */
-export function getRoleConfig(role: number) {
+export function getRoleConfig(
+	role: number,
+	map: Record<number, { label: string; color: string; description: string }> = buildRoleConfig(),
+) {
 	return (
-		ROLE_CONFIG[role] ?? {
+		map[role] ?? {
 			label: t`Role ${role}`,
 			color: "gray",
 			description: t`Unknown role`,
@@ -63,7 +73,11 @@ export function RoleBadge({
 	showDescription = false,
 	className,
 }: RoleBadgeProps) {
-	const config = getRoleConfig(role);
+	const { i18n } = useLingui();
+	const config = useMemo(
+		() => getRoleConfig(role, buildRoleConfig()),
+		[i18n.locale, role],
+	);
 
 	const colorClasses: Record<string, string> = {
 		gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",

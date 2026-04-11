@@ -257,7 +257,7 @@ export {
 	type ApiTokenInfo,
 	type ApiTokenCreateResult,
 	type CreateApiTokenInput,
-	API_TOKEN_SCOPES,
+	buildApiTokenScopes,
 	fetchApiTokens,
 	createApiToken,
 	revokeApiToken,
