@@ -10,6 +10,7 @@ export const prerender = false;
 
 import { createAuthorizationUrl, type OAuthConsumerConfig } from "@emdash-cms/auth";
 
+import { getPublicOrigin } from "#api/public-url.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 
 type ProviderName = "github" | "google";
@@ -101,7 +102,7 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 		}
 
 		const config: OAuthConsumerConfig = {
-			baseUrl: `${url.origin}/_emdash`,
+			baseUrl: `${getPublicOrigin(url, emdash?.config)}/_emdash`,
 			providers,
 		};
 

@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type { AdminManifest } from "../../src/lib/api";
+import { render } from "../utils/render.js";
 
 // Mock router
 vi.mock("@tanstack/react-router", async () => {
@@ -36,6 +36,7 @@ const defaultManifest: AdminManifest = {
 	authMode: "passkey",
 	collections: {},
 	plugins: {},
+	taxonomies: [],
 	version: "1",
 	hash: "",
 };

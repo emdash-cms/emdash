@@ -12,6 +12,7 @@ import "../styles/theme.css";
 
 interface Props {
 	title: string;
+	pageTitle?: string | null;
 	description?: string | null;
 	image?: string | null;
 	canonical?: string | null;
@@ -26,6 +27,7 @@ interface Props {
 
 const {
 	title,
+	pageTitle,
 	description,
 	image,
 	canonical,
@@ -53,6 +55,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: type,
 	title: fullTitle,
+	pageTitle: pageTitle ?? title,
 	description,
 	canonical,
 	image,

@@ -324,7 +324,7 @@ Returns structured contributions that core validates, dedupes (first-wins), and 
 			graph: {
 				"@context": "https://schema.org",
 				"@type": "BlogPosting",
-				headline: event.page.title,
+				headline: event.page.pageTitle ?? event.page.title,
 				description: event.page.description,
 			},
 		},

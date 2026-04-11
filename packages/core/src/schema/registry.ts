@@ -596,7 +596,6 @@ export class SchemaRegistry {
 			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
 		`.execute(conn);
 
-		// Composite index for published_at ordering (see migration 034)
 		await sql`
 			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)

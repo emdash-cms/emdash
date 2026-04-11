@@ -20,7 +20,7 @@ export function generateBaseSeoContributions(page: PublicPageContext): PageMetad
 	const contributions: PageMetadataContribution[] = [];
 
 	const description = page.description;
-	const ogTitle = page.seo?.ogTitle || page.title;
+	const ogTitle = page.seo?.ogTitle ?? page.pageTitle ?? page.title;
 	const ogDescription = page.seo?.ogDescription || description;
 	const ogImage = page.seo?.ogImage || page.image;
 	const robots = page.seo?.robots;
