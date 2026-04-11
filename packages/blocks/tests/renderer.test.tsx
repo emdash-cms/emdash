@@ -249,6 +249,18 @@ describe("BlockRenderer", () => {
 		expect(screen.getByText("Pro")).toBeTruthy();
 	});
 
+	it("fields block sets title attribute on value for overflow tooltip", () => {
+		const { container } = renderBlocks([
+			{
+				type: "fields",
+				fields: [{ label: "Status", value: "Active" }],
+			},
+		]);
+		const valueEl = container.querySelector('[title="Active"]');
+		expect(valueEl).toBeTruthy();
+		expect(valueEl?.textContent).toBe("Active");
+	});
+
 	it("table block renders column headers and row data", () => {
 		renderBlocks([
 			{

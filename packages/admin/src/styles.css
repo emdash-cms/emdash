@@ -206,6 +206,18 @@ body {
 }
 
 /**
+ * Prevent dialogs from overflowing the viewport on small screens.
+ * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
+ * which overrides max-width in CSS. We need to cap min-width too.
+ */
+@media (max-width: 639px) {
+	[role="dialog"] {
+		min-width: 0 !important;
+		max-width: calc(100vw - 2rem);
+	}
+}
+
+/**
  * Isolate the admin root's stacking context.
  */
 #admin-root {
