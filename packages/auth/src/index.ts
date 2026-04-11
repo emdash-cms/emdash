@@ -58,6 +58,9 @@ export {
 	secureCompare,
 	encrypt,
 	decrypt,
+	// HKDF-based encryption (for high-entropy secrets like TOTP keys)
+	encryptWithHKDF,
+	decryptWithHKDF,
 	// Prefixed API tokens (ec_pat_, ec_oat_, ec_ort_)
 	TOKEN_PREFIXES,
 	generatePrefixedToken,

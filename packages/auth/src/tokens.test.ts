@@ -10,6 +10,8 @@ import {
 	computeS256Challenge,
 	encrypt,
 	decrypt,
+	encryptWithHKDF,
+	decryptWithHKDF,
 } from "./tokens.js";
 
 const BASE64URL_REGEX = /^[A-Za-z0-9_-]+$/;
@@ -136,6 +138,42 @@ describe("tokens", () => {
 			const encrypted = await encrypt(plaintext, secret);
 			const wrongSecret = generateAuthSecret();
 			await expect(decrypt(encrypted, wrongSecret)).rejects.toThrow();
+		});
+	});
+
+	describe("encryptWithHKDF/decryptWithHKDF", () => {
+		const secret = generateAuthSecret();
+
+		it("round-trips a string", async () => {
+			const plaintext = "totp-secret-bytes";
+			const encrypted = await encryptWithHKDF(plaintext, secret);
+			const decrypted = await decryptWithHKDF(encrypted, secret);
+			expect(decrypted).toBe(plaintext);
+		});
+
+		it("produces different ciphertext each call (random IV)", async () => {
+			const plaintext = "totp-secret-bytes";
+			const a = await encryptWithHKDF(plaintext, secret);
+			const b = await encryptWithHKDF(plaintext, secret);
+			expect(a).not.toBe(b);
+		});
+
+		it("fails to decrypt with the wrong auth secret", async () => {
+			const plaintext = "totp-secret-bytes";
+			const encrypted = await encryptWithHKDF(plaintext, secret);
+			await expect(decryptWithHKDF(encrypted, generateAuthSecret())).rejects.toThrow();
+		});
+
+		it("is NOT wire-compatible with the PBKDF2 path", async () => {
+			// HKDF and PBKDF2 derive different keys from the same secret, so a value
+			// encrypted via one path cannot be decrypted via the other. This guard
+			// catches accidental cross-wiring during refactors.
+			const plaintext = "totp-secret-bytes";
+			const pbkdf2 = await encrypt(plaintext, secret);
+			await expect(decryptWithHKDF(pbkdf2, secret)).rejects.toThrow();
+
+			const hkdf = await encryptWithHKDF(plaintext, secret);
+			await expect(decrypt(hkdf, secret)).rejects.toThrow();
 		});
 	});
 });
