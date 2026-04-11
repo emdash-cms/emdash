@@ -74,10 +74,7 @@ export function RoleBadge({
 	className,
 }: RoleBadgeProps) {
 	const { i18n } = useLingui();
-	const config = useMemo(
-		() => getRoleConfig(role, buildRoleConfig()),
-		[i18n.locale, role],
-	);
+	const config = useMemo(() => getRoleConfig(role, buildRoleConfig()), [i18n.locale, role]);
 
 	const colorClasses: Record<string, string> = {
 		gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
