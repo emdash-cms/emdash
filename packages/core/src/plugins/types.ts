@@ -162,12 +162,45 @@ export interface KVAccess {
 }
 
 /**
+ * SEO metadata for a content item, as stored in the core SEO panel.
+ *
+ * Only present on items in collections with `has_seo = 1`. For collections
+ * without SEO enabled, `ContentItem.seo` is `undefined`.
+ */
+export interface ContentItemSeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
+/**
+ * SEO input accepted by content write operations.
+ *
+ * All fields are optional — only fields that are present overwrite existing
+ * values. An empty object is treated as a no-op.
+ */
+export interface ContentItemSeoInput {
+	title?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	noIndex?: boolean;
+}
+
+/**
  * Content item returned from content API
  */
 export interface ContentItem {
 	id: string;
 	type: string;
 	data: Record<string, unknown>;
+	/**
+	 * SEO metadata, populated when the collection has SEO enabled
+	 * (`has_seo = 1`). `undefined` for non-SEO collections.
+	 */
+	seo?: ContentItemSeo;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -182,6 +215,18 @@ export interface ContentListOptions {
 }
 
 /**
+ * Input accepted by `content.create` / `content.update`.
+ *
+ * Most entries are field slugs mapped to their values. The reserved `seo`
+ * key is extracted and routed to the core SEO panel (the `_emdash_seo`
+ * table), matching the shape accepted by the REST API. Passing `seo` for a
+ * collection that does not have SEO enabled throws a validation error.
+ */
+export type ContentWriteInput = Record<string, unknown> & {
+	seo?: ContentItemSeoInput;
+};
+
+/**
  * Content access interface - capability-gated
  */
 export interface ContentAccess {
@@ -190,8 +235,8 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update?(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
 }
 
@@ -199,8 +244,8 @@ export interface ContentAccess {
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }
 
