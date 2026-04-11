@@ -5,9 +5,30 @@
 import { describe, it, expect } from "vitest";
 
 import { gutenbergToPortableText, htmlToPortableText, parseGutenbergBlocks } from "../src/index.js";
-import type { PortableTextTextBlock, PortableTextImageBlock } from "../src/types.js";
+import type {
+	PortableTextTextBlock,
+	PortableTextImageBlock,
+	PortableTextGalleryBlock,
+	PortableTextTableBlock,
+	PortableTextButtonsBlock,
+	PortableTextCoverBlock,
+} from "../src/types.js";
 
 const HTML_TAG_PATTERN = /<[^>]+>/g;
+const knownProviders = [
+	["youtube.com", "youtube"],
+	["youtu.be", "youtube"],
+	["vimeo.com", "vimeo"],
+	["twitter.com", "twitter"],
+	["x.com", "twitter"],
+	["instagram.com", "instagram"],
+	["facebook.com", "facebook"],
+	["tiktok.com", "tiktok"],
+	["spotify.com", "spotify"],
+	["soundcloud.com", "soundcloud"],
+	["codepen.io", "codepen"],
+	["gist.github.com", "gist"],
+] as const;
 
 describe("gutenbergToPortableText", () => {
 	describe("empty content", () => {
@@ -22,6 +43,68 @@ describe("gutenbergToPortableText", () => {
 		it("returns empty array for null-ish values", () => {
 			expect(gutenbergToPortableText(null as unknown as string)).toEqual([]);
 			expect(gutenbergToPortableText(undefined as unknown as string)).toEqual([]);
+		});
+	});
+
+	describe("basic HTML content", () => {
+		it("converts simple HTML to a paragraph block", () => {
+			const content = "<p>Hello world</p>";
+			const result = gutenbergToPortableText(content);
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "block",
+				style: "normal",
+			});
+			const block = result[0] as PortableTextTextBlock;
+			expect(block.children[0]?.text).toBe("Hello world");
+		});
+
+		it("converts mixed blocks and text", () => {
+			const content = `<p>Intro text</p>weird middle text<p>More text</p>`;
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(3);
+			expect(result[0]).toMatchObject({
+				_type: "block",
+				style: "normal",
+			});
+			expect(result[1]).toMatchObject({
+				_type: "block",
+				style: "normal",
+			});
+			expect(result[2]).toMatchObject({
+				_type: "block",
+				style: "normal",
+			});
+
+			const block1 = result[0] as PortableTextTextBlock;
+			const block2 = result[1] as PortableTextTextBlock;
+			const block3 = result[2] as PortableTextTextBlock;
+
+			expect(block1.children[0]?.text).toBe("Intro text");
+			expect(block2.children[0]?.text).toBe("weird middle text");
+			expect(block3.children[0]?.text).toBe("More text");
+		});
+
+		it("handles trailing text content", () => {
+			const content = `<p>Paragraph text</p>Trailing text`;
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(2);
+			expect(result[0]).toMatchObject({
+				_type: "block",
+				style: "normal",
+			});
+			expect(result[1]).toMatchObject({
+				_type: "block",
+				style: "normal",
+			});
+
+			const block1 = result[0] as PortableTextTextBlock;
+			const block2 = result[1] as PortableTextTextBlock;
+
+			expect(block1.children[0]?.text).toBe("Paragraph text");
+			expect(block2.children[0]?.text).toBe("Trailing text");
 		});
 	});
 
@@ -418,20 +501,75 @@ https://twitter.com/user/status/123
 			});
 		});
 
-		it("detects provider from URL when not specified", () => {
-			const content = `<!-- wp:embed {"url":"https://vimeo.com/123456"} -->
+		it.each(knownProviders)(
+			"detects provider from URL when not specified for %s",
+			(domain, provider) => {
+				const content = `<!-- wp:embed {"url":"https://${domain}/123456"} -->
 <figure class="wp-block-embed">
 <div class="wp-block-embed__wrapper">
-https://vimeo.com/123456
+https://${domain}/123456
 </div>
 </figure>
 <!-- /wp:embed -->`;
 
-			const result = gutenbergToPortableText(content);
+				const result = gutenbergToPortableText(content);
 
+				expect(result[0]).toMatchObject({
+					_type: "embed",
+					provider,
+				});
+			},
+		);
+
+		it("converts audio embeds", () => {
+			const content = `<!-- wp:audio {"src":"https://example.com/audio.mp3"} -->
+<audio controls src="https://example.com/audio.mp3"></audio>
+<!-- /wp:audio -->`;
+
+			const result = gutenbergToPortableText(content);
 			expect(result[0]).toMatchObject({
 				_type: "embed",
-				provider: "vimeo",
+				url: "https://example.com/audio.mp3",
+				provider: "audio",
+			});
+		});
+
+		it("converts video embeds", () => {
+			const content = `<!-- wp:video {"src":"https://example.com/video.mp4"} -->
+<video controls src="https://example.com/video.mp4"></video>
+<!-- /wp:video -->`;
+
+			const result = gutenbergToPortableText(content);
+			expect(result[0]).toMatchObject({
+				_type: "embed",
+				url: "https://example.com/video.mp4",
+				provider: "video",
+			});
+		});
+
+		it("infers video source from <video> tag when URL not in attrs", () => {
+			const content = `<!-- wp:video -->
+<video controls src="https://example.com/video.mp4"></video>
+<!-- /wp:video -->`;
+
+			const result = gutenbergToPortableText(content);
+			expect(result[0]).toMatchObject({
+				_type: "embed",
+				url: "https://example.com/video.mp4",
+				provider: "video",
+			});
+		});
+
+		it("infers audio source from <audio> tag when URL not in attrs", () => {
+			const content = `<!-- wp:audio -->
+<audio controls src="https://example.com/audio.mp3"></audio>
+<!-- /wp:audio -->`;
+
+			const result = gutenbergToPortableText(content);
+			expect(result[0]).toMatchObject({
+				_type: "embed",
+				url: "https://example.com/audio.mp3",
+				provider: "audio",
 			});
 		});
 	});
@@ -493,6 +631,331 @@ https://vimeo.com/123456
 			const cols = result[0] as { columns: Array<{ content: unknown[] }> };
 			expect(cols.columns).toHaveLength(2);
 			expect(cols.columns[0]?.content.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe("table blocks", () => {
+		it("converts table with header and body", () => {
+			const content = `<!-- wp:table -->
+<table>
+<thead><tr><th>Name</th><th>Age</th><th>Country</th></tr></thead>
+<tbody>
+<tr><td>James</td><td>83</td><td>UK</td></tr>
+<tr><td>Bob</td><td>92</td><td>Canada</td></tr>
+</tbody>
+</table>
+<!-- /wp:table -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "table",
+				hasHeaderRow: true,
+			});
+
+			const tbl = result[0] as PortableTextTableBlock;
+			expect(tbl.rows).toHaveLength(3);
+
+			const headerCells = tbl.rows[0]!.cells;
+			expect(headerCells).toHaveLength(3);
+			expect(headerCells.every((c) => c.isHeader === true)).toBe(true);
+			expect(headerCells[0]!.content[0]!.text).toBe("Name");
+			expect(headerCells[1]!.content[0]!.text).toBe("Age");
+			expect(headerCells[2]!.content[0]!.text).toBe("Country");
+
+			const firstBodyRow = tbl.rows[1]!.cells;
+			expect(firstBodyRow[0]!.content[0]!.text).toBe("James");
+			expect(firstBodyRow[1]!.content[0]!.text).toBe("83");
+			expect(firstBodyRow[2]!.content[0]!.text).toBe("UK");
+		});
+
+		it("converts table with no header", () => {
+			const content = `<!-- wp:table -->
+<table>
+<tbody>
+<tr><td>One</td><td>Two</td></tr>
+<tr><td>Three</td><td>Four</td></tr>
+</tbody>
+</table>
+<!-- /wp:table -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "table",
+				hasHeaderRow: false,
+			});
+
+			const tbl = result[0] as PortableTextTableBlock;
+			expect(tbl.rows).toHaveLength(2);
+			expect(tbl.rows[0]!.cells[0]!.content[0]!.text).toBe("One");
+			expect(tbl.rows[1]!.cells[0]!.content[0]!.text).toBe("Three");
+			expect(tbl.rows[0]!.cells.every((c) => c.isHeader !== true)).toBe(true);
+			expect(tbl.rows[1]!.cells.every((c) => c.isHeader !== true)).toBe(true);
+		});
+	});
+
+	describe("button blocks", () => {
+		it("converts button with default style (no className)", () => {
+			const content = `<!-- wp:button {"url":"https://example.com"} -->
+<div class="wp-block-button"><a href="https://example.com">Click me</a></div>
+<!-- /wp:button -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "button",
+				text: "Click me",
+				url: "https://example.com",
+				style: "default",
+			});
+		});
+
+		it("converts button with outline style", () => {
+			const content = `<!-- wp:button {"url":"https://example.com","className":"is-style-outline"} -->
+<div class="wp-block-button is-style-outline"><a href="https://example.com">Outline</a></div>
+<!-- /wp:button -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({
+				_type: "button",
+				text: "Outline",
+				style: "outline",
+			});
+		});
+
+		it("falls back to default style for unrecognised className", () => {
+			const content = `<!-- wp:button {"url":"https://example.com","className":"is-style-prolific-potato"} -->
+<div class="wp-block-button is-style-prolific-potato"><a href="https://example.com">Boop</a></div>
+<!-- /wp:button -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({
+				_type: "button",
+				text: "Boop",
+				style: "default",
+			});
+		});
+
+		it("converts button with fill style", () => {
+			const content = `<!-- wp:button {"url":"https://example.com","className":"is-style-fill"} -->
+<div class="wp-block-button is-style-fill"><a href="https://example.com">Fill</a></div>
+<!-- /wp:button -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({
+				_type: "button",
+				text: "Fill",
+				style: "fill",
+			});
+		});
+	});
+
+	describe("buttons block", () => {
+		it("converts a buttons container", () => {
+			const content = `<!-- wp:buttons -->
+<div class="wp-block-buttons">
+<!-- wp:button {"url":"https://example.com/one"} -->
+<div class="wp-block-button"><a href="https://example.com/one">First</a></div>
+<!-- /wp:button -->
+<!-- wp:button {"url":"https://example.com/two"} -->
+<div class="wp-block-button"><a href="https://example.com/two">Second</a></div>
+<!-- /wp:button -->
+</div>
+<!-- /wp:buttons -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+
+			const block = result[0] as PortableTextButtonsBlock;
+			expect(block._type).toBe("buttons");
+			expect(block.buttons[0]).toMatchObject({ text: "First", url: "https://example.com/one" });
+			expect(block.buttons[1]).toMatchObject({ text: "Second", url: "https://example.com/two" });
+		});
+
+		it("converts buttons with horizontal layout", () => {
+			const content = `<!-- wp:buttons {"layout":{"type":"flex"}} -->
+<div class="wp-block-buttons is-layout-flex">
+<!-- wp:button {"url":"https://example.com/a"} -->
+<div class="wp-block-button"><a href="https://example.com/a">A</a></div>
+<!-- /wp:button -->
+<!-- wp:button {"url":"https://example.com/b"} -->
+<div class="wp-block-button"><a href="https://example.com/b">B</a></div>
+<!-- /wp:button -->
+</div>
+<!-- /wp:buttons -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "buttons", layout: "horizontal" });
+		});
+
+		it("converts buttons with mixed styles (outline/fill)", () => {
+			const content = `<!-- wp:buttons -->
+<div class="wp-block-buttons">
+<!-- wp:button {"url":"https://example.com/outline","className":"is-style-outline"} -->
+<div class="wp-block-button is-style-outline"><a href="https://example.com/outline">Outline</a></div>
+<!-- /wp:button -->
+<!-- wp:button {"url":"https://example.com/fill","className":"is-style-fill"} -->
+<div class="wp-block-button is-style-fill"><a href="https://example.com/fill">Fill</a></div>
+<!-- /wp:button -->
+</div>
+<!-- /wp:buttons -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			const block = result[0] as PortableTextButtonsBlock;
+			expect(block.buttons[0]).toMatchObject({ style: "outline" });
+			expect(block.buttons[1]).toMatchObject({ style: "fill" });
+		});
+	});
+
+	describe("gallery blocks", () => {
+		it("converts gallery with inner image blocks", () => {
+			const content = `<!-- wp:gallery {"columns":3} -->
+<figure class="wp-block-gallery">
+<!-- wp:image {"id":1,"url":"https://example.com/photo1.jpg"} -->
+<figure class="wp-block-image"><img src="https://example.com/photo1.jpg" alt="Photo 1"></figure>
+<!-- /wp:image -->
+<!-- wp:image {"id":2,"url":"https://example.com/photo2.jpg"} -->
+<figure class="wp-block-image"><img src="https://example.com/photo2.jpg" alt="Photo 2"></figure>
+<!-- /wp:image -->
+<!-- wp:image {"id":3,"url":"https://example.com/photo3.jpg"} -->
+<figure class="wp-block-image"><img src="https://example.com/photo3.jpg" alt="Photo 3"><figcaption>Third photo</figcaption></figure>
+<!-- /wp:image -->
+</figure>
+<!-- /wp:gallery -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "gallery",
+				columns: 3,
+			});
+
+			const gallery = result[0] as PortableTextGalleryBlock;
+			expect(gallery.images).toHaveLength(3);
+			expect(gallery.images[0]).toMatchObject({
+				_type: "image",
+				alt: "Photo 1",
+				asset: { url: "https://example.com/photo1.jpg" },
+			});
+			expect(gallery.images[1]).toMatchObject({
+				_type: "image",
+				alt: "Photo 2",
+				asset: { url: "https://example.com/photo2.jpg" },
+			});
+			expect(gallery.images[2]).toMatchObject({
+				_type: "image",
+				alt: "Photo 3",
+				caption: "Third photo",
+				asset: { url: "https://example.com/photo3.jpg" },
+			});
+		});
+	});
+
+	describe("cover blocks", () => {
+		it("converts a cover block", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","id":42} -->
+<div class="wp-block-cover">
+<!-- wp:paragraph -->
+<p>Overlay text</p>
+<!-- /wp:paragraph -->
+</div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toMatchObject({
+				_type: "cover",
+				backgroundImage: "https://example.com/bg.jpg",
+			});
+
+			const cover = result[0] as PortableTextCoverBlock;
+			expect(cover.content).toHaveLength(1);
+			expect(cover.content[0]).toMatchObject({ _type: "block", style: "normal" });
+		});
+
+		it.each(["left", "center", "right"] as const)(
+			"maps contentPosition %s to equivalent alignment",
+			(position) => {
+				const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","contentPosition":"${position}"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+				const result = gutenbergToPortableText(content);
+
+				expect(result[0]).toMatchObject({ _type: "cover", alignment: position });
+			},
+		);
+
+		it("defaults minHeight unit to px when no unit is given", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","minHeight":400} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", minHeight: "400px" });
+		});
+
+		it("combines minHeight with explicit unit", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","minHeight":50,"minHeightUnit":"vh"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", minHeight: "50vh" });
+		});
+
+		it("handles zero minHeighjt", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","minHeight":0} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", minHeight: "0px" });
+		});
+
+		it("converts dimRatio to overlayOpacity", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","dimRatio":60} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", overlayOpacity: 0.6 });
+		});
+
+		it("uses customOverlayColor over overlayColor when both are present", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","overlayColor":"primary","customOverlayColor":"#ff0000"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", overlayColor: "#ff0000" });
+		});
+
+		it("falls back to overlayColor when no customOverlayColor", () => {
+			const content = `<!-- wp:cover {"url":"https://example.com/bg.jpg","overlayColor":"primary"} -->
+<div class="wp-block-cover"></div>
+<!-- /wp:cover -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({ _type: "cover", overlayColor: "primary" });
 		});
 	});
 

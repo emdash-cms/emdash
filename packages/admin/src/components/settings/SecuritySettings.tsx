@@ -96,10 +96,21 @@ export function SecuritySettings() {
 		setSaveStatus({ type: "success", message: "Passkey added successfully" });
 	};
 
+	const settingsHeader = (
+		<div className="flex items-center gap-3">
+			<Link to="/settings">
+				<Button variant="ghost" shape="square" aria-label="Back to settings">
+					<ArrowLeft className="h-4 w-4" />
+				</Button>
+			</Link>
+			<h1 className="text-2xl font-bold">Security Settings</h1>
+		</div>
+	);
+
 	if (manifestLoading || isLoading) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-2xl font-bold">Security Settings</h1>
+				{settingsHeader}
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">Loading...</p>
 				</div>
@@ -111,7 +122,7 @@ export function SecuritySettings() {
 	if (isExternalAuth) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-2xl font-bold">Security Settings</h1>
+				{settingsHeader}
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-start gap-3">
 						<Info className="h-5 w-5 text-kumo-subtle mt-0.5 flex-shrink-0" />
@@ -120,11 +131,6 @@ export function SecuritySettings() {
 								Authentication is managed by an external provider ({manifest?.authMode}). Passkey
 								settings are not available when using external authentication.
 							</p>
-							<Link to="/settings">
-								<Button variant="outline" size="sm" icon={<ArrowLeft />}>
-									Back to Settings
-								</Button>
-							</Link>
 						</div>
 					</div>
 				</div>
@@ -135,8 +141,8 @@ export function SecuritySettings() {
 	if (error) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-2xl font-bold">Security Settings</h1>
-				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6">
+				{settingsHeader}
+				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-danger">
 						{error instanceof Error ? error.message : "Failed to load passkeys"}
 					</p>
@@ -147,23 +153,23 @@ export function SecuritySettings() {
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-2xl font-bold">Security Settings</h1>
+			{settingsHeader}
 
 			{/* Status message */}
 			{saveStatus && (
 				<div
-					className={`rounded-lg border p-4 flex items-center gap-2 ${
+					className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${
 						saveStatus.type === "success"
-							? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
-							: "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
+							? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200"
+							: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
 					}`}
 				>
 					{saveStatus.type === "success" ? (
-						<CheckCircle className="h-5 w-5" />
+						<CheckCircle className="h-4 w-4 flex-shrink-0" />
 					) : (
-						<WarningCircle className="h-5 w-5" />
+						<WarningCircle className="h-4 w-4 flex-shrink-0" />
 					)}
-					<span>{saveStatus.message}</span>
+					{saveStatus.message}
 				</div>
 			)}
 

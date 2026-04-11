@@ -540,64 +540,60 @@ export class SchemaRegistry {
 
 		// Create standard indexes
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_status`)} 
-			ON ${sql.ref(tableName)} (status)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_slug`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_slug`)}
 			ON ${sql.ref(tableName)} (slug)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_created`)} 
-			ON ${sql.ref(tableName)} (created_at)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted`)} 
-			ON ${sql.ref(tableName)} (deleted_at)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_scheduled`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_scheduled`)}
 			ON ${sql.ref(tableName)} (scheduled_at)
 			WHERE scheduled_at IS NOT NULL
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_live_revision`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_live_revision`)}
 			ON ${sql.ref(tableName)} (live_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_draft_revision`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_draft_revision`)}
 			ON ${sql.ref(tableName)} (draft_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_author`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_author`)}
 			ON ${sql.ref(tableName)} (author_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_primary_byline`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_primary_byline`)}
 			ON ${sql.ref(tableName)} (primary_byline_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_updated`)} 
-			ON ${sql.ref(tableName)} (updated_at)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)}
 			ON ${sql.ref(tableName)} (locale)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)}
 			ON ${sql.ref(tableName)} (translation_group)
+		`.execute(conn);
+
+		// Composite indexes for optimized query performance (see migration 033)
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_updated_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, updated_at DESC, id DESC)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_status`)}
+			ON ${sql.ref(tableName)} (deleted_at, status)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_created_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
 		`.execute(conn);
 	}
 
