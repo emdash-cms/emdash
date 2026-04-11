@@ -37,16 +37,17 @@ msgstr "Benutzern von bestimmten Domains die Registrierung erlauben"
 msgid "API Tokens"
 msgstr "API-Tokens"
 
-#: packages/admin/src/components/LoginPage.tsx:253
+#: packages/admin/src/components/LoginPage.tsx:195
 msgid "Authentication error: {error}"
 msgstr "Authentifizierungsfehler: {error}"
 
-#: packages/admin/src/components/LoginPage.tsx:174
-#: packages/admin/src/components/LoginPage.tsx:210
+#: packages/admin/src/components/LoginPage.tsx:117
+#: packages/admin/src/components/LoginPage.tsx:153
+#: packages/admin/src/components/LoginPage.tsx:311
 msgid "Back to login"
 msgstr "Zurück zur Anmeldung"
 
-#: packages/admin/src/components/LoginPage.tsx:158
+#: packages/admin/src/components/LoginPage.tsx:101
 msgid "Check your email"
 msgstr "Überprüfen Sie Ihre E-Mail"
 
@@ -54,7 +55,7 @@ msgstr "Überprüfen Sie Ihre E-Mail"
 msgid "Choose your preferred admin language"
 msgstr "Wählen Sie Ihre bevorzugte Admin-Sprache"
 
-#: packages/admin/src/components/LoginPage.tsx:169
+#: packages/admin/src/components/LoginPage.tsx:112
 msgid "Click the link in the email to sign in."
 msgstr "Klicken Sie auf den Link in der E-Mail, um sich anzumelden."
 
@@ -62,7 +63,7 @@ msgstr "Klicken Sie auf den Link in der E-Mail, um sich anzumelden."
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Persönliche Zugangstokens für programmatischen API-Zugriff erstellen"
 
-#: packages/admin/src/components/LoginPage.tsx:358
+#: packages/admin/src/components/LoginPage.tsx:332
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Noch kein Konto? <0>Registrieren</0>"
 
@@ -70,12 +71,16 @@ msgstr "Noch kein Konto? <0>Registrieren</0>"
 msgid "Email"
 msgstr "E-Mail"
 
-#: packages/admin/src/components/LoginPage.tsx:183
+#: packages/admin/src/components/LoginPage.tsx:126
 msgid "Email address"
 msgstr "E-Mail-Adresse"
 
-#: packages/admin/src/components/LoginPage.tsx:127
-#: packages/admin/src/components/LoginPage.tsx:132
+#: packages/admin/src/components/LoginPage.tsx:325
+msgid "Enter your handle to sign in."
+msgstr ""
+
+#: packages/admin/src/components/LoginPage.tsx:70
+#: packages/admin/src/components/LoginPage.tsx:75
 msgid "Failed to send magic link"
 msgstr "Magic Link konnte nicht gesendet werden"
 
@@ -83,7 +88,7 @@ msgstr "Magic Link konnte nicht gesendet werden"
 msgid "General"
 msgstr "Allgemein"
 
-#: packages/admin/src/components/LoginPage.tsx:160
+#: packages/admin/src/components/LoginPage.tsx:103
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Falls ein Konto für <0>{email}</0> existiert, haben wir einen Anmeldelink gesendet."
 
@@ -99,7 +104,7 @@ msgstr "Sprache"
 msgid "Manage your passkeys and authentication"
 msgstr "Passkeys und Authentifizierung verwalten"
 
-#: packages/admin/src/components/LoginPage.tsx:313
+#: packages/admin/src/components/LoginPage.tsx:261
 msgid "Or continue with"
 msgstr "Oder fortfahren mit"
 
@@ -115,11 +120,11 @@ msgstr "Sicherheit"
 msgid "Self-Signup Domains"
 msgstr "Selbstregistrierungs-Domains"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 msgid "Send magic link"
 msgstr "Magic Link senden"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 msgid "Sending..."
 msgstr "Wird gesendet..."
 
@@ -131,19 +136,24 @@ msgstr "SEO"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: packages/admin/src/components/LoginPage.tsx:283
+#: packages/admin/src/components/LoginPage.tsx:232
 msgid "Sign in to your site"
 msgstr "Bei Ihrer Website anmelden"
 
-#: packages/admin/src/components/LoginPage.tsx:284
+#. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
+#: packages/admin/src/components/LoginPage.tsx:231
+msgid "Sign in with {0}"
+msgstr ""
+
+#: packages/admin/src/components/LoginPage.tsx:229
 msgid "Sign in with email"
 msgstr "Mit E-Mail anmelden"
 
-#: packages/admin/src/components/LoginPage.tsx:340
+#: packages/admin/src/components/LoginPage.tsx:290
 msgid "Sign in with email link"
 msgstr "Mit E-Mail-Link anmelden"
 
-#: packages/admin/src/components/LoginPage.tsx:304
+#: packages/admin/src/components/LoginPage.tsx:252
 msgid "Sign in with Passkey"
 msgstr "Mit Passkey anmelden"
 
@@ -159,11 +169,11 @@ msgstr "Soziale Netzwerke"
 msgid "Social media profile links"
 msgstr "Links zu Social-Media-Profilen"
 
-#: packages/admin/src/components/LoginPage.tsx:170
+#: packages/admin/src/components/LoginPage.tsx:113
 msgid "The link will expire in 15 minutes."
 msgstr "Der Link ist 15 Minuten gültig."
 
-#: packages/admin/src/components/LoginPage.tsx:351
+#: packages/admin/src/components/LoginPage.tsx:326
 msgid "Use your registered passkey to sign in securely."
 msgstr "Verwenden Sie Ihren registrierten Passkey, um sich sicher anzumelden."
 
@@ -171,6 +181,6 @@ msgstr "Verwenden Sie Ihren registrierten Passkey, um sich sicher anzumelden."
 msgid "View email provider status and send test emails"
 msgstr "E-Mail-Anbieter-Status anzeigen und Test-E-Mails senden"
 
-#: packages/admin/src/components/LoginPage.tsx:352
+#: packages/admin/src/components/LoginPage.tsx:323
 msgid "We'll send you a link to sign in without a password."
 msgstr "Wir senden Ihnen einen Link, um sich ohne Passwort anzumelden."

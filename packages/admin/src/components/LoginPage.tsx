@@ -308,7 +308,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 										className="w-full justify-center"
 										onClick={() => setActiveProvider(null)}
 									>
-										Back to login
+										{t`Back to login`}
 									</Button>
 								</div>
 							);

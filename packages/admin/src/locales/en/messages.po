@@ -43,6 +43,7 @@ msgstr "Authentication error: {error}"
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
+#: packages/admin/src/components/LoginPage.tsx:311
 msgid "Back to login"
 msgstr "Back to login"
 
