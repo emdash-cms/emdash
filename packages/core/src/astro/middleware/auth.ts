@@ -106,6 +106,7 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
+	"/_emdash/api/auth/totp/login",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 ]);
