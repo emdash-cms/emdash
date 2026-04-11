@@ -10,7 +10,11 @@
 
 import { it, expect, beforeEach, afterEach } from "vitest";
 
-import { runMigrations, getMigrationStatus } from "../../../src/database/migrations/runner.js";
+import {
+	runMigrations,
+	getMigrationStatus,
+	MIGRATION_COUNT,
+} from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -75,7 +79,7 @@ describeEachDialect("Migrations", (dialect) => {
 
 		const migrations = await ctx.db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(32);
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
 		expect(migrations[0]?.name).toBe("001_initial");
 	});
 
@@ -85,7 +89,7 @@ describeEachDialect("Migrations", (dialect) => {
 
 		const migrations = await ctx.db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(32);
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 
 	it("reports correct migration status", async () => {

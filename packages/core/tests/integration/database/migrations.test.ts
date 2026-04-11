@@ -2,7 +2,11 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
-import { runMigrations, getMigrationStatus } from "../../../src/database/migrations/runner.js";
+import {
+	runMigrations,
+	getMigrationStatus,
+	MIGRATION_COUNT,
+} from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 
 describe("Database Migrations (Integration)", () => {
@@ -57,7 +61,7 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(32);
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
 		expect(migrations[0]?.name).toBe("001_initial");
 		expect(migrations[0]?.timestamp).toBeDefined();
 		expect(migrations[1]?.name).toBe("002_media_status");
@@ -98,8 +102,8 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		// Should still only have thirty-two migration records
-		expect(migrations).toHaveLength(32);
+		// Should still only have the same number of migration records
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 
 	it("should report correct migration status", async () => {
