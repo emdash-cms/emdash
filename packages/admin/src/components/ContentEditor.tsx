@@ -1291,7 +1291,7 @@ interface ImageFieldRendererProps {
 }
 
 function ImageFieldRenderer({
-  id,
+	id,
 	label,
 	description,
 	value,
