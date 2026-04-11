@@ -1,10 +1,20 @@
 import { z } from "zod";
 
+import { isSafeHref } from "../../utils/url.js";
+
 // ---------------------------------------------------------------------------
 // Menus: Input schemas
 // ---------------------------------------------------------------------------
 
 const menuItemType = z.string().min(1);
+
+const safeHref = z
+	.string()
+	.trim()
+	.refine(
+		isSafeHref,
+		"URL must use http, https, mailto, tel, a relative path, or a fragment identifier",
+	);
 
 export const createMenuBody = z
 	.object({
@@ -25,7 +35,7 @@ export const createMenuItemBody = z
 		label: z.string().min(1),
 		referenceCollection: z.string().optional(),
 		referenceId: z.string().optional(),
-		customUrl: z.string().optional(),
+		customUrl: safeHref.optional(),
 		target: z.string().optional(),
 		titleAttr: z.string().optional(),
 		cssClasses: z.string().optional(),
@@ -37,7 +47,7 @@ export const createMenuItemBody = z
 export const updateMenuItemBody = z
 	.object({
 		label: z.string().min(1).optional(),
-		customUrl: z.string().optional(),
+		customUrl: safeHref.optional(),
 		target: z.string().optional(),
 		titleAttr: z.string().optional(),
 		cssClasses: z.string().optional(),

@@ -109,7 +109,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog className="p-6 w-2xl h-[80vh] flex flex-col" size="lg">
+			<Dialog className="p-6 max-w-2xl h-[80vh] flex flex-col" size="lg">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 						Select Content

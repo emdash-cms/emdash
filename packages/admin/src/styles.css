@@ -82,6 +82,12 @@ body {
 	color: var(--text-color-kumo-default);
 }
 
+/* Fix text selection contrast */
+::selection {
+	background-color: var(--color-kumo-interact);
+	color: var(--text-color-kumo-default);
+}
+
 /**
  * Editor-specific prose overrides
  */
@@ -197,6 +203,18 @@ body {
 
 .ProseMirror.prose > *:first-child {
 	margin-top: 0 !important;
+}
+
+/**
+ * Prevent dialogs from overflowing the viewport on small screens.
+ * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
+ * which overrides max-width in CSS. We need to cap min-width too.
+ */
+@media (max-width: 639px) {
+	[role="dialog"] {
+		min-width: 0 !important;
+		max-width: calc(100vw - 2rem);
+	}
 }
 
 /**
