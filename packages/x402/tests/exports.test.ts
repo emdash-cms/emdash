@@ -17,9 +17,9 @@ const pkgRoot = resolve(__dirname, "..");
 const pkg = JSON.parse(readFileSync(resolve(pkgRoot, "package.json"), "utf-8"));
 
 describe("package.json exports", () => {
-	const exports: Record<string, unknown> = pkg.exports;
+	const packageExports: Record<string, unknown> = pkg.exports;
 
-	for (const [entrypoint, conditions] of Object.entries(exports)) {
+	for (const [entrypoint, conditions] of Object.entries(packageExports)) {
 		if (conditions == null || typeof conditions !== "object") continue;
 
 		for (const [condition, filepath] of Object.entries(conditions as Record<string, string>)) {
