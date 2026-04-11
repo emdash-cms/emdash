@@ -48,6 +48,7 @@ async function runAuthMiddleware(opts: {
 	method?: string;
 	headers?: HeadersInit;
 	sessionUserId?: string | null;
+	siteUrl?: string;
 }) {
 	const url = new URL(opts.pathname, "https://example.com");
 	const session = {
@@ -76,7 +77,7 @@ async function runAuthMiddleware(opts: {
 			locals: {
 				emdash: {
 					db: {},
-					config: {},
+					config: opts.siteUrl ? { siteUrl: opts.siteUrl } : {},
 				},
 			},
 			session,
@@ -118,6 +119,20 @@ describe("MCP discovery auth middleware", () => {
 		expect(next).not.toHaveBeenCalled();
 		expect(response.status).toBe(401);
 		expect(session.get).not.toHaveBeenCalled();
+	});
+
+	it("uses the configured public origin for anonymous MCP POST discovery responses", async () => {
+		const { response, next } = await runAuthMiddleware({
+			pathname: "/_emdash/api/mcp",
+			headers: { "Content-Type": "application/json" },
+			siteUrl: "https://public.example.com",
+		});
+
+		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(401);
+		expect(response.headers.get("WWW-Authenticate")).toBe(
+			'Bearer resource_metadata="https://public.example.com/.well-known/oauth-protected-resource"',
+		);
 	});
 
 	it("returns 401 with discovery metadata for invalid bearer tokens on MCP POST", async () => {

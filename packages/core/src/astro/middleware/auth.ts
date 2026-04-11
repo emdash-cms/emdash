@@ -67,13 +67,17 @@ function csrfRejectedResponse(): Response {
 	);
 }
 
-function mcpUnauthorizedResponse(url: URL): Response {
+function mcpUnauthorizedResponse(
+	url: URL,
+	config?: Parameters<typeof getPublicOrigin>[1],
+): Response {
+	const origin = getPublicOrigin(url, config);
 	return Response.json(
 		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
 		{
 			status: 401,
 			headers: {
-				"WWW-Authenticate": `Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`,
+				"WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
 				...MW_CACHE_HEADERS,
 			},
 		},
@@ -217,7 +221,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const method = context.request.method.toUpperCase();
 	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
 	if (isMcpEndpoint && !isTokenAuth) {
-		return mcpUnauthorizedResponse(url);
+		return mcpUnauthorizedResponse(url, context.locals.emdash?.config);
 	}
 
 	// CSRF protection: require X-EmDash-Request header on state-changing requests.
