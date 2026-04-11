@@ -5,6 +5,7 @@ import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
+import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 // Mock the loader's getDb to return our test database
@@ -228,6 +229,70 @@ describe("Byline query functions", () => {
 			expect(result.get(post.id)).toHaveLength(1);
 			expect(result.get(post.id)?.[0]?.source).toBe("inferred");
 			expect(result.get(post.id)?.[0]?.byline.displayName).toBe("Batch Author");
+		});
+
+		it("handles batches larger than SQL_BATCH_SIZE across explicit and inferred bylines", async () => {
+			const userRepo = new UserRepository(db);
+			const explicitByline = await bylineRepo.create({
+				slug: "large-batch-explicit",
+				displayName: "Large Batch Explicit",
+			});
+
+			const explicitPost1 = await contentRepo.create({
+				type: "post",
+				slug: "large-batch-explicit-1",
+				data: { title: "Large Batch Explicit 1" },
+			});
+			await bylineRepo.setContentBylines("post", explicitPost1.id, [
+				{ bylineId: explicitByline.id },
+			]);
+
+			const inferredPostIds: string[] = [];
+			for (let i = 0; i < SQL_BATCH_SIZE + 2; i++) {
+				const user = await userRepo.create({
+					email: `large-batch-${i}@example.com`,
+					displayName: `Large Batch ${i}`,
+					role: "editor",
+				});
+
+				await bylineRepo.create({
+					slug: `large-batch-${i}`,
+					displayName: `Large Batch ${i}`,
+					userId: user.id,
+				});
+
+				const post = await contentRepo.create({
+					type: "post",
+					slug: `large-batch-post-${i}`,
+					data: { title: `Large Batch Post ${i}` },
+					authorId: user.id,
+				});
+				inferredPostIds.push(post.id);
+			}
+
+			const explicitPost2 = await contentRepo.create({
+				type: "post",
+				slug: "large-batch-explicit-2",
+				data: { title: "Large Batch Explicit 2" },
+			});
+			await bylineRepo.setContentBylines("post", explicitPost2.id, [
+				{ bylineId: explicitByline.id },
+			]);
+
+			const entryIds = [explicitPost1.id, ...inferredPostIds, explicitPost2.id];
+			const result = await getBylinesForEntries("post", entryIds);
+
+			expect(result.size).toBe(entryIds.length);
+			expect(result.get(explicitPost1.id)?.[0]?.source).toBe("explicit");
+			expect(result.get(explicitPost1.id)?.[0]?.byline.displayName).toBe("Large Batch Explicit");
+			expect(result.get(explicitPost2.id)?.[0]?.source).toBe("explicit");
+			expect(result.get(explicitPost2.id)?.[0]?.byline.displayName).toBe("Large Batch Explicit");
+			expect(result.get(inferredPostIds[0]!)?.[0]?.source).toBe("inferred");
+			expect(result.get(inferredPostIds[0]!)?.[0]?.byline.displayName).toBe("Large Batch 0");
+			expect(result.get(inferredPostIds[SQL_BATCH_SIZE + 1]!)?.[0]?.source).toBe("inferred");
+			expect(result.get(inferredPostIds[SQL_BATCH_SIZE + 1]!)?.[0]?.byline.displayName).toBe(
+				`Large Batch ${SQL_BATCH_SIZE + 1}`,
+			);
 		});
 
 		it("returns empty map for empty input", async () => {
