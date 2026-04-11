@@ -153,6 +153,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		auth: resolvedConfig.auth,
 		marketplace: resolvedConfig.marketplace,
 		passkeyPublicOrigin: resolvedConfig.passkeyPublicOrigin,
+		totp: resolvedConfig.totp,
 	};
 
 	// Determine auth mode for route injection

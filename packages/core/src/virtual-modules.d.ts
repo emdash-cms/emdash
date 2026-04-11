@@ -14,6 +14,10 @@ declare module "virtual:emdash/config" {
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
 		i18n?: I18nConfig | null;
+		totp?: {
+			enabled?: boolean;
+			issuer?: string;
+		};
 	}
 
 	const config: VirtualConfig;

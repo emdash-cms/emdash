@@ -276,6 +276,48 @@ export interface EmDashConfig {
 	passkeyPublicOrigin?: string;
 
 	/**
+	 * TOTP (authenticator app) login configuration.
+	 *
+	 * TOTP is enabled by default because the whole point of the method
+	 * is to unblock deployers whose users hit passkey friction on first
+	 * run. Deployers in regulated environments (SOC2, public sector)
+	 * where TOTP is disallowed as a phishable factor can opt out with
+	 * `enabled: false`. When disabled, every TOTP route returns 404,
+	 * the setup wizard skips the method-choice screen, and the login
+	 * page hides the "Sign in with authenticator app" button.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   // Disable TOTP entirely — passkeys only
+	 *   totp: { enabled: false },
+	 * })
+	 * ```
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   // Customize the label shown in authenticator apps
+	 *   totp: { issuer: "My Company CMS" },
+	 * })
+	 * ```
+	 */
+	totp?: {
+		/**
+		 * Whether TOTP is offered as an auth method. Default: true.
+		 * When false, all TOTP routes return 404 and the UI hides
+		 * every entry point.
+		 */
+		enabled?: boolean;
+		/**
+		 * Custom issuer label shown by authenticator apps when the
+		 * user scans the QR code. Defaults to the configured site
+		 * title (from the setup wizard) at resolve time.
+		 */
+		issuer?: string;
+	};
+
+	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
 	 *
 	 * When set, the integration injects a playground middleware (order: "pre")

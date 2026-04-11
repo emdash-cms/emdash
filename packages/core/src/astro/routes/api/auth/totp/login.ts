@@ -41,6 +41,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { totpLoginBody } from "#api/schemas.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
+import { isTotpEnabled } from "#auth/totp-config.js";
 
 /** Resolve EMDASH_AUTH_SECRET with hard failure on absence — silently
  * falling back to a default would leak the encrypted TOTP blob. */
@@ -60,6 +61,10 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
+
+	if (!isTotpEnabled(emdash.config)) {
+		return apiError("NOT_FOUND", "Not found", 404);
 	}
 
 	try {

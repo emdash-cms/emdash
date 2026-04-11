@@ -31,6 +31,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { setupAdminTotpVerifyBody } from "#api/schemas.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
+import { isTotpEnabled } from "#auth/totp-config.js";
 import {
 	deleteTOTPSetupChallenge,
 	getTOTPSetupChallenge,
@@ -58,6 +59,10 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
+
+	if (!isTotpEnabled(emdash.config)) {
+		return apiError("NOT_FOUND", "Not found", 404);
 	}
 
 	try {

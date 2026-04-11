@@ -31,6 +31,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { setupAdminTotpBody } from "#api/schemas.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
+import { isTotpEnabled } from "#auth/totp-config.js";
 import { createTOTPSetupChallenge } from "#auth/totp-setup-store.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -57,6 +58,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
+
+	// TOTP can be disabled at the config level. Return 404 rather than
+	// 403 so the feature looks invisible to callers — same response
+	// shape a missing route would produce.
+	if (!isTotpEnabled(emdash.config)) {
+		return apiError("NOT_FOUND", "Not found", 404);
 	}
 
 	try {
@@ -118,10 +126,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		});
 
 		// Build the otpauth:// URI for QR rendering. The issuer label
-		// is the configured site title, or "EmDash" as a fallback.
+		// precedence is: explicit config.totp.issuer → site title from
+		// options → "EmDash" as the last-ditch fallback.
 		const siteName = (await options.get<string>("emdash:site_title")) ?? "EmDash";
+		const issuer = emdash.config.totp?.issuer ?? siteName;
 		const otpauthUri = buildOtpAuthURI({
-			issuer: siteName,
+			issuer,
 			accountName: normalizedEmail,
 			keyBytes,
 		});
