@@ -15,8 +15,9 @@ const settings = await getSiteSettings();
 const siteTitle = settings?.title || "Studio";
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription = settings?.tagline || "Design & Development";
-const siteLogo = settings?.logo?.url ? settings.logo : null;
-const siteFavicon = settings?.favicon?.url ?? null;
+const siteLogo = (settings?.logo as any)?.url ? settings.logo as
+	{ mediaId: string; alt?: string; url: string } : null;
+const siteFavicon = (settings?.favicon as any)?.url ?? null;
 
 const menu = await getMenu("primary");
 
