@@ -14,10 +14,9 @@ describe("fetchGitHubEmail", () => {
 	it("sends User-Agent header required by GitHub API", async () => {
 		const mockFetch = vi.mocked(fetch);
 		mockFetch.mockResolvedValue(
-			new Response(
-				JSON.stringify([{ email: "user@example.com", primary: true, verified: true }]),
-				{ status: 200 },
-			),
+			new Response(JSON.stringify([{ email: "user@example.com", primary: true, verified: true }]), {
+				status: 200,
+			}),
 		);
 
 		await fetchGitHubEmail("test-token");
