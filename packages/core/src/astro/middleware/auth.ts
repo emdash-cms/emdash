@@ -20,6 +20,7 @@ import { authenticate as virtualAuthenticate } from "virtual:emdash/auth";
 
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
+import { getPublicOrigin } from "../../api/public-url.js";
 
 /** Cache headers for middleware error responses (matches API_CACHE_HEADERS in api/error.ts) */
 const MW_CACHE_HEADERS = {
@@ -138,7 +139,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (isPublicApiRoute) {
 		const method = context.request.method.toUpperCase();
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-			const csrfError = checkPublicCsrf(context.request, url);
+			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
+			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
 		return next();
@@ -152,7 +154,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (isPluginRoute) {
 		const method = context.request.method.toUpperCase();
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-			const csrfError = checkPublicCsrf(context.request, url);
+			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
+			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
 		return handlePluginRouteAuth(context, next);
@@ -196,8 +199,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		};
 		// Add WWW-Authenticate header on MCP endpoint 401s to trigger OAuth discovery
 		if (url.pathname === "/_emdash/api/mcp") {
+			const origin = getPublicOrigin(url, context.locals.emdash?.config);
 			headers["WWW-Authenticate"] =
-				`Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`;
+				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
 		}
 		return new Response(
 			JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
@@ -593,15 +597,16 @@ async function handlePasskeyAuth(
 				const headers: Record<string, string> = { ...MW_CACHE_HEADERS };
 				// Add WWW-Authenticate on MCP endpoint 401s to trigger OAuth discovery
 				if (url.pathname === "/_emdash/api/mcp") {
+					const origin = getPublicOrigin(url, emdash?.config);
 					headers["WWW-Authenticate"] =
-						`Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`;
+						`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
 				}
 				return Response.json(
 					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
 					{ status: 401, headers },
 				);
 			}
-			const loginUrl = new URL("/_emdash/admin/login", url.origin);
+			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("redirect", url.pathname);
 			return context.redirect(loginUrl.toString());
 		}
@@ -619,7 +624,8 @@ async function handlePasskeyAuth(
 					{ status: 401, headers: MW_CACHE_HEADERS },
 				);
 			}
-			return context.redirect("/_emdash/admin/login");
+			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
+			return context.redirect(loginUrl.toString());
 		}
 
 		// Check if user is disabled
@@ -628,7 +634,7 @@ async function handlePasskeyAuth(
 			if (isApiRoute) {
 				return apiError("ACCOUNT_DISABLED", "Account disabled", 403);
 			}
-			const loginUrl = new URL("/_emdash/admin/login", url.origin);
+			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("error", "account_disabled");
 			return context.redirect(loginUrl.toString());
 		}

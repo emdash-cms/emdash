@@ -182,4 +182,41 @@ describe("MenuEditor", () => {
 		await expect.element(screen.getByText("Home")).toBeInTheDocument();
 		await expect.element(screen.getByText("/about")).toBeInTheDocument();
 	});
+
+	it("URL input accepts relative paths", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+
+		const urlInput = screen.getByLabelText("URL");
+		await urlInput.fill("/about");
+
+		// The input should accept the value without browser validation errors
+		const inputEl = urlInput.element() as HTMLInputElement;
+		expect(inputEl.validity.valid).toBe(true);
+	});
+
+	it("URL input accepts absolute https URLs", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+
+		const urlInput = screen.getByLabelText("URL");
+		await urlInput.fill("https://example.com");
+
+		const inputEl = urlInput.element() as HTMLInputElement;
+		expect(inputEl.validity.valid).toBe(true);
+	});
+
+	it("URL input rejects bare domains without scheme", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+
+		const urlInput = screen.getByLabelText("URL");
+		await urlInput.fill("example.com");
+
+		const inputEl = urlInput.element() as HTMLInputElement;
+		expect(inputEl.validity.valid).toBe(false);
+	});
 });
