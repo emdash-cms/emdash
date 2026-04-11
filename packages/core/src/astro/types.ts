@@ -36,7 +36,13 @@ export interface ManifestCollection {
 			label?: string;
 			required?: boolean;
 			widget?: string;
-			options?: Array<{ value: string; label: string }>;
+			/**
+			 * Field options. Two shapes:
+			 *   - Legacy enum: `Array<{ value, label }>` for select / multiSelect widgets
+			 *   - Plugin widgets: `Record<string, unknown>` for arbitrary per-field config
+			 *     (e.g. a checkbox grid receiving its column definitions)
+			 */
+			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 		}
 	>;
 }

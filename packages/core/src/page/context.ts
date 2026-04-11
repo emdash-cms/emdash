@@ -31,6 +31,8 @@ interface PageContextFields {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 /** Input with Astro global -- used in .astro files */
@@ -89,5 +91,6 @@ export function createPublicPageContext(input: CreatePublicPageContextInput): Pu
 		seo: input.seo,
 		articleMeta: input.articleMeta,
 		siteName: input.siteName,
+		siteUrl: input.siteUrl,
 	};
 }
