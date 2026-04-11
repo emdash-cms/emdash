@@ -21,6 +21,7 @@ import {
 	resolveSourceEntry,
 	findNodeBuiltinImports,
 	findBuildOutput,
+	findSourceExports,
 } from "../../../src/cli/commands/bundle-utils.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -296,5 +297,64 @@ describe("findNodeBuiltinImports", () => {
 	it("deduplicates repeated requires", () => {
 		const code = `require("node:fs"); require("node:fs");`;
 		expect(findNodeBuiltinImports(code)).toEqual(["fs"]);
+	});
+});
+
+describe("findSourceExports", () => {
+	it("flags .ts exports", () => {
+		const issues = findSourceExports({ ".": "./src/index.ts" });
+		expect(issues).toEqual([{ exportPath: ".", resolvedPath: "./src/index.ts" }]);
+	});
+
+	it("flags .tsx exports", () => {
+		const issues = findSourceExports({ "./admin": "./src/admin.tsx" });
+		expect(issues).toEqual([{ exportPath: "./admin", resolvedPath: "./src/admin.tsx" }]);
+	});
+
+	it("flags .mts exports", () => {
+		const issues = findSourceExports({ ".": "./src/index.mts" });
+		expect(issues).toHaveLength(1);
+	});
+
+	it("flags .cts exports", () => {
+		const issues = findSourceExports({ ".": "./src/index.cts" });
+		expect(issues).toHaveLength(1);
+	});
+
+	it("flags .jsx exports", () => {
+		const issues = findSourceExports({ ".": "./src/index.jsx" });
+		expect(issues).toHaveLength(1);
+	});
+
+	it("accepts .mjs exports", () => {
+		const issues = findSourceExports({ ".": "./dist/index.mjs" });
+		expect(issues).toEqual([]);
+	});
+
+	it("accepts .js exports", () => {
+		const issues = findSourceExports({ ".": "./dist/index.js" });
+		expect(issues).toEqual([]);
+	});
+
+	it("handles conditional exports with import field", () => {
+		const issues = findSourceExports({
+			".": { import: "./src/index.ts", types: "./dist/index.d.mts" },
+		});
+		expect(issues).toEqual([{ exportPath: ".", resolvedPath: "./src/index.ts" }]);
+	});
+
+	it("accepts conditional exports pointing to built files", () => {
+		const issues = findSourceExports({
+			".": { import: "./dist/index.mjs", types: "./dist/index.d.mts" },
+		});
+		expect(issues).toEqual([]);
+	});
+
+	it("flags multiple bad exports", () => {
+		const issues = findSourceExports({
+			".": "./src/index.ts",
+			"./sandbox": "./src/sandbox-entry.ts",
+		});
+		expect(issues).toHaveLength(2);
 	});
 });

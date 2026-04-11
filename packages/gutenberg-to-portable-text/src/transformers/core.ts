@@ -816,7 +816,7 @@ export const cover: BlockTransformer = (block, _options, context) => {
 	const overlayColor = attrString(block.attrs, "overlayColor");
 	const customOverlayColor = attrString(block.attrs, "customOverlayColor");
 	const dimRatio = attrNumber(block.attrs, "dimRatio");
-	const minHeight = attrString(block.attrs, "minHeight");
+	const minHeight = attrNumber(block.attrs, "minHeight");
 	const minHeightUnit = attrString(block.attrs, "minHeightUnit");
 	const contentPosition = attrString(block.attrs, "contentPosition");
 
@@ -831,7 +831,7 @@ export const cover: BlockTransformer = (block, _options, context) => {
 
 	// Build min height string
 	let minHeightStr: string | undefined;
-	if (minHeight) {
+	if (minHeight !== undefined) {
 		minHeightStr = minHeightUnit ? `${minHeight}${minHeightUnit}` : `${minHeight}px`;
 	}
 
