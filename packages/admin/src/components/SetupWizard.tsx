@@ -34,6 +34,10 @@ interface SetupStatusResponse {
 	};
 	/** Auth mode - "cloudflare-access" or "passkey" */
 	authMode?: "cloudflare-access" | "passkey";
+	/** Whether TOTP is available. Defaults to true when the status
+	 * endpoint omits it (older servers). When false, the wizard skips
+	 * the method-choice screen and goes straight to passkey. */
+	totpEnabled?: boolean;
 }
 
 interface SetupSiteRequest {
@@ -547,10 +551,19 @@ export function SetupWizard() {
 	// route. Each method's start route (/setup/admin for passkey,
 	// /setup/admin-totp for totp) fires from the method-specific
 	// step component or from handleMethodNext below.
+	//
+	// When the deployer has disabled TOTP via config.totp.enabled,
+	// the method-choice screen is meaningless (only one option) so
+	// we skip it and fire the passkey seed call directly. This
+	// matches the original 3-step flow exactly.
 	const handleAdminNext = (data: SetupAdminRequest) => {
 		setAdminData(data);
 		setError(undefined);
-		setCurrentStep("method");
+		if (status?.totpEnabled === false) {
+			adminMutation.mutate(data);
+		} else {
+			setCurrentStep("method");
+		}
 	};
 
 	// Handle method-choice step completion — fire the passkey seed
@@ -657,7 +670,10 @@ export function SetupWizard() {
 							adminData={adminData}
 							onBack={() => {
 								setError(undefined);
-								setCurrentStep("method");
+								// When TOTP is disabled, the "method" step
+								// was skipped entirely, so Back should
+								// return to "admin" not "method".
+								setCurrentStep(status?.totpEnabled === false ? "admin" : "method");
 							}}
 						/>
 					)}

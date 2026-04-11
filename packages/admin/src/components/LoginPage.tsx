@@ -342,15 +342,19 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 								{t`Sign in with email link`}
 							</Button>
 
-							{/* Authenticator App (TOTP) Option */}
-							<Button
-								variant="ghost"
-								className="w-full justify-center"
-								type="button"
-								onClick={() => setMethod("totp")}
-							>
-								{t`Sign in with authenticator app`}
-							</Button>
+							{/* Authenticator App (TOTP) Option — hidden when
+							    the deployer has disabled TOTP via
+							    config.totp.enabled. Default: shown. */}
+							{manifest?.totpEnabled !== false && (
+								<Button
+									variant="ghost"
+									className="w-full justify-center"
+									type="button"
+									onClick={() => setMethod("totp")}
+								>
+									{t`Sign in with authenticator app`}
+								</Button>
+							)}
 						</div>
 					)}
 

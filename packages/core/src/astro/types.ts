@@ -112,6 +112,14 @@ export interface EmDashManifest {
 	 */
 	signupEnabled?: boolean;
 	/**
+	 * Whether TOTP (authenticator app) login is available. Reflects
+	 * `config.totp.enabled` from the deployer's astro.config.mjs —
+	 * defaults to true when the config field is unset. Used by the
+	 * setup wizard and login page to conditionally show the
+	 * authenticator-app buttons.
+	 */
+	totpEnabled?: boolean;
+	/**
 	 * i18n configuration from Astro config.
 	 * Only present when i18n is enabled (multiple locales configured).
 	 */

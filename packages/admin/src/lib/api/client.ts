@@ -125,6 +125,14 @@ export interface AdminManifest {
 	 */
 	signupEnabled?: boolean;
 	/**
+	 * Whether TOTP (authenticator app) login is available. Reflects
+	 * `config.totp.enabled` from the deployer's astro.config.mjs.
+	 * Defaults to true when the server omits the field (older versions).
+	 * Used by the login page to conditionally show the "Sign in with
+	 * authenticator app" button.
+	 */
+	totpEnabled?: boolean;
+	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
 	i18n?: {

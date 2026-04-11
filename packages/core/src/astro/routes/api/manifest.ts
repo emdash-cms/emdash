@@ -10,6 +10,7 @@
 import type { APIRoute } from "astro";
 
 import { getAuthMode } from "#auth/mode.js";
+import { isTotpEnabled } from "#auth/totp-config.js";
 
 import type { EmDashManifest } from "../../types.js";
 
@@ -20,6 +21,7 @@ export const GET: APIRoute = async ({ locals }) => {
 
 	// Determine auth mode from config
 	const authMode = getAuthMode(emdash?.config);
+	const totpEnabled = isTotpEnabled(emdash?.config);
 
 	// Check if self-signup is enabled (any allowed domain with enabled = 1)
 	// Only relevant for passkey auth — external auth providers handle their own signup
@@ -41,6 +43,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				...emdashManifest,
 				authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 				signupEnabled,
+				totpEnabled,
 			}
 		: {
 				version: "0.1.0",
@@ -49,6 +52,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				plugins: {},
 				authMode: "passkey",
 				signupEnabled,
+				totpEnabled,
 			};
 
 	return Response.json(
