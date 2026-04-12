@@ -39,17 +39,17 @@ export interface CreateApiTokenInput {
  * Scope strings for personal API tokens (wire + UI iteration order).
  * Human-readable copy lives in `ApiTokenSettings` (`SCOPE_UI` + Lingui).
  */
-export const API_TOKEN_SCOPE_VALUES = [
-	"content:read",
-	"content:write",
-	"media:read",
-	"media:write",
-	"schema:read",
-	"schema:write",
-	"admin",
-] as const;
+export const API_TOKEN_SCOPES = {
+	ContentRead: "content:read",
+	ContentWrite: "content:write",
+	MediaRead: "media:read",
+	MediaWrite: "media:write",
+	SchemaRead: "schema:read",
+	SchemaWrite: "schema:write",
+	Admin: "admin",
+} as const;
 
-export type ApiTokenScopeValue = (typeof API_TOKEN_SCOPE_VALUES)[number];
+export type ApiTokenScopeValue = (typeof API_TOKEN_SCOPES)[keyof typeof API_TOKEN_SCOPES];
 
 // =============================================================================
 // API Functions

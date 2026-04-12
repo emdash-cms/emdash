@@ -258,7 +258,7 @@ export {
 	type ApiTokenCreateResult,
 	type CreateApiTokenInput,
 	type ApiTokenScopeValue,
-	API_TOKEN_SCOPE_VALUES,
+	API_TOKEN_SCOPES,
 	fetchApiTokens,
 	createApiToken,
 	revokeApiToken,

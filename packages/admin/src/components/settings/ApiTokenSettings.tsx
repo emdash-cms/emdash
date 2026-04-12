@@ -26,7 +26,7 @@ import {
 	fetchApiTokens,
 	createApiToken,
 	revokeApiToken,
-	API_TOKEN_SCOPE_VALUES,
+	API_TOKEN_SCOPES,
 	type ApiTokenCreateResult,
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
@@ -44,27 +44,51 @@ const EXPIRY_OPTIONS = [
 	{ value: "365d", label: msg`1 year` },
 ] as const;
 
-const SCOPE_UI: Record<
-	ApiTokenScopeValue,
-	{ label: MessageDescriptor; description: MessageDescriptor }
-> = {
-	"content:read": { label: msg`Content Read`, description: msg`Read content entries` },
-	"content:write": {
+const API_TOKEN_SCOPE_VALUES: {
+	scope: ApiTokenScopeValue;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
+}[] = [
+	{
+		scope: API_TOKEN_SCOPES.ContentRead,
+		label: msg`Content Read`,
+		description: msg`Read content entries`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.ContentWrite,
 		label: msg`Content Write`,
 		description: msg`Create, update, delete content`,
 	},
-	"media:read": { label: msg`Media Read`, description: msg`Read media files` },
-	"media:write": {
+	{
+		scope: API_TOKEN_SCOPES.MediaRead,
+		label: msg`Media Read`,
+		description: msg`Read media files`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.MediaWrite,
 		label: msg`Media Write`,
 		description: msg`Upload and delete media`,
 	},
-	"schema:read": { label: msg`Schema Read`, description: msg`Read collection schemas` },
-	"schema:write": {
+	{
+		scope: API_TOKEN_SCOPES.SchemaRead,
+		label: msg`Schema Read`,
+		description: msg`Read collection schemas`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.SchemaWrite,
 		label: msg`Schema Write`,
 		description: msg`Modify collection schemas`,
 	},
-	admin: { label: msg`Admin`, description: msg`Full admin access` },
-};
+	{
+		scope: API_TOKEN_SCOPES.Admin,
+		label: msg`Admin`,
+		description: msg`Full admin access`,
+	},
+];
+
+/** Wire scopes shown on the create-token form (contract-tested vs `API_TOKEN_SCOPES` and `@emdash-cms/auth`). */
+export const API_TOKEN_SCOPE_FORM_SCOPES: readonly ApiTokenScopeValue[] =
+	API_TOKEN_SCOPE_VALUES.map((row) => row.scope);
 
 function computeExpiryDate(option: string): string | undefined {
 	if (option === "none") return undefined;
@@ -384,17 +408,16 @@ function CreateTokenForm({
 				<div>
 					<div className="text-sm font-medium mb-2">{t(msg`Scopes`)}</div>
 					<div className="space-y-2">
-						{API_TOKEN_SCOPE_VALUES.map((scopeValue) => {
-							const ui = SCOPE_UI[scopeValue];
+						{API_TOKEN_SCOPE_VALUES.map(({ scope, label, description }) => {
 							return (
-								<label key={scopeValue} className="flex items-start gap-2 cursor-pointer">
+								<label key={scope} className="flex items-start gap-2 cursor-pointer">
 									<Checkbox
-										checked={selectedScopes.has(scopeValue)}
-										onCheckedChange={() => toggleScope(scopeValue)}
+										checked={selectedScopes.has(scope)}
+										onCheckedChange={() => toggleScope(scope)}
 									/>
 									<div>
-										<div className="text-sm font-medium">{t(ui.label)}</div>
-										<div className="text-xs text-kumo-subtle">{t(ui.description)}</div>
+										<div className="text-sm font-medium">{t(label)}</div>
+										<div className="text-xs text-kumo-subtle">{t(description)}</div>
 									</div>
 								</label>
 							);
