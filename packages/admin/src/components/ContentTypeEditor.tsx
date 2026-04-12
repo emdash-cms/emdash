@@ -16,6 +16,9 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Plus,
@@ -54,26 +57,32 @@ export interface ContentTypeEditorProps {
 	onReorderFields?: (fieldSlugs: string[]) => void;
 }
 
-const SUPPORT_OPTIONS = [
+interface SupportOptionDef {
+	value: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
+}
+
+const SUPPORT_OPTIONS: SupportOptionDef[] = [
 	{
 		value: "drafts",
-		label: "Drafts",
-		description: "Save content as draft before publishing",
+		label: msg`Drafts`,
+		description: msg`Save content as draft before publishing`,
 	},
 	{
 		value: "revisions",
-		label: "Revisions",
-		description: "Track content history",
+		label: msg`Revisions`,
+		description: msg`Track content history`,
 	},
 	{
 		value: "preview",
-		label: "Preview",
-		description: "Preview content before publishing",
+		label: msg`Preview`,
+		description: msg`Preview content before publishing`,
 	},
 	{
 		value: "search",
-		label: "Search",
-		description: "Enable full-text search on this collection",
+		label: msg`Search`,
+		description: msg`Enable full-text search on this collection`,
 	},
 ];
 
@@ -81,42 +90,49 @@ const SUPPORT_OPTIONS = [
  * System fields that exist on every collection
  * These are created automatically and cannot be modified
  */
-const SYSTEM_FIELDS = [
+interface SystemFieldDef {
+	slug: string;
+	label: MessageDescriptor;
+	type: string;
+	description: MessageDescriptor;
+}
+
+const SYSTEM_FIELDS: SystemFieldDef[] = [
 	{
 		slug: "id",
-		label: "ID",
+		label: msg`ID`,
 		type: "text",
-		description: "Unique identifier (ULID)",
+		description: msg`Unique identifier (ULID)`,
 	},
 	{
 		slug: "slug",
-		label: "Slug",
+		label: msg`Slug`,
 		type: "text",
-		description: "URL-friendly identifier",
+		description: msg`URL-friendly identifier`,
 	},
 	{
 		slug: "status",
-		label: "Status",
+		label: msg`Status`,
 		type: "text",
-		description: "draft, published, or archived",
+		description: msg`draft, published, or archived`,
 	},
 	{
 		slug: "created_at",
-		label: "Created At",
+		label: msg`Created At`,
 		type: "datetime",
-		description: "When the entry was created",
+		description: msg`When the entry was created`,
 	},
 	{
 		slug: "updated_at",
-		label: "Updated At",
+		label: msg`Updated At`,
 		type: "datetime",
-		description: "When the entry was last modified",
+		description: msg`When the entry was last modified`,
 	},
 	{
 		slug: "published_at",
-		label: "Published At",
+		label: msg`Published At`,
 		type: "datetime",
-		description: "When the entry was published",
+		description: msg`When the entry was published`,
 	},
 ];
 
@@ -133,6 +149,7 @@ export function ContentTypeEditor({
 	onDeleteField,
 	onReorderFields,
 }: ContentTypeEditorProps) {
+	const { t } = useLingui();
 	const _navigate = useNavigate();
 
 	// Form state
@@ -417,8 +434,8 @@ export function ContentTypeEditor({
 											disabled={isFromCode}
 										/>
 										<div>
-											<span className="text-sm font-medium">{option.label}</span>
-											<p className="text-xs text-kumo-subtle">{option.description}</p>
+											<span className="text-sm font-medium">{t(option.label)}</span>
+											<p className="text-xs text-kumo-subtle">{t(option.description)}</p>
 										</div>
 									</label>
 								))}
@@ -728,24 +745,25 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 
 interface SystemFieldInfo {
 	slug: string;
-	label: string;
+	label: MessageDescriptor;
 	type: string;
-	description: string;
+	description: MessageDescriptor;
 }
 
 function SystemFieldRow({ field }: { field: SystemFieldInfo }) {
+	const { t } = useLingui();
 	return (
 		<div className="flex items-center px-4 py-2 opacity-75">
 			<div className="w-8" /> {/* Spacer for alignment with draggable fields */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
-					<span className="font-medium text-sm">{field.label}</span>
+					<span className="font-medium text-sm">{t(field.label)}</span>
 					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 					<Badge variant="secondary">System</Badge>
 				</div>
-				<p className="text-xs text-kumo-subtle mt-0.5">{field.description}</p>
+				<p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p>
 			</div>
 		</div>
 	);

@@ -24,10 +24,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type { AdminManifest } from "../src/lib/api";
 import { createAdminRouter } from "../src/router";
+import { render } from "./utils/render.tsx";
 import { createTestQueryClient, createMockFetch } from "./utils/test-helpers";
 
 // ---------------------------------------------------------------------------

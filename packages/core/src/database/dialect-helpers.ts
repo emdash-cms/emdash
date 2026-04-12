@@ -14,6 +14,7 @@ import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
+import { validateIdentifier, validateJsonFieldName } from "./validate.js";
 
 export type { DatabaseDialectType };
 
@@ -131,6 +132,8 @@ export function binaryType(db: Kysely<any>): ColumnDataType {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function jsonExtractExpr(db: Kysely<any>, column: string, path: string): string {
+	validateIdentifier(column, "JSON column name");
+	validateJsonFieldName(path, "JSON path");
 	if (isPostgres(db)) {
 		return `${column}->>'${path}'`;
 	}

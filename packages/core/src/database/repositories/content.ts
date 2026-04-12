@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
+import { validateIdentifier } from "../validate.js";
 import { RevisionRepository } from "./revision.js";
 import type {
 	CreateContentInput,
@@ -41,6 +42,7 @@ const SYSTEM_COLUMNS = new Set([
  * Get the table name for a collection type
  */
 function getTableName(type: string): string {
+	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
 }
 
@@ -168,6 +170,7 @@ export class ContentRepository {
 		if (data && typeof data === "object") {
 			for (const [key, value] of Object.entries(data)) {
 				if (!SYSTEM_COLUMNS.has(key)) {
+					validateIdentifier(key, "content field name");
 					columns.push(key);
 					values.push(serializeValue(value));
 				}
@@ -578,6 +581,7 @@ export class ContentRepository {
 		if (input.data !== undefined && typeof input.data === "object") {
 			for (const [key, value] of Object.entries(input.data)) {
 				if (!SYSTEM_COLUMNS.has(key)) {
+					validateIdentifier(key, "content field name");
 					updates[key] = serializeValue(value);
 				}
 			}
@@ -1079,6 +1083,7 @@ export class ContentRepository {
 		for (const [key, value] of Object.entries(data)) {
 			if (SYSTEM_COLUMNS.has(key)) continue;
 			if (key.startsWith("_")) continue; // revision metadata
+			validateIdentifier(key, "content field name");
 			updates[key] = serializeValue(value);
 		}
 
