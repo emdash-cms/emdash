@@ -26,8 +26,9 @@ import {
 	fetchApiTokens,
 	createApiToken,
 	revokeApiToken,
-	API_TOKEN_SCOPES,
+	API_TOKEN_SCOPE_VALUES,
 	type ApiTokenCreateResult,
+	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
 import { getMutationError } from "../DialogError.js";
 
@@ -44,7 +45,7 @@ const EXPIRY_OPTIONS = [
 ] as const;
 
 const SCOPE_UI: Record<
-	(typeof API_TOKEN_SCOPES)[number]["value"],
+	ApiTokenScopeValue,
 	{ label: MessageDescriptor; description: MessageDescriptor }
 > = {
 	"content:read": { label: msg`Content Read`, description: msg`Read content entries` },
@@ -252,16 +253,12 @@ export function ApiTokenSettings() {
 										<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
 										{token.expiresAt && (
 											<span>
-												{t(
-													msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`,
-												)}
+												{t(msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`)}
 											</span>
 										)}
 										{token.lastUsedAt && (
 											<span>
-												{t(
-													msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`,
-												)}
+												{t(msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`)}
 											</span>
 										)}
 									</div>
@@ -387,13 +384,13 @@ function CreateTokenForm({
 				<div>
 					<div className="text-sm font-medium mb-2">{t(msg`Scopes`)}</div>
 					<div className="space-y-2">
-						{API_TOKEN_SCOPES.map((scope) => {
-							const ui = SCOPE_UI[scope.value];
+						{API_TOKEN_SCOPE_VALUES.map((scopeValue) => {
+							const ui = SCOPE_UI[scopeValue];
 							return (
-								<label key={scope.value} className="flex items-start gap-2 cursor-pointer">
+								<label key={scopeValue} className="flex items-start gap-2 cursor-pointer">
 									<Checkbox
-										checked={selectedScopes.has(scope.value)}
-										onCheckedChange={() => toggleScope(scope.value)}
+										checked={selectedScopes.has(scopeValue)}
+										onCheckedChange={() => toggleScope(scopeValue)}
 									/>
 									<div>
 										<div className="text-sm font-medium">{t(ui.label)}</div>

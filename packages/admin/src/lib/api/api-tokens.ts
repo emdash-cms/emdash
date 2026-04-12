@@ -2,8 +2,6 @@
  * API token management client functions
  */
 
-import { t } from "@lingui/core/macro";
-
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 // =============================================================================
@@ -37,19 +35,21 @@ export interface CreateApiTokenInput {
 	expiresAt?: string;
 }
 
-/** Available scopes for API tokens. */
-export function buildApiTokenScopes() {
-	// prettier-ignore
-	return [
-		{ value: "content:read", label: t`Content Read`, description: t`Read content entries` },
-		{ value: "content:write", label: t`Content Write`, description: t`Create, update, delete content` },
-		{ value: "media:read", label: t`Media Read`, description: t`Read media files` },
-		{ value: "media:write", label: t`Media Write`, description: t`Upload and delete media` },
-		{ value: "schema:read", label: t`Schema Read`, description: t`Read collection schemas` },
-		{ value: "schema:write", label: t`Schema Write`, description: t`Modify collection schemas` },
-		{ value: "admin", label: t`Admin`, description: t`Full admin access` },
-	] as const;
-}
+/**
+ * Scope strings for personal API tokens (wire + UI iteration order).
+ * Human-readable copy lives in `ApiTokenSettings` (`SCOPE_UI` + Lingui).
+ */
+export const API_TOKEN_SCOPE_VALUES = [
+	"content:read",
+	"content:write",
+	"media:read",
+	"media:write",
+	"schema:read",
+	"schema:write",
+	"admin",
+] as const;
+
+export type ApiTokenScopeValue = (typeof API_TOKEN_SCOPE_VALUES)[number];
 
 // =============================================================================
 // API Functions
