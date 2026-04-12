@@ -12,7 +12,8 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
-import { t } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	DotsSixVertical,
@@ -41,79 +42,77 @@ import { cn } from "../../lib/utils";
  */
 interface BlockTransform {
 	id: string;
-	label: string;
+	label: MessageDescriptor;
 	icon: PhosphorIcon;
 	transform: (editor: Editor) => void;
 }
 
-function buildBlockTransforms(): BlockTransform[] {
-	return [
-		{
-			id: "paragraph",
-			label: t`Paragraph`,
-			icon: Paragraph,
-			transform: (editor) => {
-				editor.chain().focus().setNode("paragraph").run();
-			},
+const blockTransforms: BlockTransform[] = [
+	{
+		id: "paragraph",
+		label: msg`Paragraph`,
+		icon: Paragraph,
+		transform: (editor) => {
+			editor.chain().focus().setNode("paragraph").run();
 		},
-		{
-			id: "heading1",
-			label: t`Heading 1`,
-			icon: TextHOne,
-			transform: (editor) => {
-				editor.chain().focus().setNode("heading", { level: 1 }).run();
-			},
+	},
+	{
+		id: "heading1",
+		label: msg`Heading 1`,
+		icon: TextHOne,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 1 }).run();
 		},
-		{
-			id: "heading2",
-			label: t`Heading 2`,
-			icon: TextHTwo,
-			transform: (editor) => {
-				editor.chain().focus().setNode("heading", { level: 2 }).run();
-			},
+	},
+	{
+		id: "heading2",
+		label: msg`Heading 2`,
+		icon: TextHTwo,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 2 }).run();
 		},
-		{
-			id: "heading3",
-			label: t`Heading 3`,
-			icon: TextHThree,
-			transform: (editor) => {
-				editor.chain().focus().setNode("heading", { level: 3 }).run();
-			},
+	},
+	{
+		id: "heading3",
+		label: msg`Heading 3`,
+		icon: TextHThree,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 3 }).run();
 		},
-		{
-			id: "blockquote",
-			label: t`Quote`,
-			icon: Quotes,
-			transform: (editor) => {
-				editor.chain().focus().toggleBlockquote().run();
-			},
+	},
+	{
+		id: "blockquote",
+		label: msg`Quote`,
+		icon: Quotes,
+		transform: (editor) => {
+			editor.chain().focus().toggleBlockquote().run();
 		},
-		{
-			id: "codeBlock",
-			label: t`Code Block`,
-			icon: Code,
-			transform: (editor) => {
-				editor.chain().focus().toggleCodeBlock().run();
-			},
+	},
+	{
+		id: "codeBlock",
+		label: msg`Code Block`,
+		icon: Code,
+		transform: (editor) => {
+			editor.chain().focus().toggleCodeBlock().run();
 		},
-		{
-			id: "bulletList",
-			label: t`Bullet List`,
-			icon: List,
-			transform: (editor) => {
-				editor.chain().focus().toggleBulletList().run();
-			},
+	},
+	{
+		id: "bulletList",
+		label: msg`Bullet List`,
+		icon: List,
+		transform: (editor) => {
+			editor.chain().focus().toggleBulletList().run();
 		},
-		{
-			id: "orderedList",
-			label: t`Numbered List`,
-			icon: ListNumbers,
-			transform: (editor) => {
-				editor.chain().focus().toggleOrderedList().run();
-			},
+	},
+	{
+		id: "orderedList",
+		label: msg`Numbered List`,
+		icon: ListNumbers,
+		transform: (editor) => {
+			editor.chain().focus().toggleOrderedList().run();
 		},
-	];
-}
+	},
+];
 
 interface BlockMenuProps {
 	editor: Editor;
@@ -129,9 +128,7 @@ interface BlockMenuProps {
  * Block Menu - floating menu for block-level actions
  */
 export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
-	const { i18n } = useLingui();
-	const blockTransforms = React.useMemo(() => buildBlockTransforms(), [i18n.locale]);
-
+	const { t } = useLingui();
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const stableOnClose = useStableCallback(onClose);
@@ -265,7 +262,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 							onClick={() => handleTransform(transform)}
 						>
 							<transform.icon className="h-4 w-4 text-kumo-subtle" />
-							<span>{transform.label}</span>
+							<span>{t(transform.label)}</span>
 						</button>
 					))}
 				</div>
@@ -341,5 +338,5 @@ export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps
 	);
 }
 
-export { buildBlockTransforms };
+export { blockTransforms };
 export type { BlockTransform };
