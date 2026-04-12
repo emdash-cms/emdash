@@ -32,25 +32,29 @@ import {
 	type AllowedDomain,
 } from "../../lib/api";
 
-function buildRoles() {
-	return [
+function buildRolesConfig() {
+	const roles = [
 		{ value: 10, label: t`Subscriber` },
 		{ value: 20, label: t`Contributor` },
 		{ value: 30, label: t`Author` },
 		{ value: 40, label: t`Editor` },
 	];
-}
-
-function buildGetRoleName(roles: ReturnType<typeof buildRoles>) {
-	return (level: number): string => {
-		return roles.find((r) => r.value === level)?.label ?? t`Unknown`;
+	const roleLabels: Record<string, string> = Object.fromEntries(
+		roles.map((r) => [String(r.value), r.label]),
+	);
+	return {
+		getRoleLabel: (level: number): string => roleLabels[String(level)] ?? t`Unknown`,
+		roleLabels,
+		roles,
 	};
 }
 
 export function AllowedDomainsSettings() {
 	const { i18n } = useLingui();
-	const roles = React.useMemo(() => buildRoles(), [i18n.locale]);
-	const getRoleName = React.useMemo(() => buildGetRoleName(roles), [roles]);
+	const { getRoleLabel, roleLabels, roles } = React.useMemo(
+		() => buildRolesConfig(),
+		[i18n.locale],
+	);
 
 	const queryClient = useQueryClient();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
@@ -285,7 +289,7 @@ export function AllowedDomainsSettings() {
 									<div>
 										<div className="font-medium">{domain.domain}</div>
 										<div className="text-sm text-kumo-subtle">
-											Default role: {getRoleName(domain.defaultRole)}
+											Default role: {getRoleLabel(domain.defaultRole)}
 										</div>
 									</div>
 								</div>
@@ -349,7 +353,7 @@ export function AllowedDomainsSettings() {
 										label="Default Role"
 										value={String(newRole)}
 										onValueChange={(v) => v !== null && setNewRole(Number(v))}
-										items={Object.fromEntries(roles.map((r) => [String(r.value), r.label]))}
+										items={roleLabels}
 									>
 										{roles.map((role) => (
 											<Select.Option key={role.value} value={String(role.value)}>
@@ -413,7 +417,7 @@ export function AllowedDomainsSettings() {
 								onValueChange={(v) =>
 									v !== null && editingDomain && handleUpdateRole(editingDomain.domain, Number(v))
 								}
-								items={Object.fromEntries(roles.map((r) => [String(r.value), r.label]))}
+								items={roleLabels}
 							>
 								{roles.map((role) => (
 									<Select.Option key={role.value} value={String(role.value)}>
