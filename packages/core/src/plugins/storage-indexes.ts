@@ -39,9 +39,8 @@ export function generateIndexName(
  * Validates all identifiers before interpolation to prevent SQL injection.
  * Plugin ID and collection values are parameterized in the WHERE clause.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function generateCreateIndexSql(
-	db: Kysely<any>,
+	db: Kysely<Database>,
 	pluginId: string,
 	collection: string,
 	fields: string[],

@@ -465,6 +465,7 @@ export class ContentRepository {
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
+		const orderColumn = sql.ref(dbField);
 
 		// Build query with parameterized values (no string interpolation)
 		// Note: Dynamic content tables have deleted_at column, cast needed for Kysely
@@ -483,7 +484,7 @@ export class ContentRepository {
 		}
 
 		if (options.where?.locale) {
-			query = query.where("locale" as any, "=", options.where.locale);
+			query = query.where(sql`locale = ${options.where.locale}`);
 		}
 
 		// Handle cursor pagination
@@ -493,18 +494,12 @@ export class ContentRepository {
 				const { orderValue, id: cursorId } = decoded;
 
 				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
+					query = query.where(
+						sql`(${orderColumn} < ${orderValue} OR (${orderColumn} = ${orderValue} AND "id" < ${cursorId}))`,
 					);
 				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
+					query = query.where(
+						sql`(${orderColumn} > ${orderValue} OR (${orderColumn} = ${orderValue} AND "id" > ${cursorId}))`,
 					);
 				}
 			}
@@ -512,7 +507,7 @@ export class ContentRepository {
 
 		// Apply ordering and limit
 		query = query
-			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
+			.orderBy(orderColumn, safeOrderDirection === "ASC" ? "asc" : "desc")
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
@@ -661,6 +656,7 @@ export class ContentRepository {
 		const dbField = this.mapOrderField(orderField);
 
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
+		const orderColumn = sql.ref(dbField);
 
 		let query = this.db
 			.selectFrom(tableName as keyof Database)
@@ -674,25 +670,19 @@ export class ContentRepository {
 				const { orderValue, id: cursorId } = decoded;
 
 				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
+					query = query.where(
+						sql`(${orderColumn} < ${orderValue} OR (${orderColumn} = ${orderValue} AND "id" < ${cursorId}))`,
 					);
 				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
+					query = query.where(
+						sql`(${orderColumn} > ${orderValue} OR (${orderColumn} = ${orderValue} AND "id" > ${cursorId}))`,
 					);
 				}
 			}
 		}
 
 		query = query
-			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
+			.orderBy(orderColumn, safeOrderDirection === "ASC" ? "asc" : "desc")
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
@@ -761,7 +751,7 @@ export class ContentRepository {
 		}
 
 		if (where?.locale) {
-			query = query.where("locale" as any, "=", where.locale);
+			query = query.where(sql`locale = ${where.locale}`);
 		}
 
 		const result = await query.executeTakeFirst();

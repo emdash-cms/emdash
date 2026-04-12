@@ -22,6 +22,12 @@ import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 
 type ProviderName = "github" | "google";
 
+type RuntimeLocals = {
+	runtime?: {
+		env?: Record<string, unknown>;
+	};
+};
+
 const VALID_PROVIDERS = new Set<string>(["github", "google"]);
 
 function isValidProvider(provider: string): provider is ProviderName {
@@ -114,8 +120,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 
 	try {
 		// Get OAuth providers from environment
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
-		const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
+		const runtimeLocals = locals as RuntimeLocals;
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
 		const env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
 		const providers = getOAuthConfig(env);

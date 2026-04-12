@@ -15,6 +15,7 @@
 
 import { defineMiddleware } from "astro:middleware";
 import { env } from "cloudflare:workers";
+import type { Database } from "emdash";
 import { Kysely, sql } from "kysely";
 import { ulid } from "ulidx";
 // @ts-ignore - virtual module populated by EmDash integration at build time
@@ -80,7 +81,7 @@ function getStub(binding: string, token: string): PreviewDBStub {
 	const doId = namespace.idFromName(token);
 	const stub = namespace.get(doId);
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- RPC type limitation
-	return stub as unknown as PreviewDBStub;
+	return stub as PreviewDBStub;
 }
 
 /**
@@ -118,11 +119,7 @@ function getSessionCreatedAt(token: string): string {
 /**
  * Initialize a playground DO: run migrations, apply seed, create admin user.
  */
-async function initializePlayground(
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	db: Kysely<any>,
-	token: string,
-): Promise<void> {
+async function initializePlayground(db: Kysely<Database>, token: string): Promise<void> {
 	// Check if already initialized (persisted in the DO)
 	try {
 		const { rows } = await sql<{ value: string }>`
@@ -288,7 +285,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const stub = getStub(binding, token);
 		const dialect = new PreviewDODialect({ getStub: () => stub });
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = new Kysely<any>({ dialect });
+		const db = new Kysely<Database>({ dialect });
 
 		try {
 			await initializePlayground(db, token);
@@ -334,7 +331,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const stub = getStub(binding, token);
 	const dialect = new PreviewDODialect({ getStub: () => stub });
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = new Kysely<any>({ dialect });
+	const db = new Kysely<Database>({ dialect });
 
 	// Ensure initialized
 	if (!initializedSessions.has(token)) {

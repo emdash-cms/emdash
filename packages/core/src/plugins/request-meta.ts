@@ -45,7 +45,7 @@ function parseFirstForwardedIp(header: string): string | null {
  * Returns undefined when not running on Cloudflare Workers.
  */
 function getCfObject(request: Request): CfProperties | undefined {
-	return (request as unknown as { cf?: CfProperties }).cf;
+	return (request as { cf?: CfProperties }).cf;
 }
 
 /**

@@ -15,6 +15,7 @@ import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import type {
 	StandardPluginDefinition,
 	StandardHookEntry,
+	StandardRouteEntry,
 	StandardHookHandler,
 	ResolvedPlugin,
 	ResolvedPluginHooks,
@@ -104,6 +105,7 @@ export function adaptSandboxEntry(
 	const resolvedHooks: ResolvedPluginHooks = {};
 	if (definition.hooks) {
 		for (const [hookName, entry] of Object.entries(definition.hooks)) {
+			const standardHook = entry as StandardHookEntry;
 			if (!VALID_HOOK_NAMES_SET.has(hookName)) {
 				throw new Error(
 					`Plugin "${pluginId}" declares unknown hook "${hookName}". ` +
@@ -114,7 +116,10 @@ export function adaptSandboxEntry(
 			// We store it as the generic type and let HookPipeline's typed dispatch
 			// methods handle the type narrowing at call time.
 			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- bridging untyped map to typed interface
-			(resolvedHooks as Record<string, unknown>)[hookName] = resolveStandardHook(entry, pluginId);
+			(resolvedHooks as Record<string, unknown>)[hookName] = resolveStandardHook(
+				standardHook,
+				pluginId,
+			);
 		}
 	}
 
@@ -125,11 +130,12 @@ export function adaptSandboxEntry(
 	const resolvedRoutes: Record<string, PluginRoute> = {};
 	if (definition.routes) {
 		for (const [routeName, routeEntry] of Object.entries(definition.routes)) {
-			const standardHandler = routeEntry.handler;
+			const standardRoute = routeEntry as StandardRouteEntry;
+			const standardHandler = standardRoute.handler;
 			resolvedRoutes[routeName] = {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- StandardRouteEntry.input is intentionally loosely typed; callers validate at runtime
-				input: routeEntry.input as PluginRoute["input"],
-				public: routeEntry.public,
+				input: standardRoute.input as PluginRoute["input"],
+				public: standardRoute.public,
 				handler: async (ctx) => {
 					// Build the routeCtx shape that standard handlers expect
 					const routeCtx = {

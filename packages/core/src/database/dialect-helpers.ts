@@ -14,26 +14,24 @@ import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
+import type { Database } from "./types.js";
 
 export type { DatabaseDialectType };
 
 /**
  * Detect dialect type from a Kysely instance via the adapter class name.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function detectDialect(db: Kysely<any>): DatabaseDialectType {
+export function detectDialect(db: Kysely<Database>): DatabaseDialectType {
 	const name = db.getExecutor().adapter.constructor.name;
 	if (name === "PostgresAdapter") return "postgres";
 	return "sqlite";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function isSqlite(db: Kysely<any>): boolean {
+export function isSqlite(db: Kysely<Database>): boolean {
 	return detectDialect(db) === "sqlite";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function isPostgres(db: Kysely<any>): boolean {
+export function isPostgres(db: Kysely<Database>): boolean {
 	return detectDialect(db) === "postgres";
 }
 
@@ -44,8 +42,7 @@ export function isPostgres(db: Kysely<any>): boolean {
  * sqlite:   (datetime('now'))
  * postgres: CURRENT_TIMESTAMP
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function currentTimestamp(db: Kysely<any>): RawBuilder<string> {
+export function currentTimestamp(db: Kysely<Database>): RawBuilder<string> {
 	if (isPostgres(db)) {
 		return sql`CURRENT_TIMESTAMP`;
 	}
@@ -59,8 +56,7 @@ export function currentTimestamp(db: Kysely<any>): RawBuilder<string> {
  * sqlite:   datetime('now')
  * postgres: CURRENT_TIMESTAMP
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function currentTimestampValue(db: Kysely<any>): RawBuilder<string> {
+export function currentTimestampValue(db: Kysely<Database>): RawBuilder<string> {
 	if (isPostgres(db)) {
 		return sql`CURRENT_TIMESTAMP`;
 	}
@@ -70,8 +66,7 @@ export function currentTimestampValue(db: Kysely<any>): RawBuilder<string> {
 /**
  * Check if a table exists in the database.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export async function tableExists(db: Kysely<any>, tableName: string): Promise<boolean> {
+export async function tableExists(db: Kysely<Database>, tableName: string): Promise<boolean> {
 	if (isPostgres(db)) {
 		const result = await sql<{ exists: boolean }>`
 			SELECT EXISTS(
@@ -92,8 +87,7 @@ export async function tableExists(db: Kysely<any>, tableName: string): Promise<b
 /**
  * List tables matching a LIKE pattern.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<string[]> {
+export async function listTablesLike(db: Kysely<Database>, pattern: string): Promise<string[]> {
 	if (isPostgres(db)) {
 		const result = await sql<{ table_name: string }>`
 			SELECT table_name FROM information_schema.tables
@@ -115,8 +109,7 @@ export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<
  * sqlite:   blob
  * postgres: bytea
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function binaryType(db: Kysely<any>): ColumnDataType {
+export function binaryType(db: Kysely<Database>): ColumnDataType {
 	if (isPostgres(db)) {
 		return "bytea";
 	}
@@ -129,8 +122,7 @@ export function binaryType(db: Kysely<any>): ColumnDataType {
  * sqlite:   json_extract(column, '$.path')
  * postgres: column->>'path'
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function jsonExtractExpr(db: Kysely<any>, column: string, path: string): string {
+export function jsonExtractExpr(db: Kysely<Database>, column: string, path: string): string {
 	if (isPostgres(db)) {
 		return `${column}->>'${path}'`;
 	}

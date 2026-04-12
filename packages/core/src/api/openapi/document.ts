@@ -2249,7 +2249,7 @@ const userPaths = {
 // Merge all paths
 // ---------------------------------------------------------------------------
 
-const allPaths = {
+const allPaths: ZodOpenApiPathsObject = {
 	...contentPaths,
 	...mediaPaths,
 	...schemaPaths,
@@ -2362,7 +2362,6 @@ export function generateOpenApiDocument(): oas31.OpenAPIObject {
 			},
 		},
 		security: [{ session: [] }, { bearer: [] }],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- readonly const paths are compatible at runtime
-		paths: allPaths as unknown as ZodOpenApiPathsObject,
+		paths: allPaths,
 	});
 }

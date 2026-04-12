@@ -213,7 +213,7 @@ export const bundleCommand = defineCommand({
 			} else if (typeof pluginModule.default === "object" && pluginModule.default !== null) {
 				const defaultExport = pluginModule.default as Record<string, unknown>;
 				if ("id" in defaultExport && "version" in defaultExport) {
-					resolvedPlugin = defaultExport as unknown as ResolvedPlugin;
+					resolvedPlugin = defaultExport as ResolvedPlugin;
 				}
 			}
 

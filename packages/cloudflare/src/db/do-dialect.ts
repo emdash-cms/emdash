@@ -5,6 +5,7 @@
  * Preview mode is read-only — no transaction support needed.
  */
 
+import type { Database } from "emdash";
 import type {
 	CompiledQuery,
 	DatabaseConnection,
@@ -62,7 +63,7 @@ export class PreviewDODialect implements Dialect {
 		return new SqliteQueryCompiler();
 	}
 
-	createIntrospector(db: Kysely<any>): DatabaseIntrospector {
+	createIntrospector(db: Kysely<Database>): DatabaseIntrospector {
 		return new D1Introspector(db);
 	}
 }

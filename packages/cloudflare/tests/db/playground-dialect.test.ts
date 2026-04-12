@@ -1,3 +1,4 @@
+import type { Database } from "emdash";
 import { Kysely } from "kysely";
 import { describe, it, expect } from "vitest";
 
@@ -32,7 +33,7 @@ describe("playground dummy dialect", () => {
 
 	it("throws when a query is executed (no middleware ALS override)", async () => {
 		const dialect = createTestDialect();
-		const db = new Kysely<any>({ dialect });
+		const db = new Kysely<Database>({ dialect });
 
 		await expect(
 			db

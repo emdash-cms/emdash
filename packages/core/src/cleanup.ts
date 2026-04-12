@@ -68,10 +68,8 @@ export async function runSystemCleanup(
 
 	// 2. Magic link / invite / signup tokens
 	try {
-		// Cast needed: Database extends AuthTables but uses Generated<> wrappers
-		// that confuse structural checks. The adapter casts internally anyway.
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Database uses Generated<> wrappers incompatible with AuthTables structurally; safe at runtime
-		const authAdapter = createKyselyAdapter(db as unknown as Kysely<AuthTables>);
+		// `db` includes all core tables; we only need AuthTables for this adapter.
+		const authAdapter = createKyselyAdapter(db as Kysely<AuthTables>);
 		await authAdapter.deleteExpiredTokens();
 		result.expiredTokens = 0; // deleteExpiredTokens returns void
 	} catch (error) {

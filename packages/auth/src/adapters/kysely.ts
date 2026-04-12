@@ -93,9 +93,8 @@ interface AllowedDomainTable {
 // ============================================================================
 
 export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAdapter {
-	// Type cast to work with generic Kysely instance
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- generic Kysely<T extends AuthTables> narrowed to concrete AuthTables for internal queries
-	const kdb = db as unknown as Kysely<AuthTables>;
+	// `Kysely` is structurally compatible at runtime with the subset this adapter reads/writes.
+	const kdb = db as Kysely<AuthTables>;
 
 	return {
 		// ========================================================================

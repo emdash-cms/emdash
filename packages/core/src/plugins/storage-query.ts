@@ -9,6 +9,7 @@
 import type { Kysely } from "kysely";
 
 import { jsonExtractExpr } from "../database/dialect-helpers.js";
+import type { Database } from "../database/types.js";
 import { validateJsonFieldName } from "../database/validate.js";
 import type { WhereClause, WhereValue, RangeFilter, InFilter, StartsWithFilter } from "./types.js";
 
@@ -113,8 +114,7 @@ export function validateOrderByClause(
  * Validates the field name before interpolation to prevent SQL injection
  * via crafted JSON path expressions.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function jsonExtract(db: Kysely<any>, field: string): string {
+export function jsonExtract(db: Kysely<Database>, field: string): string {
 	validateJsonFieldName(field, "query field name");
 	return jsonExtractExpr(db, "data", field);
 }
@@ -122,9 +122,8 @@ export function jsonExtract(db: Kysely<any>, field: string): string {
 /**
  * Build a WHERE clause condition for a single field
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function buildCondition(
-	db: Kysely<any>,
+	db: Kysely<Database>,
 	field: string,
 	value: WhereValue,
 ): { sql: string; params: unknown[] } {
@@ -191,9 +190,8 @@ export function buildCondition(
 /**
  * Build a complete WHERE clause from a WhereClause object
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function buildWhereClause(
-	db: Kysely<any>,
+	db: Kysely<Database>,
 	where: WhereClause,
 ): {
 	sql: string;
@@ -221,9 +219,8 @@ export function buildWhereClause(
 /**
  * Build ORDER BY clause
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function buildOrderByClause(
-	db: Kysely<any>,
+	db: Kysely<Database>,
 	orderBy: Record<string, "asc" | "desc">,
 ): string {
 	const clauses: string[] = [];
