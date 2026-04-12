@@ -1159,7 +1159,7 @@ export type SettingField =
 	| NumberSettingField
 	| BooleanSettingField
 	| SelectSettingField
-	| SecretSettingFiel
+	| SecretSettingField
 	| UrlSettingField
 	| EmailSettingField;
 
