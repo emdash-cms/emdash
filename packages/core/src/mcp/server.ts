@@ -1275,6 +1275,8 @@ export function createMcpServer(): McpServer {
 				"parent-child relationships.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
+				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
+				cursor: z.string().optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1282,8 +1284,44 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const { handleTermList } = await import("../api/handlers/taxonomies.js");
-				return unwrap(await handleTermList(ec.db, args.taxonomy));
+				// Verify taxonomy exists via handler layer
+				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
+				const listResult = await handleTaxonomyList(ec.db);
+				if (!listResult.success) return unwrap(listResult);
+
+				const taxonomies = (listResult.data as { taxonomies: Array<{ name: string; id?: string }> })
+					.taxonomies;
+				const taxonomy = taxonomies.find((t: { name: string }) => t.name === args.taxonomy);
+				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
+
+				// Paginated term query via repository (avoids N+1 of handleTermList)
+				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
+				const repo = new TaxonomyRepository(ec.db);
+				const limit = Math.min(args.limit ?? 50, 100);
+				const terms = await repo.findByName(args.taxonomy);
+
+				// Manual cursor pagination over the sorted results
+				let startIdx = 0;
+				if (args.cursor) {
+					const cursorIdx = terms.findIndex((t) => t.id === args.cursor);
+					if (cursorIdx >= 0) startIdx = cursorIdx + 1;
+				}
+
+				const page = terms.slice(startIdx, startIdx + limit);
+				const hasMore = startIdx + limit < terms.length;
+				const nextCursor = hasMore ? page.at(-1)?.id : undefined;
+
+				return jsonResult({
+					items: page.map((t) => ({
+						id: t.id,
+						name: t.name,
+						slug: t.slug,
+						label: t.label,
+						parentId: t.parentId,
+						description: typeof t.data?.description === "string" ? t.data.description : undefined,
+					})),
+					nextCursor,
+				});
 			} catch (error) {
 				return errorResult(error);
 			}
