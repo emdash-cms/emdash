@@ -341,6 +341,7 @@ describe("pluginManifestSchema - admin.settingsSchema url/email field types", ()
         },
       },
         expect(result.success).toBe(true);
+	  		});
 
 	it("should accept number field without optional fields", () => {
 		const result = pluginManifestSchema.safeParse({
