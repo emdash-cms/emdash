@@ -164,9 +164,7 @@ export function InviteUserModal({
 									label="Role"
 									value={role.toString()}
 									onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-									items={Object.fromEntries(
-										roles.map((r) => [String(r.value), roleLabels[String(r.value)]]),
-									)}
+									items={roleLabels}
 								>
 									{roles.map((r) => (
 										<Select.Option key={r.value} value={r.value.toString()}>
