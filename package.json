@@ -24,7 +24,9 @@
 		"lint:fix": "oxlint --type-aware --fix",
 		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
 		"new": "create-emdash",
-		"screenshots": "node scripts/screenshot-all-templates.mjs"
+		"screenshots": "node scripts/screenshot-all-templates.mjs",
+		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
 	},
 	"keywords": [],
 	"author": "Matt Kane",
@@ -34,6 +36,7 @@
 		"@changesets/changelog-github": "^0.5.2",
 		"@changesets/cli": "^2.29.8",
 		"@e18e/eslint-plugin": "^0.2.0",
+		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
 		"@playwright/test": "^1.58.0",
 		"@types/node": "catalog:",
 		"@typescript/native-preview": "^7.0.0-dev",

@@ -10,6 +10,7 @@ export const prerender = false;
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { setupBody } from "#api/schemas.js";
 import { getAuthMode } from "#auth/mode.js";
 import { runMigrations } from "#db/migrations/runner.js";
@@ -18,7 +19,7 @@ import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, url, locals }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
@@ -89,7 +90,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 			// Store the canonical site URL from the setup request.
 			// This is trusted because setup runs on the real domain.
-			const siteUrl = new URL(request.url).origin;
+			const siteUrl = getPublicOrigin(url, emdash.config);
 			await options.set("emdash:site_url", siteUrl);
 
 			if (useExternalAuth) {

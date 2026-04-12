@@ -74,6 +74,7 @@ function makeManifest(overrides: Partial<AdminManifest> = {}): AdminManifest {
 		hash: "abc",
 		collections: {},
 		plugins: {},
+		taxonomies: [],
 		authMode: "passkey",
 		...overrides,
 	};

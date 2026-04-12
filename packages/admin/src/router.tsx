@@ -320,6 +320,10 @@ function ContentListPage() {
 		},
 	});
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -342,10 +346,6 @@ function ContentListPage() {
 			search: { locale: locale || undefined },
 		});
 	};
-
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
 
 	return (
 		<ContentList

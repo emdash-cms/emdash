@@ -265,4 +265,68 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 		expect(pipeline2.hasHooks("plugin:install")).toBe(false);
 		expect(pipeline2.hasHooks("plugin:activate")).toBe(false);
 	});
+
+	it("plugin:activate fires when runPluginActivate is called after pipeline rebuild", async () => {
+		const activateHandler = vi.fn().mockResolvedValue(undefined);
+
+		const plugin = createTestPlugin({
+			id: "my-plugin",
+			hooks: {
+				"plugin:activate": createTestHook("my-plugin", activateHandler),
+			},
+		});
+
+		// Simulate enabling: rebuild pipeline with plugin included, then invoke activate
+		const pipeline = createHookPipeline([plugin], { db });
+		await pipeline.runPluginActivate("my-plugin");
+
+		expect(activateHandler).toHaveBeenCalledTimes(1);
+	});
+
+	it("plugin:deactivate fires when runPluginDeactivate is called before pipeline rebuild", async () => {
+		const deactivateHandler = vi.fn().mockResolvedValue(undefined);
+
+		const plugin = createTestPlugin({
+			id: "my-plugin",
+			hooks: {
+				"plugin:deactivate": createTestHook("my-plugin", deactivateHandler),
+			},
+		});
+
+		// Simulate disabling: invoke deactivate on the current pipeline, then rebuild without the plugin
+		const pipeline = createHookPipeline([plugin], { db });
+		await pipeline.runPluginDeactivate("my-plugin");
+
+		expect(deactivateHandler).toHaveBeenCalledTimes(1);
+
+		// Rebuild without the plugin — hook should no longer be registered
+		const disabledPipeline = createHookPipeline([], { db });
+		expect(disabledPipeline.hasHooks("plugin:deactivate")).toBe(false);
+	});
+
+	it("plugin:activate only fires for the targeted plugin, not others", async () => {
+		const activateA = vi.fn().mockResolvedValue(undefined);
+		const activateB = vi.fn().mockResolvedValue(undefined);
+
+		const pluginA = createTestPlugin({
+			id: "plugin-a",
+			hooks: {
+				"plugin:activate": createTestHook("plugin-a", activateA),
+			},
+		});
+		const pluginB = createTestPlugin({
+			id: "plugin-b",
+			hooks: {
+				"plugin:activate": createTestHook("plugin-b", activateB),
+			},
+		});
+
+		const pipeline = createHookPipeline([pluginA, pluginB], { db });
+
+		// Enabling only plugin-a should not fire plugin-b's activate
+		await pipeline.runPluginActivate("plugin-a");
+
+		expect(activateA).toHaveBeenCalledTimes(1);
+		expect(activateB).not.toHaveBeenCalled();
+	});
 });

@@ -18,6 +18,7 @@ import type { Storage } from "../storage/types.js";
 import type { PluginContextFactoryOptions } from "./context.js";
 import { setCronTasksEnabled } from "./cron.js";
 import { definePlugin } from "./define-plugin.js";
+import type { EmailPipeline } from "./email.js";
 import {
 	HookPipeline,
 	type HookResult,
@@ -81,6 +82,17 @@ export class PluginManager {
 			storage: options.storage,
 			getUploadUrl: options.getUploadUrl,
 		};
+	}
+
+	/**
+	 * Set the email pipeline used when creating plugin contexts.
+	 * Reinitializes routes/hooks if already initialized so ctx.email is available immediately.
+	 */
+	setEmailPipeline(pipeline: EmailPipeline): void {
+		this.factoryOptions.emailPipeline = pipeline;
+		if (this.initialized) {
+			this.reinitialize();
+		}
 	}
 
 	// =========================================================================

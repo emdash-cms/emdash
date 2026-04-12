@@ -76,6 +76,7 @@ const MANIFEST: AdminManifest = {
 		},
 	},
 	plugins: {},
+	taxonomies: [],
 	i18n: {
 		defaultLocale: "fr",
 		locales: ["fr", "en", "de"],
