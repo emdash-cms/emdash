@@ -133,9 +133,10 @@ function patchAutosaveQueries(
 	},
 ) {
 	const { collection, id, savedItem, payload } = params;
+	const draftRevisionId = savedItem.draftRevisionId;
 
-	if (savedItem.draftRevisionId) {
-		queryClient.setQueryData<Revision>(["revision", savedItem.draftRevisionId], (existing) => {
+	if (draftRevisionId) {
+		queryClient.setQueryData<Revision>(["revision", draftRevisionId], (existing) => {
 			const nextData: Record<string, unknown> = {
 				...existing?.data,
 				...payload.data,
@@ -146,7 +147,7 @@ function patchAutosaveQueries(
 			}
 
 			return {
-				id: savedItem.draftRevisionId,
+				id: draftRevisionId,
 				collection,
 				entryId: id,
 				data: nextData,

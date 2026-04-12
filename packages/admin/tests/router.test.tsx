@@ -72,7 +72,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 					})
 				}
 			>
-				Autosave
+				Trigger Draft Sync
 			</button>
 		</div>
 	),
@@ -279,7 +279,9 @@ describe("ContentNewPage – locale passed to createContent", () => {
 		const screen = await render(<TestApp />);
 
 		// Wait for the editor to appear (manifest must have loaded)
-		await expect.element(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
 
 		// Capture outgoing requests
 		const requests: { url: string; body: unknown }[] = [];
@@ -294,7 +296,7 @@ describe("ContentNewPage – locale passed to createContent", () => {
 			return origFetch(input, init);
 		};
 
-		await screen.getByRole("button", { name: "Save" }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
 
 		globalThis.fetch = origFetch;
 
@@ -406,7 +408,7 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("mock-slug").element().textContent).toBe("draft-slug");
 		});
 
-		await screen.getByRole("button", { name: "Autosave" }).click();
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
 
 		await waitFor(() => {
 			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
