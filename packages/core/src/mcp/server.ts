@@ -10,7 +10,7 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { canActOnOwn, Role } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -299,7 +299,7 @@ export function createMcpServer(): McpServer {
 				status: z
 					.enum(["draft", "published"])
 					.optional()
-					.describe("Initial status (default 'draft')"),
+					.describe("Initial status (default 'draft'). Requires publish permission."),
 				locale: z
 					.string()
 					.optional()
@@ -317,11 +317,49 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
+
+			// Creating a translation requires edit permission on the source item
+			if (args.translationOf) {
+				const source = await emdash.handleContentGet(args.collection, args.translationOf);
+				if (!source.success) return unwrap(source);
+				requireOwnership(
+					extra,
+					extractContentAuthorId(source.data),
+					"content:edit_own",
+					"content:edit_any",
+				);
+			}
+
+			// Publishing requires publish permission — create as draft then publish
+			if (args.status === "published") {
+				const user = { id: userId, role: getExtra(extra).userRole };
+				if (!hasPermission(user, "content:publish_own" as Permission)) {
+					throw new McpError(
+						ErrorCode.InvalidRequest,
+						"Insufficient permissions: publishing requires content:publish_own",
+					);
+				}
+				const result = await emdash.handleContentCreate(args.collection, {
+					data: args.data,
+					slug: args.slug,
+					authorId: userId,
+					locale: args.locale,
+					translationOf: args.translationOf,
+				});
+				if (!result.success) return unwrap(result);
+				const itemId = extractContentId(result.data);
+				if (itemId) {
+					const published = await emdash.handleContentPublish(args.collection, itemId);
+					if (!published.success) return unwrap(published);
+					return unwrap(published);
+				}
+				return unwrap(result);
+			}
+
 			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
 					data: args.data,
 					slug: args.slug,
-					status: args.status,
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
@@ -347,7 +385,10 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Field values to update (only include changed fields)"),
 				slug: z.string().optional().describe("New URL slug"),
-				status: z.enum(["draft", "published"]).optional().describe("New status"),
+				status: z
+					.enum(["draft", "published"])
+					.optional()
+					.describe("New status. Setting to 'published' requires publish permission."),
 				_rev: z
 					.string()
 					.optional()
@@ -372,6 +413,28 @@ export function createMcpServer(): McpServer {
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+
+			// Publishing requires publish permission — update data then publish via dedicated handler
+			if (args.status === "published") {
+				requireOwnership(
+					extra,
+					extractContentAuthorId(existing.data),
+					"content:publish_own",
+					"content:publish_any",
+				);
+				// Apply data/slug updates first (if any), then publish
+				if (args.data || args.slug) {
+					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
+						data: args.data,
+						slug: args.slug,
+						authorId: userId,
+						_rev: args._rev,
+					});
+					if (!updateResult.success) return unwrap(updateResult);
+				}
+				return unwrap(await emdash.handleContentPublish(args.collection, resolvedId));
+			}
+
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
 					data: args.data,
