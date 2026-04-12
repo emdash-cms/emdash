@@ -132,7 +132,7 @@ const settingFieldSchema = z.discriminatedUnion("type", [
 	}),
 	z.object({ ...baseSettingFields, type: z.literal("secret") }),
 	z.object({ ...baseSettingFields, type: z.literal("url") }),
-	z.object({ ...baseSettingFields, type: z.literal("email") })
+	z.object({ ...baseSettingFields, type: z.literal("email") }),
 ]);
 
 const adminPageSchema = z.object({
