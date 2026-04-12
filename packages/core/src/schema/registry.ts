@@ -383,10 +383,16 @@ export class SchemaRegistry {
 				.execute();
 
 			// Add column to content table — pass trx to stay on the same connection
-			await this.addColumn(collectionSlug, input.slug, input.type, {
-				required: input.required,
-				defaultValue: input.defaultValue,
-			}, trx);
+			await this.addColumn(
+				collectionSlug,
+				input.slug,
+				input.type,
+				{
+					required: input.required,
+					defaultValue: input.defaultValue,
+				},
+				trx,
+			);
 
 			// Read the created field via trx (not this.db) to avoid connection mutex deadlock
 			const fieldRow = await trx
@@ -436,13 +442,7 @@ export class SchemaRegistry {
 						input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
 					unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
 					searchable:
-						input.searchable !== undefined
-							? input.searchable
-								? 1
-								: 0
-							: field.searchable
-								? 1
-								: 0,
+						input.searchable !== undefined ? (input.searchable ? 1 : 0) : field.searchable ? 1 : 0,
 					translatable:
 						input.translatable !== undefined
 							? input.translatable
