@@ -1,5 +1,11 @@
 # @emdash-cms/auth
 
+## 0.2.0
+
+### Patch Changes
+
+- [#452](https://github.com/emdash-cms/emdash/pull/452) [`1a93d51`](https://github.com/emdash-cms/emdash/commit/1a93d51777afaec239641e7587d6e32d8a590656) Thanks [@kamine81](https://github.com/kamine81)! - Fixes GitHub OAuth login failing with 403 on accounts where email is private. GitHub's API requires a `User-Agent` header and rejects requests without it.
+
 ## 0.1.1
 
 ### Patch Changes

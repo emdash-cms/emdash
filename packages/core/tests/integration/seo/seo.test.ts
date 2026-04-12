@@ -13,6 +13,7 @@ import { handleSitemapData } from "../../../src/api/handlers/seo.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { SeoRepository } from "../../../src/database/repositories/seo.js";
 import type { ContentItem } from "../../../src/database/repositories/types.js";
 import type { Database } from "../../../src/database/types.js";
@@ -432,6 +433,29 @@ describe("SEO", () => {
 			// SEO row should be gone
 			const seo = await seoRepo.get("post", id);
 			expect(seo.title).toBeNull();
+		});
+
+		it("should clean up revisions on permanent delete", async () => {
+			const createResult = await handleContentCreate(db, "post", {
+				data: { title: "Test Post" },
+			});
+			const id = createResult.data!.item.id;
+
+			// Create some revisions
+			const revisionRepo = new RevisionRepository(db);
+			await revisionRepo.create({ collection: "post", entryId: id, data: { title: "v1" } });
+			await revisionRepo.create({ collection: "post", entryId: id, data: { title: "v2" } });
+
+			const before = await revisionRepo.findByEntry("post", id);
+			expect(before).toHaveLength(2);
+
+			// Soft delete first, then permanent delete
+			await repo.delete("post", id);
+			await handleContentPermanentDelete(db, "post", id);
+
+			// Revisions should be gone
+			const after = await revisionRepo.findByEntry("post", id);
+			expect(after).toHaveLength(0);
 		});
 
 		it("should not hydrate SEO for collections without has_seo", async () => {
