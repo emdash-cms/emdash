@@ -305,10 +305,7 @@ test.describe("Autosave after perf optimizations", () => {
 		}).catch(() => {});
 	});
 
-	test("autosave keeps edited field values after save completes", async ({
-		admin,
-		page,
-	}) => {
+	test("autosave keeps edited field values after save completes", async ({ admin, page }) => {
 		const contentUrl = `/_emdash/api/content/${collectionSlug}/${postId}`;
 
 		await admin.goToEditContent(collectionSlug, postId);
