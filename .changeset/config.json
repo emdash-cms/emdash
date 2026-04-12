@@ -7,7 +7,25 @@
 		}
 	],
 	"commit": false,
-	"fixed": [],
+	"fixed": [
+		[
+			"emdash",
+			"@emdash-cms/admin",
+			"@emdash-cms/auth",
+			"@emdash-cms/blocks",
+			"@emdash-cms/cloudflare",
+			"@emdash-cms/gutenberg-to-portable-text",
+			"@emdash-cms/plugin-ai-moderation",
+			"@emdash-cms/plugin-atproto",
+			"@emdash-cms/plugin-audit-log",
+			"@emdash-cms/plugin-color",
+			"@emdash-cms/plugin-embeds",
+			"@emdash-cms/plugin-forms",
+			"@emdash-cms/plugin-webhook-notifier",
+			"@emdash-cms/x402",
+			"create-emdash"
+		]
+	],
 	"linked": [],
 	"access": "public",
 	"baseBranch": "main",

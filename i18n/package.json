@@ -1,0 +1,13 @@
+{
+	"name": "@emdash-cms/i18n-dashboard",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "cd .. && node --experimental-strip-types i18n/build.ts",
+		"deploy": "node --run build && wrangler deploy"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

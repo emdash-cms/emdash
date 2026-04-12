@@ -6,7 +6,7 @@ packages:
   - packages/blocks/playground
   - e2e/fixture
   - docs
-  - slidev
+  - i18n
 
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
@@ -15,6 +15,12 @@ catalog:
   "@astrojs/node": ^10.0.0
   "@astrojs/react": ^5.0.0
   "@cloudflare/workers-types": ^4.20260305.1
+  "@lingui/babel-plugin-lingui-macro": ^5.9.4
+  "@lingui/cli": ^5.9.4
+  "@lingui/conf": ^5.9.4
+  "@lingui/core": ^5.9.4
+  "@lingui/macro": ^5.9.4
+  "@lingui/react": ^5.9.4
   "@phosphor-icons/react": ^2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2
@@ -39,7 +45,7 @@ catalog:
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   astro: ^6.0.1
-  better-sqlite3: ^11.10.0
+  better-sqlite3: ^12.8.0
   publint: 0.3.17
   react: 19.2.4
   react-dom: 19.2.4

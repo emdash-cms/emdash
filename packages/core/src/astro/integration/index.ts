@@ -90,6 +90,27 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		}
 	}
 
+	// Validate siteUrl if provided in astro.config.mjs.
+	// Env-var fallback (EMDASH_SITE_URL / SITE_URL) is handled at runtime by
+	// getPublicOrigin() in api/public-url.ts — NOT here — so Docker images built
+	// without a domain can pick it up at container start via process.env.
+	if (resolvedConfig.siteUrl) {
+		const raw = resolvedConfig.siteUrl;
+		try {
+			const parsed = new URL(raw);
+			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+				throw new Error(`siteUrl must be http or https (got ${parsed.protocol})`);
+			}
+			// Always store origin-normalized value (no path) — security invariant L-1
+			resolvedConfig.siteUrl = parsed.origin;
+		} catch (e) {
+			if (e instanceof TypeError) {
+				throw new Error(`Invalid siteUrl: "${raw}"`, { cause: e });
+			}
+			throw e;
+		}
+	}
+
 	// Plugin descriptors from config
 	const pluginDescriptors = resolvedConfig.plugins ?? [];
 	const sandboxedDescriptors = resolvedConfig.sandboxed ?? [];
@@ -136,6 +157,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,
 		marketplace: resolvedConfig.marketplace,
+		siteUrl: resolvedConfig.siteUrl,
 	};
 
 	// Determine auth mode for route injection
@@ -167,8 +189,26 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					};
 				}
 
-				// Update Vite config with virtual modules and other settings
+				// Disable Astro's built-in checkOrigin -- EmDash's own CSRF
+				// layer (checkPublicCsrf in api/csrf.ts) handles origin
+				// validation with dual-origin support: it accepts both the
+				// internal origin AND the public origin from getPublicOrigin(),
+				// which resolves siteUrl from config or env vars at runtime.
+				// Astro's check can't do this because allowedDomains is baked
+				// at build time, which breaks Docker deployments where the
+				// domain is only known at container start via EMDASH_SITE_URL.
+				//
+				// When siteUrl is known at build time, also set allowedDomains
+				// so Astro.url reflects the public origin (helps user template
+				// code that reads Astro.url directly).
+				const securityConfig: Record<string, unknown> = {
+					checkOrigin: false,
+					...(resolvedConfig.siteUrl
+						? { allowedDomains: [{ hostname: new URL(resolvedConfig.siteUrl).hostname }] }
+						: {}),
+				};
 				updateConfig({
+					security: securityConfig,
 					vite: createViteConfig(
 						{
 							serializableConfig,

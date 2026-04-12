@@ -61,6 +61,11 @@ describe("renderToolbar", () => {
 		expect(html).toContain("/_emdash/api/manifest");
 	});
 
+	it("skips toolbar interception for portableText (inline editor)", () => {
+		const html = renderToolbar({ editMode: true, isPreview: false });
+		expect(html).toContain("portableText");
+	});
+
 	it("includes entry status badge styles", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain("emdash-tb-badge--draft");

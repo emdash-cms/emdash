@@ -32,6 +32,32 @@ export default defineConfig({
 });
 ```
 
+### Reverse proxy
+
+When behind a TLS-terminating reverse proxy, `Astro.url` returns the internal address (e.g. `http://localhost:4321`) instead of the public one (`https://mysite.example.com`). This breaks passkeys, CSRF, OAuth, redirects, and more.
+
+**Step 1:** Declare allowed public hosts via [`security.allowedDomains`](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains) so Astro reconstructs the URL from `X-Forwarded-*` headers. In dev, add matching **`vite.server.allowedHosts`** or Vite rejects the proxy `Host`.
+
+**Step 2:** If the reconstructed URL still disagrees with the browser (common with TLS termination), set **`siteUrl`**:
+
+```javascript
+emdash({
+	siteUrl: "https://mysite.example.com",
+	// ...
+});
+```
+
+Or via environment variable (useful for container deployments):
+
+```bash
+EMDASH_SITE_URL=https://mysite.example.com
+# or: SITE_URL=https://mysite.example.com
+```
+
+`siteUrl` replaces `passkeyPublicOrigin` (which only fixed passkeys). It applies to passkeys, CSRF origin matching, OAuth redirects, login redirects, MCP discovery, snapshot exports, sitemap, robots.txt, and JSON-LD structured data.
+
+With TLS terminated in front, **`astro dev --host 127.0.0.1`** (loopback) is usually enough: the proxy reaches the dev server locally while **`siteUrl`** matches the browser’s HTTPS origin -- without opening the Node port on the LAN.
+
 ### Cloudflare (D1 + R2)
 
 ```javascript
