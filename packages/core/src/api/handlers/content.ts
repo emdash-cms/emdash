@@ -503,29 +503,29 @@ export async function handleContentUpdate(
 		// Resolve slug → ID if needed
 		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
 
-		// Validate _rev if provided (optimistic concurrency)
-		if (body._rev) {
-			const existing = await repo.findById(collection, resolvedId);
-			if (!existing) {
-				return {
-					success: false,
-					error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
-				};
-			}
-
-			const revCheck = validateRev(body._rev, existing);
-			if (!revCheck.valid) {
-				return {
-					success: false,
-					error: { code: "CONFLICT", message: revCheck.message },
-				};
-			}
-		}
-
-		// Wrap content + SEO writes in a transaction for atomicity
+		// Wrap content + SEO writes in a transaction for atomicity.
+		// The _rev check is inside the transaction so the read-then-write
+		// is atomic -- no concurrent write can slip between the check and update.
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
+
+			// Validate _rev if provided (optimistic concurrency)
+			if (body._rev) {
+				const existing = await trxRepo.findById(collection, resolvedId);
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const, status: 404 },
+					});
+				}
+
+				const revCheck = validateRev(body._rev, existing);
+				if (!revCheck.valid) {
+					throw Object.assign(new Error(revCheck.message), {
+						apiError: { code: "CONFLICT" as const, status: 409 },
+					});
+				}
+			}
 
 			// Capture old slug before update for auto-redirect
 			let oldSlug: string | undefined;
@@ -598,6 +598,17 @@ export async function handleContentUpdate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction
+		// (rev check failures, not-found)
+		if (error instanceof Error && "apiError" in error) {
+			const { code, status: _status } = (
+				error as Error & { apiError: { code: string; status: number } }
+			).apiError;
+			return {
+				success: false,
+				error: { code, message: error.message },
+			};
+		}
 		console.error("Content update error:", error);
 		return {
 			success: false,

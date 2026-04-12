@@ -15,6 +15,7 @@ import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
@@ -342,7 +343,6 @@ export async function applySeed(
 	// 7. Content (created before menus so refs can resolve)
 	if (includeContent && seed.content) {
 		const contentRepo = new ContentRepository(db);
-		const bylineRepo = new BylineRepository(db);
 
 		// Create content entries
 		for (const [collectionSlug, entries] of Object.entries(seed.content)) {
@@ -366,25 +366,30 @@ export async function applySeed(
 							result,
 						);
 
+						// Update content + bylines + taxonomies atomically
 						const status = entry.status || "published";
-						await contentRepo.update(collectionSlug, existing.id, {
-							status,
-							data: resolvedData,
+						await withTransaction(db, async (trx) => {
+							const trxContentRepo = new ContentRepository(trx);
+							const trxBylineRepo = new BylineRepository(trx);
+
+							await trxContentRepo.update(collectionSlug, existing.id, {
+								status,
+								data: resolvedData,
+							});
+
+							await applyContentBylines(
+								trxBylineRepo,
+								collectionSlug,
+								existing.id,
+								entry,
+								seedBylineIdMap,
+								true,
+							);
+							await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
 						});
 
 						seedIdMap.set(entry.id, existing.id);
 						result.content.updated++;
-
-						// Update bylines and taxonomy assignments
-						await applyContentBylines(
-							bylineRepo,
-							collectionSlug,
-							existing.id,
-							entry,
-							seedBylineIdMap,
-							true,
-						);
-						await applyContentTaxonomies(db, collectionSlug, existing.id, entry, true);
 						continue;
 					}
 
@@ -410,24 +415,30 @@ export async function applySeed(
 					}
 				}
 
-				// Create entry
+				// Create entry + bylines + taxonomies atomically
 				const status = entry.status || "published";
-				const created = await contentRepo.create({
-					type: collectionSlug,
-					slug: entry.slug,
-					status,
-					data: resolvedData,
-					locale: entry.locale,
-					translationOf,
-					// Set published_at for published content so RSS/Archives work correctly
-					publishedAt: status === "published" ? new Date().toISOString() : null,
+				const created = await withTransaction(db, async (trx) => {
+					const trxContentRepo = new ContentRepository(trx);
+					const trxBylineRepo = new BylineRepository(trx);
+
+					const item = await trxContentRepo.create({
+						type: collectionSlug,
+						slug: entry.slug,
+						status,
+						data: resolvedData,
+						locale: entry.locale,
+						translationOf,
+						publishedAt: status === "published" ? new Date().toISOString() : null,
+					});
+
+					await applyContentBylines(trxBylineRepo, collectionSlug, item.id, entry, seedBylineIdMap);
+					await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+
+					return item;
 				});
 
 				seedIdMap.set(entry.id, created.id);
 				result.content.created++;
-
-				await applyContentBylines(bylineRepo, collectionSlug, created.id, entry, seedBylineIdMap);
-				await applyContentTaxonomies(db, collectionSlug, created.id, entry, false);
 			}
 		}
 	}
