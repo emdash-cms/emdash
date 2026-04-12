@@ -1,4 +1,5 @@
 import type { Messages } from "@lingui/core";
+
 import { DEFAULT_LOCALE } from "./config.js";
 
 export { useLocale } from "./useLocale.js";
