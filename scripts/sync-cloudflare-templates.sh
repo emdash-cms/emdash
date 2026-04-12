@@ -69,6 +69,8 @@ sync_template() {
 		else
 			if [[ -L "$dest" ]]; then
 				rm "$dest"
+			elif [[ -d "$dest" ]]; then
+				rm -rf "$dest"
 			elif [[ -f "$dest" ]]; then
 				rm "$dest"
 			fi

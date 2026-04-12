@@ -187,6 +187,8 @@ if (localPath) {
 	execFileSync("gh", ["repo", "clone", REPO, tempDir, "--", "--depth", "1"], {
 		stdio: "pipe",
 	});
+	// Configure git credential helper so push works with GH_TOKEN
+	execFileSync("gh", ["auth", "setup-git"], { stdio: "pipe" });
 	targetDir = tempDir;
 }
 
