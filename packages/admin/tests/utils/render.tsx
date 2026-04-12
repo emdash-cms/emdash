@@ -10,8 +10,11 @@ import "../../src/locales/init.js";
 type RenderWrapper = ComponentRenderOptions["wrapper"];
 
 const I18nWrapper = (InnerWrapper: RenderWrapper = React.Fragment) => {
-	return ({ children }: React.PropsWithChildren) =>
-		React.createElement(I18nProvider, { i18n }, React.createElement(InnerWrapper, null, children));
+	return ({ children }: React.PropsWithChildren) => (
+		<I18nProvider i18n={i18n}>
+			<InnerWrapper>{children}</InnerWrapper>
+		</I18nProvider>
+	);
 };
 
 export const render: typeof baseRender = (ui, { wrapper: UserWrapper, ...options } = {}) => {
