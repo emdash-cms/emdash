@@ -681,8 +681,9 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
  */
 interface SlashCommandItem {
 	id: string;
-	title: MessageDescriptor;
-	description: MessageDescriptor;
+	/** Built-in commands use `msg`; plugin/API-sourced titles stay plain `string`. */
+	title: MessageDescriptor | string;
+	description: MessageDescriptor | string;
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
@@ -954,8 +955,12 @@ function SlashCommandMenu({
 					>
 						<item.icon className="h-4 w-4 text-kumo-subtle flex-shrink-0" />
 						<div className="flex flex-col">
-							<span className="font-medium">{t(item.title)}</span>
-							<span className="text-xs text-kumo-subtle">{t(item.description)}</span>
+							<span className="font-medium">
+								{typeof item.title === "string" ? item.title : t(item.title)}
+							</span>
+							<span className="text-xs text-kumo-subtle">
+								{typeof item.description === "string" ? item.description : t(item.description)}
+							</span>
 						</div>
 					</button>
 				))
@@ -1430,15 +1435,12 @@ export function PortableTextEditor({
 			},
 		});
 
-		// Add plugin block commands
+		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped)
 		for (const block of pluginBlocks) {
-			const labelLower = block.label.toLowerCase();
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
-				title: msg`${block.label}`,
-				description: block.description
-					? msg`${block.description}`
-					: msg`Embed a ${labelLower}`,
+				title: block.label,
+				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
 				category: msg`Embeds`,
@@ -1462,10 +1464,12 @@ export function PortableTextEditor({
 		const titleMatches: SlashCommandItem[] = [];
 		const otherMatches: SlashCommandItem[] = [];
 		for (const item of slashCommands) {
-			if (t(item.title).toLowerCase().includes(searchText)) {
+			const titleStr = typeof item.title === "string" ? item.title : t(item.title);
+			const descStr = typeof item.description === "string" ? item.description : t(item.description);
+			if (titleStr.toLowerCase().includes(searchText)) {
 				titleMatches.push(item);
 			} else if (
-				t(item.description).toLowerCase().includes(searchText) ||
+				descStr.toLowerCase().includes(searchText) ||
 				item.aliases?.some((alias) => alias.toLowerCase().includes(searchText))
 			) {
 				otherMatches.push(item);

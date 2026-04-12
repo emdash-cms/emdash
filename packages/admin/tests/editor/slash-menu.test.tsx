@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { PortableTextEditorProps } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
-import { render } from "../utils/render.tsx";
+import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------
 // Mocks
