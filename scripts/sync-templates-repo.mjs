@@ -261,16 +261,7 @@ try {
 	git(["checkout", "-B", branch], targetDir);
 	git(["add", "-A"], targetDir);
 	git(["commit", "-m", `chore: sync templates from emdash v${emdashVersion}`], targetDir);
-
-	// Fetch remote branch if it exists so --force-with-lease can compare
-	try {
-		git(["ls-remote", "--exit-code", "--heads", "origin", branch], targetDir);
-		git(["fetch", "origin", `refs/heads/${branch}:refs/remotes/origin/${branch}`], targetDir);
-	} catch {
-		// Branch doesn't exist on remote yet — that's fine
-	}
-
-	git(["push", "--force-with-lease", "-u", "origin", branch], targetDir);
+	git(["push", "--force", "-u", "origin", branch], targetDir);
 
 	console.log(`Pushed branch: ${branch}`);
 
@@ -301,6 +292,8 @@ try {
 				"create",
 				"--repo",
 				REPO,
+				"--head",
+				branch,
 				"--title",
 				`chore: sync templates from emdash v${emdashVersion}`,
 				"--body",
