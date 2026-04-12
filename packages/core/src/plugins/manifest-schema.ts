@@ -131,8 +131,18 @@ const settingFieldSchema = z.discriminatedUnion("type", [
 		default: z.string().optional(),
 	}),
 	z.object({ ...baseSettingFields, type: z.literal("secret") }),
-	z.object({ ...baseSettingFields, type: z.literal("url"), default: z.string().optional(), placeholder: z.string().optional() }),
-	z.object({ ...baseSettingFields, type: z.literal("email"), default: z.string().optional(), placeholder: z.string().optional() }),
+	z.object({
+		...baseSettingFields,
+		type: z.literal("url"),
+		default: z.string().optional(),
+		placeholder: z.string().optional(),
+	}),
+	z.object({
+		...baseSettingFields,
+		type: z.literal("email"),
+		default: z.string().optional(),
+		placeholder: z.string().optional(),
+	}),
 ]);
 
 const adminPageSchema = z.object({
