@@ -15,17 +15,13 @@
 			"@emdash-cms/blocks",
 			"@emdash-cms/cloudflare",
 			"@emdash-cms/gutenberg-to-portable-text",
-			"@emdash-cms/plugin-ai-moderation",
-			"@emdash-cms/plugin-atproto",
-			"@emdash-cms/plugin-audit-log",
-			"@emdash-cms/plugin-color",
-			"@emdash-cms/plugin-embeds",
-			"@emdash-cms/plugin-forms",
-			"@emdash-cms/plugin-webhook-notifier",
 			"@emdash-cms/x402",
 			"create-emdash"
 		]
 	],
+	"___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+		"onlyUpdatePeerDependentsWhenOutOfRange": true
+	},
 	"linked": [],
 	"access": "public",
 	"baseBranch": "main",

@@ -54,6 +54,7 @@ export interface RedirectListOptions {
 export interface RedirectListResult {
 	items: Redirect[];
 	nextCursor?: string;
+	loopRedirectIds?: string[];
 }
 
 /**

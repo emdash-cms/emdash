@@ -47,12 +47,12 @@ function csrfCookieHeader(token: string, request: Request, siteUrl?: string): st
 	// so JS never needs to read the cookie. HttpOnly adds defense-in-depth.
 	// Secure is set when:
 	//   - siteUrl is configured and uses https (proxy case — request may be http internally), OR
-	//   - the actual request is over https (non-proxy case, preserve existing behavior — H-2)
+	//   - the actual request is over https (non-proxy case, preserve existing behaviour)
 	const isSecure = siteUrl
 		? siteUrl.startsWith("https:")
 		: new URL(request.url).protocol === "https:";
 	const secure = isSecure ? "; Secure" : "";
-	return `${CSRF_COOKIE_NAME}=${token}; Path=/_emdash/api/oauth/authorize; HttpOnly; SameSite=Strict${secure}`;
+	return `${CSRF_COOKIE_NAME}=${token}; Path=/_emdash/oauth/authorize; HttpOnly; SameSite=Strict${secure}`;
 }
 
 /** Extract the CSRF token from the request's cookies. */

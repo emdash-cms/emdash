@@ -1,6 +1,26 @@
 import { describe, it, expect } from "vitest";
 
-import { contentUpdateBody, httpUrl } from "../../../src/api/schemas/index.js";
+import { contentCreateBody, contentUpdateBody, httpUrl } from "../../../src/api/schemas/index.js";
+
+describe("contentCreateBody schema", () => {
+	it("accepts status 'draft'", () => {
+		const result = contentCreateBody.parse({ data: { title: "Hi" }, status: "draft" });
+		expect(result.status).toBe("draft");
+	});
+
+	it("accepts omitted status", () => {
+		const result = contentCreateBody.parse({ data: { title: "Hi" } });
+		expect(result.status).toBeUndefined();
+	});
+
+	it("rejects status 'published'", () => {
+		expect(() => contentCreateBody.parse({ data: { title: "Hi" }, status: "published" })).toThrow();
+	});
+
+	it("rejects status 'scheduled'", () => {
+		expect(() => contentCreateBody.parse({ data: { title: "Hi" }, status: "scheduled" })).toThrow();
+	});
+});
 
 describe("contentUpdateBody schema", () => {
 	it("should pass through skipRevision when present", () => {
@@ -18,6 +38,24 @@ describe("contentUpdateBody schema", () => {
 		};
 		const result = contentUpdateBody.parse(input);
 		expect(result.skipRevision).toBeUndefined();
+	});
+
+	it("accepts status 'draft'", () => {
+		const result = contentUpdateBody.parse({ data: { title: "Hi" }, status: "draft" });
+		expect(result.status).toBe("draft");
+	});
+
+	it("accepts omitted status", () => {
+		const result = contentUpdateBody.parse({ data: { title: "Hi" } });
+		expect(result.status).toBeUndefined();
+	});
+
+	it("rejects status 'published'", () => {
+		expect(() => contentUpdateBody.parse({ data: { title: "Hi" }, status: "published" })).toThrow();
+	});
+
+	it("rejects status 'scheduled'", () => {
+		expect(() => contentUpdateBody.parse({ data: { title: "Hi" }, status: "scheduled" })).toThrow();
 	});
 });
 

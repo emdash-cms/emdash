@@ -35,16 +35,21 @@ export interface CreateApiTokenInput {
 	expiresAt?: string;
 }
 
-/** Available scopes for API tokens */
-export const API_TOKEN_SCOPES = [
-	{ value: "content:read", label: "Content Read", description: "Read content entries" },
-	{ value: "content:write", label: "Content Write", description: "Create, update, delete content" },
-	{ value: "media:read", label: "Media Read", description: "Read media files" },
-	{ value: "media:write", label: "Media Write", description: "Upload and delete media" },
-	{ value: "schema:read", label: "Schema Read", description: "Read collection schemas" },
-	{ value: "schema:write", label: "Schema Write", description: "Modify collection schemas" },
-	{ value: "admin", label: "Admin", description: "Full admin access" },
-] as const;
+/**
+ * Scope strings for personal API tokens (wire + UI iteration order).
+ * Human-readable copy lives in `ApiTokenSettings` (`SCOPE_UI` + Lingui).
+ */
+export const API_TOKEN_SCOPES = {
+	ContentRead: "content:read",
+	ContentWrite: "content:write",
+	MediaRead: "media:read",
+	MediaWrite: "media:write",
+	SchemaRead: "schema:read",
+	SchemaWrite: "schema:write",
+	Admin: "admin",
+} as const;
+
+export type ApiTokenScopeValue = (typeof API_TOKEN_SCOPES)[keyof typeof API_TOKEN_SCOPES];
 
 // =============================================================================
 // API Functions

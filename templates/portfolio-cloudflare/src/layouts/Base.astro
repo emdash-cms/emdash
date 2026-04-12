@@ -15,6 +15,9 @@ const settings = await getSiteSettings();
 const siteTitle = settings?.title || "Studio";
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription = settings?.tagline || "Design & Development";
+const siteLogo = (settings?.logo as any)?.url ? settings.logo as
+	{ mediaId: string; alt?: string; url: string } : null;
+const siteFavicon = (settings?.favicon as any)?.url ?? null;
 
 const menu = await getMenu("primary");
 
@@ -38,6 +41,7 @@ const pageCtx = createPublicPageContext({
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -68,7 +72,12 @@ const pageCtx = createPublicPageContext({
 	<body>
 		<header class="site-header">
 			<nav class="nav">
-				<a href="/" class="site-title">{siteTitle}</a>
+				<a href="/" class="site-title">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						: siteTitle
+					}
+				</a>
 				<div class="nav-links">
 					{
 						menu?.items.map((item) => (
@@ -89,7 +98,12 @@ const pageCtx = createPublicPageContext({
 		<footer class="site-footer">
 			<div class="footer-content">
 				<div class="footer-brand">
-					<span class="footer-logo">{siteTitle}</span>
+					<span class="footer-logo">
+						{siteLogo
+							? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+							: siteTitle
+						}
+					</span>
 					<p class="footer-tagline">
 						{settings?.tagline || "Design & Development"}
 					</p>
@@ -320,6 +334,13 @@ const pageCtx = createPublicPageContext({
 				letter-spacing: -0.02em;
 			}
 
+			.site-logo-img {
+				height: 48px;
+				width: auto;
+				display: block;
+				margin: -8px 0;
+			}
+
 			.nav-links {
 				display: flex;
 				gap: var(--spacing-xl);
@@ -365,6 +386,11 @@ const pageCtx = createPublicPageContext({
 				font-family: var(--font-serif);
 				font-size: var(--font-size-lg);
 				font-weight: 600;
+			}
+
+			.footer-logo-img {
+				height: 24px;
+				width: auto;
 			}
 
 			.footer-tagline {
