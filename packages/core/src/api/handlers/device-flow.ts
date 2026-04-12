@@ -20,6 +20,7 @@ import {
 	TOKEN_PREFIXES,
 	VALID_SCOPES,
 } from "../../auth/api-tokens.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 import { lookupOAuthClient } from "./oauth-clients.js";
@@ -306,59 +307,66 @@ export async function handleDeviceTokenExchange(
 			};
 		}
 
-		// Atomically consume the device code using DELETE...RETURNING.
-		// This prevents TOCTOU: two concurrent requests race on the DELETE,
-		// and only one gets a row back.
-		const consumed = await db
-			.deleteFrom("_emdash_device_codes")
-			.where("device_code", "=", input.device_code)
-			.where("status", "=", "authorized")
-			.returningAll()
-			.executeTakeFirst();
+		// Generate tokens before consuming the device code so that if
+		// generation fails, the code is still available for retry.
+		const accessToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_ACCESS);
+		const accessExpires = expiresAt(ACCESS_TOKEN_TTL_SECONDS);
+		const refreshToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_REFRESH);
+		const refreshExpires = expiresAt(REFRESH_TOKEN_TTL_SECONDS);
 
-		if (!consumed) {
+		// Atomically consume the device code and create tokens in a single
+		// transaction. DELETE...RETURNING prevents TOCTOU: two concurrent
+		// requests race on the DELETE, only one gets a row back. Wrapping
+		// in a transaction ensures the code isn't consumed if token storage fails.
+		const result = await withTransaction(db, async (trx) => {
+			const consumed = await trx
+				.deleteFrom("_emdash_device_codes")
+				.where("device_code", "=", input.device_code)
+				.where("status", "=", "authorized")
+				.returningAll()
+				.executeTakeFirst();
+
+			if (!consumed) return null;
+
+			if (!consumed.user_id) return null;
+
+			const scopes = JSON.parse(consumed.scopes) as string[];
+
+			await trx
+				.insertInto("_emdash_oauth_tokens")
+				.values({
+					token_hash: accessToken.hash,
+					token_type: "access",
+					user_id: consumed.user_id,
+					scopes: JSON.stringify(scopes),
+					client_type: "cli",
+					expires_at: accessExpires,
+					refresh_token_hash: refreshToken.hash,
+				})
+				.execute();
+
+			await trx
+				.insertInto("_emdash_oauth_tokens")
+				.values({
+					token_hash: refreshToken.hash,
+					token_type: "refresh",
+					user_id: consumed.user_id,
+					scopes: JSON.stringify(scopes),
+					client_type: "cli",
+					expires_at: refreshExpires,
+					refresh_token_hash: null,
+				})
+				.execute();
+
+			return { scopes };
+		});
+
+		if (!result) {
 			return {
 				success: false,
 				error: { code: "INVALID_GRANT", message: "Device code already consumed" },
 			};
 		}
-
-		const scopes = JSON.parse(consumed.scopes) as string[];
-
-		// Generate access token
-		const accessToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_ACCESS);
-		const accessExpires = expiresAt(ACCESS_TOKEN_TTL_SECONDS);
-
-		// Generate refresh token
-		const refreshToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_REFRESH);
-		const refreshExpires = expiresAt(REFRESH_TOKEN_TTL_SECONDS);
-
-		// Store both tokens
-		await db
-			.insertInto("_emdash_oauth_tokens")
-			.values({
-				token_hash: accessToken.hash,
-				token_type: "access",
-				user_id: consumed.user_id!,
-				scopes: JSON.stringify(scopes),
-				client_type: "cli",
-				expires_at: accessExpires,
-				refresh_token_hash: refreshToken.hash,
-			})
-			.execute();
-
-		await db
-			.insertInto("_emdash_oauth_tokens")
-			.values({
-				token_hash: refreshToken.hash,
-				token_type: "refresh",
-				user_id: consumed.user_id!,
-				scopes: JSON.stringify(scopes),
-				client_type: "cli",
-				expires_at: refreshExpires,
-				refresh_token_hash: null,
-			})
-			.execute();
 
 		return {
 			success: true,
@@ -367,7 +375,7 @@ export async function handleDeviceTokenExchange(
 				refresh_token: refreshToken.raw,
 				token_type: "Bearer",
 				expires_in: ACCESS_TOKEN_TTL_SECONDS,
-				scope: scopes.join(" "),
+				scope: result.scopes.join(" "),
 			},
 		};
 	} catch {

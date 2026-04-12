@@ -12,6 +12,7 @@ import type { APIRoute } from "astro";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { userUpdateBody } from "#api/schemas.js";
+import { withTransaction } from "#db/transaction.js";
 
 export const prerender = false;
 
@@ -109,18 +110,6 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			return apiError("SELF_ROLE_CHANGE", "Cannot change your own role", 400);
 		}
 
-		// Prevent demoting the last admin
-		if (role !== undefined && role < Role.ADMIN && targetUser.role === Role.ADMIN) {
-			const adminCount = await adapter.countAdmins();
-			if (adminCount <= 1) {
-				return apiError(
-					"LAST_ADMIN",
-					"Cannot demote the last admin. Promote another user first.",
-					400,
-				);
-			}
-		}
-
 		// Check email uniqueness if changing email
 		if (body.email && body.email !== targetUser.email) {
 			const existing = await adapter.getUserByEmail(body.email);
@@ -129,12 +118,32 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
-		// Update user
-		await adapter.updateUser(id, {
-			name: body.name,
-			email: body.email,
-			role,
+		// Wrap admin demotion guard + update in a transaction to prevent
+		// two concurrent demotions from both passing the count check.
+		const isDemotingAdmin =
+			role !== undefined && role < Role.ADMIN && targetUser.role === Role.ADMIN;
+
+		const lastAdminBlocked = await withTransaction(emdash.db, async (trx) => {
+			const trxAdapter = createKyselyAdapter(trx);
+			if (isDemotingAdmin) {
+				const adminCount = await trxAdapter.countAdmins();
+				if (adminCount <= 1) return true;
+			}
+			await trxAdapter.updateUser(id, {
+				name: body.name,
+				email: body.email,
+				role,
+			});
+			return false;
 		});
+
+		if (lastAdminBlocked) {
+			return apiError(
+				"LAST_ADMIN",
+				"Cannot demote the last admin. Promote another user first.",
+				400,
+			);
+		}
 
 		// Fetch updated user
 		const updated = await adapter.getUserById(id);
