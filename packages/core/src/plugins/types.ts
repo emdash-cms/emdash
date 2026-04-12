@@ -1057,6 +1057,7 @@ export interface SelectSettingField extends BaseSettingField {
 
 export interface SecretSettingField extends BaseSettingField {
 	type: "secret";
+	}
 
 export interface UrlSettingField extends BaseSettingField {
 	type: "url";
@@ -1069,14 +1070,13 @@ export interface EmailSettingField extends BaseSettingField {
 	default?: string;
 	placeholder?: string;
 }
-}
 
 export type SettingField =
 	| StringSettingField
 	| NumberSettingField
 	| BooleanSettingField
 	| SelectSettingField
-	| SecretSettingField;
+	| SecretSettingFiel
 	| UrlSettingField
 	| EmailSettingField;
 
