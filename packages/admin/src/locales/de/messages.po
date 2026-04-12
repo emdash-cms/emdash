@@ -41,12 +41,11 @@ msgstr ""
 msgid "90 days"
 msgstr ""
 
-#: packages/admin/src/components/users/RoleBadge.tsx:34
-#: packages/admin/src/lib/api/api-tokens.ts:50
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
 msgid "Admin"
 msgstr ""
 
-#: packages/admin/src/components/WelcomeModal.tsx:27
+#: packages/admin/src/components/WelcomeModal.tsx:25
 msgid "Administrator"
 msgstr ""
 
@@ -59,16 +58,20 @@ msgid "Allow users from specific domains to sign up"
 msgstr "Benutzern von bestimmten Domains die Registrierung erlauben"
 
 #: packages/admin/src/components/Settings.tsx:109
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:151
 msgid "API Tokens"
 msgstr "API-Tokens"
+
+#: packages/admin/src/components/WelcomeModal.tsx:53
+msgid "As an administrator, you can invite other users from the Users section."
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:253
 msgid "Authentication error: {error}"
 msgstr "Authentifizierungsfehler: {error}"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:39
-#: packages/admin/src/components/users/RoleBadge.tsx:24
-#: packages/admin/src/components/WelcomeModal.tsx:29
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:41
+#: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
 msgstr ""
 
@@ -77,28 +80,21 @@ msgstr ""
 msgid "Back to login"
 msgstr "Zurück zur Anmeldung"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:146
+msgid "Back to settings"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:101
-#: packages/admin/src/components/PortableTextEditor.tsx:728
+#: packages/admin/src/components/PortableTextEditor.tsx:729
 msgid "Bullet List"
 msgstr ""
 
-#: packages/admin/src/components/users/RoleBadge.tsx:21
-msgid "Can create content"
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:426
+msgid "Cancel"
 msgstr ""
 
-#: packages/admin/src/components/users/RoleBadge.tsx:31
-msgid "Can manage all content"
-msgstr ""
-
-#: packages/admin/src/components/users/RoleBadge.tsx:26
-msgid "Can publish own content"
-msgstr ""
-
-#: packages/admin/src/components/users/RoleBadge.tsx:16
-msgid "Can view content"
-msgstr ""
-
-#: packages/admin/src/components/AdminCommandPalette.tsx:201
+#: packages/admin/src/components/AdminCommandPalette.tsx:193
 msgid "Categories"
 msgstr ""
 
@@ -114,67 +110,110 @@ msgstr "Wählen Sie Ihre bevorzugte Admin-Sprache"
 msgid "Click the link in the email to sign in."
 msgstr "Klicken Sie auf den Link in der E-Mail, um sich anzumelden."
 
+#: packages/admin/src/components/WelcomeModal.tsx:54
+msgid "Close"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:93
-#: packages/admin/src/components/PortableTextEditor.tsx:758
+#: packages/admin/src/components/PortableTextEditor.tsx:759
 msgid "Code Block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1425
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+msgid "Confirm"
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:365
+#: packages/admin/src/components/PortableTextEditor.tsx:1431
 msgid "Content"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:88
-#: packages/admin/src/components/Widgets.tsx:90
 msgid "Content Block"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:44
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
 msgid "Content Read"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:193
+#: packages/admin/src/components/AdminCommandPalette.tsx:185
 msgid "Content Types"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:45
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:52
 msgid "Content Write"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
-#: packages/admin/src/components/users/RoleBadge.tsx:19
-#: packages/admin/src/components/WelcomeModal.tsx:30
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:40
+#: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Contributor"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:729
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
+msgid "Copied to clipboard"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:168
+msgid "Copy this token now — it won't be shown again."
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:186
+msgid "Copy token"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:730
 msgid "Create a bullet list"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:739
+#: packages/admin/src/components/PortableTextEditor.tsx:740
 msgid "Create a numbered list"
 msgstr ""
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:368
+msgid "Create New Token"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:110
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:153
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Persönliche Zugangstokens für programmatischen API-Zugriff erstellen"
 
-#: packages/admin/src/lib/api/api-tokens.ts:45
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:226
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+msgid "Create Token"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:53
 msgid "Create, update, delete content"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:110
+#. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:269
+msgid "Created {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:121
 msgid "Created At"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:139
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+msgid "Creating..."
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:131
 msgid "Dashboard"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:201
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+msgid "Dismiss"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:95
 msgid "Display a navigation menu"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:768
+#: packages/admin/src/components/PortableTextEditor.tsx:769
 msgid "Divider"
 msgstr ""
 
@@ -182,17 +221,20 @@ msgstr ""
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Noch kein Konto? <0>Registrieren</0>"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:106
+#: packages/admin/src/components/ContentTypeEditor.tsx:117
 msgid "draft, published, or archived"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:63
+#: packages/admin/src/components/ContentTypeEditor.tsx:69
 msgid "Drafts"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:40
-#: packages/admin/src/components/users/RoleBadge.tsx:29
-#: packages/admin/src/components/WelcomeModal.tsx:28
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:382
+msgid "e.g., CI/CD Pipeline"
+msgstr ""
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:42
+#: packages/admin/src/components/WelcomeModal.tsx:26
 msgid "Editor"
 msgstr ""
 
@@ -204,17 +246,26 @@ msgstr "E-Mail"
 msgid "Email address"
 msgstr "E-Mail-Adresse"
 
-#. placeholder {0}: block.label.toLowerCase()
-#: packages/admin/src/components/PortableTextEditor.tsx:1437
+#. placeholder {0}: block.label
+#: packages/admin/src/components/PortableTextEditor.tsx:1443
 msgid "Embed a {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1440
+#: packages/admin/src/components/PortableTextEditor.tsx:1446
 msgid "Embeds"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:79
+#: packages/admin/src/components/ContentTypeEditor.tsx:85
 msgid "Enable full-text search on this collection"
+msgstr ""
+
+#. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:256
+msgid "Expires {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+msgid "Expiry"
 msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:127
@@ -222,11 +273,7 @@ msgstr ""
 msgid "Failed to send magic link"
 msgstr "Magic Link konnte nicht gesendet werden"
 
-#: packages/admin/src/components/users/RoleBadge.tsx:36
-msgid "Full access"
-msgstr ""
-
-#: packages/admin/src/lib/api/api-tokens.ts:50
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
 msgid "Full admin access"
 msgstr ""
 
@@ -234,22 +281,30 @@ msgstr ""
 msgid "General"
 msgstr "Allgemein"
 
+#: packages/admin/src/components/WelcomeModal.tsx:143
+msgid "Get Started"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:61
-#: packages/admin/src/components/PortableTextEditor.tsx:698
+#: packages/admin/src/components/PortableTextEditor.tsx:699
 msgid "Heading 1"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:69
-#: packages/admin/src/components/PortableTextEditor.tsx:708
+#: packages/admin/src/components/PortableTextEditor.tsx:709
 msgid "Heading 2"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:77
-#: packages/admin/src/components/PortableTextEditor.tsx:718
+#: packages/admin/src/components/PortableTextEditor.tsx:719
 msgid "Heading 3"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:92
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
+msgid "Hide token"
+msgstr ""
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:103
 msgid "ID"
 msgstr ""
 
@@ -257,31 +312,31 @@ msgstr ""
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Falls ein Konto für <0>{email}</0> existiert, haben wir einen Anmeldelink gesendet."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1407
+#: packages/admin/src/components/PortableTextEditor.tsx:1413
 msgid "Image"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:235
+#: packages/admin/src/components/AdminCommandPalette.tsx:227
 msgid "Import"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:749
+#: packages/admin/src/components/PortableTextEditor.tsx:750
 msgid "Insert a blockquote"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:759
+#: packages/admin/src/components/PortableTextEditor.tsx:760
 msgid "Insert a code block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:769
+#: packages/admin/src/components/PortableTextEditor.tsx:770
 msgid "Insert a horizontal rule"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1422
+#: packages/admin/src/components/PortableTextEditor.tsx:1428
 msgid "Insert a reusable section"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1408
+#: packages/admin/src/components/PortableTextEditor.tsx:1414
 msgid "Insert an image"
 msgstr ""
 
@@ -289,8 +344,17 @@ msgstr ""
 msgid "Language"
 msgstr "Sprache"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:699
+#: packages/admin/src/components/PortableTextEditor.tsx:700
 msgid "Large section heading"
+msgstr ""
+
+#. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
+msgid "Last used {0}"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:143
+msgid "Loading..."
 msgstr ""
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
@@ -301,45 +365,64 @@ msgstr "Sprache"
 msgid "Manage your passkeys and authentication"
 msgstr "Passkeys und Authentifizierung verwalten"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1411
+#: packages/admin/src/components/PortableTextEditor.tsx:1417
 msgid "Media"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:162
+#: packages/admin/src/components/AdminCommandPalette.tsx:154
 msgid "Media Library"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:46
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
 msgid "Media Read"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:47
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
 msgid "Media Write"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:709
+#: packages/admin/src/components/PortableTextEditor.tsx:710
 msgid "Medium section heading"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:94
-#: packages/admin/src/components/Widgets.tsx:96
 msgid "Menu"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:169
+#: packages/admin/src/components/AdminCommandPalette.tsx:161
 msgid "Menus"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:49
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:63
 msgid "Modify collection schemas"
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:335
+msgid "Navigation"
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:466
+msgid "new tab"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
+msgid "No API tokens yet. Create one to get started."
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:39
 msgid "No expiry"
 msgstr ""
 
+#: packages/admin/src/components/PortableTextEditor.tsx:940
+msgid "No results"
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:452
+msgid "No results found"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:109
-#: packages/admin/src/components/PortableTextEditor.tsx:738
+#: packages/admin/src/components/PortableTextEditor.tsx:739
 msgid "Numbered List"
 msgstr ""
 
@@ -351,64 +434,81 @@ msgstr "Oder fortfahren mit"
 msgid "Paragraph"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:227
+#: packages/admin/src/components/AdminCommandPalette.tsx:219
 msgid "Plugins"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:73
+#: packages/admin/src/components/ContentTypeEditor.tsx:79
 msgid "Preview"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:74
+#: packages/admin/src/components/ContentTypeEditor.tsx:80
 msgid "Preview content before publishing"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:122
+#: packages/admin/src/components/ContentTypeEditor.tsx:133
 msgid "Published At"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:85
-#: packages/admin/src/components/PortableTextEditor.tsx:748
+#: packages/admin/src/components/PortableTextEditor.tsx:749
 msgid "Quote"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:48
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Read collection schemas"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:44
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
 msgid "Read content entries"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:46
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
 msgid "Read media files"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:68
+#: packages/admin/src/components/ContentTypeEditor.tsx:74
 msgid "Revisions"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+msgid "Revoke token"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
+msgid "Revoke?"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+msgid "Revoking..."
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:89
 msgid "Rich text content"
 msgstr ""
 
-#: packages/admin/src/components/users/RoleBadge.tsx:48
-msgid "Role {role}"
-msgstr ""
-
-#: packages/admin/src/components/ContentTypeEditor.tsx:64
+#: packages/admin/src/components/ContentTypeEditor.tsx:70
 msgid "Save content as draft before publishing"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:48
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Schema Read"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:49
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
 msgid "Schema Write"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:78
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
+msgid "Scopes"
+msgstr ""
+
+#. placeholder {0}: token.scopes.join(", ")
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:252
+msgid "Scopes: {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:84
 msgid "Search"
 msgstr ""
 
@@ -416,11 +516,15 @@ msgstr ""
 msgid "Search engine optimization and verification"
 msgstr "Suchmaschinenoptimierung und Verifizierung"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1421
+#: packages/admin/src/components/AdminCommandPalette.tsx:425
+msgid "Search pages and content..."
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1427
 msgid "Section"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:185
+#: packages/admin/src/components/AdminCommandPalette.tsx:177
 msgid "Sections"
 msgstr ""
 
@@ -428,7 +532,7 @@ msgstr ""
 msgid "Security"
 msgstr "Sicherheit"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:251
+#: packages/admin/src/components/AdminCommandPalette.tsx:243
 msgid "Security Settings"
 msgstr ""
 
@@ -448,10 +552,14 @@ msgstr "Wird gesendet..."
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:243
+#: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/Settings.tsx:62
 msgid "Settings"
 msgstr "Einstellungen"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
+msgid "Show token"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:283
 msgid "Sign in to your site"
@@ -473,11 +581,11 @@ msgstr "Mit Passkey anmelden"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Website-Identität, Logo, Favicon und Leseeinstellungen"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:98
+#: packages/admin/src/components/ContentTypeEditor.tsx:109
 msgid "Slug"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:719
+#: packages/admin/src/components/PortableTextEditor.tsx:720
 msgid "Small section heading"
 msgstr ""
 
@@ -489,17 +597,16 @@ msgstr "Soziale Netzwerke"
 msgid "Social media profile links"
 msgstr "Links zu Social-Media-Profilen"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:104
+#: packages/admin/src/components/ContentTypeEditor.tsx:115
 msgid "Status"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:37
-#: packages/admin/src/components/users/RoleBadge.tsx:14
-#: packages/admin/src/components/WelcomeModal.tsx:31
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:39
+#: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Subscriber"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/AdminCommandPalette.tsx:202
 msgid "Tags"
 msgstr ""
 
@@ -507,31 +614,44 @@ msgstr ""
 msgid "The link will expire in 15 minutes."
 msgstr "Der Link ist 15 Minuten gültig."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:69
+#: packages/admin/src/components/AdminCommandPalette.tsx:470
+msgid "to close"
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:460
+msgid "to select"
+msgstr ""
+
+#. placeholder {0}: newToken.info.name
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:165
+msgid "Token created: {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
+msgid "Token Name"
+msgstr ""
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:75
 msgid "Track content history"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:94
+#: packages/admin/src/components/ContentTypeEditor.tsx:105
 msgid "Unique identifier (ULID)"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:46
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:36
 msgid "Unknown"
 msgstr ""
 
-#: packages/admin/src/components/users/RoleBadge.tsx:50
-msgid "Unknown role"
-msgstr ""
-
-#: packages/admin/src/components/ContentTypeEditor.tsx:116
+#: packages/admin/src/components/ContentTypeEditor.tsx:127
 msgid "Updated At"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:47
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Upload and delete media"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:100
+#: packages/admin/src/components/ContentTypeEditor.tsx:111
 msgid "URL-friendly identifier"
 msgstr ""
 
@@ -539,7 +659,7 @@ msgstr ""
 msgid "Use your registered passkey to sign in securely."
 msgstr "Verwenden Sie Ihren registrierten Passkey, um sich sicher anzumelden."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/AdminCommandPalette.tsx:211
 msgid "Users"
 msgstr ""
 
@@ -551,18 +671,50 @@ msgstr "E-Mail-Anbieter-Status anzeigen und Test-E-Mails senden"
 msgid "We'll send you a link to sign in without a password."
 msgstr "Wir senden Ihnen einen Link, um sich ohne Passwort anzumelden."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:112
+#: packages/admin/src/components/WelcomeModal.tsx:96
+msgid "Welcome to EmDash, {firstName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:96
+msgid "Welcome to EmDash!"
+msgstr ""
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:123
 msgid "When the entry was created"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:118
+#: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "When the entry was last modified"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:124
+#: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "When the entry was published"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:177
+#: packages/admin/src/components/AdminCommandPalette.tsx:169
 msgid "Widgets"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:43
+msgid "You can create and edit your own content."
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:42
+msgid "You can manage content, media, menus, and taxonomies."
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:44
+msgid "You can view and contribute to the site."
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:41
+msgid "You have full access to manage this site, including users, settings, and all content."
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:39
+msgid "Your account has been created successfully."
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:40
+msgid "Your Role"
 msgstr ""
