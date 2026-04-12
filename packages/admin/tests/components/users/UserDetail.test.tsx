@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import { UserDetail } from "../../../src/components/users/UserDetail";
 import type { UserDetail as UserDetailType } from "../../../src/lib/api";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 function makeUser(overrides: Partial<UserDetailType> = {}): UserDetailType {
 	return {

@@ -6,7 +6,7 @@ import type {
 	MarketplaceSearchResult,
 	MarketplacePluginSummary,
 } from "../../src/lib/api/marketplace";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Mock router
 const mockNavigate = vi.fn();

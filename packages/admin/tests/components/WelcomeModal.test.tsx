@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import { WelcomeModal } from "../../src/components/WelcomeModal";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Constants

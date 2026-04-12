@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 import { ThemeProvider } from "../../src/components/ThemeProvider";
 import { ThemeToggle } from "../../src/components/ThemeToggle";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 function TestThemeToggle({ defaultTheme = "system" as "system" | "light" | "dark" }) {
 	return (

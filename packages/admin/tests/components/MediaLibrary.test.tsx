@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
 import type { MediaItem } from "../../src/lib/api";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Constants

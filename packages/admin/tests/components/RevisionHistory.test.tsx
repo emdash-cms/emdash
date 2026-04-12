@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 
 import { RevisionHistory } from "../../src/components/RevisionHistory";
 import type { Revision, RevisionListResponse } from "../../src/lib/api";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Mock the API module
 vi.mock("../../src/lib/api", async () => {

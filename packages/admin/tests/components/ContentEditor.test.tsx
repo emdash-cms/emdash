@@ -7,7 +7,7 @@ import {
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
 import type { ContentItem } from "../../src/lib/api";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Mock child components that have complex dependencies
 vi.mock("../../src/components/PortableTextEditor", () => ({

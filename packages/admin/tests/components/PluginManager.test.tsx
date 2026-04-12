@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { PluginInfo, AdminManifest } from "../../src/lib/api";
 import type { PluginUpdateInfo } from "../../src/lib/api/marketplace";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Mock router
 vi.mock("@tanstack/react-router", async () => {

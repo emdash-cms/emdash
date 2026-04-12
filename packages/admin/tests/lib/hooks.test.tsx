@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import { useStableCallback } from "../../src/lib/hooks";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 /**
  * Test component that attaches a keydown listener using useStableCallback.

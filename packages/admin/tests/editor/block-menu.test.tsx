@@ -18,7 +18,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import { BlockMenu } from "../../src/components/editor/BlockMenu";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Mocks — same as other editor tests

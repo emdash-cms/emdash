@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaPickerModal } from "../../src/components/MediaPickerModal";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Constants

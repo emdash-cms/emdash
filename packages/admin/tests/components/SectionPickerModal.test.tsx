@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { Section, SectionCategory, SectionsResult } from "../../src/lib/api";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 const mockFetchSections = vi.fn<() => Promise<SectionsResult>>();
 const mockFetchSectionCategories = vi.fn<() => Promise<SectionCategory[]>>();

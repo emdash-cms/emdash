@@ -12,7 +12,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 import { TestWrapper } from "../utils/test-helpers.js";
 
 // ---------------------------------------------------------------------------

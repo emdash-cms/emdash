@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import { InviteUserModal } from "../../../src/components/users/InviteUserModal";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 const noop = () => {};
 

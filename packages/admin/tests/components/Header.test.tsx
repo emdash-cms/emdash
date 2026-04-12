@@ -4,7 +4,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ThemeProvider } from "../../src/components/ThemeProvider";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Mock router
 vi.mock("@tanstack/react-router", async () => {

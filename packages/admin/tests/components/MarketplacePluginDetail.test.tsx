@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { MarketplacePluginDetail as PluginDetailType } from "../../src/lib/api/marketplace";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 const INSTALL_RE = /Install/;
 

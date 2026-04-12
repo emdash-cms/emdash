@@ -4,7 +4,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { Widgets } from "../../src/components/Widgets";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");

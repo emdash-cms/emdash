@@ -6,7 +6,7 @@ import {
 	type ContentTypeEditorProps,
 } from "../../src/components/ContentTypeEditor";
 import type { SchemaCollectionWithFields, SchemaField } from "../../src/lib/api";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Regexes hoisted to module scope to avoid recompilation per call
 const EDIT_TITLE_RE = /Edit Title field/i;

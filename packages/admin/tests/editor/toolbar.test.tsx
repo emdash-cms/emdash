@@ -6,7 +6,7 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Mocks — heavy components that need network / Astro context

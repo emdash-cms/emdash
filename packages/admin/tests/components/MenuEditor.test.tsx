@@ -4,7 +4,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MenuEditor } from "../../src/components/MenuEditor";
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
