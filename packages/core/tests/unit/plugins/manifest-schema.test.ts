@@ -341,7 +341,4 @@ describe("pluginManifestSchema - admin.settingsSchema url/email field types", ()
         },
       },
     });
-    expect(result.success).toBe(true);
-  });
-});
-});
+      
