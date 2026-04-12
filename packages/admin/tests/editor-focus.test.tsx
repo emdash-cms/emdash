@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import Focus from "@tiptap/extension-focus";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+
+import { render } from "./utils/render.js";
 
 // Test wrapper to render editor with Focus extension
 function TestEditor({ spotlightMode = false }: { spotlightMode?: boolean }) {
