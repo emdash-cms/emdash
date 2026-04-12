@@ -261,6 +261,27 @@ describe("ContentEditor", () => {
 			await expect.element(all[1]!).not.toBeChecked();
 			await expect.element(all[2]!).toBeChecked();
 		});
+
+		it("renders json fields as a textarea", async () => {
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				isNew: true,
+			});
+			const textarea = screen.getByLabelText("Metadata");
+			await expect.element(textarea).toBeInTheDocument();
+			// JSON field uses a textarea element
+			expect(textarea.element().tagName).toBe("TEXTAREA");
+		});
+
+		it("renders json fields with object values as formatted JSON", async () => {
+			const jsonData = { foo: "bar", num: 42 };
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				item: makeItem({ data: { title: "Test", body: "", metadata: jsonData } }),
+			});
+			const textarea = screen.getByLabelText("Metadata");
+			await expect.element(textarea).toHaveValue(JSON.stringify(jsonData, null, 2));
+		});
 	});
 
 	describe("saving", () => {
