@@ -14,7 +14,8 @@
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
-import { t } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	TextB,
@@ -680,101 +681,99 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
  */
 interface SlashCommandItem {
 	id: string;
-	title: string;
-	description: string;
+	title: MessageDescriptor;
+	description: MessageDescriptor;
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
-	category?: string;
+	category?: MessageDescriptor;
 }
 
 /**
  * Default slash commands for built-in block types
  */
-function buildDefaultSlashCommands(): SlashCommandItem[] {
-	return [
-		{
-			id: "heading1",
-			title: t`Heading 1`,
-			description: t`Large section heading`,
-			icon: TextHOne,
-			aliases: ["h1", "title"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
-			},
+const defaultSlashCommands: SlashCommandItem[] = [
+	{
+		id: "heading1",
+		title: msg`Heading 1`,
+		description: msg`Large section heading`,
+		icon: TextHOne,
+		aliases: ["h1", "title"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
 		},
-		{
-			id: "heading2",
-			title: t`Heading 2`,
-			description: t`Medium section heading`,
-			icon: TextHTwo,
-			aliases: ["h2", "subtitle"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
-			},
+	},
+	{
+		id: "heading2",
+		title: msg`Heading 2`,
+		description: msg`Medium section heading`,
+		icon: TextHTwo,
+		aliases: ["h2", "subtitle"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
 		},
-		{
-			id: "heading3",
-			title: t`Heading 3`,
-			description: t`Small section heading`,
-			icon: TextHThree,
-			aliases: ["h3"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
-			},
+	},
+	{
+		id: "heading3",
+		title: msg`Heading 3`,
+		description: msg`Small section heading`,
+		icon: TextHThree,
+		aliases: ["h3"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
 		},
-		{
-			id: "bulletList",
-			title: t`Bullet List`,
-			description: t`Create a bullet list`,
-			icon: List,
-			aliases: ["ul", "unordered"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).toggleBulletList().run();
-			},
+	},
+	{
+		id: "bulletList",
+		title: msg`Bullet List`,
+		description: msg`Create a bullet list`,
+		icon: List,
+		aliases: ["ul", "unordered"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).toggleBulletList().run();
 		},
-		{
-			id: "numberedList",
-			title: t`Numbered List`,
-			description: t`Create a numbered list`,
-			icon: ListNumbers,
-			aliases: ["ol", "ordered"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).toggleOrderedList().run();
-			},
+	},
+	{
+		id: "numberedList",
+		title: msg`Numbered List`,
+		description: msg`Create a numbered list`,
+		icon: ListNumbers,
+		aliases: ["ol", "ordered"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).toggleOrderedList().run();
 		},
-		{
-			id: "quote",
-			title: t`Quote`,
-			description: t`Insert a blockquote`,
-			icon: Quotes,
-			aliases: ["blockquote", "cite"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).toggleBlockquote().run();
-			},
+	},
+	{
+		id: "quote",
+		title: msg`Quote`,
+		description: msg`Insert a blockquote`,
+		icon: Quotes,
+		aliases: ["blockquote", "cite"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).toggleBlockquote().run();
 		},
-		{
-			id: "codeBlock",
-			title: t`Code Block`,
-			description: t`Insert a code block`,
-			icon: CodeBlock,
-			aliases: ["code", "pre", "```"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
-			},
+	},
+	{
+		id: "codeBlock",
+		title: msg`Code Block`,
+		description: msg`Insert a code block`,
+		icon: CodeBlock,
+		aliases: ["code", "pre", "```"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
 		},
-		{
-			id: "divider",
-			title: t`Divider`,
-			description: t`Insert a horizontal rule`,
-			icon: Minus,
-			aliases: ["hr", "---", "separator"],
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).setHorizontalRule().run();
-			},
+	},
+	{
+		id: "divider",
+		title: msg`Divider`,
+		description: msg`Insert a horizontal rule`,
+		icon: Minus,
+		aliases: ["hr", "---", "separator"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setHorizontalRule().run();
 		},
-	];
-}
+	},
+];
 
 /**
  * Slash menu state
@@ -893,6 +892,7 @@ function SlashCommandMenu({
 	onClose: () => void;
 	setSelectedIndex: (index: number) => void;
 }) {
+	const { t } = useLingui();
 	const containerRef = React.useRef<HTMLDivElement>(null);
 
 	const { refs, floatingStyles } = useFloating({
@@ -936,7 +936,7 @@ function SlashCommandMenu({
 			className="z-[100] rounded-lg border bg-kumo-overlay p-1 shadow-lg min-w-[220px] max-h-[300px] overflow-y-auto"
 		>
 			{state.items.length === 0 ? (
-				<p className="text-sm text-kumo-subtle px-3 py-2">No results</p>
+				<p className="text-sm text-kumo-subtle px-3 py-2">{t`No results`}</p>
 			) : (
 				state.items.map((item, index) => (
 					<button
@@ -954,8 +954,8 @@ function SlashCommandMenu({
 					>
 						<item.icon className="h-4 w-4 text-kumo-subtle flex-shrink-0" />
 						<div className="flex flex-col">
-							<span className="font-medium">{item.title}</span>
-							<span className="text-xs text-kumo-subtle">{item.description}</span>
+							<span className="font-medium">{t(item.title)}</span>
+							<span className="text-xs text-kumo-subtle">{t(item.description)}</span>
 						</div>
 					</button>
 				))
@@ -1350,7 +1350,8 @@ export function PortableTextEditor({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 }: PortableTextEditorProps) {
-	const { i18n } = useLingui();
+	const { t } = useLingui();
+
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	React.useEffect(() => {
@@ -1399,16 +1400,16 @@ export function PortableTextEditor({
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
-		const cmds: SlashCommandItem[] = [...buildDefaultSlashCommands()];
+		const cmds: SlashCommandItem[] = [...defaultSlashCommands];
 
 		// Add image command
 		cmds.push({
 			id: "image",
-			title: t`Image`,
-			description: t`Insert an image`,
+			title: msg`Image`,
+			description: msg`Insert an image`,
 			icon: ImageIcon,
 			aliases: ["img", "photo", "picture", "url"],
-			category: t`Media`,
+			category: msg`Media`,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
@@ -1418,11 +1419,11 @@ export function PortableTextEditor({
 		// Add section command
 		cmds.push({
 			id: "section",
-			title: t`Section`,
-			description: t`Insert a reusable section`,
+			title: msg`Section`,
+			description: msg`Insert a reusable section`,
 			icon: Stack,
 			aliases: ["pattern", "block", "template"],
-			category: t`Content`,
+			category: msg`Content`,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setSectionPickerOpen(true);
@@ -1431,13 +1432,16 @@ export function PortableTextEditor({
 
 		// Add plugin block commands
 		for (const block of pluginBlocks) {
+			const labelLower = block.label.toLowerCase();
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
-				title: block.label,
-				description: block.description || t`Embed a ${block.label.toLowerCase()}`,
+				title: msg`${block.label}`,
+				description: block.description
+					? msg`${block.description}`
+					: msg`Embed a ${labelLower}`,
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: t`Embeds`,
+				category: msg`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -1446,7 +1450,7 @@ export function PortableTextEditor({
 		}
 
 		return cmds;
-	}, [pluginBlocks, i18n.locale]);
+	}, [pluginBlocks, t]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing
@@ -1458,10 +1462,10 @@ export function PortableTextEditor({
 		const titleMatches: SlashCommandItem[] = [];
 		const otherMatches: SlashCommandItem[] = [];
 		for (const item of slashCommands) {
-			if (item.title.toLowerCase().includes(searchText)) {
+			if (t(item.title).toLowerCase().includes(searchText)) {
 				titleMatches.push(item);
 			} else if (
-				item.description.toLowerCase().includes(searchText) ||
+				t(item.description).toLowerCase().includes(searchText) ||
 				item.aliases?.some((alias) => alias.toLowerCase().includes(searchText))
 			) {
 				otherMatches.push(item);
