@@ -39,6 +39,7 @@ import type {
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
+import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
 
@@ -1353,7 +1354,8 @@ export class EmDashRuntime {
 				: undefined;
 
 		return {
-			version: "0.1.0",
+			version: VERSION,
+			commit: COMMIT,
 			hash: manifestHash,
 			collections: manifestCollections,
 			plugins: manifestPlugins,
