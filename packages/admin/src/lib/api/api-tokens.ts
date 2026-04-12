@@ -37,15 +37,12 @@ export interface CreateApiTokenInput {
 	expiresAt?: string;
 }
 
-/** Available scopes for API tokens (call at render time so locale is current). */
+/** Available scopes for API tokens. */
 export function buildApiTokenScopes() {
+	// prettier-ignore
 	return [
 		{ value: "content:read", label: t`Content Read`, description: t`Read content entries` },
-		{
-			value: "content:write",
-			label: t`Content Write`,
-			description: t`Create, update, delete content`,
-		},
+		{ value: "content:write", label: t`Content Write`, description: t`Create, update, delete content` },
 		{ value: "media:read", label: t`Media Read`, description: t`Read media files` },
 		{ value: "media:write", label: t`Media Write`, description: t`Upload and delete media` },
 		{ value: "schema:read", label: t`Schema Read`, description: t`Read collection schemas` },

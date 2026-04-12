@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import { cn } from "../../lib/utils";
 
-/** Role level to name mapping (call at render time so locale is current). */
+/** Role level to name mapping. */
 export function buildRoleConfig(): Record<
 	number,
 	{ label: string; color: string; description: string }
