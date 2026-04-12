@@ -377,7 +377,7 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create field", "CREATE_FAILED");
 		}
 
-		// Sync FTS if this field is searchable and the collection supports search
+		// Sync search state if this field is searchable; support checks are handled by syncSearchState()
 		if (input.searchable) {
 			await this.syncSearchState(collectionSlug);
 		}
