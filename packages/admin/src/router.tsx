@@ -99,6 +99,8 @@ import {
 	type CreateFieldInput,
 	type BylineCreditInput,
 	type ContentSeoInput,
+	type ContentItem,
+	type Revision,
 } from "./lib/api";
 import {
 	fetchComments,
@@ -116,6 +118,45 @@ import { UsersPage } from "./routes/users";
 // Router context type
 interface RouterContext {
 	queryClient: QueryClient;
+}
+
+function patchAutosaveQueries(
+	queryClient: QueryClient,
+	params: {
+		collection: string;
+		id: string;
+		savedItem: ContentItem;
+		payload: {
+			data?: Record<string, unknown>;
+			slug?: string;
+		};
+	},
+) {
+	const { collection, id, savedItem, payload } = params;
+
+	if (savedItem.draftRevisionId) {
+		queryClient.setQueryData<Revision>(["revision", savedItem.draftRevisionId], (existing) => {
+			const nextData: Record<string, unknown> = {
+				...existing?.data,
+				...payload.data,
+			};
+
+			if (payload.slug !== undefined) {
+				nextData._slug = payload.slug;
+			}
+
+			return {
+				id: savedItem.draftRevisionId,
+				collection,
+				entryId: id,
+				data: nextData,
+				authorId: existing?.authorId ?? savedItem.authorId,
+				createdAt: existing?.createdAt ?? savedItem.updatedAt,
+			};
+		});
+	}
+
+	queryClient.setQueryData<ContentItem>(["content", collection, id], savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -658,10 +699,18 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
-		onSuccess: () => {
+		onSuccess: (savedItem, variables) => {
+			patchAutosaveQueries(queryClient, {
+				collection,
+				id,
+				savedItem,
+				payload: {
+					data: variables.data,
+					slug: variables.slug,
+				},
+			});
 			setLastAutosaveAt(new Date());
-			// Keep the editor's local state as the source of truth during autosave.
-			// Invalidating here can refetch slightly older server data and reset the form
+			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
 		},
 		onError: (err) => {

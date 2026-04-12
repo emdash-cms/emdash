@@ -305,7 +305,7 @@ test.describe("Autosave after perf optimizations", () => {
 		}).catch(() => {});
 	});
 
-	test("autosave triggers after editing content (useMemo/useRef optimizations)", async ({
+	test("autosave keeps edited field values after save completes", async ({
 		admin,
 		page,
 	}) => {
@@ -338,6 +338,11 @@ test.describe("Autosave after perf optimizations", () => {
 		await expect(page.getByRole("status", { name: "Autosave status" })).toContainText("Saved", {
 			timeout: 5000,
 		});
+
+		// Regression: autosave should not snap the input back to older cached server state.
+		await expect(titleInput).toHaveValue("Autosave Perf Test Edit");
+		await page.waitForTimeout(500);
+		await expect(titleInput).toHaveValue("Autosave Perf Test Edit");
 	});
 
 	test("multiple rapid edits result in single autosave (debounce still works)", async ({
