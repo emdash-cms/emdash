@@ -482,7 +482,7 @@ export class SchemaRegistry {
 			if (ftsActive) {
 				await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
 			} else {
-				await ftsManager.enableSearch(collectionSlug);
+				await ftsManager.enableSearch(collectionSlug, { weights: config?.weights });
 			}
 		} else if (ftsActive) {
 			await ftsManager.disableSearch(collectionSlug);

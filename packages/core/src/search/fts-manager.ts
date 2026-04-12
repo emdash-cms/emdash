@@ -329,7 +329,8 @@ export class FTSManager {
 	async disableSearch(collectionSlug: string): Promise<void> {
 		if (!isSqlite(this.db)) return;
 		await this.dropFtsTable(collectionSlug);
-		await this.setSearchConfig(collectionSlug, { enabled: false });
+		const existing = await this.getSearchConfig(collectionSlug);
+		await this.setSearchConfig(collectionSlug, { enabled: false, weights: existing?.weights });
 	}
 
 	/**

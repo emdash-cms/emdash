@@ -535,5 +535,35 @@ describe("SchemaRegistry", () => {
 
 			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
 		});
+
+		it("preserves weights when search support is toggled off then back on", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+
+			// Enable FTS with custom weights
+			await ftsManager.enableSearch("articles", { weights: { title: 10 } });
+			const initialConfig = await ftsManager.getSearchConfig("articles");
+			expect(initialConfig?.weights).toEqual({ title: 10 });
+
+			// Toggle search support off — drops FTS table, must preserve weights in config
+			await registry.updateCollection("articles", { supports: ["drafts"] });
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+
+			// Toggle search support back on — must re-enable with the preserved weights
+			await registry.updateCollection("articles", { supports: ["drafts", "search"] });
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			const finalConfig = await ftsManager.getSearchConfig("articles");
+			expect(finalConfig?.weights).toEqual({ title: 10 });
+		});
 	});
 });
