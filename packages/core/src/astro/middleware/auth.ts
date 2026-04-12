@@ -53,6 +53,38 @@ declare global {
 
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
+const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
+
+function isUnsafeMethod(method: string): boolean {
+	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function csrfRejectedResponse(): Response {
+	return new Response(
+		JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
+		{
+			status: 403,
+			headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
+		},
+	);
+}
+
+function mcpUnauthorizedResponse(
+	url: URL,
+	config?: Parameters<typeof getPublicOrigin>[1],
+): Response {
+	const origin = getPublicOrigin(url, config);
+	return Response.json(
+		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
+		{
+			status: 401,
+			headers: {
+				"WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+				...MW_CACHE_HEADERS,
+			},
+		},
+	);
+}
 
 /**
  * API routes that skip auth — each handles its own access control.
@@ -204,31 +236,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	const isTokenAuth = bearerResult === "authenticated";
 
+	// MCP discovery/tooling is bearer-only. Session/external auth should never
+	// be consulted for this endpoint, and unauthenticated requests must return
+	// the OAuth discovery-style 401 response.
+	const method = context.request.method.toUpperCase();
+	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
+	if (isMcpEndpoint && !isTokenAuth) {
+		return mcpUnauthorizedResponse(url, context.locals.emdash?.config);
+	}
+
 	// CSRF protection: require X-EmDash-Request header on state-changing requests.
 	// Skip for token-authenticated requests (tokens aren't ambient credentials).
 	// Browsers block cross-origin custom headers, so this prevents CSRF without tokens.
 	// OAuth authorize consent is exempt: it's a standard HTML form POST that can't
 	// include custom headers. The consent flow is protected by session + single-use codes.
-	const method = context.request.method.toUpperCase();
 	const isOAuthConsent = url.pathname.startsWith("/_emdash/oauth/authorize");
 	if (
 		isApiRoute &&
 		!isTokenAuth &&
 		!isOAuthConsent &&
-		method !== "GET" &&
-		method !== "HEAD" &&
-		method !== "OPTIONS" &&
+		isUnsafeMethod(method) &&
 		!isPublicApiRoute
 	) {
 		const csrfHeader = context.request.headers.get("X-EmDash-Request");
 		if (csrfHeader !== "1") {
-			return new Response(
-				JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-				{
-					status: 403,
-					headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-				},
-			);
+			return csrfRejectedResponse();
 		}
 	}
 
@@ -583,18 +615,10 @@ async function handlePasskeyAuth(
 		const sessionUser = await session?.get("user");
 
 		if (!sessionUser?.id) {
-			// Not authenticated
 			if (isApiRoute) {
-				const headers: Record<string, string> = { ...MW_CACHE_HEADERS };
-				// Add WWW-Authenticate on MCP endpoint 401s to trigger OAuth discovery
-				if (url.pathname === "/_emdash/api/mcp") {
-					const origin = getPublicOrigin(url, emdash?.config);
-					headers["WWW-Authenticate"] =
-						`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
-				}
 				return Response.json(
 					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-					{ status: 401, headers },
+					{ status: 401, headers: MW_CACHE_HEADERS },
 				);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));

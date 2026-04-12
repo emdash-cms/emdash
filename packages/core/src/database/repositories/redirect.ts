@@ -237,6 +237,19 @@ export class RedirectRepository {
 		return BigInt(result.numDeletedRows) > 0n;
 	}
 
+	/**
+	 * Fetch all enabled redirects (for loop detection graph building).
+	 * Not paginated — returns the full set.
+	 */
+	async findAllEnabled(): Promise<Redirect[]> {
+		const rows = await this.db
+			.selectFrom("_emdash_redirects")
+			.selectAll()
+			.where("enabled", "=", 1)
+			.execute();
+		return rows.map(rowToRedirect);
+	}
+
 	// --- Matching -----------------------------------------------------------
 
 	async findExactMatch(path: string): Promise<Redirect | null> {
