@@ -368,21 +368,20 @@ function escapeQuery(query: string): string {
 		return "";
 	}
 
-	// FTS5 special characters that need escaping in terms: " * ^
-	// We'll wrap terms in quotes to handle most cases
-	// But first, escape any existing quotes
-	const escaped = query.replace(DOUBLE_QUOTE_PATTERN, '""');
-
 	// If the query contains FTS5 operators (AND, OR, NOT, NEAR),
 	// pass through as-is (user knows what they're doing)
 	if (FTS_OPERATORS_PATTERN.test(query)) {
-		return escaped;
+		return query;
 	}
 
 	// If already quoted, pass through
 	if (query.startsWith('"') && query.endsWith('"')) {
 		return query;
 	}
+
+	// FTS5 special characters that need escaping in terms: " * ^
+	// Escape any existing quotes, then wrap each term
+	const escaped = query.replace(DOUBLE_QUOTE_PATTERN, '""');
 
 	// For simple queries, wrap each word to handle special chars
 	const terms = escaped.split(WHITESPACE_SPLIT_PATTERN).filter((t) => t.length > 0);

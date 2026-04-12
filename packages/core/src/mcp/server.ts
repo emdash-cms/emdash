@@ -1257,26 +1257,8 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const rows = (await ec.db
-					.selectFrom("_emdash_taxonomy_defs" as never)
-					.selectAll()
-					.execute()) as Array<{
-					id: string;
-					name: string;
-					label: string;
-					label_singular: string | null;
-					hierarchical: number;
-					collections: string | null;
-				}>;
-				const taxonomies = rows.map((row) => ({
-					id: row.id,
-					name: row.name,
-					label: row.label,
-					labelSingular: row.label_singular ?? undefined,
-					hierarchical: row.hierarchical === 1,
-					collections: row.collections ? JSON.parse(row.collections) : [],
-				}));
-				return jsonResult(taxonomies);
+				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTaxonomyList(ec.db));
 			} catch (error) {
 				return errorResult(error);
 			}
@@ -1293,8 +1275,6 @@ export function createMcpServer(): McpServer {
 				"parent-child relationships.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
-				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1302,32 +1282,8 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const taxonomy = (await ec.db
-					.selectFrom("_emdash_taxonomy_defs" as never)
-					.select("id" as never)
-					.where("name" as never, "=", args.taxonomy as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-
-				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
-
-				const limit = Math.min(args.limit ?? 50, 100);
-				let query = ec.db
-					.selectFrom("_emdash_taxonomy_terms" as never)
-					.selectAll()
-					.where("taxonomy_id" as never, "=", taxonomy.id as never)
-					.orderBy("label" as never, "asc")
-					.limit(limit + 1);
-
-				if (args.cursor) {
-					query = query.where("id" as never, ">" as never, args.cursor as never);
-				}
-
-				const rows = (await query.execute()) as Array<{ id: string }>;
-				const hasMore = rows.length > limit;
-				const items = hasMore ? rows.slice(0, limit) : rows;
-				const nextCursor = hasMore ? items.at(-1)?.id : undefined;
-
-				return jsonResult({ items, nextCursor });
+				const { handleTermList } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTermList(ec.db, args.taxonomy));
 			} catch (error) {
 				return errorResult(error);
 			}
@@ -1354,36 +1310,15 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const { ulid } = await import("ulidx");
-
-				const taxonomy = (await ec.db
-					.selectFrom("_emdash_taxonomy_defs" as never)
-					.select("id" as never)
-					.where("name" as never, "=", args.taxonomy as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-
-				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
-
-				const id = ulid();
-				await ec.db
-					.insertInto("_emdash_taxonomy_terms" as never)
-					.values({
-						id,
-						taxonomy_id: taxonomy.id,
+				const { handleTermCreate } = await import("../api/handlers/taxonomies.js");
+				return unwrap(
+					await handleTermCreate(ec.db, args.taxonomy, {
 						slug: args.slug,
 						label: args.label,
-						parent_id: args.parentId ?? null,
-						description: args.description ?? null,
-					} as never)
-					.execute();
-
-				const term = await ec.db
-					.selectFrom("_emdash_taxonomy_terms" as never)
-					.selectAll()
-					.where("id" as never, "=", id as never)
-					.executeTakeFirstOrThrow();
-
-				return jsonResult(term);
+						parentId: args.parentId,
+						description: args.description,
+					}),
+				);
 			} catch (error) {
 				return errorResult(error);
 			}
