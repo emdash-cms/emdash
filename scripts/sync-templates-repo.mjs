@@ -1,0 +1,275 @@
+#!/usr/bin/env node
+
+/**
+ * Sync templates from this monorepo to the standalone emdash-cms/templates repo.
+ *
+ * - Clones emdash-cms/templates to a temp directory
+ * - Copies each template, excluding build artifacts
+ * - Resolves workspace:* and catalog: versions to real published versions
+ * - Commits and pushes a branch, then opens a PR
+ *
+ * Usage:
+ *   node scripts/sync-templates-repo.mjs           # full run: clone, sync, PR
+ *   node scripts/sync-templates-repo.mjs --dry-run  # sync to temp dir, print diff, don't push
+ *   node scripts/sync-templates-repo.mjs --local /path/to/repo  # sync to a local checkout
+ */
+
+import { execSync } from "node:child_process";
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, "..");
+const TEMPLATES_DIR = join(ROOT, "templates");
+const REPO = "emdash-cms/templates";
+
+const TEMPLATES = [
+	"blank",
+	"blog",
+	"blog-cloudflare",
+	"marketing",
+	"marketing-cloudflare",
+	"portfolio",
+	"portfolio-cloudflare",
+	"starter",
+	"starter-cloudflare",
+];
+
+const EXCLUDE = new Set(["node_modules", "dist", ".astro", ".emdash", "CHANGELOG.md"]);
+
+const RE_NON_WHITESPACE_START = /^\S/;
+const RE_CATALOG_ENTRY = /^\s+"?([^"]+)"?:\s+(.+)$/;
+
+function parseCatalog() {
+	const yaml = readFileSync(join(ROOT, "pnpm-workspace.yaml"), "utf8");
+	const catalog = {};
+	let inCatalog = false;
+	for (const line of yaml.split("\n")) {
+		if (line.startsWith("catalog:")) {
+			inCatalog = true;
+			continue;
+		}
+		if (inCatalog && RE_NON_WHITESPACE_START.test(line)) break;
+		if (!inCatalog) continue;
+
+		const match = line.match(RE_CATALOG_ENTRY);
+		if (match) catalog[match[1]] = match[2];
+	}
+	return catalog;
+}
+
+function collectWorkspaceVersions() {
+	const versions = {};
+	const dirs = [join(ROOT, "packages"), join(ROOT, "packages/plugins")];
+	for (const base of dirs) {
+		if (!existsSync(base)) continue;
+		for (const entry of readdirSync(base, { withFileTypes: true })) {
+			if (!entry.isDirectory()) continue;
+			const pkgPath = join(base, entry.name, "package.json");
+			if (!existsSync(pkgPath)) continue;
+			const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+			if (pkg.name && pkg.version) {
+				versions[pkg.name] = pkg.version;
+			}
+		}
+	}
+	return versions;
+}
+
+function resolveDeps(deps, catalog, workspace) {
+	if (!deps) return deps;
+	const resolved = {};
+	for (const [name, version] of Object.entries(deps)) {
+		if (version === "catalog:") {
+			resolved[name] = catalog[name] || version;
+		} else if (version.startsWith("workspace:")) {
+			resolved[name] = workspace[name] ? `^${workspace[name]}` : version;
+		} else {
+			resolved[name] = version;
+		}
+	}
+	return resolved;
+}
+
+function transformPackageJson(srcPath, catalog, workspace) {
+	const pkg = JSON.parse(readFileSync(srcPath, "utf8"));
+	pkg.dependencies = resolveDeps(pkg.dependencies, catalog, workspace);
+	pkg.devDependencies = resolveDeps(pkg.devDependencies, catalog, workspace);
+	if (pkg.peerDependencies) {
+		pkg.peerDependencies = resolveDeps(pkg.peerDependencies, catalog, workspace);
+		if (Object.keys(pkg.peerDependencies).length === 0) delete pkg.peerDependencies;
+	}
+	if (pkg.optionalDependencies) {
+		pkg.optionalDependencies = resolveDeps(pkg.optionalDependencies, catalog, workspace);
+		if (Object.keys(pkg.optionalDependencies).length === 0) delete pkg.optionalDependencies;
+	}
+	return JSON.stringify(pkg, null, "\t") + "\n";
+}
+
+function copyTemplateDir(src, dest) {
+	mkdirSync(dest, { recursive: true });
+
+	for (const entry of readdirSync(src, { withFileTypes: true })) {
+		if (EXCLUDE.has(entry.name)) continue;
+		// Don't overwrite target-only files
+		if (entry.name === "README.md") continue;
+		// package.json is handled separately
+		if (entry.name === "package.json") continue;
+
+		const srcPath = join(src, entry.name);
+		const destPath = join(dest, entry.name);
+
+		if (entry.isDirectory()) {
+			// Remove existing dir in target so we get a clean copy
+			if (existsSync(destPath)) rmSync(destPath, { recursive: true });
+			cpSync(srcPath, destPath, { recursive: true });
+		} else {
+			cpSync(srcPath, destPath);
+		}
+	}
+
+	// Remove files in dest that don't exist in src (except preserved ones)
+	const preserved = new Set(["README.md", "package.json", "pnpm-workspace.yaml"]);
+	for (const entry of readdirSync(dest, { withFileTypes: true })) {
+		if (preserved.has(entry.name)) continue;
+		if (EXCLUDE.has(entry.name)) continue;
+		const srcPath = join(src, entry.name);
+		if (!existsSync(srcPath)) {
+			const destPath = join(dest, entry.name);
+			rmSync(destPath, { recursive: true, force: true });
+		}
+	}
+}
+
+function run(cmd, opts = {}) {
+	return execSync(cmd, { encoding: "utf8", stdio: "pipe", ...opts }).trim();
+}
+
+// --- main ---
+
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const localIdx = args.indexOf("--local");
+const localPath = localIdx !== -1 ? args[localIdx + 1] : null;
+
+const catalog = parseCatalog();
+const workspace = collectWorkspaceVersions();
+
+console.log("Workspace packages:");
+for (const [name, version] of Object.entries(workspace)) {
+	console.log(`  ${name} = ${version}`);
+}
+console.log("");
+
+let targetDir;
+let tempDir;
+
+if (localPath) {
+	targetDir = resolve(localPath);
+	if (!existsSync(join(targetDir, ".git"))) {
+		console.error(`Error: ${targetDir} is not a git repository`);
+		process.exit(1);
+	}
+} else {
+	tempDir = mkdtempSync(join(tmpdir(), "emdash-templates-"));
+	const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+	const cloneUrl = ghToken
+		? `https://x-access-token:${ghToken}@github.com/${REPO}.git`
+		: `https://github.com/${REPO}.git`;
+	console.log(`Cloning ${REPO} to ${tempDir}...`);
+	run(`git clone --depth 1 ${cloneUrl} ${tempDir}`);
+	targetDir = tempDir;
+}
+
+for (const template of TEMPLATES) {
+	const srcDir = join(TEMPLATES_DIR, template);
+	const destDir = join(targetDir, template);
+
+	if (!existsSync(srcDir)) {
+		console.log(`Skipping ${template} (not in monorepo)`);
+		continue;
+	}
+
+	console.log(`Syncing ${template}`);
+	copyTemplateDir(srcDir, destDir);
+
+	const srcPkg = join(srcDir, "package.json");
+	if (existsSync(srcPkg)) {
+		writeFileSync(join(destDir, "package.json"), transformPackageJson(srcPkg, catalog, workspace));
+		console.log("  Transformed package.json");
+	}
+}
+
+// Also sync screenshots.json
+const screenshotsJson = join(TEMPLATES_DIR, "screenshots.json");
+if (existsSync(screenshotsJson)) {
+	cpSync(screenshotsJson, join(targetDir, "screenshots.json"));
+	console.log("\nSynced screenshots.json");
+}
+
+console.log("");
+
+const diff = run("git diff --stat", { cwd: targetDir });
+const untracked = run("git ls-files --others --exclude-standard", { cwd: targetDir });
+if (!diff && !untracked) {
+	console.log("No changes to sync.");
+	if (tempDir) rmSync(tempDir, { recursive: true });
+	process.exit(0);
+}
+
+console.log("Changes:");
+console.log(diff);
+console.log("");
+
+if (dryRun) {
+	console.log("Dry run — not pushing.");
+	if (tempDir) {
+		console.log(`Temp dir preserved at: ${tempDir}`);
+	}
+	process.exit(0);
+}
+
+// Get the emdash version for the branch/commit message
+const emdashVersion = workspace["emdash"] || "unknown";
+const branch = `sync/emdash-v${emdashVersion}`;
+
+// Configure git identity in CI
+if (process.env.CI) {
+	run('git config user.name "github-actions[bot]"', { cwd: targetDir });
+	run('git config user.email "github-actions[bot]@users.noreply.github.com"', { cwd: targetDir });
+}
+
+run(`git checkout -b ${branch}`, { cwd: targetDir });
+run("git add -A", { cwd: targetDir });
+run(`git commit -m "chore: sync templates from emdash v${emdashVersion}"`, { cwd: targetDir });
+run(`git push -u origin ${branch}`, { cwd: targetDir });
+
+console.log(`Pushed branch: ${branch}`);
+
+const prBody = [
+	"## Summary",
+	"",
+	`Synced templates from [emdash v${emdashVersion}](https://github.com/emdash-cms/emdash).`,
+	"",
+	"Auto-generated by `scripts/sync-templates-repo.mjs`.",
+].join("\n");
+
+const prUrl = run(
+	`gh pr create --repo ${REPO} --title "chore: sync templates from emdash v${emdashVersion}" --body "${prBody.replace(/"/g, '\\"')}"`,
+	{ cwd: targetDir },
+);
+
+console.log(`PR: ${prUrl}`);
+
+if (tempDir) rmSync(tempDir, { recursive: true });

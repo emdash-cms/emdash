@@ -52,24 +52,25 @@ sync_template() {
 		local src="$base_dir/$item"
 		local dest="$variant_dir/$item"
 
-		if [[ -e "$src" ]]; then
-			# Remove existing symlink or directory
+		if [[ ! -e "$src" ]]; then
+			continue
+		fi
+
+		if [[ -d "$src" ]]; then
+			# Use rsync for directories to preserve variant-specific files
+			mkdir -p "$dest"
+			rsync -a --delete \
+				--exclude="worker.ts" \
+				"$src/" "$dest/"
+			echo "  Synced directory: $item"
+		else
 			if [[ -L "$dest" ]]; then
 				rm "$dest"
-			elif [[ -d "$dest" ]]; then
-				rm -rf "$dest"
 			elif [[ -f "$dest" ]]; then
 				rm "$dest"
 			fi
-
-			# Copy the item
-			if [[ -d "$src" ]]; then
-				cp -r "$src" "$dest"
-				echo "  Copied directory: $item"
-			else
-				cp "$src" "$dest"
-				echo "  Copied file: $item"
-			fi
+			cp "$src" "$dest"
+			echo "  Copied file: $item"
 		fi
 	done
 }
