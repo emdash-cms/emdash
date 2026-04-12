@@ -25,23 +25,24 @@ msgstr "{label} — no translation"
 msgid "{label} — view translation"
 msgstr "{label} — view translation"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:43
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:44
 msgid "1 year"
 msgstr "1 year"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:41
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:42
 msgid "30 days"
 msgstr "30 days"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:40
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:41
 msgid "7 days"
 msgstr "7 days"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:42
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:43
 msgid "90 days"
 msgstr "90 days"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
+#: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
@@ -53,12 +54,17 @@ msgstr "Administrator"
 msgid "All locales"
 msgstr "All locales"
 
+#: packages/admin/src/components/users/UserList.tsx:42
+#: packages/admin/src/components/users/UserList.tsx:46
+msgid "All roles"
+msgstr "All roles"
+
 #: packages/admin/src/components/Settings.tsx:99
 msgid "Allow users from specific domains to sign up"
 msgstr "Allow users from specific domains to sign up"
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:151
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:176
 msgid "API Tokens"
 msgstr "API Tokens"
 
@@ -70,7 +76,7 @@ msgstr "As an administrator, you can invite other users from the Users section."
 msgid "Authentication error: {error}"
 msgstr "Authentication error: {error}"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:41
+#: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
 msgstr "Author"
@@ -80,7 +86,7 @@ msgstr "Author"
 msgid "Back to login"
 msgstr "Back to login"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:146
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:171
 msgid "Back to settings"
 msgstr "Back to settings"
 
@@ -89,8 +95,24 @@ msgstr "Back to settings"
 msgid "Bullet List"
 msgstr "Bullet List"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:426
+#: packages/admin/src/components/users/roleDefinitions.ts:25
+msgid "Can create content"
+msgstr "Can create content"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:37
+msgid "Can manage all content"
+msgstr "Can manage all content"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:31
+msgid "Can publish own content"
+msgstr "Can publish own content"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:19
+msgid "Can view content"
+msgstr "Can view content"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:446
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -119,7 +141,7 @@ msgstr "Close"
 msgid "Code Block"
 msgstr "Code Block"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 msgid "Confirm"
 msgstr "Confirm"
 
@@ -132,7 +154,7 @@ msgstr "Content"
 msgid "Content Block"
 msgstr "Content Block"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:54
 msgid "Content Read"
 msgstr "Content Read"
 
@@ -140,24 +162,24 @@ msgstr "Content Read"
 msgid "Content Types"
 msgstr "Content Types"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:52
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:59
 msgid "Content Write"
 msgstr "Content Write"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:40
+#: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Contributor"
 msgstr "Contributor"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
 msgid "Copied to clipboard"
 msgstr "Copied to clipboard"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:168
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
 msgid "Copy this token now — it won't be shown again."
 msgstr "Copy this token now — it won't be shown again."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:186
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
 msgid "Copy token"
 msgstr "Copy token"
 
@@ -169,26 +191,26 @@ msgstr "Create a bullet list"
 msgid "Create a numbered list"
 msgstr "Create a numbered list"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:368
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:389
 msgid "Create New Token"
 msgstr "Create New Token"
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:153
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Create personal access tokens for programmatic API access"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:226
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:251
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
 msgid "Create Token"
 msgstr "Create Token"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:53
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
 msgstr "Create, update, delete content"
 
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:269
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
 msgid "Created {0}"
 msgstr "Created {0}"
 
@@ -196,7 +218,7 @@ msgstr "Created {0}"
 msgid "Created At"
 msgstr "Created At"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
 msgid "Creating..."
 msgstr "Creating..."
 
@@ -204,8 +226,8 @@ msgstr "Creating..."
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:201
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:226
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
 msgid "Dismiss"
 msgstr "Dismiss"
 
@@ -229,11 +251,11 @@ msgstr "draft, published, or archived"
 msgid "Drafts"
 msgstr "Drafts"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:382
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:403
 msgid "e.g., CI/CD Pipeline"
 msgstr "e.g., CI/CD Pipeline"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:42
+#: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
 msgid "Editor"
 msgstr "Editor"
@@ -260,11 +282,11 @@ msgid "Enable full-text search on this collection"
 msgstr "Enable full-text search on this collection"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:256
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
 msgid "Expires {0}"
 msgstr "Expires {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Expiry"
 msgstr "Expiry"
 
@@ -273,7 +295,11 @@ msgstr "Expiry"
 msgid "Failed to send magic link"
 msgstr "Failed to send magic link"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
+#: packages/admin/src/components/users/roleDefinitions.ts:43
+msgid "Full access"
+msgstr "Full access"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
 msgid "Full admin access"
 msgstr "Full admin access"
 
@@ -300,7 +326,7 @@ msgstr "Heading 2"
 msgid "Heading 3"
 msgstr "Heading 3"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
 msgid "Hide token"
 msgstr "Hide token"
 
@@ -349,7 +375,7 @@ msgid "Large section heading"
 msgstr "Large section heading"
 
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:285
 msgid "Last used {0}"
 msgstr "Last used {0}"
 
@@ -373,11 +399,11 @@ msgstr "Media"
 msgid "Media Library"
 msgstr "Media Library"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:64
 msgid "Media Read"
 msgstr "Media Read"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:69
 msgid "Media Write"
 msgstr "Media Write"
 
@@ -393,7 +419,7 @@ msgstr "Menu"
 msgid "Menus"
 msgstr "Menus"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:63
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:80
 msgid "Modify collection schemas"
 msgstr "Modify collection schemas"
 
@@ -405,11 +431,11 @@ msgstr "Navigation"
 msgid "new tab"
 msgstr "new tab"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
 msgid "No API tokens yet. Create one to get started."
 msgstr "No API tokens yet. Create one to get started."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:39
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:40
 msgid "No expiry"
 msgstr "No expiry"
 
@@ -455,15 +481,15 @@ msgstr "Published At"
 msgid "Quote"
 msgstr "Quote"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:75
 msgid "Read collection schemas"
 msgstr "Read collection schemas"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
 msgid "Read content entries"
 msgstr "Read content entries"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
 msgid "Read media files"
 msgstr "Read media files"
 
@@ -471,15 +497,15 @@ msgstr "Read media files"
 msgid "Revisions"
 msgstr "Revisions"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
 msgid "Revoke token"
 msgstr "Revoke token"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
 msgid "Revoke?"
 msgstr "Revoke?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 msgid "Revoking..."
 msgstr "Revoking..."
 
@@ -487,24 +513,28 @@ msgstr "Revoking..."
 msgid "Rich text content"
 msgstr "Rich text content"
 
+#: packages/admin/src/components/users/roleDefinitions.ts:61
+msgid "Role {role}"
+msgstr "Role {role}"
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:70
 msgid "Save content as draft before publishing"
 msgstr "Save content as draft before publishing"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:74
 msgid "Schema Read"
 msgstr "Schema Read"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:79
 msgid "Schema Write"
 msgstr "Schema Write"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Scopes"
 msgstr "Scopes"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:252
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:277
 msgid "Scopes: {0}"
 msgstr "Scopes: {0}"
 
@@ -557,7 +587,7 @@ msgstr "SEO"
 msgid "Settings"
 msgstr "Settings"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
 msgid "Show token"
 msgstr "Show token"
 
@@ -601,7 +631,7 @@ msgstr "Social media profile links"
 msgid "Status"
 msgstr "Status"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:39
+#: packages/admin/src/components/users/roleDefinitions.ts:18
 #: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Subscriber"
 msgstr "Subscriber"
@@ -623,11 +653,11 @@ msgid "to select"
 msgstr "to select"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:165
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
 msgid "Token created: {0}"
 msgstr "Token created: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:400
 msgid "Token Name"
 msgstr "Token Name"
 
@@ -639,15 +669,19 @@ msgstr "Track content history"
 msgid "Unique identifier (ULID)"
 msgstr "Unique identifier (ULID)"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:36
+#: packages/admin/src/components/users/useRolesConfig.ts:7
 msgid "Unknown"
 msgstr "Unknown"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:62
+msgid "Unknown role"
+msgstr "Unknown role"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:127
 msgid "Updated At"
 msgstr "Updated At"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:70
 msgid "Upload and delete media"
 msgstr "Upload and delete media"
 
