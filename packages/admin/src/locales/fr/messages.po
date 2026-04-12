@@ -279,7 +279,7 @@ msgstr "Embeds"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:85
 msgid "Enable full-text search on this collection"
-msgstr "Activer la recherche plein texte sur cette collection"
+msgstr "Permettre la recherche dans le contenu de cette collection"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
