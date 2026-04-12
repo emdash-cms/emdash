@@ -51,23 +51,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 
 /**
- * Nav entry title: either a Lingui message descriptor (static copy) or a plain
- * string from the manifest (collections / plugin pages). The macro does not
- * support dynamic `msg({ id: … + runtime, message })` for extract, so API
- * labels stay as `api` until a dedicated catalog pattern exists.
- */
-type NavItemTitle =
-	| { kind: "i18n"; descriptor: MessageDescriptor }
-	| { kind: "api"; label: string };
-
-function navItemTitleText(
-	title: NavItemTitle,
-	translate: (d: MessageDescriptor) => string,
-): string {
-	return title.kind === "api" ? title.label : translate(title.descriptor);
-}
-
-/**
  * Custom hook for debouncing a value
  */
 function useDebouncedValue<T>(value: T, delay: number): T {
@@ -101,7 +84,7 @@ interface SearchResponse {
 
 interface NavItem {
 	id: string;
-	title: NavItemTitle;
+	title: string | MessageDescriptor;
 	to: string;
 	params?: Record<string, string>;
 	icon: React.ElementType;
@@ -145,7 +128,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 	const items: NavItem[] = [
 		{
 			id: "dashboard",
-			title: { kind: "i18n", descriptor: msg`Dashboard` },
+			title: msg`Dashboard`,
 			to: "/",
 			icon: SquaresFour,
 			keywords: ["home", "overview"],
@@ -156,7 +139,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 	for (const [name, config] of Object.entries(manifest.collections)) {
 		items.push({
 			id: `collection-${name}`,
-			title: { kind: "api", label: config.label },
+			title: config.label,
 			to: "/content/$collection",
 			params: { collection: name },
 			icon: FileText,
@@ -168,14 +151,14 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 	items.push(
 		{
 			id: "media",
-			title: { kind: "i18n", descriptor: msg`Media Library` },
+			title: msg`Media Library`,
 			to: "/media",
 			icon: Image,
 			keywords: ["images", "files", "uploads"],
 		},
 		{
 			id: "menus",
-			title: { kind: "i18n", descriptor: msg`Menus` },
+			title: msg`Menus`,
 			to: "/menus",
 			icon: List,
 			minRole: ROLE_EDITOR,
@@ -183,7 +166,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "widgets",
-			title: { kind: "i18n", descriptor: msg`Widgets` },
+			title: msg`Widgets`,
 			to: "/widgets",
 			icon: GridFour,
 			minRole: ROLE_EDITOR,
@@ -191,7 +174,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "sections",
-			title: { kind: "i18n", descriptor: msg`Sections` },
+			title: msg`Sections`,
 			to: "/sections",
 			icon: Stack,
 			minRole: ROLE_EDITOR,
@@ -199,7 +182,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "content-types",
-			title: { kind: "i18n", descriptor: msg`Content Types` },
+			title: msg`Content Types`,
 			to: "/content-types",
 			icon: Database,
 			minRole: ROLE_ADMIN,
@@ -207,7 +190,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "categories",
-			title: { kind: "i18n", descriptor: msg`Categories` },
+			title: msg`Categories`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "category" },
 			icon: FileText,
@@ -216,7 +199,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "tags",
-			title: { kind: "i18n", descriptor: msg`Tags` },
+			title: msg`Tags`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "tag" },
 			icon: FileText,
@@ -225,7 +208,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "users",
-			title: { kind: "i18n", descriptor: msg`Users` },
+			title: msg`Users`,
 			to: "/users",
 			icon: Users,
 			minRole: ROLE_ADMIN,
@@ -233,7 +216,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "plugins",
-			title: { kind: "i18n", descriptor: msg`Plugins` },
+			title: msg`Plugins`,
 			to: "/plugins-manager",
 			icon: PuzzlePiece,
 			minRole: ROLE_ADMIN,
@@ -241,7 +224,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "import",
-			title: { kind: "i18n", descriptor: msg`Import` },
+			title: msg`Import`,
 			to: "/import/wordpress",
 			icon: Upload,
 			minRole: ROLE_ADMIN,
@@ -249,7 +232,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "settings",
-			title: { kind: "i18n", descriptor: msg`Settings` },
+			title: msg`Settings`,
 			to: "/settings",
 			icon: Gear,
 			minRole: ROLE_ADMIN,
@@ -257,7 +240,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		},
 		{
 			id: "security",
-			title: { kind: "i18n", descriptor: msg`Security Settings` },
+			title: msg`Security Settings`,
 			to: "/settings/security",
 			icon: Gear,
 			minRole: ROLE_ADMIN,
@@ -279,7 +262,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 
 				items.push({
 					id: `plugin-${pluginId}-${page.path}`,
-					title: { kind: "api", label },
+					title: label,
 					to: `/plugins/${pluginId}${page.path}`,
 					icon: PuzzlePiece,
 					keywords: ["plugin", pluginId],
@@ -300,7 +283,8 @@ function filterNavItems(
 	if (!query) return items;
 	const lowerQuery = query.toLowerCase();
 	return items.filter((item) => {
-		const titleMatch = navItemTitleText(item.title, translate).toLowerCase().includes(lowerQuery);
+		const titleStr = typeof item.title === "string" ? item.title : translate(item.title);
+		const titleMatch = titleStr.toLowerCase().includes(lowerQuery);
 		const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
 		return titleMatch || keywordMatch;
 	});
@@ -351,7 +335,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 				label: msg`Navigation`,
 				items: filteredNavItems.map((item) => ({
 					id: item.id,
-					title: navItemTitleText(item.title, t),
+					title: typeof item.title === "string" ? item.title : t(item.title),
 					to: item.to,
 					params: item.params,
 					icon: <item.icon className="h-4 w-4" />,
