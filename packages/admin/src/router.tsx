@@ -165,6 +165,12 @@ const adminLayoutRoute = createRoute({
 	component: RootComponent,
 });
 
+// Isomorphic requestIdleCallback polyfill
+if (typeof window !== "undefined" && typeof window.requestIdleCallback === "undefined") {
+	window.requestIdleCallback = (cb) => setTimeout(cb, 50);
+	window.cancelIdleCallback = (id) => clearTimeout(id);
+}
+
 function RootComponent() {
 	const {
 		data: manifest,
@@ -314,6 +320,10 @@ function ContentListPage() {
 		},
 	});
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -336,10 +346,6 @@ function ContentListPage() {
 			search: { locale: locale || undefined },
 		});
 	};
-
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
 
 	return (
 		<ContentList
@@ -488,6 +494,9 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
+	validateSearch: (search) => ({
+		...(typeof search.field === "string" && { field: search.field }),
+	}),
 });
 
 // Editor role level from @emdash-cms/auth
@@ -495,6 +504,9 @@ const ROLE_EDITOR = 40;
 
 function ContentEditPage() {
 	const { collection, id } = useParams({
+		from: "/_admin/content/$collection/$id",
+	});
+	const searchParams = useSearch({
 		from: "/_admin/content/$collection/$id",
 	});
 	const queryClient = useQueryClient();
@@ -512,6 +524,21 @@ function ContentEditPage() {
 		queryKey: ["content", collection, id],
 		queryFn: () => fetchContent(collection, id),
 	});
+
+	React.useEffect(() => {
+		if (typeof searchParams.field !== "string" || isLoading) return;
+
+		const timeoutId = requestIdleCallback(() => {
+			const el = document.getElementById(`field-${searchParams.field}`);
+			if (el) {
+				el.scrollIntoView({ behavior: "smooth", block: "center" });
+				el.focus();
+				const { field: _, ...preservedSearch } = searchParams;
+				void navigate({ search: preservedSearch as never, replace: true });
+			}
+		});
+		return () => cancelIdleCallback(timeoutId);
+	}, [searchParams, isLoading, navigate]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({

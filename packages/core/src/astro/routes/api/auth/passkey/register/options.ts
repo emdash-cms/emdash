@@ -13,6 +13,7 @@ import { generateRegistrationOptions } from "@emdash-cms/auth/passkey";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { passkeyRegisterOptionsBody } from "#api/schemas.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
@@ -22,7 +23,6 @@ const MAX_PASSKEYS = 10;
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
-	const passkeyPublicOrigin = emdash?.config.passkeyPublicOrigin;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -53,7 +53,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const url = new URL(request.url);
 		const optionsRepo = new OptionsRepository(emdash.db);
 		const siteName = (await optionsRepo.get<string>("emdash:site_title")) ?? undefined;
-		const passkeyConfig = getPasskeyConfig(url, siteName, passkeyPublicOrigin);
+		const siteUrl = getPublicOrigin(url, emdash?.config);
+		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
 
 		// Generate registration options
 		const challengeStore = createChallengeStore(emdash.db);

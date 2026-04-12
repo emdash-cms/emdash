@@ -290,6 +290,7 @@ export {
 	probeUrl,
 	clearSources,
 	wxrSource,
+	parseWxrDate,
 	wordpressRestSource,
 	importReusableBlocksAsSections,
 } from "./import/index.js";
@@ -358,6 +359,7 @@ export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
 export type {
 	PagePlacement,
 	PublicPageContext,
+	BreadcrumbItem,
 	PageMetadataEvent,
 	PageMetadataContribution,
 	PageMetadataHandler,

@@ -8,15 +8,21 @@ describe("starter template site identity", () => {
 		const settings = {
 			title: "Example Site",
 			tagline: "Shipping notes",
+			logo: { mediaId: "logo-1", alt: "My Logo", url: "/_emdash/api/media/file/logo.webp" },
+			favicon: { mediaId: "fav-1", url: "/_emdash/api/media/file/favicon.svg" },
 		};
 
 		expect(resolveStarterSiteIdentityNode(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "Shipping notes",
+			siteLogo: { mediaId: "logo-1", alt: "My Logo", url: "/_emdash/api/media/file/logo.webp" },
+			siteFavicon: "/_emdash/api/media/file/favicon.svg",
 		});
 		expect(resolveStarterSiteIdentityCloudflare(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "Shipping notes",
+			siteLogo: { mediaId: "logo-1", alt: "My Logo", url: "/_emdash/api/media/file/logo.webp" },
+			siteFavicon: "/_emdash/api/media/file/favicon.svg",
 		});
 	});
 
@@ -24,26 +30,36 @@ describe("starter template site identity", () => {
 		expect(resolveStarterSiteIdentityNode({})).toEqual({
 			siteTitle: "My Site",
 			siteTagline: "Built with EmDash",
+			siteLogo: null,
+			siteFavicon: null,
 		});
 		expect(resolveStarterSiteIdentityCloudflare({})).toEqual({
 			siteTitle: "My Site",
 			siteTagline: "Built with EmDash",
+			siteLogo: null,
+			siteFavicon: null,
 		});
 	});
 
-	it("preserves intentionally blank taglines", () => {
+	it("returns null for logo/favicon without resolved URL", () => {
 		const settings = {
 			title: "Example Site",
 			tagline: "",
+			logo: { mediaId: "logo-1" },
+			favicon: { mediaId: "fav-1" },
 		};
 
 		expect(resolveStarterSiteIdentityNode(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "",
+			siteLogo: null,
+			siteFavicon: null,
 		});
 		expect(resolveStarterSiteIdentityCloudflare(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "",
+			siteLogo: null,
+			siteFavicon: null,
 		});
 	});
 });

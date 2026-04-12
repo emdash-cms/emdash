@@ -1,6 +1,6 @@
 # Contributing to EmDash
 
-> **Beta.** EmDash is published to npm. During development you work inside the monorepo -- packages use `workspace:*` links, so everything "just works" without publishing.
+> **Beta.** EmDash is published to npm. During development you work inside the monorepo — packages use `workspace:*` links, so everything "just works" without publishing.
 
 ## Prerequisites
 
@@ -11,26 +11,32 @@
 ## Quick Setup
 
 ```bash
-git clone <repo-url> && cd emdash
+git clone https://github.com/emdash-cms/emdash.git && cd emdash
 pnpm install
 pnpm build          # build all packages (required before first run)
 ```
 
 ### Run the Demo
 
-The `demos/simple/` app is the primary development target. It is kept in sync with `templates/blog/` and uses Node.js + SQLite — no Cloudflare account needed.
+The `demos/simple/` app is the primary development target. It uses Node.js + SQLite — no Cloudflare account needed.
 
 ```bash
-pnpm --filter emdash-demo seed   # seed sample content
-pnpm --filter emdash-demo dev    # http://localhost:4321
+cd demos/simple
+pnpm dev    # http://localhost:4321
 ```
 
-Open the admin at `http://localhost:4321/_emdash/admin`.
+Open the admin at `http://localhost:4321/_emdash/admin`. The setup wizard runs automatically on first launch — it creates the database, runs migrations, and prompts you to create an admin account.
 
-In dev mode, passkey auth is bypassed automatically. If you hit the login screen, visit:
+In dev mode, you can skip passkey auth with the dev bypass:
 
 ```
 http://localhost:4321/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
+```
+
+To populate the demo with sample content:
+
+```bash
+pnpm seed
 ```
 
 ### Run with Cloudflare (optional)
@@ -42,39 +48,39 @@ http://localhost:4321/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
 Templates in `templates/` are workspace members and can be run directly:
 
 ```bash
-# First time: set up database and seed content
-pnpm --filter @emdash-cms/template-portfolio bootstrap
-
-# Run the dev server
-pnpm --filter @emdash-cms/template-portfolio dev
+cd templates/portfolio
+pnpm bootstrap   # first time — set up database and seed content
+pnpm dev         # run dev server
 ```
 
-Available templates:
-
-| Template  | Filter Name                      |
-| --------- | -------------------------------- |
-| Blog      | `@emdash-cms/template-blog`      |
-| Portfolio | `@emdash-cms/template-portfolio` |
-| Marketing | `@emdash-cms/template-marketing` |
-
-Edit files in `templates/{name}/src/` and changes hot reload.
-
-**Cloudflare variants** (`*-cloudflare`) share source with their base templates via `scripts/sync-cloudflare-templates.sh`. Run that script after editing base template shared files.
-
-Demo/template sync is handled by `scripts/sync-blog-demos.sh`:
-
-- Full sync: `templates/blog` -> `demos/simple`
-- Frontend sync (keep runtime-specific config/files):
-  - `templates/blog-cloudflare` -> `demos/cloudflare`
-  - `templates/blog-cloudflare` -> `demos/preview`
-  - `templates/blog` -> `demos/postgres`
+Available templates: `blog`, `portfolio`, `marketing`.
 
 To start fresh, delete the database and re-bootstrap:
 
 ```bash
 rm templates/portfolio/data.db
-pnpm --filter @emdash-cms/template-portfolio bootstrap
+cd templates/portfolio && pnpm bootstrap
 ```
+
+## Repository Layout
+
+This is a pnpm monorepo. Here's what each directory is for:
+
+| Directory                 | What it is                                                                                    | When you'd work here           |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------ |
+| `packages/core/`          | The main `emdash` package — Astro integration, REST API, database, schema management, plugins | Most core development          |
+| `packages/admin/`         | React SPA for the admin UI (`@emdash-cms/admin`)                                              | Admin UI changes, translations |
+| `packages/auth/`          | Authentication — passkeys, OAuth, magic links (`@emdash-cms/auth`)                            | Auth flow changes              |
+| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox (`@emdash-cms/cloudflare`)                        | Cloudflare-specific features   |
+| `packages/blocks/`        | Portable Text block definitions (`@emdash-cms/blocks`)                                        | Content block types            |
+| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                                | Project scaffolding            |
+| `packages/plugins/`       | First-party plugins (each subdirectory is a package)                                          | Plugin development             |
+| `demos/simple/`           | Primary dev/test app (Node.js + SQLite)                                                       | Running and testing locally    |
+| `demos/cloudflare/`       | Cloudflare Workers demo (D1)                                                                  | Testing on CF runtime          |
+| `templates/`              | Starter templates (blog, portfolio, marketing + CF variants)                                  | Template development           |
+| `docs/`                   | Documentation site (Starlight)                                                                | Docs changes                   |
+| `e2e/`                    | Playwright test fixtures                                                                      | E2E test infrastructure        |
+| `i18n/`                   | Translation status dashboard (Lunaria)                                                        | Translation tracking           |
 
 ## Development Workflow
 
@@ -84,24 +90,22 @@ For iterating on core packages alongside the demo, run two terminals:
 
 ```bash
 # Terminal 1 — rebuild packages/core on change
-pnpm --filter emdash dev
+cd packages/core && pnpm dev
 
 # Terminal 2 — run the demo
-pnpm --filter emdash-demo dev
+cd demos/simple && pnpm dev
 ```
 
 Changes to `packages/core/src/` will be picked up by the demo's dev server automatically.
 
 ### Checks
 
-Run these before committing:
+Run these from the repo root before committing:
 
 ```bash
-pnpm typecheck       # TypeScript (packages)
-pnpm typecheck:demos # TypeScript (Astro demos)
-pnpm --silent lint:quick   # fast lint (< 1s) — run often
-pnpm --silent lint:json    # full type-aware lint (~10s) — run before commits
-pnpm format          # auto-format with oxfmt
+pnpm typecheck    # TypeScript (packages)
+pnpm lint         # full type-aware lint
+pnpm format       # auto-format with oxfmt (tabs, not spaces)
 ```
 
 Type checking **must** pass. Lint **must** pass. Don't commit with known failures.
@@ -109,67 +113,34 @@ Type checking **must** pass. Lint **must** pass. Don't commit with known failure
 ### Tests
 
 ```bash
-pnpm test                              # all packages
-pnpm --filter emdash test            # core only
-pnpm --filter emdash test --watch    # watch mode
-pnpm test:e2e                          # Playwright (requires demo running)
+pnpm test                                    # all packages
+cd packages/core && pnpm test                # core only
+cd packages/core && pnpm test --watch        # watch mode
+pnpm test:e2e                                # Playwright (starts its own server)
 ```
 
 Tests use real in-memory SQLite — no mocking. Each test gets a fresh database.
 
-## Repository Layout
+### Building Your Own Site (Inside the Monorepo)
 
-```
-emdash/
-├── packages/
-│   ├── core/              # emdash — the main package (Astro integration + APIs + admin)
-│   ├── auth/              # @emdash-cms/auth — passkeys, OAuth, magic links
-│   ├── admin/             # @emdash-cms/admin — React admin SPA
-│   ├── cloudflare/        # @emdash-cms/cloudflare — CF adapter + plugin sandbox
-│   ├── create-emdash/   # create-emdash — project scaffolder
-│   ├── gutenberg-to-portable-text/  # WP block → Portable Text converter
-│   └── plugins/           # first-party plugins (each dir = package)
-├── demos/
-│   ├── simple/            # emdash-demo — primary dev/test app (Node.js + SQLite)
-│   ├── cloudflare/        # Cloudflare Workers demo (D1)
-│   ├── plugins-demo/      # plugin development testbed
-│   └── ...
-├── templates/             # starter templates (blog, portfolio, marketing + cloudflare variants)
-├── docs/                  # public documentation site (Starlight)
-└── e2e/                   # Playwright test fixtures
+Copy a template into `demos/`, give it a unique `name` in `package.json`, run `pnpm install`, and start developing:
+
+```bash
+cp -r templates/blog demos/my-site
+# edit demos/my-site/package.json to set a unique name
+pnpm install
+cd demos/my-site && pnpm dev
 ```
 
-The main package is **`packages/core`**. Most of your work will happen there.
-
-## Building Your Own Site (Inside the Monorepo)
-
-The easiest way to build a real site during development is to add it as a workspace member.
-
-1. Copy `templates/blog/` (or `templates/blank/`) into `demos/`:
-
-   ```bash
-   cp -r templates/blog demos/my-site
-   ```
-
-2. Edit `demos/my-site/package.json` — set a unique `name` field.
-
-3. Run `pnpm install` from the root to link workspace dependencies.
-
-4. Start developing:
-
-   ```bash
-   pnpm --filter my-site dev
-   ```
-
-Your site will use `workspace:*` links to the local packages, so any changes you make to core will be reflected immediately (with watch mode).
+Your site uses `workspace:*` links to the local packages, so core changes are reflected immediately (with watch mode).
 
 ## Key Architectural Concepts
 
 - **Schema lives in the database**, not in code. `_emdash_collections` and `_emdash_fields` are the source of truth.
 - **Real SQL tables** per collection (`ec_posts`, `ec_products`), not EAV.
-- **Kysely** for all queries. Never interpolate into SQL -- see `AGENTS.md` for the full rules.
+- **Kysely** for all queries. Never interpolate into SQL — see `AGENTS.md` for the full rules.
 - **Handler layer** (`api/handlers/*.ts`) holds business logic. Route files are thin wrappers.
-- **Middleware chain**: runtime init -> setup check -> auth -> request context.
+- **Middleware chain**: runtime init → setup check → auth → request context.
 
 ## Adding a Migration
 
@@ -185,19 +156,69 @@ Your site will use `workspace:*` links to the local packages, so any changes you
 4. Check authorization with `requirePerm()` on all state-changing routes.
 5. Register the route in `packages/core/src/astro/integration/routes.ts`.
 
+## Internationalization (i18n)
+
+The admin UI is translatable using [Lingui](https://lingui.dev). All user-visible strings in `packages/admin/src/` should be wrapped for translation.
+
+### Making strings translatable
+
+Use the `t` tagged template for plain strings and `<Trans>` for strings containing JSX:
+
+```tsx
+import { Trans, useLingui } from "@lingui/react/macro";
+
+function MyComponent() {
+	const { t } = useLingui();
+
+	return (
+		<div>
+			{/* Plain strings */}
+			<h1>{t`Settings`}</h1>
+			<label>{t`Email address`}</label>
+
+			{/* Strings with interpolation */}
+			<p>{t`Authentication error: ${error}`}</p>
+
+			{/* Strings containing JSX elements */}
+			<p>
+				<Trans>
+					Don't have an account? <a href="/signup">Sign up</a>
+				</Trans>
+			</p>
+		</div>
+	);
+}
+```
+
+After adding or changing translatable strings, run extraction to update the PO catalogs:
+
+```bash
+pnpm run locale:extract
+```
+
+This updates `packages/admin/src/locales/*/messages.po` with any new or changed strings. Commit the updated PO files alongside your code changes.
+
+### What to wrap
+
+- Button labels, headings, descriptions, error messages, placeholder text — anything a user reads.
+- Don't wrap: log messages, developer-facing errors, HTML attributes that aren't user-visible, or strings that are the same in every language (brand names, URLs). Do wrap `aria-label` when it labels an interactive control, because screen readers announce it to users. For decorative elements, avoid `aria-label` and use `aria-hidden="true"` instead.
+
+For the full translation contributor guide, see [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).
+
 ## Contribution Policy
 
 ### What we accept
 
-| Type             | Process                                                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                                  |
-| **Docs / typos** | Open a PR directly.                                                                                                                  |
-| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) first. Wait for approval before writing code. |
-| **Refactors**    | Open a Discussion first. Refactors are opinionated and need alignment.                                                               |
-| **Performance**  | Open a Discussion first with benchmarks showing the improvement.                                                                     |
+| Type             | Process                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                             |
+| **Docs / typos** | Open a PR directly.                                                                                                             |
+| **Translations** | Open a PR directly. See [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).                             |
+| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) and wait for a maintainer to approve it. |
+| **Refactors**    | Open a Discussion first. Refactors are opinionated and need alignment.                                                          |
+| **Performance**  | Open a Discussion first with benchmarks showing the improvement.                                                                |
 
-**PRs that add features without a prior approved Discussion will be closed.** This isn't about gatekeeping — it's about not wasting your time on work that might not align with the project's direction. Talk to us first and we'll figure out the right approach together.
+**Feature PRs without prior maintainer approval will be closed.** This isn't about gatekeeping — it's about not wasting your time on work that might not align with the project's direction. Open a Discussion, let us talk it through, and wait for a maintainer to give the go-ahead before writing code.
 
 ### AI-generated PRs
 
@@ -301,17 +322,8 @@ When in doubt, run `pnpm changeset` and it will only show packages that aren't i
 - Branch from `main`.
 - Commit messages: describe _why_, not just _what_.
 - Fill out the PR template completely. PRs with an empty template will be closed.
-- Ensure `pnpm typecheck` and `pnpm --silent lint:json` pass before pushing.
+- Ensure `pnpm typecheck` and `pnpm lint` pass before pushing.
 - Run relevant tests.
-
-## What's Intentionally Missing (For Now)
-
-These are known gaps -- don't try to fix them unless specifically asked:
-
-- **Rate limiting** -- no brute-force protection on auth endpoints
-- **Password auth** -- passkeys + magic links + OAuth only, by design
-- **Plugin marketplace** -- architecture exists, runtime installation is post-beta
-- **Real-time collaboration** -- planned for v1
 
 ## Getting Help
 

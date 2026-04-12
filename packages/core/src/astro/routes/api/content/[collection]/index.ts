@@ -7,8 +7,8 @@
 
 import type { APIRoute } from "astro";
 
-import { requirePerm } from "#api/authorize.js";
-import { apiError, unwrapResult } from "#api/error.js";
+import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
+import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { parseBody, parseQuery, isParseError } from "#api/parse.js";
 import { contentListQuery, contentCreateBody } from "#api/schemas.js";
 
@@ -39,8 +39,36 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const body = await parseBody(request, contentCreateBody);
 	if (isParseError(body)) return body;
 
-	if (!emdash?.handleContentCreate) {
+	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
+
+	// Creating a translation requires edit permission on the source item
+	if (body.translationOf) {
+		const source = await emdash.handleContentGet(collection, body.translationOf);
+		if (!source.success) {
+			return apiError(
+				source.error?.code ?? "NOT_FOUND",
+				source.error?.message ?? "Translation source not found",
+				mapErrorStatus(source.error?.code),
+			);
+		}
+		const sourceData =
+			source.data && typeof source.data === "object"
+				? (source.data as Record<string, unknown>)
+				: undefined;
+		const sourceItem =
+			sourceData?.item && typeof sourceData.item === "object"
+				? (sourceData.item as Record<string, unknown>)
+				: sourceData;
+		const sourceAuthor = typeof sourceItem?.authorId === "string" ? sourceItem.authorId : "";
+		const translationDenied = requireOwnerPerm(
+			user,
+			sourceAuthor,
+			"content:edit_own",
+			"content:edit_any",
+		);
+		if (translationDenied) return translationDenied;
 	}
 
 	// Auto-set authorId to current user when creating content

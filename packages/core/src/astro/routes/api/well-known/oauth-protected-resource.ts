@@ -13,12 +13,13 @@
 
 import type { APIRoute } from "astro";
 
+import { getPublicOrigin } from "#api/public-url.js";
 import { VALID_SCOPES } from "#auth/api-tokens.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url }) => {
-	const origin = url.origin;
+export const GET: APIRoute = async ({ url, locals }) => {
+	const origin = getPublicOrigin(url, locals.emdash?.config);
 
 	return Response.json(
 		{
