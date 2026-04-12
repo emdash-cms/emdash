@@ -340,5 +340,37 @@ describe("pluginManifestSchema - admin.settingsSchema url/email field types", ()
           },
         },
       },
-    });
-      
+        expect(result.success).toBe(true);
+
+	it("should accept number field without optional fields", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest(),
+			admin: {
+				settingsSchema: {
+					port: {
+						type: "number",
+						label: "Server Port",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept file field without optional fields", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest(),
+			admin: {
+				settingsSchema: {
+					uploadDir: {
+						type: "file",
+						label: "Upload Directory",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+	
+	
+    
