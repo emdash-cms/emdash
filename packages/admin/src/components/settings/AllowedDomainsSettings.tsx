@@ -6,7 +6,8 @@
  */
 
 import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
-import { t } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Globe,
@@ -32,30 +33,25 @@ import {
 	type AllowedDomain,
 } from "../../lib/api";
 
-function buildRolesConfig() {
-	const roles = [
-		{ value: 10, label: t`Subscriber` },
-		{ value: 20, label: t`Contributor` },
-		{ value: 30, label: t`Author` },
-		{ value: 40, label: t`Editor` },
-	];
-	const roleLabels: Record<string, string> = Object.fromEntries(
-		roles.map((r) => [String(r.value), r.label]),
-	);
-	return {
-		getRoleLabel: (level: number): string => roleLabels[String(level)] ?? t`Unknown`,
-		roleLabels,
-		roles,
-	};
-}
+const MSG_ROLE_UNKNOWN = msg`Unknown`;
+
+const ROLES: readonly { value: number; label: MessageDescriptor }[] = [
+	{ value: 10, label: msg`Subscriber` },
+	{ value: 20, label: msg`Contributor` },
+	{ value: 30, label: msg`Author` },
+	{ value: 40, label: msg`Editor` },
+];
 
 export function AllowedDomainsSettings() {
-	const { i18n } = useLingui();
-	const { getRoleLabel, roleLabels, roles } = React.useMemo(
-		() => buildRolesConfig(),
-		[i18n.locale],
+	const { t } = useLingui();
+	const roleLabels = React.useMemo(
+		() => Object.fromEntries(ROLES.map((r) => [String(r.value), t(r.label)])),
+		[t],
 	);
-
+	const getRoleLabel = React.useCallback(
+		(level: number) => roleLabels[String(level)] ?? t(MSG_ROLE_UNKNOWN),
+		[roleLabels, t],
+	);
 	const queryClient = useQueryClient();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
 	const [editingDomain, setEditingDomain] = React.useState<AllowedDomain | null>(null);
@@ -355,9 +351,9 @@ export function AllowedDomainsSettings() {
 										onValueChange={(v) => v !== null && setNewRole(Number(v))}
 										items={roleLabels}
 									>
-										{roles.map((role) => (
+										{ROLES.map((role) => (
 											<Select.Option key={role.value} value={String(role.value)}>
-												{role.label}
+												{t(role.label)}
 											</Select.Option>
 										))}
 									</Select>
@@ -419,9 +415,9 @@ export function AllowedDomainsSettings() {
 								}
 								items={roleLabels}
 							>
-								{roles.map((role) => (
+								{ROLES.map((role) => (
 									<Select.Option key={role.value} value={String(role.value)}>
-										{role.label}
+										{t(role.label)}
 									</Select.Option>
 								))}
 							</Select>
