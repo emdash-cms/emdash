@@ -13,7 +13,7 @@ import * as React from "react";
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
-import { ROLES, getRoleLabel } from "./RoleBadge";
+import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserDetailProps {
 	user: UserDetailType | null;
@@ -49,6 +49,7 @@ export function UserDetail({
 	onEnable,
 	onSendRecovery,
 }: UserDetailProps) {
+	const { roles, roleLabels, getRoleLabel } = useRolesConfig();
 	const [name, setName] = React.useState(user?.name ?? "");
 	const [email, setEmail] = React.useState(user?.email ?? "");
 	const [role, setRole] = React.useState(user?.role ?? 30);
@@ -184,9 +185,11 @@ export function UserDetail({
 											label="Role"
 											value={role.toString()}
 											onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-											items={Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label]))}
+											items={Object.fromEntries(
+												roles.map((r) => [String(r.value), roleLabels[String(r.value)]]),
+											)}
 										>
-											{ROLES.map((r) => (
+											{roles.map((r) => (
 												<Select.Option key={r.value} value={r.value.toString()}>
 													<div>
 														<div>{r.label}</div>

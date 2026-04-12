@@ -2,7 +2,7 @@ import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
 import { Check, Copy, X } from "@phosphor-icons/react";
 import * as React from "react";
 
-import { ROLES } from "./RoleBadge";
+import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface InviteUserModalProps {
 	open: boolean;
@@ -25,6 +25,7 @@ export function InviteUserModal({
 	onOpenChange,
 	onInvite,
 }: InviteUserModalProps) {
+	const { roles, roleLabels } = useRolesConfig();
 	const [email, setEmail] = React.useState("");
 	const [role, setRole] = React.useState(30); // Default to Author
 	const [copied, setCopied] = React.useState(false);
@@ -163,9 +164,11 @@ export function InviteUserModal({
 									label="Role"
 									value={role.toString()}
 									onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-									items={Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label]))}
+									items={Object.fromEntries(
+										roles.map((r) => [String(r.value), roleLabels[String(r.value)]]),
+									)}
 								>
-									{ROLES.map((r) => (
+									{roles.map((r) => (
 										<Select.Option key={r.value} value={r.value.toString()}>
 											<div>
 												<div>{r.label}</div>

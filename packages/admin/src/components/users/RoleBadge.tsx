@@ -1,61 +1,9 @@
-import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { useMemo } from "react";
 
 import { cn } from "../../lib/utils";
+import { getRoleConfig } from "./roleDefinitions.js";
 
-/** Role level to name mapping. */
-export function buildRoleConfig(): Record<
-	number,
-	{ label: string; color: string; description: string }
-> {
-	return {
-		10: {
-			label: t`Subscriber`,
-			color: "gray",
-			description: t`Can view content`,
-		},
-		20: {
-			label: t`Contributor`,
-			color: "blue",
-			description: t`Can create content`,
-		},
-		30: {
-			label: t`Author`,
-			color: "green",
-			description: t`Can publish own content`,
-		},
-		40: {
-			label: t`Editor`,
-			color: "purple",
-			description: t`Can manage all content`,
-		},
-		50: {
-			label: t`Admin`,
-			color: "red",
-			description: t`Full access`,
-		},
-	};
-}
-
-/** Get role config, with fallback for unknown roles */
-export function getRoleConfig(
-	role: number,
-	map: Record<number, { label: string; color: string; description: string }> = buildRoleConfig(),
-) {
-	return (
-		map[role] ?? {
-			label: t`Role ${role}`,
-			color: "gray",
-			description: t`Unknown role`,
-		}
-	);
-}
-
-/** Get role label from role level */
-export function getRoleLabel(role: number): string {
-	return getRoleConfig(role).label;
-}
+export type { RoleLevelConfig } from "./roleDefinitions.js";
 
 export interface RoleBadgeProps {
 	role: number;
@@ -73,8 +21,8 @@ export function RoleBadge({
 	showDescription = false,
 	className,
 }: RoleBadgeProps) {
-	const { i18n } = useLingui();
-	const config = useMemo(() => getRoleConfig(role, buildRoleConfig()), [i18n.locale, role]);
+	const { t } = useLingui();
+	const config = getRoleConfig(role);
 
 	const colorClasses: Record<string, string> = {
 		gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
@@ -97,19 +45,10 @@ export function RoleBadge({
 				colorClasses[config.color],
 				className,
 			)}
-			title={showDescription ? undefined : config.description}
+			title={showDescription ? undefined : t(config.description)}
 		>
-			{config.label}
-			{showDescription && <span className="ml-1 opacity-75">- {config.description}</span>}
+			{t(config.label)}
+			{showDescription && <span className="ml-1 opacity-75">- {t(config.description)}</span>}
 		</span>
 	);
 }
-
-/** List of all roles for dropdowns */
-export const ROLES = [
-	{ value: 10, label: "Subscriber", description: "Can view content" },
-	{ value: 20, label: "Contributor", description: "Can create content" },
-	{ value: 30, label: "Author", description: "Can publish own content" },
-	{ value: 40, label: "Editor", description: "Can manage all content" },
-	{ value: 50, label: "Admin", description: "Full access" },
-];

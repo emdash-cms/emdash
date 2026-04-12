@@ -6,9 +6,6 @@
  */
 
 import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
-import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
 import {
 	Globe,
 	Plus,
@@ -32,26 +29,10 @@ import {
 	fetchManifest,
 	type AllowedDomain,
 } from "../../lib/api";
-
-const MSG_ROLE_UNKNOWN = msg`Unknown`;
-
-const ROLES: readonly { value: number; label: MessageDescriptor }[] = [
-	{ value: 10, label: msg`Subscriber` },
-	{ value: 20, label: msg`Contributor` },
-	{ value: 30, label: msg`Author` },
-	{ value: 40, label: msg`Editor` },
-];
+import { useAllowedDomainsRolesConfig } from "./useAllowedDomainsRolesConfig.js";
 
 export function AllowedDomainsSettings() {
-	const { t } = useLingui();
-	const roleLabels = React.useMemo(
-		() => Object.fromEntries(ROLES.map((r) => [String(r.value), t(r.label)])),
-		[t],
-	);
-	const getRoleLabel = React.useCallback(
-		(level: number) => roleLabels[String(level)] ?? t(MSG_ROLE_UNKNOWN),
-		[roleLabels, t],
-	);
+	const { getRoleLabel, signupRoles, signupRoleItems } = useAllowedDomainsRolesConfig();
 	const queryClient = useQueryClient();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
 	const [editingDomain, setEditingDomain] = React.useState<AllowedDomain | null>(null);
@@ -349,11 +330,11 @@ export function AllowedDomainsSettings() {
 										label="Default Role"
 										value={String(newRole)}
 										onValueChange={(v) => v !== null && setNewRole(Number(v))}
-										items={roleLabels}
+										items={signupRoleItems}
 									>
-										{ROLES.map((role) => (
+										{signupRoles.map((role) => (
 											<Select.Option key={role.value} value={String(role.value)}>
-												{t(role.label)}
+												{role.label}
 											</Select.Option>
 										))}
 									</Select>
@@ -413,11 +394,11 @@ export function AllowedDomainsSettings() {
 								onValueChange={(v) =>
 									v !== null && editingDomain && handleUpdateRole(editingDomain.domain, Number(v))
 								}
-								items={roleLabels}
+								items={signupRoleItems}
 							>
-								{ROLES.map((role) => (
+								{signupRoles.map((role) => (
 									<Select.Option key={role.value} value={String(role.value)}>
-										{t(role.label)}
+										{role.label}
 									</Select.Option>
 								))}
 							</Select>
