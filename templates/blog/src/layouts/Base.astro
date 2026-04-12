@@ -8,6 +8,7 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
+import { Font } from "astro:assets";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/theme.css";
 
@@ -75,12 +76,8 @@ const isLoggedIn = !!Astro.locals.user;
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500&display=swap"
-			rel="stylesheet"
-		/>
+		<Font cssVariable="--font-sans" />
+		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>
 		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
@@ -400,13 +397,6 @@ const isLoggedIn = !!Astro.locals.user;
 				--emdash-search-border: var(--color-border);
 				--emdash-search-hover: var(--color-surface);
 				--emdash-search-highlight: var(--color-text);
-
-				/* Typography */
-				--font-sans:
-					"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-					sans-serif;
-				--font-mono:
-					"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
 				/* Type scale - more refined */
 				--font-size-xs: 0.8125rem;

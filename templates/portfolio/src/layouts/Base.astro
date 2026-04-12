@@ -2,6 +2,7 @@
 import { getMenu, getSiteSettings } from "emdash";
 import { EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
+import { Font } from "astro:assets";
 
 interface Props {
 	title?: string;
@@ -43,12 +44,7 @@ const pageCtx = createPublicPageContext({
 		<title>{fullTitle}</title>
 		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap"
-			rel="stylesheet"
-		/>
+		<Font cssVariable="--font-serif" />
 		<link
 			rel="alternate"
 			type="application/rss+xml"
@@ -210,7 +206,6 @@ const pageCtx = createPublicPageContext({
 				--color-accent-muted: #a78bfa;
 
 				/* Typography */
-				--font-serif: "Playfair Display", Georgia, serif;
 				--font-sans: system-ui, -apple-system, sans-serif;
 				--font-mono: ui-monospace, monospace;
 
