@@ -16,10 +16,27 @@
 
 import { defineMiddleware } from "astro:middleware";
 
+import type { Redirect } from "../../database/repositories/redirect.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import type { CompiledPattern } from "../../redirects/patterns.js";
+import { compilePattern, interpolateDestination, matchPattern } from "../../redirects/patterns.js";
 
 /** Paths that should never be intercepted by redirects */
 const SKIP_PREFIXES = ["/_emdash", "/_image"];
+
+/**
+ * Cached pattern rules with compiled regexes.
+ * Invalidated when redirects are created, updated, or deleted.
+ */
+let cachedPatternRules: Array<{ redirect: Redirect; compiled: CompiledPattern }> | null = null;
+
+/**
+ * Invalidate the cached redirect pattern rules.
+ * Call when redirects are created, updated, or deleted.
+ */
+export function invalidateRedirectCache(): void {
+	cachedPatternRules = null;
+}
 
 /** Static asset extensions -- don't redirect file requests */
 const ASSET_EXTENSION = /\.\w{1,10}$/;
@@ -48,21 +65,35 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	try {
 		const repo = new RedirectRepository(emdash.db);
-		const match = await repo.matchPath(pathname);
 
-		if (match) {
-			// Reject protocol-relative URLs (e.g. //evil.com or /\evil.com) from interpolation.
-			// Browsers normalize backslashes to forward slashes, so /\ is equivalent to //.
-			if (
-				match.resolvedDestination.startsWith("//") ||
-				match.resolvedDestination.startsWith("/\\")
-			) {
-				return next();
+		// 1. Exact match (fast, indexed)
+		const exact = await repo.findExactMatch(pathname);
+		if (exact) {
+			const dest = exact.destination;
+			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
+			repo.recordHit(exact.id).catch(() => {});
+			const code = isRedirectCode(exact.type) ? exact.type : 301;
+			return context.redirect(dest, code);
+		}
+
+		// 2. Pattern match (cached: compile once, match every request)
+		if (!cachedPatternRules) {
+			const patterns = await repo.findEnabledPatternRules();
+			cachedPatternRules = patterns.map((r) => ({
+				redirect: r,
+				compiled: compilePattern(r.source),
+			}));
+		}
+
+		for (const { redirect, compiled } of cachedPatternRules) {
+			const params = matchPattern(compiled, pathname);
+			if (params) {
+				const dest = interpolateDestination(redirect.destination, params);
+				if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
+				repo.recordHit(redirect.id).catch(() => {});
+				const code = isRedirectCode(redirect.type) ? redirect.type : 301;
+				return context.redirect(dest, code);
 			}
-			// Fire-and-forget hit recording (don't block the redirect)
-			repo.recordHit(match.redirect.id).catch(() => {});
-			const code = isRedirectCode(match.redirect.type) ? match.redirect.type : 301;
-			return context.redirect(match.resolvedDestination, code);
 		}
 
 		// No redirect matched -- proceed and check for 404

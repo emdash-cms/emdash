@@ -5,6 +5,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { bylineUpdateBody } from "#api/schemas.js";
+import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
 export const prerender = false;
@@ -80,6 +81,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 		const repo = new BylineRepository(emdash.db);
 		const deleted = await repo.delete(params.id!);
 		if (!deleted) return apiError("NOT_FOUND", "Byline not found", 404);
+		invalidateBylineCache();
 		return apiSuccess({ deleted: true });
 	} catch (error) {
 		return handleError(error, "Failed to delete byline", "BYLINE_DELETE_ERROR");

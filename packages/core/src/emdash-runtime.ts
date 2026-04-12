@@ -36,6 +36,7 @@ import type {
 	PageMetadataContribution,
 	PageFragmentContribution,
 } from "./plugins/types.js";
+import { invalidateUrlPatternCache } from "./query.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 
@@ -1364,11 +1365,12 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Invalidate the cached manifest (no-op now that we don't cache).
-	 * Kept for API compatibility.
+	 * Invalidate cached data derived from the manifest/schema.
+	 * Called when collections are created, updated, or deleted.
 	 */
 	invalidateManifest(): void {
-		// No-op - manifest is rebuilt on each request
+		// Invalidate the URL pattern cache used by resolveEmDashPath
+		invalidateUrlPatternCache();
 	}
 
 	// =========================================================================
