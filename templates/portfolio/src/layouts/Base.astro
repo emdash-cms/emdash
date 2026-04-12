@@ -44,7 +44,7 @@ const pageCtx = createPublicPageContext({
 		<title>{fullTitle}</title>
 		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
-		<Font cssVariable="--font-serif" />
+		<Font cssVariable="--font-serif" preload />
 		<link
 			rel="alternate"
 			type="application/rss+xml"
