@@ -265,6 +265,10 @@ export class SchemaRegistry {
 			}
 		}
 
+		// Drop FTS table and triggers before dropping the content table
+		const ftsManager = new FTSManager(this.db);
+		await ftsManager.dropFtsTable(slug);
+
 		// Drop the content table
 		await this.dropContentTable(slug);
 

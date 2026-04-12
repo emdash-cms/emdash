@@ -500,6 +500,26 @@ describe("SchemaRegistry", () => {
 			).resolves.toBeDefined();
 		});
 
+		it("drops FTS table when deleting a search-enabled collection", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.deleteCollection("articles");
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
 		it("does not create FTS table when collection supports search but has no searchable fields", async () => {
 			await registry.createCollection({
 				slug: "articles",
