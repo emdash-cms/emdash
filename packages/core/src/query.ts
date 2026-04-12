@@ -435,7 +435,8 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 							cacheHint: cacheHint ?? {},
 						});
 					}
-					return { entry: null, isPreview: false, cacheHint: {} };
+					// Not visible — try next locale in fallback chain
+					continue;
 				}
 			}
 
