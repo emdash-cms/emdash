@@ -17,6 +17,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
     permissions:
       contents: write
       id-token: write
@@ -66,3 +68,12 @@ jobs:
       - name: Publish (manual)
         if: ${{ inputs.publish-only }}
         run: pnpm changeset publish
+
+  sync-templates:
+    name: Sync Templates
+    needs: release
+    if: >-
+      needs.release.outputs.published == 'true' ||
+      inputs.publish-only
+    uses: ./.github/workflows/sync-templates.yml
+    secrets: inherit
