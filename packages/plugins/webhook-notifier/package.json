@@ -25,7 +25,7 @@
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
-		"emdash": "workspace:*"
+		"emdash": "workspace:>=0.1.0"
 	},
 	"devDependencies": {
 		"tsdown": "catalog:",
