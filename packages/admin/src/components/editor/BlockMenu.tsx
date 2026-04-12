@@ -131,7 +131,7 @@ interface BlockMenuProps {
 export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
 	const { i18n } = useLingui();
 	const blockTransforms = React.useMemo(() => buildBlockTransforms(), [i18n.locale]);
-	
+
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const stableOnClose = useStableCallback(onClose);

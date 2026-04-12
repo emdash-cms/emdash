@@ -44,7 +44,7 @@ async function dismissWelcome(): Promise<void> {
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
 	const { i18n } = useLingui();
 	const getRoleLabel = React.useMemo(() => buildGetRoleLabel(), [i18n.locale]);
-	
+
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({

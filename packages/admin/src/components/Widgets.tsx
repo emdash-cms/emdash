@@ -101,7 +101,7 @@ function buildBuiltinWidgets(): Array<{
 export function Widgets() {
 	const { i18n } = useLingui();
 	const BUILTIN_WIDGETS = React.useMemo(() => buildBuiltinWidgets(), [i18n.locale]);
-	
+
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
