@@ -50,6 +50,7 @@ import {
 	generateBlockComponentsModule,
 } from "./virtual-modules.js";
 
+const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
@@ -64,6 +65,16 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 	return {
 		name: "emdash-lingui-macro",
 		enforce: "pre",
+		resolveId(id, importer) {
+			// Redirect relative locale catalog imports (e.g. ./de/messages.mjs) from
+			// within admin source to the compiled dist/locales/ directory, since
+			// lingui compile only runs during build — not in dev watch mode.
+			if (!importer?.startsWith(adminSourcePath)) return;
+			const match = id.match(LOCALE_MESSAGES_RE);
+			if (match?.[1]) {
+				return resolve(adminDistPath, "locales", match[1], "messages.mjs");
+			}
+		},
 		async transform(code, id) {
 			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
 			const { transformAsync } = (await import(babelCorePath)) as typeof import("@babel/core");

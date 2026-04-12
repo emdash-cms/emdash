@@ -273,6 +273,8 @@ export function MenuEditor() {
 									name="url"
 									type="text"
 									required
+									pattern="(https?://.+|/.*)"
+									title="Enter a URL (https://…) or a relative path (/…)"
 									placeholder="https://example.com or /about"
 								/>
 								<Select
@@ -415,6 +417,8 @@ export function MenuEditor() {
 									name="url"
 									type="text"
 									required
+									pattern="(https?://.+|/.*)"
+									title="Enter a URL (https://…) or a relative path (/…)"
 									defaultValue={editingItem.custom_url || ""}
 								/>
 							)}

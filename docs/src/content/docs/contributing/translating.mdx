@@ -1,0 +1,190 @@
+---
+title: Translating EmDash
+description: How to contribute translations for the EmDash admin UI.
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+EmDash's admin UI is translatable using [Lingui](https://lingui.dev) for message extraction and [Lunaria](https://lunaria.dev) for tracking translation progress. All translations live in PO (gettext) files — one per locale.
+
+## Translation status
+
+See the [translation dashboard](https://i18n.emdashcms.com) for current progress across all locales.
+
+## Who can translate
+
+Translations must come from **native or fluent speakers**. We don't accept machine-generated translations. If you use AI tools to assist, you must review every string by hand and test the result in context (see [Testing your translations](#testing-your-translations) below).
+
+We'd rather have no translation for a string than a bad one. A wrong translation is worse than showing the English fallback — it actively misleads users.
+
+## File structure
+
+Translation catalogs live in `packages/admin/src/locales/`:
+
+```
+packages/admin/src/locales/
+├── en/
+│   └── messages.po    # English (source)
+├── de/
+│   └── messages.po    # German
+└── ...
+```
+
+Each `.po` file contains `msgid`/`msgstr` pairs. The `msgid` is the English source text; the `msgstr` is your translation. Empty `msgstr` means "not yet translated" — Lingui will fall back to English at runtime.
+
+## Translating strings
+
+<Steps>
+
+1. **Check the [translation dashboard](https://i18n.emdashcms.com)** to see what needs work. Check open PRs to avoid duplicating effort.
+
+2. **Fork the repo and create a branch:**
+
+   ```bash
+   git checkout -b i18n/de
+   ```
+
+3. **Open your locale's PO file** (e.g., `packages/admin/src/locales/de/messages.po`).
+
+4. **Fill in translations.** Each entry looks like this:
+
+   ```po
+   #: packages/admin/src/components/LoginPage.tsx:304
+   msgid "Sign in with Passkey"
+   msgstr ""
+   ```
+
+   Fill in the `msgstr`:
+
+   ```po
+   #: packages/admin/src/components/LoginPage.tsx:304
+   msgid "Sign in with Passkey"
+   msgstr "Mit Passkey anmelden"
+   ```
+
+5. **Test your translations** (see below).
+
+6. **Open a PR** targeting `main`. Title format: `i18n(de): add/update German translations`.
+
+</Steps>
+
+### What to translate
+
+- The `msgstr` value for each entry.
+
+### What NOT to translate
+
+- `msgid` values — these are lookup keys.
+- Interpolation placeholders like `{error}`, `{email}`, `{label}` — keep them exactly as-is.
+- XML-style tags like `<0>`, `</0>` — these wrap interactive elements (links, buttons). Keep the tags and translate the text between them.
+- Comments starting with `#:` — these are source references added by Lingui.
+
+### Interpolation and tags
+
+Some strings contain placeholders and tags:
+
+```po
+msgid "Authentication error: {error}"
+msgstr "Authentifizierungsfehler: {error}"
+
+msgid "Don't have an account? <0>Sign up</0>"
+msgstr "Noch kein Konto? <0>Registrieren</0>"
+
+msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
+msgstr "Falls ein Konto für <0>{email}</0> existiert, haben wir einen Anmeldelink gesendet."
+```
+
+Placeholders (`{error}`, `{email}`) are replaced with dynamic values at runtime. Tags (`<0>...</0>`) wrap React components. Both must appear in your translation exactly as they appear in the source — same names, same nesting.
+
+## Testing your translations
+
+<Aside type="caution">
+Always test your translations in the running admin UI. Strings that read well in isolation can look wrong in context — truncated buttons, broken layouts, or awkward phrasing that only shows up when you see the actual screen.
+</Aside>
+
+<Steps>
+
+1. **Add your locale to `SUPPORTED_LOCALES`** in `packages/admin/src/locales/config.ts`:
+
+   ```ts
+   export const SUPPORTED_LOCALES: SupportedLocale[] = [
+     { code: "en", label: "English" },
+     { code: "de", label: "Deutsch" }, // add your locale
+   ].filter((l) => validateLocaleCode(l.code));
+   ```
+
+2. **Compile and run the demo:**
+
+   ```bash
+   pnpm run locale:compile
+   pnpm build
+   pnpm --filter emdash-demo dev
+   ```
+
+3. **Switch locale** in the admin Settings page and verify your translations look correct in context.
+
+</Steps>
+
+<Aside>
+Don't include the `config.ts` change in your PR — we'll add your locale to the supported list once the translation reaches sufficient coverage.
+</Aside>
+
+## Adding a new language
+
+If your language doesn't have a PO file yet:
+
+<Steps>
+
+1. **Add the locale to `lingui.config.ts`** at the repo root:
+
+   ```ts
+   locales: ["en", "de", "fr"],  // add your locale code
+   ```
+
+2. **Add it to `lunaria.config.ts`:**
+
+   ```ts
+   locales: [
+     { label: "Deutsch", lang: "de" },
+     { label: "Français", lang: "fr" },  // add yours
+   ],
+   ```
+
+3. **Run extraction** to generate the empty PO file:
+
+   ```bash
+   pnpm run locale:extract
+   ```
+
+   This creates `packages/admin/src/locales/{your-locale}/messages.po` with all strings ready to translate.
+
+4. **Translate and test** following the steps above.
+
+</Steps>
+
+## Translation standards
+
+### Accuracy
+
+Translations should faithfully represent the English source text at a native speaker's level. Don't add, remove, or reinterpret meaning. If a source string is ambiguous, check the `#:` comment for the source file location — read the component code to understand the context.
+
+### Consistency
+
+Use consistent terminology within your locale. If you translate "collection" as "Sammlung" in one place, don't switch to "Kollektion" elsewhere. If your language already has translations, read through the existing PO file before starting to match the established terminology.
+
+### Tone
+
+The admin UI uses a direct, professional tone. Match that in your language — avoid overly formal or overly casual phrasing.
+
+### AI-assisted translations
+
+You may use AI tools to draft translations, but:
+
+- You **must** review every string yourself. AI tools make subtle errors that only a fluent speaker would catch — wrong register, unnatural phrasing, incorrect technical terms.
+- You **must** test the result in the running admin UI. AI tools have no awareness of layout constraints or UI context.
+- Disclose AI usage in your PR description.
+- PRs with obvious unreviewed machine translations will be closed.
+
+## Partial translations
+
+Partial translations are welcome. You don't need to translate every string in one PR — any progress helps. Untranslated strings will fall back to English at runtime.

@@ -401,11 +401,14 @@ export class EmDashRuntime {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
 			this.enabledPlugins.add(pluginId);
+			await this.rebuildHookPipeline();
+			await this._hooks.runPluginActivate(pluginId);
 		} else {
+			// Fire deactivate on the current pipeline while the plugin is still in it
+			await this._hooks.runPluginDeactivate(pluginId);
 			this.enabledPlugins.delete(pluginId);
+			await this.rebuildHookPipeline();
 		}
-
-		await this.rebuildHookPipeline();
 	}
 
 	/**
@@ -1154,7 +1157,10 @@ export class EmDashRuntime {
 						label?: string;
 						required?: boolean;
 						widget?: string;
-						options?: Array<{ value: string; label: string }>;
+						// Two shapes: legacy enum-style `[{ value, label }]` for select widgets,
+						// or arbitrary `Record<string, unknown>` for plugin field widgets that
+						// need per-field config (e.g. a checkbox grid receiving its column defs).
+						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					}
 				> = {};
 
@@ -1166,7 +1172,14 @@ export class EmDashRuntime {
 							required: field.required,
 						};
 						if (field.widget) entry.widget = field.widget;
-						// Include select/multiSelect options from validation
+						// Plugin field widgets read their per-field config from `field.options`,
+						// which the seed schema types as `Record<string, unknown>`. Pass it
+						// through to the manifest so plugin widgets in the admin SPA receive it.
+						if (field.options) {
+							entry.options = field.options;
+						}
+						// Legacy: select/multiSelect enum options live on `field.validation.options`.
+						// Wins over `field.options` to preserve existing behavior for enum widgets.
 						if (field.validation?.options) {
 							entry.options = field.validation.options.map((v) => ({
 								value: v,
@@ -1244,8 +1257,8 @@ export class EmDashRuntime {
 				version: plugin.version,
 				enabled,
 				adminMode,
-				adminPages: plugin.admin?.pages,
-				dashboardWidgets: plugin.admin?.widgets,
+				adminPages: plugin.admin?.pages ?? [],
+				dashboardWidgets: plugin.admin?.widgets ?? [],
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
 			};
@@ -1267,8 +1280,8 @@ export class EmDashRuntime {
 				enabled,
 				sandboxed: true,
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
-				adminPages: entry.adminPages,
-				dashboardWidgets: entry.adminWidgets,
+				adminPages: entry.adminPages ?? [],
+				dashboardWidgets: entry.adminWidgets ?? [],
 			};
 		}
 
@@ -1290,15 +1303,41 @@ export class EmDashRuntime {
 				enabled,
 				sandboxed: true,
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
-				adminPages: pages,
-				dashboardWidgets: widgets,
+				adminPages: pages ?? [],
+				dashboardWidgets: widgets ?? [],
 			};
 		}
 
-		// Generate hash from both collections and plugins so cache invalidates
-		// when plugins are enabled/disabled or their config changes
+		// Build taxonomies from database
+		let manifestTaxonomies: Array<{
+			name: string;
+			label: string;
+			labelSingular?: string;
+			hierarchical: boolean;
+			collections: string[];
+		}> = [];
+		try {
+			const rows = await this.db
+				.selectFrom("_emdash_taxonomy_defs")
+				.selectAll()
+				.orderBy("name")
+				.execute();
+			manifestTaxonomies = rows.map((row) => ({
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular ?? undefined,
+				hierarchical: row.hierarchical === 1,
+				collections: row.collections ? (JSON.parse(row.collections) as string[]).toSorted() : [],
+			}));
+		} catch (error) {
+			console.debug("EmDash: Could not load taxonomy definitions:", error);
+		}
+
+		// Build manifest hash
 		const manifestHash = await hashString(
-			JSON.stringify(manifestCollections) + JSON.stringify(manifestPlugins),
+			JSON.stringify(manifestCollections) +
+				JSON.stringify(manifestPlugins) +
+				JSON.stringify(manifestTaxonomies),
 		);
 
 		// Determine auth mode
@@ -1317,6 +1356,7 @@ export class EmDashRuntime {
 			hash: manifestHash,
 			collections: manifestCollections,
 			plugins: manifestPlugins,
+			taxonomies: manifestTaxonomies,
 			authMode: authModeValue,
 			i18n,
 			marketplace: !!this.config.marketplace,
@@ -1805,7 +1845,10 @@ export class EmDashRuntime {
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
 		const trustedPlugin = this.configuredPlugins.find((p) => p.id === pluginId);
 		if (trustedPlugin && this.enabledPlugins.has(trustedPlugin.id)) {
-			const routeRegistry = new PluginRouteRegistry({ db: this.db });
+			const routeRegistry = new PluginRouteRegistry({
+				db: this.db,
+				emailPipeline: this.email ?? undefined,
+			});
 			routeRegistry.register(trustedPlugin);
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");

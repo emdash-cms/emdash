@@ -788,6 +788,9 @@ export async function handleContentPermanentDelete(
 				// Clean up comments for permanently deleted content
 				const commentRepo = new CommentRepository(trx);
 				await commentRepo.deleteByContent(collection, resolvedId);
+				// Clean up revisions for permanently deleted content
+				const revisionRepo = new RevisionRepository(trx);
+				await revisionRepo.deleteByEntry(collection, resolvedId);
 			}
 
 			return wasDeleted;

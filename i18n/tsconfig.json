@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"target": "es2022",
+		"strict": true,
+		"types": ["node"]
+	},
+	"include": ["build.ts"]
+}

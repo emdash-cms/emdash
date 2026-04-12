@@ -5,13 +5,14 @@
  * The resulting context is passed to EmDashHead / EmDashBodyStart / EmDashBodyEnd.
  */
 
-import type { PublicPageContext } from "../plugins/types.js";
+import type { BreadcrumbItem, PublicPageContext } from "../plugins/types.js";
 
 /** Fields shared by both input forms */
 interface PageContextFields {
 	kind: "content" | "custom";
 	pageType?: string;
 	title?: string | null;
+	pageTitle?: string | null;
 	description?: string | null;
 	canonical?: string | null;
 	image?: string | null;
@@ -31,6 +32,14 @@ interface PageContextFields {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/**
+	 * Breadcrumb trail for this page, root first. Pass an empty array
+	 * to explicitly opt out of breadcrumbs (e.g. homepage), or omit the
+	 * field to let consumers fall back to their own derivation.
+	 */
+	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 /** Input with Astro global -- used in .astro files */
@@ -76,6 +85,7 @@ export function createPublicPageContext(input: CreatePublicPageContextInput): Pu
 		kind: input.kind,
 		pageType: input.pageType ?? (input.kind === "content" ? "article" : "website"),
 		title: input.title ?? null,
+		pageTitle: input.pageTitle ?? null,
 		description: input.description ?? null,
 		canonical: input.canonical ?? null,
 		image: input.image ?? null,
@@ -89,5 +99,7 @@ export function createPublicPageContext(input: CreatePublicPageContextInput): Pu
 		seo: input.seo,
 		articleMeta: input.articleMeta,
 		siteName: input.siteName,
+		breadcrumbs: input.breadcrumbs,
+		siteUrl: input.siteUrl,
 	};
 }
