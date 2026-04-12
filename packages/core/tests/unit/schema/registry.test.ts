@@ -431,8 +431,7 @@ describe("SchemaRegistry", () => {
 				type: "string",
 				searchable: true,
 			});
-			// Enable FTS first
-			await ftsManager.enableSearch("articles");
+			// createField auto-syncs; verify FTS is live before testing the disable path
 			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
 
 			await registry.updateCollection("articles", { supports: ["drafts"] });
@@ -452,7 +451,8 @@ describe("SchemaRegistry", () => {
 				type: "string",
 				searchable: true,
 			});
-			await ftsManager.enableSearch("articles");
+			// createField auto-syncs; verify FTS is live before adding the second field
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
 
 			// Add a second searchable field — FTS table must be rebuilt to include it
 			await registry.createField("articles", {
@@ -512,10 +512,29 @@ describe("SchemaRegistry", () => {
 				type: "string",
 				searchable: true,
 			});
-			await ftsManager.enableSearch("articles");
+			// createField auto-syncs; verify FTS is live before testing collection deletion
 			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
 
 			await registry.deleteCollection("articles");
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("disables FTS when the last searchable field is deleted", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.deleteField("articles", "title");
 
 			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
 		});
