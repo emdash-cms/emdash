@@ -1,7 +1,3 @@
-// Pre-initialize i18n before any client modules load
-// eslint-disable-next-line import/no-unassigned-import
-import "./locales/init.js";
-
 // Main App
 export { AdminApp, default as App } from "./App";
 
