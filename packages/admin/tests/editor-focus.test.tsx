@@ -46,7 +46,7 @@ function TestEditor({ spotlightMode = false }: { spotlightMode?: boolean }) {
 
 describe("Editor Focus Mode", () => {
 	it("Focus extension is configured correctly", async () => {
-		render(<TestEditor />);
+		void render(<TestEditor />);
 
 		// Wait for editor to initialize (not just loading state)
 		await vi.waitFor(
@@ -70,7 +70,7 @@ describe("Editor Focus Mode", () => {
 	});
 
 	it("spotlight mode applies CSS class to editor wrapper", async () => {
-		render(<TestEditor spotlightMode={true} />);
+		void render(<TestEditor spotlightMode={true} />);
 
 		// Wait for editor to initialize
 		await vi.waitFor(
@@ -86,7 +86,7 @@ describe("Editor Focus Mode", () => {
 	});
 
 	it("non-spotlight mode does not have spotlight-mode class", async () => {
-		render(<TestEditor spotlightMode={false} />);
+		void render(<TestEditor spotlightMode={false} />);
 
 		// Wait for editor to initialize
 		await vi.waitFor(
