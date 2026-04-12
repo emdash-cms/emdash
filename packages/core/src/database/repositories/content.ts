@@ -1083,6 +1083,7 @@ export class ContentRepository {
 		for (const [key, value] of Object.entries(data)) {
 			if (SYSTEM_COLUMNS.has(key)) continue;
 			if (key.startsWith("_")) continue; // revision metadata
+			validateIdentifier(key, "content field name");
 			updates[key] = serializeValue(value);
 		}
 
