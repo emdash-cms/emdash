@@ -349,9 +349,7 @@ export function createMcpServer(): McpServer {
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
 				if (itemId) {
-					const published = await emdash.handleContentPublish(args.collection, itemId);
-					if (!published.success) return unwrap(published);
-					return unwrap(published);
+					return unwrap(await emdash.handleContentPublish(args.collection, itemId));
 				}
 				return unwrap(result);
 			}
@@ -414,7 +412,7 @@ export function createMcpServer(): McpServer {
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 
-			// Publishing requires publish permission — update data then publish via dedicated handler
+			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
 				requireOwnership(
 					extra,
@@ -422,7 +420,6 @@ export function createMcpServer(): McpServer {
 					"content:publish_own",
 					"content:publish_any",
 				);
-				// Apply data/slug updates first (if any), then publish
 				if (args.data || args.slug) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data: args.data,
@@ -435,11 +432,29 @@ export function createMcpServer(): McpServer {
 				return unwrap(await emdash.handleContentPublish(args.collection, resolvedId));
 			}
 
+			if (args.status === "draft") {
+				requireOwnership(
+					extra,
+					extractContentAuthorId(existing.data),
+					"content:publish_own",
+					"content:publish_any",
+				);
+				if (args.data || args.slug) {
+					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
+						data: args.data,
+						slug: args.slug,
+						authorId: userId,
+						_rev: args._rev,
+					});
+					if (!updateResult.success) return unwrap(updateResult);
+				}
+				return unwrap(await emdash.handleContentUnpublish(args.collection, resolvedId));
+			}
+
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
 					data: args.data,
 					slug: args.slug,
-					status: args.status,
 					authorId: userId,
 					_rev: args._rev,
 				}),
