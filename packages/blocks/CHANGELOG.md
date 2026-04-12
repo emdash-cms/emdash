@@ -1,5 +1,11 @@
 # @emdash-cms/blocks
 
+## 0.2.0
+
+### Patch Changes
+
+- [#246](https://github.com/emdash-cms/emdash/pull/246) [`e1349e3`](https://github.com/emdash-cms/emdash/commit/e1349e342f90227c50f253cc2c1fbda0bc288a39) Thanks [@estepanov](https://github.com/estepanov)! - Adds overflow-hidden and text-ellipsis to field value elements, with a title attribute for full-text tooltip on hover
+
 ## 0.1.0
 
 ### Minor Changes
