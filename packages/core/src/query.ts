@@ -427,8 +427,15 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 			if (isPreviewMode && !isEditMode) {
 				const dbId = entryDatabaseId(baseEntry);
 				if (preview!.id !== dbId && preview!.id !== id) {
-					// Token doesn't match this entry — fall through to published-only path
-					break;
+					// Token doesn't match — serve only if publicly visible, without draft access
+					if (isVisible(baseEntry)) {
+						return successResult(wrapEntry(baseEntry), {
+							isPreview: false,
+							fallbackLocale,
+							cacheHint: cacheHint ?? {},
+						});
+					}
+					return { entry: null, isPreview: false, cacheHint: {} };
 				}
 			}
 
