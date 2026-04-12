@@ -101,6 +101,7 @@ export class FTSManager {
 	 * Create triggers to keep FTS table in sync with content table
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
+		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
 		const fieldList = searchableFields.join(", ");
@@ -147,6 +148,7 @@ export class FTSManager {
 	 * Drop triggers for a collection
 	 */
 	private async dropTriggers(collectionSlug: string): Promise<void> {
+		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
 		await sql.raw(`DROP TRIGGER IF EXISTS "${ftsTable}_insert"`).execute(this.db);
