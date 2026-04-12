@@ -21,7 +21,7 @@ interface Props {
 }
 
 const { title, pageTitle, description, image, canonical, content } = Astro.props;
-const { siteTitle, siteTagline } = resolveStarterSiteIdentity(await getSiteSettings());
+const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveStarterSiteIdentity(await getSiteSettings());
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 const pageDescription = description ?? siteTagline;
 
@@ -47,6 +47,7 @@ const pageCtx = createPublicPageContext({
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		{pageDescription && <meta name="description" content={pageDescription} />}
 		{canonical && <link rel="canonical" href={canonical} />}
 		<EmDashHead page={pageCtx} />
@@ -56,7 +57,12 @@ const pageCtx = createPublicPageContext({
 
 		<header>
 			<nav>
-				<a href="/">{siteTitle}</a>
+				<a href="/">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} style="height:48px;width:auto;margin:-8px 0;display:block;" />
+						: siteTitle
+					}
+				</a>
 				{
 					menu?.items.map((item) => (
 						<a href={item.url} target={item.target}>

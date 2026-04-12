@@ -15,6 +15,7 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"build": "pnpm run --filter {./packages/**} build",
+		"postbuild": "node scripts/relink-bins-if-needed.mjs",
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
 		"format:astro": "prettier --write .",
@@ -26,7 +27,8 @@
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
-		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
+		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"
 	},
 	"keywords": [],
 	"author": "Matt Kane",

@@ -251,6 +251,26 @@ describe("RedirectRepository", () => {
 		});
 	});
 
+	// --- findAllEnabled -----------------------------------------------------
+
+	describe("findAllEnabled", () => {
+		it("returns only enabled redirects", async () => {
+			await repo.create({ source: "/a", destination: "/b", enabled: true });
+			await repo.create({ source: "/c", destination: "/d", enabled: false });
+			await repo.create({ source: "/e", destination: "/f", enabled: true });
+
+			const result = await repo.findAllEnabled();
+			expect(result).toHaveLength(2);
+			expect(result.every((r) => r.enabled)).toBe(true);
+		});
+
+		it("returns empty array when no enabled redirects", async () => {
+			await repo.create({ source: "/a", destination: "/b", enabled: false });
+			const result = await repo.findAllEnabled();
+			expect(result).toHaveLength(0);
+		});
+	});
+
 	// --- Matching -----------------------------------------------------------
 
 	describe("matchPath", () => {
