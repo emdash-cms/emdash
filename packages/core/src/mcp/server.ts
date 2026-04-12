@@ -386,7 +386,9 @@ export function createMcpServer(): McpServer {
 				status: z
 					.enum(["draft", "published"])
 					.optional()
-					.describe("New status. Setting to 'published' requires publish permission."),
+					.describe(
+						"New status. Setting to 'published' requires publish permission. Setting to 'draft' unpublishes the item and also requires publish permission.",
+					),
 				_rev: z
 					.string()
 					.optional()
