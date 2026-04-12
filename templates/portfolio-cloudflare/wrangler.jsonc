@@ -1,8 +1,14 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "my-portfolio-site",
+	"main": "./src/worker.ts",
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
 	"d1_databases": [
 		{
 			"binding": "DB",
