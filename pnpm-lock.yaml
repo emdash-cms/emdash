@@ -1120,7 +1120,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.1.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1142,7 +1142,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.3.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1151,7 +1151,7 @@ importers:
   packages/plugins/atproto:
     dependencies:
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.1.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -1167,7 +1167,7 @@ importers:
   packages/plugins/audit-log:
     dependencies:
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.1.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -1180,7 +1180,7 @@ importers:
   packages/plugins/color:
     dependencies:
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.1.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1202,7 +1202,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.3.0
         version: link:../../core
 
   packages/plugins/forms:
@@ -1217,7 +1217,7 @@ importers:
         specifier: '>=6.0.0-beta.0'
         version: 6.0.0-beta.20(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.1.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1255,7 +1255,7 @@ importers:
   packages/plugins/webhook-notifier:
     dependencies:
       emdash:
-        specifier: workspace:*
+        specifier: workspace:>=0.2.0
         version: link:../../core
     devDependencies:
       tsdown:

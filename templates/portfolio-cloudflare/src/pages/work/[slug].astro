@@ -1,10 +1,10 @@
 ---
-import { getEmDashEntry, getEmDashCollection } from "emdash";
+import { getEmDashEntry, getEmDashCollection, decodeSlug } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
 	return Astro.redirect("/404");

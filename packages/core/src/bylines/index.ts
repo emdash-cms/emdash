@@ -199,8 +199,8 @@ async function getAuthorId(
 	collection: string,
 	entryId: string,
 ): Promise<string | null> {
+	validateIdentifier(collection, "collection");
 	const tableName = `ec_${collection}`;
-	validateIdentifier(tableName, "content table");
 
 	const result = await sql<{ author_id: string | null }>`
 		SELECT author_id FROM ${sql.ref(tableName)}
@@ -220,8 +220,8 @@ async function getAuthorIds(
 	collection: string,
 	entryIds: string[],
 ): Promise<Map<string, string>> {
+	validateIdentifier(collection, "collection");
 	const tableName = `ec_${collection}`;
-	validateIdentifier(tableName, "content table");
 
 	const map = new Map<string, string>();
 	for (const chunk of chunks(entryIds, SQL_BATCH_SIZE)) {

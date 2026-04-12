@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
 
+import { COMMIT, VERSION } from "../../version.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import {
 	VIRTUAL_CONFIG_ID,
@@ -278,6 +279,12 @@ export function createViteConfig(
 	const useSource = adminSourcePath !== undefined;
 
 	return {
+		// Astro SSR routes resolve version.ts from source (not tsdown dist),
+		// so Vite needs its own define pass for the __EMDASH_*__ placeholders.
+		define: {
+			__EMDASH_VERSION__: JSON.stringify(VERSION),
+			__EMDASH_COMMIT__: JSON.stringify(COMMIT),
+		},
 		resolve: {
 			dedupe: ["@emdash-cms/admin", "react", "react-dom"],
 			// Array form so more-specific entries are checked first.
@@ -286,10 +293,6 @@ export function createViteConfig(
 			// "@emdash-cms/admin/styles.css" through the source directory.
 			alias: [
 				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
-				{
-					find: "@emdash-cms/admin/locales/*",
-					replacement: resolve(adminDistPath, "locales", "*"),
-				},
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
 			],
 		},

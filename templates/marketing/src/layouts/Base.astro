@@ -2,6 +2,7 @@
 import { getMenu, getSiteSettings } from "emdash";
 import { EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
+import { Font } from "astro:assets";
 
 interface Props {
 	title?: string;
@@ -15,6 +16,9 @@ const siteTitle = settings?.title || "Acme";
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription =
 	settings?.tagline || "Build products people actually want";
+const siteLogo = (settings?.logo as any)?.url ? settings.logo as
+	{ mediaId: string; alt?: string; url: string } : null;
+const siteFavicon = (settings?.favicon as any)?.url ?? null;
 
 const menu = await getMenu("primary");
 
@@ -38,33 +42,13 @@ const pageCtx = createPublicPageContext({
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			rel="preload"
-			as="style"
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-		/>
-		<link
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-			rel="stylesheet"
-		/>
+		<Font cssVariable="--font-sans" preload />
 		<link
 			href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css"
 			rel="stylesheet"
 		/>
-		<style>
-			/* Fallback font with metrics adjusted to match Inter */
-			@font-face {
-				font-family: "Inter Fallback";
-				src: local("Arial");
-				size-adjust: 107%;
-				ascent-override: 90%;
-				descent-override: 25%;
-				line-gap-override: 0%;
-			}
-		</style>
 		<script is:inline>
 			// Apply theme immediately to prevent flash
 			(function () {
@@ -82,7 +66,12 @@ const pageCtx = createPublicPageContext({
 	<body>
 		<header class="site-header">
 			<nav class="nav">
-				<a href="/" class="site-logo">{siteTitle}</a>
+				<a href="/" class="site-logo">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						: siteTitle
+					}
+				</a>
 				<div class="nav-links">
 					{
 						menu?.items.map((item) => (
@@ -106,7 +95,12 @@ const pageCtx = createPublicPageContext({
 		<footer class="site-footer">
 			<div class="footer-content">
 				<div class="footer-brand">
-					<span class="footer-logo">{siteTitle}</span>
+					<span class="footer-logo">
+						{siteLogo
+							? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+							: siteTitle
+						}
+					</span>
 					<p class="footer-tagline">
 						{settings?.tagline || "Build something amazing"}
 					</p>
@@ -242,8 +236,6 @@ const pageCtx = createPublicPageContext({
 				--color-warning: #f59e0b;
 
 				/* Typography */
-				--font-sans:
-					"Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
 				--font-mono: ui-monospace, "SF Mono", monospace;
 
 				--font-size-xs: 0.75rem;
@@ -475,6 +467,13 @@ const pageCtx = createPublicPageContext({
 				background-clip: text;
 			}
 
+			.site-logo-img {
+				height: 48px;
+				width: auto;
+				display: block;
+				margin: -8px 0;
+			}
+
 			.nav-links {
 				display: flex;
 				flex-wrap: wrap;
@@ -552,6 +551,11 @@ const pageCtx = createPublicPageContext({
 				font-size: var(--font-size-xl);
 				font-weight: 800;
 				letter-spacing: -0.03em;
+			}
+
+			.footer-logo-img {
+				height: 24px;
+				width: auto;
 			}
 
 			.footer-tagline {

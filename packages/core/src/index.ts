@@ -102,6 +102,7 @@ export type {
 export { ulid } from "ulidx";
 export { computeContentHash, hashString } from "./utils/hash.js";
 export { sanitizeHref, isSafeHref } from "./utils/url.js";
+export { decodeSlug } from "./utils/slugify.js";
 
 // Live Collections query functions (loader is in emdash/runtime)
 export {
