@@ -16,8 +16,6 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { t } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Plus,
@@ -27,6 +25,9 @@ import {
 	Database,
 	FileText,
 } from "@phosphor-icons/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -56,75 +57,84 @@ export interface ContentTypeEditorProps {
 	onReorderFields?: (fieldSlugs: string[]) => void;
 }
 
-function buildSupportOptions() {
-	return [
-		{
-			value: "drafts",
-			label: t`Drafts`,
-			description: t`Save content as draft before publishing`,
-		},
-		{
-			value: "revisions",
-			label: t`Revisions`,
-			description: t`Track content history`,
-		},
-		{
-			value: "preview",
-			label: t`Preview`,
-			description: t`Preview content before publishing`,
-		},
-		{
-			value: "search",
-			label: t`Search`,
-			description: t`Enable full-text search on this collection`,
-		},
-	];
+interface SupportOptionDef {
+	value: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
 }
+
+const SUPPORT_OPTIONS: SupportOptionDef[] = [
+	{
+		value: "drafts",
+		label: msg`Drafts`,
+		description: msg`Save content as draft before publishing`,
+	},
+	{
+		value: "revisions",
+		label: msg`Revisions`,
+		description: msg`Track content history`,
+	},
+	{
+		value: "preview",
+		label: msg`Preview`,
+		description: msg`Preview content before publishing`,
+	},
+	{
+		value: "search",
+		label: msg`Search`,
+		description: msg`Enable full-text search on this collection`,
+	},
+];
 
 /**
  * System fields that exist on every collection
  * These are created automatically and cannot be modified
  */
-function buildSystemFields() {
-	return [
-		{
-			slug: "id",
-			label: t`ID`,
-			type: "text",
-			description: t`Unique identifier (ULID)`,
-		},
-		{
-			slug: "slug",
-			label: t`Slug`,
-			type: "text",
-			description: t`URL-friendly identifier`,
-		},
-		{
-			slug: "status",
-			label: t`Status`,
-			type: "text",
-			description: t`draft, published, or archived`,
-		},
-		{
-			slug: "created_at",
-			label: t`Created At`,
-			type: "datetime",
-			description: t`When the entry was created`,
-		},
-		{
-			slug: "updated_at",
-			label: t`Updated At`,
-			type: "datetime",
-			description: t`When the entry was last modified`,
-		},
-		{
-			slug: "published_at",
-			label: t`Published At`,
-			type: "datetime",
-			description: t`When the entry was published`,
-		},
-	];
+interface SystemFieldDef {
+	slug: string;
+	label: MessageDescriptor;
+	type: string;
+	description: MessageDescriptor;
 }
+
+const SYSTEM_FIELDS: SystemFieldDef[] = [
+	{
+		slug: "id",
+		label: msg`ID`,
+		type: "text",
+		description: msg`Unique identifier (ULID)`,
+	},
+	{
+		slug: "slug",
+		label: msg`Slug`,
+		type: "text",
+		description: msg`URL-friendly identifier`,
+	},
+	{
+		slug: "status",
+		label: msg`Status`,
+		type: "text",
+		description: msg`draft, published, or archived`,
+	},
+	{
+		slug: "created_at",
+		label: msg`Created At`,
+		type: "datetime",
+		description: msg`When the entry was created`,
+	},
+	{
+		slug: "updated_at",
+		label: msg`Updated At`,
+		type: "datetime",
+		description: msg`When the entry was last modified`,
+	},
+	{
+		slug: "published_at",
+		label: msg`Published At`,
+		type: "datetime",
+		description: msg`When the entry was published`,
+	},
+];
 
 /**
  * Content Type editor for creating/editing collections
@@ -139,12 +149,8 @@ export function ContentTypeEditor({
 	onDeleteField,
 	onReorderFields,
 }: ContentTypeEditorProps) {
-	const { i18n } = useLingui();
+	const { t } = useLingui();
 	const _navigate = useNavigate();
-
-	// Build i18n data
-	const SUPPORT_OPTIONS = React.useMemo(() => buildSupportOptions(), [i18n.locale]);
-	const SYSTEM_FIELDS = React.useMemo(() => buildSystemFields(), [i18n.locale]);
 
 	// Form state
 	const [slug, setSlug] = React.useState(collection?.slug ?? "");
@@ -428,8 +434,8 @@ export function ContentTypeEditor({
 											disabled={isFromCode}
 										/>
 										<div>
-											<span className="text-sm font-medium">{option.label}</span>
-											<p className="text-xs text-kumo-subtle">{option.description}</p>
+											<span className="text-sm font-medium">{t(option.label)}</span>
+											<p className="text-xs text-kumo-subtle">{t(option.description)}</p>
 										</div>
 									</label>
 								))}
@@ -739,24 +745,25 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 
 interface SystemFieldInfo {
 	slug: string;
-	label: string;
+	label: MessageDescriptor;
 	type: string;
-	description: string;
+	description: MessageDescriptor;
 }
 
 function SystemFieldRow({ field }: { field: SystemFieldInfo }) {
+	const { t } = useLingui();
 	return (
 		<div className="flex items-center px-4 py-2 opacity-75">
 			<div className="w-8" /> {/* Spacer for alignment with draggable fields */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
-					<span className="font-medium text-sm">{field.label}</span>
+					<span className="font-medium text-sm">{t(field.label)}</span>
 					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 					<Badge variant="secondary">System</Badge>
 				</div>
-				<p className="text-xs text-kumo-subtle mt-0.5">{field.description}</p>
+				<p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p>
 			</div>
 		</div>
 	);
