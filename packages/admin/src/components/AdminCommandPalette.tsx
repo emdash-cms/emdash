@@ -6,7 +6,8 @@
  */
 
 import { CommandPalette } from "@cloudflare/kumo";
-import { t } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	SquaresFour,
@@ -27,8 +28,14 @@ import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { apiFetch } from "../lib/api/client";
+import { apiFetch, type AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
+
+/** Subset of manifest fields used by the palette (matches `Shell` props shape). */
+type CommandPaletteManifest = {
+	collections: Record<string, { label: string; labelSingular?: string }>;
+	plugins: AdminManifest["plugins"];
+};
 
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
@@ -42,6 +49,23 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 // Detect macOS for keyboard shortcut display
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+
+/**
+ * Nav entry title: either a Lingui message descriptor (static copy) or a plain
+ * string from the manifest (collections / plugin pages). The macro does not
+ * support dynamic `msg({ id: … + runtime, message })` for extract, so API
+ * labels stay as `api` until a dedicated catalog pattern exists.
+ */
+type NavItemTitle =
+	| { kind: "i18n"; descriptor: MessageDescriptor }
+	| { kind: "api"; label: string };
+
+function navItemTitleText(
+	title: NavItemTitle,
+	translate: (d: MessageDescriptor) => string,
+): string {
+	return title.kind === "api" ? title.label : translate(title.descriptor);
+}
 
 /**
  * Custom hook for debouncing a value
@@ -77,7 +101,7 @@ interface SearchResponse {
 
 interface NavItem {
 	id: string;
-	title: string;
+	title: NavItemTitle;
 	to: string;
 	params?: Record<string, string>;
 	icon: React.ElementType;
@@ -86,7 +110,8 @@ interface NavItem {
 }
 
 interface ResultGroup {
-	label: string;
+	id: string;
+	label: MessageDescriptor;
 	items: ResultItem[];
 }
 
@@ -101,20 +126,7 @@ interface ResultItem {
 }
 
 interface AdminCommandPaletteProps {
-	manifest: {
-		collections: Record<string, { label: string; labelSingular?: string }>;
-		plugins: Record<
-			string,
-			{
-				package?: string;
-				enabled?: boolean;
-				adminPages?: Array<{
-					path: string;
-					label?: string;
-				}>;
-			}
-		>;
-	};
+	manifest: CommandPaletteManifest;
 }
 
 async function searchContent(query: string): Promise<SearchResponse> {
@@ -129,14 +141,11 @@ async function searchContent(query: string): Promise<SearchResponse> {
 	return body.data;
 }
 
-function buildNavItems(
-	manifest: AdminCommandPaletteProps["manifest"],
-	userRole: number,
-): NavItem[] {
+function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavItem[] {
 	const items: NavItem[] = [
 		{
 			id: "dashboard",
-			title: t`Dashboard`,
+			title: { kind: "i18n", descriptor: msg`Dashboard` },
 			to: "/",
 			icon: SquaresFour,
 			keywords: ["home", "overview"],
@@ -147,7 +156,7 @@ function buildNavItems(
 	for (const [name, config] of Object.entries(manifest.collections)) {
 		items.push({
 			id: `collection-${name}`,
-			title: config.label,
+			title: { kind: "api", label: config.label },
 			to: "/content/$collection",
 			params: { collection: name },
 			icon: FileText,
@@ -159,14 +168,14 @@ function buildNavItems(
 	items.push(
 		{
 			id: "media",
-			title: t`Media Library`,
+			title: { kind: "i18n", descriptor: msg`Media Library` },
 			to: "/media",
 			icon: Image,
 			keywords: ["images", "files", "uploads"],
 		},
 		{
 			id: "menus",
-			title: t`Menus`,
+			title: { kind: "i18n", descriptor: msg`Menus` },
 			to: "/menus",
 			icon: List,
 			minRole: ROLE_EDITOR,
@@ -174,7 +183,7 @@ function buildNavItems(
 		},
 		{
 			id: "widgets",
-			title: t`Widgets`,
+			title: { kind: "i18n", descriptor: msg`Widgets` },
 			to: "/widgets",
 			icon: GridFour,
 			minRole: ROLE_EDITOR,
@@ -182,7 +191,7 @@ function buildNavItems(
 		},
 		{
 			id: "sections",
-			title: t`Sections`,
+			title: { kind: "i18n", descriptor: msg`Sections` },
 			to: "/sections",
 			icon: Stack,
 			minRole: ROLE_EDITOR,
@@ -190,7 +199,7 @@ function buildNavItems(
 		},
 		{
 			id: "content-types",
-			title: t`Content Types`,
+			title: { kind: "i18n", descriptor: msg`Content Types` },
 			to: "/content-types",
 			icon: Database,
 			minRole: ROLE_ADMIN,
@@ -198,7 +207,7 @@ function buildNavItems(
 		},
 		{
 			id: "categories",
-			title: t`Categories`,
+			title: { kind: "i18n", descriptor: msg`Categories` },
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "category" },
 			icon: FileText,
@@ -207,7 +216,7 @@ function buildNavItems(
 		},
 		{
 			id: "tags",
-			title: t`Tags`,
+			title: { kind: "i18n", descriptor: msg`Tags` },
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "tag" },
 			icon: FileText,
@@ -216,7 +225,7 @@ function buildNavItems(
 		},
 		{
 			id: "users",
-			title: t`Users`,
+			title: { kind: "i18n", descriptor: msg`Users` },
 			to: "/users",
 			icon: Users,
 			minRole: ROLE_ADMIN,
@@ -224,7 +233,7 @@ function buildNavItems(
 		},
 		{
 			id: "plugins",
-			title: t`Plugins`,
+			title: { kind: "i18n", descriptor: msg`Plugins` },
 			to: "/plugins-manager",
 			icon: PuzzlePiece,
 			minRole: ROLE_ADMIN,
@@ -232,7 +241,7 @@ function buildNavItems(
 		},
 		{
 			id: "import",
-			title: t`Import`,
+			title: { kind: "i18n", descriptor: msg`Import` },
 			to: "/import/wordpress",
 			icon: Upload,
 			minRole: ROLE_ADMIN,
@@ -240,7 +249,7 @@ function buildNavItems(
 		},
 		{
 			id: "settings",
-			title: t`Settings`,
+			title: { kind: "i18n", descriptor: msg`Settings` },
 			to: "/settings",
 			icon: Gear,
 			minRole: ROLE_ADMIN,
@@ -248,7 +257,7 @@ function buildNavItems(
 		},
 		{
 			id: "security",
-			title: t`Security Settings`,
+			title: { kind: "i18n", descriptor: msg`Security Settings` },
 			to: "/settings/security",
 			icon: Gear,
 			minRole: ROLE_ADMIN,
@@ -270,7 +279,7 @@ function buildNavItems(
 
 				items.push({
 					id: `plugin-${pluginId}-${page.path}`,
-					title: label,
+					title: { kind: "api", label },
 					to: `/plugins/${pluginId}${page.path}`,
 					icon: PuzzlePiece,
 					keywords: ["plugin", pluginId],
@@ -283,21 +292,25 @@ function buildNavItems(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
-function filterNavItems(items: NavItem[], query: string): NavItem[] {
+function filterNavItems(
+	items: NavItem[],
+	query: string,
+	translate: (d: MessageDescriptor) => string,
+): NavItem[] {
 	if (!query) return items;
 	const lowerQuery = query.toLowerCase();
 	return items.filter((item) => {
-		const titleMatch = item.title.toLowerCase().includes(lowerQuery);
+		const titleMatch = navItemTitleText(item.title, translate).toLowerCase().includes(lowerQuery);
 		const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
 		return titleMatch || keywordMatch;
 	});
 }
 
 export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
+	const { t } = useLingui();
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
-	const { i18n } = useLingui();
 
 	// Debounce the search query to avoid flickering on every keystroke
 	const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -318,17 +331,13 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isWaitingForDebounce = query.length >= 2 && query !== debouncedQuery;
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
-	// Build navigation items — i18n.locale in deps so items rebuild on locale change
-	const allNavItems = React.useMemo(
-		() => buildNavItems(manifest, userRole),
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[manifest, userRole, i18n.locale],
-	);
+	// Build navigation items
+	const allNavItems = React.useMemo(() => buildNavItems(manifest, userRole), [manifest, userRole]);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(
-		() => filterNavItems(allNavItems, query),
-		[allNavItems, query],
+		() => filterNavItems(allNavItems, query, t),
+		[allNavItems, query, t],
 	);
 
 	// Build result groups
@@ -338,10 +347,11 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 		// Navigation group
 		if (filteredNavItems.length > 0) {
 			groups.push({
-				label: "Navigation",
+				id: "navigation",
+				label: msg`Navigation`,
 				items: filteredNavItems.map((item) => ({
 					id: item.id,
-					title: item.title,
+					title: navItemTitleText(item.title, t),
 					to: item.to,
 					params: item.params,
 					icon: <item.icon className="h-4 w-4" />,
@@ -353,25 +363,28 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 		if (searchResults?.items && searchResults.items.length > 0) {
 			const contentItems = searchResults.items.map((result) => {
 				const collectionConfig = manifest.collections[result.collection];
+				const collectionLabel = collectionConfig?.label ?? result.collection;
+
 				return {
 					id: `content-${result.id}`,
 					title: result.title || result.slug,
 					to: "/content/$collection/$id",
 					params: { collection: result.collection, id: result.id },
 					icon: <FileText className="h-4 w-4" />,
-					description: collectionConfig?.label || result.collection,
+					description: collectionLabel,
 					collection: result.collection,
 				};
 			});
 
 			groups.push({
-				label: "Content",
+				id: "content",
+				label: msg`Content`,
 				items: contentItems,
 			});
 		}
 
 		return groups;
-	}, [filteredNavItems, searchResults, manifest.collections]);
+	}, [filteredNavItems, searchResults, manifest.collections, t]);
 
 	// Keyboard shortcut to open (Cmd+K / Ctrl+K)
 	useHotkeys("mod+k", (e) => {
@@ -420,12 +433,12 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 			items={resultGroups}
 			value={query}
 			onValueChange={setQuery}
-			itemToStringValue={(group) => group.label}
+			itemToStringValue={(group) => t(group.label)}
 			onSelect={handleSelect}
 			getSelectableItems={(groups) => groups.flatMap((g) => g.items)}
 		>
 			<CommandPalette.Input
-				placeholder="Search pages and content..."
+				placeholder={t`Search pages and content...`}
 				leading={<MagnifyingGlass className="h-4 w-4 text-kumo-subtle" weight="bold" />}
 			/>
 			<CommandPalette.List>
@@ -435,8 +448,8 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 					<>
 						<CommandPalette.Results>
 							{(group: ResultGroup) => (
-								<CommandPalette.Group key={group.label} items={group.items}>
-									<CommandPalette.GroupLabel>{group.label}</CommandPalette.GroupLabel>
+								<CommandPalette.Group key={group.id} items={group.items}>
+									<CommandPalette.GroupLabel>{t(group.label)}</CommandPalette.GroupLabel>
 									<CommandPalette.Items>
 										{(item: ResultItem) => (
 											<CommandPalette.ResultItem
@@ -452,7 +465,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 								</CommandPalette.Group>
 							)}
 						</CommandPalette.Results>
-						<CommandPalette.Empty>No results found</CommandPalette.Empty>
+						<CommandPalette.Empty>{t`No results found`}</CommandPalette.Empty>
 					</>
 				)}
 			</CommandPalette.List>
@@ -460,17 +473,17 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 				<div className="flex items-center gap-4 text-kumo-subtle">
 					<span className="flex items-center gap-1">
 						<kbd className="rounded bg-kumo-control px-1.5 py-0.5 text-xs">Enter</kbd>
-						<span>to select</span>
+						<span>{t`to select`}</span>
 					</span>
 					<span className="flex items-center gap-1">
 						<kbd className="rounded bg-kumo-control px-1.5 py-0.5 text-xs">
 							{IS_MAC ? "Cmd" : "Ctrl"}+Enter
 						</kbd>
-						<span>new tab</span>
+						<span>{t`new tab`}</span>
 					</span>
 					<span className="flex items-center gap-1">
 						<kbd className="rounded bg-kumo-control px-1.5 py-0.5 text-xs">Esc</kbd>
-						<span>to close</span>
+						<span>{t`to close`}</span>
 					</span>
 				</div>
 			</CommandPalette.Footer>
