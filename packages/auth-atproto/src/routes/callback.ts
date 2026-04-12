@@ -26,7 +26,7 @@ import {
 } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { AuthProviderDescriptor } from "emdash";
-import { finalizeSetup, OptionsRepository } from "emdash/api/route-utils";
+import { finalizeSetup, getPublicOrigin, OptionsRepository } from "emdash/api/route-utils";
 
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
@@ -39,7 +39,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 
 	try {
 		const url = new URL(request.url);
-		const baseUrl = url.origin;
+		const baseUrl = getPublicOrigin(url, emdash?.config);
 
 		// Handle OAuth errors from PDS
 		const error = url.searchParams.get("error");

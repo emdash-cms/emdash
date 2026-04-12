@@ -16,6 +16,7 @@ import type { ActorIdentifier } from "@atcute/lexicons";
 import {
 	apiError,
 	apiSuccess,
+	getPublicOrigin,
 	handleError,
 	isParseError,
 	OptionsRepository,
@@ -53,7 +54,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Get OAuth client and generate authorization URL
 		const url = new URL(request.url);
-		const baseUrl = url.origin;
+		const baseUrl = getPublicOrigin(url, emdash?.config);
 		const { getAtprotoOAuthClient } = await import("@emdash-cms/auth-atproto/oauth-client");
 		const { getAtprotoStorage } = await import("../storage.js");
 		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);

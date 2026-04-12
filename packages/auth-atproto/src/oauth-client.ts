@@ -53,14 +53,6 @@ interface StorageCollectionLike<T = unknown> {
 
 type AuthProviderStorageMap = Record<string, StorageCollectionLike>;
 
-// Singleton OAuthClient instance (lazily created).
-// On Workers, the storage binding changes per request, so we store a mutable
-// reference that DB-backed stores read via a getter.
-let _client: OAuthClient | null = null;
-let _clientBaseUrl: string | null = null;
-let _currentStorage: AuthProviderStorageMap | null = null;
-let _clientHasStorage = false;
-
 function isLoopback(url: string): boolean {
 	try {
 		const parsed = new URL(url);
@@ -71,11 +63,11 @@ function isLoopback(url: string): boolean {
 }
 
 /**
- * Get or create the AT Protocol OAuth client.
+ * Create an AT Protocol OAuth client for a single request.
  *
- * The client is lazily initialized on first use and cached as a singleton.
- * The baseUrl must be the public-facing URL of the EmDash site
- * (used for client_id and redirect_uri).
+ * Constructed per-request to avoid leaking state between requests on Workers
+ * (where module-scope vars persist across isolate reuses) and between
+ * concurrent requests on Node.
  *
  * Uses a public client with PKCE in all environments:
  * - Loopback (localhost/127.0.0.1): No client metadata needed — PDS derives
@@ -91,21 +83,10 @@ export async function getAtprotoOAuthClient(
 	baseUrl: string,
 	storage?: AuthProviderStorageMap | null,
 ): Promise<OAuthClient> {
-	// Normalize localhost ↔ 127.0.0.1 so the singleton survives the OAuth
-	// round-trip (authorize uses localhost, callback arrives on 127.0.0.1).
+	// Normalize localhost ↔ 127.0.0.1 so the authorize and callback URLs match
+	// (authorize uses localhost, callback may arrive on 127.0.0.1).
 	if (isLoopback(baseUrl)) {
 		baseUrl = baseUrl.replace("://localhost", "://127.0.0.1");
-	}
-
-	// Update the mutable storage reference so cached DB-backed stores use
-	// the current request's binding (critical on Workers).
-	if (storage) _currentStorage = storage;
-
-	// Return cached client if baseUrl matches and store backend hasn't upgraded.
-	// If the cached client uses MemoryStore but storage is now available, recreate
-	// with DB-backed stores so state survives across Workers requests.
-	if (_client && _clientBaseUrl === baseUrl && (!storage || _clientHasStorage)) {
-		return _client;
 	}
 
 	const actorResolver = new LocalActorResolver({
@@ -125,20 +106,19 @@ export async function getAtprotoOAuthClient(
 
 	// Use plugin storage when available (required for multi-instance deployments
 	// like Cloudflare Workers where in-memory state doesn't survive across
-	// requests). Fall back to MemoryStore for local dev where the singleton
-	// process persists.
+	// requests). Fall back to MemoryStore for local dev.
 	const stores = storage
 		? {
 				sessions: createDbStore<Did, StoredSession>(
 					() =>
-						_currentStorage!.sessions as StorageCollectionLike<{
+						storage.sessions as StorageCollectionLike<{
 							value: StoredSession;
 							expiresAt: number | null;
 						}>,
 				),
 				states: createDbStore<string, StoredState>(
 					() =>
-						_currentStorage!.states as StorageCollectionLike<{
+						storage.states as StorageCollectionLike<{
 							value: StoredState;
 							expiresAt: number | null;
 						}>,
@@ -149,29 +129,14 @@ export async function getAtprotoOAuthClient(
 				states: new MemoryStore<string, StoredState>(),
 			};
 
-	let client: OAuthClient;
-
 	if (isLoopback(baseUrl)) {
 		// Loopback public client for local development.
 		// AT Protocol spec allows loopback IPs with public clients.
 		// No client metadata endpoints needed — the PDS derives
 		// metadata from the client_id URL parameters per RFC 8252.
 		// baseUrl is already normalized to 127.0.0.1 above (RFC 8252).
-		client = new OAuthClient({
+		return new OAuthClient({
 			metadata: {
-				redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
-				scope: "atproto transition:generic",
-			},
-			stores,
-			actorResolver,
-		});
-	} else {
-		// Public client for production (HTTPS).
-		// Uses PKCE for security — no client secret or key management needed.
-		// The PDS fetches the client metadata document to verify redirect_uris.
-		client = new OAuthClient({
-			metadata: {
-				client_id: `${baseUrl}/.well-known/atproto-client-metadata.json`,
 				redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
 				scope: "atproto transition:generic",
 			},
@@ -180,11 +145,18 @@ export async function getAtprotoOAuthClient(
 		});
 	}
 
-	_client = client;
-	_clientBaseUrl = baseUrl;
-	_clientHasStorage = !!storage;
-
-	return client;
+	// Public client for production (HTTPS).
+	// Uses PKCE for security — no client secret or key management needed.
+	// The PDS fetches the client metadata document to verify redirect_uris.
+	return new OAuthClient({
+		metadata: {
+			client_id: `${baseUrl}/.well-known/atproto-client-metadata.json`,
+			redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
+			scope: "atproto transition:generic",
+		},
+		stores,
+		actorResolver,
+	});
 }
 
 /**

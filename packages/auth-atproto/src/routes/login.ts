@@ -10,7 +10,14 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import type { ActorIdentifier } from "@atcute/lexicons";
-import { apiError, apiSuccess, handleError, isParseError, parseBody } from "emdash/api/route-utils";
+import {
+	apiError,
+	apiSuccess,
+	getPublicOrigin,
+	handleError,
+	isParseError,
+	parseBody,
+} from "emdash/api/route-utils";
 import { atprotoLoginBody } from "emdash/api/schemas";
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -25,7 +32,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const url = new URL(request.url);
-		const baseUrl = url.origin;
+		const baseUrl = getPublicOrigin(url, emdash?.config);
 
 		const { getAtprotoOAuthClient } = await import("@emdash-cms/auth-atproto/oauth-client");
 		const { getAtprotoStorage } = await import("../storage.js");

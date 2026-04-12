@@ -49,14 +49,14 @@ describe("getAtprotoOAuthClient (HTTPS - public client)", () => {
 		expect(client.metadata.scope).toBe("atproto transition:generic");
 	});
 
-	it("returns the same instance for the same baseUrl (singleton)", async () => {
+	it("creates a fresh instance per call (no shared state between requests)", async () => {
 		const { getAtprotoOAuthClient } = await freshImport();
 		const client1 = await getAtprotoOAuthClient("https://example.com");
 		const client2 = await getAtprotoOAuthClient("https://example.com");
-		expect(client1).toBe(client2);
+		expect(client1).not.toBe(client2);
 	});
 
-	it("creates a new instance when baseUrl changes", async () => {
+	it("creates distinct instances for different baseUrls", async () => {
 		const { getAtprotoOAuthClient } = await freshImport();
 		const client1 = await getAtprotoOAuthClient("https://example.com");
 		const client2 = await getAtprotoOAuthClient("https://other.com");
