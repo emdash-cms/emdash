@@ -293,10 +293,6 @@ export function createViteConfig(
 			// "@emdash-cms/admin/styles.css" through the source directory.
 			alias: [
 				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
-				{
-					find: "@emdash-cms/admin/locales/*",
-					replacement: resolve(adminDistPath, "locales", "*"),
-				},
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
 			],
 		},
