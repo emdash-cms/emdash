@@ -16,6 +16,9 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Plus,
@@ -25,9 +28,6 @@ import {
 	Database,
 	FileText,
 } from "@phosphor-icons/react";
-import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
