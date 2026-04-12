@@ -27,7 +27,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import type { AdminManifest } from "../src/lib/api";
 import { createAdminRouter } from "../src/router";
-import { render } from "../utils/render.tsx";
+import { render } from "./utils/render.tsx";
 import { createTestQueryClient, createMockFetch } from "./utils/test-helpers";
 
 // ---------------------------------------------------------------------------
