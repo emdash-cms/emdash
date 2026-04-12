@@ -162,6 +162,10 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const localIdx = args.indexOf("--local");
 const localPath = localIdx !== -1 ? args[localIdx + 1] : null;
+if (localIdx !== -1 && !localPath) {
+	console.error("Error: --local requires a path argument");
+	process.exit(1);
+}
 
 const catalog = parseCatalog();
 const workspace = collectWorkspaceVersions();
