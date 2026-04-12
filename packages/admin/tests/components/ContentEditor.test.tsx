@@ -297,7 +297,7 @@ describe("ContentEditor", () => {
 			await expect.element(savedBtn).toBeDisabled();
 		});
 
-		it("does not queue another autosave after a successful autosave", async () => {
+		it("keeps edited values after autosave completes without queuing another autosave", async () => {
 			vi.useFakeTimers();
 
 			try {
@@ -323,14 +323,20 @@ describe("ContentEditor", () => {
 				expect(onAutosave).toHaveBeenCalledTimes(1);
 
 				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				const autosavedItem = makeItem({
+					updatedAt: "2026-04-12T18:38:00Z",
+					data: { title: "Updated title", body: "Some content" },
+				});
 				await screen.rerender(
 					<ContentEditor
 						{...props}
+						item={autosavedItem}
 						isAutosaving={false}
-						lastAutosaveAt={new Date("2026-04-11T17:12:35Z")}
+						lastAutosaveAt={new Date("2026-04-12T18:38:00Z")}
 					/>,
 				);
 
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Updated title");
 				await vi.advanceTimersByTimeAsync(2500);
 				expect(onAutosave).toHaveBeenCalledTimes(1);
 			} finally {
