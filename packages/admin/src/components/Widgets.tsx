@@ -29,7 +29,8 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { t } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -76,32 +77,28 @@ function isPaletteItem(data: DragItemData): data is PaletteItemData {
 }
 
 /** Built-in widget types available in the palette */
-function buildBuiltinWidgets(): Array<{
+const BUILTIN_WIDGETS: Array<{
 	id: string;
-	label: string;
-	description: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
 	input: CreateWidgetInput;
-}> {
-	return [
-		{
-			id: "palette-content",
-			label: t`Content Block`,
-			description: t`Rich text content`,
-			input: { type: "content", title: t`Content Block` },
-		},
-		{
-			id: "palette-menu",
-			label: t`Menu`,
-			description: t`Display a navigation menu`,
-			input: { type: "menu", title: t`Menu` },
-		},
-	];
-}
+}> = [
+	{
+		id: "palette-content",
+		label: msg`Content Block`,
+		description: msg`Rich text content`,
+		input: { type: "content", title: "Content Block" },
+	},
+	{
+		id: "palette-menu",
+		label: msg`Menu`,
+		description: msg`Display a navigation menu`,
+		input: { type: "menu", title: "Menu" },
+	},
+];
 
 export function Widgets() {
-	const { i18n } = useLingui();
-	const BUILTIN_WIDGETS = React.useMemo(() => buildBuiltinWidgets(), [i18n.locale]);
-
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
@@ -377,8 +374,8 @@ export function Widgets() {
 									<DraggablePaletteItem
 										key={item.id}
 										id={item.id}
-										label={item.label}
-										description={item.description}
+										label={t(item.label)}
+										description={t(item.description)}
 										widgetInput={item.input}
 									/>
 								))}
