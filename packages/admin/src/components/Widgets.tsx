@@ -87,13 +87,13 @@ const BUILTIN_WIDGETS: Array<{
 		id: "palette-content",
 		label: msg`Content Block`,
 		description: msg`Rich text content`,
-		input: { type: "content", title: "Content Block" },
+		input: { type: "content" },
 	},
 	{
 		id: "palette-menu",
 		label: msg`Menu`,
 		description: msg`Display a navigation menu`,
-		input: { type: "menu", title: "Menu" },
+		input: { type: "menu" },
 	},
 ];
 
@@ -376,7 +376,7 @@ export function Widgets() {
 										id={item.id}
 										label={t(item.label)}
 										description={t(item.description)}
-										widgetInput={item.input}
+										widgetInput={{ ...item.input, title: t(item.label) }}
 									/>
 								))}
 								{components.map((comp) => (
