@@ -30,6 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -75,27 +76,32 @@ function isPaletteItem(data: DragItemData): data is PaletteItemData {
 }
 
 /** Built-in widget types available in the palette */
-const BUILTIN_WIDGETS: Array<{
+function buildBuiltinWidgets(): Array<{
 	id: string;
 	label: string;
 	description: string;
 	input: CreateWidgetInput;
-}> = [
-	{
-		id: "palette-content",
-		label: t`Content Block`,
-		description: t`Rich text content`,
-		input: { type: "content", title: t`Content Block` },
-	},
-	{
-		id: "palette-menu",
-		label: t`Menu`,
-		description: t`Display a navigation menu`,
-		input: { type: "menu", title: t`Menu` },
-	},
-];
+}> {
+	return [
+		{
+			id: "palette-content",
+			label: t`Content Block`,
+			description: t`Rich text content`,
+			input: { type: "content", title: t`Content Block` },
+		},
+		{
+			id: "palette-menu",
+			label: t`Menu`,
+			description: t`Display a navigation menu`,
+			input: { type: "menu", title: t`Menu` },
+		},
+	];
+}
 
 export function Widgets() {
+	const { i18n } = useLingui();
+	const BUILTIN_WIDGETS = React.useMemo(() => buildBuiltinWidgets(), [i18n.locale]);
+	
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);

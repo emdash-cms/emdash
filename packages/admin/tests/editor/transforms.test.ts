@@ -15,7 +15,9 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { blockTransforms } from "../../src/components/editor/BlockMenu";
+import { buildBlockTransforms } from "../../src/components/editor/BlockMenu";
+
+const blockTransforms = buildBlockTransforms();
 
 describe("Block Transforms", () => {
 	let editor: Editor;

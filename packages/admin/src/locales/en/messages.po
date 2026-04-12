@@ -42,11 +42,11 @@ msgid "90 days"
 msgstr "90 days"
 
 #: packages/admin/src/components/users/RoleBadge.tsx:34
-#: packages/admin/src/lib/api/api-tokens.ts:53
+#: packages/admin/src/lib/api/api-tokens.ts:50
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/WelcomeModal.tsx:25
+#: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Administrator"
 msgstr "Administrator"
 
@@ -66,9 +66,9 @@ msgstr "API Tokens"
 msgid "Authentication error: {error}"
 msgstr "Authentication error: {error}"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:37
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:39
 #: packages/admin/src/components/users/RoleBadge.tsx:24
-#: packages/admin/src/components/WelcomeModal.tsx:27
+#: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Author"
 msgstr "Author"
 
@@ -77,8 +77,8 @@ msgstr "Author"
 msgid "Back to login"
 msgstr "Back to login"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:99
-#: packages/admin/src/components/PortableTextEditor.tsx:727
+#: packages/admin/src/components/editor/BlockMenu.tsx:101
+#: packages/admin/src/components/PortableTextEditor.tsx:728
 msgid "Bullet List"
 msgstr "Bullet List"
 
@@ -114,21 +114,21 @@ msgstr "Choose your preferred admin language"
 msgid "Click the link in the email to sign in."
 msgstr "Click the link in the email to sign in."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:91
-#: packages/admin/src/components/PortableTextEditor.tsx:757
+#: packages/admin/src/components/editor/BlockMenu.tsx:93
+#: packages/admin/src/components/PortableTextEditor.tsx:758
 msgid "Code Block"
 msgstr "Code Block"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1423
+#: packages/admin/src/components/PortableTextEditor.tsx:1425
 msgid "Content"
 msgstr "Content"
 
-#: packages/admin/src/components/Widgets.tsx:86
 #: packages/admin/src/components/Widgets.tsx:88
+#: packages/admin/src/components/Widgets.tsx:90
 msgid "Content Block"
 msgstr "Content Block"
 
-#: packages/admin/src/lib/api/api-tokens.ts:43
+#: packages/admin/src/lib/api/api-tokens.ts:44
 msgid "Content Read"
 msgstr "Content Read"
 
@@ -136,21 +136,21 @@ msgstr "Content Read"
 msgid "Content Types"
 msgstr "Content Types"
 
-#: packages/admin/src/lib/api/api-tokens.ts:46
+#: packages/admin/src/lib/api/api-tokens.ts:45
 msgid "Content Write"
 msgstr "Content Write"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:36
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
 #: packages/admin/src/components/users/RoleBadge.tsx:19
-#: packages/admin/src/components/WelcomeModal.tsx:28
+#: packages/admin/src/components/WelcomeModal.tsx:30
 msgid "Contributor"
 msgstr "Contributor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:728
+#: packages/admin/src/components/PortableTextEditor.tsx:729
 msgid "Create a bullet list"
 msgstr "Create a bullet list"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:738
+#: packages/admin/src/components/PortableTextEditor.tsx:739
 msgid "Create a numbered list"
 msgstr "Create a numbered list"
 
@@ -158,11 +158,11 @@ msgstr "Create a numbered list"
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Create personal access tokens for programmatic API access"
 
-#: packages/admin/src/lib/api/api-tokens.ts:47
+#: packages/admin/src/lib/api/api-tokens.ts:45
 msgid "Create, update, delete content"
 msgstr "Create, update, delete content"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:106
+#: packages/admin/src/components/ContentTypeEditor.tsx:110
 msgid "Created At"
 msgstr "Created At"
 
@@ -170,11 +170,11 @@ msgstr "Created At"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: packages/admin/src/components/Widgets.tsx:93
+#: packages/admin/src/components/Widgets.tsx:95
 msgid "Display a navigation menu"
 msgstr "Display a navigation menu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:767
+#: packages/admin/src/components/PortableTextEditor.tsx:768
 msgid "Divider"
 msgstr "Divider"
 
@@ -182,17 +182,17 @@ msgstr "Divider"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Don't have an account? <0>Sign up</0>"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:102
+#: packages/admin/src/components/ContentTypeEditor.tsx:106
 msgid "draft, published, or archived"
 msgstr "draft, published, or archived"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:61
+#: packages/admin/src/components/ContentTypeEditor.tsx:63
 msgid "Drafts"
 msgstr "Drafts"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:40
 #: packages/admin/src/components/users/RoleBadge.tsx:29
-#: packages/admin/src/components/WelcomeModal.tsx:26
+#: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Editor"
 msgstr "Editor"
 
@@ -205,15 +205,15 @@ msgid "Email address"
 msgstr "Email address"
 
 #. placeholder {0}: block.label.toLowerCase()
-#: packages/admin/src/components/PortableTextEditor.tsx:1435
+#: packages/admin/src/components/PortableTextEditor.tsx:1437
 msgid "Embed a {0}"
 msgstr "Embed a {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1438
+#: packages/admin/src/components/PortableTextEditor.tsx:1440
 msgid "Embeds"
 msgstr "Embeds"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:77
+#: packages/admin/src/components/ContentTypeEditor.tsx:79
 msgid "Enable full-text search on this collection"
 msgstr "Enable full-text search on this collection"
 
@@ -226,7 +226,7 @@ msgstr "Failed to send magic link"
 msgid "Full access"
 msgstr "Full access"
 
-#: packages/admin/src/lib/api/api-tokens.ts:53
+#: packages/admin/src/lib/api/api-tokens.ts:50
 msgid "Full admin access"
 msgstr "Full admin access"
 
@@ -234,22 +234,22 @@ msgstr "Full admin access"
 msgid "General"
 msgstr "General"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:59
-#: packages/admin/src/components/PortableTextEditor.tsx:697
+#: packages/admin/src/components/editor/BlockMenu.tsx:61
+#: packages/admin/src/components/PortableTextEditor.tsx:698
 msgid "Heading 1"
 msgstr "Heading 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:67
-#: packages/admin/src/components/PortableTextEditor.tsx:707
+#: packages/admin/src/components/editor/BlockMenu.tsx:69
+#: packages/admin/src/components/PortableTextEditor.tsx:708
 msgid "Heading 2"
 msgstr "Heading 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:75
-#: packages/admin/src/components/PortableTextEditor.tsx:717
+#: packages/admin/src/components/editor/BlockMenu.tsx:77
+#: packages/admin/src/components/PortableTextEditor.tsx:718
 msgid "Heading 3"
 msgstr "Heading 3"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:88
+#: packages/admin/src/components/ContentTypeEditor.tsx:92
 msgid "ID"
 msgstr "ID"
 
@@ -257,7 +257,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1405
+#: packages/admin/src/components/PortableTextEditor.tsx:1407
 msgid "Image"
 msgstr "Image"
 
@@ -265,23 +265,23 @@ msgstr "Image"
 msgid "Import"
 msgstr "Import"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:748
+#: packages/admin/src/components/PortableTextEditor.tsx:749
 msgid "Insert a blockquote"
 msgstr "Insert a blockquote"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:758
+#: packages/admin/src/components/PortableTextEditor.tsx:759
 msgid "Insert a code block"
 msgstr "Insert a code block"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:768
+#: packages/admin/src/components/PortableTextEditor.tsx:769
 msgid "Insert a horizontal rule"
 msgstr "Insert a horizontal rule"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1420
+#: packages/admin/src/components/PortableTextEditor.tsx:1422
 msgid "Insert a reusable section"
 msgstr "Insert a reusable section"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1406
+#: packages/admin/src/components/PortableTextEditor.tsx:1408
 msgid "Insert an image"
 msgstr "Insert an image"
 
@@ -289,7 +289,7 @@ msgstr "Insert an image"
 msgid "Language"
 msgstr "Language"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:698
+#: packages/admin/src/components/PortableTextEditor.tsx:699
 msgid "Large section heading"
 msgstr "Large section heading"
 
@@ -301,7 +301,7 @@ msgstr "Locale"
 msgid "Manage your passkeys and authentication"
 msgstr "Manage your passkeys and authentication"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1409
+#: packages/admin/src/components/PortableTextEditor.tsx:1411
 msgid "Media"
 msgstr "Media"
 
@@ -309,20 +309,20 @@ msgstr "Media"
 msgid "Media Library"
 msgstr "Media Library"
 
-#: packages/admin/src/lib/api/api-tokens.ts:49
+#: packages/admin/src/lib/api/api-tokens.ts:46
 msgid "Media Read"
 msgstr "Media Read"
 
-#: packages/admin/src/lib/api/api-tokens.ts:50
+#: packages/admin/src/lib/api/api-tokens.ts:47
 msgid "Media Write"
 msgstr "Media Write"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:708
+#: packages/admin/src/components/PortableTextEditor.tsx:709
 msgid "Medium section heading"
 msgstr "Medium section heading"
 
-#: packages/admin/src/components/Widgets.tsx:92
 #: packages/admin/src/components/Widgets.tsx:94
+#: packages/admin/src/components/Widgets.tsx:96
 msgid "Menu"
 msgstr "Menu"
 
@@ -330,7 +330,7 @@ msgstr "Menu"
 msgid "Menus"
 msgstr "Menus"
 
-#: packages/admin/src/lib/api/api-tokens.ts:52
+#: packages/admin/src/lib/api/api-tokens.ts:49
 msgid "Modify collection schemas"
 msgstr "Modify collection schemas"
 
@@ -338,8 +338,8 @@ msgstr "Modify collection schemas"
 msgid "No expiry"
 msgstr "No expiry"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:107
-#: packages/admin/src/components/PortableTextEditor.tsx:737
+#: packages/admin/src/components/editor/BlockMenu.tsx:109
+#: packages/admin/src/components/PortableTextEditor.tsx:738
 msgid "Numbered List"
 msgstr "Numbered List"
 
@@ -347,7 +347,7 @@ msgstr "Numbered List"
 msgid "Or continue with"
 msgstr "Or continue with"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:51
+#: packages/admin/src/components/editor/BlockMenu.tsx:53
 msgid "Paragraph"
 msgstr "Paragraph"
 
@@ -355,40 +355,40 @@ msgstr "Paragraph"
 msgid "Plugins"
 msgstr "Plugins"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:71
+#: packages/admin/src/components/ContentTypeEditor.tsx:73
 msgid "Preview"
 msgstr "Preview"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:72
+#: packages/admin/src/components/ContentTypeEditor.tsx:74
 msgid "Preview content before publishing"
 msgstr "Preview content before publishing"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:118
+#: packages/admin/src/components/ContentTypeEditor.tsx:122
 msgid "Published At"
 msgstr "Published At"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:83
-#: packages/admin/src/components/PortableTextEditor.tsx:747
+#: packages/admin/src/components/editor/BlockMenu.tsx:85
+#: packages/admin/src/components/PortableTextEditor.tsx:748
 msgid "Quote"
 msgstr "Quote"
 
-#: packages/admin/src/lib/api/api-tokens.ts:51
+#: packages/admin/src/lib/api/api-tokens.ts:48
 msgid "Read collection schemas"
 msgstr "Read collection schemas"
 
-#: packages/admin/src/lib/api/api-tokens.ts:43
+#: packages/admin/src/lib/api/api-tokens.ts:44
 msgid "Read content entries"
 msgstr "Read content entries"
 
-#: packages/admin/src/lib/api/api-tokens.ts:49
+#: packages/admin/src/lib/api/api-tokens.ts:46
 msgid "Read media files"
 msgstr "Read media files"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:66
+#: packages/admin/src/components/ContentTypeEditor.tsx:68
 msgid "Revisions"
 msgstr "Revisions"
 
-#: packages/admin/src/components/Widgets.tsx:87
+#: packages/admin/src/components/Widgets.tsx:89
 msgid "Rich text content"
 msgstr "Rich text content"
 
@@ -396,19 +396,19 @@ msgstr "Rich text content"
 msgid "Role {role}"
 msgstr "Role {role}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:62
+#: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "Save content as draft before publishing"
 msgstr "Save content as draft before publishing"
 
-#: packages/admin/src/lib/api/api-tokens.ts:51
+#: packages/admin/src/lib/api/api-tokens.ts:48
 msgid "Schema Read"
 msgstr "Schema Read"
 
-#: packages/admin/src/lib/api/api-tokens.ts:52
+#: packages/admin/src/lib/api/api-tokens.ts:49
 msgid "Schema Write"
 msgstr "Schema Write"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:76
+#: packages/admin/src/components/ContentTypeEditor.tsx:78
 msgid "Search"
 msgstr "Search"
 
@@ -416,7 +416,7 @@ msgstr "Search"
 msgid "Search engine optimization and verification"
 msgstr "Search engine optimization and verification"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1419
+#: packages/admin/src/components/PortableTextEditor.tsx:1421
 msgid "Section"
 msgstr "Section"
 
@@ -473,11 +473,11 @@ msgstr "Sign in with Passkey"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Site identity, logo, favicon, and reading preferences"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:94
+#: packages/admin/src/components/ContentTypeEditor.tsx:98
 msgid "Slug"
 msgstr "Slug"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:718
+#: packages/admin/src/components/PortableTextEditor.tsx:719
 msgid "Small section heading"
 msgstr "Small section heading"
 
@@ -489,13 +489,13 @@ msgstr "Social Links"
 msgid "Social media profile links"
 msgstr "Social media profile links"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:100
+#: packages/admin/src/components/ContentTypeEditor.tsx:104
 msgid "Status"
 msgstr "Status"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:35
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:37
 #: packages/admin/src/components/users/RoleBadge.tsx:14
-#: packages/admin/src/components/WelcomeModal.tsx:29
+#: packages/admin/src/components/WelcomeModal.tsx:31
 msgid "Subscriber"
 msgstr "Subscriber"
 
@@ -507,15 +507,15 @@ msgstr "Tags"
 msgid "The link will expire in 15 minutes."
 msgstr "The link will expire in 15 minutes."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:67
+#: packages/admin/src/components/ContentTypeEditor.tsx:69
 msgid "Track content history"
 msgstr "Track content history"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:90
+#: packages/admin/src/components/ContentTypeEditor.tsx:94
 msgid "Unique identifier (ULID)"
 msgstr "Unique identifier (ULID)"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:42
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:46
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -523,15 +523,15 @@ msgstr "Unknown"
 msgid "Unknown role"
 msgstr "Unknown role"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:112
+#: packages/admin/src/components/ContentTypeEditor.tsx:116
 msgid "Updated At"
 msgstr "Updated At"
 
-#: packages/admin/src/lib/api/api-tokens.ts:50
+#: packages/admin/src/lib/api/api-tokens.ts:47
 msgid "Upload and delete media"
 msgstr "Upload and delete media"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:96
+#: packages/admin/src/components/ContentTypeEditor.tsx:100
 msgid "URL-friendly identifier"
 msgstr "URL-friendly identifier"
 
@@ -551,15 +551,15 @@ msgstr "View email provider status and send test emails"
 msgid "We'll send you a link to sign in without a password."
 msgstr "We'll send you a link to sign in without a password."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:108
+#: packages/admin/src/components/ContentTypeEditor.tsx:112
 msgid "When the entry was created"
 msgstr "When the entry was created"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:114
+#: packages/admin/src/components/ContentTypeEditor.tsx:118
 msgid "When the entry was last modified"
 msgstr "When the entry was last modified"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:120
+#: packages/admin/src/components/ContentTypeEditor.tsx:124
 msgid "When the entry was published"
 msgstr "When the entry was published"
 

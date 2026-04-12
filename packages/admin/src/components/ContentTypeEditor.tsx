@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Plus,
@@ -55,71 +56,75 @@ export interface ContentTypeEditorProps {
 	onReorderFields?: (fieldSlugs: string[]) => void;
 }
 
-const SUPPORT_OPTIONS = [
-	{
-		value: "drafts",
-		label: t`Drafts`,
-		description: t`Save content as draft before publishing`,
-	},
-	{
-		value: "revisions",
-		label: t`Revisions`,
-		description: t`Track content history`,
-	},
-	{
-		value: "preview",
-		label: t`Preview`,
-		description: t`Preview content before publishing`,
-	},
-	{
-		value: "search",
-		label: t`Search`,
-		description: t`Enable full-text search on this collection`,
-	},
-];
+function buildSupportOptions() {
+	return [
+		{
+			value: "drafts",
+			label: t`Drafts`,
+			description: t`Save content as draft before publishing`,
+		},
+		{
+			value: "revisions",
+			label: t`Revisions`,
+			description: t`Track content history`,
+		},
+		{
+			value: "preview",
+			label: t`Preview`,
+			description: t`Preview content before publishing`,
+		},
+		{
+			value: "search",
+			label: t`Search`,
+			description: t`Enable full-text search on this collection`,
+		},
+	];
+}
 
 /**
  * System fields that exist on every collection
  * These are created automatically and cannot be modified
  */
-const SYSTEM_FIELDS = [
-	{
-		slug: "id",
-		label: t`ID`,
-		type: "text",
-		description: t`Unique identifier (ULID)`,
-	},
-	{
-		slug: "slug",
-		label: t`Slug`,
-		type: "text",
-		description: t`URL-friendly identifier`,
-	},
-	{
-		slug: "status",
-		label: t`Status`,
-		type: "text",
-		description: t`draft, published, or archived`,
-	},
-	{
-		slug: "created_at",
-		label: t`Created At`,
-		type: "datetime",
-		description: t`When the entry was created`,
-	},
-	{
-		slug: "updated_at",
-		label: t`Updated At`,
-		type: "datetime",
-		description: t`When the entry was last modified`,
-	},
-	{
-		slug: "published_at",
-		label: t`Published At`,
-		type: "datetime",
-		description: t`When the entry was published`,
-	},
-];
+function buildSystemFields() {
+	return [
+		{
+			slug: "id",
+			label: t`ID`,
+			type: "text",
+			description: t`Unique identifier (ULID)`,
+		},
+		{
+			slug: "slug",
+			label: t`Slug`,
+			type: "text",
+			description: t`URL-friendly identifier`,
+		},
+		{
+			slug: "status",
+			label: t`Status`,
+			type: "text",
+			description: t`draft, published, or archived`,
+		},
+		{
+			slug: "created_at",
+			label: t`Created At`,
+			type: "datetime",
+			description: t`When the entry was created`,
+		},
+		{
+			slug: "updated_at",
+			label: t`Updated At`,
+			type: "datetime",
+			description: t`When the entry was last modified`,
+		},
+		{
+			slug: "published_at",
+			label: t`Published At`,
+			type: "datetime",
+			description: t`When the entry was published`,
+		},
+	];
+}
 
 /**
  * Content Type editor for creating/editing collections
@@ -134,7 +139,12 @@ export function ContentTypeEditor({
 	onDeleteField,
 	onReorderFields,
 }: ContentTypeEditorProps) {
+	const { i18n } = useLingui();
 	const _navigate = useNavigate();
+
+	// Build i18n data
+	const SUPPORT_OPTIONS = React.useMemo(() => buildSupportOptions(), [i18n.locale]);
+	const SYSTEM_FIELDS = React.useMemo(() => buildSystemFields(), [i18n.locale]);
 
 	// Form state
 	const [slug, setSlug] = React.useState(collection?.slug ?? "");

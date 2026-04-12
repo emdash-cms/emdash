@@ -691,88 +691,90 @@ interface SlashCommandItem {
 /**
  * Default slash commands for built-in block types
  */
-const defaultSlashCommands: SlashCommandItem[] = [
-	{
-		id: "heading1",
-		title: t`Heading 1`,
-		description: t`Large section heading`,
-		icon: TextHOne,
-		aliases: ["h1", "title"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
+function buildDefaultSlashCommands(): SlashCommandItem[] {
+	return [
+		{
+			id: "heading1",
+			title: t`Heading 1`,
+			description: t`Large section heading`,
+			icon: TextHOne,
+			aliases: ["h1", "title"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
+			},
 		},
-	},
-	{
-		id: "heading2",
-		title: t`Heading 2`,
-		description: t`Medium section heading`,
-		icon: TextHTwo,
-		aliases: ["h2", "subtitle"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
+		{
+			id: "heading2",
+			title: t`Heading 2`,
+			description: t`Medium section heading`,
+			icon: TextHTwo,
+			aliases: ["h2", "subtitle"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
+			},
 		},
-	},
-	{
-		id: "heading3",
-		title: t`Heading 3`,
-		description: t`Small section heading`,
-		icon: TextHThree,
-		aliases: ["h3"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+		{
+			id: "heading3",
+			title: t`Heading 3`,
+			description: t`Small section heading`,
+			icon: TextHThree,
+			aliases: ["h3"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+			},
 		},
-	},
-	{
-		id: "bulletList",
-		title: t`Bullet List`,
-		description: t`Create a bullet list`,
-		icon: List,
-		aliases: ["ul", "unordered"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleBulletList().run();
+		{
+			id: "bulletList",
+			title: t`Bullet List`,
+			description: t`Create a bullet list`,
+			icon: List,
+			aliases: ["ul", "unordered"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).toggleBulletList().run();
+			},
 		},
-	},
-	{
-		id: "numberedList",
-		title: t`Numbered List`,
-		description: t`Create a numbered list`,
-		icon: ListNumbers,
-		aliases: ["ol", "ordered"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+		{
+			id: "numberedList",
+			title: t`Numbered List`,
+			description: t`Create a numbered list`,
+			icon: ListNumbers,
+			aliases: ["ol", "ordered"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+			},
 		},
-	},
-	{
-		id: "quote",
-		title: t`Quote`,
-		description: t`Insert a blockquote`,
-		icon: Quotes,
-		aliases: ["blockquote", "cite"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+		{
+			id: "quote",
+			title: t`Quote`,
+			description: t`Insert a blockquote`,
+			icon: Quotes,
+			aliases: ["blockquote", "cite"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+			},
 		},
-	},
-	{
-		id: "codeBlock",
-		title: t`Code Block`,
-		description: t`Insert a code block`,
-		icon: CodeBlock,
-		aliases: ["code", "pre", "```"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+		{
+			id: "codeBlock",
+			title: t`Code Block`,
+			description: t`Insert a code block`,
+			icon: CodeBlock,
+			aliases: ["code", "pre", "```"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+			},
 		},
-	},
-	{
-		id: "divider",
-		title: t`Divider`,
-		description: t`Insert a horizontal rule`,
-		icon: Minus,
-		aliases: ["hr", "---", "separator"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+		{
+			id: "divider",
+			title: t`Divider`,
+			description: t`Insert a horizontal rule`,
+			icon: Minus,
+			aliases: ["hr", "---", "separator"],
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+			},
 		},
-	},
-];
+	];
+}
 
 /**
  * Slash menu state
@@ -1397,7 +1399,7 @@ export function PortableTextEditor({
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
-		const cmds: SlashCommandItem[] = [...defaultSlashCommands];
+		const cmds: SlashCommandItem[] = [...buildDefaultSlashCommands()];
 
 		// Add image command
 		cmds.push({

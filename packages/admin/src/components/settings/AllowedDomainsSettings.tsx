@@ -7,6 +7,7 @@
 
 import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	Globe,
 	Plus,
@@ -31,18 +32,27 @@ import {
 	type AllowedDomain,
 } from "../../lib/api";
 
-const ROLES = [
-	{ value: 10, label: t`Subscriber` },
-	{ value: 20, label: t`Contributor` },
-	{ value: 30, label: t`Author` },
-	{ value: 40, label: t`Editor` },
-] as const;
 
-function getRoleName(level: number): string {
-	return ROLES.find((r) => r.value === level)?.label ?? t`Unknown`;
+function buildRoles() {
+	return [
+		{ value: 10, label: t`Subscriber` },
+		{ value: 20, label: t`Contributor` },
+		{ value: 30, label: t`Author` },
+		{ value: 40, label: t`Editor` },
+	];
+}
+
+function buildGetRoleName(roles: ReturnType<typeof buildRoles>) {
+	return (level: number): string => {
+		return roles.find((r) => r.value === level)?.label ?? t`Unknown`;
+	};
 }
 
 export function AllowedDomainsSettings() {
+	const { i18n } = useLingui();
+	const roles = React.useMemo(() => buildRoles(), [i18n.locale]);
+	const getRoleName = React.useMemo(() => buildGetRoleName(roles), [roles]);
+	
 	const queryClient = useQueryClient();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
 	const [editingDomain, setEditingDomain] = React.useState<AllowedDomain | null>(null);
@@ -336,18 +346,18 @@ export function AllowedDomainsSettings() {
 									/>
 								</div>
 								<div className="space-y-2">
-									<Select
-										label="Default Role"
-										value={String(newRole)}
-										onValueChange={(v) => v !== null && setNewRole(Number(v))}
-										items={Object.fromEntries(ROLES.map((r) => [String(r.value), r.label]))}
-									>
-										{ROLES.map((role) => (
-											<Select.Option key={role.value} value={String(role.value)}>
-												{role.label}
-											</Select.Option>
-										))}
-									</Select>
+								<Select
+									label="Default Role"
+									value={String(newRole)}
+									onValueChange={(v) => v !== null && setNewRole(Number(v))}
+									items={Object.fromEntries(roles.map((r) => [String(r.value), r.label]))}
+								>
+									{roles.map((role) => (
+										<Select.Option key={role.value} value={String(role.value)}>
+											{role.label}
+										</Select.Option>
+									))}
+								</Select>
 								</div>
 							</div>
 							<Button
@@ -404,9 +414,9 @@ export function AllowedDomainsSettings() {
 								onValueChange={(v) =>
 									v !== null && editingDomain && handleUpdateRole(editingDomain.domain, Number(v))
 								}
-								items={Object.fromEntries(ROLES.map((r) => [String(r.value), r.label]))}
+								items={Object.fromEntries(roles.map((r) => [String(r.value), r.label]))}
 							>
-								{ROLES.map((role) => (
+								{roles.map((role) => (
 									<Select.Option key={role.value} value={String(role.value)}>
 										{role.label}
 									</Select.Option>

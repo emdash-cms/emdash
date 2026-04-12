@@ -13,6 +13,7 @@
 import { Button } from "@cloudflare/kumo";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	DotsSixVertical,
 	Paragraph,
@@ -45,72 +46,74 @@ interface BlockTransform {
 	transform: (editor: Editor) => void;
 }
 
-const blockTransforms: BlockTransform[] = [
-	{
-		id: "paragraph",
-		label: t`Paragraph`,
-		icon: Paragraph,
-		transform: (editor) => {
-			editor.chain().focus().setNode("paragraph").run();
+function buildBlockTransforms(): BlockTransform[] {
+	return [
+		{
+			id: "paragraph",
+			label: t`Paragraph`,
+			icon: Paragraph,
+			transform: (editor) => {
+				editor.chain().focus().setNode("paragraph").run();
+			},
 		},
-	},
-	{
-		id: "heading1",
-		label: t`Heading 1`,
-		icon: TextHOne,
-		transform: (editor) => {
-			editor.chain().focus().setNode("heading", { level: 1 }).run();
+		{
+			id: "heading1",
+			label: t`Heading 1`,
+			icon: TextHOne,
+			transform: (editor) => {
+				editor.chain().focus().setNode("heading", { level: 1 }).run();
+			},
 		},
-	},
-	{
-		id: "heading2",
-		label: t`Heading 2`,
-		icon: TextHTwo,
-		transform: (editor) => {
-			editor.chain().focus().setNode("heading", { level: 2 }).run();
+		{
+			id: "heading2",
+			label: t`Heading 2`,
+			icon: TextHTwo,
+			transform: (editor) => {
+				editor.chain().focus().setNode("heading", { level: 2 }).run();
+			},
 		},
-	},
-	{
-		id: "heading3",
-		label: t`Heading 3`,
-		icon: TextHThree,
-		transform: (editor) => {
-			editor.chain().focus().setNode("heading", { level: 3 }).run();
+		{
+			id: "heading3",
+			label: t`Heading 3`,
+			icon: TextHThree,
+			transform: (editor) => {
+				editor.chain().focus().setNode("heading", { level: 3 }).run();
+			},
 		},
-	},
-	{
-		id: "blockquote",
-		label: t`Quote`,
-		icon: Quotes,
-		transform: (editor) => {
-			editor.chain().focus().toggleBlockquote().run();
+		{
+			id: "blockquote",
+			label: t`Quote`,
+			icon: Quotes,
+			transform: (editor) => {
+				editor.chain().focus().toggleBlockquote().run();
+			},
 		},
-	},
-	{
-		id: "codeBlock",
-		label: t`Code Block`,
-		icon: Code,
-		transform: (editor) => {
-			editor.chain().focus().toggleCodeBlock().run();
+		{
+			id: "codeBlock",
+			label: t`Code Block`,
+			icon: Code,
+			transform: (editor) => {
+				editor.chain().focus().toggleCodeBlock().run();
+			},
 		},
-	},
-	{
-		id: "bulletList",
-		label: t`Bullet List`,
-		icon: List,
-		transform: (editor) => {
-			editor.chain().focus().toggleBulletList().run();
+		{
+			id: "bulletList",
+			label: t`Bullet List`,
+			icon: List,
+			transform: (editor) => {
+				editor.chain().focus().toggleBulletList().run();
+			},
 		},
-	},
-	{
-		id: "orderedList",
-		label: t`Numbered List`,
-		icon: ListNumbers,
-		transform: (editor) => {
-			editor.chain().focus().toggleOrderedList().run();
+		{
+			id: "orderedList",
+			label: t`Numbered List`,
+			icon: ListNumbers,
+			transform: (editor) => {
+				editor.chain().focus().toggleOrderedList().run();
+			},
 		},
-	},
-];
+	];
+}
 
 interface BlockMenuProps {
 	editor: Editor;
@@ -126,6 +129,9 @@ interface BlockMenuProps {
  * Block Menu - floating menu for block-level actions
  */
 export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
+	const { i18n } = useLingui();
+	const blockTransforms = React.useMemo(() => buildBlockTransforms(), [i18n.locale]);
+	
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const stableOnClose = useStableCallback(onClose);
@@ -335,5 +341,5 @@ export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps
 	);
 }
 
-export { blockTransforms };
+export { buildBlockTransforms };
 export type { BlockTransform };

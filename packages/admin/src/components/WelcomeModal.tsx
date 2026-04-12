@@ -6,6 +6,7 @@
 
 import { Button, Dialog } from "@cloudflare/kumo";
 import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -21,12 +22,14 @@ interface WelcomeModalProps {
 }
 
 // Role labels
-function getRoleLabel(role: number): string {
-	if (role >= 50) return t`Administrator`;
-	if (role >= 40) return t`Editor`;
-	if (role >= 30) return t`Author`;
-	if (role >= 20) return t`Contributor`;
-	return t`Subscriber`;
+function buildGetRoleLabel() {
+	return (role: number): string => {
+		if (role >= 50) return t`Administrator`;
+		if (role >= 40) return t`Editor`;
+		if (role >= 30) return t`Author`;
+		if (role >= 20) return t`Contributor`;
+		return t`Subscriber`;
+	};
 }
 
 async function dismissWelcome(): Promise<void> {
@@ -39,6 +42,9 @@ async function dismissWelcome(): Promise<void> {
 }
 
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
+	const { i18n } = useLingui();
+	const getRoleLabel = React.useMemo(() => buildGetRoleLabel(), [i18n.locale]);
+	
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({
