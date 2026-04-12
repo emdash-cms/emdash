@@ -422,6 +422,16 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 
 			if (!baseEntry) continue; // Try next locale in chain
 
+			// Preview tokens are item-scoped: verify the resolved entry matches.
+			// Edit mode (authenticated editors) has collection-wide draft access.
+			if (isPreviewMode && !isEditMode) {
+				const dbId = entryDatabaseId(baseEntry);
+				if (preview!.id !== dbId && preview!.id !== id) {
+					// Token doesn't match this entry — fall through to published-only path
+					break;
+				}
+			}
+
 			// Check if entry has a draft revision — if so, re-fetch with revision data
 			const baseData = entryData(baseEntry);
 			const draftRevisionId = dataStr(baseData, "draftRevisionId") || undefined;

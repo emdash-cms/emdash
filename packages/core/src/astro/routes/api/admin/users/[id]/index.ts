@@ -109,6 +109,18 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			return apiError("SELF_ROLE_CHANGE", "Cannot change your own role", 400);
 		}
 
+		// Prevent demoting the last admin
+		if (role !== undefined && role < Role.ADMIN && targetUser.role === Role.ADMIN) {
+			const adminCount = await adapter.countAdmins();
+			if (adminCount <= 1) {
+				return apiError(
+					"LAST_ADMIN",
+					"Cannot demote the last admin. Promote another user first.",
+					400,
+				);
+			}
+		}
+
 		// Check email uniqueness if changing email
 		if (body.email && body.email !== targetUser.email) {
 			const existing = await adapter.getUserByEmail(body.email);

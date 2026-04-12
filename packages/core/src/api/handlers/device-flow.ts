@@ -306,8 +306,24 @@ export async function handleDeviceTokenExchange(
 			};
 		}
 
-		// Authorized! Generate tokens.
-		const scopes = JSON.parse(row.scopes) as string[];
+		// Atomically consume the device code using DELETE...RETURNING.
+		// This prevents TOCTOU: two concurrent requests race on the DELETE,
+		// and only one gets a row back.
+		const consumed = await db
+			.deleteFrom("_emdash_device_codes")
+			.where("device_code", "=", input.device_code)
+			.where("status", "=", "authorized")
+			.returningAll()
+			.executeTakeFirst();
+
+		if (!consumed) {
+			return {
+				success: false,
+				error: { code: "INVALID_GRANT", message: "Device code already consumed" },
+			};
+		}
+
+		const scopes = JSON.parse(consumed.scopes) as string[];
 
 		// Generate access token
 		const accessToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_ACCESS);
@@ -323,7 +339,7 @@ export async function handleDeviceTokenExchange(
 			.values({
 				token_hash: accessToken.hash,
 				token_type: "access",
-				user_id: row.user_id,
+				user_id: consumed.user_id!,
 				scopes: JSON.stringify(scopes),
 				client_type: "cli",
 				expires_at: accessExpires,
@@ -336,18 +352,12 @@ export async function handleDeviceTokenExchange(
 			.values({
 				token_hash: refreshToken.hash,
 				token_type: "refresh",
-				user_id: row.user_id,
+				user_id: consumed.user_id!,
 				scopes: JSON.stringify(scopes),
 				client_type: "cli",
 				expires_at: refreshExpires,
 				refresh_token_hash: null,
 			})
-			.execute();
-
-		// Consume the device code (delete it)
-		await db
-			.deleteFrom("_emdash_device_codes")
-			.where("device_code", "=", input.device_code)
 			.execute();
 
 		return {
