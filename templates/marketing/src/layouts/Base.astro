@@ -2,6 +2,7 @@
 import { getMenu, getSiteSettings } from "emdash";
 import { EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
+import { Font } from "astro:assets";
 
 interface Props {
 	title?: string;
@@ -43,32 +44,11 @@ const pageCtx = createPublicPageContext({
 		<title>{fullTitle}</title>
 		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			rel="preload"
-			as="style"
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-		/>
-		<link
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-			rel="stylesheet"
-		/>
+		<Font cssVariable="--font-sans" preload />
 		<link
 			href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css"
 			rel="stylesheet"
 		/>
-		<style>
-			/* Fallback font with metrics adjusted to match Inter */
-			@font-face {
-				font-family: "Inter Fallback";
-				src: local("Arial");
-				size-adjust: 107%;
-				ascent-override: 90%;
-				descent-override: 25%;
-				line-gap-override: 0%;
-			}
-		</style>
 		<script is:inline>
 			// Apply theme immediately to prevent flash
 			(function () {
@@ -256,8 +236,6 @@ const pageCtx = createPublicPageContext({
 				--color-warning: #f59e0b;
 
 				/* Typography */
-				--font-sans:
-					"Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
 				--font-mono: ui-monospace, "SF Mono", monospace;
 
 				--font-size-xs: 0.75rem;
