@@ -168,7 +168,7 @@ const workspace = collectWorkspaceVersions();
 
 console.log("Workspace packages:");
 for (const [name, version] of Object.entries(workspace)) {
-	console.log(`  ${name} = ${version}`);
+	console.log(`  ${name} = ${String(version)}`);
 }
 console.log("");
 
