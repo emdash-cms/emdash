@@ -258,6 +258,7 @@ export {
 	type ApiTokenInfo,
 	type ApiTokenCreateResult,
 	type CreateApiTokenInput,
+	type ApiTokenScopeValue,
 	API_TOKEN_SCOPES,
 	fetchApiTokens,
 	createApiToken,

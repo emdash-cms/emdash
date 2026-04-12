@@ -29,6 +29,9 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -76,25 +79,26 @@ function isPaletteItem(data: DragItemData): data is PaletteItemData {
 /** Built-in widget types available in the palette */
 const BUILTIN_WIDGETS: Array<{
 	id: string;
-	label: string;
-	description: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
 	input: CreateWidgetInput;
 }> = [
 	{
 		id: "palette-content",
-		label: "Content Block",
-		description: "Rich text content",
-		input: { type: "content", title: "Content Block" },
+		label: msg`Content Block`,
+		description: msg`Rich text content`,
+		input: { type: "content" },
 	},
 	{
 		id: "palette-menu",
-		label: "Menu",
-		description: "Display a navigation menu",
-		input: { type: "menu", title: "Menu" },
+		label: msg`Menu`,
+		description: msg`Display a navigation menu`,
+		input: { type: "menu" },
 	},
 ];
 
 export function Widgets() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
@@ -370,9 +374,9 @@ export function Widgets() {
 									<DraggablePaletteItem
 										key={item.id}
 										id={item.id}
-										label={item.label}
-										description={item.description}
-										widgetInput={item.input}
+										label={t(item.label)}
+										description={t(item.description)}
+										widgetInput={{ ...item.input, title: t(item.label) }}
 									/>
 								))}
 								{components.map((comp) => (
