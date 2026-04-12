@@ -57,7 +57,10 @@ sync_template() {
 		fi
 
 		if [[ -d "$src" ]]; then
-			# Use rsync for directories to preserve variant-specific files
+			# Clean up if dest exists but isn't a directory
+			if [[ -L "$dest" || ( -e "$dest" && ! -d "$dest" ) ]]; then
+				rm "$dest"
+			fi
 			mkdir -p "$dest"
 			rsync -a --delete \
 				--exclude="worker.ts" \
