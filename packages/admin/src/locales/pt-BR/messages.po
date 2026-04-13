@@ -2758,7 +2758,7 @@ msgstr "Gerencie os Plugins instalados. Ative ou desative Plugins para controlar
 
 #: packages/admin/src/components/MenuList.tsx:85
 msgid "Manage navigation menus for your site"
-msgstr "Gerencie menus de navegação do seu site"
+msgstr "Gerencie os menus de navegação do seu site"
 
 #: packages/admin/src/components/Redirects.tsx:334
 msgid "Manage URL redirects and view 404 errors."
@@ -3399,7 +3399,7 @@ msgstr "Parágrafo"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:266
 msgid "Parent"
-msgstr "Pai"
+msgstr "Ascendente"
 
 #: packages/admin/src/components/Redirects.tsx:490
 #: packages/admin/src/components/Redirects.tsx:496
@@ -3714,16 +3714,16 @@ msgstr "Referência"
 
 #: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
-msgstr "Registrar"
+msgstr "Cadastrar"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
 #: packages/admin/src/components/settings/SecuritySettings.tsx:224
 msgid "Register Passkey"
-msgstr "Registrar chave de acesso"
+msgstr "Cadastrar chave de acesso"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:83
 msgid "Registered user"
-msgstr "Usuário registrado"
+msgstr "Usuário cadastrado"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:266
 msgid "Registration was cancelled or timed out. Please try again."
@@ -5294,7 +5294,7 @@ msgstr "Aguardando chave de acesso..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:334
 msgid "Warn"
-msgstr "Aviso"
+msgstr "Alerta"
 
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1096
