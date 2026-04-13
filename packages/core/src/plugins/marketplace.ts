@@ -244,8 +244,15 @@ class MarketplaceClientImpl implements MarketplaceClient {
 		let response: Response;
 		try {
 			response = await fetch(bundleUrl, {
-				redirect: "follow",
+				redirect: "manual",
 			});
+			// Follow redirects manually to stay on the marketplace host
+			if (response.status >= 300 && response.status < 400) {
+				const location = response.headers.get("location");
+				if (location) {
+					response = await fetch(new URL(location, bundleUrl).href);
+				}
+			}
 		} catch (err) {
 			throw new MarketplaceUnavailableError(err);
 		}
