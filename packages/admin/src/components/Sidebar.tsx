@@ -56,6 +56,7 @@ export interface SidebarNavProps {
 			label: string;
 		}>;
 		version?: string;
+		commit?: string;
 		marketplace?: string;
 	};
 }
@@ -415,6 +416,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				<KumoSidebar.Footer>
 					<p className="emdash-nav-label px-3 py-2 text-[11px] text-white/30">
 						EmDash CMS v{manifest.version || "0.0.0"}
+						{manifest.commit && ` (${manifest.commit})`}
 					</p>
 				</KumoSidebar.Footer>
 			</KumoSidebar>

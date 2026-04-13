@@ -6,6 +6,7 @@ import { ulid } from "ulidx";
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
+import { validateIdentifier } from "../database/validate.js";
 import { FTSManager } from "../search/fts-manager.js";
 import {
 	type Collection,
@@ -684,6 +685,7 @@ export class SchemaRegistry {
 	 * Get table name for a collection
 	 */
 	private getTableName(slug: string): string {
+		validateIdentifier(slug, "collection slug");
 		return `ec_${slug}`;
 	}
 
@@ -691,6 +693,7 @@ export class SchemaRegistry {
 	 * Get column name for a field
 	 */
 	private getColumnName(slug: string): string {
+		validateIdentifier(slug, "field slug");
 		return slug;
 	}
 

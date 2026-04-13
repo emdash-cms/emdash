@@ -22,6 +22,7 @@ import { getAuthMode } from "./auth/mode.js";
 import { runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
+import { validateIdentifier } from "./database/validate.js";
 import { isLazyMigrationDialect } from "./db/lazy-migrations.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -38,6 +39,7 @@ import type {
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
+import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
 
@@ -1432,7 +1434,8 @@ export class EmDashRuntime {
 				: undefined;
 
 		return {
-			version: "0.1.0",
+			version: VERSION,
+			commit: COMMIT,
 			hash: manifestHash,
 			collections: manifestCollections,
 			plugins: manifestPlugins,
@@ -1629,6 +1632,7 @@ export class EmDashRuntime {
 							});
 
 							// Update entry to point to new draft (metadata only, not data columns)
+							validateIdentifier(collection, "collection");
 							const tableName = `ec_${collection}`;
 							await sql`
 								UPDATE ${sql.ref(tableName)}

@@ -18,11 +18,15 @@ import { execFileSync } from "node:child_process";
 import {
 	cpSync,
 	existsSync,
+	lstatSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
+	readlinkSync,
 	readdirSync,
 	rmSync,
+	symlinkSync,
+	unlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -117,6 +121,31 @@ function transformPackageJson(srcPath, catalog, workspace) {
 	return JSON.stringify(pkg, null, "\t") + "\n";
 }
 
+function lexists(p) {
+	try {
+		lstatSync(p);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function copyDirRecursive(src, dest) {
+	mkdirSync(dest, { recursive: true });
+	for (const entry of readdirSync(src, { withFileTypes: true })) {
+		const srcPath = join(src, entry.name);
+		const destPath = join(dest, entry.name);
+		if (entry.isSymbolicLink()) {
+			if (lexists(destPath)) unlinkSync(destPath);
+			symlinkSync(readlinkSync(srcPath), destPath);
+		} else if (entry.isDirectory()) {
+			copyDirRecursive(srcPath, destPath);
+		} else {
+			cpSync(srcPath, destPath);
+		}
+	}
+}
+
 function copyTemplateDir(src, dest) {
 	mkdirSync(dest, { recursive: true });
 
@@ -130,17 +159,19 @@ function copyTemplateDir(src, dest) {
 		const srcPath = join(src, entry.name);
 		const destPath = join(dest, entry.name);
 
-		if (entry.isDirectory()) {
-			// Remove existing dir in target so we get a clean copy
+		if (entry.isSymbolicLink()) {
+			if (lexists(destPath)) unlinkSync(destPath);
+			symlinkSync(readlinkSync(srcPath), destPath);
+		} else if (entry.isDirectory()) {
 			if (existsSync(destPath)) rmSync(destPath, { recursive: true });
-			cpSync(srcPath, destPath, { recursive: true });
+			copyDirRecursive(srcPath, destPath);
 		} else {
 			cpSync(srcPath, destPath);
 		}
 	}
 
 	// Remove files in dest that don't exist in src (except preserved ones)
-	const preserved = new Set(["README.md", "package.json", "pnpm-workspace.yaml"]);
+	const preserved = new Set(["README.md", "package.json"]);
 	for (const entry of readdirSync(dest, { withFileTypes: true })) {
 		if (preserved.has(entry.name)) continue;
 		if (EXCLUDE.has(entry.name)) continue;
@@ -261,16 +292,7 @@ try {
 	git(["checkout", "-B", branch], targetDir);
 	git(["add", "-A"], targetDir);
 	git(["commit", "-m", `chore: sync templates from emdash v${emdashVersion}`], targetDir);
-
-	// Fetch remote branch if it exists so --force-with-lease can compare
-	try {
-		git(["ls-remote", "--exit-code", "--heads", "origin", branch], targetDir);
-		git(["fetch", "origin", `refs/heads/${branch}:refs/remotes/origin/${branch}`], targetDir);
-	} catch {
-		// Branch doesn't exist on remote yet — that's fine
-	}
-
-	git(["push", "--force-with-lease", "-u", "origin", branch], targetDir);
+	git(["push", "--force", "-u", "origin", branch], targetDir);
 
 	console.log(`Pushed branch: ${branch}`);
 
@@ -301,6 +323,8 @@ try {
 				"create",
 				"--repo",
 				REPO,
+				"--head",
+				branch,
 				"--title",
 				`chore: sync templates from emdash v${emdashVersion}`,
 				"--body",

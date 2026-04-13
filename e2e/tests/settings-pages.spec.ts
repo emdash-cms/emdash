@@ -162,6 +162,37 @@ test.describe("SEO Settings", () => {
 	});
 });
 
+test.describe("Language Switcher", () => {
+	test.beforeEach(async ({ admin }) => {
+		await admin.devBypassAuth();
+	});
+
+	test("settings page shows language select", async ({ admin, page }) => {
+		await admin.goto("/settings");
+		await admin.waitForShell();
+
+		const languageSelect = page.locator('[aria-label="Language"]');
+		await expect(languageSelect).toBeVisible();
+	});
+
+	test("switching language updates the UI", async ({ admin, page }) => {
+		await admin.goto("/settings");
+		await admin.waitForShell();
+
+		// Switch to German
+		await page.locator('[aria-label="Language"]').click();
+		await page.locator("[role='option']", { hasText: "Deutsch" }).click();
+
+		await expect(page.locator("h1")).toContainText("Einstellungen", { timeout: 5000 });
+
+		// Switch back — the select now shows "Deutsch" as its value
+		await page.locator("[role='combobox']", { hasText: "Deutsch" }).click();
+		await page.locator("[role='option']", { hasText: "English" }).click();
+
+		await expect(page.locator("h1")).toContainText("Settings", { timeout: 5000 });
+	});
+});
+
 test.describe("Email Settings", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();

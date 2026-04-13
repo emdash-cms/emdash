@@ -72,7 +72,10 @@ storage: r2({
 	publicUrl: "https://pub-xxxx.r2.dev", // optional
 });
 
-// S3-compatible (any platform)
+// S3-compatible (any platform) — all fields from S3_* environment variables
+storage: s3()
+
+// Or with explicit values
 storage: s3({
 	endpoint: "https://s3.amazonaws.com",
 	bucket: "my-bucket",
@@ -387,28 +390,49 @@ r2({
 });
 ```
 
-### `s3(config)`
+### `s3(config?)`
 
-S3-compatible storage.
+S3-compatible storage. All config fields are optional: any field omitted from
+`s3({...})` is resolved from the matching `S3_*` environment variable when the
+Node process starts. Explicit values always take precedence.
 
-| Option            | Type     | Description                |
-| ----------------- | -------- | -------------------------- |
-| `endpoint`        | `string` | S3 endpoint URL            |
-| `bucket`          | `string` | Bucket name                |
-| `accessKeyId`     | `string` | Access key                 |
-| `secretAccessKey` | `string` | Secret key                 |
-| `region`          | `string` | Region (default: `"auto"`) |
-| `publicUrl`       | `string` | Optional CDN URL           |
+**Prerequisite:** install `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
+in your project. EmDash core does not bundle the AWS SDK. See
+[Storage Options → S3-Compatible Storage](/deployment/storage/#s3-compatible-storage)
+for details.
+
+| Option            | Type     | Description                         |
+| ----------------- | -------- | ----------------------------------- |
+| `endpoint`        | `string` | S3 endpoint URL (`S3_ENDPOINT`)     |
+| `bucket`          | `string` | Bucket name (`S3_BUCKET`)           |
+| `accessKeyId`     | `string` | Access key (`S3_ACCESS_KEY_ID`)     |
+| `secretAccessKey` | `string` | Secret key (`S3_SECRET_ACCESS_KEY`) |
+| `region`          | `string` | Region, default `"auto"` (`S3_REGION`) |
+| `publicUrl`       | `string` | Optional CDN URL (`S3_PUBLIC_URL`)  |
 
 ```js
+// All fields from S3_* environment variables (Node container deployments)
+s3()
+
+// Mix: CDN from config, rest from environment
+s3({ publicUrl: "https://cdn.example.com" })
+
+// All explicit (unchanged from before)
 s3({
 	endpoint: "https://xxx.r2.cloudflarestorage.com",
 	bucket: "media",
 	accessKeyId: process.env.R2_ACCESS_KEY_ID,
 	secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
 	publicUrl: "https://cdn.example.com",
-});
+})
 ```
+
+Runtime environment variable resolution is a Node-only feature. On Cloudflare
+Workers, secrets and variables are exposed through the `env` parameter of the
+fetch handler, not through `process.env`, so `S3_*` environment variables are
+not picked up. Workers deployments should either use the [`r2(config)`](#r2config)
+adapter or pass explicit values to `s3({...})`. See
+[Storage Options](/deployment/storage/#s3-compatible-storage) for details.
 
 ## Live Collections
 

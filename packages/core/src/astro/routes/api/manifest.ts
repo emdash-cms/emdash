@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { getAuthMode } from "#auth/mode.js";
 
+import { COMMIT, VERSION } from "../../../version.js";
 import type { EmDashManifest } from "../../types.js";
 
 export const prerender = false;
@@ -43,7 +44,8 @@ export const GET: APIRoute = async ({ locals }) => {
 				signupEnabled,
 			}
 		: {
-				version: "0.1.0",
+				version: VERSION,
+				commit: COMMIT,
 				hash: "default",
 				collections: {},
 				plugins: {},

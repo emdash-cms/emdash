@@ -20,9 +20,15 @@ export function DialogError({
 	className?: string;
 }) {
 	if (!message) return null;
+	const lines = message.split("\n");
 	return (
-		<div className={cn("rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger", className)}>
-			{message}
+		<div
+			role="alert"
+			className={cn("rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger", className)}
+		>
+			{lines.map((line, i) => (
+				<div key={i}>{line}</div>
+			))}
 		</div>
 	);
 }
