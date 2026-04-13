@@ -1,0 +1,66 @@
+name: Auto Extract
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-extract
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: Extract
+    if: github.actor != 'emdashbot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm locale:extract
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git add -A
+          invalid_changes=$(git diff --staged --name-status --no-renames | awk '$1 !~ /^(A|M)$/ || $2 !~ /^packages\/admin\/src\/locales\/[^/]+\/messages\.po$/ { print }' || true)
+          if [ -n "$invalid_changes" ]; then
+            echo "::error::Extraction produced unexpected staged changes. Only added or modified packages/admin/src/locales/*/messages.po files are allowed:"
+            echo "$invalid_changes"
+            exit 1
+          fi
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "chore: extract locale catalogs [skip ci]"
+          git pull --rebase origin main
+          git push

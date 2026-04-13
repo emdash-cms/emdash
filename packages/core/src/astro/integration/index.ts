@@ -228,10 +228,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					injectBuiltinAuthRoutes(injectRoute);
 				}
 
-				// Inject MCP endpoint when enabled
-				if (resolvedConfig.mcp) {
+				// Inject MCP endpoint (always on — bearer-token-only, no cost if unused)
+				if (resolvedConfig.mcp !== false) {
 					injectMcpRoute(injectRoute);
-					logger.info("MCP server enabled at /_emdash/api/mcp");
 				}
 
 				// In playground mode, inject the playground middleware FIRST.

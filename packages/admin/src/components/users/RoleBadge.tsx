@@ -1,49 +1,9 @@
+import { useLingui } from "@lingui/react/macro";
+
 import { cn } from "../../lib/utils";
+import { getRoleConfig } from "./roleDefinitions.js";
 
-/** Role level to name mapping */
-const ROLE_CONFIG: Record<number, { label: string; color: string; description: string }> = {
-	10: {
-		label: "Subscriber",
-		color: "gray",
-		description: "Can view content",
-	},
-	20: {
-		label: "Contributor",
-		color: "blue",
-		description: "Can create content",
-	},
-	30: {
-		label: "Author",
-		color: "green",
-		description: "Can publish own content",
-	},
-	40: {
-		label: "Editor",
-		color: "purple",
-		description: "Can manage all content",
-	},
-	50: {
-		label: "Admin",
-		color: "red",
-		description: "Full access",
-	},
-};
-
-/** Get role config, with fallback for unknown roles */
-export function getRoleConfig(role: number) {
-	return (
-		ROLE_CONFIG[role] ?? {
-			label: `Role ${role}`,
-			color: "gray",
-			description: "Unknown role",
-		}
-	);
-}
-
-/** Get role label from role level */
-export function getRoleLabel(role: number): string {
-	return getRoleConfig(role).label;
-}
+export type { RoleLevelConfig } from "./roleDefinitions.js";
 
 export interface RoleBadgeProps {
 	role: number;
@@ -61,6 +21,7 @@ export function RoleBadge({
 	showDescription = false,
 	className,
 }: RoleBadgeProps) {
+	const { t } = useLingui();
 	const config = getRoleConfig(role);
 
 	const colorClasses: Record<string, string> = {
@@ -84,19 +45,10 @@ export function RoleBadge({
 				colorClasses[config.color],
 				className,
 			)}
-			title={showDescription ? undefined : config.description}
+			title={showDescription ? undefined : t(config.description)}
 		>
-			{config.label}
-			{showDescription && <span className="ml-1 opacity-75">- {config.description}</span>}
+			{t(config.label)}
+			{showDescription && <span className="ml-1 opacity-75">- {t(config.description)}</span>}
 		</span>
 	);
 }
-
-/** List of all roles for dropdowns */
-export const ROLES = [
-	{ value: 10, label: "Subscriber", description: "Can view content" },
-	{ value: 20, label: "Contributor", description: "Can create content" },
-	{ value: 30, label: "Author", description: "Can publish own content" },
-	{ value: 40, label: "Editor", description: "Can manage all content" },
-	{ value: 50, label: "Admin", description: "Full access" },
-];

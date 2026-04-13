@@ -1,10 +1,12 @@
 import { Button, Input, Loader, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { RoleBadge, ROLES } from "./RoleBadge";
+import { RoleBadge } from "./RoleBadge";
+import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserListProps {
 	users: UserListItem[];
@@ -34,6 +36,17 @@ export function UserList({
 	onInviteUser,
 	onLoadMore,
 }: UserListProps) {
+	const { t } = useLingui();
+	const { roles, roleLabels } = useRolesConfig();
+	const roleFilterSelectItems = React.useMemo(
+		() => ({ all: t`All roles`, ...roleLabels }),
+		[t, roleLabels],
+	);
+	const roleFilterSelectOptions = React.useMemo(
+		() => [{ value: "all", label: t`All roles` }, ...roles],
+		[t, roles],
+	);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -65,16 +78,12 @@ export function UserList({
 					onValueChange={(value) =>
 						onRoleFilterChange(value === "all" || value === null ? undefined : parseInt(value, 10))
 					}
-					items={{
-						all: "All roles",
-						...Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label])),
-					}}
+					items={roleFilterSelectItems}
 					aria-label="Filter by role"
 				>
-					<Select.Option value="all">All roles</Select.Option>
-					{ROLES.map((role) => (
-						<Select.Option key={role.value} value={role.value.toString()}>
-							{role.label}
+					{roleFilterSelectOptions.map((option) => (
+						<Select.Option key={option.value} value={option.value}>
+							{option.label}
 						</Select.Option>
 					))}
 				</Select>

@@ -115,7 +115,10 @@ export class CronExecutor {
 				if (hookFailed) {
 					// Retry metadata is namespaced under __emdash to avoid collisions
 					// with plugin-controlled data fields.
-					const meta = parsedData?.__emdash;
+					const meta =
+						parsedData?.__emdash != null && typeof parsedData.__emdash === "object"
+							? (parsedData.__emdash as Record<string, unknown>)
+							: undefined;
 					const raw = meta?.retryCount;
 					const retryCount =
 						typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;

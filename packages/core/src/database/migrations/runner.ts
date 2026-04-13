@@ -1,4 +1,4 @@
-import { type Kysely, type Migration, type MigrationProvider, Migrator } from "kysely";
+import { type Kysely, type Migration, type MigrationProvider, Migrator, sql } from "kysely";
 
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
@@ -122,9 +122,30 @@ export async function getMigrationStatus(db: Kysely<Database>): Promise<Migratio
 }
 
 /**
- * Run all pending migrations
+ * Run all pending migrations.
+ *
+ * Includes a fast-path: if the migration table already exists and contains
+ * exactly MIGRATION_COUNT rows, all migrations have been applied and we can
+ * skip the Kysely Migrator entirely. This avoids the expensive
+ * `pragma_table_info` introspection that Kysely runs for every table in the
+ * database (twice!) just to check if the migration tables exist.
+ * On D1 with ~57 tables, that's ~116 queries saved per init.
  */
 export async function runMigrations(db: Kysely<Database>): Promise<{ applied: string[] }> {
+	// Fast path: check if all migrations are already applied.
+	// A single cheap query vs the Migrator's full schema introspection.
+	try {
+		const result = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
+		`.execute(db);
+		if (result.rows[0]?.count === MIGRATION_COUNT) {
+			return { applied: [] };
+		}
+	} catch {
+		// Table doesn't exist yet (first run). Fall through to the Migrator
+		// which will create it.
+	}
+
 	const migrator = new Migrator({
 		db,
 		provider: new StaticMigrationProvider(),
