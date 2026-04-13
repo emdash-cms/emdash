@@ -116,6 +116,22 @@ Always test your translations in the running admin UI. Strings that read well in
 
 </Steps>
 
+### Pseudo locale
+
+EmDash ships a **pseudo locale** that garbles all wrapped strings into accented lookalikes — `"Dashboard"` becomes `"Ðàšĥƀöàřð"`, and so on. Any string that appears in normal English while the pseudo locale is active is either missing a `t\`...\`` wrapper or is coming from outside the catalog.
+
+To enable it, add the following to your `.env` file in the demo directory:
+
+```ini title="demos/simple/.env"
+EMDASH_PSEUDO_LOCALE=1
+```
+
+Then restart the dev server. The pseudo locale appears as **Pseudo** in the language picker on the login page and in Settings. Switch to it to spot unwrapped strings at a glance.
+
+<Aside>
+The pseudo locale is only available in development (`import.meta.env.DEV`). It is never exposed in production builds regardless of environment variables.
+</Aside>
+
 ## Adding a new language
 
 If your language doesn't have a PO file yet:
