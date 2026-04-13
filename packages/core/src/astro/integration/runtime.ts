@@ -223,23 +223,17 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
-	 * Enable the MCP (Model Context Protocol) server endpoint.
+	 * MCP (Model Context Protocol) server endpoint.
 	 *
-	 * When enabled, exposes an MCP Streamable HTTP server at
-	 * `/_emdash/api/mcp` that allows AI agents and tools to interact
-	 * with the CMS using the standardized MCP protocol.
+	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
+	 * that allows AI agents and tools to interact with the CMS using
+	 * the standardized MCP protocol.
 	 *
-	 * Authentication is handled by the existing EmDash auth middleware —
-	 * agents must authenticate with an API token or session cookie.
+	 * Enabled by default. The endpoint requires bearer token auth, so
+	 * it has no effect unless the user creates an API token and
+	 * configures a client. Set to `false` to disable.
 	 *
-	 * @default false
-	 *
-	 * @example
-	 * ```ts
-	 * emdash({
-	 *   mcp: true,
-	 * })
-	 * ```
+	 * @default true
 	 */
 	mcp?: boolean;
 
