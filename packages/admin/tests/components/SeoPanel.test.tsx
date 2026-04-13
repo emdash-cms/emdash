@@ -27,9 +27,12 @@ describe("SeoPanel", () => {
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		expect(onChange).not.toHaveBeenCalled();
 
-		await vi.waitFor(() => {
-			expect(onChange).toHaveBeenCalledTimes(1);
-		}, { timeout: 1500 });
+		await vi.waitFor(
+			() => {
+				expect(onChange).toHaveBeenCalledTimes(1);
+			},
+			{ timeout: 1500 },
+		);
 		expect(onChange).toHaveBeenLastCalledWith({
 			title: "SEO title",
 			description: null,
