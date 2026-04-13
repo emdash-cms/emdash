@@ -6,6 +6,7 @@
  */
 
 import { Button, Dialog } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -43,6 +44,7 @@ export function ConfirmDialog({
 	onConfirm,
 	children,
 }: ConfirmDialogProps) {
+	const { t } = useLingui();
 	return (
 		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()} disablePointerDismissal>
 			<Dialog className="p-6" size="sm">
@@ -52,7 +54,7 @@ export function ConfirmDialog({
 				<DialogError message={getMutationError(error)} className="mt-3" />
 				<div className="mt-6 flex justify-end gap-2">
 					<Button variant="secondary" onClick={onClose}>
-						Cancel
+						{t`Cancel`}
 					</Button>
 					<Button variant={variant} disabled={isPending} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}
