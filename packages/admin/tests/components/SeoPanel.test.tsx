@@ -1,7 +1,7 @@
 import * as React from "react";
-import { userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { userEvent } from "vitest/browser";
 
 import { SeoPanel } from "../../src/components/SeoPanel";
 
