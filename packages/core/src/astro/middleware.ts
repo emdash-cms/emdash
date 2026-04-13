@@ -160,20 +160,26 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
-function setBaselineSecurityHeaders(response: Response): void {
+function setBaselineSecurityHeaders(response: Response): Response {
+	const headers = new Headers(response.headers);
 	// Prevent MIME type sniffing
-	response.headers.set("X-Content-Type-Options", "nosniff");
+	headers.set("X-Content-Type-Options", "nosniff");
 	// Control referrer information
-	response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+	headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 	// Restrict access to sensitive browser APIs
-	response.headers.set(
+	headers.set(
 		"Permissions-Policy",
 		"camera=(), microphone=(), geolocation=(), payment=()",
 	);
 	// Prevent clickjacking (non-admin routes; admin CSP uses frame-ancestors)
-	if (!response.headers.has("Content-Security-Policy")) {
-		response.headers.set("X-Frame-Options", "SAMEORIGIN");
+	if (!headers.has("Content-Security-Policy")) {
+		headers.set("X-Frame-Options", "SAMEORIGIN");
 	}
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
 }
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
@@ -245,8 +251,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			}
 
 			const response = await next();
-			setBaselineSecurityHeaders(response);
-			return response;
+			return setBaselineSecurityHeaders(response);
 		}
 	}
 
@@ -416,8 +421,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 				// Wrap the request in ALS with the per-request db
 				return runWithContext({ editMode: false, db: sessionDb }, async () => {
-					const response = await next();
-					setBaselineSecurityHeaders(response);
+					const response = setBaselineSecurityHeaders(await next());
 
 					// Set bookmark cookie for authenticated users only — they need
 					// read-your-writes consistency across requests. Anonymous visitors
@@ -445,8 +449,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		const response = await next();
-		setBaselineSecurityHeaders(response);
-		return response;
+		return setBaselineSecurityHeaders(response);
 	}; // end doInit
 
 	if (playgroundDb) {
