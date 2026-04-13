@@ -34,6 +34,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
+	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
 ];
 
