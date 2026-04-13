@@ -14,8 +14,6 @@ import { parseBody, isParseError } from "#api/parse.js";
 import { createCollectionBody } from "#api/schemas.js";
 import type { CreateCollectionInput } from "#schema/types.js";
 
-import { invalidateUrlPatternCache } from "../../../../query.js";
-
 export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -45,6 +43,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to CreateCollectionInput
 	const result = await handleSchemaCollectionCreate(emdash!.db, body as CreateCollectionInput);
-	invalidateUrlPatternCache();
+	emdash!.invalidateManifest();
 	return unwrapResult(result, 201);
 };

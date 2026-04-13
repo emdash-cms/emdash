@@ -19,8 +19,6 @@ import { parseBody, parseQuery, isParseError } from "#api/parse.js";
 import { collectionGetQuery, updateCollectionBody } from "#api/schemas.js";
 import type { UpdateCollectionInput } from "#schema/types.js";
 
-import { invalidateUrlPatternCache } from "../../../../../query.js";
-
 export const prerender = false;
 
 export const GET: APIRoute = async ({ params, url, locals }) => {
@@ -61,7 +59,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- parseBody validates via Zod
 		body as UpdateCollectionInput,
 	);
-	invalidateUrlPatternCache();
+	emdash!.invalidateManifest();
 	return unwrapResult(result);
 };
 
@@ -79,6 +77,6 @@ export const DELETE: APIRoute = async ({ params, url, locals }) => {
 	const result = await handleSchemaCollectionDelete(emdash!.db, slug, {
 		force,
 	});
-	invalidateUrlPatternCache();
+	emdash!.invalidateManifest();
 	return unwrapResult(result);
 };
