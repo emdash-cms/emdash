@@ -9,7 +9,7 @@ permissions:
 
 concurrency:
   group: auto-extract
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   extract:
@@ -61,5 +61,6 @@ jobs:
         run: |
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "chore: extract locale catalogs"
+          git commit -m "chore: extract locale catalogs [skip ci]"
+          git pull --rebase origin main
           git push
