@@ -5,7 +5,7 @@
  * shared by this file, lingui.config.ts and lunaria.config.ts.
  */
 
-import { ENABLED_LOCALES, SOURCE_LOCALE } from "./locales.js";
+import { ENABLED_LOCALES, LOCALES, SOURCE_LOCALE } from "./locales.js";
 
 export type { LocaleDefinition as SupportedLocale } from "./locales.js";
 
@@ -21,8 +21,24 @@ function isValidLocale(code: string): boolean {
 	}
 }
 
+// Injected by the EmDash Vite integration from process.env.EMDASH_PSEUDO_LOCALE.
+// Only true in dev when EMDASH_PSEUDO_LOCALE=1 is set.
+declare const __EMDASH_PSEUDO_LOCALE__: boolean;
+
+/**
+ * The pseudo locale, injected into the supported list only when
+ * EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
+ */
+const PSEUDO_LOCALE =
+	typeof __EMDASH_PSEUDO_LOCALE__ !== "undefined" && __EMDASH_PSEUDO_LOCALE__
+		? LOCALES.find((l) => l.code === "pseudo")
+		: undefined;
+
 /** Available locales at runtime, validated against BCP 47. */
-export const SUPPORTED_LOCALES = ENABLED_LOCALES.filter((l) => isValidLocale(l.code));
+export const SUPPORTED_LOCALES = [
+	...ENABLED_LOCALES.filter((l) => isValidLocale(l.code)),
+	...(PSEUDO_LOCALE ? [PSEUDO_LOCALE] : []),
+];
 
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));
 

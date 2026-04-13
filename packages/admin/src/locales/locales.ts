@@ -36,6 +36,9 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "de", label: "Deutsch", enabled: true }, // German
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
+	// Pseudo-locale for i18n testing — never enabled in the admin UI by default.
+	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
+	{ code: "pseudo", label: "Pseudo", enabled: false },
 ];
 
 /** The source locale (first entry). */
