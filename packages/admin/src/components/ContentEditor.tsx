@@ -32,6 +32,7 @@ import type {
 	BylineCreditInput,
 	BylineSummary,
 	ContentItem,
+	EditorStyleEntry,
 	MediaItem,
 	UserListItem,
 	TranslationSummary,
@@ -62,7 +63,7 @@ function serializeEditorState(input: {
 
 import type { ContentSeoInput } from "../lib/api";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
-import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import type { ImageAttributes, ImageStyleOption } from "./editor/ImageDetailPanel";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -162,6 +163,8 @@ export interface ContentEditorProps {
 	onTranslate?: (locale: string) => void;
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];
+	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+	editorStyles?: EditorStyleEntry[];
 	/** Whether this collection has SEO fields enabled */
 	hasSeo?: boolean;
 	/** Callback when SEO fields change */
@@ -214,6 +217,7 @@ export function ContentEditor({
 	translations,
 	onTranslate,
 	pluginBlocks,
+	editorStyles,
 	hasSeo = false,
 	onSeoChange,
 	manifest,
@@ -246,6 +250,33 @@ export function ContentEditor({
 			return null;
 		});
 	}, []);
+
+	// Flatten plugin-declared editorStyles to the subset that targets images.
+	// An entry qualifies if it's block-scope and its `nodes` filter explicitly
+	// includes "image". Walks dropdown items as well as top-level buttons.
+	const imageStyles = React.useMemo<ImageStyleOption[]>(() => {
+		const out: ImageStyleOption[] = [];
+		const matchesImage = (nodes: string[] | undefined): boolean =>
+			!!nodes && nodes.includes("image");
+		for (const entry of editorStyles ?? []) {
+			if (entry.type === "button") {
+				if (entry.scope === "block" && matchesImage(entry.nodes)) {
+					out.push({ label: entry.label, classes: entry.classes });
+				}
+				continue;
+			}
+			if (entry.type === "dropdown") {
+				for (const dropdownItem of entry.items ?? []) {
+					// Narrow away EditorStyleSeparator (which lacks `scope`/`label`/`classes`).
+					if (!("scope" in dropdownItem)) continue;
+					if (dropdownItem.scope === "block" && matchesImage(dropdownItem.nodes)) {
+						out.push({ label: dropdownItem.label, classes: dropdownItem.classes });
+					}
+				}
+			}
+		}
+		return out;
+	}, [editorStyles]);
 
 	// Track the last saved state to determine if dirty
 	const [lastSavedData, setLastSavedData] = React.useState<string>(
@@ -647,6 +678,7 @@ export function ContentEditor({
 										}
 										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
+										editorStyles={editorStyles}
 										onBlockSidebarOpen={
 											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
 										}
@@ -685,6 +717,7 @@ export function ContentEditor({
 						blockSidebarPanel.type === "image" ? (
 							<ImageDetailPanel
 								attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+								imageStyles={imageStyles}
 								onUpdate={(attrs) =>
 									blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
 								}
@@ -976,6 +1009,8 @@ interface FieldRendererProps {
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];
+	/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+	editorStyles?: EditorStyleEntry[];
 	/** Callback when a block node requests sidebar space */
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
@@ -995,6 +1030,7 @@ function FieldRenderer({
 	onEditorReady,
 	minimal,
 	pluginBlocks,
+	editorStyles,
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
@@ -1123,6 +1159,7 @@ function FieldRenderer({
 						placeholder={t`Enter ${label.toLowerCase()}...`}
 						aria-labelledby={labelId}
 						pluginBlocks={pluginBlocks}
+						editorStyles={editorStyles}
 						onEditorReady={onEditorReady}
 						minimal={minimal}
 						onBlockSidebarOpen={onBlockSidebarOpen}

@@ -37,6 +37,18 @@ export interface ImageAttributes {
 	displayWidth?: number;
 	/** Display height for this instance (defaults to original) */
 	displayHeight?: number;
+	/**
+	 * CSS classes applied to the rendered figure. Set via the Style section
+	 * below from plugin-declared image styles. `null` clears any existing
+	 * classes; `undefined` means "no change".
+	 */
+	cssClasses?: string | null;
+}
+
+/** A flattened image-applicable style entry passed to the panel. */
+export interface ImageStyleOption {
+	label: string;
+	classes: string;
 }
 
 export interface ImageDetailPanelProps {
@@ -45,6 +57,13 @@ export interface ImageDetailPanelProps {
 	onReplace: (attrs: ImageAttributes) => void;
 	onDelete: () => void;
 	onClose: () => void;
+	/**
+	 * Plugin-declared block-style entries that target images
+	 * (`scope: "block"` and `nodes` includes `"image"`). Flattened from the
+	 * raw `editorStyles` manifest by the host (typically ContentEditor).
+	 * When empty or undefined, the Style section is hidden.
+	 */
+	imageStyles?: ImageStyleOption[];
 	/** When true, renders inline within the sidebar column instead of as a fixed overlay */
 	inline?: boolean;
 }
@@ -60,6 +79,7 @@ export function ImageDetailPanel({
 	onReplace,
 	onDelete,
 	onClose,
+	imageStyles,
 	inline = false,
 }: ImageDetailPanelProps) {
 	const { t } = useLingui();
@@ -68,6 +88,23 @@ export function ImageDetailPanel({
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
 	const [title, setTitle] = React.useState(attributes.title ?? "");
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
+
+	// Style state — applied immediately on click, kept here so the active state
+	// stays accurate without depending on the parent re-passing fresh attrs
+	// (the panel's `attributes` prop is a snapshot taken when the sidebar opens).
+	const [cssClasses, setCssClasses] = React.useState<string | null>(
+		typeof attributes.cssClasses === "string" && attributes.cssClasses.length > 0
+			? attributes.cssClasses
+			: null,
+	);
+
+	const handleStyleClick = (entryClasses: string) => {
+		const next = cssClasses === entryClasses ? null : entryClasses;
+		setCssClasses(next);
+		// Apply immediately so the user sees the visual change in the editor
+		// without going through the form's Save button.
+		onUpdate({ cssClasses: next });
+	};
 
 	// Dimension state - default to display dimensions, fall back to original
 	const [displayWidth, setDisplayWidth] = React.useState<number | undefined>(
@@ -166,6 +203,33 @@ export function ImageDetailPanel({
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [stableOnClose, stableHandleSave]);
+
+	const styleSection =
+		imageStyles && imageStyles.length > 0 ? (
+			<div className="p-4 border-b space-y-3">
+				<Label>Style</Label>
+				<div className="flex flex-wrap gap-2">
+					{imageStyles.map((entry, index) => {
+						const active = cssClasses === entry.classes;
+						return (
+							<Button
+								key={`${entry.label}-${entry.classes}-${index}`}
+								type="button"
+								variant={active ? "primary" : "outline"}
+								size="sm"
+								onClick={() => handleStyleClick(entry.classes)}
+								aria-pressed={active}
+							>
+								{entry.label}
+							</Button>
+						);
+					})}
+				</div>
+				<p className="text-xs text-kumo-subtle">
+					Pick a style to apply CSS classes from your plugins. Click again to clear.
+				</p>
+			</div>
+		) : null;
 
 	const dialogs = (
 		<>
@@ -291,6 +355,8 @@ export function ImageDetailPanel({
 						</p>
 					</div>
 				)}
+
+				{styleSection}
 
 				{/* Editable Fields */}
 				<div className="p-4 space-y-4">
@@ -456,6 +522,8 @@ export function ImageDetailPanel({
 						</p>
 					</div>
 				)}
+
+				{styleSection}
 
 				{/* Editable Fields */}
 				<div className="p-4 space-y-4">

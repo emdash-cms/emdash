@@ -32,6 +32,11 @@ export interface Props {
 		displayWidth?: number;
 		/** Display height for this instance (overrides original) */
 		displayHeight?: number;
+		/**
+		 * CSS classes applied to the wrapping `<figure>`. Set via the editor's
+		 * BlockStyleExtension and the per-image detail panel's Style section.
+		 */
+		cssClasses?: string;
 	};
 }
 
@@ -144,9 +149,14 @@ const baseStyle = aspectRatio
 	? `aspect-ratio: ${aspectRatio}; max-width: 100%; height: auto;`
 	: "max-width: 100%; height: auto;";
 const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle;
+
+const extraClasses =
+	typeof node.cssClasses === "string" && node.cssClasses.trim().length > 0
+		? node.cssClasses.trim()
+		: undefined;
 ---
 
-<figure class="emdash-image">
+<figure class:list={["emdash-image", extraClasses]}>
 	<img
 		src={src}
 		srcset={srcset}

@@ -12,6 +12,11 @@ export {
 	throwResponseError,
 	type FindManyResult,
 	type AdminManifest,
+	type EditorStyleEntry,
+	type EditorStyleButton,
+	type EditorStyleDropdown,
+	type EditorStyleItem,
+	type EditorStyleSeparator,
 	fetchManifest,
 } from "./client.js";
 

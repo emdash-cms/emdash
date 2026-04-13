@@ -176,6 +176,11 @@ export type {
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
 	PortableTextBlockField,
+	EditorStyleEntry,
+	EditorStyleButton,
+	EditorStyleDropdown,
+	EditorStyleItem,
+	EditorStyleSeparator,
 	SettingField,
 	SettingFieldType,
 

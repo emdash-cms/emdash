@@ -225,6 +225,11 @@ export type {
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
 	PortableTextBlockField,
+	EditorStyleEntry,
+	EditorStyleButton,
+	EditorStyleDropdown,
+	EditorStyleItem,
+	EditorStyleSeparator,
 	// Comment types
 	CommentBeforeCreateEvent,
 	CommentModerateEvent,

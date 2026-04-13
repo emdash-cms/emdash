@@ -58,10 +58,13 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
-import type { MediaItem } from "../lib/api";
+import type { EditorStyleEntry, MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
+import { BlockStyleExtension } from "./editor/BlockStyleExtension";
+import { CssClassMark } from "./editor/CssClassMark";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { EditorStyleToolbar } from "./editor/EditorStyleToolbar";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {
@@ -97,6 +100,7 @@ interface PortableTextTextBlock {
 	level?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
+	cssClasses?: string;
 }
 
 interface PortableTextImageBlock {
@@ -164,7 +168,55 @@ function prosemirrorToPortableText(doc: {
 	return blocks;
 }
 
+const CSS_WHITESPACE_RE = /\s+/;
+
+function normalizeClassTokens(value: string | undefined): string[] {
+	if (!value) return [];
+	return value.trim().split(CSS_WHITESPACE_RE).filter(Boolean);
+}
+
+function mergeCssClassTokens(a: string | undefined, b: string | undefined): string | undefined {
+	const aTokens = normalizeClassTokens(a);
+	const bTokens = normalizeClassTokens(b);
+	if (aTokens.length === 0) return bTokens.length > 0 ? bTokens.join(" ") : undefined;
+	if (bTokens.length === 0) return aTokens.join(" ");
+	const set = new Set<string>([...aTokens, ...bTokens]);
+	return set.size > 0 ? [...set].join(" ") : undefined;
+}
+
+function readCssClassesAttr(obj: unknown): string | undefined {
+	if (typeof obj !== "object" || obj === null) return undefined;
+	const v = (obj as Record<string, unknown>).cssClasses;
+	return typeof v === "string" ? v : undefined;
+}
+
 function convertPMNode(node: {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: unknown[];
+	marks?: unknown[];
+	text?: string;
+}): PortableTextBlock | PortableTextBlock[] | null {
+	const result = convertPMNodeInner(node);
+	// Merge cssClasses from this node with whatever the inner conversion already
+	// produced (e.g., paragraph cssClasses inside a styled blockquote).
+	if (!result) return null;
+	const outer = readCssClassesAttr(node.attrs);
+	if (!outer) return result;
+
+	const merge = (b: PortableTextBlock): PortableTextBlock => {
+		const inner = readCssClassesAttr(b);
+		const merged = mergeCssClassTokens(outer, inner);
+		return merged ? ({ ...b, cssClasses: merged } as PortableTextBlock) : b;
+	};
+
+	if (Array.isArray(result)) {
+		return result.map(merge);
+	}
+	return merge(result);
+}
+
+function convertPMNodeInner(node: {
 	type: string;
 	attrs?: Record<string, unknown>;
 	content?: unknown[];
@@ -212,19 +264,26 @@ function convertPMNode(node: {
 			const blocks: PortableTextTextBlock[] = [];
 			const blockquoteContent = (node.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of blockquoteContent) {
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
-						blocks.push({
+						const innerClasses =
+							typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+						const block: PortableTextTextBlock = {
 							_type: "block",
 							_key: generateKey(),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
+						};
+						if (innerClasses) {
+							block.cssClasses = innerClasses;
+						}
+						blocks.push(block);
 					}
 				}
 			}
@@ -266,12 +325,15 @@ function convertPMNode(node: {
 			};
 		}
 
-		case "horizontalRule":
+		case "horizontalRule": {
+			const hrVariant = typeof node.attrs?.variant === "string" ? node.attrs.variant : undefined;
 			return {
 				_type: "break",
 				_key: generateKey(),
 				style: "lineBreak",
+				...(hrVariant ? { variant: hrVariant } : {}),
 			};
+		}
 
 		case "pluginBlock": {
 			const { blockType, id: pluginId, data } = node.attrs ?? {};
@@ -290,19 +352,29 @@ function convertPMNode(node: {
 
 function convertList(items: unknown[], listItem: "bullet" | "number"): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
-	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
+	const typedItems = items as Array<{
+		type: string;
+		attrs?: Record<string, unknown>;
+		content?: unknown[];
+	}>;
 
 	for (const item of typedItems) {
 		if (item.type === "listItem") {
+			const itemClasses =
+				typeof item.attrs?.cssClasses === "string" ? item.attrs.cssClasses : undefined;
 			const listItemContent = (item.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of listItemContent) {
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
-						blocks.push({
+						const paraClasses =
+							typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+						const merged = mergeCssClassTokens(itemClasses, paraClasses);
+						const block: PortableTextTextBlock = {
 							_type: "block",
 							_key: generateKey(),
 							style: "normal",
@@ -310,7 +382,11 @@ function convertList(items: unknown[], listItem: "bullet" | "number"): PortableT
 							level: 1,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
+						};
+						if (merged) {
+							block.cssClasses = merged;
+						}
+						blocks.push(block);
 					}
 				}
 			}
@@ -326,6 +402,10 @@ function convertInlineContent(nodes: unknown[]): {
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
+	// Dedupe map keyed by namespaced strings: `link:${href}` for link marks,
+	// `cssClass:${classes}` for cssClass marks. Namespacing prevents a link
+	// whose href happens to start with `cssClass:` from colliding with a
+	// cssClass entry.
 	const markDefMap = new Map<string, string>();
 
 	const typedNodes = nodes as Array<{
@@ -397,8 +477,9 @@ function convertMark(
 		case "link": {
 			const rawHref = mark.attrs?.href;
 			const href = typeof rawHref === "string" ? rawHref : "";
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			const dedupeKey = `link:${href}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
 			}
 			const key = generateKey();
 			markDefs.push({
@@ -407,7 +488,24 @@ function convertMark(
 				href,
 				blank: mark.attrs?.target === "_blank",
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(dedupeKey, key);
+			return key;
+		}
+		case "cssClass": {
+			const raw = typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "";
+			const classes = raw.trim();
+			if (!classes) return null;
+			const dedupeKey = `cssClass:${classes}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
+			}
+			const key = generateKey();
+			markDefs.push({
+				_type: "cssClass",
+				_key: key,
+				classes,
+			});
+			markDefMap.set(dedupeKey, key);
 			return key;
 		}
 		default:
@@ -477,6 +575,19 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 }
 
 function convertPTBlock(block: PortableTextBlock): unknown {
+	const node = convertPTBlockInner(block);
+	if (!node || typeof node !== "object") return node;
+	const raw = (block as Record<string, unknown>).cssClasses;
+	const trimmed = typeof raw === "string" ? raw.trim() : "";
+	if (!trimmed) return node;
+	const n = node as Record<string, unknown>;
+	return {
+		...n,
+		attrs: { ...(n.attrs as Record<string, unknown> | undefined), cssClasses: trimmed },
+	};
+}
+
+function convertPTBlockInner(block: PortableTextBlock): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -544,8 +655,13 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 			};
 		}
 
-		case "break":
-			return { type: "horizontalRule" };
+		case "break": {
+			const variant = (block as { variant?: unknown }).variant;
+			return {
+				type: "horizontalRule",
+				attrs: typeof variant === "string" ? { variant } : undefined,
+			};
+		}
 
 		default: {
 			// Treat unknown block types as plugin blocks (embeds)
@@ -583,7 +699,12 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
 	const listItems = items.map((item) => {
 		const pmContent = convertPTSpans(item.children, item.markDefs || []);
-		return {
+		const rawClasses = (item as { cssClasses?: unknown }).cssClasses;
+		const cssClasses =
+			typeof rawClasses === "string" && rawClasses.trim().length > 0
+				? rawClasses.trim()
+				: undefined;
+		const node: { type: "listItem"; content: unknown[]; attrs?: { cssClasses: string } } = {
 			type: "listItem",
 			content: [
 				{
@@ -592,6 +713,10 @@ function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "num
 				},
 			],
 		};
+		if (cssClasses) {
+			node.attrs = { cssClasses };
+		}
+		return node;
 	});
 
 	return {
@@ -655,14 +780,25 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 				break;
 			default: {
 				const markDef = markDefs.get(mark);
-				if (markDef && markDef._type === "link") {
-					pmMarks.push({
-						type: "link",
-						attrs: {
-							href: markDef.href,
-							target: markDef.blank ? "_blank" : null,
-						},
-					});
+				if (markDef) {
+					if (markDef._type === "link") {
+						pmMarks.push({
+							type: "link",
+							attrs: {
+								href: markDef.href,
+								target: markDef.blank ? "_blank" : null,
+							},
+						});
+					} else if (markDef._type === "cssClass") {
+						const raw = (markDef as { classes?: unknown }).classes;
+						const classes = typeof raw === "string" ? raw.trim() : "";
+						if (classes) {
+							pmMarks.push({
+								type: "cssClass",
+								attrs: { classes },
+							});
+						}
+					}
 				}
 				break;
 			}
@@ -1335,6 +1471,8 @@ export interface PortableTextEditorProps {
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
 	onBlockSidebarClose?: () => void;
+	/** Editor toolbar styles — plugin-declared buttons and dropdowns for CSS class toggles */
+	editorStyles?: EditorStyleEntry[];
 }
 
 /**
@@ -1354,6 +1492,7 @@ export function PortableTextEditor({
 	minimal = false,
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
+	editorStyles = [],
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
 
@@ -1509,6 +1648,8 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CssClassMark,
+			BlockStyleExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -1746,7 +1887,12 @@ export function PortableTextEditor({
 			aria-labelledby={ariaLabelledby}
 		>
 			{!minimal && (
-				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
+				<EditorToolbar
+					editor={editor}
+					focusMode={focusMode}
+					onFocusModeChange={setFocusMode}
+					editorStyles={editorStyles}
+				/>
 			)}
 			<EditorBubbleMenu editor={editor} />
 			<div className="relative overflow-visible">
@@ -1976,10 +2122,12 @@ function EditorToolbar({
 	editor,
 	focusMode,
 	onFocusModeChange,
+	editorStyles = [],
 }: {
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
+	editorStyles?: PortableTextEditorProps["editorStyles"];
 }) {
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
@@ -2240,6 +2388,16 @@ function EditorToolbar({
 				</ToolbarButton>
 			</ToolbarGroup>
 
+			{/* Plugin editor styles */}
+			{editorStyles.length > 0 && (
+				<>
+					<ToolbarSeparator />
+					<ToolbarGroup>
+						<EditorStyleToolbar editor={editor} styles={editorStyles} />
+					</ToolbarGroup>
+				</>
+			)}
+
 			<ToolbarSeparator />
 
 			{/* Insert */}
@@ -2335,7 +2493,7 @@ function EditorToolbar({
 
 			<ToolbarSeparator aria-hidden="true" />
 
-			{/* Focus mode */}
+			{/* Focus mode & code mode */}
 			<ToolbarGroup>
 				<ToolbarButton
 					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
