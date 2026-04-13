@@ -1110,7 +1110,7 @@ msgstr "Dies verschiebt das Element in den Papierkorb. Sie können es später vo
 
 #: packages/admin/src/components/ContentEditor.tsx:567
 msgid "This will revert to the published version. Your draft changes will be lost."
-msgstr "Dies setzt alles auf die veröffentlichte Version zurück. Ihre Entwurfsänderungen gehen verloren."
+msgstr "Dies setzt alles auf die veröffentlichte Version zurück. Deine Entwurfsänderungen gehen verloren."
 
 #: packages/admin/src/components/ContentList.tsx:190
 #: packages/admin/src/components/ContentList.tsx:303
