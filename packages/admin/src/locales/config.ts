@@ -40,12 +40,20 @@ for (const l of SUPPORTED_LOCALES) {
 
 /**
  * Find the best matching supported locale for a BCP 47 tag.
- * Tries exact match, then base language fallback (pt-PT -> pt-BR).
+ * Canonicalizes via Intl.Locale so case differences (e.g. "pt-br" vs "pt-BR")
+ * don't prevent matching. Falls back to base language (pt-PT -> pt-BR).
  */
 function matchLocale(tag: string): string | undefined {
-	const normalized = tag.trim();
-	if (SUPPORTED_LOCALE_CODES.has(normalized)) return normalized;
-	const base = normalized.split("-")[0]!.toLowerCase();
+	const trimmed = tag.trim();
+	if (!trimmed) return undefined;
+	let canonical: string;
+	try {
+		canonical = new Intl.Locale(trimmed).baseName;
+	} catch {
+		return undefined;
+	}
+	if (SUPPORTED_LOCALE_CODES.has(canonical)) return canonical;
+	const base = canonical.split("-")[0]!.toLowerCase();
 	return BASE_LANGUAGE_MAP.get(base);
 }
 
