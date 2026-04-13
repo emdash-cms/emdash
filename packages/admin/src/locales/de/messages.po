@@ -367,6 +367,7 @@ msgid "Insert an image"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:129
+#: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
 msgstr "Sprache"
 
