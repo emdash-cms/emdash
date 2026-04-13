@@ -195,6 +195,8 @@ export interface ContentItemSeoInput {
 export interface ContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
 	data: Record<string, unknown>;
 	/**
 	 * SEO metadata, populated when the collection has SEO enabled
@@ -203,6 +205,7 @@ export interface ContentItem {
 	seo?: ContentItemSeo;
 	createdAt: string;
 	updatedAt: string;
+	publishedAt: string | null;
 }
 
 /**
@@ -702,6 +705,8 @@ export interface ContentHookEvent {
 export interface ContentDeleteEvent {
 	id: string;
 	collection: string;
+	/** `true` when the content is permanently deleted (not just trashed). */
+	permanent: boolean;
 }
 
 /**

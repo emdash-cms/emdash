@@ -569,7 +569,7 @@ export class HookPipeline {
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentDeleteEvent = { id, collection };
+			const event: ContentDeleteEvent = { id, collection, permanent: false };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -605,13 +605,17 @@ export class HookPipeline {
 	/**
 	 * Run content:afterDelete hooks
 	 */
-	async runContentAfterDelete(id: string, collection: string): Promise<HookResult<void>[]> {
+	async runContentAfterDelete(
+		id: string,
+		collection: string,
+		permanent: boolean,
+	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterDelete");
 		const results: HookResult<void>[] = [];
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentDeleteEvent = { id, collection };
+			const event: ContentDeleteEvent = { id, collection, permanent };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 

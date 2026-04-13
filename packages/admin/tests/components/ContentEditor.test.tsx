@@ -296,6 +296,53 @@ describe("ContentEditor", () => {
 			const savedBtn = screen.getByRole("button", { name: "Saved" });
 			await expect.element(savedBtn).toBeDisabled();
 		});
+
+		it("keeps edited values after autosave completes without queuing another autosave", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					lastAutosaveAt: null,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Updated title");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				const autosavedItem = makeItem({
+					updatedAt: "2026-04-12T18:38:00Z",
+					data: { title: "Updated title", body: "Some content" },
+				});
+				await screen.rerender(
+					<ContentEditor
+						{...props}
+						item={autosavedItem}
+						isAutosaving={false}
+						lastAutosaveAt={new Date("2026-04-12T18:38:00Z")}
+					/>,
+				);
+
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Updated title");
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("delete", () => {

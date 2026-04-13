@@ -504,37 +504,37 @@ export async function handleContentUpdate(
 		// Resolve slug → ID if needed
 		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
 
-		// Validate _rev if provided (optimistic concurrency)
-		if (body._rev) {
-			const existing = await repo.findById(collection, resolvedId);
-			if (!existing) {
-				return {
-					success: false,
-					error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
-				};
-			}
-
-			const revCheck = validateRev(body._rev, existing);
-			if (!revCheck.valid) {
-				return {
-					success: false,
-					error: { code: "CONFLICT", message: revCheck.message },
-				};
-			}
-		}
-
-		// Wrap content + SEO writes in a transaction for atomicity
+		// Wrap content + SEO writes in a transaction for atomicity.
+		// The _rev check is inside the transaction so the read-then-write
+		// is atomic -- no concurrent write can slip between the check and update.
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 
+			// Read existing item once for both _rev check and old slug capture
+			const existing =
+				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+
+			// Validate _rev if provided (optimistic concurrency)
+			if (body._rev) {
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const },
+					});
+				}
+
+				const revCheck = validateRev(body._rev, existing);
+				if (!revCheck.valid) {
+					throw Object.assign(new Error(revCheck.message), {
+						apiError: { code: "CONFLICT" as const },
+					});
+				}
+			}
+
 			// Capture old slug before update for auto-redirect
 			let oldSlug: string | undefined;
-			if (body.slug) {
-				const existing = await trxRepo.findById(collection, resolvedId);
-				if (existing?.slug && existing.slug !== body.slug) {
-					oldSlug = existing.slug;
-				}
+			if (body.slug && existing?.slug && existing.slug !== body.slug) {
+				oldSlug = existing.slug;
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
@@ -600,6 +600,15 @@ export async function handleContentUpdate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction
+		// (rev check failures, not-found)
+		if (error instanceof Error && "apiError" in error) {
+			const { code } = (error as Error & { apiError: { code: string } }).apiError;
+			return {
+				success: false,
+				error: { code, message: error.message },
+			};
+		}
 		console.error("Content update error:", error);
 		return {
 			success: false,

@@ -247,6 +247,13 @@ export function ContentEditor({
 		});
 	}, []);
 
+	const handleSeoChange = React.useCallback(
+		(seo: ContentSeoInput) => {
+			onSeoChange?.(seo);
+		},
+		[onSeoChange],
+	);
+
 	// Track the last saved state to determine if dirty
 	const [lastSavedData, setLastSavedData] = React.useState<string>(
 		serializeEditorState({
@@ -259,6 +266,7 @@ export function ContentEditor({
 				})) ?? [],
 		}),
 	);
+	const pendingAutosaveStateRef = React.useRef<string | null>(null);
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
@@ -284,6 +292,7 @@ export function ContentEditor({
 						})) ?? [],
 				}),
 			);
+			pendingAutosaveStateRef.current = null;
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
@@ -322,6 +331,15 @@ export function ContentEditor({
 	slugRef.current = slug;
 
 	React.useEffect(() => {
+		if (!lastAutosaveAt || !pendingAutosaveStateRef.current) {
+			return;
+		}
+
+		setLastSavedData(pendingAutosaveStateRef.current);
+		pendingAutosaveStateRef.current = null;
+	}, [lastAutosaveAt]);
+
+	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
 		if (isNew || !onAutosave || !item?.id) {
 			return;
@@ -339,11 +357,17 @@ export function ContentEditor({
 
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
-			onAutosave({
+			const payload = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
 				bylines: activeBylines,
+			};
+			pendingAutosaveStateRef.current = serializeEditorState({
+				data: payload.data,
+				slug: payload.slug || "",
+				bylines: payload.bylines,
 			});
+			onAutosave(payload);
 		}, AUTOSAVE_DELAY);
 
 		return () => {
@@ -510,7 +534,12 @@ export function ContentEditor({
 				<div className="flex items-center space-x-2">
 					{/* Autosave indicator */}
 					{!isNew && onAutosave && (
-						<div className="flex items-center text-xs text-kumo-subtle">
+						<div
+							className="flex items-center text-xs text-kumo-subtle"
+							role="status"
+							aria-label="Autosave status"
+							aria-live="polite"
+						>
 							{isAutosaving ? (
 								<>
 									<Loader size="sm" />
@@ -940,7 +969,11 @@ export function ContentEditor({
 										<MagnifyingGlass className="h-4 w-4" />
 										{t`SEO`}
 									</h3>
-									<SeoPanel seo={item?.seo} onChange={onSeoChange} />
+									<SeoPanel
+										contentKey={item?.id ?? `new:${collection}`}
+										seo={item?.seo}
+										onChange={handleSeoChange}
+									/>
 								</div>
 							)}
 
@@ -1292,7 +1325,7 @@ interface ImageFieldRendererProps {
 	label: string;
 	description?: string;
 	value: ImageFieldValue | string | undefined;
-	onChange: (value: ImageFieldValue | undefined) => void;
+	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
 }
 
@@ -1334,7 +1367,7 @@ function ImageFieldRenderer({
 	};
 
 	const handleRemove = () => {
-		onChange(undefined);
+		onChange(null);
 	};
 
 	return (
