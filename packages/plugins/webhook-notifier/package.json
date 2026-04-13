@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-webhook-notifier",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"description": "Webhook notification plugin for EmDash CMS - posts to external URLs on content changes",
 	"type": "module",
 	"main": "dist/index.mjs",
@@ -24,8 +24,8 @@
 	],
 	"author": "Matt Kane",
 	"license": "MIT",
-	"dependencies": {
-		"emdash": "workspace:*"
+	"peerDependencies": {
+		"emdash": "workspace:>=0.2.0"
 	},
 	"devDependencies": {
 		"tsdown": "catalog:",

@@ -88,6 +88,14 @@ export default defineConfig({
 
 ## Docker
 
+Add a `.dockerignore` to keep the build context small:
+
+```plain title=".dockerignore"
+node_modules
+dist
+.git
+```
+
 Create a `Dockerfile`:
 
 ```dockerfile title="Dockerfile"
@@ -103,12 +111,16 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/seed ./seed
+COPY --from=builder /app/astro.config.mjs ./
+
+RUN mkdir -p data
 
 ENV HOST=0.0.0.0
 ENV PORT=4321
 
 EXPOSE 4321
-CMD ["node", "./dist/server/entry.mjs"]
+CMD ["sh", "-c", "npx emdash init && node ./dist/server/entry.mjs"]
 ```
 
 Build and run:
@@ -116,6 +128,26 @@ Build and run:
 ```bash
 docker build -t my-emdash-site .
 docker run -p 4321:4321 -v emdash-data:/app/data my-emdash-site
+```
+
+Or use Docker Compose:
+
+```yaml title="compose.yaml"
+services:
+  emdash:
+    build: .
+    ports:
+      - "4321:4321"
+    volumes:
+      - emdash-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  emdash-data:
+```
+
+```bash
+docker compose up -d
 ```
 
 ## Environment Variables

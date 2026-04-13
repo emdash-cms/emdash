@@ -12,7 +12,9 @@ import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
+import { SeoRepository } from "../database/repositories/seo.js";
 import { UserRepository } from "../database/repositories/user.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { validateExternalUrl, SsrfError, stripCredentialHeaders } from "../import/ssrf.js";
 import type { Storage } from "../storage/types.js";
@@ -36,6 +38,8 @@ import type {
 	UserAccess,
 	UserInfo,
 	ContentItem,
+	ContentItemSeoInput,
+	ContentWriteInput,
 	MediaItem,
 	PaginatedResult,
 	QueryOptions,
@@ -149,23 +153,68 @@ export function createStorageAccess<T extends PluginStorageConfig>(
 // =============================================================================
 
 /**
+ * Extract `seo` from a plugin-supplied content write input and return both
+ * parts. Mutates nothing — returns a new field map without the `seo` key.
+ */
+function splitSeoFromInput(input: ContentWriteInput): {
+	fields: Record<string, unknown>;
+	seo: ContentItemSeoInput | undefined;
+} {
+	const { seo, ...fields } = input;
+	// Reject non-object seo values rather than silently dropping them.
+	if (seo !== undefined && (seo === null || typeof seo !== "object" || Array.isArray(seo))) {
+		throw new Error("content.seo must be an object");
+	}
+	return { fields, seo };
+}
+
+/**
+ * Reject writing SEO to a collection that does not have it enabled.
+ * Matches the REST API behavior (VALIDATION_ERROR).
+ */
+async function assertSeoEnabled(
+	seoRepo: SeoRepository,
+	collection: string,
+	seo: ContentItemSeoInput | undefined,
+): Promise<boolean> {
+	const hasSeo = await seoRepo.isEnabled(collection);
+	if (seo !== undefined && !hasSeo) {
+		throw new Error(
+			`Collection "${collection}" does not have SEO enabled. ` +
+				`Remove the seo field or enable SEO on this collection.`,
+		);
+	}
+	return hasSeo;
+}
+
+/**
  * Create read-only content access
  */
 export function createContentAccess(db: Kysely<Database>): ContentAccess {
 	const contentRepo = new ContentRepository(db);
+	const seoRepo = new SeoRepository(db);
 
 	return {
 		async get(collection: string, id: string): Promise<ContentItem | null> {
 			const item = await contentRepo.findById(collection, id);
 			if (!item) return null;
 
-			return {
+			const result: ContentItem = {
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				publishedAt: item.publishedAt,
 			};
+
+			if (await seoRepo.isEnabled(collection)) {
+				result.seo = await seoRepo.get(collection, item.id);
+			}
+
+			return result;
 		},
 
 		async list(
@@ -188,14 +237,30 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				orderBy,
 			});
 
+			const items: ContentItem[] = result.items.map((item) => ({
+				id: item.id,
+				type: item.type,
+				slug: item.slug,
+				status: item.status,
+				data: item.data,
+				createdAt: item.createdAt,
+				updatedAt: item.updatedAt,
+				publishedAt: item.publishedAt,
+			}));
+
+			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
+				const seoMap = await seoRepo.getMany(
+					collection,
+					items.map((i) => i.id),
+				);
+				for (const item of items) {
+					const seo = seoMap.get(item.id);
+					if (seo) item.seo = seo;
+				}
+			}
+
 			return {
-				items: result.items.map((item) => ({
-					id: item.id,
-					type: item.type,
-					data: item.data,
-					createdAt: item.createdAt,
-					updatedAt: item.updatedAt,
-				})),
+				items,
 				cursor: result.nextCursor,
 				hasMore: !!result.nextCursor,
 			};
@@ -204,47 +269,103 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 }
 
 /**
- * Create full content access with write operations
+ * Create full content access with write operations.
+ *
+ * `create` and `update` accept a reserved `seo` key in their `data`
+ * argument. When present, it is routed to the core SEO panel
+ * (`_emdash_seo`) via `SeoRepository.upsert`, in the same transaction as
+ * the content write. The returned `ContentItem.seo` reflects the resulting
+ * SEO state for SEO-enabled collections.
  */
 export function createContentAccessWithWrite(db: Kysely<Database>): ContentAccessWithWrite {
-	const contentRepo = new ContentRepository(db);
 	const readAccess = createContentAccess(db);
 
 	return {
 		...readAccess,
 
-		async create(collection: string, data: Record<string, unknown>): Promise<ContentItem> {
-			const item = await contentRepo.create({
-				type: collection,
-				data,
-			});
+		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
+			const { fields, seo } = splitSeoFromInput(data);
 
-			return {
-				id: item.id,
-				type: item.type,
-				data: item.data,
-				createdAt: item.createdAt,
-				updatedAt: item.updatedAt,
-			};
+			return withTransaction(db, async (trx) => {
+				const trxContentRepo = new ContentRepository(trx);
+				const trxSeoRepo = new SeoRepository(trx);
+
+				const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
+
+				const item = await trxContentRepo.create({
+					type: collection,
+					data: fields,
+				});
+
+				const result: ContentItem = {
+					id: item.id,
+					type: item.type,
+					slug: item.slug,
+					status: item.status,
+					data: item.data,
+					createdAt: item.createdAt,
+					updatedAt: item.updatedAt,
+					publishedAt: item.publishedAt,
+				};
+
+				if (hasSeo) {
+					result.seo =
+						seo !== undefined
+							? await trxSeoRepo.upsert(collection, item.id, seo)
+							: await trxSeoRepo.get(collection, item.id);
+				}
+
+				return result;
+			});
 		},
 
-		async update(
-			collection: string,
-			id: string,
-			data: Record<string, unknown>,
-		): Promise<ContentItem> {
-			const item = await contentRepo.update(collection, id, { data });
+		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
+			const { fields, seo } = splitSeoFromInput(data);
 
-			return {
-				id: item.id,
-				type: item.type,
-				data: item.data,
-				createdAt: item.createdAt,
-				updatedAt: item.updatedAt,
-			};
+			return withTransaction(db, async (trx) => {
+				const trxContentRepo = new ContentRepository(trx);
+				const trxSeoRepo = new SeoRepository(trx);
+
+				const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
+
+				// Pass the `data` payload to ContentRepository.update only when
+				// there are field updates — passing an empty object would still
+				// bump updated_at/version, but we want a seo-only call to touch
+				// only the SEO table. ContentRepository.update handles the no-op
+				// path by returning the current row.
+				const hasFieldUpdates = Object.keys(fields).length > 0;
+				const item = hasFieldUpdates
+					? await trxContentRepo.update(collection, id, { data: fields })
+					: await (async () => {
+							const existing = await trxContentRepo.findById(collection, id);
+							if (!existing) throw new Error("Content not found");
+							return existing;
+						})();
+
+				const result: ContentItem = {
+					id: item.id,
+					type: item.type,
+					slug: item.slug,
+					status: item.status,
+					data: item.data,
+					createdAt: item.createdAt,
+					updatedAt: item.updatedAt,
+					publishedAt: item.publishedAt,
+				};
+
+				if (hasSeo) {
+					result.seo =
+						seo !== undefined
+							? await trxSeoRepo.upsert(collection, item.id, seo)
+							: await trxSeoRepo.get(collection, item.id);
+				}
+
+				return result;
+			});
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
+			const contentRepo = new ContentRepository(db);
 			return contentRepo.delete(collection, id);
 		},
 	};
@@ -330,12 +451,13 @@ export function createMediaAccessWithWrite(
 				);
 			}
 
-			const mediaId = ulid();
+			// Generate a storage key with a unique prefix
+			const keyPrefix = ulid();
 			// Extract extension from basename (ignore path separators)
 			const basename = filename.split("/").pop() ?? filename;
 			const dotIdx = basename.lastIndexOf(".");
 			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
-			const storageKey = `${mediaId}${ext}`;
+			const storageKey = `${keyPrefix}${ext}`;
 
 			// Upload to storage first
 			await storage.upload({
@@ -345,8 +467,9 @@ export function createMediaAccessWithWrite(
 			});
 
 			// Create DB record — clean up storage on failure
+			let media;
 			try {
-				await mediaRepo.create({
+				media = await mediaRepo.create({
 					filename: basename,
 					mimeType: contentType,
 					size: bytes.byteLength,
@@ -363,7 +486,7 @@ export function createMediaAccessWithWrite(
 			}
 
 			return {
-				mediaId,
+				mediaId: media.id,
 				storageKey,
 				url: `/_emdash/api/media/file/${storageKey}`,
 			};
@@ -382,10 +505,17 @@ export function createMediaAccessWithWrite(
 /** Maximum number of redirects to follow in plugin HTTP access */
 const MAX_PLUGIN_REDIRECTS = 5;
 
+/**
+ * Check if a hostname matches any pattern in the allowed list.
+ * Patterns: "*" matches all, "*.example.com" matches subdomains AND bare "example.com",
+ * "api.example.com" matches exactly.
+ */
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
 	return allowedHosts.some((pattern) => {
+		if (pattern === "*") return true;
 		if (pattern.startsWith("*.")) {
 			const suffix = pattern.slice(1); // ".example.com"
+			// Match subdomains (foo.example.com) and bare domain (example.com)
 			return host.endsWith(suffix) || host === pattern.slice(2);
 		}
 		return host === pattern;

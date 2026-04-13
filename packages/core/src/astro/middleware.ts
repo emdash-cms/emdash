@@ -45,6 +45,7 @@ import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { runWithContext } from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
 let runtimeInstance: EmDashRuntime | null = null;
@@ -159,24 +160,20 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
-function setBaselineSecurityHeaders(response: Response): void {
-	// Prevent MIME type sniffing
-	response.headers.set("X-Content-Type-Options", "nosniff");
-	// Control referrer information
-	response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-	// Restrict access to sensitive browser APIs
-	response.headers.set(
-		"Permissions-Policy",
-		"camera=(), microphone=(), geolocation=(), payment=()",
-	);
-	// Prevent clickjacking (non-admin routes; admin CSP uses frame-ancestors)
-	if (!response.headers.has("Content-Security-Policy")) {
-		response.headers.set("X-Frame-Options", "SAMEORIGIN");
+function setBaselineSecurityHeaders(response: Response): Response {
+	const res = new Response(response.body, response);
+	res.headers.set("X-Content-Type-Options", "nosniff");
+	res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+	res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+	if (!res.headers.has("Content-Security-Policy")) {
+		res.headers.set("X-Frame-Options", "SAMEORIGIN");
 	}
+	return res;
 }
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
+const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
 
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
@@ -185,7 +182,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Process /_emdash routes and public routes with an active session
 	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 	const isEmDashRoute = url.pathname.startsWith("/_emdash");
-	const isPublicRuntimeRoute = PUBLIC_RUNTIME_ROUTES.has(url.pathname);
+	const isPublicRuntimeRoute =
+		PUBLIC_RUNTIME_ROUTES.has(url.pathname) || SITEMAP_COLLECTION_RE.test(url.pathname);
 
 	// Check for edit mode cookie - editors viewing public pages need the runtime
 	// so auth middleware can verify their session for visual editing
@@ -198,7 +196,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const playgroundDb = locals.__playgroundDb;
 
 	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
-		const sessionUser = await context.session?.get("user");
+		const sessionUser = context.isPrerendered ? null : await context.session?.get("user");
 		if (!sessionUser && !playgroundDb) {
 			// On a fresh deployment the database may be completely empty.
 			// Public pages call getSiteSettings() / getMenu() via getDb(), which
@@ -222,9 +220,27 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				}
 			}
 
+			// Initialize the runtime for page:metadata and page:fragments hooks.
+			// The runtime is a cached singleton — after the first request,
+			// getRuntime() is just a null-check. This enables SEO plugins to
+			// contribute meta tags for all visitors, not just logged-in editors.
+			const config = getConfig();
+			if (config) {
+				try {
+					const runtime = await getRuntime(config);
+					setupVerified = true;
+					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for these two methods
+					locals.emdash = {
+						collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+						collectPageFragments: runtime.collectPageFragments.bind(runtime),
+					} as EmDashHandlers;
+				} catch {
+					// Non-fatal — EmDashHead will fall back to base SEO contributions
+				}
+			}
+
 			const response = await next();
-			setBaselineSecurityHeaders(response);
-			return response;
+			return setBaselineSecurityHeaders(response);
 		}
 	}
 
@@ -298,6 +314,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				getMediaProvider: runtime.getMediaProvider.bind(runtime),
 				getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
 
+				// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+				collectPageFragments: runtime.collectPageFragments.bind(runtime),
+
 				// Direct access (for advanced use cases)
 				storage: runtime.storage,
 				db: runtime.db,
@@ -350,7 +370,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const d1Binding = (virtualGetD1Binding as (config: unknown) => unknown)(dbConfig);
 
 			if (d1Binding && typeof d1Binding === "object" && "withSession" in d1Binding) {
-				const isAuthenticated = !!(await context.session?.get("user"));
+				const isAuthenticated = context.isPrerendered
+					? false
+					: !!(await context.session?.get("user"));
 				const isWrite = request.method !== "GET" && request.method !== "HEAD";
 
 				// Determine session constraint:
@@ -388,8 +410,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 				// Wrap the request in ALS with the per-request db
 				return runWithContext({ editMode: false, db: sessionDb }, async () => {
-					const response = await next();
-					setBaselineSecurityHeaders(response);
+					const response = setBaselineSecurityHeaders(await next());
 
 					// Set bookmark cookie for authenticated users only — they need
 					// read-your-writes consistency across requests. Anonymous visitors
@@ -417,8 +438,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		const response = await next();
-		setBaselineSecurityHeaders(response);
-		return response;
+		return setBaselineSecurityHeaders(response);
 	}; // end doInit
 
 	if (playgroundDb) {

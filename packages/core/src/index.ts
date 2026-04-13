@@ -102,6 +102,7 @@ export type {
 export { ulid } from "ulidx";
 export { computeContentHash, hashString } from "./utils/hash.js";
 export { sanitizeHref, isSafeHref } from "./utils/url.js";
+export { decodeSlug } from "./utils/slugify.js";
 
 // Live Collections query functions (loader is in emdash/runtime)
 export {
@@ -212,6 +213,8 @@ export type {
 	ResolvedHook,
 	ResolvedPluginHooks,
 	ContentHookEvent,
+	ContentDeleteEvent,
+	ContentPublishStateChangeEvent,
 	MediaUploadEvent,
 	HookResult,
 	PluginRoute,
@@ -290,6 +293,7 @@ export {
 	probeUrl,
 	clearSources,
 	wxrSource,
+	parseWxrDate,
 	wordpressRestSource,
 	importReusableBlocksAsSections,
 } from "./import/index.js";
@@ -336,7 +340,13 @@ export type {
 	GetPreviewUrlOptions,
 } from "./preview/index.js";
 // Site Settings
-export { getSiteSetting, getSiteSettings, setSiteSettings } from "./settings/index.js";
+export {
+	getPluginSetting,
+	getPluginSettings,
+	getSiteSetting,
+	getSiteSettings,
+	setSiteSettings,
+} from "./settings/index.js";
 export type {
 	SiteSettings,
 	SiteSettingKey,
@@ -352,6 +362,7 @@ export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
 export type {
 	PagePlacement,
 	PublicPageContext,
+	BreadcrumbItem,
 	PageMetadataEvent,
 	PageMetadataContribution,
 	PageMetadataHandler,

@@ -6,6 +6,7 @@ import { ulid } from "ulidx";
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
+import { validateIdentifier } from "../database/validate.js";
 import { FTSManager } from "../search/fts-manager.js";
 import {
 	type Collection,
@@ -595,6 +596,11 @@ export class SchemaRegistry {
 			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_created_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
 		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
+		`.execute(conn);
 	}
 
 	/**
@@ -679,6 +685,7 @@ export class SchemaRegistry {
 	 * Get table name for a collection
 	 */
 	private getTableName(slug: string): string {
+		validateIdentifier(slug, "collection slug");
 		return `ec_${slug}`;
 	}
 
@@ -686,6 +693,7 @@ export class SchemaRegistry {
 	 * Get column name for a field
 	 */
 	private getColumnName(slug: string): string {
+		validateIdentifier(slug, "field slug");
 		return slug;
 	}
 

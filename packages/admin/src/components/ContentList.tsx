@@ -1,9 +1,12 @@
 import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	Pencil,
 	Trash,
 	ArrowCounterClockwise,
+	ArrowSquareOut,
 	Copy,
 	MagnifyingGlass,
 	CaretLeft,
@@ -13,6 +16,7 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { ContentItem, TrashedContentItem } from "../lib/api";
+import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -38,6 +42,8 @@ export interface ContentListProps {
 	activeLocale?: string;
 	/** Callback when locale filter changes */
 	onLocaleChange?: (locale: string) => void;
+	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
+	urlPattern?: string;
 }
 
 type ViewTab = "all" | "trash";
@@ -77,7 +83,9 @@ export function ContentList({
 	i18n,
 	activeLocale,
 	onLocaleChange,
+	urlPattern,
 }: ContentListProps) {
+	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
@@ -97,6 +105,15 @@ export function ContentList({
 	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
 	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+	// Auto-fetch next API page when user reaches the last client-side page.
+	// skip when a search query is active
+	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	React.useEffect(() => {
+		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+			onLoadMore();
+		}
+	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -113,9 +130,14 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link to="/content/$collection/new" params={{ collection }} className={buttonVariants()}>
+				<Link
+					to="/content/$collection/new"
+					params={{ collection }}
+					search={{ locale: activeLocale }}
+					className={buttonVariants()}
+				>
 					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-					Add New
+					{t`Add New`}
 				</Link>
 			</div>
 
@@ -125,8 +147,8 @@ export function ContentList({
 					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
-						placeholder={`Search ${collectionLabel.toLowerCase()}...`}
-						aria-label={`Search ${collectionLabel.toLowerCase()}`}
+						placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
+						aria-label={t`Search ${collectionLabel.toLowerCase()}`}
 						value={searchQuery}
 						onChange={handleSearchChange}
 						className="pl-9"
@@ -142,13 +164,13 @@ export function ContentList({
 					if (v === "all" || v === "trash") setActiveTab(v);
 				}}
 				tabs={[
-					{ value: "all", label: "All" },
+					{ value: "all", label: t`All` },
 					{
 						value: "trash",
 						label: (
 							<span className="flex items-center gap-2">
 								<Trash className="h-4 w-4" aria-hidden="true" />
-								Trash
+								{t`Trash`}
 								{trashedCount > 0 && <Badge variant="secondary">{trashedCount}</Badge>}
 							</span>
 						),
@@ -165,21 +187,21 @@ export function ContentList({
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Title
+										{t`Title`}
 									</th>
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Status
+										{t`Status`}
 									</th>
 									{i18n && (
 										<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-											Locale
+											{t`Locale`}
 										</th>
 									)}
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Date
+										{t`Date`}
 									</th>
 									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
-										Actions
+										{t`Actions`}
 									</th>
 								</tr>
 							</thead>
@@ -187,20 +209,21 @@ export function ContentList({
 								{items.length === 0 && !isLoading ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											No {collectionLabel.toLowerCase()} yet.{" "}
+											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
 											<Link
 												to="/content/$collection/new"
 												params={{ collection }}
+												search={{ locale: activeLocale }}
 												className="text-kumo-brand underline"
 											>
-												Create your first one
+												{t`Create your first one`}
 											</Link>
 										</td>
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											No results for &ldquo;{searchQuery}&rdquo;
+											{t`No results for "${searchQuery}"`}
 										</td>
 									</tr>
 								) : (
@@ -212,6 +235,7 @@ export function ContentList({
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
+											urlPattern={urlPattern}
 										/>
 									))
 								)}
@@ -223,8 +247,15 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
-								{searchQuery && ` matching "${searchQuery}"`}
+								{searchQuery
+									? plural(filteredItems.length, {
+											one: `# item matching "${searchQuery}"`,
+											other: `# items matching "${searchQuery}"`,
+										})
+									: plural(filteredItems.length, {
+											one: `#${hasMore ? "+" : ""} item`,
+											other: `#${hasMore ? "+" : ""} items`,
+										})}
 							</span>
 							<div className="flex items-center gap-2">
 								<Button
@@ -232,7 +263,7 @@ export function ContentList({
 									shape="square"
 									disabled={page === 0}
 									onClick={() => setPage(page - 1)}
-									aria-label="Previous page"
+									aria-label={t`Previous page`}
 								>
 									<CaretLeft className="h-4 w-4" aria-hidden="true" />
 								</Button>
@@ -244,7 +275,7 @@ export function ContentList({
 									shape="square"
 									disabled={page >= totalPages - 1}
 									onClick={() => setPage(page + 1)}
-									aria-label="Next page"
+									aria-label={t`Next page`}
 								>
 									<CaretRight className="h-4 w-4" aria-hidden="true" />
 								</Button>
@@ -256,7 +287,7 @@ export function ContentList({
 					{hasMore && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
-								{isLoading ? "Loading..." : "Load More"}
+								{isLoading ? t`Loading...` : t`Load More`}
 							</Button>
 						</div>
 					)}
@@ -269,13 +300,13 @@ export function ContentList({
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Title
+										{t`Title`}
 									</th>
 									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										Deleted
+										{t`Deleted`}
 									</th>
 									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
-										Actions
+										{t`Actions`}
 									</th>
 								</tr>
 							</thead>
@@ -283,7 +314,7 @@ export function ContentList({
 								{trashedItems.length === 0 && !isTrashedLoading ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
-											Trash is empty
+											{t`Trash is empty`}
 										</td>
 									</tr>
 								) : (
@@ -304,7 +335,7 @@ export function ContentList({
 					{hasMoreTrashed && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMoreTrashed} disabled={isTrashedLoading}>
-								{isTrashedLoading ? "Loading..." : "Load More"}
+								{isTrashedLoading ? t`Loading...` : t`Load More`}
 							</Button>
 						</div>
 					)}
@@ -320,6 +351,7 @@ interface ContentListItemProps {
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	urlPattern?: string;
 }
 
 function ContentListItem({
@@ -328,7 +360,9 @@ function ContentListItem({
 	onDelete,
 	onDuplicate,
 	showLocale,
+	urlPattern,
 }: ContentListItemProps) {
+	const { t } = useLingui();
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
 
@@ -359,10 +393,21 @@ function ContentListItem({
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
 			<td className="px-4 py-3 text-right">
 				<div className="flex items-center justify-end space-x-1">
+					{item.status === "published" && item.slug && (
+						<a
+							href={contentUrl(collection, item.slug, urlPattern)}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={t`View published ${title}`}
+							className={buttonVariants({ variant: "ghost", shape: "square" })}
+						>
+							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+						</a>
+					)}
 					<Link
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
-						aria-label={`Edit ${title}`}
+						aria-label={t`Edit ${title}`}
 						className={buttonVariants({ variant: "ghost", shape: "square" })}
 					>
 						<Pencil className="h-4 w-4" aria-hidden="true" />
@@ -370,7 +415,7 @@ function ContentListItem({
 					<Button
 						variant="ghost"
 						shape="square"
-						aria-label={`Duplicate ${title}`}
+						aria-label={t`Duplicate ${title}`}
 						onClick={() => onDuplicate?.(item.id)}
 					>
 						<Copy className="h-4 w-4" aria-hidden="true" />
@@ -378,28 +423,33 @@ function ContentListItem({
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (
-								<Button {...p} variant="ghost" shape="square" aria-label={`Move ${title} to trash`}>
+								<Button
+									{...p}
+									variant="ghost"
+									shape="square"
+									aria-label={t`Move ${title} to trash`}
+								>
 									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">Move to Trash?</Dialog.Title>
+							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
 							<Dialog.Description className="text-kumo-subtle">
-								Move "{title}" to trash? You can restore it later.
+								{t`Move "${title}" to trash? You can restore it later.`}
 							</Dialog.Description>
 							<div className="mt-6 flex justify-end gap-2">
 								<Dialog.Close
 									render={(p) => (
 										<Button {...p} variant="secondary">
-											Cancel
+											{t`Cancel`}
 										</Button>
 									)}
 								/>
 								<Dialog.Close
 									render={(p) => (
 										<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-											Move to Trash
+											{t`Move to Trash`}
 										</Button>
 									)}
 								/>
@@ -419,6 +469,7 @@ interface TrashedListItemProps {
 }
 
 function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItemProps) {
+	const { t } = useLingui();
 	const title = getItemTitle(item);
 	const deletedDate = new Date(item.deletedAt);
 
@@ -433,7 +484,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 					<Button
 						variant="ghost"
 						shape="square"
-						aria-label={`Restore ${title}`}
+						aria-label={t`Restore ${title}`}
 						onClick={() => onRestore?.(item.id)}
 					>
 						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
@@ -445,22 +496,24 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 									{...p}
 									variant="ghost"
 									shape="square"
-									aria-label={`Permanently delete ${title}`}
+									aria-label={t`Permanently delete ${title}`}
 								>
 									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">Delete Permanently?</Dialog.Title>
+							<Dialog.Title className="text-lg font-semibold">
+								{t`Delete Permanently?`}
+							</Dialog.Title>
 							<Dialog.Description className="text-kumo-subtle">
-								Permanently delete "{title}"? This cannot be undone.
+								{t`Permanently delete "${title}"? This cannot be undone.`}
 							</Dialog.Description>
 							<div className="mt-6 flex justify-end gap-2">
 								<Dialog.Close
 									render={(p) => (
 										<Button {...p} variant="secondary">
-											Cancel
+											{t`Cancel`}
 										</Button>
 									)}
 								/>
@@ -471,7 +524,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 											variant="destructive"
 											onClick={() => onPermanentDelete?.(item.id)}
 										>
-											Delete Permanently
+											{t`Delete Permanently`}
 										</Button>
 									)}
 								/>
@@ -491,6 +544,19 @@ function StatusBadge({
 	status: string;
 	hasPendingChanges?: boolean;
 }) {
+	const { t } = useLingui();
+
+	const statusLabel =
+		status === "published"
+			? t`published`
+			: status === "draft"
+				? t`draft`
+				: status === "scheduled"
+					? t`scheduled`
+					: status === "archived"
+						? t`archived`
+						: status;
+
 	return (
 		<span className="inline-flex items-center gap-1.5">
 			<span
@@ -505,9 +571,9 @@ function StatusBadge({
 					status === "archived" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 				)}
 			>
-				{status}
+				{statusLabel}
 			</span>
-			{hasPendingChanges && <Badge variant="secondary">pending</Badge>}
+			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
 		</span>
 	);
 }

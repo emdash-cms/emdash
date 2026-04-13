@@ -422,6 +422,24 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 
 			if (!baseEntry) continue; // Try next locale in chain
 
+			// Preview tokens are item-scoped: verify the resolved entry matches.
+			// Edit mode (authenticated editors) has collection-wide draft access.
+			if (isPreviewMode && !isEditMode) {
+				const dbId = entryDatabaseId(baseEntry);
+				if (preview!.id !== dbId && preview!.id !== id) {
+					// Token doesn't match — serve only if publicly visible, without draft access
+					if (isVisible(baseEntry)) {
+						return successResult(wrapEntry(baseEntry), {
+							isPreview: false,
+							fallbackLocale,
+							cacheHint: cacheHint ?? {},
+						});
+					}
+					// Not visible — try next locale in fallback chain
+					continue;
+				}
+			}
+
 			// Check if entry has a draft revision — if so, re-fetch with revision data
 			const baseData = entryData(baseEntry);
 			const draftRevisionId = dataStr(baseData, "draftRevisionId") || undefined;
@@ -619,6 +637,22 @@ function patternToRegex(pattern: string): { regex: RegExp; paramNames: string[] 
 	return { regex: new RegExp(`^${regexStr}$`), paramNames };
 }
 
+/** Cached compiled URL patterns for resolveEmDashPath */
+interface CachedPattern {
+	slug: string;
+	regex: RegExp;
+	paramNames: string[];
+}
+let cachedUrlPatterns: CachedPattern[] | null = null;
+
+/**
+ * Invalidate the cached URL patterns used by resolveEmDashPath.
+ * Call when collection URL patterns change (schema updates).
+ */
+export function invalidateUrlPatternCache(): void {
+	cachedUrlPatterns = null;
+}
+
 /**
  * Resolve a URL path to a content entry by matching against collection URL patterns.
  *
@@ -641,32 +675,39 @@ function patternToRegex(pattern: string): { regex: RegExp; paramNames: string[] 
 export async function resolveEmDashPath<T = Record<string, unknown>>(
 	path: string,
 ): Promise<ResolvePathResult<T> | null> {
-	const { getDb } = await import("./loader.js");
-	const { SchemaRegistry } = await import("./schema/registry.js");
-	const db = await getDb();
-	const registry = new SchemaRegistry(db);
-	const collections = await registry.listCollections();
+	// Build and cache compiled patterns on first call
+	if (!cachedUrlPatterns) {
+		const { getDb } = await import("./loader.js");
+		const { SchemaRegistry } = await import("./schema/registry.js");
+		const db = await getDb();
+		const registry = new SchemaRegistry(db);
+		const collections = await registry.listCollections();
 
-	for (const collection of collections) {
-		if (!collection.urlPattern) continue;
+		cachedUrlPatterns = [];
+		for (const collection of collections) {
+			if (!collection.urlPattern) continue;
+			const { regex, paramNames } = patternToRegex(collection.urlPattern);
+			cachedUrlPatterns.push({ slug: collection.slug, regex, paramNames });
+		}
+	}
 
-		const { regex, paramNames } = patternToRegex(collection.urlPattern);
-		const match = path.match(regex);
+	for (const pattern of cachedUrlPatterns) {
+		const match = path.match(pattern.regex);
 		if (!match) continue;
 
 		// Extract params
 		const params: Record<string, string> = {};
-		for (let i = 0; i < paramNames.length; i++) {
-			params[paramNames[i]] = match[i + 1];
+		for (let i = 0; i < pattern.paramNames.length; i++) {
+			params[pattern.paramNames[i]] = match[i + 1];
 		}
 
 		// Look up entry by slug (most common pattern)
 		const slug = params.slug;
 		if (!slug) continue;
 
-		const { entry } = await getEmDashEntry<string, T>(collection.slug, slug);
+		const { entry } = await getEmDashEntry<string, T>(pattern.slug, slug);
 		if (entry) {
-			return { entry, collection: collection.slug, params };
+			return { entry, collection: pattern.slug, params };
 		}
 	}
 

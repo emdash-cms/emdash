@@ -162,14 +162,50 @@ export interface KVAccess {
 }
 
 /**
+ * SEO metadata for a content item, as stored in the core SEO panel.
+ *
+ * Only present on items in collections with `has_seo = 1`. For collections
+ * without SEO enabled, `ContentItem.seo` is `undefined`.
+ */
+export interface ContentItemSeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
+/**
+ * SEO input accepted by content write operations.
+ *
+ * All fields are optional — only fields that are present overwrite existing
+ * values. An empty object is treated as a no-op.
+ */
+export interface ContentItemSeoInput {
+	title?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	noIndex?: boolean;
+}
+
+/**
  * Content item returned from content API
  */
 export interface ContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
 	data: Record<string, unknown>;
+	/**
+	 * SEO metadata, populated when the collection has SEO enabled
+	 * (`has_seo = 1`). `undefined` for non-SEO collections.
+	 */
+	seo?: ContentItemSeo;
 	createdAt: string;
 	updatedAt: string;
+	publishedAt: string | null;
 }
 
 /**
@@ -182,6 +218,18 @@ export interface ContentListOptions {
 }
 
 /**
+ * Input accepted by `content.create` / `content.update`.
+ *
+ * Most entries are field slugs mapped to their values. The reserved `seo`
+ * key is extracted and routed to the core SEO panel (the `_emdash_seo`
+ * table), matching the shape accepted by the REST API. Passing `seo` for a
+ * collection that does not have SEO enabled throws a validation error.
+ */
+export type ContentWriteInput = Record<string, unknown> & {
+	seo?: ContentItemSeoInput;
+};
+
+/**
  * Content access interface - capability-gated
  */
 export interface ContentAccess {
@@ -190,8 +238,8 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update?(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
 }
 
@@ -199,8 +247,8 @@ export interface ContentAccess {
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }
 
@@ -657,6 +705,16 @@ export interface ContentHookEvent {
 export interface ContentDeleteEvent {
 	id: string;
 	collection: string;
+	/** `true` when the content is permanently deleted (not just trashed). */
+	permanent: boolean;
+}
+
+/**
+ * Content publish state change hook event (fired after publish or unpublish)
+ */
+export interface ContentPublishStateChangeEvent {
+	content: Record<string, unknown>;
+	collection: string;
 }
 
 /**
@@ -708,6 +766,16 @@ export type ContentAfterDeleteHandler = (
 	ctx: PluginContext,
 ) => Promise<void>;
 
+export type ContentAfterPublishHandler = (
+	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterUnpublishHandler = (
+	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
 export type MediaBeforeUploadHandler = (
 	event: MediaUploadEvent,
 	ctx: PluginContext,
@@ -730,6 +798,17 @@ export type UninstallHandler = (event: UninstallEvent, ctx: PluginContext) => Pr
 export type PagePlacement = "head" | "body:start" | "body:end";
 
 /**
+ * A single breadcrumb trail item. Used by `PublicPageContext.breadcrumbs`
+ * so themes can publish breadcrumb trails that SEO plugins consume.
+ */
+export interface BreadcrumbItem {
+	/** Display name for this crumb (e.g. "Home", "Blog", "My Post"). */
+	name: string;
+	/** Absolute or root-relative URL for this crumb. */
+	url: string;
+}
+
+/**
  * Describes the page being rendered. Passed to page hooks so plugins
  * can decide what to contribute without fetching content themselves.
  */
@@ -739,7 +818,10 @@ export interface PublicPageContext {
 	locale: string | null;
 	kind: "content" | "custom";
 	pageType: string;
+	/** Full document title for the rendered page */
 	title: string | null;
+	/** Page-only title for OG/Twitter/JSON-LD headline output */
+	pageTitle?: string | null;
 	description: string | null;
 	canonical: string | null;
 	image: string | null;
@@ -763,6 +845,23 @@ export interface PublicPageContext {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/**
+	 * Optional breadcrumb trail for this page, root first. When set,
+	 * SEO plugins should use this verbatim rather than deriving a trail
+	 * from `path`. Themes typically populate this at the point they
+	 * build the context (e.g. from a content hierarchy walk, taxonomy
+	 * lookup, or per-`pageType` routing logic).
+	 *
+	 * Semantics for consumers:
+	 *   - `undefined` — theme has no opinion; consumer falls back to
+	 *     its own derivation.
+	 *   - `[]` — this page has no breadcrumbs (e.g. homepage); consumer
+	 *     should skip `BreadcrumbList` emission entirely.
+	 *   - Non-empty array — used verbatim for `BreadcrumbList` output.
+	 */
+	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 // ── page:metadata ───────────────────────────────────────────────
@@ -782,6 +881,7 @@ export type PageMetadataLinkRel =
 	| "alternate"
 	| "author"
 	| "license"
+	| "nlweb"
 	| "site.standard.document";
 
 export type PageMetadataContribution =
@@ -857,6 +957,10 @@ export interface PluginHooks {
 	"content:afterSave"?: HookConfig<ContentAfterSaveHandler> | ContentAfterSaveHandler;
 	"content:beforeDelete"?: HookConfig<ContentBeforeDeleteHandler> | ContentBeforeDeleteHandler;
 	"content:afterDelete"?: HookConfig<ContentAfterDeleteHandler> | ContentAfterDeleteHandler;
+	"content:afterPublish"?: HookConfig<ContentAfterPublishHandler> | ContentAfterPublishHandler;
+	"content:afterUnpublish"?:
+		| HookConfig<ContentAfterUnpublishHandler>
+		| ContentAfterUnpublishHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -1157,6 +1261,8 @@ export interface ResolvedPluginHooks {
 	"content:afterSave"?: ResolvedHook<ContentAfterSaveHandler>;
 	"content:beforeDelete"?: ResolvedHook<ContentBeforeDeleteHandler>;
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
+	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
+	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;

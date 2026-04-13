@@ -1,4 +1,5 @@
 import { Button, LinkButton, Popover } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -27,26 +28,27 @@ async function handleLogout() {
  * Uses useSidebar() hook from kumo Sidebar.Provider context.
  */
 export function Header() {
+	const { t } = useLingui();
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	const { data: user } = useCurrentUser();
 
 	// Get display name and initials
-	const displayName = user?.name || user?.email || "User";
+	const displayName = user?.name || user?.email || t`User`;
 	const initialsSource = user?.name || user?.email || "U";
 	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
 		<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-kumo-base px-4">
 			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
-			<Sidebar.Trigger />
+			<Sidebar.Trigger className="cursor-pointer" />
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 mr-1" />
-					View Site
+					{t`View Site`}
 				</LinkButton>
 
 				{/* Theme toggle */}
@@ -70,7 +72,7 @@ export function Header() {
 					<Popover.Content className="w-56 p-2" align="end">
 						{/* User info */}
 						<div className="px-3 py-2 border-b mb-1">
-							<div className="font-medium truncate">{user?.name || "User"}</div>
+							<div className="font-medium truncate">{user?.name || t`User`}</div>
 							<div className="text-xs text-kumo-subtle truncate">{user?.email}</div>
 						</div>
 						<div className="grid gap-1">
@@ -80,7 +82,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								<Shield className="h-4 w-4" />
-								Security Settings
+								{t`Security Settings`}
 							</Link>
 							<Link
 								to="/settings"
@@ -88,7 +90,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								<Gear className="h-4 w-4" />
-								Settings
+								{t`Settings`}
 							</Link>
 							<hr className="my-1" />
 							<button
@@ -96,7 +98,7 @@ export function Header() {
 								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-left"
 							>
 								<SignOut className="h-4 w-4" />
-								Log out
+								{t`Log out`}
 							</button>
 						</div>
 					</Popover.Content>
