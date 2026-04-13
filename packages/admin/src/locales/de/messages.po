@@ -159,7 +159,7 @@ msgstr "Aufzählungsliste"
 #: packages/admin/src/components/ContentEditor.tsx:863
 #: packages/admin/src/components/Sidebar.tsx:201
 msgid "Bylines"
-msgstr "Autorenzeilen"
+msgstr "Autoren"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -694,7 +694,7 @@ msgstr "Navigation"
 
 #: packages/admin/src/components/ContentEditor.tsx:502
 msgid "New {collectionLabel}"
-msgstr "Neue(s) {collectionLabel}"
+msgstr "Neue {collectionLabel}"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:466
 msgid "new tab"
@@ -1237,7 +1237,7 @@ msgstr "E-Mail-Anbieter-Status anzeigen und Test-E-Mails senden"
 
 #: packages/admin/src/components/ContentList.tsx:401
 msgid "View published {title}"
-msgstr "Veröffentlichte(n) {title} ansehen"
+msgstr "Veröffentlichten {title} ansehen"
 
 #: packages/admin/src/components/Header.tsx:51
 msgid "View Site"
