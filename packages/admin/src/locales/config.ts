@@ -26,6 +26,7 @@ export const SUPPORTED_LOCALES: SupportedLocale[] = [
 	{ code: "en", label: "English" },
 	{ code: "de", label: "Deutsch" },
 	{ code: "pt-BR", label: "Português (Brasil)" },
+	{ code: "ar", label: "العربية" },
 	{ code: "zh-CN", label: "简体中文" },
 ].filter((l) => validateLocaleCode(l.code));
 
