@@ -1,6 +1,5 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import {
 	ContentEditor,
@@ -8,6 +7,7 @@ import {
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
 import type { ContentItem } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
 
 // Mock child components that have complex dependencies
 vi.mock("../../src/components/PortableTextEditor", () => ({
@@ -142,6 +142,124 @@ describe("ContentEditor", () => {
 			});
 			const input = screen.getByLabelText("Order");
 			await expect.element(input).toHaveAttribute("type", "number");
+		});
+
+		it("renders select fields as select dropdowns", async () => {
+			const screen = await renderEditor({
+				fields: {
+					color: {
+						kind: "select",
+						label: "Color",
+						options: [
+							{ value: "red", label: "Red" },
+							{ value: "blue", label: "Blue" },
+						],
+					},
+				},
+			});
+			// Select renders a combobox role
+			const select = screen.getByRole("combobox");
+			await expect.element(select).toBeInTheDocument();
+		});
+
+		it("renders multiSelect fields as checkbox group", async () => {
+			const screen = await renderEditor({
+				fields: {
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			await expect.element(checkboxes.first()).toBeInTheDocument();
+			// All option labels should be present
+			await expect.element(screen.getByText("News")).toBeInTheDocument();
+			await expect.element(screen.getByText("Tech")).toBeInTheDocument();
+			await expect.element(screen.getByText("Sports")).toBeInTheDocument();
+		});
+
+		it("toggling a multiSelect checkbox updates the saved value", async () => {
+			const onSave = vi.fn();
+			const item = makeItem({
+				data: { title: "Test", tags: ["news", "sports"] },
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			const all = checkboxes.all();
+
+			// Uncheck "sports" (index 2, currently checked)
+			await all[2]!.click();
+			await expect.element(all[2]!).not.toBeChecked();
+
+			// Check "tech" (index 1, currently unchecked)
+			await all[1]!.click();
+			await expect.element(all[1]!).toBeChecked();
+
+			// Save and verify the data sent to onSave
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						tags: ["news", "tech"],
+					}),
+				}),
+			);
+		});
+
+		it("multiSelect checkboxes reflect existing values", async () => {
+			const item = makeItem({
+				data: { title: "Test", tags: ["news", "sports"] },
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+			// Verify the checkbox group renders with correct checked state via aria
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			const all = checkboxes.all();
+			// Should have 3 checkboxes
+			expect(all).toHaveLength(3);
+			// news (checked), tech (unchecked), sports (checked)
+			await expect.element(all[0]!).toBeChecked();
+			await expect.element(all[1]!).not.toBeChecked();
+			await expect.element(all[2]!).toBeChecked();
 		});
 	});
 

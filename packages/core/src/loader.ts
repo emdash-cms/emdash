@@ -16,6 +16,7 @@ import { Kysely, sql, type Dialect } from "kysely";
 
 import { currentTimestampValue, isPostgres } from "./database/dialect-helpers.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
+import { validateIdentifier } from "./database/validate.js";
 import type { Database } from "./index.js";
 import { getRequestContext } from "./request-context.js";
 
@@ -50,6 +51,7 @@ const SYSTEM_COLUMNS = new Set([
  * Get the table name for a collection type
  */
 function getTableName(type: string): string {
+	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
 }
 

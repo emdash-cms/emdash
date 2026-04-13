@@ -39,10 +39,18 @@ export interface S3StorageConfig {
 	endpoint: string;
 	/** Bucket name */
 	bucket: string;
-	/** Access key ID */
-	accessKeyId: string;
-	/** Secret access key */
-	secretAccessKey: string;
+	/**
+	 * Access key ID.
+	 * May be resolved from the `S3_ACCESS_KEY_ID` env var at runtime on Node.
+	 * Must be provided together with `secretAccessKey`, or both omitted.
+	 */
+	accessKeyId?: string;
+	/**
+	 * Secret access key.
+	 * May be resolved from the `S3_SECRET_ACCESS_KEY` env var at runtime on Node.
+	 * Must be provided together with `accessKeyId`, or both omitted.
+	 */
+	secretAccessKey?: string;
 	/** Optional region (defaults to "auto") */
 	region?: string;
 	/** Optional public URL prefix for CDN */

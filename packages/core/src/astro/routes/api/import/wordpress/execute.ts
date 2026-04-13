@@ -13,6 +13,7 @@ import {
 	ContentRepository,
 	importReusableBlocksAsSections,
 	type WxrPost,
+	parseWxrDate,
 } from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
@@ -21,6 +22,8 @@ import { BylineRepository } from "#db/repositories/byline.js";
 import { resolveImportByline } from "#import/utils.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
+
+import { sanitizeSlug } from "./analyze.js";
 
 export const prerender = false;
 
@@ -165,7 +168,9 @@ async function importContent(
 			continue;
 		}
 
-		const collection = mapping.collection;
+		// Defensive: mapping.collection is already sanitized by prepare, but the user
+		// could manually edit the import config between prepare and execute.
+		const collection = sanitizeSlug(mapping.collection);
 
 		// Check if collection exists in manifest
 		if (!manifest?.collections[collection]) {
@@ -232,6 +237,12 @@ async function importContent(
 				bylineCache,
 			);
 
+			// Preserve original WordPress dates using the shared WXR date parser.
+			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
+			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
+			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
+			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
 				data,
@@ -240,6 +251,8 @@ async function importContent(
 				authorId,
 				bylines: bylineId ? [{ bylineId }] : undefined,
 				locale,
+				createdAt,
+				publishedAt,
 			});
 
 			if (createResult.success) {

@@ -1,5 +1,5 @@
 ---
-import { getMenu, getEmDashCollection } from "emdash";
+import { getMenu, getEmDashCollection, getSiteSettings } from "emdash";
 import {
 	WidgetArea,
 	EmDashHead,
@@ -8,10 +8,13 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
+import { Font } from "astro:assets";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/theme.css";
 
 interface Props {
 	title: string;
+	pageTitle?: string | null;
 	description?: string | null;
 	image?: string | null;
 	canonical?: string | null;
@@ -26,6 +29,7 @@ interface Props {
 
 const {
 	title,
+	pageTitle,
 	description,
 	image,
 	canonical,
@@ -36,7 +40,7 @@ const {
 	author,
 	content,
 } = Astro.props;
-const siteTitle = "My Blog";
+const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveBlogSiteIdentity(await getSiteSettings());
 // If title already includes site title (from getSeoMeta), use as-is
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 
@@ -53,6 +57,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: type,
 	title: fullTitle,
+	pageTitle: pageTitle ?? title,
 	description,
 	canonical,
 	image,
@@ -71,13 +76,10 @@ const isLoggedIn = !!Astro.locals.user;
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500&display=swap"
-			rel="stylesheet"
-		/>
+		<Font cssVariable="--font-sans" preload />
+		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
 		<script is:inline>
 			// Apply theme immediately to prevent flash
@@ -97,7 +99,12 @@ const isLoggedIn = !!Astro.locals.user;
 		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav">
-				<a href="/" class="site-title">{siteTitle}</a>
+				<a href="/" class="site-title">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						: siteTitle
+					}
+				</a>
 				<div class="nav-right">
 					<LiveSearch
 						placeholder="Search..."
@@ -135,8 +142,13 @@ const isLoggedIn = !!Astro.locals.user;
 			<div class="footer-inner">
 				<div class="footer-grid">
 					<div class="footer-brand">
-						<a href="/" class="footer-logo">{siteTitle}</a>
-						<p class="footer-tagline">Thoughts, stories, and ideas.</p>
+						<a href="/" class="footer-logo">
+							{siteLogo
+								? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+								: siteTitle
+							}
+						</a>
+						<p class="footer-tagline">{siteTagline}</p>
 					</div>
 					<div class="footer-nav">
 						<h4 class="footer-heading">Navigate</h4>
@@ -386,13 +398,6 @@ const isLoggedIn = !!Astro.locals.user;
 				--emdash-search-hover: var(--color-surface);
 				--emdash-search-highlight: var(--color-text);
 
-				/* Typography */
-				--font-sans:
-					"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-					sans-serif;
-				--font-mono:
-					"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-
 				/* Type scale - more refined */
 				--font-size-xs: 0.8125rem;
 				--font-size-sm: 0.875rem;
@@ -591,6 +596,13 @@ const isLoggedIn = !!Astro.locals.user;
 				color: var(--color-accent);
 			}
 
+			.site-logo-img {
+				height: 48px;
+				width: auto;
+				display: block;
+				margin: -8px 0;
+			}
+
 			.nav-right {
 				display: flex;
 				align-items: center;
@@ -761,6 +773,11 @@ const isLoggedIn = !!Astro.locals.user;
 				color: var(--color-text);
 				text-decoration: none;
 				letter-spacing: var(--tracking-snug);
+			}
+
+			.footer-logo-img {
+				height: 24px;
+				width: auto;
 			}
 
 			.footer-tagline {

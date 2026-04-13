@@ -385,6 +385,8 @@ export async function handleContentCreate(
 		locale?: string;
 		translationOf?: string;
 		seo?: ContentSeoInput;
+		createdAt?: string | null;
+		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
@@ -423,6 +425,8 @@ export async function handleContentCreate(
 				authorId: body.authorId,
 				locale: body.locale,
 				translationOf: body.translationOf,
+				createdAt: body.createdAt,
+				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
@@ -784,6 +788,9 @@ export async function handleContentPermanentDelete(
 				// Clean up comments for permanently deleted content
 				const commentRepo = new CommentRepository(trx);
 				await commentRepo.deleteByContent(collection, resolvedId);
+				// Clean up revisions for permanently deleted content
+				const revisionRepo = new RevisionRepository(trx);
+				await revisionRepo.deleteByEntry(collection, resolvedId);
 			}
 
 			return wasDeleted;

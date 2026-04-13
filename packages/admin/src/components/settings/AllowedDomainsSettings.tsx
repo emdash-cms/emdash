@@ -29,19 +29,10 @@ import {
 	fetchManifest,
 	type AllowedDomain,
 } from "../../lib/api";
-
-const ROLES = [
-	{ value: 10, label: "Subscriber" },
-	{ value: 20, label: "Contributor" },
-	{ value: 30, label: "Author" },
-	{ value: 40, label: "Editor" },
-] as const;
-
-function getRoleName(level: number): string {
-	return ROLES.find((r) => r.value === level)?.label ?? "Unknown";
-}
+import { useAllowedDomainsRolesConfig } from "./useAllowedDomainsRolesConfig.js";
 
 export function AllowedDomainsSettings() {
+	const { getRoleLabel, signupRoles, signupRoleItems } = useAllowedDomainsRolesConfig();
 	const queryClient = useQueryClient();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
 	const [editingDomain, setEditingDomain] = React.useState<AllowedDomain | null>(null);
@@ -275,7 +266,7 @@ export function AllowedDomainsSettings() {
 									<div>
 										<div className="font-medium">{domain.domain}</div>
 										<div className="text-sm text-kumo-subtle">
-											Default role: {getRoleName(domain.defaultRole)}
+											Default role: {getRoleLabel(domain.defaultRole)}
 										</div>
 									</div>
 								</div>
@@ -339,9 +330,9 @@ export function AllowedDomainsSettings() {
 										label="Default Role"
 										value={String(newRole)}
 										onValueChange={(v) => v !== null && setNewRole(Number(v))}
-										items={Object.fromEntries(ROLES.map((r) => [String(r.value), r.label]))}
+										items={signupRoleItems}
 									>
-										{ROLES.map((role) => (
+										{signupRoles.map((role) => (
 											<Select.Option key={role.value} value={String(role.value)}>
 												{role.label}
 											</Select.Option>
@@ -403,9 +394,9 @@ export function AllowedDomainsSettings() {
 								onValueChange={(v) =>
 									v !== null && editingDomain && handleUpdateRole(editingDomain.domain, Number(v))
 								}
-								items={Object.fromEntries(ROLES.map((r) => [String(r.value), r.label]))}
+								items={signupRoleItems}
 							>
-								{ROLES.map((role) => (
+								{signupRoles.map((role) => (
 									<Select.Option key={role.value} value={String(role.value)}>
 										{role.label}
 									</Select.Option>

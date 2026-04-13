@@ -34,6 +34,7 @@ import * as m030 from "./030_widen_scheduled_index.js";
 import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
 import * as m033 from "./033_optimize_content_indexes.js";
+import * as m034 from "./034_published_at_index.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -67,6 +68,8 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"030_widen_scheduled_index": m030,
 	"031_bylines": m031,
 	"032_rate_limits": m032,
+	"033_optimize_content_indexes": m033,
+	"034_published_at_index": m034,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

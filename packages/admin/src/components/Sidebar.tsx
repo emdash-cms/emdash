@@ -51,7 +51,12 @@ export interface SidebarNavProps {
 				version?: string;
 			}
 		>;
+		taxonomies: Array<{
+			name: string;
+			label: string;
+		}>;
 		version?: string;
+		commit?: string;
 		marketplace?: string;
 	};
 }
@@ -184,20 +189,13 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/redirects", label: "Redirects", icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
 		{ to: "/widgets", label: "Widgets", icon: GridFour, minRole: ROLE_EDITOR },
 		{ to: "/sections", label: "Sections", icon: Stack, minRole: ROLE_EDITOR },
-		{
-			to: "/taxonomies/$taxonomy",
-			label: "Categories",
+		...manifest.taxonomies.map((tax) => ({
+			to: "/taxonomies/$taxonomy" as const,
+			label: tax.label,
 			icon: FileText,
-			params: { taxonomy: "category" },
+			params: { taxonomy: tax.name },
 			minRole: ROLE_EDITOR,
-		},
-		{
-			to: "/taxonomies/$taxonomy",
-			label: "Tags",
-			icon: FileText,
-			params: { taxonomy: "tag" },
-			minRole: ROLE_EDITOR,
-		},
+		})),
 		{ to: "/bylines", label: "Bylines", icon: FileText, minRole: ROLE_EDITOR },
 	];
 
@@ -418,6 +416,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				<KumoSidebar.Footer>
 					<p className="emdash-nav-label px-3 py-2 text-[11px] text-white/30">
 						EmDash CMS v{manifest.version || "0.0.0"}
+						{manifest.commit && ` (${manifest.commit})`}
 					</p>
 				</KumoSidebar.Footer>
 			</KumoSidebar>
