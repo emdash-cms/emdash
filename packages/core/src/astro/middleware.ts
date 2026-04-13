@@ -161,22 +161,14 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
 function setBaselineSecurityHeaders(response: Response): Response {
-	const headers = new Headers(response.headers);
-	// Prevent MIME type sniffing
-	headers.set("X-Content-Type-Options", "nosniff");
-	// Control referrer information
-	headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-	// Restrict access to sensitive browser APIs
-	headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
-	// Prevent clickjacking (non-admin routes; admin CSP uses frame-ancestors)
-	if (!headers.has("Content-Security-Policy")) {
-		headers.set("X-Frame-Options", "SAMEORIGIN");
+	const res = new Response(response.body, response);
+	res.headers.set("X-Content-Type-Options", "nosniff");
+	res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+	res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+	if (!res.headers.has("Content-Security-Policy")) {
+		res.headers.set("X-Frame-Options", "SAMEORIGIN");
 	}
-	return new Response(response.body, {
-		status: response.status,
-		statusText: response.statusText,
-		headers,
-	});
+	return res;
 }
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
