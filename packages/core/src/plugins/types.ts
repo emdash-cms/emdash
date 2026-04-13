@@ -209,12 +209,27 @@ export interface ContentItem {
 }
 
 /**
+ * Filters applied at the database layer to `ContentAccess.list()`.
+ *
+ * Applied via SQL `WHERE` clauses, so they narrow the result set before
+ * pagination — unlike filtering the returned array in userland, which
+ * would still pay for pulling every row across the boundary.
+ */
+export interface ContentListWhere {
+	/** Exact match on `status` (e.g. `"published"`, `"draft"`). */
+	status?: string;
+	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
+	locale?: string;
+}
+
+/**
  * Content list options
  */
 export interface ContentListOptions {
 	limit?: number;
 	cursor?: string;
 	orderBy?: Record<string, "asc" | "desc">;
+	where?: ContentListWhere;
 }
 
 /**
