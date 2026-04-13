@@ -207,6 +207,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				locale: item.locale,
 				publishedAt: item.publishedAt,
 			};
 
@@ -245,6 +246,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				locale: item.locale,
 				publishedAt: item.publishedAt,
 			}));
 
@@ -305,6 +307,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
+					locale: item.locale,
 					publishedAt: item.publishedAt,
 				};
 
@@ -350,6 +353,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
+					locale: item.locale,
 					publishedAt: item.publishedAt,
 				};
 

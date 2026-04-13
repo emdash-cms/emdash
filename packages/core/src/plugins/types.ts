@@ -197,6 +197,7 @@ export interface ContentItem {
 	type: string;
 	slug: string | null;
 	status: string;
+	locale: string | null;
 	data: Record<string, unknown>;
 	/**
 	 * SEO metadata, populated when the collection has SEO enabled
