@@ -13,34 +13,32 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: packages/admin/src/components/ContentEditor.tsx:897
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 msgid " (default)"
 msgstr " (default)"
 
-#: packages/admin/src/components/ContentEditor.tsx:897
-msgid "(default)"
-msgstr "(default)"
-
 #. placeholder {0}: filteredItems.length
-#: packages/admin/src/components/ContentList.tsx:250
-msgid "{0} items matching \"{searchQuery}\""
-msgstr "{0} items matching \"{searchQuery}\""
+#: packages/admin/src/components/ContentList.tsx:251
+msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
+msgstr "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:124
-msgid "{0} media"
-msgstr "{0} media"
+#: packages/admin/src/components/Dashboard.tsx:123
+msgid "{0, plural, one {# media file} other {# media files}}"
+msgstr "{0, plural, one {# media file} other {# media files}}"
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:129
-msgid "{0} users"
-msgstr "{0} users"
+#: packages/admin/src/components/Dashboard.tsx:128
+msgid "{0, plural, one {# user} other {# users}}"
+msgstr "{0, plural, one {# user} other {# users}}"
 
 #. placeholder {0}: filteredItems.length
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:251
-msgid "{0}{1} items"
-msgstr "{0}{1} items"
+#. placeholder {2}: hasMore ? "+" : ""
+#: packages/admin/src/components/ContentList.tsx:255
+msgid "{0, plural, one {#{1} item} other {#{2} items}}"
+msgstr "{0, plural, one {#{1} item} other {#{2} items}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -50,13 +48,13 @@ msgstr "{label} — no translation"
 msgid "{label} — view translation"
 msgstr "{label} — view translation"
 
-#: packages/admin/src/components/Dashboard.tsx:114
-msgid "{totalDrafts} drafts"
-msgstr "{totalDrafts} drafts"
+#: packages/admin/src/components/Dashboard.tsx:113
+msgid "{totalDrafts, plural, one {# draft} other {# drafts}}"
+msgstr "{totalDrafts, plural, one {# draft} other {# drafts}}"
 
-#: packages/admin/src/components/Dashboard.tsx:119
-msgid "{totalScheduled} scheduled"
-msgstr "{totalScheduled} scheduled"
+#: packages/admin/src/components/Dashboard.tsx:118
+msgid "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
+msgstr "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:44
 msgid "1 year"
@@ -74,8 +72,8 @@ msgstr "7 days"
 msgid "90 days"
 msgstr "90 days"
 
-#: packages/admin/src/components/ContentList.tsx:203
-#: packages/admin/src/components/ContentList.tsx:302
+#: packages/admin/src/components/ContentList.tsx:204
+#: packages/admin/src/components/ContentList.tsx:309
 msgid "Actions"
 msgstr "Actions"
 
@@ -83,7 +81,7 @@ msgstr "Actions"
 msgid "Add"
 msgstr "Add"
 
-#: packages/admin/src/components/ContentList.tsx:139
+#: packages/admin/src/components/ContentList.tsx:140
 msgid "Add New"
 msgstr "Add New"
 
@@ -101,7 +99,7 @@ msgstr "Admin navigation"
 msgid "Administrator"
 msgstr "Administrator"
 
-#: packages/admin/src/components/ContentList.tsx:166
+#: packages/admin/src/components/ContentList.tsx:167
 msgid "All"
 msgstr "All"
 
@@ -123,7 +121,7 @@ msgstr "Allow users from specific domains to sign up"
 msgid "API Tokens"
 msgstr "API Tokens"
 
-#: packages/admin/src/components/ContentList.tsx:550
+#: packages/admin/src/components/ContentList.tsx:557
 msgid "archived"
 msgstr "archived"
 
@@ -184,8 +182,8 @@ msgstr "Can view content"
 #: packages/admin/src/components/ContentEditor.tsx:829
 #: packages/admin/src/components/ContentEditor.tsx:1591
 #: packages/admin/src/components/ContentEditor.tsx:1644
-#: packages/admin/src/components/ContentList.tsx:438
-#: packages/admin/src/components/ContentList.tsx:509
+#: packages/admin/src/components/ContentList.tsx:445
+#: packages/admin/src/components/ContentList.tsx:516
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:446
 msgid "Cancel"
@@ -229,7 +227,7 @@ msgid "Confirm"
 msgstr "Confirm"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:365
-#: packages/admin/src/components/Dashboard.tsx:165
+#: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/Sidebar.tsx:376
 msgid "Content"
@@ -299,7 +297,7 @@ msgstr "Create personal access tokens for programmatic API access"
 msgid "Create Token"
 msgstr "Create Token"
 
-#: packages/admin/src/components/ContentList.tsx:218
+#: packages/admin/src/components/ContentList.tsx:219
 msgid "Create your first one"
 msgstr "Create your first one"
 
@@ -330,30 +328,34 @@ msgstr "Creating..."
 msgid "current"
 msgstr "current"
 
-#: packages/admin/src/components/ThemeToggle.tsx:23
+#: packages/admin/src/components/ThemeToggle.tsx:22
+msgid "dark"
+msgstr "dark"
+
+#: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "Dark"
 msgstr "Dark"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
-#: packages/admin/src/components/Dashboard.tsx:41
+#: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:171
 #: packages/admin/src/components/Sidebar.tsx:365
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: packages/admin/src/components/ContentList.tsx:200
+#: packages/admin/src/components/ContentList.tsx:201
 msgid "Date"
 msgstr "Date"
 
-#: packages/admin/src/components/ContentList.tsx:520
+#: packages/admin/src/components/ContentList.tsx:527
 msgid "Delete Permanently"
 msgstr "Delete Permanently"
 
-#: packages/admin/src/components/ContentList.tsx:500
+#: packages/admin/src/components/ContentList.tsx:507
 msgid "Delete Permanently?"
 msgstr "Delete Permanently?"
 
-#: packages/admin/src/components/ContentList.tsx:299
+#: packages/admin/src/components/ContentList.tsx:306
 msgid "Deleted"
 msgstr "Deleted"
 
@@ -381,8 +383,8 @@ msgid "Display name"
 msgstr "Display name"
 
 #: packages/admin/src/components/ContentEditor.tsx:534
-msgid "Distraction-free mode"
-msgstr "Distraction-free mode"
+msgid "Distraction-free mode (⌘⇧\\)"
+msgstr "Distraction-free mode (⌘⇧\\)"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:769
 msgid "Divider"
@@ -396,7 +398,7 @@ msgstr "Don't have an account? <0>Sign up</0>"
 msgid "Down"
 msgstr "Down"
 
-#: packages/admin/src/components/ContentList.tsx:546
+#: packages/admin/src/components/ContentList.tsx:553
 msgid "draft"
 msgstr "draft"
 
@@ -409,11 +411,11 @@ msgid "draft, published, or archived"
 msgstr "draft, published, or archived"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:69
-#: packages/admin/src/components/Dashboard.tsx:189
+#: packages/admin/src/components/Dashboard.tsx:188
 msgid "Drafts"
 msgstr "Drafts"
 
-#: packages/admin/src/components/ContentList.tsx:411
+#: packages/admin/src/components/ContentList.tsx:418
 msgid "Duplicate {title}"
 msgstr "Duplicate {title}"
 
@@ -430,7 +432,7 @@ msgstr "Edit"
 msgid "Edit {collectionLabel}"
 msgstr "Edit {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:403
+#: packages/admin/src/components/ContentList.tsx:410
 msgid "Edit {title}"
 msgstr "Edit {title}"
 
@@ -589,7 +591,11 @@ msgstr "Large section heading"
 msgid "Last used {0}"
 msgstr "Last used {0}"
 
-#: packages/admin/src/components/ThemeToggle.tsx:23
+#: packages/admin/src/components/ThemeToggle.tsx:22
+msgid "light"
+msgstr "light"
+
+#: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "Light"
 msgstr "Light"
 
@@ -597,18 +603,18 @@ msgstr "Light"
 msgid "Live View"
 msgstr "Live View"
 
-#: packages/admin/src/components/ContentList.tsx:283
-#: packages/admin/src/components/ContentList.tsx:331
+#: packages/admin/src/components/ContentList.tsx:290
+#: packages/admin/src/components/ContentList.tsx:338
 msgid "Load More"
 msgstr "Load More"
 
-#: packages/admin/src/components/ContentList.tsx:283
-#: packages/admin/src/components/ContentList.tsx:331
+#: packages/admin/src/components/ContentList.tsx:290
+#: packages/admin/src/components/ContentList.tsx:338
 #: packages/admin/src/components/WelcomeModal.tsx:143
 msgid "Loading..."
 msgstr "Loading..."
 
-#: packages/admin/src/components/ContentList.tsx:196
+#: packages/admin/src/components/ContentList.tsx:197
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Locale"
@@ -663,22 +669,22 @@ msgstr "Menus"
 msgid "Modify collection schemas"
 msgstr "Modify collection schemas"
 
-#: packages/admin/src/components/ContentList.tsx:432
+#: packages/admin/src/components/ContentList.tsx:439
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Move \"{title}\" to trash? You can restore it later."
 
-#: packages/admin/src/components/ContentList.tsx:423
+#: packages/admin/src/components/ContentList.tsx:430
 msgid "Move {title} to trash"
 msgstr "Move {title} to trash"
 
 #: packages/admin/src/components/ContentEditor.tsx:814
 #: packages/admin/src/components/ContentEditor.tsx:836
-#: packages/admin/src/components/ContentList.tsx:445
+#: packages/admin/src/components/ContentList.tsx:452
 msgid "Move to Trash"
 msgstr "Move to Trash"
 
 #: packages/admin/src/components/ContentEditor.tsx:820
-#: packages/admin/src/components/ContentList.tsx:430
+#: packages/admin/src/components/ContentList.tsx:437
 msgid "Move to Trash?"
 msgstr "Move to Trash?"
 
@@ -694,12 +700,12 @@ msgstr "New {collectionLabel}"
 msgid "new tab"
 msgstr "new tab"
 
-#: packages/admin/src/components/ContentList.tsx:271
+#: packages/admin/src/components/ContentList.tsx:278
 msgid "Next page"
 msgstr "Next page"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:211
+#: packages/admin/src/components/ContentList.tsx:212
 msgid "No {0} yet."
 msgstr "No {0} yet."
 
@@ -711,7 +717,7 @@ msgstr "No API tokens yet. Create one to get started."
 msgid "No bylines selected."
 msgstr "No bylines selected."
 
-#: packages/admin/src/components/Dashboard.tsx:173
+#: packages/admin/src/components/Dashboard.tsx:172
 msgid "No collections configured"
 msgstr "No collections configured"
 
@@ -719,7 +725,7 @@ msgstr "No collections configured"
 msgid "No expiry"
 msgstr "No expiry"
 
-#: packages/admin/src/components/Dashboard.tsx:237
+#: packages/admin/src/components/Dashboard.tsx:236
 msgid "No recent activity"
 msgstr "No recent activity"
 
@@ -727,7 +733,7 @@ msgstr "No recent activity"
 msgid "No results"
 msgstr "No results"
 
-#: packages/admin/src/components/ContentList.tsx:225
+#: packages/admin/src/components/ContentList.tsx:226
 msgid "No results for \"{searchQuery}\""
 msgstr "No results for \"{searchQuery}\""
 
@@ -752,7 +758,7 @@ msgstr "Ownership"
 msgid "Paragraph"
 msgstr "Paragraph"
 
-#: packages/admin/src/components/ContentList.tsx:569
+#: packages/admin/src/components/ContentList.tsx:576
 msgid "pending"
 msgstr "pending"
 
@@ -760,11 +766,11 @@ msgstr "pending"
 msgid "Pending changes"
 msgstr "Pending changes"
 
-#: packages/admin/src/components/ContentList.tsx:503
+#: packages/admin/src/components/ContentList.tsx:510
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Permanently delete \"{title}\"? This cannot be undone."
 
-#: packages/admin/src/components/ContentList.tsx:492
+#: packages/admin/src/components/ContentList.tsx:499
 msgid "Permanently delete {title}"
 msgstr "Permanently delete {title}"
 
@@ -787,7 +793,7 @@ msgstr "Preview content before publishing"
 msgid "Preview draft"
 msgstr "Preview draft"
 
-#: packages/admin/src/components/ContentList.tsx:259
+#: packages/admin/src/components/ContentList.tsx:266
 msgid "Previous page"
 msgstr "Previous page"
 
@@ -800,12 +806,12 @@ msgstr "Publish"
 msgid "Publish changes"
 msgstr "Publish changes"
 
-#: packages/admin/src/components/ContentList.tsx:544
+#: packages/admin/src/components/ContentList.tsx:551
 msgid "published"
 msgstr "published"
 
 #: packages/admin/src/components/ContentEditor.tsx:722
-#: packages/admin/src/components/Dashboard.tsx:188
+#: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
 msgstr "Published"
 
@@ -834,7 +840,7 @@ msgstr "Read content entries"
 msgid "Read media files"
 msgstr "Read media files"
 
-#: packages/admin/src/components/Dashboard.tsx:229
+#: packages/admin/src/components/Dashboard.tsx:228
 msgid "Recent Activity"
 msgstr "Recent Activity"
 
@@ -850,7 +856,7 @@ msgstr "Remove"
 msgid "Remove image"
 msgstr "Remove image"
 
-#: packages/admin/src/components/ContentList.tsx:480
+#: packages/admin/src/components/ContentList.tsx:487
 msgid "Restore {title}"
 msgstr "Restore {title}"
 
@@ -914,7 +920,7 @@ msgstr "Schedule for"
 msgid "Schedule for later"
 msgstr "Schedule for later"
 
-#: packages/admin/src/components/ContentList.tsx:548
+#: packages/admin/src/components/ContentList.tsx:555
 msgid "scheduled"
 msgstr "scheduled"
 
@@ -949,12 +955,12 @@ msgid "Search"
 msgstr "Search"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:150
+#: packages/admin/src/components/ContentList.tsx:151
 msgid "Search {0}"
 msgstr "Search {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:149
+#: packages/admin/src/components/ContentList.tsx:150
 msgid "Search {0}..."
 msgstr "Search {0}..."
 
@@ -1064,7 +1070,7 @@ msgid "Social media profile links"
 msgstr "Social media profile links"
 
 #: packages/admin/src/components/ContentEditor.tsx:716
-#: packages/admin/src/components/ContentList.tsx:192
+#: packages/admin/src/components/ContentList.tsx:193
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 msgid "Status"
 msgstr "Status"
@@ -1074,9 +1080,9 @@ msgstr "Status"
 msgid "Subscriber"
 msgstr "Subscriber"
 
-#: packages/admin/src/components/ThemeToggle.tsx:23
-msgid "System ({resolvedTheme})"
-msgstr "System ({resolvedTheme})"
+#: packages/admin/src/components/ThemeToggle.tsx:24
+msgid "System ({resolvedLabel})"
+msgstr "System ({resolvedLabel})"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 msgid "Tags"
@@ -1086,7 +1092,7 @@ msgstr "Tags"
 msgid "The link will expire in 15 minutes."
 msgstr "The link will expire in 15 minutes."
 
-#: packages/admin/src/components/ThemeToggle.tsx:31
+#: packages/admin/src/components/ThemeToggle.tsx:32
 msgid "Theme: {label}"
 msgstr "Theme: {label}"
 
@@ -1106,8 +1112,8 @@ msgstr "This will move the item to trash. You can restore it later from the tras
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "This will revert to the published version. Your draft changes will be lost."
 
-#: packages/admin/src/components/ContentList.tsx:189
-#: packages/admin/src/components/ContentList.tsx:296
+#: packages/admin/src/components/ContentList.tsx:190
+#: packages/admin/src/components/ContentList.tsx:303
 msgid "Title"
 msgstr "Title"
 
@@ -1119,8 +1125,8 @@ msgstr "to close"
 msgid "to select"
 msgstr "to select"
 
-#: packages/admin/src/components/ThemeToggle.tsx:29
-#: packages/admin/src/components/ThemeToggle.tsx:40
+#: packages/admin/src/components/ThemeToggle.tsx:30
+#: packages/admin/src/components/ThemeToggle.tsx:41
 msgid "Toggle theme (current: {label})"
 msgstr "Toggle theme (current: {label})"
 
@@ -1145,11 +1151,11 @@ msgstr "Translate"
 msgid "Translations"
 msgstr "Translations"
 
-#: packages/admin/src/components/ContentList.tsx:172
+#: packages/admin/src/components/ContentList.tsx:173
 msgid "Trash"
 msgstr "Trash"
 
-#: packages/admin/src/components/ContentList.tsx:310
+#: packages/admin/src/components/ContentList.tsx:317
 msgid "Trash is empty"
 msgstr "Trash is empty"
 
@@ -1178,7 +1184,7 @@ msgstr "Unpublish"
 msgid "Unschedule"
 msgstr "Unschedule"
 
-#: packages/admin/src/components/Dashboard.tsx:250
+#: packages/admin/src/components/Dashboard.tsx:249
 msgid "Untitled"
 msgstr "Untitled"
 
@@ -1199,7 +1205,7 @@ msgstr "Updated: {0}"
 msgid "Upload and delete media"
 msgstr "Upload and delete media"
 
-#: packages/admin/src/components/Dashboard.tsx:88
+#: packages/admin/src/components/Dashboard.tsx:89
 msgid "Upload Media"
 msgstr "Upload Media"
 
@@ -1229,7 +1235,7 @@ msgstr "Users"
 msgid "View email provider status and send test emails"
 msgstr "View email provider status and send test emails"
 
-#: packages/admin/src/components/ContentList.tsx:394
+#: packages/admin/src/components/ContentList.tsx:401
 msgid "View published {title}"
 msgstr "View published {title}"
 

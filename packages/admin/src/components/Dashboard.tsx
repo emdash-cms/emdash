@@ -1,3 +1,4 @@
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -94,8 +95,6 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 // --- Status bar ---
 
 function StatusBar({ stats, loading }: { stats?: DashboardStats; loading: boolean }) {
-	const { t } = useLingui();
-
 	if (loading) {
 		return <div className="flex h-9 animate-pulse rounded-lg border bg-kumo-tint" />;
 	}
@@ -111,22 +110,22 @@ function StatusBar({ stats, loading }: { stats?: DashboardStats; loading: boolea
 	const indicators = [
 		totalDrafts > 0 && {
 			icon: PencilSimple,
-			label: t`${totalDrafts} drafts`,
+			label: plural(totalDrafts, { one: "# draft", other: "# drafts" }),
 			className: "text-amber-700 dark:text-amber-400",
 		},
 		totalScheduled > 0 && {
 			icon: CalendarBlank,
-			label: t`${totalScheduled} scheduled`,
+			label: plural(totalScheduled, { one: "# scheduled", other: "# scheduled" }),
 			className: "text-blue-600 dark:text-blue-400",
 		},
 		{
 			icon: Image,
-			label: t`${stats.mediaCount} media`,
+			label: plural(stats.mediaCount, { one: "# media file", other: "# media files" }),
 			className: "text-kumo-subtle",
 		},
 		{
 			icon: Users,
-			label: t`${stats.userCount} users`,
+			label: plural(stats.userCount, { one: "# user", other: "# users" }),
 			className: "text-kumo-subtle",
 		},
 	].filter(Boolean) as Array<{

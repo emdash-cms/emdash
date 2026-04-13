@@ -19,8 +19,9 @@ export function ThemeToggle() {
 		setTheme(order[nextIndex]!);
 	};
 
+	const resolvedLabel = resolvedTheme === "light" ? t`light` : t`dark`;
 	const label =
-		theme === "system" ? t`System (${resolvedTheme})` : theme === "light" ? t`Light` : t`Dark`;
+		theme === "system" ? t`System (${resolvedLabel})` : theme === "light" ? t`Light` : t`Dark`;
 
 	return (
 		<Button

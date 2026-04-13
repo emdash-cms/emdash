@@ -1,4 +1,5 @@
 import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -247,8 +248,14 @@ export function ContentList({
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
 								{searchQuery
-									? t`${filteredItems.length} items matching "${searchQuery}"`
-									: t`${filteredItems.length}${hasMore ? "+" : ""} items`}
+									? plural(filteredItems.length, {
+											one: `# item matching "${searchQuery}"`,
+											other: `# items matching "${searchQuery}"`,
+										})
+									: plural(filteredItems.length, {
+											one: `#${hasMore ? "+" : ""} item`,
+											other: `#${hasMore ? "+" : ""} items`,
+										})}
 							</span>
 							<div className="flex items-center gap-2">
 								<Button

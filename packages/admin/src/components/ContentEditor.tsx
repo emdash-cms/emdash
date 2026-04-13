@@ -531,7 +531,7 @@ export function ContentEditor({
 							type="button"
 							onClick={() => setIsDistractionFree(true)}
 							aria-label={t`Enter distraction-free mode`}
-							title={t`Distraction-free mode`}
+							title={t`Distraction-free mode (⌘⇧\\)`}
 						>
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
@@ -736,7 +736,7 @@ export function ContentEditor({
 										</div>
 										{item?.scheduledAt && (
 											<div className="mt-2 flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-												<p>{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
+												<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
 												<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
 													{t`Unschedule`}
 												</Button>
@@ -894,7 +894,7 @@ export function ContentEditor({
 													<div className="flex items-center gap-2">
 														<span className="text-xs font-semibold uppercase">{locale}</span>
 														{locale === i18n.defaultLocale && (
-															<span className="text-[10px] text-kumo-subtle">{t`(default)`}</span>
+															<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
 														)}
 														{isCurrent && (
 															<span className="text-[10px] text-kumo-brand">{t`current`}</span>
