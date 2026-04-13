@@ -18,10 +18,10 @@ export default defineConfig({
 			label: "Français",
 			lang: "fr",
 		},
-    {
-      label: "简体中文",
+		{
+			label: "简体中文",
 			lang: "zh-CN",
-    },
+		},
 	],
 	files: [
 		{
