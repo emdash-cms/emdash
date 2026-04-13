@@ -157,6 +157,87 @@ export async function inviteUser(email: string, role?: number): Promise<InviteRe
 }
 
 // =============================================================================
+// Invite Accept API (for invited users completing registration)
+// =============================================================================
+
+/** Invite token verification result */
+export interface InviteVerifyResult {
+	email: string;
+	role: number;
+	roleName: string;
+}
+
+/**
+ * Validate an invite token and return the invite data.
+ *
+ * Uses custom error handling to preserve error codes for the UI.
+ */
+export async function validateInviteToken(token: string): Promise<InviteVerifyResult> {
+	const response = await apiFetch(
+		`${API_BASE}/auth/invite/accept?token=${encodeURIComponent(token)}`,
+	);
+
+	if (!response.ok) {
+		const errorData: unknown = await response.json().catch(() => ({}));
+		let message = `Invite validation failed: ${response.statusText}`;
+		let code: string | undefined;
+		if (typeof errorData === "object" && errorData !== null && "error" in errorData) {
+			const err = errorData.error;
+			if (typeof err === "object" && err !== null) {
+				if ("message" in err && typeof err.message === "string") message = err.message;
+				if ("code" in err && typeof err.code === "string") code = err.code;
+			}
+		}
+		const error: Error & { code?: string } = new Error(message);
+		error.code = code;
+		throw error;
+	}
+
+	return parseApiResponse<InviteVerifyResult>(response, "Invite validation failed");
+}
+
+/**
+ * Complete invite registration with passkey credential.
+ *
+ * Uses custom error handling to preserve error codes for the UI.
+ */
+export async function completeInviteSignup(
+	token: string,
+	credential: unknown,
+	name?: string,
+): Promise<{
+	success: true;
+	user: { id: string; email: string; name: string | null; role: number };
+}> {
+	const response = await apiFetch(`${API_BASE}/auth/invite/complete`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ token, credential, name }),
+	});
+
+	if (!response.ok) {
+		const errorData: unknown = await response.json().catch(() => ({}));
+		let message = `Invite completion failed: ${response.statusText}`;
+		let code: string | undefined;
+		if (typeof errorData === "object" && errorData !== null && "error" in errorData) {
+			const err = errorData.error;
+			if (typeof err === "object" && err !== null) {
+				if ("message" in err && typeof err.message === "string") message = err.message;
+				if ("code" in err && typeof err.code === "string") code = err.code;
+			}
+		}
+		const error: Error & { code?: string } = new Error(message);
+		error.code = code;
+		throw error;
+	}
+
+	return parseApiResponse<{
+		success: true;
+		user: { id: string; email: string; name: string | null; role: number };
+	}>(response, "Invite completion failed");
+}
+
+// =============================================================================
 // Passkey Management API
 // =============================================================================
 

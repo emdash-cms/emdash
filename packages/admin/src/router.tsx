@@ -26,6 +26,7 @@ import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
 import { MarketplacePluginDetail } from "./components/MarketplacePluginDetail";
@@ -191,6 +192,13 @@ const signupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/signup",
 	component: SignupPage,
+});
+
+// Invite accept route (standalone, no Shell)
+const inviteAcceptRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/invite/accept",
+	component: InviteAcceptPage,
 });
 
 // Device authorization route (standalone, no Shell)
@@ -1650,6 +1658,7 @@ const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
 	signupRoute,
+	inviteAcceptRoute,
 	deviceRoute,
 	adminRoutes,
 ]);
