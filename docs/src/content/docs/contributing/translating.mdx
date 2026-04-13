@@ -104,16 +104,7 @@ Always test your translations in the running admin UI. Strings that read well in
 
 <Steps>
 
-1. **Add your locale to `SUPPORTED_LOCALES`** in `packages/admin/src/locales/config.ts`:
-
-   ```ts
-   export const SUPPORTED_LOCALES: SupportedLocale[] = [
-     { code: "en", label: "English" },
-     { code: "de", label: "Deutsch" }, // add your locale
-   ].filter((l) => validateLocaleCode(l.code));
-   ```
-
-2. **Compile and run the demo:**
+1. **Compile and run the demo:**
 
    ```bash
    pnpm run locale:compile
@@ -121,13 +112,9 @@ Always test your translations in the running admin UI. Strings that read well in
    pnpm --filter emdash-demo dev
    ```
 
-3. **Switch locale** in the admin Settings page and verify your translations look correct in context.
+2. **Switch locale** in the admin Settings page and verify your translations look correct in context.
 
 </Steps>
-
-<Aside>
-Don't include the `config.ts` change in your PR — we'll add your locale to the supported list once the translation reaches sufficient coverage.
-</Aside>
 
 ## Adding a new language
 
@@ -135,22 +122,20 @@ If your language doesn't have a PO file yet:
 
 <Steps>
 
-1. **Add the locale to `lingui.config.ts`** at the repo root:
+1. **Add the locale to `packages/admin/src/locales/locales.ts`:**
 
    ```ts
-   locales: ["en", "de", "fr"],  // add your locale code
+   export const LOCALES: LocaleDefinition[] = [
+     { code: "en", label: "English", enabled: true },
+     { code: "de", label: "Deutsch", enabled: true },
+     // ...
+     { code: "ja", label: "日本語", enabled: false },  // add yours
+   ];
    ```
 
-2. **Add it to `lunaria.config.ts`:**
+   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` initially — we'll enable it once the translation reaches sufficient coverage.
 
-   ```ts
-   locales: [
-     { label: "Deutsch", lang: "de" },
-     { label: "Français", lang: "fr" },  // add yours
-   ],
-   ```
-
-3. **Run extraction** to generate the empty PO file:
+2. **Run extraction** to generate the empty PO file:
 
    ```bash
    pnpm run locale:extract
@@ -158,7 +143,7 @@ If your language doesn't have a PO file yet:
 
    This creates `packages/admin/src/locales/{your-locale}/messages.po` with all strings ready to translate.
 
-4. **Translate and test** following the steps above.
+3. **Translate and test** following the steps above.
 
 </Steps>
 

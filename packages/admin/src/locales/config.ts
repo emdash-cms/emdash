@@ -1,38 +1,53 @@
 /**
- * Locale configuration — single source of truth for supported locales.
+ * Locale configuration for the admin UI runtime.
  *
- * Imported by both the Lingui provider (client) and admin.astro (server).
+ * Locale definitions are in `./locales.ts` -- the single source of truth
+ * shared by this file, lingui.config.ts and lunaria.config.ts.
  */
 
-export interface SupportedLocale {
-	code: string;
-	label: string;
-}
+import { ENABLED_LOCALES, SOURCE_LOCALE } from "./locales.js";
 
-/** Validate a locale code against the Intl.Locale API (BCP 47). */
-function validateLocaleCode(code: string): string | void {
+export type { LocaleDefinition as SupportedLocale } from "./locales.js";
+
+function isValidLocale(code: string): boolean {
 	try {
-		return new Intl.Locale(code).baseName;
+		const locale = new Intl.Locale(code);
+		return locale.baseName !== "";
 	} catch {
 		if (import.meta.env.DEV) {
 			throw new Error(`Invalid locale code: "${code}"`);
 		}
+		return false;
 	}
 }
 
-/** Available locales — extend this list as translations are added. */
-export const SUPPORTED_LOCALES: SupportedLocale[] = [
-	/* First item is the default locale */
-	{ code: "en", label: "English" },
-	{ code: "de", label: "Deutsch" },
-	{ code: "pt-BR", label: "Português (Brasil)" },
-	{ code: "ar", label: "العربية" },
-	{ code: "zh-CN", label: "简体中文" },
-].filter((l) => validateLocaleCode(l.code));
+/** Available locales at runtime, validated against BCP 47. */
+export const SUPPORTED_LOCALES = ENABLED_LOCALES.filter((l) => isValidLocale(l.code));
 
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));
 
-export const DEFAULT_LOCALE = SUPPORTED_LOCALES[0]!.code;
+export const DEFAULT_LOCALE = SOURCE_LOCALE.code;
+
+/** Maps base language codes to supported locales (e.g. "pt" -> "pt-BR"). */
+const BASE_LANGUAGE_MAP = new Map<string, string>();
+for (const l of SUPPORTED_LOCALES) {
+	const base = l.code.split("-")[0]!.toLowerCase();
+	// First match wins -- if we have both "pt" and "pt-BR", exact wins via direct lookup.
+	if (!BASE_LANGUAGE_MAP.has(base)) {
+		BASE_LANGUAGE_MAP.set(base, l.code);
+	}
+}
+
+/**
+ * Find the best matching supported locale for a BCP 47 tag.
+ * Tries exact match, then base language fallback (pt-PT -> pt-BR).
+ */
+function matchLocale(tag: string): string | undefined {
+	const normalized = tag.trim();
+	if (SUPPORTED_LOCALE_CODES.has(normalized)) return normalized;
+	const base = normalized.split("-")[0]!.toLowerCase();
+	return BASE_LANGUAGE_MAP.get(base);
+}
 
 const LOCALE_LABELS = new Map(SUPPORTED_LOCALES.map((l) => [l.code, l.label]));
 
@@ -45,7 +60,7 @@ const LOCALE_COOKIE_RE = /(?:^|;\s*)emdash-locale=([^;]+)/;
 
 /**
  * Resolve the admin locale from a Request.
- * Priority: emdash-locale cookie → Accept-Language → DEFAULT_LOCALE.
+ * Priority: emdash-locale cookie -> Accept-Language -> DEFAULT_LOCALE.
  */
 export function resolveLocale(request: Request): string {
 	const cookieHeader = request.headers.get("cookie") ?? "";
@@ -56,8 +71,9 @@ export function resolveLocale(request: Request): string {
 
 	const acceptLang = request.headers.get("accept-language") ?? "";
 	for (const entry of acceptLang.split(",")) {
-		const tag = entry.split(";")[0]!.trim().split("-")[0]!.toLowerCase();
-		if (SUPPORTED_LOCALE_CODES.has(tag)) return tag;
+		const tag = entry.split(";")[0]!.trim();
+		const matched = matchLocale(tag);
+		if (matched) return matched;
 	}
 
 	return DEFAULT_LOCALE;
