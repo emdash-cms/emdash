@@ -13,7 +13,7 @@ import * as React from "react";
 import type { ContentSeo, ContentSeoInput } from "../lib/api";
 
 export interface SeoPanelProps {
-	contentKey?: string;
+	contentKey: string;
 	seo?: ContentSeo;
 	onChange: (seo: ContentSeoInput) => void;
 }

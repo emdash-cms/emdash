@@ -1,9 +1,9 @@
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "vitest-browser-react";
 import { userEvent } from "vitest/browser";
 
 import { SeoPanel } from "../../src/components/SeoPanel";
+import { render } from "../utils/render";
 
 describe("SeoPanel", () => {
 	beforeEach(() => {
@@ -29,7 +29,7 @@ describe("SeoPanel", () => {
 
 		await vi.waitFor(() => {
 			expect(onChange).toHaveBeenCalledTimes(1);
-		}, 1500);
+		}, { timeout: 1500 });
 		expect(onChange).toHaveBeenLastCalledWith({
 			title: "SEO title",
 			description: null,
