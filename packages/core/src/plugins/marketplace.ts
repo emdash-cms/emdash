@@ -241,19 +241,29 @@ class MarketplaceClientImpl implements MarketplaceClient {
 	async downloadBundle(id: string, version: string): Promise<PluginBundle> {
 		const bundleUrl = `${this.baseUrl}/api/v1/plugins/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/bundle`;
 
+		const marketplaceOrigin = new URL(this.baseUrl).origin;
 		let response: Response;
 		try {
 			response = await fetch(bundleUrl, {
 				redirect: "manual",
 			});
-			// Follow redirects manually to stay on the marketplace host
+			// Follow redirects manually, validating each target stays on the marketplace host
 			if (response.status >= 300 && response.status < 400) {
 				const location = response.headers.get("location");
 				if (location) {
-					response = await fetch(new URL(location, bundleUrl).href);
+					const target = new URL(location, bundleUrl);
+					if (target.origin !== marketplaceOrigin) {
+						throw new MarketplaceError(
+							`Bundle download redirected to untrusted host: ${target.origin}`,
+							response.status,
+							"BUNDLE_REDIRECT_UNTRUSTED",
+						);
+					}
+					response = await fetch(target.href, { redirect: "manual" });
 				}
 			}
 		} catch (err) {
+			if (err instanceof MarketplaceError) throw err;
 			throw new MarketplaceUnavailableError(err);
 		}
 

@@ -113,8 +113,10 @@ export class CronExecutor {
 
 			if (task.is_oneshot) {
 				if (hookFailed) {
-					// Track retry count in the data JSON to enforce a limit
-					const retryCount = (parsedData?._retryCount as number) || 0;
+					// Track retry count in the data JSON to enforce a limit.
+					// Clamp to 0 to prevent plugins from pre-seeding a negative count.
+					const raw = parsedData?._retryCount;
+					const retryCount = typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : 0;
 					const MAX_ONESHOT_RETRIES = 5;
 
 					if (retryCount >= MAX_ONESHOT_RETRIES) {
