@@ -345,6 +345,10 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							// MCP SDK — server/index.js statically imports ajv (CJS-only).
+							// Pre-bundling converts CJS to ESM so workerd can load it.
+							"emdash > @modelcontextprotocol/sdk > ajv",
+							"emdash > @modelcontextprotocol/sdk > ajv-formats",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",
