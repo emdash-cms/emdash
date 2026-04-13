@@ -174,7 +174,7 @@ export function PasskeyItem({
 							setIsEditing(true);
 						}}
 						title={t`Rename`}
-						aria-label={t`Rename ${passkey.name || "passkey"}`}
+						aria-label={passkey.name ? t`Rename ${passkey.name}` : t`Rename passkey`}
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -185,7 +185,7 @@ export function PasskeyItem({
 							onClick={() => setShowDeleteDialog(true)}
 							className="text-kumo-danger hover:text-kumo-danger"
 							title={t`Remove`}
-							aria-label={t`Remove ${passkey.name || "passkey"}`}
+							aria-label={passkey.name ? t`Remove ${passkey.name}` : t`Remove passkey`}
 						>
 							<Trash className="h-4 w-4" />
 						</Button>
@@ -201,7 +201,11 @@ export function PasskeyItem({
 					setDeleteError(null);
 				}}
 				title={t`Remove passkey?`}
-				description={t`You won't be able to use "${passkey.name || "this passkey"}" to sign in anymore. This action cannot be undone.`}
+				description={
+					passkey.name
+						? t`You won't be able to use "${passkey.name}" to sign in anymore. This action cannot be undone.`
+						: t`You won't be able to use this passkey to sign in anymore. This action cannot be undone.`
+				}
 				confirmLabel={t`Remove`}
 				pendingLabel={t`Removing...`}
 				isPending={!!isDeleting}

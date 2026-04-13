@@ -22,8 +22,8 @@ msgstr " (default)"
 msgid " (opens in new window)"
 msgstr " (opens in new window)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:633
-#: packages/admin/src/components/MediaPickerModal.tsx:715
+#: packages/admin/src/components/MediaPickerModal.tsx:634
+#: packages/admin/src/components/MediaPickerModal.tsx:716
 msgid " (selected)"
 msgstr " (selected)"
 
@@ -38,7 +38,7 @@ msgid ": use"
 msgstr ": use"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
-#: packages/admin/src/components/MediaPickerModal.tsx:573
+#: packages/admin/src/components/MediaPickerModal.tsx:574
 msgid "(from {0})"
 msgstr "(from {0})"
 
@@ -50,6 +50,13 @@ msgstr "(synced)"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:309
 msgid "(with your dev port)."
 msgstr "(with your dev port)."
+
+#. placeholder {0}: items.length
+#. placeholder {0}: orphan.rowCount
+#: packages/admin/src/components/ContentTypeList.tsx:69
+#: packages/admin/src/components/RepeaterField.tsx:131
+msgid "{0, plural, one {(# item)} other {(# items)}}"
+msgstr "{0, plural, one {(# item)} other {(# items)}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:181
@@ -77,7 +84,7 @@ msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matchi
 msgstr "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 
 #. placeholder {0}: items.length
-#: packages/admin/src/components/MediaPickerModal.tsx:448
+#: packages/admin/src/components/MediaPickerModal.tsx:449
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# item} other {# items}}"
 
@@ -100,6 +107,11 @@ msgstr "{0, plural, one {# media file} other {# media files}}"
 #: packages/admin/src/components/WordPressImport.tsx:1764
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
+
+#. placeholder {0}: plugin.capabilities.length
+#: packages/admin/src/components/MarketplaceBrowse.tsx:289
+msgid "{0, plural, one {# permission} other {# permissions}}"
+msgstr "{0, plural, one {# permission} other {# permissions}}"
 
 #. placeholder {0}: mapping.postCount
 #: packages/admin/src/components/WordPressImport.tsx:2319
@@ -171,7 +183,6 @@ msgstr "{0} items will be imported"
 
 #. placeholder {0}: plugin.capabilities.length
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/MarketplaceBrowse.tsx:288
 #: packages/admin/src/components/PluginManager.tsx:348
 msgid "{0} permission{1}"
 msgstr "{0} permission{1}"
@@ -194,8 +205,8 @@ msgstr "{0} updated to v{1}"
 
 #. placeholder {0}: item.filename
 #. placeholder {1}: selected ? t` (selected)` : ""
-#: packages/admin/src/components/MediaPickerModal.tsx:633
-#: packages/admin/src/components/MediaPickerModal.tsx:715
+#: packages/admin/src/components/MediaPickerModal.tsx:634
+#: packages/admin/src/components/MediaPickerModal.tsx:716
 msgid "{0}{1}"
 msgstr "{0}{1}"
 
@@ -204,10 +215,9 @@ msgstr "{0}{1}"
 msgid "{0}/160 characters"
 msgstr "{0}/160 characters"
 
-#. placeholder {0}: changedCount === 1 ? "" : "s"
-#: packages/admin/src/components/RevisionHistory.tsx:336
-msgid "{changedCount} change{0} from next revision"
-msgstr "{changedCount} change{0} from next revision"
+#: packages/admin/src/components/RevisionHistory.tsx:337
+msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
+msgstr "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1935
 msgid "{count, plural, one {# file} other {# files}}"
@@ -274,6 +284,14 @@ msgstr "{totalDrafts, plural, one {# draft} other {# drafts}}"
 #: packages/admin/src/components/Dashboard.tsx:118
 msgid "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
 msgstr "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
+
+#: packages/admin/src/components/RevisionHistory.tsx:349
+msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
+msgstr "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
+
+#: packages/admin/src/components/RevisionHistory.tsx:350
+msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
+msgstr "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:150
 #: packages/admin/src/components/MediaLibrary.tsx:186
@@ -401,7 +419,7 @@ msgstr "Account Info"
 #: packages/admin/src/components/comments/CommentInbox.tsx:306
 #: packages/admin/src/components/ContentList.tsx:204
 #: packages/admin/src/components/ContentList.tsx:309
-#: packages/admin/src/components/ContentTypeList.tsx:105
+#: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:619
 msgid "Actions"
@@ -459,11 +477,11 @@ msgstr "Add Field"
 msgid "Add fields"
 msgstr "Add fields"
 
-#: packages/admin/src/components/RepeaterField.tsx:152
+#: packages/admin/src/components/RepeaterField.tsx:153
 msgid "Add First Item"
 msgstr "Add First Item"
 
-#: packages/admin/src/components/RepeaterField.tsx:136
+#: packages/admin/src/components/RepeaterField.tsx:137
 msgid "Add Item"
 msgstr "Add Item"
 
@@ -530,7 +548,7 @@ msgstr "After send:"
 msgid "All"
 msgstr "All"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:107
+#: packages/admin/src/components/MarketplaceBrowse.tsx:108
 msgid "All capabilities"
 msgstr "All capabilities"
 
@@ -594,7 +612,7 @@ msgstr "Alt text set"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:137
+#: packages/admin/src/components/MarketplaceBrowse.tsx:138
 #: packages/admin/src/components/PluginManager.tsx:90
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
@@ -641,7 +659,7 @@ msgid "archived"
 msgstr "archived"
 
 #. placeholder {0}: deleteTarget.label
-#: packages/admin/src/components/ContentTypeList.tsx:144
+#: packages/admin/src/components/ContentTypeList.tsx:145
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 
@@ -715,7 +733,7 @@ msgstr "Auto (slug change)"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Auto-generated from name (you can edit)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:512
+#: packages/admin/src/components/MediaPickerModal.tsx:513
 msgid "Available media"
 msgstr "Available media"
 
@@ -785,7 +803,7 @@ msgstr "Boolean"
 msgid "Brief summary shown below the title in search results"
 msgstr "Brief summary shown below the title in search results"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:86
+#: packages/admin/src/components/MarketplaceBrowse.tsx:87
 msgid "Browse and install plugins to extend your site."
 msgstr "Browse and install plugins to extend your site."
 
@@ -841,7 +859,7 @@ msgstr "Can view content"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:635
 #: packages/admin/src/components/MediaDetailPanel.tsx:235
-#: packages/admin/src/components/MediaPickerModal.tsx:580
+#: packages/admin/src/components/MediaPickerModal.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:294
 #: packages/admin/src/components/MenuEditor.tsx:439
 #: packages/admin/src/components/MenuList.tsx:143
@@ -966,9 +984,9 @@ msgstr "Click the link in the email to sign in."
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:447
 #: packages/admin/src/components/MediaDetailPanel.tsx:132
 #: packages/admin/src/components/MediaDetailPanel.tsx:134
-#: packages/admin/src/components/MediaPickerModal.tsx:348
-#: packages/admin/src/components/MediaPickerModal.tsx:354
-#: packages/admin/src/components/MediaPickerModal.tsx:358
+#: packages/admin/src/components/MediaPickerModal.tsx:349
+#: packages/admin/src/components/MediaPickerModal.tsx:355
+#: packages/admin/src/components/MediaPickerModal.tsx:359
 #: packages/admin/src/components/MenuEditor.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:262
 #: packages/admin/src/components/MenuEditor.tsx:266
@@ -1007,7 +1025,7 @@ msgstr "Close"
 msgid "Close panel"
 msgstr "Close panel"
 
-#: packages/admin/src/components/ContentTypeList.tsx:243
+#: packages/admin/src/components/ContentTypeList.tsx:244
 #: packages/admin/src/components/Redirects.tsx:450
 msgid "Code"
 msgstr "Code"
@@ -1112,7 +1130,7 @@ msgstr "Content Errors ({0})"
 msgid "Content found:"
 msgstr "Content found:"
 
-#: packages/admin/src/components/RevisionHistory.tsx:130
+#: packages/admin/src/components/RevisionHistory.tsx:131
 msgid "Content has been updated to the selected revision."
 msgstr "Content has been updated to the selected revision."
 
@@ -1128,7 +1146,7 @@ msgstr "content items"
 msgid "Content Read"
 msgstr "Content Read"
 
-#: packages/admin/src/components/RevisionHistory.tsx:295
+#: packages/admin/src/components/RevisionHistory.tsx:296
 msgid "Content snapshot:"
 msgstr "Content snapshot:"
 
@@ -1137,7 +1155,7 @@ msgid "Content to Import"
 msgstr "Content to Import"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
-#: packages/admin/src/components/ContentTypeList.tsx:38
+#: packages/admin/src/components/ContentTypeList.tsx:39
 #: packages/admin/src/components/Sidebar.tsx:205
 msgid "Content Types"
 msgstr "Content Types"
@@ -1198,7 +1216,7 @@ msgstr "Copy token"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "Could not copy automatically. Please select the URL above and copy manually."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:307
+#: packages/admin/src/components/MediaPickerModal.tsx:308
 msgid "Could not load image from URL"
 msgstr "Could not load image from URL"
 
@@ -1314,7 +1332,7 @@ msgid "Create your first navigation menu to get started"
 msgstr "Create your first navigation menu to get started"
 
 #: packages/admin/src/components/ContentList.tsx:219
-#: packages/admin/src/components/ContentTypeList.tsx:121
+#: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "Create your first one"
 
@@ -1367,7 +1385,7 @@ msgstr "Creating..."
 msgid "current"
 msgstr "current"
 
-#: packages/admin/src/components/RevisionHistory.tsx:263
+#: packages/admin/src/components/RevisionHistory.tsx:264
 msgid "Current"
 msgstr "Current"
 
@@ -1392,7 +1410,7 @@ msgid "Dark"
 msgstr "Dark"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
-#: packages/admin/src/components/ContentTypeList.tsx:245
+#: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:171
 #: packages/admin/src/components/Sidebar.tsx:365
@@ -1434,13 +1452,13 @@ msgstr "Default role:"
 msgid "Define a new taxonomy for classifying content"
 msgstr "Define a new taxonomy for classifying content"
 
-#: packages/admin/src/components/ContentTypeList.tsx:39
+#: packages/admin/src/components/ContentTypeList.tsx:40
 msgid "Define the structure of your content"
 msgstr "Define the structure of your content"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:274
 #: packages/admin/src/components/comments/CommentInbox.tsx:414
-#: packages/admin/src/components/ContentTypeList.tsx:147
+#: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/MediaDetailPanel.tsx:231
 #: packages/admin/src/components/MediaDetailPanel.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:372
@@ -1460,7 +1478,7 @@ msgstr "Delete \"{0}\"? This cannot be undone."
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #. placeholder {0}: section.title
-#: packages/admin/src/components/ContentTypeList.tsx:228
+#: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:406
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
 #: packages/admin/src/components/TaxonomyManager.tsx:79
@@ -1481,7 +1499,7 @@ msgstr "Delete {0}?"
 msgid "Delete Comment?"
 msgstr "Delete Comment?"
 
-#: packages/admin/src/components/ContentTypeList.tsx:141
+#: packages/admin/src/components/ContentTypeList.tsx:142
 msgid "Delete Content Type?"
 msgstr "Delete Content Type?"
 
@@ -1528,7 +1546,7 @@ msgid "Deleted"
 msgstr "Deleted"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:415
-#: packages/admin/src/components/ContentTypeList.tsx:148
+#: packages/admin/src/components/ContentTypeList.tsx:149
 #: packages/admin/src/components/MediaDetailPanel.tsx:231
 #: packages/admin/src/components/MediaDetailPanel.tsx:257
 #: packages/admin/src/components/MenuList.tsx:210
@@ -1752,7 +1770,7 @@ msgstr "Edit"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentTypeList.tsx:219
+#: packages/admin/src/components/ContentTypeList.tsx:220
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:281
 #: packages/admin/src/components/TaxonomyManager.tsx:71
 msgid "Edit {0}"
@@ -1977,7 +1995,7 @@ msgstr "Export your content from WordPress to import everything including drafts
 msgid "Facebook"
 msgstr "Facebook"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:340
+#: packages/admin/src/components/MarketplaceBrowse.tsx:344
 msgid "Fail"
 msgstr "Fail"
 
@@ -2038,7 +2056,7 @@ msgstr "Failed to load plugin"
 msgid "Failed to load plugins: {0}"
 msgstr "Failed to load plugins: {0}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:179
+#: packages/admin/src/components/RevisionHistory.tsx:180
 msgid "Failed to load revisions"
 msgstr "Failed to load revisions"
 
@@ -2095,7 +2113,7 @@ msgstr "Favicon"
 msgid "Feature"
 msgstr "Feature"
 
-#: packages/admin/src/components/ContentTypeList.tsx:102
+#: packages/admin/src/components/ContentTypeList.tsx:103
 msgid "Features"
 msgstr "Features"
 
@@ -2145,7 +2163,7 @@ msgstr "Filename cannot be changed after upload"
 msgid "files imported"
 msgstr "files imported"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:105
+#: packages/admin/src/components/MarketplaceBrowse.tsx:106
 msgid "Filter by capability"
 msgstr "Filter by capability"
 
@@ -2226,10 +2244,6 @@ msgstr "Heading 3"
 msgid "Height"
 msgstr "Height"
 
-#: packages/admin/src/components/RevisionHistory.tsx:344
-msgid "Hide"
-msgstr "Hide"
-
 #: packages/admin/src/components/SeoPanel.tsx:89
 msgid "Hide from search engines"
 msgstr "Hide from search engines"
@@ -2247,6 +2261,10 @@ msgstr "Hierarchical (like categories, with parent/child relationships)"
 msgid "Hits"
 msgstr "Hits"
 
+#: packages/admin/src/components/MenuEditor.tsx:272
+msgid "Home"
+msgstr "Home"
+
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:237
 msgid "Homepage"
 msgstr "Homepage"
@@ -2259,7 +2277,11 @@ msgstr "Hooks"
 msgid "How to create an Application Password"
 msgstr "How to create an Application Password"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:241
+#: packages/admin/src/components/MenuEditor.tsx:280
+msgid "https://example.com or /about"
+msgstr "https://example.com or /about"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:242
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:152
 msgid "Icon blurred due to image audit"
 msgstr "Icon blurred due to image audit"
@@ -2290,7 +2312,7 @@ msgstr "Image Settings"
 msgid "Image shown when this page is shared on social media"
 msgstr "Image shown when this page is shared on social media"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:373
+#: packages/admin/src/components/MediaPickerModal.tsx:374
 msgid "Image URL"
 msgstr "Image URL"
 
@@ -2396,8 +2418,8 @@ msgstr "Include sample content (recommended for new sites)"
 msgid "Incompatible"
 msgstr "Incompatible"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:384
-#: packages/admin/src/components/MediaPickerModal.tsx:583
+#: packages/admin/src/components/MediaPickerModal.tsx:385
+#: packages/admin/src/components/MediaPickerModal.tsx:584
 msgid "Insert"
 msgstr "Insert"
 
@@ -2421,7 +2443,7 @@ msgstr "Insert a reusable section"
 msgid "Insert an image"
 msgstr "Insert an image"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:366
+#: packages/admin/src/components/MediaPickerModal.tsx:367
 msgid "Insert from URL"
 msgstr "Insert from URL"
 
@@ -2445,7 +2467,7 @@ msgstr "Install and activate an email provider plugin to enable email features l
 msgid "Install blocked"
 msgstr "Install blocked"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:261
+#: packages/admin/src/components/MarketplaceBrowse.tsx:262
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:183
 msgid "Installed"
 msgstr "Installed"
@@ -2481,7 +2503,7 @@ msgid "Invite User"
 msgstr "Invite User"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/RepeaterField.tsx:217
+#: packages/admin/src/components/RepeaterField.tsx:218
 msgid "Item {0}"
 msgstr "Item {0}"
 
@@ -2496,11 +2518,6 @@ msgstr "Item deleted"
 #: packages/admin/src/components/MenuEditor.tsx:102
 msgid "Item updated"
 msgstr "Item updated"
-
-#: packages/admin/src/components/ContentTypeList.tsx:68
-#: packages/admin/src/components/RepeaterField.tsx:130
-msgid "items"
-msgstr "items"
 
 #: packages/admin/src/components/SetupWizard.tsx:238
 #: packages/admin/src/components/SignupPage.tsx:204
@@ -2616,7 +2633,7 @@ msgid "Live View"
 msgstr "Live View"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:241
-#: packages/admin/src/components/MarketplaceBrowse.tsx:198
+#: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
 msgid "Load more"
 msgstr "Load more"
@@ -2626,7 +2643,7 @@ msgstr "Load more"
 msgid "Load More"
 msgstr "Load More"
 
-#: packages/admin/src/components/ContentTypeList.tsx:113
+#: packages/admin/src/components/ContentTypeList.tsx:114
 msgid "Loading collections..."
 msgstr "Loading collections..."
 
@@ -2676,7 +2693,7 @@ msgstr "Loading terms..."
 #: packages/admin/src/components/ContentList.tsx:290
 #: packages/admin/src/components/ContentList.tsx:338
 #: packages/admin/src/components/ContentPickerModal.tsx:238
-#: packages/admin/src/components/MarketplaceBrowse.tsx:198
+#: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 #: packages/admin/src/components/settings/SecuritySettings.tsx:117
 #: packages/admin/src/components/TaxonomyManager.tsx:583
@@ -2767,7 +2784,7 @@ msgstr "Mark as spam"
 msgid "marketplace"
 msgstr "marketplace"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:85
+#: packages/admin/src/components/MarketplaceBrowse.tsx:86
 #: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/components/PluginManager.tsx:309
 #: packages/admin/src/components/Sidebar.tsx:214
@@ -2961,7 +2978,7 @@ msgstr "Multiple choices from options"
 msgid "My Awesome Blog"
 msgstr "My Awesome Blog"
 
-#: packages/admin/src/components/ContentTypeList.tsx:93
+#: packages/admin/src/components/ContentTypeList.tsx:94
 #: packages/admin/src/components/MenuList.tsx:125
 #: packages/admin/src/components/TaxonomyManager.tsx:241
 #: packages/admin/src/components/TaxonomyManager.tsx:464
@@ -2998,7 +3015,7 @@ msgstr "New {collectionLabel}"
 msgid "New collection"
 msgstr "New collection"
 
-#: packages/admin/src/components/ContentTypeList.tsx:43
+#: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "New Content Type"
 
@@ -3099,7 +3116,7 @@ msgstr "No content found"
 msgid "No content in this collection"
 msgstr "No content in this collection"
 
-#: packages/admin/src/components/ContentTypeList.tsx:119
+#: packages/admin/src/components/ContentTypeList.tsx:120
 msgid "No content types yet."
 msgstr "No content types yet."
 
@@ -3127,7 +3144,7 @@ msgstr "No EmDash users found"
 msgid "No expiry"
 msgstr "No expiry"
 
-#: packages/admin/src/components/RevisionHistory.tsx:326
+#: packages/admin/src/components/RevisionHistory.tsx:327
 msgid "No fields to compare"
 msgstr "No fields to compare"
 
@@ -3135,7 +3152,7 @@ msgstr "No fields to compare"
 msgid "No headings in document"
 msgstr "No headings in document"
 
-#: packages/admin/src/components/RepeaterField.tsx:143
+#: packages/admin/src/components/RepeaterField.tsx:144
 msgid "No items yet"
 msgstr "No items yet"
 
@@ -3153,12 +3170,12 @@ msgid "No maximum"
 msgstr "No maximum"
 
 #: packages/admin/src/components/MediaLibrary.tsx:369
-#: packages/admin/src/components/MediaPickerModal.tsx:496
+#: packages/admin/src/components/MediaPickerModal.tsx:497
 msgid "No media available from this provider"
 msgstr "No media available from this provider"
 
 #: packages/admin/src/components/MediaLibrary.tsx:363
-#: packages/admin/src/components/MediaPickerModal.tsx:490
+#: packages/admin/src/components/MediaPickerModal.tsx:491
 msgid "No media found"
 msgstr "No media found"
 
@@ -3191,7 +3208,7 @@ msgstr "No passkeys registered yet."
 msgid "No plugins configured"
 msgstr "No plugins configured"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:173
+#: packages/admin/src/components/MarketplaceBrowse.tsx:174
 msgid "No plugins found"
 msgstr "No plugins found"
 
@@ -3211,7 +3228,7 @@ msgstr "No redirects yet"
 msgid "No results"
 msgstr "No results"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:176
+#: packages/admin/src/components/MarketplaceBrowse.tsx:177
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:150
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "No results for \"{debouncedQuery}\". Try a different search term."
@@ -3224,7 +3241,7 @@ msgstr "No results for \"{searchQuery}\""
 msgid "No results found"
 msgstr "No results found"
 
-#: packages/admin/src/components/RevisionHistory.tsx:182
+#: packages/admin/src/components/RevisionHistory.tsx:183
 msgid "No revisions yet"
 msgstr "No revisions yet"
 
@@ -3326,7 +3343,7 @@ msgstr "Optional tooltip on hover"
 msgid "Options (one per line)"
 msgstr "Options (one per line)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:396
+#: packages/admin/src/components/MediaPickerModal.tsx:397
 msgid "or choose from library"
 msgstr "or choose from library"
 
@@ -3389,7 +3406,7 @@ msgstr "Parent"
 msgid "Part of a redirect loop"
 msgstr "Part of a redirect loop"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:319
+#: packages/admin/src/components/MarketplaceBrowse.tsx:323
 msgid "Pass"
 msgstr "Pass"
 
@@ -3502,7 +3519,7 @@ msgstr "Please enter a valid email"
 msgid "Please enter a valid email address"
 msgstr "Please enter a valid email address"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:283
+#: packages/admin/src/components/MediaPickerModal.tsx:284
 msgid "Please enter a valid URL"
 msgstr "Please enter a valid URL"
 
@@ -3599,6 +3616,10 @@ msgstr "Previous page"
 msgid "Previous screenshot"
 msgstr "Previous screenshot"
 
+#: packages/admin/src/components/MenuList.tsx:137
+msgid "Primary Navigation"
+msgstr "Primary Navigation"
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:211
 msgid "Provider:"
 msgstr "Provider:"
@@ -3691,7 +3712,7 @@ msgstr "Redirects"
 msgid "Reference"
 msgstr "Reference"
 
-#: packages/admin/src/components/ContentTypeList.tsx:77
+#: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
 msgstr "Register"
 
@@ -3713,11 +3734,11 @@ msgstr "Registration was cancelled or timed out. Please try again."
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
-#: packages/admin/src/components/settings/PasskeyItem.tsx:205
+#: packages/admin/src/components/settings/PasskeyItem.tsx:209
 msgid "Remove"
 msgstr "Remove"
 
-#. placeholder {0}: passkey.name || "passkey"
+#. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
 #: packages/admin/src/components/TaxonomySidebar.tsx:189
@@ -3747,9 +3768,13 @@ msgid "Remove Image?"
 msgstr "Remove Image?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/RepeaterField.tsx:253
+#: packages/admin/src/components/RepeaterField.tsx:254
 msgid "Remove item {0}"
 msgstr "Remove item {0}"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:188
+msgid "Remove passkey"
+msgstr "Remove passkey"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:203
 msgid "Remove passkey?"
@@ -3764,7 +3789,7 @@ msgid "Remove this image from the document?"
 msgstr "Remove this image from the document?"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:178
-#: packages/admin/src/components/settings/PasskeyItem.tsx:206
+#: packages/admin/src/components/settings/PasskeyItem.tsx:210
 msgid "Removing..."
 msgstr "Removing..."
 
@@ -3772,10 +3797,14 @@ msgstr "Removing..."
 msgid "Rename"
 msgstr "Rename"
 
-#. placeholder {0}: passkey.name || "passkey"
+#. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:177
 msgid "Rename {0}"
 msgstr "Rename {0}"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:177
+msgid "Rename passkey"
+msgstr "Rename passkey"
 
 #: packages/admin/src/components/FieldEditor.tsx:229
 msgid "Repeater"
@@ -3835,7 +3864,7 @@ msgstr "Resend in {resendCooldown}s"
 msgid "Reset to original"
 msgstr "Reset to original"
 
-#: packages/admin/src/components/RevisionHistory.tsx:219
+#: packages/admin/src/components/RevisionHistory.tsx:220
 msgid "Restore"
 msgstr "Restore"
 
@@ -3843,29 +3872,29 @@ msgstr "Restore"
 msgid "Restore {title}"
 msgstr "Restore {title}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:135
+#: packages/admin/src/components/RevisionHistory.tsx:136
 msgid "Restore failed"
 msgstr "Restore failed"
 
-#: packages/admin/src/components/RevisionHistory.tsx:213
+#: packages/admin/src/components/RevisionHistory.tsx:214
 msgid "Restore Revision?"
 msgstr "Restore Revision?"
 
-#: packages/admin/src/components/RevisionHistory.tsx:280
 #: packages/admin/src/components/RevisionHistory.tsx:281
+#: packages/admin/src/components/RevisionHistory.tsx:282
 msgid "Restore this version"
 msgstr "Restore this version"
 
 #. placeholder {0}: formatFullDate(restoreTarget.createdAt)
-#: packages/admin/src/components/RevisionHistory.tsx:216
+#: packages/admin/src/components/RevisionHistory.tsx:217
 msgid "Restore this version from {0}? This will update the current content to this revision's data."
 msgstr "Restore this version from {0}? This will update the current content to this revision's data."
 
-#: packages/admin/src/components/RevisionHistory.tsx:220
+#: packages/admin/src/components/RevisionHistory.tsx:221
 msgid "Restoring..."
 msgstr "Restoring..."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:141
+#: packages/admin/src/components/MarketplaceBrowse.tsx:142
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:120
 msgid "Retry"
 msgstr "Retry"
@@ -3878,12 +3907,12 @@ msgstr "Reusable content blocks you can insert into any content"
 msgid "Review New Permissions"
 msgstr "Review New Permissions"
 
-#: packages/admin/src/components/RevisionHistory.tsx:129
+#: packages/admin/src/components/RevisionHistory.tsx:130
 msgid "Revision restored"
 msgstr "Revision restored"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:74
-#: packages/admin/src/components/RevisionHistory.tsx:160
+#: packages/admin/src/components/RevisionHistory.tsx:161
 msgid "Revisions"
 msgstr "Revisions"
 
@@ -4102,7 +4131,7 @@ msgstr "Search Engine Optimization"
 msgid "Search engine optimization and verification"
 msgstr "Search engine optimization and verification"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:440
+#: packages/admin/src/components/MediaPickerModal.tsx:441
 msgid "Search media"
 msgstr "Search media"
 
@@ -4110,7 +4139,7 @@ msgstr "Search media"
 msgid "Search pages and content..."
 msgstr "Search pages and content..."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:95
+#: packages/admin/src/components/MarketplaceBrowse.tsx:96
 msgid "Search plugins..."
 msgstr "Search plugins..."
 
@@ -4128,7 +4157,7 @@ msgid "Search themes..."
 msgstr "Search themes..."
 
 #: packages/admin/src/components/MediaLibrary.tsx:336
-#: packages/admin/src/components/MediaPickerModal.tsx:439
+#: packages/admin/src/components/MediaPickerModal.tsx:440
 msgid "Search..."
 msgstr "Search..."
 
@@ -4191,11 +4220,11 @@ msgstr "Security"
 msgid "Security Audit"
 msgstr "Security Audit"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:337
+#: packages/admin/src/components/MarketplaceBrowse.tsx:341
 msgid "Security audit failed"
 msgstr "Security audit failed"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:327
+#: packages/admin/src/components/MarketplaceBrowse.tsx:331
 msgid "Security audit flagged concerns"
 msgstr "Security audit flagged concerns"
 
@@ -4207,7 +4236,7 @@ msgstr "Security audit flagged potential concerns with this plugin."
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "Security audit flagged this plugin as potentially unsafe."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:316
+#: packages/admin/src/components/MarketplaceBrowse.tsx:320
 msgid "Security audit passed"
 msgstr "Security audit passed"
 
@@ -4257,6 +4286,10 @@ msgstr "Select Favicon"
 msgid "Select image"
 msgstr "Select image"
 
+#: packages/admin/src/components/MediaPickerModal.tsx:71
+msgid "Select Image"
+msgstr "Select Image"
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:214
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Select Logo"
@@ -4274,11 +4307,11 @@ msgstr "Select OG Image"
 msgid "Select which content types to import."
 msgstr "Select which content types to import."
 
-#: packages/admin/src/components/RepeaterField.tsx:348
+#: packages/admin/src/components/RepeaterField.tsx:349
 msgid "Select..."
 msgstr "Select..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:570
+#: packages/admin/src/components/MediaPickerModal.tsx:571
 msgid "Selected:"
 msgstr "Selected:"
 
@@ -4386,10 +4419,6 @@ msgstr "Share this link with the invited user"
 msgid "Short Text"
 msgstr "Short Text"
 
-#: packages/admin/src/components/RevisionHistory.tsx:344
-msgid "Show"
-msgstr "Show"
-
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
 msgid "Show token"
 msgstr "Show token"
@@ -4490,7 +4519,7 @@ msgstr "Skipped"
 #: packages/admin/src/components/ContentEditor.tsx:1574
 #: packages/admin/src/components/ContentEditor.tsx:1636
 #: packages/admin/src/components/ContentTypeEditor.tsx:109
-#: packages/admin/src/components/ContentTypeList.tsx:96
+#: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:223
 #: packages/admin/src/components/FieldEditor.tsx:399
 #: packages/admin/src/components/SectionEditor.tsx:197
@@ -4533,7 +4562,7 @@ msgstr "Some content types cannot be imported"
 msgid "Something went wrong"
 msgstr "Something went wrong"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:121
+#: packages/admin/src/components/MarketplaceBrowse.tsx:122
 msgid "Sort plugins"
 msgstr "Sort plugins"
 
@@ -4541,7 +4570,7 @@ msgstr "Sort plugins"
 msgid "Sort themes"
 msgstr "Sort themes"
 
-#: packages/admin/src/components/ContentTypeList.tsx:99
+#: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
@@ -4665,7 +4694,7 @@ msgstr "The device will not be granted access."
 msgid "The existing collection has fields with incompatible types."
 msgstr "The existing collection has fields with incompatible types."
 
-#: packages/admin/src/components/ContentTypeList.tsx:57
+#: packages/admin/src/components/ContentTypeList.tsx:58
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 
@@ -4678,7 +4707,7 @@ msgstr "The invited user will have this role once they complete registration."
 msgid "The link will expire in 15 minutes."
 msgstr "The link will expire in 15 minutes."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:177
+#: packages/admin/src/components/MarketplaceBrowse.tsx:178
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "The marketplace is empty. Check back later for new plugins."
 
@@ -4893,7 +4922,7 @@ msgid "True/false toggle"
 msgstr "True/false toggle"
 
 #: packages/admin/src/components/MediaLibrary.tsx:366
-#: packages/admin/src/components/MediaPickerModal.tsx:493
+#: packages/admin/src/components/MediaPickerModal.tsx:494
 msgid "Try a different search term"
 msgstr "Try a different search term"
 
@@ -4938,7 +4967,7 @@ msgstr "Type"
 msgid "Type mismatch ({0})"
 msgstr "Type mismatch ({0})"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:135
+#: packages/admin/src/components/MarketplaceBrowse.tsx:136
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 msgid "Unable to reach marketplace"
 msgstr "Unable to reach marketplace"
@@ -4947,10 +4976,6 @@ msgstr "Unable to reach marketplace"
 #: packages/admin/src/components/ContentEditor.tsx:1694
 msgid "Unassigned"
 msgstr "Unassigned"
-
-#: packages/admin/src/components/RevisionHistory.tsx:344
-msgid "unchanged"
-msgstr "unchanged"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:190
 #: packages/admin/src/components/PluginManager.tsx:484
@@ -5002,7 +5027,7 @@ msgstr "Unnamed passkey"
 msgid "Unpublish"
 msgstr "Unpublish"
 
-#: packages/admin/src/components/ContentTypeList.tsx:54
+#: packages/admin/src/components/ContentTypeList.tsx:55
 msgid "Unregistered Content Tables Found"
 msgstr "Unregistered Content Tables Found"
 
@@ -5063,7 +5088,7 @@ msgstr "Updating content URLs..."
 msgid "Updating..."
 msgstr "Updating..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:461
+#: packages/admin/src/components/MediaPickerModal.tsx:462
 msgid "Upload"
 msgstr "Upload"
 
@@ -5071,7 +5096,7 @@ msgstr "Upload"
 msgid "Upload an export file"
 msgstr "Upload an export file"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:495
+#: packages/admin/src/components/MediaPickerModal.tsx:496
 msgid "Upload an image to get started"
 msgstr "Upload an image to get started"
 
@@ -5084,7 +5109,7 @@ msgstr "Upload and delete media"
 msgid "Upload Export File"
 msgstr "Upload Export File"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:477
+#: packages/admin/src/components/MediaPickerModal.tsx:478
 msgid "Upload failed: {uploadError}"
 msgstr "Upload failed: {uploadError}"
 
@@ -5096,7 +5121,7 @@ msgstr "Upload files"
 msgid "Upload Files"
 msgstr "Upload Files"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:504
+#: packages/admin/src/components/MediaPickerModal.tsx:505
 msgid "Upload Image"
 msgstr "Upload Image"
 
@@ -5136,7 +5161,7 @@ msgid "Uploading {0}/{1}..."
 msgstr "Uploading {0}/{1}..."
 
 #: packages/admin/src/components/MediaLibrary.tsx:290
-#: packages/admin/src/components/MediaPickerModal.tsx:461
+#: packages/admin/src/components/MediaPickerModal.tsx:462
 msgid "Uploading..."
 msgstr "Uploading..."
 
@@ -5267,7 +5292,7 @@ msgstr "Visitors hitting these paths will see an error."
 msgid "Waiting for passkey..."
 msgstr "Waiting for passkey..."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:330
+#: packages/admin/src/components/MarketplaceBrowse.tsx:334
 msgid "Warn"
 msgstr "Warn"
 
@@ -5392,10 +5417,14 @@ msgstr "You cannot change your own role"
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "You have full access to manage this site, including users, settings, and all content."
 
-#. placeholder {0}: passkey.name || "this passkey"
-#: packages/admin/src/components/settings/PasskeyItem.tsx:204
+#. placeholder {0}: passkey.name
+#: packages/admin/src/components/settings/PasskeyItem.tsx:206
 msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
 msgstr "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:207
+msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
+msgstr "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:369
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."

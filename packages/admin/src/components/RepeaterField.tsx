@@ -15,6 +15,7 @@ import {
 	arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Trash, DotsSixVertical, CaretDown, CaretRight } from "@phosphor-icons/react";
 import * as React from "react";
@@ -127,7 +128,7 @@ export function RepeaterField({
 					{label}
 					{items.length > 0 && (
 						<span className="ml-2 text-kumo-subtle font-normal">
-							({items.length} {t`items`})
+							{plural(items.length, { one: "(# item)", other: "(# items)" })}
 						</span>
 					)}
 				</label>

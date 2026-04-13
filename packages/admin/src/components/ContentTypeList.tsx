@@ -1,4 +1,5 @@
 import { Badge, Button, buttonVariants } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Pencil, Trash, Database, FileText, Warning, Check } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -65,7 +66,7 @@ export function ContentTypeList({
 										<div>
 											<code className="text-sm font-medium">{orphan.slug}</code>
 											<span className="text-xs text-kumo-subtle ml-2">
-												({orphan.rowCount} {t`items`})
+												{plural(orphan.rowCount, { one: "(# item)", other: "(# items)" })}
 											</span>
 										</div>
 										<Button

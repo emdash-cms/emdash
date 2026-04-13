@@ -1,4 +1,5 @@
 import { Badge, Button, Loader, Toast } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ClockCounterClockwise,
@@ -333,7 +334,10 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
 				<div className="text-xs font-medium text-kumo-subtle">
-					{t`${changedCount} change${changedCount === 1 ? "" : "s"} from next revision`}
+					{plural(changedCount, {
+						one: "# change from next revision",
+						other: "# changes from next revision",
+					})}
 				</div>
 				{unchangedCount > 0 && (
 					<button
@@ -341,7 +345,9 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 						onClick={() => setShowUnchanged(!showUnchanged)}
 						className="text-xs text-kumo-brand hover:underline"
 					>
-						{showUnchanged ? t`Hide` : t`Show`} {unchangedCount} {t`unchanged`}
+						{showUnchanged
+							? plural(unchangedCount, { one: "Hide # unchanged", other: "Hide # unchanged" })
+							: plural(unchangedCount, { one: "Show # unchanged", other: "Show # unchanged" })}
 					</button>
 				)}
 			</div>

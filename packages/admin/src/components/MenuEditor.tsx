@@ -269,7 +269,7 @@ export function MenuEditor() {
 								/>
 							</div>
 							<form onSubmit={handleAddCustomLink} className="space-y-4">
-								<Input label={t`Label`} name="label" required placeholder="Home" />
+								<Input label={t`Label`} name="label" required placeholder={t`Home`} />
 								<Input
 									label={t`URL`}
 									name="url"
@@ -277,7 +277,7 @@ export function MenuEditor() {
 									required
 									pattern="(https?://.+|/.*)"
 									title={t`Enter a URL (https://…) or a relative path (/…)`}
-									placeholder="https://example.com or /about"
+									placeholder={t`https://example.com or /about`}
 								/>
 								<Select
 									label={t`Target`}

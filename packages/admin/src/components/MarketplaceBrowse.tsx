@@ -6,6 +6,7 @@
  */
 
 import { Badge, Button } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
@@ -285,7 +286,10 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 					{auditVerdict && <AuditBadge verdict={auditVerdict} />}
 					{plugin.capabilities.length > 0 && (
 						<span className="text-xs text-kumo-subtle">
-							{t`${plugin.capabilities.length} permission${plugin.capabilities.length !== 1 ? "s" : ""}`}
+							{plural(plugin.capabilities.length, {
+								one: "# permission",
+								other: "# permissions",
+							})}
 						</span>
 					)}
 				</div>

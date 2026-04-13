@@ -65,9 +65,10 @@ export function MediaPickerModal({
 	onOpenChange,
 	onSelect,
 	mimeTypeFilter = "image/",
-	title = "Select Image",
+	title: providedTitle,
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
+	const title = providedTitle ?? t`Select Image`;
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");

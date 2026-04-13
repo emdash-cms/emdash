@@ -134,7 +134,7 @@ export function MenuList() {
 								</p>
 							</div>
 							<div>
-								<Input label={t`Label`} name="label" required placeholder="Primary Navigation" />
+								<Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} />
 								<p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p>
 							</div>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
