@@ -17,7 +17,7 @@ import {
 } from "#api/handlers/redirects.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { updateRedirectBody } from "#api/schemas.js";
-import { invalidateRedirectCache } from "#astro/middleware/redirect.js";
+import { invalidateRedirectCache } from "#redirects/cache.js";
 
 export const prerender = false;
 

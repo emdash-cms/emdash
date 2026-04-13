@@ -42,9 +42,15 @@ async function hasAnyBylines(): Promise<boolean> {
 			SELECT id FROM _emdash_bylines LIMIT 1
 		`.execute(db);
 		hasBylines = result.rows.length > 0;
-	} catch {
-		// Table doesn't exist yet (pre-migration) -- no bylines
-		hasBylines = false;
+	} catch (error: unknown) {
+		// Only treat "no such table" as a safe false -- anything else should
+		// not be cached so the next request retries.
+		const message = error instanceof Error ? error.message : "";
+		if (message.includes("no such table")) {
+			hasBylines = false;
+		} else {
+			return false;
+		}
 	}
 
 	return hasBylines;

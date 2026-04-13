@@ -5,7 +5,6 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { invalidateRedirectCache } from "../../astro/middleware/redirect.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
@@ -23,6 +22,7 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
+import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 
@@ -565,6 +565,7 @@ export async function handleContentUpdate(
 					resolvedId,
 					collectionRow?.url_pattern ?? null,
 				);
+				invalidateRedirectCache();
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -593,11 +594,6 @@ export async function handleContentUpdate(
 
 			return updated;
 		});
-
-		// Invalidate redirect cache if slug changed (auto-redirect may have been created)
-		if (body.slug) {
-			invalidateRedirectCache();
-		}
 
 		return {
 			success: true,

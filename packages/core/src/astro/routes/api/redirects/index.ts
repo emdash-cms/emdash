@@ -12,7 +12,7 @@ import { handleError, unwrapResult } from "#api/error.js";
 import { handleRedirectCreate, handleRedirectList } from "#api/handlers/redirects.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createRedirectBody, redirectsListQuery } from "#api/schemas.js";
-import { invalidateRedirectCache } from "#astro/middleware/redirect.js";
+import { invalidateRedirectCache } from "#redirects/cache.js";
 
 export const prerender = false;
 

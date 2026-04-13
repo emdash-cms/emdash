@@ -640,7 +640,7 @@ export async function applySeed(
 	// Seed creates bylines, redirects, and collections, all of which
 	// have module-level caches in the hot path.
 	const { invalidateBylineCache } = await import("../bylines/index.js");
-	const { invalidateRedirectCache } = await import("../astro/middleware/redirect.js");
+	const { invalidateRedirectCache } = await import("../redirects/cache.js");
 	const { invalidateUrlPatternCache } = await import("../query.js");
 	invalidateBylineCache();
 	invalidateRedirectCache();
