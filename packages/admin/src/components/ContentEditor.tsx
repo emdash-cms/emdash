@@ -247,6 +247,13 @@ export function ContentEditor({
 		});
 	}, []);
 
+	const handleSeoChange = React.useCallback(
+		(seo: ContentSeoInput) => {
+			onSeoChange?.(seo);
+		},
+		[onSeoChange],
+	);
+
 	// Track the last saved state to determine if dirty
 	const [lastSavedData, setLastSavedData] = React.useState<string>(
 		serializeEditorState({
@@ -962,7 +969,7 @@ export function ContentEditor({
 										<MagnifyingGlass className="h-4 w-4" />
 										{t`SEO`}
 									</h3>
-									<SeoPanel seo={item?.seo} onChange={onSeoChange} />
+									<SeoPanel contentKey={item?.id} seo={item?.seo} onChange={handleSeoChange} />
 								</div>
 							)}
 
