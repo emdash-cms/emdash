@@ -23,10 +23,11 @@ function isValidLocale(code: string): boolean {
 
 /**
  * The pseudo locale, injected into the supported list only when
- * EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
+ * VITE_EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
+ * Must use VITE_ prefix so Vite exposes it to client-side code.
  */
 const PSEUDO_LOCALE =
-	import.meta.env.DEV && import.meta.env.EMDASH_PSEUDO_LOCALE === "1"
+	import.meta.env.DEV && import.meta.env.VITE_EMDASH_PSEUDO_LOCALE === "1"
 		? LOCALES.find((l) => l.code === "pseudo")
 		: undefined;
 
