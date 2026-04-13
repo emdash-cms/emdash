@@ -2,11 +2,14 @@
  * Section Picker Modal
  *
  * A modal for selecting and inserting sections into content.
+ * Supports two insertion modes:
+ * - "copy": pastes the section's content blocks directly (editable, independent)
+ * - "ref": inserts a synced reference that always reflects the section's current content
  */
 
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Stack, FolderOpen } from "@phosphor-icons/react";
+import { MagnifyingGlass, Stack, FolderOpen, Copy, Link } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -15,15 +18,18 @@ import { fetchSections, type Section } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks";
 import { cn } from "../lib/utils";
 
+type InsertMode = "copy" | "ref";
+
 interface SectionPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSelect: (section: Section) => void;
+	onSelect: (section: Section, mode: InsertMode) => void;
 }
 
 export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPickerModalProps) {
 	const { t } = useLingui();
 	const [searchQuery, setSearchQuery] = React.useState("");
+	const [mode, setMode] = React.useState<InsertMode>("copy");
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
 	const { data: sectionsData, isLoading: sectionsLoading } = useQuery({
@@ -36,16 +42,16 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 	});
 	const sections = sectionsData?.items ?? [];
 
-	// Reset search when modal opens
+	// Reset state when modal opens
 	React.useEffect(() => {
 		if (open) {
 			setSearchQuery("");
+			setMode("copy");
 		}
 	}, [open]);
 
 	const handleSelect = (section: Section) => {
-		onSelect(section);
-		onOpenChange(false);
+		onSelect(section, mode);
 	};
 
 	return (
@@ -73,9 +79,44 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 					/>
 				</div>
 
-				{/* Search */}
-				<div className="flex items-center gap-4 py-4 border-b">
-					<div className="relative flex-1">
+				{/* Mode toggle + Search */}
+				<div className="flex flex-col gap-3 py-4 border-b">
+					{/* Insert mode toggle */}
+					<div className="flex items-center gap-1 p-1 rounded-lg bg-kumo-tint w-fit">
+						<button
+							type="button"
+							onClick={() => setMode("copy")}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+								mode === "copy"
+									? "bg-kumo-base shadow-sm text-kumo-text"
+									: "text-kumo-subtle hover:text-kumo-text",
+							)}
+						>
+							<Copy className="h-3.5 w-3.5" />
+							{t`Insert copy`}
+						</button>
+						<button
+							type="button"
+							onClick={() => setMode("ref")}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+								mode === "ref"
+									? "bg-kumo-base shadow-sm text-kumo-brand"
+									: "text-kumo-subtle hover:text-kumo-text",
+							)}
+						>
+							<Link className="h-3.5 w-3.5" />
+							{t`Synced reference`}
+						</button>
+					</div>
+					{mode === "ref" && (
+						<p className="text-xs text-kumo-subtle">
+							{t`The section's content will stay in sync — edits to the section update everywhere it's referenced.`}
+						</p>
+					)}
+					{/* Search */}
+					<div className="relative">
 						<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 						<Input
 							placeholder={t`Search sections...`}

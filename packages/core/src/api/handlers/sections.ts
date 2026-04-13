@@ -8,7 +8,7 @@ import { ulid } from "ulidx";
 import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import {
-	getSectionById,
+	getSectionByIdWithDb,
 	getSectionWithDb,
 	getSectionsWithDb,
 	type Section,
@@ -109,7 +109,7 @@ export async function handleSectionCreate(
 			})
 			.execute();
 
-		const section = await getSectionById(id, db);
+		const section = await getSectionByIdWithDb(id, db);
 		if (!section) {
 			return {
 				success: false,
@@ -226,7 +226,7 @@ export async function handleSectionUpdate(
 
 		await db.updateTable("_emdash_sections").set(updates).where("id", "=", existing.id).execute();
 
-		const section = await getSectionById(existing.id, db);
+		const section = await getSectionByIdWithDb(existing.id, db);
 		if (!section) {
 			return {
 				success: false,

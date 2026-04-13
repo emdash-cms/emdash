@@ -425,7 +425,7 @@ export type {
 } from "./widgets/index.js";
 
 // Sections
-export { getSection, getSections } from "./sections/index.js";
+export { getSection, getSectionById, getSections } from "./sections/index.js";
 export type {
 	Section,
 	SectionSource,

@@ -1,0 +1,36 @@
+---
+/**
+ * Portable Text section reference block component
+ *
+ * Renders an `emdash-section-ref` block by resolving the referenced section at
+ * render time and rendering its current content. This means changes to the
+ * section are reflected everywhere it is referenced without re-editing the post.
+ *
+ * If the section has been deleted, renders nothing in production and a
+ * placeholder in development.
+ */
+import { getSectionById } from "../sections/index.js";
+import PortableTextComponent from "./PortableText.astro";
+
+export interface Props {
+	node: {
+		_type: "emdash-section-ref";
+		_key: string;
+		sectionId: string;
+		sectionTitle?: string;
+	};
+}
+
+const { node } = Astro.props;
+const section = node.sectionId ? await getSectionById(node.sectionId) : null;
+---
+
+{section ? (
+	<div class="emdash-section-ref" data-section-id={node.sectionId} data-section-slug={section.slug}>
+		<PortableTextComponent value={section.content} />
+	</div>
+) : import.meta.env.DEV ? (
+	<div class="emdash-section-ref emdash-section-ref--missing">
+		<p>[Section not found: {node.sectionTitle ?? node.sectionId}]</p>
+	</div>
+) : null}
