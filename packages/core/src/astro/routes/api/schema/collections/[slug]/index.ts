@@ -59,6 +59,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- parseBody validates via Zod
 		body as UpdateCollectionInput,
 	);
+	emdash!.invalidateManifest();
 	return unwrapResult(result);
 };
 
@@ -76,5 +77,6 @@ export const DELETE: APIRoute = async ({ params, url, locals }) => {
 	const result = await handleSchemaCollectionDelete(emdash!.db, slug, {
 		force,
 	});
+	emdash!.invalidateManifest();
 	return unwrapResult(result);
 };

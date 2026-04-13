@@ -6,6 +6,8 @@
  */
 
 import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
 	Check,
@@ -80,6 +82,8 @@ export function CommentInbox({
 	deleteError,
 	onDeleteErrorReset,
 }: CommentInboxProps) {
+	const { t } = useLingui();
+
 	// Selection state
 	const [selected, setSelected] = React.useState<Set<string>>(new Set());
 	const [detailComment, setDetailComment] = React.useState<AdminComment | null>(null);
@@ -133,7 +137,7 @@ export function CommentInbox({
 	};
 
 	// Collection filter items
-	const collectionItems: Record<string, string> = { "": "All collections" };
+	const collectionItems: Record<string, string> = { "": t`All collections` };
 	for (const [slug, config] of Object.entries(collections)) {
 		collectionItems[slug] = config.label;
 	}
@@ -146,8 +150,12 @@ export function CommentInbox({
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
 					<ChatCircle className="h-6 w-6" />
-					<h1 className="text-2xl font-bold">Comments</h1>
-					{total > 0 && <span className="text-sm text-kumo-subtle">{total} total</span>}
+					<h1 className="text-2xl font-bold">{t`Comments`}</h1>
+					{total > 0 && (
+						<span className="text-sm text-kumo-subtle">
+							{plural(total, { one: "# total", other: "# total" })}
+						</span>
+					)}
 				</div>
 			</div>
 
@@ -158,8 +166,8 @@ export function CommentInbox({
 					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
-						placeholder="Search comments..."
-						aria-label="Search comments"
+						placeholder={t`Search comments...`}
+						aria-label={t`Search comments`}
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
 						className="pl-9"
@@ -173,7 +181,7 @@ export function CommentInbox({
 							value={collectionFilter}
 							onValueChange={(v) => onCollectionFilterChange(v ?? "")}
 							items={collectionItems}
-							aria-label="Filter by collection"
+							aria-label={t`Filter by collection`}
 						/>
 					</div>
 				)}
@@ -193,17 +201,17 @@ export function CommentInbox({
 						value: "pending",
 						label: (
 							<span className="flex items-center gap-2">
-								Pending
+								{t`Pending`}
 								{counts.pending > 0 && <Badge variant="secondary">{counts.pending}</Badge>}
 							</span>
 						),
 					},
-					{ value: "approved", label: "Approved" },
+					{ value: "approved", label: t`Approved` },
 					{
 						value: "spam",
 						label: (
 							<span className="flex items-center gap-2">
-								Spam
+								{t`Spam`}
 								{counts.spam > 0 && <Badge variant="secondary">{counts.spam}</Badge>}
 							</span>
 						),
@@ -212,7 +220,7 @@ export function CommentInbox({
 						value: "trash",
 						label: (
 							<span className="flex items-center gap-2">
-								Trash
+								{t`Trash`}
 								{counts.trash > 0 && <Badge variant="secondary">{counts.trash}</Badge>}
 							</span>
 						),
@@ -223,7 +231,9 @@ export function CommentInbox({
 			{/* Bulk action bar */}
 			{selected.size > 0 && (
 				<div className="flex items-center gap-3 rounded-lg border bg-kumo-tint/50 px-4 py-2">
-					<span className="text-sm font-medium">{selected.size} selected</span>
+					<span className="text-sm font-medium">
+						{plural(selected.size, { one: "# selected", other: "# selected" })}
+					</span>
 					<div className="flex gap-2 ml-auto">
 						{activeStatus !== "approved" && (
 							<Button
@@ -231,7 +241,7 @@ export function CommentInbox({
 								icon={<Check className="h-3.5 w-3.5" />}
 								onClick={() => handleBulk("approve")}
 							>
-								Approve
+								{t`Approve`}
 							</Button>
 						)}
 						{activeStatus !== "spam" && (
@@ -241,7 +251,7 @@ export function CommentInbox({
 								icon={<Warning className="h-3.5 w-3.5" />}
 								onClick={() => handleBulk("spam")}
 							>
-								Spam
+								{t`Spam`}
 							</Button>
 						)}
 						{activeStatus !== "trash" && (
@@ -251,7 +261,7 @@ export function CommentInbox({
 								icon={<Trash className="h-3.5 w-3.5" />}
 								onClick={() => handleBulk("trash")}
 							>
-								Trash
+								{t`Trash`}
 							</Button>
 						)}
 						{isAdmin && (
@@ -261,7 +271,7 @@ export function CommentInbox({
 								icon={<Trash className="h-3.5 w-3.5" />}
 								onClick={() => handleBulk("delete")}
 							>
-								Delete
+								{t`Delete`}
 							</Button>
 						)}
 					</div>
@@ -277,23 +287,23 @@ export function CommentInbox({
 								<Checkbox
 									checked={allOnPageSelected}
 									onChange={toggleAll}
-									aria-label="Select all"
+									aria-label={t`Select all`}
 								/>
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Author
+								{t`Author`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Comment
+								{t`Comment`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Content
+								{t`Content`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Date
+								{t`Date`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
-								Actions
+								{t`Actions`}
 							</th>
 						</tr>
 					</thead>
@@ -301,7 +311,7 @@ export function CommentInbox({
 						{isLoading && comments.length === 0 ? (
 							<tr>
 								<td colSpan={6} className="px-4 py-8 text-center text-kumo-subtle">
-									Loading comments...
+									{t`Loading comments...`}
 								</td>
 							</tr>
 						) : paginatedComments.length === 0 ? (
@@ -338,7 +348,7 @@ export function CommentInbox({
 			{(totalPages > 1 || nextCursor) && (
 				<div className="flex items-center justify-between">
 					<span className="text-sm text-kumo-subtle">
-						{comments.length} {comments.length === 1 ? "comment" : "comments"}
+						{plural(comments.length, { one: "# comment", other: "# comments" })}
 					</span>
 					<div className="flex items-center gap-2">
 						<Button
@@ -346,7 +356,7 @@ export function CommentInbox({
 							shape="square"
 							disabled={page === 0}
 							onClick={() => setPage(page - 1)}
-							aria-label="Previous page"
+							aria-label={t`Previous page`}
 						>
 							<CaretLeft className="h-4 w-4" />
 						</Button>
@@ -365,7 +375,7 @@ export function CommentInbox({
 									setPage(page + 1);
 								}
 							}}
-							aria-label="Next page"
+							aria-label={t`Next page`}
 						>
 							<CaretRight className="h-4 w-4" />
 						</Button>
@@ -399,10 +409,10 @@ export function CommentInbox({
 					setDeleteId(null);
 					onDeleteErrorReset();
 				}}
-				title="Delete Comment?"
-				description="This will permanently delete this comment. This action cannot be undone."
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				title={t`Delete Comment?`}
+				description={t`This will permanently delete this comment. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={isStatusPending}
 				error={deleteError}
 				onConfirm={() => {
@@ -440,6 +450,7 @@ function CommentRow({
 	isAdmin,
 	isStatusPending,
 }: CommentRowProps) {
+	const { t } = useLingui();
 	const date = new Date(comment.createdAt);
 	const excerpt = comment.body.length > 120 ? comment.body.slice(0, 120) + "..." : comment.body;
 
@@ -449,7 +460,7 @@ function CommentRow({
 				<Checkbox
 					checked={isSelected}
 					onChange={onToggle}
-					aria-label={`Select comment by ${comment.authorName}`}
+					aria-label={t`Select comment by ${comment.authorName}`}
 				/>
 			</td>
 			<td className="px-4 py-3">
@@ -482,7 +493,7 @@ function CommentRow({
 							variant="ghost"
 							shape="square"
 							size="sm"
-							aria-label="Approve"
+							aria-label={t`Approve`}
 							onClick={() => onStatusChange(comment.id, "approved")}
 							disabled={isStatusPending}
 						>
@@ -494,7 +505,7 @@ function CommentRow({
 							variant="ghost"
 							shape="square"
 							size="sm"
-							aria-label="Mark as spam"
+							aria-label={t`Mark as spam`}
 							onClick={() => onStatusChange(comment.id, "spam")}
 							disabled={isStatusPending}
 						>
@@ -506,7 +517,7 @@ function CommentRow({
 							variant="ghost"
 							shape="square"
 							size="sm"
-							aria-label="Trash"
+							aria-label={t`Trash`}
 							onClick={() => onStatusChange(comment.id, "trash")}
 							disabled={isStatusPending}
 						>
@@ -518,7 +529,7 @@ function CommentRow({
 							variant="ghost"
 							shape="square"
 							size="sm"
-							aria-label="Delete permanently"
+							aria-label={t`Delete permanently`}
 							onClick={() => onDelete(comment.id)}
 							disabled={isStatusPending}
 						>
@@ -532,15 +543,17 @@ function CommentRow({
 }
 
 function EmptyState({ status, hasSearch }: { status: CommentStatus; hasSearch: boolean }) {
+	const { t } = useLingui();
+
 	if (hasSearch) {
-		return <p>No comments match your search.</p>;
+		return <p>{t`No comments match your search.`}</p>;
 	}
 
 	const messages: Record<CommentStatus, string> = {
-		pending: "No comments awaiting moderation.",
-		approved: "No approved comments yet.",
-		spam: "No spam comments.",
-		trash: "Trash is empty.",
+		pending: t`No comments awaiting moderation.`,
+		approved: t`No approved comments yet.`,
+		spam: t`No spam comments.`,
+		trash: t`Trash is empty.`,
 	};
 
 	return <p>{messages[status]}</p>;

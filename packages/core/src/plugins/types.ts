@@ -876,6 +876,7 @@ export type PageMetadataLinkRel =
 	| "alternate"
 	| "author"
 	| "license"
+	| "nlweb"
 	| "site.standard.document";
 
 export type PageMetadataContribution =

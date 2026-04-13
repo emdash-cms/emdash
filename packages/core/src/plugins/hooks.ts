@@ -324,7 +324,11 @@ export class HookPipeline {
 			);
 
 			if (ready.length === 0) {
-				// Circular dependency or missing dependency - just add by priority
+				// Circular dependency or missing dependency - log warning and fall back to priority
+				const pluginIds = remaining.map((h) => h.pluginId).join(", ");
+				console.warn(
+					`[hooks] Hook dependency cycle or missing dependency detected among plugins: ${pluginIds}. Falling back to priority order.`,
+				);
 				remaining.sort((a, b) => a.priority - b.priority);
 				sorted.push(...remaining);
 				break;
@@ -344,12 +348,16 @@ export class HookPipeline {
 	 * Execute a hook with timeout
 	 */
 	private async executeWithTimeout<T>(fn: () => Promise<T>, timeout: number): Promise<T> {
-		return Promise.race([
-			fn(),
-			new Promise<T>((_, reject) =>
-				setTimeout(() => reject(new Error(`Hook timeout after ${timeout}ms`)), timeout),
-			),
-		]);
+		let timer: ReturnType<typeof setTimeout>;
+		const timeoutPromise = new Promise<T>(
+			(_, reject) =>
+				(timer = setTimeout(() => reject(new Error(`Hook timeout after ${timeout}ms`)), timeout)),
+		);
+		try {
+			return await Promise.race([fn(), timeoutPromise]);
+		} finally {
+			clearTimeout(timer!);
+		}
 	}
 
 	// =========================================================================

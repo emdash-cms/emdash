@@ -31,9 +31,11 @@ export const LOCALES: LocaleDefinition[] = [
 	// Source locale first, then alphabetical by English name.
 	{ code: "en", label: "English", enabled: true },
 	{ code: "ar", label: "العربية", enabled: true }, // Arabic
+	{ code: "eu", label: "Euskara", enabled: true }, // Basque
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
+	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
 	// Pseudo-locale for i18n testing — never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
