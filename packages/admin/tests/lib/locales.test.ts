@@ -100,7 +100,7 @@ describe("resolveLocale", () => {
 	});
 
 	test("skips unsupported languages in accept-language list", () => {
-		expect(resolveLocale(makeRequest({ "accept-language": "ja, ko, de" }))).toBe("de");
+		expect(resolveLocale(makeRequest({ "accept-language": "xx, yy, de" }))).toBe("de");
 	});
 
 	// Malformed input
