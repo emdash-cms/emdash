@@ -18,6 +18,10 @@ export default defineConfig({
 			label: "Français",
 			lang: "fr",
 		},
+		{
+			label: "Euskara",
+			lang: "eu",
+		},
 	],
 	files: [
 		{
