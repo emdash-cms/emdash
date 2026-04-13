@@ -124,13 +124,13 @@ export class PluginRouteHandler {
 				};
 			}
 
-			// Unknown error
-			const message = error instanceof Error ? error.message : String(error);
+			// Unknown error -- log internally, return generic message
+			console.error(`[plugin:${this.plugin.id}] Route handler failed:`, error);
 			return {
 				success: false,
 				error: {
 					code: "INTERNAL_ERROR",
-					message: `Route handler failed: ${message}`,
+					message: "An internal error occurred",
 				},
 				status: 500,
 			};

@@ -141,6 +141,8 @@
     "#media/*": "./src/media/*",
     "#mcp/*": "./src/mcp/*",
     "#comments/*": "./src/comments/*",
+    "#bylines/*": "./src/bylines/*",
+    "#redirects/*": "./src/redirects/*",
     "#types": "./src/astro/types.js"
   },
   "scripts": {

@@ -491,11 +491,17 @@ export function createMediaAccessWithWrite(
 /** Maximum number of redirects to follow in plugin HTTP access */
 const MAX_PLUGIN_REDIRECTS = 5;
 
+/**
+ * Check if a hostname matches any pattern in the allowed list.
+ * Patterns: "*" matches all, "*.example.com" matches subdomains AND bare "example.com",
+ * "api.example.com" matches exactly.
+ */
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
 	return allowedHosts.some((pattern) => {
 		if (pattern === "*") return true;
 		if (pattern.startsWith("*.")) {
 			const suffix = pattern.slice(1); // ".example.com"
+			// Match subdomains (foo.example.com) and bare domain (example.com)
 			return host.endsWith(suffix) || host === pattern.slice(2);
 		}
 		return host === pattern;

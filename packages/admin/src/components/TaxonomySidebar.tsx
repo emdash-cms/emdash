@@ -7,6 +7,7 @@
  */
 
 import { Input, Label } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -150,14 +151,18 @@ function TagInput({
 	onRemove: (termId: string) => void;
 	label: string;
 }) {
+	const { t } = useLingui();
 	const [input, setInput] = React.useState("");
 
-	const selectedTerms = terms.filter((t) => selectedIds.has(t.id));
+	const selectedTerms = terms.filter((term) => selectedIds.has(term.id));
 
 	const suggestions = React.useMemo(() => {
 		if (!input) return [];
 		return terms
-			.filter((t) => t.label.toLowerCase().includes(input.toLowerCase()) && !selectedIds.has(t.id))
+			.filter(
+				(term) =>
+					term.label.toLowerCase().includes(input.toLowerCase()) && !selectedIds.has(term.id),
+			)
 			.slice(0, 5);
 	}, [input, terms, selectedIds]);
 
@@ -181,7 +186,7 @@ function TagInput({
 								type="button"
 								onClick={() => onRemove(term.id)}
 								className="hover:text-kumo-danger"
-								aria-label={`Remove ${term.label}`}
+								aria-label={t`Remove ${term.label}`}
 							>
 								<X className="w-3 h-3" />
 							</button>
@@ -195,8 +200,8 @@ function TagInput({
 				<Input
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
-					placeholder="Add tags..."
-					aria-label={`Add ${label}`}
+					placeholder={t`Add tags...`}
+					aria-label={t`Add ${label}`}
 					className="text-sm"
 				/>
 
@@ -234,6 +239,7 @@ function TaxonomySection({
 	entryId?: string;
 	onChange?: (termIds: string[]) => void;
 }) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 
 	const { data: terms = [] } = useQuery({
@@ -266,7 +272,7 @@ function TaxonomySection({
 
 	// Sync selected IDs from entry terms
 	React.useEffect(() => {
-		setSelectedIds(new Set(entryTerms.map((t) => t.id)));
+		setSelectedIds(new Set(entryTerms.map((term) => term.id)));
 	}, [entryTerms]);
 
 	const handleToggle = (termId: string) => {
@@ -301,7 +307,9 @@ function TaxonomySection({
 			<Label className="text-sm font-medium">{taxonomy.label}</Label>
 
 			{terms.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">No {taxonomy.label.toLowerCase()} available.</p>
+				<p className="text-sm text-kumo-subtle">
+					{t`No ${taxonomy.label.toLowerCase()} available.`}
+				</p>
 			) : taxonomy.hierarchical ? (
 				<div className="border rounded-md p-2 max-h-64 overflow-y-auto">
 					{terms.map((term) => (
@@ -330,13 +338,14 @@ function TaxonomySection({
  * Main TaxonomySidebar component
  */
 export function TaxonomySidebar({ collection, entryId, onChange }: TaxonomySidebarProps) {
+	const { t } = useLingui();
 	const { data: taxonomies = [] } = useQuery({
 		queryKey: ["taxonomy-defs"],
 		queryFn: fetchTaxonomyDefs,
 	});
 
 	// Filter to taxonomies that apply to this collection
-	const applicableTaxonomies = taxonomies.filter((t) => t.collections.includes(collection));
+	const applicableTaxonomies = taxonomies.filter((tax) => tax.collections.includes(collection));
 
 	if (applicableTaxonomies.length === 0) {
 		return null;
@@ -345,7 +354,7 @@ export function TaxonomySidebar({ collection, entryId, onChange }: TaxonomySideb
 	return (
 		<div className="space-y-6">
 			<div>
-				<h3 className="font-semibold mb-4">Taxonomies</h3>
+				<h3 className="font-semibold mb-4">{t`Taxonomies`}</h3>
 				<div className="space-y-4">
 					{applicableTaxonomies.map((taxonomy) => (
 						<TaxonomySection

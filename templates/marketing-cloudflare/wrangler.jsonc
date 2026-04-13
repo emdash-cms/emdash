@@ -18,4 +18,10 @@
 			"bucket_name": "my-marketing-media",
 		},
 	],
+	// Worker Loader for plugin sandboxing
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
 }
