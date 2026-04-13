@@ -37,6 +37,7 @@ import type {
 	PageMetadataContribution,
 	PageFragmentContribution,
 } from "./plugins/types.js";
+import { invalidateUrlPatternCache } from "./query.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { COMMIT, VERSION } from "./version.js";
@@ -1368,11 +1369,12 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Invalidate the cached manifest (no-op now that we don't cache).
-	 * Kept for API compatibility.
+	 * Invalidate cached data derived from the manifest/schema.
+	 * Called when collections are created, updated, or deleted.
 	 */
 	invalidateManifest(): void {
-		// No-op - manifest is rebuilt on each request
+		// Invalidate the URL pattern cache used by resolveEmDashPath
+		invalidateUrlPatternCache();
 	}
 
 	// =========================================================================
@@ -1614,7 +1616,7 @@ export class EmDashRuntime {
 
 		// Run afterDelete hooks (fire-and-forget)
 		if (result.success) {
-			this.runAfterDeleteHooks(id, collection);
+			this.runAfterDeleteHooks(id, collection, false);
 		}
 
 		return result;
@@ -1636,7 +1638,14 @@ export class EmDashRuntime {
 	}
 
 	async handleContentPermanentDelete(collection: string, id: string) {
-		return handleContentPermanentDelete(this.db, collection, id);
+		const result = await handleContentPermanentDelete(this.db, collection, id);
+
+		// Run afterDelete hooks so plugins (e.g. AI Search) can clean up
+		if (result.success) {
+			this.runAfterDeleteHooks(id, collection, true);
+		}
+
+		return result;
 	}
 
 	async handleContentCountTrashed(collection: string) {
@@ -2011,11 +2020,11 @@ export class EmDashRuntime {
 		}
 	}
 
-	private runAfterDeleteHooks(id: string, collection: string): void {
+	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
 		// Trusted plugins
 		if (this.hooks.hasHooks("content:afterDelete")) {
 			this.hooks
-				.runContentAfterDelete(id, collection)
+				.runContentAfterDelete(id, collection, permanent)
 				.catch((err) => console.error("EmDash afterDelete hook error:", err));
 		}
 
@@ -2025,7 +2034,7 @@ export class EmDashRuntime {
 			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
 			plugin
-				.invokeHook("content:afterDelete", { id, collection })
+				.invokeHook("content:afterDelete", { id, collection, permanent })
 				.catch((err) =>
 					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
 				);

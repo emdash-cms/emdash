@@ -241,12 +241,42 @@ class MarketplaceClientImpl implements MarketplaceClient {
 	async downloadBundle(id: string, version: string): Promise<PluginBundle> {
 		const bundleUrl = `${this.baseUrl}/api/v1/plugins/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/bundle`;
 
+		const marketplaceOrigin = new URL(this.baseUrl).origin;
+		const MAX_REDIRECTS = 5;
 		let response: Response;
 		try {
-			response = await fetch(bundleUrl, {
-				redirect: "follow",
-			});
+			let currentUrl = bundleUrl;
+			response = await fetch(currentUrl, { redirect: "manual" });
+
+			// Follow redirects manually, validating each target stays on the marketplace host
+			for (let i = 0; i < MAX_REDIRECTS; i++) {
+				if (response.status < 300 || response.status >= 400) break;
+
+				const location = response.headers.get("location");
+				if (!location) break;
+
+				const target = new URL(location, currentUrl);
+				if (target.origin !== marketplaceOrigin) {
+					throw new MarketplaceError(
+						`Bundle download redirected to untrusted host: ${target.origin}`,
+						response.status,
+						"BUNDLE_REDIRECT_UNTRUSTED",
+					);
+				}
+				currentUrl = target.href;
+				response = await fetch(currentUrl, { redirect: "manual" });
+			}
+
+			// If still a redirect after MAX_REDIRECTS, fail explicitly
+			if (response.status >= 300 && response.status < 400) {
+				throw new MarketplaceError(
+					`Bundle download exceeded maximum redirects (${MAX_REDIRECTS})`,
+					response.status,
+					"BUNDLE_TOO_MANY_REDIRECTS",
+				);
+			}
 		} catch (err) {
+			if (err instanceof MarketplaceError) throw err;
 			throw new MarketplaceUnavailableError(err);
 		}
 

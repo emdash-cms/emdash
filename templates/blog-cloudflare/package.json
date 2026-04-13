@@ -29,6 +29,9 @@
 		"wrangler": "catalog:"
 	},
 	"pnpm": {
-		"onlyBuiltDependencies": ["esbuild", "workerd"]
+		"onlyBuiltDependencies": [
+			"esbuild",
+			"workerd"
+		]
 	}
 }

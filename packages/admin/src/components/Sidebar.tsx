@@ -312,6 +312,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group-content"] {
 				grid-template-rows: 1fr !important;
 			}
+			/* Mobile drawer: kumo's Sheet has no data-state attribute, so group-content
+			   stays at grid-rows-[0fr] (hidden). Force it open in the mobile sidebar. */
+			.emdash-sidebar[data-mobile="true"] [data-sidebar="group-content"] {
+				grid-template-rows: 1fr !important;
+			}
 			/* Collapsed separators — thin centered line */
 			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
 				margin: 0.375rem 0.625rem;
