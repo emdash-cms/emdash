@@ -62,6 +62,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		});
 
 		if (!byline) return apiError("NOT_FOUND", "Byline not found", 404);
+		invalidateBylineCache();
 		return apiSuccess(byline);
 	} catch (error) {
 		return handleError(error, "Failed to update byline", "BYLINE_UPDATE_ERROR");

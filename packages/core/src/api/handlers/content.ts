@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { invalidateRedirectCache } from "../../astro/middleware/redirect.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
@@ -592,6 +593,11 @@ export async function handleContentUpdate(
 
 			return updated;
 		});
+
+		// Invalidate redirect cache if slug changed (auto-redirect may have been created)
+		if (body.slug) {
+			invalidateRedirectCache();
+		}
 
 		return {
 			success: true,
