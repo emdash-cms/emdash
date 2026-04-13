@@ -15,9 +15,13 @@ export default defineConfig({
 			lang: "de",
 		},
 		{
-			label: "简体中文",
-			lang: "zh-CN",
+			label: "Français",
+			lang: "fr",
 		},
+    {
+      label: "简体中文",
+			lang: "zh-CN",
+    },
 	],
 	files: [
 		{
