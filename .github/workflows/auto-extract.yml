@@ -43,13 +43,14 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          non_locale=$(git diff --name-only | grep -v '^packages/admin/src/locales/' || true)
+          git add -A
+          non_locale=$(git diff --staged --name-only | grep -v '^packages/admin/src/locales/' || true)
           if [ -n "$non_locale" ]; then
             echo "::error::Extraction modified files outside locales:"
             echo "$non_locale"
             exit 1
           fi
-          if git diff --quiet -- 'packages/admin/src/locales/'; then
+          if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -60,6 +61,5 @@ jobs:
         run: |
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git add packages/admin/src/locales/
           git commit -m "chore: extract locale catalogs"
           git push
