@@ -372,7 +372,7 @@ function PluginCard({
 						)}
 
 						{plugin.hasAdminPages && plugin.enabled && (
-							<Link to="/plugins/$pluginId/$" params={{ pluginId: plugin.id, _splat: "settings" }}>
+							<Link to="/plugins/$pluginId/$" params={{ pluginId: plugin.id, _splat: "" }}>
 								<Button variant="ghost" shape="square" aria-label="Settings">
 									<Gear className="h-4 w-4" />
 									<span className="sr-only">Settings</span>
