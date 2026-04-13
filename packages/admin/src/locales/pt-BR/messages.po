@@ -80,7 +80,7 @@ msgstr "{0, plural, one {# item de conteúdo importado} other {# itens de conte�
 
 #. placeholder {0}: filteredItems.length
 #: packages/admin/src/components/ContentList.tsx:251
-msgid "{0, plural, one {# item matching \\\\\\\"{searchQuery}\\\\\\\"} other {# items matching \\\\\\\"{searchQuery}\\\\\\\"}}"
+msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{0, plural, one {# item correspondente a \"{searchQuery}\"} other {# itens correspondentes a \"{searchQuery}\"}}"
 
 #. placeholder {0}: items.length
@@ -337,12 +337,12 @@ msgid "2. Go to Users → Profile"
 msgstr "2. Vá para Usuários → Perfil"
 
 #: packages/admin/src/components/WordPressImport.tsx:1354
-msgid "3. Scroll to \\\\\\\"Application Passwords\\\\\\\""
-msgstr "3. Role até \\\\\\\"Senhas de aplicativo\\\\\\\""
+msgid "3. Scroll to \"Application Passwords\""
+msgstr "3. Role até \"Senhas de aplicativo\""
 
 #: packages/admin/src/components/WordPressImport.tsx:1109
-msgid "3. Select \\\\\\\"All content\\\\\\\""
-msgstr "3. Selecione \\\\\\\"Todo o conteúdo\\\\\\\""
+msgid "3. Select \"All content\""
+msgstr "3. Selecione \"Todo o conteúdo\""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:42
 msgid "30 days"
@@ -365,12 +365,12 @@ msgid "308 Permanent (Strict)"
 msgstr "308 Permanente (Estrito)"
 
 #: packages/admin/src/components/WordPressImport.tsx:1110
-msgid "4. Click \\\\\\\"Download Export File\\\\\\\""
-msgstr "4. Clique em \\\\\\\"Baixar arquivo de exportação\\\\\\\""
+msgid "4. Click \"Download Export File\""
+msgstr "4. Clique em \"Baixar arquivo de exportação\""
 
 #: packages/admin/src/components/WordPressImport.tsx:1355
-msgid "4. Enter \\\\\\\"EmDash\\\\\\\" and click \\\\\\\"Add New\\\\\\\""
-msgstr "4. Digite \\\\\\\"EmDash\\\\\\\" e clique em \\\\\\\"Adicionar novo\\\\\\\""
+msgid "4. Enter \"EmDash\" and click \"Add New\""
+msgstr "4. Digite \"EmDash\" e clique em \"Adicionar novo\""
 
 #: packages/admin/src/components/Redirects.tsx:369
 msgid "404 Errors"
@@ -660,8 +660,8 @@ msgstr "arquivado"
 
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:145
-msgid "Are you sure you want to delete \\\\\\\"{0}\\\\\\\"? This will also delete all content in this collection."
-msgstr "Tem certeza de que deseja excluir \\\\\\\"{0}\\\\\\\"? Isso também excluirá todo o conteúdo desta coleção."
+msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
+msgstr "Tem certeza de que deseja excluir \"{0}\"? Isso também excluirá todo o conteúdo desta coleção."
 
 #: packages/admin/src/components/MenuList.tsx:208
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
@@ -933,8 +933,8 @@ msgid "Change Logo"
 msgstr "Alterar logo"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:137
-msgid "Character between page title and site name (e.g., \\\\\\\"My Post | My Site\\\\\\\")"
-msgstr "Caractere entre o título da página e o nome do site (ex.: \\\\\\\"Meu Post | Meu Site\\\\\\\")"
+msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
+msgstr "Caractere entre o título da página e o nome do site (ex.: \"Meu Post | Meu Site\")"
 
 #: packages/admin/src/components/PluginManager.tsx:154
 msgid "Check for updates"
@@ -1472,8 +1472,8 @@ msgstr "Excluir"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
-msgid "Delete \\\\\\\"{0}\\\\\\\"? This cannot be undone."
-msgstr "Excluir \\\\\\\"{0}\\\\\\\"? Isso não pode ser desfeito."
+msgid "Delete \"{0}\"? This cannot be undone."
+msgstr "Excluir \"{0}\"? Isso não pode ser desfeito."
 
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
@@ -2461,7 +2461,7 @@ msgstr "Instalar"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:190
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr "Instale e ative um Plugin de provedor de e-mail para habilitar recursos de e-mail como convites, links mágicos e recuperação de senha."
+msgstr "Instale e ative um plugin de provedor de e-mail para habilitar recursos de e-mail como convites, links mágicos e recuperação de senha."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:196
 msgid "Install blocked"
@@ -2853,8 +2853,8 @@ msgstr "Menu"
 
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:40
-msgid "Menu \\\\\\\"{0}\\\\\\\" has been created."
-msgstr "O menu \\\\\\\"{0}\\\\\\\" foi criado."
+msgid "Menu \"{0}\" has been created."
+msgstr "O menu \"{0}\" foi criado."
 
 #: packages/admin/src/components/MenuList.tsx:39
 msgid "Menu created"
@@ -2936,7 +2936,7 @@ msgid "Modify collection schemas"
 msgstr "Modificar esquemas de coleção"
 
 #: packages/admin/src/components/ContentList.tsx:439
-msgid "Move \\\\\\\"{title}\\\\\\\" to trash? You can restore it later."
+msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Mover \"{title}\" para a lixeira? Você pode restaurá-lo depois."
 
 #: packages/admin/src/components/ContentList.tsx:430
@@ -3230,11 +3230,11 @@ msgstr "Nenhum resultado"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:177
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:150
-msgid "No results for \\\\\\\"{debouncedQuery}\\\\\\\". Try a different search term."
-msgstr "Nenhum resultado para \\\\\\\"{debouncedQuery}\\\\\\". Tente um termo de pesquisa diferente."
+msgid "No results for \"{debouncedQuery}\". Try a different search term."
+msgstr "Nenhum resultado para \"{debouncedQuery}\". Tente um termo de pesquisa diferente."
 
 #: packages/admin/src/components/ContentList.tsx:226
-msgid "No results for \\\\\\\"{searchQuery}\\\\\\\""
+msgid "No results for \"{searchQuery}\""
 msgstr "Nenhum resultado para \"{searchQuery}\""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:452
@@ -3495,7 +3495,7 @@ msgid "Pending changes"
 msgstr "Alterações pendentes"
 
 #: packages/admin/src/components/ContentList.tsx:510
-msgid "Permanently delete \\\\\\\"{title}\\\\\\\"? This cannot be undone."
+msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Excluir \"{title}\" permanentemente? Isso não pode ser desfeito."
 
 #: packages/admin/src/components/ContentList.tsx:499
@@ -4170,8 +4170,8 @@ msgid "Section"
 msgstr "Seção"
 
 #: packages/admin/src/components/SectionEditor.tsx:77
-msgid "Section \\\\\\\"{slug}\\\\\\\" could not be found."
-msgstr "A seção \\\\\\\"{slug}\\\\\\\" não pôde ser encontrada."
+msgid "Section \"{slug}\" could not be found."
+msgstr "A seção \"{slug}\" não pôde ser encontrada."
 
 #: packages/admin/src/components/Sections.tsx:91
 msgid "Section created"
@@ -4807,13 +4807,13 @@ msgstr "Isso moverá o item para a lixeira. Você poderá restaurá-lo depois."
 
 #. placeholder {0}: deleteTarget?.label
 #: packages/admin/src/components/TaxonomyManager.tsx:654
-msgid "This will permanently delete \\\\\\\"{0}\\\\\\\" and remove it from all content."
-msgstr "Isso excluirá permanentemente \\\\\\\"{0}\\\\\\\" e o removerá de todo o conteúdo."
+msgid "This will permanently delete \"{0}\" and remove it from all content."
+msgstr "Isso excluirá permanentemente \"{0}\" e o removerá de todo o conteúdo."
 
 #. placeholder {0}: sectionToDelete?.title
 #: packages/admin/src/components/Sections.tsx:302
-msgid "This will permanently delete \\\\\\\"{0}\\\\\\\". This action cannot be undone."
-msgstr "Isso excluirá permanentemente \\\\\\\"{0}\\\\\\". Esta ação não pode ser desfeita."
+msgid "This will permanently delete \"{0}\". This action cannot be undone."
+msgstr "Isso excluirá permanentemente \"{0}\". Esta ação não pode ser desfeita."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:413
 msgid "This will permanently delete this comment. This action cannot be undone."
@@ -5176,8 +5176,8 @@ msgid "URL-friendly identifier"
 msgstr "Identificador amigável para URL"
 
 #: packages/admin/src/components/MenuList.tsx:133
-msgid "URL-friendly identifier (e.g., \\\\\\\"primary\\\\\\\", \\\\\\\"footer\\\\\\\")"
-msgstr "Identificador amigável para URL (ex.: \\\\\\\"primary\\\\\\\", \\\\\\\"footer\\\\\\\")"
+msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
+msgstr "Identificador amigável para URL (ex.: \"primary\", \"footer\")"
 
 #: packages/admin/src/components/Redirects.tsx:107
 msgid "Use [param] or [...rest] in paths for pattern matching."
@@ -5419,8 +5419,8 @@ msgstr "Você tem acesso completo para gerenciar este site, incluindo usuários,
 
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:206
-msgid "You won't be able to use \\\\\\\"{0}\\\\\\\" to sign in anymore. This action cannot be undone."
-msgstr "Você não poderá mais usar \\\\\\\"{0}\\\\\\\" para acessar. Esta ação não pode ser desfeita."
+msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
+msgstr "Você não poderá mais usar \"{0}\" para acessar. Esta ação não pode ser desfeita."
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:207
 msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
