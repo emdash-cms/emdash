@@ -202,9 +202,12 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 			const result: ContentItem = {
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				publishedAt: item.publishedAt,
 			};
 
 			if (await seoRepo.isEnabled(collection)) {
@@ -237,9 +240,12 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 			const items: ContentItem[] = result.items.map((item) => ({
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				publishedAt: item.publishedAt,
 			}));
 
 			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
@@ -294,9 +300,12 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 				const result: ContentItem = {
 					id: item.id,
 					type: item.type,
+					slug: item.slug,
+					status: item.status,
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
+					publishedAt: item.publishedAt,
 				};
 
 				if (hasSeo) {
@@ -336,9 +345,12 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 				const result: ContentItem = {
 					id: item.id,
 					type: item.type,
+					slug: item.slug,
+					status: item.status,
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
+					publishedAt: item.publishedAt,
 				};
 
 				if (hasSeo) {

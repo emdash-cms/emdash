@@ -333,9 +333,13 @@ export class PluginManager {
 	/**
 	 * Run content:afterDelete hooks across all active plugins
 	 */
-	async runContentAfterDelete(id: string, collection: string): Promise<HookResult<void>[]> {
+	async runContentAfterDelete(
+		id: string,
+		collection: string,
+		permanent: boolean,
+	): Promise<HookResult<void>[]> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentAfterDelete(id, collection);
+		return this.hookPipeline!.runContentAfterDelete(id, collection, permanent);
 	}
 
 	/**
