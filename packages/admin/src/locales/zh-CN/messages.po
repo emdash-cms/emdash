@@ -21,24 +21,24 @@ msgstr "（默认）"
 #. placeholder {0}: filteredItems.length
 #: packages/admin/src/components/ContentList.tsx:251
 msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{0, plural, one {# 个匹配 \"{searchQuery}\" 的项目} other {# 个匹配 \"{searchQuery}\" 的项目}}"
 
 #. placeholder {0}: stats.mediaCount
 #: packages/admin/src/components/Dashboard.tsx:123
 msgid "{0, plural, one {# media file} other {# media files}}"
-msgstr ""
+msgstr "{0, plural, one {# 个媒体文件} other {# 个媒体文件}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:128
 msgid "{0, plural, one {# user} other {# users}}"
-msgstr ""
+msgstr "{0, plural, one {# 位用户} other {# 位用户}}"
 
 #. placeholder {0}: filteredItems.length
 #. placeholder {1}: hasMore ? "+" : ""
 #. placeholder {2}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:255
 msgid "{0, plural, one {#{1} item} other {#{2} items}}"
-msgstr ""
+msgstr "{0, plural, one {#{1} 个项目} other {#{2} 个项目}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -50,11 +50,11 @@ msgstr "{label} — 查看翻译"
 
 #: packages/admin/src/components/Dashboard.tsx:113
 msgid "{totalDrafts, plural, one {# draft} other {# drafts}}"
-msgstr ""
+msgstr "{totalDrafts, plural, one {# 篇草稿} other {# 篇草稿}}"
 
 #: packages/admin/src/components/Dashboard.tsx:118
 msgid "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
-msgstr ""
+msgstr "{totalScheduled, plural, one {# 个定时发布} other {# 个定时发布}}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:44
 msgid "1 year"
@@ -75,15 +75,15 @@ msgstr "90 天"
 #: packages/admin/src/components/ContentList.tsx:204
 #: packages/admin/src/components/ContentList.tsx:309
 msgid "Actions"
-msgstr ""
+msgstr "操作"
 
 #: packages/admin/src/components/ContentEditor.tsx:1488
 msgid "Add"
-msgstr ""
+msgstr "添加"
 
 #: packages/admin/src/components/ContentList.tsx:140
 msgid "Add New"
-msgstr ""
+msgstr "添加新内容"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
 #: packages/admin/src/components/Sidebar.tsx:402
@@ -93,7 +93,7 @@ msgstr "管理员"
 
 #: packages/admin/src/components/Sidebar.tsx:349
 msgid "Admin navigation"
-msgstr ""
+msgstr "管理员导航"
 
 #: packages/admin/src/components/WelcomeModal.tsx:25
 msgid "Administrator"
@@ -101,7 +101,7 @@ msgstr "管理员"
 
 #: packages/admin/src/components/ContentList.tsx:167
 msgid "All"
-msgstr ""
+msgstr "全部"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:68
 msgid "All locales"
@@ -123,7 +123,7 @@ msgstr "API 令牌"
 
 #: packages/admin/src/components/ContentList.tsx:557
 msgid "archived"
-msgstr ""
+msgstr "已归档"
 
 #: packages/admin/src/components/WelcomeModal.tsx:53
 msgid "As an administrator, you can invite other users from the Users section."
@@ -140,7 +140,7 @@ msgstr "作者"
 
 #: packages/admin/src/components/ContentEditor.tsx:485
 msgid "Back to {collectionLabel} list"
-msgstr ""
+msgstr "返回到 {collectionLabel} 列表"
 
 #: packages/admin/src/components/LoginPage.tsx:174
 #: packages/admin/src/components/LoginPage.tsx:210
@@ -159,7 +159,7 @@ msgstr "无序列表"
 #: packages/admin/src/components/ContentEditor.tsx:863
 #: packages/admin/src/components/Sidebar.tsx:201
 msgid "Bylines"
-msgstr ""
+msgstr "署名行"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -195,7 +195,7 @@ msgstr "分类"
 
 #: packages/admin/src/components/ContentEditor.tsx:1348
 msgid "Change"
-msgstr ""
+msgstr "更改"
 
 #: packages/admin/src/components/LoginPage.tsx:158
 msgid "Check your email"
@@ -220,7 +220,7 @@ msgstr "代码块"
 
 #: packages/admin/src/components/Sidebar.tsx:185
 msgid "Comments"
-msgstr ""
+msgstr "评论"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 msgid "Confirm"
@@ -269,7 +269,7 @@ msgstr "复制令牌"
 
 #: packages/admin/src/components/ContentEditor.tsx:1615
 msgid "Create"
-msgstr ""
+msgstr "创建"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:730
 msgid "Create a bullet list"
@@ -281,7 +281,7 @@ msgstr "创建有序列表"
 
 #: packages/admin/src/components/ContentEditor.tsx:1563
 msgid "Create byline"
-msgstr ""
+msgstr "创建署名行"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:389
 msgid "Create New Token"
@@ -299,7 +299,7 @@ msgstr "创建令牌"
 
 #: packages/admin/src/components/ContentList.tsx:219
 msgid "Create your first one"
-msgstr ""
+msgstr "创建第一个内容"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
@@ -317,7 +317,7 @@ msgstr "创建时间"
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
 #: packages/admin/src/components/ContentEditor.tsx:797
 msgid "Created: {0}"
-msgstr ""
+msgstr "创建于：{0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1615
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
@@ -326,15 +326,15 @@ msgstr "创建中..."
 
 #: packages/admin/src/components/ContentEditor.tsx:900
 msgid "current"
-msgstr ""
+msgstr "当前"
 
 #: packages/admin/src/components/ThemeToggle.tsx:22
 msgid "dark"
-msgstr ""
+msgstr "深色"
 
 #: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "Dark"
-msgstr ""
+msgstr "深色"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/Dashboard.tsx:42
@@ -345,28 +345,28 @@ msgstr "仪表板"
 
 #: packages/admin/src/components/ContentList.tsx:201
 msgid "Date"
-msgstr ""
+msgstr "日期"
 
 #: packages/admin/src/components/ContentList.tsx:527
 msgid "Delete Permanently"
-msgstr ""
+msgstr "永久删除"
 
 #: packages/admin/src/components/ContentList.tsx:507
 msgid "Delete Permanently?"
-msgstr ""
+msgstr "永久删除？"
 
 #: packages/admin/src/components/ContentList.tsx:306
 msgid "Deleted"
-msgstr ""
+msgstr "已删除"
 
 #: packages/admin/src/components/ContentEditor.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:580
 msgid "Discard changes"
-msgstr ""
+msgstr "放弃更改"
 
 #: packages/admin/src/components/ContentEditor.tsx:564
 msgid "Discard draft changes?"
-msgstr ""
+msgstr "放弃草稿更改？"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:226
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
@@ -380,11 +380,11 @@ msgstr "显示导航菜单"
 #: packages/admin/src/components/ContentEditor.tsx:1566
 #: packages/admin/src/components/ContentEditor.tsx:1628
 msgid "Display name"
-msgstr ""
+msgstr "显示名称"
 
 #: packages/admin/src/components/ContentEditor.tsx:534
 msgid "Distraction-free mode (⌘⇧\\)"
-msgstr ""
+msgstr "无干扰模式（⌘⇧\\）"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:769
 msgid "Divider"
@@ -396,15 +396,15 @@ msgstr "还没有账号？<0>立即注册</0>"
 
 #: packages/admin/src/components/ContentEditor.tsx:1509
 msgid "Down"
-msgstr ""
+msgstr "下移"
 
 #: packages/admin/src/components/ContentList.tsx:553
 msgid "draft"
-msgstr ""
+msgstr "草稿"
 
 #: packages/admin/src/components/ContentEditor.tsx:728
 msgid "Draft"
-msgstr ""
+msgstr "草稿"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 msgid "draft, published, or archived"
@@ -417,7 +417,7 @@ msgstr "草稿"
 
 #: packages/admin/src/components/ContentList.tsx:418
 msgid "Duplicate {title}"
-msgstr ""
+msgstr "复制 {title}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:403
 msgid "e.g., CI/CD Pipeline"
@@ -426,19 +426,19 @@ msgstr "例如：CI/CD 流水线"
 #: packages/admin/src/components/ContentEditor.tsx:909
 #: packages/admin/src/components/ContentEditor.tsx:1518
 msgid "Edit"
-msgstr ""
+msgstr "编辑"
 
 #: packages/admin/src/components/ContentEditor.tsx:502
 msgid "Edit {collectionLabel}"
-msgstr ""
+msgstr "编辑 {collectionLabel}"
 
 #: packages/admin/src/components/ContentList.tsx:410
 msgid "Edit {title}"
-msgstr ""
+msgstr "编辑 {title}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1625
 msgid "Edit byline"
-msgstr ""
+msgstr "编辑署名行"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -469,19 +469,19 @@ msgstr "在此集合上启用全文搜索"
 #. placeholder {0}: label.toLowerCase()
 #: packages/admin/src/components/ContentEditor.tsx:1123
 msgid "Enter {0}..."
-msgstr ""
+msgstr "输入 {0}..."
 
 #: packages/admin/src/components/ContentEditor.tsx:533
 msgid "Enter distraction-free mode"
-msgstr ""
+msgstr "进入无干扰模式"
 
 #: packages/admin/src/components/ContentEditor.tsx:1144
 msgid "Enter markdown content..."
-msgstr ""
+msgstr "输入 Markdown 内容..."
 
 #: packages/admin/src/components/ContentEditor.tsx:496
 msgid "Exit distraction-free mode"
-msgstr ""
+msgstr "退出无干扰模式"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
@@ -494,7 +494,7 @@ msgstr "过期时间"
 
 #: packages/admin/src/components/ContentEditor.tsx:1609
 msgid "Failed to create byline"
-msgstr ""
+msgstr "创建署名行失败"
 
 #: packages/admin/src/components/LoginPage.tsx:127
 #: packages/admin/src/components/LoginPage.tsx:132
@@ -503,7 +503,7 @@ msgstr "发送免密登录链接失败"
 
 #: packages/admin/src/components/ContentEditor.tsx:1659
 msgid "Failed to update byline"
-msgstr ""
+msgstr "更新署名行失败"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -593,20 +593,20 @@ msgstr "最后使用于 {0}"
 
 #: packages/admin/src/components/ThemeToggle.tsx:22
 msgid "light"
-msgstr ""
+msgstr "浅色"
 
 #: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "Light"
-msgstr ""
+msgstr "浅色"
 
 #: packages/admin/src/components/ContentEditor.tsx:613
 msgid "Live View"
-msgstr ""
+msgstr "实时预览"
 
 #: packages/admin/src/components/ContentList.tsx:290
 #: packages/admin/src/components/ContentList.tsx:338
 msgid "Load More"
-msgstr ""
+msgstr "加载更多"
 
 #: packages/admin/src/components/ContentList.tsx:290
 #: packages/admin/src/components/ContentList.tsx:338
@@ -621,11 +621,11 @@ msgstr "语言区域"
 
 #: packages/admin/src/components/Header.tsx:101
 msgid "Log out"
-msgstr ""
+msgstr "退出登录"
 
 #: packages/admin/src/components/Sidebar.tsx:390
 msgid "Manage"
-msgstr ""
+msgstr "管理"
 
 #: packages/admin/src/components/Settings.tsx:93
 msgid "Manage your passkeys and authentication"
@@ -633,7 +633,7 @@ msgstr "管理您的通行密钥和认证"
 
 #: packages/admin/src/components/Sidebar.tsx:214
 msgid "Marketplace"
-msgstr ""
+msgstr "市场"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1417
 #: packages/admin/src/components/Sidebar.tsx:180
@@ -671,22 +671,22 @@ msgstr "修改集合模式"
 
 #: packages/admin/src/components/ContentList.tsx:439
 msgid "Move \"{title}\" to trash? You can restore it later."
-msgstr ""
+msgstr "将「{title}」移至回收站？您可以稍后恢复它。"
 
 #: packages/admin/src/components/ContentList.tsx:430
 msgid "Move {title} to trash"
-msgstr ""
+msgstr "将 {title} 移至回收站"
 
 #: packages/admin/src/components/ContentEditor.tsx:814
 #: packages/admin/src/components/ContentEditor.tsx:836
 #: packages/admin/src/components/ContentList.tsx:452
 msgid "Move to Trash"
-msgstr ""
+msgstr "移至回收站"
 
 #: packages/admin/src/components/ContentEditor.tsx:820
 #: packages/admin/src/components/ContentList.tsx:437
 msgid "Move to Trash?"
-msgstr ""
+msgstr "移至回收站？"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:335
 msgid "Navigation"
@@ -694,7 +694,7 @@ msgstr "导航"
 
 #: packages/admin/src/components/ContentEditor.tsx:502
 msgid "New {collectionLabel}"
-msgstr ""
+msgstr "新建 {collectionLabel}"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:466
 msgid "new tab"
@@ -702,12 +702,12 @@ msgstr "新标签页"
 
 #: packages/admin/src/components/ContentList.tsx:278
 msgid "Next page"
-msgstr ""
+msgstr "下一页"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
 #: packages/admin/src/components/ContentList.tsx:212
 msgid "No {0} yet."
-msgstr ""
+msgstr "暂无 {0}。"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
 msgid "No API tokens yet. Create one to get started."
@@ -715,11 +715,11 @@ msgstr "暂无 API 令牌。创建一个以开始使用。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1550
 msgid "No bylines selected."
-msgstr ""
+msgstr "未选择任何署名行。"
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "No collections configured"
-msgstr ""
+msgstr "未配置任何集合"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:40
 msgid "No expiry"
@@ -727,7 +727,7 @@ msgstr "永不过期"
 
 #: packages/admin/src/components/Dashboard.tsx:236
 msgid "No recent activity"
-msgstr ""
+msgstr "暂无最近活动"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:940
 msgid "No results"
@@ -735,7 +735,7 @@ msgstr "无结果"
 
 #: packages/admin/src/components/ContentList.tsx:226
 msgid "No results for \"{searchQuery}\""
-msgstr ""
+msgstr "未找到匹配「{searchQuery}」的结果"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:452
 msgid "No results found"
@@ -752,7 +752,7 @@ msgstr "或继续使用"
 
 #: packages/admin/src/components/ContentEditor.tsx:851
 msgid "Ownership"
-msgstr ""
+msgstr "所有权"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 msgid "Paragraph"
@@ -760,19 +760,19 @@ msgstr "段落"
 
 #: packages/admin/src/components/ContentList.tsx:576
 msgid "pending"
-msgstr ""
+msgstr "待处理"
 
 #: packages/admin/src/components/ContentEditor.tsx:726
 msgid "Pending changes"
-msgstr ""
+msgstr "待处理的更改"
 
 #: packages/admin/src/components/ContentList.tsx:510
 msgid "Permanently delete \"{title}\"? This cannot be undone."
-msgstr ""
+msgstr "永久删除「{title}」？此操作无法撤销。"
 
 #: packages/admin/src/components/ContentList.tsx:499
 msgid "Permanently delete {title}"
-msgstr ""
+msgstr "永久删除 {title}"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
 #: packages/admin/src/components/Sidebar.tsx:207
@@ -791,29 +791,29 @@ msgstr "发布前预览内容"
 
 #: packages/admin/src/components/ContentEditor.tsx:547
 msgid "Preview draft"
-msgstr ""
+msgstr "预览草稿"
 
 #: packages/admin/src/components/ContentList.tsx:266
 msgid "Previous page"
-msgstr ""
+msgstr "上一页"
 
 #: packages/admin/src/components/ContentEditor.tsx:602
 #: packages/admin/src/components/ContentEditor.tsx:707
 msgid "Publish"
-msgstr ""
+msgstr "发布"
 
 #: packages/admin/src/components/ContentEditor.tsx:592
 msgid "Publish changes"
-msgstr ""
+msgstr "发布更改"
 
 #: packages/admin/src/components/ContentList.tsx:551
 msgid "published"
-msgstr ""
+msgstr "已发布"
 
 #: packages/admin/src/components/ContentEditor.tsx:722
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
-msgstr ""
+msgstr "已发布"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 msgid "Published At"
@@ -821,7 +821,7 @@ msgstr "发布时间"
 
 #: packages/admin/src/components/ContentEditor.tsx:1558
 msgid "Quick create byline"
-msgstr ""
+msgstr "快速创建署名行"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:85
 #: packages/admin/src/components/PortableTextEditor.tsx:749
@@ -842,23 +842,23 @@ msgstr "读取媒体文件"
 
 #: packages/admin/src/components/Dashboard.tsx:228
 msgid "Recent Activity"
-msgstr ""
+msgstr "最近活动"
 
 #: packages/admin/src/components/Sidebar.tsx:191
 msgid "Redirects"
-msgstr ""
+msgstr "重定向"
 
 #: packages/admin/src/components/ContentEditor.tsx:1527
 msgid "Remove"
-msgstr ""
+msgstr "移除"
 
 #: packages/admin/src/components/ContentEditor.tsx:1356
 msgid "Remove image"
-msgstr ""
+msgstr "移除图片"
 
 #: packages/admin/src/components/ContentList.tsx:487
 msgid "Restore {title}"
-msgstr ""
+msgstr "恢复 {title}"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:74
 msgid "Revisions"
@@ -886,12 +886,12 @@ msgstr "角色 {role}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1532
 msgid "Role label"
-msgstr ""
+msgstr "角色标签"
 
 #: packages/admin/src/components/ContentEditor.tsx:1665
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Save"
-msgstr ""
+msgstr "保存"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:70
 msgid "Save content as draft before publishing"
@@ -900,38 +900,38 @@ msgstr "发布前将内容保存为草稿"
 #: packages/admin/src/components/ContentEditor.tsx:522
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
-msgstr ""
+msgstr "已保存"
 
 #: packages/admin/src/components/ContentEditor.tsx:517
 #: packages/admin/src/components/ContentEditor.tsx:1665
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saving..."
-msgstr ""
+msgstr "保存中..."
 
 #: packages/admin/src/components/ContentEditor.tsx:766
 msgid "Schedule"
-msgstr ""
+msgstr "定时发布"
 
 #: packages/admin/src/components/ContentEditor.tsx:752
 msgid "Schedule for"
-msgstr ""
+msgstr "定时发布于"
 
 #: packages/admin/src/components/ContentEditor.tsx:789
 msgid "Schedule for later"
-msgstr ""
+msgstr "稍后定时发布"
 
 #: packages/admin/src/components/ContentList.tsx:555
 msgid "scheduled"
-msgstr ""
+msgstr "已定时"
 
 #: packages/admin/src/components/ContentEditor.tsx:729
 msgid "Scheduled"
-msgstr ""
+msgstr "已定时"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
 #: packages/admin/src/components/ContentEditor.tsx:739
 msgid "Scheduled for: {0}"
-msgstr ""
+msgstr "计划发布于：{0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:74
 msgid "Schema Read"
@@ -957,12 +957,12 @@ msgstr "搜索"
 #. placeholder {0}: collectionLabel.toLowerCase()
 #: packages/admin/src/components/ContentList.tsx:151
 msgid "Search {0}"
-msgstr ""
+msgstr "搜索 {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
 #: packages/admin/src/components/ContentList.tsx:150
 msgid "Search {0}..."
-msgstr ""
+msgstr "搜索 {0}..."
 
 #: packages/admin/src/components/Settings.tsx:82
 msgid "Search engine optimization and verification"
@@ -992,15 +992,15 @@ msgstr "安全设置"
 
 #: packages/admin/src/components/ContentEditor.tsx:1380
 msgid "Select {label}"
-msgstr ""
+msgstr "选择 {label}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1471
 msgid "Select byline..."
-msgstr ""
+msgstr "选择署名行..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1371
 msgid "Select image"
-msgstr ""
+msgstr "选择图片"
 
 #: packages/admin/src/components/Settings.tsx:98
 msgid "Self-Signup Domains"
@@ -1082,7 +1082,7 @@ msgstr "订阅者"
 
 #: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "System ({resolvedLabel})"
-msgstr ""
+msgstr "跟随系统（{resolvedLabel}）"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 msgid "Tags"
@@ -1094,28 +1094,28 @@ msgstr "链接将在 15 分钟后过期。"
 
 #: packages/admin/src/components/ThemeToggle.tsx:32
 msgid "Theme: {label}"
-msgstr ""
+msgstr "主题：{label}"
 
 #: packages/admin/src/components/Sidebar.tsx:218
 msgid "Themes"
-msgstr ""
+msgstr "主题"
 
 #: packages/admin/src/components/ContentEditor.tsx:1384
 msgid "This field is required"
-msgstr ""
+msgstr "此字段为必填项"
 
 #: packages/admin/src/components/ContentEditor.tsx:823
 msgid "This will move the item to trash. You can restore it later from the trash."
-msgstr ""
+msgstr "这将把项目移至回收站。您可以稍后从回收站恢复它。"
 
 #: packages/admin/src/components/ContentEditor.tsx:567
 msgid "This will revert to the published version. Your draft changes will be lost."
-msgstr ""
+msgstr "这将恢复到已发布的版本。您的草稿更改将会丢失。"
 
 #: packages/admin/src/components/ContentList.tsx:190
 #: packages/admin/src/components/ContentList.tsx:303
 msgid "Title"
-msgstr ""
+msgstr "标题"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:470
 msgid "to close"
@@ -1128,7 +1128,7 @@ msgstr "选择"
 #: packages/admin/src/components/ThemeToggle.tsx:30
 #: packages/admin/src/components/ThemeToggle.tsx:41
 msgid "Toggle theme (current: {label})"
-msgstr ""
+msgstr "切换主题（当前：{label}）"
 
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
@@ -1145,24 +1145,24 @@ msgstr "跟踪内容历史"
 
 #: packages/admin/src/components/ContentEditor.tsx:919
 msgid "Translate"
-msgstr ""
+msgstr "翻译"
 
 #: packages/admin/src/components/ContentEditor.tsx:877
 msgid "Translations"
-msgstr ""
+msgstr "翻译"
 
 #: packages/admin/src/components/ContentList.tsx:173
 msgid "Trash"
-msgstr ""
+msgstr "回收站"
 
 #: packages/admin/src/components/ContentList.tsx:317
 msgid "Trash is empty"
-msgstr ""
+msgstr "回收站为空"
 
 #: packages/admin/src/components/ContentEditor.tsx:1679
 #: packages/admin/src/components/ContentEditor.tsx:1694
 msgid "Unassigned"
-msgstr ""
+msgstr "未分配"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 msgid "Unique identifier (ULID)"
@@ -1178,19 +1178,19 @@ msgstr "未知角色"
 
 #: packages/admin/src/components/ContentEditor.tsx:596
 msgid "Unpublish"
-msgstr ""
+msgstr "取消发布"
 
 #: packages/admin/src/components/ContentEditor.tsx:741
 msgid "Unschedule"
-msgstr ""
+msgstr "取消定时发布"
 
 #: packages/admin/src/components/Dashboard.tsx:249
 msgid "Untitled"
-msgstr ""
+msgstr "无标题"
 
 #: packages/admin/src/components/ContentEditor.tsx:1506
 msgid "Up"
-msgstr ""
+msgstr "上移"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:127
 msgid "Updated At"
@@ -1199,7 +1199,7 @@ msgstr "更新时间"
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
 #: packages/admin/src/components/ContentEditor.tsx:798
 msgid "Updated: {0}"
-msgstr ""
+msgstr "更新于：{0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:70
 msgid "Upload and delete media"
@@ -1207,7 +1207,7 @@ msgstr "上传和删除媒体"
 
 #: packages/admin/src/components/Dashboard.tsx:89
 msgid "Upload Media"
-msgstr ""
+msgstr "上传媒体"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 msgid "URL-friendly identifier"
@@ -1219,12 +1219,12 @@ msgstr "使用您注册的通行密钥安全登录。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1219
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
-msgstr ""
+msgstr "用于在列表页和文章顶部作为主要视觉展示"
 
 #: packages/admin/src/components/Header.tsx:37
 #: packages/admin/src/components/Header.tsx:75
 msgid "User"
-msgstr ""
+msgstr "用户"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
 #: packages/admin/src/components/Sidebar.tsx:206
@@ -1237,11 +1237,11 @@ msgstr "查看邮件提供商状态并发送测试邮件"
 
 #: packages/admin/src/components/ContentList.tsx:401
 msgid "View published {title}"
-msgstr ""
+msgstr "查看已发布的 {title}"
 
 #: packages/admin/src/components/Header.tsx:51
 msgid "View Site"
-msgstr ""
+msgstr "查看站点"
 
 #: packages/admin/src/components/LoginPage.tsx:352
 msgid "We'll send you a link to sign in without a password."
