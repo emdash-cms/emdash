@@ -133,7 +133,7 @@ If your language doesn't have a PO file yet:
    ];
    ```
 
-   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` initially — we'll enable it once the translation reaches sufficient coverage.
+   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` unless your translations have 100% coverage — we'll enable it once the translation reaches sufficient coverage.
 
 2. **Run extraction** to generate the empty PO file:
 
