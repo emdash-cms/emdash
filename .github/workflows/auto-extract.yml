@@ -44,10 +44,10 @@ jobs:
         id: diff
         run: |
           git add -A
-          non_locale=$(git diff --staged --name-only | grep -v '^packages/admin/src/locales/' || true)
-          if [ -n "$non_locale" ]; then
-            echo "::error::Extraction modified files outside locales:"
-            echo "$non_locale"
+          invalid_changes=$(git diff --staged --name-status --no-renames | awk '$1 !~ /^(A|M)$/ || $2 !~ /^packages\/admin\/src\/locales\/[^/]+\/messages\.po$/ { print }' || true)
+          if [ -n "$invalid_changes" ]; then
+            echo "::error::Extraction produced unexpected staged changes. Only added or modified packages/admin/src/locales/*/messages.po files are allowed:"
+            echo "$invalid_changes"
             exit 1
           fi
           if git diff --staged --quiet; then
