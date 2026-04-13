@@ -284,6 +284,9 @@ export function createViteConfig(
 		define: {
 			__EMDASH_VERSION__: JSON.stringify(VERSION),
 			__EMDASH_COMMIT__: JSON.stringify(COMMIT),
+			__EMDASH_PSEUDO_LOCALE__: JSON.stringify(
+				isDev && process.env["EMDASH_PSEUDO_LOCALE"] === "1",
+			),
 		},
 		resolve: {
 			dedupe: ["@emdash-cms/admin", "react", "react-dom"],

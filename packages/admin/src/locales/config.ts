@@ -21,13 +21,16 @@ function isValidLocale(code: string): boolean {
 	}
 }
 
+// Injected by the EmDash Vite integration from process.env.EMDASH_PSEUDO_LOCALE.
+// Only true in dev when EMDASH_PSEUDO_LOCALE=1 is set.
+declare const __EMDASH_PSEUDO_LOCALE__: boolean;
+
 /**
  * The pseudo locale, injected into the supported list only when
- * VITE_EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
- * Must use VITE_ prefix so Vite exposes it to client-side code.
+ * EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
  */
 const PSEUDO_LOCALE =
-	import.meta.env.DEV && import.meta.env.VITE_EMDASH_PSEUDO_LOCALE === "1"
+	typeof __EMDASH_PSEUDO_LOCALE__ !== "undefined" && __EMDASH_PSEUDO_LOCALE__
 		? LOCALES.find((l) => l.code === "pseudo")
 		: undefined;
 
