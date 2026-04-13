@@ -28,6 +28,7 @@ import type {
 	Kysely,
 	QueryCompiler,
 	QueryResult,
+	TransactionSettings,
 } from "kysely";
 
 import type { Database } from "../database/types.js";
@@ -108,8 +109,8 @@ class LazyMigrationDriver implements Driver {
 		return new LazyMigrationConnection(conn, this.#dialect);
 	}
 
-	async beginTransaction(conn: DatabaseConnection): Promise<void> {
-		return this.#inner.beginTransaction(conn);
+	async beginTransaction(conn: DatabaseConnection, settings: TransactionSettings): Promise<void> {
+		return this.#inner.beginTransaction(conn, settings);
 	}
 
 	async commitTransaction(conn: DatabaseConnection): Promise<void> {
@@ -146,14 +147,14 @@ class LazyMigrationConnection implements DatabaseConnection {
 				migrationsRun = true;
 				// Create a fresh Kysely instance for migration using the inner
 				// dialect (unwrapped) to avoid infinite retry loops.
+				// Do NOT destroy() this instance: its driver shares the underlying
+				// connection/handle (e.g. better-sqlite3 Database) with the outer
+				// Kysely, and destroy() would close it. The instance is released
+				// to GC instead.
 				const { Kysely } = await import("kysely");
 				const db = new Kysely<Database>({ dialect: this.#dialect });
-				try {
-					const { runMigrations } = await import("../database/migrations/runner.js");
-					await runMigrations(db);
-				} finally {
-					await db.destroy();
-				}
+				const { runMigrations } = await import("../database/migrations/runner.js");
+				await runMigrations(db);
 				// Retry the original query
 				return this.#inner.executeQuery(compiledQuery);
 			}
