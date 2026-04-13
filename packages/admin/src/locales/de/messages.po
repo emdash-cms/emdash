@@ -671,7 +671,7 @@ msgstr "Sammlungsschemata ändern"
 
 #: packages/admin/src/components/ContentList.tsx:439
 msgid "Move \"{title}\" to trash? You can restore it later."
-msgstr "\"{title}\" in den Papierkorb verschieben? Sie können es später wiederherstellen."
+msgstr "\"{title}\" in den Papierkorb verschieben? Du kannst es später wiederherstellen."
 
 #: packages/admin/src/components/ContentList.tsx:430
 msgid "Move {title} to trash"
