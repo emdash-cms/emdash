@@ -7,6 +7,7 @@
  */
 
 import { Button, Label } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { Image as ImageIcon, X } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -19,6 +20,7 @@ export interface SeoImageFieldProps {
 }
 
 export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
+	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const imageUrl = seo?.image || null;
 
@@ -36,13 +38,13 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 
 	return (
 		<div>
-			<Label>OG Image</Label>
+			<Label>{t`OG Image`}</Label>
 			{imageUrl ? (
 				<div className="mt-2 relative group">
 					<img src={imageUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
 					<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							Change
+							{t`Change`}
 						</Button>
 						<Button
 							type="button"
@@ -50,7 +52,7 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 							variant="destructive"
 							className="h-8 w-8"
 							onClick={handleRemove}
-							aria-label="Remove image"
+							aria-label={t`Remove image`}
 						>
 							<X className="h-4 w-4" />
 						</Button>
@@ -65,19 +67,19 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
 						<ImageIcon className="h-8 w-8" />
-						<span>Select OG image</span>
+						<span>{t`Select OG image`}</span>
 					</div>
 				</Button>
 			)}
 			<p className="text-xs text-kumo-subtle mt-1">
-				Image shown when this page is shared on social media
+				{t`Image shown when this page is shared on social media`}
 			</p>
 			<MediaPickerModal
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
 				mimeTypeFilter="image/"
-				title="Select OG Image"
+				title={t`Select OG Image`}
 			/>
 		</div>
 	);
