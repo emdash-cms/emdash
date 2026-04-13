@@ -167,10 +167,7 @@ function setBaselineSecurityHeaders(response: Response): Response {
 	// Control referrer information
 	headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 	// Restrict access to sensitive browser APIs
-	headers.set(
-		"Permissions-Policy",
-		"camera=(), microphone=(), geolocation=(), payment=()",
-	);
+	headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
 	// Prevent clickjacking (non-admin routes; admin CSP uses frame-ancestors)
 	if (!headers.has("Content-Security-Policy")) {
 		headers.set("X-Frame-Options", "SAMEORIGIN");
