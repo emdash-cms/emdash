@@ -429,7 +429,7 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1521
+#: packages/admin/src/components/ContentEditor.tsx:1600
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -851,8 +851,8 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:602
 #: packages/admin/src/components/ContentEditor.tsx:806
 #: packages/admin/src/components/ContentEditor.tsx:858
-#: packages/admin/src/components/ContentEditor.tsx:1624
-#: packages/admin/src/components/ContentEditor.tsx:1677
+#: packages/admin/src/components/ContentEditor.tsx:1703
+#: packages/admin/src/components/ContentEditor.tsx:1756
 #: packages/admin/src/components/ContentList.tsx:445
 #: packages/admin/src/components/ContentList.tsx:516
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -918,7 +918,7 @@ msgstr ""
 msgid "Categories will be imported"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1381
+#: packages/admin/src/components/ContentEditor.tsx:1460
 #: packages/admin/src/components/FieldEditor.tsx:383
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -1228,7 +1228,7 @@ msgstr ""
 msgid "Count"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1648
+#: packages/admin/src/components/ContentEditor.tsx:1727
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1257,7 +1257,7 @@ msgstr ""
 msgid "Create an account"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1596
+#: packages/admin/src/components/ContentEditor.tsx:1675
 msgid "Create byline"
 msgstr ""
 
@@ -1372,7 +1372,7 @@ msgstr ""
 msgid "Creating collections and fields..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1648
+#: packages/admin/src/components/ContentEditor.tsx:1727
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1660,8 +1660,8 @@ msgstr ""
 msgid "Display a navigation menu"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1599
-#: packages/admin/src/components/ContentEditor.tsx:1661
+#: packages/admin/src/components/ContentEditor.tsx:1678
+#: packages/admin/src/components/ContentEditor.tsx:1740
 msgid "Display name"
 msgstr ""
 
@@ -1712,7 +1712,7 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1542
+#: packages/admin/src/components/ContentEditor.tsx:1621
 msgid "Down"
 msgstr ""
 
@@ -1759,7 +1759,7 @@ msgid "e.g., MacBook Pro, iPhone"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:938
-#: packages/admin/src/components/ContentEditor.tsx:1551
+#: packages/admin/src/components/ContentEditor.tsx:1630
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1784,7 +1784,7 @@ msgstr ""
 msgid "Edit {title}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1658
+#: packages/admin/src/components/ContentEditor.tsx:1737
 msgid "Edit byline"
 msgstr ""
 
@@ -2011,7 +2011,7 @@ msgstr ""
 msgid "Failed to add domain"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1642
+#: packages/admin/src/components/ContentEditor.tsx:1721
 msgid "Failed to create byline"
 msgstr ""
 
@@ -2096,7 +2096,7 @@ msgstr ""
 msgid "Failed to send test email"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1692
+#: packages/admin/src/components/ContentEditor.tsx:1771
 msgid "Failed to update byline"
 msgstr ""
 
@@ -2488,6 +2488,10 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:163
 #: packages/admin/src/components/FieldEditor.tsx:575
 msgid "Integer"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1356
+msgid "Invalid JSON"
 msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:258
@@ -3092,7 +3096,7 @@ msgstr ""
 msgid "No approved comments yet."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1583
+#: packages/admin/src/components/ContentEditor.tsx:1662
 msgid "No bylines selected."
 msgstr ""
 
@@ -3652,7 +3656,7 @@ msgstr ""
 msgid "Published At"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1591
+#: packages/admin/src/components/ContentEditor.tsx:1670
 msgid "Quick create byline"
 msgstr ""
 
@@ -3729,7 +3733,7 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1560
+#: packages/admin/src/components/ContentEditor.tsx:1639
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
@@ -3753,7 +3757,7 @@ msgstr ""
 msgid "Remove Domain?"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1389
+#: packages/admin/src/components/ContentEditor.tsx:1468
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr ""
@@ -3955,7 +3959,7 @@ msgstr ""
 msgid "Role {role}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1565
+#: packages/admin/src/components/ContentEditor.tsx:1644
 msgid "Role label"
 msgstr ""
 
@@ -3966,7 +3970,7 @@ msgstr ""
 msgid "Same window"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1698
+#: packages/admin/src/components/ContentEditor.tsx:1777
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:242
@@ -4006,7 +4010,7 @@ msgid "Saved"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:546
-#: packages/admin/src/components/ContentEditor.tsx:1698
+#: packages/admin/src/components/ContentEditor.tsx:1777
 #: packages/admin/src/components/FieldEditor.tsx:646
 #: packages/admin/src/components/MediaDetailPanel.tsx:242
 #: packages/admin/src/components/MenuEditor.tsx:442
@@ -4256,7 +4260,7 @@ msgstr ""
 msgid "Select"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1413
+#: packages/admin/src/components/ContentEditor.tsx:1492
 msgid "Select {label}"
 msgstr ""
 
@@ -4264,7 +4268,7 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1504
+#: packages/admin/src/components/ContentEditor.tsx:1583
 msgid "Select byline..."
 msgstr ""
 
@@ -4282,7 +4286,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1404
+#: packages/admin/src/components/ContentEditor.tsx:1483
 msgid "Select image"
 msgstr ""
 
@@ -4516,8 +4520,8 @@ msgid "Skipped"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:739
-#: packages/admin/src/components/ContentEditor.tsx:1607
-#: packages/admin/src/components/ContentEditor.tsx:1669
+#: packages/admin/src/components/ContentEditor.tsx:1686
+#: packages/admin/src/components/ContentEditor.tsx:1748
 #: packages/admin/src/components/ContentTypeEditor.tsx:109
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:223
@@ -4757,7 +4761,7 @@ msgstr ""
 msgid "Themes"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1417
+#: packages/admin/src/components/ContentEditor.tsx:1496
 msgid "This field is required"
 msgstr ""
 
@@ -4972,8 +4976,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1712
-#: packages/admin/src/components/ContentEditor.tsx:1727
+#: packages/admin/src/components/ContentEditor.tsx:1791
+#: packages/admin/src/components/ContentEditor.tsx:1806
 msgid "Unassigned"
 msgstr ""
 
@@ -5039,7 +5043,7 @@ msgstr ""
 msgid "Untitled"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1539
+#: packages/admin/src/components/ContentEditor.tsx:1618
 msgid "Up"
 msgstr ""
 
