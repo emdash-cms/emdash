@@ -111,7 +111,7 @@ export function MenuList() {
 										variant="ghost"
 										shape="square"
 										aria-label={t`Close`}
-										className="absolute right-4 top-4"
+										className="absolute end-4 top-4"
 									>
 										<X className="h-4 w-4" />
 										<span className="sr-only">{t`Close`}</span>
@@ -181,7 +181,7 @@ export function MenuList() {
 									params={{ name: menu.name }}
 									className={buttonVariants({ variant: "outline", size: "sm" })}
 								>
-									<Pencil className="h-4 w-4 mr-2" />
+									<Pencil className="h-4 w-4 me-2" />
 									{t`Edit`}
 								</Link>
 								<Button

@@ -321,7 +321,7 @@ export function Widgets() {
 											variant="ghost"
 											shape="square"
 											aria-label="Close"
-											className="absolute right-4 top-4"
+											className="absolute end-4 top-4"
 										>
 											<X className="h-4 w-4" />
 											<span className="sr-only">Close</span>
@@ -653,7 +653,7 @@ function WidgetItem({
 				>
 					<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
 				</button>
-				<button onClick={onToggle} className="flex-1 text-left" aria-expanded={isExpanded}>
+				<button onClick={onToggle} className="flex-1 text-start" aria-expanded={isExpanded}>
 					<div className="flex items-center gap-2">
 						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
 						<span className="font-medium">{widget.title || "Untitled Widget"}</span>

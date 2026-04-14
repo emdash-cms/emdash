@@ -105,7 +105,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 				)}
 				aria-hidden="true"
 			/>
-			<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-left overflow-hidden">
+			<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-start overflow-hidden">
 				{item.label}
 				{item.badge != null && item.badge > 0 && (
 					<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>

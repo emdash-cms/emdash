@@ -47,7 +47,7 @@ export function Header() {
 			<div className="flex items-center gap-2">
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
-					<ArrowSquareOut className="h-4 w-4 mr-1" />
+					<ArrowSquareOut className="h-4 w-4 me-1" />
 					{t`View Site`}
 				</LinkButton>
 
@@ -95,7 +95,7 @@ export function Header() {
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
-								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-left"
+								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start"
 							>
 								<SignOut className="h-4 w-4" />
 								{t`Log out`}

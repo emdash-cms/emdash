@@ -330,7 +330,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								variant="ghost"
 								shape="square"
 								aria-label={t`Close`}
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">{t`Close`}</span>
@@ -349,7 +349,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									type="button"
 									onClick={() => handleTypeSelect(ft.type)}
 									className={cn(
-										"flex items-start space-x-3 p-4 rounded-lg border text-left transition-colors hover:border-kumo-brand hover:bg-kumo-tint/50",
+										"flex items-start space-x-3 p-4 rounded-lg border text-start transition-colors hover:border-kumo-brand hover:bg-kumo-tint/50",
 									)}
 								>
 									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kumo-tint">
@@ -377,7 +377,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									<Button
 										variant="ghost"
 										size="sm"
-										className="ml-auto"
+										className="ms-auto"
 										onClick={() => setField("step", "type")}
 									>
 										{t`Change`}

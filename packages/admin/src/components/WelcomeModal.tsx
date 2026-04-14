@@ -108,7 +108,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 								variant="ghost"
 								shape="square"
 								aria-label={t(MSG_CLOSE)}
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">{t(MSG_CLOSE)}</span>
