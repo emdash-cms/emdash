@@ -1326,6 +1326,7 @@ function JsonFieldEditor({
 	onChange: (value: unknown) => void;
 	required?: boolean;
 }) {
+	const { t } = useLingui();
 	const [text, setText] = React.useState(value);
 	const [error, setError] = React.useState<string | null>(null);
 
@@ -1337,17 +1338,22 @@ function JsonFieldEditor({
 
 	const handleChange = (newText: string) => {
 		setText(newText);
-		if (newText.trim() === "") {
+		setError(null);
+	};
+
+	const handleBlur = () => {
+		const trimmed = text.trim();
+		if (trimmed === "") {
 			setError(null);
 			onChange(null);
 			return;
 		}
 		try {
-			const parsed = JSON.parse(newText);
+			const parsed = JSON.parse(trimmed);
 			setError(null);
 			onChange(parsed);
 		} catch {
-			setError("Invalid JSON");
+			setError(t`Invalid JSON`);
 		}
 	};
 
@@ -1358,6 +1364,7 @@ function JsonFieldEditor({
 				id={id}
 				value={text}
 				onChange={(e) => handleChange(e.target.value)}
+				onBlur={handleBlur}
 				rows={8}
 				placeholder="{}"
 				required={required}
