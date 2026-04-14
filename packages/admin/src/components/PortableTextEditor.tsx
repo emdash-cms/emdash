@@ -970,6 +970,33 @@ function SlashCommandMenu({
 	);
 }
 
+function getPluginBlockDefaultValues(fields?: Element[]): Record<string, unknown> {
+	const defaults: Record<string, unknown> = {};
+
+	for (const field of fields ?? []) {
+		const initialValue = "initial_value" in field ? field.initial_value : undefined;
+		if (initialValue !== undefined) {
+			defaults[field.action_id] = initialValue;
+		}
+	}
+
+	return defaults;
+}
+
+function buildPluginBlockFormValues(
+	block: PluginBlockDef | null,
+	initialValues?: Record<string, unknown>,
+): Record<string, unknown> {
+	const defaults = getPluginBlockDefaultValues(block?.fields);
+	return initialValues ? { ...defaults, ...initialValues } : defaults;
+}
+
+function hasPluginBlockFormData(values: Record<string, unknown>): boolean {
+	return Object.values(values).some(
+		(value) => value !== undefined && value !== null && value !== "",
+	);
+}
+
 /**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
@@ -992,11 +1019,7 @@ function PluginBlockModal({
 
 	React.useEffect(() => {
 		if (block) {
-			if (initialValues) {
-				setFormValues({ ...initialValues });
-			} else {
-				setFormValues({});
-			}
+			setFormValues(buildPluginBlockFormValues(block, initialValues));
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
@@ -1025,7 +1048,7 @@ function PluginBlockModal({
 	// For simple URL mode, check if the URL is non-empty
 	// For Block Kit fields, require at least one field to have a value
 	const canSubmit = hasFields
-		? Object.values(formValues).some((v) => v !== undefined && v !== null && v !== "")
+		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
 	return (
@@ -1255,6 +1278,10 @@ export type { PluginBlockDef } from "./editor/PluginBlockNode";
 // Exported for unit testing (pure functions, no React dependencies)
 export { prosemirrorToPortableText as _prosemirrorToPortableText };
 export { portableTextToProsemirror as _portableTextToProsemirror };
+export {
+	buildPluginBlockFormValues as _buildPluginBlockFormValues,
+	hasPluginBlockFormData as _hasPluginBlockFormData,
+};
 
 // =============================================================================
 // Editor Footer with Writing Metrics
