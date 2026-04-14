@@ -117,6 +117,35 @@ describe("resolveLocale", () => {
 		expect(resolveLocale(makeRequest({ "accept-language": "zh-TW" }))).toBe("zh-TW");
 	});
 
+	test("matches exact accept-language tag with region (zh-CN)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-CN" }))).toBe("zh-CN");
+	});
+
+	// Accept-Language script-based matching
+	test("matches zh-Hant script to zh-TW", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-Hant" }))).toBe("zh-TW");
+	});
+
+	test("matches zh-Hans script to zh-CN", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-Hans" }))).toBe("zh-CN");
+	});
+
+	test("matches zh-Hant-TW to zh-TW", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-Hant-TW" }))).toBe("zh-TW");
+	});
+
+	test("matches zh-Hans-CN to zh-CN", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-Hans-CN" }))).toBe("zh-CN");
+	});
+
+	test("matches zh-Hant case-insensitively (ZH-HANT -> zh-TW)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "ZH-HANT" }))).toBe("zh-TW");
+	});
+
+	test("matches zh-Hans case-insensitively (zh-hans -> zh-CN)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-hans" }))).toBe("zh-CN");
+	});
+
 	// Accept-Language with quality weights
 	test("respects order in accept-language list", () => {
 		expect(resolveLocale(makeRequest({ "accept-language": "fr;q=0.9, de;q=1.0" }))).toBe("fr");
