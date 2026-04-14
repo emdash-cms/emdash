@@ -56,12 +56,13 @@ for (const l of SUPPORTED_LOCALES) {
 		BASE_LANGUAGE_MAP.set(base, l.code);
 	}
 
-	// Build script mapping for Chinese locales
-	if (l.code === "zh-TW") {
-		SCRIPT_LANGUAGE_MAP.set("zh-hant", "zh-TW");
-	} else if (l.code === "zh-CN") {
-		SCRIPT_LANGUAGE_MAP.set("zh-hans", "zh-CN");
-	}
+	const maximized = new Intl.Locale(l.code).maximize();                                                                                     
+	if (maximized.script) {
+		const scriptKey = `${maximized.language}-${maximized.script}`.toLowerCase();
+		if (!SCRIPT_LANGUAGE_MAP.has(scriptKey)) {
+			SCRIPT_LANGUAGE_MAP.set(scriptKey, l.code);                                                                               
+		}
+	}   
 }
 
 /**
