@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../database/types.js";
+import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
@@ -273,6 +274,9 @@ async function resolveContentUrl(
 	}
 
 	try {
+		// Validate collection name before interpolating into table reference
+		validateIdentifier(collection, "menu item collection");
+
 		// Dynamic content tables (ec_*) aren't in the Database type, so use sql
 		const result = await sql<{ slug: string }>`
 			SELECT slug FROM ${sql.ref(`ec_${collection}`)} WHERE id = ${entryId} LIMIT 1

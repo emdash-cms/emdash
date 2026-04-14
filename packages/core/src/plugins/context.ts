@@ -202,9 +202,13 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 			const result: ContentItem = {
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				locale: item.locale,
+				publishedAt: item.publishedAt,
 			};
 
 			if (await seoRepo.isEnabled(collection)) {
@@ -232,14 +236,19 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				limit: options?.limit ?? 50,
 				cursor: options?.cursor,
 				orderBy,
+				where: options?.where,
 			});
 
 			const items: ContentItem[] = result.items.map((item) => ({
 				id: item.id,
 				type: item.type,
+				slug: item.slug,
+				status: item.status,
 				data: item.data,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
+				locale: item.locale,
+				publishedAt: item.publishedAt,
 			}));
 
 			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
@@ -294,9 +303,13 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 				const result: ContentItem = {
 					id: item.id,
 					type: item.type,
+					slug: item.slug,
+					status: item.status,
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
+					locale: item.locale,
+					publishedAt: item.publishedAt,
 				};
 
 				if (hasSeo) {
@@ -336,9 +349,13 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 				const result: ContentItem = {
 					id: item.id,
 					type: item.type,
+					slug: item.slug,
+					status: item.status,
 					data: item.data,
 					createdAt: item.createdAt,
 					updatedAt: item.updatedAt,
+					locale: item.locale,
+					publishedAt: item.publishedAt,
 				};
 
 				if (hasSeo) {
@@ -439,12 +456,13 @@ export function createMediaAccessWithWrite(
 				);
 			}
 
-			const mediaId = ulid();
+			// Generate a storage key with a unique prefix
+			const keyPrefix = ulid();
 			// Extract extension from basename (ignore path separators)
 			const basename = filename.split("/").pop() ?? filename;
 			const dotIdx = basename.lastIndexOf(".");
 			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
-			const storageKey = `${mediaId}${ext}`;
+			const storageKey = `${keyPrefix}${ext}`;
 
 			// Upload to storage first
 			await storage.upload({
@@ -454,8 +472,9 @@ export function createMediaAccessWithWrite(
 			});
 
 			// Create DB record — clean up storage on failure
+			let media;
 			try {
-				await mediaRepo.create({
+				media = await mediaRepo.create({
 					filename: basename,
 					mimeType: contentType,
 					size: bytes.byteLength,
@@ -472,7 +491,7 @@ export function createMediaAccessWithWrite(
 			}
 
 			return {
-				mediaId,
+				mediaId: media.id,
 				storageKey,
 				url: `/_emdash/api/media/file/${storageKey}`,
 			};
@@ -491,11 +510,17 @@ export function createMediaAccessWithWrite(
 /** Maximum number of redirects to follow in plugin HTTP access */
 const MAX_PLUGIN_REDIRECTS = 5;
 
+/**
+ * Check if a hostname matches any pattern in the allowed list.
+ * Patterns: "*" matches all, "*.example.com" matches subdomains AND bare "example.com",
+ * "api.example.com" matches exactly.
+ */
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
 	return allowedHosts.some((pattern) => {
 		if (pattern === "*") return true;
 		if (pattern.startsWith("*.")) {
 			const suffix = pattern.slice(1); // ".example.com"
+			// Match subdomains (foo.example.com) and bare domain (example.com)
 			return host.endsWith(suffix) || host === pattern.slice(2);
 		}
 		return host === pattern;

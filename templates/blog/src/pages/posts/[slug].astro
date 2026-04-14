@@ -4,6 +4,7 @@ import {
 	getEmDashCollection,
 	getEntryTerms,
 	getSeoMeta,
+	decodeSlug,
 	getSiteSettings,
 } from "emdash";
 import {
@@ -18,7 +19,7 @@ import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../../utils/site-identity";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
 	return Astro.redirect("/404");

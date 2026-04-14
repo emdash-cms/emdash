@@ -17,6 +17,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { wpRewriteUrlsBody } from "#api/schemas.js";
+import { validateIdentifier } from "#db/validate.js";
 import { normalizeMediaValue } from "#media/normalize.js";
 import type { MediaProvider } from "#media/types.js";
 import type { EmDashHandlers } from "#types";
@@ -280,6 +281,7 @@ async function rewriteUrls(
 			continue;
 
 		// Get table name
+		validateIdentifier(collection.slug, "collection slug");
 		const tableName = `ec_${collection.slug}`;
 
 		try {

@@ -121,6 +121,7 @@ export type {
 	ResolvedPluginHooks,
 	ContentHookEvent,
 	ContentDeleteEvent,
+	ContentPublishStateChangeEvent,
 	MediaUploadEvent,
 	MediaAfterUploadEvent,
 	LifecycleEvent,

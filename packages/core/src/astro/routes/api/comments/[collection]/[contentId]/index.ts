@@ -15,6 +15,7 @@ import { getSiteBaseUrl } from "#api/site-url.js";
 import { sendCommentNotification } from "#comments/notifications.js";
 import { createComment, type CommentHookRunner } from "#comments/service.js";
 import { CommentRepository } from "#db/repositories/comment.js";
+import { validateIdentifier } from "#db/validate.js";
 import { extractRequestMeta } from "#plugins/request-meta.js";
 import type { CollectionCommentSettings, ModerationDecision } from "#plugins/types.js";
 
@@ -106,6 +107,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		}
 
 		// Verify the content item exists, is published, and not soft-deleted
+		validateIdentifier(collection, "collection");
 		const contentRow = await emdash.db
 			.selectFrom(`ec_${collection}` as never)
 			.select(["id" as never, "slug" as never, "author_id" as never, "published_at" as never])

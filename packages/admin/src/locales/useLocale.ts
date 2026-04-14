@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react";
 import * as React from "react";
 
 import { SUPPORTED_LOCALE_CODES } from "./config.js";
+import { loadMessages } from "./index.js";
 
 function setCookie(code: string) {
 	const secure = window.location.protocol === "https:" ? "; Secure" : "";
@@ -20,10 +21,9 @@ export function useLocale() {
 		(code: string) => {
 			if (code === i18n.locale || !SUPPORTED_LOCALE_CODES.has(code)) return;
 			setCookie(code);
-			void import(`./${code}/messages.mjs`)
-				.then(({ messages }) => i18n.loadAndActivate({ locale: code, messages }))
+			void loadMessages(code)
+				.then((messages) => i18n.loadAndActivate({ locale: code, messages }))
 				.catch(() => {
-					// Revert cookie on failure so the user isn't stuck
 					setCookie(i18n.locale);
 				});
 		},

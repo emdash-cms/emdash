@@ -12,6 +12,8 @@
  */
 
 import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -113,6 +115,7 @@ interface SiteStepProps {
 }
 
 function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
+	const { t } = useLingui();
 	const [title, setTitle] = React.useState("");
 	const [tagline, setTagline] = React.useState("");
 	const [includeContent, setIncludeContent] = React.useState(true);
@@ -121,7 +124,7 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const validate = (): boolean => {
 		const newErrors: Record<string, string> = {};
 		if (!title.trim()) {
-			newErrors.title = "Site title is required";
+			newErrors.title = t`Site title is required`;
 		}
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
@@ -137,29 +140,29 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 		<form onSubmit={handleSubmit} className="space-y-6">
 			<div className="space-y-4">
 				<Input
-					label="Site Title"
+					label={t`Site Title`}
 					type="text"
 					value={title}
 					onChange={(e) => setTitle(e.target.value)}
-					placeholder="My Awesome Blog"
+					placeholder={t`My Awesome Blog`}
 					className={errors.title ? "border-kumo-danger" : ""}
 					disabled={isLoading}
 				/>
 				{errors.title && <p className="text-sm text-kumo-danger mt-1">{errors.title}</p>}
 
 				<Input
-					label="Tagline"
+					label={t`Tagline`}
 					type="text"
 					value={tagline}
 					onChange={(e) => setTagline(e.target.value)}
-					placeholder="Thoughts, tutorials, and more"
+					placeholder={t`Thoughts, tutorials, and more`}
 					disabled={isLoading}
 				/>
 			</div>
 
 			{seedInfo?.hasContent && (
 				<Checkbox
-					label="Include sample content (recommended for new sites)"
+					label={t`Include sample content (recommended for new sites)`}
 					checked={includeContent}
 					onCheckedChange={(checked) => setIncludeContent(checked)}
 					disabled={isLoading}
@@ -171,13 +174,13 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 			)}
 
 			<Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary">
-				{isLoading ? <>Setting up...</> : "Continue →"}
+				{isLoading ? <>{t`Setting up...`}</> : t`Continue →`}
 			</Button>
 
 			{seedInfo && (
 				<p className="text-xs text-kumo-subtle text-center">
-					Template: {seedInfo.name} ({seedInfo.collections} collection
-					{seedInfo.collections !== 1 ? "s" : ""})
+					{t`Template:`} {seedInfo.name} (
+					{plural(seedInfo.collections, { one: "# collection", other: "# collections" })})
 				</p>
 			)}
 		</form>
@@ -192,6 +195,7 @@ interface AdminStepProps {
 }
 
 function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
+	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [name, setName] = React.useState("");
 	const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -199,9 +203,9 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 	const validate = (): boolean => {
 		const newErrors: Record<string, string> = {};
 		if (!email.trim()) {
-			newErrors.email = "Email is required";
+			newErrors.email = t`Email is required`;
 		} else if (!email.includes("@")) {
-			newErrors.email = "Please enter a valid email";
+			newErrors.email = t`Please enter a valid email`;
 		}
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
@@ -217,11 +221,11 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 		<form onSubmit={handleSubmit} className="space-y-6">
 			<div className="space-y-4">
 				<Input
-					label="Your Email"
+					label={t`Your Email`}
 					type="email"
 					value={email}
 					onChange={(e) => setEmail(e.target.value)}
-					placeholder="you@example.com"
+					placeholder={t`you@example.com`}
 					className={errors.email ? "border-kumo-danger" : ""}
 					disabled={isLoading}
 					autoComplete="email"
@@ -229,11 +233,11 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 				{errors.email && <p className="text-sm text-kumo-danger mt-1">{errors.email}</p>}
 
 				<Input
-					label="Your Name"
+					label={t`Your Name`}
 					type="text"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					placeholder="Jane Doe"
+					placeholder={t`Jane Doe`}
 					disabled={isLoading}
 					autoComplete="name"
 				/>
@@ -245,7 +249,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 
 			<div className="flex gap-3">
 				<Button type="button" variant="outline" onClick={onBack} disabled={isLoading}>
-					← Back
+					{t`← Back`}
 				</Button>
 				<Button
 					type="submit"
@@ -253,7 +257,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 					loading={isLoading}
 					variant="primary"
 				>
-					{isLoading ? <>Preparing...</> : "Continue →"}
+					{isLoading ? <>{t`Preparing...`}</> : t`Continue →`}
 				</Button>
 			</div>
 		</form>
@@ -271,6 +275,7 @@ interface AuthMethodStepProps {
 }
 
 function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
+	const { t } = useLingui();
 	const [activeProvider, setActiveProvider] = React.useState<string | null>(null);
 
 	const buttonProviders = providers.filter((p) => p.LoginButton);
@@ -283,7 +288,7 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 			return (
 				<div className="space-y-4">
 					<div className="text-center mb-2">
-						<h3 className="text-lg font-medium">Sign in with {provider.label}</h3>
+						<h3 className="text-lg font-medium">{t`Sign in with ${provider.label}`}</h3>
 					</div>
 					{provider.SetupStep ? (
 						<provider.SetupStep onComplete={handleSetupSuccess} />
@@ -296,7 +301,7 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 						className="w-full justify-center"
 						onClick={() => setActiveProvider(null)}
 					>
-						← Back
+						{t`← Back`}
 					</Button>
 				</div>
 			);
@@ -307,9 +312,9 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 		<div className="space-y-6">
 			{/* Passkey option */}
 			<div className="text-center">
-				<h3 className="text-lg font-medium">Choose how to sign in</h3>
+				<h3 className="text-lg font-medium">{t`Choose how to sign in`}</h3>
 				<p className="text-sm text-kumo-subtle mt-1">
-					Pick any method to create your admin account.
+					{t`Pick any method to create your admin account.`}
 				</p>
 			</div>
 
@@ -317,7 +322,7 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 				optionsEndpoint="/_emdash/api/setup/admin"
 				verifyEndpoint="/_emdash/api/setup/admin/verify"
 				onSuccess={handleSetupSuccess}
-				buttonText="Create Passkey"
+				buttonText={t`Create Passkey`}
 				additionalData={{ ...adminData }}
 			/>
 
@@ -351,7 +356,7 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 			)}
 
 			<Button type="button" variant="ghost" onClick={onBack} className="w-full">
-				← Back
+				{t`← Back`}
 			</Button>
 		</div>
 	);
@@ -367,13 +372,14 @@ interface StepIndicatorProps {
 }
 
 function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
+	const { t } = useLingui();
 	// In Access mode, only show the site step
 	const steps = useAccessAuth
-		? ([{ key: "site", label: "Site Settings" }] as const)
+		? ([{ key: "site", label: t`Site Settings` }] as const)
 		: ([
-				{ key: "site", label: "Site" },
-				{ key: "admin", label: "Account" },
-				{ key: "passkey", label: "Sign In" },
+				{ key: "site", label: t`Site` },
+				{ key: "admin", label: t`Account` },
+				{ key: "passkey", label: t`Sign In` },
 			] as const);
 
 	const currentIndex = steps.findIndex((s) => s.key === currentStep);
@@ -516,13 +522,15 @@ export function SetupWizard() {
 		return null;
 	}
 
+	const { t } = useLingui();
+
 	// Loading state
 	if (statusLoading) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base">
 				<div className="text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Loading setup...</p>
+					<p className="mt-4 text-kumo-subtle">{t`Loading setup...`}</p>
 				</div>
 			</div>
 		);
@@ -533,9 +541,9 @@ export function SetupWizard() {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base">
 				<div className="text-center">
-					<h1 className="text-xl font-bold text-kumo-danger">Error</h1>
+					<h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1>
 					<p className="mt-2 text-kumo-subtle">
-						{statusError instanceof Error ? statusError.message : "Failed to load setup"}
+						{statusError instanceof Error ? statusError.message : t`Failed to load setup`}
 					</p>
 				</div>
 			</div>
@@ -549,12 +557,12 @@ export function SetupWizard() {
 				<div className="text-center mb-6">
 					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
-						{currentStep === "site" && "Set up your site"}
-						{currentStep === "admin" && "Create your account"}
-						{currentStep === "passkey" && "Secure your account"}
+						{currentStep === "site" && t`Set up your site`}
+						{currentStep === "admin" && t`Create your account`}
+						{currentStep === "passkey" && t`Secure your account`}
 					</h1>
 					{useAccessAuth && currentStep === "site" && (
-						<p className="text-sm text-kumo-subtle mt-2">You're signed in via Cloudflare Access</p>
+						<p className="text-sm text-kumo-subtle mt-2">{t`You're signed in via Cloudflare Access`}</p>
 					)}
 				</div>
 

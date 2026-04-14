@@ -102,6 +102,7 @@ export type ManifestAuthMode = string;
  */
 export interface EmDashManifest {
 	version: string;
+	commit?: string;
 	hash: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;

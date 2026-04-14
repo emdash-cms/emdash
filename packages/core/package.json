@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -147,6 +147,8 @@
     "#media/*": "./src/media/*",
     "#mcp/*": "./src/mcp/*",
     "#comments/*": "./src/comments/*",
+    "#bylines/*": "./src/bylines/*",
+    "#redirects/*": "./src/redirects/*",
     "#types": "./src/astro/types.js"
   },
   "scripts": {

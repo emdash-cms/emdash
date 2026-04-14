@@ -1,10 +1,10 @@
 ---
-import { getTerm, getEmDashCollection, getEntryTerms } from "emdash";
+import { getTerm, getEmDashCollection, getEntryTerms, decodeSlug } from "emdash";
 import Base from "../../layouts/Base.astro";
 import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 const term = slug ? await getTerm("category", slug) : null;
 
 if (!term) {
