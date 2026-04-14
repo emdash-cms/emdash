@@ -113,8 +113,8 @@ describe("resolveLocale", () => {
 		expect(resolveLocale(makeRequest({ "accept-language": "pt-PT" }))).toBe("pt-BR");
 	});
 
-	test("falls back to base language (zh-TW -> zh-CN)", () => {
-		expect(resolveLocale(makeRequest({ "accept-language": "zh-TW" }))).toBe("zh-CN");
+	test("matches exact accept-language tag with region (zh-TW)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "zh-TW" }))).toBe("zh-TW");
 	});
 
 	// Accept-Language with quality weights
