@@ -14,7 +14,6 @@ catalog:
   "@astrojs/cloudflare": ^13.1.7
   "@astrojs/node": ^10.0.0
   "@astrojs/react": ^5.0.0
-  "@cloudflare/kumo": ^1.18.0
   "@cloudflare/workers-types": ^4.20260305.1
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4

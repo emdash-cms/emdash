@@ -21,9 +21,6 @@ catalogs:
     '@astrojs/react':
       specifier: ^5.0.0
       version: 5.0.0
-    '@cloudflare/kumo':
-      specifier: ^1.18.0
-      version: 1.18.0
     '@cloudflare/workers-types':
       specifier: ^4.20260305.1
       version: 4.20260305.1
@@ -501,8 +498,8 @@ importers:
   packages/admin:
     dependencies:
       '@cloudflare/kumo':
-        specifier: 'catalog:'
-        version: 1.18.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
+        specifier: ^1.16.0
+        version: 1.16.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -716,8 +713,8 @@ importers:
   packages/blocks:
     dependencies:
       '@cloudflare/kumo':
-        specifier: 'catalog:'
-        version: 1.18.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
+        specifier: ^1.10.0
+        version: 1.10.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
       '@phosphor-icons/react':
         specifier: 'catalog:'
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2017,8 +2014,8 @@ packages:
       zod:
         optional: true
 
-  '@cloudflare/kumo@1.18.0':
-    resolution: {integrity: sha512-D1OkzYe6rIPe2CqklE+DDt84YB8Q+gV5PH/Hjco8TO1NEHZkaookdl67YU+HHWCBME6TxSwQRzn72hp/cyOrCw==}
+  '@cloudflare/kumo@1.16.0':
+    resolution: {integrity: sha512-uCrj7jGPvdXj8lrdQBfMGKzV3JTDi7hUBsLf4jpirD7QHvZMsGe6XuU+KKvQFqDTmj5ELXQVES4YVoducxZ7Tg==}
     hasBin: true
     peerDependencies:
       '@phosphor-icons/react': ^2.1.10
@@ -9687,19 +9684,19 @@ snapshots:
       - '@emotion/is-prop-valid'
       - '@types/react'
 
-  '@cloudflare/kumo@1.18.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)':
+  '@cloudflare/kumo@1.16.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)':
     dependencies:
       '@base-ui/react': 1.2.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@phosphor-icons/react': 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@shikijs/langs': 4.0.2
-      '@shikijs/themes': 4.0.2
+      '@shikijs/langs': 4.0.1
+      '@shikijs/themes': 4.0.1
       clsx: 2.1.1
       echarts: 6.0.0
       motion: 12.35.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
       react-day-picker: 9.14.0(react@19.2.4)
       react-dom: 19.2.4(react@19.2.4)
-      shiki: 4.0.2
+      shiki: 4.0.1
       tailwind-merge: 3.4.0
     optionalDependencies:
       zod: 4.3.6
