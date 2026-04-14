@@ -1,5 +1,5 @@
 ---
-import { getMenu } from "emdash";
+import { getMenu, getSiteSettings } from "emdash";
 import {
 	WidgetArea,
 	EmDashHead,
@@ -8,9 +8,11 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
+import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 interface Props {
 	title: string;
+	pageTitle?: string | null;
 	description?: string | null;
 	image?: string | null;
 	canonical?: string | null;
@@ -18,7 +20,10 @@ interface Props {
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, canonical, content } = Astro.props;
+const { title, pageTitle, description, image, canonical, content } = Astro.props;
+const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveStarterSiteIdentity(await getSiteSettings());
+const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
+const pageDescription = description ?? siteTagline;
 
 const menu = await getMenu("primary");
 
@@ -26,11 +31,13 @@ const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",
 	pageType: "website",
-	title,
-	description,
+	title: fullTitle,
+	pageTitle: pageTitle ?? title,
+	description: pageDescription,
 	canonical,
 	image,
 	content,
+	siteName: siteTitle,
 });
 ---
 
@@ -39,8 +46,9 @@ const pageCtx = createPublicPageContext({
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>{title}</title>
-		{description && <meta name="description" content={description} />}
+		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
+		{pageDescription && <meta name="description" content={pageDescription} />}
 		{canonical && <link rel="canonical" href={canonical} />}
 		<EmDashHead page={pageCtx} />
 	</head>
@@ -49,7 +57,12 @@ const pageCtx = createPublicPageContext({
 
 		<header>
 			<nav>
-				<a href="/">{title}</a>
+				<a href="/">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} style="height:48px;width:auto;margin:-8px 0;display:block;" />
+						: siteTitle
+					}
+				</a>
 				{
 					menu?.items.map((item) => (
 						<a href={item.url} target={item.target}>

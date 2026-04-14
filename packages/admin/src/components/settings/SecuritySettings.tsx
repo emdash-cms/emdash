@@ -6,6 +6,7 @@
  */
 
 import { Button } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { Shield, Plus, CheckCircle, WarningCircle, ArrowLeft, Info } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -16,6 +17,7 @@ import { PasskeyRegistration } from "../auth/PasskeyRegistration";
 import { PasskeyList } from "./PasskeyList";
 
 export function SecuritySettings() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [isAdding, setIsAdding] = React.useState(false);
 	const [saveStatus, setSaveStatus] = React.useState<{
@@ -55,13 +57,13 @@ export function SecuritySettings() {
 		mutationFn: ({ id, name }: { id: string; name: string }) => renamePasskey(id, name),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["passkeys"] });
-			setSaveStatus({ type: "success", message: "Passkey renamed" });
+			setSaveStatus({ type: "success", message: t`Passkey renamed` });
 		},
 		onError: (mutationError) => {
 			setSaveStatus({
 				type: "error",
 				message:
-					mutationError instanceof Error ? mutationError.message : "Failed to rename passkey",
+					mutationError instanceof Error ? mutationError.message : t`Failed to rename passkey`,
 			});
 		},
 	});
@@ -71,13 +73,13 @@ export function SecuritySettings() {
 		mutationFn: (id: string) => deletePasskey(id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["passkeys"] });
-			setSaveStatus({ type: "success", message: "Passkey removed" });
+			setSaveStatus({ type: "success", message: t`Passkey removed` });
 		},
 		onError: (mutationError) => {
 			setSaveStatus({
 				type: "error",
 				message:
-					mutationError instanceof Error ? mutationError.message : "Failed to remove passkey",
+					mutationError instanceof Error ? mutationError.message : t`Failed to remove passkey`,
 			});
 		},
 	});
@@ -93,17 +95,17 @@ export function SecuritySettings() {
 	const handleAddSuccess = () => {
 		void queryClient.invalidateQueries({ queryKey: ["passkeys"] });
 		setIsAdding(false);
-		setSaveStatus({ type: "success", message: "Passkey added successfully" });
+		setSaveStatus({ type: "success", message: t`Passkey added successfully` });
 	};
 
 	const settingsHeader = (
 		<div className="flex items-center gap-3">
 			<Link to="/settings">
-				<Button variant="ghost" shape="square" aria-label="Back to settings">
+				<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
 					<ArrowLeft className="h-4 w-4" />
 				</Button>
 			</Link>
-			<h1 className="text-2xl font-bold">Security Settings</h1>
+			<h1 className="text-2xl font-bold">{t`Security Settings`}</h1>
 		</div>
 	);
 
@@ -112,7 +114,7 @@ export function SecuritySettings() {
 			<div className="space-y-6">
 				{settingsHeader}
 				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">Loading...</p>
+					<p className="text-kumo-subtle">{t`Loading...`}</p>
 				</div>
 			</div>
 		);
@@ -128,8 +130,7 @@ export function SecuritySettings() {
 						<Info className="h-5 w-5 text-kumo-subtle mt-0.5 flex-shrink-0" />
 						<div className="space-y-2">
 							<p className="text-kumo-subtle">
-								Authentication is managed by an external provider ({manifest?.authMode}). Passkey
-								settings are not available when using external authentication.
+								{t`Authentication is managed by an external provider (${manifest?.authMode}). Passkey settings are not available when using external authentication.`}
 							</p>
 						</div>
 					</div>
@@ -144,7 +145,7 @@ export function SecuritySettings() {
 				{settingsHeader}
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-danger">
-						{error instanceof Error ? error.message : "Failed to load passkeys"}
+						{error instanceof Error ? error.message : t`Failed to load passkeys`}
 					</p>
 				</div>
 			</div>
@@ -185,12 +186,11 @@ export function SecuritySettings() {
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-center gap-2 mb-4">
 					<Shield className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">Passkeys</h2>
+					<h2 className="text-lg font-semibold">{t`Passkeys`}</h2>
 				</div>
 
 				<p className="text-sm text-kumo-subtle mb-6">
-					Passkeys are a secure, passwordless way to sign in to your account. You can register
-					multiple passkeys for different devices.
+					{t`Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices.`}
 				</p>
 
 				{/* Passkey list */}
@@ -204,7 +204,7 @@ export function SecuritySettings() {
 					/>
 				) : (
 					<div className="rounded-lg border border-dashed p-6 text-center text-kumo-subtle">
-						No passkeys registered yet.
+						{t`No passkeys registered yet.`}
 					</div>
 				)}
 
@@ -213,9 +213,9 @@ export function SecuritySettings() {
 					{isAdding ? (
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
-								<h3 className="font-medium">Add a new passkey</h3>
+								<h3 className="font-medium">{t`Add a new passkey`}</h3>
 								<Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
-									Cancel
+									{t`Cancel`}
 								</Button>
 							</div>
 							<PasskeyRegistration
@@ -229,12 +229,12 @@ export function SecuritySettings() {
 									})
 								}
 								showNameInput
-								buttonText="Register Passkey"
+								buttonText={t`Register Passkey`}
 							/>
 						</div>
 					) : (
 						<Button onClick={() => setIsAdding(true)} icon={<Plus />}>
-							Add Passkey
+							{t`Add Passkey`}
 						</Button>
 					)}
 				</div>

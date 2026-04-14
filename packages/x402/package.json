@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/x402",
-	"version": "0.1.0",
+	"version": "0.4.0",
 	"description": "x402 payment protocol integration for Astro sites",
 	"license": "MIT",
 	"repository": {

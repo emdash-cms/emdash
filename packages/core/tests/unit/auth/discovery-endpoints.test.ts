@@ -16,9 +16,10 @@ import { VALID_SCOPES } from "../../../src/auth/api-tokens.js";
 
 /** Minimal mock of what the route handlers actually use from the Astro context. */
 function mockContext(origin = "https://example.com") {
-	return { url: new URL("/.well-known/test", origin) } as Parameters<
-		typeof getProtectedResource
-	>[0];
+	return {
+		url: new URL("/.well-known/test", origin),
+		locals: { emdash: undefined },
+	} as unknown as Parameters<typeof getProtectedResource>[0];
 }
 
 describe("Protected Resource Metadata (RFC 9728)", () => {

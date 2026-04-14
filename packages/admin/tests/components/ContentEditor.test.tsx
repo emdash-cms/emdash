@@ -1,6 +1,5 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import {
 	ContentEditor,
@@ -8,6 +7,7 @@ import {
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
 import type { ContentItem } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
 
 // Mock child components that have complex dependencies
 vi.mock("../../src/components/PortableTextEditor", () => ({
@@ -295,6 +295,53 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item });
 			const savedBtn = screen.getByRole("button", { name: "Saved" });
 			await expect.element(savedBtn).toBeDisabled();
+		});
+
+		it("keeps edited values after autosave completes without queuing another autosave", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					lastAutosaveAt: null,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Updated title");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				const autosavedItem = makeItem({
+					updatedAt: "2026-04-12T18:38:00Z",
+					data: { title: "Updated title", body: "Some content" },
+				});
+				await screen.rerender(
+					<ContentEditor
+						{...props}
+						item={autosavedItem}
+						isAutosaving={false}
+						lastAutosaveAt={new Date("2026-04-12T18:38:00Z")}
+					/>,
+				);
+
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Updated title");
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
 		});
 	});
 

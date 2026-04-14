@@ -2,6 +2,8 @@
 import { getMenu, getSiteSettings } from "emdash";
 import { EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
+import { Font } from "astro:assets";
+import "../styles/theme.css";
 
 interface Props {
 	title?: string;
@@ -15,6 +17,9 @@ const siteTitle = settings?.title || "Acme";
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription =
 	settings?.tagline || "Build products people actually want";
+const siteLogo = (settings?.logo as any)?.url ? settings.logo as
+	{ mediaId: string; alt?: string; url: string } : null;
+const siteFavicon = (settings?.favicon as any)?.url ?? null;
 
 const menu = await getMenu("primary");
 
@@ -23,6 +28,7 @@ const pageCtx = createPublicPageContext({
 	kind: "custom",
 	pageType: "website",
 	title: fullTitle,
+	pageTitle: title ?? siteTitle,
 	description: description || siteDescription,
 	canonical: Astro.url.href,
 	image,
@@ -37,33 +43,13 @@ const pageCtx = createPublicPageContext({
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			rel="preload"
-			as="style"
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-		/>
-		<link
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-			rel="stylesheet"
-		/>
+		<Font cssVariable="--font-sans" preload />
 		<link
 			href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css"
 			rel="stylesheet"
 		/>
-		<style>
-			/* Fallback font with metrics adjusted to match Inter */
-			@font-face {
-				font-family: "Inter Fallback";
-				src: local("Arial");
-				size-adjust: 107%;
-				ascent-override: 90%;
-				descent-override: 25%;
-				line-gap-override: 0%;
-			}
-		</style>
 		<script is:inline>
 			// Apply theme immediately to prevent flash
 			(function () {
@@ -81,7 +67,12 @@ const pageCtx = createPublicPageContext({
 	<body>
 		<header class="site-header">
 			<nav class="nav">
-				<a href="/" class="site-logo">{siteTitle}</a>
+				<a href="/" class="site-logo">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						: siteTitle
+					}
+				</a>
 				<div class="nav-links">
 					{
 						menu?.items.map((item) => (
@@ -105,7 +96,12 @@ const pageCtx = createPublicPageContext({
 		<footer class="site-footer">
 			<div class="footer-content">
 				<div class="footer-brand">
-					<span class="footer-logo">{siteTitle}</span>
+					<span class="footer-logo">
+						{siteLogo
+							? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+							: siteTitle
+						}
+					</span>
 					<p class="footer-tagline">
 						{settings?.tagline || "Build something amazing"}
 					</p>
@@ -217,83 +213,104 @@ const pageCtx = createPublicPageContext({
 		</script>
 
 		<style is:global>
-			*,
-			*::before,
-			*::after {
-				box-sizing: border-box;
-				margin: 0;
-				padding: 0;
-			}
+			/*
+			 * Establish layer order: "base" has lower priority than unlayered
+			 * styles, so theme.css overrides always win regardless of source
+			 * order in the bundled CSS.
+			 */
+			@layer base;
 
-			:root {
-				/* Colors - Playful/Bold palette */
-				--color-bg: #ffffff;
-				--color-text: #0f172a;
-				--color-muted: #64748b;
-				--color-border: #e2e8f0;
-				--color-surface: #f8fafc;
-				--color-primary: #6366f1;
-				--color-primary-dark: #4f46e5;
-				--color-primary-light: #818cf8;
-				--color-accent: #f472b6;
-				--color-accent-light: #f9a8d4;
-				--color-success: #22c55e;
-				--color-warning: #f59e0b;
+			@layer base {
+				*,
+				*::before,
+				*::after {
+					box-sizing: border-box;
+					margin: 0;
+					padding: 0;
+				}
 
-				/* Typography */
-				--font-sans:
-					"Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
-				--font-mono: ui-monospace, "SF Mono", monospace;
+				:root {
+					/* Colors - Playful/Bold palette */
+					--color-bg: #ffffff;
+					--color-text: #0f172a;
+					--color-muted: #64748b;
+					--color-border: #e2e8f0;
+					--color-surface: #f8fafc;
+					--color-primary: #6366f1;
+					--color-primary-dark: #4f46e5;
+					--color-primary-light: #818cf8;
+					--color-accent: #f472b6;
+					--color-accent-light: #f9a8d4;
+					--color-success: #22c55e;
+					--color-warning: #f59e0b;
 
-				--font-size-xs: 0.75rem;
-				--font-size-sm: 0.875rem;
-				--font-size-base: 1rem;
-				--font-size-lg: 1.125rem;
-				--font-size-xl: 1.25rem;
-				--font-size-2xl: 1.5rem;
-				--font-size-3xl: 2rem;
-				--font-size-4xl: 2.5rem;
-				--font-size-5xl: 3.5rem;
-				--font-size-6xl: 4.5rem;
+					/* Typography */
+					--font-mono: ui-monospace, "SF Mono", monospace;
 
-				/* Spacing */
-				--spacing-xs: 0.25rem;
-				--spacing-sm: 0.5rem;
-				--spacing-md: 1rem;
-				--spacing-lg: 1.5rem;
-				--spacing-xl: 2rem;
-				--spacing-2xl: 3rem;
-				--spacing-3xl: 4rem;
-				--spacing-4xl: 6rem;
-				--spacing-5xl: 8rem;
+					--font-size-xs: 0.75rem;
+					--font-size-sm: 0.875rem;
+					--font-size-base: 1rem;
+					--font-size-lg: 1.125rem;
+					--font-size-xl: 1.25rem;
+					--font-size-2xl: 1.5rem;
+					--font-size-3xl: 2rem;
+					--font-size-4xl: 2.5rem;
+					--font-size-5xl: 3.5rem;
+					--font-size-6xl: 4.5rem;
 
-				/* Layout */
-				--max-width: 720px;
-				--wide-width: 1200px;
-				--radius-sm: 6px;
-				--radius: 10px;
-				--radius-lg: 16px;
-				--radius-full: 9999px;
+					/* Spacing */
+					--spacing-xs: 0.25rem;
+					--spacing-sm: 0.5rem;
+					--spacing-md: 1rem;
+					--spacing-lg: 1.5rem;
+					--spacing-xl: 2rem;
+					--spacing-2xl: 3rem;
+					--spacing-3xl: 4rem;
+					--spacing-4xl: 6rem;
+					--spacing-5xl: 8rem;
 
-				/* Transitions */
-				--transition-fast: 150ms ease;
-				--transition-base: 200ms ease;
-				--transition-slow: 300ms ease;
+					/* Layout */
+					--max-width: 720px;
+					--wide-width: 1200px;
+					--radius-sm: 6px;
+					--radius: 10px;
+					--radius-lg: 16px;
+					--radius-full: 9999px;
 
-				/* Shadows */
-				--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-				--shadow:
-					0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-				--shadow-lg:
-					0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-				--shadow-xl:
-					0 20px 25px -5px rgba(0, 0, 0, 0.1),
-					0 8px 10px -6px rgba(0, 0, 0, 0.1);
-			}
+					/* Transitions */
+					--transition-fast: 150ms ease;
+					--transition-base: 200ms ease;
+					--transition-slow: 300ms ease;
 
-			/* Dark mode via system preference (when no explicit class) */
-			@media (prefers-color-scheme: dark) {
-				:root:not(.light) {
+					/* Shadows */
+					--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+					--shadow:
+						0 4px 6px -1px rgba(0, 0, 0, 0.1),
+						0 2px 4px -2px rgba(0, 0, 0, 0.1);
+					--shadow-lg:
+						0 10px 15px -3px rgba(0, 0, 0, 0.1),
+						0 4px 6px -4px rgba(0, 0, 0, 0.1);
+					--shadow-xl:
+						0 20px 25px -5px rgba(0, 0, 0, 0.1),
+						0 8px 10px -6px rgba(0, 0, 0, 0.1);
+				}
+
+				/* Dark mode via system preference (when no explicit class) */
+				@media (prefers-color-scheme: dark) {
+					:root:not(.light) {
+						--color-bg: #0f172a;
+						--color-text: #f1f5f9;
+						--color-muted: #94a3b8;
+						--color-border: #334155;
+						--color-surface: #1e293b;
+						--color-primary: #818cf8;
+						--color-primary-dark: #6366f1;
+						--color-primary-light: #a5b4fc;
+					}
+				}
+
+				/* Explicit dark mode */
+				:root.dark {
 					--color-bg: #0f172a;
 					--color-text: #f1f5f9;
 					--color-muted: #94a3b8;
@@ -303,141 +320,129 @@ const pageCtx = createPublicPageContext({
 					--color-primary-dark: #6366f1;
 					--color-primary-light: #a5b4fc;
 				}
-			}
 
-			/* Explicit dark mode */
-			:root.dark {
-				--color-bg: #0f172a;
-				--color-text: #f1f5f9;
-				--color-muted: #94a3b8;
-				--color-border: #334155;
-				--color-surface: #1e293b;
-				--color-primary: #818cf8;
-				--color-primary-dark: #6366f1;
-				--color-primary-light: #a5b4fc;
-			}
+				html {
+					scroll-behavior: smooth;
+				}
 
-			html {
-				scroll-behavior: smooth;
-			}
+				body {
+					font-family: var(--font-sans);
+					font-size: var(--font-size-base);
+					line-height: 1.6;
+					color: var(--color-text);
+					background: var(--color-bg);
+					-webkit-font-smoothing: antialiased;
+					min-height: 100vh;
+				}
 
-			body {
-				font-family: var(--font-sans);
-				font-size: var(--font-size-base);
-				line-height: 1.6;
-				color: var(--color-text);
-				background: var(--color-bg);
-				-webkit-font-smoothing: antialiased;
-				min-height: 100vh;
-			}
+				a {
+					color: currentColor;
+					text-decoration: none;
+				}
 
-			a {
-				color: currentColor;
-				text-decoration: none;
-			}
+				img {
+					max-width: 100%;
+					height: auto;
+					display: block;
+				}
 
-			img {
-				max-width: 100%;
-				height: auto;
-				display: block;
-			}
+				h1,
+				h2,
+				h3,
+				h4,
+				h5,
+				h6 {
+					font-weight: 700;
+					line-height: 1.2;
+					letter-spacing: -0.02em;
+				}
 
-			h1,
-			h2,
-			h3,
-			h4,
-			h5,
-			h6 {
-				font-weight: 700;
-				line-height: 1.2;
-				letter-spacing: -0.02em;
-			}
+				h1 {
+					font-size: var(--font-size-5xl);
+				}
+				h2 {
+					font-size: var(--font-size-3xl);
+				}
+				h3 {
+					font-size: var(--font-size-2xl);
+				}
+				h4 {
+					font-size: var(--font-size-xl);
+				}
 
-			h1 {
-				font-size: var(--font-size-5xl);
-			}
-			h2 {
-				font-size: var(--font-size-3xl);
-			}
-			h3 {
-				font-size: var(--font-size-2xl);
-			}
-			h4 {
-				font-size: var(--font-size-xl);
-			}
+				/* Utility classes */
+				.container {
+					max-width: var(--wide-width);
+					margin: 0 auto;
+					padding: 0 var(--spacing-lg);
+				}
 
-			/* Utility classes */
-			.container {
-				max-width: var(--wide-width);
-				margin: 0 auto;
-				padding: 0 var(--spacing-lg);
-			}
+				.section {
+					padding: var(--spacing-5xl) 0;
+				}
 
-			.section {
-				padding: var(--spacing-5xl) 0;
-			}
+				.btn {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					gap: var(--spacing-sm);
+					padding: var(--spacing-sm) var(--spacing-lg);
+					font-family: inherit;
+					font-size: var(--font-size-sm);
+					font-weight: 600;
+					border-radius: var(--radius);
+					cursor: pointer;
+					transition:
+						background var(--transition-fast),
+						transform var(--transition-fast),
+						box-shadow var(--transition-fast);
+				}
 
-			.btn {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				gap: var(--spacing-sm);
-				padding: var(--spacing-sm) var(--spacing-lg);
-				font-family: inherit;
-				font-size: var(--font-size-sm);
-				font-weight: 600;
-				border-radius: var(--radius);
-				cursor: pointer;
-				transition:
-					background var(--transition-fast),
-					transform var(--transition-fast),
-					box-shadow var(--transition-fast);
-			}
+				.btn:hover {
+					transform: translateY(-1px);
+				}
 
-			.btn:hover {
-				transform: translateY(-1px);
-			}
+				.btn:active {
+					transform: translateY(0);
+				}
 
-			.btn:active {
-				transform: translateY(0);
-			}
+				.btn-primary {
+					color: white;
+					background: linear-gradient(
+						135deg,
+						var(--color-primary-dark),
+						var(--color-accent)
+					);
+					border: none;
+					transition:
+						background 0.3s ease,
+						box-shadow 0.3s ease;
+				}
 
-			.btn-primary {
-				color: white;
-				background: linear-gradient(
-					135deg,
-					var(--color-primary-dark),
-					var(--color-accent)
-				);
-				border: none;
-				transition:
-					background 0.3s ease,
-					box-shadow 0.3s ease;
-			}
+				.btn-primary:hover {
+					background: linear-gradient(
+						135deg,
+						var(--color-primary),
+						var(--color-accent)
+					);
+					box-shadow: var(--shadow-lg);
+				}
 
-			.btn-primary:hover {
-				background: linear-gradient(
-					135deg,
-					var(--color-primary),
-					var(--color-accent)
-				);
-				box-shadow: var(--shadow-lg);
-			}
+				.btn-secondary {
+					color: var(--color-text);
+					background: transparent;
+					border: 1px solid var(--color-border);
+				}
 
-			.btn-secondary {
-				color: var(--color-text);
-				background: transparent;
-				border: 1px solid var(--color-border);
-			}
+				.btn-secondary:hover {
+					background: var(--color-surface);
+					border-color: var(--color-muted);
+				}
 
-			.btn-secondary:hover {
-				background: var(--color-surface);
-				border-color: var(--color-muted);
-			}
-
-			.btn-lg {
-				padding: var(--spacing-md) var(--spacing-xl);
-				font-size: var(--font-size-base);
+				.btn-lg {
+					padding: var(--spacing-md) var(--spacing-xl);
+					font-size: var(--font-size-base);
+				}
 			}
 		</style>
 
@@ -472,6 +477,13 @@ const pageCtx = createPublicPageContext({
 				-webkit-background-clip: text;
 				-webkit-text-fill-color: transparent;
 				background-clip: text;
+			}
+
+			.site-logo-img {
+				height: 48px;
+				width: auto;
+				display: block;
+				margin: -8px 0;
 			}
 
 			.nav-links {
@@ -551,6 +563,11 @@ const pageCtx = createPublicPageContext({
 				font-size: var(--font-size-xl);
 				font-weight: 800;
 				letter-spacing: -0.03em;
+			}
+
+			.footer-logo-img {
+				height: 24px;
+				width: auto;
 			}
 
 			.footer-tagline {

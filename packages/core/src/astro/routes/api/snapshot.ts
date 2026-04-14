@@ -16,6 +16,7 @@ import {
 	parsePreviewSignatureHeader,
 	verifyPreviewSignature,
 } from "#api/handlers/snapshot.js";
+import { getPublicOrigin } from "#api/public-url.js";
 
 export const prerender = false;
 
@@ -65,7 +66,7 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
 		const includeDrafts = url.searchParams.get("drafts") === "true";
 		const snapshot = await generateSnapshot(emdash.db, {
 			includeDrafts,
-			origin: url.origin,
+			origin: getPublicOrigin(url, emdash.config),
 		});
 
 		return apiSuccess(snapshot);

@@ -49,6 +49,7 @@ export async function fetchGitHubEmail(accessToken: string): Promise<string> {
 			Authorization: `Bearer ${accessToken}`,
 			Accept: "application/vnd.github+json",
 			"X-GitHub-Api-Version": "2022-11-28",
+			"User-Agent": "emdash-cms",
 		},
 	});
 

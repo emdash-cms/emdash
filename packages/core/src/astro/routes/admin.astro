@@ -11,10 +11,15 @@ import "@emdash-cms/admin/styles.css";
 import AdminWrapper from "emdash/routes/PluginRegistry";
 
 export const prerender = false;
+
+import { resolveLocale, loadMessages } from "@emdash-cms/admin/locales";
+
+const resolvedLocale = resolveLocale(Astro.request);
+const messages = await loadMessages(resolvedLocale);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={resolvedLocale}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -75,7 +80,7 @@ export const prerender = false;
 					<p>Loading EmDash...</p>
 				</div>
 			</div>
-			<AdminWrapper client:only="react" />
+			<AdminWrapper client:only="react" locale={resolvedLocale} messages={messages} />
 		</div>
 	</body>
 </html>

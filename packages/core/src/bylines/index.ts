@@ -12,6 +12,49 @@ import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+
+/**
+ * Cached result of "does any byline exist in the database?"
+ * null = not yet checked, true/false = cached result.
+ * Invalidated when bylines are created or deleted.
+ */
+let hasBylines: boolean | null = null;
+
+/**
+ * Invalidate the cached "has any bylines" check.
+ * Call this when bylines are created, updated, or deleted.
+ */
+export function invalidateBylineCache(): void {
+	hasBylines = null;
+}
+
+/**
+ * Check if any bylines exist in the database. Result is cached
+ * for the lifetime of the worker/process and invalidated on writes.
+ */
+async function hasAnyBylines(): Promise<boolean> {
+	if (hasBylines !== null) return hasBylines;
+
+	try {
+		const db = await getDb();
+		const result = await sql<{ id: string }>`
+			SELECT id FROM _emdash_bylines LIMIT 1
+		`.execute(db);
+		hasBylines = result.rows.length > 0;
+	} catch (error: unknown) {
+		// Only treat "no such table" as a safe false -- anything else should
+		// not be cached so the next request retries.
+		const message = error instanceof Error ? error.message : "";
+		if (message.includes("no such table")) {
+			hasBylines = false;
+		} else {
+			return false;
+		}
+	}
+
+	return hasBylines;
+}
 
 /**
  * Get a byline by ID.
@@ -133,6 +176,12 @@ export async function getBylinesForEntries(
 		return result;
 	}
 
+	// Skip DB queries entirely when no bylines have been created.
+	// The cache is invalidated when bylines are created/deleted.
+	if (!(await hasAnyBylines())) {
+		return result;
+	}
+
 	const db = await getDb();
 	const repo = new BylineRepository(db);
 
@@ -198,8 +247,8 @@ async function getAuthorId(
 	collection: string,
 	entryId: string,
 ): Promise<string | null> {
+	validateIdentifier(collection, "collection");
 	const tableName = `ec_${collection}`;
-	validateIdentifier(tableName, "content table");
 
 	const result = await sql<{ author_id: string | null }>`
 		SELECT author_id FROM ${sql.ref(tableName)}
@@ -219,18 +268,20 @@ async function getAuthorIds(
 	collection: string,
 	entryIds: string[],
 ): Promise<Map<string, string>> {
+	validateIdentifier(collection, "collection");
 	const tableName = `ec_${collection}`;
-	validateIdentifier(tableName, "content table");
-
-	const result = await sql<{ id: string; author_id: string | null }>`
-		SELECT id, author_id FROM ${sql.ref(tableName)}
-		WHERE id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
-	`.execute(db);
 
 	const map = new Map<string, string>();
-	for (const row of result.rows) {
-		if (row.author_id) {
-			map.set(row.id, row.author_id);
+	for (const chunk of chunks(entryIds, SQL_BATCH_SIZE)) {
+		const result = await sql<{ id: string; author_id: string | null }>`
+			SELECT id, author_id FROM ${sql.ref(tableName)}
+			WHERE id IN (${sql.join(chunk.map((id) => sql`${id}`))})
+		`.execute(db);
+
+		for (const row of result.rows) {
+			if (row.author_id) {
+				map.set(row.id, row.author_id);
+			}
 		}
 	}
 	return map;
