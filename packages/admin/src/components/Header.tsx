@@ -41,7 +41,7 @@ export function Header() {
 	return (
 		<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-kumo-base px-4">
 			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
-			<Sidebar.Trigger className="cursor-pointer" />
+			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
