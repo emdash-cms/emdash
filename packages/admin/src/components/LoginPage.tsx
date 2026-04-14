@@ -325,7 +325,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 										className="w-full justify-center"
 									>
 										{provider.icon}
-										<span className="ml-2">{provider.name}</span>
+										<span className="ms-2">{provider.name}</span>
 									</Button>
 								))}
 							</div>

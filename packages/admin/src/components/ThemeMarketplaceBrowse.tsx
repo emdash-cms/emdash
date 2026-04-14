@@ -116,7 +116,7 @@ export function ThemeMarketplaceBrowse() {
 						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
 					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="mr-2 h-4 w-4" />
+						<ArrowsClockwise className="me-2 h-4 w-4" />
 						{t`Retry`}
 					</Button>
 				</div>
@@ -246,7 +246,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 						}}
 						disabled={previewMutation.isPending}
 					>
-						<Eye className="mr-1.5 h-3.5 w-3.5" />
+						<Eye className="me-1.5 h-3.5 w-3.5" />
 						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
 					</Button>
 
@@ -256,7 +256,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 							size="sm"
 							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
 						>
-							<ArrowSquareOut className="mr-1.5 h-3.5 w-3.5" />
+							<ArrowSquareOut className="me-1.5 h-3.5 w-3.5" />
 							{t`Demo`}
 						</Button>
 					)}

@@ -366,7 +366,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 							)}
 						</div>
 						<span
-							className={`ml-2 text-sm ${
+							className={`ms-2 text-sm ${
 								index <= currentIndex ? "text-kumo-default" : "text-kumo-subtle"
 							}`}
 						>

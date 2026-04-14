@@ -199,7 +199,7 @@ export function MarketplacePluginDetail({
 						</div>
 					) : (
 						<Button onClick={() => setShowConsent(true)}>
-							<DownloadSimple className="mr-2 h-4 w-4" />
+							<DownloadSimple className="me-2 h-4 w-4" />
 							{t`Install`}
 						</Button>
 					)}

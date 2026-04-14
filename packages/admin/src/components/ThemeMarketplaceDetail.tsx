@@ -141,7 +141,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 						onClick={() => previewMutation.mutate()}
 						disabled={previewMutation.isPending}
 					>
-						<Eye className="mr-2 h-4 w-4" />
+						<Eye className="me-2 h-4 w-4" />
 						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
 					</Button>
 					{theme.demoUrl && isSafeUrl(theme.demoUrl) && (
@@ -149,7 +149,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 							variant="outline"
 							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
 						>
-							<ArrowSquareOut className="mr-2 h-4 w-4" />
+							<ArrowSquareOut className="me-2 h-4 w-4" />
 							{t`Demo`}
 						</Button>
 					)}
