@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
 	DEFAULT_LOCALE,
+	getLocaleDir,
 	loadMessages,
 	resolveLocale,
 	SUPPORTED_LOCALES,
@@ -19,6 +20,28 @@ for (const { code } of SUPPORTED_LOCALES) {
 test("loadMessages falls back to English for unknown locale", async () => {
 	const [fallback, english] = await Promise.all([loadMessages("xx"), loadMessages("en")]);
 	expect(fallback).toEqual(english);
+});
+
+// -- getLocaleDir ----------------------------------------------------------
+
+describe("getLocaleDir", () => {
+	test("returns 'rtl' for Arabic", () => {
+		expect(getLocaleDir("ar")).toBe("rtl");
+	});
+
+	test("returns 'ltr' for English", () => {
+		expect(getLocaleDir("en")).toBe("ltr");
+	});
+
+	test("returns 'ltr' for locales without explicit dir", () => {
+		expect(getLocaleDir("de")).toBe("ltr");
+		expect(getLocaleDir("fr")).toBe("ltr");
+		expect(getLocaleDir("pt-BR")).toBe("ltr");
+	});
+
+	test("returns 'ltr' for unknown locale", () => {
+		expect(getLocaleDir("xx")).toBe("ltr");
+	});
 });
 
 // -- resolveLocale ---------------------------------------------------------

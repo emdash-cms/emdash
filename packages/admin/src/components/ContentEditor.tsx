@@ -1282,6 +1282,20 @@ function FieldRenderer({
 			);
 		}
 
+		case "json": {
+			const jsonString =
+				typeof value === "string" ? value : value != null ? JSON.stringify(value, null, 2) : "";
+			return (
+				<JsonFieldEditor
+					label={label}
+					id={id}
+					value={jsonString}
+					onChange={handleChange}
+					required={field.required}
+				/>
+			);
+		}
+
 		default:
 			// Default to text input
 			return (
@@ -1294,6 +1308,71 @@ function FieldRenderer({
 				/>
 			);
 	}
+}
+
+/**
+ * JSON field editor with syntax validation
+ */
+function JsonFieldEditor({
+	label,
+	id,
+	value,
+	onChange,
+	required,
+}: {
+	label: string;
+	id: string;
+	value: string;
+	onChange: (value: unknown) => void;
+	required?: boolean;
+}) {
+	const { t } = useLingui();
+	const [text, setText] = React.useState(value);
+	const [error, setError] = React.useState<string | null>(null);
+
+	// Sync from parent when value changes externally
+	React.useEffect(() => {
+		setText(value);
+		setError(null);
+	}, [value]);
+
+	const handleChange = (newText: string) => {
+		setText(newText);
+		setError(null);
+	};
+
+	const handleBlur = () => {
+		const trimmed = text.trim();
+		if (trimmed === "") {
+			setError(null);
+			onChange(null);
+			return;
+		}
+		try {
+			const parsed = JSON.parse(trimmed);
+			setError(null);
+			onChange(parsed);
+		} catch {
+			setError(t`Invalid JSON`);
+		}
+	};
+
+	return (
+		<div>
+			<InputArea
+				label={label}
+				id={id}
+				value={text}
+				onChange={(e) => handleChange(e.target.value)}
+				onBlur={handleBlur}
+				rows={8}
+				placeholder="{}"
+				required={required}
+				className="font-mono text-sm"
+			/>
+			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+		</div>
+	);
 }
 
 /**
