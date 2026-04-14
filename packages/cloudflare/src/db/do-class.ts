@@ -205,7 +205,8 @@ export class EmDashPreviewDB extends DurableObject {
 	 *
 	 * Disables foreign key enforcement before dropping to avoid cascade
 	 * errors when tables are dropped in an order that violates FK
-	 * dependencies (e.g. parent before child).
+	 * dependencies (e.g. child dropped first, then parent's implicit
+	 * CASCADE delete references the already-dropped child table).
 	 */
 	private dropAllTables(): void {
 		// Disable FK enforcement so DROP order doesn't matter.
