@@ -80,6 +80,13 @@ export function getLocaleLabel(code: string): string {
 	return LOCALE_LABELS.get(code) ?? code.toUpperCase();
 }
 
+const LOCALE_DIRS = new Map(SUPPORTED_LOCALES.map((l) => [l.code, l.dir]));
+
+/** Get the text direction for a locale code. Defaults to "ltr" if not specified. */
+export function getLocaleDir(code: string): "ltr" | "rtl" {
+	return LOCALE_DIRS.get(code) ?? "ltr";
+}
+
 const LOCALE_COOKIE_RE = /(?:^|;\s*)emdash-locale=([^;]+)/;
 
 /**
