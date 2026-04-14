@@ -79,18 +79,43 @@ Editors insert sections using the `/section` slash command in the rich text edit
 
 2. Search or browse available sections
 
-3. Click to insert the section's content at the cursor position
+3. Choose an insertion mode (see below), then click a section to insert it
 
 </Steps>
 
-The section's Portable Text content is copied into the document. This means:
+### Insertion Modes
 
-- Changes to the section don't affect already-inserted content
-- Editors can customize the inserted content
-- Content remains self-contained
+The section picker offers two modes, selectable via the toggle at the top of the modal:
 
-<Aside type="tip">
-  For content that should stay synchronized, consider using [Widget Areas](/guides/widgets/) with component widgets instead.
+| Mode | Behaviour |
+|------|-----------|
+| **Insert copy** | Pastes the section's Portable Text blocks directly into the document. Editable and independent — changes to the section do not affect this copy. |
+| **Synced reference** | Inserts a reference block that always renders the section's *current* content at page-render time. Editing the section updates every place it is referenced automatically. |
+
+#### When to use each mode
+
+- **Insert copy** — when you want a starting point you plan to customise per-post (e.g. an intro paragraph template).
+- **Synced reference** — when the content should stay identical across pages (e.g. a pricing table, a legal disclaimer, a global CTA banner).
+
+### Synced Section References
+
+A synced reference stores only the section's ID in the post's Portable Text content:
+
+```json
+{
+  "_type": "emdash-section-ref",
+  "_key": "abc123",
+  "sectionId": "01ABC...",
+  "sectionTitle": "Pricing Table"
+}
+```
+
+At render time, `<PortableText>` resolves the referenced section and renders its current content. No re-publishing of posts is required — just edit the section in the Sections library.
+
+In the editor, synced references appear as a labelled block with a **Synced section** badge. They cannot be edited inline; to change the content, open the Sections library.
+
+<Aside type="caution">
+  Deleting a section that is referenced in published content will cause those references to render nothing. The admin editor shows a warning, but there is currently no broken-reference check before deletion.
 </Aside>
 
 ## Creating Sections
@@ -195,6 +220,15 @@ Fetch a section by slug.
 
 **Parameters:**
 - `slug` — The section's unique identifier (string)
+
+**Returns:** `Promise<Section | null>`
+
+### `getSectionById(id)`
+
+Fetch a section by its ULID. Useful when rendering `emdash-section-ref` blocks in custom renderers.
+
+**Parameters:**
+- `id` — The section's ULID (string)
 
 **Returns:** `Promise<Section | null>`
 

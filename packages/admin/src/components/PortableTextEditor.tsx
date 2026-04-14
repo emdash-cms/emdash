@@ -70,6 +70,7 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { SectionRefExtension } from "./editor/SectionRefNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { SectionPickerModal } from "./SectionPickerModal";
 
@@ -272,6 +273,16 @@ function convertPMNode(node: {
 				_key: generateKey(),
 				style: "lineBreak",
 			};
+
+		case "sectionRef": {
+			const { sectionId, sectionTitle } = node.attrs ?? {};
+			return {
+				_type: "emdash-section-ref",
+				_key: generateKey(),
+				sectionId: typeof sectionId === "string" ? sectionId : "",
+				sectionTitle: typeof sectionTitle === "string" ? sectionTitle : "",
+			};
+		}
 
 		case "pluginBlock": {
 			const { blockType, id: pluginId, data } = node.attrs ?? {};
@@ -546,6 +557,16 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 		case "break":
 			return { type: "horizontalRule" };
+
+		case "emdash-section-ref": {
+			return {
+				type: "sectionRef",
+				attrs: {
+					sectionId: typeof block.sectionId === "string" ? block.sectionId : "",
+					sectionTitle: typeof block.sectionTitle === "string" ? block.sectionTitle : "",
+				},
+			};
+		}
 
 		default: {
 			// Treat unknown block types as plugin blocks (embeds)
@@ -1512,6 +1533,7 @@ export function PortableTextEditor({
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
+			SectionRefExtension,
 			Placeholder.configure({
 				includeChildren: true,
 				placeholder: ({ node }) => {
@@ -1710,18 +1732,29 @@ export function PortableTextEditor({
 		[editor, slashMenuState.range],
 	);
 
-	// Handle section selection - insert section content at cursor
+	// Handle section selection - insert section content or a synced reference at cursor
 	const handleSectionSelect = React.useCallback(
-		(section: Section) => {
-			if (!editor || !section.content || section.content.length === 0) return;
+		(section: Section, mode: "copy" | "ref") => {
+			if (!editor) return;
 
-			// Convert Portable Text to ProseMirror format
+			if (mode === "ref") {
+				editor
+					.chain()
+					.focus()
+					.insertContent({
+						type: "sectionRef",
+						attrs: { sectionId: section.id, sectionTitle: section.title },
+					})
+					.run();
+				return;
+			}
+
+			// "copy" mode: paste the section's Portable Text blocks directly
+			if (!section.content || section.content.length === 0) return;
 			const ptContent = Array.isArray(section.content)
 				? (section.content as PortableTextBlock[])
 				: [];
 			const { content: prosemirrorContent } = portableTextToProsemirror(ptContent);
-
-			// Insert the content at current cursor position
 			editor.chain().focus().insertContent(prosemirrorContent).run();
 		},
 		[editor],
@@ -1790,7 +1823,10 @@ export function PortableTextEditor({
 			<SectionPickerModal
 				open={sectionPickerOpen}
 				onOpenChange={setSectionPickerOpen}
-				onSelect={handleSectionSelect}
+				onSelect={(section, mode) => {
+					handleSectionSelect(section, mode);
+					setSectionPickerOpen(false);
+				}}
 			/>
 		</div>
 	);

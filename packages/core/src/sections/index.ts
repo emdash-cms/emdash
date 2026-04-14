@@ -65,9 +65,31 @@ export async function getSectionWithDb(
 /**
  * Get a section by ID
  *
- * @internal Primarily for admin use
+ * @example
+ * ```ts
+ * import { getSectionById } from "emdash";
+ *
+ * const section = await getSectionById("01ABC...");
+ * if (section) {
+ *   console.log(section.content); // PortableTextBlock[]
+ * }
+ * ```
  */
-export async function getSectionById(id: string, db: Kysely<Database>): Promise<Section | null> {
+export async function getSectionById(id: string): Promise<Section | null> {
+	const db = await getDb();
+	return getSectionByIdWithDb(id, db);
+}
+
+/**
+ * Get a section by ID (with explicit db)
+ *
+ * @internal Use `getSectionById()` in templates. This variant is for admin routes
+ * that already have a database handle.
+ */
+export async function getSectionByIdWithDb(
+	id: string,
+	db: Kysely<Database>,
+): Promise<Section | null> {
 	const row = await db
 		.selectFrom("_emdash_sections")
 		.selectAll()
