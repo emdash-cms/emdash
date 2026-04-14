@@ -56,13 +56,13 @@ for (const l of SUPPORTED_LOCALES) {
 		BASE_LANGUAGE_MAP.set(base, l.code);
 	}
 
-	const maximized = new Intl.Locale(l.code).maximize();                                                                                     
+	const maximized = new Intl.Locale(l.code).maximize();
 	if (maximized.script) {
 		const scriptKey = `${maximized.language}-${maximized.script}`.toLowerCase();
 		if (!SCRIPT_LANGUAGE_MAP.has(scriptKey)) {
-			SCRIPT_LANGUAGE_MAP.set(scriptKey, l.code);                                                                               
+			SCRIPT_LANGUAGE_MAP.set(scriptKey, l.code);
 		}
-	}   
+	}
 }
 
 /**
