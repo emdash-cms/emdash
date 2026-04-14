@@ -195,7 +195,7 @@ export function ImageDetailPanel({
 
 	if (inline) {
 		return (
-			<div className="rounded-lg border bg-kumo-base flex flex-col animate-in fade-in duration-200">
+			<div className="rounded-lg border bg-kumo-base flex flex-col">
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b">
 					<div className="flex items-center gap-2">
@@ -356,7 +356,7 @@ export function ImageDetailPanel({
 	}
 
 	return (
-		<div className="fixed inset-y-0 end-0 w-96 bg-kumo-base border-s shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
+		<div className="fixed inset-y-0 end-0 w-96 bg-kumo-base border-s shadow-xl z-50 flex flex-col">
 			{/* Header */}
 			<div className="flex items-center justify-between border-b p-4">
 				<div className="flex items-center gap-2">

@@ -123,7 +123,6 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 				className={cn(
 					"fixed inset-y-0 end-0 w-96 bg-kumo-base border-s shadow-xl z-50",
 					"flex flex-col",
-					"animate-in slide-in-from-right duration-200",
 				)}
 			>
 				{/* Header */}
