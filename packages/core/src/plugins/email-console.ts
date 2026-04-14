@@ -31,10 +31,8 @@ export interface StoredEmail {
  * of this module, but globalThis is always the same object).
  */
 const GLOBAL_KEY = "__emdash_dev_emails__" as const;
-const storedEmails: StoredEmail[] =
-	((globalThis as Record<string, unknown>)[GLOBAL_KEY] as StoredEmail[] | undefined) ??
-	(((globalThis as Record<string, unknown>)[GLOBAL_KEY] = [] as StoredEmail[]),
-	(globalThis as Record<string, unknown>)[GLOBAL_KEY] as StoredEmail[]);
+const storedEmails: StoredEmail[] = ((globalThis as Record<string, unknown>)[GLOBAL_KEY] ??=
+	[]) as StoredEmail[];
 
 /**
  * Get all stored dev emails (most recent first).

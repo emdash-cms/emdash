@@ -123,7 +123,6 @@ export {
 	enableUser,
 	inviteUser,
 	validateInviteToken,
-	completeInviteSignup,
 	fetchPasskeys,
 	renamePasskey,
 	deletePasskey,

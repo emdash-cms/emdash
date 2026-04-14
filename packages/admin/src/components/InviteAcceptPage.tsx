@@ -1,32 +1,17 @@
 /**
- * Invite Accept Page - Complete registration for invited user
- *
- * This component is NOT wrapped in the admin Shell.
- * It's a standalone public page for completing invite registration.
- *
- * Flow:
- * 1. Read ?token= from URL
- * 2. Validate token via API (shows email + role)
- * 3. Passkey registration to complete account creation
+ * Standalone invite acceptance page (not wrapped in admin Shell).
+ * Validates an invite token, then registers a passkey to complete signup.
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { LogoLockup } from "./Logo.js";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 type InviteStep = "verify" | "register" | "error";
-
-// ============================================================================
-// Step Components
-// ============================================================================
 
 interface RegisterStepProps {
 	inviteData: InviteVerifyResult;
@@ -65,10 +50,8 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 				</p>
 			</div>
 
-			{/* Email display (read-only) */}
 			<Input label="Email" value={inviteData.email} disabled className="bg-kumo-tint" />
 
-			{/* Name input (optional) */}
 			<Input
 				label="Your name (optional)"
 				type="text"
@@ -79,7 +62,6 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 				autoFocus
 			/>
 
-			{/* Passkey registration */}
 			<div className="pt-4 border-t">
 				<h3 className="text-sm font-medium mb-3">Create your passkey</h3>
 				<p className="text-sm text-kumo-subtle mb-4">
@@ -142,25 +124,24 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 						<Button className="w-full">Sign in instead</Button>
 					</Link>
 				) : (
-					<p className="text-sm text-kumo-subtle">
-						Please ask your administrator to send a new invite.
-					</p>
+					<>
+						<p className="text-sm text-kumo-subtle">
+							Please ask your administrator to send a new invite.
+						</p>
+						<Link to="/login">
+							<Button variant="ghost" className="w-full">
+								Back to login
+							</Button>
+						</Link>
+					</>
 				)}
-				<Link to="/login">
-					<Button variant="ghost" className="w-full">
-						Back to login
-					</Button>
-				</Link>
 			</div>
 		</div>
 	);
 }
 
-// ============================================================================
-// Main Component
-// ============================================================================
-
 export function InviteAcceptPage() {
+	const { token: urlToken } = useSearch({ strict: false });
 	const [step, setStep] = React.useState<InviteStep>("verify");
 	const [error, setError] = React.useState<string | undefined>();
 	const [errorCode, setErrorCode] = React.useState<string | undefined>();
@@ -169,9 +150,6 @@ export function InviteAcceptPage() {
 	const [token, setToken] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const urlToken = params.get("token");
-
 		if (!urlToken) {
 			setError("No invite token provided");
 			setStep("error");
@@ -181,7 +159,7 @@ export function InviteAcceptPage() {
 
 		setToken(urlToken);
 		void verifyToken(urlToken);
-	}, []);
+	}, [urlToken]);
 
 	const verifyToken = async (tokenToVerify: string) => {
 		setIsLoading(true);
@@ -217,7 +195,6 @@ export function InviteAcceptPage() {
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 			<div className="w-full max-w-md">
-				{/* Header */}
 				<div className="text-center mb-8">
 					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
@@ -226,7 +203,6 @@ export function InviteAcceptPage() {
 					</h1>
 				</div>
 
-				{/* Form Card */}
 				<div className="bg-kumo-base border rounded-lg shadow-sm p-6">
 					{step === "register" && inviteData && token && (
 						<RegisterStep inviteData={inviteData} token={token} />

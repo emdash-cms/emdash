@@ -13,6 +13,7 @@ export const prerender = false;
 import { validateInvite, InviteError } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { generateRegistrationOptions } from "@emdash-cms/auth/passkey";
+import { ulid } from "ulidx";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
@@ -45,7 +46,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Generate registration options with a temporary user identity
 		const challengeStore = createChallengeStore(emdash.db);
 		const tempUser = {
-			id: `invite-${Date.now()}`,
+			id: ulid(),
 			email: invite.email,
 			name: body.name || null,
 		};

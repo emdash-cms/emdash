@@ -199,6 +199,9 @@ const inviteAcceptRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/invite/accept",
 	component: InviteAcceptPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		token: typeof search.token === "string" ? search.token : undefined,
+	}),
 });
 
 // Device authorization route (standalone, no Shell)
