@@ -18,6 +18,7 @@ import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
+import { LocaleDirectionProvider } from "./locales/index.js";
 import { createAdminRouter } from "./router";
 
 // Create a query client
@@ -65,13 +66,15 @@ export function AdminApp({
 	return (
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
-				<Toasty>
-					<PluginAdminProvider pluginAdmins={pluginAdmins}>
-						<QueryClientProvider client={queryClient}>
-							<RouterProvider router={router} />
-						</QueryClientProvider>
-					</PluginAdminProvider>
-				</Toasty>
+				<LocaleDirectionProvider>
+					<Toasty>
+						<PluginAdminProvider pluginAdmins={pluginAdmins}>
+							<QueryClientProvider client={queryClient}>
+								<RouterProvider router={router} />
+							</QueryClientProvider>
+						</PluginAdminProvider>
+					</Toasty>
+				</LocaleDirectionProvider>
 			</I18nProvider>
 		</ThemeProvider>
 	);

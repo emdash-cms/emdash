@@ -236,6 +236,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				limit: options?.limit ?? 50,
 				cursor: options?.cursor,
 				orderBy,
+				where: options?.where,
 			});
 
 			const items: ContentItem[] = result.items.map((item) => ({

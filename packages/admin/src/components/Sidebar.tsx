@@ -348,6 +348,25 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			.emdash-sidebar[data-state="collapsed"] .emdash-brand-text {
 				display: none !important;
 			}
+
+			/* Mobile drawer slide animation from left (LTR) */
+			[data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
+			[data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
+				transform: translateX(-100%);
+			}
+
+			/* Mobile drawer slide animation from right (RTL) */
+			[dir="rtl"] [data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
+			[dir="rtl"] [data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
+				transform: translateX(100%);
+				--tw-translate-x: 100%;
+			}
+
+			/* RTL: Position drawer on right side */
+			[dir="rtl"] :has(> .emdash-sidebar[data-mobile="true"]) {
+				left: auto;
+				right: 0;
+			}
 		`,
 				}}
 			/>
