@@ -528,12 +528,12 @@ msgid "Additional data to import."
 msgstr "Dados adicionais para importar."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:407
+#: packages/admin/src/components/Sidebar.tsx:426
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:354
+#: packages/admin/src/components/Sidebar.tsx:373
 msgid "Admin navigation"
 msgstr "Navegação administrativa"
 
@@ -1119,7 +1119,7 @@ msgstr "{0} conectado"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/SectionEditor.tsx:174
-#: packages/admin/src/components/Sidebar.tsx:381
+#: packages/admin/src/components/Sidebar.tsx:400
 msgid "Content"
 msgstr "Conteúdo"
 
@@ -1419,7 +1419,7 @@ msgstr "Escuro"
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:171
-#: packages/admin/src/components/Sidebar.tsx:370
+#: packages/admin/src/components/Sidebar.tsx:389
 msgid "Dashboard"
 msgstr "Painel"
 
@@ -2752,7 +2752,7 @@ msgstr "Apenas letras minúsculas, números e hífens"
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "Apenas letras minúsculas, números e underlines, começando com uma letra"
 
-#: packages/admin/src/components/Sidebar.tsx:395
+#: packages/admin/src/components/Sidebar.tsx:414
 msgid "Manage"
 msgstr "Gerenciar"
 
@@ -3566,7 +3566,7 @@ msgstr "Plugin atualizado"
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
 #: packages/admin/src/components/Sidebar.tsx:207
-#: packages/admin/src/components/Sidebar.tsx:419
+#: packages/admin/src/components/Sidebar.tsx:438
 msgid "Plugins"
 msgstr "Plugins"
 

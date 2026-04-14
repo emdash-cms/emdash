@@ -19,6 +19,7 @@ import * as React from "react";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
+import { LocaleDirectionProvider } from "./locales/index.js";
 import { createAdminRouter } from "./router";
 
 // Create a query client
@@ -70,6 +71,7 @@ export function AdminApp({
 	return (
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
+        <LocaleDirectionProvider>
 				<Toasty>
 					<AuthProviderProvider authProviders={authProviders}>
 						<PluginAdminProvider pluginAdmins={pluginAdmins}>
@@ -79,6 +81,7 @@ export function AdminApp({
 						</PluginAdminProvider>
 					</AuthProviderProvider>
 				</Toasty>
+				</LocaleDirectionProvider>
 			</I18nProvider>
 		</ThemeProvider>
 	);

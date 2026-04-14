@@ -528,12 +528,12 @@ msgid "Additional data to import."
 msgstr "要导入的其他数据。"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:407
+#: packages/admin/src/components/Sidebar.tsx:426
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理员"
 
-#: packages/admin/src/components/Sidebar.tsx:354
+#: packages/admin/src/components/Sidebar.tsx:373
 msgid "Admin navigation"
 msgstr "管理员导航"
 
@@ -1119,7 +1119,7 @@ msgstr "已连接 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/SectionEditor.tsx:174
-#: packages/admin/src/components/Sidebar.tsx:381
+#: packages/admin/src/components/Sidebar.tsx:400
 msgid "Content"
 msgstr "内容"
 
@@ -1419,7 +1419,7 @@ msgstr "深色"
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:171
-#: packages/admin/src/components/Sidebar.tsx:370
+#: packages/admin/src/components/Sidebar.tsx:389
 msgid "Dashboard"
 msgstr "仪表板"
 
@@ -2752,7 +2752,7 @@ msgstr "仅限小写字母、数字和连字符"
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "仅限小写字母、数字和下划线，以字母开头"
 
-#: packages/admin/src/components/Sidebar.tsx:395
+#: packages/admin/src/components/Sidebar.tsx:414
 msgid "Manage"
 msgstr "管理"
 
@@ -3566,7 +3566,7 @@ msgstr "插件已更新"
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
 #: packages/admin/src/components/Sidebar.tsx:207
-#: packages/admin/src/components/Sidebar.tsx:419
+#: packages/admin/src/components/Sidebar.tsx:438
 msgid "Plugins"
 msgstr "插件"
 

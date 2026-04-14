@@ -2,7 +2,7 @@ import { useLingui } from "@lingui/react";
 import * as React from "react";
 
 import { SUPPORTED_LOCALE_CODES } from "./config.js";
-import { loadMessages } from "./index.js";
+import { loadMessages } from "./loadMessages.js";
 
 function setCookie(code: string) {
 	const secure = window.location.protocol === "https:" ? "; Secure" : "";
