@@ -511,7 +511,7 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
-		pattern: "/_emdash/.well-known/oauth-authorization-server",
+		pattern: "/.well-known/oauth-authorization-server/_emdash",
 		entrypoint: resolveRoute("api/well-known/oauth-authorization-server.ts"),
 	});
 
