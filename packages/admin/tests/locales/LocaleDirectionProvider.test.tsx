@@ -70,7 +70,9 @@ describe("LocaleDirectionProvider", () => {
 			const { setLocale } = useLocale();
 
 			return (
-				<button type="button" data-testid="locale-button" onClick={() => setLocale("ar")}>Dashing into Arabic</button>
+				<button type="button" data-testid="locale-button" onClick={() => setLocale("ar")}>
+					Dashing into Arabic
+				</button>
 			);
 		};
 
