@@ -10,6 +10,7 @@ import {
 	cloudflareImages,
 	cloudflareStream,
 } from "@emdash-cms/cloudflare";
+import { aiSearch } from "@emdash-cms/cloudflare/plugins";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
 import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig, fontProviders } from "astro/config";
@@ -72,6 +73,7 @@ export default defineConfig({
 			plugins: [
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
+				aiSearch(),
 			],
 			// Sandboxed plugins (run in isolated workers)
 			sandboxed: [webhookNotifierPlugin()],

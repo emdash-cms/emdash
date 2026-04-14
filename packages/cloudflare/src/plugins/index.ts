@@ -5,3 +5,4 @@
  */
 
 export { vectorizeSearch, type VectorizeSearchConfig } from "./vectorize-search.js";
+export { aiSearch, type AISearchConfig } from "./ai-search.js";

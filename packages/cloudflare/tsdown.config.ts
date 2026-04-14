@@ -11,6 +11,8 @@ export default defineConfig({
 		"src/auth/index.ts",
 		"src/sandbox/index.ts",
 		"src/plugins/index.ts",
+		"src/plugins/ai-search.ts",
+		"src/plugins/ai-search-admin.tsx",
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",

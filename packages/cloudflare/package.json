@@ -45,6 +45,14 @@
       "types": "./dist/plugins/index.d.mts",
       "default": "./dist/plugins/index.mjs"
     },
+    "./plugins/ai-search": {
+      "types": "./dist/plugins/ai-search.d.mts",
+      "default": "./dist/plugins/ai-search.mjs"
+    },
+    "./plugins/ai-search-admin": {
+      "types": "./dist/plugins/ai-search-admin.d.mts",
+      "default": "./dist/plugins/ai-search-admin.mjs"
+    },
     "./media/images-runtime": {
       "types": "./dist/media/images-runtime.d.mts",
       "default": "./dist/media/images-runtime.mjs"
@@ -78,13 +86,26 @@
   },
   "peerDependencies": {
     "@cloudflare/workers-types": ">=4.0.0",
+    "@phosphor-icons/react": "^2.1.10",
     "astro": ">=6.0.0-beta.0",
-    "kysely": ">=0.27.0"
+    "kysely": ">=0.27.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@phosphor-icons/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@cloudflare/workers-types": "catalog:",
+    "@phosphor-icons/react": "catalog:",
+    "@types/react": "catalog:",
     "publint": "catalog:",
+    "react": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

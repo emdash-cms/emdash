@@ -8,7 +8,7 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
-import LiveSearch from "emdash/ui/search";
+import SearchModal from "../components/SearchModal.astro";
 import "../styles/theme.css";
 
 interface Props {
@@ -99,14 +99,11 @@ const isLoggedIn = !!Astro.locals.user;
 			<nav class="nav">
 				<a href="/" class="site-title">{siteTitle}</a>
 				<div class="nav-right">
-					<LiveSearch
-						placeholder="Search..."
-						class="site-search"
-						inputClass="site-search-input"
-						resultsClass="site-search-results"
-						resultClass="site-search-result"
-						collections={["posts", "pages"]}
-					/>
+				<SearchModal
+					placeholder="Search..."
+					collections={["posts", "pages"]}
+					searchEndpoint="/_emdash/api/plugins/ai-search/query"
+				/>
 					<div class="nav-links">
 						{
 							menu?.items.map((item) => (
@@ -441,9 +438,6 @@ const isLoggedIn = !!Astro.locals.user;
 				/* Nav */
 				--nav-height: 64px;
 
-				/* Search */
-				--search-input-width: 180px;
-
 				/* Article layout */
 				--meta-col-width: 180px;
 
@@ -618,107 +612,19 @@ const isLoggedIn = !!Astro.locals.user;
 				opacity: 1;
 			}
 
-			/* Search styling */
-			.site-search {
-				position: relative;
-				width: var(--search-input-width);
-				--emdash-search-border-focus: var(--color-accent);
-			}
-
-			:global(.site-search-input) {
-				width: var(--search-input-width);
-				padding: var(--spacing-2) var(--spacing-3);
-				font-family: var(--font-sans);
-				font-size: var(--font-size-sm);
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius);
-				background: var(--color-bg);
-				color: var(--color-text);
-				transition:
-					border-color var(--transition-fast),
-					box-shadow var(--transition-fast);
-			}
-
-			:global(.site-search-input)::placeholder {
-				color: var(--color-muted);
-			}
-
-			:global(.site-search-input):focus,
-			:global(.site-search-input):focus-visible {
-				outline: none;
-				border-color: var(--color-accent) !important;
-				box-shadow: 0 0 0 3px var(--color-accent-ring);
-			}
-
-			:global(.site-search-results) {
-				position: absolute;
-				top: 100%;
-				left: 0;
-				right: 0;
-				margin-top: var(--spacing-2);
-				background: var(--color-bg);
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius-lg);
-				box-shadow: var(--shadow-dropdown);
-				max-height: 400px;
-				overflow-y: auto;
-				z-index: 1000;
-			}
-
-			:global(.site-search-results .emdash-live-search-loading),
-			:global(.site-search-results .emdash-live-search-no-results) {
-				padding: var(--spacing-4);
-				text-align: center;
-				color: var(--color-muted);
-				font-size: var(--font-size-sm);
-			}
-
-			:global(.site-search-result) {
-				display: block;
-				padding: var(--spacing-3) var(--spacing-4);
-				text-decoration: none;
-				color: var(--color-text);
-				border-bottom: 1px solid var(--color-border-subtle);
-				transition: background var(--transition-fast);
-			}
-
-			:global(.site-search-result):last-child {
-				border-bottom: none;
-			}
-
-			:global(.site-search-result):hover,
-			:global(.site-search-result):focus,
-			:global(.site-search-result.focused) {
-				background: var(--color-surface);
-				outline: none;
-			}
-
-			:global(.site-search-result .emdash-live-search-result-title) {
-				display: block;
-				font-weight: 500;
-				font-size: var(--font-size-sm);
-			}
-
-			:global(.site-search-result .emdash-live-search-result-collection) {
-				display: block;
-				font-size: var(--font-size-xs);
-				color: var(--color-muted);
-				text-transform: uppercase;
-				letter-spacing: var(--tracking-wide);
-				margin-top: 2px;
-			}
-
-			:global(.site-search-result .emdash-live-search-result-snippet) {
-				display: block;
-				font-size: var(--font-size-sm);
-				color: var(--color-muted);
-				margin-top: var(--spacing-1);
-				line-height: var(--leading-snug);
-			}
-
-			:global(.site-search-result .emdash-live-search-result-snippet mark) {
-				font-weight: 600;
-				color: var(--color-text);
+			/* Search modal theming -- applied to both the trigger (inside the nav)
+			   and the backdrop (appended to document.body at runtime) */
+			:global(emdash-search-modal),
+			:global(.emdash-search-backdrop) {
+				--emdash-search-bg: var(--color-bg);
+				--emdash-search-surface: var(--color-surface);
+				--emdash-search-text: var(--color-text);
+				--emdash-search-muted: var(--color-muted);
+				--emdash-search-border: var(--color-border);
+				--emdash-search-accent: var(--color-accent);
+				--emdash-search-accent-ring: var(--color-accent-ring);
+				--emdash-search-radius: var(--radius-lg);
+				--emdash-search-font: var(--font-sans);
 			}
 
 			main {
@@ -909,17 +815,6 @@ const isLoggedIn = !!Astro.locals.user;
 					display: contents;
 				}
 
-				.site-search {
-					order: 0;
-					max-width: 140px;
-				}
-
-				:global(.site-search-input) {
-					width: 140px !important;
-					padding: var(--spacing-1) var(--spacing-2) !important;
-					font-size: var(--font-size-sm) !important;
-				}
-
 				.nav-links {
 					order: 1;
 					width: 100%;
@@ -959,20 +854,6 @@ const isLoggedIn = !!Astro.locals.user;
 			}
 		</style>
 
-		<script>
-			// ⌘K / Ctrl+K to focus search
-			document.addEventListener("keydown", (e) => {
-				if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-					e.preventDefault();
-					const searchInput = document.querySelector(
-						".site-search-input"
-					) as HTMLInputElement;
-					if (searchInput) {
-						searchInput.focus();
-					}
-				}
-			});
-		</script>
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
 </html>

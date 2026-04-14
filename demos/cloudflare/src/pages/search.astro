@@ -1,29 +1,38 @@
 ---
 export const prerender = false;
 
-import { getEmDashCollection } from "emdash";
 import Base from "../layouts/Base.astro";
-import PostCard from "../components/PostCard.astro";
-import { getReadingTime, extractText } from "../utils/reading-time";
 
 const query = Astro.url.searchParams.get("q")?.trim() || "";
 
-const { entries: allPosts } = await getEmDashCollection("posts");
-
-// Simple search: match query against title, excerpt, and content
-function matchesQuery(post: (typeof allPosts)[0], q: string): boolean {
-	if (!q) return false;
-	const lower = q.toLowerCase();
-	const title = (post.data.title || "").toLowerCase();
-	const excerpt = (post.data.excerpt || "").toLowerCase();
-	// Extract plain text from portable text blocks (avoids matching on _type, _key, etc.)
-	const content = extractText(post.data.content).toLowerCase();
-	return (
-		title.includes(lower) || excerpt.includes(lower) || content.includes(lower)
-	);
+interface AISearchResult {
+	collection: string;
+	id: string;
+	slug: string | null;
+	title: string | null;
+	score: number;
+	snippet: string;
 }
 
-const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
+let results: AISearchResult[] = [];
+let searchError: string | null = null;
+
+if (query) {
+	try {
+		const params = new URLSearchParams({ q: query, limit: "20" });
+		const apiUrl = new URL(`/_emdash/api/plugins/ai-search/query?${params}`, Astro.url);
+		const response = await fetch(apiUrl, {
+			headers: { Cookie: Astro.request.headers.get("Cookie") || "" },
+		});
+		if (response.ok) {
+			const data = (await response.json()) as { results: AISearchResult[]; error?: string };
+			results = data.results ?? [];
+			if (data.error) searchError = data.error;
+		}
+	} catch {
+		searchError = "Search is temporarily unavailable.";
+	}
+}
 ---
 
 <Base
@@ -46,7 +55,13 @@ const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
 		</form>
 
 		{
-			query && (
+			searchError && (
+				<p class="search-error">{searchError}</p>
+			)
+		}
+
+		{
+			query && !searchError && (
 				<p class="search-summary">
 					{results.length === 0
 						? `No results for "${query}"`
@@ -58,15 +73,14 @@ const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
 		{
 			results.length > 0 && (
 				<div class="search-results">
-					{results.map((post) => (
-						<PostCard
-							title={post.data.title}
-							excerpt={post.data.excerpt}
-							featuredImage={post.data.featured_image}
-							href={`/posts/${post.id}`}
-							date={post.data.publishedAt ?? undefined}
-							readingTime={getReadingTime(post.data.content)}
-						/>
+					{results.map((result) => (
+						<a href={`/${result.collection}/${result.slug ?? result.id}`} class="search-result-card">
+							<h3 class="search-result-title">{result.title ?? result.slug ?? result.id}</h3>
+							<span class="search-result-collection">{result.collection}</span>
+							{result.snippet && (
+								<p class="search-result-snippet">{result.snippet}</p>
+							)}
+						</a>
 					))}
 				</div>
 			)
@@ -129,6 +143,11 @@ const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
 		margin-bottom: var(--spacing-6);
 	}
 
+	.search-error {
+		color: #c33;
+		margin-bottom: var(--spacing-6);
+	}
+
 	.search-hint {
 		color: var(--color-muted);
 	}
@@ -136,6 +155,40 @@ const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
 	.search-results {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-8);
+		gap: var(--spacing-4);
+	}
+
+	.search-result-card {
+		display: block;
+		padding: var(--spacing-4) var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		color: var(--color-text);
+		transition: border-color var(--transition-fast);
+	}
+
+	.search-result-card:hover {
+		border-color: var(--color-accent);
+	}
+
+	.search-result-title {
+		font-size: var(--font-size-lg);
+		font-weight: 500;
+		margin-bottom: var(--spacing-1);
+	}
+
+	.search-result-collection {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.search-result-snippet {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		margin-top: var(--spacing-2);
+		line-height: var(--leading-normal);
 	}
 </style>

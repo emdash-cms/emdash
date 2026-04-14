@@ -38,4 +38,10 @@
 			"binding": "LOADER",
 		},
 	],
+	"ai_search_namespaces": [
+		{
+			"binding": "AI_SEARCH",
+			"namespace": "default",
+		},
+	],
 }
