@@ -443,7 +443,7 @@ function ScreenshotLightbox({
 		>
 			<button
 				onClick={onClose}
-				className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+				className="absolute end-4 top-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
 				aria-label={t`Close`}
 			>
 				<X className="h-5 w-5" />
@@ -452,7 +452,7 @@ function ScreenshotLightbox({
 			{index > 0 && (
 				<button
 					onClick={() => onNavigate(index - 1)}
-					className="absolute left-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+					className="absolute start-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
 					aria-label={t`Previous screenshot`}
 				>
 					<CaretLeft className="h-5 w-5" />
@@ -470,7 +470,7 @@ function ScreenshotLightbox({
 			{index < screenshots.length - 1 && (
 				<button
 					onClick={() => onNavigate(index + 1)}
-					className="absolute right-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+					className="absolute end-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
 					aria-label={t`Next screenshot`}
 				>
 					<CaretRight className="h-5 w-5" />
@@ -478,7 +478,7 @@ function ScreenshotLightbox({
 			)}
 
 			{/* Counter */}
-			<div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
+			<div className="absolute bottom-4 start-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
 				{index + 1} / {screenshots.length}
 			</div>
 		</div>

@@ -97,7 +97,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 			{/* Toast notification */}
 			{toast && (
 				<div
-					className={`fixed right-4 top-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg ${
+					className={`fixed end-4 top-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg ${
 						toast.type === "success"
 							? "border-green-200 bg-green-50 text-green-800"
 							: toast.type === "error"
