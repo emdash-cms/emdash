@@ -3,11 +3,13 @@ import type { Messages } from "@lingui/core";
 import { DEFAULT_LOCALE } from "./config.js";
 
 export { useLocale } from "./useLocale.js";
+export { LocaleDirectionProvider } from "./LocaleDirectionProvider.js";
 export {
 	SUPPORTED_LOCALES,
 	SUPPORTED_LOCALE_CODES,
 	DEFAULT_LOCALE,
 	getLocaleLabel,
+	getLocaleDir,
 	resolveLocale,
 } from "./config.js";
 export type { SupportedLocale } from "./config.js";
