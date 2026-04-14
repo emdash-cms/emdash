@@ -52,7 +52,7 @@ export function CommentDetail({
 			<div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} aria-hidden="true" />
 
 			{/* Panel */}
-			<div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto bg-kumo-base border-l shadow-lg">
+			<div className="fixed inset-y-0 end-0 z-50 w-full max-w-lg overflow-y-auto bg-kumo-base border-s shadow-lg">
 				{/* Header */}
 				<div className="flex items-center justify-between border-b px-6 py-4">
 					<h2 className="text-lg font-semibold">{t`Comment Detail`}</h2>

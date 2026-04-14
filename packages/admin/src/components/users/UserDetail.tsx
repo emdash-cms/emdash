@@ -114,7 +114,7 @@ export function UserDetail({
 			{/* Panel */}
 			<div
 				className={cn(
-					"fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-kumo-base shadow-xl",
+					"fixed end-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-kumo-base shadow-xl",
 					"transform transition-transform duration-200",
 					isOpen ? "translate-x-0" : "translate-x-full",
 				)}
@@ -262,7 +262,7 @@ export function UserDetail({
 															{cred.deviceType === "multiDevice" ? t`Synced` : t`Device-bound`}
 														</div>
 													</div>
-													<div className="text-right text-kumo-subtle">
+													<div className="text-end text-kumo-subtle">
 														<div>{t`Created ${new Date(cred.createdAt).toLocaleDateString()}`}</div>
 														<div className="text-xs">
 															{t`Last used ${new Date(cred.lastUsedAt).toLocaleDateString()}`}
