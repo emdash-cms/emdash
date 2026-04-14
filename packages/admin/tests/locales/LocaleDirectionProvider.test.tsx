@@ -1,7 +1,7 @@
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { LocaleDirectionProvider } from "../../src/locales/LocaleDirectionProvider.js";
@@ -18,19 +18,19 @@ describe("LocaleDirectionProvider", () => {
 	});
 
 	test("throws error when used without I18nProvider", () => {
-		// Suppress console.error for this test
-		const originalError = console.error;
-		console.error = () => {};
+		const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		expect(() => {
-			render(
-				<LocaleDirectionProvider>
-					<div>test</div>
-				</LocaleDirectionProvider>,
-			);
-		}).toThrow();
-
-		console.error = originalError;
+		try {
+			expect(() => {
+				render(
+					<LocaleDirectionProvider>
+						<div>test</div>
+					</LocaleDirectionProvider>,
+				);
+			}).toThrow();
+		} finally {
+			consoleErrorSpy.mockRestore();
+		}
 	});
 
 	test("works correctly when wrapped by I18nProvider", () => {
