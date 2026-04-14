@@ -56,10 +56,22 @@ describe("Invite", () => {
 
 			expect(result.email).toBe("new@example.com");
 			expect(result.url).toContain("https://example.com");
-			expect(result.url).toContain("/_emdash/api/auth/invite/accept?token=");
+			expect(result.url).toContain("/admin/invite/accept?token=");
 			expect(result.url).toMatch(TOKEN_PARAM_REGEX);
 			// Should NOT have a token field on the result
 			expect("token" in result).toBe(false);
+		});
+
+		it("should preserve baseUrl path prefix in invite URL", async () => {
+			const result = await createInviteToken(
+				{ baseUrl: "https://example.com/_emdash" },
+				adapter,
+				"path@example.com",
+				Role.AUTHOR,
+				adminId,
+			);
+
+			expect(result.url).toContain("https://example.com/_emdash/admin/invite/accept");
 		});
 
 		it("should throw user_exists if email is already registered", async () => {

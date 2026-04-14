@@ -275,9 +275,10 @@ export async function getSuggestions(
 		const ftsTable = ftsManager.getFtsTableName(collection);
 		const contentTable = ftsManager.getContentTableName(collection);
 
-		// Use prefix search for autocomplete
-		const prefixQuery = `${escapeQuery(query)}*`;
-		if (!prefixQuery || prefixQuery === "*") {
+		// Use prefix search for autocomplete. `escapeQuery` already appends `*`
+		// to each term for prefix matching, so we must not append another one.
+		const prefixQuery = escapeQuery(query);
+		if (!prefixQuery) {
 			continue;
 		}
 
