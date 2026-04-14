@@ -71,16 +71,16 @@ export function AdminApp({
 	return (
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
-        <LocaleDirectionProvider>
-				<Toasty>
-					<AuthProviderProvider authProviders={authProviders}>
-						<PluginAdminProvider pluginAdmins={pluginAdmins}>
-							<QueryClientProvider client={queryClient}>
-								<RouterProvider router={router} />
-							</QueryClientProvider>
-						</PluginAdminProvider>
-					</AuthProviderProvider>
-				</Toasty>
+				<LocaleDirectionProvider>
+					<Toasty>
+						<AuthProviderProvider authProviders={authProviders}>
+							<PluginAdminProvider pluginAdmins={pluginAdmins}>
+								<QueryClientProvider client={queryClient}>
+									<RouterProvider router={router} />
+								</QueryClientProvider>
+							</PluginAdminProvider>
+						</AuthProviderProvider>
+					</Toasty>
 				</LocaleDirectionProvider>
 			</I18nProvider>
 		</ThemeProvider>
