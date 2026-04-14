@@ -21,6 +21,8 @@ export interface LocaleDefinition {
 	label: string;
 	/** Whether this locale is selectable in the admin UI. */
 	enabled: boolean;
+	/** Text direction for this locale. Defaults to "ltr" if not specified. */
+	dir?: "rtl";
 }
 
 /**
@@ -30,7 +32,7 @@ export interface LocaleDefinition {
 export const LOCALES: LocaleDefinition[] = [
 	// Source locale first, then alphabetical by English name.
 	{ code: "en", label: "English", enabled: true },
-	{ code: "ar", label: "العربية", enabled: true }, // Arabic
+	{ code: "ar", label: "العربية", enabled: true, dir: "rtl" }, // Arabic
 	{ code: "eu", label: "Euskara", enabled: true }, // Basque
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "fr", label: "Français", enabled: true }, // French
