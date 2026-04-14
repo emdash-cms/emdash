@@ -55,7 +55,7 @@ for (const l of SUPPORTED_LOCALES) {
 	if (!BASE_LANGUAGE_MAP.has(base)) {
 		BASE_LANGUAGE_MAP.set(base, l.code);
 	}
-	
+
 	// Build script mapping for Chinese locales
 	if (l.code === "zh-TW") {
 		SCRIPT_LANGUAGE_MAP.set("zh-hant", "zh-TW");
@@ -79,10 +79,10 @@ function matchLocale(tag: string): string | undefined {
 	} catch {
 		return undefined;
 	}
-	
+
 	// Exact match (case-insensitive via Intl.Locale)
 	if (SUPPORTED_LOCALE_CODES.has(canonical)) return canonical;
-	
+
 	// Try script-based matching (zh-Hant -> zh-TW, zh-Hans -> zh-CN)
 	const locale = new Intl.Locale(trimmed);
 	if (locale.script) {
@@ -90,7 +90,7 @@ function matchLocale(tag: string): string | undefined {
 		const scriptMatch = SCRIPT_LANGUAGE_MAP.get(scriptKey);
 		if (scriptMatch) return scriptMatch;
 	}
-	
+
 	// Fallback to base language (pt-PT -> pt-BR)
 	const base = canonical.split("-")[0]!.toLowerCase();
 	return BASE_LANGUAGE_MAP.get(base);
