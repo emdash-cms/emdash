@@ -121,14 +121,14 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 		<>
 			<div
 				className={cn(
-					"fixed inset-y-0 right-0 w-96 bg-kumo-base border-l shadow-xl z-50",
+					"fixed inset-y-0 end-0 w-96 bg-kumo-base border-s shadow-xl z-50",
 					"flex flex-col",
 					"animate-in slide-in-from-right duration-200",
 				)}
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b">
-					<h2 className="font-semibold truncate pr-2">{t`Media Details`}</h2>
+					<h2 className="font-semibold truncate pe-2">{t`Media Details`}</h2>
 					<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
 						<X className="h-4 w-4" />
 						<span className="sr-only">{t`Close`}</span>
