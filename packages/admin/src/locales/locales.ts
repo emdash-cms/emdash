@@ -22,7 +22,7 @@ export interface LocaleDefinition {
 	/** Whether this locale is selectable in the admin UI. */
 	enabled: boolean;
 	/** Text direction for this locale. Defaults to "ltr" if not specified. */
-	dir?: "rtl";
+	dir?: "rtl" | "ltr";
 }
 
 /**
