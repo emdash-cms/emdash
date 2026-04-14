@@ -111,6 +111,7 @@ export async function getAtprotoOAuthClient(
 		? {
 				sessions: createDbStore<Did, StoredSession>(
 					() =>
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
 						storage.sessions as StorageCollectionLike<{
 							value: StoredSession;
 							expiresAt: number | null;
@@ -118,6 +119,7 @@ export async function getAtprotoOAuthClient(
 				),
 				states: createDbStore<string, StoredState>(
 					() =>
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
 						storage.states as StorageCollectionLike<{
 							value: StoredState;
 							expiresAt: number | null;
@@ -181,6 +183,7 @@ export async function resolveAtprotoProfile(
 	try {
 		const sessionRes = await atprotoSession.handle("/xrpc/com.atproto.server.getSession");
 		if (sessionRes.ok) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- atproto XRPC getSession returns { handle?: string }
 			const sessionData = (await sessionRes.json()) as { handle?: string };
 			if (sessionData.handle) handle = sessionData.handle;
 		}
@@ -194,6 +197,7 @@ export async function resolveAtprotoProfile(
 			`/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.bsky.actor.profile&rkey=self`,
 		);
 		if (res.ok) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- atproto XRPC getRecord returns { value?: { displayName?: string } }
 			const data = (await res.json()) as {
 				value?: { displayName?: string };
 			};

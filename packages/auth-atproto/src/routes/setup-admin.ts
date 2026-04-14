@@ -57,10 +57,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const baseUrl = getPublicOrigin(url, emdash?.config);
 		const { getAtprotoOAuthClient } = await import("@emdash-cms/auth-atproto/oauth-client");
 		const { getAtprotoStorage } = await import("../storage.js");
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- emdash locals satisfy EmdashLocals shape required by getAtprotoStorage
 		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
 		const client = await getAtprotoOAuthClient(baseUrl, storage);
 
 		const { url: authUrl } = await client.authorize({
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- body.handle is a validated string, ActorIdentifier is atcute's branded type
 			target: { type: "account", identifier: body.handle as ActorIdentifier },
 		});
 

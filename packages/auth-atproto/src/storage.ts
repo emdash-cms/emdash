@@ -31,8 +31,10 @@ export async function getAtprotoStorage(
 	if (!provider?.storage) return null;
 
 	return getAuthProviderStorage(
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Kysely<unknown> satisfies getAuthProviderStorage's Database parameter
 		emdash.db as Parameters<typeof getAuthProviderStorage>[0],
 		"atproto",
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- provider.storage shape matches getAuthProviderStorage's expected Record type
 		provider.storage as Parameters<typeof getAuthProviderStorage>[2],
 	);
 }

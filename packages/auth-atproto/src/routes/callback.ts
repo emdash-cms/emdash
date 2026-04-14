@@ -55,6 +55,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		const { getAtprotoOAuthClient, resolveAtprotoProfile } =
 			await import("@emdash-cms/auth-atproto/oauth-client");
 		const { getAtprotoStorage } = await import("../storage.js");
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- emdash locals satisfy EmdashLocals shape required by getAtprotoStorage
 		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
 		const client = await getAtprotoOAuthClient(baseUrl, storage);
 		const { session: atprotoSession } = await client.callback(url.searchParams);
@@ -65,10 +66,12 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		const { displayName, handle } = await resolveAtprotoProfile(atprotoSession);
 
 		// Get auth config from authProviders
-		const providers = (
-			emdash.config as { authProviders?: AuthProviderDescriptor[] } | null | undefined
-		)?.authProviders;
+		const providers =
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- emdash.config has authProviders but Astro locals type is opaque
+			(emdash.config as { authProviders?: AuthProviderDescriptor[] } | null | undefined)
+				?.authProviders;
 		const atprotoProvider = providers?.find((p) => p.id === "atproto");
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- provider config is an opaque Record, narrowing to known atproto config shape
 		const config = (atprotoProvider?.config ?? {}) as {
 			allowedDIDs?: string[];
 			allowedHandles?: string[];
@@ -135,6 +138,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		let email: string;
 		if (isFirstUser) {
 			const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- setup_state is a Record<string, unknown> with optional email string
 			email = (setupState?.email as string) || `${did.replaceAll(":", "-")}@atproto.invalid`;
 		} else {
 			email = `${did.replaceAll(":", "-")}@atproto.invalid`;

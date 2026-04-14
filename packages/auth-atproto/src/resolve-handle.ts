@@ -44,6 +44,7 @@ export async function verifyHandleDID(handle: string): Promise<string | null> {
 	if (!handle.includes(".")) return null;
 
 	try {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- validated above with includes("."), satisfies atcute's template literal type
 		const did = await getResolver().resolve(handle as `${string}.${string}`);
 		return did;
 	} catch {

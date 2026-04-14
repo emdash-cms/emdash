@@ -48,6 +48,7 @@ export function createDbStore<K extends string, V>(
 		},
 
 		async set(key: K, value: V): Promise<void> {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowing to check optional expiresAt on opaque Store value type
 			const expiresAt = (value as { expiresAt?: number }).expiresAt ?? null;
 			await getCollection().put(key, { value, expiresAt });
 		},
