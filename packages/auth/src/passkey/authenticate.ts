@@ -43,7 +43,8 @@ export type PasskeyAuthenticationErrorCode =
 	| "invalid_rp_id_hash"
 	| "user_presence_not_verified"
 	| "invalid_signature_counter"
-	| "invalid_signature";
+	| "invalid_signature"
+	| "user_not_found";
 
 export class PasskeyAuthenticationError extends Error {
 	constructor(
@@ -236,7 +237,7 @@ export async function authenticateWithPasskey(
 	// Get the user
 	const user = await adapter.getUserById(credential.userId);
 	if (!user) {
-		throw new Error("User not found");
+		throw new PasskeyAuthenticationError("user_not_found", "User not found");
 	}
 
 	return user;
