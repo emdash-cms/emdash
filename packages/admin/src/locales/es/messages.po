@@ -442,7 +442,7 @@ msgstr "Añadir {label}"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:208
 msgid "Add a new passkey"
-msgstr "Agregar una nueva clave de acceso"
+msgstr "Agregar una nueva Passkey"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:309
 msgid "Add an allowed domain"
@@ -499,7 +499,7 @@ msgstr "Agregar metaetiqueta noindex"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:229
 msgid "Add Passkey"
-msgstr "Agregar clave de acceso"
+msgstr "Agregar Passkey"
 
 #: packages/admin/src/components/PluginManager.tsx:201
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
@@ -688,7 +688,7 @@ msgstr "Error de autenticación: {error}"
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/SecuritySettings.tsx:133
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
-msgstr "La autenticación es administrada por un proveedor externo ({0}). La configuración de la clave de acceso no está disponible cuando se utiliza la autenticación externa."
+msgstr "La autenticación es administrada por un proveedor externo ({0}). La configuración de la Passkey no está disponible cuando se utiliza la autenticación externa."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:263
 msgid "Authentication was cancelled or timed out. Please try again."
@@ -1280,7 +1280,7 @@ msgstr "Cree uno en WordPress: Usuarios → Perfil → Contraseñas de aplicaci�
 
 #: packages/admin/src/components/SetupWizard.tsx:305
 msgid "Create Passkey"
-msgstr "Crear clave de acceso"
+msgstr "Crear Passkey"
 
 #: packages/admin/src/components/Settings.tsx:110
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
@@ -1342,7 +1342,7 @@ msgstr "Cree su primera sección de contenido reutilizable para comenzar."
 
 #: packages/admin/src/components/SignupPage.tsx:210
 msgid "Create your passkey"
-msgstr "Crea tu clave de acceso"
+msgstr "Crea tu Passkey"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
@@ -1610,7 +1610,7 @@ msgstr "Vinculado al dispositivo"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:104
 msgid "Device-bound passkey"
-msgstr "Clave de acceso vinculada al dispositivo"
+msgstr "Passkey vinculada al dispositivo"
 
 #: packages/admin/src/components/SignupPage.tsx:142
 msgid "Didn't receive the email?"
@@ -1871,7 +1871,7 @@ msgstr "Correo electrónico verificado!"
 #. placeholder {0}: block.label
 #: packages/admin/src/components/PortableTextEditor.tsx:1443
 msgid "Embed a {0}"
-msgstr "Insertar un {0}"
+msgstr "Incrustar un {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1446
 msgid "Embeds"
@@ -2075,11 +2075,11 @@ msgstr "No se pudo eliminar el dominio"
 #: packages/admin/src/components/settings/PasskeyItem.tsx:99
 #: packages/admin/src/components/settings/SecuritySettings.tsx:82
 msgid "Failed to remove passkey"
-msgstr "No se pudo eliminar la clave de acceso"
+msgstr "No se pudo eliminar la Passkey"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Failed to rename passkey"
-msgstr "No se pudo cambiar el nombre de la clave de acceso"
+msgstr "No se pudo cambiar el nombre de la Passkey"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:64
 #: packages/admin/src/components/settings/SeoSettings.tsx:58
@@ -2206,7 +2206,7 @@ msgstr "GitHub"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:337
 msgid "Give this passkey a name to help you identify it later."
-msgstr "Asigne un nombre a esta clave de acceso para poder identificarla más adelante."
+msgstr "Asigne un nombre a esta Passkey para poder identificarla más adelante."
 
 #: packages/admin/src/components/WordPressImport.tsx:2251
 msgid "Go to Dashboard"
@@ -2271,7 +2271,7 @@ msgstr "Página principal"
 
 #: packages/admin/src/components/PluginManager.tsx:339
 msgid "Hooks"
-msgstr "Manos"
+msgstr "Hooks"
 
 #: packages/admin/src/components/WordPressImport.tsx:1350
 msgid "How to create an Application Password"
@@ -2722,7 +2722,7 @@ msgstr "Bloquear relación de aspecto"
 
 #: packages/admin/src/components/Header.tsx:101
 msgid "Log out"
-msgstr "Finalizar la sesión"
+msgstr "Cerrar sesión"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:177
 #: packages/admin/src/components/settings/GeneralSettings.tsx:182
@@ -3166,7 +3166,7 @@ msgstr "Sin límite"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
-msgstr "No se encontró ninguna clave de acceso coincidente para esta cuenta."
+msgstr "No se encontró ninguna Passkey coincidente para esta cuenta."
 
 #: packages/admin/src/components/FieldEditor.tsx:466
 #: packages/admin/src/components/FieldEditor.tsx:496
@@ -3416,31 +3416,31 @@ msgstr "Aprobar"
 
 #: packages/admin/src/components/SetupWizard.tsx:333
 msgid "Passkey"
-msgstr "Llave maestra"
+msgstr "Passkey"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:98
 msgid "Passkey added successfully"
-msgstr "Clave de acceso agregada exitosamente"
+msgstr "Passkey agregada exitosamente"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:129
 msgid "Passkey name"
-msgstr "Nombre de la clave de acceso"
+msgstr "Nombre de la Passkey"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:329
 msgid "Passkey Name (optional)"
-msgstr "Nombre de la clave de acceso (opcional)"
+msgstr "Nombre de la Passkey (opcional)"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:352
 msgid "Passkey registered successfully!"
-msgstr "¡La clave de acceso se registró correctamente!"
+msgstr "¡La Passkey se registró correctamente!"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:76
 msgid "Passkey removed"
-msgstr "Clave de acceso eliminada"
+msgstr "Passkey eliminada"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:60
 msgid "Passkey renamed"
-msgstr "Clave de acceso renombrada"
+msgstr "Passkey renombrada"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:181
 msgid "Passkeys"
@@ -3723,7 +3723,7 @@ msgstr "Registro"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
 #: packages/admin/src/components/settings/SecuritySettings.tsx:224
 msgid "Register Passkey"
-msgstr "Registrar clave de acceso"
+msgstr "Registrar Passkey"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:83
 msgid "Registered user"
@@ -3778,11 +3778,11 @@ msgstr "Eliminar elemento {0}"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
 msgid "Remove passkey"
-msgstr "Quitar clave de acceso"
+msgstr "Quitar Passkey"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:203
 msgid "Remove passkey?"
-msgstr "¿Quitar la clave de acceso?"
+msgstr "¿Quitar la Passkey?"
 
 #: packages/admin/src/components/FieldEditor.tsx:604
 msgid "Remove sub-field"
@@ -3808,7 +3808,7 @@ msgstr "Cambiar nombre {0}"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:177
 msgid "Rename passkey"
-msgstr "Cambiar nombre de clave de acceso"
+msgstr "Cambiar nombre de Passkey"
 
 #: packages/admin/src/components/FieldEditor.tsx:229
 msgid "Repeater"
@@ -4390,7 +4390,7 @@ msgstr "Establezca un tamaño de visualización personalizado para esta instanci
 
 #: packages/admin/src/components/SetupWizard.tsx:295
 msgid "Set up your passkey"
-msgstr "Configura tu clave de acceso"
+msgstr "Configura tu Passkey"
 
 #: packages/admin/src/components/SetupWizard.tsx:494
 msgid "Set up your site"
@@ -4455,7 +4455,7 @@ msgstr "Iniciar sesión con enlace de correo electrónico"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
 #: packages/admin/src/components/LoginPage.tsx:304
 msgid "Sign in with Passkey"
-msgstr "Iniciar sesión con clave de acceso"
+msgstr "Iniciar sesión con Passkey"
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:190
@@ -4632,7 +4632,7 @@ msgstr "Sincronizado"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:104
 msgid "Synced passkey"
-msgstr "Clave de acceso sincronizada"
+msgstr "Passkey sincronizada"
 
 #: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "System ({resolvedLabel})"
@@ -4783,7 +4783,7 @@ msgstr "Esto puede llevar algún tiempo en el caso de las grandes exportaciones.
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:269
 msgid "This passkey is already registered on this device."
-msgstr "Esta clave de acceso ya está registrada en este dispositivo."
+msgstr "Esta Passkey ya está registrada en este dispositivo."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:287
 msgid "This plugin requires no special permissions."
@@ -5025,7 +5025,7 @@ msgstr "Desbloquear relación de aspecto"
 #: packages/admin/src/components/settings/PasskeyItem.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Unnamed passkey"
-msgstr "Clave de acceso sin nombre"
+msgstr "Passkey sin nombre"
 
 #: packages/admin/src/components/ContentEditor.tsx:625
 msgid "Unpublish"
@@ -5193,7 +5193,7 @@ msgstr "Utilice la autenticación biométrica, la clave de seguridad o el PIN de
 
 #: packages/admin/src/components/LoginPage.tsx:351
 msgid "Use your registered passkey to sign in securely."
-msgstr "Utilice su clave de acceso registrada para iniciar sesión de forma segura."
+msgstr "Utilice su Passkey registrada para iniciar sesión de forma segura."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
@@ -5294,7 +5294,7 @@ msgstr "Los visitantes que lleguen a estos caminos verán un error."
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:180
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:184
 msgid "Waiting for passkey..."
-msgstr "Esperando la clave de acceso..."
+msgstr "Esperando la Passkey..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:334
 msgid "Warn"
@@ -5366,7 +5366,7 @@ msgstr "numero entero"
 #: packages/admin/src/components/PluginManager.tsx:333
 #: packages/admin/src/components/Sidebar.tsx:192
 msgid "Widgets"
-msgstr "widgets"
+msgstr "Widgets"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:425
@@ -5428,7 +5428,7 @@ msgstr "Ya no podrás utilizar \"{0}\" para iniciar sesión. Esta acción no se 
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:207
 msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
-msgstr "Ya no podrás utilizar esta clave de acceso para iniciar sesión. Esta acción no se puede deshacer."
+msgstr "Ya no podrás utilizar esta Passkey para iniciar sesión. Esta acción no se puede deshacer."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:369
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
