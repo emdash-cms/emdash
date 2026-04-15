@@ -22,6 +22,7 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
+import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 
@@ -385,6 +386,8 @@ export async function handleContentCreate(
 		locale?: string;
 		translationOf?: string;
 		seo?: ContentSeoInput;
+		createdAt?: string | null;
+		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
@@ -423,6 +426,8 @@ export async function handleContentCreate(
 				authorId: body.authorId,
 				locale: body.locale,
 				translationOf: body.translationOf,
+				createdAt: body.createdAt,
+				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
@@ -499,37 +504,37 @@ export async function handleContentUpdate(
 		// Resolve slug → ID if needed
 		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
 
-		// Validate _rev if provided (optimistic concurrency)
-		if (body._rev) {
-			const existing = await repo.findById(collection, resolvedId);
-			if (!existing) {
-				return {
-					success: false,
-					error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
-				};
-			}
-
-			const revCheck = validateRev(body._rev, existing);
-			if (!revCheck.valid) {
-				return {
-					success: false,
-					error: { code: "CONFLICT", message: revCheck.message },
-				};
-			}
-		}
-
-		// Wrap content + SEO writes in a transaction for atomicity
+		// Wrap content + SEO writes in a transaction for atomicity.
+		// The _rev check is inside the transaction so the read-then-write
+		// is atomic -- no concurrent write can slip between the check and update.
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 
+			// Read existing item once for both _rev check and old slug capture
+			const existing =
+				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+
+			// Validate _rev if provided (optimistic concurrency)
+			if (body._rev) {
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const },
+					});
+				}
+
+				const revCheck = validateRev(body._rev, existing);
+				if (!revCheck.valid) {
+					throw Object.assign(new Error(revCheck.message), {
+						apiError: { code: "CONFLICT" as const },
+					});
+				}
+			}
+
 			// Capture old slug before update for auto-redirect
 			let oldSlug: string | undefined;
-			if (body.slug) {
-				const existing = await trxRepo.findById(collection, resolvedId);
-				if (existing?.slug && existing.slug !== body.slug) {
-					oldSlug = existing.slug;
-				}
+			if (body.slug && existing?.slug && existing.slug !== body.slug) {
+				oldSlug = existing.slug;
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
@@ -560,6 +565,7 @@ export async function handleContentUpdate(
 					resolvedId,
 					collectionRow?.url_pattern ?? null,
 				);
+				invalidateRedirectCache();
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -594,6 +600,15 @@ export async function handleContentUpdate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction
+		// (rev check failures, not-found)
+		if (error instanceof Error && "apiError" in error) {
+			const { code } = (error as Error & { apiError: { code: string } }).apiError;
+			return {
+				success: false,
+				error: { code, message: error.message },
+			};
+		}
 		console.error("Content update error:", error);
 		return {
 			success: false,
@@ -784,6 +799,9 @@ export async function handleContentPermanentDelete(
 				// Clean up comments for permanently deleted content
 				const commentRepo = new CommentRepository(trx);
 				await commentRepo.deleteByContent(collection, resolvedId);
+				// Clean up revisions for permanently deleted content
+				const revisionRepo = new RevisionRepository(trx);
+				await revisionRepo.deleteByEntry(collection, resolvedId);
 			}
 
 			return wasDeleted;

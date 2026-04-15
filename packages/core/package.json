@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -141,6 +141,8 @@
     "#media/*": "./src/media/*",
     "#mcp/*": "./src/mcp/*",
     "#comments/*": "./src/comments/*",
+    "#bylines/*": "./src/bylines/*",
+    "#redirects/*": "./src/redirects/*",
     "#types": "./src/astro/types.js"
   },
   "scripts": {
@@ -149,7 +151,9 @@
     "prepublishOnly": "node --run build",
     "typecheck": "tsgo --noEmit",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution --ignore-rules=internal-resolution-error",
-    "test": "vitest"
+    "test": "vitest",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@emdash-cms/admin": "workspace:*",

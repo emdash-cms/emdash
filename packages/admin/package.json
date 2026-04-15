@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/admin",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Admin UI for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",
@@ -12,15 +12,23 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./locales": {
+      "types": "./dist/locales/index.d.ts",
+      "default": "./dist/locales/index.js"
+    },
+    "./locales/*": "./dist/locales/*"
   },
   "scripts": {
-    "build": "tsdown && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "build": "node --run locale:compile && tsdown && node --run locale:copy && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
     "dev": "tsdown src/index.ts --format esm --dts --watch",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
     "test": "vitest",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "locale:compile": "lingui compile --namespace es",
+    "locale:copy": "node ./scripts/copy-locales.js",
+    "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
     "@cloudflare/kumo": "^1.16.0",
@@ -29,6 +37,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emdash-cms/blocks": "workspace:*",
     "@floating-ui/react": "^0.27.16",
+    "@lingui/core": "catalog:",
+    "@lingui/react": "catalog:",
     "@phosphor-icons/react": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
@@ -58,6 +68,10 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@babel/core": "^7.29.0",
+    "@lingui/babel-plugin-lingui-macro": "catalog:",
+    "@lingui/cli": "catalog:",
+    "@lingui/macro": "catalog:",
     "@tailwindcss/cli": "^4.1.10",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/react": "^16.3.0",

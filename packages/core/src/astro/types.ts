@@ -28,6 +28,7 @@ export interface ManifestCollection {
 	labelSingular: string;
 	supports: string[];
 	hasSeo: boolean;
+	urlPattern?: string;
 	fields: Record<
 		string,
 		{
@@ -35,7 +36,13 @@ export interface ManifestCollection {
 			label?: string;
 			required?: boolean;
 			widget?: string;
-			options?: Array<{ value: string; label: string }>;
+			/**
+			 * Field options. Two shapes:
+			 *   - Legacy enum: `Array<{ value, label }>` for select / multiSelect widgets
+			 *   - Plugin widgets: `Record<string, unknown>` for arbitrary per-field config
+			 *     (e.g. a checkbox grid receiving its column definitions)
+			 */
+			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 		}
 	>;
 }
@@ -95,6 +102,7 @@ export type ManifestAuthMode = string;
  */
 export interface EmDashManifest {
 	version: string;
+	commit?: string;
 	hash: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
@@ -119,6 +127,16 @@ export interface EmDashManifest {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	/**
+	 * Taxonomy definitions for the admin sidebar.
+	 */
+	taxonomies: Array<{
+		name: string;
+		label: string;
+		labelSingular?: string;
+		hierarchical: boolean;
+		collections: string[];
+	}>;
 	/**
 	 * Whether the plugin marketplace is configured.
 	 * When true, the admin UI can show marketplace browse/install features.
@@ -188,6 +206,8 @@ export interface EmDashHandlers {
 			authorId?: string;
 			locale?: string;
 			translationOf?: string;
+			createdAt?: string | null;
+			publishedAt?: string | null;
 		},
 	) => Promise<HandlerResponse>;
 
@@ -343,4 +363,12 @@ export interface EmDashHandlers {
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+
+	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+	collectPageMetadata: (
+		page: import("../plugins/types.js").PublicPageContext,
+	) => Promise<import("../plugins/types.js").PageMetadataContribution[]>;
+	collectPageFragments: (
+		page: import("../plugins/types.js").PublicPageContext,
+	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
 }

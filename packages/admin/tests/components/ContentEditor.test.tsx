@@ -1,6 +1,5 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import {
 	ContentEditor,
@@ -8,6 +7,7 @@ import {
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
 import type { ContentItem } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
 
 // Mock child components that have complex dependencies
 vi.mock("../../src/components/PortableTextEditor", () => ({
@@ -143,6 +143,145 @@ describe("ContentEditor", () => {
 			const input = screen.getByLabelText("Order");
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
+
+		it("renders select fields as select dropdowns", async () => {
+			const screen = await renderEditor({
+				fields: {
+					color: {
+						kind: "select",
+						label: "Color",
+						options: [
+							{ value: "red", label: "Red" },
+							{ value: "blue", label: "Blue" },
+						],
+					},
+				},
+			});
+			// Select renders a combobox role
+			const select = screen.getByRole("combobox");
+			await expect.element(select).toBeInTheDocument();
+		});
+
+		it("renders multiSelect fields as checkbox group", async () => {
+			const screen = await renderEditor({
+				fields: {
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			await expect.element(checkboxes.first()).toBeInTheDocument();
+			// All option labels should be present
+			await expect.element(screen.getByText("News")).toBeInTheDocument();
+			await expect.element(screen.getByText("Tech")).toBeInTheDocument();
+			await expect.element(screen.getByText("Sports")).toBeInTheDocument();
+		});
+
+		it("toggling a multiSelect checkbox updates the saved value", async () => {
+			const onSave = vi.fn();
+			const item = makeItem({
+				data: { title: "Test", tags: ["news", "sports"] },
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			const all = checkboxes.all();
+
+			// Uncheck "sports" (index 2, currently checked)
+			await all[2]!.click();
+			await expect.element(all[2]!).not.toBeChecked();
+
+			// Check "tech" (index 1, currently unchecked)
+			await all[1]!.click();
+			await expect.element(all[1]!).toBeChecked();
+
+			// Save and verify the data sent to onSave
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						tags: ["news", "tech"],
+					}),
+				}),
+			);
+		});
+
+		it("multiSelect checkboxes reflect existing values", async () => {
+			const item = makeItem({
+				data: { title: "Test", tags: ["news", "sports"] },
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					tags: {
+						kind: "multiSelect",
+						label: "Tags",
+						options: [
+							{ value: "news", label: "News" },
+							{ value: "tech", label: "Tech" },
+							{ value: "sports", label: "Sports" },
+						],
+					},
+				},
+			});
+			// Verify the checkbox group renders with correct checked state via aria
+			const checkboxes = screen.getByRole("checkbox", { exact: false });
+			const all = checkboxes.all();
+			// Should have 3 checkboxes
+			expect(all).toHaveLength(3);
+			// news (checked), tech (unchecked), sports (checked)
+			await expect.element(all[0]!).toBeChecked();
+			await expect.element(all[1]!).not.toBeChecked();
+			await expect.element(all[2]!).toBeChecked();
+		});
+
+		it("renders json fields as a textarea", async () => {
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				isNew: true,
+			});
+			const textarea = screen.getByLabelText("Metadata");
+			await expect.element(textarea).toBeInTheDocument();
+			// JSON field uses a textarea element
+			expect(textarea.element().tagName).toBe("TEXTAREA");
+		});
+
+		it("renders json fields with object values as formatted JSON", async () => {
+			const jsonData = { foo: "bar", num: 42 };
+			const screen = await renderEditor({
+				fields: { metadata: { kind: "json", label: "Metadata" } },
+				item: makeItem({ data: { title: "Test", body: "", metadata: jsonData } }),
+			});
+			const textarea = screen.getByLabelText("Metadata");
+			await expect.element(textarea).toHaveValue(JSON.stringify(jsonData, null, 2));
+		});
 	});
 
 	describe("saving", () => {
@@ -177,6 +316,53 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item });
 			const savedBtn = screen.getByRole("button", { name: "Saved" });
 			await expect.element(savedBtn).toBeDisabled();
+		});
+
+		it("keeps edited values after autosave completes without queuing another autosave", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					lastAutosaveAt: null,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Updated title");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				const autosavedItem = makeItem({
+					updatedAt: "2026-04-12T18:38:00Z",
+					data: { title: "Updated title", body: "Some content" },
+				});
+				await screen.rerender(
+					<ContentEditor
+						{...props}
+						item={autosavedItem}
+						isAutosaving={false}
+						lastAutosaveAt={new Date("2026-04-12T18:38:00Z")}
+					/>,
+				);
+
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Updated title");
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
 		});
 	});
 

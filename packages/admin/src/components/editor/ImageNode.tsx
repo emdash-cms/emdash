@@ -154,7 +154,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 
 				{/* Selection overlay with actions */}
 				{selected && (
-					<div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className="absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 						<Button
 							type="button"
 							variant="secondary"
@@ -196,7 +196,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 
 				{/* Quick alt text editor (inline) */}
 				{isEditingAlt && (
-					<div className="absolute bottom-0 left-0 right-0 bg-kumo-base/95 backdrop-blur p-3 rounded-b-lg border-t">
+					<div className="absolute bottom-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-3 rounded-b-lg border-t">
 						<label className="text-xs font-medium text-kumo-subtle mb-1 block">Alt text</label>
 						<div className="flex gap-2">
 							<Input

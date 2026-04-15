@@ -29,6 +29,7 @@ import {
 	resolveCredentialKey,
 	saveCredentials,
 } from "../credentials.js";
+import { configureOutputMode } from "../output.js";
 
 // ---------------------------------------------------------------------------
 // Types for discovery + device flow responses
@@ -91,7 +92,8 @@ async function pollForToken(
 		});
 
 		if (res.ok) {
-			return (await res.json()) as TokenResponse;
+			const body = (await res.json()) as { data: TokenResponse };
+			return body.data;
 		}
 
 		const body = (await res.json()) as { error?: string; interval?: number };
@@ -268,6 +270,7 @@ export const loginCommand = defineCommand({
 				},
 				body: JSON.stringify({
 					client_id: "emdash-cli",
+					scope: "admin",
 				}),
 			});
 
@@ -276,7 +279,8 @@ export const loginCommand = defineCommand({
 				process.exit(2);
 			}
 
-			const deviceCode = (await codeRes.json()) as DeviceCodeResponse;
+			const deviceCodeBody = (await codeRes.json()) as { data: DeviceCodeResponse };
+			const deviceCode = deviceCodeBody.data;
 
 			// Step 3: Display instructions
 			console.log();
@@ -423,6 +427,7 @@ export const whoamiCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
+		configureOutputMode(args);
 		const baseUrl = args.url || "http://localhost:4321";
 
 		// Resolve token: --token flag > EMDASH_TOKEN env > stored credentials

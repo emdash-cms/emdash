@@ -9,10 +9,11 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
-import { authenticateWithPasskey } from "@emdash-cms/auth/passkey";
+import { authenticateWithPasskey, PasskeyAuthenticationError } from "@emdash-cms/auth/passkey";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { passkeyVerifyBody } from "#api/schemas.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
@@ -33,7 +34,8 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		const url = new URL(request.url);
 		const options = new OptionsRepository(emdash.db);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
-		const passkeyConfig = getPasskeyConfig(url, siteName);
+		const siteUrl = getPublicOrigin(url, emdash?.config);
+		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
 
 		// Authenticate with passkey
 		const adapter = createKyselyAdapter(emdash.db);
@@ -61,6 +63,10 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			},
 		});
 	} catch (error) {
+		if (error instanceof PasskeyAuthenticationError) {
+			return apiError("UNAUTHORIZED", "Authentication failed", 401);
+		}
+
 		return handleError(error, "Authentication failed", "PASSKEY_VERIFY_ERROR");
 	}
 };

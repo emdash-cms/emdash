@@ -14,6 +14,9 @@
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	TextB,
 	TextItalic,
@@ -678,12 +681,13 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
  */
 interface SlashCommandItem {
 	id: string;
-	title: string;
-	description: string;
+	/** Built-in commands use `msg`; plugin/API-sourced titles stay plain `string`. */
+	title: MessageDescriptor | string;
+	description: MessageDescriptor | string;
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
-	category?: string;
+	category?: MessageDescriptor;
 }
 
 /**
@@ -692,8 +696,8 @@ interface SlashCommandItem {
 const defaultSlashCommands: SlashCommandItem[] = [
 	{
 		id: "heading1",
-		title: "Heading 1",
-		description: "Large section heading",
+		title: msg`Heading 1`,
+		description: msg`Large section heading`,
 		icon: TextHOne,
 		aliases: ["h1", "title"],
 		command: ({ editor, range }) => {
@@ -702,8 +706,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "heading2",
-		title: "Heading 2",
-		description: "Medium section heading",
+		title: msg`Heading 2`,
+		description: msg`Medium section heading`,
 		icon: TextHTwo,
 		aliases: ["h2", "subtitle"],
 		command: ({ editor, range }) => {
@@ -712,8 +716,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "heading3",
-		title: "Heading 3",
-		description: "Small section heading",
+		title: msg`Heading 3`,
+		description: msg`Small section heading`,
 		icon: TextHThree,
 		aliases: ["h3"],
 		command: ({ editor, range }) => {
@@ -722,8 +726,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "bulletList",
-		title: "Bullet List",
-		description: "Create a bullet list",
+		title: msg`Bullet List`,
+		description: msg`Create a bullet list`,
 		icon: List,
 		aliases: ["ul", "unordered"],
 		command: ({ editor, range }) => {
@@ -732,8 +736,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "numberedList",
-		title: "Numbered List",
-		description: "Create a numbered list",
+		title: msg`Numbered List`,
+		description: msg`Create a numbered list`,
 		icon: ListNumbers,
 		aliases: ["ol", "ordered"],
 		command: ({ editor, range }) => {
@@ -742,8 +746,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "quote",
-		title: "Quote",
-		description: "Insert a blockquote",
+		title: msg`Quote`,
+		description: msg`Insert a blockquote`,
 		icon: Quotes,
 		aliases: ["blockquote", "cite"],
 		command: ({ editor, range }) => {
@@ -752,8 +756,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "codeBlock",
-		title: "Code Block",
-		description: "Insert a code block",
+		title: msg`Code Block`,
+		description: msg`Insert a code block`,
 		icon: CodeBlock,
 		aliases: ["code", "pre", "```"],
 		command: ({ editor, range }) => {
@@ -762,8 +766,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "divider",
-		title: "Divider",
-		description: "Insert a horizontal rule",
+		title: msg`Divider`,
+		description: msg`Insert a horizontal rule`,
 		icon: Minus,
 		aliases: ["hr", "---", "separator"],
 		command: ({ editor, range }) => {
@@ -889,6 +893,7 @@ function SlashCommandMenu({
 	onClose: () => void;
 	setSelectedIndex: (index: number) => void;
 }) {
+	const { t } = useLingui();
 	const containerRef = React.useRef<HTMLDivElement>(null);
 
 	const { refs, floatingStyles } = useFloating({
@@ -932,7 +937,7 @@ function SlashCommandMenu({
 			className="z-[100] rounded-lg border bg-kumo-overlay p-1 shadow-lg min-w-[220px] max-h-[300px] overflow-y-auto"
 		>
 			{state.items.length === 0 ? (
-				<p className="text-sm text-kumo-subtle px-3 py-2">No results</p>
+				<p className="text-sm text-kumo-subtle px-3 py-2">{t`No results`}</p>
 			) : (
 				state.items.map((item, index) => (
 					<button
@@ -940,7 +945,7 @@ function SlashCommandMenu({
 						type="button"
 						data-index={index}
 						className={cn(
-							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-left",
+							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-start",
 							index === state.selectedIndex
 								? "bg-kumo-tint text-kumo-default"
 								: "hover:bg-kumo-tint/50",
@@ -950,8 +955,12 @@ function SlashCommandMenu({
 					>
 						<item.icon className="h-4 w-4 text-kumo-subtle flex-shrink-0" />
 						<div className="flex flex-col">
-							<span className="font-medium">{item.title}</span>
-							<span className="text-xs text-kumo-subtle">{item.description}</span>
+							<span className="font-medium">
+								{typeof item.title === "string" ? item.title : t(item.title)}
+							</span>
+							<span className="text-xs text-kumo-subtle">
+								{typeof item.description === "string" ? item.description : t(item.description)}
+							</span>
 						</div>
 					</button>
 				))
@@ -1034,7 +1043,7 @@ function PluginBlockModal({
 								variant="ghost"
 								shape="square"
 								aria-label="Close"
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">Close</span>
@@ -1346,6 +1355,8 @@ export function PortableTextEditor({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 }: PortableTextEditorProps) {
+	const { t } = useLingui();
+
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	React.useEffect(() => {
@@ -1399,11 +1410,11 @@ export function PortableTextEditor({
 		// Add image command
 		cmds.push({
 			id: "image",
-			title: "Image",
-			description: "Insert an image",
+			title: msg`Image`,
+			description: msg`Insert an image`,
 			icon: ImageIcon,
 			aliases: ["img", "photo", "picture", "url"],
-			category: "Media",
+			category: msg`Media`,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
@@ -1413,26 +1424,26 @@ export function PortableTextEditor({
 		// Add section command
 		cmds.push({
 			id: "section",
-			title: "Section",
-			description: "Insert a reusable section",
+			title: msg`Section`,
+			description: msg`Insert a reusable section`,
 			icon: Stack,
 			aliases: ["pattern", "block", "template"],
-			category: "Content",
+			category: msg`Content`,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setSectionPickerOpen(true);
 			},
 		});
 
-		// Add plugin block commands
+		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped)
 		for (const block of pluginBlocks) {
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
 				title: block.label,
-				description: block.description || `Embed a ${block.label.toLowerCase()}`,
+				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: "Embeds",
+				category: msg`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -1441,7 +1452,7 @@ export function PortableTextEditor({
 		}
 
 		return cmds;
-	}, [pluginBlocks]);
+	}, [pluginBlocks, t]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing
@@ -1453,10 +1464,12 @@ export function PortableTextEditor({
 		const titleMatches: SlashCommandItem[] = [];
 		const otherMatches: SlashCommandItem[] = [];
 		for (const item of slashCommands) {
-			if (item.title.toLowerCase().includes(searchText)) {
+			const titleStr = typeof item.title === "string" ? item.title : t(item.title);
+			const descStr = typeof item.description === "string" ? item.description : t(item.description);
+			if (titleStr.toLowerCase().includes(searchText)) {
 				titleMatches.push(item);
 			} else if (
-				item.description.toLowerCase().includes(searchText) ||
+				descStr.toLowerCase().includes(searchText) ||
 				item.aliases?.some((alias) => alias.toLowerCase().includes(searchText))
 			) {
 				otherMatches.push(item);
@@ -2241,7 +2254,7 @@ function EditorToolbar({
 						<LinkIcon className="h-4 w-4" aria-hidden="true" />
 					</ToolbarButton>
 					{showLinkPopover && (
-						<div className="absolute top-full left-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
+						<div className="absolute top-full start-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
 							<div className="flex flex-col gap-2">
 								<label className="text-xs font-medium text-kumo-subtle">URL</label>
 								<div className="flex items-center gap-1">

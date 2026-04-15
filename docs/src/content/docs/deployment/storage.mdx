@@ -20,7 +20,8 @@ EmDash stores uploaded media (images, documents, videos) in a configurable stora
 Use R2 bindings when deploying to Cloudflare Workers for the fastest integration.
 
 ```js title="astro.config.mjs"
-import emdash, { r2 } from "emdash/astro";
+import emdash from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	integrations: [
@@ -92,6 +93,21 @@ storage: r2({
 
 The S3 adapter works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
 
+<Aside type="caution" title="Install the AWS SDK first">
+	EmDash uses the AWS SDK at runtime for the S3 adapter but does not bundle it — core is
+	deliberately SDK-agnostic so R2-only and local-only deployments stay lean. Install the SDK
+	in your project before using `s3()`:
+
+    ```sh
+    pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+    ```
+
+    If you skip this step, `astro build` will fail with `Rollup failed to resolve import
+    "@aws-sdk/client-s3"`. The R2 binding adapter (`r2()`) and local adapter do not need the
+    SDK and are unaffected.
+
+</Aside>
+
 ```js title="astro.config.mjs"
 import emdash, { s3 } from "emdash/astro";
 
@@ -113,14 +129,66 @@ export default defineConfig({
 
 ### Configuration
 
-| Option            | Type     | Description                    |
-| ----------------- | -------- | ------------------------------ |
-| `endpoint`        | `string` | S3 endpoint URL                |
-| `bucket`          | `string` | Bucket name                    |
-| `accessKeyId`     | `string` | Access key                     |
-| `secretAccessKey` | `string` | Secret key                     |
-| `region`          | `string` | Region (default: `"auto"`)     |
-| `publicUrl`       | `string` | Optional CDN or public URL     |
+| Option            | Type     | Required | Description                    |
+| ----------------- | -------- | -------- | ------------------------------ |
+| `endpoint`        | `string` | yes      | S3 endpoint URL                |
+| `bucket`          | `string` | yes      | Bucket name                    |
+| `accessKeyId`     | `string` | no\*     | Access key                     |
+| `secretAccessKey` | `string` | no\*     | Secret key                     |
+| `region`          | `string` | no       | Region (default: `"auto"`)     |
+| `publicUrl`       | `string` | no       | Optional CDN or public URL     |
+
+\* Both `accessKeyId` and `secretAccessKey` must be provided together, or both omitted.
+
+### Resolving S3 config from environment variables
+
+Any field omitted from `s3({...})` is read from the matching `S3_*` environment variable
+when the process starts. This lets you build a container image once and inject credentials
+at boot without a rebuild. Explicit values in `s3({...})` always take precedence over
+environment variables.
+
+| Environment variable   | Field             | Notes                              |
+| ---------------------- | ----------------- | ---------------------------------- |
+| `S3_ENDPOINT`          | `endpoint`        | Must be a valid `http`/`https` URL |
+| `S3_BUCKET`            | `bucket`          |                                    |
+| `S3_ACCESS_KEY_ID`     | `accessKeyId`     |                                    |
+| `S3_SECRET_ACCESS_KEY` | `secretAccessKey` |                                    |
+| `S3_REGION`            | `region`          | Defaults to `"auto"`               |
+| `S3_PUBLIC_URL`        | `publicUrl`       | Optional CDN prefix                |
+
+Environment variables are read from `process.env` when the process starts. This is a
+Node-only feature.
+
+```js title="astro.config.mjs — runtime environment variable example"
+import emdash, { s3 } from "emdash/astro";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			// s3() with no args: all fields from S3_* environment variables
+			storage: s3(),
+
+			// Or mix: override one field, rest from environment
+			// storage: s3({ publicUrl: "https://cdn.example.com" }),
+		}),
+	],
+});
+```
+
+<Aside type="note" title="Cloudflare Workers">
+	This runtime resolution does not work on Cloudflare Workers. Worker secrets and variables
+	are exposed through the `env` parameter of the fetch handler (or `import { env } from
+	"cloudflare:workers"`), not through `process.env` — even with the `nodejs_compat` flag
+	enabled. For Workers deployments:
+
+    - If you are using R2, use the [`r2()` adapter](#cloudflare-r2-binding) from
+      `@emdash-cms/cloudflare`. This is the recommended path.
+    - If you need a non-R2 S3-compatible backend on Workers, pass explicit values to
+      `s3({...})` in `astro.config.mjs`. Note that `astro.config.mjs` runs at build time,
+      so Worker secrets are not directly accessible there; you will need to inject values
+      through your build pipeline.
+
+</Aside>
 
 ### R2 via S3 API
 
@@ -188,7 +256,8 @@ The `baseUrl` should match EmDash's media file endpoint (`/_emdash/api/media/fil
 Switch storage backends based on environment:
 
 ```js title="astro.config.mjs"
-import emdash, { r2, s3, local } from "emdash/astro";
+import emdash, { s3, local } from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 
 const storage = import.meta.env.PROD
 	? r2({ binding: "MEDIA" })

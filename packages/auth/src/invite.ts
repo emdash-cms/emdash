@@ -67,10 +67,10 @@ export async function createInviteToken(
 		expiresAt: new Date(Date.now() + TOKEN_EXPIRY_MS),
 	});
 
-	// Build invite URL
-	const url = new URL("/api/auth/invite/accept", config.baseUrl);
+	// Build invite URL pointing to the admin UI page (not the API endpoint).
+	// The admin SPA handles token validation and passkey registration.
+	const url = new URL(`${config.baseUrl}/admin/invite/accept`);
 	url.searchParams.set("token", token);
-
 	return { url: url.toString(), email };
 }
 

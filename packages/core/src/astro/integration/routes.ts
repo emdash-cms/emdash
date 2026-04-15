@@ -148,8 +148,8 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
-		pattern: "/_emdash/api/media/file/[key]",
-		entrypoint: resolveRoute("api/media/file/[key].ts"),
+		pattern: "/_emdash/api/media/file/[...key]",
+		entrypoint: resolveRoute("api/media/file/[...key].ts"),
 	});
 
 	injectRoute({
@@ -277,6 +277,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/settings",
 		entrypoint: resolveRoute("api/settings.ts"),
+	});
+
+	// Email settings route
+	injectRoute({
+		pattern: "/_emdash/api/settings/email",
+		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
 	// Snapshot route (for DO preview database population)
@@ -505,7 +511,7 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
-		pattern: "/_emdash/.well-known/oauth-authorization-server",
+		pattern: "/.well-known/oauth-authorization-server/_emdash",
 		entrypoint: resolveRoute("api/well-known/oauth-authorization-server.ts"),
 	});
 
@@ -665,6 +671,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/sitemap-[collection].xml",
+		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
+	});
+
+	injectRoute({
 		pattern: "/robots.txt",
 		entrypoint: resolveRoute("robots.txt.ts"),
 	});
@@ -699,6 +710,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/setup/dev-reset",
 		entrypoint: resolveRoute("api/setup/dev-reset.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/dev/emails",
+		entrypoint: resolveRoute("api/dev/emails.ts"),
 	});
 
 	// Current user endpoint (always available)
@@ -781,6 +797,11 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/auth/invite/complete",
 		entrypoint: resolveRoute("api/auth/invite/complete.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/invite/register-options",
+		entrypoint: resolveRoute("api/auth/invite/register-options.ts"),
 	});
 
 	// Magic link routes

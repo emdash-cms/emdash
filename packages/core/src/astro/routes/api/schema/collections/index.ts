@@ -43,5 +43,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to CreateCollectionInput
 	const result = await handleSchemaCollectionCreate(emdash!.db, body as CreateCollectionInput);
+	emdash!.invalidateManifest();
 	return unwrapResult(result, 201);
 };

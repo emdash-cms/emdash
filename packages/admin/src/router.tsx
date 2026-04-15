@@ -26,6 +26,7 @@ import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
 import { MarketplacePluginDetail } from "./components/MarketplacePluginDetail";
@@ -75,6 +76,7 @@ import {
 	createField,
 	updateField,
 	deleteField,
+	reorderFields,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -98,6 +100,8 @@ import {
 	type CreateFieldInput,
 	type BylineCreditInput,
 	type ContentSeoInput,
+	type ContentItem,
+	type Revision,
 } from "./lib/api";
 import {
 	fetchComments,
@@ -115,6 +119,46 @@ import { UsersPage } from "./routes/users";
 // Router context type
 interface RouterContext {
 	queryClient: QueryClient;
+}
+
+function patchAutosaveQueries(
+	queryClient: QueryClient,
+	params: {
+		collection: string;
+		id: string;
+		savedItem: ContentItem;
+		payload: {
+			data?: Record<string, unknown>;
+			slug?: string;
+		};
+	},
+) {
+	const { collection, id, savedItem, payload } = params;
+	const draftRevisionId = savedItem.draftRevisionId;
+
+	if (draftRevisionId) {
+		queryClient.setQueryData<Revision>(["revision", draftRevisionId], (existing) => {
+			const nextData: Record<string, unknown> = {
+				...existing?.data,
+				...payload.data,
+			};
+
+			if (payload.slug !== undefined) {
+				nextData._slug = payload.slug;
+			}
+
+			return {
+				id: draftRevisionId,
+				collection,
+				entryId: id,
+				data: nextData,
+				authorId: existing?.authorId ?? savedItem.authorId,
+				createdAt: existing?.createdAt ?? savedItem.updatedAt,
+			};
+		});
+	}
+
+	queryClient.setQueryData<ContentItem>(["content", collection, id], savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -150,6 +194,16 @@ const signupRoute = createRoute({
 	component: SignupPage,
 });
 
+// Invite accept route (standalone, no Shell)
+const inviteAcceptRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/invite/accept",
+	component: InviteAcceptPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		token: typeof search.token === "string" ? search.token : undefined,
+	}),
+});
+
 // Device authorization route (standalone, no Shell)
 const deviceRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
@@ -163,6 +217,12 @@ const adminLayoutRoute = createRoute({
 	id: "_admin",
 	component: RootComponent,
 });
+
+// Isomorphic requestIdleCallback polyfill
+if (typeof window !== "undefined" && typeof window.requestIdleCallback === "undefined") {
+	window.requestIdleCallback = (cb) => setTimeout(cb, 50);
+	window.cancelIdleCallback = (id) => clearTimeout(id);
+}
 
 function RootComponent() {
 	const {
@@ -235,10 +295,19 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
-	const { data, isLoading, error } = useQuery({
-		queryKey: ["content", collection, { locale: activeLocale }],
-		queryFn: () => fetchContentList(collection, { locale: activeLocale }),
-	});
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+		useInfiniteQuery({
+			queryKey: ["content", collection, { locale: activeLocale }],
+			queryFn: ({ pageParam }) =>
+				fetchContentList(collection, {
+					locale: activeLocale,
+					cursor: pageParam,
+					limit: 100,
+				}),
+			initialPageParam: undefined as string | undefined,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+			enabled: !!manifest,
+		});
 
 	// Fetch trashed items
 	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
@@ -304,6 +373,10 @@ function ContentListPage() {
 		},
 	});
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -331,10 +404,12 @@ function ContentListPage() {
 		<ContentList
 			collection={collection}
 			collectionLabel={collectionConfig.label}
-			items={data?.items || []}
+			items={items}
 			trashedItems={trashedData?.items || []}
-			isLoading={isLoading}
+			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
+			hasMore={!!hasNextPage}
+			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
@@ -343,6 +418,7 @@ function ContentListPage() {
 			i18n={i18n}
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
+			urlPattern={collectionConfig.urlPattern}
 		/>
 	);
 }
@@ -365,10 +441,14 @@ const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/new",
 	component: ContentNewPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		locale: typeof search.locale === "string" ? search.locale : undefined,
+	}),
 });
 
 function ContentNewPage() {
 	const { collection } = useParams({ from: "/_admin/content/$collection/new" });
+	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
@@ -383,7 +463,7 @@ function ContentNewPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => createContent(collection, data),
+		}) => createContent(collection, { ...data, locale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void navigate({
@@ -467,6 +547,9 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
+	validateSearch: (search) => ({
+		...(typeof search.field === "string" && { field: search.field }),
+	}),
 });
 
 // Editor role level from @emdash-cms/auth
@@ -474,6 +557,9 @@ const ROLE_EDITOR = 40;
 
 function ContentEditPage() {
 	const { collection, id } = useParams({
+		from: "/_admin/content/$collection/$id",
+	});
+	const searchParams = useSearch({
 		from: "/_admin/content/$collection/$id",
 	});
 	const queryClient = useQueryClient();
@@ -491,6 +577,21 @@ function ContentEditPage() {
 		queryKey: ["content", collection, id],
 		queryFn: () => fetchContent(collection, id),
 	});
+
+	React.useEffect(() => {
+		if (typeof searchParams.field !== "string" || isLoading) return;
+
+		const timeoutId = requestIdleCallback(() => {
+			const el = document.getElementById(`field-${searchParams.field}`);
+			if (el) {
+				el.scrollIntoView({ behavior: "smooth", block: "center" });
+				el.focus();
+				const { field: _, ...preservedSearch } = searchParams;
+				void navigate({ search: preservedSearch as never, replace: true });
+			}
+		});
+		return () => cancelIdleCallback(timeoutId);
+	}, [searchParams, isLoading, navigate]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
@@ -586,6 +687,12 @@ function ContentEditPage() {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			// Invalidate the cached draft revision so stale data doesn't overwrite the form
+			if (rawItem?.draftRevisionId) {
+				void queryClient.invalidateQueries({
+					queryKey: ["revision", rawItem.draftRevisionId],
+				});
+			}
 		},
 		onError: (error) => {
 			toastManager.add({
@@ -604,10 +711,19 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
-		onSuccess: () => {
+		onSuccess: (savedItem, variables) => {
+			patchAutosaveQueries(queryClient, {
+				collection,
+				id,
+				savedItem,
+				payload: {
+					data: variables.data,
+					slug: variables.slug,
+				},
+			});
 			setLastAutosaveAt(new Date());
-			// Silently update the cache without full invalidation
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			// Keep the cache fresh without refetching older server state back into the form
+			// while the user is still typing.
 		},
 		onError: (err) => {
 			toastManager.add({
@@ -816,6 +932,7 @@ function ContentEditPage() {
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
+			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
@@ -1441,6 +1558,16 @@ function ContentTypesEditPage() {
 		},
 	});
 
+	const reorderFieldsMutation = useMutation({
+		mutationFn: (fieldSlugs: string[]) => reorderFields(slug, fieldSlugs),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["schema", "collections", slug],
+			});
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
@@ -1457,6 +1584,7 @@ function ContentTypesEditPage() {
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}
+			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
 		/>
 	);
 }
@@ -1533,6 +1661,7 @@ const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
 	signupRoute,
+	inviteAcceptRoute,
 	deviceRoute,
 	adminRoutes,
 ]);

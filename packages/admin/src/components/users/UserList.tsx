@@ -1,10 +1,12 @@
 import { Button, Input, Loader, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { RoleBadge, ROLES } from "./RoleBadge";
+import { RoleBadge } from "./RoleBadge";
+import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserListProps {
 	users: UserListItem[];
@@ -34,6 +36,17 @@ export function UserList({
 	onInviteUser,
 	onLoadMore,
 }: UserListProps) {
+	const { t } = useLingui();
+	const { roles, roleLabels } = useRolesConfig();
+	const roleFilterSelectItems = React.useMemo(
+		() => ({ all: t`All roles`, ...roleLabels }),
+		[t, roleLabels],
+	);
+	const roleFilterSelectOptions = React.useMemo(
+		() => [{ value: "all", label: t`All roles` }, ...roles],
+		[t, roles],
+	);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -48,13 +61,13 @@ export function UserList({
 			<div className="flex gap-4">
 				<div className="relative flex-1 max-w-sm">
 					<MagnifyingGlass
-						className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
+						className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
 						aria-hidden="true"
 					/>
 					<Input
 						type="search"
 						placeholder="Search by name or email..."
-						className="pl-10"
+						className="ps-10"
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
 						aria-label="Search users"
@@ -65,16 +78,12 @@ export function UserList({
 					onValueChange={(value) =>
 						onRoleFilterChange(value === "all" || value === null ? undefined : parseInt(value, 10))
 					}
-					items={{
-						all: "All roles",
-						...Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label])),
-					}}
+					items={roleFilterSelectItems}
 					aria-label="Filter by role"
 				>
-					<Select.Option value="all">All roles</Select.Option>
-					{ROLES.map((role) => (
-						<Select.Option key={role.value} value={role.value.toString()}>
-							{role.label}
+					{roleFilterSelectOptions.map((option) => (
+						<Select.Option key={option.value} value={option.value}>
+							{option.label}
 						</Select.Option>
 					))}
 				</Select>
@@ -85,19 +94,19 @@ export function UserList({
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								User
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Role
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Status
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Last Login
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Passkeys
 							</th>
 						</tr>

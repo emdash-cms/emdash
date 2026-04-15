@@ -22,6 +22,7 @@ import {
 	validateRedirectUri,
 } from "#api/handlers/oauth-authorization.js";
 import { lookupOAuthClient, validateClientRedirectUri } from "#api/handlers/oauth-clients.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { VALID_SCOPES } from "#auth/api-tokens.js";
 
 export const prerender = false;
@@ -40,14 +41,18 @@ function generateCsrfToken(): string {
 }
 
 /** Build the Set-Cookie header value for the CSRF token. */
-function csrfCookieHeader(token: string, request: Request): string {
+function csrfCookieHeader(token: string, request: Request, siteUrl?: string): string {
 	// SameSite=Strict prevents cross-site form submission.
 	// HttpOnly: the token value is embedded in the form hidden field server-side,
 	// so JS never needs to read the cookie. HttpOnly adds defense-in-depth.
-	// Secure is only set over HTTPS — omitting it on localhost allows the cookie
-	// to be sent over plain HTTP during development.
-	const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-	return `${CSRF_COOKIE_NAME}=${token}; Path=/_emdash/api/oauth/authorize; HttpOnly; SameSite=Strict${secure}`;
+	// Secure is set when:
+	//   - siteUrl is configured and uses https (proxy case — request may be http internally), OR
+	//   - the actual request is over https (non-proxy case, preserve existing behaviour)
+	const isSecure = siteUrl
+		? siteUrl.startsWith("https:")
+		: new URL(request.url).protocol === "https:";
+	const secure = isSecure ? "; Secure" : "";
+	return `${CSRF_COOKIE_NAME}=${token}; Path=/_emdash/oauth/authorize; HttpOnly; SameSite=Strict${secure}`;
 }
 
 /** Extract the CSRF token from the request's cookies. */
@@ -130,7 +135,7 @@ export const GET: APIRoute = async ({ url, request, locals }) => {
 
 	// If not authenticated, redirect to login with return URL
 	if (!user) {
-		const loginUrl = new URL("/_emdash/admin/login", url.origin);
+		const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 		loginUrl.searchParams.set("redirect", url.pathname + url.search);
 		return Response.redirect(loginUrl.toString(), 302);
 	}
@@ -169,7 +174,7 @@ export const GET: APIRoute = async ({ url, request, locals }) => {
 	return new Response(html, {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
-			"Set-Cookie": csrfCookieHeader(csrfToken, request),
+			"Set-Cookie": csrfCookieHeader(csrfToken, request, getPublicOrigin(url, emdash?.config)),
 		},
 	});
 };

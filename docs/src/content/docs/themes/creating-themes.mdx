@@ -11,7 +11,7 @@ An EmDash theme is a complete Astro site -- pages, layouts, components, styles -
 
 - **A theme is a working Astro project.** There's no theme API or abstraction layer. You build a site and ship it as a template. The seed file just tells EmDash what collections, fields, menus, redirects, and taxonomies to create on first run.
 - **EmDash gives you more control over the content model than WordPress.** Themes take advantage of this -- the seed file declares exactly what fields each collection needs. Build on the standard **posts** and **pages** collections and add fields and taxonomies as your design requires, rather than inventing entirely new content types.
-- **Content pages must be server-rendered.** Content changes at runtime through the admin UI, so pages that display EmDash content cannot be prerendered. Never use `getStaticPaths()` for EmDash content routes.
+- **Theme content pages must be server-rendered.** In a theme, content changes at runtime through the admin UI, so pages that display EmDash content must not be prerendered. Do not use `getStaticPaths()` in theme content routes. (Static site builds using EmDash as a build-time data source _can_ use `getStaticPaths`, but themes are always SSR.)
 - **No hard-coded content.** Site title, tagline, navigation, and other dynamic content come from the CMS via API calls -- not from template strings.
 
 ## Project Structure
@@ -160,8 +160,9 @@ See [Seed File Format](/themes/seed-files/) for the complete specification, incl
 All pages that display EmDash content are server-rendered. Use `Astro.params` to get the slug from the URL and query content at request time.
 
 <Aside type="caution">
-	Never use `getStaticPaths()` or `export const prerender = true` for pages that display EmDash
-	content. Content changes at runtime through the admin UI, so these pages must be server-rendered.
+	In themes, never use `getStaticPaths()` or `export const prerender = true` for pages that display
+	EmDash content. Themes serve content at runtime through the admin UI, so these pages must be
+	server-rendered.
 </Aside>
 
 ### Homepage

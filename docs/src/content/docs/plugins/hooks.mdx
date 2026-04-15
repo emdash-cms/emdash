@@ -57,6 +57,7 @@ hooks: {
 | `timeout`      | `number`                | `5000`    | Maximum execution time in milliseconds.    |
 | `dependencies` | `string[]`              | `[]`      | Plugin IDs that must run before this hook. |
 | `errorPolicy`  | `"abort" \| "continue"` | `"abort"` | Whether to stop the pipeline on error.     |
+| `exclusive`    | `boolean`               | `false`   | Only one plugin can be the active provider. Used for `email:deliver` and `comment:moderate`. |
 | `handler`      | `function`              | —         | The hook handler function. Required.       |
 
 <Aside type="tip">
@@ -261,6 +262,62 @@ Runs after content is successfully deleted.
 
 **Returns:** `Promise<void>`
 
+### `content:afterPublish`
+
+Runs after content is published (promoted from draft to live). Use for side effects like cache invalidation, notifications, or syncing to external systems.
+Requires `read:content` capability.
+
+```typescript
+"content:afterPublish": async (event, ctx) => {
+  const { content, collection } = event;
+
+  ctx.log.info(`Published ${collection}/${content.id}`);
+
+  // Notify external system
+  if (ctx.http) {
+    await ctx.http.fetch("https://api.example.com/webhook", {
+      method: "POST",
+      body: JSON.stringify({ event: "content:publish", id: content.id })
+    });
+  }
+}
+```
+
+**Event:**
+
+```typescript
+{
+	content: Record<string, unknown>; // Published content (includes id, timestamps)
+	collection: string;
+}
+```
+
+**Returns:** `Promise<void>`
+
+### `content:afterUnpublish`
+
+Runs after content is unpublished (reverted from live to draft). Use for side effects like cache invalidation or notifying external systems.
+Requires `read:content` capability.
+
+```typescript
+"content:afterUnpublish": async (event, ctx) => {
+  const { content, collection } = event;
+
+  ctx.log.info(`Unpublished ${collection}/${content.id}`);
+}
+```
+
+**Event:**
+
+```typescript
+{
+	content: Record<string, unknown>; // Unpublished content
+	collection: string;
+}
+```
+
+**Returns:** `Promise<void>`
+
 ## Media Hooks
 
 Media hooks run during file uploads.
@@ -428,7 +485,7 @@ Core validates, deduplicates, and renders the contributions. Plugins return stru
     graph: {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
-      headline: event.page.title,
+      headline: event.page.pageTitle ?? event.page.title,
       description: event.page.description,
     },
   };
@@ -446,6 +503,7 @@ Core validates, deduplicates, and renders the contributions. Plugins return stru
     kind: "content" | "custom";
     pageType: string;
     title: string | null;
+    pageTitle?: string | null;
     description: string | null;
     canonical: string | null;
     image: string | null;
@@ -494,17 +552,29 @@ Placements: `"head"`, `"body:start"`, `"body:end"`. Templates that omit a compon
 
 ## Hooks Reference
 
-| Hook                   | Trigger                   | Return                        |
-| ---------------------- | ------------------------- | ----------------------------- |
-| `plugin:install`       | First plugin installation | `void`                        |
-| `plugin:activate`      | Plugin enabled            | `void`                        |
-| `plugin:deactivate`    | Plugin disabled           | `void`                        |
-| `plugin:uninstall`     | Plugin removed            | `void`                        |
-| `content:beforeSave`   | Before content save       | Modified content or `void`    |
-| `content:afterSave`    | After content save        | `void`                        |
-| `content:beforeDelete` | Before content delete     | `false` to cancel, else allow |
-| `content:afterDelete`  | After content delete      | `void`                        |
-| `media:beforeUpload`   | Before file upload        | Modified file info or `void`  |
-| `media:afterUpload`    | After file upload         | `void`                        |
-| `page:metadata`        | Page render               | Contributions or `null`       |
-| `page:fragments`       | Page render (trusted)     | Contributions or `null`       |
+| Hook                    | Trigger                        | Return                         | Exclusive |
+| ----------------------- | ------------------------------ | ------------------------------ | --------- |
+| `plugin:install`        | First plugin installation      | `void`                         | No        |
+| `plugin:activate`       | Plugin enabled                 | `void`                         | No        |
+| `plugin:deactivate`     | Plugin disabled                | `void`                         | No        |
+| `plugin:uninstall`      | Plugin removed                 | `void`                         | No        |
+| `content:beforeSave`    | Before content save            | Modified content or `void`     | No        |
+| `content:afterSave`     | After content save             | `void`                         | No        |
+| `content:beforeDelete`  | Before content delete          | `false` to cancel, else allow  | No        |
+| `content:afterDelete`   | After content delete           | `void`                         | No        |
+| `content:afterPublish`  | After content publish          | `void`                         | No        |
+| `content:afterUnpublish`| After content unpublish        | `void`                         | No        |
+| `media:beforeUpload`    | Before file upload             | Modified file info or `void`   | No        |
+| `media:afterUpload`     | After file upload              | `void`                         | No        |
+| `cron`                  | Scheduled task fires           | `void`                         | No        |
+| `email:beforeSend`      | Before email delivery          | Modified message, `false`, or `void` | No  |
+| `email:deliver`         | Deliver email via transport    | `void`                         | Yes       |
+| `email:afterSend`       | After email delivery           | `void`                         | No        |
+| `comment:beforeCreate`  | Before comment stored          | Modified event, `false`, or `void` | No    |
+| `comment:moderate`      | Decide comment status          | `{ status, reason? }`          | Yes       |
+| `comment:afterCreate`   | After comment stored           | `void`                         | No        |
+| `comment:afterModerate` | Admin changes comment status   | `void`                         | No        |
+| `page:metadata`         | Page render                    | Contributions or `null`        | No        |
+| `page:fragments`        | Page render (trusted)          | Contributions or `null`        | No        |
+
+See the [Hook Reference](/reference/hooks/) for complete event types and handler signatures.

@@ -1,5 +1,25 @@
 import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo";
 import {
+	DndContext,
+	closestCenter,
+	type DragEndEvent,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	arrayMove,
+	SortableContext,
+	sortableKeyboardCoordinates,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import {
 	ArrowLeft,
 	Plus,
 	DotsSixVertical,
@@ -37,26 +57,32 @@ export interface ContentTypeEditorProps {
 	onReorderFields?: (fieldSlugs: string[]) => void;
 }
 
-const SUPPORT_OPTIONS = [
+interface SupportOptionDef {
+	value: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
+}
+
+const SUPPORT_OPTIONS: SupportOptionDef[] = [
 	{
 		value: "drafts",
-		label: "Drafts",
-		description: "Save content as draft before publishing",
+		label: msg`Drafts`,
+		description: msg`Save content as draft before publishing`,
 	},
 	{
 		value: "revisions",
-		label: "Revisions",
-		description: "Track content history",
+		label: msg`Revisions`,
+		description: msg`Track content history`,
 	},
 	{
 		value: "preview",
-		label: "Preview",
-		description: "Preview content before publishing",
+		label: msg`Preview`,
+		description: msg`Preview content before publishing`,
 	},
 	{
 		value: "search",
-		label: "Search",
-		description: "Enable full-text search on this collection",
+		label: msg`Search`,
+		description: msg`Enable full-text search on this collection`,
 	},
 ];
 
@@ -64,42 +90,49 @@ const SUPPORT_OPTIONS = [
  * System fields that exist on every collection
  * These are created automatically and cannot be modified
  */
-const SYSTEM_FIELDS = [
+interface SystemFieldDef {
+	slug: string;
+	label: MessageDescriptor;
+	type: string;
+	description: MessageDescriptor;
+}
+
+const SYSTEM_FIELDS: SystemFieldDef[] = [
 	{
 		slug: "id",
-		label: "ID",
+		label: msg`ID`,
 		type: "text",
-		description: "Unique identifier (ULID)",
+		description: msg`Unique identifier (ULID)`,
 	},
 	{
 		slug: "slug",
-		label: "Slug",
+		label: msg`Slug`,
 		type: "text",
-		description: "URL-friendly identifier",
+		description: msg`URL-friendly identifier`,
 	},
 	{
 		slug: "status",
-		label: "Status",
+		label: msg`Status`,
 		type: "text",
-		description: "draft, published, or archived",
+		description: msg`draft, published, or archived`,
 	},
 	{
 		slug: "created_at",
-		label: "Created At",
+		label: msg`Created At`,
 		type: "datetime",
-		description: "When the entry was created",
+		description: msg`When the entry was created`,
 	},
 	{
 		slug: "updated_at",
-		label: "Updated At",
+		label: msg`Updated At`,
 		type: "datetime",
-		description: "When the entry was last modified",
+		description: msg`When the entry was last modified`,
 	},
 	{
 		slug: "published_at",
-		label: "Published At",
+		label: msg`Published At`,
 		type: "datetime",
-		description: "When the entry was published",
+		description: msg`When the entry was published`,
 	},
 ];
 
@@ -114,8 +147,9 @@ export function ContentTypeEditor({
 	onAddField,
 	onUpdateField,
 	onDeleteField,
-	onReorderFields: _onReorderFields,
+	onReorderFields,
 }: ContentTypeEditorProps) {
+	const { t } = useLingui();
 	const _navigate = useNavigate();
 
 	// Form state
@@ -268,6 +302,21 @@ export function ContentTypeEditor({
 	const isFromCode = collection?.source === "code";
 	const fields = collection?.fields ?? [];
 
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	);
+
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const oldIndex = fields.findIndex((f) => f.id === active.id);
+		const newIndex = fields.findIndex((f) => f.id === over.id);
+		if (oldIndex === -1 || newIndex === -1) return;
+		const reordered = arrayMove(fields, oldIndex, newIndex);
+		onReorderFields?.(reordered.map((f) => f.slug));
+	};
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -285,7 +334,7 @@ export function ContentTypeEditor({
 						<p className="text-kumo-subtle text-sm">
 							<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
 							{isFromCode && (
-								<span className="ml-2 text-purple-600 dark:text-purple-400">Defined in code</span>
+								<span className="ms-2 text-purple-600 dark:text-purple-400">Defined in code</span>
 							)}
 						</p>
 					)}
@@ -385,8 +434,8 @@ export function ContentTypeEditor({
 											disabled={isFromCode}
 										/>
 										<div>
-											<span className="text-sm font-medium">{option.label}</span>
-											<p className="text-xs text-kumo-subtle">{option.description}</p>
+											<span className="text-sm font-medium">{t(option.label)}</span>
+											<p className="text-xs text-kumo-subtle">{t(option.description)}</p>
 										</div>
 									</label>
 								))}
@@ -561,17 +610,28 @@ export function ContentTypeEditor({
 									<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider border-b">
 										Custom Fields
 									</div>
-									<div className="divide-y">
-										{fields.map((field) => (
-											<FieldRow
-												key={field.id}
-												field={field}
-												isFromCode={isFromCode}
-												onEdit={() => handleEditField(field)}
-												onDelete={() => setDeleteFieldTarget(field)}
-											/>
-										))}
-									</div>
+									<DndContext
+										sensors={sensors}
+										collisionDetection={closestCenter}
+										onDragEnd={handleDragEnd}
+									>
+										<SortableContext
+											items={fields.map((f) => f.id)}
+											strategy={verticalListSortingStrategy}
+										>
+											<div className="divide-y">
+												{fields.map((field) => (
+													<FieldRow
+														key={field.id}
+														field={field}
+														isFromCode={isFromCode}
+														onEdit={() => handleEditField(field)}
+														onDelete={() => setDeleteFieldTarget(field)}
+													/>
+												))}
+											</div>
+										</SortableContext>
+									</DndContext>
 								</>
 							)}
 						</div>
@@ -620,9 +680,31 @@ interface FieldRowProps {
 }
 
 function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+		id: field.id,
+		disabled: isFromCode,
+	});
+	const style = { transform: CSS.Transform.toString(transform), transition };
+
 	return (
-		<div className="flex items-center px-4 py-3 hover:bg-kumo-tint/25">
-			{!isFromCode && <DotsSixVertical className="h-5 w-5 mr-3 text-kumo-subtle cursor-grab" />}
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={cn(
+				"flex items-center px-4 py-3 hover:bg-kumo-tint/25",
+				isDragging && "opacity-50",
+			)}
+		>
+			{!isFromCode && (
+				<button
+					{...attributes}
+					{...listeners}
+					className="cursor-grab active:cursor-grabbing me-3"
+					aria-label={`Drag to reorder ${field.label}`}
+				>
+					<DotsSixVertical className="h-5 w-5 text-kumo-subtle" />
+				</button>
+			)}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
 					<span className="font-medium">{field.label}</span>
@@ -663,24 +745,25 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 
 interface SystemFieldInfo {
 	slug: string;
-	label: string;
+	label: MessageDescriptor;
 	type: string;
-	description: string;
+	description: MessageDescriptor;
 }
 
 function SystemFieldRow({ field }: { field: SystemFieldInfo }) {
+	const { t } = useLingui();
 	return (
 		<div className="flex items-center px-4 py-2 opacity-75">
 			<div className="w-8" /> {/* Spacer for alignment with draggable fields */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
-					<span className="font-medium text-sm">{field.label}</span>
+					<span className="font-medium text-sm">{t(field.label)}</span>
 					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 					<Badge variant="secondary">System</Badge>
 				</div>
-				<p className="text-xs text-kumo-subtle mt-0.5">{field.description}</p>
+				<p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p>
 			</div>
 		</div>
 	);

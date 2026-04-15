@@ -55,6 +55,7 @@ export interface AdminManifest {
 			labelSingular: string;
 			supports: string[];
 			hasSeo: boolean;
+			urlPattern?: string;
 			fields: Record<
 				string,
 				{
@@ -63,6 +64,7 @@ export interface AdminManifest {
 					required?: boolean;
 					widget?: string;
 					options?: Array<{ value: string; label: string }>;
+					validation?: Record<string, unknown>;
 				}
 			>;
 		}
@@ -129,6 +131,16 @@ export interface AdminManifest {
 		defaultLocale: string;
 		locales: string[];
 	};
+	/**
+	 * Taxonomy definitions for the admin sidebar.
+	 */
+	taxonomies: Array<{
+		name: string;
+		label: string;
+		labelSingular?: string;
+		hierarchical: boolean;
+		collections: string[];
+	}>;
 	/**
 	 * Marketplace registry URL. Present when `marketplace` is configured
 	 * in the EmDash integration. Enables marketplace features in the UI.

@@ -10,7 +10,7 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { canActOnOwn, Role } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -299,7 +299,7 @@ export function createMcpServer(): McpServer {
 				status: z
 					.enum(["draft", "published"])
 					.optional()
-					.describe("Initial status (default 'draft')"),
+					.describe("Initial status (default 'draft'). Requires publish permission."),
 				locale: z
 					.string()
 					.optional()
@@ -317,11 +317,47 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
+
+			// Creating a translation requires edit permission on the source item
+			if (args.translationOf) {
+				const source = await emdash.handleContentGet(args.collection, args.translationOf);
+				if (!source.success) return unwrap(source);
+				requireOwnership(
+					extra,
+					extractContentAuthorId(source.data),
+					"content:edit_own",
+					"content:edit_any",
+				);
+			}
+
+			// Publishing requires publish permission — create as draft then publish
+			if (args.status === "published") {
+				const user = { id: userId, role: getExtra(extra).userRole };
+				if (!hasPermission(user, "content:publish_own" as Permission)) {
+					throw new McpError(
+						ErrorCode.InvalidRequest,
+						"Insufficient permissions: publishing requires content:publish_own",
+					);
+				}
+				const result = await emdash.handleContentCreate(args.collection, {
+					data: args.data,
+					slug: args.slug,
+					authorId: userId,
+					locale: args.locale,
+					translationOf: args.translationOf,
+				});
+				if (!result.success) return unwrap(result);
+				const itemId = extractContentId(result.data);
+				if (itemId) {
+					return unwrap(await emdash.handleContentPublish(args.collection, itemId));
+				}
+				return unwrap(result);
+			}
+
 			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
 					data: args.data,
 					slug: args.slug,
-					status: args.status,
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
@@ -347,7 +383,12 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Field values to update (only include changed fields)"),
 				slug: z.string().optional().describe("New URL slug"),
-				status: z.enum(["draft", "published"]).optional().describe("New status"),
+				status: z
+					.enum(["draft", "published"])
+					.optional()
+					.describe(
+						"New status. Setting to 'published' requires publish permission. Setting to 'draft' unpublishes the item and also requires publish permission.",
+					),
 				_rev: z
 					.string()
 					.optional()
@@ -372,11 +413,50 @@ export function createMcpServer(): McpServer {
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+
+			// Status transitions route through dedicated handlers for proper revision management
+			if (args.status === "published") {
+				requireOwnership(
+					extra,
+					extractContentAuthorId(existing.data),
+					"content:publish_own",
+					"content:publish_any",
+				);
+				if (args.data || args.slug) {
+					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
+						data: args.data,
+						slug: args.slug,
+						authorId: userId,
+						_rev: args._rev,
+					});
+					if (!updateResult.success) return unwrap(updateResult);
+				}
+				return unwrap(await emdash.handleContentPublish(args.collection, resolvedId));
+			}
+
+			if (args.status === "draft") {
+				requireOwnership(
+					extra,
+					extractContentAuthorId(existing.data),
+					"content:publish_own",
+					"content:publish_any",
+				);
+				if (args.data || args.slug) {
+					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
+						data: args.data,
+						slug: args.slug,
+						authorId: userId,
+						_rev: args._rev,
+					});
+					if (!updateResult.success) return unwrap(updateResult);
+				}
+				return unwrap(await emdash.handleContentUnpublish(args.collection, resolvedId));
+			}
+
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
 					data: args.data,
 					slug: args.slug,
-					status: args.status,
 					authorId: userId,
 					_rev: args._rev,
 				}),
@@ -1177,26 +1257,8 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const rows = (await ec.db
-					.selectFrom("_emdash_taxonomy_defs" as never)
-					.selectAll()
-					.execute()) as Array<{
-					id: string;
-					name: string;
-					label: string;
-					label_singular: string | null;
-					hierarchical: number;
-					collections: string | null;
-				}>;
-				const taxonomies = rows.map((row) => ({
-					id: row.id,
-					name: row.name,
-					label: row.label,
-					labelSingular: row.label_singular ?? undefined,
-					hierarchical: row.hierarchical === 1,
-					collections: row.collections ? JSON.parse(row.collections) : [],
-				}));
-				return jsonResult(taxonomies);
+				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTaxonomyList(ec.db));
 			} catch (error) {
 				return errorResult(error);
 			}
@@ -1222,32 +1284,44 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const taxonomy = (await ec.db
-					.selectFrom("_emdash_taxonomy_defs" as never)
-					.select("id" as never)
-					.where("name" as never, "=", args.taxonomy as never)
-					.executeTakeFirst()) as { id: string } | undefined;
+				// Verify taxonomy exists via handler layer
+				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
+				const listResult = await handleTaxonomyList(ec.db);
+				if (!listResult.success) return unwrap(listResult);
 
+				const taxonomies = (listResult.data as { taxonomies: Array<{ name: string; id?: string }> })
+					.taxonomies;
+				const taxonomy = taxonomies.find((t: { name: string }) => t.name === args.taxonomy);
 				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
 
+				// Paginated term query via repository (avoids N+1 of handleTermList)
+				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
+				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
-				let query = ec.db
-					.selectFrom("_emdash_taxonomy_terms" as never)
-					.selectAll()
-					.where("taxonomy_id" as never, "=", taxonomy.id as never)
-					.orderBy("label" as never, "asc")
-					.limit(limit + 1);
+				const terms = await repo.findByName(args.taxonomy);
 
+				// Manual cursor pagination over the sorted results
+				let startIdx = 0;
 				if (args.cursor) {
-					query = query.where("id" as never, ">" as never, args.cursor as never);
+					const cursorIdx = terms.findIndex((t) => t.id === args.cursor);
+					if (cursorIdx >= 0) startIdx = cursorIdx + 1;
 				}
 
-				const rows = (await query.execute()) as Array<{ id: string }>;
-				const hasMore = rows.length > limit;
-				const items = hasMore ? rows.slice(0, limit) : rows;
-				const nextCursor = hasMore ? items.at(-1)?.id : undefined;
+				const page = terms.slice(startIdx, startIdx + limit);
+				const hasMore = startIdx + limit < terms.length;
+				const nextCursor = hasMore ? page.at(-1)?.id : undefined;
 
-				return jsonResult({ items, nextCursor });
+				return jsonResult({
+					items: page.map((t) => ({
+						id: t.id,
+						name: t.name,
+						slug: t.slug,
+						label: t.label,
+						parentId: t.parentId,
+						description: typeof t.data?.description === "string" ? t.data.description : undefined,
+					})),
+					nextCursor,
+				});
 			} catch (error) {
 				return errorResult(error);
 			}
@@ -1274,36 +1348,15 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const { ulid } = await import("ulidx");
-
-				const taxonomy = (await ec.db
-					.selectFrom("_emdash_taxonomy_defs" as never)
-					.select("id" as never)
-					.where("name" as never, "=", args.taxonomy as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-
-				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
-
-				const id = ulid();
-				await ec.db
-					.insertInto("_emdash_taxonomy_terms" as never)
-					.values({
-						id,
-						taxonomy_id: taxonomy.id,
+				const { handleTermCreate } = await import("../api/handlers/taxonomies.js");
+				return unwrap(
+					await handleTermCreate(ec.db, args.taxonomy, {
 						slug: args.slug,
 						label: args.label,
-						parent_id: args.parentId ?? null,
-						description: args.description ?? null,
-					} as never)
-					.execute();
-
-				const term = await ec.db
-					.selectFrom("_emdash_taxonomy_terms" as never)
-					.selectAll()
-					.where("id" as never, "=", id as never)
-					.executeTakeFirstOrThrow();
-
-				return jsonResult(term);
+						parentId: args.parentId,
+						description: args.description,
+					}),
+				);
 			} catch (error) {
 				return errorResult(error);
 			}

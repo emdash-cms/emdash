@@ -18,7 +18,8 @@ export type FieldType =
 	| "file"
 	| "reference"
 	| "json"
-	| "slug";
+	| "slug"
+	| "repeater";
 
 export interface SchemaCollection {
 	id: string;

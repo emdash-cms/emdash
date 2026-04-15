@@ -13,7 +13,7 @@ import {
 	UserListSkeleton,
 	UserDetail,
 	InviteUserModal,
-	getRoleLabel,
+	useRolesConfig,
 } from "../components/users";
 import {
 	fetchUsers,
@@ -41,6 +41,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function UsersPage() {
+	const { getRoleLabel } = useRolesConfig();
 	const queryClient = useQueryClient();
 
 	// State

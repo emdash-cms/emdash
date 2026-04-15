@@ -204,10 +204,12 @@ export class MarketplaceUnavailableError extends MarketplaceError {
 
 class MarketplaceClientImpl implements MarketplaceClient {
 	private readonly baseUrl: string;
+	private readonly siteOrigin: string | undefined;
 
-	constructor(baseUrl: string) {
+	constructor(baseUrl: string, siteOrigin?: string) {
 		// Strip trailing slash
 		this.baseUrl = baseUrl.replace(TRAILING_SLASHES, "");
+		this.siteOrigin = siteOrigin;
 	}
 
 	async search(query?: string, opts?: MarketplaceSearchOpts): Promise<MarketplaceSearchResult> {
@@ -239,12 +241,42 @@ class MarketplaceClientImpl implements MarketplaceClient {
 	async downloadBundle(id: string, version: string): Promise<PluginBundle> {
 		const bundleUrl = `${this.baseUrl}/api/v1/plugins/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/bundle`;
 
+		const marketplaceOrigin = new URL(this.baseUrl).origin;
+		const MAX_REDIRECTS = 5;
 		let response: Response;
 		try {
-			response = await fetch(bundleUrl, {
-				redirect: "follow",
-			});
+			let currentUrl = bundleUrl;
+			response = await fetch(currentUrl, { redirect: "manual" });
+
+			// Follow redirects manually, validating each target stays on the marketplace host
+			for (let i = 0; i < MAX_REDIRECTS; i++) {
+				if (response.status < 300 || response.status >= 400) break;
+
+				const location = response.headers.get("location");
+				if (!location) break;
+
+				const target = new URL(location, currentUrl);
+				if (target.origin !== marketplaceOrigin) {
+					throw new MarketplaceError(
+						`Bundle download redirected to untrusted host: ${target.origin}`,
+						response.status,
+						"BUNDLE_REDIRECT_UNTRUSTED",
+					);
+				}
+				currentUrl = target.href;
+				response = await fetch(currentUrl, { redirect: "manual" });
+			}
+
+			// If still a redirect after MAX_REDIRECTS, fail explicitly
+			if (response.status >= 300 && response.status < 400) {
+				throw new MarketplaceError(
+					`Bundle download exceeded maximum redirects (${MAX_REDIRECTS})`,
+					response.status,
+					"BUNDLE_TOO_MANY_REDIRECTS",
+				);
+			}
 		} catch (err) {
+			if (err instanceof MarketplaceError) throw err;
 			throw new MarketplaceUnavailableError(err);
 		}
 
@@ -270,8 +302,8 @@ class MarketplaceClientImpl implements MarketplaceClient {
 	}
 
 	async reportInstall(id: string, version: string): Promise<void> {
-		// Generate a stable site hash (best-effort, non-identifying)
-		const siteHash = await generateSiteHash();
+		// Generate a stable site hash from the site origin (best-effort, non-identifying)
+		const siteHash = await generateSiteHash(this.siteOrigin);
 		const url = `${this.baseUrl}/api/v1/plugins/${encodeURIComponent(id)}/installs`;
 
 		try {
@@ -433,18 +465,27 @@ async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBundle> {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-/** Generate a stable non-identifying site hash (best-effort) */
-async function generateSiteHash(): Promise<string> {
-	// Use a timestamp-based approach since we can't reliably get the origin
-	// in all contexts (Workers, Node, etc.)
-	const seed = `emdash-${Date.now()}`;
+/**
+ * Generate a stable non-identifying site hash from the site origin.
+ * The same origin always produces the same hash, so the marketplace
+ * installs table deduplicates correctly per (plugin_id, site_hash).
+ */
+async function generateSiteHash(siteOrigin?: string): Promise<string> {
+	const seed = siteOrigin ? `emdash-site:${siteOrigin}` : `emdash-anonymous`;
 	try {
 		const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(seed));
 		const arr = new Uint8Array(hash);
 		return Array.from(arr.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
 	} catch {
-		// Fallback for environments without crypto.subtle
-		return Math.random().toString(36).slice(2, 18);
+		// Fallback for environments without crypto.subtle: FNV-1a hash encoded as hex.
+		// Deterministic, uniform distribution, no origin leakage.
+		let h = 0x811c9dc5;
+		for (let i = 0; i < seed.length; i++) {
+			h ^= seed.charCodeAt(i);
+			h = Math.imul(h, 0x01000193);
+		}
+		const h2 = h ^ (h >>> 16);
+		return (h >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
 	}
 }
 
@@ -454,7 +495,9 @@ async function generateSiteHash(): Promise<string> {
  * Create a MarketplaceClient for the given marketplace URL.
  *
  * @param baseUrl - The marketplace API base URL (e.g. "https://marketplace.emdashcms.com")
+ * @param siteOrigin - The origin of the EmDash site (e.g. "https://myblog.example.com").
+ *   Used to generate a stable, non-identifying site hash for install deduplication.
  */
-export function createMarketplaceClient(baseUrl: string): MarketplaceClient {
-	return new MarketplaceClientImpl(baseUrl);
+export function createMarketplaceClient(baseUrl: string, siteOrigin?: string): MarketplaceClient {
+	return new MarketplaceClientImpl(baseUrl, siteOrigin);
 }

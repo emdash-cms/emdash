@@ -223,23 +223,17 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
-	 * Enable the MCP (Model Context Protocol) server endpoint.
+	 * MCP (Model Context Protocol) server endpoint.
 	 *
-	 * When enabled, exposes an MCP Streamable HTTP server at
-	 * `/_emdash/api/mcp` that allows AI agents and tools to interact
-	 * with the CMS using the standardized MCP protocol.
+	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
+	 * that allows AI agents and tools to interact with the CMS using
+	 * the standardized MCP protocol.
 	 *
-	 * Authentication is handled by the existing EmDash auth middleware —
-	 * agents must authenticate with an API token or session cookie.
+	 * Enabled by default. The endpoint requires bearer token auth, so
+	 * it has no effect unless the user creates an API token and
+	 * configures a client. Set to `false` to disable.
 	 *
-	 * @default false
-	 *
-	 * @example
-	 * ```ts
-	 * emdash({
-	 *   mcp: true,
-	 * })
-	 * ```
+	 * @default true
 	 */
 	mcp?: boolean;
 
@@ -261,6 +255,21 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Public browser-facing origin for the site.
+	 *
+	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
+	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
+	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
+	 *
+	 * Set to the full origin users type in the address bar (no path), e.g.
+	 * `https://mysite.example.com`. When not set, falls back to environment variables
+	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 *
+	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
+	 */
+	siteUrl?: string;
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.

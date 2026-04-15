@@ -6,6 +6,7 @@
  */
 
 import { Button } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
 	Palette,
@@ -41,6 +42,7 @@ function isSortOption(value: string): value is SortOption {
 }
 
 export function ThemeMarketplaceBrowse() {
+	const { t } = useLingui();
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [sort, setSort] = React.useState<SortOption>("updated");
 	const [debouncedQuery, setDebouncedQuery] = React.useState("");
@@ -70,22 +72,22 @@ export function ThemeMarketplaceBrowse() {
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-3xl font-bold">Themes</h1>
+				<h1 className="text-3xl font-bold">{t`Themes`}</h1>
 				<p className="mt-1 text-kumo-subtle">
-					Browse themes and preview them with your own content.
+					{t`Browse themes and preview them with your own content.`}
 				</p>
 			</div>
 
 			{/* Search + Sort */}
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div className="relative flex-1">
-					<MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
 					<input
 						type="search"
-						placeholder="Search themes..."
+						placeholder={t`Search themes...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full rounded-md border bg-kumo-base px-3 py-2 pl-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+						className="w-full rounded-md border bg-kumo-base px-3 py-2 ps-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
 					/>
 				</div>
 				<select
@@ -95,7 +97,7 @@ export function ThemeMarketplaceBrowse() {
 						if (isSortOption(v)) setSort(v);
 					}}
 					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
-					aria-label="Sort themes"
+					aria-label={t`Sort themes`}
 				>
 					{Object.entries(SORT_LABELS).map(([value, label]) => (
 						<option key={value} value={value}>
@@ -109,13 +111,13 @@ export function ThemeMarketplaceBrowse() {
 			{error && (
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6 text-center">
 					<Warning className="mx-auto h-8 w-8 text-kumo-danger" />
-					<h3 className="mt-3 font-medium text-kumo-danger">Unable to reach marketplace</h3>
+					<h3 className="mt-3 font-medium text-kumo-danger">{t`Unable to reach marketplace`}</h3>
 					<p className="mt-1 text-sm text-kumo-subtle">
-						{error instanceof Error ? error.message : "An error occurred"}
+						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
 					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="mr-2 h-4 w-4" />
-						Retry
+						<ArrowsClockwise className="me-2 h-4 w-4" />
+						{t`Retry`}
 					</Button>
 				</div>
 			)}
@@ -142,11 +144,11 @@ export function ThemeMarketplaceBrowse() {
 					{themes.length === 0 ? (
 						<div className="rounded-lg border bg-kumo-base p-8 text-center">
 							<Palette className="mx-auto h-12 w-12 text-kumo-subtle" />
-							<h3 className="mt-4 text-lg font-medium">No themes found</h3>
+							<h3 className="mt-4 text-lg font-medium">{t`No themes found`}</h3>
 							<p className="mt-2 text-sm text-kumo-subtle">
 								{debouncedQuery
-									? `No results for "${debouncedQuery}". Try a different search term.`
-									: "The theme marketplace is empty. Check back later."}
+									? t`No results for "${debouncedQuery}". Try a different search term.`
+									: t`The theme marketplace is empty. Check back later.`}
 							</p>
 						</div>
 					) : (
@@ -163,7 +165,7 @@ export function ThemeMarketplaceBrowse() {
 										onClick={() => void fetchNextPage()}
 										disabled={isFetchingNextPage}
 									>
-										{isFetchingNextPage ? "Loading..." : "Load more"}
+										{isFetchingNextPage ? t`Loading...` : t`Load more`}
 									</Button>
 								</div>
 							)}
@@ -180,6 +182,7 @@ export function ThemeMarketplaceBrowse() {
 // ---------------------------------------------------------------------------
 
 function ThemeCard({ theme }: { theme: ThemeSummary }) {
+	const { t } = useLingui();
 	const thumbnailUrl = theme.thumbnailUrl
 		? `/_emdash/api/admin/themes/marketplace/${encodeURIComponent(theme.id)}/thumbnail`
 		: null;
@@ -202,7 +205,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 				{thumbnailUrl ? (
 					<img
 						src={thumbnailUrl}
-						alt={`${theme.name} preview`}
+						alt={t`${theme.name} preview`}
 						className="aspect-video w-full object-cover bg-kumo-tint"
 						loading="lazy"
 					/>
@@ -243,8 +246,8 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 						}}
 						disabled={previewMutation.isPending}
 					>
-						<Eye className="mr-1.5 h-3.5 w-3.5" />
-						{previewMutation.isPending ? "Loading..." : "Try with my data"}
+						<Eye className="me-1.5 h-3.5 w-3.5" />
+						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
 					</Button>
 
 					{theme.demoUrl && (
@@ -253,8 +256,8 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 							size="sm"
 							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
 						>
-							<ArrowSquareOut className="mr-1.5 h-3.5 w-3.5" />
-							Demo
+							<ArrowSquareOut className="me-1.5 h-3.5 w-3.5" />
+							{t`Demo`}
 						</Button>
 					)}
 				</div>
@@ -263,7 +266,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 					<p className="mt-2 text-xs text-kumo-danger">
 						{previewMutation.error instanceof Error
 							? previewMutation.error.message
-							: "Failed to generate preview"}
+							: t`Failed to generate preview`}
 					</p>
 				)}
 			</div>

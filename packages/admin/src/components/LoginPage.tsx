@@ -14,13 +14,17 @@
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { apiFetch, fetchManifest } from "../lib/api";
 import { sanitizeRedirectUrl } from "../lib/url";
+import { SUPPORTED_LOCALES } from "../locales/index.js";
+import { useLocale } from "../locales/useLocale.js";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
+import { LogoLockup } from "./Logo.js";
 
 // ============================================================================
 // Types
@@ -100,6 +104,7 @@ interface MagicLinkFormProps {
 }
 
 function MagicLinkForm({ onBack }: MagicLinkFormProps) {
+	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
@@ -119,12 +124,12 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 
 			if (!response.ok) {
 				const body: { error?: { message?: string } } = await response.json().catch(() => ({}));
-				throw new Error(body?.error?.message || "Failed to send magic link");
+				throw new Error(body?.error?.message || t`Failed to send magic link`);
 			}
 
 			setSent(true);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to send magic link");
+			setError(err instanceof Error ? err.message : t`Failed to send magic link`);
 		} finally {
 			setIsLoading(false);
 		}
@@ -150,20 +155,23 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 				</div>
 
 				<div>
-					<h2 className="text-xl font-semibold">Check your email</h2>
+					<h2 className="text-xl font-semibold">{t`Check your email`}</h2>
 					<p className="text-kumo-subtle mt-2">
-						If an account exists for <span className="font-medium text-kumo-default">{email}</span>,
-						we've sent a sign-in link.
+						<Trans>
+							If an account exists for{" "}
+							<span className="font-medium text-kumo-default">{email}</span>, we've sent a sign-in
+							link.
+						</Trans>
 					</p>
 				</div>
 
 				<div className="text-sm text-kumo-subtle">
-					<p>Click the link in the email to sign in.</p>
-					<p className="mt-2">The link will expire in 15 minutes.</p>
+					<p>{t`Click the link in the email to sign in.`}</p>
+					<p className="mt-2">{t`The link will expire in 15 minutes.`}</p>
 				</div>
 
 				<Button variant="outline" onClick={onBack} className="mt-4 w-full justify-center">
-					Back to login
+					{t`Back to login`}
 				</Button>
 			</div>
 		);
@@ -172,7 +180,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<Input
-				label="Email address"
+				label={t`Email address`}
 				type="email"
 				value={email}
 				onChange={(e) => setEmail(e.target.value)}
@@ -195,11 +203,11 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 				loading={isLoading}
 				disabled={!email}
 			>
-				{isLoading ? "Sending..." : "Send magic link"}
+				{isLoading ? t`Sending...` : t`Send magic link`}
 			</Button>
 
 			<Button type="button" variant="ghost" className="w-full justify-center" onClick={onBack}>
-				Back to login
+				{t`Back to login`}
 			</Button>
 		</form>
 	);
@@ -217,6 +225,8 @@ function handleOAuthClick(providerId: string) {
 export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	// Defense-in-depth: sanitize even if the caller already validated
 	const safeRedirectUrl = sanitizeRedirectUrl(redirectUrl);
+	const { t } = useLingui();
+	const { locale, setLocale } = useLocale();
 	const [method, setMethod] = React.useState<LoginMethod>("passkey");
 	const [urlError, setUrlError] = React.useState<string | null>(null);
 
@@ -240,7 +250,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		const message = params.get("message");
 
 		if (error) {
-			setUrlError(message || `Authentication error: ${error}`);
+			setUrlError(message || t`Authentication error: ${error}`);
 			// Clean up URL
 			window.history.replaceState({}, "", window.location.pathname);
 		}
@@ -256,7 +266,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 				<div className="text-center">
-					<div className="text-4xl font-bold mb-4">— EmDash</div>
+					<LogoLockup className="h-10 mx-auto mb-4" />
 					<Loader />
 				</div>
 			</div>
@@ -268,10 +278,10 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<div className="text-4xl font-bold mb-2">— EmDash</div>
+					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
-						{method === "passkey" && "Sign in to your site"}
-						{method === "magic-link" && "Sign in with email"}
+						{method === "passkey" && t`Sign in to your site`}
+						{method === "magic-link" && t`Sign in with email`}
 					</h1>
 				</div>
 
@@ -291,7 +301,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 								optionsEndpoint="/_emdash/api/auth/passkey/options"
 								verifyEndpoint="/_emdash/api/auth/passkey/verify"
 								onSuccess={handleSuccess}
-								buttonText="Sign in with Passkey"
+								buttonText={t`Sign in with Passkey`}
 							/>
 
 							{/* Divider */}
@@ -300,7 +310,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 									<span className="w-full border-t" />
 								</div>
 								<div className="relative flex justify-center text-xs uppercase">
-									<span className="bg-kumo-base px-2 text-kumo-subtle">Or continue with</span>
+									<span className="bg-kumo-base px-2 text-kumo-subtle">{t`Or continue with`}</span>
 								</div>
 							</div>
 
@@ -315,7 +325,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 										className="w-full justify-center"
 									>
 										{provider.icon}
-										<span className="ml-2">{provider.name}</span>
+										<span className="ms-2">{provider.name}</span>
 									</Button>
 								))}
 							</div>
@@ -327,7 +337,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 								type="button"
 								onClick={() => setMethod("magic-link")}
 							>
-								Sign in with email link
+								{t`Sign in with email link`}
 							</Button>
 						</div>
 					)}
@@ -338,18 +348,41 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 				{/* Help text */}
 				<p className="text-center mt-6 text-sm text-kumo-subtle">
 					{method === "passkey"
-						? "Use your registered passkey to sign in securely."
-						: "We'll send you a link to sign in without a password."}
+						? t`Use your registered passkey to sign in securely.`
+						: t`We'll send you a link to sign in without a password.`}
 				</p>
 
 				{/* Signup link — only shown when self-signup is enabled */}
 				{manifest?.signupEnabled && (
 					<p className="text-center mt-4 text-sm text-kumo-subtle">
-						Don't have an account?{" "}
-						<Link to="/signup" className="text-kumo-brand hover:underline font-medium">
-							Sign up
-						</Link>
+						<Trans>
+							Don't have an account?{" "}
+							<Link to="/signup" className="text-kumo-brand hover:underline font-medium">
+								Sign up
+							</Link>
+						</Trans>
 					</p>
+				)}
+
+				{/* Language selector — only shown when multiple locales are available */}
+				{SUPPORTED_LOCALES.length > 1 && (
+					<div className="mt-6 flex justify-center gap-2 text-xs text-kumo-subtle">
+						{SUPPORTED_LOCALES.map((l, i) => (
+							<React.Fragment key={l.code}>
+								{i > 0 && <span>·</span>}
+								<button
+									onClick={() => setLocale(l.code)}
+									className={
+										l.code === locale
+											? "font-medium text-kumo-default"
+											: "hover:text-kumo-default transition-colors"
+									}
+								>
+									{l.label}
+								</button>
+							</React.Fragment>
+						))}
+					</div>
 				)}
 			</div>
 		</div>

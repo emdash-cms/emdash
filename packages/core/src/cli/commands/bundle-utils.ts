@@ -196,11 +196,7 @@ export async function resolveSourceEntry(
 ): Promise<string | undefined> {
 	const cleaned = distPath.replace(LEADING_DOT_SLASH_RE, "");
 
-	// Try the path directly (might be source already)
-	const direct = resolve(pluginDir, cleaned);
-	if (await fileExists(direct)) return direct;
-
-	// Convert dist path to src: dist/foo.mjs → src/foo.ts
+	// Prefer source over dist — dist/foo.mjs → src/foo.ts
 	const srcPath = cleaned.replace(DIST_PREFIX_RE, "src/").replace(MJS_EXT_RE, ".ts");
 	const srcFull = resolve(pluginDir, srcPath);
 	if (await fileExists(srcFull)) return srcFull;
@@ -210,7 +206,37 @@ export async function resolveSourceEntry(
 	const tsxFull = resolve(pluginDir, tsxPath);
 	if (await fileExists(tsxFull)) return tsxFull;
 
+	// Fall back to direct path (might be source already, or pre-compiled plugin)
+	const direct = resolve(pluginDir, cleaned);
+	if (await fileExists(direct)) return direct;
+
 	return undefined;
+}
+
+// ── Export validation ───────────────────────────────────────────────────────
+
+const TS_SOURCE_EXPORT_RE = /\.(?:ts|tsx|mts|cts|jsx)$/;
+
+/**
+ * Find package.json exports that point to source files instead of built output.
+ * Returns an array of `{ exportPath, resolvedPath }` for each offending export.
+ */
+export function findSourceExports(
+	exports: Record<string, unknown>,
+): Array<{ exportPath: string; resolvedPath: string }> {
+	const issues: Array<{ exportPath: string; resolvedPath: string }> = [];
+	for (const [exportPath, exportValue] of Object.entries(exports)) {
+		const resolved =
+			typeof exportValue === "string"
+				? exportValue
+				: exportValue && typeof exportValue === "object" && "import" in exportValue
+					? (exportValue as { import: string }).import
+					: null;
+		if (resolved && TS_SOURCE_EXPORT_RE.test(resolved)) {
+			issues.push({ exportPath, resolvedPath: resolved });
+		}
+	}
+	return issues;
 }
 
 // ── Directory helpers ────────────────────────────────────────────────────────
