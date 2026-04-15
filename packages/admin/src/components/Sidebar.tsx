@@ -16,6 +16,8 @@ import {
 	Users,
 	Stack,
 	ArrowsLeftRight,
+	Rocket,
+	Globe,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -59,6 +61,12 @@ export interface SidebarNavProps {
 		version?: string;
 		commit?: string;
 		marketplace?: string;
+		extensions?: Array<{
+			label: string;
+			icon?: string;
+			group?: string;
+			url: string;
+		}>;
 	};
 }
 
@@ -166,8 +174,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		enabled: userRole >= ROLE_EDITOR,
 	});
 
-	// --- Build nav item groups ---
-
 	const contentItems: NavItem[] = [{ to: "/", label: t`Dashboard`, icon: SquaresFour }];
 	for (const [name, config] of Object.entries(manifest.collections)) {
 		contentItems.push({
@@ -223,6 +229,29 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/import/wordpress", label: t`Import`, icon: Upload, minRole: ROLE_ADMIN },
 		{ to: "/settings", label: t`Settings`, icon: Gear, minRole: ROLE_ADMIN },
 	);
+
+	const EXTENSION_ICONS: Record<string, React.ElementType> = {
+		rocket: Rocket,
+		upload: Upload,
+		database: Database,
+		gear: Gear,
+		list: List,
+		globe: Globe,
+	};
+
+	for (const ext of manifest.extensions ?? []) {
+		const slug = ext.url.replace("/_emdash/ext/", "");
+		const item: NavItem = {
+			to: "/ext/$name",
+			params: { name: slug },
+			label: ext.label,
+			icon: EXTENSION_ICONS[ext.icon ?? ""] ?? Upload,
+			minRole: ROLE_ADMIN,
+		};
+		if (ext.group === "content") contentItems.push(item);
+		else if (ext.group === "admin") adminItems.push(item);
+		else manageItems.push(item);
+	}
 
 	const pluginItems: NavItem[] = [];
 	for (const [pluginId, config] of Object.entries(manifest.plugins)) {

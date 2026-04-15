@@ -21,6 +21,7 @@ import { createViteConfig } from "./vite-config.js";
 // Re-export runtime types and functions
 export type {
 	EmDashConfig,
+	ExtensionDescriptor,
 	PluginDescriptor,
 	SandboxedPluginDescriptor,
 	ResolvedPlugin,
@@ -37,6 +38,8 @@ const DEFAULT_STORAGE = local({
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
 const cyan = (s: string) => `\x1b[36m${s}\x1b[39m`;
+
+const VALID_EXTENSION_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Print the EmDash startup banner */
 function printBanner(_logger: AstroIntegrationLogger): void {
@@ -158,6 +161,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		auth: resolvedConfig.auth,
 		marketplace: resolvedConfig.marketplace,
 		siteUrl: resolvedConfig.siteUrl,
+		extensions: resolvedConfig.extensions?.map((ext) => ({
+			label: ext.label,
+			icon: ext.icon,
+			group: ext.group || "manage",
+			url: "/_emdash/ext/" + ext.name,
+		})),
 	};
 
 	// Determine auth mode for route injection
@@ -167,7 +176,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	return {
 		name: "emdash",
 		hooks: {
-			"astro:config:setup": ({
+			"astro:config:setup": async ({
 				injectRoute,
 				addMiddleware,
 				logger,
@@ -231,6 +240,66 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Inject MCP endpoint (always on — bearer-token-only, no cost if unused)
 				if (resolvedConfig.mcp !== false) {
 					injectMcpRoute(injectRoute);
+				}
+
+				if (resolvedConfig.extensions?.length) {
+					const { resolve: resolvePath } = await import("node:path");
+					const { existsSync } = await import("node:fs");
+					const projectRoot = process.cwd();
+					const seenNames = new Set<string>();
+
+					for (const ext of resolvedConfig.extensions) {
+						if (!VALID_EXTENSION_SLUG.test(ext.name)) {
+							logger.warn(
+								`Skipping extension "${ext.name}": name must be lowercase alphanumeric with hyphens`,
+							);
+							continue;
+						}
+
+						if (seenNames.has(ext.name)) {
+							logger.warn(`Skipping duplicate extension "${ext.name}"`);
+							continue;
+						}
+						seenNames.add(ext.name);
+
+						const dir = resolvePath(projectRoot, "src", "extensions", ext.name);
+						if (!dir.startsWith(projectRoot)) {
+							logger.warn(
+								`Skipping extension "${ext.name}": resolved path escapes project directory`,
+							);
+							continue;
+						}
+
+						const pagePath = resolvePath(dir, "page.astro");
+						if (!existsSync(pagePath)) {
+							logger.warn(`Skipping extension "${ext.name}": missing page.astro in ${dir}`);
+							continue;
+						}
+
+						injectRoute({
+							pattern: "/_emdash/ext/" + ext.name,
+							entrypoint: pagePath,
+							prerender: false,
+						});
+
+						const integrationPath = resolvePath(dir, "integration.ts");
+						if (existsSync(integrationPath)) {
+							const mod = await import(integrationPath);
+							const setupFn = mod.default || Object.values(mod)[0];
+							if (typeof setupFn === "function") {
+								const integration = setupFn();
+								if (integration?.hooks?.["astro:config:setup"]) {
+									await integration.hooks["astro:config:setup"]({
+										injectRoute,
+										updateConfig,
+										config: astroConfig,
+										command,
+										logger,
+									});
+								}
+							}
+						}
+					}
 				}
 
 				// In playground mode, inject the playground middleware FIRST.

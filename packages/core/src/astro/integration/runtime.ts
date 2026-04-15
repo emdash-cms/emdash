@@ -125,6 +125,13 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 export type SandboxedPluginDescriptor<TOptions = Record<string, unknown>> =
 	PluginDescriptor<TOptions>;
 
+export interface ExtensionDescriptor {
+	name: string;
+	label: string;
+	icon?: string;
+	group?: "content" | "manage" | "admin";
+}
+
 export interface EmDashConfig {
 	/**
 	 * Database configuration
@@ -255,6 +262,13 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Admin sidebar extensions — custom pages rendered inline.
+	 * Each extension adds a nav item to the specified sidebar group
+	 * and renders the Astro page file in an iframe.
+	 */
+	extensions?: ExtensionDescriptor[];
 
 	/**
 	 * Public browser-facing origin for the site.

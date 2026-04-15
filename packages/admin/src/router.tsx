@@ -1619,7 +1619,23 @@ const notFoundRoute = createRoute({
 	component: () => <NotFoundPage />,
 });
 
-// Create route tree with admin routes under layout and setup route separate
+function ExtensionPage() {
+	const { name } = useParams({ from: "/_admin/ext/$name" });
+	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) return <NotFoundPage />;
+	return (
+		<iframe
+			src={`/_emdash/ext/${name}`}
+			style={{ width: "100%", height: "100%", border: "none", minHeight: "calc(100vh - 64px)" }}
+		/>
+	);
+}
+
+const extensionRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/ext/$name",
+	component: ExtensionPage,
+});
+
 const adminRoutes = adminLayoutRoute.addChildren([
 	dashboardRoute,
 	contentListRoute,
@@ -1654,6 +1670,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
 	wordpressImportRoute,
+	extensionRoute,
 	notFoundRoute,
 ]);
 

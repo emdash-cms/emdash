@@ -37,11 +37,14 @@ export const GET: APIRoute = async ({ locals }) => {
 		}
 	}
 
+	const extensions = (emdash?.config as Record<string, unknown>)?.extensions as EmDashManifest["extensions"];
+
 	const manifest: EmDashManifest = emdashManifest
 		? {
 				...emdashManifest,
 				authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 				signupEnabled,
+				extensions,
 			}
 		: {
 				version: VERSION,
@@ -52,6 +55,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				taxonomies: [],
 				authMode: "passkey",
 				signupEnabled,
+				extensions,
 			};
 
 	return Response.json(

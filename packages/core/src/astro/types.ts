@@ -142,6 +142,12 @@ export interface EmDashManifest {
 	 * When true, the admin UI can show marketplace browse/install features.
 	 */
 	marketplace?: boolean;
+	extensions?: Array<{
+		label: string;
+		icon?: string;
+		group?: string;
+		url: string;
+	}>;
 }
 
 /**
