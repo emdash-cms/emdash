@@ -11,6 +11,7 @@ import {
 	Switch,
 	buttonVariants,
 } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowLeft,
 	Check,
@@ -217,6 +218,7 @@ export function ContentEditor({
 	onSeoChange,
 	manifest,
 }: ContentEditorProps) {
+	const { t } = useLingui();
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -245,6 +247,13 @@ export function ContentEditor({
 		});
 	}, []);
 
+	const handleSeoChange = React.useCallback(
+		(seo: ContentSeoInput) => {
+			onSeoChange?.(seo);
+		},
+		[onSeoChange],
+	);
+
 	// Track the last saved state to determine if dirty
 	const [lastSavedData, setLastSavedData] = React.useState<string>(
 		serializeEditorState({
@@ -257,6 +266,7 @@ export function ContentEditor({
 				})) ?? [],
 		}),
 	);
+	const pendingAutosaveStateRef = React.useRef<string | null>(null);
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
@@ -282,6 +292,7 @@ export function ContentEditor({
 						})) ?? [],
 				}),
 			);
+			pendingAutosaveStateRef.current = null;
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
@@ -320,6 +331,15 @@ export function ContentEditor({
 	slugRef.current = slug;
 
 	React.useEffect(() => {
+		if (!lastAutosaveAt || !pendingAutosaveStateRef.current) {
+			return;
+		}
+
+		setLastSavedData(pendingAutosaveStateRef.current);
+		pendingAutosaveStateRef.current = null;
+	}, [lastAutosaveAt]);
+
+	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
 		if (isNew || !onAutosave || !item?.id) {
 			return;
@@ -337,11 +357,17 @@ export function ContentEditor({
 
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
-			onAutosave({
+			const payload = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
 				bylines: activeBylines,
+			};
+			pendingAutosaveStateRef.current = serializeEditorState({
+				data: payload.data,
+				slug: payload.slug || "",
+				bylines: payload.bylines,
 			});
+			onAutosave(payload);
 		}, AUTOSAVE_DELAY);
 
 		return () => {
@@ -480,7 +506,7 @@ export function ContentEditor({
 							to="/content/$collection"
 							params={{ collection }}
 							search={{ locale: undefined }}
-							aria-label={`Back to ${collectionLabel} list`}
+							aria-label={t`Back to ${collectionLabel} list`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
 							<ArrowLeft className="h-5 w-5" aria-hidden="true" />
@@ -491,13 +517,13 @@ export function ContentEditor({
 							variant="ghost"
 							shape="square"
 							onClick={() => setIsDistractionFree(false)}
-							aria-label="Exit distraction-free mode"
+							aria-label={t`Exit distraction-free mode`}
 						>
 							<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
 						</Button>
 					)}
 					<h1 className="text-2xl font-bold">
-						{isNew ? `New ${collectionLabel}` : `Edit ${collectionLabel}`}
+						{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
 					</h1>
 					{i18n && item?.locale && (
 						<Badge variant="outline" className="uppercase text-xs">
@@ -508,16 +534,21 @@ export function ContentEditor({
 				<div className="flex items-center space-x-2">
 					{/* Autosave indicator */}
 					{!isNew && onAutosave && (
-						<div className="flex items-center text-xs text-kumo-subtle">
+						<div
+							className="flex items-center text-xs text-kumo-subtle"
+							role="status"
+							aria-label="Autosave status"
+							aria-live="polite"
+						>
 							{isAutosaving ? (
 								<>
 									<Loader size="sm" />
-									<span className="ml-1">Saving...</span>
+									<span className="ml-1">{t`Saving...`}</span>
 								</>
 							) : lastAutosaveAt ? (
 								<>
 									<Check className="mr-1 h-3 w-3 text-green-600" aria-hidden="true" />
-									<span>Saved</span>
+									<span>{t`Saved`}</span>
 								</>
 							) : null}
 						</div>
@@ -528,8 +559,8 @@ export function ContentEditor({
 							shape="square"
 							type="button"
 							onClick={() => setIsDistractionFree(true)}
-							aria-label="Enter distraction-free mode"
-							title="Distraction-free mode (⌘⇧\)"
+							aria-label={t`Enter distraction-free mode`}
+							title={t`Distraction-free mode (⌘⇧\\)`}
 						>
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
@@ -542,7 +573,7 @@ export function ContentEditor({
 							disabled={isLoadingPreview}
 							icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
 						>
-							{hasPendingChanges ? "Preview draft" : "Preview"}
+							{hasPendingChanges ? t`Preview draft` : t`Preview`}
 						</Button>
 					)}
 					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
@@ -553,29 +584,29 @@ export function ContentEditor({
 									<Dialog.Trigger
 										render={(p) => (
 											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
-												Discard changes
+												{t`Discard changes`}
 											</Button>
 										)}
 									/>
 									<Dialog className="p-6" size="sm">
 										<Dialog.Title className="text-lg font-semibold">
-											Discard draft changes?
+											{t`Discard draft changes?`}
 										</Dialog.Title>
 										<Dialog.Description className="text-kumo-subtle">
-											This will revert to the published version. Your draft changes will be lost.
+											{t`This will revert to the published version. Your draft changes will be lost.`}
 										</Dialog.Description>
 										<div className="mt-6 flex justify-end gap-2">
 											<Dialog.Close
 												render={(p) => (
 													<Button {...p} variant="secondary">
-														Cancel
+														{t`Cancel`}
 													</Button>
 												)}
 											/>
 											<Dialog.Close
 												render={(p) => (
 													<Button {...p} variant="destructive" onClick={onDiscardDraft}>
-														Discard changes
+														{t`Discard changes`}
 													</Button>
 												)}
 											/>
@@ -587,17 +618,17 @@ export function ContentEditor({
 								<>
 									{hasPendingChanges ? (
 										<Button type="button" variant="primary" onClick={onPublish}>
-											Publish changes
+											{t`Publish changes`}
 										</Button>
 									) : (
 										<Button type="button" variant="outline" onClick={onUnpublish}>
-											Unpublish
+											{t`Unpublish`}
 										</Button>
 									)}
 								</>
 							) : (
 								<Button type="button" variant="secondary" onClick={onPublish}>
-									Publish
+									{t`Publish`}
 								</Button>
 							)}
 							{isLive && item?.slug && (
@@ -608,7 +639,7 @@ export function ContentEditor({
 									className={buttonVariants({ variant: "outline" })}
 								>
 									<ArrowSquareOut className="mr-2 h-4 w-4" aria-hidden="true" />
-									Live View
+									{t`Live View`}
 								</a>
 							)}
 						</>
@@ -702,27 +733,29 @@ export function ContentEditor({
 						<div className="rounded-lg border bg-kumo-base flex flex-col">
 							{/* Publish settings */}
 							<div className="p-4">
-								<h3 className="mb-4 font-semibold">Publish</h3>
+								<h3 className="mb-4 font-semibold">{t`Publish`}</h3>
 								<div className="space-y-4">
 									<Input
-										label="Slug"
+										label={t`Slug`}
 										value={slug}
 										onChange={(e) => handleSlugChange(e.target.value)}
 										placeholder="my-post-slug"
 									/>
 									<div>
-										<Label>Status</Label>
+										<Label>{t`Status`}</Label>
 										<div className="mt-1 flex flex-wrap items-center gap-1.5">
 											{supportsDrafts ? (
 												<>
 													{isLive && (
 														<Badge variant="primary" className="text-white">
-															Published
+															{t`Published`}
 														</Badge>
 													)}
-													{hasPendingChanges && <Badge variant="secondary">Pending changes</Badge>}
-													{!isLive && !hasSchedule && <Badge variant="secondary">Draft</Badge>}
-													{hasSchedule && <Badge variant="outline">Scheduled</Badge>}
+													{hasPendingChanges && (
+														<Badge variant="secondary">{t`Pending changes`}</Badge>
+													)}
+													{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
+													{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
 												</>
 											) : (
 												<span className="text-sm text-kumo-subtle">
@@ -732,11 +765,9 @@ export function ContentEditor({
 										</div>
 										{item?.scheduledAt && (
 											<div className="mt-2 flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-												<p className="text-xs text-kumo-subtle">
-													Scheduled for: {formatScheduledDate(item.scheduledAt)}
-												</p>
+												<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
 												<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
-													Unschedule
+													{t`Unschedule`}
 												</Button>
 											</div>
 										)}
@@ -747,7 +778,7 @@ export function ContentEditor({
 											{showScheduler ? (
 												<div className="space-y-2">
 													<Input
-														label="Schedule for"
+														label={t`Schedule for`}
 														type="datetime-local"
 														value={scheduleDate}
 														onChange={(e) => setScheduleDate(e.target.value)}
@@ -761,7 +792,7 @@ export function ContentEditor({
 															disabled={!scheduleDate || isScheduling}
 															icon={isScheduling ? <Loader size="sm" /> : undefined}
 														>
-															Schedule
+															{t`Schedule`}
 														</Button>
 														<Button
 															type="button"
@@ -772,7 +803,7 @@ export function ContentEditor({
 																setScheduleDate("");
 															}}
 														>
-															Cancel
+															{t`Cancel`}
 														</Button>
 													</div>
 												</div>
@@ -784,7 +815,7 @@ export function ContentEditor({
 													className="w-full"
 													onClick={() => setShowScheduler(true)}
 												>
-													Schedule for later
+													{t`Schedule for later`}
 												</Button>
 											)}
 										</div>
@@ -792,8 +823,8 @@ export function ContentEditor({
 
 									{item && (
 										<div className="text-xs text-kumo-subtle">
-											<p>Created: {new Date(item.createdAt).toLocaleString()}</p>
-											<p>Updated: {new Date(item.updatedAt).toLocaleString()}</p>
+											<p>{t`Created: ${new Date(item.createdAt).toLocaleString()}`}</p>
+											<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
 										</div>
 									)}
 									{!isNew && onDelete && (
@@ -809,30 +840,29 @@ export function ContentEditor({
 															disabled={isDeleting}
 															icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 														>
-															Move to Trash
+															{t`Move to Trash`}
 														</Button>
 													)}
 												/>
 												<Dialog className="p-6" size="sm">
 													<Dialog.Title className="text-lg font-semibold">
-														Move to Trash?
+														{t`Move to Trash?`}
 													</Dialog.Title>
 													<Dialog.Description className="text-kumo-subtle">
-														This will move the item to trash. You can restore it later from the
-														trash.
+														{t`This will move the item to trash. You can restore it later from the trash.`}
 													</Dialog.Description>
 													<div className="mt-6 flex justify-end gap-2">
 														<Dialog.Close
 															render={(p) => (
 																<Button {...p} variant="secondary">
-																	Cancel
+																	{t`Cancel`}
 																</Button>
 															)}
 														/>
 														<Dialog.Close
 															render={(p) => (
 																<Button {...p} variant="destructive" onClick={onDelete}>
-																	Move to Trash
+																	{t`Move to Trash`}
 																</Button>
 															)}
 														/>
@@ -847,7 +877,7 @@ export function ContentEditor({
 							{/* Ownership selector - shown only to editors and above */}
 							{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">Ownership</h3>
+									<h3 className="mb-4 font-semibold">{t`Ownership`}</h3>
 									<AuthorSelector
 										authorId={item?.authorId || null}
 										users={users}
@@ -859,7 +889,7 @@ export function ContentEditor({
 							{/* Byline credits */}
 							{currentUser && currentUser.role >= ROLE_EDITOR && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">Bylines</h3>
+									<h3 className="mb-4 font-semibold">{t`Bylines`}</h3>
 									<BylineCreditsEditor
 										credits={activeBylines}
 										bylines={availableBylines ?? []}
@@ -873,10 +903,10 @@ export function ContentEditor({
 							{/* Translations sidebar - shown when i18n is enabled */}
 							{i18n && item && !isNew && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">Translations</h3>
+									<h3 className="mb-4 font-semibold">{t`Translations`}</h3>
 									<div className="space-y-2">
 										{i18n.locales.map((locale) => {
-											const translation = translations?.find((t) => t.locale === locale);
+											const translation = translations?.find((tr) => tr.locale === locale);
 											const isCurrent = locale === item.locale;
 											return (
 												<div
@@ -893,10 +923,10 @@ export function ContentEditor({
 													<div className="flex items-center gap-2">
 														<span className="text-xs font-semibold uppercase">{locale}</span>
 														{locale === i18n.defaultLocale && (
-															<span className="text-[10px] text-kumo-subtle">(default)</span>
+															<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
 														)}
 														{isCurrent && (
-															<span className="text-[10px] text-kumo-brand">current</span>
+															<span className="text-[10px] text-kumo-brand">{t`current`}</span>
 														)}
 													</div>
 													{translation && !isCurrent ? (
@@ -905,7 +935,7 @@ export function ContentEditor({
 															params={{ collection, id: translation.id }}
 															className="text-xs text-kumo-brand hover:underline"
 														>
-															Edit
+															{t`Edit`}
 														</Link>
 													) : !translation && onTranslate ? (
 														<Button
@@ -915,7 +945,7 @@ export function ContentEditor({
 															className="h-auto px-2 py-1 text-xs"
 															onClick={() => onTranslate(locale)}
 														>
-															Translate
+															{t`Translate`}
 														</Button>
 													) : null}
 												</div>
@@ -937,9 +967,13 @@ export function ContentEditor({
 								<div className="p-4 border-t">
 									<h3 className="mb-4 font-semibold flex items-center gap-2">
 										<MagnifyingGlass className="h-4 w-4" />
-										SEO
+										{t`SEO`}
 									</h3>
-									<SeoPanel seo={item?.seo} onChange={onSeoChange} />
+									<SeoPanel
+										contentKey={item?.id ?? `new:${collection}`}
+										seo={item?.seo}
+										onChange={handleSeoChange}
+									/>
 								</div>
 							)}
 
@@ -998,6 +1032,7 @@ function FieldRenderer({
 	onBlockSidebarClose,
 	manifest,
 }: FieldRendererProps) {
+	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
 	const label = field.label || name.charAt(0).toUpperCase() + name.slice(1);
 	const id = `field-${name}`;
@@ -1118,7 +1153,7 @@ function FieldRenderer({
 					<PortableTextEditor
 						value={Array.isArray(value) ? value : []}
 						onChange={handleChange}
-						placeholder={`Enter ${label.toLowerCase()}...`}
+						placeholder={t`Enter ${label.toLowerCase()}...`}
 						aria-labelledby={labelId}
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}
@@ -1139,7 +1174,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
-					placeholder="Enter markdown content..."
+					placeholder={t`Enter markdown content...`}
 				/>
 			);
 
@@ -1214,7 +1249,7 @@ function FieldRenderer({
 					label={label}
 					description={
 						name === "featured_image"
-							? "Used as the main visual for this post on listing pages and at the top of the post"
+							? t`Used as the main visual for this post on listing pages and at the top of the post`
 							: undefined
 					}
 					value={imageValue}
@@ -1247,6 +1282,20 @@ function FieldRenderer({
 			);
 		}
 
+		case "json": {
+			const jsonString =
+				typeof value === "string" ? value : value != null ? JSON.stringify(value, null, 2) : "";
+			return (
+				<JsonFieldEditor
+					label={label}
+					id={id}
+					value={jsonString}
+					onChange={handleChange}
+					required={field.required}
+				/>
+			);
+		}
+
 		default:
 			// Default to text input
 			return (
@@ -1259,6 +1308,71 @@ function FieldRenderer({
 				/>
 			);
 	}
+}
+
+/**
+ * JSON field editor with syntax validation
+ */
+function JsonFieldEditor({
+	label,
+	id,
+	value,
+	onChange,
+	required,
+}: {
+	label: string;
+	id: string;
+	value: string;
+	onChange: (value: unknown) => void;
+	required?: boolean;
+}) {
+	const { t } = useLingui();
+	const [text, setText] = React.useState(value);
+	const [error, setError] = React.useState<string | null>(null);
+
+	// Sync from parent when value changes externally
+	React.useEffect(() => {
+		setText(value);
+		setError(null);
+	}, [value]);
+
+	const handleChange = (newText: string) => {
+		setText(newText);
+		setError(null);
+	};
+
+	const handleBlur = () => {
+		const trimmed = text.trim();
+		if (trimmed === "") {
+			setError(null);
+			onChange(null);
+			return;
+		}
+		try {
+			const parsed = JSON.parse(trimmed);
+			setError(null);
+			onChange(parsed);
+		} catch {
+			setError(t`Invalid JSON`);
+		}
+	};
+
+	return (
+		<div>
+			<InputArea
+				label={label}
+				id={id}
+				value={text}
+				onChange={(e) => handleChange(e.target.value)}
+				onBlur={handleBlur}
+				rows={8}
+				placeholder="{}"
+				required={required}
+				className="font-mono text-sm"
+			/>
+			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+		</div>
+	);
 }
 
 /**
@@ -1290,7 +1404,7 @@ interface ImageFieldRendererProps {
 	label: string;
 	description?: string;
 	value: ImageFieldValue | string | undefined;
-	onChange: (value: ImageFieldValue | undefined) => void;
+	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
 }
 
@@ -1302,6 +1416,7 @@ function ImageFieldRenderer({
 	onChange,
 	required,
 }: ImageFieldRendererProps) {
+	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
@@ -1331,7 +1446,7 @@ function ImageFieldRenderer({
 	};
 
 	const handleRemove = () => {
-		onChange(undefined);
+		onChange(null);
 	};
 
 	return (
@@ -1342,7 +1457,7 @@ function ImageFieldRenderer({
 					<img src={displayUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
 					<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							Change
+							{t`Change`}
 						</Button>
 						<Button
 							type="button"
@@ -1350,7 +1465,7 @@ function ImageFieldRenderer({
 							variant="destructive"
 							className="h-8 w-8"
 							onClick={handleRemove}
-							aria-label="Remove image"
+							aria-label={t`Remove image`}
 						>
 							<X className="h-4 w-4" />
 						</Button>
@@ -1365,7 +1480,7 @@ function ImageFieldRenderer({
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
 						<ImageIcon className="h-8 w-8" />
-						<span>Select image</span>
+						<span>{t`Select image`}</span>
 					</div>
 				</Button>
 			)}
@@ -1374,11 +1489,11 @@ function ImageFieldRenderer({
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
 				mimeTypeFilter="image/"
-				title={`Select ${label}`}
+				title={t`Select ${label}`}
 			/>
 			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
-				<p className="text-sm text-kumo-danger mt-1">This field is required</p>
+				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
 			)}
 		</div>
 	);
@@ -1411,6 +1526,7 @@ function BylineCreditsEditor({
 	onQuickCreate,
 	onQuickEdit,
 }: BylineCreditsEditorProps) {
+	const { t } = useLingui();
 	const [selectedBylineId, setSelectedBylineId] = React.useState("");
 	const [quickName, setQuickName] = React.useState("");
 	const [quickSlug, setQuickSlug] = React.useState("");
@@ -1464,7 +1580,7 @@ function BylineCreditsEditor({
 					onChange={(e) => setSelectedBylineId(e.target.value)}
 					className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
 				>
-					<option value="">Select byline...</option>
+					<option value="">{t`Select byline...`}</option>
 					{availableToAdd.map((b) => (
 						<option key={b.id} value={b.id}>
 							{b.displayName}
@@ -1481,7 +1597,7 @@ function BylineCreditsEditor({
 					}}
 					disabled={!selectedBylineId}
 				>
-					Add
+					{t`Add`}
 				</Button>
 			</div>
 
@@ -1499,10 +1615,10 @@ function BylineCreditsEditor({
 									</div>
 									<div className="flex gap-1">
 										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)}>
-											Up
+											{t`Up`}
 										</Button>
 										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, 1)}>
-											Down
+											{t`Down`}
 										</Button>
 										{onQuickEdit && (
 											<Button
@@ -1511,7 +1627,7 @@ function BylineCreditsEditor({
 												size="sm"
 												onClick={() => openEditByline(byline)}
 											>
-												Edit
+												{t`Edit`}
 											</Button>
 										)}
 										<Button
@@ -1520,12 +1636,12 @@ function BylineCreditsEditor({
 											size="sm"
 											onClick={() => onChange(credits.filter((_, i) => i !== index))}
 										>
-											Remove
+											{t`Remove`}
 										</Button>
 									</div>
 								</div>
 								<Input
-									label="Role label"
+									label={t`Role label`}
 									value={credit.roleLabel ?? ""}
 									onChange={(e) => {
 										const next = [...credits];
@@ -1543,7 +1659,7 @@ function BylineCreditsEditor({
 					})}
 				</div>
 			) : (
-				<p className="text-sm text-kumo-subtle">No bylines selected.</p>
+				<p className="text-sm text-kumo-subtle">{t`No bylines selected.`}</p>
 			)}
 
 			{onQuickCreate && (
@@ -1551,15 +1667,15 @@ function BylineCreditsEditor({
 					<Dialog.Trigger
 						render={(p) => (
 							<Button {...p} type="button" variant="secondary">
-								Quick create byline
+								{t`Quick create byline`}
 							</Button>
 						)}
 					/>
 					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">Create byline</Dialog.Title>
+						<Dialog.Title className="text-lg font-semibold">{t`Create byline`}</Dialog.Title>
 						<div className="mt-4 space-y-3">
 							<Input
-								label="Display name"
+								label={t`Display name`}
 								value={quickName}
 								onChange={(e) => {
 									setQuickName(e.target.value);
@@ -1567,7 +1683,7 @@ function BylineCreditsEditor({
 								}}
 							/>
 							<Input
-								label="Slug"
+								label={t`Slug`}
 								value={quickSlug}
 								onChange={(e) => setQuickSlug(e.target.value)}
 							/>
@@ -1584,7 +1700,7 @@ function BylineCreditsEditor({
 											p.onClick?.(e);
 										}}
 									>
-										Cancel
+										{t`Cancel`}
 									</Button>
 								)}
 							/>
@@ -1602,13 +1718,13 @@ function BylineCreditsEditor({
 										onChange([...credits, { bylineId: created.id, roleLabel: null }]);
 										resetQuickCreate();
 									} catch (err) {
-										setQuickError(err instanceof Error ? err.message : "Failed to create byline");
+										setQuickError(err instanceof Error ? err.message : t`Failed to create byline`);
 									} finally {
 										setIsCreating(false);
 									}
 								}}
 							>
-								{isCreating ? "Creating..." : "Create"}
+								{isCreating ? t`Creating...` : t`Create`}
 							</Button>
 						</div>
 					</Dialog>
@@ -1618,22 +1734,26 @@ function BylineCreditsEditor({
 			{onQuickEdit && editBylineId && (
 				<Dialog.Root open onOpenChange={(open) => (!open ? resetQuickEdit() : undefined)}>
 					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">Edit byline</Dialog.Title>
+						<Dialog.Title className="text-lg font-semibold">{t`Edit byline`}</Dialog.Title>
 						<div className="mt-4 space-y-3">
 							<Input
-								label="Display name"
+								label={t`Display name`}
 								value={editName}
 								onChange={(e) => {
 									setEditName(e.target.value);
 									if (!editSlug) setEditSlug(slugify(e.target.value));
 								}}
 							/>
-							<Input label="Slug" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} />
+							<Input
+								label={t`Slug`}
+								value={editSlug}
+								onChange={(e) => setEditSlug(e.target.value)}
+							/>
 							{editError && <p className="text-sm text-kumo-danger">{editError}</p>}
 						</div>
 						<div className="mt-6 flex justify-end gap-2">
 							<Button type="button" variant="secondary" onClick={resetQuickEdit}>
-								Cancel
+								{t`Cancel`}
 							</Button>
 							<Button
 								type="button"
@@ -1648,13 +1768,13 @@ function BylineCreditsEditor({
 										});
 										resetQuickEdit();
 									} catch (err) {
-										setEditError(err instanceof Error ? err.message : "Failed to update byline");
+										setEditError(err instanceof Error ? err.message : t`Failed to update byline`);
 									} finally {
 										setIsEditing(false);
 									}
 								}}
 							>
-								{isEditing ? "Saving..." : "Save"}
+								{isEditing ? t`Saving...` : t`Save`}
 							</Button>
 						</div>
 					</Dialog>
@@ -1665,9 +1785,10 @@ function BylineCreditsEditor({
 }
 
 function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
+	const { t } = useLingui();
 	const currentAuthor = users.find((u) => u.id === authorId);
 
-	const authorItems: Record<string, string> = { unassigned: "Unassigned" };
+	const authorItems: Record<string, string> = { unassigned: t`Unassigned` };
 	for (const user of users) {
 		authorItems[user.id] = user.name || user.email;
 	}
@@ -1682,7 +1803,7 @@ function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
 				items={authorItems}
 			>
 				<Select.Option value="unassigned">
-					<span className="text-kumo-subtle">Unassigned</span>
+					<span className="text-kumo-subtle">{t`Unassigned`}</span>
 				</Select.Option>
 				{users.map((user) => (
 					<Select.Option key={user.id} value={user.id}>

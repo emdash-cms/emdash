@@ -26,6 +26,7 @@ import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
 import { MarketplacePluginDetail } from "./components/MarketplacePluginDetail";
@@ -99,6 +100,8 @@ import {
 	type CreateFieldInput,
 	type BylineCreditInput,
 	type ContentSeoInput,
+	type ContentItem,
+	type Revision,
 } from "./lib/api";
 import {
 	fetchComments,
@@ -116,6 +119,46 @@ import { UsersPage } from "./routes/users";
 // Router context type
 interface RouterContext {
 	queryClient: QueryClient;
+}
+
+function patchAutosaveQueries(
+	queryClient: QueryClient,
+	params: {
+		collection: string;
+		id: string;
+		savedItem: ContentItem;
+		payload: {
+			data?: Record<string, unknown>;
+			slug?: string;
+		};
+	},
+) {
+	const { collection, id, savedItem, payload } = params;
+	const draftRevisionId = savedItem.draftRevisionId;
+
+	if (draftRevisionId) {
+		queryClient.setQueryData<Revision>(["revision", draftRevisionId], (existing) => {
+			const nextData: Record<string, unknown> = {
+				...existing?.data,
+				...payload.data,
+			};
+
+			if (payload.slug !== undefined) {
+				nextData._slug = payload.slug;
+			}
+
+			return {
+				id: draftRevisionId,
+				collection,
+				entryId: id,
+				data: nextData,
+				authorId: existing?.authorId ?? savedItem.authorId,
+				createdAt: existing?.createdAt ?? savedItem.updatedAt,
+			};
+		});
+	}
+
+	queryClient.setQueryData<ContentItem>(["content", collection, id], savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -149,6 +192,16 @@ const signupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/signup",
 	component: SignupPage,
+});
+
+// Invite accept route (standalone, no Shell)
+const inviteAcceptRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/invite/accept",
+	component: InviteAcceptPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		token: typeof search.token === "string" ? search.token : undefined,
+	}),
 });
 
 // Device authorization route (standalone, no Shell)
@@ -658,16 +711,19 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
-		onSuccess: () => {
+		onSuccess: (savedItem, variables) => {
+			patchAutosaveQueries(queryClient, {
+				collection,
+				id,
+				savedItem,
+				payload: {
+					data: variables.data,
+					slug: variables.slug,
+				},
+			});
 			setLastAutosaveAt(new Date());
-			// Invalidate content and draft revision so stale cached data
-			// doesn't overwrite the form via the sync effect
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
-			if (rawItem?.draftRevisionId) {
-				void queryClient.invalidateQueries({
-					queryKey: ["revision", rawItem.draftRevisionId],
-				});
-			}
+			// Keep the cache fresh without refetching older server state back into the form
+			// while the user is still typing.
 		},
 		onError: (err) => {
 			toastManager.add({
@@ -1605,6 +1661,7 @@ const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
 	signupRoute,
+	inviteAcceptRoute,
 	deviceRoute,
 	adminRoutes,
 ]);

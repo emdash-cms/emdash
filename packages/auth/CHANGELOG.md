@@ -1,5 +1,13 @@
 # @emdash-cms/auth
 
+## 0.5.0
+
+### Patch Changes
+
+- [#542](https://github.com/emdash-cms/emdash/pull/542) [`64f90d1`](https://github.com/emdash-cms/emdash/commit/64f90d1957af646ca200b9d70e856fa72393f001) Thanks [@mohamedmostafa58](https://github.com/mohamedmostafa58)! - Fixes invite flow: corrects invite URL to point to admin UI page, adds InviteAcceptPage for passkey registration.
+
+## 0.4.0
+
 ## 0.3.0
 
 ## 0.2.0

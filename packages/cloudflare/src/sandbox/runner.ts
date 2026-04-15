@@ -26,6 +26,8 @@ import { setEmailSendCallback } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
+const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
+
 /**
  * Default resource limits for sandboxed plugins.
  *
@@ -248,11 +250,12 @@ class CloudflareSandboxedPlugin implements SandboxedPlugin {
 		// Get a fresh stub with the new bridge binding.
 		// Worker Loader caches the isolate but the stub/bindings are per-call.
 		return this.loader.get(this.id, () => ({
-			compatibilityDate: "2025-01-01",
+			compatibilityDate: "2026-04-01",
 			mainModule: "plugin.js",
 			modules: {
 				"plugin.js": { js: this.wrapperCode! },
 				"sandbox-plugin.js": { js: this.code },
+				emdash: { js: EMDASH_SHIM },
 			},
 			// Block direct network access - plugins must use ctx.http via bridge
 			globalOutbound: null,

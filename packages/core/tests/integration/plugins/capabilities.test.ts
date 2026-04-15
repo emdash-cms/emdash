@@ -130,6 +130,79 @@ describe("Capability Enforcement Integration (v2)", () => {
 				expect(result.hasMore).toBe(false);
 			});
 
+			it("narrows list results by where.status", async () => {
+				const access = createContentAccess(db);
+				const result = await access.list("posts", { where: { status: "published" } });
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.id).toBe("post-1");
+				expect(result.items[0]!.status).toBe("published");
+			});
+
+			it("narrows list results by where.locale", async () => {
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES ('post-3', 'bonjour', 'published', 'Bonjour', 'Contenu', 'fr', 'post-3')
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts", { where: { locale: "fr" } });
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.id).toBe("post-3");
+			});
+
+			it("combines where.status and where.locale", async () => {
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES
+						('post-3', 'bonjour',  'published', 'Bonjour',  'Contenu', 'fr', 'post-3'),
+						('post-4', 'brouillon', 'draft',    'Brouillon', 'WIP',     'fr', 'post-4')
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts", {
+					where: { status: "published", locale: "fr" },
+				});
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.id).toBe("post-3");
+			});
+
+			it("paginates consistently with where filters", async () => {
+				// Three more published posts so the total published count is 4.
+				// A limit of 2 should yield two pages: [2, 2] — never drafts.
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES
+						('post-3', 'a', 'published', 'A', 'a', 'en', 'post-3'),
+						('post-4', 'b', 'published', 'B', 'b', 'en', 'post-4'),
+						('post-5', 'c', 'published', 'C', 'c', 'en', 'post-5')
+				`.execute(db);
+				const access = createContentAccess(db);
+
+				const page1 = await access.list("posts", {
+					limit: 2,
+					where: { status: "published" },
+				});
+				expect(page1.items).toHaveLength(2);
+				expect(page1.hasMore).toBe(true);
+				for (const item of page1.items) expect(item.status).toBe("published");
+
+				const page2 = await access.list("posts", {
+					limit: 2,
+					cursor: page1.cursor,
+					where: { status: "published" },
+				});
+				expect(page2.items).toHaveLength(2);
+				expect(page2.hasMore).toBe(false);
+				for (const item of page2.items) expect(item.status).toBe("published");
+
+				// No overlap between pages
+				const ids = new Set([...page1.items, ...page2.items].map((i) => i.id));
+				expect(ids.size).toBe(4);
+				// Drafts never surface
+				expect(ids.has("post-2")).toBe(false);
+			});
+
 			it("returns null for non-existent content", async () => {
 				const access = createContentAccess(db);
 				const post = await access.get("posts", "non-existent");
