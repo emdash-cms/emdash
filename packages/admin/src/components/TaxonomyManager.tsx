@@ -61,7 +61,7 @@ function TermRow({
 			<div className="flex items-center gap-4 py-2 px-4 border-b hover:bg-kumo-tint/50">
 				<div style={{ marginLeft: `${level * 1.5}rem` }} className="flex-1">
 					<span className="font-medium">{term.label}</span>
-					<span className="text-sm text-kumo-subtle ml-2">({term.slug})</span>
+					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
 				</div>
 				<div className="text-sm text-kumo-subtle">{term.count || 0}</div>
 				<div className="flex gap-2">
@@ -227,7 +227,7 @@ function TermFormDialog({
 									variant="ghost"
 									shape="square"
 									aria-label={t`Close`}
-									className="absolute right-4 top-4"
+									className="absolute end-4 top-4"
 								>
 									<X className="h-4 w-4" />
 									<span className="sr-only">{t`Close`}</span>
@@ -441,7 +441,7 @@ function CreateTaxonomyDialog({
 									variant="ghost"
 									shape="square"
 									aria-label={t`Close`}
-									className="absolute right-4 top-4"
+									className="absolute end-4 top-4"
 								>
 									<X className="h-4 w-4" />
 									<span className="sr-only">{t`Close`}</span>

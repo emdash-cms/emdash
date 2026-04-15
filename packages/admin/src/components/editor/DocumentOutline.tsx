@@ -18,13 +18,13 @@ import { cn } from "../../lib/utils";
 function getIndentClass(level: number) {
 	switch (level) {
 		case 1:
-			return "pl-0";
+			return "ps-0";
 		case 2:
-			return "pl-4";
+			return "ps-4";
 		case 3:
-			return "pl-8";
+			return "ps-8";
 		default:
-			return "pl-0";
+			return "ps-0";
 	}
 }
 
@@ -195,7 +195,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 									type="button"
 									onClick={() => handleHeadingClick(heading)}
 									className={cn(
-										"w-full text-left px-2 py-1 text-sm rounded transition-colors",
+										"w-full text-start px-2 py-1 text-sm rounded transition-colors",
 										"hover:bg-kumo-tint/50 cursor-pointer",
 										"truncate",
 										getIndentClass(heading.level),

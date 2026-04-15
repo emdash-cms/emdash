@@ -353,7 +353,7 @@ export function MediaPickerModal({
 								variant="ghost"
 								shape="square"
 								aria-label={t`Close`}
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">{t`Close`}</span>
@@ -367,7 +367,7 @@ export function MediaPickerModal({
 					<Label>{t`Insert from URL`}</Label>
 					<div className="flex gap-2 mt-1.5">
 						<div className="flex-1 relative">
-							<Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+							<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="url"
 								placeholder="https://example.com/image.jpg"
@@ -378,7 +378,7 @@ export function MediaPickerModal({
 									setUrlError(null);
 								}}
 								onKeyDown={handleUrlKeyDown}
-								className="pl-9"
+								className="ps-9"
 							/>
 						</div>
 						<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
@@ -434,14 +434,14 @@ export function MediaPickerModal({
 					{/* Search (if provider supports it) */}
 					{canSearch ? (
 						<div className="relative flex-1 max-w-xs">
-							<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+							<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="search"
 								placeholder={t`Search...`}
 								aria-label={t`Search media`}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								className="pl-9"
+								className="ps-9"
 							/>
 						</div>
 					) : (
@@ -570,7 +570,7 @@ export function MediaPickerModal({
 							<span>
 								{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
 								{selectedItem.providerId !== "local" && (
-									<span className="ml-2 text-xs">
+									<span className="ms-2 text-xs">
 										{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
 									</span>
 								)}
@@ -660,7 +660,7 @@ function MediaPickerItem({
 				)}
 
 				<div
-					className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2"
+					className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent p-2"
 					aria-hidden="true"
 				>
 					<p className="text-xs text-white truncate">{item.filename}</p>
@@ -742,7 +742,7 @@ function ProviderMediaItem({
 				)}
 
 				<div
-					className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2"
+					className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent p-2"
 					aria-hidden="true"
 				>
 					<p className="text-xs text-white truncate">{item.filename}</p>

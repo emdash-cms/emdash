@@ -118,7 +118,7 @@ function CategoryCheckboxTree({
 					type="checkbox"
 					checked={isChecked}
 					onChange={() => onToggle(term.id)}
-					className="mr-2"
+					className="me-2"
 				/>
 				<span className="text-sm">{term.label}</span>
 			</label>
@@ -207,13 +207,13 @@ function TagInput({
 
 				{/* Suggestions dropdown */}
 				{suggestions.length > 0 && (
-					<div className="absolute top-full left-0 right-0 mt-1 bg-kumo-overlay border rounded-md shadow-lg z-10">
+					<div className="absolute top-full start-0 end-0 mt-1 bg-kumo-overlay border rounded-md shadow-lg z-10">
 						{suggestions.map((term) => (
 							<button
 								key={term.id}
 								type="button"
 								onClick={() => handleSelect(term)}
-								className="w-full text-left px-3 py-2 text-sm hover:bg-kumo-tint"
+								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
 								{term.label}
 							</button>
