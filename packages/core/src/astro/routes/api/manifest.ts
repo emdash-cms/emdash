@@ -38,9 +38,10 @@ export const GET: APIRoute = async ({ locals }) => {
 	}
 
 	const config = emdash?.config;
-	const extensions: EmDashManifest["extensions"] = config && "extensions" in config
-		? (config.extensions as EmDashManifest["extensions"])
-		: undefined;
+	const extensions: EmDashManifest["extensions"] =
+		config && "extensions" in config
+			? (config.extensions as EmDashManifest["extensions"])
+			: undefined;
 
 	const manifest: EmDashManifest = emdashManifest
 		? {

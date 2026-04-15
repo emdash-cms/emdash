@@ -9,15 +9,15 @@ Extensions are Astro pages that appear in the admin sidebar with full access to 
 
 ## When to Use Extensions vs Plugins
 
-| Need | Use |
-|------|-----|
-| Send email, react to content changes, webhooks | Plugin |
-| Simple settings page with form fields | Plugin |
-| Query all database tables directly | Extension |
-| Upload files to R2 storage | Extension |
-| Custom analytics dashboard | Extension |
-| Bulk import/export tool | Extension |
-| Deploy trigger with custom UI | Extension |
+| Need                                           | Use       |
+| ---------------------------------------------- | --------- |
+| Send email, react to content changes, webhooks | Plugin    |
+| Simple settings page with form fields          | Plugin    |
+| Query all database tables directly             | Extension |
+| Upload files to R2 storage                     | Extension |
+| Custom analytics dashboard                     | Extension |
+| Bulk import/export tool                        | Extension |
+| Deploy trigger with custom UI                  | Extension |
 
 **Rule:** If the plugin `ctx` API is enough, use a plugin. If you need `db` or `storage` directly, use an extension.
 
@@ -59,10 +59,8 @@ const db = emdash?.db;
 
 ```ts
 emdash({
-	extensions: [
-		{ name: "my-tool", label: "My Tool", icon: "rocket", group: "manage" },
-	],
-})
+	extensions: [{ name: "my-tool", label: "My Tool", icon: "rocket", group: "manage" }],
+});
 ```
 
 ### 4. Build and deploy
@@ -82,24 +80,24 @@ The extension appears in the admin sidebar under the specified group.
 
 ### Available Icons
 
-| Name | Icon |
-|------|------|
-| `rocket` | Rocket |
-| `upload` | Upload |
+| Name       | Icon     |
+| ---------- | -------- |
+| `rocket`   | Rocket   |
+| `upload`   | Upload   |
 | `database` | Database |
-| `gear` | Gear |
-| `list` | List |
-| `globe` | Globe |
+| `gear`     | Gear     |
+| `list`     | List     |
+| `globe`    | Globe    |
 
 Unrecognized names fall back to Upload.
 
 ### Sidebar Groups
 
-| Group | Appears alongside |
-|-------|------------------|
-| `content` | Posts, Pages, Media |
-| `manage` | Menus, Tags, Bylines |
-| `admin` | Users, Plugins, Settings |
+| Group     | Appears alongside        |
+| --------- | ------------------------ |
+| `content` | Posts, Pages, Media      |
+| `manage`  | Menus, Tags, Bylines     |
+| `admin`   | Users, Plugins, Settings |
 
 ## What Extensions Can Access
 
@@ -112,7 +110,11 @@ const posts = await db.selectFrom("ec_posts").selectAll().execute();
 
 // Storage (R2/S3)
 const storage = (Astro.locals as any).emdash?.storage;
-await storage.upload({ key: "exports/data.json", body: jsonBytes, contentType: "application/json" });
+await storage.upload({
+	key: "exports/data.json",
+	body: jsonBytes,
+	contentType: "application/json",
+});
 
 // Authenticated user
 const user = (Astro.locals as any).user;
@@ -251,4 +253,3 @@ Extensions can include inline JavaScript for client-side behavior:
 - Extensions must check auth themselves (`user.role < 50`)
 - The emdash middleware chain (auth, CSRF) runs before the extension page
 - Extensions run as trusted code (same as any Astro page in the project)
-
