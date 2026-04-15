@@ -312,6 +312,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group-content"] {
 				grid-template-rows: 1fr !important;
 			}
+			/* Mobile drawer: kumo's Sheet has no data-state attribute, so group-content
+			   stays at grid-rows-[0fr] (hidden). Force it open in the mobile sidebar. */
+			.emdash-sidebar[data-mobile="true"] [data-sidebar="group-content"] {
+				grid-template-rows: 1fr !important;
+			}
 			/* Collapsed separators — thin centered line */
 			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
 				margin: 0.375rem 0.625rem;
@@ -342,6 +347,25 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			}
 			.emdash-sidebar[data-state="collapsed"] .emdash-brand-text {
 				display: none !important;
+			}
+
+			/* Mobile drawer slide animation from left (LTR) */
+			[data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
+			[data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
+				transform: translateX(-100%);
+			}
+
+			/* Mobile drawer slide animation from right (RTL) */
+			[dir="rtl"] [data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
+			[dir="rtl"] [data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
+				transform: translateX(100%);
+				--tw-translate-x: 100%;
+			}
+
+			/* RTL: Position drawer on right side */
+			[dir="rtl"] :has(> .emdash-sidebar[data-mobile="true"]) {
+				left: auto;
+				right: 0;
 			}
 		`,
 				}}

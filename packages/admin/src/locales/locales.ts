@@ -21,6 +21,8 @@ export interface LocaleDefinition {
 	label: string;
 	/** Whether this locale is selectable in the admin UI. */
 	enabled: boolean;
+	/** Text direction for this locale. Defaults to "ltr" if not specified. */
+	dir?: "rtl" | "ltr";
 }
 
 /**
@@ -30,13 +32,14 @@ export interface LocaleDefinition {
 export const LOCALES: LocaleDefinition[] = [
 	// Source locale first, then alphabetical by English name.
 	{ code: "en", label: "English", enabled: true },
-	{ code: "ar", label: "العربية", enabled: true }, // Arabic
+	{ code: "ar", label: "العربية", enabled: true, dir: "rtl" }, // Arabic
 	{ code: "eu", label: "Euskara", enabled: true }, // Basque
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
+	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	// Pseudo-locale for i18n testing — never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
 	{ code: "pseudo", label: "Pseudo", enabled: false },

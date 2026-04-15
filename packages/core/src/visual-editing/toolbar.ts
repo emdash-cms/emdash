@@ -530,6 +530,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   // --- Save status tracking ---
   var saveState = "idle"; // idle | unsaved | saving | saved | error
   var saveHideTimer = null;
+  var pendingSavePromise = null;
 
   function setSaveState(state) {
     saveState = state;
@@ -624,6 +625,11 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Publish action
   function publish(collection, id) {
+    if (pendingSavePromise) {
+      pendingSavePromise.then(function() { publish(collection, id); });
+      return;
+    }
+
     publishBtn.disabled = true;
     publishBtn.textContent = "Publishing\u2026";
 
@@ -767,7 +773,11 @@ export function renderToolbar(config: ToolbarConfig): string {
 
       var newValue = (element.textContent || "").trim();
       if (newValue !== originalText.trim()) {
-        saveField(annotation.collection, annotation.id, annotation.field, newValue);
+        pendingSavePromise = saveField(annotation.collection, annotation.id, annotation.field, newValue).then(function() {
+          pendingSavePromise = null;
+        }, function() {
+          pendingSavePromise = null;
+        });
       } else {
         setSaveState("idle");
       }
