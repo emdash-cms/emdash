@@ -20,7 +20,7 @@ msgstr " (par défaut)"
 
 #: packages/admin/src/components/MenuEditor.tsx:344
 msgid " (opens in new window)"
-msgstr " (ouvre dans une nouvelle fenêtre)"
+msgstr " (s'ouvre dans une nouvelle fenêtre)"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:634
 #: packages/admin/src/components/MediaPickerModal.tsx:716
