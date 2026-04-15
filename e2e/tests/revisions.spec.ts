@@ -226,7 +226,7 @@ test.describe("Revisions", () => {
 		// Click on the non-latest (older) revision to view its data
 		// The second item (index 1) is the older revision
 		const olderRevision = revisionItems.nth(1);
-		await olderRevision.locator("button.flex-1.text-left").click();
+		await olderRevision.locator("button.flex-1.text-start").click();
 
 		// A diff view or snapshot should appear
 		// Look for either "Content snapshot" or a diff with field changes

@@ -247,7 +247,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 				<div className="py-1">
 					<button
 						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={() => setShowTransforms(false)}
 					>
 						<CaretRight className="h-4 w-4 rotate-180" />
@@ -258,7 +258,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						<button
 							key={transform.id}
 							type="button"
-							className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+							className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 							onClick={() => handleTransform(transform)}
 						>
 							<transform.icon className="h-4 w-4 text-kumo-subtle" />
@@ -271,7 +271,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 				<div className="py-1">
 					<button
 						type="button"
-						className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+						className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={() => setShowTransforms(true)}
 					>
 						<span className="flex items-center gap-2">
@@ -282,7 +282,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					</button>
 					<button
 						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={handleDuplicate}
 					>
 						<Copy className="h-4 w-4 text-kumo-subtle" />
@@ -291,7 +291,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					<div className="h-px bg-kumo-line my-1" />
 					<button
 						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left text-kumo-danger"
+						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start text-kumo-danger"
 						onClick={handleDelete}
 					>
 						<Trash className="h-4 w-4" />

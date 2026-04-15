@@ -81,13 +81,13 @@ export function ThemeMarketplaceBrowse() {
 			{/* Search + Sort */}
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div className="relative flex-1">
-					<MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
 					<input
 						type="search"
 						placeholder={t`Search themes...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full rounded-md border bg-kumo-base px-3 py-2 pl-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+						className="w-full rounded-md border bg-kumo-base px-3 py-2 ps-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
 					/>
 				</div>
 				<select
@@ -116,7 +116,7 @@ export function ThemeMarketplaceBrowse() {
 						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
 					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="mr-2 h-4 w-4" />
+						<ArrowsClockwise className="me-2 h-4 w-4" />
 						{t`Retry`}
 					</Button>
 				</div>
@@ -246,7 +246,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 						}}
 						disabled={previewMutation.isPending}
 					>
-						<Eye className="mr-1.5 h-3.5 w-3.5" />
+						<Eye className="me-1.5 h-3.5 w-3.5" />
 						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
 					</Button>
 
@@ -256,7 +256,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 							size="sm"
 							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
 						>
-							<ArrowSquareOut className="mr-1.5 h-3.5 w-3.5" />
+							<ArrowSquareOut className="me-1.5 h-3.5 w-3.5" />
 							{t`Demo`}
 						</Button>
 					)}

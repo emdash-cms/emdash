@@ -136,7 +136,7 @@ export function ContentList({
 					search={{ locale: activeLocale }}
 					className={buttonVariants()}
 				>
-					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
 					{t`Add New`}
 				</Link>
 			</div>
@@ -144,14 +144,14 @@ export function ContentList({
 			{/* Search */}
 			{items.length > 0 && (
 				<div className="relative max-w-sm">
-					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
 						placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
 						aria-label={t`Search ${collectionLabel.toLowerCase()}`}
 						value={searchQuery}
 						onChange={handleSearchChange}
-						className="pl-9"
+						className="ps-9"
 					/>
 				</div>
 			)}
@@ -186,21 +186,21 @@ export function ContentList({
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Title`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Status`}
 									</th>
 									{i18n && (
-										<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+										<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 											{t`Locale`}
 										</th>
 									)}
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Date`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
 								</tr>
@@ -299,13 +299,13 @@ export function ContentList({
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Title`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Deleted`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
 								</tr>
@@ -391,7 +391,7 @@ function ContentListItem({
 				</td>
 			)}
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
 						<a
@@ -479,7 +479,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Button
 						variant="ghost"

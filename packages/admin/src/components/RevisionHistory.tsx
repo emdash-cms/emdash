@@ -154,7 +154,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 				<button
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
-					className="flex w-full items-center justify-between p-4 text-left hover:bg-kumo-tint/50 transition-colors"
+					className="flex w-full items-center justify-between p-4 text-start hover:bg-kumo-tint/50 transition-colors"
 				>
 					<div className="flex items-center gap-2">
 						<ClockCounterClockwise className="h-4 w-4 text-kumo-subtle" />
@@ -258,7 +258,7 @@ function RevisionItem({
 			}`}
 		>
 			<div className="flex items-start justify-between gap-2">
-				<button type="button" onClick={onSelect} className="flex-1 text-left">
+				<button type="button" onClick={onSelect} className="flex-1 text-start">
 					<div className="flex items-center gap-2">
 						<span className="text-sm font-medium">{formatRelativeTime(revision.createdAt)}</span>
 						{isLatest && <Badge variant="outline">{t`Current`}</Badge>}

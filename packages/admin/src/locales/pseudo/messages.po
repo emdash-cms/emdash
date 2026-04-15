@@ -412,7 +412,7 @@ msgstr ""
 msgid "Account exists"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:224
+#: packages/admin/src/components/users/UserDetail.tsx:216
 msgid "Account Info"
 msgstr ""
 
@@ -425,7 +425,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:214
+#: packages/admin/src/components/users/UserDetail.tsx:206
 msgid "Active"
 msgstr ""
 
@@ -599,7 +599,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:298
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:463
-#: packages/admin/src/components/MediaDetailPanel.tsx:203
+#: packages/admin/src/components/MediaDetailPanel.tsx:202
 msgid "Alt Text"
 msgstr ""
 
@@ -858,7 +858,7 @@ msgstr ""
 #: packages/admin/src/components/ContentPickerModal.tsx:253
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:635
-#: packages/admin/src/components/MediaDetailPanel.tsx:235
+#: packages/admin/src/components/MediaDetailPanel.tsx:234
 #: packages/admin/src/components/MediaPickerModal.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:294
 #: packages/admin/src/components/MenuEditor.tsx:439
@@ -901,7 +901,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:306
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:471
-#: packages/admin/src/components/MediaDetailPanel.tsx:211
+#: packages/admin/src/components/MediaDetailPanel.tsx:210
 msgid "Caption"
 msgstr ""
 
@@ -982,8 +982,8 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:332
 #: packages/admin/src/components/FieldEditor.tsx:336
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:447
-#: packages/admin/src/components/MediaDetailPanel.tsx:132
-#: packages/admin/src/components/MediaDetailPanel.tsx:134
+#: packages/admin/src/components/MediaDetailPanel.tsx:131
+#: packages/admin/src/components/MediaDetailPanel.tsx:133
 #: packages/admin/src/components/MediaPickerModal.tsx:349
 #: packages/admin/src/components/MediaPickerModal.tsx:355
 #: packages/admin/src/components/MediaPickerModal.tsx:359
@@ -1021,7 +1021,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:130
+#: packages/admin/src/components/users/UserDetail.tsx:121
 msgid "Close panel"
 msgstr ""
 
@@ -1103,7 +1103,7 @@ msgid "Connect with WordPress"
 msgstr ""
 
 #. placeholder {0}: new Date(account.createdAt).toLocaleDateString()
-#: packages/admin/src/components/users/UserDetail.tsx:292
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Connected {0}"
 msgstr ""
 
@@ -1348,14 +1348,14 @@ msgstr ""
 msgid "Create, update, delete content"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:227
+#: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr ""
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
-#: packages/admin/src/components/users/UserDetail.tsx:266
+#: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr ""
 
@@ -1459,8 +1459,8 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:274
 #: packages/admin/src/components/comments/CommentInbox.tsx:414
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/MediaDetailPanel.tsx:231
-#: packages/admin/src/components/MediaDetailPanel.tsx:256
+#: packages/admin/src/components/MediaDetailPanel.tsx:230
+#: packages/admin/src/components/MediaDetailPanel.tsx:255
 #: packages/admin/src/components/MenuEditor.tsx:372
 #: packages/admin/src/components/MenuList.tsx:209
 #: packages/admin/src/components/Redirects.tsx:559
@@ -1471,7 +1471,7 @@ msgid "Delete"
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:255
+#: packages/admin/src/components/MediaDetailPanel.tsx:254
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr ""
 
@@ -1503,7 +1503,7 @@ msgstr ""
 msgid "Delete Content Type?"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:254
+#: packages/admin/src/components/MediaDetailPanel.tsx:253
 msgid "Delete Media?"
 msgstr ""
 
@@ -1547,8 +1547,8 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:415
 #: packages/admin/src/components/ContentTypeList.tsx:149
-#: packages/admin/src/components/MediaDetailPanel.tsx:231
-#: packages/admin/src/components/MediaDetailPanel.tsx:257
+#: packages/admin/src/components/MediaDetailPanel.tsx:230
+#: packages/admin/src/components/MediaDetailPanel.tsx:256
 #: packages/admin/src/components/MenuList.tsx:210
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/Sections.tsx:307
@@ -1567,7 +1567,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:301
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:206
+#: packages/admin/src/components/MediaDetailPanel.tsx:205
 msgid "Describe this image for accessibility"
 msgstr ""
 
@@ -1604,7 +1604,7 @@ msgstr ""
 msgid "Device code"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:262
+#: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Device-bound"
 msgstr ""
 
@@ -1616,11 +1616,11 @@ msgstr ""
 msgid "Didn't receive the email?"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:177
+#: packages/admin/src/components/MediaDetailPanel.tsx:176
 msgid "Dimensions:"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:325
+#: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Disable"
 msgstr ""
 
@@ -1634,7 +1634,7 @@ msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:308
 #: packages/admin/src/components/Redirects.tsx:397
-#: packages/admin/src/components/users/UserDetail.tsx:209
+#: packages/admin/src/components/users/UserDetail.tsx:201
 msgid "Disabled"
 msgstr ""
 
@@ -1824,7 +1824,7 @@ msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:196
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
 msgstr ""
 
@@ -1860,7 +1860,7 @@ msgstr ""
 msgid "Email Settings"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:241
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Email verified"
 msgstr ""
 
@@ -1885,7 +1885,7 @@ msgstr ""
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:325
+#: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Enable"
 msgstr ""
 
@@ -1924,7 +1924,7 @@ msgstr ""
 msgid "Enter distraction-free mode"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:166
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Enter email"
 msgstr ""
 
@@ -1932,7 +1932,7 @@ msgstr ""
 msgid "Enter markdown content..."
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:151
 msgid "Enter name"
 msgstr ""
 
@@ -2150,12 +2150,12 @@ msgstr ""
 msgid "File from media library"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:193
+#: packages/admin/src/components/MediaDetailPanel.tsx:192
 #: packages/admin/src/components/MediaLibrary.tsx:416
 msgid "Filename"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:197
+#: packages/admin/src/components/MediaDetailPanel.tsx:196
 msgid "Filename cannot be changed after upload"
 msgstr ""
 
@@ -2560,7 +2560,7 @@ msgstr ""
 msgid "Last enabled:"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:235
+#: packages/admin/src/components/users/UserDetail.tsx:227
 msgid "Last login"
 msgstr ""
 
@@ -2568,7 +2568,7 @@ msgstr ""
 msgid "Last seen"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:231
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Last updated"
 msgstr ""
 
@@ -2579,7 +2579,7 @@ msgstr ""
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:285
-#: packages/admin/src/components/users/UserDetail.tsx:268
+#: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr ""
 
@@ -2616,7 +2616,7 @@ msgid "Link to another content item"
 msgstr ""
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:282
+#: packages/admin/src/components/users/UserDetail.tsx:276
 msgid "Linked Accounts ({0})"
 msgstr ""
 
@@ -2813,7 +2813,7 @@ msgstr ""
 msgid "Media"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:131
+#: packages/admin/src/components/MediaDetailPanel.tsx:130
 msgid "Media Details"
 msgstr ""
 
@@ -2987,7 +2987,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:241
 #: packages/admin/src/components/TaxonomyManager.tsx:464
 #: packages/admin/src/components/TaxonomyManager.tsx:617
-#: packages/admin/src/components/users/UserDetail.tsx:156
+#: packages/admin/src/components/users/UserDetail.tsx:148
 msgid "Name"
 msgstr ""
 
@@ -3003,7 +3003,7 @@ msgstr ""
 msgid "Navigation"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:237
+#: packages/admin/src/components/users/UserDetail.tsx:231
 msgid "Never"
 msgstr ""
 
@@ -3060,7 +3060,7 @@ msgstr ""
 msgid "Next screenshot"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:242
+#: packages/admin/src/components/users/UserDetail.tsx:236
 msgid "No"
 msgstr ""
 
@@ -3200,7 +3200,7 @@ msgstr ""
 msgid "No minimum"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
 msgstr ""
 
@@ -3330,7 +3330,7 @@ msgstr ""
 msgid "Optional caption displayed below the image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:214
+#: packages/admin/src/components/MediaDetailPanel.tsx:213
 msgid "Optional caption for display"
 msgstr ""
 
@@ -3447,7 +3447,7 @@ msgid "Passkeys"
 msgstr ""
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:251
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Passkeys ({0})"
 msgstr ""
 
@@ -3694,7 +3694,7 @@ msgid "Recipient email"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:342
+#: packages/admin/src/components/users/UserDetail.tsx:336
 msgid "Recovery link sent to {0}"
 msgstr ""
 
@@ -3950,8 +3950,8 @@ msgid "Risk score: {0}/100"
 msgstr ""
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:166
-#: packages/admin/src/components/users/UserDetail.tsx:177
-#: packages/admin/src/components/users/UserDetail.tsx:189
+#: packages/admin/src/components/users/UserDetail.tsx:169
+#: packages/admin/src/components/users/UserDetail.tsx:181
 msgid "Role"
 msgstr ""
 
@@ -3973,14 +3973,14 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:1777
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaDetailPanel.tsx:242
+#: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
 #: packages/admin/src/components/Redirects.tsx:184
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Save"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:317
+#: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
 msgstr ""
 
@@ -4012,7 +4012,7 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:546
 #: packages/admin/src/components/ContentEditor.tsx:1777
 #: packages/admin/src/components/FieldEditor.tsx:646
-#: packages/admin/src/components/MediaDetailPanel.tsx:242
+#: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/SaveButton.tsx:42
@@ -4020,7 +4020,7 @@ msgstr ""
 #: packages/admin/src/components/settings/SeoSettings.tsx:164
 #: packages/admin/src/components/settings/SocialSettings.tsx:169
 #: packages/admin/src/components/TaxonomyManager.tsx:308
-#: packages/admin/src/components/users/UserDetail.tsx:317
+#: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Saving..."
 msgstr ""
 
@@ -4340,7 +4340,7 @@ msgstr ""
 msgid "Send magic link"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:332
 msgid "Send Recovery Link"
 msgstr ""
 
@@ -4357,7 +4357,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:87
 #: packages/admin/src/components/SignupPage.tsx:150
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:332
 msgid "Sending..."
 msgstr ""
 
@@ -4507,7 +4507,7 @@ msgstr ""
 msgid "Size"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:171
+#: packages/admin/src/components/MediaDetailPanel.tsx:170
 msgid "Size:"
 msgstr ""
 
@@ -4626,7 +4626,7 @@ msgstr ""
 msgid "Subscriber"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:262
+#: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
 msgstr ""
 
@@ -5023,7 +5023,7 @@ msgid "Unlock aspect ratio"
 msgstr ""
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:260
+#: packages/admin/src/components/users/UserDetail.tsx:254
 msgid "Unnamed passkey"
 msgstr ""
 
@@ -5150,7 +5150,7 @@ msgstr ""
 msgid "Upload WordPress export file"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:185
+#: packages/admin/src/components/MediaDetailPanel.tsx:184
 msgid "Uploaded:"
 msgstr ""
 
@@ -5203,7 +5203,7 @@ msgstr ""
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:207
+#: packages/admin/src/components/MediaDetailPanel.tsx:206
 msgid "Used by screen readers and when image fails to load"
 msgstr ""
 
@@ -5223,11 +5223,11 @@ msgstr ""
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:128
+#: packages/admin/src/components/users/UserDetail.tsx:116
 msgid "User Details"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:302
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "User not found"
 msgstr ""
 
@@ -5393,7 +5393,7 @@ msgstr ""
 msgid "WXR File"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:242
+#: packages/admin/src/components/users/UserDetail.tsx:236
 msgid "Yes"
 msgstr ""
 
@@ -5413,7 +5413,7 @@ msgstr ""
 msgid "You can view and contribute to the site."
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:183
+#: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
 msgstr ""
 

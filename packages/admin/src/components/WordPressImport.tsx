@@ -1010,7 +1010,7 @@ function FeatureComparison() {
 				<table className="w-full text-sm">
 					<thead>
 						<tr className="border-b bg-kumo-tint/20">
-							<th className="text-left p-3 font-medium">{t`Feature`}</th>
+							<th className="text-start p-3 font-medium">{t`Feature`}</th>
 							<th className="text-center p-3 font-medium whitespace-nowrap">{t`WXR File`}</th>
 							<th className="text-center p-3 font-medium whitespace-nowrap">{t`Plugin`}</th>
 						</tr>
@@ -1087,7 +1087,7 @@ function ProbeResultStep({
 	if (!result.isWordPress) {
 		return (
 			<div className="space-y-6">
-				<div className="rounded-lg border-l-4 border-l-orange-500 border border-kumo-line bg-kumo-base p-6">
+				<div className="rounded-lg border-s-4 border-s-orange-500 border border-kumo-line bg-kumo-base p-6">
 					<div className="flex items-start gap-4">
 						<Warning className="h-6 w-6 text-orange-500 flex-shrink-0" />
 						<div>
@@ -1125,7 +1125,7 @@ function ProbeResultStep({
 	return (
 		<div className="space-y-6">
 			{/* Detection success */}
-			<div className="rounded-lg border-l-4 border-l-green-500 border border-kumo-line bg-kumo-base p-6">
+			<div className="rounded-lg border-s-4 border-s-green-500 border border-kumo-line bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
 					<Check className="h-6 w-6 text-green-500 flex-shrink-0" />
 					<div>
@@ -1173,7 +1173,7 @@ function ProbeResultStep({
 
 			{/* EmDash Exporter plugin detected - primary option */}
 			{hasPlugin && (
-				<div className="rounded-lg border-l-4 border-l-green-500 border border-kumo-line bg-kumo-base p-6">
+				<div className="rounded-lg border-s-4 border-s-green-500 border border-kumo-line bg-kumo-base p-6">
 					<div className="flex items-start gap-4">
 						<div className="p-2 rounded-full bg-green-100 dark:bg-green-900/50">
 							<svg
@@ -1343,7 +1343,7 @@ function PluginAuthStep({
 				</form>
 			</div>
 
-			<div className="rounded-lg border-l-4 border-l-blue-500 border border-kumo-line bg-kumo-base p-4">
+			<div className="rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base p-4">
 				<div className="flex gap-3">
 					<ArrowSquareOut className="h-5 w-5 text-blue-500 flex-shrink-0" />
 					<div className="text-sm">
@@ -1728,7 +1728,7 @@ function ReviewStep({
 			)}
 
 			{selectedCount > 0 && (
-				<div className="rounded-lg border-l-4 border-l-blue-500 border border-kumo-line bg-kumo-base p-4">
+				<div className="rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
 						<Database className="h-5 w-5 text-blue-500 flex-shrink-0" />
 						<div className="space-y-2">
@@ -1822,7 +1822,7 @@ function PostTypeRow({
 					/>
 					<button
 						onClick={onToggleExpand}
-						className="flex items-center gap-1 text-left"
+						className="flex items-center gap-1 text-start"
 						aria-expanded={expanded}
 					>
 						{expanded ? (
@@ -1852,10 +1852,10 @@ function PostTypeRow({
 			</div>
 
 			{expanded && (
-				<div className="mt-4 ml-8 p-3 rounded-lg bg-kumo-tint/50 text-sm">
+				<div className="mt-4 ms-8 p-3 rounded-lg bg-kumo-tint/50 text-sm">
 					{!canImport && schemaStatus.reason && (
 						<div className="mb-3 p-2 rounded bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
-							<WarningCircle className="inline h-4 w-4 mr-1" />
+							<WarningCircle className="inline h-4 w-4 me-1" />
 							{schemaStatus.reason}
 						</div>
 					)}
@@ -1947,7 +1947,7 @@ function MediaStep({
 					</div>
 				)}
 
-				<div className="mt-4 p-4 rounded-lg border-l-4 border-l-blue-500 border border-kumo-line bg-kumo-base">
+				<div className="mt-4 p-4 rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base">
 					<div className="flex gap-3">
 						<DownloadSimple className="h-5 w-5 text-blue-500 flex-shrink-0" />
 						<div className="text-sm">
@@ -2290,7 +2290,7 @@ function AuthorMappingStep({
 						</p>
 						{matchedCount > 0 && (
 							<p className="text-sm text-green-600 dark:text-green-400 mt-2">
-								<Check className="inline h-4 w-4 mr-1" />
+								<Check className="inline h-4 w-4 me-1" />
 								{t`${matchedCount} of ${totalCount} authors matched by email`}
 							</p>
 						)}
@@ -2315,7 +2315,7 @@ function AuthorMappingStep({
 								<p className="text-sm text-kumo-subtle">
 									{mapping.wpEmail || mapping.wpLogin}
 									{mapping.postCount > 0 && (
-										<span className="ml-2">
+										<span className="ms-2">
 											• {plural(mapping.postCount, { one: "# post", other: "# posts" })}
 										</span>
 									)}
@@ -2342,7 +2342,7 @@ function AuthorMappingStep({
 			</div>
 
 			{emdashUsers.length === 0 && (
-				<div className="rounded-lg border-l-4 border-l-yellow-500 border border-kumo-line bg-kumo-base p-4">
+				<div className="rounded-lg border-s-4 border-s-yellow-500 border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
 						<Warning className="h-5 w-5 text-yellow-500 flex-shrink-0" />
 						<div>

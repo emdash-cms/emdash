@@ -127,7 +127,7 @@ export function RepeaterField({
 				<label htmlFor={id} className="text-sm font-medium">
 					{label}
 					{items.length > 0 && (
-						<span className="ml-2 text-kumo-subtle font-normal">
+						<span className="ms-2 text-kumo-subtle font-normal">
 							{plural(items.length, { one: "(# item)", other: "(# items)" })}
 						</span>
 					)}
