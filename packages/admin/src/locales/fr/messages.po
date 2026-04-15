@@ -828,7 +828,7 @@ msgstr "Liste à puces"
 #: packages/admin/src/components/ContentEditor.tsx:892
 #: packages/admin/src/components/Sidebar.tsx:201
 msgid "Bylines"
-msgstr "Signatures"
+msgstr "Auteurs"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -922,19 +922,19 @@ msgstr "Les catégories seront importées"
 #: packages/admin/src/components/FieldEditor.tsx:383
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
-msgstr "Changer"
+msgstr "Modifier"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:237
 msgid "Change Favicon"
-msgstr "Changer de favicon"
+msgstr "Modifier le favicon"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:193
 msgid "Change Logo"
-msgstr "Changer de logo"
+msgstr "Modifier le logo"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:137
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
-msgstr "Caractère entre le titre de la page et le nom du site (par exemple, « Mon article | Mon site »)"
+msgstr "Caractère entre le titre de la page et le nom du site (p. ex. « Mon article | Mon site »)"
 
 #: packages/admin/src/components/PluginManager.tsx:154
 msgid "Check for updates"
@@ -960,7 +960,7 @@ msgstr "En cours de vérification de l'authentification..."
 
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
-msgstr "Choisissez votre langue d'administration préférée"
+msgstr "Choisir votre langue d'administration préférée"
 
 #: packages/admin/src/components/SignupPage.tsx:137
 msgid "Click the link in the email to continue setting up your account."
@@ -1259,7 +1259,7 @@ msgstr "Créer un compte"
 
 #: packages/admin/src/components/ContentEditor.tsx:1675
 msgid "Create byline"
-msgstr "Créer une signature"
+msgstr "Créer un auteur"
 
 #: packages/admin/src/components/MenuList.tsx:97
 #: packages/admin/src/components/MenuList.tsx:160
@@ -1786,7 +1786,7 @@ msgstr "Modifier {title}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1737
 msgid "Edit byline"
-msgstr "Modifier la signature"
+msgstr "Modifier l'auteur"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:369
 msgid "Edit Domain"
@@ -1841,7 +1841,7 @@ msgstr "Adresse e-mail"
 #: packages/admin/src/components/SetupWizard.tsx:204
 #: packages/admin/src/components/SignupPage.tsx:48
 msgid "Email is required"
-msgstr "L'e-mail est requis"
+msgstr "L'e-mail est obligatoire"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:224
 msgid "Email Middleware"
@@ -1849,7 +1849,7 @@ msgstr "Middleware de messagerie"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:134
 msgid "Email Pipeline"
-msgstr "Chaîne de messagerie"
+msgstr "Pipeline de messagerie"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:208
 msgid "Email provider active"
@@ -2013,7 +2013,7 @@ msgstr "Échec de l'ajout du domaine"
 
 #: packages/admin/src/components/ContentEditor.tsx:1721
 msgid "Failed to create byline"
-msgstr "Échec de la création de la signature"
+msgstr "Échec de la création de l'auteur"
 
 #: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "Failed to create some collections"
@@ -2098,7 +2098,7 @@ msgstr "Échec de l'envoi de l'e-mail de test"
 
 #: packages/admin/src/components/ContentEditor.tsx:1771
 msgid "Failed to update byline"
-msgstr "Échec de la mise à jour de la signature"
+msgstr "Échec de la mise à jour de l'auteur"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:114
 msgid "Failed to update domain"
@@ -2376,7 +2376,7 @@ msgstr "Importer les menus de navigation"
 
 #: packages/admin/src/components/WordPressImport.tsx:610
 msgid "Import posts, pages, and custom post types from WordPress."
-msgstr "Importez des articles, des pages et des types de publications personnalisés depuis WordPress."
+msgstr "Importer des articles, des pages et des types de publications personnalisés depuis WordPress."
 
 #: packages/admin/src/components/WordPressImport.tsx:1702
 msgid "Import SEO settings"
@@ -2545,7 +2545,7 @@ msgstr "Mots-clés"
 #: packages/admin/src/components/MenuList.tsx:137
 #: packages/admin/src/components/TaxonomyManager.tsx:455
 msgid "Label"
-msgstr "Étiquette"
+msgstr "Libellé"
 
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
@@ -2754,11 +2754,11 @@ msgstr "Gérer"
 #. placeholder {1}: taxonomyDef.collections.join(", ")
 #: packages/admin/src/components/TaxonomyManager.tsx:602
 msgid "Manage {0} for {1}"
-msgstr "Gérer {0} pour {1}"
+msgstr "Gérer les {0} pour les {1}"
 
 #: packages/admin/src/components/PluginManager.tsx:170
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
-msgstr "Gérer les modules d'extension installés. Activez ou désactivez les modules d'extension pour contrôler leurs fonctionnalités."
+msgstr "Gérer les modules d'extension installés. Activer ou désactiver les modules d'extension pour contrôler leurs fonctionnalités."
 
 #: packages/admin/src/components/MenuList.tsx:85
 msgid "Manage navigation menus for your site"
@@ -2766,11 +2766,11 @@ msgstr "Gérer les menus de navigation de votre site"
 
 #: packages/admin/src/components/Redirects.tsx:334
 msgid "Manage URL redirects and view 404 errors."
-msgstr "Gérez les redirections d'URL et affichez les erreurs 404."
+msgstr "Gérer les redirections d'URL et afficher les erreurs 404."
 
 #: packages/admin/src/components/Settings.tsx:93
 msgid "Manage your passkeys and authentication"
-msgstr "Gérez vos clés d'accès et votre authentification"
+msgstr "Gérer vos clés d'accès et votre authentification"
 
 #: packages/admin/src/components/Redirects.tsx:405
 msgid "Manual"
@@ -2905,11 +2905,11 @@ msgstr "Méta description"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:149
 msgid "Meta tag content for Bing Webmaster Tools verification"
-msgstr "Contenu des balises méta pour la vérification des outils pour les webmasters Bing"
+msgstr "Contenu des balises méta pour la vérification avec les outils pour les webmasters de Bing"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:143
 msgid "Meta tag content for Google Search Console verification"
-msgstr "Contenu des balises méta pour la vérification de la console de recherche Google"
+msgstr "Contenu des balises méta pour la vérification avec la console de recherche de Google"
 
 #: packages/admin/src/components/WordPressImport.tsx:1707
 msgid "Meta titles, descriptions, and social images"
@@ -2993,7 +2993,7 @@ msgstr "Nom"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:390
 msgid "Name and label are required"
-msgstr "Le nom et l'étiquette sont requis"
+msgstr "Le nom et le libellé sont requis"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:396
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
@@ -3030,7 +3030,7 @@ msgstr "Nouvelle redirection"
 
 #: packages/admin/src/components/Sections.tsx:141
 msgid "New Section"
-msgstr "Nouvelle rubrique"
+msgstr "Nouvelle section"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:466
 msgid "new tab"
@@ -3098,7 +3098,7 @@ msgstr "Aucun commentaire approuvé pour l'instant."
 
 #: packages/admin/src/components/ContentEditor.tsx:1662
 msgid "No bylines selected."
-msgstr "Aucune signature sélectionnée."
+msgstr "Aucun auteur sélectionnée."
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "No collections configured"
@@ -3218,7 +3218,7 @@ msgstr "Aucun module d'extension trouvé"
 
 #: packages/admin/src/components/Sections.tsx:341
 msgid "No preview"
-msgstr "Pas d'aperçu"
+msgstr "Aucun aperçu"
 
 #: packages/admin/src/components/Dashboard.tsx:236
 msgid "No recent activity"
@@ -3332,7 +3332,7 @@ msgstr "Légende facultative affichée sous l'image"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:213
 msgid "Optional caption for display"
-msgstr "Légende facultative pour l'affichage"
+msgstr "Légende facultative à afficher"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:289
 msgid "Optional description"
@@ -3378,7 +3378,7 @@ msgstr "Original :"
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:180
 msgid "Outline"
-msgstr "Contour"
+msgstr "Plan"
 
 #: packages/admin/src/components/SeoPanel.tsx:152
 msgid "Overrides the page title in search engine results"
@@ -3658,7 +3658,7 @@ msgstr "Publié le"
 
 #: packages/admin/src/components/ContentEditor.tsx:1670
 msgid "Quick create byline"
-msgstr "Création rapide d'une signature"
+msgstr "Création rapide d'un auteur"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:85
 #: packages/admin/src/components/PortableTextEditor.tsx:749
@@ -3679,7 +3679,7 @@ msgstr "Lire les fichiers multimédias"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
-msgstr "En lisant"
+msgstr "Lecture"
 
 #: packages/admin/src/components/WordPressImport.tsx:1849
 msgid "Ready"
@@ -3961,7 +3961,7 @@ msgstr "Rôle {role}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1644
 msgid "Role label"
-msgstr "Étiquette de rôle"
+msgstr "Libellé du rôle"
 
 #: packages/admin/src/components/MenuEditor.tsx:286
 #: packages/admin/src/components/MenuEditor.tsx:288
@@ -4179,7 +4179,7 @@ msgstr "La section « {slug} » est introuvable."
 
 #: packages/admin/src/components/Sections.tsx:91
 msgid "Section created"
-msgstr "Rubrique créée"
+msgstr "Section créée"
 
 #: packages/admin/src/components/Sections.tsx:105
 msgid "Section deleted"
@@ -4187,7 +4187,7 @@ msgstr "Section supprimée"
 
 #: packages/admin/src/components/SectionEditor.tsx:186
 msgid "Section Details"
-msgstr "Détails des sections"
+msgstr "Détails de la section"
 
 #: packages/admin/src/components/SectionEditor.tsx:73
 msgid "Section Not Found"
@@ -4270,7 +4270,7 @@ msgstr "Tout sélectionner"
 
 #: packages/admin/src/components/ContentEditor.tsx:1583
 msgid "Select byline..."
-msgstr "Sélectionner la signature..."
+msgstr "Sélectionner l'auteur..."
 
 #. placeholder {0}: comment.authorName
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4322,15 +4322,15 @@ msgstr "Sélectionné :"
 #: packages/admin/src/components/Settings.tsx:98
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:172
 msgid "Self-Signup Domains"
-msgstr "Domaines d'inscription autorisés"
+msgstr "Domaines autorisés pour l'inscription"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Send a test email through the full pipeline to verify your email configuration."
-msgstr "Envoyez un e-mail de test via le processus complet pour vérifier votre configuration de messagerie."
+msgstr "Envoyer un e-mail de test via le processus complet pour vérifier votre configuration de messagerie."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:84
 msgid "Send an invitation email to a new team member."
-msgstr "Envoyez un e-mail d'invitation à un nouveau membre de l'équipe."
+msgstr "Envoyer un e-mail d'invitation à un nouveau membre de l'équipe."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
 msgid "Send Invite"
@@ -4450,7 +4450,7 @@ msgstr "Se connecter avec un e-mail"
 
 #: packages/admin/src/components/LoginPage.tsx:340
 msgid "Sign in with email link"
-msgstr "Se connecter avec un lien par e-mail"
+msgstr "Se connecter avec un lien envoyé par e-mail"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
 #: packages/admin/src/components/LoginPage.tsx:304
@@ -4497,7 +4497,7 @@ msgstr "Titre et slogan du site"
 
 #: packages/admin/src/components/SetupWizard.tsx:125
 msgid "Site title is required"
-msgstr "Le titre du site est requis"
+msgstr "Le titre du site est obligatoire"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:168
 msgid "Site URL"
@@ -4590,13 +4590,13 @@ msgstr "Chemin source"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:197
 msgid "spam"
-msgstr "courrier indésirable"
+msgstr "indésirable"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:159
 #: packages/admin/src/components/comments/CommentInbox.tsx:214
 #: packages/admin/src/components/comments/CommentInbox.tsx:254
 msgid "Spam"
-msgstr "Courrier indésirable"
+msgstr "Indésirable"
 
 #: packages/admin/src/components/WordPressImport.tsx:1783
 msgid "Start Import"
@@ -4746,7 +4746,7 @@ msgstr "Thème introuvable"
 
 #: packages/admin/src/components/SectionEditor.tsx:161
 msgid "Theme Section"
-msgstr "Section des thèmes"
+msgstr "Section du thème"
 
 #: packages/admin/src/components/Sections.tsx:298
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
@@ -4833,7 +4833,7 @@ msgstr "Cela rétablira la version publiée. Vos modifications en cours seront p
 
 #: packages/admin/src/components/SetupWizard.tsx:156
 msgid "Thoughts, tutorials, and more"
-msgstr "Réflexions, tutoriels et plus"
+msgstr "Réflexions, tutoriels et bien plus encore"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:285
 msgid "Timezone"
@@ -4841,7 +4841,7 @@ msgstr "Fuseau horaire"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:288
 msgid "Timezone for displaying dates (e.g., America/New_York)"
-msgstr "Fuseau horaire pour l'affichage des dates (par exemple, Amérique/New_York)"
+msgstr "Fuseau horaire pour l'affichage des dates (p. ex. Amérique/New_York)"
 
 #: packages/admin/src/components/ContentList.tsx:190
 #: packages/admin/src/components/ContentList.tsx:303
@@ -5181,7 +5181,7 @@ msgstr "Identifiant adapté aux URL"
 
 #: packages/admin/src/components/MenuList.tsx:133
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
-msgstr "Identifiant adapté aux URL (par exemple, « principal », « pied-de-page »)"
+msgstr "Identifiant adapté aux URL (p. ex. « principal », « pied-de-page »)"
 
 #: packages/admin/src/components/Redirects.tsx:107
 msgid "Use [param] or [...rest] in paths for pattern matching."
@@ -5503,7 +5503,7 @@ msgstr "Votre rôle"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:131
 msgid "Your Twitter/X handle (e.g., @username)"
-msgstr "Votre identifiant Twitter/X (par exemple, @username)"
+msgstr "Votre identifiant Twitter/X (p. ex. @username)"
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:1925
