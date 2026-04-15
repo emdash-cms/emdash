@@ -686,14 +686,6 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * Drop a content table
-	 */
-	private async dropContentTable(slug: string): Promise<void> {
-		const tableName = this.getTableName(slug);
-		await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(this.db);
-	}
-
-	/**
 	 * Add a column to a content table
 	 */
 	private async addColumn(
@@ -759,7 +751,7 @@ export class SchemaRegistry {
 		const tableName = this.getTableName(slug);
 		try {
 			const result = await sql<{ count: number }>`
-				SELECT COUNT(*) as count FROM ${sql.ref(tableName)} 
+				SELECT COUNT(*) as count FROM ${sql.ref(tableName)}
 				WHERE deleted_at IS NULL
 			`.execute(this.db);
 			return (result.rows[0]?.count ?? 0) > 0;
