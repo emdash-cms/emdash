@@ -37,8 +37,8 @@ function makeUser(overrides: Partial<UserDetailType> = {}): UserDetailType {
 const noop = () => {};
 
 describe("UserDetail", () => {
-	it("returns null when not open", async () => {
-		const screen = await render(
+	it("hides dialog when not open", async () => {
+		await render(
 			<UserDetail
 				user={makeUser()}
 				isOpen={false}
@@ -48,8 +48,9 @@ describe("UserDetail", () => {
 				onEnable={noop}
 			/>,
 		);
-		// The dialog should not be in the DOM at all
-		expect(screen.container.innerHTML).toBe("");
+		// Dialog.Portal renders outside the container; the popup should be hidden
+		const popup = document.querySelector("[role='dialog']") as HTMLElement;
+		expect(popup?.hidden ?? true).toBe(true);
 	});
 
 	it("shows loading skeleton when isLoading", async () => {
@@ -64,9 +65,9 @@ describe("UserDetail", () => {
 				onEnable={noop}
 			/>,
 		);
-		// Skeleton has the animate-pulse class
+		// Skeleton has the animate-pulse class; portal renders outside screen.container
 		await expect.element(screen.getByRole("dialog")).toBeInTheDocument();
-		expect(screen.container.querySelector(".animate-pulse")).not.toBeNull();
+		expect(document.querySelector(".animate-pulse")).not.toBeNull();
 	});
 
 	it("shows 'User not found' when not loading and no user", async () => {
@@ -120,7 +121,7 @@ describe("UserDetail", () => {
 
 	it("backdrop click calls onClose", async () => {
 		const onClose = vi.fn();
-		const screen = await render(
+		await render(
 			<UserDetail
 				user={makeUser()}
 				isOpen={true}
@@ -130,8 +131,8 @@ describe("UserDetail", () => {
 				onEnable={noop}
 			/>,
 		);
-		// The backdrop is the first child (aria-hidden div)
-		const backdrop = screen.container.querySelector("[aria-hidden='true']") as HTMLElement;
+		// Dialog.Portal renders outside screen.container
+		const backdrop = document.querySelector("[role='presentation']") as HTMLElement;
 		expect(backdrop).not.toBeNull();
 		backdrop.click();
 		expect(onClose).toHaveBeenCalled();
@@ -204,9 +205,9 @@ describe("UserDetail", () => {
 		const nameInput = screen.getByLabelText("Name");
 		await userEvent.clear(nameInput);
 		await userEvent.type(nameInput, "Changed");
-		// Submit the form
+		// Submit the form -- use native click to bypass data-base-ui-inert overlay
 		const saveButton = screen.getByText("Save Changes").element().closest("button")!;
-		await userEvent.click(saveButton);
+		saveButton.click();
 		expect(onSave).toHaveBeenCalledWith({ name: "Changed" });
 	});
 
@@ -228,7 +229,7 @@ describe("UserDetail", () => {
 
 	it("self-user: disable button not shown", async () => {
 		const user = makeUser({ id: "me" });
-		const screen = await render(
+		await render(
 			<UserDetail
 				user={user}
 				isOpen={true}
@@ -239,9 +240,9 @@ describe("UserDetail", () => {
 				onEnable={noop}
 			/>,
 		);
-		expect(screen.container.querySelector("button")?.textContent).not.toContain("Disable");
-		// More specifically, check that no button with Disable text exists
-		const buttons = screen.container.querySelectorAll("button");
+		// Dialog.Portal renders outside screen.container; query the dialog popup directly
+		const dialog = document.querySelector("[role='dialog']")!;
+		const buttons = dialog.querySelectorAll("button");
 		const disableButton = [...buttons].find((b) => b.textContent?.includes("Disable"));
 		expect(disableButton).toBeUndefined();
 	});
@@ -259,8 +260,9 @@ describe("UserDetail", () => {
 				onEnable={noop}
 			/>,
 		);
+		// Use native click to bypass data-base-ui-inert overlay
 		const disableButton = screen.getByText("Disable").element().closest("button")!;
-		await userEvent.click(disableButton);
+		disableButton.click();
 		expect(onDisable).toHaveBeenCalled();
 	});
 
@@ -277,8 +279,9 @@ describe("UserDetail", () => {
 				onEnable={onEnable}
 			/>,
 		);
+		// Use native click to bypass data-base-ui-inert overlay
 		const enableButton = screen.getByText("Enable").element().closest("button")!;
-		await userEvent.click(enableButton);
+		enableButton.click();
 		expect(onEnable).toHaveBeenCalled();
 	});
 
@@ -294,8 +297,8 @@ describe("UserDetail", () => {
 				onEnable={noop}
 			/>,
 		);
-		const closeButton = screen.getByLabelText("Close panel");
-		await closeButton.click();
+		// Use native click to bypass data-base-ui-inert overlay
+		screen.getByLabelText("Close panel").element().click();
 		expect(onClose).toHaveBeenCalled();
 	});
 });

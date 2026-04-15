@@ -100,7 +100,7 @@ export function CapabilityConsentDialog({
 									<span className={cn(isNew && "font-medium")}>
 										{describeCapability(cap, allowedHosts)}
 									</span>
-									{isNew && <span className="ml-2 text-xs text-warning font-medium">{t`NEW`}</span>}
+									{isNew && <span className="ms-2 text-xs text-warning font-medium">{t`NEW`}</span>}
 								</div>
 							</div>
 						);

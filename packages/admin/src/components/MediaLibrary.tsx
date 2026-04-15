@@ -330,13 +330,13 @@ export function MediaLibrary({
 			{/* Search (for providers that support it) */}
 			{canSearch && (
 				<div className="relative max-w-sm">
-					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
 						placeholder={t`Search...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9"
+						className="ps-9"
 					/>
 				</div>
 			)}
@@ -412,11 +412,11 @@ export function MediaLibrary({
 					<table className="w-full">
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
-								<th className="px-4 py-3 text-left text-sm font-medium">{t`Preview`}</th>
-								<th className="px-4 py-3 text-left text-sm font-medium">{t`Filename`}</th>
-								<th className="px-4 py-3 text-left text-sm font-medium">{t`Type`}</th>
-								<th className="px-4 py-3 text-left text-sm font-medium">{t`Size`}</th>
-								<th className="px-4 py-3 text-right text-sm font-medium">{t`Actions`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Preview`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Filename`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Type`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Size`}</th>
+								<th className="px-4 py-3 text-end text-sm font-medium">{t`Actions`}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -493,7 +493,7 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-left transition-all max-w-[200px]",
+				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
 				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
 			)}
 		>
@@ -543,7 +543,7 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-left transition-all max-w-[200px]",
+				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
 				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
 			)}
 		>
@@ -607,7 +607,7 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 			<td className="px-4 py-3 font-medium">{item.filename}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{formatFileSize(item.size)}</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">
 					{item.alt ? t`Alt text set` : t`No alt text`}
 				</span>
@@ -664,7 +664,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			<td className="px-4 py-3 text-sm text-kumo-subtle">
 				{item.size ? formatFileSize(item.size) : "—"}
 			</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">
 					{item.alt ? t`Alt text set` : t`No alt text`}
 				</span>

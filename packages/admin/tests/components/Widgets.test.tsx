@@ -133,7 +133,7 @@ describe("Widgets", () => {
 		expect(screen.getByText("Save").query()).toBeNull();
 
 		// Click the widget title area to expand (it's a <button> wrapping the title)
-		const expandButtons = document.querySelectorAll("button.text-left");
+		const expandButtons = document.querySelectorAll("button.text-start");
 		expect(expandButtons.length).toBeGreaterThanOrEqual(1);
 		(expandButtons[0] as HTMLButtonElement).click();
 
@@ -149,7 +149,7 @@ describe("Widgets", () => {
 		await expect.element(screen.getByText("(content)")).toBeInTheDocument();
 
 		// Expand the first widget (content type — "Recent Posts")
-		const expandButtons = document.querySelectorAll("button.text-left");
+		const expandButtons = document.querySelectorAll("button.text-start");
 		expect(expandButtons.length).toBeGreaterThanOrEqual(1);
 		(expandButtons[0] as HTMLButtonElement).click();
 
@@ -181,7 +181,7 @@ describe("Widgets", () => {
 
 		// Expand the second widget (menu type — "Quick Links")
 		await expect.element(screen.getByText("Quick Links")).toBeInTheDocument();
-		const expandButtons = document.querySelectorAll("button.text-left");
+		const expandButtons = document.querySelectorAll("button.text-start");
 		expect(expandButtons.length).toBeGreaterThanOrEqual(2);
 		(expandButtons[1] as HTMLButtonElement).click();
 

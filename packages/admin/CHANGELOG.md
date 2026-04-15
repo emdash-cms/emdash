@@ -1,5 +1,20 @@
 # @emdash-cms/admin
 
+## 0.5.0
+
+### Minor Changes
+
+- [#551](https://github.com/emdash-cms/emdash/pull/551) [`598026c`](https://github.com/emdash-cms/emdash/commit/598026c99083325c281b9e7ab87e9724e11f2c8d) Thanks [@ophirbucai](https://github.com/ophirbucai)! - Adds RTL (right-to-left) language support infrastructure. Enables proper text direction for RTL languages like Arabic, Hebrew, Farsi, and Urdu. Includes LocaleDirectionProvider component that syncs HTML dir/lang attributes with Kumo's DirectionProvider for automatic layout mirroring when locale changes.
+
+### Patch Changes
+
+- [#489](https://github.com/emdash-cms/emdash/pull/489) [`9ea4cf7`](https://github.com/emdash-cms/emdash/commit/9ea4cf7c63cd5a1c45ec569bd72076c935066a1c) Thanks [@all3f0r1](https://github.com/all3f0r1)! - Adds JSON field editor in admin UI content forms
+
+- [#542](https://github.com/emdash-cms/emdash/pull/542) [`64f90d1`](https://github.com/emdash-cms/emdash/commit/64f90d1957af646ca200b9d70e856fa72393f001) Thanks [@mohamedmostafa58](https://github.com/mohamedmostafa58)! - Fixes invite flow: corrects invite URL to point to admin UI page, adds InviteAcceptPage for passkey registration.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

@@ -41,13 +41,13 @@ export function Header() {
 	return (
 		<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-kumo-base px-4">
 			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
-			<Sidebar.Trigger className="cursor-pointer" />
+			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
-					<ArrowSquareOut className="h-4 w-4 mr-1" />
+					<ArrowSquareOut className="h-4 w-4 me-1" />
 					{t`View Site`}
 				</LinkButton>
 
@@ -95,7 +95,7 @@ export function Header() {
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
-								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-left"
+								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start"
 							>
 								<SignOut className="h-4 w-4" />
 								{t`Log out`}

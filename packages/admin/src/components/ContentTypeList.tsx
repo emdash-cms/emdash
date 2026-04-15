@@ -40,7 +40,7 @@ export function ContentTypeList({
 					<p className="text-kumo-subtle text-sm">{t`Define the structure of your content`}</p>
 				</div>
 				<Link to="/content-types/new" className={buttonVariants()}>
-					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
 					{t`New Content Type`}
 				</Link>
 			</div>
@@ -65,7 +65,7 @@ export function ContentTypeList({
 									>
 										<div>
 											<code className="text-sm font-medium">{orphan.slug}</code>
-											<span className="text-xs text-kumo-subtle ml-2">
+											<span className="text-xs text-kumo-subtle ms-2">
 												{plural(orphan.rowCount, { one: "(# item)", other: "(# items)" })}
 											</span>
 										</div>
@@ -90,19 +90,19 @@ export function ContentTypeList({
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Name`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Slug`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Source`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Features`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 								{t`Actions`}
 							</th>
 						</tr>
@@ -212,7 +212,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 					))}
 				</div>
 			</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Link
 						to="/content-types/$slug"
