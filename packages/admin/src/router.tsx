@@ -1619,9 +1619,11 @@ const notFoundRoute = createRoute({
 	component: () => <NotFoundPage />,
 });
 
+const VALID_EXT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 function ExtensionPage() {
 	const { name } = useParams({ from: "/_admin/ext/$name" });
-	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) return <NotFoundPage />;
+	if (!VALID_EXT_SLUG.test(name)) return <NotFoundPage />;
 	return (
 		<iframe
 			src={`/_emdash/ext/${name}`}
