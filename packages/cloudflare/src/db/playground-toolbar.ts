@@ -105,6 +105,7 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
     .ec-pg-inner {
       flex-wrap: wrap;
       justify-content: center;
+      border-radius: .75rem;
     }
   }
 
