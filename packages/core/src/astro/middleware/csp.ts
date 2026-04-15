@@ -13,8 +13,8 @@
 export function buildEmDashCsp(): string {
 	return [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
-		"style-src 'self' 'unsafe-inline'",
+		"script-src 'self'",
+		"style-src 'self'",
 		"connect-src 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'none'",
