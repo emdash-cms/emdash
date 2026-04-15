@@ -122,6 +122,10 @@ Config-based plugins:
 - Are loaded at build time and on every server start
 - Cannot be installed or removed from the admin UI
 
+<Aside type="tip" title="Paired trusted and marketplace packages">
+  If a plugin needs Node-only code in trusted installs but must stay sandbox-safe in the marketplace, publish two packages with the same plugin ID. For example, `emdash-smtp` is the trusted `astro.config.mjs` package, while `emdash-smtp-marketplace` is the sandbox-safe marketplace package.
+</Aside>
+
 <Aside type="tip">
   Use config-based plugins for first-party code and plugins you maintain yourself. Use marketplace plugins for third-party extensions where sandbox isolation provides security benefits.
 </Aside>

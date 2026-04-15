@@ -62,6 +62,7 @@ export const HOOK_NAMES = [
 	"email:beforeSend",
 	"email:deliver",
 	"email:afterSend",
+	"email:status",
 	"comment:beforeCreate",
 	"comment:moderate",
 	"comment:afterCreate",

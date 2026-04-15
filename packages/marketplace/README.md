@@ -2,6 +2,32 @@
 
 Standalone Cloudflare Worker that hosts the EmDash plugin marketplace — discovery, publishing, and moderation.
 
+## Production deployment
+
+The live marketplace needs these Cloudflare Worker secrets before GitHub auth can work:
+
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `SEED_TOKEN`
+
+`AUDIT_ENFORCEMENT` is optional; if unset, the worker defaults to `flag`.
+
+The GitHub Actions deployment workflow expects repository secrets with these names:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `MARKETPLACE_GITHUB_CLIENT_ID`
+- `MARKETPLACE_GITHUB_CLIENT_SECRET`
+- `MARKETPLACE_SEED_TOKEN`
+
+After deploying, verify discovery before seeding plugins:
+
+```bash
+curl -s https://marketplace.emdashcms.com/api/v1/auth/discovery | jq '.github'
+```
+
+The response must report `enabled: true` and a non-empty `clientId`. If discovery stays disabled, check that both `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` were pushed successfully.
+
 ## Development
 
 ```bash

@@ -45,6 +45,30 @@ interface GitHubUser {
 	avatar_url: string;
 }
 
+function getGitHubOAuthConfig(
+	c: Context<AuthEnv>,
+): { clientId: string; clientSecret: string } | Response {
+	const clientId = typeof c.env.GITHUB_CLIENT_ID === "string" ? c.env.GITHUB_CLIENT_ID.trim() : "";
+	const clientSecret =
+		typeof c.env.GITHUB_CLIENT_SECRET === "string" ? c.env.GITHUB_CLIENT_SECRET.trim() : "";
+	const missing: string[] = [];
+
+	if (!clientId) missing.push("GITHUB_CLIENT_ID");
+	if (!clientSecret) missing.push("GITHUB_CLIENT_SECRET");
+
+	if (missing.length > 0) {
+		return c.json(
+			{
+				error: "GitHub OAuth is not configured on this marketplace deployment.",
+				detail: `Missing ${missing.join(", ")}.`,
+			},
+			503,
+		);
+	}
+
+	return { clientId, clientSecret };
+}
+
 /**
  * Given a GitHub access token, fetch the user, find-or-create author,
  * and return a marketplace JWT. Shared by code exchange and device flow.
@@ -105,6 +129,9 @@ const githubAuthSchema = z.object({
 });
 
 authorRoutes.post("/auth/github", async (c) => {
+	const config = getGitHubOAuthConfig(c);
+	if (config instanceof Response) return config;
+
 	let body: z.infer<typeof githubAuthSchema>;
 	try {
 		const raw = await c.req.json();
@@ -125,8 +152,8 @@ authorRoutes.post("/auth/github", async (c) => {
 				Accept: "application/json",
 			},
 			body: JSON.stringify({
-				client_id: c.env.GITHUB_CLIENT_ID,
-				client_secret: c.env.GITHUB_CLIENT_SECRET,
+				client_id: config.clientId,
+				client_secret: config.clientSecret,
 				code: body.code,
 			}),
 		});
@@ -160,6 +187,9 @@ const githubDeviceAuthSchema = z.object({
 });
 
 authorRoutes.post("/auth/github/device", async (c) => {
+	const config = getGitHubOAuthConfig(c);
+	if (config instanceof Response) return config;
+
 	let body: z.infer<typeof githubDeviceAuthSchema>;
 	try {
 		const raw = await c.req.json();
@@ -772,6 +802,7 @@ const VALID_HOOKS = [
 	"email:beforeSend",
 	"email:deliver",
 	"email:afterSend",
+	"email:status",
 	"comment:beforeCreate",
 	"comment:moderate",
 	"comment:afterCreate",

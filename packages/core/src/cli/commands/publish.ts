@@ -58,6 +58,7 @@ interface MarketplaceAuthResponse {
 
 interface AuthDiscovery {
 	github: {
+		enabled?: boolean;
 		clientId: string;
 		deviceAuthorizationEndpoint: string;
 		tokenEndpoint: string;
@@ -65,6 +66,10 @@ interface AuthDiscovery {
 	marketplace: {
 		deviceTokenEndpoint: string;
 	};
+}
+
+export function createGitHubDeviceFlowBody(params: Record<string, string>): string {
+	return new URLSearchParams(params).toString();
 }
 
 /**
@@ -79,15 +84,20 @@ async function authenticateViaDeviceFlow(registryUrl: string): Promise<Marketpla
 		throw new Error(`Marketplace unreachable: ${discoveryRes.status} ${discoveryRes.statusText}`);
 	}
 	const discovery = (await discoveryRes.json()) as AuthDiscovery;
+	if (discovery.github?.enabled === false || !discovery.github?.clientId) {
+		throw new Error(
+			"Marketplace auth discovery reports GitHub device auth is unavailable. Configure both GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET on the marketplace service or provide EMDASH_MARKETPLACE_TOKEN.",
+		);
+	}
 
 	// Step 2: Request device code from GitHub
 	const deviceRes = await fetch(discovery.github.deviceAuthorizationEndpoint, {
 		method: "POST",
 		headers: {
-			"Content-Type": "application/json",
+			"Content-Type": "application/x-www-form-urlencoded",
 			Accept: "application/json",
 		},
-		body: JSON.stringify({
+		body: createGitHubDeviceFlowBody({
 			client_id: discovery.github.clientId,
 			scope: "read:user user:email",
 		}),
@@ -164,10 +174,10 @@ async function pollGitHubDeviceFlow(
 		const res = await fetch(tokenEndpoint, {
 			method: "POST",
 			headers: {
-				"Content-Type": "application/json",
+				"Content-Type": "application/x-www-form-urlencoded",
 				Accept: "application/json",
 			},
-			body: JSON.stringify({
+			body: createGitHubDeviceFlowBody({
 				client_id: clientId,
 				device_code: deviceCode,
 				grant_type: "urn:ietf:params:oauth:grant-type:device_code",

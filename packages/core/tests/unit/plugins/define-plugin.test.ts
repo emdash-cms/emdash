@@ -310,12 +310,14 @@ describe("definePlugin", () => {
 					"content:beforeSave": vi.fn(),
 					"content:afterSave": vi.fn(),
 					"plugin:install": vi.fn(),
+					"email:status": vi.fn(async () => true),
 				},
 			});
 
 			expect(plugin.hooks["content:beforeSave"]).toBeDefined();
 			expect(plugin.hooks["content:afterSave"]).toBeDefined();
 			expect(plugin.hooks["plugin:install"]).toBeDefined();
+			expect(plugin.hooks["email:status"]).toBeDefined();
 		});
 
 		it("sets pluginId on all resolved hooks", () => {

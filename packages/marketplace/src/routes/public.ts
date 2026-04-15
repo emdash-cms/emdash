@@ -13,9 +13,14 @@ export const publicRoutes = new Hono<{ Bindings: Env }>();
 // ── GET /auth/discovery — Auth config for CLI ───────────────────
 
 publicRoutes.get("/auth/discovery", (c) => {
+	const clientId = typeof c.env.GITHUB_CLIENT_ID === "string" ? c.env.GITHUB_CLIENT_ID.trim() : "";
+	const clientSecret =
+		typeof c.env.GITHUB_CLIENT_SECRET === "string" ? c.env.GITHUB_CLIENT_SECRET.trim() : "";
+	const enabled = clientId.length > 0 && clientSecret.length > 0;
 	return c.json({
 		github: {
-			clientId: c.env.GITHUB_CLIENT_ID,
+			enabled,
+			clientId: enabled ? clientId : "",
 			deviceAuthorizationEndpoint: "https://github.com/login/device/code",
 			tokenEndpoint: "https://github.com/login/oauth/access_token",
 		},

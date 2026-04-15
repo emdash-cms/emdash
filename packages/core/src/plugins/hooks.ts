@@ -27,6 +27,7 @@ import type {
 	EmailBeforeSendHandler,
 	EmailDeliverHandler,
 	EmailAfterSendHandler,
+	EmailStatusHandler,
 	ContentBeforeSaveHandler,
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
@@ -72,6 +73,7 @@ type HookNameV2 =
 	| "email:beforeSend"
 	| "email:deliver"
 	| "email:afterSend"
+	| "email:status"
 	| "comment:beforeCreate"
 	| "comment:moderate"
 	| "comment:afterCreate"
@@ -99,6 +101,7 @@ interface HookHandlerMap {
 	"email:beforeSend": EmailBeforeSendHandler;
 	"email:deliver": EmailDeliverHandler;
 	"email:afterSend": EmailAfterSendHandler;
+	"email:status": EmailStatusHandler;
 	"comment:beforeCreate": CommentBeforeCreateHandler;
 	"comment:moderate": CommentModerateHandler;
 	"comment:afterCreate": CommentAfterCreateHandler;
@@ -226,6 +229,7 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "email:beforeSend");
 			this.registerPluginHook(plugin, "email:deliver");
 			this.registerPluginHook(plugin, "email:afterSend");
+			this.registerPluginHook(plugin, "email:status");
 			this.registerPluginHook(plugin, "comment:beforeCreate");
 			this.registerPluginHook(plugin, "comment:moderate");
 			this.registerPluginHook(plugin, "comment:afterCreate");
@@ -252,6 +256,7 @@ export class HookPipeline {
 		["email:beforeSend", "email:intercept"],
 		["email:afterSend", "email:intercept"],
 		["email:deliver", "email:provide"],
+		["email:status", "email:provide"],
 		// Content — beforeSave can mutate content, so requires write:content.
 		// afterSave is read-only notification, so read:content suffices.
 		["content:beforeSave", "write:content"],
