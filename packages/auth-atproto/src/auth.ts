@@ -72,7 +72,7 @@ export interface AtprotoAuthConfig {
 export function atproto(config?: AtprotoAuthConfig): AuthProviderDescriptor {
 	return {
 		id: "atproto",
-		label: "AT Protocol",
+		label: "Atmosphere",
 		config: config ?? {},
 		adminEntry: "@emdash-cms/auth-atproto/admin",
 		routes: [

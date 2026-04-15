@@ -4,6 +4,7 @@
  * LoginButton for the login page, rendered via the auth provider virtual module.
  */
 
+import { LinkButton } from "@cloudflare/kumo";
 import * as React from "react";
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -29,19 +30,15 @@ function GoogleIcon({ className }: { className?: string }) {
 	);
 }
 
-function handleClick() {
-	window.location.href = "/_emdash/api/auth/oauth/google";
-}
-
 export function LoginButton() {
 	return (
-		<button
-			type="button"
-			onClick={handleClick}
-			className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-kumo-tint bg-kumo-base px-4 py-2 text-sm font-medium text-kumo-default hover:bg-kumo-tint"
+		<LinkButton
+			href="/_emdash/api/auth/oauth/google"
+			variant="outline"
+			className="w-full justify-center"
 		>
 			<GoogleIcon className="h-5 w-5" />
 			<span>Google</span>
-		</button>
+		</LinkButton>
 	);
 }

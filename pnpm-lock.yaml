@@ -780,6 +780,9 @@ importers:
       '@atcute/lexicons':
         specifier: ^1.2.10
         version: 1.2.10
+      '@cloudflare/kumo':
+        specifier: ^1.16.0
+        version: 1.16.0(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14

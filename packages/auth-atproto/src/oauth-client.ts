@@ -83,8 +83,10 @@ export async function getAtprotoOAuthClient(
 	baseUrl: string,
 	storage?: AuthProviderStorageMap | null,
 ): Promise<OAuthClient> {
-	// Normalize localhost ↔ 127.0.0.1 so the authorize and callback URLs match
-	// (authorize uses localhost, callback may arrive on 127.0.0.1).
+	// RFC 8252 §8.3: loopback redirect URIs MUST use an IP literal (127.0.0.1),
+	// not "localhost". The atcute library enforces this — see loopbackRedirectUriSchema.
+	// The admin UI normalizes the browser to 127.0.0.1 before initiating the flow
+	// (ensureLoopbackIP in admin.tsx) so cookies stay on one origin.
 	if (isLoopback(baseUrl)) {
 		baseUrl = baseUrl.replace("://localhost", "://127.0.0.1");
 	}

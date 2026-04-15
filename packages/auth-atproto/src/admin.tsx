@@ -5,6 +5,7 @@
  * These are imported at build time via the virtual:emdash/auth-providers module.
  */
 
+import { Button, Input, LinkButton } from "@cloudflare/kumo";
 import * as React from "react";
 
 // ============================================================================
@@ -25,13 +26,10 @@ function AtprotoIcon({ className }: { className?: string }) {
 
 export function LoginButton() {
 	return (
-		<button
-			type="button"
-			className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-kumo-tint bg-kumo-base px-4 py-2 text-sm font-medium text-kumo-default hover:bg-kumo-tint"
-		>
+		<LinkButton href="#" variant="outline" className="w-full justify-center">
 			<AtprotoIcon className="h-5 w-5" />
 			<span>Atmosphere</span>
-		</button>
+		</LinkButton>
 	);
 }
 
@@ -76,35 +74,22 @@ export function LoginForm() {
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-3">
-			<div>
-				<label
-					htmlFor="atproto-handle"
-					className="block text-sm font-medium text-kumo-default mb-1"
-				>
-					Atmosphere Handle
-				</label>
-				<input
-					id="atproto-handle"
-					type="text"
-					value={handle}
-					onChange={(e) => setHandle(e.target.value)}
-					placeholder="you.bsky.social"
-					disabled={isLoading}
-					className="w-full rounded-md border border-kumo-tint bg-kumo-base px-3 py-2 text-sm text-kumo-default placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-brand"
-				/>
-			</div>
+			<Input
+				label="Atmosphere Handle"
+				type="text"
+				value={handle}
+				onChange={(e) => setHandle(e.target.value)}
+				placeholder="you.bsky.social"
+				disabled={isLoading}
+			/>
 
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{error}</div>
 			)}
 
-			<button
-				type="submit"
-				disabled={isLoading || !handle.trim()}
-				className="w-full justify-center rounded-md bg-kumo-brand px-4 py-2 text-sm font-medium text-white hover:bg-kumo-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
-			>
+			<Button type="submit" className="w-full" disabled={isLoading || !handle.trim()}>
 				{isLoading ? "Connecting..." : "Sign in"}
-			</button>
+			</Button>
 		</form>
 	);
 }
@@ -155,32 +140,33 @@ export function SetupStep({ onComplete }: { onComplete: () => void }) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-3">
 			<div className="text-center mb-2">
-				<p className="text-sm font-medium text-kumo-default">AT Protocol</p>
+				<p className="text-sm font-medium text-kumo-default">Atmosphere</p>
 				<p className="text-xs text-kumo-subtle">Sign in with your Bluesky/Atmosphere handle</p>
 			</div>
 
-			<div>
-				<input
-					type="text"
-					value={handle}
-					onChange={(e) => setHandle(e.target.value)}
-					placeholder="you.bsky.social"
-					disabled={isLoading}
-					className="w-full rounded-md border border-kumo-tint bg-kumo-base px-3 py-2 text-sm text-kumo-default placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-brand"
-				/>
-			</div>
+			<Input
+				label="Atmosphere Handle"
+				name="handle"
+				type="text"
+				value={handle}
+				onChange={(e) => setHandle(e.target.value)}
+				placeholder="you.bsky.social"
+				disabled={isLoading}
+				className="w-full"
+			/>
 
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{error}</div>
 			)}
 
-			<button
+			<Button
 				type="submit"
+				variant="outline"
+				className="w-full"
 				disabled={isLoading || !handle.trim()}
-				className="w-full justify-center rounded-md border border-kumo-tint bg-kumo-base px-4 py-2 text-sm font-medium text-kumo-default hover:bg-kumo-tint disabled:opacity-50 disabled:cursor-not-allowed"
 			>
 				{isLoading ? "Connecting..." : "Sign in"}
-			</button>
+			</Button>
 		</form>
 	);
 }
