@@ -26,9 +26,7 @@ describe("generateDialectModule", () => {
 			type: "sqlite",
 			supportsRequestScope: true,
 		});
-		expect(out).toContain(
-			`export { createRequestScopedDb } from "@emdash-cms/cloudflare/db/d1"`,
-		);
+		expect(out).toContain(`export { createRequestScopedDb } from "@emdash-cms/cloudflare/db/d1"`);
 		expect(out).not.toContain("= () => null");
 		expect(out).not.toContain("= (_opts) => null");
 	});
