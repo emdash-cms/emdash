@@ -500,14 +500,15 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * Synchronize FTS state with the collection's current supports and searchable fields.
+	 * Synchronize an existing FTS index with the collection's current state.
 	 *
-	 * Called whenever supports or searchable fields change. Reconciles user intent
-	 * (supports includes "search") with FTS implementation reality.
+	 * Only rebuilds or disables — never first-time enables. First-time FTS
+	 * enablement is handled by the seed's explicit enableSearch call (which
+	 * is try-caught) or the admin UI toggle.
 	 *
-	 * - supports search + has searchable fields → enable or rebuild FTS
-	 * - supports search + no searchable fields  → disable FTS if active
-	 * - does not support search                 → disable FTS if active
+	 * - FTS active + still has search support and searchable fields → rebuild
+	 * - FTS active + lost search support or no searchable fields    → disable
+	 * - FTS not active                                              → no-op
 	 *
 	 * Pass `db` when calling from within a transaction so FTS operations
 	 * participate in the same transaction and are rolled back on failure.
