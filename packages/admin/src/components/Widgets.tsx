@@ -55,7 +55,8 @@ import {
 } from "../lib/api";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { PortableTextEditor } from "./PortableTextEditor";
+import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
+import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
 
 /** Palette item types that can be dragged into areas */
 interface PaletteItemData {
@@ -703,6 +704,18 @@ function WidgetEditor({
 	const [componentProps, setComponentProps] = React.useState<Record<string, unknown>>(
 		widget.componentProps ?? {},
 	);
+	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
+
+	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+		setBlockSidebarPanel(panel);
+	}, []);
+
+	const handleBlockSidebarClose = React.useCallback(() => {
+		setBlockSidebarPanel((prev) => {
+			prev?.onClose();
+			return null;
+		});
+	}, []);
 
 	const { data: menus = [] } = useQuery({
 		queryKey: ["menus"],
@@ -742,7 +755,25 @@ function WidgetEditor({
 						onChange={(value) => setContent(value as unknown[])}
 						minimal
 						placeholder="Write widget content..."
+						onBlockSidebarOpen={handleBlockSidebarOpen}
+						onBlockSidebarClose={handleBlockSidebarClose}
 					/>
+					{blockSidebarPanel?.type === "image" && (
+						<ImageDetailPanel
+							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+							onUpdate={(attrs) =>
+								blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
+							}
+							onReplace={(attrs) =>
+								blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+							}
+							onDelete={() => {
+								blockSidebarPanel.onDelete();
+								setBlockSidebarPanel(null);
+							}}
+							onClose={handleBlockSidebarClose}
+						/>
+					)}
 				</div>
 			)}
 
