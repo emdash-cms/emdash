@@ -1485,6 +1485,7 @@ const contentTypesEditRoute = createRoute({
 function ContentTypesEditPage() {
 	const { slug } = useParams({ from: "/_admin/content-types/$slug" });
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
 
 	const {
 		data: collection,
@@ -1524,6 +1525,13 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (mutationError) => {
+			toastManager.add({
+				title: "Failed to save",
+				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
+				type: "error",
+			});
 		},
 	});
 
