@@ -466,6 +466,8 @@ export function WordPressImport() {
 			postTypeMappings: selections,
 			skipExisting: true,
 			authorMappings: authorMappingsRecord,
+			importMenus,
+			importSiteSettings: importSiteTitle,
 		};
 
 		if (importSource.type === "wxr") {

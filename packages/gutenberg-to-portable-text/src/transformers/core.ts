@@ -770,7 +770,13 @@ export const buttons: BlockTransformer = (block, _options, context) => {
 
 	for (const innerBlock of block.innerBlocks) {
 		if (innerBlock.blockName === "core/button") {
-			const url = attrString(innerBlock.attrs, "url");
+			// Classic-editor / older-Gutenberg content keeps the href inside the
+			// inner <a> rather than on attrs.url. Mirror core/file's HTML fallback.
+			let url = sanitizeHref(attrString(innerBlock.attrs, "url"));
+			if (!url) {
+				const hrefMatch = innerBlock.innerHTML.match(HREF_PATTERN);
+				url = sanitizeHref(hrefMatch?.[1]);
+			}
 			const text = extractText(innerBlock.innerHTML).trim() || "Button";
 
 			let style: "default" | "outline" | "fill" = "default";
