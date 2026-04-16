@@ -360,12 +360,13 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		};
 	});
 
-	// Eagerly hydrate bylines and taxonomy terms for all entries in parallel.
-	// Both are independent queries, so running them concurrently halves the
+	// Eagerly hydrate bylines, taxonomy terms, and SEO for all entries in parallel.
+	// All three are independent queries, so running them concurrently saves
 	// round-trip cost on remote databases (D1 replicas, etc.).
 	await Promise.all([
 		hydrateEntryBylines(type, entriesWithEdit),
 		hydrateEntryTerms(type, entriesWithEdit),
+		hydrateEntrySeo(type, entriesWithEdit),
 	]);
 
 	return { entries: entriesWithEdit, nextCursor, cacheHint: cacheHint ?? {} };
@@ -438,12 +439,16 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	const localeChain =
 		requestedLocale && isI18nEnabled() ? getFallbackChain(requestedLocale) : [requestedLocale];
 
-	/** Return a successful EntryResult with bylines and taxonomy terms hydrated */
+	/** Return a successful EntryResult with bylines, taxonomy terms, and SEO hydrated */
 	async function successResult(
 		wrapped: ContentEntry<D>,
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
-		await Promise.all([hydrateEntryBylines(type, [wrapped]), hydrateEntryTerms(type, [wrapped])]);
+		await Promise.all([
+			hydrateEntryBylines(type, [wrapped]),
+			hydrateEntryTerms(type, [wrapped]),
+			hydrateEntrySeo(type, [wrapped]),
+		]);
 		return {
 			entry: wrapped,
 			isPreview: opts.isPreview,
@@ -626,6 +631,42 @@ async function hydrateEntryTerms<D>(type: string, entries: ContentEntry<D>[]): P
 		if (!isMissingTableError(err)) {
 			const msg = err instanceof Error ? err.message : String(err);
 			console.warn("[emdash] Failed to hydrate terms:", msg);
+		}
+	}
+}
+
+/**
+ * Eagerly hydrate SEO data on entries from the `_emdash_seo` table.
+ * Only runs when the collection has SEO enabled (`has_seo = 1`).
+ * Attaches the resolved SEO record as `entry.data.seo`.
+ */
+async function hydrateEntrySeo<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
+	if (entries.length === 0) return;
+
+	try {
+		const { getDb } = await import("./loader.js");
+		const { SeoRepository } = await import("./database/repositories/seo.js");
+		const db = await getDb();
+		const repo = new SeoRepository(db);
+
+		if (!(await repo.isEnabled(type))) return;
+
+		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
+		if (ids.length === 0) return;
+
+		const seoMap = await repo.getMany(type, ids);
+
+		for (const entry of entries) {
+			const data = entryData(entry);
+			const dbId = dataStr(data, "id");
+			if (!dbId) continue;
+			const seo = seoMap.get(dbId);
+			if (seo) data.seo = seo;
+		}
+	} catch (err) {
+		if (!isMissingTableError(err)) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.warn("[emdash] Failed to hydrate SEO:", msg);
 		}
 	}
 }
