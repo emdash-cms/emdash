@@ -75,6 +75,15 @@ export interface SandboxOptions {
 	siteInfo?: { name: string; url: string; locale: string };
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
+	/**
+	 * Media storage adapter for sandboxed plugin uploads and deletes.
+	 * When provided, plugins with write:media can upload and delete files
+	 * via ctx.media.upload() and ctx.media.delete().
+	 */
+	mediaStorage?: {
+		upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+		delete(key: string): Promise<unknown>;
+	};
 }
 
 /**
@@ -135,6 +144,14 @@ export interface SandboxRunner {
 	isAvailable(): boolean;
 
 	/**
+	 * Check if the sandbox runtime is currently healthy.
+	 * For in-process runners this always returns true.
+	 * For sidecar-based runners (workerd), returns false if the
+	 * child process has crashed and hasn't been restarted yet.
+	 */
+	isHealthy(): boolean;
+
+	/**
 	 * Load a sandboxed plugin from code.
 	 *
 	 * @param manifest - Plugin manifest with metadata and capabilities
@@ -156,6 +173,17 @@ export interface SandboxRunner {
 	 * Called during shutdown or when reconfiguring.
 	 */
 	terminateAll(): Promise<void>;
+}
+
+/**
+ * Error thrown when the sandbox runtime is unavailable.
+ * This happens when the sidecar process has crashed or hasn't started.
+ */
+export class SandboxUnavailableError extends Error {
+	constructor(pluginId: string, reason: string) {
+		super(`Plugin sandbox unavailable for ${pluginId}: ${reason}`);
+		this.name = "SandboxUnavailableError";
+	}
 }
 
 /**

@@ -380,6 +380,63 @@ Test plugins by creating a minimal Astro site with the plugin registered:
 
 For unit tests, mock the `PluginContext` interface and call hook handlers directly.
 
+### Testing in the Sandbox
+
+If your plugin will run sandboxed (marketplace distribution or on sites with workerd enabled), test it under sandbox conditions locally to catch capability violations before deploying.
+
+<Steps>
+
+1. Install the workerd sandbox runner in your test site:
+
+   ```bash
+   npm install @emdash-cms/workerd
+   ```
+
+2. Enable it in your test site's config:
+
+   ```typescript title="astro.config.mjs"
+   export default defineConfig({
+     integrations: [
+       emdash({
+         sandboxRunner: "@emdash-cms/workerd/sandbox",
+         plugins: [myPlugin()],
+       }),
+     ],
+   });
+   ```
+
+3. Run the dev server and exercise your plugin's hooks and routes.
+
+</Steps>
+
+If something works in trusted mode but fails in the sandbox, use `sandbox: false` to confirm it's a sandbox issue:
+
+```typescript title="astro.config.mjs"
+emdash({
+  sandboxRunner: "@emdash-cms/workerd/sandbox",
+  sandbox: false, // Temporarily bypass sandbox for debugging
+  plugins: [myPlugin()],
+})
+```
+
+### What Behaves Differently in the Sandbox
+
+Your plugin code is the same in both modes, but the sandbox enforces restrictions that trusted mode does not:
+
+| What | Trusted mode | Sandboxed mode |
+|---|---|---|
+| **Undeclared capabilities** | `ctx.content`, `ctx.media`, etc. are always present | Present on `ctx`, but methods throw capability errors when called |
+| **Network access** | `fetch()` works globally | Only via `ctx.http.fetch()`, restricted to `allowedHosts` |
+| **Node.js builtins** | `fs`, `path`, `child_process` available | Not available (V8 isolate, no Node APIs) |
+| **Environment variables** | `process.env` accessible | Not accessible |
+| **CPU time** | Unbounded | Limited (default 50ms per invocation) |
+| **Wall-clock time** | Unbounded | Limited (default 30s per invocation) |
+| **Direct DB access** | Possible (but discouraged) | Not possible, all access via `ctx.*` |
+
+<Aside type="tip">
+	The easiest way to ensure sandbox compatibility: only use the `ctx` object passed to your hooks and routes. If your plugin only touches `ctx.content`, `ctx.storage`, `ctx.kv`, `ctx.http`, `ctx.email`, and `ctx.log`, it will work identically in both modes.
+</Aside>
+
 ## Portable Text Block Types
 
 Plugins can add custom block types to the Portable Text editor. These appear in the editor's slash command menu and can be inserted into any `portableText` field.

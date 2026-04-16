@@ -259,16 +259,33 @@ ${entries.join("\n")}
 /**
  * Generates the sandbox runner module.
  * Imports the configured sandbox runner factory or provides a noop default.
+ *
+ * When sandbox is explicitly false (debugging escape hatch), we still mark
+ * sandboxEnabled = true so sandboxed plugin entries are loaded, but we use
+ * the noop runner which falls through to in-process loading via adaptSandboxEntry.
  */
-export function generateSandboxRunnerModule(sandboxRunner?: string): string {
+export function generateSandboxRunnerModule(sandboxRunner?: string, sandbox?: boolean): string {
 	if (!sandboxRunner) {
-		// No sandbox runner configured - use noop
+		// No sandbox runner configured - sandboxed plugins disabled
 		return `
 // No sandbox runner configured - sandboxed plugins disabled
 import { createNoopSandboxRunner } from "emdash";
 
 export const createSandboxRunner = createNoopSandboxRunner;
 export const sandboxEnabled = false;
+`;
+	}
+
+	if (sandbox === false) {
+		// sandbox: false escape hatch - plugins are loaded but run in-process
+		// (no isolation, for debugging)
+		return `
+// Sandbox explicitly disabled (sandbox: false) - plugins run in-process
+import { createNoopSandboxRunner } from "emdash";
+
+export const createSandboxRunner = createNoopSandboxRunner;
+export const sandboxEnabled = true;
+export const sandboxBypassed = true;
 `;
 	}
 

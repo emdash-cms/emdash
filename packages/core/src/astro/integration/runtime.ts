@@ -197,6 +197,17 @@ export interface EmDashConfig {
 	sandboxRunner?: string;
 
 	/**
+	 * Explicitly disable plugin sandboxing, even if a sandbox runner is configured.
+	 * Use this as a debugging escape hatch to determine whether a bug is in your
+	 * plugin code or in the sandbox runtime.
+	 *
+	 * When set to `false`, all plugins run in-process without isolation.
+	 *
+	 * @default true (sandboxing enabled if sandboxRunner is configured)
+	 */
+	sandbox?: boolean;
+
+	/**
 	 * Authentication configuration
 	 *
 	 * Use an auth adapter function from a platform package:
