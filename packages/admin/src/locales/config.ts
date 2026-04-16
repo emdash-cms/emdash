@@ -46,18 +46,30 @@ export const DEFAULT_LOCALE = SOURCE_LOCALE.code;
 
 /** Maps base language codes to supported locales (e.g. "pt" -> "pt-BR"). */
 const BASE_LANGUAGE_MAP = new Map<string, string>();
+/** Maps script codes to supported locales (e.g. "zh-Hant" -> "zh-TW", "zh-Hans" -> "zh-CN"). */
+const SCRIPT_LANGUAGE_MAP = new Map<string, string>();
+
 for (const l of SUPPORTED_LOCALES) {
 	const base = l.code.split("-")[0]!.toLowerCase();
 	// First match wins -- if we have both "pt" and "pt-BR", exact wins via direct lookup.
 	if (!BASE_LANGUAGE_MAP.has(base)) {
 		BASE_LANGUAGE_MAP.set(base, l.code);
 	}
+
+	const maximized = new Intl.Locale(l.code).maximize();
+	if (maximized.script) {
+		const scriptKey = `${maximized.language}-${maximized.script}`.toLowerCase();
+		if (!SCRIPT_LANGUAGE_MAP.has(scriptKey)) {
+			SCRIPT_LANGUAGE_MAP.set(scriptKey, l.code);
+		}
+	}
 }
 
 /**
  * Find the best matching supported locale for a BCP 47 tag.
  * Canonicalizes via Intl.Locale so case differences (e.g. "pt-br" vs "pt-BR")
- * don't prevent matching. Falls back to base language (pt-PT -> pt-BR).
+ * don't prevent matching. Supports script codes (zh-Hant -> zh-TW, zh-Hans -> zh-CN)
+ * and falls back to base language (pt-PT -> pt-BR).
  */
 function matchLocale(tag: string): string | undefined {
 	const trimmed = tag.trim();
@@ -68,7 +80,19 @@ function matchLocale(tag: string): string | undefined {
 	} catch {
 		return undefined;
 	}
+
+	// Exact match (case-insensitive via Intl.Locale)
 	if (SUPPORTED_LOCALE_CODES.has(canonical)) return canonical;
+
+	// Try script-based matching (zh-Hant -> zh-TW, zh-Hans -> zh-CN)
+	const locale = new Intl.Locale(trimmed);
+	if (locale.script) {
+		const scriptKey = `${locale.language}-${locale.script}`.toLowerCase();
+		const scriptMatch = SCRIPT_LANGUAGE_MAP.get(scriptKey);
+		if (scriptMatch) return scriptMatch;
+	}
+
+	// Fallback to base language (pt-PT -> pt-BR)
 	const base = canonical.split("-")[0]!.toLowerCase();
 	return BASE_LANGUAGE_MAP.get(base);
 }

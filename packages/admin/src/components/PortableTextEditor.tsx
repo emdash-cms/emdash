@@ -945,7 +945,7 @@ function SlashCommandMenu({
 						type="button"
 						data-index={index}
 						className={cn(
-							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-left",
+							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-start",
 							index === state.selectedIndex
 								? "bg-kumo-tint text-kumo-default"
 								: "hover:bg-kumo-tint/50",
@@ -1043,7 +1043,7 @@ function PluginBlockModal({
 								variant="ghost"
 								shape="square"
 								aria-label="Close"
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">Close</span>
@@ -2254,7 +2254,7 @@ function EditorToolbar({
 						<LinkIcon className="h-4 w-4" aria-hidden="true" />
 					</ToolbarButton>
 					{showLinkPopover && (
-						<div className="absolute top-full left-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
+						<div className="absolute top-full start-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
 							<div className="flex flex-col gap-2">
 								<label className="text-xs font-medium text-kumo-subtle">URL</label>
 								<div className="flex items-center gap-1">

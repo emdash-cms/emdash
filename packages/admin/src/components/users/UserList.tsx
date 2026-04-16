@@ -61,13 +61,13 @@ export function UserList({
 			<div className="flex gap-4">
 				<div className="relative flex-1 max-w-sm">
 					<MagnifyingGlass
-						className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
+						className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
 						aria-hidden="true"
 					/>
 					<Input
 						type="search"
 						placeholder="Search by name or email..."
-						className="pl-10"
+						className="ps-10"
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
 						aria-label="Search users"
@@ -94,19 +94,19 @@ export function UserList({
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								User
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Role
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Status
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Last Login
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								Passkeys
 							</th>
 						</tr>

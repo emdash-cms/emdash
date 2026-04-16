@@ -141,7 +141,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 						onClick={() => previewMutation.mutate()}
 						disabled={previewMutation.isPending}
 					>
-						<Eye className="mr-2 h-4 w-4" />
+						<Eye className="me-2 h-4 w-4" />
 						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
 					</Button>
 					{theme.demoUrl && isSafeUrl(theme.demoUrl) && (
@@ -149,7 +149,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 							variant="outline"
 							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
 						>
-							<ArrowSquareOut className="mr-2 h-4 w-4" />
+							<ArrowSquareOut className="me-2 h-4 w-4" />
 							{t`Demo`}
 						</Button>
 					)}
@@ -300,7 +300,7 @@ function Lightbox({
 
 				<button
 					onClick={onClose}
-					className="absolute -top-3 -right-3 rounded-full bg-kumo-base p-1.5 shadow-lg hover:bg-kumo-tint"
+					className="absolute -top-3 -end-3 rounded-full bg-kumo-base p-1.5 shadow-lg hover:bg-kumo-tint"
 					aria-label={t`Close`}
 				>
 					<X className="h-4 w-4" />
@@ -310,14 +310,14 @@ function Lightbox({
 					<>
 						<button
 							onClick={onPrev}
-							className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
+							className="absolute start-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
 							aria-label={t`Previous`}
 						>
 							<CaretLeft className="h-5 w-5" />
 						</button>
 						<button
 							onClick={onNext}
-							className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
+							className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
 							aria-label={t`Next`}
 						>
 							<CaretRight className="h-5 w-5" />
@@ -325,7 +325,7 @@ function Lightbox({
 					</>
 				)}
 
-				<div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-kumo-base/80 px-3 py-1 text-xs">
+				<div className="absolute bottom-2 start-1/2 -translate-x-1/2 rounded-full bg-kumo-base/80 px-3 py-1 text-xs">
 					{index + 1} / {urls.length}
 				</div>
 			</div>

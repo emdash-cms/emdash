@@ -48,7 +48,7 @@ export function RoleBadge({
 			title={showDescription ? undefined : t(config.description)}
 		>
 			{t(config.label)}
-			{showDescription && <span className="ml-1 opacity-75">- {t(config.description)}</span>}
+			{showDescription && <span className="ms-1 opacity-75">- {t(config.description)}</span>}
 		</span>
 	);
 }

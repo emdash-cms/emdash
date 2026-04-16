@@ -2,8 +2,13 @@
 /**
  * Portable Text Table block component
  *
- * Renders tables from WordPress imports.
+ * Renders tables from content imports. Cell content is rendered through the
+ * standard Portable Text pipeline so all marks (bold, italic, links, etc.) are
+ * handled by the registered mark components -- including `sanitizeHref` for links.
  */
+import { PortableText } from "astro-portabletext";
+import { emdashMarkComponents } from "./marks.js";
+
 export interface Props {
 	node: {
 		_type: "table";
@@ -32,6 +37,8 @@ export interface Props {
 	};
 }
 
+const markComponents = { mark: emdashMarkComponents };
+
 const { node } = Astro.props;
 const rows = node?.rows ?? [];
 
@@ -39,45 +46,65 @@ if (!rows.length) {
 	return null;
 }
 
-// Helper to render cell content as text (simplified - doesn't handle marks)
-function renderCellText(
-	content: Array<{ text: string; marks?: string[] }>,
-): string {
-	return content.map((span) => span.text).join("");
+/**
+ * Wrap a table cell's inline content as a Portable Text block so it can be
+ * rendered through the standard pipeline (marks, markDefs, etc.).
+ */
+function cellToBlock(cell: Props["node"]["rows"][number]["cells"][number]) {
+	return [
+		{
+			_type: "block" as const,
+			_key: cell._key,
+			children: cell.content,
+			markDefs: cell.markDefs ?? [],
+		},
+	];
 }
+
+const hasHeader = node?.hasHeaderRow;
+const headerRow = hasHeader ? rows[0] : null;
+const bodyRows = hasHeader ? rows.slice(1) : rows;
 ---
 
-{() => {
-	const hasHeader = node?.hasHeaderRow;
-	const headerRow = hasHeader ? rows[0] : null;
-	const bodyRows = hasHeader ? rows.slice(1) : rows;
-
-	return (
-		<div class="emdash-table-wrapper">
-			<table class="emdash-table">
-				{headerRow && (
-					<thead>
-						<tr>
-							{headerRow.cells.map((cell) => (
-								<th>{renderCellText(cell.content)}</th>
-							))}
-						</tr>
-					</thead>
-				)}
-				<tbody>
-					{bodyRows.map((row) => (
-						<tr>
-							{row.cells.map((cell) => {
-								const CellTag = cell.isHeader ? "th" : "td";
-								return <CellTag>{renderCellText(cell.content)}</CellTag>;
-							})}
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
-	);
-}}
+<div class="emdash-table-wrapper">
+	<table class="emdash-table">
+		{
+			headerRow && (
+				<thead>
+					<tr>
+						{headerRow.cells.map((cell) => (
+							<th>
+								<PortableText
+									value={cellToBlock(cell)}
+									components={markComponents}
+								/>
+							</th>
+						))}
+					</tr>
+				</thead>
+			)
+		}
+		<tbody>
+			{
+				bodyRows.map((row) => (
+					<tr>
+						{row.cells.map((cell) => {
+							const CellTag = cell.isHeader ? "th" : "td";
+							return (
+								<CellTag>
+									<PortableText
+										value={cellToBlock(cell)}
+										components={markComponents}
+									/>
+								</CellTag>
+							);
+						})}
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+</div>
 
 <style>
 	.emdash-table-wrapper {
@@ -91,18 +118,23 @@ function renderCellText(
 	}
 	.emdash-table th,
 	.emdash-table td {
-		border: 1px solid #ddd;
+		border: 1px solid var(--color-border, #ddd);
 		padding: 0.75rem;
 		text-align: left;
 	}
+	/* Remove default block margins inside cells */
+	.emdash-table th :global(p),
+	.emdash-table td :global(p) {
+		margin: 0;
+	}
 	.emdash-table th {
-		background: #f5f5f5;
+		background: var(--color-surface, #f5f5f5);
 		font-weight: 600;
 	}
 	.emdash-table tbody tr:nth-child(even) {
-		background: #fafafa;
+		background: var(--color-bg-subtle, #fafafa);
 	}
 	.emdash-table tbody tr:hover {
-		background: #f0f0f0;
+		background: var(--color-surface, #f0f0f0);
 	}
 </style>

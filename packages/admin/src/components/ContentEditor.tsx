@@ -497,7 +497,7 @@ export function ContentEditor({
 				className={cn(
 					"flex flex-wrap items-center justify-between gap-y-2",
 					isDistractionFree &&
-						"opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 left-0 right-0 bg-kumo-base/95 backdrop-blur p-4 z-10",
+						"opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10",
 				)}
 			>
 				<div className="flex items-center space-x-4">
@@ -543,11 +543,11 @@ export function ContentEditor({
 							{isAutosaving ? (
 								<>
 									<Loader size="sm" />
-									<span className="ml-1">{t`Saving...`}</span>
+									<span className="ms-1">{t`Saving...`}</span>
 								</>
 							) : lastAutosaveAt ? (
 								<>
-									<Check className="mr-1 h-3 w-3 text-green-600" aria-hidden="true" />
+									<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
 									<span>{t`Saved`}</span>
 								</>
 							) : null}
@@ -638,7 +638,7 @@ export function ContentEditor({
 									rel="noopener noreferrer"
 									className={buttonVariants({ variant: "outline" })}
 								>
-									<ArrowSquareOut className="mr-2 h-4 w-4" aria-hidden="true" />
+									<ArrowSquareOut className="me-2 h-4 w-4" aria-hidden="true" />
 									{t`Live View`}
 								</a>
 							)}
@@ -1282,6 +1282,20 @@ function FieldRenderer({
 			);
 		}
 
+		case "json": {
+			const jsonString =
+				typeof value === "string" ? value : value != null ? JSON.stringify(value, null, 2) : "";
+			return (
+				<JsonFieldEditor
+					label={label}
+					id={id}
+					value={jsonString}
+					onChange={handleChange}
+					required={field.required}
+				/>
+			);
+		}
+
 		default:
 			// Default to text input
 			return (
@@ -1294,6 +1308,71 @@ function FieldRenderer({
 				/>
 			);
 	}
+}
+
+/**
+ * JSON field editor with syntax validation
+ */
+function JsonFieldEditor({
+	label,
+	id,
+	value,
+	onChange,
+	required,
+}: {
+	label: string;
+	id: string;
+	value: string;
+	onChange: (value: unknown) => void;
+	required?: boolean;
+}) {
+	const { t } = useLingui();
+	const [text, setText] = React.useState(value);
+	const [error, setError] = React.useState<string | null>(null);
+
+	// Sync from parent when value changes externally
+	React.useEffect(() => {
+		setText(value);
+		setError(null);
+	}, [value]);
+
+	const handleChange = (newText: string) => {
+		setText(newText);
+		setError(null);
+	};
+
+	const handleBlur = () => {
+		const trimmed = text.trim();
+		if (trimmed === "") {
+			setError(null);
+			onChange(null);
+			return;
+		}
+		try {
+			const parsed = JSON.parse(trimmed);
+			setError(null);
+			onChange(parsed);
+		} catch {
+			setError(t`Invalid JSON`);
+		}
+	};
+
+	return (
+		<div>
+			<InputArea
+				label={label}
+				id={id}
+				value={text}
+				onChange={(e) => handleChange(e.target.value)}
+				onBlur={handleBlur}
+				rows={8}
+				placeholder="{}"
+				required={required}
+				className="font-mono text-sm"
+			/>
+			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+		</div>
+	);
 }
 
 /**
@@ -1376,7 +1455,7 @@ function ImageFieldRenderer({
 			{displayUrl ? (
 				<div className="mt-2 relative group">
 					<img src={displayUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
-					<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
 							{t`Change`}
 						</Button>
