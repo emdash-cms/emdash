@@ -301,7 +301,7 @@ describe("PluginRouteHandler", () => {
 			expect(result.success).toBe(false);
 			expect(result.status).toBe(500);
 			expect(result.error?.code).toBe("INTERNAL_ERROR");
-			expect(result.error?.message).toContain("Unexpected error");
+			expect(result.error?.message).toBe("An internal error occurred");
 		});
 
 		it("includes ctx.email when email pipeline is configured", async () => {

@@ -1,4 +1,6 @@
 import { Badge, Button, Loader, Toast } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ClockCounterClockwise,
 	ArrowCounterClockwise,
@@ -98,6 +100,7 @@ function formatFullDate(dateString: string): string {
  * with ability to restore previous versions.
  */
 export function RevisionHistory({ collection, entryId, onRestored }: RevisionHistoryProps) {
+	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [selectedRevision, setSelectedRevision] = React.useState<Revision | null>(null);
 	const [restoreTarget, setRestoreTarget] = React.useState<Revision | null>(null);
@@ -124,13 +127,13 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 			setRestoreTarget(null);
 			onRestored?.();
 			toastManager.add({
-				title: "Revision restored",
-				description: "Content has been updated to the selected revision.",
+				title: t`Revision restored`,
+				description: t`Content has been updated to the selected revision.`,
 			});
 		},
 		onError: (err: Error) => {
 			toastManager.add({
-				title: "Restore failed",
+				title: t`Restore failed`,
 				description: err.message,
 				type: "error",
 			});
@@ -151,11 +154,11 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 				<button
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
-					className="flex w-full items-center justify-between p-4 text-left hover:bg-kumo-tint/50 transition-colors"
+					className="flex w-full items-center justify-between p-4 text-start hover:bg-kumo-tint/50 transition-colors"
 				>
 					<div className="flex items-center gap-2">
 						<ClockCounterClockwise className="h-4 w-4 text-kumo-subtle" />
-						<span className="font-semibold">Revisions</span>
+						<span className="font-semibold">{t`Revisions`}</span>
 						{total > 0 && <span className="text-xs text-kumo-subtle">({total})</span>}
 					</div>
 					{isExpanded ? (
@@ -174,10 +177,10 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 							</div>
 						) : error ? (
 							<div className="py-4 text-center text-sm text-kumo-danger">
-								Failed to load revisions
+								{t`Failed to load revisions`}
 							</div>
 						) : revisions.length === 0 ? (
-							<div className="py-4 text-center text-sm text-kumo-subtle">No revisions yet</div>
+							<div className="py-4 text-center text-sm text-kumo-subtle">{t`No revisions yet`}</div>
 						) : (
 							<div className="space-y-1 pt-2">
 								{revisions.map((revision, index) => (
@@ -208,14 +211,14 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 					setRestoreTarget(null);
 					restoreMutation.reset();
 				}}
-				title="Restore Revision?"
+				title={t`Restore Revision?`}
 				description={
 					restoreTarget
-						? `Restore this version from ${formatFullDate(restoreTarget.createdAt)}? This will update the current content to this revision's data.`
+						? t`Restore this version from ${formatFullDate(restoreTarget.createdAt)}? This will update the current content to this revision's data.`
 						: ""
 				}
-				confirmLabel="Restore"
-				pendingLabel="Restoring..."
+				confirmLabel={t`Restore`}
+				pendingLabel={t`Restoring...`}
 				variant="primary"
 				isPending={restoreMutation.isPending}
 				error={restoreMutation.error}
@@ -247,6 +250,7 @@ function RevisionItem({
 	onRestore,
 	onSelect,
 }: RevisionItemProps) {
+	const { t } = useLingui();
 	return (
 		<div
 			className={`rounded-md border p-3 transition-colors ${
@@ -254,10 +258,10 @@ function RevisionItem({
 			}`}
 		>
 			<div className="flex items-start justify-between gap-2">
-				<button type="button" onClick={onSelect} className="flex-1 text-left">
+				<button type="button" onClick={onSelect} className="flex-1 text-start">
 					<div className="flex items-center gap-2">
 						<span className="text-sm font-medium">{formatRelativeTime(revision.createdAt)}</span>
-						{isLatest && <Badge variant="outline">Current</Badge>}
+						{isLatest && <Badge variant="outline">{t`Current`}</Badge>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-0.5">
 						{formatFullDate(revision.createdAt)}
@@ -274,8 +278,8 @@ function RevisionItem({
 						}}
 						disabled={isRestoring}
 						className="shrink-0"
-						title="Restore this version"
-						aria-label="Restore this version"
+						title={t`Restore this version`}
+						aria-label={t`Restore this version`}
 					>
 						{isRestoring ? <Loader size="sm" /> : <ArrowCounterClockwise className="h-4 w-4" />}
 					</Button>
@@ -289,7 +293,7 @@ function RevisionItem({
 						<RevisionDiffView older={revision.data} newer={compareRevision.data} />
 					) : (
 						<>
-							<div className="text-xs font-medium text-kumo-subtle mb-2">Content snapshot:</div>
+							<div className="text-xs font-medium text-kumo-subtle mb-2">{t`Content snapshot:`}</div>
 							<pre className="text-xs bg-kumo-tint p-2 rounded overflow-auto max-h-48">
 								{JSON.stringify(revision.data, null, 2)}
 							</pre>
@@ -311,6 +315,7 @@ interface RevisionDiffViewProps {
 }
 
 function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
+	const { t } = useLingui();
 	const [showUnchanged, setShowUnchanged] = React.useState(false);
 	const diffs = React.useMemo(() => computeFieldDiff(older, newer), [older, newer]);
 
@@ -318,7 +323,9 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 	const unchangedCount = diffs.length - changedCount;
 
 	if (diffs.length === 0) {
-		return <div className="text-xs text-kumo-subtle text-center py-2">No fields to compare</div>;
+		return (
+			<div className="text-xs text-kumo-subtle text-center py-2">{t`No fields to compare`}</div>
+		);
 	}
 
 	const visibleDiffs = showUnchanged ? diffs : diffs.filter((d) => d.kind !== "unchanged");
@@ -327,7 +334,10 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
 				<div className="text-xs font-medium text-kumo-subtle">
-					{changedCount} change{changedCount === 1 ? "" : "s"} from next revision
+					{plural(changedCount, {
+						one: "# change from next revision",
+						other: "# changes from next revision",
+					})}
 				</div>
 				{unchangedCount > 0 && (
 					<button
@@ -335,7 +345,9 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 						onClick={() => setShowUnchanged(!showUnchanged)}
 						className="text-xs text-kumo-brand hover:underline"
 					>
-						{showUnchanged ? "Hide" : "Show"} {unchangedCount} unchanged
+						{showUnchanged
+							? plural(unchangedCount, { one: "Hide # unchanged", other: "Hide # unchanged" })
+							: plural(unchangedCount, { one: "Show # unchanged", other: "Show # unchanged" })}
 					</button>
 				)}
 			</div>

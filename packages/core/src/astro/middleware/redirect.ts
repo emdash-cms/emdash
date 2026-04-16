@@ -17,6 +17,11 @@
 import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import {
+	getCachedPatternRules,
+	matchCachedPatterns,
+	setCachedPatternRules,
+} from "../../redirects/cache.js";
 
 /** Paths that should never be intercepted by redirects */
 const SKIP_PREFIXES = ["/_emdash", "/_image"];
@@ -48,21 +53,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	try {
 		const repo = new RedirectRepository(emdash.db);
-		const match = await repo.matchPath(pathname);
 
-		if (match) {
-			// Reject protocol-relative URLs (e.g. //evil.com or /\evil.com) from interpolation.
-			// Browsers normalize backslashes to forward slashes, so /\ is equivalent to //.
-			if (
-				match.resolvedDestination.startsWith("//") ||
-				match.resolvedDestination.startsWith("/\\")
-			) {
-				return next();
-			}
-			// Fire-and-forget hit recording (don't block the redirect)
-			repo.recordHit(match.redirect.id).catch(() => {});
-			const code = isRedirectCode(match.redirect.type) ? match.redirect.type : 301;
-			return context.redirect(match.resolvedDestination, code);
+		// 1. Exact match (fast, indexed)
+		const exact = await repo.findExactMatch(pathname);
+		if (exact) {
+			const dest = exact.destination;
+			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
+			repo.recordHit(exact.id).catch(() => {});
+			const code = isRedirectCode(exact.type) ? exact.type : 301;
+			return context.redirect(dest, code);
+		}
+
+		// 2. Pattern match (cached: compile once, match every request)
+		let rules = getCachedPatternRules();
+		if (!rules) {
+			const patterns = await repo.findEnabledPatternRules();
+			rules = setCachedPatternRules(patterns);
+		}
+
+		const patternMatch = matchCachedPatterns(rules, pathname);
+		if (patternMatch) {
+			const { redirect, destination } = patternMatch;
+			if (destination.startsWith("//") || destination.startsWith("/\\")) return next();
+			repo.recordHit(redirect.id).catch(() => {});
+			const code = isRedirectCode(redirect.type) ? redirect.type : 301;
+			return context.redirect(destination, code);
 		}
 
 		// No redirect matched -- proceed and check for 404

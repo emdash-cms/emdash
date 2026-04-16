@@ -1,4 +1,6 @@
 import { Badge, Button, buttonVariants } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Plus, Pencil, Trash, Database, FileText, Warning, Check } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -25,6 +27,7 @@ export function ContentTypeList({
 	onDelete,
 	onRegisterOrphan,
 }: ContentTypeListProps) {
+	const { t } = useLingui();
 	const [deleteTarget, setDeleteTarget] = React.useState<SchemaCollection | null>(null);
 	const hasOrphans = orphanedTables && orphanedTables.length > 0;
 
@@ -33,12 +36,12 @@ export function ContentTypeList({
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Content Types</h1>
-					<p className="text-kumo-subtle text-sm">Define the structure of your content</p>
+					<h1 className="text-2xl font-bold">{t`Content Types`}</h1>
+					<p className="text-kumo-subtle text-sm">{t`Define the structure of your content`}</p>
 				</div>
 				<Link to="/content-types/new" className={buttonVariants()}>
-					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-					New Content Type
+					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
+					{t`New Content Type`}
 				</Link>
 			</div>
 
@@ -49,11 +52,10 @@ export function ContentTypeList({
 						<Warning className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
 						<div className="flex-1">
 							<h3 className="font-medium text-amber-800 dark:text-amber-200">
-								Unregistered Content Tables Found
+								{t`Unregistered Content Tables Found`}
 							</h3>
 							<p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-								The following tables contain content but aren't registered as collections. Register
-								them to manage this content in the admin.
+								{t`The following tables contain content but aren't registered as collections. Register them to manage this content in the admin.`}
 							</p>
 							<div className="mt-3 space-y-2">
 								{orphanedTables.map((orphan) => (
@@ -63,8 +65,8 @@ export function ContentTypeList({
 									>
 										<div>
 											<code className="text-sm font-medium">{orphan.slug}</code>
-											<span className="text-xs text-kumo-subtle ml-2">
-												({orphan.rowCount} items)
+											<span className="text-xs text-kumo-subtle ms-2">
+												{plural(orphan.rowCount, { one: "(# item)", other: "(# items)" })}
 											</span>
 										</div>
 										<Button
@@ -73,7 +75,7 @@ export function ContentTypeList({
 											icon={<Check />}
 											onClick={() => onRegisterOrphan?.(orphan.slug)}
 										>
-											Register
+											{t`Register`}
 										</Button>
 									</div>
 								))}
@@ -88,20 +90,20 @@ export function ContentTypeList({
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Name
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+								{t`Name`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Slug
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+								{t`Slug`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Source
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+								{t`Source`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-								Features
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+								{t`Features`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
-								Actions
+							<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
+								{t`Actions`}
 							</th>
 						</tr>
 					</thead>
@@ -109,15 +111,15 @@ export function ContentTypeList({
 						{isLoading ? (
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
-									Loading collections...
+									{t`Loading collections...`}
 								</td>
 							</tr>
 						) : collections.length === 0 && !hasOrphans ? (
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
-									No content types yet.{" "}
+									{t`No content types yet.`}{" "}
 									<Link to="/content-types/new" className="text-kumo-brand underline">
-										Create your first one
+										{t`Create your first one`}
 									</Link>
 								</td>
 							</tr>
@@ -137,14 +139,14 @@ export function ContentTypeList({
 			<ConfirmDialog
 				open={!!deleteTarget}
 				onClose={() => setDeleteTarget(null)}
-				title="Delete Content Type?"
+				title={t`Delete Content Type?`}
 				description={
 					deleteTarget
-						? `Are you sure you want to delete "${deleteTarget.label}"? This will also delete all content in this collection.`
+						? t`Are you sure you want to delete "${deleteTarget.label}"? This will also delete all content in this collection.`
 						: ""
 				}
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={false}
 				error={null}
 				onConfirm={() => {
@@ -164,6 +166,7 @@ interface ContentTypeRowProps {
 }
 
 function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
+	const { t } = useLingui();
 	const isFromCode = collection.source === "code";
 
 	return (
@@ -209,12 +212,12 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 					))}
 				</div>
 			</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Link
 						to="/content-types/$slug"
 						params={{ slug: collection.slug }}
-						aria-label={`Edit ${collection.label}`}
+						aria-label={t`Edit ${collection.label}`}
 						className={buttonVariants({ variant: "ghost", shape: "square" })}
 					>
 						<Pencil className="h-4 w-4" aria-hidden="true" />
@@ -223,7 +226,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 						<Button
 							variant="ghost"
 							shape="square"
-							aria-label={`Delete ${collection.label}`}
+							aria-label={t`Delete ${collection.label}`}
 							onClick={() => onRequestDelete?.(collection)}
 						>
 							<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
@@ -236,8 +239,9 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 }
 
 function SourceBadge({ source }: { source?: string }) {
+	const { t } = useLingui();
 	if (source === "code") {
-		return <Badge variant="secondary">Code</Badge>;
+		return <Badge variant="secondary">{t`Code`}</Badge>;
 	}
-	return <Badge variant="secondary">Dashboard</Badge>;
+	return <Badge variant="secondary">{t`Dashboard`}</Badge>;
 }

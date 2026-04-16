@@ -196,11 +196,7 @@ export async function resolveSourceEntry(
 ): Promise<string | undefined> {
 	const cleaned = distPath.replace(LEADING_DOT_SLASH_RE, "");
 
-	// Try the path directly (might be source already)
-	const direct = resolve(pluginDir, cleaned);
-	if (await fileExists(direct)) return direct;
-
-	// Convert dist path to src: dist/foo.mjs → src/foo.ts
+	// Prefer source over dist — dist/foo.mjs → src/foo.ts
 	const srcPath = cleaned.replace(DIST_PREFIX_RE, "src/").replace(MJS_EXT_RE, ".ts");
 	const srcFull = resolve(pluginDir, srcPath);
 	if (await fileExists(srcFull)) return srcFull;
@@ -209,6 +205,10 @@ export async function resolveSourceEntry(
 	const tsxPath = srcPath.replace(TS_TO_TSX_RE, ".tsx");
 	const tsxFull = resolve(pluginDir, tsxPath);
 	if (await fileExists(tsxFull)) return tsxFull;
+
+	// Fall back to direct path (might be source already, or pre-compiled plugin)
+	const direct = resolve(pluginDir, cleaned);
+	if (await fileExists(direct)) return direct;
 
 	return undefined;
 }

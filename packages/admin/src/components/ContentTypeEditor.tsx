@@ -334,7 +334,7 @@ export function ContentTypeEditor({
 						<p className="text-kumo-subtle text-sm">
 							<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
 							{isFromCode && (
-								<span className="ml-2 text-purple-600 dark:text-purple-400">Defined in code</span>
+								<span className="ms-2 text-purple-600 dark:text-purple-400">Defined in code</span>
 							)}
 						</p>
 					)}
@@ -699,7 +699,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 				<button
 					{...attributes}
 					{...listeners}
-					className="cursor-grab active:cursor-grabbing mr-3"
+					className="cursor-grab active:cursor-grabbing me-3"
 					aria-label={`Drag to reorder ${field.label}`}
 				>
 					<DotsSixVertical className="h-5 w-5 text-kumo-subtle" />

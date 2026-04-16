@@ -9,7 +9,7 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
-import { authenticateWithPasskey } from "@emdash-cms/auth/passkey";
+import { authenticateWithPasskey, PasskeyAuthenticationError } from "@emdash-cms/auth/passkey";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
@@ -63,6 +63,10 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			},
 		});
 	} catch (error) {
+		if (error instanceof PasskeyAuthenticationError) {
+			return apiError("UNAUTHORIZED", "Authentication failed", 401);
+		}
+
 		return handleError(error, "Authentication failed", "PASSKEY_VERIFY_ERROR");
 	}
 };

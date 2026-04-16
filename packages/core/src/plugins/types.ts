@@ -195,6 +195,9 @@ export interface ContentItemSeoInput {
 export interface ContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
+	locale: string | null;
 	data: Record<string, unknown>;
 	/**
 	 * SEO metadata, populated when the collection has SEO enabled
@@ -203,6 +206,14 @@ export interface ContentItem {
 	seo?: ContentItemSeo;
 	createdAt: string;
 	updatedAt: string;
+	publishedAt: string | null;
+}
+
+export interface ContentListWhere {
+	/** Exact match on `status` (e.g. `"published"`, `"draft"`). */
+	status?: string;
+	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
+	locale?: string;
 }
 
 /**
@@ -212,6 +223,7 @@ export interface ContentListOptions {
 	limit?: number;
 	cursor?: string;
 	orderBy?: Record<string, "asc" | "desc">;
+	where?: ContentListWhere;
 }
 
 /**
@@ -702,6 +714,8 @@ export interface ContentHookEvent {
 export interface ContentDeleteEvent {
 	id: string;
 	collection: string;
+	/** `true` when the content is permanently deleted (not just trashed). */
+	permanent: boolean;
 }
 
 /**
@@ -876,6 +890,7 @@ export type PageMetadataLinkRel =
 	| "alternate"
 	| "author"
 	| "license"
+	| "nlweb"
 	| "site.standard.document";
 
 export type PageMetadataContribution =

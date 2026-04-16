@@ -13,7 +13,7 @@
  * redirects to the admin dashboard since authentication is handled externally.
  */
 
-import { Button, Input, Loader } from "@cloudflare/kumo";
+import { Button, Input, Loader, Select } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -325,7 +325,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 										className="w-full justify-center"
 									>
 										{provider.icon}
-										<span className="ml-2">{provider.name}</span>
+										<span className="ms-2">{provider.name}</span>
 									</Button>
 								))}
 							</div>
@@ -366,22 +366,14 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 
 				{/* Language selector — only shown when multiple locales are available */}
 				{SUPPORTED_LOCALES.length > 1 && (
-					<div className="mt-6 flex justify-center gap-2 text-xs text-kumo-subtle">
-						{SUPPORTED_LOCALES.map((l, i) => (
-							<React.Fragment key={l.code}>
-								{i > 0 && <span>·</span>}
-								<button
-									onClick={() => setLocale(l.code)}
-									className={
-										l.code === locale
-											? "font-medium text-kumo-default"
-											: "hover:text-kumo-default transition-colors"
-									}
-								>
-									{l.label}
-								</button>
-							</React.Fragment>
-						))}
+					<div className="mt-6 flex justify-center">
+						<Select
+							aria-label={t`Language`}
+							className="w-48"
+							value={locale}
+							onValueChange={(v) => v && setLocale(v)}
+							items={Object.fromEntries(SUPPORTED_LOCALES.map((l) => [l.code, l.label]))}
+						/>
 					</div>
 				)}
 			</div>

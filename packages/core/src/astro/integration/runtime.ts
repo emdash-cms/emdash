@@ -223,23 +223,17 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
-	 * Enable the MCP (Model Context Protocol) server endpoint.
+	 * MCP (Model Context Protocol) server endpoint.
 	 *
-	 * When enabled, exposes an MCP Streamable HTTP server at
-	 * `/_emdash/api/mcp` that allows AI agents and tools to interact
-	 * with the CMS using the standardized MCP protocol.
+	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
+	 * that allows AI agents and tools to interact with the CMS using
+	 * the standardized MCP protocol.
 	 *
-	 * Authentication is handled by the existing EmDash auth middleware —
-	 * agents must authenticate with an API token or session cookie.
+	 * Enabled by default. The endpoint requires bearer token auth, so
+	 * it has no effect unless the user creates an API token and
+	 * configures a client. Set to `false` to disable.
 	 *
-	 * @default false
-	 *
-	 * @example
-	 * ```ts
-	 * emdash({
-	 *   mcp: true,
-	 * })
-	 * ```
+	 * @default true
 	 */
 	mcp?: boolean;
 
@@ -328,6 +322,56 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	mediaProviders?: MediaProviderDescriptor[];
+
+	/**
+	 * Admin UI font configuration.
+	 *
+	 * By default, EmDash loads Noto Sans via the Astro Font API, covering
+	 * Latin, Latin Extended, Cyrillic, Cyrillic Extended, Greek, Greek
+	 * Extended, Devanagari, and Vietnamese. Fonts are downloaded from
+	 * Google at build time and self-hosted, so there are no runtime CDN
+	 * requests.
+	 *
+	 * To add support for additional writing systems (Arabic, CJK, etc.),
+	 * pass script names. EmDash resolves the matching Noto Sans variant
+	 * from Google Fonts and merges all script faces under a single
+	 * font-family, so the browser downloads only the glyphs it needs
+	 * via unicode-range.
+	 *
+	 * Set to `false` to disable font injection entirely and use system fonts.
+	 *
+	 * @example
+	 * ```ts
+	 * // Add Arabic and Japanese support
+	 * emdash({
+	 *   fonts: {
+	 *     scripts: ["arabic", "japanese"],
+	 *   },
+	 * })
+	 * ```
+	 *
+	 * @example
+	 * ```ts
+	 * // Disable web fonts entirely (use system fonts)
+	 * emdash({
+	 *   fonts: false,
+	 * })
+	 * ```
+	 */
+	fonts?:
+		| false
+		| {
+				/**
+				 * Additional Noto Sans script families to include.
+				 *
+				 * Available scripts: arabic, armenian, bengali, chinese-simplified,
+				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic,
+				 * georgian, gujarati, gurmukhi, hebrew, japanese, kannada, khmer,
+				 * korean, lao, malayalam, myanmar, oriya, sinhala, tamil, telugu,
+				 * thai, tibetan.
+				 */
+				scripts?: string[];
+		  };
 }
 
 /**

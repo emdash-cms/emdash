@@ -1,4 +1,6 @@
 import { Badge, Button, Dialog, Input, Label, Switch } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowRight,
 	MagnifyingGlass,
@@ -46,6 +48,7 @@ function RedirectFormDialog({
 	/** Pre-fill source for create mode (e.g. from 404 list) */
 	defaultSource?: string;
 }) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const isEdit = !!redirect;
 
@@ -96,23 +99,23 @@ function RedirectFormDialog({
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<div>
 						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{isEdit ? "Edit Redirect" : "New Redirect"}
+							{isEdit ? t`Edit Redirect` : t`New Redirect`}
 						</Dialog.Title>
 						<p className="text-sm text-kumo-subtle mt-1">
 							{isEdit
-								? "Update this redirect rule."
-								: "Use [param] or [...rest] in paths for pattern matching."}
+								? t`Update this redirect rule.`
+								: t`Use [param] or [...rest] in paths for pattern matching.`}
 						</p>
 					</div>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
-								className="absolute right-4 top-4"
+								aria-label={t`Close`}
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -122,7 +125,7 @@ function RedirectFormDialog({
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
-						label="Source path"
+						label={t`Source path`}
 						placeholder="/old-page or /blog/[slug]"
 						value={source}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
@@ -130,7 +133,7 @@ function RedirectFormDialog({
 					/>
 
 					<Input
-						label="Destination path"
+						label={t`Destination path`}
 						placeholder="/new-page or /articles/[slug]"
 						value={destination}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
@@ -139,22 +142,22 @@ function RedirectFormDialog({
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<Label htmlFor="redirect-type">Status code</Label>
+							<Label htmlFor="redirect-type">{t`Status code`}</Label>
 							<select
 								id="redirect-type"
 								value={type}
 								onChange={(e) => setType(e.target.value)}
 								className="flex h-10 w-full rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm"
 							>
-								<option value="301">301 Permanent</option>
-								<option value="302">302 Temporary</option>
-								<option value="307">307 Temporary (Strict)</option>
-								<option value="308">308 Permanent (Strict)</option>
+								<option value="301">{t`301 Permanent`}</option>
+								<option value="302">{t`302 Temporary`}</option>
+								<option value="307">{t`307 Temporary (Strict)`}</option>
+								<option value="308">{t`308 Permanent (Strict)`}</option>
 							</select>
 						</div>
 
 						<Input
-							label="Group (optional)"
+							label={t`Group (optional)`}
 							placeholder="e.g. import, blog"
 							value={groupName}
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
@@ -163,23 +166,23 @@ function RedirectFormDialog({
 
 					<div className="flex items-center gap-2">
 						<Switch checked={enabled} onCheckedChange={setEnabled} id="redirect-enabled" />
-						<Label htmlFor="redirect-enabled">Enabled</Label>
+						<Label htmlFor="redirect-enabled">{t`Enabled`}</Label>
 					</div>
 
 					<DialogError message={getMutationError(mutation.error)} />
 
 					<div className="flex justify-end gap-2">
 						<Button type="button" variant="outline" onClick={onClose}>
-							Cancel
+							{t`Cancel`}
 						</Button>
 						<Button type="submit" disabled={mutation.isPending}>
 							{mutation.isPending
 								? isEdit
-									? "Saving..."
-									: "Creating..."
+									? t`Saving...`
+									: t`Creating...`
 								: isEdit
-									? "Save"
-									: "Create"}
+									? t`Save`
+									: t`Create`}
 						</Button>
 					</div>
 				</form>
@@ -199,16 +202,20 @@ function NotFoundPanel({
 	items: NotFoundSummary[];
 	onCreateRedirect: (path: string) => void;
 }) {
+	const { t } = useLingui();
+
 	if (items.length === 0) {
-		return <p className="text-sm text-kumo-subtle py-4 text-center">No 404 errors recorded yet.</p>;
+		return (
+			<p className="text-sm text-kumo-subtle py-4 text-center">{t`No 404 errors recorded yet.`}</p>
+		);
 	}
 
 	return (
 		<div className="border rounded-lg">
 			<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-				<div className="flex-1">Path</div>
-				<div className="w-16 text-right">Hits</div>
-				<div className="w-32">Last seen</div>
+				<div className="flex-1">{t`Path`}</div>
+				<div className="w-16 text-end">{t`Hits`}</div>
+				<div className="w-32">{t`Last seen`}</div>
 				<div className="w-8" />
 			</div>
 			{items.map((item) => (
@@ -217,7 +224,7 @@ function NotFoundPanel({
 					className="flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm"
 				>
 					<div className="flex-1 font-mono text-xs truncate">{item.path}</div>
-					<div className="w-16 text-right tabular-nums">{item.count}</div>
+					<div className="w-16 text-end tabular-nums">{item.count}</div>
 					<div className="w-32 text-kumo-subtle text-xs">
 						{(() => {
 							const d = new Date(item.lastSeen);
@@ -228,8 +235,8 @@ function NotFoundPanel({
 						<button
 							onClick={() => onCreateRedirect(item.path)}
 							className="text-kumo-subtle hover:text-kumo-default"
-							title="Create redirect for this path"
-							aria-label={`Create redirect for ${item.path}`}
+							title={t`Create redirect for this path`}
+							aria-label={t`Create redirect for ${item.path}`}
 						>
 							<ArrowsLeftRight size={14} />
 						</button>
@@ -247,6 +254,7 @@ function NotFoundPanel({
 type TabKey = "redirects" | "404s";
 
 export function Redirects() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [tab, setTab] = useState<TabKey>("redirects");
 	const [search, setSearch] = useState("");
@@ -322,11 +330,11 @@ export function Redirects() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">Redirects</h1>
-					<p className="text-kumo-subtle">Manage URL redirects and view 404 errors.</p>
+					<h1 className="text-3xl font-bold">{t`Redirects`}</h1>
+					<p className="text-kumo-subtle">{t`Manage URL redirects and view 404 errors.`}</p>
 				</div>
 				<Button icon={<Plus />} onClick={() => setShowCreate(true)}>
-					New Redirect
+					{t`New Redirect`}
 				</Button>
 			</div>
 
@@ -341,9 +349,9 @@ export function Redirects() {
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
-					Redirects
+					{t`Redirects`}
 					{redirectsQuery.data && (
-						<Badge variant="secondary" className="ml-2">
+						<Badge variant="secondary" className="ms-2">
 							{redirectsQuery.data.items.length}
 							{redirectsQuery.data.nextCursor ? "+" : ""}
 						</Badge>
@@ -358,7 +366,7 @@ export function Redirects() {
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
-					404 Errors
+					{t`404 Errors`}
 				</button>
 			</div>
 
@@ -369,12 +377,12 @@ export function Redirects() {
 					<div className="flex items-center gap-4">
 						<div className="relative flex-1 max-w-md">
 							<MagnifyingGlass
-								className="absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle"
+								className="absolute start-3 top-1/2 -translate-y-1/2 text-kumo-subtle"
 								size={16}
 							/>
 							<Input
-								placeholder="Search source or destination..."
-								className="pl-10"
+								placeholder={t`Search source or destination...`}
+								className="ps-10"
 								value={search}
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
 							/>
@@ -384,18 +392,18 @@ export function Redirects() {
 							onChange={(e) => setFilterEnabled(e.target.value)}
 							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
 						>
-							<option value="all">All statuses</option>
-							<option value="true">Enabled</option>
-							<option value="false">Disabled</option>
+							<option value="all">{t`All statuses`}</option>
+							<option value="true">{t`Enabled`}</option>
+							<option value="false">{t`Disabled`}</option>
 						</select>
 						<select
 							value={filterAuto}
 							onChange={(e) => setFilterAuto(e.target.value)}
 							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
 						>
-							<option value="all">All types</option>
-							<option value="false">Manual</option>
-							<option value="true">Auto (slug change)</option>
+							<option value="all">{t`All types`}</option>
+							<option value="false">{t`Manual`}</option>
+							<option value="true">{t`Auto (slug change)`}</option>
 						</select>
 					</div>
 
@@ -412,11 +420,13 @@ export function Redirects() {
 								aria-hidden="true"
 							/>
 							<div>
-								<p className="text-sm font-medium text-kumo-warning">Redirect loop detected</p>
+								<p className="text-sm font-medium text-kumo-warning">{t`Redirect loop detected`}</p>
 								<p className="mt-1 text-sm text-kumo-subtle">
-									{loopRedirectIds.size}{" "}
-									{loopRedirectIds.size === 1 ? "redirect is" : "redirects are"} part of a loop.
-									Visitors hitting these paths will see an error.
+									{plural(loopRedirectIds.size, {
+										one: "# redirect is part of a loop.",
+										other: "# redirects are part of a loop.",
+									})}{" "}
+									{t`Visitors hitting these paths will see an error.`}
 								</p>
 							</div>
 						</div>
@@ -424,22 +434,22 @@ export function Redirects() {
 
 					{/* Redirect list */}
 					{redirectsQuery.isLoading ? (
-						<div className="py-12 text-center text-kumo-subtle">Loading redirects...</div>
+						<div className="py-12 text-center text-kumo-subtle">{t`Loading redirects...`}</div>
 					) : redirects.length === 0 ? (
 						<div className="py-12 text-center text-kumo-subtle">
 							<ArrowsLeftRight size={48} className="mx-auto mb-4 opacity-30" />
-							<p className="text-lg font-medium">No redirects yet</p>
-							<p className="text-sm mt-1">Create redirect rules to manage URL changes.</p>
+							<p className="text-lg font-medium">{t`No redirects yet`}</p>
+							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
 						</div>
 					) : (
 						<div className="border rounded-lg">
 							<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-								<div className="flex-1">Source</div>
+								<div className="flex-1">{t`Source`}</div>
 								<div className="w-8 text-center" />
-								<div className="flex-1">Destination</div>
-								<div className="w-14 text-center">Code</div>
-								<div className="w-16 text-right">Hits</div>
-								<div className="w-20 text-center">Status</div>
+								<div className="flex-1">{t`Destination`}</div>
+								<div className="w-14 text-center">{t`Code`}</div>
+								<div className="w-16 text-end">{t`Hits`}</div>
+								<div className="w-20 text-center">{t`Status`}</div>
 								<div className="w-20" />
 							</div>
 							{redirects.map((r) => (
@@ -462,7 +472,7 @@ export function Redirects() {
 									<div className="w-14 text-center">
 										<Badge variant="secondary">{r.type}</Badge>
 									</div>
-									<div className="w-16 text-right tabular-nums text-kumo-subtle">{r.hits}</div>
+									<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
 									<div className="w-20 text-center">
 										<Switch
 											checked={r.enabled}
@@ -472,39 +482,39 @@ export function Redirects() {
 													enabled: checked,
 												})
 											}
-											aria-label={r.enabled ? "Disable redirect" : "Enable redirect"}
+											aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
 										/>
 									</div>
 									<div className="w-20 flex items-center justify-end gap-1">
 										{loopRedirectIds.has(r.id) && (
-											<span title="Part of a redirect loop" className="mr-1 inline-flex">
+											<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
 												<WarningCircle
 													size={14}
 													weight="fill"
 													className="text-kumo-warning"
 													role="img"
-													aria-label="Part of a redirect loop"
+													aria-label={t`Part of a redirect loop`}
 												/>
 											</span>
 										)}
 										{r.auto && (
-											<Badge variant="outline" className="mr-1 text-xs">
-												auto
+											<Badge variant="outline" className="me-1 text-xs">
+												{t`auto`}
 											</Badge>
 										)}
 										<button
 											onClick={() => setEditRedirect(r)}
 											className="p-1 text-kumo-subtle hover:text-kumo-default"
-											title="Edit redirect"
-											aria-label={`Edit redirect ${r.source}`}
+											title={t`Edit redirect`}
+											aria-label={t`Edit redirect ${r.source}`}
 										>
 											<PencilSimple size={14} />
 										</button>
 										<button
 											onClick={() => setDeleteId(r.id)}
 											className="p-1 text-kumo-subtle hover:text-kumo-danger"
-											title="Delete redirect"
-											aria-label={`Delete redirect ${r.source}`}
+											title={t`Delete redirect`}
+											aria-label={t`Delete redirect ${r.source}`}
 										>
 											<Trash size={14} />
 										</button>
@@ -544,10 +554,10 @@ export function Redirects() {
 					setDeleteId(null);
 					deleteMutation.reset();
 				}}
-				title="Delete Redirect?"
-				description="This redirect rule will be permanently removed."
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				title={t`Delete Redirect?`}
+				description={t`This redirect rule will be permanently removed.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}

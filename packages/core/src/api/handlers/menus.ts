@@ -8,6 +8,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { withTransaction } from "../../database/transaction.js";
 import type { Database, MenuItemTable, MenuTable } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
@@ -464,24 +465,26 @@ export async function handleMenuItemReorder(
 			};
 		}
 
-		for (const item of items) {
-			await db
-				.updateTable("_emdash_menu_items")
-				.set({
-					parent_id: item.parentId,
-					sort_order: item.sortOrder,
-				})
-				.where("id", "=", item.id)
-				.where("menu_id", "=", menu.id)
-				.execute();
-		}
+		const updatedItems = await withTransaction(db, async (trx) => {
+			for (const item of items) {
+				await trx
+					.updateTable("_emdash_menu_items")
+					.set({
+						parent_id: item.parentId,
+						sort_order: item.sortOrder,
+					})
+					.where("id", "=", item.id)
+					.where("menu_id", "=", menu.id)
+					.execute();
+			}
 
-		const updatedItems = await db
-			.selectFrom("_emdash_menu_items")
-			.selectAll()
-			.where("menu_id", "=", menu.id)
-			.orderBy("sort_order", "asc")
-			.execute();
+			return trx
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("menu_id", "=", menu.id)
+				.orderBy("sort_order", "asc")
+				.execute();
+		});
 
 		return { success: true, data: updatedItems };
 	} catch {

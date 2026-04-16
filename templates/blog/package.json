@@ -31,6 +31,9 @@
   "peerDependencies": {},
   "optionalDependencies": {},
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }
