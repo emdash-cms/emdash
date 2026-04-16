@@ -48,13 +48,13 @@ import {
 	deleteWidget,
 	deleteWidgetArea,
 	reorderWidgets,
-	type AdminManifest,
 	type WidgetArea,
 	type Widget,
 	type WidgetComponent,
 	type CreateWidgetInput,
 	type UpdateWidgetInput,
 } from "../lib/api";
+import { getPluginBlocks } from "../lib/pluginBlocks";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { PortableTextEditor, type PluginBlockDef } from "./PortableTextEditor";
@@ -76,19 +76,6 @@ type DragItemData = PaletteItemData | ExistingWidgetData;
 
 function isPaletteItem(data: DragItemData): data is PaletteItemData {
 	return data.source === "palette";
-}
-
-/** Extract plugin block definitions from the manifest for Portable Text editor */
-function getPluginBlocks(manifest: AdminManifest): PluginBlockDef[] {
-	const blocks: PluginBlockDef[] = [];
-	for (const [pluginId, plugin] of Object.entries(manifest.plugins)) {
-		if (plugin.portableTextBlocks) {
-			for (const block of plugin.portableTextBlocks) {
-				blocks.push({ ...block, pluginId });
-			}
-		}
-	}
-	return blocks;
 }
 
 /** Built-in widget types available in the palette */

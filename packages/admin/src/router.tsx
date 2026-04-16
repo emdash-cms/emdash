@@ -34,7 +34,6 @@ import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
-import type { PluginBlockDef } from "./components/PortableTextEditor";
 import { Redirects } from "./components/Redirects";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
@@ -94,7 +93,6 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
-	type AdminManifest,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -112,6 +110,7 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { usePluginPage } from "./lib/plugin-context";
+import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
 import { UsersPage } from "./routes/users";
@@ -421,19 +420,6 @@ function ContentListPage() {
 			urlPattern={collectionConfig.urlPattern}
 		/>
 	);
-}
-
-/** Extract plugin block definitions from the manifest for Portable Text editor */
-function getPluginBlocks(manifest: AdminManifest): PluginBlockDef[] {
-	const blocks: PluginBlockDef[] = [];
-	for (const [pluginId, plugin] of Object.entries(manifest.plugins)) {
-		if (plugin.portableTextBlocks) {
-			for (const block of plugin.portableTextBlocks) {
-				blocks.push({ ...block, pluginId });
-			}
-		}
-	}
-	return blocks;
 }
 
 // Content new route
