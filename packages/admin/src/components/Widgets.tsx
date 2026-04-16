@@ -38,6 +38,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
+	fetchManifest,
 	fetchWidgetAreas,
 	fetchWidgetComponents,
 	fetchMenus,
@@ -47,6 +48,7 @@ import {
 	deleteWidget,
 	deleteWidgetArea,
 	reorderWidgets,
+	type AdminManifest,
 	type WidgetArea,
 	type Widget,
 	type WidgetComponent,
@@ -55,7 +57,7 @@ import {
 } from "../lib/api";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { PortableTextEditor } from "./PortableTextEditor";
+import { PortableTextEditor, type PluginBlockDef } from "./PortableTextEditor";
 
 /** Palette item types that can be dragged into areas */
 interface PaletteItemData {
@@ -74,6 +76,19 @@ type DragItemData = PaletteItemData | ExistingWidgetData;
 
 function isPaletteItem(data: DragItemData): data is PaletteItemData {
 	return data.source === "palette";
+}
+
+/** Extract plugin block definitions from the manifest for Portable Text editor */
+function getPluginBlocks(manifest: AdminManifest): PluginBlockDef[] {
+	const blocks: PluginBlockDef[] = [];
+	for (const [pluginId, plugin] of Object.entries(manifest.plugins)) {
+		if (plugin.portableTextBlocks) {
+			for (const block of plugin.portableTextBlocks) {
+				blocks.push({ ...block, pluginId });
+			}
+		}
+	}
+	return blocks;
 }
 
 /** Built-in widget types available in the palette */
@@ -118,6 +133,13 @@ export function Widgets() {
 		queryKey: ["widget-components"],
 		queryFn: fetchWidgetComponents,
 	});
+
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
+	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
 	const createAreaMutation = useMutation({
 		mutationFn: createWidgetArea,
@@ -411,6 +433,7 @@ export function Widgets() {
 									onToggleWidget={toggleWidget}
 									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
 									components={components}
+									pluginBlocks={pluginBlocks}
 								/>
 							))
 						)}
@@ -481,12 +504,14 @@ function WidgetAreaPanel({
 	onToggleWidget,
 	isDraggingPalette,
 	components,
+	pluginBlocks,
 }: {
 	area: WidgetArea;
 	expandedWidgets: Set<string>;
 	onToggleWidget: (id: string) => void;
 	isDraggingPalette: boolean;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -541,6 +566,7 @@ function WidgetAreaPanel({
 								isExpanded={expandedWidgets.has(widget.id)}
 								onToggle={() => onToggleWidget(widget.id)}
 								components={components}
+								pluginBlocks={pluginBlocks}
 							/>
 						))}
 					</SortableContext>
@@ -586,12 +612,14 @@ function WidgetItem({
 	isExpanded,
 	onToggle,
 	components,
+	pluginBlocks,
 }: {
 	widget: Widget;
 	areaName: string;
 	isExpanded: boolean;
 	onToggle: () => void;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -674,6 +702,7 @@ function WidgetItem({
 				<WidgetEditor
 					widget={widget}
 					components={components}
+					pluginBlocks={pluginBlocks}
 					onSave={(input) => updateMutation.mutate(input)}
 					isSaving={updateMutation.isPending}
 				/>
@@ -686,11 +715,13 @@ function WidgetItem({
 function WidgetEditor({
 	widget,
 	components,
+	pluginBlocks,
 	onSave,
 	isSaving,
 }: {
 	widget: Widget;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateWidgetInput) => void;
 	isSaving: boolean;
 }) {
@@ -742,6 +773,7 @@ function WidgetEditor({
 						onChange={(value) => setContent(value as unknown[])}
 						minimal
 						placeholder="Write widget content..."
+						pluginBlocks={pluginBlocks}
 					/>
 				</div>
 			)}
