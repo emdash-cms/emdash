@@ -497,7 +497,7 @@ msgstr "添加新内容"
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:440
 msgid "Add new {0}"
-msgstr ""
+msgstr "添加新{0}"
 
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
@@ -2027,7 +2027,7 @@ msgstr "创建部分合集失败"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:447
 msgid "Failed to create term"
-msgstr ""
+msgstr "创建分类项失败"
 
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
@@ -3025,7 +3025,7 @@ msgstr "新"
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 msgid "New {0}"
-msgstr ""
+msgstr "新{0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:526
 msgid "New {collectionLabel}"
