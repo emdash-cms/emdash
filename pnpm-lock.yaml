@@ -9,58 +9,7 @@ catalogs:
     '@arethetypeswrong/cli':
       specifier: ^0.18.2
       version: 0.18.2
-    '@astrojs/check':
-      specifier: ^0.9.7
-      version: 0.9.7
-    '@astrojs/cloudflare':
-      specifier: ^13.1.7
-      version: 13.1.7
-    '@astrojs/node':
-      specifier: ^10.0.0
-      version: 10.0.0
-    '@astrojs/react':
-      specifier: ^5.0.0
-      version: 5.0.0
-    '@cloudflare/workers-types':
-      specifier: ^4.20260305.1
-      version: 4.20260305.1
-    '@lingui/babel-plugin-lingui-macro':
-      specifier: ^5.9.4
-      version: 5.9.4
-    '@lingui/cli':
-      specifier: ^5.9.4
-      version: 5.9.4
-    '@lingui/core':
-      specifier: ^5.9.4
-      version: 5.9.4
-    '@lingui/macro':
-      specifier: ^5.9.4
-      version: 5.9.4
-    '@lingui/react':
-      specifier: ^5.9.4
-      version: 5.9.4
-    '@phosphor-icons/react':
-      specifier: ^2.1.10
-      version: 2.1.10
-    '@tanstack/react-query':
-      specifier: 5.90.21
-      version: 5.90.21
-    '@tanstack/react-router':
-      specifier: 1.163.2
-      version: 1.163.2
     '@tiptap/core':
-      specifier: ^3.20.0
-      version: 3.20.0
-    '@tiptap/extension-character-count':
-      specifier: ^3.20.0
-      version: 3.20.0
-    '@tiptap/extension-drag-handle':
-      specifier: ^3.20.0
-      version: 3.20.0
-    '@tiptap/extension-drag-handle-react':
-      specifier: ^3.20.0
-      version: 3.20.0
-    '@tiptap/extension-dropcursor':
       specifier: ^3.20.0
       version: 3.20.0
     '@tiptap/extension-focus':
@@ -70,9 +19,6 @@ catalogs:
       specifier: ^3.20.0
       version: 3.20.0
     '@tiptap/extension-link':
-      specifier: ^3.20.0
-      version: 3.20.0
-    '@tiptap/extension-node-range':
       specifier: ^3.20.0
       version: 3.20.0
     '@tiptap/extension-placeholder':
@@ -87,9 +33,6 @@ catalogs:
     '@tiptap/extension-underline':
       specifier: ^3.20.0
       version: 3.20.0
-    '@tiptap/pm':
-      specifier: ^3.20.0
-      version: 3.20.0
     '@tiptap/react':
       specifier: ^3.20.0
       version: 3.20.0
@@ -99,30 +42,12 @@ catalogs:
     '@tiptap/suggestion':
       specifier: ^3.20.0
       version: 3.20.0
-    '@types/node':
-      specifier: 24.10.13
-      version: 24.10.13
-    '@types/react':
-      specifier: 19.2.14
-      version: 19.2.14
-    '@types/react-dom':
-      specifier: 19.2.3
-      version: 19.2.3
-    astro:
-      specifier: ^6.0.1
-      version: 6.0.1
     better-sqlite3:
       specifier: ^12.8.0
       version: 12.8.0
     publint:
       specifier: 0.3.17
       version: 0.3.17
-    react:
-      specifier: 19.2.4
-      version: 19.2.4
-    react-dom:
-      specifier: 19.2.4
-      version: 19.2.4
     tsdown:
       specifier: 0.20.3
       version: 0.20.3
@@ -132,9 +57,6 @@ catalogs:
     vitest:
       specifier: ^4.0.18
       version: 4.0.18
-    wrangler:
-      specifier: ^4.80.0
-      version: 4.80.0
 
 importers:
 
@@ -937,6 +859,9 @@ importers:
       croner:
         specifier: ^10.0.1
         version: 10.0.1
+      fast-xml-parser:
+        specifier: ^5.6.0
+        version: 5.6.0
       image-size:
         specifier: ^2.0.2
         version: 2.0.2
@@ -967,9 +892,6 @@ importers:
       sanitize-html:
         specifier: ^2.17.1
         version: 2.17.1
-      sax:
-        specifier: ^1.4.1
-        version: 1.4.4
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
@@ -2928,6 +2850,9 @@ packages:
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@nodable/entities@1.1.0':
+    resolution: {integrity: sha512-bidpxmTBP0pOsxULw6XlxzQpTgrAGLDHGBK/JuWhPDL6ZV0GZ/PmN9CA9do6e+A9lYI6qx6ikJUtJYRxup141g==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -5860,6 +5785,13 @@ packages:
   fast-uri@3.1.0:
     resolution: {integrity: sha512-iPeeDKJSWf4IEOasVVrknXpaBV0IApz/gp7S2bb7Z4Lljbl2MGJRqInZiUrQwV16cpzw/D3S5j5Julj/gT52AA==}
 
+  fast-xml-builder@1.1.4:
+    resolution: {integrity: sha512-f2jhpN4Eccy0/Uz9csxh3Nu6q4ErKxf0XIsasomfOihuSUa3/xw6w8dnOtCDgEItQFJG8KyXPzQXzcODDrrbOg==}
+
+  fast-xml-parser@5.6.0:
+    resolution: {integrity: sha512-5G+uaEBbOm9M4dgMOV3K/rBzfUNGqGqoUTaYJM3hBwM8t71w07gxLQZoTsjkY8FtfjabqgQHEkeIySBDYeBmJw==}
+    hasBin: true
+
   fastq@1.17.1:
     resolution: {integrity: sha512-sRVD3lWVIXWg6By68ZN7vho9a1pQcN/WBFaAAsDDFzlJjvoGx0P8z7V1t72grFJfJhu3YPZBuu25f7Kaw2jN1w==}
 
@@ -7199,6 +7131,10 @@ packages:
     resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
     engines: {node: '>=8'}
 
+  path-expression-matcher@1.5.0:
+    resolution: {integrity: sha512-cbrerZV+6rvdQrrD+iGMcZFEiiSrbv9Tfdkvnusy6y0x0GKBXREFg/Y65GhIfm0tnLntThhzCnfKwp1WRjeCyQ==}
+    engines: {node: '>=14.0.0'}
+
   path-key@3.1.1:
     resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
     engines: {node: '>=8'}
@@ -7917,6 +7853,9 @@ packages:
   strip-json-comments@5.0.3:
     resolution: {integrity: sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw==}
     engines: {node: '>=14.16'}
+
+  strnum@2.2.3:
+    resolution: {integrity: sha512-oKx6RUCuHfT3oyVjtnrmn19H1SiCqgJSg+54XqURKp5aCMbrXrhLjRN9TjuwMjiYstZ0MzDrHqkGZ5dFTKd+zg==}
 
   style-to-js@1.1.21:
     resolution: {integrity: sha512-RjQetxJrrUJLQPHbLku6U/ocGtzyjbJMP9lCNK7Ag0CNh690nSH8woqWH9u16nMjYBAok+i7JO1NP2pOy8IsPQ==}
@@ -8943,7 +8882,7 @@ snapshots:
     dependencies:
       '@astrojs/internal-helpers': 0.8.0
       '@astrojs/underscore-redirects': 1.0.3
-      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0)
+      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))
       astro: 6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2)
       piccolore: 0.1.3
       tinyglobby: 0.2.15
@@ -8969,7 +8908,7 @@ snapshots:
     dependencies:
       '@astrojs/internal-helpers': 0.8.0
       '@astrojs/underscore-redirects': 1.0.3
-      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0)
+      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))
       astro: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       piccolore: 0.1.3
       tinyglobby: 0.2.15
@@ -9724,7 +9663,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260401.1
 
-  '@cloudflare/vite-plugin@1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0)':
+  '@cloudflare/vite-plugin@1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))':
     dependencies:
       '@cloudflare/unenv-preset': 2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260401.1)
       miniflare: 4.20260301.1
@@ -10506,6 +10445,8 @@ snapshots:
       '@noble/hashes': 1.8.0
 
   '@noble/hashes@1.8.0': {}
+
+  '@nodable/entities@1.1.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -13721,6 +13662,17 @@ snapshots:
 
   fast-uri@3.1.0: {}
 
+  fast-xml-builder@1.1.4:
+    dependencies:
+      path-expression-matcher: 1.5.0
+
+  fast-xml-parser@5.6.0:
+    dependencies:
+      '@nodable/entities': 1.1.0
+      fast-xml-builder: 1.1.4
+      path-expression-matcher: 1.5.0
+      strnum: 2.2.3
+
   fastq@1.17.1:
     dependencies:
       reusify: 1.0.4
@@ -15462,6 +15414,8 @@ snapshots:
 
   path-exists@4.0.0: {}
 
+  path-expression-matcher@1.5.0: {}
+
   path-key@3.1.1: {}
 
   path-scurry@2.0.2:
@@ -16389,6 +16343,8 @@ snapshots:
   strip-json-comments@2.0.1: {}
 
   strip-json-comments@5.0.3: {}
+
+  strnum@2.2.3: {}
 
   style-to-js@1.1.21:
     dependencies:
