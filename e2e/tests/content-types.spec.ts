@@ -142,6 +142,23 @@ test.describe("Content Types", () => {
 			await admin.waitForShell();
 			await admin.waitForLoading();
 			await expect(saveButton).toBeDisabled();
+
+			// Restore the original toggle state so the shared DB used by other E2E
+			// tests (e.g. comments.spec.ts) isn't left with commentsEnabled flipped.
+			await toggleLabel.click();
+			await expect(saveButton).toBeEnabled();
+			const restorePut = admin.page.waitForResponse(
+				(res) =>
+					res.url().includes("/api/schema/collections/posts") && res.request().method() === "PUT",
+				{ timeout: 10000 },
+			);
+			await saveButton.click();
+			expect((await restorePut).status()).toBe(200);
+			await expect(admin.page.getByText("Failed to save")).not.toBeVisible();
+			await admin.page.reload();
+			await admin.waitForShell();
+			await admin.waitForLoading();
+			await expect(saveButton).toBeDisabled();
 		});
 	});
 
