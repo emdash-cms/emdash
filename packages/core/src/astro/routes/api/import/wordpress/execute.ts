@@ -13,22 +13,33 @@ import {
 	ContentRepository,
 	importReusableBlocksAsSections,
 	type WxrPost,
+	type WxrData,
 	parseWxrDate,
 } from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import {
+	handleMenuCreate,
+	handleMenuDelete,
+	handleMenuGet,
+	handleMenuItemCreate,
+} from "#api/handlers/menus.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { resolveImportByline } from "#import/utils.js";
+import { setSiteSettings } from "#settings/index.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
 import { sanitizeSlug } from "./analyze.js";
 
+const MENU_NAME_INVALID_CHARS = /[^a-z0-9_-]/g;
+const MENU_NAME_REPEAT_DASHES = /-+/g;
+const MENU_NAME_TRIM_DASHES = /^-|-$/g;
+
 export const prerender = false;
 
 export interface ImportConfig {
-	/** Map WordPress post types to EmDash collections */
 	postTypeMappings: Record<
 		string,
 		{
@@ -36,13 +47,11 @@ export interface ImportConfig {
 			enabled: boolean;
 		}
 	>;
-	/** Whether to skip items that already exist (by slug) */
 	skipExisting: boolean;
-	/** Whether to import reusable blocks (wp_block) as sections */
 	importSections?: boolean;
-	/** Author mappings (WP author login -> EmDash user ID) */
+	importMenus?: boolean;
+	importSiteSettings?: boolean;
 	authorMappings?: Record<string, string | null>;
-	/** BCP 47 locale for all imported items. When omitted, defaults to defaultLocale. */
 	locale?: string;
 }
 
@@ -52,10 +61,17 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
-	/** Sections import results (if enabled) */
 	sections?: {
 		created: number;
 		skipped: number;
+	};
+	menus?: {
+		created: number;
+		items: number;
+		replaced: number;
+	};
+	siteSettings?: {
+		applied: string[];
 	};
 }
 
@@ -105,8 +121,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			authorDisplayNames.set(author.login, author.displayName || author.login);
 		}
 
-		// Import content (locale from config scopes all items)
-		const result = await importContent(
+		const internalHosts = collectInternalHosts(wxr);
+		const { result, wpPostIdToImported } = await importContent(
 			wxr.posts,
 			config,
 			emdash,
@@ -114,18 +130,44 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			attachmentMap,
 			config.locale,
 			authorDisplayNames,
+			internalHosts,
 		);
 
-		// Import reusable blocks as sections (if enabled)
 		if (config.importSections !== false) {
 			const sectionsResult = await importReusableBlocksAsSections(wxr.posts, emdash.db);
 			result.sections = {
 				created: sectionsResult.sectionsCreated,
 				skipped: sectionsResult.sectionsSkipped,
 			};
-			// Add section errors to main errors array
 			result.errors.push(...sectionsResult.errors);
 			if (sectionsResult.errors.length > 0) {
+				result.success = false;
+			}
+		}
+
+		if (config.importMenus !== false && wxr.navMenus.length > 0 && emdash.db) {
+			try {
+				result.menus = await importNavMenus(emdash.db, wxr, wpPostIdToImported);
+			} catch (error) {
+				result.errors.push({
+					title: "Navigation menus",
+					error: error instanceof Error ? error.message : "Failed to import menus",
+				});
+				result.success = false;
+			}
+		}
+
+		if (config.importSiteSettings !== false && emdash.db) {
+			try {
+				const applied = await importSiteSettings(emdash.db, wxr);
+				if (applied.length > 0) {
+					result.siteSettings = { applied };
+				}
+			} catch (error) {
+				result.errors.push({
+					title: "Site settings",
+					error: error instanceof Error ? error.message : "Failed to import site settings",
+				});
 				result.success = false;
 			}
 		}
@@ -136,6 +178,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 };
 
+export interface ImportedRef {
+	collection: string;
+	contentId: string;
+	slug: string;
+	title?: string;
+}
+
 async function importContent(
 	posts: WxrPost[],
 	config: ImportConfig,
@@ -144,7 +193,8 @@ async function importContent(
 	attachmentMap: Map<string, string>,
 	locale?: string,
 	authorDisplayNames?: Map<string, string>,
-): Promise<ImportResult> {
+	internalHosts: Set<string> = new Set(),
+): Promise<{ result: ImportResult; wpPostIdToImported: Map<number, ImportedRef> }> {
 	const result: ImportResult = {
 		success: true,
 		imported: 0,
@@ -152,8 +202,8 @@ async function importContent(
 		errors: [],
 		byCollection: {},
 	};
+	const wpPostIdToImported = new Map<number, ImportedRef>();
 
-	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
 	const bylineCache = new Map<string, string>();
@@ -162,17 +212,15 @@ async function importContent(
 		const postType = post.postType || "post";
 		const mapping = config.postTypeMappings[postType];
 
-		// Skip if not mapped or disabled
 		if (!mapping || !mapping.enabled) {
 			result.skipped++;
 			continue;
 		}
 
-		// Defensive: mapping.collection is already sanitized by prepare, but the user
-		// could manually edit the import config between prepare and execute.
+		// mapping.collection is already sanitized by prepare, but the user can
+		// edit the config between prepare and execute.
 		const collection = sanitizeSlug(mapping.collection);
 
-		// Check if collection exists in manifest
 		if (!manifest?.collections[collection]) {
 			result.errors.push({
 				title: post.title || "Untitled",
@@ -182,16 +230,24 @@ async function importContent(
 		}
 
 		try {
-			// Convert content to Portable Text
-			const content = post.content ? gutenbergToPortableText(post.content) : [];
+			const rawContent = post.content ? gutenbergToPortableText(post.content) : [];
+			const content =
+				internalHosts.size > 0 ? rewriteInternalLinks(rawContent, internalHosts) : rawContent;
 
-			// Generate slug from post name or title
 			const slug = post.postName || slugify(post.title || `post-${post.id || Date.now()}`);
 
-			// Check if already exists (idempotency)
 			if (config.skipExisting) {
 				const existing = await contentRepo.findBySlug(collection, slug);
 				if (existing) {
+					// Record the mapping so menu import can still link to pages we skipped.
+					if (post.id !== undefined) {
+						wpPostIdToImported.set(post.id, {
+							collection,
+							contentId: existing.id,
+							slug,
+							title: post.title || undefined,
+						});
+					}
 					result.skipped++;
 					continue;
 				}
@@ -220,7 +276,6 @@ async function importContent(
 				}
 			}
 
-			// Resolve author ID from mappings
 			let authorId: string | undefined;
 			if (config.authorMappings && post.creator) {
 				const mappedUserId = config.authorMappings[post.creator];
@@ -237,13 +292,10 @@ async function importContent(
 				bylineCache,
 			);
 
-			// Preserve original WordPress dates using the shared WXR date parser.
-			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
 			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
 			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
 			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
 
-			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
 				data,
 				slug,
@@ -258,6 +310,14 @@ async function importContent(
 			if (createResult.success) {
 				result.imported++;
 				result.byCollection[collection] = (result.byCollection[collection] || 0) + 1;
+				if (post.id !== undefined && createResult.data?.item.id) {
+					wpPostIdToImported.set(post.id, {
+						collection,
+						contentId: createResult.data.item.id,
+						slug,
+						title: post.title || undefined,
+					});
+				}
 			} else {
 				result.errors.push({
 					title: post.title || "Untitled",
@@ -277,7 +337,198 @@ async function importContent(
 	}
 
 	result.success = result.errors.length === 0;
-	return result;
+	return { result, wpPostIdToImported };
+}
+
+export async function importNavMenus(
+	db: NonNullable<EmDashHandlers["db"]>,
+	wxr: WxrData,
+	wpPostIdToImported: Map<number, ImportedRef>,
+): Promise<{ created: number; items: number; replaced: number }> {
+	let created = 0;
+	let items = 0;
+	let replaced = 0;
+
+	const menuLabelBySlug = new Map<string, string>();
+	for (const term of wxr.terms) {
+		if (term.taxonomy === "nav_menu") {
+			menuLabelBySlug.set(term.slug, term.name);
+		}
+	}
+
+	for (const menu of wxr.navMenus) {
+		const name = sanitizeMenuName(menu.name);
+		if (!name) continue;
+
+		const label = menuLabelBySlug.get(menu.name) || menu.label || menu.name;
+
+		// Replace any same-named menu so re-imports stay idempotent.
+		const existing = await handleMenuGet(db, name);
+		if (existing.success) {
+			await handleMenuDelete(db, name);
+			replaced++;
+		}
+
+		const createResult = await handleMenuCreate(db, { name, label });
+		if (!createResult.success) {
+			throw new Error(`Failed to create menu "${name}": ${createResult.error.message}`);
+		}
+		created++;
+
+		const wpIdToLocalItemId = new Map<number, string>();
+
+		for (const item of menu.items) {
+			const resolved = resolveMenuItemTarget(item, wpPostIdToImported);
+			const parentLocalId = item.parentId
+				? (wpIdToLocalItemId.get(item.parentId) ?? undefined)
+				: undefined;
+
+			const itemResult = await handleMenuItemCreate(db, name, {
+				type: resolved.type,
+				label: item.title || resolved.fallbackLabel,
+				referenceCollection: resolved.referenceCollection,
+				referenceId: resolved.referenceId,
+				customUrl: resolved.customUrl,
+				target: item.target || undefined,
+				cssClasses: item.classes || undefined,
+				parentId: parentLocalId,
+				sortOrder: item.sortOrder,
+			});
+
+			if (itemResult.success) {
+				items++;
+				wpIdToLocalItemId.set(item.id, itemResult.data.id);
+			}
+		}
+	}
+
+	return { created, items, replaced };
+}
+
+interface ResolvedMenuTarget {
+	type: "page" | "post" | "custom" | "taxonomy" | "collection";
+	referenceCollection?: string;
+	referenceId?: string;
+	customUrl?: string;
+	fallbackLabel: string;
+}
+
+function resolveMenuItemTarget(
+	item: { type: string; objectType?: string; objectId?: number; url?: string; title: string },
+	wpPostIdToImported: Map<number, ImportedRef>,
+): ResolvedMenuTarget {
+	if (item.type === "post_type" && item.objectId !== undefined) {
+		const ref = wpPostIdToImported.get(item.objectId);
+		if (ref) {
+			const isPage = item.objectType === "page" || ref.collection === "pages";
+			// WP stores an empty title when the item should render the linked page's
+			// current title — prefer that over the raw slug.
+			return {
+				type: isPage ? "page" : "post",
+				referenceCollection: ref.collection,
+				referenceId: ref.contentId,
+				fallbackLabel: ref.title || ref.slug,
+			};
+		}
+	}
+
+	// Fall back to a custom URL so the menu item isn't lost.
+	return {
+		type: "custom",
+		customUrl: item.url || "#",
+		fallbackLabel: item.title || "Menu item",
+	};
+}
+
+function sanitizeMenuName(slug: string): string {
+	return slug
+		.toLowerCase()
+		.replace(MENU_NAME_INVALID_CHARS, "-")
+		.replace(MENU_NAME_REPEAT_DASHES, "-")
+		.replace(MENU_NAME_TRIM_DASHES, "");
+}
+
+export async function importSiteSettings(
+	db: NonNullable<EmDashHandlers["db"]>,
+	wxr: WxrData,
+): Promise<string[]> {
+	const updates: Record<string, unknown> = {};
+	const applied: string[] = [];
+
+	if (wxr.site.title) {
+		updates.title = wxr.site.title;
+		applied.push("title");
+	}
+	if (wxr.site.description) {
+		updates.tagline = wxr.site.description;
+		applied.push("tagline");
+	}
+	const homeUrl = wxr.site.baseBlogUrl || wxr.site.link;
+	if (homeUrl) {
+		updates.url = homeUrl;
+		applied.push("url");
+	}
+
+	if (applied.length === 0) return applied;
+
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SiteSettings subset
+	await setSiteSettings(updates as { title?: string; tagline?: string; url?: string }, db);
+
+	return applied;
+}
+
+export function collectInternalHosts(wxr: WxrData): Set<string> {
+	const hosts = new Set<string>();
+	const candidates = [wxr.site.link, wxr.site.baseBlogUrl, wxr.site.baseSiteUrl];
+	for (const candidate of candidates) {
+		if (!candidate) continue;
+		try {
+			hosts.add(new URL(candidate).host);
+		} catch {
+			// Not a valid URL.
+		}
+	}
+	return hosts;
+}
+
+export function rewriteInternalLinks<T>(blocks: T, internalHosts: Set<string>): T {
+	if (internalHosts.size === 0) return blocks;
+
+	const rewriteUrl = (url: string): string => {
+		try {
+			const parsed = new URL(url);
+			if (!internalHosts.has(parsed.host)) return url;
+			const path = parsed.pathname || "/";
+			return `${path}${parsed.search}${parsed.hash}`;
+		} catch {
+			return url;
+		}
+	};
+
+	const visit = (value: unknown): unknown => {
+		if (Array.isArray(value)) return value.map((v) => visit(v));
+		if (!value || typeof value !== "object") return value;
+
+		const obj = value as Record<string, unknown>;
+		const type = typeof obj._type === "string" ? obj._type : undefined;
+
+		if (type === "button" && typeof obj.url === "string") {
+			return { ...obj, url: rewriteUrl(obj.url) };
+		}
+		if (type === "link" && typeof obj.href === "string") {
+			return { ...obj, href: rewriteUrl(obj.href) };
+		}
+
+		// Recurse into children but leave scalar fields on other nodes alone —
+		// image / gallery URLs must stay absolute for the media-URL rewrite step.
+		const out: Record<string, unknown> = {};
+		for (const [key, child] of Object.entries(obj)) {
+			out[key] = visit(child);
+		}
+		return out;
+	};
+
+	return visit(blocks) as T;
 }
 
 function mapStatus(wpStatus: string | undefined): string {

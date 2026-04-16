@@ -780,6 +780,26 @@ https://${domain}/123456
 			expect(block.buttons[1]).toMatchObject({ text: "Second", url: "https://example.com/two" });
 		});
 
+		it("falls back to the inner <a href> when the button's attrs.url is missing", () => {
+			// Classic-editor / legacy Gutenberg content keeps the URL in the
+			// anchor tag only; attrs may be empty.
+			const content = `<!-- wp:buttons -->
+<div class="wp-block-buttons">
+<!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link" href="https://example.com/apply">Apply Now</a></div>
+<!-- /wp:button -->
+</div>
+<!-- /wp:buttons -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			const block = result[0] as PortableTextButtonsBlock;
+			expect(block.buttons[0]).toMatchObject({
+				text: "Apply Now",
+				url: "https://example.com/apply",
+			});
+		});
+
 		it("converts buttons with horizontal layout", () => {
 			const content = `<!-- wp:buttons {"layout":{"type":"flex"}} -->
 <div class="wp-block-buttons is-layout-flex">
@@ -1008,6 +1028,47 @@ https://${domain}/123456
 					count: 5,
 				},
 			);
+		});
+
+		it("extracts a hero image from unknown-block attrs before inner blocks", () => {
+			// Mirrors WordPress custom theme blocks like `tripeak/hero-image`
+			// that wrap standard content behind an image URL attribute.
+			const content = `<!-- wp:theme/hero {"imageUrl":"https://ex.com/hero.jpg"} -->
+<!-- wp:heading -->
+<h2>Welcome</h2>
+<!-- /wp:heading -->
+<!-- /wp:theme/hero -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(2);
+			expect(result[0]).toMatchObject({
+				_type: "image",
+				asset: { _ref: "https://ex.com/hero.jpg", url: "https://ex.com/hero.jpg" },
+			});
+			expect(result[1]).toMatchObject({
+				_type: "block",
+				style: "h2",
+			});
+		});
+
+		it("extracts images from unknown-block attrs with an items array", () => {
+			// Mirrors marquee / slider / carousel custom blocks.
+			const content = `<!-- wp:theme/marquee {"items":[{"url":"https://ex.com/a.png","alt":"A"},{"url":"https://ex.com/b.png","alt":"B"}]} /-->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(2);
+			expect(result[0]).toMatchObject({
+				_type: "image",
+				asset: { url: "https://ex.com/a.png" },
+				alt: "A",
+			});
+			expect(result[1]).toMatchObject({
+				_type: "image",
+				asset: { url: "https://ex.com/b.png" },
+				alt: "B",
+			});
 		});
 	});
 

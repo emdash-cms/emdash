@@ -21,6 +21,7 @@ export const prerender = false;
 const NUMERIC_PATTERN = /^-?\d+(\.\d+)?$/;
 const INVALID_SLUG_CHARS = /[^a-z0-9_]/g;
 const LEADING_NON_ALPHA = /^[^a-z]+/;
+const TRAILING_SLASHES = /\/+$/;
 
 /** Field compatibility status */
 export type FieldCompatibility =
@@ -88,10 +89,18 @@ export interface WpAuthorInfo {
 	postCount: number;
 }
 
+export interface NavMenuAnalysisInfo {
+	slug: string;
+	label: string;
+	count: number;
+}
+
 export interface WxrAnalysis {
 	site: {
 		title: string;
 		url: string;
+		tagline?: string;
+		homePageSlug?: string;
 	};
 	postTypes: PostTypeAnalysis[];
 	attachments: {
@@ -109,6 +118,7 @@ export interface WxrAnalysis {
 		suggestedType: "string" | "number" | "boolean" | "date" | "json";
 		isInternal: boolean;
 	}>;
+	navMenus?: NavMenuAnalysisInfo[];
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -300,10 +310,39 @@ function analyzeWxr(
 		};
 	});
 
+	const menuTermBySlug = new Map<string, string>();
+	for (const term of wxr.terms) {
+		if (term.taxonomy === "nav_menu") {
+			menuTermBySlug.set(term.slug, term.name);
+		}
+	}
+	const navMenus: NavMenuAnalysisInfo[] = wxr.navMenus.map((menu) => ({
+		slug: menu.name,
+		label: menuTermBySlug.get(menu.name) || menu.label || menu.name,
+		count: menu.items.length,
+	}));
+
+	// A page whose <link> equals <channel><link> is the WP home page; WXR
+	// exports don't carry page_on_front, so this is the only signal.
+	let homePageSlug: string | undefined;
+	const channelLink = wxr.site.link ? normalizeUrl(wxr.site.link) : undefined;
+	if (channelLink) {
+		for (const post of wxr.posts) {
+			if (post.postType !== "page") continue;
+			if (!post.link) continue;
+			if (normalizeUrl(post.link) === channelLink && post.postName) {
+				homePageSlug = post.postName;
+				break;
+			}
+		}
+	}
+
 	return {
 		site: {
 			title: wxr.site.title || "WordPress Site",
 			url: wxr.site.link || "",
+			tagline: wxr.site.description || undefined,
+			homePageSlug,
 		},
 		postTypes,
 		attachments: {
@@ -320,7 +359,17 @@ function analyzeWxr(
 			postCount: a.login ? authorPostCounts.get(a.login) || 0 : 0,
 		})),
 		customFields,
+		navMenus: navMenus.length > 0 ? navMenus : undefined,
 	};
+}
+
+function normalizeUrl(url: string): string {
+	try {
+		const parsed = new URL(url);
+		return `${parsed.host}${parsed.pathname.replace(TRAILING_SLASHES, "")}`;
+	} catch {
+		return url.replace(TRAILING_SLASHES, "");
+	}
 }
 
 /** Extract filename from URL */
