@@ -76,8 +76,10 @@
  * Admin font stack
  *
  * --font-emdash is set by the Astro Font API (Noto Sans by default).
- * Users can add extra script coverage (Arabic, CJK, etc.) by adding
- * their own fonts targeting --font-emdash in astro.config.
+ * To add extra script coverage (Arabic, CJK, etc.), configure EmDash with
+ * emdash({ fonts: { scripts: [...] } }) rather than adding another font entry
+ * that targets --font-emdash. If you need to supply your own font entry and
+ * CSS variable instead, disable EmDash-managed fonts first with fonts: false.
  *
  * Override Tailwind's --font-sans so all font-sans utilities use it.
  */

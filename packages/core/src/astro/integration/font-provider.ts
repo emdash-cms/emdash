@@ -117,8 +117,6 @@ export function notoSans(options?: NotoSansProviderOptions): GoogleProvider {
 			await googleProvider.init?.(context);
 		},
 		async resolveFont(resolveFontOptions) {
-			const { weights, styles, formats } = resolveFontOptions;
-
 			// Resolve the base Noto Sans (Latin, Cyrillic, Greek, etc.)
 			const base = await googleProvider.resolveFont(resolveFontOptions);
 			const baseFonts = base?.fonts ?? [];
@@ -150,15 +148,12 @@ export function notoSans(options?: NotoSansProviderOptions): GoogleProvider {
 						return undefined;
 					}
 					return googleProvider.resolveFont({
+						...resolveFontOptions,
 						familyName: family,
-						weights,
-						styles,
 						// Pass all known subset names so the unifont provider
 						// doesn't filter out any faces. Each script family
 						// only returns faces for its own subsets anyway.
 						subsets: ALL_GOOGLE_SUBSETS,
-						formats,
-						options: undefined,
 					});
 				}),
 			);
