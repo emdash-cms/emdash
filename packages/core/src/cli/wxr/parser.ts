@@ -11,6 +11,7 @@
  */
 
 import type { Readable } from "node:stream";
+
 import { XMLParser } from "fast-xml-parser";
 
 // Regex patterns for WXR parsing
@@ -491,11 +492,7 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 				const parsed = parser.parse(xml) as Record<string, unknown>;
 				resolve(extractWxrData(parsed));
 			} catch (err) {
-				reject(
-					new Error(
-						`XML parsing error: ${err instanceof Error ? err.message : String(err)}`,
-					),
-				);
+				reject(new Error(`XML parsing error: ${err instanceof Error ? err.message : String(err)}`));
 			}
 		});
 	});
