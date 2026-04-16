@@ -188,13 +188,14 @@ function createWxrParser(): XMLParser {
 	});
 }
 
-// ─── Helper types for the parsed XML tree ────────────────────────────
-
-/** A node in the fast-xml-parser output tree */
-type XmlNode = string | number | { [key: string]: unknown } | undefined;
+// ─── Helpers for the parsed XML tree ─────────────────────────────────
+// Helpers accept `unknown` rather than a narrowed union because indexing
+// `Record<string, unknown>` (what fast-xml-parser returns) yields
+// `unknown`. All branches below are guarded at runtime, so permissive
+// input types are safe.
 
 /** Get text content from a parsed XML node (handles mixed text/element content) */
-function getText(node: XmlNode): string {
+function getText(node: unknown): string {
 	if (node === undefined || node === null) return "";
 	if (typeof node === "string") return node;
 	if (typeof node === "number") return String(node);
@@ -209,7 +210,7 @@ function getText(node: XmlNode): string {
 }
 
 /** Get an attribute value from a parsed XML node */
-function getAttr(node: XmlNode, attrName: string): string {
+function getAttr(node: unknown, attrName: string): string {
 	if (typeof node !== "object" || node === null) return "";
 	const obj = node as Record<string, unknown>;
 	const key = `@_${attrName}`;
