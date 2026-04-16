@@ -7,6 +7,7 @@ packages:
   - e2e/fixture
   - docs
   - i18n
+  - infra/perf-monitor
 
 catalog:
   "@arethetypeswrong/cli": ^0.18.2

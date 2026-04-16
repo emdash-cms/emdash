@@ -13,7 +13,7 @@
 import { defineMiddleware } from "astro:middleware";
 
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
-import { runWithContext } from "../../request-context.js";
+import { getRequestContext, runWithContext } from "../../request-context.js";
 import { renderToolbar } from "../../visual-editing/toolbar.js";
 
 /**
@@ -90,7 +90,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const needsContext = hasEditCookie || hasPreviewToken;
 
 	if (needsContext) {
-		return runWithContext({ editMode, preview, locale }, async () => {
+		// Merge with any outer ALS context (e.g. the per-request D1 session db
+		// set by the runtime middleware). `storage.run()` replaces the store
+		// wholesale, so without the spread the outer `db` would be lost and
+		// loaders would fall back to the singleton non-session dialect.
+		const parent = getRequestContext();
+		return runWithContext({ ...parent, editMode, preview, locale }, async () => {
 			let response = await next();
 
 			// Preview responses must not be cached -- draft content could leak past token expiry.
