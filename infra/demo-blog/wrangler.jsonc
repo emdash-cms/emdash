@@ -6,15 +6,13 @@
 	"name": "emdash-demo-blog",
 	"main": "./src/worker.ts",
 	"compatibility_date": "2026-02-24",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
+	"compatibility_flags": ["nodejs_compat"],
 	"routes": [
 		{
 			"pattern": "blog-demo.emdashcms.com",
 			"zone_name": "emdashcms.com",
-			"custom_domain": true
-		}
+			"custom_domain": true,
+		},
 	],
 	"d1_databases": [
 		{
@@ -38,7 +36,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "SESSION",
-			"id": "045dd0600977420992277da020ae2df3"
-		}
-	]
+			"id": "045dd0600977420992277da020ae2df3",
+		},
+	],
 }
