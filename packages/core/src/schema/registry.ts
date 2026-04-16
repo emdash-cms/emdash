@@ -529,13 +529,9 @@ export class SchemaRegistry {
 		const config = await ftsManager.getSearchConfig(collectionSlug);
 		const ftsActive = config?.enabled === true;
 
-		if (wantsSearch && searchableFields.length > 0) {
-			if (ftsActive) {
-				await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
-			} else {
-				await ftsManager.enableSearch(collectionSlug, { weights: config?.weights });
-			}
-		} else if (ftsActive) {
+		if (wantsSearch && searchableFields.length > 0 && ftsActive) {
+			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
+		} else if (ftsActive && (!wantsSearch || searchableFields.length === 0)) {
 			await ftsManager.disableSearch(collectionSlug);
 		}
 	}
