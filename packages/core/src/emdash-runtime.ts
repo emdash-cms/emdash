@@ -1167,9 +1167,9 @@ export class EmDashRuntime {
 	 * API routes, MCP server, plugin toggle, and taxonomy def changes.
 	 */
 	async getManifest(): Promise<EmDashManifest> {
-		// Playground mode: each session has its own DO database, so the
-		// singleton cache would serve the wrong manifest. Skip caching
-		// entirely when the DB is overridden via ALS.
+		// When the DB is overridden via ALS (playground/DO-preview sessions,
+		// D1 read-replica routing), bypass caching and rebuild against the
+		// request-scoped database handle.
 		if (getRequestContext()?.db) {
 			return this._buildManifest();
 		}
@@ -1184,7 +1184,8 @@ export class EmDashRuntime {
 				cached &&
 				typeof cached === "object" &&
 				"version" in cached &&
-				cached.version === VERSION
+				cached.version === VERSION &&
+				cached.commit === COMMIT
 			) {
 				this._cachedManifest = cached;
 				return cached;
@@ -1193,28 +1194,37 @@ export class EmDashRuntime {
 			// Options table may not exist yet
 		}
 
-		// Full rebuild, then persist
+		// Full rebuild, then persist. Track which promise is current so
+		// an invalidation during the build can't be overwritten.
 		if (!this._manifestPromise) {
-			this._manifestPromise = this._loadManifest();
+			let manifestPromise: Promise<EmDashManifest>;
+			const isCurrentLoad = () => this._manifestPromise === manifestPromise;
+			manifestPromise = this._loadManifest(isCurrentLoad);
+			this._manifestPromise = manifestPromise;
 		}
 		return this._manifestPromise;
 	}
 
-	private async _loadManifest(): Promise<EmDashManifest> {
+	private async _loadManifest(isCurrentLoad: () => boolean): Promise<EmDashManifest> {
 		try {
 			const manifest = await this._buildManifest();
-			this._cachedManifest = manifest;
 
-			try {
-				const options = new OptionsRepository(this.db);
-				await options.set("emdash:manifest_cache", manifest);
-			} catch {
-				// Non-fatal — will just rebuild next time
+			if (isCurrentLoad()) {
+				this._cachedManifest = manifest;
+
+				try {
+					const options = new OptionsRepository(this.db);
+					await options.set("emdash:manifest_cache", manifest);
+				} catch {
+					// Non-fatal — will just rebuild next time
+				}
 			}
 
 			return manifest;
 		} finally {
-			this._manifestPromise = null;
+			if (isCurrentLoad()) {
+				this._manifestPromise = null;
+			}
 		}
 	}
 
@@ -1458,9 +1468,11 @@ export class EmDashRuntime {
 		// DB delete is best-effort for the next cold start.
 		try {
 			const options = new OptionsRepository(this.db);
-			options.delete("emdash:manifest_cache").catch(() => {});
-		} catch {
-			// Non-fatal (db may not be ready)
+			options.delete("emdash:manifest_cache").catch((error) => {
+				console.error("Failed to delete persisted manifest cache", error);
+			});
+		} catch (error) {
+			console.error("Failed to initialize manifest cache invalidation", error);
 		}
 	}
 
