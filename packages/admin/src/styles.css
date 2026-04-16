@@ -72,6 +72,28 @@
 	--text-color-kumo-warning: #dba617;
 }
 
+/**
+ * Admin font stack
+ *
+ * --font-emdash is set by the Astro Font API (Noto Sans by default).
+ * Users can add extra script coverage (Arabic, CJK, etc.) by adding
+ * their own fonts targeting --font-emdash in astro.config.
+ *
+ * Override Tailwind's --font-sans so all font-sans utilities use it.
+ */
+@theme {
+	--font-sans: var(
+		--font-emdash,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
+}
+
 /* Base styles */
 * {
 	border-color: var(--color-kumo-line);
