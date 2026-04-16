@@ -286,6 +286,9 @@ export class EmDashRuntime {
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
 
+	private _cachedManifest: EmDashManifest | null = null;
+	private _manifestPromise: Promise<EmDashManifest> | null = null;
+
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
 		return this._hooks;
@@ -413,6 +416,7 @@ export class EmDashRuntime {
 			this.enabledPlugins.delete(pluginId);
 			await this.rebuildHookPipeline();
 		}
+		this.invalidateManifest();
 	}
 
 	/**
@@ -605,17 +609,19 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Load site info for plugin context extensions
+		// Load site info for plugin context extensions (1 batch query instead of 3)
 		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
 		try {
 			const optionsRepo = new OptionsRepository(db);
-			const siteName = await optionsRepo.get<string>("emdash:site_title");
-			const siteUrl = await optionsRepo.get<string>("emdash:site_url");
-			const locale = await optionsRepo.get<string>("emdash:locale");
+			const siteOpts = await optionsRepo.getMany<string>([
+				"emdash:site_title",
+				"emdash:site_url",
+				"emdash:locale",
+			]);
 			siteInfo = {
-				siteName: siteName ?? undefined,
-				siteUrl: siteUrl ?? undefined,
-				locale: locale ?? undefined,
+				siteName: siteOpts.get("emdash:site_title") ?? undefined,
+				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+				locale: siteOpts.get("emdash:locale") ?? undefined,
 			};
 		} catch {
 			// Options table may not exist yet (pre-setup)
@@ -880,7 +886,18 @@ export class EmDashRuntime {
 			const dialect = deps.createDialect(dbConfig.config);
 			const db = new Kysely<Database>({ dialect });
 
-			await runMigrations(db);
+			const { applied } = await runMigrations(db);
+
+			// If migrations were applied, the schema changed — clear the
+			// DB-persisted manifest cache so getManifest() rebuilds it.
+			if (applied.length > 0) {
+				try {
+					const options = new OptionsRepository(db);
+					await options.delete("emdash:manifest_cache");
+				} catch {
+					// Non-fatal
+				}
+			}
 
 			// Auto-seed schema if no collections exist and setup hasn't run.
 			// This covers first-load on sites that skip the setup wizard.
@@ -1142,9 +1159,79 @@ export class EmDashRuntime {
 	// =========================================================================
 
 	/**
-	 * Build the manifest (rebuilt on each request for freshness)
+	 * Get the manifest, using an in-memory cache with a DB-persisted
+	 * fallback for cold starts. Avoids N+1 schema registry queries
+	 * on every request.
+	 *
+	 * Cache is invalidated by invalidateManifest(), called from schema
+	 * API routes, MCP server, plugin toggle, and taxonomy def changes.
 	 */
 	async getManifest(): Promise<EmDashManifest> {
+		// When the DB is overridden via ALS (playground/DO-preview sessions,
+		// D1 read-replica routing), bypass caching and rebuild against the
+		// request-scoped database handle.
+		if (getRequestContext()?.db) {
+			return this._buildManifest();
+		}
+
+		if (this._cachedManifest) return this._cachedManifest;
+
+		// DB-persisted cache (1 query instead of N+1 rebuild on cold start)
+		try {
+			const options = new OptionsRepository(this.db);
+			const cached = await options.get<EmDashManifest>("emdash:manifest_cache");
+			if (
+				cached &&
+				typeof cached === "object" &&
+				"version" in cached &&
+				cached.version === VERSION &&
+				cached.commit === COMMIT
+			) {
+				this._cachedManifest = cached;
+				return cached;
+			}
+		} catch {
+			// Options table may not exist yet
+		}
+
+		// Full rebuild, then persist. Track which promise is current so
+		// an invalidation during the build can't be overwritten.
+		if (!this._manifestPromise) {
+			let manifestPromise: Promise<EmDashManifest>;
+			const isCurrentLoad = () => this._manifestPromise === manifestPromise;
+			manifestPromise = this._loadManifest(isCurrentLoad);
+			this._manifestPromise = manifestPromise;
+		}
+		return this._manifestPromise;
+	}
+
+	private async _loadManifest(isCurrentLoad: () => boolean): Promise<EmDashManifest> {
+		try {
+			const manifest = await this._buildManifest();
+
+			if (isCurrentLoad()) {
+				this._cachedManifest = manifest;
+
+				try {
+					const options = new OptionsRepository(this.db);
+					await options.set("emdash:manifest_cache", manifest);
+				} catch {
+					// Non-fatal — will just rebuild next time
+				}
+			}
+
+			return manifest;
+		} finally {
+			if (isCurrentLoad()) {
+				this._manifestPromise = null;
+			}
+		}
+	}
+
+	/**
+	 * Build the manifest from database (N+1 collection queries).
+	 */
+	private async _buildManifest(): Promise<EmDashManifest> {
 		// Build collections from database.
 		// Use this.db (ALS-aware getter) so playground mode picks up the
 		// per-session DO database instead of the hardcoded singleton.
@@ -1370,11 +1457,23 @@ export class EmDashRuntime {
 
 	/**
 	 * Invalidate cached data derived from the manifest/schema.
-	 * Called when collections are created, updated, or deleted.
+	 * Called when collections, fields, plugins, or taxonomy defs change.
 	 */
 	invalidateManifest(): void {
-		// Invalidate the URL pattern cache used by resolveEmDashPath
+		this._cachedManifest = null;
+		this._manifestPromise = null;
 		invalidateUrlPatternCache();
+		// Delete DB-persisted cache so the next cold start rebuilds.
+		// Fire-and-forget: in-memory is already cleared for this worker,
+		// DB delete is best-effort for the next cold start.
+		try {
+			const options = new OptionsRepository(this.db);
+			options.delete("emdash:manifest_cache").catch((error) => {
+				console.error("Failed to delete persisted manifest cache", error);
+			});
+		} catch (error) {
+			console.error("Failed to initialize manifest cache invalidation", error);
+		}
 	}
 
 	// =========================================================================
