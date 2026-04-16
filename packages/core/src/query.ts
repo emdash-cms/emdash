@@ -313,8 +313,9 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 		};
 	});
 
-	// Eagerly hydrate bylines for all entries
+	// Eagerly hydrate bylines and SEO for all entries
 	await hydrateEntryBylines(type, entriesWithEdit);
+	await hydrateEntrySeo(type, entriesWithEdit);
 
 	return { entries: entriesWithEdit, nextCursor, cacheHint: cacheHint ?? {} };
 }
@@ -386,12 +387,13 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	const localeChain =
 		requestedLocale && isI18nEnabled() ? getFallbackChain(requestedLocale) : [requestedLocale];
 
-	/** Return a successful EntryResult with bylines hydrated */
+	/** Return a successful EntryResult with bylines and SEO hydrated */
 	async function successResult(
 		wrapped: ContentEntry<D>,
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
 		await hydrateEntryBylines(type, [wrapped]);
+		await hydrateEntrySeo(type, [wrapped]);
 		return {
 			entry: wrapped,
 			isPreview: opts.isPreview,
@@ -529,6 +531,43 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 		const msg = err instanceof Error ? err.message : "";
 		if (!msg.includes("no such table")) {
 			console.warn("[emdash] Failed to hydrate bylines:", msg);
+		}
+	}
+}
+
+/**
+ * Eagerly hydrate SEO data on entries from the `_emdash_seo` table.
+ * Only runs when the collection has SEO enabled (`has_seo = 1`).
+ * Attaches the resolved SEO record as `entry.data.seo`.
+ */
+async function hydrateEntrySeo<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
+	if (entries.length === 0) return;
+
+	try {
+		const { getDb } = await import("./loader.js");
+		const { SeoRepository } = await import("./database/repositories/seo.js");
+		const db = await getDb();
+		const repo = new SeoRepository(db);
+
+		if (!(await repo.isEnabled(type))) return;
+
+		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
+		if (ids.length === 0) return;
+
+		const seoMap = await repo.getMany(type, ids);
+
+		for (const entry of entries) {
+			const data = entryData(entry);
+			const dbId = dataStr(data, "id");
+			if (!dbId) continue;
+			const seo = seoMap.get(dbId);
+			if (seo) data.seo = seo;
+		}
+	} catch (err) {
+		// Only swallow "table not found" errors from pre-migration databases
+		const msg = err instanceof Error ? err.message : "";
+		if (!msg.includes("no such table")) {
+			console.warn("[emdash] Failed to hydrate SEO:", msg);
 		}
 	}
 }
