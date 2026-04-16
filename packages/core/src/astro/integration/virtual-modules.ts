@@ -65,62 +65,42 @@ export function generateConfigModule(serializableConfig: Record<string, unknown>
 
 /**
  * Generates the dialect virtual module.
- * Statically imports the configured database dialect and exports the dialect type.
  *
- * For D1 adapters, also re-exports session helpers (isSessionEnabled, getD1Binding,
- * getDefaultConstraint, getBookmarkCookieName, createSessionDialect) used by
- * middleware for per-request read replica sessions.
- *
- * For non-D1 adapters, session exports are no-ops.
+ * Adapters that set `supportsRequestScope: true` on their descriptor are
+ * expected to export `createRequestScopedDb` from their runtime entrypoint;
+ * the generator re-exports it so middleware can ask for a per-request Kysely
+ * (used for D1 Sessions API, bookmark cookies, read-replica routing). Other
+ * adapters get a stub that returns null.
  */
-export function generateDialectModule(
-	dbEntrypoint?: string,
-	dbType?: string,
-	dbConfig?: unknown,
-): string {
-	if (!dbEntrypoint) {
+export function generateDialectModule(opts: {
+	entrypoint?: string;
+	type?: string;
+	supportsRequestScope: boolean;
+}): string {
+	const { entrypoint, supportsRequestScope } = opts;
+	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
-			`export const isSessionEnabled = () => false;`,
-			`export const getD1Binding = () => null;`,
-			`export const getDefaultConstraint = () => "first-unconstrained";`,
-			`export const getBookmarkCookieName = () => "";`,
-			`export const createSessionDialect = undefined;`,
+			`export const createRequestScopedDb = (_opts) => null;`,
 		].join("\n");
 	}
-	const type = dbType ?? "sqlite";
+	const type = opts.type ?? "sqlite";
 
-	// Check if the adapter is D1 (has session helpers)
-	const isD1 = dbEntrypoint.includes("cloudflare") && dbEntrypoint.includes("d1");
-
-	// Check if sessions are enabled in the config
-	const sessionMode =
-		isD1 && dbConfig && typeof dbConfig === "object" && "session" in dbConfig
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime-checked above
-				(dbConfig as { session?: string }).session
-			: undefined;
-	const sessionEnabled = !!sessionMode && sessionMode !== "disabled";
-
-	if (isD1 && sessionEnabled) {
+	if (supportsRequestScope) {
 		return `
-import { createDialect as _createDialect } from "${dbEntrypoint}";
-export { isSessionEnabled, getD1Binding, getDefaultConstraint, getBookmarkCookieName, createSessionDialect } from "${dbEntrypoint}";
+import { createDialect as _createDialect } from "${entrypoint}";
+export { createRequestScopedDb } from "${entrypoint}";
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
 	}
 
-	// Non-D1 or sessions disabled: export no-ops
 	return `
-import { createDialect as _createDialect } from "${dbEntrypoint}";
+import { createDialect as _createDialect } from "${entrypoint}";
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
-export const isSessionEnabled = () => false;
-export const getD1Binding = () => null;
-export const getDefaultConstraint = () => "first-unconstrained";
-export const getBookmarkCookieName = () => "";
-export const createSessionDialect = undefined;
+export const createRequestScopedDb = (_opts) => null;
 `;
 }
 
