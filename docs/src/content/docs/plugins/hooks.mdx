@@ -471,7 +471,7 @@ Public page hooks let plugins contribute to the `<head>` and `<body>` of rendere
 
 ### `page:metadata`
 
-Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, canonical/alternate links, and JSON-LD structured data. Works in both trusted and sandboxed modes.
+Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, canonical/alternate links, and JSON-LD structured data. Works in both native and sandboxed modes.
 
 Core validates, deduplicates, and renders the contributions. Plugins return structured data, never raw HTML.
 
@@ -527,7 +527,7 @@ First contribution wins for any dedupe key. Link hrefs must be HTTP or HTTPS.
 
 ### `page:fragments`
 
-Contributes raw HTML, scripts, or markup to page insertion points. **Trusted plugins only** — sandboxed plugins cannot use this hook.
+Contributes raw HTML, scripts, or markup to page insertion points. **Native plugins only** — sandboxed plugins cannot use this hook.
 
 ```typescript
 "page:fragments": async (event, ctx) => {
@@ -545,7 +545,7 @@ Contributes raw HTML, scripts, or markup to page insertion points. **Trusted plu
 Placements: `"head"`, `"body:start"`, `"body:end"`. Templates that omit a component for a placement silently ignore contributions targeting it.
 
 <Aside type="caution">
-	`page:fragments` is trusted-only because its output runs as first-party code in the browser.
+	`page:fragments` is native-only because its output runs as first-party code in the browser.
 	Worker Loader isolation does not extend to browser-executed scripts. Use `page:metadata` for
 	sandbox-safe contributions.
 </Aside>
@@ -575,6 +575,6 @@ Placements: `"head"`, `"body:start"`, `"body:end"`. Templates that omit a compon
 | `comment:afterCreate`   | After comment stored           | `void`                         | No        |
 | `comment:afterModerate` | Admin changes comment status   | `void`                         | No        |
 | `page:metadata`         | Page render                    | Contributions or `null`        | No        |
-| `page:fragments`        | Page render (trusted)          | Contributions or `null`        | No        |
+| `page:fragments`        | Page render (native only)      | Contributions or `null`        | No        |
 
 See the [Hook Reference](/reference/hooks/) for complete event types and handler signatures.

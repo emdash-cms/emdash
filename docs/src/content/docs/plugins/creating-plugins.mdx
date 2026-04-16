@@ -7,9 +7,15 @@ import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 This guide walks through building a complete EmDash plugin. You'll learn how to structure the code, define hooks and storage, and export admin UI components.
 
+<Aside type="tip">
+	**Which format should I use?** Plugins come in two formats: **standard** (works in both sandboxed and native mode) and **native** (native mode only). Use standard format unless you need React admin pages, Portable Text rendering components, or page fragment injection. See [Native vs. Sandboxed Plugins](/plugins/sandbox/) for a full comparison.
+</Aside>
+
+This page covers native-format plugins with the full descriptor + definition structure. For standard-format plugins that can be published to the marketplace, see [Publishing Plugins](/plugins/publishing/).
+
 ## Plugin Structure
 
-Every plugin has two parts that **run in different contexts**:
+Every native plugin has two parts that **run in different contexts**:
 
 1. **Plugin descriptor** (`PluginDescriptor`) — returned by the factory function, tells EmDash how to load the plugin. **Runs at build time in Vite** (imported in `astro.config.mjs`). Must be side-effect-free and cannot use runtime APIs.
 2. **Plugin definition** (`definePlugin()`) — contains the runtime logic (hooks, routes, storage). **Runs at request time on the deployed server.** Has access to the full plugin context (`ctx`).
@@ -121,7 +127,7 @@ export function createPlugin(options: MyPluginOptions = {}) {
 			},
 		},
 
-		// API routes (trusted only — not available in sandboxed plugins)
+		// API routes
 		routes: {
 			status: {
 				handler: async (ctx) => {
