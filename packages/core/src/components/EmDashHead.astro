@@ -37,19 +37,20 @@ let metadataHtml = "";
 let fragmentsHtml = "";
 
 if (runtime) {
-	// Site-level SEO contributions (search engine verification meta tags).
-	// Loaded from site settings; same on every page.
-	const seoSettings = await getSiteSetting("seo");
-	const siteContributions = generateSiteSeoContributions(seoSettings);
+	// Run independent async loads in parallel: site SEO settings (for search
+	// engine verification meta tags) and plugin page-metadata contributions.
+	// Plugin contributions come BEFORE site/base in the array, so
+	// resolvePageMetadata's first-wins dedup lets plugins override defaults.
+	const [seoSettings, pluginContributions, fragments] = await Promise.all([
+		getSiteSetting("seo"),
+		runtime.collectPageMetadata(page),
+		runtime.collectPageFragments(page),
+	]);
 
-	// Plugin contributions come BEFORE base/site, so resolvePageMetadata's
-	// first-wins dedup lets plugins override SEO defaults
-	const pluginContributions = await runtime.collectPageMetadata(page);
+	const siteContributions = generateSiteSeoContributions(seoSettings);
 	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
 	const resolved = resolvePageMetadata(allContributions);
 	metadataHtml = renderPageMetadata(resolved);
-
-	const fragments = await runtime.collectPageFragments(page);
 	fragmentsHtml = renderFragments(fragments, "head");
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO
