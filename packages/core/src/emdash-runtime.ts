@@ -288,6 +288,8 @@ export class EmDashRuntime {
 
 	private _cachedManifest: EmDashManifest | null = null;
 	private _manifestPromise: Promise<EmDashManifest> | null = null;
+	/** Fingerprint of build-time config that affects the manifest shape */
+	private readonly _configFingerprint: string;
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -367,6 +369,16 @@ export class EmDashRuntime {
 		this.pipelineFactoryOptions = pipelineFactoryOptions;
 		this.runtimeDeps = runtimeDeps;
 		this.pipelineRef = pipelineRef;
+
+		// Build-time config fingerprint for manifest cache validation.
+		// Catches plugin/i18n config changes across deploys even when
+		// the emdash package version stays the same.
+		this._configFingerprint = [
+			...configuredPlugins.map((p) => `${p.id}@${p.version ?? ""}`),
+			...sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`),
+			config.marketplace ? "marketplace" : "",
+			virtualConfig?.i18n?.locales?.join(",") ?? "",
+		].join("|");
 	}
 
 	/**
@@ -1179,16 +1191,13 @@ export class EmDashRuntime {
 		// DB-persisted cache (1 query instead of N+1 rebuild on cold start)
 		try {
 			const options = new OptionsRepository(this.db);
-			const cached = await options.get<EmDashManifest>("emdash:manifest_cache");
-			if (
-				cached &&
-				typeof cached === "object" &&
-				"version" in cached &&
-				cached.version === VERSION &&
-				cached.commit === COMMIT
-			) {
-				this._cachedManifest = cached;
-				return cached;
+			const cached = await options.get<{
+				fingerprint: string;
+				manifest: EmDashManifest;
+			}>("emdash:manifest_cache");
+			if (cached && cached.fingerprint === this._configFingerprint && cached.manifest) {
+				this._cachedManifest = cached.manifest;
+				return cached.manifest;
 			}
 		} catch {
 			// Options table may not exist yet
@@ -1214,7 +1223,10 @@ export class EmDashRuntime {
 
 				try {
 					const options = new OptionsRepository(this.db);
-					await options.set("emdash:manifest_cache", manifest);
+					await options.set("emdash:manifest_cache", {
+						fingerprint: this._configFingerprint,
+						manifest,
+					});
 				} catch {
 					// Non-fatal — will just rebuild next time
 				}
