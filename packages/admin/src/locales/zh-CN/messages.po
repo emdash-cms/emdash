@@ -2502,7 +2502,7 @@ msgstr "整数"
 
 #: packages/admin/src/components/ContentEditor.tsx:1356
 msgid "Invalid JSON"
-msgstr ""
+msgstr "无效的 JSON"
 
 #: packages/admin/src/components/SignupPage.tsx:258
 msgid "Invalid link"
