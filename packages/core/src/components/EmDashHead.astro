@@ -16,8 +16,12 @@
 import type { PublicPageContext, PageMetadataContribution } from "../plugins/types.js";
 import { resolvePageMetadata, renderPageMetadata } from "../page/metadata.js";
 import { renderFragments } from "../page/fragments.js";
-import { generateBaseSeoContributions } from "../page/seo-contributions.js";
+import {
+	generateBaseSeoContributions,
+	generateSiteSeoContributions,
+} from "../page/seo-contributions.js";
 import { getPageRuntime } from "../page/index.js";
+import { getSiteSetting } from "../settings/index.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -33,10 +37,15 @@ let metadataHtml = "";
 let fragmentsHtml = "";
 
 if (runtime) {
-	// Plugin contributions come BEFORE base, so resolvePageMetadata's
-	// first-wins dedup lets plugins override base SEO defaults
+	// Site-level SEO contributions (search engine verification meta tags).
+	// Loaded from site settings; same on every page.
+	const seoSettings = await getSiteSetting("seo");
+	const siteContributions = generateSiteSeoContributions(seoSettings);
+
+	// Plugin contributions come BEFORE base/site, so resolvePageMetadata's
+	// first-wins dedup lets plugins override SEO defaults
 	const pluginContributions = await runtime.collectPageMetadata(page);
-	const allContributions = [...pluginContributions, ...baseContributions];
+	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
 	const resolved = resolvePageMetadata(allContributions);
 	metadataHtml = renderPageMetadata(resolved);
 
