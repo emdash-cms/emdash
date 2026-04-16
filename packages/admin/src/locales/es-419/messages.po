@@ -433,10 +433,11 @@ msgstr "Activo"
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Add"
 msgstr "Agregar"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:204
+#: packages/admin/src/components/TaxonomySidebar.tsx:238
 msgid "Add {label}"
 msgstr "Añadir {label}"
 
@@ -493,6 +494,11 @@ msgstr "Agregue enlaces para crear su menú de navegación"
 msgid "Add New"
 msgstr "Agregar nuevo"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:440
+msgid "Add new {0}"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
 msgstr "Agregar metaetiqueta noindex"
@@ -509,7 +515,7 @@ msgstr "Agregue plugins a su astro.config.mjs para ampliar la funcionalidad de E
 msgid "Add Sub-Field"
 msgstr "Agregar subcampo"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:203
+#: packages/admin/src/components/TaxonomySidebar.tsx:237
 msgid "Add tags..."
 msgstr "Añadir etiquetas..."
 
@@ -2019,6 +2025,10 @@ msgstr "No se pudo crear la firma"
 msgid "Failed to create some collections"
 msgstr "No se pudieron crear algunas colecciones."
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:447
+msgid "Failed to create term"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
 msgstr "No se pudo deshabilitar el plugin"
@@ -2547,6 +2557,7 @@ msgstr "Palabras clave"
 msgid "Label"
 msgstr "Etiqueta"
 
+#: packages/admin/src/components/LoginPage.tsx:371
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -3011,6 +3022,11 @@ msgstr "Nunca"
 msgid "NEW"
 msgstr "NUEVO"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+msgid "New {0}"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:526
 msgid "New {collectionLabel}"
 msgstr "Nuevo {collectionLabel}"
@@ -3065,7 +3081,7 @@ msgid "No"
 msgstr "No"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:311
+#: packages/admin/src/components/TaxonomySidebar.tsx:388
 msgid "No {0} available."
 msgstr "No hay {0} disponible."
 
@@ -3745,7 +3761,7 @@ msgstr "Eliminar"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:189
+#: packages/admin/src/components/TaxonomySidebar.tsx:222
 msgid "Remove {0}"
 msgstr "Eliminar {0}"
 
@@ -4661,7 +4677,7 @@ msgstr "Las etiquetas serán importadas"
 msgid "Target"
 msgstr "Objetivo"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:357
+#: packages/admin/src/components/TaxonomySidebar.tsx:486
 msgid "Taxonomies"
 msgstr "Taxonomías"
 

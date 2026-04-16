@@ -433,10 +433,11 @@ msgstr "Active"
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Add"
 msgstr "Add"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:204
+#: packages/admin/src/components/TaxonomySidebar.tsx:238
 msgid "Add {label}"
 msgstr "Add {label}"
 
@@ -493,6 +494,11 @@ msgstr "Add links to build your navigation menu"
 msgid "Add New"
 msgstr "Add New"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:440
+msgid "Add new {0}"
+msgstr "Add new {0}"
+
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
 msgstr "Add noindex meta tag"
@@ -509,7 +515,7 @@ msgstr "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgid "Add Sub-Field"
 msgstr "Add Sub-Field"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:203
+#: packages/admin/src/components/TaxonomySidebar.tsx:237
 msgid "Add tags..."
 msgstr "Add tags..."
 
@@ -2019,6 +2025,10 @@ msgstr "Failed to create byline"
 msgid "Failed to create some collections"
 msgstr "Failed to create some collections"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:447
+msgid "Failed to create term"
+msgstr "Failed to create term"
+
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
 msgstr "Failed to disable plugin"
@@ -2547,6 +2557,7 @@ msgstr "Keywords"
 msgid "Label"
 msgstr "Label"
 
+#: packages/admin/src/components/LoginPage.tsx:371
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -3011,6 +3022,11 @@ msgstr "Never"
 msgid "NEW"
 msgstr "NEW"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+msgid "New {0}"
+msgstr "New {0}"
+
 #: packages/admin/src/components/ContentEditor.tsx:526
 msgid "New {collectionLabel}"
 msgstr "New {collectionLabel}"
@@ -3065,7 +3081,7 @@ msgid "No"
 msgstr "No"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:311
+#: packages/admin/src/components/TaxonomySidebar.tsx:388
 msgid "No {0} available."
 msgstr "No {0} available."
 
@@ -3745,7 +3761,7 @@ msgstr "Remove"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:189
+#: packages/admin/src/components/TaxonomySidebar.tsx:222
 msgid "Remove {0}"
 msgstr "Remove {0}"
 
@@ -4661,7 +4677,7 @@ msgstr "Tags will be imported"
 msgid "Target"
 msgstr "Target"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:357
+#: packages/admin/src/components/TaxonomySidebar.tsx:486
 msgid "Taxonomies"
 msgstr "Taxonomies"
 

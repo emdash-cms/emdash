@@ -433,10 +433,11 @@ msgstr "有効"
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Add"
 msgstr "追加"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:204
+#: packages/admin/src/components/TaxonomySidebar.tsx:238
 msgid "Add {label}"
 msgstr "{label}を追加"
 
@@ -493,6 +494,11 @@ msgstr "ナビゲーションメニューを構築するためにリンクを追
 msgid "Add New"
 msgstr "新規追加"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:440
+msgid "Add new {0}"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
 msgstr "noindexメタタグを追加"
@@ -509,7 +515,7 @@ msgstr "astro.config.mjsにプラグインを追加してEmDashの機能を拡�
 msgid "Add Sub-Field"
 msgstr "サブフィールドを追加"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:203
+#: packages/admin/src/components/TaxonomySidebar.tsx:237
 msgid "Add tags..."
 msgstr "タグを追加..."
 
@@ -2019,6 +2025,10 @@ msgstr "署名の作成に失敗しました"
 msgid "Failed to create some collections"
 msgstr "一部のコレクションの作成に失敗しました"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:447
+msgid "Failed to create term"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
 msgstr "プラグインの無効化に失敗しました"
@@ -2547,6 +2557,7 @@ msgstr "キーワード"
 msgid "Label"
 msgstr "ラベル"
 
+#: packages/admin/src/components/LoginPage.tsx:371
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -3011,6 +3022,11 @@ msgstr "なし"
 msgid "NEW"
 msgstr "新規"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+msgid "New {0}"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:526
 msgid "New {collectionLabel}"
 msgstr "新しい{collectionLabel}"
@@ -3065,7 +3081,7 @@ msgid "No"
 msgstr "いいえ"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:311
+#: packages/admin/src/components/TaxonomySidebar.tsx:388
 msgid "No {0} available."
 msgstr "利用可能な{0}がありません。"
 
@@ -3745,7 +3761,7 @@ msgstr "削除"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:189
+#: packages/admin/src/components/TaxonomySidebar.tsx:222
 msgid "Remove {0}"
 msgstr "{0}を削除"
 
@@ -4661,7 +4677,7 @@ msgstr "タグがインポートされます"
 msgid "Target"
 msgstr "ターゲット"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:357
+#: packages/admin/src/components/TaxonomySidebar.tsx:486
 msgid "Taxonomies"
 msgstr "タクソノミー"
 

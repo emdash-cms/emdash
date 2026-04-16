@@ -437,10 +437,11 @@ msgstr "نشط"
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Add"
 msgstr "إضافة"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:204
+#: packages/admin/src/components/TaxonomySidebar.tsx:238
 msgid "Add {label}"
 msgstr "إضافة {label}"
 
@@ -497,6 +498,11 @@ msgstr "أضف روابط لتصميم قائمة التنقل الخاصة بك
 msgid "Add New"
 msgstr "إضافة جديد"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:440
+msgid "Add new {0}"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
 msgstr "إضافة علامة noindex الذاتية"
@@ -513,7 +519,7 @@ msgstr "قم بإدراج إضافات لملف astro.config.mjs الخاص بك
 msgid "Add Sub-Field"
 msgstr "إضافة حقل فرعي"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:203
+#: packages/admin/src/components/TaxonomySidebar.tsx:237
 msgid "Add tags..."
 msgstr "إضافة وسوم..."
 
@@ -2023,6 +2029,10 @@ msgstr "فشل في إنشاء اسم المؤلف"
 msgid "Failed to create some collections"
 msgstr "فشل في إنشاء بعض المجموعات"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:447
+msgid "Failed to create term"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
 msgstr "فشل في تعطيل الإضافة"
@@ -2551,6 +2561,7 @@ msgstr "الكلمات المفتاحية"
 msgid "Label"
 msgstr "التسمية"
 
+#: packages/admin/src/components/LoginPage.tsx:371
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -3015,6 +3026,11 @@ msgstr "أبدًا"
 msgid "NEW"
 msgstr "جديد"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+msgid "New {0}"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:526
 msgid "New {collectionLabel}"
 msgstr "{collectionLabel} جديد"
@@ -3069,7 +3085,7 @@ msgid "No"
 msgstr "لا"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:311
+#: packages/admin/src/components/TaxonomySidebar.tsx:388
 msgid "No {0} available."
 msgstr "لا يوجد {0} متاح."
 
@@ -3749,7 +3765,7 @@ msgstr "إزالة"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:189
+#: packages/admin/src/components/TaxonomySidebar.tsx:222
 msgid "Remove {0}"
 msgstr "إزالة {0}"
 
@@ -4665,7 +4681,7 @@ msgstr "سيتم استيراد الوسوم"
 msgid "Target"
 msgstr "الهدف"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:357
+#: packages/admin/src/components/TaxonomySidebar.tsx:486
 msgid "Taxonomies"
 msgstr "التصنيفات"
 
