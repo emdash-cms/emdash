@@ -433,10 +433,11 @@ msgstr "Actif"
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Add"
 msgstr "Ajouter"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:204
+#: packages/admin/src/components/TaxonomySidebar.tsx:238
 msgid "Add {label}"
 msgstr "Ajouter {label}"
 
@@ -493,6 +494,11 @@ msgstr "Ajoutez des liens pour créer votre menu de navigation"
 msgid "Add New"
 msgstr "Ajouter"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:440
+msgid "Add new {0}"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
 msgstr "Ajouter une balise méta noindex"
@@ -509,7 +515,7 @@ msgstr "Ajoutez des modules d'extension à votre fichier astro.config.mjs pour �
 msgid "Add Sub-Field"
 msgstr "Ajouter un sous-champ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:203
+#: packages/admin/src/components/TaxonomySidebar.tsx:237
 msgid "Add tags..."
 msgstr "Ajouter des étiquettes..."
 
@@ -2019,6 +2025,10 @@ msgstr "Échec de la création de l'auteur"
 msgid "Failed to create some collections"
 msgstr "Échec de la création de certaines collections"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:447
+msgid "Failed to create term"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
 msgstr "Échec de la désactivation du module d'extension"
@@ -3012,6 +3022,11 @@ msgstr "Jamais"
 msgid "NEW"
 msgstr "NOUVEAU"
 
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+msgid "New {0}"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:526
 msgid "New {collectionLabel}"
 msgstr "Nouveau {collectionLabel}"
@@ -3066,7 +3081,7 @@ msgid "No"
 msgstr "Non"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:311
+#: packages/admin/src/components/TaxonomySidebar.tsx:388
 msgid "No {0} available."
 msgstr "Aucun {0} disponible."
 
@@ -3746,7 +3761,7 @@ msgstr "Supprimer"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:189
+#: packages/admin/src/components/TaxonomySidebar.tsx:222
 msgid "Remove {0}"
 msgstr "Supprimer {0}"
 
@@ -4662,7 +4677,7 @@ msgstr "Les étiquettes seront importées"
 msgid "Target"
 msgstr "Cible"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:357
+#: packages/admin/src/components/TaxonomySidebar.tsx:486
 msgid "Taxonomies"
 msgstr "Taxonomies"
 
