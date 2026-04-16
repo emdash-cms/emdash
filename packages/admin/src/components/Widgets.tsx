@@ -107,8 +107,24 @@ export function Widgets() {
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
 	const [expandedWidgets, setExpandedWidgets] = React.useState<Set<string>>(new Set());
+	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
 	// Track palette drag source across the full drag lifecycle (including drop animation)
 	const draggingFromPaletteRef = React.useRef(false);
+
+	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+		setBlockSidebarPanel((prev) => {
+			// Close any existing panel before opening a new one so only one is ever active
+			prev?.onClose();
+			return panel;
+		});
+	}, []);
+
+	const handleBlockSidebarClose = React.useCallback(() => {
+		setBlockSidebarPanel((prev) => {
+			prev?.onClose();
+			return null;
+		});
+	}, []);
 
 	const { data: areas = [], isLoading } = useQuery({
 		queryKey: ["widget-areas"],
@@ -412,6 +428,8 @@ export function Widgets() {
 									onToggleWidget={toggleWidget}
 									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
 									components={components}
+									onBlockSidebarOpen={handleBlockSidebarOpen}
+									onBlockSidebarClose={handleBlockSidebarClose}
 								/>
 							))
 						)}
@@ -436,6 +454,25 @@ export function Widgets() {
 					</div>
 				) : null}
 			</DragOverlay>
+
+			{/* A single block-sidebar panel for the whole page — ensures only one is ever
+			    open at a time, preventing stacked fixed overlays and duplicated window listeners. */}
+			{blockSidebarPanel?.type === "image" && (
+				<ImageDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+					onUpdate={(attrs) =>
+						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
+					}
+					onReplace={(attrs) =>
+						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+					}
+					onDelete={() => {
+						blockSidebarPanel.onDelete();
+						setBlockSidebarPanel(null);
+					}}
+					onClose={handleBlockSidebarClose}
+				/>
+			)}
 		</DndContext>
 	);
 }
@@ -482,12 +519,16 @@ function WidgetAreaPanel({
 	onToggleWidget,
 	isDraggingPalette,
 	components,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	area: WidgetArea;
 	expandedWidgets: Set<string>;
 	onToggleWidget: (id: string) => void;
 	isDraggingPalette: boolean;
 	components: WidgetComponent[];
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -542,6 +583,8 @@ function WidgetAreaPanel({
 								isExpanded={expandedWidgets.has(widget.id)}
 								onToggle={() => onToggleWidget(widget.id)}
 								components={components}
+								onBlockSidebarOpen={onBlockSidebarOpen}
+								onBlockSidebarClose={onBlockSidebarClose}
 							/>
 						))}
 					</SortableContext>
@@ -587,12 +630,16 @@ function WidgetItem({
 	isExpanded,
 	onToggle,
 	components,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	widget: Widget;
 	areaName: string;
 	isExpanded: boolean;
 	onToggle: () => void;
 	components: WidgetComponent[];
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -677,6 +724,8 @@ function WidgetItem({
 					components={components}
 					onSave={(input) => updateMutation.mutate(input)}
 					isSaving={updateMutation.isPending}
+					onBlockSidebarOpen={onBlockSidebarOpen}
+					onBlockSidebarClose={onBlockSidebarClose}
 				/>
 			)}
 		</div>
@@ -689,11 +738,15 @@ function WidgetEditor({
 	components,
 	onSave,
 	isSaving,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	widget: Widget;
 	components: WidgetComponent[];
 	onSave: (input: UpdateWidgetInput) => void;
 	isSaving: boolean;
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
 	const [title, setTitle] = React.useState(widget.title ?? "");
 	const [content, setContent] = React.useState<unknown[]>(
@@ -704,18 +757,6 @@ function WidgetEditor({
 	const [componentProps, setComponentProps] = React.useState<Record<string, unknown>>(
 		widget.componentProps ?? {},
 	);
-	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
-
-	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
-		setBlockSidebarPanel(panel);
-	}, []);
-
-	const handleBlockSidebarClose = React.useCallback(() => {
-		setBlockSidebarPanel((prev) => {
-			prev?.onClose();
-			return null;
-		});
-	}, []);
 
 	const { data: menus = [] } = useQuery({
 		queryKey: ["menus"],
@@ -755,25 +796,9 @@ function WidgetEditor({
 						onChange={(value) => setContent(value as unknown[])}
 						minimal
 						placeholder="Write widget content..."
-						onBlockSidebarOpen={handleBlockSidebarOpen}
-						onBlockSidebarClose={handleBlockSidebarClose}
+						onBlockSidebarOpen={onBlockSidebarOpen}
+						onBlockSidebarClose={onBlockSidebarClose}
 					/>
-					{blockSidebarPanel?.type === "image" && (
-						<ImageDetailPanel
-							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-							onUpdate={(attrs) =>
-								blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-							}
-							onReplace={(attrs) =>
-								blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-							}
-							onDelete={() => {
-								blockSidebarPanel.onDelete();
-								setBlockSidebarPanel(null);
-							}}
-							onClose={handleBlockSidebarClose}
-						/>
-					)}
 				</div>
 			)}
 
