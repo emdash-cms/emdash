@@ -32,6 +32,8 @@ import {
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	VIRTUAL_AUTH_ID,
 	RESOLVED_VIRTUAL_AUTH_ID,
+	VIRTUAL_AUTH_PROVIDERS_ID,
+	RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID,
 	VIRTUAL_MEDIA_PROVIDERS_ID,
 	RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID,
 	VIRTUAL_BLOCK_COMPONENTS_ID,
@@ -43,6 +45,7 @@ import {
 	generateDialectModule,
 	generateStorageModule,
 	generateAuthModule,
+	generateAuthProvidersModule,
 	generatePluginsModule,
 	generateAdminRegistryModule,
 	generateSandboxRunnerModule,
@@ -167,6 +170,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_AUTH_ID) {
 				return RESOLVED_VIRTUAL_AUTH_ID;
 			}
+			if (id === VIRTUAL_AUTH_PROVIDERS_ID) {
+				return RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID;
+			}
 			if (id === VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID;
 			}
@@ -221,6 +227,10 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 					return generateAuthModule(undefined);
 				}
 				return generateAuthModule(authDescriptor.entrypoint);
+			}
+			// Generate auth providers module (pluggable login methods)
+			if (id === RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID) {
+				return generateAuthProvidersModule(resolvedConfig.authProviders ?? []);
 			}
 			// Generate media providers module
 			if (id === RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID) {

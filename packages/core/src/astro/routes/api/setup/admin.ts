@@ -47,8 +47,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, setupAdminBody);
 		if (isParseError(body)) return body;
 
-		// Store admin info in setup state for later
+		// Merge admin info into existing setup state (preserves title/tagline from step 1)
+		const existingState = await options.get<Record<string, unknown>>("emdash:setup_state");
 		await options.set("emdash:setup_state", {
+			...existingState,
 			step: "admin",
 			email: body.email.toLowerCase(),
 			name: body.name || null,
@@ -78,8 +80,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			challengeStore,
 		);
 
-		// Store the temp user ID with the setup state
+		// Merge temp user ID into setup state (preserves title/tagline from step 1)
 		await options.set("emdash:setup_state", {
+			...existingState,
 			step: "admin",
 			email: body.email.toLowerCase(),
 			name: body.name || null,

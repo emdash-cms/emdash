@@ -6,8 +6,9 @@
  *
  * Steps:
  * 1. Site Configuration (title, tagline, sample content)
- * 2. Admin Account (email, name)
- * 3. Passkey Registration
+ * 2. Create admin account — user picks any available auth method:
+ *    - Passkey (always available)
+ *    - Any configured auth provider (AT Protocol, GitHub, Google, etc.)
  */
 
 import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
@@ -17,6 +18,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse } from "../lib/api/client";
+import { useAuthProviderList, type AuthProviderModule } from "../lib/auth-provider-context";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { LogoLockup } from "./Logo.js";
 
@@ -262,49 +264,96 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 	);
 }
 
-interface PasskeyStepProps {
-	adminData: SetupAdminRequest;
-	onBack: () => void;
-}
-
-function handlePasskeySuccess() {
-	// Redirect to admin dashboard after successful registration
+function handleSetupSuccess() {
 	window.location.href = "/_emdash/admin";
 }
 
-function PasskeyStep({ adminData, onBack }: PasskeyStepProps) {
+interface AuthMethodStepProps {
+	adminData: SetupAdminRequest;
+	providers: AuthProviderModule[];
+	onBack: () => void;
+}
+
+function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 	const { t } = useLingui();
+	const [activeProvider, setActiveProvider] = React.useState<string | null>(null);
+
+	const buttonProviders = providers.filter((p) => p.LoginButton);
+	const hasProviders = buttonProviders.length > 0;
+
+	// Show provider form (full card replacement)
+	if (activeProvider) {
+		const provider = providers.find((p) => p.id === activeProvider);
+		if (provider && (provider.SetupStep || provider.LoginForm)) {
+			return (
+				<div className="space-y-4">
+					<div className="text-center mb-2">
+						<h3 className="text-lg font-medium">{t`Sign in with ${provider.label}`}</h3>
+					</div>
+					{provider.SetupStep ? (
+						<provider.SetupStep onComplete={handleSetupSuccess} />
+					) : provider.LoginForm ? (
+						<provider.LoginForm />
+					) : null}
+					<Button
+						type="button"
+						variant="ghost"
+						className="w-full justify-center"
+						onClick={() => setActiveProvider(null)}
+					>
+						{t`← Back`}
+					</Button>
+				</div>
+			);
+		}
+	}
+
 	return (
 		<div className="space-y-6">
+			{/* Passkey option */}
 			<div className="text-center">
-				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mb-4">
-					<svg
-						className="w-8 h-8 text-kumo-brand"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-						/>
-					</svg>
-				</div>
-				<h3 className="text-lg font-medium">{t`Set up your passkey`}</h3>
+				<h3 className="text-lg font-medium">{t`Choose how to sign in`}</h3>
 				<p className="text-sm text-kumo-subtle mt-1">
-					{t`Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in.`}
+					{t`Pick any method to create your admin account.`}
 				</p>
 			</div>
 
 			<PasskeyRegistration
 				optionsEndpoint="/_emdash/api/setup/admin"
 				verifyEndpoint="/_emdash/api/setup/admin/verify"
-				onSuccess={handlePasskeySuccess}
+				onSuccess={handleSetupSuccess}
 				buttonText={t`Create Passkey`}
 				additionalData={{ ...adminData }}
 			/>
+
+			{/* Auth provider options */}
+			{hasProviders && (
+				<>
+					<div className="relative">
+						<div className="absolute inset-0 flex items-center">
+							<span className="w-full border-t" />
+						</div>
+						<div className="relative flex justify-center text-xs uppercase">
+							<span className="bg-kumo-base px-2 text-kumo-subtle">Or continue with</span>
+						</div>
+					</div>
+
+					<div
+						className={`grid gap-3 ${buttonProviders.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}
+					>
+						{buttonProviders.map((provider) => {
+							const Btn = provider.LoginButton!;
+							const hasForm = !!provider.LoginForm || !!provider.SetupStep;
+							const selectProvider = () => setActiveProvider(provider.id);
+							return (
+								<div key={provider.id} onClick={hasForm ? selectProvider : undefined}>
+									<Btn />
+								</div>
+							);
+						})}
+					</div>
+				</>
+			)}
 
 			<Button type="button" variant="ghost" onClick={onBack} className="w-full">
 				{t`← Back`}
@@ -330,7 +379,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 		: ([
 				{ key: "site", label: t`Site` },
 				{ key: "admin", label: t`Account` },
-				{ key: "passkey", label: t`Passkey` },
+				{ key: "passkey", label: t`Sign In` },
 			] as const);
 
 	const currentIndex = steps.findIndex((s) => s.key === currentStep);
@@ -393,6 +442,23 @@ export function SetupWizard() {
 	const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null);
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
 	const [error, setError] = React.useState<string | undefined>();
+	const [urlError, setUrlError] = React.useState<string | null>(null);
+
+	// Auth provider components from virtual module (via context)
+	const authProviderList = useAuthProviderList();
+
+	// Check for error in URL (from OAuth/provider redirect)
+	React.useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		const errorParam = params.get("error");
+		const message = params.get("message");
+
+		if (errorParam) {
+			setUrlError(message || `Authentication error: ${errorParam}`);
+			// Clean up URL
+			window.history.replaceState({}, "", window.location.pathname);
+		}
+	}, []);
 
 	// Check setup status
 	const {
@@ -418,7 +484,7 @@ export function SetupWizard() {
 				window.location.href = "/_emdash/admin";
 				return;
 			}
-			// Otherwise continue to admin account creation
+			// Continue to admin account creation
 			setCurrentStep("admin");
 		},
 		onError: (err: Error) => {
@@ -500,6 +566,13 @@ export function SetupWizard() {
 					)}
 				</div>
 
+				{/* Error from URL (provider failure) */}
+				{urlError && (
+					<div className="mb-6 rounded-lg bg-kumo-danger/10 border border-kumo-danger/20 p-4 text-sm text-kumo-danger">
+						{urlError}
+					</div>
+				)}
+
 				{/* Progress */}
 				<StepIndicator currentStep={currentStep} useAccessAuth={useAccessAuth} />
 
@@ -527,8 +600,9 @@ export function SetupWizard() {
 					)}
 
 					{currentStep === "passkey" && adminData && (
-						<PasskeyStep
+						<AuthMethodStep
 							adminData={adminData}
+							providers={authProviderList}
 							onBack={() => {
 								setError(undefined);
 								setCurrentStep("admin");
