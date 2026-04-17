@@ -62,9 +62,13 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 /**
  * Pre-populate the request-scoped cache with a resolved value.
  *
- * Intended for hydration paths that already have the data in hand and want
- * downstream callers using `requestCached(key, ...)` to skip the database
- * entirely. No-ops outside a request context (local dev without ALS).
+ * Internal helper shared between hydration paths (taxonomy terms,
+ * bylines, etc.) that already have the data in hand and want downstream
+ * callers using `requestCached(key, ...)` to skip the database entirely.
+ * Not exported from the package entrypoint — keep it internal until we
+ * have a documented plugin/extension surface for hydration.
+ *
+ * No-ops outside a request context (local dev without ALS).
  *
  * Does not overwrite an existing entry — if a query for this key is already
  * in flight, its promise wins.
