@@ -22,8 +22,8 @@ const STORE_KEY = Symbol.for("emdash:request-cache");
 const store: WeakMap<
 	EmDashRequestContext,
 	Map<string, Promise<unknown>>
-> = (// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
-(globalThis as Record<symbol, unknown>)[STORE_KEY] as
+> = // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+((globalThis as Record<symbol, unknown>)[STORE_KEY] as
 	| WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>
 	| undefined) ??
 (() => {
