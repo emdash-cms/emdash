@@ -1,0 +1,963 @@
+---
+import {
+	getEmDashEntry,
+	getEmDashCollection,
+	getEntryTerms,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import {
+	Image,
+	PortableText,
+	Comments,
+	CommentForm,
+	WidgetArea,
+} from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import PostCard from "../../components/PostCard.astro";
+import { getReadingTime } from "../../utils/reading-time";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+
+if (!post) {
+	return Astro.redirect("/404");
+}
+
+Astro.cache.set(cacheHint);
+
+// Get featured image URL for OG fallback
+// The image may have src (external) or meta.storageKey (local)
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	// Check for direct src
+	if (typeof image.src === "string" && image.src) {
+		return image.src.startsWith("http")
+			? image.src
+			: `${Astro.url.origin}${image.src}`;
+	}
+	// Build from storageKey for local images
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	if (storageKey) {
+		return `${Astro.url.origin}/_emdash/api/media/file/${storageKey}`;
+	}
+	return undefined;
+}
+const featuredImageUrl = getImageUrl(post.data.featured_image);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+
+// Generate SEO meta from content
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: `/posts/${slug}`,
+	defaultOgImage: featuredImageUrl,
+});
+
+// Get tags for this post
+// Note: post.id is the slug, post.data.id is the database ULID
+const tags = await getEntryTerms("posts", post.data.id, "tag");
+
+// Bylines are already hydrated by getEmDashEntry
+const bylines = post.data.bylines ?? [];
+
+// Get reading time
+const readingTime = getReadingTime(post.data.content);
+
+// Get other posts for "More posts" section, with their tags
+// Fetch a few extra in case the current post is among them
+const { entries: recentPosts } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+	limit: 4,
+});
+const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
+
+// Fetch tags for related posts (bylines are already hydrated by getEmDashCollection)
+const otherPostsWithTags = await Promise.all(
+	otherPosts.map(async (p) => {
+		const postTags = await getEntryTerms("posts", p.data.id, "tag");
+		const postBylines = p.data.bylines ?? [];
+		return { post: p, tags: postTags, bylines: postBylines };
+	})
+);
+
+const publishDate =
+	post.data.publishedAt?.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	}) ?? null;
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+	<article class="article">
+		{/* Hero: Full-width featured image */}
+		{
+			post.data.featured_image && (
+				<div class="article-hero" {...post.edit.featured_image}>
+					<Image image={post.data.featured_image} />
+				</div>
+			)
+		}
+
+		{/* Three-column layout */}
+		<div class="article-grid">
+			{/* Left gutter: Meta information */}
+			<aside class="article-meta-col">
+				<div class="meta-sticky">
+					{
+						bylines.length > 0 && (
+							<div class="meta-block byline-block">
+								<span class="meta-label">
+									{bylines.length === 1 ? "Author" : "Authors"}
+								</span>
+								<div class="bylines">
+									{bylines.map((credit) => (
+										<div class="byline">
+											{credit.byline.avatarMediaId && (
+												<img
+													src={`/_emdash/api/media/file/${credit.byline.avatarMediaId}`}
+													alt={credit.byline.displayName}
+													class="byline-avatar"
+												/>
+											)}
+											<div class="byline-info">
+												<span class="byline-name">
+													{credit.byline.displayName}
+												</span>
+												{credit.roleLabel && (
+													<span class="byline-role">{credit.roleLabel}</span>
+												)}
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						)
+					}
+					{
+						publishDate && (
+							<div class="meta-block">
+								<span class="meta-label">Published</span>
+								<time class="meta-value">{publishDate}</time>
+							</div>
+						)
+					}
+					<div class="meta-block">
+						<span class="meta-label">Reading time</span>
+						<span class="meta-value">{readingTime} min</span>
+					</div>
+					{
+						tags.length > 0 && (
+							<div class="meta-block">
+								<span class="meta-label">Tags</span>
+								<div class="meta-tags">
+									{tags.map((t) => (
+										<a href={`/tag/${t.slug}`} class="meta-tag">
+											{t.label}
+										</a>
+									))}
+								</div>
+							</div>
+						)
+					}
+				</div>
+			</aside>
+
+			{/* Main content */}
+			<div class="article-main">
+				<header class="article-header">
+					<div class="article-meta">
+						{
+							bylines.length > 0 && (
+								<>
+									<span class="article-meta-byline">
+										{bylines.map((credit, i) => (
+											<>
+												{i > 0 && ", "}
+												{credit.byline.displayName}
+											</>
+										))}
+									</span>
+									<span class="meta-dot" />
+								</>
+							)
+						}
+						{
+							publishDate && (
+								<>
+									<time>{publishDate}</time>
+									<span class="meta-dot" />
+								</>
+							)
+						}
+						<span>{readingTime} min read</span>
+					</div>
+					<h1 class="article-title" {...post.edit.title}>{post.data.title}</h1>
+					{
+						post.data.excerpt && (
+							<p class="article-excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+						)
+					}
+				</header>
+
+				<div class="article-content">
+					<PortableText value={post.data.content} />
+				</div>
+
+				<div class="article-comments">
+					<Comments collection="posts" contentId={post.data.id} threaded />
+					<CommentForm collection="posts" contentId={post.data.id} />
+				</div>
+			</div>
+
+			{/* Right gutter: TOC + Sidebar widgets */}
+			<aside class="article-sidebar">
+				<div class="sidebar-sticky">
+					<nav class="toc" aria-label="Table of contents">
+						<h4 class="toc-title">On this page</h4>
+						<div class="toc-content" id="toc-content">
+							<!-- Populated by JS -->
+						</div>
+					</nav>
+					<div class="sidebar-widgets">
+						<WidgetArea name="sidebar" />
+					</div>
+				</div>
+			</aside>
+		</div>
+	</article>
+
+	{
+		otherPostsWithTags.length > 0 && (
+			<section class="more-posts">
+				<div class="more-inner">
+					<h2 class="more-title">Continue reading</h2>
+					<div class="more-grid">
+						{otherPostsWithTags.map(
+							({ post: p, tags: postTags, bylines: postBylines }) => (
+								<PostCard
+									title={p.data.title}
+									excerpt={p.data.excerpt}
+									featuredImage={p.data.featured_image}
+									href={`/posts/${p.id}`}
+									date={p.data.publishedAt ?? undefined}
+									readingTime={getReadingTime(p.data.content)}
+									tags={postTags.map((t) => ({ slug: t.slug, label: t.label }))}
+									bylines={postBylines}
+								/>
+							)
+						)}
+					</div>
+				</div>
+			</section>
+		)
+	}
+
+	<script>
+		// Build table of contents from h2/h3 headings
+		function buildToc() {
+			const content = document.querySelector(".article-content");
+			const tocContainer = document.getElementById("toc-content");
+			if (!content || !tocContainer) return;
+
+			const headings = content.querySelectorAll("h2, h3");
+			if (headings.length === 0) {
+				// Hide TOC if no headings
+				const toc = document.querySelector(".toc") as HTMLElement | null;
+				if (toc) toc.style.display = "none";
+				return;
+			}
+
+			const list = document.createElement("ul");
+			list.className = "toc-list";
+
+			headings.forEach((heading, index) => {
+				// Add ID if missing
+				if (!heading.id) {
+					heading.id = `heading-${index}`;
+				}
+
+				const li = document.createElement("li");
+				li.className =
+					heading.tagName === "H3" ? "toc-item toc-item--nested" : "toc-item";
+
+				const link = document.createElement("a");
+				link.href = `#${heading.id}`;
+				link.className = "toc-link";
+				link.textContent = heading.textContent;
+
+				li.appendChild(link);
+				list.appendChild(li);
+			});
+
+			tocContainer.appendChild(list);
+
+			// Highlight current section on scroll
+			const observer = new IntersectionObserver(
+				(entries) => {
+					entries.forEach((entry) => {
+						const id = entry.target.id;
+						const link = tocContainer.querySelector(`a[href="#${id}"]`);
+						if (link) {
+							if (entry.isIntersecting) {
+								tocContainer
+									.querySelectorAll(".toc-link")
+									.forEach((l) => l.classList.remove("active"));
+								link.classList.add("active");
+							}
+						}
+					});
+				},
+				{ rootMargin: "-80px 0px -80% 0px" }
+			);
+
+			headings.forEach((heading) => observer.observe(heading));
+		}
+
+		buildToc();
+	</script>
+</Base>
+
+<style>
+	/* Article container */
+	.article {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+	}
+
+	/* Hero image - full width within container */
+	.article-hero {
+		margin: var(--spacing-16) var(--spacing-6);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+	}
+
+	.article-hero img {
+		width: 100%;
+		height: auto;
+		max-height: 500px;
+		object-fit: cover;
+	}
+
+	/* Three-column grid */
+	.article-grid {
+		display: grid;
+		grid-template-columns:
+			var(--meta-col-width) minmax(0, var(--content-width))
+			var(--gutter-width);
+		gap: var(--spacing-10);
+		justify-content: center;
+		padding: 0 var(--spacing-6);
+		margin: var(--spacing-16) 0;
+	}
+
+	/* Left column: Meta */
+	.article-meta-col {
+		display: block;
+	}
+
+	.meta-sticky {
+		position: sticky;
+		top: calc(var(--nav-height) + var(--spacing-8));
+	}
+
+	.meta-block {
+		margin-bottom: var(--spacing-6);
+	}
+
+	.meta-label {
+		display: block;
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-1);
+	}
+
+	.meta-value {
+		display: block;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+	}
+
+	.meta-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-1);
+	}
+
+	.meta-tag {
+		display: inline-block;
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.meta-tag:hover {
+		color: var(--color-text);
+		background: var(--color-border);
+	}
+
+	/* Byline styles */
+	.bylines {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-1);
+	}
+
+	.byline {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+	}
+
+	.byline-avatar {
+		width: var(--avatar-size-lg);
+		height: var(--avatar-size-lg);
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.byline-info {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.byline-name {
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.byline-role {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+	}
+
+	/* Main content column */
+	.article-main {
+		min-width: 0;
+	}
+
+	.article-header {
+		margin-bottom: var(--spacing-10);
+	}
+
+	.article-header .article-meta {
+		display: none;
+		align-items: center;
+		flex-wrap: wrap;
+		column-gap: var(--spacing-3);
+		row-gap: var(--spacing-1);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.article-meta-byline {
+		font-weight: 500;
+		color: var(--color-text-secondary);
+	}
+
+	.article-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
+		font-weight: 700;
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.article-excerpt {
+		font-size: var(--font-size-xl);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	/* Article content typography */
+	.article-content {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.article-content :global(p) {
+		margin-bottom: 1.5em;
+	}
+
+	.article-content :global(h2) {
+		font-size: var(--font-size-2xl);
+		margin-top: 2.5em;
+		margin-bottom: 0.75em;
+		scroll-margin-top: calc(var(--nav-height) + var(--spacing-4));
+	}
+
+	.article-content :global(h3) {
+		font-size: var(--font-size-xl);
+		margin-top: 2em;
+		margin-bottom: 0.5em;
+		scroll-margin-top: calc(var(--nav-height) + var(--spacing-4));
+	}
+
+	.article-content :global(blockquote) {
+		margin: 2em 0;
+		padding: var(--spacing-4) var(--spacing-6);
+		border-left: 3px solid var(--color-border);
+		background: var(--color-bg-subtle);
+		border-radius: 0 var(--radius) var(--radius) 0;
+		color: var(--color-text-secondary);
+		font-style: italic;
+	}
+
+	.article-content :global(pre) {
+		margin: 2em 0;
+		padding: var(--spacing-5);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		overflow-x: auto;
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		line-height: 1.6;
+	}
+
+	.article-content :global(code) {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+		background: var(--color-surface);
+		padding: 0.2em 0.4em;
+		border-radius: var(--radius);
+	}
+
+	.article-content :global(pre code) {
+		background: none;
+		padding: 0;
+	}
+
+	.article-content :global(ul),
+	.article-content :global(ol) {
+		margin-bottom: 1.5em;
+		padding-left: 1.5em;
+	}
+
+	.article-content :global(li) {
+		margin-bottom: 0.5em;
+	}
+
+	.article-content :global(img) {
+		margin: 2em 0;
+		border-radius: var(--radius-lg);
+	}
+
+	.article-content :global(hr) {
+		margin: 3em 0;
+		border: none;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.article-content :global(a) {
+		color: var(--color-accent);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		text-decoration-thickness: 1px;
+	}
+
+	.article-content :global(a:hover) {
+		text-decoration-thickness: 2px;
+	}
+
+	/* Right column: TOC + Sidebar */
+	.article-sidebar {
+		display: block;
+	}
+
+	.sidebar-sticky {
+		position: sticky;
+		top: calc(var(--nav-height) + var(--spacing-8));
+	}
+
+	.toc {
+		margin-bottom: var(--spacing-8);
+		padding-bottom: var(--spacing-6);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.toc-title {
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-3);
+	}
+
+	.toc-content :global(.toc-list) {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.toc-content :global(.toc-item) {
+		margin-bottom: var(--spacing-1);
+	}
+
+	.toc-content :global(.toc-item--nested) {
+		padding-left: var(--spacing-3);
+	}
+
+	.toc-content :global(.toc-link) {
+		display: block;
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		text-decoration: none;
+		padding: var(--spacing-1) 0;
+		transition: color var(--transition-fast);
+		line-height: var(--leading-snug);
+	}
+
+	.toc-content :global(.toc-link:hover),
+	.toc-content :global(.toc-link.active) {
+		color: var(--color-text);
+	}
+
+	/* Sidebar widgets */
+	.sidebar-widgets :global(.widget-area) {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-6);
+	}
+
+	.sidebar-widgets :global(.widget) {
+		font-size: var(--font-size-sm);
+	}
+
+	.sidebar-widgets :global(.widget__title) {
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-3);
+	}
+
+	.sidebar-widgets :global(.widget__content) {
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+	}
+
+	/* Sidebar search widget */
+	.sidebar-widgets :global(.widget-search) {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+	}
+
+	.sidebar-widgets :global(.widget-search__input) {
+		width: 100%;
+		padding: var(--spacing-2) var(--spacing-3);
+		font-family: var(--font-sans);
+		font-size: var(--font-size-sm);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+		transition:
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.sidebar-widgets :global(.widget-search__input)::placeholder {
+		color: var(--color-muted);
+	}
+
+	.sidebar-widgets :global(.widget-search__input):focus,
+	.sidebar-widgets :global(.widget-search__input):focus-visible {
+		outline: none;
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px var(--color-accent-ring);
+	}
+
+	.sidebar-widgets :global(.widget-search__button) {
+		display: none;
+	}
+
+	/* Sidebar categories widget */
+	.sidebar-widgets :global(.widget-categories) {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.sidebar-widgets :global(.widget-categories li) {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: var(--spacing-2) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.sidebar-widgets :global(.widget-categories li:last-child) {
+		border-bottom: none;
+	}
+
+	.sidebar-widgets :global(.widget-categories__link) {
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+
+	.sidebar-widgets :global(.widget-categories__link:hover) {
+		color: var(--color-text);
+	}
+
+	.sidebar-widgets :global(.widget-categories__count) {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		background: var(--color-surface);
+		padding: var(--tag-padding-y) var(--spacing-2);
+		border-radius: var(--radius);
+	}
+
+	/* Sidebar tags widget - pill style */
+	.sidebar-widgets :global(.widget-tags__cloud) {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+	}
+
+	.sidebar-widgets :global(.widget-tags__cloud li) {
+		margin: 0;
+	}
+
+	.sidebar-widgets :global(.widget-tags__link) {
+		display: inline-block;
+		padding: var(--spacing-1) var(--spacing-3);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.sidebar-widgets :global(.widget-tags__link:hover) {
+		color: var(--color-text);
+		background: var(--color-border);
+	}
+
+	.sidebar-widgets :global(.widget-tags__count) {
+		display: none;
+	}
+
+	/* Sidebar recent posts widget */
+	.sidebar-widgets :global(.widget-recent-posts) {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.sidebar-widgets :global(.widget-recent-posts li) {
+		padding: var(--spacing-2) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.sidebar-widgets :global(.widget-recent-posts li:last-child) {
+		border-bottom: none;
+	}
+
+	.sidebar-widgets :global(.widget-recent-posts a) {
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+		line-height: var(--leading-snug);
+	}
+
+	.sidebar-widgets :global(.widget-recent-posts a:hover) {
+		color: var(--color-text);
+	}
+
+	/* Sidebar archives widget */
+	.sidebar-widgets :global(.widget-archives) {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.sidebar-widgets :global(.widget-archives li) {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: var(--spacing-2) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.sidebar-widgets :global(.widget-archives li:last-child) {
+		border-bottom: none;
+	}
+
+	.sidebar-widgets :global(.widget-archives__link) {
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+
+	.sidebar-widgets :global(.widget-archives__link:hover) {
+		color: var(--color-text);
+	}
+
+	.sidebar-widgets :global(.widget-archives__count) {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		background: var(--color-surface);
+		padding: var(--tag-padding-y) var(--spacing-2);
+		border-radius: var(--radius);
+	}
+
+	/* Comments section */
+	.article-comments {
+		margin-top: var(--spacing-16);
+		padding-top: var(--spacing-10);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.article-comments :global(.ec-comments) {
+		--ec-comment-border: 1px solid var(--color-border);
+	}
+
+	.article-comments :global(.ec-comments-heading) {
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		margin-bottom: var(--spacing-8);
+	}
+
+	.article-comments :global(.ec-comment-author) {
+		color: var(--color-text);
+	}
+
+	.article-comments :global(.ec-comment-date) {
+		font-family: var(--font-mono);
+		color: var(--color-muted);
+	}
+
+	.article-comments :global(.ec-comment-body) {
+		color: var(--color-text);
+	}
+
+	.article-comments :global(.ec-comment-form-field input),
+	.article-comments :global(.ec-comment-form-field textarea) {
+		background: var(--color-surface) !important;
+		border-color: var(--color-border) !important;
+		color: var(--color-text) !important;
+	}
+
+	.article-comments :global(.ec-comment-user-info) {
+		background: var(--color-surface) !important;
+		border-color: var(--color-border) !important;
+	}
+
+	.article-comments :global(.ec-comment-form-submit) {
+		background: var(--color-accent) !important;
+		color: var(--color-on-accent) !important;
+	}
+
+	/* More posts section */
+	.more-posts {
+		background: var(--color-bg-subtle);
+		padding: var(--spacing-16) 0;
+		margin-top: var(--spacing-16);
+	}
+
+	.more-inner {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: 0 var(--spacing-6);
+	}
+
+	.more-title {
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		margin-bottom: var(--spacing-10);
+	}
+
+	.more-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		grid-template-rows: repeat(5, auto);
+		gap: var(--spacing-8);
+	}
+
+	/* Responsive */
+	@media (max-width: 1100px) {
+		.article-grid {
+			grid-template-columns: minmax(0, var(--content-width));
+			gap: 0;
+		}
+
+		.article-meta-col,
+		.article-sidebar {
+			display: none;
+		}
+
+		.article-header .article-meta {
+			display: flex;
+		}
+	}
+
+	@media (max-width: 900px) {
+		.article-hero {
+			margin: var(--spacing-4) var(--spacing-4) var(--spacing-8);
+			border-radius: var(--radius);
+		}
+
+		.article-grid {
+			padding: 0 var(--spacing-4);
+		}
+
+		.more-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 600px) {
+		.article-title {
+			font-size: var(--font-size-3xl);
+		}
+
+		.more-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

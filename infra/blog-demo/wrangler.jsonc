@@ -1,7 +1,4 @@
 {
-	// Demo deployment config for templates/blog-cloudflare.
-	// Workers Builds copies this over templates/blog-cloudflare/wrangler.jsonc before deploy.
-	// Keep structure in sync with the template's wrangler.jsonc -- only names/IDs differ.
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "emdash-demo-blog",
 	"main": "./src/worker.ts",
@@ -18,7 +15,6 @@
 		{
 			"binding": "DB",
 			"database_name": "emdash-demo-blog",
-			// Create with: wrangler d1 create emdash-demo-blog
 			"database_id": "9361329b-a0f6-4c59-a184-74747a705e54",
 		},
 	],
