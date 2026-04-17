@@ -9,7 +9,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
-import { requestCached } from "../request-cache.js";
+import { requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
@@ -73,18 +73,20 @@ async function hasAnyTermAssignments(db: Kysely<Database>): Promise<boolean> {
  * Get all taxonomy definitions
  */
 export async function getTaxonomyDefs(): Promise<TaxonomyDef[]> {
-	const db = await getDb();
+	return requestCached("taxonomy-defs:all", async () => {
+		const db = await getDb();
 
-	const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
+		const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
 
-	return rows.map((row) => ({
-		id: row.id,
-		name: row.name,
-		label: row.label,
-		labelSingular: row.label_singular ?? undefined,
-		hierarchical: row.hierarchical === 1,
-		collections: row.collections ? JSON.parse(row.collections) : [],
-	}));
+		return rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			label: row.label,
+			labelSingular: row.label_singular ?? undefined,
+			hierarchical: row.hierarchical === 1,
+			collections: row.collections ? JSON.parse(row.collections) : [],
+		}));
+	});
 }
 
 /**
@@ -362,8 +364,20 @@ export async function getAllTermsForEntries(
 
 	const db = await getDb();
 
-	// Skip the query entirely when no assignments exist anywhere.
+	// Look up which taxonomies apply to this collection. Used below to
+	// seed empty arrays for taxonomies the entry has no terms in — so
+	// callers (including the pre-populated getEntryTerms cache) get a
+	// deterministic `[]` back rather than a cache miss that triggers a DB
+	// round-trip just to confirm "no terms".
+	const applicableTaxonomyNames = await getCollectionTaxonomyNames(collection);
+
+	// Skip the query entirely when no assignments exist anywhere, but still
+	// prime the cache with empty arrays so downstream getEntryTerms calls
+	// don't reach the DB for this collection.
 	if (!(await hasAnyTermAssignments(db))) {
+		for (const id of uniqueIds) {
+			primeEntryTermsCache(collection, id, {}, applicableTaxonomyNames);
+		}
 		return result;
 	}
 
@@ -408,7 +422,66 @@ export async function getAllTermsForEntries(
 		}
 	}
 
+	// Prime the request-scoped cache so legacy callers of getEntryTerms
+	// (which still work per-entry) hit the in-memory cache instead of
+	// re-querying. This is what gives us the N+1 win in existing templates
+	// without requiring them to be rewritten.
+	for (const [entryId, byTaxonomy] of result) {
+		primeEntryTermsCache(collection, entryId, byTaxonomy, applicableTaxonomyNames);
+	}
+
 	return result;
+}
+
+/**
+ * Return the list of taxonomy names applicable to a collection, request-
+ * cached so a page render only pays for it once.
+ *
+ * Returns an empty list when taxonomies haven't been defined yet.
+ */
+async function getCollectionTaxonomyNames(collection: string): Promise<string[]> {
+	try {
+		const defs = await getTaxonomyDefs();
+		return defs.filter((d) => d.collections.includes(collection)).map((d) => d.name);
+	} catch (error) {
+		if (isMissingTableError(error)) return [];
+		throw error;
+	}
+}
+
+/**
+ * Pre-populate the request-cache for every getEntryTerms call-shape that
+ * could hit this entry:
+ *
+ *   getEntryTerms(collection, entryId)                 -> key `terms:C:E:*`
+ *   getEntryTerms(collection, entryId, "tag")          -> key `terms:C:E:tag`
+ *   getEntryTerms(collection, entryId, "category")     -> key `terms:C:E:category`
+ *   ...one per taxonomy that applies to this collection
+ *
+ * Taxonomies with no rows on this entry are seeded with `[]` so legacy
+ * callers short-circuit to the cached empty array instead of re-querying.
+ */
+function primeEntryTermsCache(
+	collection: string,
+	entryId: string,
+	byTaxonomy: Record<string, TaxonomyTerm[]>,
+	applicableTaxonomyNames: string[],
+): void {
+	// Seed every applicable taxonomy with at least [] so
+	// getEntryTerms(collection, id, "tag") doesn't miss the cache when an
+	// entry has no tags.
+	for (const name of applicableTaxonomyNames) {
+		setRequestCacheEntry(`terms:${collection}:${entryId}:${name}`, byTaxonomy[name] ?? []);
+	}
+	// Also seed individual names that show up in data but aren't listed
+	// as applicable (e.g. taxonomy reassigned to a different collection
+	// since the terms were written).
+	for (const [name, terms] of Object.entries(byTaxonomy)) {
+		setRequestCacheEntry(`terms:${collection}:${entryId}:${name}`, terms);
+	}
+	// Flattened `*` view — all terms across all taxonomies in one array.
+	const allTerms = Object.values(byTaxonomy).flat();
+	setRequestCacheEntry(`terms:${collection}:${entryId}:*`, allTerms);
 }
 
 /**

@@ -12,7 +12,12 @@ vi.mock("../../../src/loader.js", () => ({
 }));
 
 import { getDb } from "../../../src/loader.js";
-import { getAllTermsForEntries, invalidateTermCache } from "../../../src/taxonomies/index.js";
+import { runWithContext } from "../../../src/request-context.js";
+import {
+	getAllTermsForEntries,
+	getEntryTerms,
+	invalidateTermCache,
+} from "../../../src/taxonomies/index.js";
 
 describe("getAllTermsForEntries", () => {
 	let db: Kysely<Database>;
@@ -137,5 +142,87 @@ describe("getAllTermsForEntries", () => {
 		const result = await getAllTermsForEntries("post", [p1.id, p2.id]);
 		expect(result.get(p1.id)?.tag?.[0].slug).toBe("one");
 		expect(result.get(p2.id)).toEqual({});
+	});
+
+	it("primes the request cache so getEntryTerms doesn't re-query", async () => {
+		// Extend the default "tag" taxonomy (seeded for `posts`) to also
+		// apply to the `post` collection used in these tests. Without this,
+		// the primer wouldn't seed the "tag" key for entries with no tags.
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["posts", "post"]) })
+			.where("name", "=", "tag")
+			.execute();
+
+		const tag = await taxRepo.create({ name: "tag", slug: "web", label: "Web" });
+		const p1 = await contentRepo.create({
+			type: "post",
+			slug: "p1",
+			data: { title: "P1" },
+		});
+		const p2 = await contentRepo.create({
+			type: "post",
+			slug: "p2",
+			data: { title: "P2" },
+		});
+		await taxRepo.attachToEntry("post", p1.id, tag.id);
+
+		invalidateTermCache();
+
+		const getDbSpy = vi.mocked(getDb);
+
+		await runWithContext({ editMode: false }, async () => {
+			// Populate the cache via the batched API.
+			await getAllTermsForEntries("post", [p1.id, p2.id]);
+
+			const callsAfterBatch = getDbSpy.mock.calls.length;
+
+			// These per-entry calls should hit the primed cache.
+			const p1Tags = await getEntryTerms("post", p1.id, "tag");
+			const p2Tags = await getEntryTerms("post", p2.id, "tag");
+			const p1All = await getEntryTerms("post", p1.id); // the `*` key
+
+			// No additional DB calls should have happened for the primed keys.
+			expect(getDbSpy.mock.calls.length).toBe(callsAfterBatch);
+
+			// And the values should match what the batch returned.
+			expect(p1Tags.map((t) => t.slug)).toEqual(["web"]);
+			expect(p2Tags).toEqual([]);
+			expect(p1All.map((t) => t.slug)).toEqual(["web"]);
+		});
+	});
+
+	it("does not leak primed entries across requests", async () => {
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["posts", "post"]) })
+			.where("name", "=", "tag")
+			.execute();
+
+		const tag = await taxRepo.create({ name: "tag", slug: "web", label: "Web" });
+		const p1 = await contentRepo.create({
+			type: "post",
+			slug: "p1",
+			data: { title: "P1" },
+		});
+		await taxRepo.attachToEntry("post", p1.id, tag.id);
+
+		invalidateTermCache();
+
+		await runWithContext({ editMode: false }, async () => {
+			await getAllTermsForEntries("post", [p1.id]);
+		});
+
+		const getDbSpy = vi.mocked(getDb);
+		const callsBeforeSecondRequest = getDbSpy.mock.calls.length;
+
+		await runWithContext({ editMode: false }, async () => {
+			// Different request context — the cache from the previous context
+			// must not be visible here.
+			await getEntryTerms("post", p1.id, "tag");
+		});
+
+		// At least one DB call should have happened in the second request.
+		expect(getDbSpy.mock.calls.length).toBeGreaterThan(callsBeforeSecondRequest);
 	});
 });
