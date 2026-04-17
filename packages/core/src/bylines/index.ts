@@ -6,54 +6,68 @@
  * the taxonomies runtime API.
  */
 
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
+import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
- * Cached result of "does any byline exist in the database?"
- * null = not yet checked, true/false = cached result.
- * Invalidated when bylines are created or deleted.
+ * Per-DB cache of "does any byline exist in the database?".
+ *
+ * Keyed by the resolved Kysely instance rather than held at module scope so
+ * per-request DB overrides (preview sessions, D1 Sessions API replicas,
+ * Durable Object playground mode) don't bleed cached results across
+ * unrelated database instances.
+ *
+ * Missing key = unchecked, `true`/`false` = cached probe result.
  */
-let hasBylines: boolean | null = null;
+let hasBylinesCache: WeakMap<Kysely<Database>, boolean> = new WeakMap();
 
 /**
- * Invalidate the cached "has any bylines" check.
- * Call this when bylines are created, updated, or deleted.
+ * Invalidate the cached "has any bylines" check across all databases.
+ *
+ * Call this when bylines are created, updated, or deleted. Writes are rare
+ * compared to reads, so we clear the whole map rather than tracking which DB
+ * was mutated.
  */
 export function invalidateBylineCache(): void {
-	hasBylines = null;
+	hasBylinesCache = new WeakMap();
 }
 
 /**
- * Check if any bylines exist in the database. Result is cached
- * for the lifetime of the worker/process and invalidated on writes.
+ * Check if any bylines exist for the given DB instance. Result is cached
+ * per-DB for the lifetime of that DB handle.
+ *
+ * Rethrows any error that is not a "missing table" error so callers see
+ * real DB failures (permissions, connectivity, syntax) rather than silently
+ * short-circuiting to "no bylines". Pre-migration databases return `false`
+ * — the expected state before the table exists.
  */
-async function hasAnyBylines(): Promise<boolean> {
-	if (hasBylines !== null) return hasBylines;
+async function hasAnyBylines(db: Kysely<Database>): Promise<boolean> {
+	const cached = hasBylinesCache.get(db);
+	if (cached !== undefined) return cached;
 
 	try {
-		const db = await getDb();
 		const result = await sql<{ id: string }>`
 			SELECT id FROM _emdash_bylines LIMIT 1
 		`.execute(db);
-		hasBylines = result.rows.length > 0;
-	} catch (error: unknown) {
-		// Only treat "no such table" as a safe false -- anything else should
-		// not be cached so the next request retries.
-		const message = error instanceof Error ? error.message : "";
-		if (message.includes("no such table")) {
-			hasBylines = false;
-		} else {
+		const value = result.rows.length > 0;
+		hasBylinesCache.set(db, value);
+		return value;
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			hasBylinesCache.set(db, false);
 			return false;
 		}
+		// Don't cache unknown failures; let the next call retry.
+		throw error;
 	}
-
-	return hasBylines;
 }
 
 /**
@@ -176,13 +190,14 @@ export async function getBylinesForEntries(
 		return result;
 	}
 
+	const db = await getDb();
+
 	// Skip DB queries entirely when no bylines have been created.
 	// The cache is invalidated when bylines are created/deleted.
-	if (!(await hasAnyBylines())) {
+	if (!(await hasAnyBylines(db))) {
 		return result;
 	}
 
-	const db = await getDb();
 	const repo = new BylineRepository(db);
 
 	// 1. Batch fetch all explicit byline credits

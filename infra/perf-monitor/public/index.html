@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Emdash Perf Monitor</title>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3/dist/chartjs-plugin-annotation.min.js"></script>
+		<style>
+			:root {
+				--bg: #0c0c0e;
+				--bg-card: #16161a;
+				--bg-hover: #1e1e24;
+				--border: #2a2a32;
+				--text: #e0e0e6;
+				--text-muted: #888894;
+				--text-dim: #5c5c66;
+				--accent: #4dabf7;
+				--accent-dim: #2a6cb5;
+				--green: #51cf66;
+				--yellow: #fcc419;
+				--red: #ff6b6b;
+				--orange: #ff922b;
+				--purple: #b197fc;
+				--radius: 6px;
+				--font: "SF Mono", "Cascadia Code", "Fira Code", Menlo, monospace;
+			}
+
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: var(--font);
+				background: var(--bg);
+				color: var(--text);
+				font-size: 13px;
+				line-height: 1.5;
+				-webkit-font-smoothing: antialiased;
+			}
+
+			.container {
+				max-width: 1400px;
+				margin: 0 auto;
+				padding: 24px;
+			}
+
+			header {
+				display: flex;
+				align-items: baseline;
+				gap: 16px;
+				margin-bottom: 32px;
+				border-bottom: 1px solid var(--border);
+				padding-bottom: 16px;
+			}
+
+			header h1 {
+				font-size: 16px;
+				font-weight: 600;
+				letter-spacing: -0.02em;
+			}
+
+			header .target {
+				color: var(--text-muted);
+				font-size: 12px;
+			}
+
+			header .last-updated {
+				margin-left: auto;
+				color: var(--text-dim);
+				font-size: 11px;
+			}
+
+			/* Controls */
+			.controls {
+				display: flex;
+				gap: 12px;
+				margin-bottom: 24px;
+				flex-wrap: wrap;
+				align-items: center;
+			}
+
+			.controls label {
+				color: var(--text-muted);
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+
+			.controls select {
+				background: var(--bg-card);
+				color: var(--text);
+				border: 1px solid var(--border);
+				padding: 6px 10px;
+				border-radius: var(--radius);
+				font-family: var(--font);
+				font-size: 12px;
+				cursor: pointer;
+			}
+
+			.controls select:hover {
+				border-color: var(--accent-dim);
+			}
+
+			/* Summary cards */
+			.summary-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+				gap: 12px;
+				margin-bottom: 32px;
+			}
+
+			.summary-card {
+				background: var(--bg-card);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 14px 16px;
+			}
+
+			.summary-card .label {
+				font-size: 11px;
+				color: var(--text-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				margin-bottom: 6px;
+			}
+
+			.summary-card .value {
+				font-size: 22px;
+				font-weight: 600;
+				letter-spacing: -0.03em;
+			}
+
+			.summary-card .meta {
+				font-size: 11px;
+				color: var(--text-dim);
+				margin-top: 4px;
+			}
+
+			.good {
+				color: var(--green);
+			}
+			.warn {
+				color: var(--yellow);
+			}
+			.bad {
+				color: var(--red);
+			}
+
+			/* Chart area */
+			.chart-section {
+				margin-bottom: 32px;
+			}
+
+			.chart-section h2 {
+				font-size: 13px;
+				font-weight: 600;
+				margin-bottom: 12px;
+				color: var(--text-muted);
+			}
+
+			.chart-wrapper {
+				background: var(--bg-card);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 16px;
+				position: relative;
+			}
+
+			.chart-wrapper canvas {
+				width: 100% !important;
+			}
+
+			/* Table */
+			.results-table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 12px;
+			}
+
+			.results-table th {
+				text-align: left;
+				font-size: 10px;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				color: var(--text-dim);
+				padding: 8px 12px;
+				border-bottom: 1px solid var(--border);
+				font-weight: 500;
+			}
+
+			.results-table td {
+				padding: 8px 12px;
+				border-bottom: 1px solid var(--border);
+				color: var(--text-muted);
+			}
+
+			.results-table tr:hover td {
+				background: var(--bg-hover);
+			}
+
+			.results-table .mono {
+				font-variant-numeric: tabular-nums;
+			}
+
+			.pr-badge {
+				display: inline-block;
+				background: var(--accent-dim);
+				color: var(--accent);
+				padding: 1px 6px;
+				border-radius: 3px;
+				font-size: 11px;
+				font-weight: 500;
+				text-decoration: none;
+			}
+
+			.pr-badge:hover {
+				background: #3577c5;
+			}
+
+			.source-badge {
+				display: inline-block;
+				padding: 1px 6px;
+				border-radius: 3px;
+				font-size: 10px;
+				font-weight: 500;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+			}
+			.source-cron {
+				background: #1a1f2a;
+				color: var(--text-muted);
+			}
+			.source-deploy {
+				background: #1a3a2a;
+				color: var(--green);
+			}
+			.source-manual {
+				background: #3a2a1a;
+				color: var(--yellow);
+			}
+
+			.timing-tag {
+				display: inline-block;
+				padding: 1px 5px;
+				margin-right: 4px;
+				border-radius: 3px;
+				font-size: 10px;
+				background: #1e1e24;
+				color: var(--text-muted);
+				font-variant-numeric: tabular-nums;
+			}
+			.timing-tag strong {
+				color: var(--text);
+				font-weight: 500;
+				margin-right: 3px;
+			}
+
+			.note-text {
+				color: var(--text-muted);
+				font-size: 11px;
+				font-style: italic;
+			}
+
+			a.sha-link {
+				color: var(--text-dim);
+				text-decoration: none;
+			}
+
+			a.sha-link:hover {
+				color: var(--text-muted);
+				text-decoration: underline;
+			}
+
+			.region-tag {
+				display: inline-block;
+				padding: 1px 6px;
+				border-radius: 3px;
+				font-size: 10px;
+				font-weight: 500;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+			}
+
+			.region-use {
+				background: #1a3a2a;
+				color: var(--green);
+			}
+			.region-euw {
+				background: #1a2a3a;
+				color: var(--accent);
+			}
+			.region-ape {
+				background: #2a1a3a;
+				color: var(--purple);
+			}
+			.region-aps {
+				background: #3a2a1a;
+				color: var(--orange);
+			}
+
+			.loading {
+				text-align: center;
+				padding: 48px;
+				color: var(--text-dim);
+			}
+
+			.error-msg {
+				background: #2a1a1a;
+				border: 1px solid #3a2020;
+				color: var(--red);
+				padding: 12px 16px;
+				border-radius: var(--radius);
+				font-size: 12px;
+			}
+
+			/* Legend for chart */
+			.chart-legend {
+				display: flex;
+				gap: 16px;
+				margin-top: 12px;
+				flex-wrap: wrap;
+			}
+
+			.chart-legend .item {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 11px;
+				color: var(--text-muted);
+			}
+
+			.chart-legend .swatch {
+				width: 12px;
+				height: 3px;
+				border-radius: 1px;
+			}
+
+			.chart-legend .swatch-marker {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				border: 2px solid var(--red);
+				background: transparent;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>emdash perf</h1>
+				<span class="target" id="target-label"></span>
+				<span class="last-updated" id="last-updated"></span>
+			</header>
+
+			<div class="controls">
+				<div>
+					<label>Route</label>
+					<select id="route-select"></select>
+				</div>
+				<div>
+					<label>Region</label>
+					<select id="region-select">
+						<option value="all">All Regions</option>
+					</select>
+				</div>
+				<div>
+					<label>Period</label>
+					<select id="period-select">
+						<option value="24h">24 hours</option>
+						<option value="7d" selected>7 days</option>
+						<option value="30d">30 days</option>
+						<option value="90d">90 days</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="summary-grid" id="summary-cards">
+				<div class="loading">Loading...</div>
+			</div>
+
+			<div class="chart-section">
+				<h2>Cold Start TTFB</h2>
+				<div class="chart-wrapper">
+					<canvas id="cold-chart" height="300"></canvas>
+				</div>
+				<div class="chart-legend">
+					<div class="item">
+						<span class="swatch" style="background: var(--green)"></span>
+						US East
+					</div>
+					<div class="item">
+						<span class="swatch" style="background: var(--accent)"></span>
+						Europe West
+					</div>
+					<div class="item">
+						<span class="swatch" style="background: var(--purple)"></span>
+						Asia Pacific East
+					</div>
+					<div class="item">
+						<span class="swatch" style="background: var(--orange)"></span>
+						Asia Pacific South
+					</div>
+					<div class="item">
+						<span class="swatch-marker"></span>
+						Deploy
+					</div>
+				</div>
+			</div>
+
+			<div class="chart-section">
+				<h2>Warm TTFB (median)</h2>
+				<div class="chart-wrapper">
+					<canvas id="warm-chart" height="300"></canvas>
+				</div>
+			</div>
+
+			<div class="chart-section">
+				<h2>Recent Results</h2>
+				<div class="chart-wrapper" style="overflow-x: auto">
+					<table class="results-table" id="results-table">
+						<thead>
+							<tr>
+								<th>Time</th>
+								<th>Route</th>
+								<th>Region</th>
+								<th>Cold TTFB</th>
+								<th>Warm TTFB</th>
+								<th>P95</th>
+								<th>Status</th>
+								<th>Colo</th>
+								<th>Cold Timings</th>
+								<th>Warm Timings</th>
+								<th>Source</th>
+							</tr>
+						</thead>
+						<tbody id="results-body">
+							<tr>
+								<td colspan="11" class="loading">Loading...</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			const GITHUB_REPO = "emdash-cms/emdash";
+			const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
+
+			const REGION_COLORS = {
+				use: "#51cf66",
+				euw: "#4dabf7",
+				ape: "#b197fc",
+				aps: "#ff922b",
+			};
+
+			const REGION_LABELS = {
+				use: "US East",
+				euw: "Europe West",
+				ape: "Asia Pacific East",
+				aps: "Asia Pacific South",
+			};
+
+			let coldChart = null;
+			let warmChart = null;
+			let configData = null;
+
+			async function fetchJson(url) {
+				const resp = await fetch(url);
+				if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+				return resp.json();
+			}
+
+			function periodToSince(period) {
+				const now = new Date();
+				switch (period) {
+					case "24h":
+						return new Date(now - 24 * 60 * 60 * 1000).toISOString();
+					case "7d":
+						return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+					case "30d":
+						return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+					case "90d":
+						return new Date(now - 90 * 24 * 60 * 60 * 1000).toISOString();
+					default:
+						return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+				}
+			}
+
+			function formatMs(ms) {
+				if (ms == null) return "-";
+				if (ms < 1000) return Math.round(ms) + "ms";
+				return (ms / 1000).toFixed(2) + "s";
+			}
+
+			function ttfbClass(ms, threshold) {
+				if (ms == null) return "";
+				if (ms <= threshold * 0.5) return "good";
+				if (ms <= threshold) return "warn";
+				return "bad";
+			}
+
+			function formatTime(iso) {
+				const d = new Date(iso);
+				const pad = (n) => String(n).padStart(2, "0");
+				return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+			}
+
+			const HTML_ESCAPES = {
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': "&quot;",
+				"'": "&#39;",
+			};
+			function escapeHtml(s) {
+				if (s == null) return "";
+				return String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+			}
+			function escapeAttr(s) {
+				// attribute-safe subset of characters
+				return escapeHtml(s).replace(/\//g, "&#47;");
+			}
+
+			/**
+			 * Render server timings as a row of small tagged pills.
+			 * Input is the JSON string as stored in D1, or null.
+			 * We keep the tooltip (title attr) with the full `desc` when present
+			 * so hovering surfaces readable names without cluttering the table.
+			 */
+			function renderServerTimings(raw) {
+				if (!raw) return '<span style="color:var(--text-dim)">-</span>';
+				let parsed;
+				try {
+					parsed = JSON.parse(raw);
+				} catch {
+					return '<span style="color:var(--text-dim)">-</span>';
+				}
+				if (!parsed || typeof parsed !== "object") return "";
+				const entries = Object.entries(parsed);
+				if (entries.length === 0) return "";
+				return entries
+					.map(([name, t]) => {
+						const dur = Math.round(t.dur);
+						const title = t.desc ? `${t.desc} (${dur}ms)` : `${name}: ${dur}ms`;
+						return `<span class="timing-tag" title="${escapeAttr(title)}"><strong>${escapeHtml(name)}</strong>${dur}ms</span>`;
+					})
+					.join("");
+			}
+
+			async function loadConfig() {
+				configData = await fetchJson("/api/config");
+
+				// Show the target site (without protocol, it's tidier)
+				if (configData.target) {
+					document.getElementById("target-label").textContent = configData.target.replace(
+						/^https?:\/\//,
+						"",
+					);
+				}
+
+				const routeSelect = document.getElementById("route-select");
+				for (const route of configData.routes) {
+					const opt = document.createElement("option");
+					opt.value = route.path;
+					opt.textContent = route.label;
+					routeSelect.appendChild(opt);
+				}
+
+				const regionSelect = document.getElementById("region-select");
+				for (const region of configData.regions) {
+					const opt = document.createElement("option");
+					opt.value = region.id;
+					opt.textContent = region.label;
+					regionSelect.appendChild(opt);
+				}
+			}
+
+			async function loadSummary() {
+				const data = await fetchJson("/api/summary");
+				const container = document.getElementById("summary-cards");
+				container.innerHTML = "";
+
+				if (!data.latest || data.latest.length === 0) {
+					container.innerHTML =
+						'<div class="summary-card"><div class="label">No data</div><div class="value">-</div></div>';
+					return;
+				}
+
+				// Group by region and show the latest cold TTFB for the selected route
+				const route = document.getElementById("route-select").value || configData.routes[0]?.path;
+				const routeConfig = configData.routes.find((r) => r.path === route);
+
+				for (const region of configData.regions) {
+					const result = data.latest.find((r) => r.route === route && r.region === region.id);
+					const median = data.medians.find((m) => m.route === route && m.region === region.id);
+
+					const card = document.createElement("div");
+					card.className = "summary-card";
+
+					const coldMs = result?.cold_ttfb_ms;
+					const threshold = routeConfig?.coldThresholdMs ?? 2000;
+					const cls = ttfbClass(coldMs, threshold);
+
+					card.innerHTML = `
+            <div class="label"><span class="region-tag region-${region.id}">${region.id}</span> ${region.label}</div>
+            <div class="value ${cls}">${formatMs(coldMs)}</div>
+            <div class="meta">
+              warm ${formatMs(result?.warm_ttfb_ms)}
+              ${median ? ` · avg ${formatMs(median.median_cold)}` : ""}
+              ${result?.cf_colo ? ` · ${result.cf_colo}` : ""}
+            </div>
+          `;
+					container.appendChild(card);
+				}
+
+				// Update timestamp
+				const newest = data.latest.reduce(
+					(a, b) => (a.timestamp > b.timestamp ? a : b),
+					data.latest[0],
+				);
+				if (newest) {
+					document.getElementById("last-updated").textContent =
+						`Updated ${formatTime(newest.timestamp)}`;
+				}
+			}
+
+			function createChart(canvasId, label) {
+				const ctx = document.getElementById(canvasId).getContext("2d");
+
+				return new Chart(ctx, {
+					type: "line",
+					data: { datasets: [] },
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						interaction: { mode: "nearest", axis: "x", intersect: false },
+						scales: {
+							x: {
+								type: "time",
+								time: { tooltipFormat: "MMM d, HH:mm" },
+								grid: { color: "#2a2a32", lineWidth: 0.5 },
+								ticks: { color: "#5c5c66", font: { size: 10 } },
+							},
+							y: {
+								title: {
+									display: true,
+									text: "ms",
+									color: "#5c5c66",
+									font: { size: 10 },
+								},
+								grid: { color: "#2a2a32", lineWidth: 0.5 },
+								ticks: { color: "#5c5c66", font: { size: 10 } },
+								beginAtZero: true,
+							},
+						},
+						plugins: {
+							legend: { display: false },
+							tooltip: {
+								backgroundColor: "#16161a",
+								titleColor: "#e0e0e6",
+								bodyColor: "#888894",
+								borderColor: "#2a2a32",
+								borderWidth: 1,
+								titleFont: { size: 11, family: "monospace" },
+								bodyFont: { size: 11, family: "monospace" },
+								callbacks: {
+									label: function (context) {
+										const point = context.raw;
+										let text = `${context.dataset.label}: ${formatMs(context.parsed.y)}`;
+										if (point && point.sha) {
+											text += ` [${point.sha.slice(0, 7)}]`;
+										}
+										if (point && point.prNumber) {
+											text += ` PR #${point.prNumber}`;
+										}
+										return text;
+									},
+								},
+							},
+							annotation: { annotations: {} },
+						},
+					},
+				});
+			}
+
+			async function loadCharts() {
+				const route = document.getElementById("route-select").value || configData.routes[0]?.path;
+				const regionFilter = document.getElementById("region-select").value;
+				const period = document.getElementById("period-select").value;
+				const since = periodToSince(period);
+
+				const regions =
+					regionFilter === "all" ? configData.regions.map((r) => r.id) : [regionFilter];
+
+				// Fetch chart data for each region in parallel
+				const chartDataPromises = regions.map((region) =>
+					fetchJson(
+						`/api/chart?route=${encodeURIComponent(route)}&region=${region}&since=${since}&limit=500`,
+					),
+				);
+				const chartResults = await Promise.all(chartDataPromises);
+
+				// Build datasets for cold chart
+				const coldDatasets = [];
+				const warmDatasets = [];
+				const annotations = {};
+
+				for (let i = 0; i < regions.length; i++) {
+					const region = regions[i];
+					const result = chartResults[i];
+					const color = REGION_COLORS[region] || "#888";
+
+					coldDatasets.push({
+						label: REGION_LABELS[region] || region,
+						data: result.data.map((d) => ({
+							x: new Date(d.timestamp),
+							y: d.coldTtfbMs,
+							prNumber: d.prNumber,
+							sha: d.sha,
+							source: d.source,
+						})),
+						borderColor: color,
+						backgroundColor: color + "20",
+						borderWidth: 1.5,
+						pointRadius: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? 5 : 1.5;
+						},
+						pointBackgroundColor: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? "#ff6b6b" : color;
+						},
+						pointBorderColor: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? "#ff6b6b" : color;
+						},
+						pointBorderWidth: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? 2 : 0;
+						},
+						tension: 0.3,
+						fill: false,
+					});
+
+					warmDatasets.push({
+						label: REGION_LABELS[region] || region,
+						data: result.data.map((d) => ({
+							x: new Date(d.timestamp),
+							y: d.warmTtfbMs,
+							prNumber: d.prNumber,
+							sha: d.sha,
+							source: d.source,
+						})),
+						borderColor: color,
+						backgroundColor: color + "20",
+						borderWidth: 1.5,
+						pointRadius: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? 5 : 1.5;
+						},
+						pointBackgroundColor: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? "#ff6b6b" : color;
+						},
+						pointBorderColor: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? "#ff6b6b" : color;
+						},
+						pointBorderWidth: (ctx) => {
+							const point = ctx.raw;
+							return point && point.sha ? 2 : 0;
+						},
+						tension: 0.3,
+						fill: false,
+					});
+
+					// Add vertical lines for all deploys
+					if (result.deployMarkers) {
+						for (const marker of result.deployMarkers) {
+							const sha7 = marker.sha ? marker.sha.slice(0, 7) : "?";
+							const label = marker.prNumber ? `PR #${marker.prNumber}` : sha7;
+							const key = `deploy-${marker.sha || marker.timestamp}-${region}`;
+							annotations[key] = {
+								type: "line",
+								xMin: new Date(marker.timestamp),
+								xMax: new Date(marker.timestamp),
+								borderColor: "#ff6b6b40",
+								borderWidth: 1,
+								borderDash: [4, 4],
+								label: {
+									display: regions.length <= 2,
+									content: label,
+									position: "start",
+									backgroundColor: "#2a1a1a",
+									color: "#ff6b6b",
+									font: { size: 10, family: "monospace" },
+									padding: { top: 2, bottom: 2, left: 4, right: 4 },
+								},
+							};
+						}
+					}
+				}
+
+				// Update cold chart
+				if (!coldChart) {
+					coldChart = createChart("cold-chart", "Cold TTFB");
+				}
+				coldChart.data.datasets = coldDatasets;
+				coldChart.options.plugins.annotation.annotations = annotations;
+				coldChart.update();
+
+				// Update warm chart
+				if (!warmChart) {
+					warmChart = createChart("warm-chart", "Warm TTFB");
+				}
+				warmChart.data.datasets = warmDatasets;
+				warmChart.options.plugins.annotation.annotations = annotations;
+				warmChart.update();
+			}
+
+			async function loadTable() {
+				const route = document.getElementById("route-select").value || configData.routes[0]?.path;
+				const regionFilter = document.getElementById("region-select").value;
+				const period = document.getElementById("period-select").value;
+				const since = periodToSince(period);
+
+				const params = new URLSearchParams({
+					since,
+					limit: "50",
+				});
+				if (route) params.set("route", route);
+				if (regionFilter !== "all") params.set("region", regionFilter);
+
+				const data = await fetchJson(`/api/results?${params}`);
+				const tbody = document.getElementById("results-body");
+
+				if (!data.results || data.results.length === 0) {
+					tbody.innerHTML =
+						'<tr><td colspan="11" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
+					return;
+				}
+
+				tbody.innerHTML = data.results
+					.map((r) => {
+						const routeConfig = configData.routes.find((rc) => rc.path === r.route);
+						const threshold = routeConfig?.coldThresholdMs ?? 2000;
+						const cls = ttfbClass(r.cold_ttfb_ms, threshold);
+
+						const prLink = r.pr_number
+							? ` <a class="pr-badge" href="${GITHUB_URL}/pull/${r.pr_number}" target="_blank" rel="noopener">PR #${r.pr_number}</a>`
+							: "";
+						const shaLink = r.sha
+							? ` <a class="sha-link mono" href="${GITHUB_URL}/commit/${r.sha}" target="_blank" rel="noopener">${r.sha.slice(0, 7)}</a>`
+							: "";
+						const sourceBadge = `<span class="source-badge source-${escapeAttr(r.source)}">${escapeHtml(r.source)}</span>`;
+						const note = r.note
+							? `<div class="note-text" title="${escapeAttr(r.note)}">${escapeHtml(r.note)}</div>`
+							: "";
+
+						return `<tr>
+              <td class="mono">${formatTime(r.timestamp)}</td>
+              <td>${escapeHtml(r.route)}${note}</td>
+              <td><span class="region-tag region-${escapeAttr(r.region)}">${escapeHtml(r.region)}</span></td>
+              <td class="mono ${cls}">${formatMs(r.cold_ttfb_ms)}</td>
+              <td class="mono">${formatMs(r.warm_ttfb_ms)}</td>
+              <td class="mono">${formatMs(r.p95_ttfb_ms)}</td>
+              <td class="mono">${r.status_code ?? "-"}</td>
+              <td class="mono">${r.cf_colo ?? "-"}</td>
+              <td>${renderServerTimings(r.cold_server_timings)}</td>
+              <td>${renderServerTimings(r.warm_server_timings)}</td>
+              <td>${sourceBadge}${prLink}${shaLink}</td>
+            </tr>`;
+					})
+					.join("");
+			}
+
+			async function refresh() {
+				try {
+					await Promise.all([loadSummary(), loadCharts(), loadTable()]);
+				} catch (err) {
+					console.error("Failed to load data:", err);
+				}
+			}
+
+			async function init() {
+				try {
+					await loadConfig();
+					await refresh();
+
+					// Refresh on control changes
+					document.getElementById("route-select").addEventListener("change", refresh);
+					document.getElementById("region-select").addEventListener("change", refresh);
+					document.getElementById("period-select").addEventListener("change", refresh);
+
+					// Auto-refresh every 5 minutes
+					setInterval(refresh, 5 * 60 * 1000);
+				} catch (err) {
+					document.querySelector(".container").innerHTML = `
+            <div class="error-msg">Failed to load: ${err.message}</div>
+          `;
+				}
+			}
+
+			init();
+		</script>
+	</body>
+</html>
