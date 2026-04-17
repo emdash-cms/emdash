@@ -16,8 +16,13 @@ export interface RouteResult {
 	path: string;
 	label: string;
 	coldTtfbMs: number;
-	warmTtfbMs: number;
-	p95TtfbMs: number;
+	/**
+	 * Median warm-request TTFB. Null if warmRequests was 0 and no warm
+	 * samples were taken — caller should fall back to coldTtfbMs in that case.
+	 */
+	warmTtfbMs: number | null;
+	/** p95 warm-request TTFB. Null when no warm samples were taken. */
+	p95TtfbMs: number | null;
 	statusCode: number;
 	cfColo: string | null;
 	cfPlacement: string | null;
@@ -180,12 +185,21 @@ export async function measureRoutes(req: MeasureRequest): Promise<RouteResult[]>
 				)
 			: null;
 
+		// Handle the (uncommon) warmRequests=0 case: without warm samples,
+		// median/p95 would compute against an empty array and produce NaN.
+		// Report the cold TTFB in both slots so the row remains valid;
+		// warm timings are reported as null so downstream code knows there's
+		// no warm breakdown to render.
+		const hasWarm = warmTimings.length > 0;
+		const warmTtfbMs = hasWarm ? Math.round(median(warmTimings) * 100) / 100 : null;
+		const p95TtfbMs = hasWarm ? Math.round(p95(warmTimings) * 100) / 100 : null;
+
 		results.push({
 			path: route.path,
 			label: route.label,
 			coldTtfbMs: Math.round(cold.ttfbMs * 100) / 100,
-			warmTtfbMs: Math.round(median(warmTimings) * 100) / 100,
-			p95TtfbMs: Math.round(p95(warmTimings) * 100) / 100,
+			warmTtfbMs,
+			p95TtfbMs,
 			statusCode: lastStatusCode,
 			cfColo: cold.cfColo,
 			cfPlacement: cold.cfPlacement,

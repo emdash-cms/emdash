@@ -166,7 +166,7 @@ for (const [route, rows] of byRoute) {
 	// Collect the union of timing names present on this route across BOTH
 	// cold and warm snapshots so every row gets a cell in each column,
 	// even when a particular probe response lacked some entries.
-	// Warm timings are prefixed with "warm." in the column header to make
+	// Warm timings are prefixed with "w." in the column header to make
 	// the split obvious (cold and warm snapshots share the same metric
 	// names — "render", "rt", "mw" — so we'd collide otherwise).
 	const coldNames = [];
