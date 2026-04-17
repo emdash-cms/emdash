@@ -19,6 +19,7 @@ import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import type { Database } from "./index.js";
 import { getRequestContext } from "./request-context.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -63,26 +64,29 @@ function getTableName(type: string): string {
 let taxonomyNames: Set<string> | null = null;
 
 /**
- * Get all taxonomy names (cached for primary DB, fresh for overrides)
+ * Get all taxonomy names (cached for the primary DB, bypassed only when
+ * the per-request DB is an isolated instance — playground / DO preview).
+ * Plain D1 Sessions routing shares schema with the singleton, so the
+ * module-scoped cache stays valid.
  */
 async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
-	const hasDbOverride = !!getRequestContext()?.db;
+	const hasIsolatedDb = getRequestContext()?.dbIsIsolated === true;
 
-	if (!hasDbOverride && taxonomyNames) {
+	if (!hasIsolatedDb && taxonomyNames) {
 		return taxonomyNames;
 	}
 
 	try {
 		const defs = await db.selectFrom("_emdash_taxonomy_defs").select("name").execute();
 		const names = new Set(defs.map((d) => d.name));
-		if (!hasDbOverride) {
+		if (!hasIsolatedDb) {
 			taxonomyNames = names;
 		}
 		return names;
 	} catch {
 		// Table doesn't exist yet, return empty set
 		const empty = new Set<string>();
-		if (!hasDbOverride) {
+		if (!hasIsolatedDb) {
 			taxonomyNames = empty;
 		}
 		return empty;
@@ -617,18 +621,13 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					},
 				};
 			} catch (error) {
-				// Handle missing table gracefully - return empty collection
-				// This happens before migrations have run
-				const message = error instanceof Error ? error.message : String(error);
-				const lowerMessage = message.toLowerCase();
-				if (
-					lowerMessage.includes("no such table") ||
-					(lowerMessage.includes("table") && lowerMessage.includes("does not exist")) ||
-					(lowerMessage.includes("relation") && lowerMessage.includes("does not exist"))
-				) {
+				// Handle missing table gracefully - return empty collection.
+				// This happens before migrations have run.
+				if (isMissingTableError(error)) {
 					return { entries: [] };
 				}
 
+				const message = error instanceof Error ? error.message : String(error);
 				return {
 					error: new Error(`Failed to load collection: ${message}`),
 				};
@@ -751,18 +750,13 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					},
 				};
 			} catch (error) {
-				// Handle missing table gracefully - return undefined (not found)
-				// This happens before migrations have run
-				const message = error instanceof Error ? error.message : String(error);
-				const lowerMessage = message.toLowerCase();
-				if (
-					lowerMessage.includes("no such table") ||
-					(lowerMessage.includes("table") && lowerMessage.includes("does not exist")) ||
-					(lowerMessage.includes("relation") && lowerMessage.includes("does not exist"))
-				) {
+				// Handle missing table gracefully - return undefined (not found).
+				// This happens before migrations have run.
+				if (isMissingTableError(error)) {
 					return undefined;
 				}
 
+				const message = error instanceof Error ? error.message : String(error);
 				return {
 					error: new Error(`Failed to load entry: ${message}`),
 				};

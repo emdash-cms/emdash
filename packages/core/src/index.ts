@@ -400,7 +400,9 @@ export {
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
+	getAllTermsForEntries,
 	getEntriesByTerm,
+	invalidateTermCache,
 } from "./taxonomies/index.js";
 export type {
 	TaxonomyDef,
