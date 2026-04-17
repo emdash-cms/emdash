@@ -371,12 +371,19 @@ export class EmDashRuntime {
 		this.pipelineRef = pipelineRef;
 
 		// Build-time config fingerprint for manifest cache validation.
-		// Catches plugin/i18n config changes across deploys even when
-		// the emdash package version stays the same.
+		// Includes everything that affects the manifest shape: emdash
+		// version, plugin IDs/versions/options, i18n config, marketplace.
 		this._configFingerprint = [
-			...configuredPlugins.map((p) => `${p.id}@${p.version ?? ""}`),
-			...sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`),
+			VERSION,
+			COMMIT,
+			...configuredPlugins.map(
+				(p) => `${p.id}@${p.version ?? ""}:${JSON.stringify(p.options ?? {})}`,
+			),
+			...sandboxedPluginEntries.map(
+				(e) => `${e.id}@${e.version}:${JSON.stringify(e.options ?? {})}`,
+			),
 			config.marketplace ? "marketplace" : "",
+			virtualConfig?.i18n?.defaultLocale ?? "",
 			virtualConfig?.i18n?.locales?.join(",") ?? "",
 		].join("|");
 	}
