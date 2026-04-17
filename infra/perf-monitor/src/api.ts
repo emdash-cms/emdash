@@ -81,9 +81,17 @@ async function handleChart(url: URL, env: Env): Promise<Response> {
 	// Query returns DESC -- reverse to chronological
 	results.reverse();
 
-	// Filter deploy results for PR markers on this route+region
-	const prMarkers = deployResults
-		.filter((r) => r.route === route && r.region === region && r.pr_number != null)
+	// Deduplicate deploy results by SHA — multiple route/region combos produce
+	// duplicates, but we only want one marker per deploy on the chart.
+	const seenShas = new Set<string>();
+	const deployMarkers = deployResults
+		.filter((r) => {
+			if (!r.sha) return false;
+			if (r.route !== route || r.region !== region) return false;
+			if (seenShas.has(r.sha)) return false;
+			seenShas.add(r.sha);
+			return true;
+		})
 		.map((r) => ({
 			timestamp: r.timestamp,
 			prNumber: r.pr_number,
@@ -103,7 +111,7 @@ async function handleChart(url: URL, env: Env): Promise<Response> {
 			sha: r.sha,
 			prNumber: r.pr_number,
 		})),
-		prMarkers,
+		deployMarkers,
 	});
 }
 

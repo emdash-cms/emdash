@@ -17,12 +17,32 @@ interface AssociatedPR {
 	merged_at: string | null;
 	base: { ref: string };
 }
+const PR_NUMBER_REGEX = /\(#(\d+)\)\s*$/;
+/**
+ * Parse a PR number from a commit message. GitHub squash merges append the PR
+ * number in parentheses, e.g. "feat: add feature (#123)".
+ */
+function parsePrFromMessage(commitMessage: string): number | null {
+	const match = commitMessage.match(PR_NUMBER_REGEX);
+	if (!match?.[1]) return null;
+	return parseInt(match[1], 10);
+}
 
 /**
  * Find the merged PR for a given commit SHA, if any.
+ *
+ * Strategy:
+ * 1. Parse the commit message for `(#N)` — works for squash merges (the common case).
+ * 2. Fall back to the GitHub "list PRs for a commit" API — works for merge commits.
+ *
  * Returns null if no PR exists (e.g. direct push to main) or the lookup fails.
  */
-export async function resolvePrForSha(sha: string): Promise<number | null> {
+export async function resolvePrForSha(sha: string, commitMessage?: string): Promise<number | null> {
+	if (commitMessage) {
+		const fromMessage = parsePrFromMessage(commitMessage);
+		if (fromMessage) return fromMessage;
+	}
+
 	const url = `https://api.github.com/repos/${GITHUB_REPO}/commits/${sha}/pulls`;
 
 	let response: Response;

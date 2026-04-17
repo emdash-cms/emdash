@@ -214,6 +214,21 @@
 				border-radius: 3px;
 				font-size: 11px;
 				font-weight: 500;
+				text-decoration: none;
+			}
+
+			.pr-badge:hover {
+				background: #3577c5;
+			}
+
+			a.sha-link {
+				color: var(--text-dim);
+				text-decoration: none;
+			}
+
+			a.sha-link:hover {
+				color: var(--text-muted);
+				text-decoration: underline;
 			}
 
 			.region-tag {
@@ -347,7 +362,7 @@
 					</div>
 					<div class="item">
 						<span class="swatch-marker"></span>
-						PR deploy
+						Deploy
 					</div>
 				</div>
 			</div>
@@ -387,6 +402,9 @@
 		</div>
 
 		<script>
+			const GITHUB_REPO = "emdash-cms/emdash";
+			const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
+
 			const REGION_COLORS = {
 				use: "#51cf66",
 				euw: "#4dabf7",
@@ -566,8 +584,11 @@
 									label: function (context) {
 										const point = context.raw;
 										let text = `${context.dataset.label}: ${formatMs(context.parsed.y)}`;
+										if (point && point.sha) {
+											text += ` [${point.sha.slice(0, 7)}]`;
+										}
 										if (point && point.prNumber) {
-											text += ` (PR #${point.prNumber})`;
+											text += ` PR #${point.prNumber}`;
 										}
 										return text;
 									},
@@ -613,25 +634,26 @@
 							y: d.coldTtfbMs,
 							prNumber: d.prNumber,
 							sha: d.sha,
+							source: d.source,
 						})),
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
 						pointRadius: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 5 : 1.5;
+							return point && point.sha ? 5 : 1.5;
 						},
 						pointBackgroundColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderWidth: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 2 : 0;
+							return point && point.sha ? 2 : 0;
 						},
 						tension: 0.3,
 						fill: false,
@@ -644,34 +666,37 @@
 							y: d.warmTtfbMs,
 							prNumber: d.prNumber,
 							sha: d.sha,
+							source: d.source,
 						})),
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
 						pointRadius: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 5 : 1.5;
+							return point && point.sha ? 5 : 1.5;
 						},
 						pointBackgroundColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderWidth: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 2 : 0;
+							return point && point.sha ? 2 : 0;
 						},
 						tension: 0.3,
 						fill: false,
 					});
 
-					// Add vertical lines for PR deploys
-					if (result.prMarkers) {
-						for (const marker of result.prMarkers) {
-							const key = `pr-${marker.prNumber}-${region}`;
+					// Add vertical lines for all deploys
+					if (result.deployMarkers) {
+						for (const marker of result.deployMarkers) {
+							const sha7 = marker.sha ? marker.sha.slice(0, 7) : "?";
+							const label = marker.prNumber ? `PR #${marker.prNumber}` : sha7;
+							const key = `deploy-${marker.sha || marker.timestamp}-${region}`;
 							annotations[key] = {
 								type: "line",
 								xMin: new Date(marker.timestamp),
@@ -681,7 +706,7 @@
 								borderDash: [4, 4],
 								label: {
 									display: regions.length <= 2,
-									content: `PR #${marker.prNumber}`,
+									content: label,
 									position: "start",
 									backgroundColor: "#2a1a1a",
 									color: "#ff6b6b",
@@ -738,6 +763,13 @@
 						const threshold = routeConfig?.coldThresholdMs ?? 2000;
 						const cls = ttfbClass(r.cold_ttfb_ms, threshold);
 
+						const prLink = r.pr_number
+							? ` <a class="pr-badge" href="${GITHUB_URL}/pull/${r.pr_number}" target="_blank" rel="noopener">PR #${r.pr_number}</a>`
+							: "";
+						const shaLink = r.sha
+							? ` <a class="sha-link mono" href="${GITHUB_URL}/commit/${r.sha}" target="_blank" rel="noopener">${r.sha.slice(0, 7)}</a>`
+							: "";
+
 						return `<tr>
               <td class="mono">${formatTime(r.timestamp)}</td>
               <td>${r.route}</td>
@@ -747,7 +779,7 @@
               <td class="mono">${formatMs(r.p95_ttfb_ms)}</td>
               <td class="mono">${r.status_code ?? "-"}</td>
               <td class="mono">${r.cf_colo ?? "-"}</td>
-              <td>${r.source}${r.pr_number ? ` <span class="pr-badge">PR #${r.pr_number}</span>` : ""}${r.sha ? ` <span class="mono" style="color:var(--text-dim)">${r.sha.slice(0, 7)}</span>` : ""}</td>
+              <td>${r.source}${prLink}${shaLink}</td>
             </tr>`;
 					})
 					.join("");

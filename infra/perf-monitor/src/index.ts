@@ -127,7 +127,7 @@ async function handleBuildSucceeded(
 
 	console.log(`Running deploy-triggered measurement for ${workerName} @ ${sha.slice(0, 7)}`);
 
-	const prNumber = await resolvePrForSha(sha);
+	const prNumber = await resolvePrForSha(sha, meta.commitMessage);
 	const results = await runMeasurements(env, "deploy", sha, prNumber);
 
 	if (results.length > 0) {
