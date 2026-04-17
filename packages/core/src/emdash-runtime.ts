@@ -797,16 +797,18 @@ export class EmDashRuntime {
 		}
 
 		// SHA of emdash commit + user config that affects the manifest.
-		// COMMIT captures emdash code changes; plugin IDs and i18n config
-		// capture user astro.config changes. DB-driven changes (collections,
-		// fields, plugin toggle) go through invalidateManifest().
+		// COMMIT captures emdash code changes; plugin IDs/versions and i18n
+		// capture user astro.config changes (e.g. upgrading a plugin package).
+		// DB-driven changes (collections, fields, plugin toggle) go through
+		// invalidateManifest(). Sorted for stability across nondeterministic
+		// plugin ordering.
 		const manifestCacheKey = await hashString(
 			[
 				COMMIT,
-				...deps.plugins.map((p) => p.id),
-				...deps.sandboxedPluginEntries.map((e) => e.id),
+				...deps.plugins.map((p) => `${p.id}@${p.version ?? ""}`).toSorted(),
+				...deps.sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`).toSorted(),
 				virtualConfig?.i18n?.defaultLocale ?? "",
-				virtualConfig?.i18n?.locales?.join(",") ?? "",
+				(virtualConfig?.i18n?.locales ?? []).toSorted().join(","),
 			].join("|"),
 		);
 
