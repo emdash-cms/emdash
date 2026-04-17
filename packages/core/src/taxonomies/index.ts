@@ -5,6 +5,7 @@
  */
 
 import { getDb } from "../loader.js";
+import { requestCached } from "../request-cache.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 /**
@@ -160,34 +161,36 @@ export async function getTerm(taxonomyName: string, slug: string): Promise<Taxon
 /**
  * Get terms assigned to an entry
  */
-export async function getEntryTerms(
+export function getEntryTerms(
 	collection: string,
 	entryId: string,
 	taxonomyName?: string,
 ): Promise<TaxonomyTerm[]> {
-	const db = await getDb();
+	return requestCached(`terms:${collection}:${entryId}:${taxonomyName ?? "*"}`, async () => {
+		const db = await getDb();
 
-	let query = db
-		.selectFrom("content_taxonomies")
-		.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
-		.selectAll("taxonomies")
-		.where("content_taxonomies.collection", "=", collection)
-		.where("content_taxonomies.entry_id", "=", entryId);
+		let query = db
+			.selectFrom("content_taxonomies")
+			.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
+			.selectAll("taxonomies")
+			.where("content_taxonomies.collection", "=", collection)
+			.where("content_taxonomies.entry_id", "=", entryId);
 
-	if (taxonomyName) {
-		query = query.where("taxonomies.name", "=", taxonomyName);
-	}
+		if (taxonomyName) {
+			query = query.where("taxonomies.name", "=", taxonomyName);
+		}
 
-	const rows = await query.execute();
+		const rows = await query.execute();
 
-	return rows.map((row) => ({
-		id: row.id,
-		name: row.name,
-		slug: row.slug,
-		label: row.label,
-		parentId: row.parent_id ?? undefined,
-		children: [],
-	}));
+		return rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			slug: row.slug,
+			label: row.label,
+			parentId: row.parent_id ?? undefined,
+			children: [],
+		}));
+	});
 }
 
 /**

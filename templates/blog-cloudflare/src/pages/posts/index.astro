@@ -1,5 +1,5 @@
 ---
-import { getEmDashCollection, getEntryTerms } from "emdash";
+import { getEmDashCollection, getTermsForEntries } from "emdash";
 import Base from "../../layouts/Base.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
@@ -13,14 +13,16 @@ const sortedPosts = posts.toSorted((a, b) => {
 	return dateB - dateA;
 });
 
-// Fetch tags for each post (bylines are already hydrated by getEmDashCollection)
-const postsWithTags = await Promise.all(
-	sortedPosts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		const bylines = post.data.bylines ?? [];
-		return { post, tags, bylines };
-	})
-);
+// Fetch tags for all posts in a single batch query
+const allTagsMap = sortedPosts.length > 0
+	? await getTermsForEntries("posts", sortedPosts.map((p) => p.data.id), "tag")
+	: new Map();
+
+const postsWithTags = sortedPosts.map((post) => {
+	const tags = allTagsMap.get(post.data.id) ?? [];
+	const bylines = post.data.bylines ?? [];
+	return { post, tags, bylines };
+});
 
 const formatDate = (date: Date) =>
 	date.toLocaleDateString("en-US", {

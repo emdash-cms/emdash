@@ -1,5 +1,5 @@
 ---
-import { getEmDashCollection, getEntryTerms, getSiteSettings } from "emdash";
+import { getEmDashCollection, getTermsForEntries, getSiteSettings } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 import PostCard from "../components/PostCard.astro";
@@ -28,26 +28,26 @@ const gridPosts = sortedPosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
 const totalShown = (featuredPost ? 1 : 0) + gridPosts.length;
 const hasMorePosts = sortedPosts.length > totalShown;
 
-// Fetch tags for featured post (bylines are already hydrated by getEmDashCollection)
-let featuredTags: Array<{ slug: string; label: string }> = [];
-const featuredBylines = featuredPost?.data.bylines ?? [];
-if (featuredPost) {
-	const tags = await getEntryTerms("posts", featuredPost.data.id, "tag");
-	featuredTags = tags.map((t) => ({ slug: t.slug, label: t.label }));
-}
+// Fetch tags for all displayed posts in a single batch query
+const displayedPosts = [featuredPost, ...gridPosts].filter(Boolean);
+const allTagsMap = displayedPosts.length > 0
+	? await getTermsForEntries("posts", displayedPosts.map((p) => p.data.id), "tag")
+	: new Map();
 
-// Fetch tags for grid posts (bylines are already hydrated by getEmDashCollection)
-const gridPostsWithTags = await Promise.all(
-	gridPosts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		const bylines = post.data.bylines ?? [];
-		return {
-			post,
-			tags: tags.map((t) => ({ slug: t.slug, label: t.label })),
-			bylines,
-		};
-	})
-);
+const featuredBylines = featuredPost?.data.bylines ?? [];
+const featuredTags = featuredPost
+	? (allTagsMap.get(featuredPost.data.id) ?? []).map((t) => ({ slug: t.slug, label: t.label }))
+	: [];
+
+const gridPostsWithTags = gridPosts.map((post) => {
+	const tags = allTagsMap.get(post.data.id) ?? [];
+	const bylines = post.data.bylines ?? [];
+	return {
+		post,
+		tags: tags.map((t) => ({ slug: t.slug, label: t.label })),
+		bylines,
+	};
+});
 
 // Format date helper
 function formatDate(date: Date | null | undefined) {

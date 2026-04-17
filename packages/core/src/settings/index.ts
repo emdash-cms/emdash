@@ -11,6 +11,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
 import type { SiteSettings, SiteSettingKey, MediaReference } from "./types.js";
 
@@ -124,9 +125,11 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
  * console.log(settings.logo?.url); // "/_emdash/api/media/file/abc123"
  * ```
  */
-export async function getSiteSettings(): Promise<Partial<SiteSettings>> {
-	const db = await getDb();
-	return getSiteSettingsWithDb(db);
+export function getSiteSettings(): Promise<Partial<SiteSettings>> {
+	return requestCached("siteSettings", async () => {
+		const db = await getDb();
+		return getSiteSettingsWithDb(db);
+	});
 }
 
 /**
