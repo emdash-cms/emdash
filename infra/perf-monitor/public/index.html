@@ -221,6 +221,50 @@
 				background: #3577c5;
 			}
 
+			.source-badge {
+				display: inline-block;
+				padding: 1px 6px;
+				border-radius: 3px;
+				font-size: 10px;
+				font-weight: 500;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+			}
+			.source-cron {
+				background: #1a1f2a;
+				color: var(--text-muted);
+			}
+			.source-deploy {
+				background: #1a3a2a;
+				color: var(--green);
+			}
+			.source-manual {
+				background: #3a2a1a;
+				color: var(--yellow);
+			}
+
+			.timing-tag {
+				display: inline-block;
+				padding: 1px 5px;
+				margin-right: 4px;
+				border-radius: 3px;
+				font-size: 10px;
+				background: #1e1e24;
+				color: var(--text-muted);
+				font-variant-numeric: tabular-nums;
+			}
+			.timing-tag strong {
+				color: var(--text);
+				font-weight: 500;
+				margin-right: 3px;
+			}
+
+			.note-text {
+				color: var(--text-muted);
+				font-size: 11px;
+				font-style: italic;
+			}
+
 			a.sha-link {
 				color: var(--text-dim);
 				text-decoration: none;
@@ -388,12 +432,13 @@
 								<th>P95</th>
 								<th>Status</th>
 								<th>Colo</th>
+								<th>Server Timings</th>
 								<th>Source</th>
 							</tr>
 						</thead>
 						<tbody id="results-body">
 							<tr>
-								<td colspan="9" class="loading">Loading...</td>
+								<td colspan="10" class="loading">Loading...</td>
 							</tr>
 						</tbody>
 					</table>
@@ -462,6 +507,48 @@
 				const d = new Date(iso);
 				const pad = (n) => String(n).padStart(2, "0");
 				return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+			}
+
+			const HTML_ESCAPES = {
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': "&quot;",
+				"'": "&#39;",
+			};
+			function escapeHtml(s) {
+				if (s == null) return "";
+				return String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+			}
+			function escapeAttr(s) {
+				// attribute-safe subset of characters
+				return escapeHtml(s).replace(/\//g, "&#47;");
+			}
+
+			/**
+			 * Render server timings as a row of small tagged pills.
+			 * Input is the JSON string as stored in D1, or null.
+			 * We keep the tooltip (title attr) with the full `desc` when present
+			 * so hovering surfaces readable names without cluttering the table.
+			 */
+			function renderServerTimings(raw) {
+				if (!raw) return '<span style="color:var(--text-dim)">-</span>';
+				let parsed;
+				try {
+					parsed = JSON.parse(raw);
+				} catch {
+					return '<span style="color:var(--text-dim)">-</span>';
+				}
+				if (!parsed || typeof parsed !== "object") return "";
+				const entries = Object.entries(parsed);
+				if (entries.length === 0) return "";
+				return entries
+					.map(([name, t]) => {
+						const dur = Math.round(t.dur);
+						const title = t.desc ? `${t.desc} (${dur}ms)` : `${name}: ${dur}ms`;
+						return `<span class="timing-tag" title="${escapeAttr(title)}"><strong>${escapeHtml(name)}</strong>${dur}ms</span>`;
+					})
+					.join("");
 			}
 
 			async function loadConfig() {
@@ -753,7 +840,7 @@
 
 				if (!data.results || data.results.length === 0) {
 					tbody.innerHTML =
-						'<tr><td colspan="9" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
+						'<tr><td colspan="10" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
 					return;
 				}
 
@@ -769,17 +856,22 @@
 						const shaLink = r.sha
 							? ` <a class="sha-link mono" href="${GITHUB_URL}/commit/${r.sha}" target="_blank" rel="noopener">${r.sha.slice(0, 7)}</a>`
 							: "";
+						const sourceBadge = `<span class="source-badge source-${escapeAttr(r.source)}">${escapeHtml(r.source)}</span>`;
+						const note = r.note
+							? `<div class="note-text" title="${escapeAttr(r.note)}">${escapeHtml(r.note)}</div>`
+							: "";
 
 						return `<tr>
               <td class="mono">${formatTime(r.timestamp)}</td>
-              <td>${r.route}</td>
-              <td><span class="region-tag region-${r.region}">${r.region}</span></td>
+              <td>${escapeHtml(r.route)}${note}</td>
+              <td><span class="region-tag region-${escapeAttr(r.region)}">${escapeHtml(r.region)}</span></td>
               <td class="mono ${cls}">${formatMs(r.cold_ttfb_ms)}</td>
               <td class="mono">${formatMs(r.warm_ttfb_ms)}</td>
               <td class="mono">${formatMs(r.p95_ttfb_ms)}</td>
               <td class="mono">${r.status_code ?? "-"}</td>
               <td class="mono">${r.cf_colo ?? "-"}</td>
-              <td>${r.source}${prLink}${shaLink}</td>
+              <td>${renderServerTimings(r.cold_server_timings)}</td>
+              <td>${sourceBadge}${prLink}${shaLink}</td>
             </tr>`;
 					})
 					.join("");

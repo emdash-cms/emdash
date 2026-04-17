@@ -9,7 +9,11 @@
 		"deploy": "pnpm build && pnpm deploy:probes && wrangler deploy",
 		"deploy:probes": "for dir in dist/emdash_perf_probe_*; do wrangler deploy -c $dir/wrangler.json; done",
 		"cf-typegen": "wrangler types",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"db:migrations:list": "wrangler d1 migrations list emdash_perf --remote",
+		"db:migrations:apply": "wrangler d1 migrations apply emdash_perf --remote",
+		"db:migrations:create": "wrangler d1 migrations create emdash_perf",
+		"trigger": "node scripts/trigger.mjs"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.0.0",

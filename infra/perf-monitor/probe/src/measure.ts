@@ -6,6 +6,12 @@ export interface MeasureRequest {
 	warmRequests: number;
 }
 
+/**
+ * Parsed Server-Timing header. Keyed by timing name. `desc` is optional.
+ * Example: { render: { dur: 42, desc: "Page render" }, mw: { dur: 58 } }
+ */
+export type ServerTimings = Record<string, { dur: number; desc?: string }>;
+
 export interface RouteResult {
 	path: string;
 	label: string;
@@ -15,11 +21,57 @@ export interface RouteResult {
 	statusCode: number;
 	cfColo: string | null;
 	cfPlacement: string | null;
+	/** Parsed from the cold response. Null if header absent or unparseable. */
+	coldServerTimings: ServerTimings | null;
 }
 
 export interface MeasureResponse {
 	results: RouteResult[];
 	probeRegion: string;
+}
+
+/**
+ * Parse the Server-Timing response header.
+ *
+ * Grammar (RFC 8673 §2):
+ *   Server-Timing: metric[;param]*[, metric[;param]*]*
+ *   param = dur=<number> | desc="<string>" | desc=<token>
+ *
+ * We only extract `dur` and `desc` and silently skip malformed entries.
+ * Unknown params are ignored rather than rejected so future additions
+ * upstream don't cause us to drop data.
+ */
+export function parseServerTiming(header: string | null): ServerTimings | null {
+	if (!header) return null;
+	const out: ServerTimings = {};
+	for (const rawEntry of header.split(",")) {
+		const parts = rawEntry.split(";").map((p) => p.trim());
+		const name = parts[0];
+		if (!name) continue;
+		const entry: { dur: number; desc?: string } = { dur: 0 };
+		let sawDur = false;
+		for (const param of parts.slice(1)) {
+			const eq = param.indexOf("=");
+			if (eq === -1) continue;
+			const key = param.slice(0, eq).trim();
+			let value = param.slice(eq + 1).trim();
+			// desc may be quoted
+			if (value.startsWith('"') && value.endsWith('"')) {
+				value = value.slice(1, -1);
+			}
+			if (key === "dur") {
+				const n = Number(value);
+				if (Number.isFinite(n)) {
+					entry.dur = n;
+					sawDur = true;
+				}
+			} else if (key === "desc") {
+				entry.desc = value;
+			}
+		}
+		if (sawDur) out[name] = entry;
+	}
+	return Object.keys(out).length > 0 ? out : null;
 }
 
 /**
@@ -31,6 +83,7 @@ async function measureTtfb(url: string): Promise<{
 	statusCode: number;
 	cfColo: string | null;
 	cfPlacement: string | null;
+	serverTimings: ServerTimings | null;
 }> {
 	const start = performance.now();
 	const response = await fetch(url, {
@@ -51,8 +104,9 @@ async function measureTtfb(url: string): Promise<{
 	const cfRay = response.headers.get("cf-ray");
 	const cfColo = cfRay?.split("-").pop() ?? null;
 	const cfPlacement = response.headers.get("cf-placement");
+	const serverTimings = parseServerTiming(response.headers.get("server-timing"));
 
-	return { ttfbMs, statusCode: response.status, cfColo, cfPlacement };
+	return { ttfbMs, statusCode: response.status, cfColo, cfPlacement, serverTimings };
 }
 
 /** Compute the median of an array. */
@@ -105,6 +159,7 @@ export async function measureRoutes(req: MeasureRequest): Promise<RouteResult[]>
 			statusCode: lastStatusCode,
 			cfColo: cold.cfColo,
 			cfPlacement: cold.cfPlacement,
+			coldServerTimings: cold.serverTimings,
 		});
 	}
 
