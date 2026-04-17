@@ -35,7 +35,10 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 	const existing = cache.get(key);
 	if (existing) return existing as Promise<T>;
 
-	const promise = fn();
+	const promise = fn().catch((error) => {
+		cache.delete(key);
+		throw error;
+	});
 	cache.set(key, promise);
 	return promise;
 }

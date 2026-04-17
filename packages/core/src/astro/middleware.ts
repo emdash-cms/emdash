@@ -307,7 +307,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			};
 			if (anonScoped) {
 				const parent = getRequestContext();
-				return runWithContext({ ...parent, db: anonScoped.db }, async () => {
+				const ctx = parent
+					? { ...parent, db: anonScoped.db }
+					: { editMode: false, db: anonScoped.db };
+				return runWithContext(ctx, async () => {
 					const response = await runAnon();
 					anonScoped.commit();
 					return response;
@@ -446,7 +449,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		if (scoped) {
 			const parent = getRequestContext();
-			return runWithContext({ ...parent, db: scoped.db }, async () => {
+			const ctx = parent ? { ...parent, db: scoped.db } : { editMode: false, db: scoped.db };
+			return runWithContext(ctx, async () => {
 				const response = await renderAndFinalize();
 				scoped.commit();
 				return response;
