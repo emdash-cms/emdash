@@ -8,12 +8,29 @@
  * When no request context is available (e.g. local dev without D1
  * replicas), queries bypass the cache — local SQLite is fast enough
  * that deduplication doesn't matter.
+ *
+ * The WeakMap is stored on globalThis with a Symbol key to guarantee
+ * a singleton even when bundlers duplicate this module across chunks
+ * (same pattern as request-context.ts).
  */
 
 import type { EmDashRequestContext } from "./request-context.js";
 import { getRequestContext } from "./request-context.js";
 
-const store = new WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>();
+const STORE_KEY = Symbol.for("emdash:request-cache");
+
+const store: WeakMap<
+	EmDashRequestContext,
+	Map<string, Promise<unknown>>
+> = // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+((globalThis as Record<symbol, unknown>)[STORE_KEY] as
+	| WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>
+	| undefined) ??
+(() => {
+	const wm = new WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>();
+	(globalThis as Record<symbol, unknown>)[STORE_KEY] = wm;
+	return wm;
+})();
 
 /**
  * Return a cached result for `key` if one exists in the current
@@ -35,10 +52,12 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 	const existing = cache.get(key);
 	if (existing) return existing as Promise<T>;
 
-	const promise = fn().catch((error) => {
-		cache.delete(key);
-		throw error;
-	});
+	const promise = Promise.resolve()
+		.then(fn)
+		.catch((error) => {
+			cache.delete(key);
+			throw error;
+		});
 	cache.set(key, promise);
 	return promise;
 }
