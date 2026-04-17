@@ -165,7 +165,10 @@ const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
-function setBaselineSecurityHeaders(response: Response): Response {
+function finalizeResponse(
+	response: Response,
+	serverTimings?: Array<{ name: string; dur: number; desc?: string }>,
+): Response {
 	const res = new Response(response.body, response);
 	const astroCookies = Reflect.get(response, ASTRO_COOKIES_SYMBOL);
 	if (astroCookies !== undefined) {
@@ -176,6 +179,14 @@ function setBaselineSecurityHeaders(response: Response): Response {
 	res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
 	if (!res.headers.has("Content-Security-Policy")) {
 		res.headers.set("X-Frame-Options", "SAMEORIGIN");
+	}
+	if (serverTimings && serverTimings.length > 0) {
+		res.headers.set(
+			"Server-Timing",
+			serverTimings
+				.map((t) => (t.desc ? `${t.name};dur=${t.dur};desc="${t.desc}"` : `${t.name};dur=${t.dur}`))
+				.join(", "),
+		);
 	}
 	return res;
 }
@@ -229,6 +240,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 		if (!sessionUser && !playgroundDb) {
+			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const mwStart = performance.now();
+
 			// On a fresh deployment the database may be completely empty.
 			// Public pages call getSiteSettings() / getMenu() via getDb(), which
 			// bypasses runtime init and would crash with "no such table: options".
@@ -236,6 +250,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// page will use: if the migrations table doesn't exist, no migrations
 			// have ever run -- redirect to the setup wizard.
 			if (!setupVerified) {
+				const t0 = performance.now();
 				try {
 					const { getDb } = await import("../loader.js");
 					const db = await getDb();
@@ -249,6 +264,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Table doesn't exist -> fresh database, redirect to setup
 					return context.redirect("/_emdash/admin/setup");
 				}
+				timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 			}
 
 			// Initialize the runtime for page:metadata and page:fragments hooks.
@@ -257,6 +273,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// contribute meta tags for all visitors, not just logged-in editors.
 			const config = getConfig();
 			if (config) {
+				const t0 = performance.now();
 				try {
 					const runtime = await getRuntime(config);
 					setupVerified = true;
@@ -268,6 +285,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				} catch {
 					// Non-fatal — EmDashHead will fall back to base SEO contributions
 				}
+				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 			}
 
 			// Even on the anonymous fast path we ask the adapter for a per-request
@@ -280,7 +298,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				cookies,
 				url,
 			});
-			const runAnon = async () => setBaselineSecurityHeaders(await next());
+			const runAnon = async () => {
+				const t0 = performance.now();
+				const response = await next();
+				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
+				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+				return finalizeResponse(response, timings);
+			};
 			if (anonScoped) {
 				const parent = getRequestContext();
 				return runWithContext({ ...parent, db: anonScoped.db }, async () => {
@@ -296,22 +320,29 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const config = getConfig();
 	if (!config) {
 		console.error("EmDash: No configuration found");
-		return setBaselineSecurityHeaders(await next());
+		return finalizeResponse(await next());
 	}
 
 	// In playground mode, wrap the entire runtime init + request handling in
 	// runWithContext so that getDatabase() and all init queries use the real
 	// DO database via the same AsyncLocalStorage instance as the loader.
 	const doInit = async () => {
+		const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+		const mwStart = performance.now();
+
 		try {
 			// Get or create runtime
+			let t0 = performance.now();
 			const runtime = await getRuntime(config);
+			timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 
 			// Runtime init runs migrations, so the DB is guaranteed set up
 			setupVerified = true;
 
 			// Get manifest (cached after first call)
+			t0 = performance.now();
 			const manifest = await runtime.getManifest();
+			timings.push({ name: "manifest", dur: performance.now() - t0, desc: "Manifest" });
 
 			// Attach to locals for route handlers
 			locals.emdashManifest = manifest;
@@ -405,17 +436,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			url,
 		});
 
+		const renderAndFinalize = async () => {
+			const t0 = performance.now();
+			const response = await next();
+			timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
+			timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+			return finalizeResponse(response, timings);
+		};
+
 		if (scoped) {
 			const parent = getRequestContext();
 			return runWithContext({ ...parent, db: scoped.db }, async () => {
-				const response = setBaselineSecurityHeaders(await next());
+				const response = await renderAndFinalize();
 				scoped.commit();
 				return response;
 			});
 		}
 
-		const response = await next();
-		return setBaselineSecurityHeaders(response);
+		return renderAndFinalize();
 	}; // end doInit
 
 	if (playgroundDb) {
