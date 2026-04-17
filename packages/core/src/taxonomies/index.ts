@@ -4,53 +4,69 @@
  * Provides functions to query taxonomy definitions and terms.
  */
 
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { requestCached } from "../request-cache.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 /**
- * Cached result of "does any taxonomy term assignment exist in the database?".
- * null = not yet checked, true/false = cached result. Invalidated when
- * taxonomies or content_taxonomies are mutated (see invalidateTermCache).
+ * Per-DB cache of "does any taxonomy term assignment exist?".
  *
- * When false, hydration skips the JOIN query entirely — useful on sites
- * that don't use taxonomies at all.
+ * Keyed by the resolved Kysely instance rather than held at module scope so
+ * per-request DB overrides (preview sessions, D1 Sessions API replicas,
+ * Durable Object playground mode) don't bleed cached results across
+ * unrelated database instances. WeakMap lets garbage-collected per-request
+ * Kysely instances release their entry automatically.
+ *
+ * Missing key = unchecked, `true`/`false` = cached probe result.
  */
-let hasTermAssignments: boolean | null = null;
+let hasTermAssignmentsCache: WeakMap<Kysely<Database>, boolean> = new WeakMap();
 
 /**
- * Invalidate the cached "has any term assignments" check.
- * Called by admin routes after creating/deleting term assignments or taxonomies.
+ * Invalidate the cached "has any term assignments" check across all databases.
+ *
+ * Called by admin routes after creating/deleting term assignments, updating
+ * terms, or deleting taxonomies. Writes are rare compared to reads, so we
+ * clear the whole map rather than tracking which DB was mutated — instances
+ * that are no longer referenced will be collected anyway.
  */
 export function invalidateTermCache(): void {
-	hasTermAssignments = null;
+	hasTermAssignmentsCache = new WeakMap();
 }
 
 /**
- * Check whether any row exists in content_taxonomies. Result is cached for
- * the lifetime of the worker/process; invalidated on writes.
+ * Check whether any row exists in content_taxonomies for the given DB.
+ * Result is cached per-DB for the lifetime of that DB handle.
+ *
+ * Rethrows any error that is not a "missing table" error so callers see
+ * real DB failures (permissions, connectivity, syntax) rather than
+ * silently short-circuiting to "no terms". Pre-migration databases return
+ * `false` without logging — the expected state before the table exists.
  */
-async function hasAnyTermAssignments(): Promise<boolean> {
-	if (hasTermAssignments !== null) return hasTermAssignments;
+async function hasAnyTermAssignments(db: Kysely<Database>): Promise<boolean> {
+	const cached = hasTermAssignmentsCache.get(db);
+	if (cached !== undefined) return cached;
+
 	try {
-		const db = await getDb();
 		const result = await sql<{ entry_id: string }>`
 			SELECT entry_id FROM content_taxonomies LIMIT 1
 		`.execute(db);
-		hasTermAssignments = result.rows.length > 0;
-	} catch (error: unknown) {
-		// Pre-migration databases lack the table; treat as empty.
-		// Any other error: don't cache, let the next request retry.
-		const message = error instanceof Error ? error.message : "";
-		if (message.includes("no such table")) {
-			hasTermAssignments = false;
-		} else {
+		const value = result.rows.length > 0;
+		hasTermAssignmentsCache.set(db, value);
+		return value;
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			hasTermAssignmentsCache.set(db, false);
 			return false;
 		}
+		// Don't cache unknown failures; let the next call retry.
+		throw error;
 	}
-	return hasTermAssignments;
 }
 
 /**
@@ -256,52 +272,58 @@ export async function getTermsForEntries(
 ): Promise<Map<string, TaxonomyTerm[]>> {
 	const result = new Map<string, TaxonomyTerm[]>();
 
-	// Initialize all entry IDs with empty arrays
-	for (const id of entryIds) {
+	// Initialize all entry IDs with empty arrays so callers can always
+	// expect the key to be present.
+	const uniqueIds = [...new Set(entryIds)];
+	for (const id of uniqueIds) {
 		result.set(id, []);
 	}
 
-	if (entryIds.length === 0) {
-		return result;
-	}
-
-	// Skip the query entirely when no assignments exist anywhere.
-	if (!(await hasAnyTermAssignments())) {
+	if (uniqueIds.length === 0) {
 		return result;
 	}
 
 	const db = await getDb();
 
-	const rows = await db
-		.selectFrom("content_taxonomies")
-		.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
-		.select([
-			"content_taxonomies.entry_id",
-			"taxonomies.id",
-			"taxonomies.name",
-			"taxonomies.slug",
-			"taxonomies.label",
-			"taxonomies.parent_id",
-		])
-		.where("content_taxonomies.collection", "=", collection)
-		.where("content_taxonomies.entry_id", "in", entryIds)
-		.where("taxonomies.name", "=", taxonomyName)
-		.execute();
+	// Skip the query entirely when no assignments exist anywhere.
+	if (!(await hasAnyTermAssignments(db))) {
+		return result;
+	}
 
-	for (const row of rows) {
-		const entryId = row.entry_id;
-		const term: TaxonomyTerm = {
-			id: row.id,
-			name: row.name,
-			slug: row.slug,
-			label: row.label,
-			parentId: row.parent_id ?? undefined,
-			children: [],
-		};
+	// Chunk the IN clause so we stay below D1's ~100 bound-parameter limit
+	// (and equivalent limits on other dialects). Matches getContentBylinesMany.
+	for (const chunk of chunks(uniqueIds, SQL_BATCH_SIZE)) {
+		const rows = await db
+			.selectFrom("content_taxonomies")
+			.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
+			.select([
+				"content_taxonomies.entry_id",
+				"taxonomies.id",
+				"taxonomies.name",
+				"taxonomies.slug",
+				"taxonomies.label",
+				"taxonomies.parent_id",
+			])
+			.where("content_taxonomies.collection", "=", collection)
+			.where("content_taxonomies.entry_id", "in", chunk)
+			.where("taxonomies.name", "=", taxonomyName)
+			.execute();
 
-		const terms = result.get(entryId);
-		if (terms) {
-			terms.push(term);
+		for (const row of rows) {
+			const entryId = row.entry_id;
+			const term: TaxonomyTerm = {
+				id: row.id,
+				name: row.name,
+				slug: row.slug,
+				label: row.label,
+				parentId: row.parent_id ?? undefined,
+				children: [],
+			};
+
+			const terms = result.get(entryId);
+			if (terms) {
+				terms.push(term);
+			}
 		}
 	}
 
@@ -326,57 +348,63 @@ export async function getAllTermsForEntries(
 ): Promise<Map<string, Record<string, TaxonomyTerm[]>>> {
 	const result = new Map<string, Record<string, TaxonomyTerm[]>>();
 
-	// Initialize all entry IDs with empty objects so callers can always
-	// expect the key to be present.
-	for (const id of entryIds) {
+	// Initialize unique entry IDs with empty objects so callers can always
+	// expect the key to be present. Deduping also reduces wasted bound
+	// parameters when a caller accidentally passes duplicates.
+	const uniqueIds = [...new Set(entryIds)];
+	for (const id of uniqueIds) {
 		result.set(id, {});
 	}
 
-	if (entryIds.length === 0) {
-		return result;
-	}
-
-	// Skip the query entirely when no assignments exist anywhere.
-	if (!(await hasAnyTermAssignments())) {
+	if (uniqueIds.length === 0) {
 		return result;
 	}
 
 	const db = await getDb();
 
-	const rows = await db
-		.selectFrom("content_taxonomies")
-		.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
-		.select([
-			"content_taxonomies.entry_id",
-			"taxonomies.id",
-			"taxonomies.name",
-			"taxonomies.slug",
-			"taxonomies.label",
-			"taxonomies.parent_id",
-		])
-		.where("content_taxonomies.collection", "=", collection)
-		.where("content_taxonomies.entry_id", "in", entryIds)
-		.orderBy("taxonomies.label", "asc")
-		.execute();
+	// Skip the query entirely when no assignments exist anywhere.
+	if (!(await hasAnyTermAssignments(db))) {
+		return result;
+	}
 
-	for (const row of rows) {
-		const entryId = row.entry_id;
-		const term: TaxonomyTerm = {
-			id: row.id,
-			name: row.name,
-			slug: row.slug,
-			label: row.label,
-			parentId: row.parent_id ?? undefined,
-			children: [],
-		};
+	// Chunk the IN clause to stay below D1's ~100 bound-parameter limit
+	// (and equivalent limits on other dialects). Matches getContentBylinesMany.
+	for (const chunk of chunks(uniqueIds, SQL_BATCH_SIZE)) {
+		const rows = await db
+			.selectFrom("content_taxonomies")
+			.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
+			.select([
+				"content_taxonomies.entry_id",
+				"taxonomies.id",
+				"taxonomies.name",
+				"taxonomies.slug",
+				"taxonomies.label",
+				"taxonomies.parent_id",
+			])
+			.where("content_taxonomies.collection", "=", collection)
+			.where("content_taxonomies.entry_id", "in", chunk)
+			.orderBy("taxonomies.label", "asc")
+			.execute();
 
-		const byTaxonomy = result.get(entryId);
-		if (!byTaxonomy) continue;
-		const existing = byTaxonomy[row.name];
-		if (existing) {
-			existing.push(term);
-		} else {
-			byTaxonomy[row.name] = [term];
+		for (const row of rows) {
+			const entryId = row.entry_id;
+			const term: TaxonomyTerm = {
+				id: row.id,
+				name: row.name,
+				slug: row.slug,
+				label: row.label,
+				parentId: row.parent_id ?? undefined,
+				children: [],
+			};
+
+			const byTaxonomy = result.get(entryId);
+			if (!byTaxonomy) continue;
+			const existing = byTaxonomy[row.name];
+			if (existing) {
+				existing.push(term);
+			} else {
+				byTaxonomy[row.name] = [term];
+			}
 		}
 	}
 

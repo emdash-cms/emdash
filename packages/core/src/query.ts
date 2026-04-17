@@ -14,6 +14,7 @@
 
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import { getRequestContext } from "./request-context.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 import {
 	createEditable,
 	createNoop,
@@ -530,9 +531,11 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 			data.byline = credits[0]?.byline ?? null;
 		}
 	} catch (err) {
-		// Only swallow "table not found" errors from pre-migration databases
-		const msg = err instanceof Error ? err.message : "";
-		if (!msg.includes("no such table")) {
+		// Only swallow "table not found" errors from pre-migration databases.
+		// Matches SQLite/D1 ("no such table") and PostgreSQL ("relation/table
+		// ... does not exist") via the shared helper.
+		if (!isMissingTableError(err)) {
+			const msg = err instanceof Error ? err.message : String(err);
 			console.warn("[emdash] Failed to hydrate bylines:", msg);
 		}
 	}
@@ -571,9 +574,11 @@ async function hydrateEntryTerms<D>(type: string, entries: ContentEntry<D>[]): P
 			data.terms = termsMap.get(dbId) ?? {};
 		}
 	} catch (err) {
-		// Only swallow "table not found" errors from pre-migration databases
-		const msg = err instanceof Error ? err.message : "";
-		if (!msg.includes("no such table")) {
+		// Only swallow "table not found" errors from pre-migration databases.
+		// Matches SQLite/D1 ("no such table") and PostgreSQL ("relation/table
+		// ... does not exist") via the shared helper.
+		if (!isMissingTableError(err)) {
+			const msg = err instanceof Error ? err.message : String(err);
 			console.warn("[emdash] Failed to hydrate terms:", msg);
 		}
 	}
