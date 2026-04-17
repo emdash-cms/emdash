@@ -1539,9 +1539,16 @@ export class EmDashRuntime {
 	 * combined. Anonymous public reads never touch the search write path,
 	 * so the cost isn't paid back for the vast majority of requests.
 	 *
-	 * Instead, admin routes and the search endpoints call this lazily: the
-	 * first request that actually needs the index pays the verify cost
-	 * (usually fast — no rebuild needed), everyone else runs cold-free.
+	 * Instead, search endpoints call this lazily: the first request that
+	 * actually needs the index pays the verify cost (usually fast — no
+	 * rebuild needed), everyone else runs cold-free.
+	 *
+	 * Uses the runtime's singleton database (`this._db`) rather than the
+	 * request-scoped DB. Verify reads only, but `rebuildIndex` writes, and
+	 * a GET search request on D1 carries a `first-unconstrained` session
+	 * that's free to route at a read replica — unsafe for writes. The
+	 * singleton always goes through the default binding, which the D1
+	 * adapter will promote to `first-primary` for write statements.
 	 *
 	 * Safe to call concurrently: repeated callers share the same in-flight
 	 * promise. Errors are swallowed internally so callers don't need to
@@ -1550,13 +1557,13 @@ export class EmDashRuntime {
 	async ensureSearchHealthy(): Promise<void> {
 		if (this._searchHealthChecked) return;
 		if (this._searchHealthPromise) return this._searchHealthPromise;
-		if (!isSqlite(this.db)) {
+		if (!isSqlite(this._db)) {
 			this._searchHealthChecked = true;
 			return;
 		}
 		this._searchHealthPromise = (async () => {
 			try {
-				const ftsManager = new FTSManager(this.db);
+				const ftsManager = new FTSManager(this._db);
 				const repaired = await ftsManager.verifyAndRepairAll();
 				if (repaired > 0) {
 					console.log(`Repaired ${repaired} corrupted FTS index(es)`);

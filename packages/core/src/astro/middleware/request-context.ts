@@ -49,11 +49,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Playground mode: the playground middleware (from @emdash-cms/cloudflare) stashes
 	// the per-session DO database on locals.__playgroundDb. We set it via ALS here
 	// (same module instance as the loader) so getDb() picks it up correctly.
+	//
+	// `dbIsIsolated: true` tells schema-derived caches (manifest, taxonomy defs,
+	// byline/term existence probes) to bypass module-scope memoization — each
+	// playground session is its own database with its own schema, so a cached
+	// value from another session would be wrong.
 	const playgroundDb = context.locals.__playgroundDb;
 	if (playgroundDb) {
 		// Check if playground user has toggled edit mode on
 		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode: hasEditCookie, db: playgroundDb }, () => next());
+		return runWithContext({ editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true }, () =>
+			next(),
+		);
 	}
 
 	// Fast path: check for CMS signals before doing any work
