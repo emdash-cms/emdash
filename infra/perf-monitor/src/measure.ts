@@ -72,6 +72,7 @@ export async function runMeasurements(env: Env, opts: RunOptions): Promise<Inser
 					cfColo: r.cfColo,
 					cfPlacement: r.cfPlacement,
 					coldServerTimings: r.coldServerTimings,
+					warmServerTimings: r.warmServerTimings,
 					note,
 					source,
 				}),

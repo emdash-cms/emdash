@@ -163,23 +163,41 @@ for (const r of parsed.results ?? []) {
 for (const [route, rows] of byRoute) {
 	console.log(`\n  ${bold(route)}`);
 
-	// Collect the union of timing names present on this route so every row
-	// gets a cell in each timing column, even if one probe's response lacked
-	// a particular timing entry.
-	const timingNames = [];
-	const seen = new Set();
+	// Collect the union of timing names present on this route across BOTH
+	// cold and warm snapshots so every row gets a cell in each column,
+	// even when a particular probe response lacked some entries.
+	// Warm timings are prefixed with "warm." in the column header to make
+	// the split obvious (cold and warm snapshots share the same metric
+	// names — "render", "rt", "mw" — so we'd collide otherwise).
+	const coldNames = [];
+	const warmNames = [];
+	const seenCold = new Set();
+	const seenWarm = new Set();
 	for (const r of rows) {
-		if (!r.coldServerTimings) continue;
-		for (const name of Object.keys(r.coldServerTimings)) {
-			if (!seen.has(name)) {
-				seen.add(name);
-				timingNames.push(name);
+		if (r.coldServerTimings) {
+			for (const name of Object.keys(r.coldServerTimings)) {
+				if (!seenCold.has(name)) {
+					seenCold.add(name);
+					coldNames.push(name);
+				}
+			}
+		}
+		if (r.warmServerTimings) {
+			for (const name of Object.keys(r.warmServerTimings)) {
+				if (!seenWarm.has(name)) {
+					seenWarm.add(name);
+					warmNames.push(name);
+				}
 			}
 		}
 	}
 
-	// Build row cells as arrays of strings, then compute widths once.
-	const header = ["region", "cold", "warm", "p95", "colo", ...timingNames];
+	// Build row cells. Column order: region, cold, warm, p95, colo,
+	// then all cold timings (cold-* intent), then warm timings.
+	// Cold timings keep their bare names for backwards-compatible output;
+	// warm timings get a "w." prefix.
+	const warmHeaders = warmNames.map((n) => `w.${n}`);
+	const header = ["region", "cold", "warm", "p95", "colo", ...coldNames, ...warmHeaders];
 	const tableRows = rows.map((r) => {
 		const cells = [
 			r.region,
@@ -188,8 +206,12 @@ for (const [route, rows] of byRoute) {
 			formatMs(r.p95TtfbMs),
 			r.cfColo ?? "-",
 		];
-		for (const name of timingNames) {
+		for (const name of coldNames) {
 			const t = r.coldServerTimings?.[name];
+			cells.push(t ? formatMs(t.dur) : "-");
+		}
+		for (const name of warmNames) {
+			const t = r.warmServerTimings?.[name];
 			cells.push(t ? formatMs(t.dur) : "-");
 		}
 		return cells;

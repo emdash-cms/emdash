@@ -23,6 +23,13 @@ export interface RouteResult {
 	cfPlacement: string | null;
 	/** Parsed from the cold response. Null if header absent or unparseable. */
 	coldServerTimings: ServerTimings | null;
+	/**
+	 * Median of each Server-Timing metric across all warm requests.
+	 * Null if no warm responses carried the header or no warm requests
+	 * were issued. Use this to isolate steady-state render/middleware/
+	 * runtime cost, independent of cold-start.
+	 */
+	warmServerTimings: ServerTimings | null;
 }
 
 export interface MeasureResponse {
@@ -141,14 +148,37 @@ export async function measureRoutes(req: MeasureRequest): Promise<RouteResult[]>
 		const coldUrl = url + (url.includes("?") ? "&" : "?") + `_perf_cold=${Date.now()}`;
 		const cold = await measureTtfb(coldUrl);
 
-		// Warm requests
+		// Warm requests — keep per-metric samples so we can median each one.
 		const warmTimings: number[] = [];
+		const warmMetricSamples: Record<string, { durs: number[]; desc?: string }> = {};
 		let lastStatusCode = cold.statusCode;
 		for (let i = 0; i < req.warmRequests; i++) {
 			const warm = await measureTtfb(url);
 			warmTimings.push(warm.ttfbMs);
 			lastStatusCode = warm.statusCode;
+			if (warm.serverTimings) {
+				for (const [name, entry] of Object.entries(warm.serverTimings)) {
+					const acc = warmMetricSamples[name] ?? { durs: [], desc: entry.desc };
+					acc.durs.push(entry.dur);
+					if (!acc.desc && entry.desc) acc.desc = entry.desc;
+					warmMetricSamples[name] = acc;
+				}
+			}
 		}
+
+		// Collapse per-metric samples into medians so the stored shape
+		// mirrors coldServerTimings.
+		const warmServerTimings: ServerTimings | null = Object.keys(warmMetricSamples).length
+			? Object.fromEntries(
+					Object.entries(warmMetricSamples).map(([name, { durs, desc }]) => {
+						const entry: { dur: number; desc?: string } = {
+							dur: Math.round(median(durs) * 100) / 100,
+						};
+						if (desc) entry.desc = desc;
+						return [name, entry];
+					}),
+				)
+			: null;
 
 		results.push({
 			path: route.path,
@@ -160,6 +190,7 @@ export async function measureRoutes(req: MeasureRequest): Promise<RouteResult[]>
 			cfColo: cold.cfColo,
 			cfPlacement: cold.cfPlacement,
 			coldServerTimings: cold.serverTimings,
+			warmServerTimings,
 		});
 	}
 

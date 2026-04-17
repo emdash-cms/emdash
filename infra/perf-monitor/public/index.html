@@ -432,7 +432,8 @@
 								<th>P95</th>
 								<th>Status</th>
 								<th>Colo</th>
-								<th>Server Timings</th>
+								<th>Cold Timings</th>
+								<th>Warm Timings</th>
 								<th>Source</th>
 							</tr>
 						</thead>
@@ -840,7 +841,7 @@
 
 				if (!data.results || data.results.length === 0) {
 					tbody.innerHTML =
-						'<tr><td colspan="10" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
+						'<tr><td colspan="11" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
 					return;
 				}
 
@@ -871,6 +872,7 @@
               <td class="mono">${r.status_code ?? "-"}</td>
               <td class="mono">${r.cf_colo ?? "-"}</td>
               <td>${renderServerTimings(r.cold_server_timings)}</td>
+              <td>${renderServerTimings(r.warm_server_timings)}</td>
               <td>${sourceBadge}${prLink}${shaLink}</td>
             </tr>`;
 					})

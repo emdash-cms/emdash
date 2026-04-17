@@ -17,6 +17,12 @@ export interface PerfResult {
 	cf_placement: string | null;
 	/** Raw JSON string as stored. Use {@link parseColdServerTimings} to decode. */
 	cold_server_timings: string | null;
+	/**
+	 * Median duration per metric across warm requests, same JSON shape as
+	 * `cold_server_timings`. Null when the target didn't emit Server-Timing
+	 * on warm responses, or when no warm requests were issued.
+	 */
+	warm_server_timings: string | null;
 	note: string | null;
 	timestamp: string;
 	source: string;
@@ -36,14 +42,16 @@ export interface InsertParams {
 	cfPlacement: string | null;
 	/** Will be JSON.stringify'd on the way in. Null if unavailable. */
 	coldServerTimings: Record<string, { dur: number; desc?: string }> | null;
+	/** Median-per-metric snapshot of warm Server-Timing. Null if unavailable. */
+	warmServerTimings: Record<string, { dur: number; desc?: string }> | null;
 	note: string | null;
 	source: Source;
 }
 
 /** Column list shared between insertResult and insertResults. */
 const INSERT_COLUMNS =
-	"id, sha, pr_number, route, region, cold_ttfb_ms, warm_ttfb_ms, p95_ttfb_ms, status_code, cf_colo, cf_placement, cold_server_timings, note, source";
-const INSERT_PLACEHOLDERS = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
+	"id, sha, pr_number, route, region, cold_ttfb_ms, warm_ttfb_ms, p95_ttfb_ms, status_code, cf_colo, cf_placement, cold_server_timings, warm_server_timings, note, source";
+const INSERT_PLACEHOLDERS = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
 function bindInsert(stmt: D1PreparedStatement, p: InsertParams): D1PreparedStatement {
 	return stmt.bind(
@@ -59,6 +67,7 @@ function bindInsert(stmt: D1PreparedStatement, p: InsertParams): D1PreparedState
 		p.cfColo,
 		p.cfPlacement,
 		p.coldServerTimings ? JSON.stringify(p.coldServerTimings) : null,
+		p.warmServerTimings ? JSON.stringify(p.warmServerTimings) : null,
 		p.note,
 		p.source,
 	);

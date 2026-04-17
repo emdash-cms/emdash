@@ -213,6 +213,7 @@ async function handleTrigger(request: Request, env: Env): Promise<Response> {
 			p95TtfbMs: r.p95TtfbMs,
 			cfColo: r.cfColo,
 			coldServerTimings: r.coldServerTimings,
+			warmServerTimings: r.warmServerTimings,
 		})),
 	});
 }
