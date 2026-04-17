@@ -142,6 +142,7 @@
     "#mcp/*": "./src/mcp/*",
     "#comments/*": "./src/comments/*",
     "#bylines/*": "./src/bylines/*",
+    "#taxonomies/*": "./src/taxonomies/*",
     "#redirects/*": "./src/redirects/*",
     "#types": "./src/astro/types.js"
   },
