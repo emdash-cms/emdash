@@ -184,7 +184,10 @@ function finalizeResponse(
 		res.headers.set(
 			"Server-Timing",
 			serverTimings
-				.map((t) => (t.desc ? `${t.name};dur=${t.dur};desc="${t.desc}"` : `${t.name};dur=${t.dur}`))
+				.map((t) => {
+					const dur = Math.round(t.dur);
+					return t.desc ? `${t.name};dur=${dur};desc="${t.desc}"` : `${t.name};dur=${dur}`;
+				})
 				.join(", "),
 		);
 	}
