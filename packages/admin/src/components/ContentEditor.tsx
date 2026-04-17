@@ -82,7 +82,11 @@ export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
-	options?: Array<{ value: string; label: string }>;
+	/**
+	 * For `select` / `multiSelect`: the list of enum choices.
+	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+	 */
+	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
 }
@@ -1087,7 +1091,7 @@ function FieldRenderer({
 						label: string;
 						id: string;
 						required?: boolean;
-						options?: Array<{ value: string; label: string }>;
+						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 						minimal?: boolean;
 				  }>
 				| undefined;
@@ -1204,8 +1208,9 @@ function FieldRenderer({
 			);
 
 		case "select": {
+			const selectOptions = Array.isArray(field.options) ? field.options : [];
 			const selectItems: Record<string, string> = {};
-			for (const opt of field.options ?? []) {
+			for (const opt of selectOptions) {
 				selectItems[opt.value] = opt.label;
 			}
 			return (
@@ -1216,7 +1221,7 @@ function FieldRenderer({
 					onValueChange={(v) => handleChange(v ?? "")}
 					items={selectItems}
 				>
-					{field.options?.map((opt) => (
+					{selectOptions.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
 							{opt.label}
 						</Select.Option>
@@ -1226,12 +1231,13 @@ function FieldRenderer({
 		}
 
 		case "multiSelect": {
+			const multiSelectOptions = Array.isArray(field.options) ? field.options : [];
 			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
 			return (
 				<fieldset>
 					<Label className={labelClass}>{label}</Label>
 					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-						{field.options?.map((opt) => {
+						{multiSelectOptions.map((opt) => {
 							const isChecked = selected.includes(opt.value);
 							return (
 								<Checkbox
