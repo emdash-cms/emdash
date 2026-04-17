@@ -288,8 +288,7 @@ export class EmDashRuntime {
 
 	private _cachedManifest: EmDashManifest | null = null;
 	private _manifestPromise: Promise<EmDashManifest> | null = null;
-	/** Fingerprint of build-time config that affects the manifest shape */
-	private readonly _configFingerprint: string;
+	private readonly _manifestCacheKey: string;
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -349,6 +348,7 @@ export class EmDashRuntime {
 		},
 		runtimeDeps: RuntimeDependencies,
 		pipelineRef: { current: HookPipeline },
+		manifestCacheKey: string,
 	) {
 		this._db = db;
 		this.storage = storage;
@@ -369,23 +369,7 @@ export class EmDashRuntime {
 		this.pipelineFactoryOptions = pipelineFactoryOptions;
 		this.runtimeDeps = runtimeDeps;
 		this.pipelineRef = pipelineRef;
-
-		// Build-time config fingerprint for manifest cache validation.
-		// Includes everything that affects the manifest shape: emdash
-		// version, plugin IDs/versions/options, i18n config, marketplace.
-		this._configFingerprint = [
-			VERSION,
-			COMMIT,
-			...configuredPlugins.map(
-				(p) => `${p.id}@${p.version ?? ""}:${JSON.stringify(p.options ?? {})}`,
-			),
-			...sandboxedPluginEntries.map(
-				(e) => `${e.id}@${e.version}:${JSON.stringify(e.options ?? {})}`,
-			),
-			config.marketplace ? "marketplace" : "",
-			virtualConfig?.i18n?.defaultLocale ?? "",
-			virtualConfig?.i18n?.locales?.join(",") ?? "",
-		].join("|");
+		this._manifestCacheKey = manifestCacheKey;
 	}
 
 	/**
@@ -812,6 +796,20 @@ export class EmDashRuntime {
 			// Non-fatal — CMS works without cron
 		}
 
+		// SHA of emdash commit + user config that affects the manifest.
+		// COMMIT captures emdash code changes; plugin IDs and i18n config
+		// capture user astro.config changes. DB-driven changes (collections,
+		// fields, plugin toggle) go through invalidateManifest().
+		const manifestCacheKey = await hashString(
+			[
+				COMMIT,
+				...deps.plugins.map((p) => p.id),
+				...deps.sandboxedPluginEntries.map((e) => e.id),
+				virtualConfig?.i18n?.defaultLocale ?? "",
+				virtualConfig?.i18n?.locales?.join(",") ?? "",
+			].join("|"),
+		);
+
 		return new EmDashRuntime(
 			db,
 			storage,
@@ -831,6 +829,7 @@ export class EmDashRuntime {
 			pipelineFactoryOptions,
 			deps,
 			pipelineRef,
+			manifestCacheKey,
 		);
 	}
 
@@ -1195,14 +1194,16 @@ export class EmDashRuntime {
 
 		if (this._cachedManifest) return this._cachedManifest;
 
-		// DB-persisted cache (1 query instead of N+1 rebuild on cold start)
+		// DB-persisted cache (1 query instead of N+1 rebuild on cold start).
+		// Keyed by SHA of commit + config to bust on deploys. DB-driven
+		// changes (collections, fields, plugins, taxonomies) go through
+		// invalidateManifest().
 		try {
 			const options = new OptionsRepository(this.db);
-			const cached = await options.get<{
-				fingerprint: string;
-				manifest: EmDashManifest;
-			}>("emdash:manifest_cache");
-			if (cached && cached.fingerprint === this._configFingerprint && cached.manifest) {
+			const cached = await options.get<{ key: string; manifest: EmDashManifest }>(
+				"emdash:manifest_cache",
+			);
+			if (cached && cached.key === this._manifestCacheKey && cached.manifest) {
 				this._cachedManifest = cached.manifest;
 				return cached.manifest;
 			}
@@ -1231,7 +1232,7 @@ export class EmDashRuntime {
 				try {
 					const options = new OptionsRepository(this.db);
 					await options.set("emdash:manifest_cache", {
-						fingerprint: this._configFingerprint,
+						key: this._manifestCacheKey,
 						manifest,
 					});
 				} catch {
