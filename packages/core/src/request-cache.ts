@@ -17,20 +17,17 @@
 import type { EmDashRequestContext } from "./request-context.js";
 import { getRequestContext } from "./request-context.js";
 
-const STORE_KEY = Symbol.for("emdash:request-cache");
+type CacheStore = WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>;
 
-const store: WeakMap<
-	EmDashRequestContext,
-	Map<string, Promise<unknown>>
-> = // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
-((globalThis as Record<symbol, unknown>)[STORE_KEY] as
-	| WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>
-	| undefined) ??
-(() => {
-	const wm = new WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>();
-	(globalThis as Record<symbol, unknown>)[STORE_KEY] = wm;
-	return wm;
-})();
+const STORE_KEY = Symbol.for("emdash:request-cache");
+const g = globalThis as Record<symbol, unknown>;
+const store: CacheStore =
+	(g[STORE_KEY] as CacheStore | undefined) ??
+	(() => {
+		const wm: CacheStore = new WeakMap();
+		g[STORE_KEY] = wm;
+		return wm;
+	})();
 
 /**
  * Return a cached result for `key` if one exists in the current
