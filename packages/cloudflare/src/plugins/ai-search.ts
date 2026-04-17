@@ -148,9 +148,7 @@ async function getCloudflareEnv(): Promise<Record<string, unknown> | null> {
  * Silently no-ops outside Workers (e.g. during local dev).
  */
 function cfWaitUntil(promise: Promise<unknown>): void {
-	import("cloudflare:workers")
-		.then(({ waitUntil }) => waitUntil(promise))
-		.catch(() => {});
+	import("cloudflare:workers").then(({ waitUntil }) => waitUntil(promise)).catch(() => {});
 }
 
 /** Convert a content entry to Markdown for indexing. */
@@ -283,8 +281,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 			// Resolve published_at timestamp for recency boosting.
 			// Hooks provide publishedAt at top level; reindex merges item + item.data.
 			const pubRaw = content.publishedAt ?? content.published_at;
-			const pubMs =
-				typeof pubRaw === "string" ? new Date(pubRaw).getTime() : 0;
+			const pubMs = typeof pubRaw === "string" ? new Date(pubRaw).getTime() : 0;
 
 			const metadata: Record<string, string> = {
 				visible_after: String(visibleAfter),
@@ -367,8 +364,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						const visibleAfter = getVisibleAfter(record);
 
 						const pubRaw = item.publishedAt;
-						const pubMs =
-							typeof pubRaw === "string" ? new Date(pubRaw).getTime() : 0;
+						const pubMs = typeof pubRaw === "string" ? new Date(pubRaw).getTime() : 0;
 
 						const metadata: Record<string, string> = {
 							visible_after: String(visibleAfter),
@@ -440,10 +436,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 			},
 
 			"content:afterPublish": {
-				handler: (
-					event: ContentPublishStateChangeEvent,
-					ctx: PluginContext,
-				): Promise<void> => {
+				handler: (event: ContentPublishStateChangeEvent, ctx: PluginContext): Promise<void> => {
 					const { content, collection } = event;
 					if (targetCollections && !targetCollections.includes(collection))
 						return Promise.resolve();
@@ -455,10 +448,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 			},
 
 			"content:afterUnpublish": {
-				handler: (
-					event: ContentPublishStateChangeEvent,
-					ctx: PluginContext,
-				): Promise<void> => {
+				handler: (event: ContentPublishStateChangeEvent, ctx: PluginContext): Promise<void> => {
 					const { content, collection } = event;
 					if (targetCollections && !targetCollections.includes(collection))
 						return Promise.resolve();
@@ -614,8 +604,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 					if (collections.length === 0) {
 						return {
-							error:
-								"No collections specified. Pass collections in the request or plugin config.",
+							error: "No collections specified. Pass collections in the request or plugin config.",
 						};
 					}
 

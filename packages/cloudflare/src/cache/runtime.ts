@@ -293,11 +293,12 @@ const factory: CacheProviderFactory<CloudflareCacheConfig> = (config) => {
 				const apiToken = resolveEnvValue(config?.apiToken, apiTokenEnvVar);
 
 				if (!zoneId || !apiToken) {
-					throw new Error(
-						`[cloudflare-cache-api] Tag-based invalidation requires a Zone ID and API token. ` +
+					console.warn(
+						`[cloudflare-cache-api] Tag-based invalidation skipped: missing Zone ID or API token. ` +
 							`Set the ${zoneIdEnvVar} and ${apiTokenEnvVar} environment variables, ` +
 							`or pass zoneId/apiToken in the cloudflareCache() config.`,
 					);
+					return;
 				}
 
 				const tags = Array.isArray(options.tags) ? options.tags : [options.tags];

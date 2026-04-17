@@ -1,0 +1,194 @@
+---
+export const prerender = false;
+
+import Base from "../layouts/Base.astro";
+
+const query = Astro.url.searchParams.get("q")?.trim() || "";
+
+interface AISearchResult {
+	collection: string;
+	id: string;
+	slug: string | null;
+	title: string | null;
+	score: number;
+	snippet: string;
+}
+
+let results: AISearchResult[] = [];
+let searchError: string | null = null;
+
+if (query) {
+	try {
+		const params = new URLSearchParams({ q: query, limit: "20" });
+		const apiUrl = new URL(`/_emdash/api/plugins/ai-search-api/query?${params}`, Astro.url);
+		const response = await fetch(apiUrl, {
+			headers: { Cookie: Astro.request.headers.get("Cookie") || "" },
+		});
+		if (response.ok) {
+			const data = (await response.json()) as { results: AISearchResult[]; error?: string };
+			results = data.results ?? [];
+			if (data.error) searchError = data.error;
+		}
+	} catch {
+		searchError = "Search is temporarily unavailable.";
+	}
+}
+---
+
+<Base
+	title={query ? `Search: ${query}` : "Search"}
+	description="Search blog posts"
+>
+	<section class="search-page">
+		<h1 class="search-title">Search</h1>
+
+		<form method="get" action="/search" class="search-form">
+			<input
+				type="search"
+				name="q"
+				value={query}
+				placeholder="Search posts..."
+				class="search-input"
+				autofocus
+			/>
+			<button type="submit" class="search-button">Search</button>
+		</form>
+
+		{
+			searchError && (
+				<p class="search-error">{searchError}</p>
+			)
+		}
+
+		{
+			query && !searchError && (
+				<p class="search-summary">
+					{results.length === 0
+						? `No results for "${query}"`
+						: `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
+				</p>
+			)
+		}
+
+		{
+			results.length > 0 && (
+				<div class="search-results">
+					{results.map((result) => (
+						<a href={`/${result.collection}/${result.slug ?? result.id}`} class="search-result-card">
+							<h3 class="search-result-title">{result.title ?? result.slug ?? result.id}</h3>
+							<span class="search-result-collection">{result.collection}</span>
+							{result.snippet && (
+								<p class="search-result-snippet">{result.snippet}</p>
+							)}
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		{!query && <p class="search-hint">Enter a search term to find posts.</p>}
+	</section>
+</Base>
+
+<style>
+	.search-page {
+		max-width: var(--max-width);
+		margin: 0 auto;
+		padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
+	}
+
+	.search-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.search-form {
+		display: flex;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.search-input {
+		flex: 1;
+		padding: var(--spacing-2) var(--spacing-4);
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	.search-input:focus {
+		outline: none;
+		border-color: var(--color-accent);
+	}
+
+	.search-button {
+		padding: var(--spacing-2) var(--spacing-6);
+		font-size: var(--font-size-base);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		border: none;
+		border-radius: var(--radius);
+		cursor: pointer;
+		font-weight: 500;
+	}
+
+	.search-button:hover {
+		opacity: 0.9;
+	}
+
+	.search-summary {
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.search-error {
+		color: #c33;
+		margin-bottom: var(--spacing-6);
+	}
+
+	.search-hint {
+		color: var(--color-muted);
+	}
+
+	.search-results {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.search-result-card {
+		display: block;
+		padding: var(--spacing-4) var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		color: var(--color-text);
+		transition: border-color var(--transition-fast);
+	}
+
+	.search-result-card:hover {
+		border-color: var(--color-accent);
+	}
+
+	.search-result-title {
+		font-size: var(--font-size-lg);
+		font-weight: 500;
+		margin-bottom: var(--spacing-1);
+	}
+
+	.search-result-collection {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.search-result-snippet {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+		margin-top: var(--spacing-2);
+		line-height: var(--leading-normal);
+	}
+</style>

@@ -1,0 +1,35 @@
+{
+  "name": "@emdash-cms/demo-simple-ai-search",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "emdash": {
+    "seed": "seed/seed.json"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "bootstrap": "emdash init && emdash seed",
+    "seed": "emdash seed",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/node": "catalog:",
+    "@astrojs/react": "catalog:",
+    "@emdash-cms/plugin-ai-search": "workspace:*",
+    "@emdash-cms/plugin-audit-log": "workspace:*",
+    "@emdash-cms/plugin-color": "workspace:*",
+    "astro": "catalog:",
+    "better-sqlite3": "catalog:",
+    "emdash": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@astrojs/check": "catalog:"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {}
+}

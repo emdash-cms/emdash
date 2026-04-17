@@ -1,0 +1,10 @@
+{
+	"extends": "../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"types": ["vite/client"]
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "src/admin.tsx"]
+}

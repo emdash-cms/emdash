@@ -53,6 +53,7 @@
       "types": "./dist/plugins/ai-search-admin.d.mts",
       "default": "./dist/plugins/ai-search-admin.mjs"
     },
+
     "./media/images-runtime": {
       "types": "./dist/media/images-runtime.d.mts",
       "default": "./dist/media/images-runtime.mjs"

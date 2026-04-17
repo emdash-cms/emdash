@@ -1,0 +1,925 @@
+---
+/**
+ * SearchModal - A modal search component for EmDash content
+ *
+ * Opens a centered modal overlay when the trigger button is clicked or
+ * when the user presses Cmd/Ctrl+K. Matches the style of Cloudflare's
+ * AI Search snippet modal.
+ *
+ * ```astro
+ * ---
+ * import SearchModal from "emdash/ui/search-modal";
+ * ---
+ * <SearchModal placeholder="Search articles..." collections={["posts", "pages"]} />
+ * ```
+ */
+
+export interface Props {
+	/** Placeholder text for the search input */
+	placeholder?: string;
+	/** Collections to search (defaults to all searchable collections) */
+	collections?: string[];
+	/** Minimum characters before searching (defaults to 2) */
+	minChars?: number;
+	/** Debounce delay in milliseconds (defaults to 300) */
+	debounce?: number;
+	/** Maximum results to show (defaults to 10) */
+	limit?: number;
+	/** Keyboard shortcut key (defaults to "k", used with Cmd/Ctrl) */
+	shortcut?: string;
+	/**
+	 * Custom search endpoint URL. Overrides the default FTS5 search endpoint.
+	 * Use this to point at a plugin search route, e.g. `"/_emdash/api/plugins/ai-search/query"`.
+	 * The endpoint should accept `q`, `limit`, and `collection` query params
+	 * and return `{ results: [{ collection, id, slug?, title?, snippet?, score }] }`.
+	 */
+	searchEndpoint?: string;
+}
+
+const {
+	placeholder = "Search...",
+	collections,
+	minChars = 2,
+	debounce = 300,
+	limit = 10,
+	shortcut = "k",
+	searchEndpoint,
+} = Astro.props;
+
+const config = {
+	collections: collections?.join(",") ?? "",
+	minChars,
+	debounce,
+	limit,
+	shortcut,
+	searchEndpoint: searchEndpoint ?? null,
+};
+---
+
+<!-- Trigger: rendered inline where the component is placed (e.g. inside a nav) -->
+<emdash-search-modal data-config={JSON.stringify(config)}>
+	<button type="button" class="emdash-search-trigger" aria-label="Search">
+		<svg class="emdash-search-trigger-icon" viewBox="0 -960 960 960" fill="currentColor">
+			<path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"></path>
+		</svg>
+		<span class="emdash-search-trigger-text">{placeholder}</span>
+		<kbd class="emdash-search-trigger-kbd">
+			<span class="emdash-search-trigger-kbd-mod"></span>{shortcut.toUpperCase()}
+		</kbd>
+	</button>
+
+	<!-- Backdrop template: the script moves this to document.body so it escapes
+	     any parent stacking context (e.g. a sticky header with backdrop-filter). -->
+	<template class="emdash-search-backdrop-tpl">
+		<div class="emdash-search-backdrop">
+			<div class="emdash-search-dialog" role="dialog" aria-modal="true" aria-label="Search">
+				<div class="emdash-search-header">
+					<svg class="emdash-search-icon" viewBox="0 -960 960 960" fill="currentColor">
+						<path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"></path>
+					</svg>
+					<input
+						type="text"
+						class="emdash-search-input"
+						placeholder={placeholder}
+						autocomplete="off"
+						spellcheck="false"
+						aria-label="Search"
+						aria-autocomplete="list"
+						aria-controls="emdash-search-results"
+						aria-expanded="false"
+					/>
+				</div>
+				<div class="emdash-search-content">
+					<div class="emdash-search-results" id="emdash-search-results" role="listbox" aria-label="Search results">
+						<div class="emdash-search-empty">
+							<svg class="emdash-search-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<circle cx="11" cy="11" r="8"></circle>
+								<path d="m21 21-4.35-4.35"></path>
+							</svg>
+							<div class="emdash-search-empty-text">Start typing to search</div>
+						</div>
+					</div>
+				</div>
+				<div class="emdash-search-footer">
+					<div class="emdash-search-hints">
+						<span class="emdash-search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span>
+						<span class="emdash-search-hint"><kbd>&crarr;</kbd> Open</span>
+						<span class="emdash-search-hint"><kbd>Esc</kbd> Close</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</template>
+</emdash-search-modal>
+
+<script>
+	// Sanitization patterns for search snippets (allow only <mark> tags from FTS5)
+	const SNIPPET_AMP_RE = /&/g;
+	const SNIPPET_LT_RE = /</g;
+	const SNIPPET_GT_RE = />/g;
+	const SNIPPET_MARK_OPEN_RE = /&lt;mark&gt;/g;
+	const SNIPPET_MARK_CLOSE_RE = /&lt;\/mark&gt;/g;
+
+	interface SearchResult {
+		collection: string;
+		id: string;
+		slug: string | null;
+		title?: string;
+		snippet?: string;
+		score: number;
+	}
+
+	interface Config {
+		collections: string;
+		minChars: number;
+		debounce: number;
+		limit: number;
+		shortcut: string;
+		searchEndpoint: string | null;
+	}
+
+	/** Create an SVG element from a static markup string. Only used for icons with no dynamic content. */
+	function createSvgIcon(html: string): SVGElement {
+		const tmp = document.createElement("template");
+		tmp.innerHTML = html.trim();
+		return tmp.content.firstElementChild as SVGElement;
+	}
+
+	/** Sanitize a search snippet to allow only <mark> tags (from FTS5 highlighting). */
+	function sanitizeSnippet(snippet: string): string {
+		return snippet
+			.replace(SNIPPET_AMP_RE, "&amp;")
+			.replace(SNIPPET_LT_RE, "&lt;")
+			.replace(SNIPPET_GT_RE, "&gt;")
+			.replace(SNIPPET_MARK_OPEN_RE, "<mark>")
+			.replace(SNIPPET_MARK_CLOSE_RE, "</mark>");
+	}
+
+	const SEARCH_ICON_SVG = `<svg class="emdash-search-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>`;
+
+	class EmDashSearchModal extends HTMLElement {
+		private trigger: HTMLButtonElement | null = null;
+		private backdrop: HTMLElement | null = null;
+		private dialog: HTMLElement | null = null;
+		private input: HTMLInputElement | null = null;
+		private resultsContainer: HTMLElement | null = null;
+		private config: Config = {
+			collections: "",
+			minChars: 2,
+			debounce: 300,
+			limit: 10,
+			shortcut: "k",
+			searchEndpoint: null,
+		};
+		private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+		private abortController: AbortController | null = null;
+		private results: SearchResult[] = [];
+		private activeIndex = -1;
+		private isOpen = false;
+
+		connectedCallback() {
+			const configStr = this.dataset.config;
+			if (configStr) {
+				try {
+					this.config = { ...this.config, ...JSON.parse(configStr) };
+				} catch {
+					// Use defaults
+				}
+			}
+
+			this.trigger = this.querySelector(".emdash-search-trigger");
+
+			// Stamp the backdrop template and append to document.body so it
+			// sits outside any parent stacking context (sticky headers, etc.)
+			const tpl = this.querySelector<HTMLTemplateElement>(".emdash-search-backdrop-tpl");
+			if (tpl) {
+				const fragment = tpl.content.cloneNode(true) as DocumentFragment;
+				document.body.appendChild(fragment);
+				tpl.remove();
+			}
+			this.backdrop = document.body.querySelector(".emdash-search-backdrop");
+			this.dialog = this.backdrop?.querySelector(".emdash-search-dialog") ?? null;
+			this.input = this.backdrop?.querySelector(".emdash-search-input") ?? null;
+			this.resultsContainer = this.backdrop?.querySelector(".emdash-search-results") ?? null;
+
+			// Populate modifier key glyph
+			const modSpan = this.querySelector(".emdash-search-trigger-kbd-mod");
+			if (modSpan) {
+				const isMac =
+					navigator.platform?.startsWith("Mac") ||
+					(navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform === "macOS";
+				modSpan.textContent = isMac ? "\u2318" : "Ctrl+";
+			}
+
+			this.trigger?.addEventListener("click", () => this.open());
+
+			this.backdrop?.addEventListener("click", (e) => {
+				if (e.target === this.backdrop) this.close();
+			});
+
+			this.input?.addEventListener("input", () => this.handleInput());
+			this.input?.addEventListener("keydown", (e) => this.handleKeydown(e));
+
+			document.addEventListener("keydown", (e) => {
+				if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === this.config.shortcut) {
+					e.preventDefault();
+					if (this.isOpen) {
+						this.close();
+					} else {
+						this.open();
+					}
+				}
+			});
+		}
+
+		private open() {
+			if (this.isOpen) return;
+			this.isOpen = true;
+
+			if (this.backdrop) {
+				this.backdrop.classList.add("visible");
+				// Force reflow so opacity transition plays
+				void this.backdrop.offsetHeight;
+				this.backdrop.classList.add("open");
+			}
+
+			// Lock scroll and compensate for scrollbar disappearing
+			const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+			document.body.style.overflow = "hidden";
+			if (scrollbarWidth > 0) {
+				document.body.style.paddingRight = `${scrollbarWidth}px`;
+			}
+
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					this.input?.focus();
+				});
+			});
+		}
+
+		private close() {
+			if (!this.isOpen) return;
+			this.isOpen = false;
+
+			this.backdrop?.classList.remove("open");
+			document.body.style.overflow = "";
+			document.body.style.paddingRight = "";
+
+			// Wait for opacity transition to finish, then hide
+			setTimeout(() => {
+				if (!this.isOpen && this.backdrop) {
+					this.backdrop.classList.remove("visible");
+				}
+			}, 200);
+
+			// Reset state
+			if (this.input) this.input.value = "";
+			this.results = [];
+			this.activeIndex = -1;
+			this.showEmpty();
+		}
+
+		private handleInput() {
+			if (!this.input) return;
+			const query = this.input.value.trim();
+
+			if (this.debounceTimer) clearTimeout(this.debounceTimer);
+
+			if (query.length < this.config.minChars) {
+				this.showEmpty();
+				return;
+			}
+
+			this.debounceTimer = setTimeout(() => {
+				this.search(query);
+			}, this.config.debounce);
+		}
+
+		private handleKeydown(e: KeyboardEvent) {
+			switch (e.key) {
+				case "ArrowDown":
+					e.preventDefault();
+					this.navigate(1);
+					break;
+				case "ArrowUp":
+					e.preventDefault();
+					this.navigate(-1);
+					break;
+				case "Enter":
+					e.preventDefault();
+					this.selectActive();
+					break;
+				case "Escape":
+					e.preventDefault();
+					this.close();
+					break;
+			}
+		}
+
+		private navigate(direction: number) {
+			if (this.results.length === 0) return;
+
+			const newIndex = this.activeIndex + direction;
+			if (newIndex < 0) {
+				this.activeIndex = this.results.length - 1;
+			} else if (newIndex >= this.results.length) {
+				this.activeIndex = 0;
+			} else {
+				this.activeIndex = newIndex;
+			}
+
+			this.updateActive();
+		}
+
+		private updateActive() {
+			const items = this.resultsContainer?.querySelectorAll(".emdash-search-result");
+			if (!items) return;
+
+			items.forEach((item, i) => {
+				if (i === this.activeIndex) {
+					item.classList.add("active");
+					item.setAttribute("aria-selected", "true");
+					(item as HTMLElement).scrollIntoView({ block: "nearest" });
+				} else {
+					item.classList.remove("active");
+					item.setAttribute("aria-selected", "false");
+				}
+			});
+
+			if (this.input) {
+				if (this.activeIndex >= 0) {
+					this.input.setAttribute("aria-activedescendant", `emdash-result-${this.activeIndex}`);
+				} else {
+					this.input.removeAttribute("aria-activedescendant");
+				}
+			}
+		}
+
+		private selectActive() {
+			if (this.activeIndex < 0 || this.activeIndex >= this.results.length) return;
+
+			const result = this.results[this.activeIndex];
+			if (!result) return;
+
+			const path = result.slug ?? result.id;
+			window.location.href = `/${result.collection}/${path}`;
+			this.close();
+		}
+
+		private async search(query: string) {
+			if (this.abortController) this.abortController.abort();
+			this.abortController = new AbortController();
+
+			this.showLoading();
+
+			try {
+				const endpoint = this.config.searchEndpoint ?? "/_emdash/api/search";
+				const params = new URLSearchParams({
+					q: query,
+					limit: String(this.config.limit),
+				});
+
+				if (this.config.collections) {
+					// Custom endpoints use 'collection' (singular) for filtering
+					if (this.config.searchEndpoint) {
+						params.set("collection", this.config.collections);
+					} else {
+						params.set("collections", this.config.collections);
+					}
+				}
+
+				const response = await fetch(`${endpoint}?${params}`, {
+					signal: this.abortController.signal,
+				});
+
+				if (!response.ok) throw new Error("Search failed");
+
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any -- response shape varies by endpoint
+				const responseData: any = await response.json();
+				// Handle API response envelope: { data: { items: [...] } }
+				const data = responseData.data || responseData;
+				const items: SearchResult[] = data.items || data.results || [];
+
+				this.results = items;
+				this.activeIndex = items.length > 0 ? 0 : -1;
+				this.renderResults(items, query);
+			} catch (error) {
+				if ((error as Error).name === "AbortError") return;
+				this.showError();
+			}
+		}
+
+		private renderResults(results: SearchResult[], _query: string) {
+			if (!this.resultsContainer) return;
+
+			if (results.length === 0) {
+				this.showNoResults(_query);
+				return;
+			}
+
+			// Clear previous results
+			this.resultsContainer.textContent = "";
+
+			for (let i = 0; i < results.length; i++) {
+				const result = results[i]!;
+				const link = document.createElement("a");
+				link.href = `/${result.collection}/${result.slug ?? result.id}`;
+				link.className = `emdash-search-result${i === this.activeIndex ? " active" : ""}`;
+				link.role = "option";
+				link.id = `emdash-result-${i}`;
+				link.setAttribute("aria-selected", String(i === this.activeIndex));
+				link.dataset.index = String(i);
+
+				const body = document.createElement("div");
+				body.className = "emdash-search-result-body";
+
+				const titleEl = document.createElement("div");
+				titleEl.className = "emdash-search-result-title";
+				titleEl.textContent = result.title ?? result.slug ?? result.id;
+				body.appendChild(titleEl);
+
+				if (result.snippet) {
+					const snippetEl = document.createElement("div");
+					snippetEl.className = "emdash-search-result-snippet";
+					// innerHTML is intentional: sanitizeSnippet allows only <mark> tags
+					snippetEl.innerHTML = sanitizeSnippet(result.snippet);
+					body.appendChild(snippetEl);
+				}
+
+				const meta = document.createElement("div");
+				meta.className = "emdash-search-result-meta";
+				const collectionEl = document.createElement("span");
+				collectionEl.className = "emdash-search-result-collection";
+				collectionEl.textContent = result.collection;
+				meta.appendChild(collectionEl);
+				body.appendChild(meta);
+
+				link.appendChild(body);
+
+				// Mouse hover sets active index
+				link.addEventListener("mouseenter", () => {
+					this.activeIndex = i;
+					this.updateActive();
+				});
+
+				this.resultsContainer.appendChild(link);
+			}
+
+			if (this.input) this.input.setAttribute("aria-expanded", "true");
+		}
+
+		private showEmpty() {
+			if (!this.resultsContainer) return;
+			this.resultsContainer.textContent = "";
+
+			const wrap = document.createElement("div");
+			wrap.className = "emdash-search-empty";
+			wrap.appendChild(createSvgIcon(SEARCH_ICON_SVG));
+			const text = document.createElement("div");
+			text.className = "emdash-search-empty-text";
+			text.textContent = "Start typing to search";
+			wrap.appendChild(text);
+			this.resultsContainer.appendChild(wrap);
+
+			if (this.input) this.input.setAttribute("aria-expanded", "false");
+		}
+
+		private showLoading() {
+			if (!this.resultsContainer) return;
+			this.resultsContainer.textContent = "";
+
+			const wrap = document.createElement("div");
+			wrap.className = "emdash-search-loading";
+			const spinner = document.createElement("div");
+			spinner.className = "emdash-search-spinner";
+			wrap.appendChild(spinner);
+			const text = document.createElement("div");
+			text.className = "emdash-search-loading-text";
+			text.textContent = "Searching...";
+			wrap.appendChild(text);
+			this.resultsContainer.appendChild(wrap);
+		}
+
+		private showNoResults(query: string) {
+			if (!this.resultsContainer) return;
+			this.resultsContainer.textContent = "";
+
+			const wrap = document.createElement("div");
+			wrap.className = "emdash-search-empty";
+			wrap.appendChild(createSvgIcon(SEARCH_ICON_SVG));
+			const title = document.createElement("div");
+			title.className = "emdash-search-empty-title";
+			title.textContent = "No results found";
+			wrap.appendChild(title);
+			const text = document.createElement("div");
+			text.className = "emdash-search-empty-text";
+			text.textContent = `No results for "${query}"`;
+			wrap.appendChild(text);
+			this.resultsContainer.appendChild(wrap);
+
+			if (this.input) this.input.setAttribute("aria-expanded", "false");
+		}
+
+		private showError() {
+			if (!this.resultsContainer) return;
+			this.resultsContainer.textContent = "";
+
+			const wrap = document.createElement("div");
+			wrap.className = "emdash-search-empty";
+			const title = document.createElement("div");
+			title.className = "emdash-search-empty-title";
+			title.textContent = "Search unavailable";
+			wrap.appendChild(title);
+			const text = document.createElement("div");
+			text.className = "emdash-search-empty-text";
+			text.textContent = "Please try again later";
+			wrap.appendChild(text);
+			this.resultsContainer.appendChild(wrap);
+		}
+	}
+
+	customElements.define("emdash-search-modal", EmDashSearchModal);
+</script>
+
+<style>
+	/*
+	 * SearchModal uses CSS custom properties for theming.
+	 * Override these in your site's CSS to match your design:
+	 *
+	 * --emdash-search-bg: Background color for the modal
+	 * --emdash-search-surface: Subtle surface color (footer, hover)
+	 * --emdash-search-text: Primary text color
+	 * --emdash-search-muted: Secondary/muted text color
+	 * --emdash-search-border: Border color
+	 * --emdash-search-accent: Primary accent color
+	 * --emdash-search-accent-ring: Focus ring color (with alpha)
+	 * --emdash-search-radius: Border radius
+	 * --emdash-search-font: Font family
+	 */
+
+	/* ========= Trigger button ========= */
+
+	.emdash-search-trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 12px;
+		background: var(--emdash-search-bg, #fff);
+		border: 1px solid var(--emdash-search-border, #dee2e6);
+		border-radius: var(--emdash-search-radius, 18px);
+		color: var(--emdash-search-muted, #6c757d);
+		font-family: var(--emdash-search-font, inherit);
+		font-size: 14px;
+		cursor: pointer;
+		transition: border-color 150ms ease, box-shadow 150ms ease;
+		white-space: nowrap;
+	}
+
+	.emdash-search-trigger:hover {
+		border-color: var(--emdash-search-accent, #2563eb);
+	}
+
+	.emdash-search-trigger:focus-visible {
+		outline: none;
+		border-color: var(--emdash-search-accent, #2563eb);
+		box-shadow: 0 0 0 3px var(--emdash-search-accent-ring, rgba(37, 99, 235, 0.25));
+	}
+
+	.emdash-search-trigger-icon {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+	}
+
+	.emdash-search-trigger-text {
+		flex: 1;
+		text-align: left;
+	}
+
+	.emdash-search-trigger-kbd {
+		display: inline-flex;
+		align-items: center;
+		gap: 1px;
+		padding: 1px 6px;
+		background: var(--emdash-search-surface, #f8f9fa);
+		border: 1px solid var(--emdash-search-border, #dee2e6);
+		border-radius: 4px;
+		font-size: 11px;
+		font-family: var(--emdash-search-font, inherit);
+		color: var(--emdash-search-muted, #6c757d);
+		line-height: 1.6;
+	}
+
+	/* ========= Backdrop ========= */
+	/* Backdrop and descendants use :global() because the <template> is stamped
+	   into document.body at runtime, outside Astro's scoped style boundary. */
+
+	:global(.emdash-search-backdrop) {
+		position: fixed;
+		inset: 0;
+		z-index: 10000;
+		display: none;
+		align-items: flex-start;
+		justify-content: center;
+		padding-top: 15vh;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(4px);
+		opacity: 0;
+		transition: opacity 200ms ease;
+	}
+
+	:global(.emdash-search-backdrop.visible) {
+		display: flex;
+	}
+
+	:global(.emdash-search-backdrop.open) {
+		opacity: 1;
+	}
+
+	/* ========= Dialog ========= */
+
+	:global(.emdash-search-dialog) {
+		width: 90%;
+		max-width: 600px;
+		max-height: 70vh;
+		background: var(--emdash-search-bg, #fff);
+		border: 1px solid var(--emdash-search-border, #dee2e6);
+		border-radius: var(--emdash-search-radius, 18px);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		transform: scale(0.95) translateY(-10px);
+		transition: transform 200ms ease;
+	}
+
+	:global(.emdash-search-backdrop.open .emdash-search-dialog) {
+		transform: scale(1) translateY(0);
+	}
+
+	/* ========= Header ========= */
+
+	:global(.emdash-search-header) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 16px;
+		border-bottom: 1px solid var(--emdash-search-border, #dee2e6);
+	}
+
+	:global(.emdash-search-icon) {
+		width: 20px;
+		height: 20px;
+		color: var(--emdash-search-muted, #6c757d);
+		flex-shrink: 0;
+	}
+
+	:global(.emdash-search-input) {
+		flex: 1;
+		border: none;
+		outline: none;
+		background: transparent;
+		color: var(--emdash-search-text, #212529);
+		font-size: 16px;
+		font-family: var(--emdash-search-font, inherit);
+		padding: 4px 0;
+	}
+
+	:global(.emdash-search-input::placeholder) {
+		color: var(--emdash-search-muted, #6c757d);
+	}
+
+	/* ========= Content ========= */
+
+	:global(.emdash-search-content) {
+		flex: 1;
+		overflow-y: auto;
+		overflow-x: hidden;
+		padding: 8px;
+	}
+
+	:global(.emdash-search-content::-webkit-scrollbar) {
+		width: 8px;
+	}
+
+	:global(.emdash-search-content::-webkit-scrollbar-track) {
+		background: var(--emdash-search-surface, #f8f9fa);
+	}
+
+	:global(.emdash-search-content::-webkit-scrollbar-thumb) {
+		background: var(--emdash-search-border, #dee2e6);
+		border-radius: 18px;
+	}
+
+	:global(.emdash-search-content::-webkit-scrollbar-thumb:hover) {
+		background: var(--emdash-search-muted, #6c757d);
+	}
+
+	/* ========= Results ========= */
+
+	:global(.emdash-search-results) {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	:global(.emdash-search-result) {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 12px;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: calc(var(--emdash-search-radius, 18px) - 4px);
+		text-decoration: none;
+		color: inherit;
+		cursor: pointer;
+		transition: background 150ms ease, border-color 150ms ease;
+	}
+
+	:global(.emdash-search-result:hover),
+	:global(.emdash-search-result.active) {
+		background: var(--emdash-search-surface, #f1f3f5);
+		border-color: var(--emdash-search-border, #dee2e6);
+	}
+
+	:global(.emdash-search-result.active) {
+		border-color: var(--emdash-search-accent, #2563eb);
+		background: var(--emdash-search-accent-ring, rgba(37, 99, 235, 0.08));
+	}
+
+	:global(.emdash-search-result:focus-visible) {
+		outline: 2px solid var(--emdash-search-accent, #2563eb);
+		outline-offset: -2px;
+	}
+
+	:global(.emdash-search-result-body) {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	:global(.emdash-search-result-title) {
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--emdash-search-text, #212529);
+		display: -webkit-box;
+		-webkit-line-clamp: 1;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	:global(.emdash-search-result-snippet) {
+		font-size: 12px;
+		color: var(--emdash-search-muted, #495057);
+		line-height: 1.5;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	:global(.emdash-search-result-snippet mark) {
+		font-weight: 600;
+		background: none;
+		color: var(--emdash-search-text, #212529);
+	}
+
+	:global(.emdash-search-result-meta) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	:global(.emdash-search-result-collection) {
+		font-size: 11px;
+		color: var(--emdash-search-accent, #2563eb);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		font-weight: 500;
+	}
+
+	/* ========= Empty / Loading states ========= */
+
+	:global(.emdash-search-empty) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 32px;
+		gap: 12px;
+		color: var(--emdash-search-muted, #6c757d);
+		text-align: center;
+	}
+
+	:global(.emdash-search-empty-icon) {
+		width: 48px;
+		height: 48px;
+		opacity: 0.5;
+	}
+
+	:global(.emdash-search-empty-title) {
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--emdash-search-text, #212529);
+	}
+
+	:global(.emdash-search-empty-text) {
+		font-size: 13px;
+	}
+
+	:global(.emdash-search-loading) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 32px;
+		gap: 12px;
+		color: var(--emdash-search-muted, #6c757d);
+	}
+
+	:global(.emdash-search-spinner) {
+		width: 20px;
+		height: 20px;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: emdash-spin 0.6s linear infinite;
+	}
+
+	@keyframes emdash-spin {
+		to { transform: rotate(360deg); }
+	}
+
+	:global(.emdash-search-loading-text) {
+		font-size: 13px;
+	}
+
+	/* ========= Footer ========= */
+
+	:global(.emdash-search-footer) {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 8px 16px;
+		border-top: 1px solid var(--emdash-search-border, #dee2e6);
+		background: var(--emdash-search-surface, #f8f9fa);
+		font-size: 12px;
+		color: var(--emdash-search-muted, #6c757d);
+		border-radius: 0 0 var(--emdash-search-radius, 18px) var(--emdash-search-radius, 18px);
+	}
+
+	:global(.emdash-search-hints) {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	:global(.emdash-search-hint) {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	:global(.emdash-search-hint kbd) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 20px;
+		height: 20px;
+		padding: 0 4px;
+		background: var(--emdash-search-bg, #fff);
+		border: 1px solid var(--emdash-search-border, #dee2e6);
+		border-radius: 4px;
+		font-size: 11px;
+		font-family: var(--emdash-search-font, inherit);
+		color: var(--emdash-search-muted, #6c757d);
+	}
+
+	/* ========= Responsive ========= */
+
+	@media (max-width: 640px) {
+		:global(.emdash-search-backdrop) {
+			padding-top: 10%;
+		}
+
+		:global(.emdash-search-dialog) {
+			width: 95%;
+			max-height: 80vh;
+		}
+
+		:global(.emdash-search-hints) {
+			display: none;
+		}
+
+		.emdash-search-trigger-text {
+			display: none;
+		}
+
+		.emdash-search-trigger-kbd {
+			display: none;
+		}
+	}
+</style>

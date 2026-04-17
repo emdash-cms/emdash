@@ -1,0 +1,41 @@
+{
+	"name": "@emdash-cms/plugin-ai-search",
+	"version": "0.1.0",
+	"description": "AI Search plugin for EmDash CMS — semantic search via Cloudflare AI Search REST API",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./admin": "./src/admin.tsx"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"ai-search",
+		"semantic-search",
+		"cloudflare"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:>=0.1.0",
+		"react": "^18.0.0 || ^19.0.0",
+		"@phosphor-icons/react": "^2.1.10",
+		"@cloudflare/kumo": "^1.0.0"
+	},
+	"devDependencies": {
+		"vite": "^6.0.0"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/ai-search"
+	}
+}
