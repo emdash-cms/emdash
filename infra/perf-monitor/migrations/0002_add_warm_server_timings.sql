@@ -1,0 +1,14 @@
+-- Add column for the median-per-metric warm Server-Timing snapshot.
+--
+-- The original capture only stored cold Server-Timing (`cold_server_timings`).
+-- That's useful for cold-start investigation but useless for steady-state
+-- measurements -- which is what most performance work actually moves.
+--
+-- `warm_server_timings` stores the median duration per metric across all
+-- warm requests in a single probe, in the same JSON shape as
+-- `cold_server_timings`:
+--   { "<name>": { "dur": <number>, "desc"?: <string> } }
+--
+-- Null when the target site didn't emit Server-Timing on warm responses, or
+-- when no warm requests were issued.
+ALTER TABLE perf_results ADD COLUMN warm_server_timings TEXT;

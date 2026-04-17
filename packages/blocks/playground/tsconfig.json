@@ -1,12 +1,12 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
+		"target": "ES2024",
 		"module": "preserve",
 		"moduleResolution": "bundler",
 		"jsx": "react-jsx",
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
-		"lib": ["ES2023", "DOM", "DOM.Iterable"],
+		"lib": ["ES2024", "DOM", "DOM.Iterable"],
 		"skipLibCheck": true,
 		"verbatimModuleSyntax": true
 	},

@@ -17,6 +17,7 @@
 			"binding": "DB",
 			"database_name": "emdash_perf",
 			"database_id": "84918738-8904-49bb-a306-b58b96edfc08",
+			"migrations_dir": "migrations",
 		},
 	],
 	"services": [

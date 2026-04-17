@@ -125,9 +125,17 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 }
 
 /**
- * Get or create the runtime instance
+ * Get or create the runtime instance.
+ *
+ * When `initTimings` is provided, any timing samples recorded during a
+ * genuine cold init are appended. Subsequent warm calls (hitting the
+ * cached instance) push nothing — callers should treat an empty array
+ * as "warm, nothing to report".
  */
-async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
+async function getRuntime(
+	config: EmDashConfig,
+	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
+): Promise<EmDashRuntime> {
 	// Return cached instance if available
 	if (runtimeInstance) {
 		return runtimeInstance;
@@ -139,13 +147,13 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
 	if (runtimeInitializing) {
 		// Poll until the initializing request finishes
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		return getRuntime(config);
+		return getRuntime(config, initTimings);
 	}
 
 	runtimeInitializing = true;
 	try {
 		const deps = buildDependencies(config);
-		const runtime = await EmDashRuntime.create(deps);
+		const runtime = await EmDashRuntime.create(deps, initTimings);
 		runtimeInstance = runtime;
 		return runtime;
 	} finally {
@@ -165,7 +173,10 @@ const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
-function setBaselineSecurityHeaders(response: Response): Response {
+function finalizeResponse(
+	response: Response,
+	serverTimings?: Array<{ name: string; dur: number; desc?: string }>,
+): Response {
 	const res = new Response(response.body, response);
 	const astroCookies = Reflect.get(response, ASTRO_COOKIES_SYMBOL);
 	if (astroCookies !== undefined) {
@@ -176,6 +187,17 @@ function setBaselineSecurityHeaders(response: Response): Response {
 	res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
 	if (!res.headers.has("Content-Security-Policy")) {
 		res.headers.set("X-Frame-Options", "SAMEORIGIN");
+	}
+	if (serverTimings && serverTimings.length > 0) {
+		res.headers.set(
+			"Server-Timing",
+			serverTimings
+				.map((t) => {
+					const dur = Math.round(t.dur);
+					return t.desc ? `${t.name};dur=${dur};desc="${t.desc}"` : `${t.name};dur=${dur}`;
+				})
+				.join(", "),
+		);
 	}
 	return res;
 }
@@ -229,6 +251,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 		if (!sessionUser && !playgroundDb) {
+			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const mwStart = performance.now();
+
 			// On a fresh deployment the database may be completely empty.
 			// Public pages call getSiteSettings() / getMenu() via getDb(), which
 			// bypasses runtime init and would crash with "no such table: options".
@@ -236,6 +261,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// page will use: if the migrations table doesn't exist, no migrations
 			// have ever run -- redirect to the setup wizard.
 			if (!setupVerified) {
+				const t0 = performance.now();
 				try {
 					const { getDb } = await import("../loader.js");
 					const db = await getDb();
@@ -249,6 +275,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Table doesn't exist -> fresh database, redirect to setup
 					return context.redirect("/_emdash/admin/setup");
 				}
+				timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 			}
 
 			// Initialize the runtime for page:metadata and page:fragments hooks.
@@ -257,8 +284,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// contribute meta tags for all visitors, not just logged-in editors.
 			const config = getConfig();
 			if (config) {
+				// Sub-phase timings are populated only on the cold init. Warm
+				// requests hit the cached runtime and leave this empty.
+				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
+				const t0 = performance.now();
 				try {
-					const runtime = await getRuntime(config);
+					const runtime = await getRuntime(config, initSubTimings);
 					setupVerified = true;
 					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for these two methods
 					locals.emdash = {
@@ -268,6 +299,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				} catch {
 					// Non-fatal — EmDashHead will fall back to base SEO contributions
 				}
+				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
+				// Append cold-only sub-phase timings so the breakdown is visible
+				// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
+				// rt.sandbox, rt.market, rt.hooks, rt.cron).
+				for (const sub of initSubTimings) timings.push(sub);
 			}
 
 			// Even on the anonymous fast path we ask the adapter for a per-request
@@ -280,10 +316,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				cookies,
 				url,
 			});
-			const runAnon = async () => setBaselineSecurityHeaders(await next());
+			const runAnon = async () => {
+				const t0 = performance.now();
+				const response = await next();
+				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
+				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+				return finalizeResponse(response, timings);
+			};
 			if (anonScoped) {
 				const parent = getRequestContext();
-				return runWithContext({ ...parent, db: anonScoped.db }, async () => {
+				const ctx = parent
+					? { ...parent, db: anonScoped.db }
+					: { editMode: false, db: anonScoped.db };
+				return runWithContext(ctx, async () => {
 					const response = await runAnon();
 					anonScoped.commit();
 					return response;
@@ -296,22 +341,37 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const config = getConfig();
 	if (!config) {
 		console.error("EmDash: No configuration found");
-		return setBaselineSecurityHeaders(await next());
+		return finalizeResponse(await next());
 	}
 
 	// In playground mode, wrap the entire runtime init + request handling in
 	// runWithContext so that getDatabase() and all init queries use the real
 	// DO database via the same AsyncLocalStorage instance as the loader.
 	const doInit = async () => {
+		const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+		const mwStart = performance.now();
+
 		try {
-			// Get or create runtime
-			const runtime = await getRuntime(config);
+			// Get or create runtime. Sub-phase timings (rt.db, rt.fts, rt.plugins,
+			// rt.site, rt.sandbox, rt.market, rt.hooks, rt.cron) are populated
+			// only on the cold init — subsequent warm calls find the cached
+			// instance and `initSubTimings` stays empty.
+			const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
+			let t0 = performance.now();
+			const runtime = await getRuntime(config, initSubTimings);
+			timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
+			// Forward any sub-phase samples so cold-start breakdown is visible
+			// in Server-Timing. Each phase appears prefixed "rt." to distinguish
+			// from the aggregate "rt" timing above.
+			for (const sub of initSubTimings) timings.push(sub);
 
 			// Runtime init runs migrations, so the DB is guaranteed set up
 			setupVerified = true;
 
 			// Get manifest (cached after first call)
+			t0 = performance.now();
 			const manifest = await runtime.getManifest();
+			timings.push({ name: "manifest", dur: performance.now() - t0, desc: "Manifest" });
 
 			// Attach to locals for route handlers
 			locals.emdashManifest = manifest;
@@ -367,6 +427,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 				collectPageFragments: runtime.collectPageFragments.bind(runtime),
 
+				// Lazy search index health check — search endpoints call this
+				// before querying so a crash-corrupted index gets repaired on
+				// first use rather than stalling every cold start.
+				ensureSearchHealthy: runtime.ensureSearchHealthy.bind(runtime),
+
 				// Direct access (for advanced use cases)
 				storage: runtime.storage,
 				db: runtime.db,
@@ -405,24 +470,35 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			url,
 		});
 
+		const renderAndFinalize = async () => {
+			const t0 = performance.now();
+			const response = await next();
+			timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
+			timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+			return finalizeResponse(response, timings);
+		};
+
 		if (scoped) {
 			const parent = getRequestContext();
-			return runWithContext({ ...parent, db: scoped.db }, async () => {
-				const response = setBaselineSecurityHeaders(await next());
+			const ctx = parent ? { ...parent, db: scoped.db } : { editMode: false, db: scoped.db };
+			return runWithContext(ctx, async () => {
+				const response = await renderAndFinalize();
 				scoped.commit();
 				return response;
 			});
 		}
 
-		const response = await next();
-		return setBaselineSecurityHeaders(response);
+		return renderAndFinalize();
 	}; // end doInit
 
 	if (playgroundDb) {
 		// Read the edit-mode cookie to determine if visual editing is active.
 		// Default to false -- editing is opt-in via the playground toolbar toggle.
 		const editMode = context.cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode, db: playgroundDb }, doInit);
+		// Playground DBs are per-session isolated instances whose schema is
+		// independent of the configured one — flag as isolated so schema-
+		// derived caches (manifest, taxonomy defs) rebuild against it.
+		return runWithContext({ editMode, db: playgroundDb, dbIsIsolated: true }, doInit);
 	}
 	return doInit();
 });

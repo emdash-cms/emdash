@@ -214,6 +214,65 @@
 				border-radius: 3px;
 				font-size: 11px;
 				font-weight: 500;
+				text-decoration: none;
+			}
+
+			.pr-badge:hover {
+				background: #3577c5;
+			}
+
+			.source-badge {
+				display: inline-block;
+				padding: 1px 6px;
+				border-radius: 3px;
+				font-size: 10px;
+				font-weight: 500;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+			}
+			.source-cron {
+				background: #1a1f2a;
+				color: var(--text-muted);
+			}
+			.source-deploy {
+				background: #1a3a2a;
+				color: var(--green);
+			}
+			.source-manual {
+				background: #3a2a1a;
+				color: var(--yellow);
+			}
+
+			.timing-tag {
+				display: inline-block;
+				padding: 1px 5px;
+				margin-right: 4px;
+				border-radius: 3px;
+				font-size: 10px;
+				background: #1e1e24;
+				color: var(--text-muted);
+				font-variant-numeric: tabular-nums;
+			}
+			.timing-tag strong {
+				color: var(--text);
+				font-weight: 500;
+				margin-right: 3px;
+			}
+
+			.note-text {
+				color: var(--text-muted);
+				font-size: 11px;
+				font-style: italic;
+			}
+
+			a.sha-link {
+				color: var(--text-dim);
+				text-decoration: none;
+			}
+
+			a.sha-link:hover {
+				color: var(--text-muted);
+				text-decoration: underline;
 			}
 
 			.region-tag {
@@ -347,7 +406,7 @@
 					</div>
 					<div class="item">
 						<span class="swatch-marker"></span>
-						PR deploy
+						Deploy
 					</div>
 				</div>
 			</div>
@@ -373,12 +432,14 @@
 								<th>P95</th>
 								<th>Status</th>
 								<th>Colo</th>
+								<th>Cold Timings</th>
+								<th>Warm Timings</th>
 								<th>Source</th>
 							</tr>
 						</thead>
 						<tbody id="results-body">
 							<tr>
-								<td colspan="9" class="loading">Loading...</td>
+								<td colspan="11" class="loading">Loading...</td>
 							</tr>
 						</tbody>
 					</table>
@@ -387,6 +448,9 @@
 		</div>
 
 		<script>
+			const GITHUB_REPO = "emdash-cms/emdash";
+			const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
+
 			const REGION_COLORS = {
 				use: "#51cf66",
 				euw: "#4dabf7",
@@ -444,6 +508,48 @@
 				const d = new Date(iso);
 				const pad = (n) => String(n).padStart(2, "0");
 				return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+			}
+
+			const HTML_ESCAPES = {
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': "&quot;",
+				"'": "&#39;",
+			};
+			function escapeHtml(s) {
+				if (s == null) return "";
+				return String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+			}
+			function escapeAttr(s) {
+				// attribute-safe subset of characters
+				return escapeHtml(s).replace(/\//g, "&#47;");
+			}
+
+			/**
+			 * Render server timings as a row of small tagged pills.
+			 * Input is the JSON string as stored in D1, or null.
+			 * We keep the tooltip (title attr) with the full `desc` when present
+			 * so hovering surfaces readable names without cluttering the table.
+			 */
+			function renderServerTimings(raw) {
+				if (!raw) return '<span style="color:var(--text-dim)">-</span>';
+				let parsed;
+				try {
+					parsed = JSON.parse(raw);
+				} catch {
+					return '<span style="color:var(--text-dim)">-</span>';
+				}
+				if (!parsed || typeof parsed !== "object") return "";
+				const entries = Object.entries(parsed);
+				if (entries.length === 0) return "";
+				return entries
+					.map(([name, t]) => {
+						const dur = Math.round(t.dur);
+						const title = t.desc ? `${t.desc} (${dur}ms)` : `${name}: ${dur}ms`;
+						return `<span class="timing-tag" title="${escapeAttr(title)}"><strong>${escapeHtml(name)}</strong>${dur}ms</span>`;
+					})
+					.join("");
 			}
 
 			async function loadConfig() {
@@ -566,8 +672,11 @@
 									label: function (context) {
 										const point = context.raw;
 										let text = `${context.dataset.label}: ${formatMs(context.parsed.y)}`;
+										if (point && point.sha) {
+											text += ` [${point.sha.slice(0, 7)}]`;
+										}
 										if (point && point.prNumber) {
-											text += ` (PR #${point.prNumber})`;
+											text += ` PR #${point.prNumber}`;
 										}
 										return text;
 									},
@@ -613,25 +722,26 @@
 							y: d.coldTtfbMs,
 							prNumber: d.prNumber,
 							sha: d.sha,
+							source: d.source,
 						})),
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
 						pointRadius: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 5 : 1.5;
+							return point && point.sha ? 5 : 1.5;
 						},
 						pointBackgroundColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderWidth: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 2 : 0;
+							return point && point.sha ? 2 : 0;
 						},
 						tension: 0.3,
 						fill: false,
@@ -644,34 +754,37 @@
 							y: d.warmTtfbMs,
 							prNumber: d.prNumber,
 							sha: d.sha,
+							source: d.source,
 						})),
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
 						pointRadius: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 5 : 1.5;
+							return point && point.sha ? 5 : 1.5;
 						},
 						pointBackgroundColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderColor: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? "#ff6b6b" : color;
+							return point && point.sha ? "#ff6b6b" : color;
 						},
 						pointBorderWidth: (ctx) => {
 							const point = ctx.raw;
-							return point && point.prNumber ? 2 : 0;
+							return point && point.sha ? 2 : 0;
 						},
 						tension: 0.3,
 						fill: false,
 					});
 
-					// Add vertical lines for PR deploys
-					if (result.prMarkers) {
-						for (const marker of result.prMarkers) {
-							const key = `pr-${marker.prNumber}-${region}`;
+					// Add vertical lines for all deploys
+					if (result.deployMarkers) {
+						for (const marker of result.deployMarkers) {
+							const sha7 = marker.sha ? marker.sha.slice(0, 7) : "?";
+							const label = marker.prNumber ? `PR #${marker.prNumber}` : sha7;
+							const key = `deploy-${marker.sha || marker.timestamp}-${region}`;
 							annotations[key] = {
 								type: "line",
 								xMin: new Date(marker.timestamp),
@@ -681,7 +794,7 @@
 								borderDash: [4, 4],
 								label: {
 									display: regions.length <= 2,
-									content: `PR #${marker.prNumber}`,
+									content: label,
 									position: "start",
 									backgroundColor: "#2a1a1a",
 									color: "#ff6b6b",
@@ -728,7 +841,7 @@
 
 				if (!data.results || data.results.length === 0) {
 					tbody.innerHTML =
-						'<tr><td colspan="9" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
+						'<tr><td colspan="11" style="text-align:center;color:var(--text-dim)">No results</td></tr>';
 					return;
 				}
 
@@ -738,16 +851,29 @@
 						const threshold = routeConfig?.coldThresholdMs ?? 2000;
 						const cls = ttfbClass(r.cold_ttfb_ms, threshold);
 
+						const prLink = r.pr_number
+							? ` <a class="pr-badge" href="${GITHUB_URL}/pull/${r.pr_number}" target="_blank" rel="noopener">PR #${r.pr_number}</a>`
+							: "";
+						const shaLink = r.sha
+							? ` <a class="sha-link mono" href="${GITHUB_URL}/commit/${r.sha}" target="_blank" rel="noopener">${r.sha.slice(0, 7)}</a>`
+							: "";
+						const sourceBadge = `<span class="source-badge source-${escapeAttr(r.source)}">${escapeHtml(r.source)}</span>`;
+						const note = r.note
+							? `<div class="note-text" title="${escapeAttr(r.note)}">${escapeHtml(r.note)}</div>`
+							: "";
+
 						return `<tr>
               <td class="mono">${formatTime(r.timestamp)}</td>
-              <td>${r.route}</td>
-              <td><span class="region-tag region-${r.region}">${r.region}</span></td>
+              <td>${escapeHtml(r.route)}${note}</td>
+              <td><span class="region-tag region-${escapeAttr(r.region)}">${escapeHtml(r.region)}</span></td>
               <td class="mono ${cls}">${formatMs(r.cold_ttfb_ms)}</td>
               <td class="mono">${formatMs(r.warm_ttfb_ms)}</td>
               <td class="mono">${formatMs(r.p95_ttfb_ms)}</td>
               <td class="mono">${r.status_code ?? "-"}</td>
               <td class="mono">${r.cf_colo ?? "-"}</td>
-              <td>${r.source}${r.pr_number ? ` <span class="pr-badge">PR #${r.pr_number}</span>` : ""}${r.sha ? ` <span class="mono" style="color:var(--text-dim)">${r.sha.slice(0, 7)}</span>` : ""}</td>
+              <td>${renderServerTimings(r.cold_server_timings)}</td>
+              <td>${renderServerTimings(r.warm_server_timings)}</td>
+              <td>${sourceBadge}${prLink}${shaLink}</td>
             </tr>`;
 					})
 					.join("");
