@@ -681,7 +681,9 @@ export function ContentEditor({
 										value={formData[name]}
 										onChange={handleFieldChange}
 										onEditorReady={
-											field.kind === "portableText" && name === "content" ? setPortableTextEditor : undefined
+											field.kind === "portableText" && name === "content"
+												? setPortableTextEditor
+												: undefined
 										}
 										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
