@@ -2,6 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "emdash-demo-blog",
 	"main": "./src/worker.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
 	"routes": [
