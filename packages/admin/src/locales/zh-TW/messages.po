@@ -200,7 +200,7 @@ msgstr "{0} 預覽"
 #. placeholder {0}: taxonomy.label
 #: packages/admin/src/components/TaxonomySidebar.tsx:316
 msgid "{0} updated"
-msgstr ""
+msgstr "{0} 已更新"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
@@ -628,7 +628,7 @@ msgstr "或者，您可以從 WordPress 導出（工具 → 導出）並上傳�
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1520
 msgid "An error occurred"
 msgstr "發生錯誤"
 
@@ -1130,7 +1130,7 @@ msgstr "已連接 {0}"
 msgid "Content"
 msgstr "內容"
 
-#: packages/admin/src/components/Widgets.tsx:88
+#: packages/admin/src/components/Widgets.tsx:90
 msgid "Content Block"
 msgstr "內容塊"
 
@@ -1669,7 +1669,7 @@ msgstr "放棄草稿更改？"
 msgid "Dismiss"
 msgstr "關閉"
 
-#: packages/admin/src/components/Widgets.tsx:95
+#: packages/admin/src/components/Widgets.tsx:97
 msgid "Display a navigation menu"
 msgstr "顯示導航菜單"
 
@@ -2098,9 +2098,9 @@ msgstr "移除通行密鑰失敗"
 msgid "Failed to rename passkey"
 msgstr "重命名通行密鑰失敗"
 
-#: packages/admin/src/router.tsx:1533
+#: packages/admin/src/router.tsx:1519
 msgid "Failed to save"
-msgstr ""
+msgstr "儲存失敗"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:64
 #: packages/admin/src/components/settings/SeoSettings.tsx:58
@@ -2120,7 +2120,7 @@ msgstr "發送測試郵件失敗"
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:320
 msgid "Failed to update {0}"
-msgstr ""
+msgstr "更新 {0} 失敗"
 
 #: packages/admin/src/components/ContentEditor.tsx:1782
 msgid "Failed to update byline"
@@ -2878,7 +2878,7 @@ msgstr "媒體寫入"
 msgid "Medium section heading"
 msgstr "中章節標題"
 
-#: packages/admin/src/components/Widgets.tsx:94
+#: packages/admin/src/components/Widgets.tsx:96
 msgid "Menu"
 msgstr "菜單"
 
@@ -3968,7 +3968,7 @@ msgstr "撤銷中..."
 msgid "Rich Text"
 msgstr "富文本"
 
-#: packages/admin/src/components/Widgets.tsx:89
+#: packages/admin/src/components/Widgets.tsx:91
 msgid "Rich text content"
 msgstr "富文本內容"
 

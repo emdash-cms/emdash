@@ -628,7 +628,7 @@ msgstr "Alternativamente, puede exportar desde WordPress (Herramientas → Expor
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1520
 msgid "An error occurred"
 msgstr "Se produjo un error"
 
@@ -1130,7 +1130,7 @@ msgstr "Conectado {0}"
 msgid "Content"
 msgstr "Contenido"
 
-#: packages/admin/src/components/Widgets.tsx:88
+#: packages/admin/src/components/Widgets.tsx:90
 msgid "Content Block"
 msgstr "Bloque de contenido"
 
@@ -1669,7 +1669,7 @@ msgstr "¿Descartar cambios en el borrador?"
 msgid "Dismiss"
 msgstr "Descartar"
 
-#: packages/admin/src/components/Widgets.tsx:95
+#: packages/admin/src/components/Widgets.tsx:97
 msgid "Display a navigation menu"
 msgstr "Mostrar un menú de navegación"
 
@@ -2098,7 +2098,7 @@ msgstr "No se pudo eliminar la Passkey"
 msgid "Failed to rename passkey"
 msgstr "No se pudo cambiar el nombre de la Passkey"
 
-#: packages/admin/src/router.tsx:1533
+#: packages/admin/src/router.tsx:1519
 msgid "Failed to save"
 msgstr ""
 
@@ -2878,7 +2878,7 @@ msgstr "Escritura de medios"
 msgid "Medium section heading"
 msgstr "Encabezado de sección media"
 
-#: packages/admin/src/components/Widgets.tsx:94
+#: packages/admin/src/components/Widgets.tsx:96
 msgid "Menu"
 msgstr "Menú"
 
@@ -3968,7 +3968,7 @@ msgstr "Revocando..."
 msgid "Rich Text"
 msgstr "Texto enriquecido"
 
-#: packages/admin/src/components/Widgets.tsx:89
+#: packages/admin/src/components/Widgets.tsx:91
 msgid "Rich text content"
 msgstr "Contenido de texto enriquecido"
 
