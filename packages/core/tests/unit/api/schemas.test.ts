@@ -133,4 +133,28 @@ describe("mediaUploadUrlBody schema factory", () => {
 			loose.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 500 }),
 		).not.toThrow();
 	});
+
+	it("throws when maxSize is NaN", () => {
+		expect(() => mediaUploadUrlBody(NaN)).toThrow(/maxUploadSize/);
+	});
+
+	it("throws when maxSize is 0", () => {
+		expect(() => mediaUploadUrlBody(0)).toThrow(/maxUploadSize/);
+	});
+
+	it("throws when maxSize is negative", () => {
+		expect(() => mediaUploadUrlBody(-1024)).toThrow(/maxUploadSize/);
+	});
+
+	it("error message uses whole MB, not fractional", () => {
+		const schema = mediaUploadUrlBody(75_000_000);
+		let errorMessage = "";
+		try {
+			schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 75_000_001 });
+		} catch (e) {
+			errorMessage = String(e);
+		}
+		expect(errorMessage).not.toBe("");
+		expect(errorMessage).not.toMatch(/\d+\.\d+MB/);
+	});
 });

@@ -16,13 +16,15 @@ export const prerender = false;
 let cachedSpec: string | null = null;
 
 export const GET: APIRoute = async ({ locals }) => {
-	if (!cachedSpec) {
-		const { emdash } = locals;
-		const doc = generateOpenApiDocument({ maxUploadSize: emdash?.config.maxUploadSize });
+	const { emdash } = locals;
+	if (!cachedSpec && emdash) {
+		const doc = generateOpenApiDocument({ maxUploadSize: emdash.config.maxUploadSize });
 		cachedSpec = JSON.stringify(doc);
 	}
 
-	return new Response(cachedSpec, {
+	const spec = cachedSpec ?? JSON.stringify(generateOpenApiDocument());
+
+	return new Response(spec, {
 		status: 200,
 		headers: {
 			"Content-Type": "application/json",

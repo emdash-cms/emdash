@@ -25,6 +25,9 @@ export const mediaUpdateBody = z
 export const DEFAULT_MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 
 export function mediaUploadUrlBody(maxSize: number) {
+	if (!Number.isFinite(maxSize) || maxSize <= 0) {
+		throw new Error(`EmDash: maxUploadSize must be a positive finite number, got ${maxSize}`);
+	}
 	return z
 		.object({
 			filename: z.string().min(1, "filename is required"),
@@ -33,7 +36,7 @@ export function mediaUploadUrlBody(maxSize: number) {
 				.number()
 				.int()
 				.positive()
-				.max(maxSize, `File size must not exceed ${maxSize / 1024 / 1024}MB`),
+				.max(maxSize, `File size must not exceed ${Math.round(maxSize / 1024 / 1024)}MB`),
 			contentHash: z.string().optional(),
 		})
 		.meta({ id: "MediaUploadUrlBody" });

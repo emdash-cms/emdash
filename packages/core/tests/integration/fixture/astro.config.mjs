@@ -13,9 +13,10 @@ import { sqlite } from "emdash/db";
 
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
 const uploadsDir = process.env.EMDASH_TEST_UPLOADS || "./uploads";
-const maxUploadSize = process.env.EMDASH_MAX_UPLOAD_SIZE
+const _rawMaxUploadSize = process.env.EMDASH_MAX_UPLOAD_SIZE
 	? parseInt(process.env.EMDASH_MAX_UPLOAD_SIZE, 10)
 	: undefined;
+const maxUploadSize = Number.isNaN(_rawMaxUploadSize) ? undefined : _rawMaxUploadSize;
 
 export default defineConfig({
 	output: "server",

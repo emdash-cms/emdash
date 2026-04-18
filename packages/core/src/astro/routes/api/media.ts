@@ -112,7 +112,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (file.size > maxUploadSize) {
 			return apiError(
 				"PAYLOAD_TOO_LARGE",
-				`File exceeds maximum size of ${maxUploadSize / 1024 / 1024}MB`,
+				`File exceeds maximum size of ${Math.round(maxUploadSize / 1024 / 1024)}MB`,
 				413,
 			);
 		}
