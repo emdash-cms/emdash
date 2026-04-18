@@ -20,6 +20,7 @@ import type {
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { isSqlite } from "./database/dialect-helpers.js";
+import { kyselyLogOption } from "./database/instrumentation.js";
 import { runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
@@ -934,7 +935,7 @@ export class EmDashRuntime {
 
 		dbInitPromise = (async () => {
 			const dialect = deps.createDialect(dbConfig.config);
-			const db = new Kysely<Database>({ dialect });
+			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 			const { applied } = await runMigrations(db);
 

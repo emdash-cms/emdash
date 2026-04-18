@@ -15,6 +15,7 @@ import type { LiveLoader } from "astro/loaders";
 import { Kysely, sql, type Dialect } from "kysely";
 
 import { currentTimestampValue, isPostgres } from "./database/dialect-helpers.js";
+import { kyselyLogOption } from "./database/instrumentation.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import type { Database } from "./index.js";
@@ -410,7 +411,7 @@ export async function getDb(): Promise<Kysely<Database>> {
 			);
 		}
 		const dialect = virtualCreateDialect(virtualConfig.database.config);
-		dbInstance = new Kysely<Database>({ dialect });
+		dbInstance = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 	}
 	return dbInstance;
 }

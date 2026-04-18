@@ -1,0 +1,40 @@
+{
+	"name": "@emdash-cms/fixture-perf-site",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Fixture site for query-count perf snapshots. Runs under sqlite+node or d1+cloudflare based on EMDASH_FIXTURE_TARGET.",
+	"emdash": {
+		"seed": "seed/seed.json"
+	},
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"bootstrap": "emdash init && emdash seed",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/cloudflare": "catalog:",
+		"@astrojs/node": "catalog:",
+		"@astrojs/react": "catalog:",
+		"@emdash-cms/cloudflare": "workspace:*",
+		"astro": "catalog:",
+		"better-sqlite3": "catalog:",
+		"emdash": "workspace:*",
+		"kysely": "^0.27.0",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@astrojs/check": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"wrangler": "catalog:"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"better-sqlite3",
+			"esbuild",
+			"workerd"
+		]
+	}
+}

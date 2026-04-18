@@ -9,6 +9,7 @@
  */
 
 import { env } from "cloudflare:workers";
+import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type DatabaseIntrospector, type Dialect, Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
@@ -161,7 +162,10 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	// both of which D1DatabaseSession implements.
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- session is structurally compatible with the subset D1Dialect uses
 	const sessionAsDatabase = session as unknown as D1Database;
-	const db = new Kysely<any>({ dialect: new EmDashD1Dialect({ database: sessionAsDatabase }) });
+	const db = new Kysely<any>({
+		dialect: new EmDashD1Dialect({ database: sessionAsDatabase }),
+		log: kyselyLogOption(),
+	});
 
 	return {
 		db,
