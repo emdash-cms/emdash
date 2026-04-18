@@ -10,38 +10,37 @@ import { sql } from "kysely";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { requestCached, setRequestCacheEntry } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 /**
- * Per-DB cache of "does any taxonomy term assignment exist?".
+ * Worker-lifetime cache of "does any taxonomy term assignment exist?".
  *
- * Keyed by the resolved Kysely instance rather than held at module scope so
- * per-request DB overrides (preview sessions, D1 Sessions API replicas,
- * Durable Object playground mode) don't bleed cached results across
- * unrelated database instances. WeakMap lets garbage-collected per-request
- * Kysely instances release their entry automatically.
+ * `null` = not yet checked. Module-scoped because every anonymous request
+ * in a D1 Sessions deployment gets a fresh session-bound Kysely, and keying
+ * this on the Kysely instance made the probe miss on every single request.
  *
- * Missing key = unchecked, `true`/`false` = cached probe result.
+ * Requests that route to an isolated DB (playground / DO preview) bypass
+ * this cache — see `hasAnyTermAssignments`.
  */
-let hasTermAssignmentsCache: WeakMap<Kysely<Database>, boolean> = new WeakMap();
+let hasTermAssignmentsSingleton: boolean | null = null;
 
 /**
- * Invalidate the cached "has any term assignments" check across all databases.
+ * Invalidate the cached "has any term assignments" check.
  *
  * Called by admin routes after creating/deleting term assignments, updating
- * terms, or deleting taxonomies. Writes are rare compared to reads, so we
- * clear the whole map rather than tracking which DB was mutated — instances
- * that are no longer referenced will be collected anyway.
+ * terms, or deleting taxonomies.
  */
 export function invalidateTermCache(): void {
-	hasTermAssignmentsCache = new WeakMap();
+	hasTermAssignmentsSingleton = null;
 }
 
 /**
  * Check whether any row exists in content_taxonomies for the given DB.
- * Result is cached per-DB for the lifetime of that DB handle.
+ * Result is cached for the lifetime of the worker unless the request is
+ * routed to an isolated DB, in which case the probe runs every time.
  *
  * Rethrows any error that is not a "missing table" error so callers see
  * real DB failures (permissions, connectivity, syntax) rather than
@@ -49,19 +48,21 @@ export function invalidateTermCache(): void {
  * `false` without logging — the expected state before the table exists.
  */
 async function hasAnyTermAssignments(db: Kysely<Database>): Promise<boolean> {
-	const cached = hasTermAssignmentsCache.get(db);
-	if (cached !== undefined) return cached;
+	const isolated = getRequestContext()?.dbIsIsolated === true;
+	if (!isolated && hasTermAssignmentsSingleton !== null) {
+		return hasTermAssignmentsSingleton;
+	}
 
 	try {
 		const result = await sql<{ entry_id: string }>`
 			SELECT entry_id FROM content_taxonomies LIMIT 1
 		`.execute(db);
 		const value = result.rows.length > 0;
-		hasTermAssignmentsCache.set(db, value);
+		if (!isolated) hasTermAssignmentsSingleton = value;
 		return value;
 	} catch (error) {
 		if (isMissingTableError(error)) {
-			hasTermAssignmentsCache.set(db, false);
+			if (!isolated) hasTermAssignmentsSingleton = false;
 			return false;
 		}
 		// Don't cache unknown failures; let the next call retry.

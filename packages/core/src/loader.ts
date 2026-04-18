@@ -64,26 +64,29 @@ function getTableName(type: string): string {
 let taxonomyNames: Set<string> | null = null;
 
 /**
- * Get all taxonomy names (cached for primary DB, fresh for overrides)
+ * Get all taxonomy names (cached for the primary DB, bypassed only when
+ * the per-request DB is an isolated instance — playground / DO preview).
+ * Plain D1 Sessions routing shares schema with the singleton, so the
+ * module-scoped cache stays valid.
  */
 async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
-	const hasDbOverride = !!getRequestContext()?.db;
+	const hasIsolatedDb = getRequestContext()?.dbIsIsolated === true;
 
-	if (!hasDbOverride && taxonomyNames) {
+	if (!hasIsolatedDb && taxonomyNames) {
 		return taxonomyNames;
 	}
 
 	try {
 		const defs = await db.selectFrom("_emdash_taxonomy_defs").select("name").execute();
 		const names = new Set(defs.map((d) => d.name));
-		if (!hasDbOverride) {
+		if (!hasIsolatedDb) {
 			taxonomyNames = names;
 		}
 		return names;
 	} catch {
 		// Table doesn't exist yet, return empty set
 		const empty = new Set<string>();
-		if (!hasDbOverride) {
+		if (!hasIsolatedDb) {
 			taxonomyNames = empty;
 		}
 		return empty;

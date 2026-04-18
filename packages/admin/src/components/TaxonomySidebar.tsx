@@ -6,7 +6,7 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Button, Input, Label } from "@cloudflare/kumo";
+import { Button, Input, Label, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -286,6 +286,7 @@ function TaxonomySection({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
 	const [newCategoryLabel, setNewCategoryLabel] = React.useState("");
 	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
@@ -311,6 +312,14 @@ function TaxonomySection({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name],
+			});
+			toastManager.add({ title: t`${taxonomy.label} updated` });
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to update ${taxonomy.label.toLowerCase()}`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
 			});
 		},
 	});

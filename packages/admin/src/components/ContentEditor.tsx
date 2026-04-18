@@ -228,8 +228,17 @@ export function ContentEditor({
 			[],
 	);
 
-	// Track portableText editor for document outline
+	// Track portableText editor for document outline — use a ref to
+	// ensure only the first portableText field claims the slot even when
+	// multiple PT fields render in the same pass.
 	const [portableTextEditor, setPortableTextEditor] = React.useState<Editor | null>(null);
+	const ptEditorClaimedRef = React.useRef(false);
+	const handlePTEditorReady = React.useCallback((editor: Editor) => {
+		if (!ptEditorClaimedRef.current) {
+			ptEditorClaimedRef.current = true;
+			setPortableTextEditor(editor);
+		}
+	}, []);
 
 	// Block sidebar state – when a block (e.g. image) requests sidebar space, this holds
 	// the panel data. When non-null the sidebar shows the block panel instead of the
@@ -672,7 +681,9 @@ export function ContentEditor({
 										value={formData[name]}
 										onChange={handleFieldChange}
 										onEditorReady={
-											field.kind === "portableText" ? setPortableTextEditor : undefined
+											field.kind === "portableText" && name === "content"
+												? setPortableTextEditor
+												: undefined
 										}
 										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}

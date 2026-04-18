@@ -125,9 +125,17 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 }
 
 /**
- * Get or create the runtime instance
+ * Get or create the runtime instance.
+ *
+ * When `initTimings` is provided, any timing samples recorded during a
+ * genuine cold init are appended. Subsequent warm calls (hitting the
+ * cached instance) push nothing — callers should treat an empty array
+ * as "warm, nothing to report".
  */
-async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
+async function getRuntime(
+	config: EmDashConfig,
+	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
+): Promise<EmDashRuntime> {
 	// Return cached instance if available
 	if (runtimeInstance) {
 		return runtimeInstance;
@@ -139,13 +147,13 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
 	if (runtimeInitializing) {
 		// Poll until the initializing request finishes
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		return getRuntime(config);
+		return getRuntime(config, initTimings);
 	}
 
 	runtimeInitializing = true;
 	try {
 		const deps = buildDependencies(config);
-		const runtime = await EmDashRuntime.create(deps);
+		const runtime = await EmDashRuntime.create(deps, initTimings);
 		runtimeInstance = runtime;
 		return runtime;
 	} finally {
@@ -276,9 +284,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// contribute meta tags for all visitors, not just logged-in editors.
 			const config = getConfig();
 			if (config) {
+				// Sub-phase timings are populated only on the cold init. Warm
+				// requests hit the cached runtime and leave this empty.
+				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				const t0 = performance.now();
 				try {
-					const runtime = await getRuntime(config);
+					const runtime = await getRuntime(config, initSubTimings);
 					setupVerified = true;
 					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for these two methods
 					locals.emdash = {
@@ -289,6 +300,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Non-fatal — EmDashHead will fall back to base SEO contributions
 				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
+				// Append cold-only sub-phase timings so the breakdown is visible
+				// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
+				// rt.sandbox, rt.market, rt.hooks, rt.cron).
+				for (const sub of initSubTimings) timings.push(sub);
 			}
 
 			// Even on the anonymous fast path we ask the adapter for a per-request
@@ -337,10 +352,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const mwStart = performance.now();
 
 		try {
-			// Get or create runtime
+			// Get or create runtime. Sub-phase timings (rt.db, rt.fts, rt.plugins,
+			// rt.site, rt.sandbox, rt.market, rt.hooks, rt.cron) are populated
+			// only on the cold init — subsequent warm calls find the cached
+			// instance and `initSubTimings` stays empty.
+			const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 			let t0 = performance.now();
-			const runtime = await getRuntime(config);
+			const runtime = await getRuntime(config, initSubTimings);
 			timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
+			// Forward any sub-phase samples so cold-start breakdown is visible
+			// in Server-Timing. Each phase appears prefixed "rt." to distinguish
+			// from the aggregate "rt" timing above.
+			for (const sub of initSubTimings) timings.push(sub);
 
 			// Runtime init runs migrations, so the DB is guaranteed set up
 			setupVerified = true;
@@ -403,6 +426,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
 				collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 				collectPageFragments: runtime.collectPageFragments.bind(runtime),
+
+				// Lazy search index health check — search endpoints call this
+				// before querying so a crash-corrupted index gets repaired on
+				// first use rather than stalling every cold start.
+				ensureSearchHealthy: runtime.ensureSearchHealthy.bind(runtime),
 
 				// Direct access (for advanced use cases)
 				storage: runtime.storage,
@@ -467,7 +495,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Read the edit-mode cookie to determine if visual editing is active.
 		// Default to false -- editing is opt-in via the playground toolbar toggle.
 		const editMode = context.cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode, db: playgroundDb }, doInit);
+		// Playground DBs are per-session isolated instances whose schema is
+		// independent of the configured one — flag as isolated so schema-
+		// derived caches (manifest, taxonomy defs) rebuild against it.
+		return runWithContext({ editMode, db: playgroundDb, dbIsIsolated: true }, doInit);
 	}
 	return doInit();
 });

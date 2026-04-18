@@ -35,6 +35,17 @@ export interface EmDashRequestContext {
 	 * the singleton instance. Also used by the DO preview pattern.
 	 */
 	db?: unknown;
+	/**
+	 * Indicates the per-request `db` points at an isolated database
+	 * instance whose schema may diverge from the configured one
+	 * (playground, DO preview sessions). When true, schema-derived caches
+	 * (manifest, taxonomy defs, etc.) must not be reused across requests.
+	 *
+	 * Plain D1 Sessions API routing does NOT set this — sessions are just
+	 * a routing hint over the same schema, so the module-scoped manifest
+	 * cache remains valid.
+	 */
+	dbIsIsolated?: boolean;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

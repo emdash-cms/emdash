@@ -5,6 +5,7 @@
  */
 
 import { Loader, Toast } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1485,6 +1486,8 @@ const contentTypesEditRoute = createRoute({
 function ContentTypesEditPage() {
 	const { slug } = useParams({ from: "/_admin/content-types/$slug" });
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
+	const { t } = useLingui();
 
 	const {
 		data: collection,
@@ -1524,6 +1527,13 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (mutationError) => {
+			toastManager.add({
+				title: t`Failed to save`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				type: "error",
+			});
 		},
 	});
 

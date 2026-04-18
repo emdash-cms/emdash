@@ -14,35 +14,35 @@ import type { BylineSummary, ContentBylineCredit } from "../database/repositorie
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
- * Per-DB cache of "does any byline exist in the database?".
+ * Worker-lifetime cache of "does any byline exist in the database?".
  *
- * Keyed by the resolved Kysely instance rather than held at module scope so
- * per-request DB overrides (preview sessions, D1 Sessions API replicas,
- * Durable Object playground mode) don't bleed cached results across
- * unrelated database instances.
+ * `null` = not yet checked. Module-scoped because every anonymous request
+ * in a D1 Sessions deployment gets a fresh session-bound Kysely, and keying
+ * this on the Kysely instance made the probe miss on every single request.
  *
- * Missing key = unchecked, `true`/`false` = cached probe result.
+ * Requests that route to an isolated DB (playground / DO preview) bypass
+ * this cache — see `hasAnyBylines`.
  */
-let hasBylinesCache: WeakMap<Kysely<Database>, boolean> = new WeakMap();
+let hasBylinesSingleton: boolean | null = null;
 
 /**
- * Invalidate the cached "has any bylines" check across all databases.
+ * Invalidate the cached "has any bylines" check.
  *
- * Call this when bylines are created, updated, or deleted. Writes are rare
- * compared to reads, so we clear the whole map rather than tracking which DB
- * was mutated.
+ * Call this when bylines are created, updated, or deleted.
  */
 export function invalidateBylineCache(): void {
-	hasBylinesCache = new WeakMap();
+	hasBylinesSingleton = null;
 }
 
 /**
  * Check if any bylines exist for the given DB instance. Result is cached
- * per-DB for the lifetime of that DB handle.
+ * for the lifetime of the worker unless the request is routed to an
+ * isolated DB, in which case the probe runs every time.
  *
  * Rethrows any error that is not a "missing table" error so callers see
  * real DB failures (permissions, connectivity, syntax) rather than silently
@@ -50,19 +50,21 @@ export function invalidateBylineCache(): void {
  * — the expected state before the table exists.
  */
 async function hasAnyBylines(db: Kysely<Database>): Promise<boolean> {
-	const cached = hasBylinesCache.get(db);
-	if (cached !== undefined) return cached;
+	const isolated = getRequestContext()?.dbIsIsolated === true;
+	if (!isolated && hasBylinesSingleton !== null) {
+		return hasBylinesSingleton;
+	}
 
 	try {
 		const result = await sql<{ id: string }>`
 			SELECT id FROM _emdash_bylines LIMIT 1
 		`.execute(db);
 		const value = result.rows.length > 0;
-		hasBylinesCache.set(db, value);
+		if (!isolated) hasBylinesSingleton = value;
 		return value;
 	} catch (error) {
 		if (isMissingTableError(error)) {
-			hasBylinesCache.set(db, false);
+			if (!isolated) hasBylinesSingleton = false;
 			return false;
 		}
 		// Don't cache unknown failures; let the next call retry.
