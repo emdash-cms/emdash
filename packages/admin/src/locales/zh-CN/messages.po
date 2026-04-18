@@ -200,7 +200,7 @@ msgstr "{0} 预览"
 #. placeholder {0}: taxonomy.label
 #: packages/admin/src/components/TaxonomySidebar.tsx:316
 msgid "{0} updated"
-msgstr ""
+msgstr "{0} 已更新"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
@@ -2100,7 +2100,7 @@ msgstr "重命名通行密钥失败"
 
 #: packages/admin/src/router.tsx:1533
 msgid "Failed to save"
-msgstr ""
+msgstr "保存失败"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:64
 #: packages/admin/src/components/settings/SeoSettings.tsx:58
@@ -2120,7 +2120,7 @@ msgstr "发送测试邮件失败"
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:320
 msgid "Failed to update {0}"
-msgstr ""
+msgstr "更新 {0} 失败"
 
 #: packages/admin/src/components/ContentEditor.tsx:1782
 msgid "Failed to update byline"
