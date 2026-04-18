@@ -153,6 +153,7 @@ import { FTSManager } from "./search/fts-manager.js";
 const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	string: "string",
 	slug: "string",
+	url: "url",
 	text: "richText",
 	number: "number",
 	integer: "number",
