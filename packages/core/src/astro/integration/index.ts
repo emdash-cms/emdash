@@ -34,6 +34,13 @@ const DEFAULT_STORAGE = local({
 	baseUrl: "/_emdash/api/media/file",
 });
 
+/**
+ * Font scripts required by admin based on its supported locales.
+ * Source of truth: packages/admin/src/locales/locales.ts::getAdminRequiredFontScripts()
+ * Keep this list in sync with fontScript properties in admin's LOCALES.
+ */
+const ADMIN_REQUIRED_FONT_SCRIPTS = ["farsi", "arabic", "chinese-simplified", "chinese-traditional", "japanese", "korean"];
+
 // Terminal formatting
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
@@ -214,18 +221,24 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// and self-hosted (no runtime CDN requests).
 				//
 				// The admin CSS references var(--font-emdash) with a system font
-				// fallback. Users can add extra script coverage (Arabic, CJK, etc.)
-				// by passing fonts.scripts in the emdash() config. The custom
-				// notoSans provider resolves all script families from Google Fonts
-				// under a single font-family name, so they stack via unicode-range.
+				// fallback. Admin's supported locales require specific fonts (farsi,
+				// arabic, CJK, etc.). Users can add extra script coverage by passing
+				// fonts.scripts in the emdash() config. The custom notoSans provider
+				// resolves all script families from Google Fonts under a single
+				// font-family name, so they stack via unicode-range.
 				const fontsConfig = resolvedConfig.fonts;
+				const userScripts = fontsConfig && fontsConfig !== false && fontsConfig.scripts
+					? fontsConfig.scripts
+					: [];
+				// Merge user config with admin's required fonts
+				const fontScripts = [...new Set([...userScripts, ...ADMIN_REQUIRED_FONT_SCRIPTS])];
 				const emdashFonts =
 					fontsConfig === false
 						? []
 						: [
 								{
 									provider: notoSans({
-										scripts: fontsConfig?.scripts,
+										scripts: fontScripts.length > 0 ? fontScripts : undefined,
 									}),
 									name: "Noto Sans",
 									cssVariable: "--font-emdash",
