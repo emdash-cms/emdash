@@ -288,6 +288,15 @@ export class EmDashRuntime {
 
 	private _cachedManifest: EmDashManifest | null = null;
 	private _manifestPromise: Promise<EmDashManifest> | null = null;
+	private readonly _manifestCacheKey: string;
+
+	/**
+	 * Set to true after FTS indexes have been verified for this worker
+	 * lifetime so we don't re-scan on every admin request. See
+	 * ensureSearchHealthy().
+	 */
+	private _searchHealthChecked = false;
+	private _searchHealthPromise: Promise<void> | null = null;
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -347,6 +356,7 @@ export class EmDashRuntime {
 		},
 		runtimeDeps: RuntimeDependencies,
 		pipelineRef: { current: HookPipeline },
+		manifestCacheKey: string,
 	) {
 		this._db = db;
 		this.storage = storage;
@@ -367,6 +377,7 @@ export class EmDashRuntime {
 		this.pipelineFactoryOptions = pipelineFactoryOptions;
 		this.runtimeDeps = runtimeDeps;
 		this.pipelineRef = pipelineRef;
+		this._manifestCacheKey = manifestCacheKey;
 	}
 
 	/**
@@ -569,36 +580,46 @@ export class EmDashRuntime {
 	/**
 	 * Create and initialize the runtime
 	 */
-	static async create(deps: RuntimeDependencies): Promise<EmDashRuntime> {
-		// Initialize database
-		const db = await EmDashRuntime.getDatabase(deps);
-
-		// Verify and repair FTS indexes (auto-heal crash corruption)
-		// FTS5 is SQLite-only; on other dialects, search is a no-op until
-		// the pluggable SearchProvider work lands.
-		if (isSqlite(db)) {
+	static async create(
+		deps: RuntimeDependencies,
+		timings?: Array<{ name: string; dur: number; desc?: string }>,
+	): Promise<EmDashRuntime> {
+		// Helper: time a phase and push into the shared timings array when
+		// provided. Uses performance.now() — monotonic across async boundaries.
+		// No-op when `timings` wasn't passed (preserves backwards compatibility
+		// with callers that don't care about per-phase breakdown).
+		const phase = async <T>(name: string, desc: string, fn: () => Promise<T>): Promise<T> => {
+			if (!timings) return fn();
+			const t0 = performance.now();
 			try {
-				const ftsManager = new FTSManager(db);
-				const repaired = await ftsManager.verifyAndRepairAll();
-				if (repaired > 0) {
-					console.log(`Repaired ${repaired} corrupted FTS index(es) at startup`);
-				}
-			} catch {
-				// FTS tables may not exist yet (pre-setup). Non-fatal.
+				return await fn();
+			} finally {
+				timings.push({ name, dur: performance.now() - t0, desc });
 			}
-		}
+		};
 
-		// Initialize storage
+		// Initialize database (connects, runs migrations if needed)
+		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
+
+		// FTS verify/repair is deferred off the cold-start hot path.
+		// See EmDashRuntime.ensureSearchHealthy().
+
+		// Initialize storage (sync)
 		const storage = EmDashRuntime.getStorage(deps);
 
 		// Fetch plugin states from database
 		let pluginStates: Map<string, string> = new Map();
-		try {
-			const states = await db.selectFrom("_plugin_state").select(["plugin_id", "status"]).execute();
-			pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-		} catch {
-			// Plugin state table may not exist yet
-		}
+		await phase("rt.plugins", "Plugin states", async () => {
+			try {
+				const states = await db
+					.selectFrom("_plugin_state")
+					.select(["plugin_id", "status"])
+					.execute();
+				pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+			} catch {
+				// Plugin state table may not exist yet
+			}
+		});
 
 		// Build set of enabled plugins
 		const enabledPlugins = new Set<string>();
@@ -611,21 +632,23 @@ export class EmDashRuntime {
 
 		// Load site info for plugin context extensions (1 batch query instead of 3)
 		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
-		try {
-			const optionsRepo = new OptionsRepository(db);
-			const siteOpts = await optionsRepo.getMany<string>([
-				"emdash:site_title",
-				"emdash:site_url",
-				"emdash:locale",
-			]);
-			siteInfo = {
-				siteName: siteOpts.get("emdash:site_title") ?? undefined,
-				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
-				locale: siteOpts.get("emdash:locale") ?? undefined,
-			};
-		} catch {
-			// Options table may not exist yet (pre-setup)
-		}
+		await phase("rt.site", "Site info options", async () => {
+			try {
+				const optionsRepo = new OptionsRepository(db);
+				const siteOpts = await optionsRepo.getMany<string>([
+					"emdash:site_title",
+					"emdash:site_url",
+					"emdash:locale",
+				]);
+				siteInfo = {
+					siteName: siteOpts.get("emdash:site_title") ?? undefined,
+					siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+					locale: siteOpts.get("emdash:locale") ?? undefined,
+				};
+			} catch {
+				// Options table may not exist yet (pre-setup)
+			}
+		});
 
 		// Build the full list of pipeline-eligible plugins: all configured
 		// plugins (regardless of current enabled status) plus built-in plugins.
@@ -691,11 +714,15 @@ export class EmDashRuntime {
 		const pipeline = createHookPipeline(enabledPluginList, pipelineFactoryOptions);
 
 		// Load sandboxed plugins (build-time)
-		const sandboxedPlugins = await EmDashRuntime.loadSandboxedPlugins(deps, db);
+		const sandboxedPlugins = await phase("rt.sandbox", "Sandboxed plugins", () =>
+			EmDashRuntime.loadSandboxedPlugins(deps, db),
+		);
 
 		// Cold-start: load marketplace-installed plugins from site R2
 		if (deps.config.marketplace && storage) {
-			await EmDashRuntime.loadMarketplacePlugins(db, storage, deps, sandboxedPlugins);
+			await phase("rt.market", "Marketplace plugins", () =>
+				EmDashRuntime.loadMarketplacePlugins(db, storage, deps, sandboxedPlugins),
+			);
 		}
 
 		// Initialize media providers
@@ -713,7 +740,9 @@ export class EmDashRuntime {
 		}
 
 		// Resolve exclusive hooks — auto-select providers and sync with DB
-		await EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps);
+		await phase("rt.hooks", "Exclusive hook resolution", () =>
+			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps),
+		);
 
 		// ── Email pipeline ───────────────────────────────────────────────
 		// The email pipeline orchestrates beforeSend → deliver → afterSend.
@@ -746,52 +775,70 @@ export class EmDashRuntime {
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
 
-		try {
-			cronExecutor = new CronExecutor(db, invokeCronHook);
+		await phase("rt.cron", "Cron init + stale-lock recovery", async () => {
+			try {
+				cronExecutor = new CronExecutor(db, invokeCronHook);
 
-			// Recover stale locks from previous crashes
-			const recovered = await cronExecutor.recoverStaleLocks();
-			if (recovered > 0) {
-				console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
-			}
-
-			// Detect platform and create appropriate scheduler.
-			// On Cloudflare Workers, setTimeout is available but unreliable for
-			// long durations — use PiggybackScheduler as default.
-			// In Node/Bun, use NodeCronScheduler with real timers.
-			const isWorkersRuntime =
-				typeof globalThis.navigator !== "undefined" &&
-				globalThis.navigator.userAgent === "Cloudflare-Workers";
-
-			if (isWorkersRuntime) {
-				cronScheduler = new PiggybackScheduler(cronExecutor);
-			} else {
-				cronScheduler = new NodeCronScheduler(cronExecutor);
-			}
-
-			// Register system cleanup to run alongside each scheduler tick.
-			// Pass storage so cleanupPendingUploads can delete orphaned files.
-			cronScheduler.setSystemCleanup(async () => {
-				try {
-					await runSystemCleanup(db, storage ?? undefined);
-				} catch (error) {
-					// Non-fatal -- individual cleanup failures are already logged
-					// by runSystemCleanup. This catches unexpected errors.
-					console.error("[cleanup] System cleanup failed:", error);
+				// Recover stale locks from previous crashes
+				const recovered = await cronExecutor.recoverStaleLocks();
+				if (recovered > 0) {
+					console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
 				}
-			});
 
-			// Add cron reschedule callback (merges with existing factory options)
-			pipeline.setContextFactory({
-				cronReschedule: () => cronScheduler?.reschedule(),
-			});
+				// Detect platform and create appropriate scheduler.
+				// On Cloudflare Workers, setTimeout is available but unreliable for
+				// long durations — use PiggybackScheduler as default.
+				// In Node/Bun, use NodeCronScheduler with real timers.
+				const isWorkersRuntime =
+					typeof globalThis.navigator !== "undefined" &&
+					globalThis.navigator.userAgent === "Cloudflare-Workers";
 
-			// Start the scheduler
-			await cronScheduler.start();
-		} catch (error) {
-			console.warn("[cron] Failed to initialize cron system:", error);
-			// Non-fatal — CMS works without cron
-		}
+				if (isWorkersRuntime) {
+					cronScheduler = new PiggybackScheduler(cronExecutor);
+				} else {
+					cronScheduler = new NodeCronScheduler(cronExecutor);
+				}
+
+				// Register system cleanup to run alongside each scheduler tick.
+				// Pass storage so cleanupPendingUploads can delete orphaned files.
+				cronScheduler.setSystemCleanup(async () => {
+					try {
+						await runSystemCleanup(db, storage ?? undefined);
+					} catch (error) {
+						// Non-fatal -- individual cleanup failures are already logged
+						// by runSystemCleanup. This catches unexpected errors.
+						console.error("[cleanup] System cleanup failed:", error);
+					}
+				});
+
+				// Add cron reschedule callback (merges with existing factory options)
+				pipeline.setContextFactory({
+					cronReschedule: () => cronScheduler?.reschedule(),
+				});
+
+				// Start the scheduler
+				await cronScheduler.start();
+			} catch (error) {
+				console.warn("[cron] Failed to initialize cron system:", error);
+				// Non-fatal — CMS works without cron
+			}
+		});
+
+		// SHA of emdash commit + user config that affects the manifest.
+		// COMMIT captures emdash code changes; plugin IDs/versions and i18n
+		// capture user astro.config changes (e.g. upgrading a plugin package).
+		// DB-driven changes (collections, fields, plugin toggle) go through
+		// invalidateManifest(). Sorted for stability across nondeterministic
+		// plugin ordering.
+		const manifestCacheKey = await hashString(
+			[
+				COMMIT,
+				...deps.plugins.map((p) => `${p.id}@${p.version ?? ""}`).toSorted(),
+				...deps.sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`).toSorted(),
+				virtualConfig?.i18n?.defaultLocale ?? "",
+				(virtualConfig?.i18n?.locales ?? []).toSorted().join(","),
+			].join("|"),
+		);
 
 		return new EmDashRuntime(
 			db,
@@ -812,6 +859,7 @@ export class EmDashRuntime {
 			pipelineFactoryOptions,
 			deps,
 			pipelineRef,
+			manifestCacheKey,
 		);
 	}
 
@@ -843,12 +891,14 @@ export class EmDashRuntime {
 	 * Get or create database instance
 	 */
 	private static async getDatabase(deps: RuntimeDependencies): Promise<Kysely<Database>> {
-		// If a per-request DB override is set (e.g. by the playground middleware
-		// which runs before the runtime init), use that directly. This allows
-		// the runtime to initialize against the real DO database instead of
-		// the dummy singleton dialect.
+		// Only use the per-request `ctx.db` when it's an isolated instance
+		// (playground / DO preview). Plain D1 Sessions set `ctx.db` on every
+		// anonymous request — if we captured one of those session-bound
+		// Kyselys into the cached runtime, every request would accidentally
+		// share one request's session. The configured `deps.createDialect`
+		// path gives us a fresh singleton instead.
 		const ctx = getRequestContext();
-		if (ctx?.db) {
+		if (ctx?.dbIsIsolated && ctx.db) {
 			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- db in context is typed as unknown to avoid circular deps
 			return ctx.db as Kysely<Database>;
 		}
@@ -1167,28 +1217,28 @@ export class EmDashRuntime {
 	 * API routes, MCP server, plugin toggle, and taxonomy def changes.
 	 */
 	async getManifest(): Promise<EmDashManifest> {
-		// When the DB is overridden via ALS (playground/DO-preview sessions,
-		// D1 read-replica routing), bypass caching and rebuild against the
-		// request-scoped database handle.
-		if (getRequestContext()?.db) {
+		// When the DB is overridden by an isolated instance (playground /
+		// DO-preview sessions), bypass the module-scoped manifest cache —
+		// its schema may diverge from the configured DB. Plain D1 Sessions
+		// routing does NOT set `dbIsIsolated`, so the cache still applies.
+		if (getRequestContext()?.dbIsIsolated) {
 			return this._buildManifest();
 		}
 
 		if (this._cachedManifest) return this._cachedManifest;
 
-		// DB-persisted cache (1 query instead of N+1 rebuild on cold start)
+		// DB-persisted cache (1 query instead of N+1 rebuild on cold start).
+		// Keyed by SHA of commit + config to bust on deploys. DB-driven
+		// changes (collections, fields, plugins, taxonomies) go through
+		// invalidateManifest().
 		try {
 			const options = new OptionsRepository(this.db);
-			const cached = await options.get<EmDashManifest>("emdash:manifest_cache");
-			if (
-				cached &&
-				typeof cached === "object" &&
-				"version" in cached &&
-				cached.version === VERSION &&
-				cached.commit === COMMIT
-			) {
-				this._cachedManifest = cached;
-				return cached;
+			const cached = await options.get<{ key: string; manifest: EmDashManifest }>(
+				"emdash:manifest_cache",
+			);
+			if (cached && cached.key === this._manifestCacheKey && cached.manifest) {
+				this._cachedManifest = cached.manifest;
+				return cached.manifest;
 			}
 		} catch {
 			// Options table may not exist yet
@@ -1214,7 +1264,10 @@ export class EmDashRuntime {
 
 				try {
 					const options = new OptionsRepository(this.db);
-					await options.set("emdash:manifest_cache", manifest);
+					await options.set("emdash:manifest_cache", {
+						key: this._manifestCacheKey,
+						manifest,
+					});
 				} catch {
 					// Non-fatal — will just rebuild next time
 				}
@@ -1474,6 +1527,55 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("Failed to initialize manifest cache invalidation", error);
 		}
+	}
+
+	/**
+	 * Verify and repair FTS indexes on demand. Runs at most once per worker
+	 * lifetime.
+	 *
+	 * Originally called from `EmDashRuntime.create()`, but on a busy D1 link
+	 * (e.g. SIN replica ~80-150ms per query) it added ~1.5s to every cold
+	 * start for a modest-sized site — more than every other init phase
+	 * combined. Anonymous public reads never touch the search write path,
+	 * so the cost isn't paid back for the vast majority of requests.
+	 *
+	 * Instead, search endpoints call this lazily: the first request that
+	 * actually needs the index pays the verify cost (usually fast — no
+	 * rebuild needed), everyone else runs cold-free.
+	 *
+	 * Uses the runtime's singleton database (`this._db`) rather than the
+	 * request-scoped DB. Verify reads only, but `rebuildIndex` writes, and
+	 * a GET search request on D1 carries a `first-unconstrained` session
+	 * that's free to route at a read replica — unsafe for writes. The
+	 * singleton always goes through the default binding, which the D1
+	 * adapter will promote to `first-primary` for write statements.
+	 *
+	 * Safe to call concurrently: repeated callers share the same in-flight
+	 * promise. Errors are swallowed internally so callers don't need to
+	 * defend against FTS not existing yet (pre-setup).
+	 */
+	async ensureSearchHealthy(): Promise<void> {
+		if (this._searchHealthChecked) return;
+		if (this._searchHealthPromise) return this._searchHealthPromise;
+		if (!isSqlite(this._db)) {
+			this._searchHealthChecked = true;
+			return;
+		}
+		this._searchHealthPromise = (async () => {
+			try {
+				const ftsManager = new FTSManager(this._db);
+				const repaired = await ftsManager.verifyAndRepairAll();
+				if (repaired > 0) {
+					console.log(`Repaired ${repaired} corrupted FTS index(es)`);
+				}
+			} catch {
+				// FTS tables may not exist yet (pre-setup). Non-fatal.
+			} finally {
+				this._searchHealthChecked = true;
+				this._searchHealthPromise = null;
+			}
+		})();
+		return this._searchHealthPromise;
 	}
 
 	// =========================================================================

@@ -1,7 +1,15 @@
 /** HTTP API router for the perf monitor. */
 
+import { runMeasurements } from "./measure.js";
 import { TARGET_ROUTES, TARGET_URL, REGIONS, REGION_LABELS } from "./routes.js";
-import { queryResults, getLatestResults, getRollingMedians, getDeployResults } from "./store.js";
+import {
+	queryResults,
+	getLatestResults,
+	getRollingMedians,
+	getDeployResults,
+	insertResults,
+	type Source,
+} from "./store.js";
 
 /** Route the request to the correct handler. */
 export async function handleApi(request: Request, url: URL, env: Env): Promise<Response | null> {
@@ -19,13 +27,16 @@ export async function handleApi(request: Request, url: URL, env: Env): Promise<R
 	if (path === "/api/config" && request.method === "GET") {
 		return handleConfig();
 	}
+	if (path === "/api/trigger" && request.method === "POST") {
+		return handleTrigger(request, env);
+	}
 
 	return null;
 }
 
 /** Narrow a query string to the allowed source values without a cast. */
-function parseSource(raw: string | null): "deploy" | "cron" | undefined {
-	if (raw === "deploy" || raw === "cron") return raw;
+function parseSource(raw: string | null): Source | undefined {
+	if (raw === "deploy" || raw === "cron" || raw === "manual") return raw;
 	return undefined;
 }
 
@@ -78,12 +89,22 @@ async function handleChart(url: URL, env: Env): Promise<Response> {
 		getDeployResults(env.DB, since),
 	]);
 
-	// Query returns DESC -- reverse to chronological
-	results.reverse();
+	// Query returns DESC -- reverse to chronological. Manual (ad-hoc) runs are
+	// stripped from the graph so they don't create visual noise; they still
+	// appear in the /api/results table.
+	const graphResults = results.filter((r) => r.source !== "manual").toReversed();
 
-	// Filter deploy results for PR markers on this route+region
-	const prMarkers = deployResults
-		.filter((r) => r.route === route && r.region === region && r.pr_number != null)
+	// Deduplicate deploy results by SHA — multiple route/region combos produce
+	// duplicates, but we only want one marker per deploy on the chart.
+	const seenShas = new Set<string>();
+	const deployMarkers = deployResults
+		.filter((r) => {
+			if (!r.sha) return false;
+			if (r.route !== route || r.region !== region) return false;
+			if (seenShas.has(r.sha)) return false;
+			seenShas.add(r.sha);
+			return true;
+		})
 		.map((r) => ({
 			timestamp: r.timestamp,
 			prNumber: r.pr_number,
@@ -94,7 +115,7 @@ async function handleChart(url: URL, env: Env): Promise<Response> {
 	return Response.json({
 		route,
 		region,
-		data: results.map((r) => ({
+		data: graphResults.map((r) => ({
 			timestamp: r.timestamp,
 			coldTtfbMs: r.cold_ttfb_ms,
 			warmTtfbMs: r.warm_ttfb_ms,
@@ -103,7 +124,7 @@ async function handleChart(url: URL, env: Env): Promise<Response> {
 			sha: r.sha,
 			prNumber: r.pr_number,
 		})),
-		prMarkers,
+		deployMarkers,
 	});
 }
 
@@ -113,5 +134,86 @@ async function handleConfig(): Promise<Response> {
 		target: TARGET_URL,
 		routes: TARGET_ROUTES,
 		regions: REGIONS.map((r) => ({ id: r, label: REGION_LABELS[r] })),
+	});
+}
+
+/** Accept short abbreviated or full-length hex SHAs. */
+const SHA_RE = /^[a-f0-9]{7,40}$/i;
+
+/**
+ * POST /api/trigger -- run an ad-hoc measurement, optionally record it.
+ *
+ * Body (all optional):
+ *   {
+ *     "note"?: string,
+ *     "sha"?: string,
+ *     "prNumber"?: number,
+ *     "ephemeral"?: boolean  // if true, run the probes but don't persist
+ *   }
+ *
+ * No auth in-Worker: this endpoint is expected to be protected by a
+ * Cloudflare Access policy at the edge. If Access misroutes or is
+ * misconfigured, the request will still run measurements -- keep Access
+ * scoped tightly to POST /api/trigger.
+ *
+ * Persisted runs are tagged source=manual and are excluded from the
+ * dashboard graph and summary cards but appear in the results table with
+ * a "manual" badge. Ephemeral runs run the probes for real but skip the
+ * insert entirely -- useful for private/local checks that shouldn't
+ * appear on the dashboard at all.
+ */
+async function handleTrigger(request: Request, env: Env): Promise<Response> {
+	let body: {
+		note?: unknown;
+		sha?: unknown;
+		prNumber?: unknown;
+		ephemeral?: unknown;
+	} = {};
+	const contentLength = request.headers.get("content-length");
+	if (contentLength && contentLength !== "0") {
+		try {
+			body = await request.json();
+		} catch {
+			return Response.json({ error: "invalid JSON body" }, { status: 400 });
+		}
+	}
+
+	const note = typeof body.note === "string" && body.note.trim() !== "" ? body.note.trim() : null;
+	const sha = typeof body.sha === "string" && SHA_RE.test(body.sha) ? body.sha : null;
+	const prNumber =
+		typeof body.prNumber === "number" && Number.isInteger(body.prNumber) && body.prNumber > 0
+			? body.prNumber
+			: null;
+	const ephemeral = body.ephemeral === true;
+
+	const started = Date.now();
+	const results = await runMeasurements(env, { source: "manual", sha, prNumber, note });
+
+	if (results.length === 0) {
+		return Response.json({ error: "no measurements returned from probes" }, { status: 502 });
+	}
+
+	if (!ephemeral) {
+		await insertResults(env.DB, results);
+	}
+
+	return Response.json({
+		inserted: ephemeral ? 0 : results.length,
+		ephemeral,
+		durationMs: Date.now() - started,
+		note,
+		sha,
+		prNumber,
+		// Echo the structured result so the CLI can print it without a follow-up query.
+		results: results.map((r) => ({
+			route: r.route,
+			region: r.region,
+			coldTtfbMs: r.coldTtfbMs,
+			warmTtfbMs: r.warmTtfbMs,
+			p95TtfbMs: r.p95TtfbMs,
+			cfColo: r.cfColo,
+			coldServerTimings: r.coldServerTimings,
+			warmServerTimings: r.warmServerTimings,
+		})),
 	});
 }

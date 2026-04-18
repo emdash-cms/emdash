@@ -792,7 +792,15 @@ async function applyContentTaxonomies(
 			.execute();
 	}
 
-	if (!entry.taxonomies) return;
+	if (!entry.taxonomies) {
+		// In update mode we may have just deleted rows above; invalidate so
+		// hydration doesn't serve stale "has terms" cached value.
+		if (isUpdate) {
+			const { invalidateTermCache } = await import("../taxonomies/index.js");
+			invalidateTermCache();
+		}
+		return;
+	}
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
 		const termRepo = new TaxonomyRepository(db);
@@ -804,6 +812,12 @@ async function applyContentTaxonomies(
 			}
 		}
 	}
+
+	// Seed writes directly to content_taxonomies. Clear the cache so
+	// the worker lifetime cached "has any term assignments" probe
+	// re-runs on the next read.
+	const { invalidateTermCache } = await import("../taxonomies/index.js");
+	invalidateTermCache();
 }
 
 /**
