@@ -628,7 +628,7 @@ msgstr "Alternatively, you can export from WordPress (Tools → Export) and uplo
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1520
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -1130,7 +1130,7 @@ msgstr "Connected {0}"
 msgid "Content"
 msgstr "Content"
 
-#: packages/admin/src/components/Widgets.tsx:88
+#: packages/admin/src/components/Widgets.tsx:90
 msgid "Content Block"
 msgstr "Content Block"
 
@@ -1669,7 +1669,7 @@ msgstr "Discard draft changes?"
 msgid "Dismiss"
 msgstr "Dismiss"
 
-#: packages/admin/src/components/Widgets.tsx:95
+#: packages/admin/src/components/Widgets.tsx:97
 msgid "Display a navigation menu"
 msgstr "Display a navigation menu"
 
@@ -2098,7 +2098,7 @@ msgstr "Failed to remove passkey"
 msgid "Failed to rename passkey"
 msgstr "Failed to rename passkey"
 
-#: packages/admin/src/router.tsx:1533
+#: packages/admin/src/router.tsx:1519
 msgid "Failed to save"
 msgstr "Failed to save"
 
@@ -2878,7 +2878,7 @@ msgstr "Media Write"
 msgid "Medium section heading"
 msgstr "Medium section heading"
 
-#: packages/admin/src/components/Widgets.tsx:94
+#: packages/admin/src/components/Widgets.tsx:96
 msgid "Menu"
 msgstr "Menu"
 
@@ -3968,7 +3968,7 @@ msgstr "Revoking..."
 msgid "Rich Text"
 msgstr "Rich Text"
 
-#: packages/admin/src/components/Widgets.tsx:89
+#: packages/admin/src/components/Widgets.tsx:91
 msgid "Rich text content"
 msgstr "Rich text content"
 

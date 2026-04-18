@@ -628,7 +628,7 @@ msgstr "Alternativement, vous pouvez exporter depuis WordPress (Outils → Expor
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1520
 msgid "An error occurred"
 msgstr "Une erreur s'est produite"
 
@@ -1130,7 +1130,7 @@ msgstr "Connecté {0}"
 msgid "Content"
 msgstr "Contenu"
 
-#: packages/admin/src/components/Widgets.tsx:88
+#: packages/admin/src/components/Widgets.tsx:90
 msgid "Content Block"
 msgstr "Bloc de contenu"
 
@@ -1669,7 +1669,7 @@ msgstr "Supprimer les brouillons de modifications ?"
 msgid "Dismiss"
 msgstr "Fermer"
 
-#: packages/admin/src/components/Widgets.tsx:95
+#: packages/admin/src/components/Widgets.tsx:97
 msgid "Display a navigation menu"
 msgstr "Afficher un menu de navigation"
 
@@ -2098,7 +2098,7 @@ msgstr "Échec de la suppression de la clé d'accès"
 msgid "Failed to rename passkey"
 msgstr "Échec du renommage de la clé d'accès"
 
-#: packages/admin/src/router.tsx:1533
+#: packages/admin/src/router.tsx:1519
 msgid "Failed to save"
 msgstr ""
 
@@ -2878,7 +2878,7 @@ msgstr "Écriture des fichiers multimédias"
 msgid "Medium section heading"
 msgstr "Titre secondaire"
 
-#: packages/admin/src/components/Widgets.tsx:94
+#: packages/admin/src/components/Widgets.tsx:96
 msgid "Menu"
 msgstr "Menu"
 
@@ -3968,7 +3968,7 @@ msgstr "Révocation en cours..."
 msgid "Rich Text"
 msgstr "Texte enrichi"
 
-#: packages/admin/src/components/Widgets.tsx:89
+#: packages/admin/src/components/Widgets.tsx:91
 msgid "Rich text content"
 msgstr "Texte enrichi"
 
