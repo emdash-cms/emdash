@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { assertNodeVersion, createTestServer, type TestServerContext } from "../server.js";
 
-const PORT = 4398;
+const PORT = 4400;
 const ONE_MB = 1024 * 1024;
 
 let ctx: TestServerContext;

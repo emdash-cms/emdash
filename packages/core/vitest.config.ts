@@ -14,6 +14,7 @@ export default defineConfig({
 			"tests/integration/smoke/**",
 			"tests/integration/cli/**",
 			"tests/integration/client/**",
+			"tests/integration/media/**",
 			"tests/integration/fixture/**",
 		],
 		coverage: {

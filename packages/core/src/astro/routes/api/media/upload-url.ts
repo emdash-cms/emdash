@@ -60,6 +60,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 	try {
 		const maxSize = emdash.config.maxUploadSize ?? DEFAULT_MAX_UPLOAD_SIZE;
+		if (!Number.isFinite(maxSize) || maxSize <= 0) {
+			return apiError(
+				"CONFIGURATION_ERROR",
+				"Invalid maxUploadSize configuration. Expected a positive finite number.",
+				500,
+			);
+		}
 		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
 		if (isParseError(body)) return body;
 

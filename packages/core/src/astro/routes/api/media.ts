@@ -13,7 +13,7 @@ import { ulid } from "ulidx";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
-import { DEFAULT_MAX_UPLOAD_SIZE, mediaListQuery } from "#api/schemas.js";
+import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { generatePlaceholder } from "#media/placeholder.js";
 import { computeContentHash } from "#utils/hash.js";
@@ -116,7 +116,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (file.size > maxUploadSize) {
 			return apiError(
 				"PAYLOAD_TOO_LARGE",
-				`File exceeds maximum size of ${Math.floor(maxUploadSize / 1024 / 1024)}MB`,
+				`File exceeds maximum size of ${formatFileSize(maxUploadSize)}`,
 				413,
 			);
 		}
