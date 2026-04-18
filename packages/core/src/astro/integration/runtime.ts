@@ -362,10 +362,10 @@ export interface EmDashConfig {
 		| false
 		| {
 				/**
-				 * Additional Noto Sans script families to include.
+				 * Additional script families to include.
 				 *
 				 * Available scripts: arabic, armenian, bengali, chinese-simplified,
-				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic,
+				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic, farsi,
 				 * georgian, gujarati, gurmukhi, hebrew, japanese, kannada, khmer,
 				 * korean, lao, malayalam, myanmar, oriya, sinhala, tamil, telugu,
 				 * thai, tibetan.
