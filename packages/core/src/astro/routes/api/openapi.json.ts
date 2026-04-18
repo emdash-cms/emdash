@@ -15,9 +15,10 @@ export const prerender = false;
 
 let cachedSpec: string | null = null;
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
 	if (!cachedSpec) {
-		const doc = generateOpenApiDocument();
+		const { emdash } = locals;
+		const doc = generateOpenApiDocument({ maxUploadSize: emdash?.config.maxUploadSize });
 		cachedSpec = JSON.stringify(doc);
 	}
 
