@@ -70,5 +70,5 @@ export function getAdminRequiredFontScripts(): string[] {
 			scripts.add(locale.fontScript);
 		}
 	}
-	return Array.from(scripts);
+	return [...scripts];
 }

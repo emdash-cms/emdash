@@ -10,6 +10,7 @@
  * to avoid bundling Node.js-only code into the production build.
  */
 
+import { getAdminRequiredFontScripts } from "@emdash-cms/admin/locales";
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 
 import type { ResolvedPlugin } from "../../plugins/types.js";
@@ -33,13 +34,6 @@ const DEFAULT_STORAGE = local({
 	directory: "./.emdash/uploads",
 	baseUrl: "/_emdash/api/media/file",
 });
-
-/**
- * Font scripts required by admin based on its supported locales.
- * Source of truth: packages/admin/src/locales/locales.ts::getAdminRequiredFontScripts()
- * Keep this list in sync with fontScript properties in admin's LOCALES.
- */
-const ADMIN_REQUIRED_FONT_SCRIPTS = ["farsi", "arabic", "chinese-simplified", "chinese-traditional", "japanese", "korean"];
 
 // Terminal formatting
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
@@ -227,36 +221,43 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// resolves all script families from Google Fonts under a single
 				// font-family name, so they stack via unicode-range.
 				const fontsConfig = resolvedConfig.fonts;
-				const userScripts = fontsConfig && fontsConfig !== false && fontsConfig.scripts
-					? fontsConfig.scripts
-					: [];
-				// Merge user config with admin's required fonts
-				const fontScripts = [...new Set([...userScripts, ...ADMIN_REQUIRED_FONT_SCRIPTS])];
-				const emdashFonts =
-					fontsConfig === false
-						? []
-						: [
-								{
-									provider: notoSans({
-										scripts: fontScripts.length > 0 ? fontScripts : undefined,
-									}),
-									name: "Noto Sans",
-									cssVariable: "--font-emdash",
-									weights: ["100 900" as const],
-									styles: ["normal" as const, "italic" as const],
-									subsets: [
-										"latin" as const,
-										"latin-ext" as const,
-										"cyrillic" as const,
-										"cyrillic-ext" as const,
-										"devanagari" as const,
-										"greek" as const,
-										"greek-ext" as const,
-										"vietnamese" as const,
-									],
-									fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
-								},
-							];
+				let emdashFonts: Record<string, unknown>[] = [];
+				if (fontsConfig !== false) {
+					const fontScripts: string[] =
+						typeof fontsConfig === "object" && fontsConfig.scripts ? [...fontsConfig.scripts] : [];
+
+					// Include font scripts for all enabled admin locales so fonts
+					// are available regardless of which locale the user picks at runtime.
+					const adminFontScripts = getAdminRequiredFontScripts();
+					for (const script of adminFontScripts) {
+						if (!fontScripts.includes(script)) {
+							fontScripts.push(script);
+						}
+					}
+
+					emdashFonts = [
+						{
+							provider: notoSans({
+								scripts: fontScripts.length > 0 ? fontScripts : undefined,
+							}),
+							name: "Noto Sans",
+							cssVariable: "--font-emdash",
+							weights: ["100 900" as const],
+							styles: ["normal" as const, "italic" as const],
+							subsets: [
+								"latin" as const,
+								"latin-ext" as const,
+								"cyrillic" as const,
+								"cyrillic-ext" as const,
+								"devanagari" as const,
+								"greek" as const,
+								"greek-ext" as const,
+								"vietnamese" as const,
+							],
+							fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
+						},
+					];
+				}
 
 				updateConfig({
 					security: securityConfig,
