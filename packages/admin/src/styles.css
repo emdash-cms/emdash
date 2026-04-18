@@ -12,6 +12,9 @@
 @import "@cloudflare/kumo/styles/tailwind";
 @plugin "@tailwindcss/typography";
 
+/* Vazirmatn for Persian typography */
+@import url("https://cdn.jsdelivr.net/npm/vazirmatn@30.3.0/fonts/variable.css");
+
 /* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
 @source "../node_modules/@cloudflare/kumo/dist";
 
@@ -94,6 +97,28 @@
 		"Segoe UI Symbol",
 		"Noto Color Emoji"
 	);
+}
+
+/**
+ * Persian typography (Farsi)
+ *
+ * Vazirmatn is optimized for Persian and supports ZWNJ (U+200C),
+ * Persian ligatures, and proper RTL text rendering.
+ */
+html[lang="fa"],
+html[lang|="fa"] {
+	--font-sans: "Vazirmatn", var(--font-emdash), ui-sans-serif, system-ui, sans-serif;
+	font-family: var(--font-sans);
+	font-feature-settings: "kern" 1, "liga" 1;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+/* Bold weight for Persian */
+html[lang="fa"] strong,
+html[lang="fa"] b,
+html[lang="fa"] .font-bold {
+	font-weight: 700;
 }
 
 /* Base styles */
