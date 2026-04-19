@@ -305,9 +305,8 @@ export async function getTermsForEntries(
  * getEmDashCollection to eagerly hydrate `entry.data.terms` and avoid
  * the N+1 pattern that callers hit when they loop and call getEntryTerms.
  *
- * Includes a short-circuit: when no term assignments exist in the database,
- * returns an empty Map without issuing a query. The cache is invalidated
- * on term create/update/delete (see invalidateTermCache).
+ * Pre-migration databases (content_taxonomies missing) return an empty
+ * Map — the join falls through to the `isMissingTableError` branch.
  */
 export async function getAllTermsForEntries(
 	collection: string,

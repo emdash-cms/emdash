@@ -40,6 +40,7 @@ export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 			"w.component_props as w_component_props",
 			"w.area_id as w_area_id",
 			"w.sort_order as w_sort_order",
+			"w.created_at as w_created_at",
 		])
 		.where("a.name", "=", name)
 		.orderBy("w.sort_order", "asc")
@@ -65,6 +66,7 @@ export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 			component_props: row.w_component_props,
 			area_id: row.w_area_id,
 			sort_order: row.w_sort_order,
+			created_at: row.w_created_at,
 		} as WidgetRow;
 		widgets.push(rowToWidget(widgetRow));
 	}
