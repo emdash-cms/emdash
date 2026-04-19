@@ -10,6 +10,10 @@ on:
     types: [completed]
 
 permissions:
+  # actions:read is needed for listWorkflowRunArtifacts /
+  # downloadArtifact. contents:read is a safety default; the commit-back
+  # step uses the app token, not GITHUB_TOKEN.
+  actions: read
   contents: read
 
 jobs:
@@ -86,7 +90,13 @@ jobs:
             }
             core.setOutput('number', String(match.number));
             core.setOutput('ref', match.head.ref);
-            core.setOutput('sha', match.head.sha);
+            // Use the workflow_run's head_sha — the commit that was
+            // actually measured — rather than the PR's current head.
+            // If the branch has moved on since, we want to push onto
+            // the measured commit (and let the push fail non-fast-
+            // forward) rather than apply stale snapshots to a newer
+            // tree.
+            core.setOutput('sha', headSha);
             core.setOutput('full_name', match.head.repo.full_name);
             const isFork = match.head.repo.fork
               || match.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
@@ -100,13 +110,13 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      # --- Same-repo PRs: checkout and push directly ---
+      # --- Same-repo PRs: checkout the pinned SHA and push directly ---
 
       - name: Checkout (same-repo)
         if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'false'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ steps.pr.outputs.ref }}
+          ref: ${{ steps.pr.outputs.sha }}
           token: ${{ steps.app-token.outputs.token }}
 
       # --- Fork PRs: checkout the fork at the pinned SHA so we can push back ---
@@ -139,10 +149,19 @@ jobs:
           && steps.pr.outputs.is_fork == 'false'
           && steps.apply.outputs.no_diff == 'false'
         run: |
+          set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
           git commit -m "ci: update query-count snapshots"
-          git push
+          # Detached-HEAD push onto the PR branch. If the branch has
+          # advanced past the measured SHA, this fails with a non-fast-
+          # forward — safe outcome, since applying stale counts to a
+          # newer tree would hide a regression. The next PR event will
+          # kick off a fresh measure+apply against the new head.
+          if ! git push origin "HEAD:${{ steps.pr.outputs.ref }}"; then
+            echo "::error::Non-fast-forward push — the PR branch moved past the measured SHA ${{ steps.pr.outputs.sha }}. Rerun the harness against the new head (the next PR event will do this automatically)." >&2
+            exit 1
+          fi
 
       - name: Commit and push (fork)
         if: |
