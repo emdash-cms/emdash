@@ -1,0 +1,168 @@
+name: Query Counts — Apply
+
+# Runs after the "Query Counts" workflow completes on a PR. This job has
+# elevated permissions to push back to the PR branch and comment, but it
+# never executes code from the PR — it only downloads the inert JSON +
+# diff artifact produced by the measure job.
+on:
+  workflow_run:
+    workflows: ["Query Counts"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: Apply
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download snapshot artifact
+        id: download
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((a) => a.name === 'query-counts-snapshots');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('No snapshot artifact — nothing to apply.');
+              return;
+            }
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            const outDir = path.join(process.env.GITHUB_WORKSPACE, 'artifact');
+            fs.mkdirSync(outDir, { recursive: true });
+            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
+            core.setOutput('found', 'true');
+            core.setOutput('dir', outDir);
+
+      - name: Unpack artifact
+        if: steps.download.outputs.found == 'true'
+        run: |
+          cd artifact
+          unzip -o artifact.zip
+          ls -la
+
+      - name: Resolve PR
+        if: steps.download.outputs.found == 'true'
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const prNumber = Number(fs.readFileSync('artifact/pr-number', 'utf8').trim());
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
+              return;
+            }
+            // Cross-check: look up the PR from the workflow_run's head SHA
+            // to make sure the artifact wasn't tampered with to point at a
+            // different PR.
+            const headSha = context.payload.workflow_run.head_sha;
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: headSha,
+            });
+            const match = prs.find((p) => p.number === prNumber);
+            if (!match) {
+              core.setFailed(
+                `PR #${prNumber} from artifact is not associated with commit ${headSha}`,
+              );
+              return;
+            }
+            core.setOutput('number', String(match.number));
+            core.setOutput('ref', match.head.ref);
+            core.setOutput('sha', match.head.sha);
+            core.setOutput('full_name', match.head.repo.full_name);
+            const isFork = match.head.repo.fork
+              || match.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+            core.setOutput('is_fork', isFork.toString());
+
+      - name: Generate app token
+        if: steps.download.outputs.found == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # --- Same-repo PRs: checkout and push directly ---
+
+      - name: Checkout (same-repo)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'false'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.pr.outputs.ref }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      # --- Fork PRs: checkout the fork at the pinned SHA so we can push back ---
+
+      - name: Checkout (fork)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ steps.pr.outputs.full_name }}
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+
+      - name: Apply snapshots
+        if: steps.download.outputs.found == 'true'
+        id: apply
+        run: |
+          cp "$GITHUB_WORKSPACE/artifact/query-counts.snapshot.sqlite.json" scripts/
+          cp "$GITHUB_WORKSPACE/artifact/query-counts.snapshot.d1.json" scripts/
+          git add scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json
+          if git diff --staged --quiet; then
+            echo "no_diff=true" >> "$GITHUB_OUTPUT"
+            echo "Artifact matches the PR head — nothing to push (probably a race with a newer commit)."
+          else
+            echo "no_diff=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push (same-repo)
+        if: |
+          steps.download.outputs.found == 'true'
+          && steps.pr.outputs.is_fork == 'false'
+          && steps.apply.outputs.no_diff == 'false'
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "ci: update query-count snapshots"
+          git push
+
+      - name: Commit and push (fork)
+        if: |
+          steps.download.outputs.found == 'true'
+          && steps.pr.outputs.is_fork == 'true'
+          && steps.apply.outputs.no_diff == 'false'
+        id: push-fork
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "ci: update query-count snapshots"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add fork "https://x-access-token@github.com/${{ steps.pr.outputs.full_name }}.git"
+          if git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
+            echo "push_failed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f "$GIT_ASKPASS"
