@@ -17,10 +17,12 @@ export default defineConfig({
 				if (id in virtualStubs) return "\0" + id;
 			},
 			load(id) {
-				if (id.startsWith("\0virtual:emdash/")) {
-					const key = id.slice(1) as keyof typeof virtualStubs;
-					return virtualStubs[key];
+				if (!id.startsWith("\0virtual:emdash/")) return null;
+				const key = id.slice(1);
+				if (Object.prototype.hasOwnProperty.call(virtualStubs, key)) {
+					return virtualStubs[key as keyof typeof virtualStubs];
 				}
+				return null;
 			},
 		},
 	],

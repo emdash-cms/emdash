@@ -790,9 +790,15 @@ export class EmDashRuntime {
 				// up anyway). Saves one cold-start write per D1 isolate.
 				const executorForRecovery = cronExecutor;
 				after(async () => {
-					const recovered = await executorForRecovery.recoverStaleLocks();
-					if (recovered > 0) {
-						console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
+					try {
+						const recovered = await executorForRecovery.recoverStaleLocks();
+						if (recovered > 0) {
+							console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
+						}
+					} catch (error) {
+						// Keep the `[cron]` prefix so a failure is easy to trace back
+						// rather than surfacing as a generic deferred-task error.
+						console.error("[cron] Failed to recover stale task locks:", error);
 					}
 				});
 
