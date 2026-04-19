@@ -56,6 +56,9 @@ export const RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID = "\0" + VIRTUAL_BLOCK_COMPONE
 export const VIRTUAL_SEED_ID = "virtual:emdash/seed";
 export const RESOLVED_VIRTUAL_SEED_ID = "\0" + VIRTUAL_SEED_ID;
 
+export const VIRTUAL_WAIT_UNTIL_ID = "virtual:emdash/wait-until";
+export const RESOLVED_VIRTUAL_WAIT_UNTIL_ID = "\0" + VIRTUAL_WAIT_UNTIL_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -331,6 +334,25 @@ export function generateBlockComponentsModule(descriptors: PluginDescriptor[]): 
 	});
 
 	return `${imports.join("\n")}\nexport const pluginBlockComponents = { ${spreads.join(", ")} };`;
+}
+
+/**
+ * Generates the wait-until virtual module.
+ *
+ * Under @astrojs/cloudflare, re-exports `waitUntil` from `cloudflare:workers`
+ * so `after(fn)` in core can extend the worker's lifetime past the response
+ * for deferred bookkeeping. For any other adapter, exports `undefined` —
+ * Node's long-lived event loop keeps deferred promises running without a
+ * lifetime extender.
+ *
+ * Keeping the adapter check here — rather than in core — means core itself
+ * has no Cloudflare-specific imports or code paths.
+ */
+export function generateWaitUntilModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `export { waitUntil } from "cloudflare:workers";`;
+	}
+	return `export const waitUntil = undefined;`;
 }
 
 /**

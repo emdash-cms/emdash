@@ -103,6 +103,15 @@ declare module "virtual:emdash/block-components" {
 	export const pluginBlockComponents: Record<string, unknown>;
 }
 
+declare module "virtual:emdash/wait-until" {
+	/**
+	 * Optional host-provided lifetime extender for work deferred past the
+	 * response. Resolves to Cloudflare's `waitUntil` under @astrojs/cloudflare;
+	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
+	 */
+	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+}
+
 declare module "virtual:emdash/admin-registry" {
 	/**
 	 * Plugin admin module registry.
