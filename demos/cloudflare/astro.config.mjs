@@ -1,8 +1,7 @@
 // @ts-check
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
-import { emailOnPublishPlugin } from "@emdash-cms/plugin-email-on-publish";
-
+import { emailOnPublishPlugin } from "./plugins/email-on-publish.ts";
 import {
 	d1,
 	r2,
