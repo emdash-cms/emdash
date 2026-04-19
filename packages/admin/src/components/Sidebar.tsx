@@ -174,7 +174,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			to: "/content/$collection",
 			label: config.label,
 			icon: FileText,
-			params: { collection: t`${name}` },
+			params: { collection: name },
 		});
 	}
 	contentItems.push({ to: "/media", label: t`Media`, icon: Image });
@@ -193,7 +193,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/sections", label: t`Sections`, icon: Stack, minRole: ROLE_EDITOR },
 		...manifest.taxonomies.map((tax) => ({
 			to: "/taxonomies/$taxonomy" as const,
-			label: t`${tax.label}`,
+			label: tax.label,
 			icon: FileText,
 			params: { taxonomy: tax.name },
 			minRole: ROLE_EDITOR,
