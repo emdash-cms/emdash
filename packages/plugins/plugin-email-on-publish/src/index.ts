@@ -3,11 +3,11 @@
 import type { PluginDescriptor } from "emdash";
 
 export function emailOnPublishPlugin(): PluginDescriptor {
-  return {
-    id: "email-on-publish",
-    version: "1.0.0",
-    format: "standard",
-    entrypoint: "@emdash-cms/plugin-email-on-publish/sandbox",
-    options: {},
-  };
+	return {
+		id: "email-on-publish",
+		version: "1.0.0",
+		format: "standard",
+		entrypoint: "@emdash-cms/plugin-email-on-publish/sandbox",
+		options: {},
+	};
 }

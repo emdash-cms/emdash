@@ -1,7 +1,6 @@
 // @ts-check
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
-import { emailOnPublishPlugin } from "./plugins/email-on-publish.ts";
 import {
 	d1,
 	r2,
@@ -15,6 +14,8 @@ import { formsPlugin } from "@emdash-cms/plugin-forms";
 import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
+
+import { emailOnPublishPlugin } from "./plugins/email-on-publish.ts";
 
 export default defineConfig({
 	output: "server",
