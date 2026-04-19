@@ -867,7 +867,7 @@ function ComponentPropField({
 			return (
 				<Switch
 					label={def.label}
-					checked={typeof value === "boolean" ? value : false}
+					checked={Boolean(value)}
 					onCheckedChange={onChange}
 				/>
 			);

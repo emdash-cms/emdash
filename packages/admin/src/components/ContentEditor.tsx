@@ -1169,7 +1169,7 @@ function FieldRenderer({
 				<Switch
 					id={id}
 					label={label}
-					checked={typeof value === "boolean" ? value : false}
+					checked={Boolean(value)}
 					onCheckedChange={handleChange}
 				/>
 			);
