@@ -47,7 +47,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter emdash... build
+      - run: pnpm build
       - run: node scripts/query-counts.mjs --target sqlite
       - run: node scripts/query-counts.mjs --target d1
 
