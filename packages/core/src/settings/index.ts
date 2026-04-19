@@ -73,11 +73,17 @@ async function resolveMediaReference(
  * console.log(logo?.url); // Resolved URL
  * ```
  */
-export async function getSiteSetting<K extends SiteSettingKey>(
+export function getSiteSetting<K extends SiteSettingKey>(
 	key: K,
 ): Promise<SiteSettings[K] | undefined> {
-	const db = await getDb();
-	return getSiteSettingWithDb(key, db);
+	// Cache per-key within a request. Without this, templates that pull
+	// several settings (and layout components that ask for logo/favicon/
+	// title separately) each fire an options-table query — which is a
+	// real latency hit on regions far from the D1 primary (APS, APE).
+	return requestCached(`siteSetting:${key}`, async () => {
+		const db = await getDb();
+		return getSiteSettingWithDb(key, db);
+	});
 }
 
 /**
