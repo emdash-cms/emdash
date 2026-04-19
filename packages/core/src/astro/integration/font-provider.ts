@@ -58,7 +58,7 @@ const ALL_GOOGLE_SUBSETS = [
 ];
 
 /**
- * Known Noto Sans script families on Google Fonts.
+ * Known Noto Sans and Sans script families on Google Fonts.
  * Maps user-friendly script names to Google Fonts family names.
  */
 const NOTO_SCRIPT_FAMILIES: Record<string, string> = {
