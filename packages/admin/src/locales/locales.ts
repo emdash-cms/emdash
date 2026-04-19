@@ -23,8 +23,6 @@ export interface LocaleDefinition {
 	enabled: boolean;
 	/** Text direction for this locale. Defaults to "ltr" if not specified. */
 	dir?: "rtl" | "ltr";
-	/** Font script required for proper rendering of this locale. */
-	fontScript?: string;
 }
 
 /**
@@ -34,15 +32,15 @@ export interface LocaleDefinition {
 export const LOCALES: LocaleDefinition[] = [
 	// Source locale first, then alphabetical by English name.
 	{ code: "en", label: "English", enabled: true },
-	{ code: "ar", label: "العربية", enabled: true, dir: "rtl", fontScript: "arabic" }, // Arabic
+	{ code: "ar", label: "العربية", enabled: true, dir: "rtl"}, // Arabic
 	{ code: "eu", label: "Euskara", enabled: true }, // Basque
-	{ code: "zh-CN", label: "简体中文", enabled: true, fontScript: "chinese-simplified" }, // Chinese (Simplified)
-	{ code: "zh-TW", label: "繁體中文", enabled: true, fontScript: "chinese-traditional" }, // Chinese (Traditional)
-	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl", fontScript: "farsi" }, // Farsi (also known as Persian)
+	{ code: "zh-CN", label: "简体中文", enabled: true}, // Chinese (Simplified)
+	{ code: "zh-TW", label: "繁體中文", enabled: true}, // Chinese (Traditional)
+	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl"}, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
-	{ code: "ja", label: "日本語", enabled: true, fontScript: "japanese" }, // Japanese
-	{ code: "ko", label: "한국어", enabled: false, fontScript: "korean" }, // Korean
+	{ code: "ja", label: "日本語", enabled: true}, // Japanese
+	{ code: "ko", label: "한국어", enabled: false}, // Korean
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
@@ -61,14 +59,3 @@ export const TARGET_LOCALES = LOCALES.slice(1);
 
 /** Locales enabled in the admin UI. */
 export const ENABLED_LOCALES = LOCALES.filter((l) => l.enabled);
-
-/** Get all font scripts required by enabled admin locales. */
-export function getAdminRequiredFontScripts(): string[] {
-	const scripts = new Set<string>();
-	for (const locale of LOCALES) {
-		if (locale.fontScript) {
-			scripts.add(locale.fontScript);
-		}
-	}
-	return [...scripts];
-}
