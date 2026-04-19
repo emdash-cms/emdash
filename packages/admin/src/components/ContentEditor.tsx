@@ -1166,12 +1166,7 @@ function FieldRenderer({
 
 		case "boolean":
 			return (
-				<Switch
-					id={id}
-					label={label}
-					checked={typeof value === "boolean" ? value : false}
-					onCheckedChange={handleChange}
-				/>
+				<Switch id={id} label={label} checked={Boolean(value)} onCheckedChange={handleChange} />
 			);
 
 		case "portableText": {
