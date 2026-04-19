@@ -1,5 +1,5 @@
 {
-  "name": "@my-emdash/plugin-email-on-publish",
+  "name": "@emdash-cms/plugin-email-on-publish",
   "version": "1.0.0",
   "type": "module",
   "exports": {
