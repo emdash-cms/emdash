@@ -113,7 +113,6 @@ export class FTSManager {
 		const contentTable = this.getContentTableName(collectionSlug);
 		const fieldList = searchableFields.join(", ");
 		const newFieldList = searchableFields.map((f) => `NEW.${f}`).join(", ");
-
 		// Insert trigger - only index non-deleted content
 		await sql
 			.raw(`
@@ -342,7 +341,8 @@ export class FTSManager {
 	async disableSearch(collectionSlug: string): Promise<void> {
 		if (!isSqlite(this.db)) return;
 		await this.dropFtsTable(collectionSlug);
-		await this.setSearchConfig(collectionSlug, { enabled: false });
+		const existing = await this.getSearchConfig(collectionSlug);
+		await this.setSearchConfig(collectionSlug, { enabled: false, weights: existing?.weights });
 	}
 
 	/**
@@ -354,6 +354,7 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return null;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
+		const ftsDocsizeTable = `${ftsTable}_docsize`;
 
 		// Check if table exists
 		if (!(await this.ftsTableExists(collectionSlug))) {
@@ -362,7 +363,7 @@ export class FTSManager {
 
 		// Count indexed rows
 		const result = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM "${sql.raw(ftsTable)}"
+			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
 
 		return {
@@ -381,10 +382,19 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
+		const ftsDocsizeTable = `${ftsTable}_docsize`;
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fields = await this.getSearchableFields(collectionSlug);
+		const config = await this.getSearchConfig(collectionSlug);
 
 		if (!(await this.ftsTableExists(collectionSlug))) {
-			return false;
+			if (!config?.enabled || fields.length === 0) {
+				return false;
+			}
+
+			console.warn(`FTS index for "${collectionSlug}" is missing. Rebuilding.`);
+			await this.rebuildIndex(collectionSlug, fields, config.weights);
+			return true;
 		}
 
 		// Check 1: Row count mismatch
@@ -393,8 +403,12 @@ export class FTSManager {
 			WHERE deleted_at IS NULL
 		`.execute(this.db);
 
+		// For external-content FTS tables, COUNT(*) on the virtual table is
+		// answered from the backing content table, including soft-deleted rows.
+		// The docsize shadow table tracks the rows actually present in the
+		// full-text index, which is what we need for repair decisions.
 		const ftsCount = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM "${sql.raw(ftsTable)}"
+			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
 
 		const contentRows = contentCount.rows[0]?.count ?? 0;

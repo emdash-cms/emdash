@@ -9,14 +9,16 @@ EmDash's plugin system lets you extend the CMS without modifying core code. Plug
 
 ## Design Philosophy
 
-EmDash plugins are **configuration transformers**, not separate applications. They run in the same process as your Astro site and interact through well-defined interfaces.
+EmDash plugins come in two flavors: **sandboxed** and **native**. Sandboxed plugins run in isolated V8 workers and can be installed from the marketplace with one click. Native plugins run in-process and are configured in code.
+
+**Prefer sandboxed plugins.** They can be installed, updated, and removed from the admin UI without touching code or redeploying. Only use native plugins when you need features that require build-time integration (React admin pages, Portable Text rendering components, or page fragment injection).
 
 **Key principles:**
 
+- **Sandbox-first** — Design for the sandbox; use native mode only when you need to
 - **Declarative** — Hooks, storage, and routes are declared at definition time, not registered dynamically
 - **Type-safe** — Full TypeScript support with typed context objects
-- **Sandboxing-ready** — APIs designed for isolated execution on Cloudflare Workers
-- **Capability-based** — Plugins declare what they need; the runtime enforces access
+- **Capability-based** — Plugins declare what they need; the sandbox enforces it
 
 <Aside type="note">
 	EmDash plugins are not Astro integrations. They're passed to the EmDash integration in your
@@ -164,17 +166,16 @@ Plugins are resolved at build time. Order matters for hooks with the same priori
 
 EmDash supports two plugin execution modes:
 
-| Mode          | Description                             | Platform        |
-| ------------- | --------------------------------------- | --------------- |
-| **Trusted**   | Plugins run in-process with full access | Any             |
-| **Sandboxed** | Plugins run in isolated V8 workers      | Cloudflare only |
+| Mode          | Description                                | Platform        |
+| ------------- | ------------------------------------------ | --------------- |
+| **Sandboxed** | Isolated V8 workers with enforced limits   | Cloudflare only |
+| **Native**    | In-process with full access                | Any             |
 
-In trusted mode (the default), capabilities are documentation—plugins can access anything. In sandboxed mode, capabilities are enforced at the runtime level.
+In sandboxed mode, capabilities are enforced at the runtime level -- plugins can only access what they declare. In native mode, capabilities are advisory and plugins have full process access.
 
 <Aside type="note">
 	Sandboxed execution requires Cloudflare Workers with Dynamic Worker Loader. Other platforms use
-	trusted mode only. See [Plugin Sandbox](/plugins/sandbox/) for a full comparison of the security
-	guarantees on each platform.
+	native mode only. See [Native vs. Sandboxed Plugins](/plugins/sandbox/) for a full comparison.
 </Aside>
 
 ## Next Steps
@@ -192,7 +193,7 @@ In trusted mode (the default), capabilities are documentation—plugins can acce
 	<Card title="Admin UI" icon="laptop">
 		[Add admin pages](/plugins/admin-ui/) and dashboard widgets.
 	</Card>
-	<Card title="Sandbox Security" icon="warning">
-		[Understand sandbox isolation](/plugins/sandbox/) across Cloudflare and Node.js deployments.
+	<Card title="Native vs. Sandboxed" icon="warning">
+		[Compare execution modes](/plugins/sandbox/) and choose the right one for your plugin.
 	</Card>
 </CardGrid>

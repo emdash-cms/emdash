@@ -1,0 +1,26 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-perf-fixture",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	// Query instrumentation is always on for this fixture — it exists
+	// specifically to run under the query-count harness. The flag costs a
+	// per-query Kysely log dispatch; it's intentional here.
+	"vars": {
+		"EMDASH_QUERY_LOG": "1",
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-perf-fixture",
+			"database_id": "local",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-perf-fixture-media",
+		},
+	],
+}

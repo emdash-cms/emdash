@@ -6,54 +6,85 @@
  * the taxonomies runtime API.
  */
 
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
+import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
- * Cached result of "does any byline exist in the database?"
- * null = not yet checked, true/false = cached result.
- * Invalidated when bylines are created or deleted.
+ * Worker-lifetime cache of "does any byline exist in the database?".
+ *
+ * Stored on `globalThis` with a Symbol key so a single value is shared
+ * even when the bundler duplicates this module across chunks — without
+ * that, each chunk gets its own local variable and the probe re-runs on
+ * every caller. (Same pattern as request-context.ts.) Module-scoped —
+ * rather than keyed on the Kysely instance — because every anonymous
+ * request in a D1 Sessions deployment gets a fresh session-bound Kysely,
+ * and keying on the Kysely made the probe miss on every single request.
+ *
+ * Requests that route to an isolated DB (playground / DO preview) bypass
+ * this cache — see `hasAnyBylines`.
  */
-let hasBylines: boolean | null = null;
+const HAS_BYLINES_KEY = Symbol.for("emdash:has-bylines-singleton");
+interface HasBylinesHolder {
+	value: boolean | null;
+}
+const bylinesHolder: HasBylinesHolder =
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	((globalThis as Record<symbol, unknown>)[HAS_BYLINES_KEY] as HasBylinesHolder | undefined) ??
+	(() => {
+		const h: HasBylinesHolder = { value: null };
+		(globalThis as Record<symbol, unknown>)[HAS_BYLINES_KEY] = h;
+		return h;
+	})();
 
 /**
  * Invalidate the cached "has any bylines" check.
+ *
  * Call this when bylines are created, updated, or deleted.
  */
 export function invalidateBylineCache(): void {
-	hasBylines = null;
+	bylinesHolder.value = null;
 }
 
 /**
- * Check if any bylines exist in the database. Result is cached
- * for the lifetime of the worker/process and invalidated on writes.
+ * Check if any bylines exist for the given DB instance. Result is cached
+ * for the lifetime of the worker unless the request is routed to an
+ * isolated DB, in which case the probe runs every time.
+ *
+ * Rethrows any error that is not a "missing table" error so callers see
+ * real DB failures (permissions, connectivity, syntax) rather than silently
+ * short-circuiting to "no bylines". Pre-migration databases return `false`
+ * — the expected state before the table exists.
  */
-async function hasAnyBylines(): Promise<boolean> {
-	if (hasBylines !== null) return hasBylines;
+async function hasAnyBylines(db: Kysely<Database>): Promise<boolean> {
+	const isolated = getRequestContext()?.dbIsIsolated === true;
+	if (!isolated && bylinesHolder.value !== null) {
+		return bylinesHolder.value;
+	}
 
 	try {
-		const db = await getDb();
 		const result = await sql<{ id: string }>`
 			SELECT id FROM _emdash_bylines LIMIT 1
 		`.execute(db);
-		hasBylines = result.rows.length > 0;
-	} catch (error: unknown) {
-		// Only treat "no such table" as a safe false -- anything else should
-		// not be cached so the next request retries.
-		const message = error instanceof Error ? error.message : "";
-		if (message.includes("no such table")) {
-			hasBylines = false;
-		} else {
+		const value = result.rows.length > 0;
+		if (!isolated) bylinesHolder.value = value;
+		return value;
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			if (!isolated) bylinesHolder.value = false;
 			return false;
 		}
+		// Don't cache unknown failures; let the next call retry.
+		throw error;
 	}
-
-	return hasBylines;
 }
 
 /**
@@ -176,13 +207,14 @@ export async function getBylinesForEntries(
 		return result;
 	}
 
+	const db = await getDb();
+
 	// Skip DB queries entirely when no bylines have been created.
 	// The cache is invalidated when bylines are created/deleted.
-	if (!(await hasAnyBylines())) {
+	if (!(await hasAnyBylines(db))) {
 		return result;
 	}
 
-	const db = await getDb();
 	const repo = new BylineRepository(db);
 
 	// 1. Batch fetch all explicit byline credits

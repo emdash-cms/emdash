@@ -1,0 +1,44 @@
+name: Query Counts — Label
+
+# Applies the "query-count changed" label when a PR's diff touches either
+# snapshot file. The label is informational — it flags that the PR alters
+# per-route DB query counts (either because the author's change regressed
+# them, or because the Apply workflow auto-updated the baseline).
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - scripts/query-counts.snapshot.sqlite.json
+      - scripts/query-counts.snapshot.d1.json
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const label = 'query-count changed';
+            // Create the label if it doesn't exist yet. Ignore 422 (already exists).
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+                color: 'fbca04',
+                description: 'PR diff modifies query-count snapshot files',
+              });
+            } catch (err) {
+              if (err.status !== 422) throw err;
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [label],
+            });

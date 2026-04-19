@@ -332,7 +332,7 @@ async function importContent(
 			console.error(`Import error for "${item.title || "Untitled"}":`, error);
 			result.errors.push({
 				title: item.title || "Untitled",
-				error: "Failed to import item",
+				error: error instanceof Error && error.message ? error.message : "Failed to import item",
 			});
 		}
 	}

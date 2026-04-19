@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
+import { requestCached } from "../request-cache.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
 
@@ -26,9 +27,11 @@ import type { Menu, MenuItem, MenuItemRow } from "./types.js";
  * }
  * ```
  */
-export async function getMenu(name: string): Promise<Menu | null> {
-	const db = await getDb();
-	return getMenuWithDb(name, db);
+export function getMenu(name: string): Promise<Menu | null> {
+	return requestCached(`menu:${name}`, async () => {
+		const db = await getDb();
+		return getMenuWithDb(name, db);
+	});
 }
 
 /**

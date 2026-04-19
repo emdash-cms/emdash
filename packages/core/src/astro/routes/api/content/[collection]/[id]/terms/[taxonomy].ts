@@ -12,6 +12,7 @@ import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
+import { invalidateTermCache } from "#taxonomies/index.js";
 
 export const prerender = false;
 
@@ -121,6 +122,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 		// Set the terms (replaces existing)
 		await repo.setTermsForEntry(collection, id, taxonomy, termIds);
+
+		// Term assignments changed — invalidate the hasAnyTermAssignments cache
+		// so hydration on subsequent reads issues a fresh query.
+		invalidateTermCache();
 
 		// Get the updated terms
 		const terms = await repo.getTermsForEntry(collection, id, taxonomy);

@@ -92,6 +92,27 @@ describe("Zod Generator", () => {
 			expect(() => schema.parse("yes")).toThrow();
 		});
 
+		it("should generate url schema", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "website",
+				label: "Website",
+				type: "url",
+				columnType: "TEXT",
+				required: true,
+				unique: false,
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(schema.parse("https://example.com")).toBe("https://example.com");
+			expect(schema.parse("http://localhost:3000/path")).toBe("http://localhost:3000/path");
+			expect(() => schema.parse("not-a-url")).toThrow();
+			expect(() => schema.parse(123)).toThrow();
+		});
+
 		it("should generate select schema with options", () => {
 			const field: Field = {
 				id: "f1",

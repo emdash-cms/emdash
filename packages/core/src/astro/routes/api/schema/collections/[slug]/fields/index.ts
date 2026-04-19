@@ -48,5 +48,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		collectionSlug,
 		body as CreateFieldInput,
 	);
+	if (result.success) emdash!.invalidateManifest();
 	return unwrapResult(result, 201);
 };

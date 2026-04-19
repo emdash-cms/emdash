@@ -6,13 +6,15 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Input, Label } from "@cloudflare/kumo";
+import { Button, Input, Label, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "@phosphor-icons/react";
+import { Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
+import { createTerm } from "../lib/api/taxonomies.js";
+import { slugify } from "../lib/utils.js";
 
 interface TaxonomyTerm {
 	id: string;
@@ -143,12 +145,16 @@ function TagInput({
 	selectedIds,
 	onAdd,
 	onRemove,
+	onCreate,
+	isCreating,
 	label,
 }: {
 	terms: TaxonomyTerm[];
 	selectedIds: Set<string>;
 	onAdd: (termId: string) => void;
 	onRemove: (termId: string) => void;
+	onCreate: (label: string) => void;
+	isCreating: boolean;
 	label: string;
 }) {
 	const { t } = useLingui();
@@ -156,19 +162,46 @@ function TagInput({
 
 	const selectedTerms = terms.filter((term) => selectedIds.has(term.id));
 
+	const trimmedInput = input.trim();
+
 	const suggestions = React.useMemo(() => {
-		if (!input) return [];
+		if (!trimmedInput) return [];
 		return terms
 			.filter(
 				(term) =>
-					term.label.toLowerCase().includes(input.toLowerCase()) && !selectedIds.has(term.id),
+					term.label.toLowerCase().includes(trimmedInput.toLowerCase()) &&
+					!selectedIds.has(term.id),
 			)
 			.slice(0, 5);
-	}, [input, terms, selectedIds]);
+	}, [trimmedInput, terms, selectedIds]);
+
+	const hasExactMatch = React.useMemo(() => {
+		if (!trimmedInput) return false;
+		return terms.some((term) => term.label.toLowerCase() === trimmedInput.toLowerCase());
+	}, [trimmedInput, terms]);
+
+	const showCreateOption = trimmedInput.length > 0 && !hasExactMatch;
 
 	const handleSelect = (term: TaxonomyTerm) => {
 		onAdd(term.id);
 		setInput("");
+	};
+
+	const handleCreate = () => {
+		if (!trimmedInput || isCreating) return;
+		onCreate(trimmedInput);
+		setInput("");
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			if (suggestions.length === 1 && !showCreateOption) {
+				handleSelect(suggestions[0]!);
+			} else if (showCreateOption && suggestions.length === 0) {
+				handleCreate();
+			}
+		}
 	};
 
 	return (
@@ -200,13 +233,14 @@ function TagInput({
 				<Input
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
+					onKeyDown={handleKeyDown}
 					placeholder={t`Add tags...`}
 					aria-label={t`Add ${label}`}
 					className="text-sm"
 				/>
 
 				{/* Suggestions dropdown */}
-				{suggestions.length > 0 && (
+				{(suggestions.length > 0 || showCreateOption) && (
 					<div className="absolute top-full start-0 end-0 mt-1 bg-kumo-overlay border rounded-md shadow-lg z-10">
 						{suggestions.map((term) => (
 							<button
@@ -218,6 +252,17 @@ function TagInput({
 								{term.label}
 							</button>
 						))}
+						{showCreateOption && (
+							<button
+								type="button"
+								onClick={handleCreate}
+								disabled={isCreating}
+								className="w-full text-left px-3 py-2 text-sm hover:bg-kumo-tint text-kumo-accent flex items-center gap-1 border-t"
+							>
+								<Plus className="w-3 h-3" />
+								{isCreating ? "Creating..." : `Create "${trimmedInput}"`}
+							</button>
+						)}
 					</div>
 				)}
 			</div>
@@ -241,6 +286,9 @@ function TaxonomySection({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
+	const [newCategoryLabel, setNewCategoryLabel] = React.useState("");
+	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
 	const { data: terms = [] } = useQuery({
 		queryKey: ["taxonomy-terms", taxonomy.name],
@@ -265,6 +313,36 @@ function TaxonomySection({
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name],
 			});
+			toastManager.add({ title: t`${taxonomy.label} updated` });
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to update ${taxonomy.label.toLowerCase()}`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
+			});
+		},
+	});
+
+	const createTermMutation = useMutation({
+		mutationFn: (label: string) => createTerm(taxonomy.name, { slug: slugify(label), label }),
+		onSuccess: (newTerm) => {
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomy.name] });
+			// Auto-select the newly created term
+			const newSelected = new Set(selectedIds);
+			newSelected.add(newTerm.id);
+			setSelectedIds(newSelected);
+
+			const termIdsArray = [...newSelected];
+			onChange?.(termIdsArray);
+
+			if (entryId) {
+				saveMutation.mutate(termIdsArray);
+			}
+
+			// Reset category input
+			setNewCategoryLabel("");
+			setShowCategoryInput(false);
 		},
 	});
 
@@ -302,31 +380,91 @@ function TaxonomySection({
 		handleToggle(termId);
 	};
 
+	const handleCreateCategory = () => {
+		const label = newCategoryLabel.trim();
+		if (!label || createTermMutation.isPending) return;
+		createTermMutation.mutate(label);
+	};
+
 	return (
 		<div className="space-y-2">
 			<Label className="text-sm font-medium">{taxonomy.label}</Label>
 
-			{terms.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">
-					{t`No ${taxonomy.label.toLowerCase()} available.`}
-				</p>
-			) : taxonomy.hierarchical ? (
-				<div className="border rounded-md p-2 max-h-64 overflow-y-auto">
-					{terms.map((term) => (
-						<CategoryCheckboxTree
-							key={term.id}
-							term={term}
-							selectedIds={selectedIds}
-							onToggle={handleToggle}
-						/>
-					))}
-				</div>
+			{taxonomy.hierarchical ? (
+				<>
+					{terms.length === 0 ? (
+						<p className="text-sm text-kumo-subtle">
+							{t`No ${taxonomy.label.toLowerCase()} available.`}
+						</p>
+					) : (
+						<div className="border rounded-md p-2 max-h-64 overflow-y-auto">
+							{terms.map((term) => (
+								<CategoryCheckboxTree
+									key={term.id}
+									term={term}
+									selectedIds={selectedIds}
+									onToggle={handleToggle}
+								/>
+							))}
+						</div>
+					)}
+
+					{/* Add new category inline */}
+					{showCategoryInput ? (
+						<div className="flex gap-1">
+							<Input
+								value={newCategoryLabel}
+								onChange={(e) => setNewCategoryLabel(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleCreateCategory();
+									} else if (e.key === "Escape") {
+										setShowCategoryInput(false);
+										setNewCategoryLabel("");
+									}
+								}}
+								placeholder={t`New ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
+								className="text-sm flex-1"
+								autoFocus
+								disabled={createTermMutation.isPending}
+							/>
+							<Button
+								type="button"
+								onClick={handleCreateCategory}
+								disabled={!newCategoryLabel.trim()}
+								loading={createTermMutation.isPending}
+								variant="primary"
+							>
+								{t`Add`}
+							</Button>
+						</div>
+					) : (
+						<button
+							type="button"
+							onClick={() => setShowCategoryInput(true)}
+							className="text-sm text-kumo-accent hover:underline flex items-center gap-1"
+						>
+							<Plus className="w-3 h-3" />
+							{t`Add new ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
+						</button>
+					)}
+					{createTermMutation.error && (
+						<p className="text-sm text-kumo-danger">
+							{createTermMutation.error instanceof Error
+								? createTermMutation.error.message
+								: t`Failed to create term`}
+						</p>
+					)}
+				</>
 			) : (
 				<TagInput
 					terms={terms}
 					selectedIds={selectedIds}
 					onAdd={handleAdd}
 					onRemove={handleRemove}
+					onCreate={(label) => createTermMutation.mutate(label)}
+					isCreating={createTermMutation.isPending}
 					label={taxonomy.label}
 				/>
 			)}
