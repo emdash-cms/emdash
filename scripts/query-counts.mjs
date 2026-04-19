@@ -145,10 +145,18 @@ function assertExistingBuildMatchesTarget() {
 // SQLite: seed the file DB via the emdash CLI directly — it runs
 // migrations, applies the virtual-module seed, and sets
 // `emdash:setup_complete`, all without going through the HTTP layer.
+//
+// We invoke the CLI entry by absolute path rather than via `pnpm exec
+// emdash` so the harness works in CI, where pnpm's bin-linking step
+// isn't run (see scripts/relink-bins-if-needed.mjs — it early-exits
+// under CI, expecting the CI job to handle bin links, which this job
+// intentionally does not).
+const emdashCliPath = resolve(repoRoot, "packages/core/dist/cli/index.mjs");
+
 function seedSqliteCli() {
 	for (const step of ["init", "seed"]) {
-		process.stdout.write(`$ (cd ${fixtureDir}) emdash ${step}\n`);
-		const r = spawnSync("pnpm", ["exec", "emdash", step], {
+		process.stdout.write(`$ (cd ${fixtureDir}) node <emdash-cli> ${step}\n`);
+		const r = spawnSync("node", [emdashCliPath, step], {
 			cwd: fixtureDir,
 			stdio: "inherit",
 			env: { ...process.env, EMDASH_FIXTURE_TARGET: "sqlite" },
