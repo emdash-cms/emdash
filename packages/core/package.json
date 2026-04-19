@@ -61,6 +61,10 @@
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
     },
+    "./database/instrumentation": {
+      "types": "./dist/database/instrumentation.d.mts",
+      "default": "./dist/database/instrumentation.mjs"
+    },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
       "default": "./dist/storage/local.mjs"

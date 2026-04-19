@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS perf_results (
   cf_colo TEXT,
   cf_placement TEXT,
   timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-  source TEXT NOT NULL  -- 'deploy' | 'cron'
+  source TEXT NOT NULL, -- 'deploy' | 'cron' | 'manual'
+  site TEXT NOT NULL DEFAULT 'blog'
 );
 
 CREATE INDEX IF NOT EXISTS idx_perf_route_region_ts ON perf_results(route, region, timestamp);
@@ -21,3 +22,5 @@ CREATE INDEX IF NOT EXISTS idx_perf_sha ON perf_results(sha);
 CREATE INDEX IF NOT EXISTS idx_perf_pr ON perf_results(pr_number);
 CREATE INDEX IF NOT EXISTS idx_perf_source_ts ON perf_results(source, timestamp);
 CREATE INDEX IF NOT EXISTS idx_perf_timestamp ON perf_results(timestamp);
+CREATE INDEX IF NOT EXISTS idx_perf_site_ts ON perf_results(site, timestamp);
+CREATE INDEX IF NOT EXISTS idx_perf_site_route_region_ts ON perf_results(site, route, region, timestamp);

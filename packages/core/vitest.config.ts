@@ -1,6 +1,32 @@
 import { defineConfig } from "vitest/config";
 
+// Stub the adapter-provided virtual modules that runtime code imports.
+// Individual tests still `vi.mock()` the ones they care about; this plugin
+// just prevents "cannot find package" errors when a test pulls in a chunk
+// of core that happens to touch one transitively. Mirrors the pattern the
+// Astro integration's vite plugin uses at build time.
+const virtualStubs: Record<string, string> = {
+	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
+};
+
 export default defineConfig({
+	plugins: [
+		{
+			name: "emdash-virtual-stubs",
+			resolveId(id) {
+				// Object.hasOwn — not `in` — so prototype-chain properties
+				// (toString, hasOwnProperty, etc.) aren't accidentally matched.
+				if (Object.hasOwn(virtualStubs, id)) return "\0" + id;
+				return null;
+			},
+			load(id) {
+				if (!id.startsWith("\0virtual:emdash/")) return null;
+				const key = id.slice(1);
+				if (Object.hasOwn(virtualStubs, key)) return virtualStubs[key];
+				return null;
+			},
+		},
+	],
 	test: {
 		globals: true,
 		environment: "node",
@@ -14,6 +40,7 @@ export default defineConfig({
 			"tests/integration/smoke/**",
 			"tests/integration/cli/**",
 			"tests/integration/client/**",
+			"tests/integration/media/**",
 			"tests/integration/fixture/**",
 		],
 		coverage: {

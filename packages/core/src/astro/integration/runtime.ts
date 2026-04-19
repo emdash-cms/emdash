@@ -257,6 +257,19 @@ export interface EmDashConfig {
 	marketplace?: string;
 
 	/**
+	 * Maximum allowed media file upload size in bytes.
+	 *
+	 * Applies to both direct multipart uploads and signed-URL uploads.
+	 * When unset, defaults to 52_428_800 (50 MB).
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({ maxUploadSize: 100 * 1024 * 1024 }) // 100 MB
+	 * ```
+	 */
+	maxUploadSize?: number;
+
+	/**
 	 * Public browser-facing origin for the site.
 	 *
 	 * Use when `Astro.url` / `request.url` do not match what users open — common with a

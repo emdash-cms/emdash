@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { contentCreateBody, contentUpdateBody, httpUrl } from "../../../src/api/schemas/index.js";
+import {
+	contentCreateBody,
+	contentUpdateBody,
+	httpUrl,
+	mediaUploadUrlBody,
+	DEFAULT_MAX_UPLOAD_SIZE,
+} from "../../../src/api/schemas/index.js";
 
 describe("contentCreateBody schema", () => {
 	it("accepts status 'draft'", () => {
@@ -90,5 +96,77 @@ describe("httpUrl validator", () => {
 
 	it("is case-insensitive for scheme", () => {
 		expect(httpUrl.parse("HTTPS://EXAMPLE.COM")).toBe("HTTPS://EXAMPLE.COM");
+	});
+});
+
+describe("mediaUploadUrlBody schema factory", () => {
+	it("DEFAULT_MAX_UPLOAD_SIZE is 50 MB", () => {
+		expect(DEFAULT_MAX_UPLOAD_SIZE).toBe(50 * 1024 * 1024);
+	});
+
+	it("rejects size above the configured limit", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		expect(() =>
+			schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 1_001 }),
+		).toThrow();
+	});
+
+	it("accepts size equal to the configured limit", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const result = schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 1_000 });
+		expect(result.size).toBe(1_000);
+	});
+
+	it("accepts size below the configured limit", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const result = schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 500 });
+		expect(result.size).toBe(500);
+	});
+
+	it("each call returns an independent schema with its own limit", () => {
+		const strict = mediaUploadUrlBody(100);
+		const loose = mediaUploadUrlBody(1_000_000);
+		expect(() =>
+			strict.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 500 }),
+		).toThrow();
+		expect(() =>
+			loose.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 500 }),
+		).not.toThrow();
+	});
+
+	it("throws when maxSize is NaN", () => {
+		expect(() => mediaUploadUrlBody(NaN)).toThrow(/maxUploadSize/);
+	});
+
+	it("throws when maxSize is 0", () => {
+		expect(() => mediaUploadUrlBody(0)).toThrow(/maxUploadSize/);
+	});
+
+	it("throws when maxSize is negative", () => {
+		expect(() => mediaUploadUrlBody(-1024)).toThrow(/maxUploadSize/);
+	});
+
+	it("error message uses whole MB, not fractional", () => {
+		const schema = mediaUploadUrlBody(75_000_000);
+		let errorMessage = "";
+		try {
+			schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 75_000_001 });
+		} catch (e) {
+			errorMessage = String(e);
+		}
+		expect(errorMessage).not.toBe("");
+		expect(errorMessage).not.toMatch(/\d+\.\d+MB/);
+	});
+
+	it("error message does not overstate the limit in MB", () => {
+		// 75_000_000 bytes / 1024 / 1024 ≈ 71.5 MB; floor gives 71, round gives 72
+		const schema = mediaUploadUrlBody(75_000_000);
+		let errorMessage = "";
+		try {
+			schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 75_000_001 });
+		} catch (e) {
+			errorMessage = String(e);
+		}
+		expect(errorMessage).toContain("71MB");
 	});
 });

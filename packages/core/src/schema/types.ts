@@ -11,6 +11,7 @@
 export type FieldType =
 	| "string"
 	| "text"
+	| "url"
 	| "number"
 	| "integer"
 	| "boolean"
@@ -31,6 +32,7 @@ export type FieldType =
 export const FIELD_TYPES: readonly FieldType[] = [
 	"string",
 	"text",
+	"url",
 	"number",
 	"integer",
 	"boolean",
@@ -69,6 +71,7 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 	reference: "TEXT",
 	json: "JSON",
 	slug: "TEXT",
+	url: "TEXT",
 	repeater: "JSON",
 };
 
@@ -99,7 +102,7 @@ export type CollectionSource =
 /** Sub-field definition for repeater fields */
 export interface RepeaterSubField {
 	slug: string;
-	type: "string" | "text" | "number" | "integer" | "boolean" | "datetime" | "select";
+	type: "string" | "text" | "url" | "number" | "integer" | "boolean" | "datetime" | "select";
 	label: string;
 	required?: boolean;
 	options?: string[]; // For select sub-fields
@@ -109,6 +112,7 @@ export interface RepeaterSubField {
 export const REPEATER_SUB_FIELD_TYPES = [
 	"string",
 	"text",
+	"url",
 	"number",
 	"integer",
 	"boolean",

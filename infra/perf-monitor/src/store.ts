@@ -26,6 +26,7 @@ export interface PerfResult {
 	note: string | null;
 	timestamp: string;
 	source: string;
+	site: string;
 }
 
 export interface InsertParams {
@@ -46,12 +47,13 @@ export interface InsertParams {
 	warmServerTimings: Record<string, { dur: number; desc?: string }> | null;
 	note: string | null;
 	source: Source;
+	site: string;
 }
 
 /** Column list shared between insertResult and insertResults. */
 const INSERT_COLUMNS =
-	"id, sha, pr_number, route, region, cold_ttfb_ms, warm_ttfb_ms, p95_ttfb_ms, status_code, cf_colo, cf_placement, cold_server_timings, warm_server_timings, note, source";
-const INSERT_PLACEHOLDERS = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
+	"id, sha, pr_number, route, region, cold_ttfb_ms, warm_ttfb_ms, p95_ttfb_ms, status_code, cf_colo, cf_placement, cold_server_timings, warm_server_timings, note, source, site";
+const INSERT_PLACEHOLDERS = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
 function bindInsert(stmt: D1PreparedStatement, p: InsertParams): D1PreparedStatement {
 	return stmt.bind(
@@ -70,6 +72,7 @@ function bindInsert(stmt: D1PreparedStatement, p: InsertParams): D1PreparedState
 		p.warmServerTimings ? JSON.stringify(p.warmServerTimings) : null,
 		p.note,
 		p.source,
+		p.site,
 	);
 }
 
@@ -93,6 +96,7 @@ export interface QueryParams {
 	route?: string;
 	region?: string;
 	source?: Source;
+	site?: string;
 	since?: string;
 	limit?: number;
 }
@@ -114,6 +118,10 @@ export async function queryResults(db: D1Database, params: QueryParams): Promise
 		conditions.push("source = ?");
 		bindings.push(params.source);
 	}
+	if (params.site) {
+		conditions.push("site = ?");
+		bindings.push(params.site);
+	}
 	if (params.since) {
 		conditions.push("timestamp >= ?");
 		bindings.push(params.since);
@@ -133,34 +141,36 @@ export async function queryResults(db: D1Database, params: QueryParams): Promise
 }
 
 /**
- * Get the latest result per route/region combo.
+ * Get the latest result per route/region combo for a given site.
  * Manual runs are excluded -- they're ad-hoc probes and would otherwise
  * poison the dashboard's "current state" cards whenever one was the most
  * recent sample.
  */
-export async function getLatestResults(db: D1Database): Promise<PerfResult[]> {
+export async function getLatestResults(db: D1Database, site: string): Promise<PerfResult[]> {
 	const result = await db
 		.prepare(
 			`SELECT p.* FROM perf_results p
 			INNER JOIN (
 				SELECT route, region, MAX(timestamp) as max_ts
 				FROM perf_results
-				WHERE source != 'manual'
+				WHERE source != 'manual' AND site = ?
 				GROUP BY route, region
 			) latest ON p.route = latest.route AND p.region = latest.region AND p.timestamp = latest.max_ts
-			WHERE p.source != 'manual'
+			WHERE p.source != 'manual' AND p.site = ?
 			ORDER BY p.region, p.route`,
 		)
+		.bind(site, site)
 		.all<PerfResult>();
 	return result.results;
 }
 
 /**
- * Get rolling medians for each route/region over the last N days.
+ * Get rolling medians for each route/region over the last N days for a given site.
  * Manual runs are excluded so ad-hoc probes don't pull the baseline around.
  */
 export async function getRollingMedians(
 	db: D1Database,
+	site: string,
 	days: number = 7,
 ): Promise<
 	Array<{ route: string; region: string; median_cold: number; median_warm: number; count: number }>
@@ -178,10 +188,11 @@ export async function getRollingMedians(
 			WHERE timestamp >= datetime('now', ?)
 				AND cold_ttfb_ms IS NOT NULL
 				AND source != 'manual'
+				AND site = ?
 			GROUP BY route, region
 			ORDER BY region, route`,
 		)
-		.bind(`-${days} days`)
+		.bind(`-${days} days`, site)
 		.all<{
 			route: string;
 			region: string;
@@ -196,15 +207,19 @@ export async function getRollingMedians(
  * Get all deploy-triggered results (with SHA and PR info) for chart markers.
  * Only 'deploy' source has SHA attribution -- 'cron' is untagged baseline.
  */
-export async function getDeployResults(db: D1Database, since?: string): Promise<PerfResult[]> {
+export async function getDeployResults(
+	db: D1Database,
+	site: string,
+	since?: string,
+): Promise<PerfResult[]> {
 	const sinceClause = since ? "AND timestamp >= ?" : "";
-	const bindings: string[] = [];
+	const bindings: string[] = [site];
 	if (since) bindings.push(since);
 
 	const result = await db
 		.prepare(
 			`SELECT * FROM perf_results
-			WHERE source = 'deploy' ${sinceClause}
+			WHERE source = 'deploy' AND site = ? ${sinceClause}
 			ORDER BY timestamp ASC`,
 		)
 		.bind(...bindings)

@@ -296,6 +296,56 @@ Handlers in `api/handlers/*.ts` contain business logic. Routes should be thin wr
 - Entire body wrapped in try/catch. Errors return `{ success: false, error: { code, message } }`.
 - Error codes are `SCREAMING_SNAKE_CASE`: `NOT_FOUND`, `VALIDATION_ERROR`, `CONTENT_CREATE_ERROR`, etc.
 
+### Performance: caching and query patterns
+
+EmDash runs on D1 with the Sessions API. Anonymous reads go to the nearest replica; writes and authenticated reads route to the primary. The primary is thousands of miles from some CF colos -- every round-trip matters, especially on cold isolates.
+
+A few rules and patterns cover 90% of the footguns.
+
+**Always add requestCached to query helpers called from templates.** Page-level template code runs inside the ALS request context, so the per-request cache (`src/request-cache.ts`) deduplicates identical calls within a single render. A single un-cached helper called from three widgets turns into three primary-routed reads on a page that should have made one. Rule of thumb: if a helper takes stable arguments (slug, key, entry ID) and can be called from multiple components, wrap it.
+
+```typescript
+// WRONG — every caller re-queries
+export async function getSiteSetting(key: string) {
+	const db = await getDb();
+	return db.selectFrom("options").where("name", "=", key)...
+}
+
+// RIGHT — shared within one render
+export function getSiteSetting(key: string) {
+	return requestCached(`siteSetting:${key}`, async () => {
+		const db = await getDb();
+		return ...;
+	});
+}
+```
+
+The cache key must include every argument that changes the result. Missing an argument means wrong values get served; including too much just means more cache misses.
+
+`requestCached` caches the _promise_, so concurrent callers share the in-flight query. On error the entry is deleted so the next call retries.
+
+**Module-scope singletons must live on `globalThis`.** Vite duplicates modules across chunks during SSR bundling. A plain `let cache: X | null = null` in a module becomes _two_ variables if two chunks inline the module -- defeating the singleton. Use a `Symbol.for` key on `globalThis`, as `request-context.ts` does. See also `packages/core/src/bylines/index.ts` (`bylinesHolder`) for the pattern applied to a boolean cache. The fix cut ~2 cold-start queries per D1 isolate.
+
+**Prefer the batch query to a "has any" probe.** Adding a `SELECT id FROM foo LIMIT 1` before a batch query to skip it on empty sites trades one extra query on every real request for saving one query on sites that almost never exist. On live sites the batch query returns empty at the same cost; handle missing tables with an `isMissingTableError` catch.
+
+**Defer bookkeeping past the response with `after(fn)`.** Maintenance writes (cron recovery, audit log flushes) don't need to block TTFB. `after(fn)` hands the promise to workerd's `waitUntil` when available, or fire-and-forgets on Node. Errors are caught and logged with the `[emdash]` prefix -- add your own `try/catch` inside `fn` with a module-specific prefix (e.g. `[cron]`) for better grep-ability. Deferred writes still happen; they just don't gate the response.
+
+```typescript
+import { after } from "emdash";
+
+after(async () => {
+	try {
+		await recoverStaleLocks();
+	} catch (error) {
+		console.error("[cron] recovery failed:", error);
+	}
+});
+```
+
+**One query beats two whenever possible.** Every query pays a round-trip to the replica (and the primary for writes). If you're fetching parent + children, use a `LEFT JOIN`. If you're fetching related records by a list of IDs, batch with `WHERE id IN (...)` -- but chunk at `SQL_BATCH_SIZE` (from `utils/chunks.ts`) to stay below D1's bind-parameter limit.
+
+**Every new helper gets a query-count impact check.** The fixture harness (`pnpm query-counts`, see `scripts/query-counts.mjs`) builds `fixtures/perf-site/` and records per-route query counts in `scripts/query-counts.snapshot.{sqlite,d1}.json`. CI auto-updates the snapshots on PRs; review the diff. Fewer queries on a route is always the right direction. More requires a conversation.
+
 ### Admin UI: Use Kumo Components
 
 The admin UI is built on [Kumo](https://github.com/cloudflare/kumo) (Cloudflare's design system). Use Kumo components for all standard UI elements -- never roll your own buttons, inputs, dialogs, selects, etc. This gives us consistent styling, dark mode, accessibility, and RTL support for free.

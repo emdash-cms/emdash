@@ -13,7 +13,7 @@ import { ulid } from "ulidx";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
-import { mediaListQuery } from "#api/schemas.js";
+import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { generatePlaceholder } from "#media/placeholder.js";
 import { computeContentHash } from "#utils/hash.js";
@@ -21,9 +21,6 @@ import { computeContentHash } from "#utils/hash.js";
 import type { MediaItem } from "../../types.js";
 
 export const prerender = false;
-
-/** Maximum allowed file upload size (50 MB). */
-const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 
 /**
  * Add URL to media items
@@ -89,9 +86,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 
 	try {
+		const rawMax = emdash.config.maxUploadSize ?? DEFAULT_MAX_UPLOAD_SIZE;
+		if (!Number.isFinite(rawMax) || rawMax <= 0) {
+			return apiError("CONFIGURATION_ERROR", "Invalid maxUploadSize configuration", 500);
+		}
+		const maxUploadSize = rawMax;
+
 		// Best-effort size check before buffering the full multipart body
 		const contentLength = request.headers.get("Content-Length");
-		if (contentLength && parseInt(contentLength, 10) > MAX_UPLOAD_SIZE) {
+		if (contentLength && parseInt(contentLength, 10) > maxUploadSize) {
 			return apiError("PAYLOAD_TOO_LARGE", "Upload too large", 413);
 		}
 
@@ -110,10 +113,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 
 		// Check file size before buffering
-		if (file.size > MAX_UPLOAD_SIZE) {
+		if (file.size > maxUploadSize) {
 			return apiError(
 				"PAYLOAD_TOO_LARGE",
-				`File exceeds maximum size of ${MAX_UPLOAD_SIZE / 1024 / 1024}MB`,
+				`File exceeds maximum size of ${formatFileSize(maxUploadSize)}`,
 				413,
 			);
 		}

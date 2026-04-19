@@ -6,70 +6,26 @@
  * the taxonomies runtime API.
  */
 
-import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
-import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
-import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
- * Worker-lifetime cache of "does any byline exist in the database?".
+ * No-op — kept for API compatibility.
  *
- * `null` = not yet checked. Module-scoped because every anonymous request
- * in a D1 Sessions deployment gets a fresh session-bound Kysely, and keying
- * this on the Kysely instance made the probe miss on every single request.
- *
- * Requests that route to an isolated DB (playground / DO preview) bypass
- * this cache — see `hasAnyBylines`.
- */
-let hasBylinesSingleton: boolean | null = null;
-
-/**
- * Invalidate the cached "has any bylines" check.
- *
- * Call this when bylines are created, updated, or deleted.
+ * Used to invalidate a worker-lifetime "has any byline?" probe. That
+ * probe added a query on every cold isolate to save one query on sites
+ * with zero bylines (i.e. the wrong tradeoff), so we dropped it. The
+ * batch byline join below returns an empty map for empty sites at the
+ * same cost as the probe, without the pre-check.
  */
 export function invalidateBylineCache(): void {
-	hasBylinesSingleton = null;
-}
-
-/**
- * Check if any bylines exist for the given DB instance. Result is cached
- * for the lifetime of the worker unless the request is routed to an
- * isolated DB, in which case the probe runs every time.
- *
- * Rethrows any error that is not a "missing table" error so callers see
- * real DB failures (permissions, connectivity, syntax) rather than silently
- * short-circuiting to "no bylines". Pre-migration databases return `false`
- * — the expected state before the table exists.
- */
-async function hasAnyBylines(db: Kysely<Database>): Promise<boolean> {
-	const isolated = getRequestContext()?.dbIsIsolated === true;
-	if (!isolated && hasBylinesSingleton !== null) {
-		return hasBylinesSingleton;
-	}
-
-	try {
-		const result = await sql<{ id: string }>`
-			SELECT id FROM _emdash_bylines LIMIT 1
-		`.execute(db);
-		const value = result.rows.length > 0;
-		if (!isolated) hasBylinesSingleton = value;
-		return value;
-	} catch (error) {
-		if (isMissingTableError(error)) {
-			if (!isolated) hasBylinesSingleton = false;
-			return false;
-		}
-		// Don't cache unknown failures; let the next call retry.
-		throw error;
-	}
+	// Intentionally empty.
 }
 
 /**
@@ -193,17 +149,21 @@ export async function getBylinesForEntries(
 	}
 
 	const db = await getDb();
-
-	// Skip DB queries entirely when no bylines have been created.
-	// The cache is invalidated when bylines are created/deleted.
-	if (!(await hasAnyBylines(db))) {
-		return result;
-	}
-
 	const repo = new BylineRepository(db);
 
-	// 1. Batch fetch all explicit byline credits
-	const bylinesMap = await repo.getContentBylinesMany(collection, entryIds);
+	// 1. Batch fetch all explicit byline credits. Sites with no bylines
+	// get an empty map back for one query — the previous "has any bylines"
+	// probe traded an extra round-trip on every request to save that one
+	// query on empty sites, which is exactly backwards for the common case.
+	// Pre-migration databases (bylines table missing) fall through to the
+	// `isMissingTableError` catch below and return empty results.
+	let bylinesMap;
+	try {
+		bylinesMap = await repo.getContentBylinesMany(collection, entryIds);
+	} catch (error) {
+		if (isMissingTableError(error)) return result;
+		throw error;
+	}
 
 	// 2. Collect entry IDs that need fallback lookup
 	const fallbackEntryIds: string[] = [];

@@ -17,6 +17,8 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { QueryRecorder } from "./database/instrumentation.js";
+
 export interface EmDashRequestContext {
 	/** Whether the current request is in visual editing mode */
 	editMode: boolean;
@@ -46,6 +48,12 @@ export interface EmDashRequestContext {
 	 * cache remains valid.
 	 */
 	dbIsIsolated?: boolean;
+	/**
+	 * Query recorder attached by middleware when EMDASH_QUERY_LOG_FILE is set.
+	 * The Kysely `log` hook appends an event per query; middleware flushes
+	 * to NDJSON after the response.
+	 */
+	queryRecorder?: QueryRecorder;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

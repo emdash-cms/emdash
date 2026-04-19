@@ -21,21 +21,32 @@ export const mediaUpdateBody = z
 	})
 	.meta({ id: "MediaUpdateBody" });
 
-/** Maximum allowed file upload size (50 MB). */
-const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+/** Default maximum allowed file upload size (50 MB). */
+export const DEFAULT_MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 
-export const mediaUploadUrlBody = z
-	.object({
-		filename: z.string().min(1, "filename is required"),
-		contentType: z.string().min(1, "contentType is required"),
-		size: z
-			.number()
-			.int()
-			.positive()
-			.max(MAX_UPLOAD_SIZE, `File size must not exceed ${MAX_UPLOAD_SIZE / 1024 / 1024}MB`),
-		contentHash: z.string().optional(),
-	})
-	.meta({ id: "MediaUploadUrlBody" });
+export function formatFileSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes}B`;
+	if (bytes < 1024 * 1024) return `${Math.floor(bytes / 1024)}KB`;
+	return `${Math.floor(bytes / 1024 / 1024)}MB`;
+}
+
+export function mediaUploadUrlBody(maxSize: number) {
+	if (!Number.isFinite(maxSize) || maxSize <= 0) {
+		throw new Error(`EmDash: maxUploadSize must be a positive finite number, got ${maxSize}`);
+	}
+	return z
+		.object({
+			filename: z.string().min(1, "filename is required"),
+			contentType: z.string().min(1, "contentType is required"),
+			size: z
+				.number()
+				.int()
+				.positive()
+				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
+			contentHash: z.string().optional(),
+		})
+		.meta({ id: "MediaUploadUrlBody" });
+}
 
 export const mediaConfirmBody = z
 	.object({

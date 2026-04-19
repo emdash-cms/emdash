@@ -1,0 +1,60 @@
+name: Query Counts
+
+on:
+  pull_request:
+    branches: [main]
+
+# Runs with the default read-only token; this workflow never pushes or
+# comments. The companion "Query Counts — Apply" workflow (triggered by
+# workflow_run) handles that with elevated permissions, safely isolated
+# from PR-authored code.
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Regenerate snapshots
+        run: |
+          node scripts/query-counts.mjs --target sqlite --update
+          node scripts/query-counts.mjs --target d1 --update
+
+      - name: Detect snapshot drift
+        id: drift
+        run: |
+          mkdir -p query-counts-out
+          if git diff --quiet scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No drift — snapshots match the committed baseline."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            cp scripts/query-counts.snapshot.sqlite.json query-counts-out/
+            cp scripts/query-counts.snapshot.d1.json query-counts-out/
+            git diff scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json > query-counts-out/snapshots.diff
+            echo "${{ github.event.pull_request.number }}" > query-counts-out/pr-number
+            echo "Drift detected — uploading artifact for the Apply workflow."
+            cat query-counts-out/snapshots.diff
+          fi
+
+      - name: Upload snapshot artifact
+        if: steps.drift.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: query-counts-snapshots
+          path: query-counts-out/
+          retention-days: 7
+          if-no-files-found: error

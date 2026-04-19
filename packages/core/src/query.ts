@@ -13,6 +13,7 @@
  */
 
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
+import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import {
@@ -268,6 +269,51 @@ function entryEditOptions(entry: { data?: unknown }): EditableOptions {
  * ```
  */
 export async function getEmDashCollection<T extends string, D = InferCollectionData<T>>(
+	type: T,
+	filter?: CollectionFilter,
+): Promise<CollectionResult<D>> {
+	// Cache per (type, filter) within a single request. Edit mode and
+	// preview are request-scoped and stable, so they don't need to be
+	// part of the key. Widgets and layouts frequently request the same
+	// collection shape as the page itself (e.g. a "recent posts" list
+	// appears on the home page AND in the sidebar) — caching collapses
+	// those duplicate queries, along with the bylines and taxonomy-term
+	// hydration each call would otherwise re-do.
+	return requestCached(collectionCacheKey(type, filter), () =>
+		getEmDashCollectionUncached<T, D>(type, filter),
+	);
+}
+
+/**
+ * Build a canonical cache key for `getEmDashCollection`.
+ *
+ * `JSON.stringify` is insertion-order-sensitive, so two callers passing
+ * semantically identical filters with different key orders would miss
+ * the cache. We fix the top-level field order and sort `where` keys
+ * (order there is irrelevant), while preserving `orderBy` key order
+ * because that's the sort priority.
+ */
+function collectionCacheKey(type: string, filter?: CollectionFilter): string {
+	if (!filter) return `collection:${type}:`;
+	const parts = [
+		filter.status ?? "",
+		filter.limit ?? "",
+		filter.cursor ?? "",
+		filter.where ? stableStringify(filter.where) : "",
+		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
+		filter.locale ?? "",
+	];
+	return `collection:${type}:${parts.join("|")}`;
+}
+
+function stableStringify(value: Record<string, unknown>): string {
+	const keys = Object.keys(value).toSorted();
+	const ordered: Record<string, unknown> = {};
+	for (const k of keys) ordered[k] = value[k];
+	return JSON.stringify(ordered);
+}
+
+async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
 	type: T,
 	filter?: CollectionFilter,
 ): Promise<CollectionResult<D>> {

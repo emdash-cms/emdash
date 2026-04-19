@@ -358,6 +358,10 @@
 
 			<div class="controls">
 				<div>
+					<label>Site</label>
+					<select id="site-select"></select>
+				</div>
+				<div>
 					<label>Route</label>
 					<select id="route-select"></select>
 				</div>
@@ -370,6 +374,7 @@
 				<div>
 					<label>Period</label>
 					<select id="period-select">
+						<option value="1h">1 hour</option>
 						<option value="24h">24 hours</option>
 						<option value="7d" selected>7 days</option>
 						<option value="30d">30 days</option>
@@ -478,6 +483,8 @@
 			function periodToSince(period) {
 				const now = new Date();
 				switch (period) {
+					case "1h":
+						return new Date(now - 60 * 60 * 1000).toISOString();
 					case "24h":
 						return new Date(now - 24 * 60 * 60 * 1000).toISOString();
 					case "7d":
@@ -555,13 +562,16 @@
 			async function loadConfig() {
 				configData = await fetchJson("/api/config");
 
-				// Show the target site (without protocol, it's tidier)
-				if (configData.target) {
-					document.getElementById("target-label").textContent = configData.target.replace(
-						/^https?:\/\//,
-						"",
-					);
+				const siteSelect = document.getElementById("site-select");
+				const sites = configData.sites ?? [];
+				for (const site of sites) {
+					const opt = document.createElement("option");
+					opt.value = site.id;
+					opt.textContent = site.label ? `${site.label} (${site.id})` : site.id;
+					if (site.id === configData.defaultSite) opt.selected = true;
+					siteSelect.appendChild(opt);
 				}
+				updateTargetLabel();
 
 				const routeSelect = document.getElementById("route-select");
 				for (const route of configData.routes) {
@@ -580,8 +590,22 @@
 				}
 			}
 
+			function currentSite() {
+				return document.getElementById("site-select").value || configData?.defaultSite || "blog";
+			}
+
+			function updateTargetLabel() {
+				const site = (configData?.sites ?? []).find((s) => s.id === currentSite());
+				const label = document.getElementById("target-label");
+				if (site?.targetUrl) {
+					label.textContent = site.targetUrl.replace(/^https?:\/\//, "");
+				} else {
+					label.textContent = "";
+				}
+			}
+
 			async function loadSummary() {
-				const data = await fetchJson("/api/summary");
+				const data = await fetchJson(`/api/summary?site=${encodeURIComponent(currentSite())}`);
 				const container = document.getElementById("summary-cards");
 				container.innerHTML = "";
 
@@ -697,10 +721,12 @@
 				const regions =
 					regionFilter === "all" ? configData.regions.map((r) => r.id) : [regionFilter];
 
+				const site = currentSite();
+
 				// Fetch chart data for each region in parallel
 				const chartDataPromises = regions.map((region) =>
 					fetchJson(
-						`/api/chart?route=${encodeURIComponent(route)}&region=${region}&since=${since}&limit=500`,
+						`/api/chart?site=${encodeURIComponent(site)}&route=${encodeURIComponent(route)}&region=${region}&since=${since}&limit=500`,
 					),
 				);
 				const chartResults = await Promise.all(chartDataPromises);
@@ -830,6 +856,7 @@
 				const since = periodToSince(period);
 
 				const params = new URLSearchParams({
+					site: currentSite(),
 					since,
 					limit: "50",
 				});
@@ -893,6 +920,10 @@
 					await refresh();
 
 					// Refresh on control changes
+					document.getElementById("site-select").addEventListener("change", () => {
+						updateTargetLabel();
+						refresh();
+					});
 					document.getElementById("route-select").addEventListener("change", refresh);
 					document.getElementById("region-select").addEventListener("change", refresh);
 					document.getElementById("period-select").addEventListener("change", refresh);

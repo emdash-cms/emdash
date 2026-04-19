@@ -37,6 +37,7 @@ import {
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
 import {
+	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
 	mediaExistingResponseSchema,
@@ -623,121 +624,123 @@ const contentPaths = {
 // Media routes
 // ---------------------------------------------------------------------------
 
-const mediaPaths = {
-	"/_emdash/api/media": {
-		get: {
-			operationId: "listMedia",
-			summary: "List media items",
-			tags: ["Media"],
-			requestParams: { query: mediaListQuery },
-			responses: {
-				"200": {
-					description: "Media list",
-					content: { [JSON_CONTENT]: { schema: successEnvelope(mediaListResponseSchema) } },
+function buildMediaPaths(maxUploadSize: number) {
+	return {
+		"/_emdash/api/media": {
+			get: {
+				operationId: "listMedia",
+				summary: "List media items",
+				tags: ["Media"],
+				requestParams: { query: mediaListQuery },
+				responses: {
+					"200": {
+						description: "Media list",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaListResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(500),
 				},
-				...authErrors,
-				...standardErrors(500),
 			},
 		},
-	},
-	"/_emdash/api/media/{id}": {
-		get: {
-			operationId: "getMedia",
-			summary: "Get a media item",
-			tags: ["Media"],
-			requestParams: {
-				path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
-			},
-			responses: {
-				"200": {
-					description: "Media item",
-					content: { [JSON_CONTENT]: { schema: successEnvelope(mediaResponseSchema) } },
+		"/_emdash/api/media/{id}": {
+			get: {
+				operationId: "getMedia",
+				summary: "Get a media item",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
 				},
-				...authErrors,
-				...standardErrors(404, 500),
+				responses: {
+					"200": {
+						description: "Media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(404, 500),
+				},
+			},
+			put: {
+				operationId: "updateMedia",
+				summary: "Update media metadata",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaUpdateBody } } },
+				responses: {
+					"200": {
+						description: "Updated media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+			delete: {
+				operationId: "deleteMedia",
+				summary: "Delete a media item",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Deleted",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(404, 500),
+				},
 			},
 		},
-		put: {
-			operationId: "updateMedia",
-			summary: "Update media metadata",
-			tags: ["Media"],
-			requestParams: {
-				path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
-			},
-			requestBody: { content: { [JSON_CONTENT]: { schema: mediaUpdateBody } } },
-			responses: {
-				"200": {
-					description: "Updated media item",
-					content: { [JSON_CONTENT]: { schema: successEnvelope(mediaResponseSchema) } },
-				},
-				...authErrors,
-				...standardErrors(400, 404, 500),
-			},
-		},
-		delete: {
-			operationId: "deleteMedia",
-			summary: "Delete a media item",
-			tags: ["Media"],
-			requestParams: {
-				path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
-			},
-			responses: {
-				"200": {
-					description: "Deleted",
-					content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
-				},
-				...authErrors,
-				...standardErrors(404, 500),
-			},
-		},
-	},
-	"/_emdash/api/media/upload-url": {
-		post: {
-			operationId: "getMediaUploadUrl",
-			summary: "Get a signed URL for direct upload",
-			description:
-				"Returns a signed URL for direct-to-storage upload. Creates a pending media record.",
-			tags: ["Media"],
-			requestBody: { content: { [JSON_CONTENT]: { schema: mediaUploadUrlBody } } },
-			responses: {
-				"200": {
-					description: "Upload URL or existing media (deduplication)",
-					content: {
-						[JSON_CONTENT]: {
-							schema: successEnvelope(
-								z.union([mediaUploadUrlResponseSchema, mediaExistingResponseSchema]),
-							),
+		"/_emdash/api/media/upload-url": {
+			post: {
+				operationId: "getMediaUploadUrl",
+				summary: "Get a signed URL for direct upload",
+				description:
+					"Returns a signed URL for direct-to-storage upload. Creates a pending media record.",
+				tags: ["Media"],
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaUploadUrlBody(maxUploadSize) } } },
+				responses: {
+					"200": {
+						description: "Upload URL or existing media (deduplication)",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(
+									z.union([mediaUploadUrlResponseSchema, mediaExistingResponseSchema]),
+								),
+							},
 						},
 					},
+					...authErrors,
+					...standardErrors(400, 500),
 				},
-				...authErrors,
-				...standardErrors(400, 500),
 			},
 		},
-	},
-	"/_emdash/api/media/{id}/confirm": {
-		post: {
-			operationId: "confirmMediaUpload",
-			summary: "Confirm a media upload",
-			description: "Marks a pending media record as ready after the file has been uploaded.",
-			tags: ["Media"],
-			requestParams: {
-				path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
-			},
-			requestBody: { content: { [JSON_CONTENT]: { schema: mediaConfirmBody } } },
-			responses: {
-				"200": {
-					description: "Confirmed media item with URL",
-					content: {
-						[JSON_CONTENT]: { schema: successEnvelope(mediaConfirmResponseSchema) },
+		"/_emdash/api/media/{id}/confirm": {
+			post: {
+				operationId: "confirmMediaUpload",
+				summary: "Confirm a media upload",
+				description: "Marks a pending media record as ready after the file has been uploaded.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaConfirmBody } } },
+				responses: {
+					"200": {
+						description: "Confirmed media item with URL",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaConfirmResponseSchema) },
+						},
 					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
 				},
-				...authErrors,
-				...standardErrors(400, 404, 500),
 			},
 		},
-	},
-} as const;
+	} as const;
+}
 
 // ---------------------------------------------------------------------------
 // Schema routes
@@ -2249,20 +2252,22 @@ const userPaths = {
 // Merge all paths
 // ---------------------------------------------------------------------------
 
-const allPaths = {
-	...contentPaths,
-	...mediaPaths,
-	...schemaPaths,
-	...commentsPaths,
-	...taxonomyPaths,
-	...menuPaths,
-	...sectionPaths,
-	...widgetPaths,
-	...settingsPaths,
-	...searchPaths,
-	...redirectPaths,
-	...userPaths,
-} as const;
+function buildAllPaths(maxUploadSize: number) {
+	return {
+		...contentPaths,
+		...buildMediaPaths(maxUploadSize),
+		...schemaPaths,
+		...commentsPaths,
+		...taxonomyPaths,
+		...menuPaths,
+		...sectionPaths,
+		...widgetPaths,
+		...settingsPaths,
+		...searchPaths,
+		...redirectPaths,
+		...userPaths,
+	} as const;
+}
 
 // ---------------------------------------------------------------------------
 // Document
@@ -2274,7 +2279,10 @@ const allPaths = {
  * Covers: Content, Media, Schema, Comments, Taxonomies, Menus,
  * Sections, Widgets, Settings, Search, Redirects, Users.
  */
-export function generateOpenApiDocument(): oas31.OpenAPIObject {
+export function generateOpenApiDocument(
+	options: { maxUploadSize?: number } = {},
+): oas31.OpenAPIObject {
+	const maxUploadSize = options.maxUploadSize ?? DEFAULT_MAX_UPLOAD_SIZE;
 	return createDocument({
 		openapi: "3.1.0",
 		info: {
@@ -2363,6 +2371,6 @@ export function generateOpenApiDocument(): oas31.OpenAPIObject {
 		},
 		security: [{ session: [] }, { bearer: [] }],
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- readonly const paths are compatible at runtime
-		paths: allPaths as unknown as ZodOpenApiPathsObject,
+		paths: buildAllPaths(maxUploadSize) as unknown as ZodOpenApiPathsObject,
 	});
 }

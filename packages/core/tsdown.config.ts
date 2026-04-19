@@ -30,6 +30,8 @@ export default defineConfig({
 		"src/db/sqlite.ts",
 		"src/db/libsql.ts",
 		"src/db/postgres.ts",
+		// Query instrumentation (used by first-party adapters like @emdash-cms/cloudflare)
+		"src/database/instrumentation.ts",
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",

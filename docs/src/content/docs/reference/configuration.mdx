@@ -300,6 +300,28 @@ export default defineConfig({
 });
 ```
 
+### `maxUploadSize`
+
+**Optional.** Maximum allowed media file upload size in bytes. Applies to both direct multipart uploads and signed-URL uploads. Defaults to `52_428_800` (50 MB).
+
+```js
+emdash({
+	database: sqlite({ url: "file:./data.db" }),
+	storage: local({
+		directory: "./uploads",
+		baseUrl: "/_emdash/api/media/file",
+	}),
+	maxUploadSize: 100 * 1024 * 1024, // 100 MB
+});
+```
+
+| Value | Description |
+| ----- | ----------- |
+| `number` (bytes) | Must be a positive finite integer |
+| omitted | Defaults to 50 MB |
+
+Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
+
 ## Database Adapters
 
 Import from `emdash/db`:
