@@ -1,5 +1,28 @@
 # @emdash-cms/admin
 
+## 0.6.0
+
+### Minor Changes
+
+- [#565](https://github.com/emdash-cms/emdash/pull/565) [`913cb62`](https://github.com/emdash-cms/emdash/commit/913cb6239510f9959581cb74a70faa53a462a9aa) Thanks [@ophirbucai](https://github.com/ophirbucai)! - Adds full RTL (right-to-left) support to the admin UI by converting all directional Tailwind classes to their direction-aware equivalents.
+
+### Patch Changes
+
+- [#610](https://github.com/emdash-cms/emdash/pull/610) [`dfcb0cd`](https://github.com/emdash-cms/emdash/commit/dfcb0cd4ed65d10212d47622b51a22b0eacf8acb) Thanks [@drudge](https://github.com/drudge)! - Passes plugin block definitions into the `PortableTextEditor` nested inside `WidgetEditor`, so custom plugin-registered block types (image blocks, marker blocks, etc.) can be inserted and rendered inside content-type widgets. The manifest is fetched with react-query in the top-level `Widgets` component, flattened into a `PluginBlockDef[]` list, and threaded through `WidgetAreaPanel` → `WidgetItem` → `WidgetEditor`.
+
+- [#568](https://github.com/emdash-cms/emdash/pull/568) [`cf63b02`](https://github.com/emdash-cms/emdash/commit/cf63b0298576d062641cf88f37d6e7e86e4ddb3a) Thanks [@Vallhalen](https://github.com/Vallhalen)! - Fix document outline not showing headings on initial load. The outline now defers initial extraction to next tick (so TipTap finishes hydrating) and also listens for transaction events to catch programmatic content changes.
+
+- [#564](https://github.com/emdash-cms/emdash/pull/564) [`0b32b2f`](https://github.com/emdash-cms/emdash/commit/0b32b2f3906bf5bfed313044af6371480d43edc1) Thanks [@ascorbic](https://github.com/ascorbic)! - Replaces the horizontal language-switch button bar on the admin login page with a dropdown, so the selector stays usable as more locales are added.
+
+- [#592](https://github.com/emdash-cms/emdash/pull/592) [`6c92d58`](https://github.com/emdash-cms/emdash/commit/6c92d58767dc92548136a87cc90c1c6912da6695) Thanks [@asdfgl98](https://github.com/asdfgl98)! - Adds Korean locale support to the admin UI.
+
+- [#559](https://github.com/emdash-cms/emdash/pull/559) [`a2d5afb`](https://github.com/emdash-cms/emdash/commit/a2d5afbb19b5bcaf98464d354322fa737a8b9ba0) Thanks [@ayfl269](https://github.com/ayfl269)! - Adds Chinese (Traditional) translation for the admin UI, including login page, settings page, and locale switching.
+
+- [#604](https://github.com/emdash-cms/emdash/pull/604) [`39d285e`](https://github.com/emdash-cms/emdash/commit/39d285ea3d21b7b6277a554ae9cff011500655e1) Thanks [@all3f0r1](https://github.com/all3f0r1)! - Fixes loading spinner not centered under logo on the login page.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
