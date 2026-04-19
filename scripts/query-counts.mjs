@@ -401,13 +401,16 @@ async function runSqlite(events) {
 	}
 }
 
-// D1: build the worker, seed via dev-bypass (dev mode only — stripped
-// from prod builds), then for each route spin up a fresh `astro preview`
-// (cloudflare adapter runs wrangler dev). The first tagged hit lands on
-// a genuinely cold workerd isolate; the second hit shares that isolate.
+// D1: seed via dev-bypass (dev mode only — dev-bypass is stripped from
+// prod builds), then build the worker, then for each route spin up a
+// fresh `astro preview` (cloudflare adapter runs wrangler dev). The
+// first tagged hit lands on a genuinely cold workerd isolate; the
+// second hit shares that isolate.
+//
+// Seed must precede build: `astro dev` leaves `.wrangler/deploy/`
+// without the build-time `config.json` that `astro preview` requires,
+// so building afterwards is what makes the subsequent previews work.
 async function runD1(events) {
-	if (skipBuild) assertExistingBuildMatchesTarget();
-	else buildFixture();
 	if (!skipSeed) {
 		resetD1State();
 		// seeding uses its own event sink; we don't want to commingle
@@ -415,6 +418,8 @@ async function runD1(events) {
 		// anyway, but keeping them separate is tidier).
 		await seedD1ViaDevBypass([]);
 	}
+	if (skipBuild) assertExistingBuildMatchesTarget();
+	else buildFixture();
 
 	for (const [m, p] of ROUTES) {
 		process.stdout.write(`--- fresh isolate for ${m} ${p} ---\n`);
