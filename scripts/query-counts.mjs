@@ -46,6 +46,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -72,13 +73,35 @@ const ROUTES = [
 const TRACKED_PHASES = new Set(["cold", "warm"]);
 const VALID_TARGETS = new Set(["sqlite", "d1"]);
 const QUERY_LOG_PREFIX = "[emdash-query-log] ";
-const ASTRO_DEV_READY_RE = /ready in \d/;
 
-// Ready signal, per target. Each serves log output we can grep for.
-const NODE_READY_RE = /Server listening on http:/i;
-// astro preview via the cloudflare adapter prints "astro vX.Y.Z ready in
-// Xms" followed by "Local http://..." — match either.
-const WRANGLER_READY_RE = /ready in \d|Local\s+http:/i;
+/**
+ * Resolve once a TCP connection to (host, port) succeeds, or reject on
+ * timeout. Uses a raw TCP connect rather than an HTTP request so we
+ * don't warm a fresh workerd isolate — workerd initialises the isolate
+ * on the first HTTP request, not on TCP accept. This keeps the
+ * per-route "cold" measurement genuinely cold on the D1 path.
+ */
+function waitForPort(host, port, timeoutMs = 120_000) {
+	const deadline = Date.now() + timeoutMs;
+	return new Promise((resolveReady, rejectReady) => {
+		const attempt = () => {
+			if (Date.now() > deadline) {
+				rejectReady(new Error(`port ${host}:${port} did not open within ${timeoutMs}ms`));
+				return;
+			}
+			const socket = createConnection({ host, port });
+			socket.once("connect", () => {
+				socket.destroy();
+				resolveReady();
+			});
+			socket.once("error", () => {
+				socket.destroy();
+				setTimeout(attempt, 100);
+			});
+		};
+		attempt();
+	});
+}
 
 function parseArgs(argv) {
 	const out = { target: "sqlite", update: false, skipBuild: false, skipSeed: false };
@@ -181,16 +204,6 @@ async function seedD1ViaDevBypass(events) {
 		stdio: ["ignore", "pipe", "inherit"],
 	});
 
-	let resolveReady;
-	let rejectReady;
-	const ready = new Promise((res, rej) => {
-		resolveReady = res;
-		rejectReady = rej;
-	});
-	const readyTimer = setTimeout(
-		() => rejectReady(new Error("astro dev did not become ready")),
-		120_000,
-	);
 	const rl = createInterface({ input: child.stdout });
 	rl.on("line", (line) => {
 		const idx = line.indexOf(QUERY_LOG_PREFIX);
@@ -204,16 +217,11 @@ async function seedD1ViaDevBypass(events) {
 			return;
 		}
 		process.stdout.write(line + "\n");
-		if (resolveReady && ASTRO_DEV_READY_RE.test(line)) {
-			clearTimeout(readyTimer);
-			resolveReady();
-			resolveReady = undefined;
-		}
 	});
 	const exited = new Promise((res) => child.once("exit", res));
 
 	try {
-		await ready;
+		await waitForPort(HOST, PORT);
 		const r = await fetch(`${BASE}/_emdash/api/setup/dev-bypass`, {
 			method: "POST",
 			redirect: "manual",
@@ -238,22 +246,18 @@ async function seedD1ViaDevBypass(events) {
  * Spawn the prod server for the current target. Returns { ready, stop }.
  *   sqlite: node ./dist/server/entry.mjs (HOST/PORT env)
  *   d1:     astro preview (cloudflare adapter → wrangler dev)
- * No HTTP probing — probing warms workerd isolates before our first
- * tagged request. We detect readiness by matching a regex on server
- * stdout instead.
+ * `ready` resolves on a successful TCP connection — no HTTP probing,
+ * so a fresh workerd isolate stays cold until our first tagged request.
  */
 function startServer({ collectedEvents }) {
 	let cmd;
 	let args;
-	let readyRe;
 	if (target === "sqlite") {
 		cmd = "node";
 		args = ["./dist/server/entry.mjs"];
-		readyRe = NODE_READY_RE;
 	} else {
 		cmd = "pnpm";
 		args = ["exec", "astro", "preview", "--host", HOST, "--port", String(PORT)];
-		readyRe = WRANGLER_READY_RE;
 	}
 
 	const child = spawn(cmd, args, {
@@ -268,15 +272,7 @@ function startServer({ collectedEvents }) {
 		stdio: ["ignore", "pipe", "inherit"],
 	});
 
-	let resolveReady;
-	let rejectReady;
-	const ready = new Promise((res, rej) => {
-		resolveReady = res;
-		rejectReady = rej;
-	});
-	const readyTimer = setTimeout(() => {
-		rejectReady(new Error(`server did not become ready within 120s (regex ${readyRe})`));
-	}, 120_000);
+	const ready = waitForPort(HOST, PORT);
 
 	const rl = createInterface({ input: child.stdout });
 	rl.on("line", (line) => {
@@ -293,11 +289,6 @@ function startServer({ collectedEvents }) {
 			return;
 		}
 		process.stdout.write(line + "\n");
-		if (resolveReady && readyRe.test(line)) {
-			clearTimeout(readyTimer);
-			resolveReady();
-			resolveReady = undefined;
-		}
 	});
 
 	const exited = new Promise((res) => child.once("exit", res));
