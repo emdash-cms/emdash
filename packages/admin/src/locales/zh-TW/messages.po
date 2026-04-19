@@ -1931,7 +1931,7 @@ msgstr "輸入 URL (https://…) 或相對路徑 (/…)"
 
 #: packages/admin/src/components/ContentEditor.tsx:1406
 msgid "Enter a valid URL (e.g. https://example.com)"
-msgstr ""
+msgstr "輸入有效的 URL（例如 https://example.com）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Enter credentials manually"
@@ -5357,7 +5357,7 @@ msgstr "我們已向以下郵箱發送了驗證鏈接"
 
 #: packages/admin/src/components/FieldEditor.tsx:231
 msgid "Web address"
-msgstr ""
+msgstr "網址"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:159
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:163
