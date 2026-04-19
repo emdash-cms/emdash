@@ -20,8 +20,27 @@ export interface PluginRow {
 	keywords: string | null;
 	has_icon: number;
 	install_count: number;
+	rating_avg: number;
+	rating_count: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface ReviewRow {
+	id: string;
+	plugin_id: string;
+	author_id: string;
+	rating: number;
+	body: string | null;
+	publisher_reply: string | null;
+	replied_at: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ReviewWithAuthor extends ReviewRow {
+	author_name: string;
+	author_avatar_url: string | null;
 }
 
 export type VersionStatus = "pending" | "published" | "flagged" | "rejected";
@@ -94,7 +113,7 @@ export interface PluginSearchResult extends PluginWithAuthor {
 	latest_audit_risk_score: number | null;
 }
 
-export type SortOption = "installs" | "updated" | "created" | "name";
+export type SortOption = "installs" | "updated" | "created" | "name" | "rating";
 
 export interface SearchOptions {
 	q?: string;
