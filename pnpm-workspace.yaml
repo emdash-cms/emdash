@@ -9,6 +9,7 @@ packages:
   - docs
   - i18n
   - infra/blog-demo
+  - infra/cache-demo
   - infra/perf-monitor
 
 catalog:

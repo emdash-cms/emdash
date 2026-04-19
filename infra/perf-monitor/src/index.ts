@@ -19,7 +19,7 @@ import type { PerfQueueMessage } from "./events.js";
 import { isBuildSucceeded } from "./events.js";
 import { resolvePrForSha } from "./github.js";
 import { runMeasurements } from "./measure.js";
-import { DEMO_WORKER_NAME } from "./routes.js";
+import { TRIGGER_WORKER_NAME } from "./routes.js";
 import { insertResults } from "./store.js";
 
 /**
@@ -32,8 +32,10 @@ async function handleBuildSucceeded(
 	event: Extract<PerfQueueMessage, { type: "cf.workersBuilds.worker.build.succeeded" }>,
 ): Promise<void> {
 	const workerName = event.source.workerName;
-	if (workerName !== DEMO_WORKER_NAME) {
-		// Not our demo -- ignore.
+	if (workerName !== TRIGGER_WORKER_NAME) {
+		// Not our trigger worker -- ignore. Both demos build from the same
+		// commit, so one event covers both sites; measuring on every known
+		// worker's event would double our load without adding signal.
 		return;
 	}
 
