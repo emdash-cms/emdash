@@ -279,8 +279,38 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 	// appears on the home page AND in the sidebar) — caching collapses
 	// those duplicate queries, along with the bylines and taxonomy-term
 	// hydration each call would otherwise re-do.
-	const cacheKey = `collection:${type}:${JSON.stringify(filter ?? {})}`;
-	return requestCached(cacheKey, () => getEmDashCollectionUncached<T, D>(type, filter));
+	return requestCached(collectionCacheKey(type, filter), () =>
+		getEmDashCollectionUncached<T, D>(type, filter),
+	);
+}
+
+/**
+ * Build a canonical cache key for `getEmDashCollection`.
+ *
+ * `JSON.stringify` is insertion-order-sensitive, so two callers passing
+ * semantically identical filters with different key orders would miss
+ * the cache. We fix the top-level field order and sort `where` keys
+ * (order there is irrelevant), while preserving `orderBy` key order
+ * because that's the sort priority.
+ */
+function collectionCacheKey(type: string, filter?: CollectionFilter): string {
+	if (!filter) return `collection:${type}:`;
+	const parts = [
+		filter.status ?? "",
+		filter.limit ?? "",
+		filter.cursor ?? "",
+		filter.where ? stableStringify(filter.where) : "",
+		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
+		filter.locale ?? "",
+	];
+	return `collection:${type}:${parts.join("|")}`;
+}
+
+function stableStringify(value: Record<string, unknown>): string {
+	const keys = Object.keys(value).toSorted();
+	const ordered: Record<string, unknown> = {};
+	for (const k of keys) ordered[k] = value[k];
+	return JSON.stringify(ordered);
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
