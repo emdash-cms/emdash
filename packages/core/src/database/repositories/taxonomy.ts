@@ -1,7 +1,9 @@
+import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database, TaxonomyTable, ContentTaxonomyTable } from "../types.js";
+import { validateIdentifier } from "../validate.js";
 
 export interface Taxonomy {
 	id: string;
@@ -266,16 +268,51 @@ export class TaxonomyRepository {
 	}
 
 	/**
-	 * Count entries that have a specific taxonomy term
+	 * Count entries that have a specific taxonomy term.
+	 * By default, only counts published entries. Pass 'all' to count
+	 * entries regardless of status, or a specific status like 'draft' or 'scheduled'.
 	 */
-	async countEntriesWithTerm(taxonomyId: string): Promise<number> {
-		const result = await this.db
-			.selectFrom("content_taxonomies")
-			.select((eb) => eb.fn.count("entry_id").as("count"))
-			.where("taxonomy_id", "=", taxonomyId)
-			.executeTakeFirst();
+	async countEntriesWithTerm(taxonomyId: string, status?: string): Promise<number> {
+		const effectiveStatus = status ?? "published";
 
-		return Number(result?.count || 0);
+		if (effectiveStatus === "all") {
+			const result = await this.db
+				.selectFrom("content_taxonomies")
+				.select((eb) => eb.fn.count("entry_id").as("count"))
+				.where("taxonomy_id", "=", taxonomyId)
+				.executeTakeFirst();
+
+			return Number(result?.count || 0);
+		}
+
+		// For status filtering, we need raw SQL to join dynamic ec_* tables.
+		// Get distinct collections for this taxonomy term first.
+		const collections = await this.db
+			.selectFrom("content_taxonomies")
+			.select("collection")
+			.distinct()
+			.where("taxonomy_id", "=", taxonomyId)
+			.execute();
+
+		if (collections.length === 0) return 0;
+
+		// Count entries matching status by joining each collection's content table
+		let totalCount = 0;
+		for (const { collection } of collections) {
+			const tableName = `ec_${collection}`;
+			validateIdentifier(tableName, "content table");
+			const result = await sql<{ count: number }>`
+				SELECT COUNT(ct.entry_id) AS count
+				FROM content_taxonomies ct
+				INNER JOIN ${sql.ref(tableName)} ON ct.entry_id = ${sql.ref(tableName)}.id
+				WHERE ct.taxonomy_id = ${taxonomyId}
+				AND ${sql.ref(tableName)}.status = ${effectiveStatus}
+			`.execute(this.db);
+
+			totalCount += Number(result.rows[0]?.count || 0);
+		}
+
+		return totalCount;
 	}
 
 	/**
