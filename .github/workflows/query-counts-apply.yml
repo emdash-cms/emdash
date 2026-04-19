@@ -149,10 +149,10 @@ jobs:
           steps.download.outputs.found == 'true'
           && steps.pr.outputs.is_fork == 'true'
           && steps.apply.outputs.no_diff == 'false'
-        id: push-fork
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
           git commit -m "ci: update query-count snapshots"
@@ -160,9 +160,12 @@ jobs:
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
           git remote add fork "https://x-access-token@github.com/${{ steps.pr.outputs.full_name }}.git"
-          if git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
-            echo "push_failed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          # Fail the workflow if we can't push — most likely cause is
+          # "Allow edits by maintainers" being disabled on the fork PR.
+          # The reviewer needs to know the snapshots couldn't be applied.
+          if ! git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
+            rm -f "$GIT_ASKPASS"
+            echo "::error::Failed to push snapshots to fork. The contributor may have 'Allow edits by maintainers' disabled. They need to run 'pnpm query-counts --target sqlite --update && pnpm query-counts --target d1 --update' locally and commit, or re-enable maintainer edits." >&2
+            exit 1
           fi
           rm -f "$GIT_ASKPASS"
