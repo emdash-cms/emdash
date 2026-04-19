@@ -8,6 +8,5 @@ export {
 	getLocaleLabel,
 	getLocaleDir,
 	resolveLocale,
-	getAdminRequiredFontScripts,
 } from "./config.js";
 export type { SupportedLocale } from "./config.js";

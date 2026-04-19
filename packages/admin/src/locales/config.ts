@@ -5,10 +5,9 @@
  * shared by this file, lingui.config.ts and lunaria.config.ts.
  */
 
-import { ENABLED_LOCALES, LOCALES, SOURCE_LOCALE, getAdminRequiredFontScripts } from "./locales.js";
+import { ENABLED_LOCALES, LOCALES, SOURCE_LOCALE } from "./locales.js";
 
 export type { LocaleDefinition as SupportedLocale } from "./locales.js";
-export { getAdminRequiredFontScripts } from "./locales.js";
 
 function isValidLocale(code: string): boolean {
 	try {
