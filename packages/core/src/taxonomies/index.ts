@@ -18,14 +18,29 @@ import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 /**
  * Worker-lifetime cache of "does any taxonomy term assignment exist?".
  *
- * `null` = not yet checked. Module-scoped because every anonymous request
- * in a D1 Sessions deployment gets a fresh session-bound Kysely, and keying
- * this on the Kysely instance made the probe miss on every single request.
+ * Stored on `globalThis` with a Symbol key so a single value is shared
+ * even when the bundler duplicates this module across chunks — without
+ * that, each chunk gets its own local variable and the probe re-runs on
+ * every caller. (Same pattern as request-context.ts.) Module-scoped —
+ * rather than keyed on the Kysely instance — because every anonymous
+ * request in a D1 Sessions deployment gets a fresh session-bound Kysely,
+ * and keying on the Kysely made the probe miss on every single request.
  *
  * Requests that route to an isolated DB (playground / DO preview) bypass
  * this cache — see `hasAnyTermAssignments`.
  */
-let hasTermAssignmentsSingleton: boolean | null = null;
+const HAS_TERMS_KEY = Symbol.for("emdash:has-term-assignments-singleton");
+interface HasTermsHolder {
+	value: boolean | null;
+}
+const termsHolder: HasTermsHolder =
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	((globalThis as Record<symbol, unknown>)[HAS_TERMS_KEY] as HasTermsHolder | undefined) ??
+	(() => {
+		const h: HasTermsHolder = { value: null };
+		(globalThis as Record<symbol, unknown>)[HAS_TERMS_KEY] = h;
+		return h;
+	})();
 
 /**
  * Invalidate the cached "has any term assignments" check.
@@ -34,7 +49,7 @@ let hasTermAssignmentsSingleton: boolean | null = null;
  * terms, or deleting taxonomies.
  */
 export function invalidateTermCache(): void {
-	hasTermAssignmentsSingleton = null;
+	termsHolder.value = null;
 }
 
 /**
@@ -49,8 +64,8 @@ export function invalidateTermCache(): void {
  */
 async function hasAnyTermAssignments(db: Kysely<Database>): Promise<boolean> {
 	const isolated = getRequestContext()?.dbIsIsolated === true;
-	if (!isolated && hasTermAssignmentsSingleton !== null) {
-		return hasTermAssignmentsSingleton;
+	if (!isolated && termsHolder.value !== null) {
+		return termsHolder.value;
 	}
 
 	try {
@@ -58,11 +73,11 @@ async function hasAnyTermAssignments(db: Kysely<Database>): Promise<boolean> {
 			SELECT entry_id FROM content_taxonomies LIMIT 1
 		`.execute(db);
 		const value = result.rows.length > 0;
-		if (!isolated) hasTermAssignmentsSingleton = value;
+		if (!isolated) termsHolder.value = value;
 		return value;
 	} catch (error) {
 		if (isMissingTableError(error)) {
-			if (!isolated) hasTermAssignmentsSingleton = false;
+			if (!isolated) termsHolder.value = false;
 			return false;
 		}
 		// Don't cache unknown failures; let the next call retry.
@@ -94,79 +109,83 @@ export async function getTaxonomyDefs(): Promise<TaxonomyDef[]> {
  * Get a single taxonomy definition by name
  */
 export async function getTaxonomyDef(name: string): Promise<TaxonomyDef | null> {
-	const db = await getDb();
+	return requestCached(`taxonomy-def:${name}`, async () => {
+		const db = await getDb();
 
-	const row = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.selectAll()
-		.where("name", "=", name)
-		.executeTakeFirst();
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", name)
+			.executeTakeFirst();
 
-	if (!row) return null;
+		if (!row) return null;
 
-	return {
-		id: row.id,
-		name: row.name,
-		label: row.label,
-		labelSingular: row.label_singular ?? undefined,
-		hierarchical: row.hierarchical === 1,
-		collections: row.collections ? JSON.parse(row.collections) : [],
-	};
+		return {
+			id: row.id,
+			name: row.name,
+			label: row.label,
+			labelSingular: row.label_singular ?? undefined,
+			hierarchical: row.hierarchical === 1,
+			collections: row.collections ? JSON.parse(row.collections) : [],
+		};
+	});
 }
 
 /**
  * Get all terms for a taxonomy (as tree for hierarchical, flat for tags)
  */
 export async function getTaxonomyTerms(taxonomyName: string): Promise<TaxonomyTerm[]> {
-	const db = await getDb();
+	return requestCached(`taxonomy-terms:${taxonomyName}`, async () => {
+		const db = await getDb();
 
-	// Get taxonomy definition to check if hierarchical
-	const def = await getTaxonomyDef(taxonomyName);
-	if (!def) return [];
+		// Get taxonomy definition to check if hierarchical
+		const def = await getTaxonomyDef(taxonomyName);
+		if (!def) return [];
 
-	// Get all terms for this taxonomy
-	const rows = await db
-		.selectFrom("taxonomies")
-		.selectAll()
-		.where("name", "=", taxonomyName)
-		.orderBy("label", "asc")
-		.execute();
+		// Get all terms for this taxonomy
+		const rows = await db
+			.selectFrom("taxonomies")
+			.selectAll()
+			.where("name", "=", taxonomyName)
+			.orderBy("label", "asc")
+			.execute();
 
-	// Count entries for each term
-	const countsResult = await db
-		.selectFrom("content_taxonomies")
-		.select(["taxonomy_id"])
-		.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-		.groupBy("taxonomy_id")
-		.execute();
+		// Count entries for each term
+		const countsResult = await db
+			.selectFrom("content_taxonomies")
+			.select(["taxonomy_id"])
+			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
+			.groupBy("taxonomy_id")
+			.execute();
 
-	const counts = new Map<string, number>();
-	for (const row of countsResult) {
-		counts.set(row.taxonomy_id, row.count);
-	}
+		const counts = new Map<string, number>();
+		for (const row of countsResult) {
+			counts.set(row.taxonomy_id, row.count);
+		}
 
-	const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
-		id: row.id,
-		name: row.name,
-		slug: row.slug,
-		label: row.label,
-		parent_id: row.parent_id,
-		data: row.data,
-	}));
+		const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			slug: row.slug,
+			label: row.label,
+			parent_id: row.parent_id,
+			data: row.data,
+		}));
 
-	// If hierarchical, build tree. Otherwise return flat
-	if (def.hierarchical) {
-		return buildTree(flatTerms, counts);
-	}
+		// If hierarchical, build tree. Otherwise return flat
+		if (def.hierarchical) {
+			return buildTree(flatTerms, counts);
+		}
 
-	return flatTerms.map((term) => ({
-		id: term.id,
-		name: term.name,
-		slug: term.slug,
-		label: term.label,
-		children: [],
-		count: counts.get(term.id) ?? 0,
-	}));
+		return flatTerms.map((term) => ({
+			id: term.id,
+			name: term.name,
+			slug: term.slug,
+			label: term.label,
+			children: [],
+			count: counts.get(term.id) ?? 0,
+		}));
+	});
 }
 
 /**

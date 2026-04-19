@@ -13,6 +13,7 @@
  */
 
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
+import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import {
@@ -268,6 +269,21 @@ function entryEditOptions(entry: { data?: unknown }): EditableOptions {
  * ```
  */
 export async function getEmDashCollection<T extends string, D = InferCollectionData<T>>(
+	type: T,
+	filter?: CollectionFilter,
+): Promise<CollectionResult<D>> {
+	// Cache per (type, filter) within a single request. Edit mode and
+	// preview are request-scoped and stable, so they don't need to be
+	// part of the key. Widgets and layouts frequently request the same
+	// collection shape as the page itself (e.g. a "recent posts" list
+	// appears on the home page AND in the sidebar) — caching collapses
+	// those duplicate queries, along with the bylines and taxonomy-term
+	// hydration each call would otherwise re-do.
+	const cacheKey = `collection:${type}:${JSON.stringify(filter ?? {})}`;
+	return requestCached(cacheKey, () => getEmDashCollectionUncached<T, D>(type, filter));
+}
+
+async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
 	type: T,
 	filter?: CollectionFilter,
 ): Promise<CollectionResult<D>> {

@@ -21,14 +21,29 @@ import { isMissingTableError } from "../utils/db-errors.js";
 /**
  * Worker-lifetime cache of "does any byline exist in the database?".
  *
- * `null` = not yet checked. Module-scoped because every anonymous request
- * in a D1 Sessions deployment gets a fresh session-bound Kysely, and keying
- * this on the Kysely instance made the probe miss on every single request.
+ * Stored on `globalThis` with a Symbol key so a single value is shared
+ * even when the bundler duplicates this module across chunks — without
+ * that, each chunk gets its own local variable and the probe re-runs on
+ * every caller. (Same pattern as request-context.ts.) Module-scoped —
+ * rather than keyed on the Kysely instance — because every anonymous
+ * request in a D1 Sessions deployment gets a fresh session-bound Kysely,
+ * and keying on the Kysely made the probe miss on every single request.
  *
  * Requests that route to an isolated DB (playground / DO preview) bypass
  * this cache — see `hasAnyBylines`.
  */
-let hasBylinesSingleton: boolean | null = null;
+const HAS_BYLINES_KEY = Symbol.for("emdash:has-bylines-singleton");
+interface HasBylinesHolder {
+	value: boolean | null;
+}
+const bylinesHolder: HasBylinesHolder =
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	((globalThis as Record<symbol, unknown>)[HAS_BYLINES_KEY] as HasBylinesHolder | undefined) ??
+	(() => {
+		const h: HasBylinesHolder = { value: null };
+		(globalThis as Record<symbol, unknown>)[HAS_BYLINES_KEY] = h;
+		return h;
+	})();
 
 /**
  * Invalidate the cached "has any bylines" check.
@@ -36,7 +51,7 @@ let hasBylinesSingleton: boolean | null = null;
  * Call this when bylines are created, updated, or deleted.
  */
 export function invalidateBylineCache(): void {
-	hasBylinesSingleton = null;
+	bylinesHolder.value = null;
 }
 
 /**
@@ -51,8 +66,8 @@ export function invalidateBylineCache(): void {
  */
 async function hasAnyBylines(db: Kysely<Database>): Promise<boolean> {
 	const isolated = getRequestContext()?.dbIsIsolated === true;
-	if (!isolated && hasBylinesSingleton !== null) {
-		return hasBylinesSingleton;
+	if (!isolated && bylinesHolder.value !== null) {
+		return bylinesHolder.value;
 	}
 
 	try {
@@ -60,11 +75,11 @@ async function hasAnyBylines(db: Kysely<Database>): Promise<boolean> {
 			SELECT id FROM _emdash_bylines LIMIT 1
 		`.execute(db);
 		const value = result.rows.length > 0;
-		if (!isolated) hasBylinesSingleton = value;
+		if (!isolated) bylinesHolder.value = value;
 		return value;
 	} catch (error) {
 		if (isMissingTableError(error)) {
-			if (!isolated) hasBylinesSingleton = false;
+			if (!isolated) bylinesHolder.value = false;
 			return false;
 		}
 		// Don't cache unknown failures; let the next call retry.
