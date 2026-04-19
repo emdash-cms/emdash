@@ -22,6 +22,7 @@ import {
 	getLatestVersion,
 	getPlugin,
 	getPluginVersion,
+	setPluginCategories,
 	setVersionWorkflowId,
 	updatePlugin,
 	updateVersionForReseed,
@@ -280,6 +281,7 @@ const createPluginSchema = z.object({
 	license: z.string().max(64).optional(),
 	capabilities: z.array(z.enum(VALID_CAPABILITIES)).min(1),
 	keywords: z.array(z.string().max(50)).max(20).optional(),
+	categories: z.array(z.string().max(50)).max(3).optional(),
 });
 
 authorRoutes.post("/plugins", async (c) => {
@@ -314,6 +316,10 @@ authorRoutes.post("/plugins", async (c) => {
 			capabilities: body.capabilities,
 			keywords: body.keywords,
 		});
+
+		if (body.categories?.length) {
+			await setPluginCategories(c.env.DB, plugin.id, body.categories);
+		}
 
 		return c.json(plugin, 201);
 	} catch (err) {
@@ -590,6 +596,7 @@ const updatePluginSchema = z.object({
 	homepageUrl: httpUrl.optional(),
 	license: z.string().max(64).optional(),
 	keywords: z.array(z.string().max(50)).max(20).optional(),
+	categories: z.array(z.string().max(50)).max(3).optional(),
 });
 
 authorRoutes.put("/plugins/:id", async (c) => {
@@ -622,6 +629,10 @@ authorRoutes.put("/plugins/:id", async (c) => {
 			license: body.license,
 			keywords: body.keywords,
 		});
+
+		if (body.categories) {
+			await setPluginCategories(c.env.DB, pluginId, body.categories);
+		}
 
 		return c.json(updated);
 	} catch (err) {

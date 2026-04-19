@@ -99,6 +99,14 @@ export interface MarketplaceSearchResult {
 	nextCursor?: string;
 }
 
+export interface MarketplaceCategory {
+	id: string;
+	slug: string;
+	name: string;
+	description?: string;
+	icon?: string;
+}
+
 // ── Theme types ───────────────────────────────────────────────────
 
 export interface MarketplaceThemeSummary {
@@ -169,6 +177,9 @@ export interface MarketplaceClient {
 
 	/** Fire-and-forget install stat (never throws) */
 	reportInstall(id: string, version: string): Promise<void>;
+
+	/** List available categories */
+	getCategories(): Promise<MarketplaceCategory[]>;
 
 	/** Search theme listings */
 	searchThemes(
@@ -299,6 +310,12 @@ class MarketplaceClientImpl implements MarketplaceClient {
 				"BUNDLE_EXTRACT_FAILED",
 			);
 		}
+	}
+
+	async getCategories(): Promise<MarketplaceCategory[]> {
+		const url = `${this.baseUrl}/api/v1/categories`;
+		const data = await this.fetchJson<{ items: MarketplaceCategory[] }>(url);
+		return data.items;
 	}
 
 	async reportInstall(id: string, version: string): Promise<void> {

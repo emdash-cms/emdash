@@ -469,6 +469,34 @@ describe("MarketplaceClient", () => {
 		});
 	});
 
+	describe("getCategories", () => {
+		it("returns categories from the marketplace", async () => {
+			const categories = [
+				{
+					id: "cat_seo",
+					slug: "seo",
+					name: "SEO & Metadata",
+					description: "Search engine optimization",
+				},
+				{ id: "cat_forms", slug: "forms", name: "Forms & Input", description: "Form builders" },
+			];
+			fetchSpy.mockResolvedValueOnce(
+				new Response(JSON.stringify({ items: categories }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				}),
+			);
+
+			const result = await client.getCategories();
+
+			expect(result).toEqual(categories);
+			expect(fetchSpy).toHaveBeenCalledWith(
+				`${BASE_URL}/api/v1/categories`,
+				expect.objectContaining({ headers: { Accept: "application/json" } }),
+			);
+		});
+	});
+
 	describe("trailing slash handling", () => {
 		it("strips trailing slashes from base URL", async () => {
 			const clientWithSlash = createMarketplaceClient("https://example.com/");

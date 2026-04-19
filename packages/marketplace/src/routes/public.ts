@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 
 import {
+	getCategories,
 	getLatestVersion,
+	getPluginCategories,
 	getPluginVersion,
 	getPluginVersions,
 	getPluginWithAuthor,
@@ -25,12 +27,33 @@ publicRoutes.get("/auth/discovery", (c) => {
 	});
 });
 
+// ── GET /categories — List all categories ───────────────────────
+
+publicRoutes.get("/categories", async (c) => {
+	try {
+		const categories = await getCategories(c.env.DB);
+		return c.json({
+			items: categories.map((cat) => ({
+				id: cat.id,
+				slug: cat.slug,
+				name: cat.name,
+				description: cat.description,
+				icon: cat.icon,
+			})),
+		});
+	} catch (err) {
+		console.error("Failed to list categories:", err);
+		return c.json({ error: "Internal server error" }, 500);
+	}
+});
+
 // ── GET /plugins — Search/list plugins ──────────────────────────
 
 publicRoutes.get("/plugins", async (c) => {
 	const url = new URL(c.req.url);
 	const q = url.searchParams.get("q") ?? undefined;
 	const capability = url.searchParams.get("capability") ?? undefined;
+	const category = url.searchParams.get("category") ?? undefined;
 	const sortParam = url.searchParams.get("sort");
 	const validSorts = new Set(["installs", "updated", "created", "name"]);
 	let sort: "installs" | "updated" | "created" | "name" | undefined;
@@ -45,7 +68,7 @@ publicRoutes.get("/plugins", async (c) => {
 	const baseUrl = url.origin;
 
 	try {
-		const result = await searchPlugins(c.env.DB, { q, capability, sort, cursor, limit });
+		const result = await searchPlugins(c.env.DB, { q, capability, category, sort, cursor, limit });
 
 		const items = result.items.map((row) => ({
 			id: row.id,
@@ -98,7 +121,10 @@ publicRoutes.get("/plugins/:id", async (c) => {
 		const plugin = await getPluginWithAuthor(c.env.DB, id);
 		if (!plugin) return c.json({ error: "Plugin not found" }, 404);
 
-		const latestVersion = await getLatestVersion(c.env.DB, id);
+		const [latestVersion, pluginCategories] = await Promise.all([
+			getLatestVersion(c.env.DB, id),
+			getPluginCategories(c.env.DB, id),
+		]);
 		const installCount = plugin.install_count ?? 0;
 
 		const capabilities = safeJsonParse<string[]>(plugin.capabilities, []);
@@ -122,6 +148,7 @@ publicRoutes.get("/plugins/:id", async (c) => {
 			hasIcon: plugin.has_icon === 1,
 			iconUrl: `${baseUrl}/api/v1/plugins/${plugin.id}/icon`,
 			installCount,
+			categories: pluginCategories.map((cat) => ({ slug: cat.slug, name: cat.name })),
 			createdAt: plugin.created_at,
 			updatedAt: plugin.updated_at,
 		};

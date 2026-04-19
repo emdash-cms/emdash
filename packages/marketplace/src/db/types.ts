@@ -94,11 +94,21 @@ export interface PluginSearchResult extends PluginWithAuthor {
 	latest_audit_risk_score: number | null;
 }
 
+export interface CategoryRow {
+	id: string;
+	slug: string;
+	name: string;
+	description: string | null;
+	icon: string | null;
+	sort_order: number;
+}
+
 export type SortOption = "installs" | "updated" | "created" | "name";
 
 export interface SearchOptions {
 	q?: string;
 	capability?: string;
+	category?: string;
 	sort?: SortOption;
 	cursor?: string;
 	limit?: number;

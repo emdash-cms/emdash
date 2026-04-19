@@ -73,9 +73,18 @@ export interface MarketplaceSearchResult {
 export interface MarketplaceSearchOpts {
 	q?: string;
 	capability?: string;
+	category?: string;
 	sort?: "installs" | "updated" | "created" | "name";
 	cursor?: string;
 	limit?: number;
+}
+
+export interface MarketplaceCategory {
+	id: string;
+	slug: string;
+	name: string;
+	description?: string;
+	icon?: string;
 }
 
 /** Update check result per plugin */
@@ -119,6 +128,7 @@ export async function searchMarketplace(
 	const params = new URLSearchParams();
 	if (opts.q) params.set("q", opts.q);
 	if (opts.capability) params.set("capability", opts.capability);
+	if (opts.category) params.set("category", opts.category);
 	if (opts.sort) params.set("sort", opts.sort);
 	if (opts.cursor) params.set("cursor", opts.cursor);
 	if (opts.limit) params.set("limit", String(opts.limit));
@@ -127,6 +137,19 @@ export async function searchMarketplace(
 	const url = `${MARKETPLACE_BASE}${qs ? `?${qs}` : ""}`;
 	const response = await apiFetch(url);
 	return parseApiResponse<MarketplaceSearchResult>(response, "Marketplace search failed");
+}
+
+/**
+ * Fetch available marketplace categories.
+ * Proxied through /_emdash/api/admin/plugins/marketplace/categories
+ */
+export async function fetchCategories(): Promise<MarketplaceCategory[]> {
+	const response = await apiFetch(`${MARKETPLACE_BASE}/categories`);
+	const data = await parseApiResponse<{ items: MarketplaceCategory[] }>(
+		response,
+		"Failed to fetch categories",
+	);
+	return data.items;
 }
 
 /**
