@@ -7,7 +7,7 @@
 
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { AstroConfig } from "astro";
@@ -102,23 +102,33 @@ function resolveAdminDist(): string {
 }
 
 /**
- * Resolve path to the admin package source directory.
- * In dev mode, we alias @emdash-cms/admin to the source so Vite processes it
- * directly — giving instant HMR instead of requiring a rebuild + restart.
+ * Check whether child is inside parent without relying on simple prefix checks.
  */
-function resolveAdminSource(): string | undefined {
+function isInside(parent: string, child: string): boolean {
+	const relativePath = relative(parent, child);
+	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
+}
+
+/**
+ * Resolve path to the admin package source directory.
+ * In dev mode inside this repo, we alias @emdash-cms/admin to the source so
+ * Vite processes it directly — giving instant HMR instead of requiring a
+ * rebuild + restart. External apps should use the built package surface.
+ */
+function resolveAdminSource(projectRoot: string): string | undefined {
 	const require = createRequire(import.meta.url);
 	const adminPath = require.resolve("@emdash-cms/admin");
 	// dist/index.js -> go up to package root, then into src/
 	const packageRoot = resolve(dirname(adminPath), "..");
+	const repoRoot = resolve(packageRoot, "..", "..");
 	const srcEntry = resolve(packageRoot, "src", "index.ts");
 
 	try {
-		if (existsSync(srcEntry)) {
+		if (existsSync(srcEntry) && isInside(repoRoot, projectRoot)) {
 			return resolve(packageRoot, "src");
 		}
 	} catch {
-		// Not in monorepo — fall back to dist
+		// Not in local repo — fall back to dist
 	}
 	return undefined;
 }
@@ -270,12 +280,9 @@ export function createViteConfig(
 	const adminDistPath = resolveAdminDist();
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
+	const projectRoot = fileURLToPath(options.astroConfig.root);
 
-	// In dev mode within the monorepo, alias JS imports to source for instant HMR.
-	// CSS always comes from dist/ (pre-compiled by @tailwindcss/cli) since Tailwind's
-	// Vite plugin has native deps that don't bundle well. Run `pnpm dev` in packages/admin
-	// alongside the demo server to get CSS watch-rebuilds too.
-	const adminSourcePath = isDev ? resolveAdminSource() : undefined;
+	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
 
 	return {
@@ -305,7 +312,7 @@ export function createViteConfig(
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
-			...(useSource ? [linguiMacroPlugin(adminSourcePath!, adminDistPath)] : []),
+			...(useSource ? [linguiMacroPlugin(adminSourcePath, adminDistPath)] : []),
 		] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
