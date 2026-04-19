@@ -1,6 +1,8 @@
 // @ts-check
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import emailOnPublish from "@my-emdash/plugin-email-on-publish";
+
 import {
 	d1,
 	r2,
@@ -72,6 +74,7 @@ export default defineConfig({
 			plugins: [
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
+				emailOnPublish(),
 			],
 			// Sandboxed plugins (run in isolated workers)
 			sandboxed: [webhookNotifierPlugin()],
