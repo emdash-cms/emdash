@@ -1,0 +1,9 @@
+{
+  "name": "@my-emdash/plugin-email-on-publish",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./sandbox": "./src/index.ts"
+  }
+}
