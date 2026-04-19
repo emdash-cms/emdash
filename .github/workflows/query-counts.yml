@@ -36,18 +36,18 @@ jobs:
       - name: Detect snapshot drift
         id: drift
         run: |
-          mkdir -p .query-counts-out
+          mkdir -p query-counts-out
           if git diff --quiet scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No drift — snapshots match the committed baseline."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            cp scripts/query-counts.snapshot.sqlite.json .query-counts-out/
-            cp scripts/query-counts.snapshot.d1.json .query-counts-out/
-            git diff scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json > .query-counts-out/snapshots.diff
-            echo "${{ github.event.pull_request.number }}" > .query-counts-out/pr-number
+            cp scripts/query-counts.snapshot.sqlite.json query-counts-out/
+            cp scripts/query-counts.snapshot.d1.json query-counts-out/
+            git diff scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json > query-counts-out/snapshots.diff
+            echo "${{ github.event.pull_request.number }}" > query-counts-out/pr-number
             echo "Drift detected — uploading artifact for the Apply workflow."
-            cat .query-counts-out/snapshots.diff
+            cat query-counts-out/snapshots.diff
           fi
 
       - name: Upload snapshot artifact
@@ -55,6 +55,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: query-counts-snapshots
-          path: .query-counts-out/
+          path: query-counts-out/
           retention-days: 7
           if-no-files-found: error

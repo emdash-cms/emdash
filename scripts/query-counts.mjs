@@ -441,7 +441,12 @@ async function main() {
 
 	const counts = aggregate(events);
 	if (update) {
-		writeFileSync(snapshotPath, JSON.stringify(counts, null, 2) + "\n");
+		// Use tab indent so the output matches oxfmt's default and
+		// doesn't thrash under `pnpm format`. Space-indented output
+		// would be reformatted to tabs by the formatter, producing
+		// a false-positive "drift" signal in CI (the raw harness
+		// output wouldn't match the committed file).
+		writeFileSync(snapshotPath, JSON.stringify(counts, null, "\t") + "\n");
 		process.stdout.write(`Wrote ${Object.keys(counts).length} entries to ${snapshotPath}\n`);
 		return 0;
 	}

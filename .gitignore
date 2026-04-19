@@ -69,3 +69,4 @@ examples/wp-theme-unit-test/
 .opencode
 
 .perf-query-counts
+query-counts-out/
