@@ -145,11 +145,6 @@ msgstr "{0, plural, one {# کاربر} other {# کاربر}}"
 msgid "{0, plural, one {#{1} item} other {#{2} items}}"
 msgstr "{0, plural, one {#{1} مورد} other {#{2} مورد}}"
 
-#. placeholder {0}: tax.label
-#: packages/admin/src/components/Sidebar.tsx:196
-msgid "{0}"
-msgstr ""
-
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1133
 msgid "{0} detected"
@@ -256,10 +251,6 @@ msgstr "{matchedCount} از {totalCount} تخصیص داده شده"
 #: packages/admin/src/components/WordPressImport.tsx:2294
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} از {totalCount} نگارنده بر اساس ایمیل تطبیق یافته"
-
-#: packages/admin/src/components/Sidebar.tsx:177
-msgid "{name}"
-msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1740
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
@@ -2894,7 +2885,7 @@ msgstr "فهرست"
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:40
 msgid "Menu \"{0}\" has been created."
-msgstr ""
+msgstr "فهرست «{0}» ساخته شد."
 
 #: packages/admin/src/components/MenuList.tsx:39
 msgid "Menu created"
@@ -3067,7 +3058,7 @@ msgstr "نوع محتوای جدید"
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:337
 msgid "New Redirect"
-msgstr ""
+msgstr "تغییر مسیر جدید"
 
 #: packages/admin/src/components/Sections.tsx:141
 msgid "New Section"
@@ -5544,7 +5535,7 @@ msgstr "نقش شما"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:131
 msgid "Your Twitter/X handle (e.g., @username)"
-msgstr "شناسه یا نام کاربری توییتر/X شما (مثلاً @username)"
+msgstr "شناسه یا نام کاربری توییتر/X شما (مثلاً username در @username یا x.com/username)"
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:1925
