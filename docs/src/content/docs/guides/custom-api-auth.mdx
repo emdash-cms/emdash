@@ -1,0 +1,111 @@
+---
+title: Securing Custom API Routes
+description: How to authenticate admin requests in custom API endpoints using EmDash session tokens.
+---
+
+import { Aside, Code, Tabs, TabItem } from "@astrojs/starlight/components";
+
+When building custom API endpoints in your EmDash site (e.g., admin dashboards, file managers, lead trackers), you need to verify that incoming requests come from authenticated admin users. This guide shows how to do it securely.
+
+## The Problem
+
+A common but **insecure** pattern is checking whether the session cookie name exists:
+
+```typescript
+// ❌ INSECURE — only checks if the cookie NAME is present
+function isAdmin(request: Request): boolean {
+  const cookie = request.headers.get("cookie") || "";
+  return cookie.includes("astro-session");
+}
+```
+
+An attacker can bypass this by sending `Cookie: astro-session=anything` — the check passes without a valid session.
+
+## Recommended Approach: KV Session Validation
+
+EmDash stores sessions in a Cloudflare KV namespace. The secure way to validate admin access is to check the session token against KV.
+
+### Prerequisites
+
+Make sure your `wrangler.jsonc` has a `SESSION` KV namespace binding:
+
+```jsonc
+{
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "your-kv-namespace-id"
+    }
+  ]
+}
+```
+
+### Implementation
+
+```typescript
+// src/pages/api/my-admin-endpoint.ts
+import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
+
+export const prerender = false;
+
+async function isAdmin(request: Request): Promise<boolean> {
+  const cookie = request.headers.get("cookie") || "";
+  const match = cookie.match(/astro-session=([^;]+)/);
+
+  // No session cookie or too short to be valid
+  if (!match || !match[1] || match[1].length < 20) return false;
+
+  // Validate against KV store
+  try {
+    const sessionKV = (env as any).SESSION as KVNamespace;
+    if (sessionKV) {
+      const sessionData = await sessionKV.get(match[1]);
+      return sessionData !== null;
+    }
+  } catch {
+    // KV unavailable — fail closed (reject), not open (allow)
+  }
+
+  return false;
+}
+
+export const GET: APIRoute = async ({ request }) => {
+  if (!(await isAdmin(request))) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Your admin-only logic here
+  return new Response(JSON.stringify({ data: "secret admin data" }), {
+    headers: { "Content-Type": "application/json" },
+  });
+};
+```
+
+<Aside type="tip">
+The function fails **closed** — if KV is unavailable for any reason, access is denied. This is safer than failing open (allowing access when validation is impossible).
+</Aside>
+
+## Key Principles
+
+1. **Validate the session value, not the cookie name.** The cookie name `astro-session` is public knowledge. The value is the secret.
+
+2. **Check against the server-side store.** Session tokens must be verified against KV (or D1, depending on your setup) on every request.
+
+3. **Fail closed.** If session validation fails for any reason (KV down, network error), deny access rather than granting it.
+
+4. **Use consistent auth across all admin endpoints.** Extract the `isAdmin()` function into a shared utility so every endpoint uses the same validation logic.
+
+## What EmDash Does Not Provide (Yet)
+
+Currently, EmDash does not export a session validation helper for use in custom API routes. The pattern above is a workaround. See [GitHub issue #643](https://github.com/emdash-cms/emdash/issues/643) for the feature request to add a built-in `validateSession()` helper.
+
+## Additional Security Recommendations
+
+- **Add Origin header checks** to reject cross-site POST requests (CSRF protection)
+- **Use Cloudflare Rate Limiting** on public-facing API endpoints
+- **Never store sensitive data** (passwords, tokens) as plaintext in D1 — use hashing
+- **Sanitize path parameters** in file-serving endpoints to prevent path traversal
