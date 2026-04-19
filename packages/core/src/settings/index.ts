@@ -11,7 +11,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
-import { requestCached } from "../request-cache.js";
+import { peekRequestCache, requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
 import type { SiteSettings, SiteSettingKey, MediaReference } from "./types.js";
 
@@ -73,13 +73,23 @@ async function resolveMediaReference(
  * console.log(logo?.url); // Resolved URL
  * ```
  */
-export function getSiteSetting<K extends SiteSettingKey>(
+export async function getSiteSetting<K extends SiteSettingKey>(
 	key: K,
 ): Promise<SiteSettings[K] | undefined> {
-	// Cache per-key within a request. Without this, templates that pull
-	// several settings (and layout components that ask for logo/favicon/
-	// title separately) each fire an options-table query — which is a
-	// real latency hit on regions far from the D1 primary (APS, APE).
+	// If `getSiteSettings()` has already been called in this request,
+	// read from that (request-cached) batch rather than firing a second
+	// options-table query. Common layout: a Base template pulls the
+	// whole settings object up-front, then `EmDashHead` or a plugin
+	// asks for one key — no reason the singular call should round-trip
+	// again.
+	const primed = peekRequestCache<Partial<SiteSettings>>("siteSettings");
+	if (primed) {
+		const settings = await primed;
+		return settings[key];
+	}
+
+	// Otherwise cache per-key. Templates that pull several settings
+	// independently still share the in-flight query for each one.
 	return requestCached(`siteSetting:${key}`, async () => {
 		const db = await getDb();
 		return getSiteSettingWithDb(key, db);
