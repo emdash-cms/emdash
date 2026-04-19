@@ -57,5 +57,6 @@ export function after(fn: () => void | Promise<void>): void {
 	// resolves to null, so this is just one extra microtask and no-op.
 	void waitUntilReady.then((waitUntil) => {
 		if (waitUntil) waitUntil(promise);
+		return null;
 	});
 }

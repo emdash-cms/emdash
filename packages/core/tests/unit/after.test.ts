@@ -24,19 +24,24 @@ describe("after()", () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const boom = new Error("boom");
 
-		expect(() =>
-			after(async () => {
-				throw boom;
-			}),
-		).not.toThrow();
+		try {
+			expect(() =>
+				after(async () => {
+					throw boom;
+				}),
+			).not.toThrow();
 
-		await new Promise((r) => setTimeout(r, 0));
+			await new Promise((r) => setTimeout(r, 0));
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("[emdash] deferred task failed"),
-			boom,
-		);
-		errorSpy.mockRestore();
+			expect(errorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("[emdash] deferred task failed"),
+				boom,
+			);
+		} finally {
+			// Restore unconditionally so a failed assertion above doesn't leak
+			// the spy into later tests.
+			errorSpy.mockRestore();
+		}
 	});
 
 	it("returns synchronously without waiting for the callback", async () => {

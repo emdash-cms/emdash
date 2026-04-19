@@ -778,7 +778,7 @@ export class EmDashRuntime {
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
 
-		await phase("rt.cron", "Cron init + stale-lock recovery", async () => {
+		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
 				cronExecutor = new CronExecutor(db, invokeCronHook);
 
