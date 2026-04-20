@@ -101,6 +101,21 @@ export interface QueryParams {
 	limit?: number;
 }
 
+/**
+ * Normalize an ISO-8601 timestamp (e.g. "2026-04-20T05:00:00.000Z") to the
+ * " "-separated form D1's `datetime('now')` writes ("2026-04-20 05:00:00").
+ *
+ * SQLite compares TEXT lexicographically: space (0x20) sorts before "T"
+ * (0x54). If we pass the client's ISO string straight into `timestamp >= ?`,
+ * any stored row whose calendar date matches the since-boundary compares
+ * LESS than since regardless of its actual time, so same-day filters (1h,
+ * and the "today" portion of 24h) silently return zero rows.
+ */
+function normalizeSince(since: string): string {
+	const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/.exec(since);
+	return match ? `${match[1]} ${match[2]}` : since;
+}
+
 /** Query historical results with optional filters. */
 export async function queryResults(db: D1Database, params: QueryParams): Promise<PerfResult[]> {
 	const conditions: string[] = [];
@@ -124,7 +139,7 @@ export async function queryResults(db: D1Database, params: QueryParams): Promise
 	}
 	if (params.since) {
 		conditions.push("timestamp >= ?");
-		bindings.push(params.since);
+		bindings.push(normalizeSince(params.since));
 	}
 
 	const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -214,7 +229,7 @@ export async function getDeployResults(
 ): Promise<PerfResult[]> {
 	const sinceClause = since ? "AND timestamp >= ?" : "";
 	const bindings: string[] = [site];
-	if (since) bindings.push(since);
+	if (since) bindings.push(normalizeSince(since));
 
 	const result = await db
 		.prepare(
