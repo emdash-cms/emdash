@@ -1219,6 +1219,17 @@ export class HookPipeline {
 	}
 
 	/**
+	 * Get all plugins that registered a non-exclusive handler for a given
+	 * hook (e.g. `email:beforeSend`, `email:afterSend`), preserving priority
+	 * order. Partitions with `getExclusiveHookProviders()`, which returns
+	 * plugins whose registration is marked `exclusive: true`.
+	 */
+	getHookProviders(hookName: string): Array<{ pluginId: string }> {
+		const hooks = this.hooks.get(hookName as HookNameV2) ?? [];
+		return hooks.filter((h) => !h.exclusive).map((h) => ({ pluginId: h.pluginId }));
+	}
+
+	/**
 	 * Invoke an exclusive hook — dispatch only to the selected provider.
 	 * Returns null if no provider is selected or if the selected hook
 	 * is not found in the pipeline.
