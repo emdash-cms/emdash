@@ -68,10 +68,23 @@ export function RepeaterField({
 	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
 	const [collapsedItems, setCollapsedItems] = React.useState<Set<string>>(new Set());
 
-	// Sync from external value changes
+	// Sync from external value changes.
+	// Preserve each item's _key by position so round-trips through onChange
+	// (which strips _key) don't remount children on every keystroke.
 	React.useEffect(() => {
 		const incoming = Array.isArray(value) ? value : [];
-		setItems(ensureKeys(incoming));
+		setItems((prev) =>
+			incoming.map((item, i) => {
+				const obj = (typeof item === "object" && item !== null
+					? item
+					: {}) as Record<string, unknown>;
+				const existingKey = (obj._key as string) || prev[i]?._key;
+				return {
+					...obj,
+					_key: existingKey || `item-${i}-${Date.now()}`,
+				};
+			}),
+		);
 	}, [value]);
 
 	const emitChange = (updated: RepeaterItem[]) => {
