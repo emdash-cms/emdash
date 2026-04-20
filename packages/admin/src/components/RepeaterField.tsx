@@ -75,9 +75,10 @@ export function RepeaterField({
 		const incoming = Array.isArray(value) ? value : [];
 		setItems((prev) =>
 			incoming.map((item, i) => {
-				const obj = (typeof item === "object" && item !== null
-					? item
-					: {}) as Record<string, unknown>;
+				const obj = (typeof item === "object" && item !== null ? item : {}) as Record<
+					string,
+					unknown
+				>;
 				const existingKey = (obj._key as string) || prev[i]?._key;
 				return {
 					...obj,
