@@ -14,6 +14,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm } from "../lib/api/taxonomies.js";
+import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { slugify } from "../lib/utils.js";
 
 interface TaxonomyTerm {
@@ -167,17 +168,13 @@ function TagInput({
 	const suggestions = React.useMemo(() => {
 		if (!trimmedInput) return [];
 		return terms
-			.filter(
-				(term) =>
-					term.label.toLowerCase().includes(trimmedInput.toLowerCase()) &&
-					!selectedIds.has(term.id),
-			)
+			.filter((term) => !selectedIds.has(term.id) && termMatches(term, trimmedInput))
 			.slice(0, 5);
 	}, [trimmedInput, terms, selectedIds]);
 
 	const hasExactMatch = React.useMemo(() => {
 		if (!trimmedInput) return false;
-		return terms.some((term) => term.label.toLowerCase() === trimmedInput.toLowerCase());
+		return terms.some((term) => termExactMatches(term, trimmedInput));
 	}, [trimmedInput, terms]);
 
 	const showCreateOption = trimmedInput.length > 0 && !hasExactMatch;
