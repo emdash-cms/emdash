@@ -339,6 +339,7 @@ export interface EmDashHandlers {
 	// Direct access to storage and database for advanced use cases
 	storage: import("../index.js").Storage | null;
 	db: Kysely<import("../index.js").Database>;
+	getPublicMediaUrl?: (storageKey: string) => string;
 
 	// Hook pipeline for plugin integrations
 	hooks: import("../plugins/hooks.js").HookPipeline;

@@ -317,8 +317,8 @@ export class S3Storage implements Storage {
 		if (this.publicUrl) {
 			return `${this.publicUrl.replace(TRAILING_SLASH_PATTERN, "")}/${key}`;
 		}
-		// Default to endpoint + bucket + key
-		return `${this.endpoint.replace(TRAILING_SLASH_PATTERN, "")}/${this.bucket}/${key}`;
+		// No public URL configured; defer to the /_emdash/api/media/file route.
+		return `/_emdash/api/media/file/${key}`;
 	}
 }
 
