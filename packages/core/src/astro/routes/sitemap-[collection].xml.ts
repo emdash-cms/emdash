@@ -64,9 +64,9 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			const slug = entry.slug || entry.id;
 			const path = col.urlPattern
 				? col.urlPattern
-						.replace(SLUG_PLACEHOLDER, encodeURIComponent(slug))
-						.replace(ID_PLACEHOLDER, encodeURIComponent(entry.id))
-				: `/${encodeURIComponent(col.collection)}/${encodeURIComponent(slug)}`;
+						.replace(SLUG_PLACEHOLDER, encodePathSegments(slug))
+						.replace(ID_PLACEHOLDER, encodePathSegments(entry.id))
+				: `/${encodePathSegments(col.collection)}/${encodePathSegments(slug)}`;
 
 			const loc = `${siteUrl}${path}`;
 
@@ -101,4 +101,13 @@ function escapeXml(str: string): string {
 		.replace(GT_RE, "&gt;")
 		.replace(QUOT_RE, "&quot;")
 		.replace(APOS_RE, "&apos;");
+}
+
+/**
+ * Percent-encode a value that may contain `/` as a path, preserving the
+ * separators. `encodeURIComponent` alone would turn `faq/products` into
+ * `faq%2Fproducts`, which breaks multi-segment slugs.
+ */
+function encodePathSegments(value: string): string {
+	return value.split("/").map(encodeURIComponent).join("/");
 }
