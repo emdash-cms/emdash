@@ -503,6 +503,18 @@
 			// single cron spike doesn't pull the bucket.
 			const DAILY_BUCKET_PERIODS = new Set(["7d", "30d", "90d"]);
 
+			/**
+			 * Parse a D1-stored timestamp ("YYYY-MM-DD HH:MM:SS", no TZ) as UTC.
+			 * `new Date("YYYY-MM-DD HH:MM:SS")` is implementation-defined and most
+			 * browsers treat it as *local* time, which shifts samples across UTC
+			 * day boundaries when we bucket with `getUTC*`. Normalize first.
+			 */
+			function parseStoredTimestamp(ts) {
+				if (!ts) return null;
+				if (ts.includes("T") || ts.endsWith("Z")) return new Date(ts);
+				return new Date(ts.replace(" ", "T") + "Z");
+			}
+
 			function median(nums) {
 				const sorted = nums.filter((n) => n != null).sort((a, b) => a - b);
 				if (sorted.length === 0) return null;
@@ -540,8 +552,9 @@
 				return "bad";
 			}
 
-			function formatTime(iso) {
-				const d = new Date(iso);
+			function formatTime(ts) {
+				const d = parseStoredTimestamp(ts);
+				if (!d) return "";
 				const pad = (n) => String(n).padStart(2, "0");
 				return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 			}
@@ -772,14 +785,14 @@
 					const color = REGION_COLORS[region] || "#888";
 
 					const rawCold = result.data.map((d) => ({
-						x: new Date(d.timestamp),
+						x: parseStoredTimestamp(d.timestamp),
 						y: d.coldTtfbMs,
 						prNumber: d.prNumber,
 						sha: d.sha,
 						source: d.source,
 					}));
 					const rawWarm = result.data.map((d) => ({
-						x: new Date(d.timestamp),
+						x: parseStoredTimestamp(d.timestamp),
 						y: d.warmTtfbMs,
 						prNumber: d.prNumber,
 						sha: d.sha,
@@ -848,8 +861,8 @@
 							const key = `deploy-${marker.sha || marker.timestamp}-${region}`;
 							annotations[key] = {
 								type: "line",
-								xMin: new Date(marker.timestamp),
-								xMax: new Date(marker.timestamp),
+								xMin: parseStoredTimestamp(marker.timestamp),
+								xMax: parseStoredTimestamp(marker.timestamp),
 								borderColor: "#ff6b6b40",
 								borderWidth: 1,
 								borderDash: [4, 4],
