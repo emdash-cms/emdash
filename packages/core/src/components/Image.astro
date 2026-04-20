@@ -125,7 +125,8 @@ if (providerId && providerId !== "local") {
 // Fallback for local provider — prefer stored URL (includes storage key with extension),
 // fall back to _ref (bare ULID, works if media file endpoint supports ID lookup)
 if (!src) {
-	src = asset.url || `/_emdash/api/media/file/${asset._ref}`;
+	const resolve = Astro.locals.emdash?.getPublicMediaUrl;
+	src = asset.url || resolve?.(asset._ref) || `/_emdash/api/media/file/${asset._ref}`;
 }
 
 // Build placeholder background style

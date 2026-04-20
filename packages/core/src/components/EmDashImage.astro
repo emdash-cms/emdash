@@ -57,10 +57,9 @@ function normalizeImage(
  */
 function buildLocalImageUrl(img: MediaValue): string {
 	const storageKey = (img.meta?.storageKey as string) || img.id;
-	if (storageKey) {
-		return `/_emdash/api/media/file/${storageKey}`;
-	}
-	return "";
+	if (!storageKey) return "";
+	const resolve = Astro.locals.emdash?.getPublicMediaUrl;
+	return resolve ? resolve(storageKey) : `/_emdash/api/media/file/${storageKey}`;
 }
 
 /**
