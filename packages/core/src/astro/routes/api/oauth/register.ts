@@ -16,6 +16,17 @@ export const prerender = false;
 const OAUTH_REGISTRATION_HEADERS: HeadersInit = {
 	"Cache-Control": "no-store",
 	Pragma: "no-cache",
+	// RFC 7591 dynamic client registration is called cross-origin by MCP clients,
+	// CLIs, and native apps. The endpoint is anonymous and carries no ambient
+	// credentials, so CORS `*` is safe.
+	"Access-Control-Allow-Origin": "*",
+};
+
+const OAUTH_PREFLIGHT_HEADERS: HeadersInit = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Methods": "POST, OPTIONS",
+	"Access-Control-Allow-Headers": "Content-Type",
+	"Access-Control-Max-Age": "86400",
 };
 
 const SUPPORTED_GRANT_TYPES = new Set([
@@ -71,6 +82,10 @@ function parseSupportedStringArray(
 	}
 	return value;
 }
+
+export const OPTIONS: APIRoute = () => {
+	return new Response(null, { status: 204, headers: OAUTH_PREFLIGHT_HEADERS });
+};
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
