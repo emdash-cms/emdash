@@ -111,8 +111,10 @@ export interface QueryParams {
  * LESS than since regardless of its actual time, so same-day filters (1h,
  * and the "today" portion of 24h) silently return zero rows.
  */
+const SINCE_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/;
+
 function normalizeSince(since: string): string {
-	const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/.exec(since);
+	const match = SINCE_TIMESTAMP_RE.exec(since);
 	return match ? `${match[1]} ${match[2]}` : since;
 }
 
