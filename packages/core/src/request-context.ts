@@ -35,6 +35,8 @@ export interface EmDashRequestContext {
 	 * the singleton instance. Also used by the DO preview pattern.
 	 */
 	db?: unknown;
+	/** Per-request CSP nonce for script-src/style-src */
+	nonce?: string;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

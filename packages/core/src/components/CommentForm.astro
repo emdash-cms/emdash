@@ -112,7 +112,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 }
 
 {enabled && turnstileSiteKey && (
-	<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+	<script is:inline nonce={Astro.locals.cspNonce} src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 )}
 
 <script>

@@ -20,12 +20,13 @@ interface Props {
 
 const { page } = Astro.props;
 const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
+const nonce = Astro.locals.cspNonce;
 
 let html = "";
 
 if (runtime) {
 	const contributions = await runtime.collectPageFragments(page);
-	html = renderFragments(contributions, "body:end");
+	html = renderFragments(contributions, "body:end", nonce);
 }
 ---
 

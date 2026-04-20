@@ -31,7 +31,6 @@ import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import type { EmDashHandlers, EmDashManifest } from "../types.js";
-import { buildEmDashCsp } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -41,6 +40,8 @@ declare global {
 			tokenScopes?: string[];
 			emdash?: EmDashHandlers;
 			emdashManifest?: EmDashManifest;
+			/** Per-request CSP nonce, set by runtime init middleware */
+			cspNonce?: string;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -249,18 +250,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (scopeError) return scopeError;
 
 		const response = await next();
-		if (!import.meta.env.DEV) {
-			response.headers.set("Content-Security-Policy", buildEmDashCsp());
-		}
 		return response;
 	}
 
 	const response = await handleEmDashAuth(context, next);
-
-	// Set strict CSP on all /_emdash responses (prod only)
-	if (!import.meta.env.DEV) {
-		response.headers.set("Content-Security-Policy", buildEmDashCsp());
-	}
 
 	return response;
 });

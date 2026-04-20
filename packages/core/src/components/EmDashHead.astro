@@ -25,6 +25,7 @@ interface Props {
 
 const { page } = Astro.props;
 const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
+const nonce = Astro.locals.cspNonce;
 
 // Base SEO contributions from page context (always generated)
 const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(page);
@@ -41,7 +42,7 @@ if (runtime) {
 	metadataHtml = renderPageMetadata(resolved);
 
 	const fragments = await runtime.collectPageFragments(page);
-	fragmentsHtml = renderFragments(fragments, "head");
+	fragmentsHtml = renderFragments(fragments, "head", nonce);
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO
 	const resolved = resolvePageMetadata(baseContributions);

@@ -45,6 +45,7 @@ import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { runWithContext } from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { buildEmDashCsp, generateNonce, injectNonceAttributes } from "./middleware/csp.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
@@ -157,10 +158,28 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
 }
 
 /**
- * Baseline security headers applied to all responses.
- * Admin routes get additional headers (strict CSP) from auth middleware.
+ * Security headers + nonce injection + CSP for HTML responses.
+ * For non-HTML responses, sets baseline headers only.
  */
-function setBaselineSecurityHeaders(response: Response): Response {
+async function applySecurityHeaders(response: Response, nonce: string): Promise<Response> {
+	const contentType = response.headers.get("content-type");
+	const isHtml = contentType?.includes("text/html");
+
+	if (isHtml) {
+		const html = await response.text();
+		const processed = injectNonceAttributes(html, nonce);
+		const res = new Response(processed, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
+		res.headers.set("X-Content-Type-Options", "nosniff");
+		res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+		res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+		res.headers.set("Content-Security-Policy", buildEmDashCsp(nonce, import.meta.env.DEV));
+		return res;
+	}
+
 	const res = new Response(response.body, response);
 	res.headers.set("X-Content-Type-Options", "nosniff");
 	res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -178,6 +197,11 @@ const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
+
+	// Generate per-request CSP nonce — available to all downstream middleware and
+	// Astro components via locals.cspNonce, and to query functions via ALS.
+	const nonce = generateNonce();
+	locals.cspNonce = nonce;
 
 	// Process /_emdash routes and public routes with an active session
 	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
@@ -240,7 +264,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			}
 
 			const response = await next();
-			return setBaselineSecurityHeaders(response);
+			return applySecurityHeaders(response, nonce);
 		}
 	}
 
@@ -409,8 +433,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const sessionDb = new Kysely<Database>({ dialect: sessionDialect });
 
 				// Wrap the request in ALS with the per-request db
-				return runWithContext({ editMode: false, db: sessionDb }, async () => {
-					const response = setBaselineSecurityHeaders(await next());
+				return runWithContext({ editMode: false, db: sessionDb, nonce }, async () => {
+					const response = await applySecurityHeaders(await next(), nonce);
 
 					// Set bookmark cookie for authenticated users only — they need
 					// read-your-writes consistency across requests. Anonymous visitors
@@ -438,14 +462,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		const response = await next();
-		return setBaselineSecurityHeaders(response);
+		return applySecurityHeaders(response, nonce);
 	}; // end doInit
 
 	if (playgroundDb) {
 		// Read the edit-mode cookie to determine if visual editing is active.
 		// Default to false -- editing is opt-in via the playground toolbar toggle.
 		const editMode = context.cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode, db: playgroundDb }, doInit);
+		return runWithContext({ editMode, db: playgroundDb, nonce }, doInit);
 	}
 	return doInit();
 });

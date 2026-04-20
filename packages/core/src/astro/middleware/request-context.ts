@@ -53,7 +53,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (playgroundDb) {
 		// Check if playground user has toggled edit mode on
 		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode: hasEditCookie, db: playgroundDb }, () => next());
+		const nonce = context.locals.cspNonce;
+		return runWithContext({ editMode: hasEditCookie, db: playgroundDb, nonce }, () => next());
 	}
 
 	// Fast path: check for CMS signals before doing any work
@@ -90,7 +91,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const needsContext = hasEditCookie || hasPreviewToken;
 
 	if (needsContext) {
-		return runWithContext({ editMode, preview, locale }, async () => {
+		const nonce = context.locals.cspNonce;
+		return runWithContext({ editMode, preview, locale, nonce }, async () => {
 			let response = await next();
 
 			// Preview responses must not be cached -- draft content could leak past token expiry.
@@ -105,6 +107,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const toolbarHtml = renderToolbar({
 					editMode,
 					isPreview: !!preview,
+					nonce: context.locals.cspNonce,
 				});
 				return injectToolbar(response, toolbarHtml);
 			}
@@ -119,6 +122,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const toolbarHtml = renderToolbar({
 			editMode: false,
 			isPreview: false,
+			nonce: context.locals.cspNonce,
 		});
 		return injectToolbar(response, toolbarHtml);
 	}

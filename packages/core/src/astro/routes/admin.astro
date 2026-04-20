@@ -17,6 +17,7 @@ import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/loc
 const resolvedLocale = resolveLocale(Astro.request);
 const resolvedDir = getLocaleDir(resolvedLocale);
 const messages = await loadMessages(resolvedLocale);
+const nonce = Astro.locals.cspNonce;
 ---
 
 <!doctype html>
@@ -33,7 +34,7 @@ const messages = await loadMessages(resolvedLocale);
 	<body>
 		<div id="admin-root" class="min-h-screen">
 			<div id="emdash-boot-loader">
-				<style>
+				<style nonce={nonce}>
 					#emdash-boot-loader {
 						display: flex;
 						align-items: center;

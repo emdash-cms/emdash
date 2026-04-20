@@ -9,10 +9,12 @@
 interface ToolbarConfig {
 	editMode: boolean;
 	isPreview: boolean;
+	nonce?: string;
 }
 
 export function renderToolbar(config: ToolbarConfig): string {
-	const { editMode, isPreview } = config;
+	const { editMode, isPreview, nonce } = config;
+	const nonceAttr = nonce ? ` nonce="${nonce}"` : "";
 
 	return `
 <!-- EmDash Visual Editing Toolbar -->
@@ -42,7 +44,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   </div>
 </div>
 
-<style>
+<style${nonceAttr}>
   #emdash-toolbar {
     position: fixed;
     bottom: 16px;
@@ -509,7 +511,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 </style>
 
-<script>
+<script${nonceAttr}>
 (function() {
   var toolbar = document.getElementById("emdash-toolbar");
   var toggle = document.getElementById("emdash-edit-toggle");

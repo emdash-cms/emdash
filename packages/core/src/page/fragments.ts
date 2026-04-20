@@ -56,10 +56,11 @@ function renderAttributes(attrs: Record<string, string>): string {
 }
 
 /** Render a single fragment contribution to HTML */
-function renderFragment(c: PageFragmentContribution): string {
+function renderFragment(c: PageFragmentContribution, nonce?: string): string {
+	const nonceAttr = nonce ? ` nonce="${escapeHtmlAttr(nonce)}"` : "";
 	switch (c.kind) {
 		case "external-script": {
-			let tag = `<script src="${escapeHtmlAttr(c.src)}"`;
+			let tag = `<script src="${escapeHtmlAttr(c.src)}"${nonceAttr}`;
 			if (c.async) tag += " async";
 			if (c.defer) tag += " defer";
 			if (c.attributes) tag += renderAttributes(c.attributes);
@@ -67,7 +68,7 @@ function renderFragment(c: PageFragmentContribution): string {
 			return tag;
 		}
 		case "inline-script": {
-			let tag = "<script";
+			let tag = `<script${nonceAttr}`;
 			if (c.attributes) tag += renderAttributes(c.attributes);
 			// Escape </ to <\/ to prevent breaking out of the script tag.
 			// This is valid JS and protects against code built from user data.
@@ -83,7 +84,8 @@ function renderFragment(c: PageFragmentContribution): string {
 export function renderFragments(
 	contributions: PageFragmentContribution[],
 	placement: PagePlacement,
+	nonce?: string,
 ): string {
 	const resolved = resolveFragments(contributions, placement);
-	return resolved.map(renderFragment).join("\n");
+	return resolved.map((c) => renderFragment(c, nonce)).join("\n");
 }
