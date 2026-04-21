@@ -10,6 +10,7 @@
   let view: AdminView = 'dashboard';
   let selectedPostIndex = 0;
   let selectedPageIndex = 0;
+  let darkMode = false;
 
   async function loadContent() {
     const response = await fetch('/api/admin/content');
@@ -83,7 +84,20 @@
 {#if !draft}
   <div class="content-wrap"><p>Loading admin...</p></div>
 {:else}
-  <div class="admin-shell">
+  <div class="admin-shell" class:dark={darkMode}>
+    <header class="chrome-bar">
+      <div class="chrome-left">
+        <strong>Symballo CMS</strong>
+        <a href="/" target="_blank" rel="noreferrer">View Site</a>
+      </div>
+      <div class="chrome-right">
+        <button class="mode-toggle" on:click={() => (darkMode = !darkMode)}>
+          {darkMode ? 'Light' : 'Dark'} Mode
+        </button>
+        <button class="save top-save" on:click={saveContent} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+      </div>
+    </header>
+
     <aside class="sidebar">
       <div class="brand">
         <p class="brand-kicker">Symballo</p>
@@ -104,9 +118,9 @@
     </aside>
 
     <main class="workspace">
-      <header class="topbar">
+      <header class="topbar panel">
         <div>
-          <h1>Content Manager</h1>
+          <h1>Dashboard</h1>
           <p>Manage business details, pages, and posts from one place.</p>
         </div>
         <div class="topbar-actions">
@@ -246,14 +260,88 @@
   .admin-shell {
     display: grid;
     grid-template-columns: 240px 1fr;
+    grid-template-rows: 56px 1fr;
     min-height: 100vh;
+    background: #eef2f8;
+    color: #5a6b84;
+    --chrome-bg: linear-gradient(90deg, #2f5ea9, #3b6ab2);
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #d8deea;
+    --panel-bg: #f8fbff;
+    --panel-border: #dbe3f0;
+    --text-strong: #6a7f98;
+    --text-soft: #8ca0b8;
+    --btn-bg: #3f6fd3;
+    --btn-border: #3f6fd3;
+    --btn-text: #ffffff;
+    --active-nav-bg: #e9f0ff;
+    --active-nav-border: #bfd0f6;
+    --field-bg: #ffffff;
+    --field-border: #cad6eb;
+    --field-text: #4e5f77;
+  }
+
+  .admin-shell.dark {
     background: #0f141c;
     color: #e8edf6;
+    --chrome-bg: linear-gradient(90deg, #25467e, #274d8b);
+    --sidebar-bg: #111923;
+    --sidebar-border: #283142;
+    --panel-bg: #131b27;
+    --panel-border: #2a3447;
+    --text-strong: #d6deec;
+    --text-soft: #9fb0cb;
+    --btn-bg: #c56642;
+    --btn-border: #c56642;
+    --btn-text: #ffffff;
+    --active-nav-bg: #1a2433;
+    --active-nav-border: #3a4b69;
+    --field-bg: #0d1420;
+    --field-border: #35445e;
+    --field-text: #e8edf6;
+  }
+
+  .chrome-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+    background: var(--chrome-bg);
+    color: #eef4ff;
+  }
+
+  .chrome-left,
+  .chrome-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .chrome-left a {
+    color: #eef4ff;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .mode-toggle {
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: transparent;
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .top-save {
+    font-size: 0.85rem;
+    padding: 0.45rem 0.75rem;
   }
 
   .sidebar {
-    border-right: 1px solid #283142;
-    background: #111923;
+    border-right: 1px solid var(--sidebar-border);
+    background: var(--sidebar-bg);
     padding: 1rem;
     display: grid;
     grid-template-rows: auto 1fr auto;
@@ -265,11 +353,12 @@
     font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #95a3bc;
+    color: var(--text-soft);
   }
 
   .brand strong {
     font-size: 1.1rem;
+    color: var(--text-strong);
   }
 
   .nav {
@@ -281,15 +370,15 @@
     text-align: left;
     border: 1px solid transparent;
     background: transparent;
-    color: #d6deec;
+    color: var(--text-strong);
     padding: 0.55rem 0.65rem;
     border-radius: 6px;
   }
 
   .nav button:hover,
   .nav button.active {
-    border-color: #3a4b69;
-    background: #1a2433;
+    border-color: var(--active-nav-border);
+    background: var(--active-nav-bg);
   }
 
   .sidebar-actions {
@@ -298,9 +387,9 @@
   }
 
   .sidebar-actions button {
-    border: 1px solid #c56642;
+    border: 1px solid var(--btn-border);
     background: transparent;
-    color: #fff;
+    color: var(--text-strong);
     border-radius: 6px;
     padding: 0.5rem;
   }
@@ -316,20 +405,19 @@
     justify-content: space-between;
     gap: 1rem;
     align-items: center;
-    background: #131b27;
-    border: 1px solid #2a3447;
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
+    padding: 1rem 1.15rem;
   }
 
   .topbar h1 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--text-strong);
   }
 
   .topbar p {
     margin: 0.2rem 0 0;
-    color: #9fb0cb;
+    color: var(--text-soft);
     font-size: 0.88rem;
   }
 
@@ -341,20 +429,20 @@
 
   .status {
     font-size: 0.85rem;
-    color: #8dd99b;
+    color: #4bbf87;
   }
 
   .save {
-    border: 1px solid #c56642;
-    background: #c56642;
-    color: #fff;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-text);
     border-radius: 6px;
     padding: 0.55rem 0.9rem;
   }
 
   .panel {
-    background: #131b27;
-    border: 1px solid #2a3447;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
     border-radius: 10px;
     padding: 1rem;
   }
@@ -366,15 +454,20 @@
   }
 
   .stat-card {
-    border: 1px solid #2e3b52;
+    border: 1px solid var(--panel-border);
     border-radius: 8px;
     padding: 0.85rem;
-    background: #101823;
+    background: rgba(255, 255, 255, 0.35);
+    min-height: 150px;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
   }
 
   .stat-card p {
     margin: 0;
-    color: #9db0cc;
+    color: var(--text-soft);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -383,7 +476,8 @@
   .stat-card strong {
     display: block;
     margin-top: 0.35rem;
-    font-size: 1.1rem;
+    font-size: 2.3rem;
+    color: #3f6fd3;
   }
 
   .quick-actions h2,
@@ -400,9 +494,9 @@
   .quick-grid button,
   .pane-head button,
   .editor-pane button {
-    border: 1px solid #3a4f70;
-    background: #152033;
-    color: #e8edf6;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--text-strong);
     border-radius: 6px;
     padding: 0.45rem 0.7rem;
   }
@@ -414,7 +508,7 @@
   }
 
   .list-pane {
-    border-right: 1px solid #2b3344;
+    border-right: 1px solid var(--panel-border);
     padding-right: 1rem;
   }
 
@@ -444,21 +538,21 @@
     text-align: left;
     display: grid;
     gap: 0.1rem;
-    border: 1px solid #2f3d54;
-    background: #0f1724;
-    color: #e8edf6;
+    border: 1px solid var(--field-border);
+    background: var(--field-bg);
+    color: var(--field-text);
     border-radius: 7px;
     padding: 0.55rem 0.65rem;
   }
 
   .item-row small {
-    color: #97aac6;
+    color: var(--text-soft);
   }
 
   .item-row.selected,
   .item-row:hover {
-    border-color: #5a759d;
-    background: #1a2638;
+    border-color: #8ea8d9;
+    background: var(--active-nav-bg);
   }
 
   .editor-pane {
@@ -476,15 +570,15 @@
     display: grid;
     gap: 0.35rem;
     font-size: 0.9rem;
-    color: #d2deef;
+    color: var(--text-strong);
   }
 
   input,
   textarea {
     width: 100%;
-    border: 1px solid #35445e;
-    background: #0d1420;
-    color: #e8edf6;
+    border: 1px solid var(--field-border);
+    background: var(--field-bg);
+    color: var(--field-text);
     border-radius: 6px;
     padding: 0.6rem 0.65rem;
   }
@@ -499,9 +593,9 @@
   }
 
   .danger {
-    border-color: #8f4545;
-    color: #ffb8b8;
-    background: #261416;
+    border-color: #c96f6f;
+    color: #b04747;
+    background: #fff5f5;
   }
 
   @media (max-width: 1080px) {
@@ -524,11 +618,12 @@
   @media (max-width: 840px) {
     .admin-shell {
       grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
     }
 
     .sidebar {
       border-right: 0;
-      border-bottom: 1px solid #283142;
+      border-bottom: 1px solid var(--sidebar-border);
     }
 
     .form-grid {
@@ -538,6 +633,13 @@
     .topbar {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .chrome-bar {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 0.65rem 0.9rem;
+      gap: 0.45rem;
     }
   }
 </style>
