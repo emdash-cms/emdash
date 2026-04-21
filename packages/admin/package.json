@@ -1,0 +1,111 @@
+{
+  "name": "@emdash-cms/admin",
+  "version": "0.3.0",
+  "description": "Admin UI for EmDash CMS",
+  "type": "module",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./locales": {
+      "types": "./dist/locales/index.d.ts",
+      "default": "./dist/locales/index.js"
+    },
+    "./locales/*": "./dist/locales/*"
+  },
+  "scripts": {
+    "build": "node --run locale:compile && tsdown && node --run locale:copy && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "prepublishOnly": "node --run build",
+    "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
+    "test": "vitest",
+    "typecheck": "tsgo --noEmit",
+    "locale:compile": "lingui compile --namespace es",
+    "locale:copy": "node ./scripts/copy-locales.js",
+    "locale:extract": "lingui extract --clean"
+  },
+  "dependencies": {
+    "@cloudflare/kumo": "^1.16.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@emdash-cms/blocks": "workspace:*",
+    "@floating-ui/react": "^0.27.16",
+    "@lingui/core": "catalog:",
+    "@lingui/react": "catalog:",
+    "@phosphor-icons/react": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@tiptap/core": "catalog:",
+    "@tiptap/extension-character-count": "catalog:",
+    "@tiptap/extension-drag-handle": "catalog:",
+    "@tiptap/extension-drag-handle-react": "catalog:",
+    "@tiptap/extension-dropcursor": "catalog:",
+    "@tiptap/extension-focus": "catalog:",
+    "@tiptap/extension-link": "catalog:",
+    "@tiptap/extension-node-range": "catalog:",
+    "@tiptap/extension-placeholder": "catalog:",
+    "@tiptap/extension-text-align": "catalog:",
+    "@tiptap/extension-typography": "catalog:",
+    "@tiptap/extension-underline": "catalog:",
+    "@tiptap/pm": "catalog:",
+    "@tiptap/react": "catalog:",
+    "@tiptap/starter-kit": "catalog:",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dompurify": "^3.3.2",
+    "marked": "^17.0.3",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hotkeys-hook": "^5.2.4",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "catalog:",
+    "@babel/core": "^7.29.0",
+    "@lingui/babel-plugin-lingui-macro": "catalog:",
+    "@lingui/cli": "catalog:",
+    "@lingui/macro": "catalog:",
+    "@tailwindcss/cli": "^4.1.10",
+    "@tailwindcss/typography": "^0.5.19",
+    "@testing-library/react": "^16.3.0",
+    "@tiptap/suggestion": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "^4.6.0",
+    "@vitest/browser-playwright": "^4.0.18",
+    "jsdom": "^26.1.0",
+    "playwright": "^1.58.2",
+    "publint": "catalog:",
+    "tailwindcss": "^4.1.10",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vite": "^7.0.0",
+    "vitest": "catalog:",
+    "vitest-browser-react": "^2.0.5"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emdash-cms/emdash.git",
+    "directory": "packages/admin"
+  },
+  "homepage": "https://github.com/emdash-cms/emdash",
+  "keywords": [
+    "astro",
+    "cms",
+    "admin",
+    "react"
+  ],
+  "author": "Matt Kane",
+  "license": "MIT"
+}

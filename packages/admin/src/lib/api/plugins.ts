@@ -1,0 +1,78 @@
+/**
+ * Plugin management APIs
+ */
+
+import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
+
+export interface PluginInfo {
+	id: string;
+	name: string;
+	version: string;
+	package?: string;
+	enabled: boolean;
+	status: "installed" | "active" | "inactive";
+	capabilities: string[];
+	hasAdminPages: boolean;
+	hasDashboardWidgets: boolean;
+	hasHooks: boolean;
+	installedAt?: string;
+	activatedAt?: string;
+	deactivatedAt?: string;
+	/** Plugin source: 'config' (declared in astro.config) or 'marketplace' */
+	source?: "config" | "marketplace";
+	/** Installed marketplace version (set when source = 'marketplace') */
+	marketplaceVersion?: string;
+	/** Description of what the plugin does */
+	description?: string;
+	/** URL to the plugin icon (marketplace plugins use the icon proxy) */
+	iconUrl?: string;
+}
+
+/**
+ * Fetch all plugins
+ */
+export async function fetchPlugins(): Promise<PluginInfo[]> {
+	const response = await apiFetch(`${API_BASE}/admin/plugins`);
+	const result = await parseApiResponse<{ items: PluginInfo[] }>(
+		response,
+		"Failed to fetch plugins",
+	);
+	return result.items;
+}
+
+/**
+ * Fetch a single plugin
+ */
+export async function fetchPlugin(pluginId: string): Promise<PluginInfo> {
+	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}`);
+	if (!response.ok) {
+		if (response.status === 404) {
+			throw new Error(`Plugin "${pluginId}" not found`);
+		}
+		await throwResponseError(response, "Failed to fetch plugin");
+	}
+	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to fetch plugin");
+	return result.item;
+}
+
+/**
+ * Enable a plugin
+ */
+export async function enablePlugin(pluginId: string): Promise<PluginInfo> {
+	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}/enable`, {
+		method: "POST",
+	});
+	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to enable plugin");
+	return result.item;
+}
+
+/**
+ * Disable a plugin
+ */
+export async function disablePlugin(pluginId: string): Promise<PluginInfo> {
+	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}/disable`, {
+		method: "POST",
+	});
+	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to disable plugin");
+	return result.item;
+}
