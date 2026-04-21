@@ -379,6 +379,7 @@ function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
 			height: block.height,
 			displayWidth: block.displayWidth,
 			displayHeight: block.displayHeight,
+			link: block.link ? { href: block.link.href, blank: block.link.blank } : null,
 		},
 	};
 }

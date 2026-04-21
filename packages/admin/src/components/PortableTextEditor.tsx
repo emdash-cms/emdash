@@ -109,6 +109,7 @@ interface PortableTextImageBlock {
 	height?: number;
 	displayWidth?: number;
 	displayHeight?: number;
+	link?: { href: string; blank?: boolean };
 }
 
 interface PortableTextCodeBlock {
@@ -249,6 +250,18 @@ function convertPMNode(node: {
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
+			// Normalise link: drop when href is missing/empty so half-populated
+			// { blank: true } objects don't leak into Portable Text.
+			let link: { href: string; blank?: boolean } | undefined;
+			const rawLink = attrs.link;
+			if (rawLink && typeof rawLink === "object") {
+				const linkObj = rawLink as { href?: unknown; blank?: unknown };
+				const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
+				if (href) {
+					link = { href };
+					if (linkObj.blank === true) link.blank = true;
+				}
+			}
 			return {
 				_type: "image",
 				_key: generateKey(),
@@ -263,6 +276,7 @@ function convertPMNode(node: {
 				height: attrNum(attrs.height),
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
+				link,
 			};
 		}
 
@@ -530,6 +544,9 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					height: imageBlock.height,
 					displayWidth: imageBlock.displayWidth,
 					displayHeight: imageBlock.displayHeight,
+					link: imageBlock.link
+						? { href: imageBlock.link.href, blank: imageBlock.link.blank }
+						: null,
 				},
 			};
 		}
@@ -1808,7 +1825,9 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
 			// Focus input after state update
 			setTimeout(() => inputRef.current?.focus(), 0);
@@ -1816,7 +1835,14 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	}, [showLinkInput, editor]);
 
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			const trimmed = linkUrl.trim();
+			editor
+				.chain()
+				.focus()
+				.updateAttributes("image", { link: trimmed ? { href: trimmed } : null })
+				.run();
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -1826,7 +1852,11 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			editor.chain().focus().updateAttributes("image", { link: null }).run();
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		setShowLinkInput(false);
 		setLinkUrl("");
 	};
@@ -1857,8 +1887,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 				<div className="flex items-center gap-1">
 					<Input
 						ref={inputRef}
-						type="url"
-						placeholder="https://..."
+						type="text"
+						placeholder="https://example.com or /page"
 						value={linkUrl}
 						onChange={(e) => setLinkUrl(e.target.value)}
 						onKeyDown={handleKeyDown}
@@ -1875,7 +1905,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{editor.isActive("link") && (
+					{(editor.isActive("link") ||
+						(editor.isActive("image") && editor.getAttributes("image").link)) && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -1929,8 +1960,16 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					<div className="w-px h-6 bg-kumo-line mx-1" />
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={editor.isActive("link")}
-						title={editor.isActive("link") ? "Edit link" : "Add link"}
+						active={
+							editor.isActive("link") ||
+							(editor.isActive("image") && Boolean(editor.getAttributes("image").link))
+						}
+						title={
+							editor.isActive("link") ||
+							(editor.isActive("image") && Boolean(editor.getAttributes("image").link))
+								? "Edit link"
+								: "Add link"
+						}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -2007,6 +2046,8 @@ function EditorToolbar({
 			isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
 			isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
 			isLink: ctx.editor.isActive("link"),
+			isImage: ctx.editor.isActive("image"),
+			imageHasLink: ctx.editor.isActive("image") && Boolean(ctx.editor.getAttributes("image").link),
 			canUndo: ctx.editor.can().undo(),
 			canRedo: ctx.editor.can().redo(),
 		}),
@@ -2015,14 +2056,23 @@ function EditorToolbar({
 	// Populate link URL when opening popover
 	React.useEffect(() => {
 		if (showLinkPopover) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
 			setTimeout(() => linkInputRef.current?.focus(), 0);
 		}
 	}, [showLinkPopover, editor]);
 
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			const trimmed = linkUrl.trim();
+			editor
+				.chain()
+				.focus()
+				.updateAttributes("image", { link: trimmed ? { href: trimmed } : null })
+				.run();
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -2032,7 +2082,11 @@ function EditorToolbar({
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			editor.chain().focus().updateAttributes("image", { link: null }).run();
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
 	};
@@ -2248,8 +2302,8 @@ function EditorToolbar({
 				<div className="relative">
 					<ToolbarButton
 						onClick={() => setShowLinkPopover(!showLinkPopover)}
-						active={editorState.isLink}
-						title="Insert Link"
+						active={editorState.isLink || editorState.imageHasLink}
+						title={editorState.isImage ? "Image Link" : "Insert Link"}
 					>
 						<LinkIcon className="h-4 w-4" aria-hidden="true" />
 					</ToolbarButton>
@@ -2260,8 +2314,8 @@ function EditorToolbar({
 								<div className="flex items-center gap-1">
 									<Input
 										ref={linkInputRef}
-										type="url"
-										placeholder="https://..."
+										type="text"
+										placeholder="https://example.com or /page"
 										value={linkUrl}
 										onChange={(e) => setLinkUrl(e.target.value)}
 										onKeyDown={handleLinkKeyDown}
@@ -2281,7 +2335,7 @@ function EditorToolbar({
 										Cancel
 									</Button>
 									<div className="flex gap-1">
-										{editorState.isLink && (
+										{(editorState.isLink || editorState.imageHasLink) && (
 											<Button
 												type="button"
 												variant="ghost"
