@@ -10,6 +10,13 @@ export interface StarterSiteIdentitySettings {
 	tagline?: string;
 	logo?: MediaReference;
 	favicon?: MediaReference;
+	phone?: string;
+	email?: string;
+	address?: string;
+	hours?: string;
+	facebookUrl?: string;
+	instagramUrl?: string;
+	googleMapsUrl?: string;
 }
 
 const DEFAULT_SITE_TITLE = "My Site";
@@ -21,5 +28,12 @@ export function resolveStarterSiteIdentity(settings?: StarterSiteIdentitySetting
 		siteTagline: settings?.tagline ?? DEFAULT_SITE_TAGLINE,
 		siteLogo: settings?.logo?.url ? settings.logo : null,
 		siteFavicon: settings?.favicon?.url ?? null,
+		phone: settings?.phone?.trim() || null,
+		email: settings?.email?.trim() || null,
+		address: settings?.address?.trim() || null,
+		hours: settings?.hours?.trim() || null,
+		facebookUrl: settings?.facebookUrl?.trim() || null,
+		instagramUrl: settings?.instagramUrl?.trim() || null,
+		googleMapsUrl: settings?.googleMapsUrl?.trim() || null,
 	};
 }

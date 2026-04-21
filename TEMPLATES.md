@@ -58,7 +58,7 @@ A flexible baseline template for agencies building local business sites.
 
 - Dynamic page routes for CMS-created pages
 - Posts, pages, categories, and tags
-- `setup:business` wizard for name/contact/hours
+- `setup:business` wizard for name/contact/hours/socials with structured site settings
 - Design preset generator (classic/coastal/orchard)
 - Minimal, editable structure for custom components
 

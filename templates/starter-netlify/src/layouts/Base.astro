@@ -22,7 +22,19 @@ interface Props {
 }
 
 const { title, pageTitle, description, image, canonical, content } = Astro.props;
-const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveStarterSiteIdentity(await getSiteSettings());
+const {
+	siteTitle,
+	siteTagline,
+	siteLogo,
+	siteFavicon,
+	phone,
+	email,
+	address,
+	hours,
+	facebookUrl,
+	instagramUrl,
+	googleMapsUrl,
+} = resolveStarterSiteIdentity(await getSiteSettings());
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 const pageDescription = description ?? siteTagline;
 
@@ -81,6 +93,48 @@ const pageCtx = createPublicPageContext({
 
 		<footer>
 			<WidgetArea name="sidebar" />
+			{
+				(phone || email || address || hours || facebookUrl || instagramUrl || googleMapsUrl) && (
+					<section aria-label="Business Information">
+						<h2>Business Information</h2>
+						<ul>
+							{phone && (
+								<li>
+									<strong>Phone:</strong>{" "}
+									<a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>
+								</li>
+							)}
+							{email && (
+								<li>
+									<strong>Email:</strong> <a href={`mailto:${email}`}>{email}</a>
+								</li>
+							)}
+							{address && (
+								<li>
+									<strong>Address:</strong>{" "}
+									{googleMapsUrl ? <a href={googleMapsUrl}>{address}</a> : address}
+								</li>
+							)}
+							{hours && (
+								<li>
+									<strong>Hours:</strong>{" "}
+									<span style="white-space: pre-line">{hours}</span>
+								</li>
+							)}
+						</ul>
+						{
+							(facebookUrl || instagramUrl) && (
+								<p>
+									<strong>Follow:</strong>{" "}
+									{facebookUrl && <a href={facebookUrl}>Facebook</a>}
+									{facebookUrl && instagramUrl ? " · " : ""}
+									{instagramUrl && <a href={instagramUrl}>Instagram</a>}
+								</p>
+							)
+						}
+					</section>
+				)
+			}
 		</footer>
 
 		<EmDashBodyEnd page={pageCtx} />
