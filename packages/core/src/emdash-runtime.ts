@@ -1247,18 +1247,21 @@ export class EmDashRuntime {
 		// DB-persisted cache (1 query instead of N+1 rebuild on cold start).
 		// Keyed by SHA of commit + config to bust on deploys. DB-driven
 		// changes (collections, fields, plugins, taxonomies) go through
-		// invalidateManifest().
-		try {
-			const options = new OptionsRepository(this.db);
-			const cached = await options.get<{ key: string; manifest: EmDashManifest }>(
-				"emdash:manifest_cache",
-			);
-			if (cached && cached.key === this._manifestCacheKey && cached.manifest) {
-				this._cachedManifest = cached.manifest;
-				return cached.manifest;
+		// invalidateManifest(). Skipped in dev mode so plugin/collection
+		// changes are always reflected without a manual cache bust.
+		if (!import.meta.env.DEV) {
+			try {
+				const options = new OptionsRepository(this.db);
+				const cached = await options.get<{ key: string; manifest: EmDashManifest }>(
+					"emdash:manifest_cache",
+				);
+				if (cached && cached.key === this._manifestCacheKey && cached.manifest) {
+					this._cachedManifest = cached.manifest;
+					return cached.manifest;
+				}
+			} catch {
+				// Options table may not exist yet
 			}
-		} catch {
-			// Options table may not exist yet
 		}
 
 		// Full rebuild, then persist. Track which promise is current so
@@ -1279,14 +1282,16 @@ export class EmDashRuntime {
 			if (isCurrentLoad()) {
 				this._cachedManifest = manifest;
 
-				try {
-					const options = new OptionsRepository(this.db);
-					await options.set("emdash:manifest_cache", {
-						key: this._manifestCacheKey,
-						manifest,
-					});
-				} catch {
-					// Non-fatal — will just rebuild next time
+				if (!import.meta.env.DEV) {
+					try {
+						const options = new OptionsRepository(this.db);
+						await options.set("emdash:manifest_cache", {
+							key: this._manifestCacheKey,
+							manifest,
+						});
+					} catch {
+						// Non-fatal — will just rebuild next time
+					}
 				}
 			}
 
