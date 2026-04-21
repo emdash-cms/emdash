@@ -1,0 +1,91 @@
+---
+import { getEmDashEntry, getEntryTerms, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
+import { Image, PortableText, WidgetArea } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import { resolveStarterSiteIdentity } from "../../utils/site-identity";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+
+if (!post) {
+	return Astro.redirect("/404");
+}
+
+Astro.cache.set(cacheHint);
+const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
+
+// SEO meta from content fields
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: `/posts/${slug}`,
+});
+
+// Taxonomy terms for this post (use post.data.id, not post.id)
+const tags = await getEntryTerms("posts", post.data.id, "tag");
+const categories = await getEntryTerms("posts", post.data.id, "category");
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	image={seo.ogImage}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+	<article>
+		{
+			post.data.featured_image && (
+				<div {...post.edit.featured_image}>
+					<Image image={post.data.featured_image} />
+				</div>
+			)
+		}
+
+		<h1 {...post.edit.title}>{post.data.title}</h1>
+
+		{
+			post.data.publishedAt && (
+				<time datetime={post.data.publishedAt.toISOString()}>
+					{post.data.publishedAt.toLocaleDateString("en-US", {
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+					})}
+				</time>
+			)
+		}
+
+		{
+			categories.length > 0 && (
+				<div>
+					{categories.map((c) => (
+						<a href={`/category/${c.slug}`}>{c.label}</a>
+					))}
+				</div>
+			)
+		}
+
+		<PortableText value={post.data.content} />
+
+		{
+			tags.length > 0 && (
+				<div>
+					{tags.map((t) => (
+						<a href={`/tag/${t.slug}`}>{t.label}</a>
+					))}
+				</div>
+			)
+		}
+	</article>
+
+	<aside>
+		<WidgetArea name="sidebar" />
+	</aside>
+</Base>

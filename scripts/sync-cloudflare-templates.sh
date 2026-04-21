@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Syncs shared files from base templates to their cloudflare variants.
+# Syncs shared files from base templates to runtime variants.
 # Run this after making changes to template src/, seed/, or tsconfig.json.
 #
 # Usage: ./scripts/sync-cloudflare-templates.sh
@@ -12,22 +12,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 TEMPLATES_DIR="$ROOT_DIR/templates"
 
-# Files/directories to sync from base template to cloudflare variant
+# Files/directories to sync from base template to runtime variants
 SYNC_ITEMS=(
 	"src"
 	"public"
 	"seed"
+	"scripts"
 	"tsconfig.json"
 	"emdash-env.d.ts"
 	".gitignore"
 )
 
-# Template pairs: base -> cloudflare variant
+# Template pairs: base -> runtime variant
 TEMPLATE_PAIRS=(
 	"blog:blog-cloudflare"
 	"marketing:marketing-cloudflare"
 	"portfolio:portfolio-cloudflare"
 	"starter:starter-cloudflare"
+	"starter:starter-vercel"
+	"starter:starter-netlify"
 )
 
 sync_template() {
@@ -80,7 +83,7 @@ sync_template() {
 	done
 }
 
-echo "Syncing cloudflare template variants..."
+echo "Syncing runtime template variants..."
 echo ""
 
 for pair in "${TEMPLATE_PAIRS[@]}"; do

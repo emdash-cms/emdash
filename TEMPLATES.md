@@ -50,11 +50,27 @@ A portfolio for showcasing creative work with project pages and tag filtering.
 
 **Pages:** Homepage, work listing, single project, about, contact, 404
 
+### Starter
+
+A flexible baseline template for agencies building local business sites.
+
+**Features:**
+
+- Dynamic page routes for CMS-created pages
+- Posts, pages, categories, and tags
+- `setup:business` wizard for name/contact/hours
+- Design preset generator (classic/coastal/orchard)
+- Minimal, editable structure for custom components
+
+**Pages:** Homepage, post archive, single post, dynamic content pages, category archive, tag archive, 404
+
 ## Using a Template
 
-Each template has two variants:
+Each template has runtime variants:
 
-- **Node.js** (`templates/blog`, `templates/marketing`, `templates/portfolio`) — uses SQLite and local file storage
+- **Node.js** (`templates/blog`, `templates/marketing`, `templates/portfolio`, `templates/starter`) — uses SQLite and local file storage
+- **Vercel** (`templates/starter-vercel`) — Vercel adapter with production-safe env-based DB/storage config
+- **Netlify** (`templates/starter-netlify`) — Netlify adapter with production-safe env-based DB/storage config
 - **Cloudflare** (`templates/blog-cloudflare`, etc.) — uses D1 and R2
 
 ### Quick Start
@@ -69,6 +85,9 @@ pnpm install
 
 # Initialize the database and seed demo content
 pnpm bootstrap
+
+# Optional: personalize content and apply a design preset
+pnpm setup:business
 
 # Start the dev server
 pnpm dev
@@ -95,13 +114,14 @@ templates/blog/
 
 ## Contributing
 
-### Cloudflare Variants
+### Runtime Variants
 
-The cloudflare variants share most of their code with the base templates. Only these files differ:
+Runtime variants share most of their code with the base templates. Only runtime-specific files differ:
 
-- `astro.config.mjs` (cloudflare adapter, D1/R2 storage)
+- `astro.config.mjs` (platform adapter + runtime database/storage)
 - `package.json` (different dependencies)
-- `wrangler.jsonc` (cloudflare config)
+- provider config files where applicable (for example `wrangler.jsonc`)
+- `.env.example` for serverless variants
 
 Everything else is synced from the base template using a script:
 
@@ -109,7 +129,34 @@ Everything else is synced from the base template using a script:
 ./scripts/sync-cloudflare-templates.sh
 ```
 
-**Run this after making changes** to `src/`, `seed/`, `tsconfig.json`, `emdash-env.d.ts`, or `.gitignore` in any base template. It copies those files to the corresponding cloudflare variant.
+**Run this after making changes** to `src/`, `seed/`, `scripts/`, `tsconfig.json`, `emdash-env.d.ts`, or `.gitignore` in any base template. It copies those files to corresponding runtime variants.
+
+### Deploying Starter to Vercel or Netlify
+
+`starter-vercel` and `starter-netlify` are designed for:
+
+- local development fallback with SQLite + local uploads
+- production deployment with external database + object storage
+
+Required production environment variables:
+
+- `DATABASE_URL`
+- `S3_ENDPOINT`
+- `S3_BUCKET`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_REGION`
+- `S3_PUBLIC_URL`
+
+Recommended workflow for agency handoff:
+
+1. Copy `templates/starter-vercel` or `templates/starter-netlify`
+2. Run `pnpm install`
+3. Run `pnpm setup:business` and enter business details + design preset
+4. Run `pnpm bootstrap`
+5. Push to Git provider and connect to Vercel/Netlify
+6. Set the environment variables from `.env.example`
+7. Deploy and hand off admin access
 
 The primary Node demo is also synced from the blog template:
 
@@ -153,8 +200,8 @@ To add pages for a template, edit `templates/screenshots.json`.
 1. Create the base template in `templates/{name}/`
 2. Include a seed file at `seed/seed.json` (or configure the path in `package.json` under `emdash.seed`)
 3. Add the `typecheck` script to `package.json`
-4. Create the cloudflare variant in `templates/{name}-cloudflare/` with the appropriate adapter config
-5. Add the template pair to `scripts/sync-cloudflare-templates.sh`
+4. Create runtime variants as needed (for example `templates/{name}-cloudflare`, `templates/{name}-vercel`, `templates/{name}-netlify`) with the appropriate adapter config
+5. Add base-to-variant pairs to `scripts/sync-cloudflare-templates.sh`
 6. Add the template's pages to `templates/screenshots.json` and run the screenshot script
 7. Update the README template gallery
 

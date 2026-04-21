@@ -52,6 +52,16 @@ const NODE_TEMPLATES = {
 		description: "A general-purpose starter with posts and pages",
 		dir: "starter",
 	},
+	"starter-vercel": {
+		name: "Starter (Vercel)",
+		description: "Starter configured for Vercel with serverless-safe production defaults",
+		dir: "starter-vercel",
+	},
+	"starter-netlify": {
+		name: "Starter (Netlify)",
+		description: "Starter configured for Netlify with serverless-safe production defaults",
+		dir: "starter-netlify",
+	},
 	marketing: {
 		name: "Marketing",
 		description: "A marketing site with landing pages and CTAs",
