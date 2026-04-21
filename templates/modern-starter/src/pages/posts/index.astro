@@ -1,0 +1,58 @@
+---
+import { getEmDashCollection, getEntryTerms } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import TagList from "../../components/TagList.astro";
+import { getReadingTime } from "../../utils/reading-time";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+});
+Astro.cache.set(cacheHint);
+
+const postsWithTags = await Promise.all(
+	posts.map(async (post) => ({
+		post,
+		tags: (await getEntryTerms("posts", post.data.id, "tag")).map((tag) => ({ slug: tag.slug, label: tag.label })),
+	}))
+);
+
+const formatDate = (date: Date | null | undefined) =>
+	date
+		? date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+		: null;
+---
+
+<Base title="All Posts" description="Browse the full editorial archive.">
+	<section class="posts-page">
+		<div class="wide-container">
+			<header class="page-header">
+				<div>
+					<span class="eyebrow">Archive</span>
+					<h1 class="page-title">All Posts</h1>
+				</div>
+				<p>{posts.length} {posts.length === 1 ? "story" : "stories"}</p>
+			</header>
+
+			<div class="posts-list">
+				{postsWithTags.map(({ post, tags }) => (
+					<article class="post-row">
+						<a href={`/posts/${post.id}`} class="post-row-image">
+							{post.data.featured_image ? <Image image={post.data.featured_image} /> : null}
+						</a>
+						<div>
+							<div class="post-meta">
+								{post.data.publishedAt && <time>{formatDate(post.data.publishedAt)}</time>}
+								{post.data.publishedAt && <span class="meta-dot" />}
+								<span>{getReadingTime(post.data.content)} min read</span>
+							</div>
+							<h2 class="card-title"><a href={`/posts/${post.id}`}>{post.data.title}</a></h2>
+							{post.data.excerpt && <p>{post.data.excerpt}</p>}
+							<TagList tags={tags} />
+						</div>
+					</article>
+				))}
+			</div>
+		</div>
+	</section>
+</Base>

@@ -1,0 +1,142 @@
+---
+import {
+	getEmDashEntry,
+	getEmDashCollection,
+	getEntryTerms,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { Image, PortableText, Comments, CommentForm, WidgetArea } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import TagList from "../../components/TagList.astro";
+import PostMeta from "../../components/PostMeta.astro";
+import { getReadingTime } from "../../utils/reading-time";
+import { resolveModernStarterSiteIdentity } from "../../utils/site-identity";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+if (!post) return Astro.redirect("/404");
+Astro.cache.set(cacheHint);
+
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	if (typeof image.src === "string" && image.src) {
+		return image.src.startsWith("http") ? image.src : `${Astro.url.origin}${image.src}`;
+	}
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	return storageKey ? `${Astro.url.origin}/_emdash/api/media/file/${storageKey}` : undefined;
+}
+
+const featuredImageUrl = getImageUrl(post.data.featured_image);
+const { siteTitle } = resolveModernStarterSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: `/posts/${slug}`,
+	defaultOgImage: featuredImageUrl,
+});
+const tags = await getEntryTerms("posts", post.data.id, "tag");
+const category = await getEntryTerms("posts", post.data.id, "category");
+const bylines = post.data.bylines ?? [];
+const readingTime = getReadingTime(post.data.content);
+
+const { entries: recentPosts } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+	limit: 4,
+});
+const relatedPosts = recentPosts.filter((entry) => entry.id !== post.id).slice(0, 3);
+
+const shareUrl = Astro.url.href;
+const shareLinks = [
+	{ label: "X", href: `https://x.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post.data.title || "")}` },
+	{ label: "LinkedIn", href: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}` },
+	{ label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+];
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	image={featuredImageUrl}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.updatedAt?.toISOString?.() ?? post.data.publishedAt?.toISOString() ?? null}
+	author={bylines.map((credit) => credit.byline.displayName).join(", ") || null}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+	<section class="article-shell">
+		<div class="wide-container article-grid">
+			<article class="article-main">
+				{post.data.featured_image && (
+					<div class="article-cover">
+						<Image image={post.data.featured_image} />
+					</div>
+				)}
+				<span class="eyebrow">{category[0]?.label ?? "Story"}</span>
+				<h1 class="article-title" {...post.edit.title}>{post.data.title}</h1>
+				<PostMeta
+					date={post.data.publishedAt ?? null}
+					readingTime={readingTime}
+					category={category[0]?.label ?? null}
+					bylines={bylines}
+				/>
+				{post.data.excerpt && <p class="article-intro">{post.data.excerpt}</p>}
+				<TagList tags={tags.map((tag) => ({ slug: tag.slug, label: tag.label }))} />
+				<div class="article-content">
+					<PortableText value={post.data.content} />
+				</div>
+
+				<div class="author-strip">
+					<div class="author-avatar">{(bylines[0]?.byline.displayName || "E").slice(0, 1)}</div>
+					<div>
+						<strong>{bylines[0]?.byline.displayName || "Editorial Team"}</strong>
+						<p style="margin-top: 0.35rem;">Thoughtful, modern publishing with EmDash, Astro, and a premium design system.</p>
+					</div>
+				</div>
+
+				<section class="section" style="padding-bottom: 0;">
+					<div class="section-header">
+						<h2 class="section-title" style="font-size: 2rem;">Comments</h2>
+					</div>
+					<CommentForm entryId={post.data.id} />
+					<Comments entryId={post.data.id} />
+				</section>
+			</article>
+
+			<aside class="article-aside">
+				<div class="aside-panel">
+					<h3>Share</h3>
+					<div class="share-links">
+						{shareLinks.map((link) => (
+							<a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a>
+						))}
+					</div>
+				</div>
+				<div class="aside-panel">
+					<h3>Related</h3>
+					<div class="related-list">
+						{relatedPosts.map((entry) => (
+							<a class="related-item" href={`/posts/${entry.id}`}>
+								<strong>{entry.data.title}</strong>
+								<span>{entry.data.excerpt}</span>
+							</a>
+						))}
+					</div>
+				</div>
+				<div class="aside-panel">
+					<h3>Sidebar</h3>
+					<WidgetArea name="sidebar" />
+				</div>
+			</aside>
+		</div>
+	</section>
+</Base>

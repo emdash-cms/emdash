@@ -1,0 +1,110 @@
+---
+import { getEmDashCollection, getEntryTerms, getSiteSettings } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import PostCard from "../components/PostCard.astro";
+import TagList from "../components/TagList.astro";
+import { getReadingTime } from "../utils/reading-time";
+import { resolveModernStarterSiteIdentity } from "../utils/site-identity";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+Astro.cache.set(cacheHint);
+
+const { siteTitle, siteTagline } = resolveModernStarterSiteIdentity(await getSiteSettings());
+const sortedPosts = posts.toSorted((a, b) => {
+	const dateA = a.data.publishedAt?.getTime() ?? 0;
+	const dateB = b.data.publishedAt?.getTime() ?? 0;
+	return dateB - dateA;
+});
+
+const heroPost = sortedPosts.find((post) => post.data.featured_image) ?? sortedPosts[0];
+const heroTags = heroPost ? await getEntryTerms("posts", heroPost.data.id, "tag") : [];
+const featuredStrip = sortedPosts.filter((post) => post.id !== heroPost?.id).slice(0, 3);
+const gridPosts = sortedPosts.filter((post) => post.id !== heroPost?.id).slice(3, 9);
+const gridPostsWithMeta = await Promise.all(
+	gridPosts.map(async (post) => ({
+		post,
+		tags: (await getEntryTerms("posts", post.data.id, "tag")).map((tag) => ({ slug: tag.slug, label: tag.label })),
+		bylines: post.data.bylines ?? [],
+	}))
+);
+---
+
+<Base title={siteTitle} description={siteTagline}>
+	{posts.length === 0 ? (
+		<section class="section">
+			<div class="container empty-state">
+				<h1 class="section-title">No stories yet</h1>
+				<p>Open the admin panel and publish the first piece.</p>
+				<a href="/_emdash/admin/content/posts/new" class="btn">Create a post</a>
+			</div>
+		</section>
+	) : (
+		<>
+			<section class="hero">
+				<div class="wide-container hero-grid">
+					{heroPost && (
+						<a class="hero-feature" href={`/posts/${heroPost.id}`}>
+							{heroPost.data.featured_image && <Image image={heroPost.data.featured_image} />}
+							<div class="hero-overlay"></div>
+							<div class="hero-content">
+								<span class="eyebrow">Featured story</span>
+								<h1 class="hero-title">{heroPost.data.title}</h1>
+								{heroPost.data.excerpt && <p class="hero-summary">{heroPost.data.excerpt}</p>}
+								<TagList tags={heroTags.map((tag) => ({ slug: tag.slug, label: tag.label }))} />
+								<div class="hero-actions">
+									<span class="btn">Read feature</span>
+									<span class="btn-secondary">{getReadingTime(heroPost.data.content)} min read</span>
+								</div>
+							</div>
+						</a>
+					)}
+					<div class="hero-side">
+						<div class="hero-panel">
+							<span class="eyebrow">Editorial promise</span>
+							<h2>A polished starter for fast teams.</h2>
+							<p>Modern Starter gives EmDash a premium dark editorial surface with archives, search, RSS, widgets, and a strong single-post experience built in.</p>
+						</div>
+						<div class="hero-panel">
+							<span class="eyebrow">Fresh reads</span>
+							<div class="hero-mini-list">
+								{featuredStrip.map((post) => (
+									<a class="hero-mini-item" href={`/posts/${post.id}`}>
+										<h3>{post.data.title}</h3>
+										{post.data.excerpt && <p>{post.data.excerpt}</p>}
+									</a>
+								))}
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="section">
+				<div class="wide-container">
+					<div class="section-header">
+						<div>
+							<span class="eyebrow">Latest</span>
+							<h2 class="section-title">New stories and field notes</h2>
+						</div>
+						<a href="/posts" class="section-link">Browse archive</a>
+					</div>
+					<div class="posts-grid">
+						{gridPostsWithMeta.map(({ post, tags, bylines }) => (
+							<PostCard
+								title={post.data.title}
+								excerpt={post.data.excerpt}
+								featuredImage={post.data.featured_image}
+								href={`/posts/${post.id}`}
+								date={post.data.publishedAt ?? undefined}
+								readingTime={getReadingTime(post.data.content)}
+								tags={tags}
+								bylines={bylines}
+							/>
+						))}
+					</div>
+				</div>
+			</section>
+		</>
+	)}
+</Base>

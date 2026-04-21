@@ -1,0 +1,25 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "modern-starter-cloudflare",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "modern-starter-cloudflare",
+			"database_id": "local"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "modern-starter-media"
+		}
+	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER"
+		}
+	]
+}

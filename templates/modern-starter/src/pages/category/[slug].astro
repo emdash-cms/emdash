@@ -1,0 +1,49 @@
+---
+import { getTerm, getEmDashCollection, getEntryTerms, decodeSlug } from "emdash";
+import Base from "../../layouts/Base.astro";
+import PostCard from "../../components/PostCard.astro";
+import { getReadingTime } from "../../utils/reading-time";
+
+const slug = decodeSlug(Astro.params.slug);
+const term = slug ? await getTerm("category", slug) : null;
+if (!term) return Astro.redirect("/404");
+
+const { entries: posts } = await getEmDashCollection("posts", {
+	where: { category: term.slug },
+	orderBy: { published_at: "desc" },
+});
+
+const postsWithTags = await Promise.all(
+	posts.map(async (post) => ({
+		post,
+		tags: (await getEntryTerms("posts", post.data.id, "tag")).map((tag) => ({ slug: tag.slug, label: tag.label })),
+	}))
+);
+---
+
+<Base title={`${term.label} posts`} description={`All posts in ${term.label}.`}>
+	<section class="archive-section">
+		<div class="wide-container">
+			<header class="archive-header">
+				<div>
+					<span class="eyebrow">Category</span>
+					<h1 class="archive-title">{term.label}</h1>
+				</div>
+				<p>{posts.length} {posts.length === 1 ? "story" : "stories"}</p>
+			</header>
+			<div class="posts-grid">
+				{postsWithTags.map(({ post, tags }) => (
+					<PostCard
+						title={post.data.title}
+						excerpt={post.data.excerpt}
+						featuredImage={post.data.featured_image}
+						href={`/posts/${post.id}`}
+						date={post.data.publishedAt ?? undefined}
+						readingTime={getReadingTime(post.data.content)}
+						tags={tags}
+					/>
+				))}
+			</div>
+		</div>
+	</section>
+</Base>

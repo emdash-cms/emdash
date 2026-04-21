@@ -1,0 +1,23 @@
+---
+import type { ContentBylineCredit } from "emdash";
+interface Props {
+	date?: Date | null;
+	readingTime?: number;
+	category?: string | null;
+	bylines?: ContentBylineCredit[];
+}
+const { date, readingTime, category, bylines = [] } = Astro.props;
+const formattedDate = date
+	? date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+	: null;
+---
+
+<div class="article-meta">
+	{category && <span>{category}</span>}
+	{category && (formattedDate || bylines.length > 0 || readingTime) && <span class="meta-dot" />}
+	{formattedDate && <time datetime={date?.toISOString()}>{formattedDate}</time>}
+	{formattedDate && bylines.length > 0 && <span class="meta-dot" />}
+	{bylines.length > 0 && <span>{bylines.map((credit) => credit.byline.displayName).join(", ")}</span>}
+	{(formattedDate || bylines.length > 0) && readingTime && <span class="meta-dot" />}
+	{readingTime && <span>{readingTime} min read</span>}
+</div>

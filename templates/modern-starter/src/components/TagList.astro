@@ -1,0 +1,14 @@
+---
+interface Props {
+	tags: Array<{ slug: string; label: string }>;
+}
+const { tags } = Astro.props;
+---
+
+{tags.length > 0 && (
+	<div class="tag-list">
+		{tags.map((tag) => (
+			<a class="tag" href={`/tag/${tag.slug}`}>{tag.label}</a>
+		))}
+	</div>
+)}

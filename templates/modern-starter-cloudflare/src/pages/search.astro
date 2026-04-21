@@ -1,0 +1,53 @@
+---
+export const prerender = false;
+
+import { getEmDashCollection } from "emdash";
+import Base from "../layouts/Base.astro";
+import PostCard from "../components/PostCard.astro";
+import { extractText, getReadingTime } from "../utils/reading-time";
+
+const query = Astro.url.searchParams.get("q")?.trim() || "";
+const { entries: posts } = await getEmDashCollection("posts");
+
+function matchesQuery(post: (typeof posts)[0], q: string): boolean {
+	if (!q) return false;
+	const lower = q.toLowerCase();
+	const title = (post.data.title || "").toLowerCase();
+	const excerpt = (post.data.excerpt || "").toLowerCase();
+	const content = extractText(post.data.content).toLowerCase();
+	return title.includes(lower) || excerpt.includes(lower) || content.includes(lower);
+}
+
+const results = query ? posts.filter((post) => matchesQuery(post, query)) : [];
+---
+
+<Base title={query ? `Search: ${query}` : "Search"} description="Search the editorial archive.">
+	<section class="search-page">
+		<div class="container">
+			<header class="page-header">
+				<div>
+					<span class="eyebrow">Search</span>
+					<h1 class="page-title">Find a story</h1>
+				</div>
+			</header>
+			<form method="get" action="/search" class="search-form">
+				<input type="search" name="q" value={query} placeholder="Search posts..." class="search-input" />
+				<button type="submit" class="search-button">Search</button>
+			</form>
+			{query && <p>{results.length === 0 ? `No results for "${query}"` : `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}</p>}
+			<div class="posts-grid">
+				{results.map((post) => (
+					<PostCard
+						title={post.data.title}
+						excerpt={post.data.excerpt}
+						featuredImage={post.data.featured_image}
+						href={`/posts/${post.id}`}
+						date={post.data.publishedAt ?? undefined}
+						readingTime={getReadingTime(post.data.content)}
+					/>
+				))}
+			</div>
+			{!query && <p>Try searching for “EmDash”, “design”, or “plugins”.</p>}
+		</div>
+	</section>
+</Base>

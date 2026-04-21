@@ -1,0 +1,811 @@
+{
+  "$schema": "https://emdashcms.com/seed.schema.json",
+  "version": "1",
+  "meta": {
+    "name": "Modern Starter",
+    "description": "Premium dark editorial template for EmDash",
+    "author": "OpenAI"
+  },
+  "settings": {
+    "title": "Modern Starter",
+    "tagline": "Thoughtful publishing with a premium edge"
+  },
+  "collections": [
+    {
+      "slug": "posts",
+      "label": "Posts",
+      "labelSingular": "Post",
+      "supports": [
+        "drafts",
+        "revisions",
+        "search",
+        "seo"
+      ],
+      "commentsEnabled": true,
+      "fields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true,
+          "searchable": true
+        },
+        {
+          "slug": "featured_image",
+          "label": "Featured Image",
+          "type": "image"
+        },
+        {
+          "slug": "content",
+          "label": "Content",
+          "type": "portableText",
+          "searchable": true
+        },
+        {
+          "slug": "excerpt",
+          "label": "Excerpt",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "slug": "pages",
+      "label": "Pages",
+      "labelSingular": "Page",
+      "supports": [
+        "drafts",
+        "revisions",
+        "search"
+      ],
+      "fields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true,
+          "searchable": true
+        },
+        {
+          "slug": "content",
+          "label": "Content",
+          "type": "portableText",
+          "searchable": true
+        }
+      ]
+    }
+  ],
+  "taxonomies": [
+    {
+      "name": "category",
+      "label": "Categories",
+      "labelSingular": "Category",
+      "hierarchical": true,
+      "collections": [
+        "posts"
+      ],
+      "terms": [
+        {
+          "slug": "technology",
+          "label": "Technology"
+        },
+        {
+          "slug": "design",
+          "label": "Design"
+        },
+        {
+          "slug": "development",
+          "label": "Development"
+        },
+        {
+          "slug": "strategy",
+          "label": "Strategy"
+        }
+      ]
+    },
+    {
+      "name": "tag",
+      "label": "Tags",
+      "labelSingular": "Tag",
+      "hierarchical": false,
+      "collections": [
+        "posts"
+      ],
+      "terms": [
+        {
+          "slug": "emdash",
+          "label": "EmDash"
+        },
+        {
+          "slug": "astro",
+          "label": "Astro"
+        },
+        {
+          "slug": "editorial",
+          "label": "Editorial"
+        },
+        {
+          "slug": "ux",
+          "label": "UX"
+        },
+        {
+          "slug": "performance",
+          "label": "Performance"
+        },
+        {
+          "slug": "plugins",
+          "label": "Plugins"
+        },
+        {
+          "slug": "cloudflare",
+          "label": "Cloudflare"
+        },
+        {
+          "slug": "content-strategy",
+          "label": "Content Strategy"
+        }
+      ]
+    }
+  ],
+  "bylines": [
+    {
+      "id": "byline-editorial",
+      "slug": "modern-editorial",
+      "displayName": "Modern Editorial"
+    },
+    {
+      "id": "byline-studio",
+      "slug": "studio-notes",
+      "displayName": "Studio Notes"
+    }
+  ],
+  "menus": [
+    {
+      "name": "primary",
+      "label": "Primary Navigation",
+      "items": [
+        {
+          "type": "custom",
+          "label": "Home",
+          "url": "/"
+        },
+        {
+          "type": "custom",
+          "label": "Posts",
+          "url": "/posts"
+        },
+        {
+          "type": "custom",
+          "label": "About",
+          "url": "/pages/about"
+        },
+        {
+          "type": "custom",
+          "label": "Contact",
+          "url": "/pages/contact"
+        }
+      ]
+    }
+  ],
+  "widgetAreas": [
+    {
+      "name": "sidebar",
+      "label": "Sidebar",
+      "description": "Sidebar area for single posts",
+      "widgets": [
+        {
+          "type": "component",
+          "componentId": "core:search",
+          "title": "Search"
+        },
+        {
+          "type": "component",
+          "componentId": "core:categories",
+          "title": "Categories"
+        },
+        {
+          "type": "component",
+          "componentId": "core:tags",
+          "title": "Tags"
+        },
+        {
+          "type": "component",
+          "componentId": "core:recent-posts",
+          "title": "Recent Posts",
+          "settings": {
+            "count": 5,
+            "showDate": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "footer",
+      "label": "Footer",
+      "description": "Footer widget area",
+      "widgets": [
+        {
+          "type": "content",
+          "title": "About this template",
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Modern Starter is a dark, premium editorial foundation designed to showcase EmDash content beautifully."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "content": {
+    "pages": [
+      {
+        "id": "about",
+        "slug": "about",
+        "status": "published",
+        "data": {
+          "title": "About",
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Modern Starter is a premium dark editorial template for EmDash. It is designed to feel polished on day one, with room for customization once the content team takes over."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "The starter includes search, RSS, archive pages, comments, taxonomy landing pages, widget areas, and a modern layout that gives posts space to breathe."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "contact",
+        "slug": "contact",
+        "status": "published",
+        "data": {
+          "title": "Contact",
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Use this page for your contact details, newsletter signup, or editorial guidelines."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Because this is an EmDash page, non-technical editors can update the content without touching the theme files."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "posts": [
+      {
+        "id": "post-1",
+        "slug": "future-of-editorial-platforms",
+        "status": "published",
+        "data": {
+          "title": "The Future of Editorial Platforms",
+          "excerpt": "Why premium publishing experiences are moving toward composable systems with first-class content workflows.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1400&h=900&fit=crop",
+              "alt": "The Future of Editorial Platforms",
+              "filename": "future-of-editorial-platforms.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Publishing platforms are no longer judged only by what developers can ship. They are judged by how quickly editors can move, how well teams can collaborate, and whether the front end feels as crafted as the content itself."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "EmDash sits in a compelling place because it combines Astro\u2019s performance model with a proper CMS workflow. That means teams can keep the speed benefits of modern rendering while preserving editorial control."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "h2",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "What readers notice"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Readers notice pacing, typography, spacing, and clarity long before they notice your stack. A modern starter has to respect that by making every article feel intentional."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "blockquote",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Great CMS experiences disappear into the act of reading."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "This template leans into that idea with a cinematic hero, editorial spacing, clean archives, and a focused single-post layout."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-21T10:00:00Z",
+          "bylines": [
+            "byline-editorial"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "technology"
+          ],
+          "tag": [
+            "emdash",
+            "astro",
+            "performance"
+          ]
+        }
+      },
+      {
+        "id": "post-2",
+        "slug": "designing-for-depth-not-noise",
+        "status": "published",
+        "data": {
+          "title": "Designing for Depth, Not Noise",
+          "excerpt": "A premium theme earns trust by letting the content lead and the interface support it quietly.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1400&h=900&fit=crop",
+              "alt": "Designing for Depth, Not Noise",
+              "filename": "designing-for-depth-not-noise.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "The fastest way to make a publication feel generic is to over-design every surface. Good editorial design creates confidence, not clutter."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "h2",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "The role of restraint"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Restraint is not minimalism for its own sake. It is knowing where emphasis belongs: on the headline, the image, the deck, and the rhythm of the reading experience."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "That is why Modern Starter uses strong contrast, crisp cards, and a generous single-post layout instead of decorative complexity."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-20T10:00:00Z",
+          "bylines": [
+            "byline-studio"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "design"
+          ],
+          "tag": [
+            "editorial",
+            "ux"
+          ]
+        }
+      },
+      {
+        "id": "post-3",
+        "slug": "why-search-still-matters",
+        "status": "published",
+        "data": {
+          "title": "Why Search Still Matters",
+          "excerpt": "Search is a feature readers use when navigation fails and a sign of maturity when it works beautifully.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1400&h=900&fit=crop",
+              "alt": "Why Search Still Matters",
+              "filename": "why-search-still-matters.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Not every visitor lands on your perfect homepage. Many arrive from search, social, or a direct link and need a fast way to move deeper into the site."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "A strong starter should treat search as part of the reading experience, not an afterthought hidden in a corner."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "h2",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Good archive design"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "When search, categories, tags, and archives all work together, your best content keeps finding new readers long after publication day."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-19T10:00:00Z",
+          "bylines": [
+            "byline-editorial"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "strategy"
+          ],
+          "tag": [
+            "content-strategy",
+            "ux"
+          ]
+        }
+      },
+      {
+        "id": "post-4",
+        "slug": "plugins-without-the-chaos",
+        "status": "published",
+        "data": {
+          "title": "Plugins Without the Chaos",
+          "excerpt": "A safer plugin model changes what teams are willing to install and maintain over time.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1400&h=900&fit=crop",
+              "alt": "Plugins Without the Chaos",
+              "filename": "plugins-without-the-chaos.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Legacy plugin ecosystems often accumulate risk faster than value. Sandboxed execution changes that tradeoff in a meaningful way."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "When themes and content systems assume extensibility from the beginning, teams can grow without losing confidence in stability."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "blockquote",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Flexibility is only useful when it remains dependable under pressure."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-18T10:00:00Z",
+          "bylines": [
+            "byline-studio"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "development"
+          ],
+          "tag": [
+            "plugins",
+            "emdash",
+            "cloudflare"
+          ]
+        }
+      },
+      {
+        "id": "post-5",
+        "slug": "a-better-way-to-ship-content",
+        "status": "published",
+        "data": {
+          "title": "A Better Way to Ship Content",
+          "excerpt": "Editorial teams move faster when the design system, CMS, and publishing workflow are aligned.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=1400&h=900&fit=crop",
+              "alt": "A Better Way to Ship Content",
+              "filename": "a-better-way-to-ship-content.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Too many stacks treat editorial workflow as something to bolt on after launch. In practice, that decision slows everyone down once real publishing starts."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "A starter should give teams a coherent default: clear templates, a navigable archive, readable single posts, and space for widgets or plugins where they matter."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-17T10:00:00Z",
+          "bylines": [
+            "byline-editorial"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "strategy"
+          ],
+          "tag": [
+            "content-strategy",
+            "editorial"
+          ]
+        }
+      },
+      {
+        "id": "post-6",
+        "slug": "measuring-the-right-performance",
+        "status": "published",
+        "data": {
+          "title": "Measuring the Right Performance",
+          "excerpt": "A publication feels fast when the experience is coherent, not only when the benchmark is green.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1400&h=900&fit=crop",
+              "alt": "Measuring the Right Performance",
+              "filename": "measuring-the-right-performance.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Performance is not just a deployment story. It is also about predictable layouts, light UI chrome, and interfaces that keep readers oriented."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Astro gives you a strong baseline, but the theme still needs to avoid visual churn and interaction debt."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-16T10:00:00Z",
+          "bylines": [
+            "byline-studio"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "technology"
+          ],
+          "tag": [
+            "performance",
+            "astro"
+          ]
+        }
+      },
+      {
+        "id": "post-7",
+        "slug": "the-quiet-power-of-taxonomies",
+        "status": "published",
+        "data": {
+          "title": "The Quiet Power of Taxonomies",
+          "excerpt": "Categories and tags are not decorative metadata. They are navigation systems for serious readers.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1516321165247-4aa89a48be28?w=1400&h=900&fit=crop",
+              "alt": "The Quiet Power of Taxonomies",
+              "filename": "the-quiet-power-of-taxonomies.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Good taxonomy design turns a pile of posts into a publication. It helps readers understand what you cover and how ideas connect over time."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "That is why the starter includes dedicated category and tag pages rather than burying the structure inside search alone."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-15T10:00:00Z",
+          "bylines": [
+            "byline-editorial"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "development"
+          ],
+          "tag": [
+            "content-strategy",
+            "ux"
+          ]
+        }
+      },
+      {
+        "id": "post-8",
+        "slug": "building-a-brand-through-layout",
+        "status": "published",
+        "data": {
+          "title": "Building a Brand Through Layout",
+          "excerpt": "Typography, hierarchy, and spacing do more brand work than many teams realize.",
+          "featured_image": {
+            "$media": {
+              "url": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1400&h=900&fit=crop",
+              "alt": "Building a Brand Through Layout",
+              "filename": "building-a-brand-through-layout.jpg"
+            }
+          },
+          "content": [
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "A publication\u2019s brand shows up in how it opens a story, frames a card, and carries a reader from one page to the next."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "text": "Layout is the editorial voice you feel before you consciously notice it."
+                }
+              ]
+            }
+          ],
+          "publishedAt": "2026-04-14T10:00:00Z",
+          "bylines": [
+            "byline-studio"
+          ]
+        },
+        "taxonomies": {
+          "category": [
+            "design"
+          ],
+          "tag": [
+            "editorial",
+            "ux"
+          ]
+        }
+      }
+    ]
+  }
+}

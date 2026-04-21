@@ -1,0 +1,150 @@
+---
+import { getEmDashCollection, getMenu, getSiteSettings } from "emdash";
+import { WidgetArea, EmDashHead, EmDashBodyStart, EmDashBodyEnd } from "emdash/ui";
+import { createPublicPageContext } from "emdash/page";
+import LiveSearch from "emdash/ui/search";
+import { resolveModernStarterSiteIdentity } from "../utils/site-identity";
+import "../styles/theme.css";
+
+interface Props {
+	title: string;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	robots?: string | null;
+	type?: "website" | "article";
+	publishedTime?: string | null;
+	modifiedTime?: string | null;
+	author?: string | null;
+	content?: { collection: string; id: string; slug?: string | null };
+}
+
+const {
+	title,
+	pageTitle,
+	description,
+	image,
+	canonical,
+	robots,
+	type = "website",
+	publishedTime,
+	modifiedTime,
+	author,
+	content,
+} = Astro.props;
+
+const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveModernStarterSiteIdentity(await getSiteSettings());
+const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
+const menu = await getMenu("primary");
+const { entries: pages } = await getEmDashCollection("pages");
+const pageCtx = createPublicPageContext({
+	Astro,
+	kind: content ? "content" : "custom",
+	pageType: type,
+	title: fullTitle,
+	pageTitle: pageTitle ?? title,
+	description,
+	canonical,
+	image,
+	content,
+	seo: { ogImage: image, robots },
+	articleMeta: { publishedTime, modifiedTime, author },
+	siteName: siteTitle,
+});
+const isLoggedIn = !!Astro.locals.user;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>{fullTitle}</title>
+		{siteFavicon && <link rel="icon" href={siteFavicon} />}
+		<EmDashHead page={pageCtx} />
+	</head>
+	<body>
+		<EmDashBodyStart page={pageCtx} />
+		<div class="site-shell">
+			<header class="site-header">
+				<div class="wide-container header-inner">
+					<a href="/" class="site-brand">
+						{siteLogo ? (
+							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						) : (
+							<span class="site-brand-mark" aria-hidden="true"></span>
+						)}
+						<span class="site-brand-copy">
+							<span>{siteTitle}</span>
+							<span class="site-brand-tagline">{siteTagline}</span>
+						</span>
+					</a>
+					<div class="nav-row">
+						<div class="header-search">
+							<LiveSearch
+								placeholder="Search stories..."
+								class="site-search"
+								inputClass="site-search-input"
+								resultsClass="site-search-results"
+								resultClass="site-search-result"
+								collections={["posts", "pages"]}
+							/>
+						</div>
+						<nav class="nav-links">
+							{menu?.items.map((item) => (
+								<a href={item.url} target={item.target}>{item.label}</a>
+							))}
+							<a href="/rss.xml">RSS</a>
+						</nav>
+						{isLoggedIn && <a href="/_emdash/admin" class="nav-admin">Admin</a>}
+					</div>
+				</div>
+			</header>
+
+			<main>
+				<slot />
+			</main>
+
+			<footer class="site-footer">
+				<div class="wide-container footer-grid">
+					<div>
+						<div class="site-brand">
+							<span class="site-brand-mark" aria-hidden="true"></span>
+							<span class="site-brand-copy">
+								<span>{siteTitle}</span>
+								<span class="site-brand-tagline">{siteTagline}</span>
+							</span>
+						</div>
+						<p style="margin-top: 1rem; max-width: 30rem;">A polished, dark-first editorial starter for teams who want their content to feel premium on day one.</p>
+					</div>
+					<div>
+						<h3 class="footer-heading">Explore</h3>
+						<ul class="footer-links">
+							<li><a href="/">Home</a></li>
+							<li><a href="/posts">All Posts</a></li>
+							<li><a href="/search">Search</a></li>
+						</ul>
+					</div>
+					<div>
+						<h3 class="footer-heading">Pages</h3>
+						<ul class="footer-links">
+							{pages.slice(0, 4).map((page) => (
+								<li><a href={`/pages/${page.id}`}>{page.data.title}</a></li>
+							))}
+						</ul>
+					</div>
+					<div>
+						<h3 class="footer-heading">Footer</h3>
+						<WidgetArea name="footer" />
+					</div>
+				</div>
+				<div class="wide-container footer-note">
+					<span>Built with EmDash and Astro.</span>
+					<span>Designed for modern editorial teams.</span>
+				</div>
+			</footer>
+		</div>
+		<EmDashBodyEnd page={pageCtx} />
+	</body>
+</html>

@@ -1,0 +1,51 @@
+---
+import type { MediaValue, ContentBylineCredit } from "emdash";
+import { Image } from "emdash/ui";
+
+interface Props {
+	title: string;
+	excerpt?: string;
+	featuredImage?: MediaValue | string;
+	href: string;
+	date?: Date;
+	readingTime?: number;
+	tags?: Array<{ slug: string; label: string }>;
+	bylines?: ContentBylineCredit[];
+}
+
+const { title, excerpt, featuredImage, href, date, readingTime, tags, bylines } = Astro.props;
+
+const formattedDate = date
+	? date.toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+	: null;
+---
+
+<article class="post-card">
+	<a href={href} class="card-link">
+		{featuredImage ? (
+			<div class="card-image"><Image image={featuredImage} /></div>
+		) : (
+			<div class="card-placeholder" />
+		)}
+		<div class="card-meta">
+			{bylines && bylines.length > 0 && <span>{bylines[0]?.byline.displayName}</span>}
+			{bylines && bylines.length > 0 && formattedDate && <span class="meta-dot" />}
+			{formattedDate && <time>{formattedDate}</time>}
+			{formattedDate && readingTime && <span class="meta-dot" />}
+			{readingTime && <span>{readingTime} min read</span>}
+		</div>
+		<h2 class="card-title">{title}</h2>
+		{excerpt && <p class="card-excerpt">{excerpt}</p>}
+		{tags && tags.length > 0 && (
+			<div class="card-tags">
+				{tags.slice(0, 3).map((tag) => (
+					<span class="tag">{tag.label}</span>
+				))}
+			</div>
+		)}
+	</a>
+</article>
