@@ -1,7 +1,7 @@
 ---
 import { getEmDashCollection, getSiteSettings } from "emdash";
-import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
+import CoverImage from "../components/CoverImage.astro";
 import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
@@ -25,9 +25,7 @@ Astro.cache.set(cacheHint);
 				{posts.map((post) => (
 					<li>
 						<a href={`/posts/${post.id}`}>
-							{post.data.featured_image && (
-								<Image image={post.data.featured_image} />
-							)}
+							<CoverImage image={post.data.featured_image} altFallback={post.data.title} />
 							<h2>{post.data.title}</h2>
 						</a>
 						{post.data.excerpt && <p>{post.data.excerpt}</p>}

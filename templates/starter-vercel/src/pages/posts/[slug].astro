@@ -1,7 +1,8 @@
 ---
 import { getEmDashEntry, getEntryTerms, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
-import { Image, PortableText, WidgetArea } from "emdash/ui";
+import { PortableText, WidgetArea } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import CoverImage from "../../components/CoverImage.astro";
 import { resolveStarterSiteIdentity } from "../../utils/site-identity";
 
 const slug = decodeSlug(Astro.params.slug);
@@ -41,11 +42,9 @@ const categories = await getEntryTerms("posts", post.data.id, "category");
 >
 	<article>
 		{
-			post.data.featured_image && (
-				<div {...post.edit.featured_image}>
-					<Image image={post.data.featured_image} />
-				</div>
-			)
+			<div {...post.edit.featured_image}>
+				<CoverImage image={post.data.featured_image} altFallback={post.data.title} variant="hero" />
+			</div>
 		}
 
 		<h1 {...post.edit.title}>{post.data.title}</h1>

@@ -15,7 +15,8 @@
 		"bootstrap": "emdash init && emdash seed",
 		"seed": "emdash seed",
 		"setup:business": "node ./scripts/setup-business.mjs",
-		"setup:hosting": "node ./scripts/setup-hosting.mjs"
+		"setup:hosting": "node ./scripts/setup-hosting.mjs",
+		"check:images": "node ./scripts/check-images.mjs"
 	},
 	"dependencies": {
 		"@astrojs/cloudflare": "catalog:",

@@ -1,0 +1,65 @@
+---
+import { Image } from "emdash/ui";
+
+interface Props {
+	image?: {
+		url?: string;
+		alt?: string;
+	};
+	altFallback?: string;
+	variant?: "card" | "hero";
+}
+
+const { image, altFallback = "Image", variant = "card" } = Astro.props;
+const hasImage = Boolean(image?.url);
+---
+
+<div class={`cover-image cover-image-${variant}`}>
+	{
+		hasImage ? (
+			<Image image={{ ...image, alt: image?.alt || altFallback }} />
+		) : (
+			<div class="cover-image-placeholder" role="img" aria-label={`${altFallback} placeholder`}>
+				<span>Image Placeholder</span>
+			</div>
+		)
+	}
+</div>
+
+<style>
+	.cover-image {
+		overflow: hidden;
+		border-radius: 12px;
+		border: 1px solid var(--border);
+		background: linear-gradient(140deg, var(--brand-soft), #ffffff 60%);
+	}
+
+	.cover-image-card {
+		aspect-ratio: 16 / 9;
+		margin-bottom: 0.75rem;
+	}
+
+	.cover-image-hero {
+		aspect-ratio: 16 / 9;
+		margin-bottom: 1rem;
+	}
+
+	.cover-image :global(img) {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.cover-image-placeholder {
+		display: grid;
+		place-content: center;
+		width: 100%;
+		height: 100%;
+		padding: 1.25rem;
+		text-align: center;
+		color: var(--muted);
+		font-size: 0.9rem;
+		letter-spacing: 0.02em;
+	}
+</style>

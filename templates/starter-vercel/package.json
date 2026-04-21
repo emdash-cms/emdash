@@ -14,6 +14,7 @@
     "seed": "emdash seed",
     "setup:business": "node ./scripts/setup-business.mjs",
     "setup:hosting": "node ./scripts/setup-hosting.mjs --provider=vercel",
+    "check:images": "node ./scripts/check-images.mjs",
     "typecheck": "astro check"
   },
   "dependencies": {
