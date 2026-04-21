@@ -8,10 +8,10 @@ vi.mock("virtual:emdash/config", () => ({
 	},
 }));
 
-import type { Database as DbSchema } from "../../../src/database/types.js";
+import type { EmDashManifest } from "../../../src/astro/types.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
-import type { EmDashManifest } from "../../../src/astro/types.js";
+import type { Database as DbSchema } from "../../../src/database/types.js";
 import type { SandboxedPluginEntry } from "../../../src/emdash-runtime.js";
 import { createTestRuntime } from "../../utils/test-runtime.js";
 
