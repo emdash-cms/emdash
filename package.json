@@ -1,62 +1,21 @@
 {
-	"name": "emdash-workspace",
-	"private": true,
-	"type": "module",
-	"version": "1.0.0",
-	"description": "Agent-portable reimplementation of WordPress on Astro",
-	"scripts": {
-		"typecheck": "pnpm run --filter {./packages/**} typecheck",
-		"typecheck:demos": "pnpm run --workspace-concurrency=1 --filter {./demos/*} --filter !@emdash-cms/demo-cloudflare typecheck",
-		"typecheck:templates": "pnpm run --workspace-concurrency=1 --filter {./templates/*} typecheck",
-		"check": "pnpm run typecheck && pnpm run --filter {./packages/*} check",
-		"test": "pnpm run --filter {./packages/*} test",
-		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace test",
-		"test:browser": "pnpm run --filter @emdash-cms/admin test",
-		"test:e2e": "playwright test",
-		"test:e2e:ui": "playwright test --ui",
-		"build": "pnpm run --filter {./packages/**} build",
-		"postbuild": "node scripts/relink-bins-if-needed.mjs",
-		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
-		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
-		"format:astro": "prettier --write .",
-		"lint": "oxlint --type-aware",
-		"lint:quick": "oxlint -f json",
-		"lint:json": "oxlint --type-aware -f json",
-		"lint:fix": "oxlint --type-aware --fix",
-		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
-		"new": "create-emdash",
-		"screenshots": "node scripts/screenshot-all-templates.mjs",
-		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
-		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
-		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"
-	},
-	"keywords": [],
-	"author": "Matt Kane",
-	"license": "MIT",
-	"devDependencies": {
-		"@axe-core/playwright": "^4.11.1",
-		"@changesets/changelog-github": "^0.5.2",
-		"@changesets/cli": "^2.29.8",
-		"@e18e/eslint-plugin": "^0.2.0",
-		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
-		"@playwright/test": "^1.58.0",
-		"@types/node": "catalog:",
-		"@typescript/native-preview": "^7.0.0-dev",
-		"emdash": "workspace:*",
-		"knip": "^5.84.1",
-		"oxfmt": "^0.34.0",
-		"oxlint": "^1.49.0",
-		"oxlint-tsgolint": "^0.15.0",
-		"prettier": "^3.8.1",
-		"prettier-plugin-astro": "^0.14.1",
-		"typescript": "6.0.0-beta"
-	},
-	"packageManager": "pnpm@10.28.0",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"better-sqlite3",
-			"esbuild",
-			"workerd"
-		]
-	}
+  "name": "symballo-starter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^4.0.0",
+    "@sveltejs/kit": "^2.39.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "svelte": "^5.38.0",
+    "svelte-check": "^4.3.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  }
 }

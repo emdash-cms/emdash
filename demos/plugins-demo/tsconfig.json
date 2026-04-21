@@ -1,7 +1,0 @@
-{
-	"extends": "astro/tsconfigs/strict",
-	"compilerOptions": {
-		"strictNullChecks": true
-	},
-	"include": ["src/**/*", "astro.config.mjs", "emdash-env.d.ts"]
-}

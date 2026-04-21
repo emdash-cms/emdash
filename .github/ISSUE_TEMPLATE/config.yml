@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Feature request
-    url: https://github.com/emdash-cms/emdash/discussions/categories/ideas
-    about: Propose a feature in Discussions. Feature PRs without a prior approved Discussion will be closed.
-  - name: Question
-    url: https://github.com/emdash-cms/emdash/discussions/categories/q-a
-    about: Ask a question in Discussions.
