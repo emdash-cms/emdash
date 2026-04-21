@@ -23,6 +23,7 @@
     "astro": "catalog:",
     "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
+    "emdash-plugin-slack": "link:/Users/sngmin/IdeaProjects/emdash-plugin-slack",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

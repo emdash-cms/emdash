@@ -4,6 +4,7 @@ import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
+import { slackPlugin } from "emdash-plugin-slack";
 
 export default defineConfig({
 	output: "server",
@@ -29,7 +30,7 @@ export default defineConfig({
 				directory: "./uploads",
 				baseUrl: "/_emdash/api/media/file",
 			}),
-			plugins: [auditLogPlugin()],
+			plugins: [auditLogPlugin(), slackPlugin()],
 			// HTTPS reverse proxy: uncomment so all origin-dependent features match browser
 			// siteUrl: "https://emdash.local:8443",
 		}),

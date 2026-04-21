@@ -1541,13 +1541,16 @@ export class EmDashRuntime {
 		// Delete DB-persisted cache so the next cold start rebuilds.
 		// Fire-and-forget: in-memory is already cleared for this worker,
 		// DB delete is best-effort for the next cold start.
-		try {
-			const options = new OptionsRepository(this.db);
-			options.delete("emdash:manifest_cache").catch((error) => {
-				console.error("Failed to delete persisted manifest cache", error);
-			});
-		} catch (error) {
-			console.error("Failed to initialize manifest cache invalidation", error);
+		// Skipped in dev mode — DB cache is never written in dev, so nothing to delete.
+		if (!import.meta.env.DEV) {
+			try {
+				const options = new OptionsRepository(this.db);
+				options.delete("emdash:manifest_cache").catch((error) => {
+					console.error("Failed to delete persisted manifest cache", error);
+				});
+			} catch (error) {
+				console.error("Failed to initialize manifest cache invalidation", error);
+			}
 		}
 	}
 
