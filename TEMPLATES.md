@@ -162,6 +162,11 @@ Recommended workflow for agency handoff:
 9. Set the environment variables from `.env.example`
 10. Deploy and hand off admin access
 
+Operations and handoff docs are included in starter templates:
+
+- `OPERATIONS.md` for backup/restore and update policy
+- `HANDOFF_CHECKLIST.md` for agency-to-client launch handoff
+
 The primary Node demo is also synced from the blog template:
 
 ```bash
