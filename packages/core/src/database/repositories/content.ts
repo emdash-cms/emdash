@@ -1032,6 +1032,45 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Set the draft revision pointer for a content item.
+	 *
+	 * Used by seed/import paths that stage a new revision's data before
+	 * promoting it to live via `publish()`.
+	 *
+	 * Validates that the content item exists and is not soft-deleted, that
+	 * the revision exists, and that the revision belongs to the same
+	 * collection and entry. Without these checks, a caller could leave the
+	 * content row pointing at a missing or unrelated revision.
+	 */
+	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
+		const tableName = getTableName(type);
+		const now = new Date().toISOString();
+
+		const existing = await this.findById(type, id);
+		if (!existing) {
+			throw new EmDashValidationError("Content item not found");
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		const revision = await revisionRepo.findById(revisionId);
+		if (!revision) {
+			throw new EmDashValidationError("Revision not found");
+		}
+
+		if (revision.collection !== type || revision.entryId !== id) {
+			throw new EmDashValidationError("Revision does not belong to the specified content item");
+		}
+
+		await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET draft_revision_id = ${revisionId},
+				updated_at = ${now}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+		`.execute(this.db);
+	}
+
+	/**
 	 * Discard pending draft changes
 	 *
 	 * Clears draft_revision_id. The content table columns already hold the

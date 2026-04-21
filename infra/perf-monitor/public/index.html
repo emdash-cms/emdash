@@ -498,6 +498,47 @@
 				}
 			}
 
+			// 7d/30d/90d views show per-point samples that are too spiky to read.
+			// Bucket by UTC day so the trend is visible. Median, not mean, so a
+			// single cron spike doesn't pull the bucket.
+			const DAILY_BUCKET_PERIODS = new Set(["7d", "30d", "90d"]);
+
+			/**
+			 * Parse a D1-stored timestamp ("YYYY-MM-DD HH:MM:SS", no TZ) as UTC.
+			 * `new Date("YYYY-MM-DD HH:MM:SS")` is implementation-defined and most
+			 * browsers treat it as *local* time, which shifts samples across UTC
+			 * day boundaries when we bucket with `getUTC*`. Normalize first.
+			 */
+			function parseStoredTimestamp(ts) {
+				if (!ts) return null;
+				if (ts.includes("T") || ts.endsWith("Z")) return new Date(ts);
+				return new Date(ts.replace(" ", "T") + "Z");
+			}
+
+			function median(nums) {
+				const sorted = nums.filter((n) => n != null).sort((a, b) => a - b);
+				if (sorted.length === 0) return null;
+				const mid = sorted.length >> 1;
+				return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+			}
+
+			function bucketByUtcDay(points) {
+				const byDay = new Map();
+				for (const p of points) {
+					const d = p.x instanceof Date ? p.x : new Date(p.x);
+					const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+					if (!byDay.has(day)) byDay.set(day, []);
+					byDay.get(day).push(p.y);
+				}
+				return [...byDay.entries()]
+					.map(([day, ys]) => ({
+						x: new Date(`${day}T12:00:00Z`),
+						y: median(ys),
+					}))
+					.filter((p) => p.y != null)
+					.sort((a, b) => a.x - b.x);
+			}
+
 			function formatMs(ms) {
 				if (ms == null) return "-";
 				if (ms < 1000) return Math.round(ms) + "ms";
@@ -511,8 +552,9 @@
 				return "bad";
 			}
 
-			function formatTime(iso) {
-				const d = new Date(iso);
+			function formatTime(ts) {
+				const d = parseStoredTimestamp(ts);
+				if (!d) return "";
 				const pad = (n) => String(n).padStart(2, "0");
 				return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 			}
@@ -722,6 +764,7 @@
 					regionFilter === "all" ? configData.regions.map((r) => r.id) : [regionFilter];
 
 				const site = currentSite();
+				const bucketDaily = DAILY_BUCKET_PERIODS.has(period);
 
 				// Fetch chart data for each region in parallel
 				const chartDataPromises = regions.map((region) =>
@@ -741,15 +784,26 @@
 					const result = chartResults[i];
 					const color = REGION_COLORS[region] || "#888";
 
+					const rawCold = result.data.map((d) => ({
+						x: parseStoredTimestamp(d.timestamp),
+						y: d.coldTtfbMs,
+						prNumber: d.prNumber,
+						sha: d.sha,
+						source: d.source,
+					}));
+					const rawWarm = result.data.map((d) => ({
+						x: parseStoredTimestamp(d.timestamp),
+						y: d.warmTtfbMs,
+						prNumber: d.prNumber,
+						sha: d.sha,
+						source: d.source,
+					}));
+					const coldPoints = bucketDaily ? bucketByUtcDay(rawCold) : rawCold;
+					const warmPoints = bucketDaily ? bucketByUtcDay(rawWarm) : rawWarm;
+
 					coldDatasets.push({
 						label: REGION_LABELS[region] || region,
-						data: result.data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.coldTtfbMs,
-							prNumber: d.prNumber,
-							sha: d.sha,
-							source: d.source,
-						})),
+						data: coldPoints,
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
@@ -775,13 +829,7 @@
 
 					warmDatasets.push({
 						label: REGION_LABELS[region] || region,
-						data: result.data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.warmTtfbMs,
-							prNumber: d.prNumber,
-							sha: d.sha,
-							source: d.source,
-						})),
+						data: warmPoints,
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
@@ -813,8 +861,8 @@
 							const key = `deploy-${marker.sha || marker.timestamp}-${region}`;
 							annotations[key] = {
 								type: "line",
-								xMin: new Date(marker.timestamp),
-								xMax: new Date(marker.timestamp),
+								xMin: parseStoredTimestamp(marker.timestamp),
+								xMax: parseStoredTimestamp(marker.timestamp),
 								borderColor: "#ff6b6b40",
 								borderWidth: 1,
 								borderDash: [4, 4],

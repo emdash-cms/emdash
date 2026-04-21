@@ -864,13 +864,7 @@ function ComponentPropField({
 				/>
 			);
 		case "boolean":
-			return (
-				<Switch
-					label={def.label}
-					checked={typeof value === "boolean" ? value : false}
-					onCheckedChange={onChange}
-				/>
-			);
+			return <Switch label={def.label} checked={Boolean(value)} onCheckedChange={onChange} />;
 		case "select": {
 			const items: Record<string, string> = {};
 			for (const opt of def.options ?? []) {

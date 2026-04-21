@@ -1,5 +1,11 @@
 # @emdash-cms/auth
 
+## 0.6.0
+
+### Patch Changes
+
+- [#552](https://github.com/emdash-cms/emdash/pull/552) [`f52154d`](https://github.com/emdash-cms/emdash/commit/f52154da8afb838b1af6deccf33b5a261257ec7c) Thanks [@masonjames](https://github.com/masonjames)! - Fixes passkey login failures so unregistered or invalid credentials return an authentication failure instead of an internal server error.
+
 ## 0.5.0
 
 ### Patch Changes
