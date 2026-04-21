@@ -30,6 +30,10 @@ export type {
 	ConvertOptions,
 } from "./types.js";
 
+import { transformCodeBlock } from "./blocks/code-block.js";
+import { transformEmbeddedHtml } from "./blocks/embedded-html.js";
+import { transformImageBlock } from "./blocks/image-block.js";
+import { sanitizeUri } from "./sanitize.js";
 import type {
 	ContentfulDocument,
 	ContentfulIncludes,
@@ -39,11 +43,6 @@ import type {
 	PTMarkDef,
 	PTSpan,
 } from "./types.js";
-
-import { transformCodeBlock } from "./blocks/code-block.js";
-import { transformEmbeddedHtml } from "./blocks/embedded-html.js";
-import { transformImageBlock } from "./blocks/image-block.js";
-import { sanitizeUri } from "./sanitize.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,12 +120,7 @@ function convertNode(
 		case "heading-4":
 		case "heading-5":
 		case "heading-6":
-			return convertTextBlock(
-				node,
-				HEADING_MAP[node.nodeType]!,
-				includes,
-				options,
-			);
+			return convertTextBlock(node, HEADING_MAP[node.nodeType]!, includes, options);
 
 		case "blockquote":
 			return convertBlockquote(node, includes, options);
@@ -150,9 +144,7 @@ function convertNode(
 			return convertEmbeddedAsset(node, includes);
 
 		default:
-			console.warn(
-				`[rich-text-to-pt] Unknown node type: ${node.nodeType}`,
-			);
+			console.warn(`[rich-text-to-pt] Unknown node type: ${node.nodeType}`);
 			return null;
 	}
 }
@@ -165,11 +157,7 @@ function convertTextBlock(
 	includes: ContentfulIncludes,
 	options: ConvertOptions,
 ): PTBlock | null {
-	const { children, markDefs } = convertInlineContent(
-		node.content ?? [],
-		includes,
-		options,
-	);
+	const { children, markDefs } = convertInlineContent(node.content ?? [], includes, options);
 
 	// Skip empty paragraphs (Contentful emits these often)
 	if (
@@ -202,12 +190,7 @@ function convertBlockquote(
 	const blocks: PTBlock[] = [];
 	for (const child of node.content ?? []) {
 		if (child.nodeType === "paragraph") {
-			const block = convertTextBlock(
-				child,
-				"blockquote",
-				includes,
-				options,
-			);
+			const block = convertTextBlock(child, "blockquote", includes, options);
 			if (block) blocks.push(block);
 		}
 	}
@@ -230,11 +213,7 @@ function convertList(
 
 		for (const child of item.content ?? []) {
 			if (child.nodeType === "paragraph") {
-				const { children, markDefs } = convertInlineContent(
-					child.content ?? [],
-					includes,
-					options,
-				);
+				const { children, markDefs } = convertInlineContent(child.content ?? [], includes, options);
 				blocks.push({
 					_type: "block",
 					_key: generateKey(),
@@ -244,22 +223,10 @@ function convertList(
 					children,
 					markDefs,
 				});
-			} else if (
-				child.nodeType === "unordered-list" ||
-				child.nodeType === "ordered-list"
-			) {
+			} else if (child.nodeType === "unordered-list" || child.nodeType === "ordered-list") {
 				// Nested list
-				const nestedType =
-					child.nodeType === "unordered-list" ? "bullet" : "number";
-				blocks.push(
-					...convertList(
-						child,
-						nestedType,
-						includes,
-						options,
-						level + 1,
-					),
-				);
+				const nestedType = child.nodeType === "unordered-list" ? "bullet" : "number";
+				blocks.push(...convertList(child, nestedType, includes, options, level + 1));
 			}
 		}
 	}
@@ -282,9 +249,7 @@ function convertTable(
 		for (const cell of row.content ?? []) {
 			// Extract plain text from cell paragraphs, including
 			// text nested inside hyperlinks and other inline nodes
-			const text = (cell.content ?? [])
-				.flatMap((p) => (p.content ?? []).map(extractText))
-				.join("");
+			const text = (cell.content ?? []).flatMap((p) => (p.content ?? []).map(extractText)).join("");
 			cells.push(text);
 		}
 		rows.push({ _type: "tableRow", _key: generateKey(), cells });
@@ -295,18 +260,13 @@ function convertTable(
 
 // ── Embedded entry ──────────────────────────────────────────────────────────
 
-function convertEmbeddedEntry(
-	node: ContentfulNode,
-	includes: ContentfulIncludes,
-): PTBlock | null {
+function convertEmbeddedEntry(node: ContentfulNode, includes: ContentfulIncludes): PTBlock | null {
 	const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
 	if (!targetId) return null;
 
 	const entry = includes.entries.get(targetId);
 	if (!entry) {
-		console.warn(
-			`[rich-text-to-pt] Unresolved embedded entry: ${targetId}`,
-		);
+		console.warn(`[rich-text-to-pt] Unresolved embedded entry: ${targetId}`);
 		return null;
 	}
 
@@ -331,18 +291,13 @@ function convertEmbeddedEntry(
 
 // ── Embedded asset (legacy image) ───────────────────────────────────────────
 
-function convertEmbeddedAsset(
-	node: ContentfulNode,
-	includes: ContentfulIncludes,
-): PTBlock | null {
+function convertEmbeddedAsset(node: ContentfulNode, includes: ContentfulIncludes): PTBlock | null {
 	const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
 	if (!targetId) return null;
 
 	const asset = includes.assets.get(targetId);
 	if (!asset) {
-		console.warn(
-			`[rich-text-to-pt] Unresolved embedded asset: ${targetId}`,
-		);
+		console.warn(`[rich-text-to-pt] Unresolved embedded asset: ${targetId}`);
 		return null;
 	}
 
@@ -370,9 +325,7 @@ function convertInlineContent(
 
 	for (const node of nodes) {
 		if (node.nodeType === "text") {
-			const marks = (node.marks ?? [])
-				.map((m) => MARK_MAP[m.type] ?? m.type)
-				.filter(Boolean);
+			const marks = (node.marks ?? []).map((m) => MARK_MAP[m.type] ?? m.type).filter(Boolean);
 
 			children.push({
 				_type: "span",
@@ -396,9 +349,7 @@ function convertInlineContent(
 			// Process children of the hyperlink (the link text)
 			for (const child of node.content ?? []) {
 				if (child.nodeType === "text") {
-					const marks = (child.marks ?? [])
-						.map((m) => MARK_MAP[m.type] ?? m.type)
-						.filter(Boolean);
+					const marks = (child.marks ?? []).map((m) => MARK_MAP[m.type] ?? m.type).filter(Boolean);
 
 					children.push({
 						_type: "span",
@@ -408,14 +359,9 @@ function convertInlineContent(
 					});
 				}
 			}
-		} else if (
-			node.nodeType === "entry-hyperlink" ||
-			node.nodeType === "asset-hyperlink"
-		) {
+		} else if (node.nodeType === "entry-hyperlink" || node.nodeType === "asset-hyperlink") {
 			// Resolve to URL, then treat as regular link
-			const targetId = (
-				node.data?.target as { sys?: { id?: string } }
-			)?.sys?.id;
+			const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
 			let href = "#";
 
 			if (node.nodeType === "entry-hyperlink" && targetId) {
@@ -426,9 +372,7 @@ function convertInlineContent(
 			} else if (node.nodeType === "asset-hyperlink" && targetId) {
 				const asset = includes.assets.get(targetId);
 				if (asset?.url) {
-					href = asset.url.startsWith("//")
-						? `https:${asset.url}`
-						: asset.url;
+					href = asset.url.startsWith("//") ? `https:${asset.url}` : asset.url;
 				}
 			}
 
@@ -437,9 +381,7 @@ function convertInlineContent(
 
 			for (const child of node.content ?? []) {
 				if (child.nodeType === "text") {
-					const marks = (child.marks ?? [])
-						.map((m) => MARK_MAP[m.type] ?? m.type)
-						.filter(Boolean);
+					const marks = (child.marks ?? []).map((m) => MARK_MAP[m.type] ?? m.type).filter(Boolean);
 					children.push({
 						_type: "span",
 						_key: generateKey(),

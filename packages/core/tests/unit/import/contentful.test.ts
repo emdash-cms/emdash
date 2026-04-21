@@ -4,13 +4,13 @@
  * Pure function tests — no database required.
  */
 
-import { describe, it, expect } from "vitest";
 import type { ContentfulIncludes } from "@emdash-cms/contentful-to-portable-text";
+import { describe, it, expect } from "vitest";
 
-import { mapTag } from "../../../src/import/contentful/map-tag.js";
 import { mapAuthor } from "../../../src/import/contentful/map-author.js";
-import { mapPost } from "../../../src/import/contentful/map-post.js";
 import { flattenLocaleList } from "../../../src/import/contentful/map-locale-list.js";
+import { mapPost } from "../../../src/import/contentful/map-post.js";
+import { mapTag } from "../../../src/import/contentful/map-tag.js";
 import { parseContentfulExport } from "../../../src/import/contentful/parse-export.js";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -139,10 +139,7 @@ describe("mapPost", () => {
 				fields: {
 					title: "Test",
 					slug: "test",
-					tags: [
-						{ sys: { id: "tag-1" } },
-						{ sys: { id: "tag-2" } },
-					],
+					tags: [{ sys: { id: "tag-1" } }, { sys: { id: "tag-2" } }],
 				},
 			},
 			includes,

@@ -4,11 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-	richTextToPortableText,
-	buildIncludes,
-	resetKeys,
-} from "../src/index.js";
+
+import { richTextToPortableText, buildIncludes, resetKeys } from "../src/index.js";
 import type {
 	ContentfulDocument,
 	ContentfulIncludes,
@@ -28,9 +25,7 @@ import fixture from "./fixtures/contentful-blogpost.json";
 function buildFixtureIncludes(): ContentfulIncludes {
 	return buildIncludes({
 		Entry: fixture.items as Array<Record<string, unknown>>,
-		Asset: (fixture.includes?.Asset ?? []) as Array<
-			Record<string, unknown>
-		>,
+		Asset: (fixture.includes?.Asset ?? []) as Array<Record<string, unknown>>,
 	});
 }
 
@@ -40,11 +35,7 @@ function convert(
 	includes?: ContentfulIncludes,
 	options?: { blogHostname?: string },
 ): PTBlock[] {
-	return richTextToPortableText(
-		doc,
-		includes ?? emptyIncludes(),
-		options ?? {},
-	);
+	return richTextToPortableText(doc, includes ?? emptyIncludes(), options ?? {});
 }
 
 function emptyIncludes(): ContentfulIncludes {
@@ -57,10 +48,7 @@ function makeDoc(...nodes: ContentfulNode[]): ContentfulDocument {
 }
 
 /** Make a text node */
-function text(
-	value: string,
-	marks: Array<{ type: string }> = [],
-): ContentfulNode {
+function text(value: string, marks: Array<{ type: string }> = []): ContentfulNode {
 	return { nodeType: "text", value, marks, data: {} };
 }
 
@@ -112,9 +100,7 @@ describe("Standard blocks", () => {
 
 		const h2 = blocks[0]!;
 		expect(h2).toMatchObject({ _type: "block", style: "h2" });
-		expect((h2.children as PTSpan[])[0]!.text).toBe(
-			"Why Migration Matters",
-		);
+		expect((h2.children as PTSpan[])[0]!.text).toBe("Why Migration Matters");
 	});
 
 	it("unordered-list with 3+ items → bullet list blocks", () => {
@@ -135,9 +121,7 @@ describe("Standard blocks", () => {
 		}
 
 		// Verify texts
-		const bulletTexts = bullets.map(
-			(b) => ((b.children as PTSpan[])[0] as PTSpan).text,
-		);
+		const bulletTexts = bullets.map((b) => ((b.children as PTSpan[])[0] as PTSpan).text);
 		expect(bulletTexts).toEqual(
 			expect.arrayContaining([
 				"Parse the source format",
@@ -219,10 +203,7 @@ describe("Standard blocks", () => {
 		const doc = makeDoc({
 			nodeType: "blockquote",
 			data: {},
-			content: [
-				paragraph(text("First paragraph")),
-				paragraph(text("Second paragraph")),
-			],
+			content: [paragraph(text("First paragraph")), paragraph(text("Second paragraph"))],
 		});
 		const blocks = convert(doc);
 		expect(blocks).toHaveLength(2);
@@ -367,45 +348,35 @@ describe("Inline marks", () => {
 	});
 
 	it("italic → marks: ['em']", () => {
-		const doc = makeDoc(
-			paragraph(text("italic text", [{ type: "italic" }])),
-		);
+		const doc = makeDoc(paragraph(text("italic text", [{ type: "italic" }])));
 		const blocks = convert(doc);
 		const span = (blocks[0]!.children as PTSpan[])[0]!;
 		expect(span.marks).toEqual(["em"]);
 	});
 
 	it("code → marks: ['code']", () => {
-		const doc = makeDoc(
-			paragraph(text("code text", [{ type: "code" }])),
-		);
+		const doc = makeDoc(paragraph(text("code text", [{ type: "code" }])));
 		const blocks = convert(doc);
 		const span = (blocks[0]!.children as PTSpan[])[0]!;
 		expect(span.marks).toEqual(["code"]);
 	});
 
 	it("underline → marks: ['underline']", () => {
-		const doc = makeDoc(
-			paragraph(text("underlined", [{ type: "underline" }])),
-		);
+		const doc = makeDoc(paragraph(text("underlined", [{ type: "underline" }])));
 		const blocks = convert(doc);
 		const span = (blocks[0]!.children as PTSpan[])[0]!;
 		expect(span.marks).toEqual(["underline"]);
 	});
 
 	it("superscript → marks: ['sup']", () => {
-		const doc = makeDoc(
-			paragraph(text("sup", [{ type: "superscript" }])),
-		);
+		const doc = makeDoc(paragraph(text("sup", [{ type: "superscript" }])));
 		const blocks = convert(doc);
 		const span = (blocks[0]!.children as PTSpan[])[0]!;
 		expect(span.marks).toEqual(["sup"]);
 	});
 
 	it("subscript → marks: ['sub']", () => {
-		const doc = makeDoc(
-			paragraph(text("sub", [{ type: "subscript" }])),
-		);
+		const doc = makeDoc(paragraph(text("sub", [{ type: "subscript" }])));
 		const blocks = convert(doc);
 		const span = (blocks[0]!.children as PTSpan[])[0]!;
 		expect(span.marks).toEqual(["sub"]);
@@ -413,13 +384,7 @@ describe("Inline marks", () => {
 
 	it("combined marks (bold + italic + code) → marks: ['strong', 'em', 'code']", () => {
 		const doc = makeDoc(
-			paragraph(
-				text("all marks", [
-					{ type: "bold" },
-					{ type: "italic" },
-					{ type: "code" },
-				]),
-			),
+			paragraph(text("all marks", [{ type: "bold" }, { type: "italic" }, { type: "code" }])),
 		);
 		const blocks = convert(doc);
 		const span = (blocks[0]!.children as PTSpan[])[0]!;
@@ -437,20 +402,14 @@ describe("Inline marks", () => {
 		const children = para.children as PTSpan[];
 
 		// "every content format" has italic + bold
-		const boldItalic = children.find(
-			(c) => c.text === "every content format",
-		);
+		const boldItalic = children.find((c) => c.text === "every content format");
 		expect(boldItalic).toBeDefined();
-		expect(boldItalic!.marks).toEqual(
-			expect.arrayContaining(["em", "strong"]),
-		);
+		expect(boldItalic!.marks).toEqual(expect.arrayContaining(["em", "strong"]));
 
 		// "code snippets" has italic + code
 		const codeItalic = children.find((c) => c.text === "code snippets");
 		expect(codeItalic).toBeDefined();
-		expect(codeItalic!.marks).toEqual(
-			expect.arrayContaining(["em", "code"]),
-		);
+		expect(codeItalic!.marks).toEqual(expect.arrayContaining(["em", "code"]));
 	});
 });
 
@@ -472,9 +431,7 @@ describe("Hyperlinks", () => {
 		const markDefs = linkBlock!.markDefs as PTMarkDef[];
 		const linkMark = markDefs.find((m) => m._type === "link");
 		expect(linkMark).toBeDefined();
-		expect(linkMark!.href).toBe(
-			"https://developers.cloudflare.com/workers/",
-		);
+		expect(linkMark!.href).toBe("https://developers.cloudflare.com/workers/");
 		expect(linkMark!.blank).toBe(true);
 	});
 
@@ -673,8 +630,7 @@ describe("Embedded entries", () => {
 	});
 
 	it("blogEmbeddedHtml → htmlBlock with html preserved verbatim", () => {
-		const html =
-			'<div style="padding:1.5rem"><strong>Note:</strong> test</div>';
+		const html = '<div style="padding:1.5rem"><strong>Note:</strong> test</div>';
 		const includes = emptyIncludes();
 		includes.entries.set("html-1", {
 			id: "html-1",
@@ -864,9 +820,7 @@ describe("Embedded entries", () => {
 
 		const blocks = convert(doc);
 		expect(blocks).toHaveLength(0);
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Unresolved embedded entry"),
-		);
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Unresolved embedded entry"));
 		warnSpy.mockRestore();
 	});
 });
@@ -897,9 +851,7 @@ describe("Embedded assets (legacy)", () => {
 			height: number;
 		};
 		expect(asset.src).toMatch(/^https:/);
-		expect(asset.alt).toBe(
-			"A diagram showing the migration pipeline architecture",
-		);
+		expect(asset.alt).toBe("A diagram showing the migration pipeline architecture");
 		expect(asset.width).toBe(1200);
 		expect(asset.height).toBe(800);
 	});
@@ -934,9 +886,7 @@ describe("Embedded assets (legacy)", () => {
 
 		const blocks = convert(doc);
 		expect(blocks).toHaveLength(0);
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Unresolved embedded asset"),
-		);
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Unresolved embedded asset"));
 		warnSpy.mockRestore();
 	});
 });
@@ -994,8 +944,6 @@ describe("Integration", () => {
 		const blocks2 = richTextToPortableText(doc, includes);
 
 		// Both runs should produce identical keys since resetKeys() is called internally
-		expect(blocks1.map((b) => b._key)).toEqual(
-			blocks2.map((b) => b._key),
-		);
+		expect(blocks1.map((b) => b._key)).toEqual(blocks2.map((b) => b._key));
 	});
 });

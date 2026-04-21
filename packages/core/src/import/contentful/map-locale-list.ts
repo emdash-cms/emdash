@@ -8,9 +8,7 @@
  *   { "en-us": "Translated", "de-de": "No Page" }
  */
 
-export function flattenLocaleList(
-	fields: Record<string, unknown>,
-): Record<string, string> {
+export function flattenLocaleList(fields: Record<string, unknown>): Record<string, string> {
 	const result: Record<string, string> = {};
 	for (const [key, value] of Object.entries(fields)) {
 		if (key === "name") continue; // skip the display name field

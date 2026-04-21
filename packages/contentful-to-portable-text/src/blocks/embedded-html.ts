@@ -10,10 +10,7 @@
  */
 import type { ContentfulEntry, PTBlock } from "../types.js";
 
-export function transformEmbeddedHtml(
-	entry: ContentfulEntry,
-	key: string,
-): PTBlock {
+export function transformEmbeddedHtml(entry: ContentfulEntry, key: string): PTBlock {
 	return {
 		_type: "htmlBlock",
 		_key: key,

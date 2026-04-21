@@ -39,9 +39,7 @@ export interface ParsedContentfulExport {
 /**
  * Parse a Contentful CDA response JSON object.
  */
-export function parseContentfulExport(
-	raw: Record<string, unknown>,
-): ParsedContentfulExport {
+export function parseContentfulExport(raw: Record<string, unknown>): ParsedContentfulExport {
 	const items = (raw.items ?? []) as Array<Record<string, unknown>>;
 	const rawIncludes = (raw.includes ?? {}) as {
 		Entry?: Array<Record<string, unknown>>;

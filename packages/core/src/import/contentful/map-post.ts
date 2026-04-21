@@ -44,27 +44,19 @@ export function mapPost(
 
 	// Convert rich text content → Portable Text
 	const content = fields.content
-		? richTextToPortableText(
-				fields.content as ContentfulDocument,
-				includes,
-				{ blogHostname: options.blogHostname },
-			)
+		? richTextToPortableText(fields.content as ContentfulDocument, includes, {
+				blogHostname: options.blogHostname,
+			})
 		: [];
 
 	// Resolve feature image
-	const featureImageLink = fields.featureImage as
-		| { sys?: { id?: string } }
-		| undefined;
+	const featureImageLink = fields.featureImage as { sys?: { id?: string } } | undefined;
 	const featureAssetId = featureImageLink?.sys?.id;
-	const featureAsset = featureAssetId
-		? includes.assets.get(featureAssetId)
-		: undefined;
+	const featureAsset = featureAssetId ? includes.assets.get(featureAssetId) : undefined;
 	let featuredImage: { src: string; alt: string } | undefined;
 	if (featureAsset?.url) {
 		featuredImage = {
-			src: featureAsset.url.startsWith("//")
-				? `https:${featureAsset.url}`
-				: featureAsset.url,
+			src: featureAsset.url.startsWith("//") ? `https:${featureAsset.url}` : featureAsset.url,
 			alt: featureAsset.description ?? featureAsset.title ?? "",
 		};
 	}
@@ -97,9 +89,7 @@ export function mapPost(
 
 	// Resolve locale_list from configLocaleList entry link
 	let localeList: Record<string, string> | undefined;
-	const localeListLink = fields.localeList as
-		| { sys?: { id?: string } }
-		| undefined;
+	const localeListLink = fields.localeList as { sys?: { id?: string } } | undefined;
 	const localeListId = localeListLink?.sys?.id;
 	if (localeListId) {
 		const localeListEntry = includes.entries.get(localeListId);

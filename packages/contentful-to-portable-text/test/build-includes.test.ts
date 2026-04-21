@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+
 import { buildIncludes } from "../src/index.js";
 import fixture from "./fixtures/contentful-blogpost.json";
 
@@ -26,9 +27,7 @@ describe("buildIncludes", () => {
 
 	it("builds assets Map from includes.Asset[] with id → { id, title, description, url, width, height, contentType }", () => {
 		const includes = buildIncludes({
-			Asset: (fixture.includes?.Asset ?? []) as Array<
-				Record<string, unknown>
-			>,
+			Asset: (fixture.includes?.Asset ?? []) as Array<Record<string, unknown>>,
 		});
 
 		expect(includes.assets.size).toBe(1);
@@ -37,9 +36,7 @@ describe("buildIncludes", () => {
 		expect(asset).toBeDefined();
 		expect(asset!.id).toBe("asset-1");
 		expect(asset!.title).toBe("Architecture diagram");
-		expect(asset!.description).toBe(
-			"A diagram showing the migration pipeline architecture",
-		);
+		expect(asset!.description).toBe("A diagram showing the migration pipeline architecture");
 		expect(asset!.url).toBe(
 			"//images.ctfassets.net/test-space/asset-1/abc123/architecture-diagram.png",
 		);

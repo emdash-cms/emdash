@@ -7,9 +7,7 @@ export interface ContentfulTagTerm {
 	slug: string;
 }
 
-export function mapTag(entry: {
-	fields: Record<string, unknown>;
-}): ContentfulTagTerm {
+export function mapTag(entry: { fields: Record<string, unknown> }): ContentfulTagTerm {
 	return {
 		label: (entry.fields.name as string) ?? "",
 		slug: (entry.fields.slug as string) ?? "",

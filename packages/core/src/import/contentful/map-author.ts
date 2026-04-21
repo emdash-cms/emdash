@@ -19,9 +19,7 @@ export function mapAuthor(
 	includes: ContentfulIncludes,
 ): MappedAuthor {
 	// Resolve profile image asset
-	const profileImageLink = entry.fields.profileImage as
-		| { sys?: { id?: string } }
-		| undefined;
+	const profileImageLink = entry.fields.profileImage as { sys?: { id?: string } } | undefined;
 	const assetId = profileImageLink?.sys?.id;
 	const asset = assetId ? includes.assets.get(assetId) : undefined;
 	let profileImage: { src: string; alt: string } | null = null;

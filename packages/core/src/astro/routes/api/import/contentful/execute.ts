@@ -16,16 +16,10 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { ContentRepository } from "#db/repositories/content.js";
 import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
+import { parseContentfulExport, mapTag, mapAuthor, mapPost } from "#import/contentful/index.js";
 import { resolveImportByline, ensureUniqueBylineSlug } from "#import/utils.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
-
-import {
-	parseContentfulExport,
-	mapTag,
-	mapAuthor,
-	mapPost,
-} from "#import/contentful/index.js";
 
 export const prerender = false;
 
@@ -43,7 +37,12 @@ export interface ContentfulImportResult {
 	tags: { created: number; skipped: number; errors: string[] };
 	authors: { created: number; updated: number; errors: string[] };
 	bylines: { created: number; skipped: number; errors: string[] };
-	posts: { created: number; updated: number; skipped: number; errors: Array<{ title: string; error: string }> };
+	posts: {
+		created: number;
+		updated: number;
+		skipped: number;
+		errors: Array<{ title: string; error: string }>;
+	};
 	counts: Record<string, number>;
 }
 
@@ -68,29 +67,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("VALIDATION_ERROR", "No file provided", 400);
 		}
 
-		const config: ContentfulImportConfig = configJson
-			? JSON.parse(configJson)
-			: {};
+		const config: ContentfulImportConfig = configJson ? JSON.parse(configJson) : {};
 
 		// Parse the Contentful export
 		const text = await file.text();
 		const raw = JSON.parse(text) as Record<string, unknown>;
 		const parsed = parseContentfulExport(raw);
 
-		const result = await executeContentfulImport(
-			parsed,
-			config,
-			emdash,
-			emdashManifest,
-		);
+		const result = await executeContentfulImport(parsed, config, emdash, emdashManifest);
 
 		return apiSuccess(result);
 	} catch (error) {
-		return handleError(
-			error,
-			"Failed to import Contentful content",
-			"CONTENTFUL_IMPORT_ERROR",
-		);
+		return handleError(error, "Failed to import Contentful content", "CONTENTFUL_IMPORT_ERROR");
 	}
 };
 
@@ -109,9 +97,7 @@ async function executeContentfulImport(
 		authors: { created: 0, updated: 0, errors: [] },
 		bylines: { created: 0, skipped: 0, errors: [] },
 		posts: { created: 0, updated: 0, skipped: 0, errors: [] },
-		counts: Object.fromEntries(
-			[...parsed.byType.entries()].map(([k, v]) => [k, v.length]),
-		),
+		counts: Object.fromEntries([...parsed.byType.entries()].map(([k, v]) => [k, v.length])),
 	};
 
 	const taxonomyRepo = new TaxonomyRepository(emdash.db);
@@ -140,9 +126,7 @@ async function executeContentfulImport(
 			});
 			result.tags.created++;
 		} catch (err) {
-			result.tags.errors.push(
-				`tag/${term.slug}: ${(err as Error).message}`,
-			);
+			result.tags.errors.push(`tag/${term.slug}: ${(err as Error).message}`);
 		}
 	}
 
@@ -162,10 +146,7 @@ async function executeContentfulImport(
 		// Create or update the author collection entry
 		if (manifest.collections["authors"]) {
 			try {
-				const existing = await contentRepo.findBySlug(
-					"authors",
-					author.slug,
-				);
+				const existing = await contentRepo.findBySlug("authors", author.slug);
 				if (existing) {
 					result.authors.updated++;
 				} else {
@@ -178,9 +159,7 @@ async function executeContentfulImport(
 					result.authors.created++;
 				}
 			} catch (err) {
-				result.authors.errors.push(
-					`authors/${author.slug}: ${(err as Error).message}`,
-				);
+				result.authors.errors.push(`authors/${author.slug}: ${(err as Error).message}`);
 			}
 		}
 
@@ -191,10 +170,7 @@ async function executeContentfulImport(
 				bylineCache.set(author.slug, existingByline.id);
 				result.bylines.skipped++;
 			} else {
-				const slug = await ensureUniqueBylineSlug(
-					bylineRepo,
-					author.slug,
-				);
+				const slug = await ensureUniqueBylineSlug(bylineRepo, author.slug);
 				const created = await bylineRepo.create({
 					slug,
 					displayName: author.data.name,
@@ -205,9 +181,7 @@ async function executeContentfulImport(
 				result.bylines.created++;
 			}
 		} catch (err) {
-			result.bylines.errors.push(
-				`byline/${author.slug}: ${(err as Error).message}`,
-			);
+			result.bylines.errors.push(`byline/${author.slug}: ${(err as Error).message}`);
 		}
 	}
 
@@ -237,11 +211,7 @@ async function executeContentfulImport(
 		try {
 			// Idempotency: skip or update if slug already exists
 			if (config.skipExisting) {
-				const existing = await contentRepo.findBySlug(
-					"posts",
-					mapped.slug,
-					locale,
-				);
+				const existing = await contentRepo.findBySlug("posts", mapped.slug, locale);
 				if (existing) {
 					result.posts.skipped++;
 					continue;
@@ -254,9 +224,7 @@ async function executeContentfulImport(
 					const bylineId = bylineCache.get(slug);
 					return bylineId ? { bylineId } : null;
 				})
-				.filter(
-					(b): b is { bylineId: string } => b !== null,
-				);
+				.filter((b): b is { bylineId: string } => b !== null);
 
 			// Preserve original dates
 			const createdAt = mapped.createdAt ?? undefined;
@@ -290,33 +258,20 @@ async function executeContentfulImport(
 
 				// Set tag terms on the created post
 				if (mapped.tagSlugs.length > 0) {
-					const createdData = createResult.data as
-						| { id?: string }
-						| undefined;
+					const createdData = createResult.data as { id?: string } | undefined;
 					if (createdData?.id) {
 						const termIds: string[] = [];
 						for (const tagSlug of mapped.tagSlugs) {
-							const term = await taxonomyRepo.findBySlug(
-								"tag",
-								tagSlug,
-							);
+							const term = await taxonomyRepo.findBySlug("tag", tagSlug);
 							if (term) termIds.push(term.id);
 						}
 						if (termIds.length > 0) {
-							await taxonomyRepo.setTermsForEntry(
-								"posts",
-								createdData.id,
-								"tag",
-								termIds,
-							);
+							await taxonomyRepo.setTermsForEntry("posts", createdData.id, "tag", termIds);
 						}
 					}
 				}
 			} else {
-				const err = createResult.error as
-					| { code?: string; message?: string }
-					| string
-					| undefined;
+				const err = createResult.error as { code?: string; message?: string } | string | undefined;
 				const errorMsg =
 					typeof err === "object" && err !== null
 						? `${err.code ?? "UNKNOWN"}: ${err.message ?? "Unknown error"}`
@@ -330,8 +285,7 @@ async function executeContentfulImport(
 		} catch (err) {
 			result.posts.errors.push({
 				title,
-				error:
-					err instanceof Error ? err.message : "Failed to import",
+				error: err instanceof Error ? err.message : "Failed to import",
 			});
 		}
 	}
