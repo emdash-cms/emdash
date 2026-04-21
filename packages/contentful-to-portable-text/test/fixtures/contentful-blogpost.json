@@ -1,0 +1,438 @@
+{
+	"sys": { "type": "Array" },
+	"total": 13,
+	"skip": 0,
+	"limit": 100,
+	"items": [
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "post-1",
+				"type": "Entry",
+				"createdAt": "2025-06-10T12:00:00.000Z",
+				"updatedAt": "2025-06-15T14:30:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogPost" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"title": "Deep Dive: Testing the Migration Pipeline",
+				"slug": "migration-deep-dive",
+				"excerpt": "A comprehensive test post covering every rich text feature the converter needs to handle.",
+				"content": {
+					"nodeType": "document",
+					"data": {},
+					"content": [
+						{
+							"nodeType": "heading-2",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "Why Migration Matters", "marks": [], "data": {} }
+							]
+						},
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "Building a migration pipeline requires handling ", "marks": [{ "type": "italic" }], "data": {} },
+								{ "nodeType": "text", "value": "every content format", "marks": [{ "type": "italic" }, { "type": "bold" }], "data": {} },
+								{ "nodeType": "text", "value": " the source system produces. This includes inline marks, ", "marks": [{ "type": "italic" }], "data": {} },
+								{ "nodeType": "text", "value": "code snippets", "marks": [{ "type": "italic" }, { "type": "code" }], "data": {} },
+								{ "nodeType": "text", "value": ", and more.", "marks": [{ "type": "italic" }], "data": {} }
+							]
+						},
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "Read the ", "marks": [], "data": {} },
+								{
+									"nodeType": "hyperlink",
+									"data": { "uri": "https://developers.cloudflare.com/workers/" },
+									"content": [
+										{ "nodeType": "text", "value": "Workers documentation", "marks": [], "data": {} }
+									]
+								},
+								{ "nodeType": "text", "value": " for more context.", "marks": [], "data": {} }
+							]
+						},
+						{
+							"nodeType": "unordered-list",
+							"data": {},
+							"content": [
+								{
+									"nodeType": "list-item",
+									"data": {},
+									"content": [
+										{ "nodeType": "paragraph", "data": {}, "content": [
+											{ "nodeType": "text", "value": "Parse the source format", "marks": [], "data": {} }
+										]}
+									]
+								},
+								{
+									"nodeType": "list-item",
+									"data": {},
+									"content": [
+										{ "nodeType": "paragraph", "data": {}, "content": [
+											{ "nodeType": "text", "value": "Transform to target schema", "marks": [], "data": {} }
+										]}
+									]
+								},
+								{
+									"nodeType": "list-item",
+									"data": {},
+									"content": [
+										{ "nodeType": "paragraph", "data": {}, "content": [
+											{ "nodeType": "text", "value": "Validate the output", "marks": [], "data": {} }
+										]}
+									]
+								}
+							]
+						},
+						{
+							"nodeType": "ordered-list",
+							"data": {},
+							"content": [
+								{
+									"nodeType": "list-item",
+									"data": {},
+									"content": [
+										{ "nodeType": "paragraph", "data": {}, "content": [
+											{ "nodeType": "text", "value": "Export the data", "marks": [], "data": {} }
+										]}
+									]
+								},
+								{
+									"nodeType": "list-item",
+									"data": {},
+									"content": [
+										{ "nodeType": "paragraph", "data": {}, "content": [
+											{ "nodeType": "text", "value": "Transform to Portable Text", "marks": [], "data": {} }
+										]}
+									]
+								},
+								{
+									"nodeType": "list-item",
+									"data": {},
+									"content": [
+										{ "nodeType": "paragraph", "data": {}, "content": [
+											{ "nodeType": "text", "value": "Ingest into EmDash", "marks": [], "data": {} }
+										]}
+									]
+								}
+							]
+						},
+						{
+							"nodeType": "blockquote",
+							"data": {},
+							"content": [
+								{
+									"nodeType": "paragraph",
+									"data": {},
+									"content": [
+										{ "nodeType": "text", "value": "The best migration is the one you don't notice happened.", "marks": [], "data": {} }
+									]
+								}
+							]
+						},
+						{
+							"nodeType": "embedded-entry-block",
+							"data": { "target": { "sys": { "id": "code-block-1", "type": "Link", "linkType": "Entry" } } },
+							"content": []
+						},
+						{
+							"nodeType": "embedded-entry-block",
+							"data": { "target": { "sys": { "id": "html-block-1", "type": "Link", "linkType": "Entry" } } },
+							"content": []
+						},
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "", "marks": [], "data": {} }
+							]
+						}
+					]
+				},
+				"featured": false,
+				"tags": [
+					{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-1" } },
+					{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-2" } }
+				],
+				"author": [
+					{ "sys": { "type": "Link", "linkType": "Entry", "id": "author-1" } }
+				],
+				"publishDate": "2025-06-15T00:00+01:00",
+				"localeList": { "sys": { "type": "Link", "linkType": "Entry", "id": "locale-list-1" } }
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "post-2",
+				"type": "Entry",
+				"createdAt": "2025-07-01T10:00:00.000Z",
+				"updatedAt": "2025-07-05T16:00:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogPost" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"title": "Working With Embedded Content",
+				"slug": "embedded-content",
+				"excerpt": "A second test post demonstrating embedded entries, embedded assets, and all block types.",
+				"content": {
+					"nodeType": "document",
+					"data": {},
+					"content": [
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "Contentful supports embedding entries and assets directly into rich text fields. This post exercises every embedded block type the converter handles.", "marks": [], "data": {} }
+							]
+						},
+						{
+							"nodeType": "embedded-entry-block",
+							"data": { "target": { "sys": { "id": "html-block-2", "type": "Link", "linkType": "Entry" } } },
+							"content": []
+						},
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "Here is an image embedded via a ", "marks": [], "data": {} },
+								{ "nodeType": "text", "value": "blogImage", "marks": [{ "type": "code" }], "data": {} },
+								{ "nodeType": "text", "value": " entry:", "marks": [], "data": {} }
+							]
+						},
+						{
+							"nodeType": "embedded-entry-block",
+							"data": { "target": { "sys": { "id": "image-block-1", "type": "Link", "linkType": "Entry" } } },
+							"content": []
+						},
+						{
+							"nodeType": "embedded-entry-block",
+							"data": { "target": { "sys": { "id": "code-block-2", "type": "Link", "linkType": "Entry" } } },
+							"content": []
+						},
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "And here is a legacy embedded asset (an image inserted directly rather than through a blogImage entry):", "marks": [], "data": {} }
+							]
+						},
+						{
+							"nodeType": "embedded-asset-block",
+							"data": { "target": { "sys": { "id": "asset-1", "type": "Link", "linkType": "Asset" } } },
+							"content": []
+						},
+						{
+							"nodeType": "paragraph",
+							"data": {},
+							"content": [
+								{ "nodeType": "text", "value": "That covers every embedded block type the converter needs to handle.", "marks": [], "data": {} }
+							]
+						}
+					]
+				},
+				"featureImage": { "sys": { "type": "Link", "linkType": "Asset", "id": "asset-1" } },
+				"featured": true,
+				"tags": [
+					{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-3" } }
+				],
+				"author": [
+					{ "sys": { "type": "Link", "linkType": "Entry", "id": "author-2" } }
+				],
+				"publishDate": "2025-07-01T00:00+01:00"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "tag-1",
+				"type": "Entry",
+				"createdAt": "2025-06-01T10:00:00.000Z",
+				"updatedAt": "2025-06-01T10:00:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogTag" } },
+				"locale": "en-US"
+			},
+			"fields": { "name": "Engineering", "slug": "engineering" }
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "tag-2",
+				"type": "Entry",
+				"createdAt": "2025-06-01T10:01:00.000Z",
+				"updatedAt": "2025-06-01T10:01:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogTag" } },
+				"locale": "en-US"
+			},
+			"fields": { "name": "Performance", "slug": "performance" }
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "tag-3",
+				"type": "Entry",
+				"createdAt": "2025-06-01T10:02:00.000Z",
+				"updatedAt": "2025-06-01T10:02:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogTag" } },
+				"locale": "en-US"
+			},
+			"fields": { "name": "Migration", "slug": "migration" }
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "author-1",
+				"type": "Entry",
+				"createdAt": "2025-05-01T09:00:00.000Z",
+				"updatedAt": "2025-05-01T09:00:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogAuthor" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"name": "Jane Engineer",
+				"slug": "jane-engineer",
+				"bio": "Writes about systems and infrastructure.",
+				"jobTitle": "Staff Engineer"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "author-2",
+				"type": "Entry",
+				"createdAt": "2025-05-01T09:01:00.000Z",
+				"updatedAt": "2025-05-01T09:01:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogAuthor" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"name": "Alex Content",
+				"slug": "alex-content",
+				"bio": "Focuses on CMS architecture and content modelling.",
+				"jobTitle": "Senior Developer"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "code-block-1",
+				"type": "Entry",
+				"createdAt": "2025-06-10T12:01:00.000Z",
+				"updatedAt": "2025-06-10T12:01:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogCodeBlock" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"code": "async function migrate(posts) {\n  for (const post of posts) {\n    await transform(post);\n    await ingest(post);\n  }\n}",
+				"language": "typescript"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "code-block-2",
+				"type": "Entry",
+				"createdAt": "2025-07-01T10:01:00.000Z",
+				"updatedAt": "2025-07-01T10:01:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogCodeBlock" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"code": "const includes = buildIncludes(response.includes);\nconst blocks = richTextToPortableText(doc, includes);"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "html-block-1",
+				"type": "Entry",
+				"createdAt": "2025-06-10T12:02:00.000Z",
+				"updatedAt": "2025-06-10T12:02:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogEmbeddedHtml" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"customHtml": "<div style=\"padding:1.5rem;background:#fff3cd;border:1px solid #ffc107;border-radius:8px\">\n  <strong>Note:</strong> This section was auto-generated from the test fixture.\n  <br><br>\n  <a href=\"https://example.com\" target=\"_blank\" rel=\"noopener noreferrer\">Learn more &rarr;</a>\n</div>"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "html-block-2",
+				"type": "Entry",
+				"createdAt": "2025-07-01T10:02:00.000Z",
+				"updatedAt": "2025-07-01T10:02:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogEmbeddedHtml" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"customHtml": "<aside class=\"callout\"><p>Editor's note: this post was updated to reflect API changes.</p></aside>"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "image-block-1",
+				"type": "Entry",
+				"createdAt": "2025-07-01T10:03:00.000Z",
+				"updatedAt": "2025-07-01T10:03:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogImage" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"assetFile": { "sys": { "type": "Link", "linkType": "Asset", "id": "asset-1" } },
+				"linkUrl": "https://example.com/full-size",
+				"size": "Wide"
+			}
+		},
+		{
+			"metadata": { "tags": [], "concepts": [] },
+			"sys": {
+				"id": "locale-list-1",
+				"type": "Entry",
+				"createdAt": "2025-06-01T08:00:00.000Z",
+				"updatedAt": "2025-06-01T08:00:00.000Z",
+				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "configLocaleList" } },
+				"locale": "en-US"
+			},
+			"fields": {
+				"name": "Default Locale Config",
+				"enUs": "Translated for Locale",
+				"deDe": "No Page for Locale",
+				"frFr": "Translated for Locale",
+				"jaJp": "No Page for Locale"
+			}
+		}
+	],
+	"includes": {
+		"Asset": [
+			{
+				"metadata": { "tags": [], "concepts": [] },
+				"sys": {
+					"id": "asset-1",
+					"type": "Asset",
+					"createdAt": "2025-05-20T08:00:00.000Z",
+					"updatedAt": "2025-05-20T08:00:00.000Z",
+					"locale": "en-US"
+				},
+				"fields": {
+					"title": "Architecture diagram",
+					"description": "A diagram showing the migration pipeline architecture",
+					"file": {
+						"url": "//images.ctfassets.net/test-space/asset-1/abc123/architecture-diagram.png",
+						"details": {
+							"size": 150346,
+							"image": { "width": 1200, "height": 800 }
+						},
+						"fileName": "architecture-diagram.png",
+						"contentType": "image/png"
+					}
+				}
+			}
+		]
+	}
+}

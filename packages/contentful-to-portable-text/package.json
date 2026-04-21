@@ -1,0 +1,47 @@
+{
+	"name": "@emdash-cms/contentful-to-portable-text",
+	"version": "0.5.0",
+	"description": "Convert Contentful Rich Text AST to Portable Text",
+	"type": "module",
+	"main": "dist/index.mjs",
+	"types": "dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown src/index.ts --format esm --dts --clean",
+		"dev": "tsdown src/index.ts --format esm --dts --watch",
+		"test": "vitest",
+		"prepublishOnly": "node --run build",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm",
+		"typecheck": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/contentful-to-portable-text"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash",
+	"keywords": [
+		"contentful",
+		"rich-text",
+		"portable-text",
+		"migration",
+		"cms"
+	],
+	"author": "Matt Kane",
+	"license": "MIT"
+}
