@@ -214,6 +214,7 @@ interface PortableTextImageBlock {
 	displayWidth?: number;
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	link?: { href: string; blank?: boolean };
 }
 
 interface PortableTextCodeBlock {
@@ -746,6 +747,18 @@ function convertPMNode(
 			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
 			// only provider-specific data (we don't reconstruct it here, so any
 			// non-LQIP meta keys are never silently dropped on editor round-trip).
+			// Normalise link: drop when href is missing/empty so half-populated
+			// { blank: true } objects don't leak into Portable Text.
+			let link: { href: string; blank?: boolean } | undefined;
+			const rawLink = attrs.link;
+			if (rawLink && typeof rawLink === "object") {
+				const linkObj = rawLink as { href?: unknown; blank?: unknown };
+				const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
+				if (href) {
+					link = { href };
+					if (linkObj.blank === true) link.blank = true;
+				}
+			}
 			return {
 				_type: "image",
 				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
@@ -763,6 +776,7 @@ function convertPMNode(
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
 				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
+				link,
 			};
 		}
 
@@ -1226,6 +1240,9 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 						displayWidth: imageBlock.displayWidth,
 						displayHeight: imageBlock.displayHeight,
 						alignment: imageBlock.alignment,
+						link: imageBlock.link
+							? { href: imageBlock.link.href, blank: imageBlock.link.blank }
+							: null,
 					},
 					block._key,
 				),
@@ -3861,12 +3878,16 @@ function EditorBubbleMenu({
 			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
+			imageLink:
+				activeEditor.isActive("image") && Boolean(activeEditor.getAttributes("image").link),
 		}),
 	});
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
 		}
 	}, [showLinkInput, editor]);
@@ -3877,7 +3898,14 @@ function EditorBubbleMenu({
 	};
 
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			const trimmed = linkUrl.trim();
+			editor
+				.chain()
+				.focus()
+				.updateAttributes("image", { link: trimmed ? { href: trimmed } : null })
+				.run();
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -3891,7 +3919,11 @@ function EditorBubbleMenu({
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			editor.chain().focus().updateAttributes("image", { link: null }).run();
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		closeLinkInput();
 	};
 
@@ -3951,7 +3983,7 @@ function EditorBubbleMenu({
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{activeMarks.link && (
+					{(activeMarks.link || activeMarks.imageLink) && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -4019,8 +4051,8 @@ function EditorBubbleMenu({
 					<div className="w-px h-6 bg-kumo-line mx-1" />
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={activeMarks.link}
-						title={activeMarks.link ? t`Edit link` : t`Add link`}
+						active={activeMarks.link || activeMarks.imageLink}
+						title={activeMarks.link || activeMarks.imageLink ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -4355,6 +4387,9 @@ function EditorToolbar({
 				alignRightState: alignmentButtonState(alignments, isCellSelection, "right"),
 				isTableAlignmentUnavailable,
 				isLink: ctx.editor.isActive("link"),
+				isImage: ctx.editor.isActive("image"),
+				imageHasLink:
+					ctx.editor.isActive("image") && Boolean(ctx.editor.getAttributes("image").link),
 				canUndo: ctx.editor.can().undo(),
 				canRedo: ctx.editor.can().redo(),
 			};
@@ -4364,7 +4399,9 @@ function EditorToolbar({
 	// Populate link URL when opening popover
 	React.useEffect(() => {
 		if (showLinkPopover) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
 		}
 	}, [showLinkPopover, editor]);
@@ -4376,7 +4413,14 @@ function EditorToolbar({
 	};
 
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			const trimmed = linkUrl.trim();
+			editor
+				.chain()
+				.focus()
+				.updateAttributes("image", { link: trimmed ? { href: trimmed } : null })
+				.run();
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -4386,7 +4430,11 @@ function EditorToolbar({
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			editor.chain().focus().updateAttributes("image", { link: null }).run();
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
 	};
@@ -4632,7 +4680,7 @@ function EditorToolbar({
 					}}
 				>
 					<Tooltip
-						content={t`Insert Link`}
+						content={editorState.isImage ? t`Image link` : t`Insert Link`}
 						side="bottom"
 						render={
 							<Popover.Trigger
@@ -4643,11 +4691,12 @@ function EditorToolbar({
 										shape="square"
 										className={cn(
 											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
-											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+											(editorState.isLink || editorState.imageHasLink) &&
+												"bg-kumo-interact/50 text-kumo-default",
 										)}
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Insert Link`}
-										aria-pressed={editorState.isLink}
+										aria-pressed={editorState.isLink || editorState.imageHasLink}
 									>
 										<LinkIcon className="h-4 w-4" aria-hidden="true" />
 									</Button>
@@ -4679,7 +4728,7 @@ function EditorToolbar({
 									{t`Cancel`}
 								</Button>
 								<div className="flex gap-1">
-									{editorState.isLink && (
+									{(editorState.isLink || editorState.imageHasLink) && (
 										<Button
 											type="button"
 											variant="ghost"

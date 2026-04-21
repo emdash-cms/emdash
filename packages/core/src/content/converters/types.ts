@@ -80,6 +80,14 @@ export interface PortableTextImageBlock {
 	/** Display height for this instance (overrides original) */
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/**
+	 * Optional link. When set, the image is rendered inside an `<a>` using
+	 * `sanitizeHref`-validated `href`. Mirrors `PortableTextLinkMark`.
+	 */
+	link?: {
+		href: string;
+		blank?: boolean;
+	};
 }
 
 /**

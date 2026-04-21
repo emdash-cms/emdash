@@ -375,6 +375,19 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 	const displayHeight = typeof attrs?.displayHeight === "number" ? attrs.displayHeight : undefined;
 	const alignment = attrs?.alignment;
 
+	// Normalise link: drop entirely when href is missing or empty so half-populated
+	// { blank: true } objects don't round-trip.
+	let link: { href: string; blank?: boolean } | undefined;
+	const rawLink = attrs?.link;
+	if (rawLink && typeof rawLink === "object") {
+		const linkObj = rawLink as { href?: unknown; blank?: unknown };
+		const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
+		if (href) {
+			link = { href };
+			if (linkObj.blank === true) link.blank = true;
+		}
+	}
+
 	return {
 		_type: "image",
 		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
@@ -400,6 +413,7 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 			alignment === "full"
 				? alignment
 				: undefined,
+		link,
 	};
 }
 
