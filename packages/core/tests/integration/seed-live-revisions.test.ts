@@ -15,7 +15,7 @@ import { applySeed } from "../../src/seed/apply.js";
 import type { SeedFile } from "../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../utils/test-db.js";
 
-function seedWith(status: "draft" | "published" | "scheduled"): SeedFile {
+function seedWith(status: "draft" | "published"): SeedFile {
 	return {
 		version: "1",
 		collections: [
