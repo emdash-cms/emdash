@@ -474,6 +474,31 @@ describe("ContentRepository", () => {
 		});
 	});
 
+	describe("setDraftRevision()", () => {
+		it("sets the draft_revision_id so publish() picks it up", async () => {
+			const post = await repo.create(createPostFixture());
+			// Create a revision directly so we have a valid id to stage.
+			const { RevisionRepository } =
+				await import("../../../../src/database/repositories/revision.js");
+			const revisionRepo = new RevisionRepository(db);
+			const draft = await revisionRepo.create({
+				collection: "post",
+				entryId: post.id,
+				data: { ...post.data, title: "Staged for publish" },
+			});
+
+			await repo.setDraftRevision("post", post.id, draft.id);
+
+			const afterStaging = await repo.findById("post", post.id);
+			expect(afterStaging?.draftRevisionId).toBe(draft.id);
+
+			const published = await repo.publish("post", post.id);
+
+			expect(published.liveRevisionId).toBe(draft.id);
+			expect(published.draftRevisionId).toBeNull();
+		});
+	});
+
 	describe("publish() clears schedule", () => {
 		it("should clear scheduled_at when publishing a scheduled draft", async () => {
 			const post = await repo.create(createPostFixture());

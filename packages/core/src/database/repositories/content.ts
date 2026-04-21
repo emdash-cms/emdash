@@ -1032,6 +1032,25 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Set the draft revision pointer for a content item.
+	 *
+	 * Used by seed/import paths that stage a new revision's data before
+	 * promoting it to live via `publish()`.
+	 */
+	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
+		const tableName = getTableName(type);
+		const now = new Date().toISOString();
+
+		await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET draft_revision_id = ${revisionId},
+				updated_at = ${now}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+		`.execute(this.db);
+	}
+
+	/**
 	 * Discard pending draft changes
 	 *
 	 * Clears draft_revision_id. The content table columns already hold the
