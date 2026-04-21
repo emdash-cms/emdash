@@ -153,10 +153,11 @@ Recommended workflow for agency handoff:
 1. Copy `templates/starter-vercel` or `templates/starter-netlify`
 2. Run `pnpm install`
 3. Run `pnpm setup:business` and enter business details + design preset
-4. Run `pnpm bootstrap`
-5. Push to Git provider and connect to Vercel/Netlify
-6. Set the environment variables from `.env.example`
-7. Deploy and hand off admin access
+4. Run `pnpm setup:hosting --provider=vercel` or `pnpm setup:hosting --provider=netlify`
+5. Run `pnpm bootstrap`
+6. Push to Git provider and connect to Vercel/Netlify
+7. Set the environment variables from `.env.example`
+8. Deploy and hand off admin access
 
 The primary Node demo is also synced from the blog template:
 

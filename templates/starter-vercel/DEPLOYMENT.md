@@ -7,6 +7,7 @@ This template is optimized for Vercel using `@astrojs/vercel`.
 ```bash
 pnpm install
 pnpm setup:business
+pnpm setup:hosting --provider=vercel
 pnpm bootstrap
 pnpm dev
 ```

@@ -7,6 +7,7 @@ This template is optimized for Netlify using `@astrojs/netlify`.
 ```bash
 pnpm install
 pnpm setup:business
+pnpm setup:hosting --provider=netlify
 pnpm bootstrap
 pnpm dev
 ```
