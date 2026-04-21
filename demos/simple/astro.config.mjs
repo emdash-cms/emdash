@@ -30,7 +30,7 @@ export default defineConfig({
 				directory: "./uploads",
 				baseUrl: "/_emdash/api/media/file",
 			}),
-			plugins: [auditLogPlugin(), slackPlugin()],
+			plugins: [auditLogPlugin()],
 			// HTTPS reverse proxy: uncomment so all origin-dependent features match browser
 			// siteUrl: "https://emdash.local:8443",
 		}),
