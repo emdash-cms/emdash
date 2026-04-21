@@ -6,10 +6,7 @@
  */
 import type { ContentfulEntry, PTBlock } from "../types.js";
 
-export function transformCodeBlock(
-	entry: ContentfulEntry,
-	key: string,
-): PTBlock {
+export function transformCodeBlock(entry: ContentfulEntry, key: string): PTBlock {
 	return {
 		_type: "codeBlock",
 		_key: key,

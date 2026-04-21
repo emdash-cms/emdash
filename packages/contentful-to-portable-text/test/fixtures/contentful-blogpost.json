@@ -33,11 +33,36 @@
 							"nodeType": "paragraph",
 							"data": {},
 							"content": [
-								{ "nodeType": "text", "value": "Building a migration pipeline requires handling ", "marks": [{ "type": "italic" }], "data": {} },
-								{ "nodeType": "text", "value": "every content format", "marks": [{ "type": "italic" }, { "type": "bold" }], "data": {} },
-								{ "nodeType": "text", "value": " the source system produces. This includes inline marks, ", "marks": [{ "type": "italic" }], "data": {} },
-								{ "nodeType": "text", "value": "code snippets", "marks": [{ "type": "italic" }, { "type": "code" }], "data": {} },
-								{ "nodeType": "text", "value": ", and more.", "marks": [{ "type": "italic" }], "data": {} }
+								{
+									"nodeType": "text",
+									"value": "Building a migration pipeline requires handling ",
+									"marks": [{ "type": "italic" }],
+									"data": {}
+								},
+								{
+									"nodeType": "text",
+									"value": "every content format",
+									"marks": [{ "type": "italic" }, { "type": "bold" }],
+									"data": {}
+								},
+								{
+									"nodeType": "text",
+									"value": " the source system produces. This includes inline marks, ",
+									"marks": [{ "type": "italic" }],
+									"data": {}
+								},
+								{
+									"nodeType": "text",
+									"value": "code snippets",
+									"marks": [{ "type": "italic" }, { "type": "code" }],
+									"data": {}
+								},
+								{
+									"nodeType": "text",
+									"value": ", and more.",
+									"marks": [{ "type": "italic" }],
+									"data": {}
+								}
 							]
 						},
 						{
@@ -49,7 +74,12 @@
 									"nodeType": "hyperlink",
 									"data": { "uri": "https://developers.cloudflare.com/workers/" },
 									"content": [
-										{ "nodeType": "text", "value": "Workers documentation", "marks": [], "data": {} }
+										{
+											"nodeType": "text",
+											"value": "Workers documentation",
+											"marks": [],
+											"data": {}
+										}
 									]
 								},
 								{ "nodeType": "text", "value": " for more context.", "marks": [], "data": {} }
@@ -63,27 +93,54 @@
 									"nodeType": "list-item",
 									"data": {},
 									"content": [
-										{ "nodeType": "paragraph", "data": {}, "content": [
-											{ "nodeType": "text", "value": "Parse the source format", "marks": [], "data": {} }
-										]}
+										{
+											"nodeType": "paragraph",
+											"data": {},
+											"content": [
+												{
+													"nodeType": "text",
+													"value": "Parse the source format",
+													"marks": [],
+													"data": {}
+												}
+											]
+										}
 									]
 								},
 								{
 									"nodeType": "list-item",
 									"data": {},
 									"content": [
-										{ "nodeType": "paragraph", "data": {}, "content": [
-											{ "nodeType": "text", "value": "Transform to target schema", "marks": [], "data": {} }
-										]}
+										{
+											"nodeType": "paragraph",
+											"data": {},
+											"content": [
+												{
+													"nodeType": "text",
+													"value": "Transform to target schema",
+													"marks": [],
+													"data": {}
+												}
+											]
+										}
 									]
 								},
 								{
 									"nodeType": "list-item",
 									"data": {},
 									"content": [
-										{ "nodeType": "paragraph", "data": {}, "content": [
-											{ "nodeType": "text", "value": "Validate the output", "marks": [], "data": {} }
-										]}
+										{
+											"nodeType": "paragraph",
+											"data": {},
+											"content": [
+												{
+													"nodeType": "text",
+													"value": "Validate the output",
+													"marks": [],
+													"data": {}
+												}
+											]
+										}
 									]
 								}
 							]
@@ -96,27 +153,49 @@
 									"nodeType": "list-item",
 									"data": {},
 									"content": [
-										{ "nodeType": "paragraph", "data": {}, "content": [
-											{ "nodeType": "text", "value": "Export the data", "marks": [], "data": {} }
-										]}
+										{
+											"nodeType": "paragraph",
+											"data": {},
+											"content": [
+												{ "nodeType": "text", "value": "Export the data", "marks": [], "data": {} }
+											]
+										}
 									]
 								},
 								{
 									"nodeType": "list-item",
 									"data": {},
 									"content": [
-										{ "nodeType": "paragraph", "data": {}, "content": [
-											{ "nodeType": "text", "value": "Transform to Portable Text", "marks": [], "data": {} }
-										]}
+										{
+											"nodeType": "paragraph",
+											"data": {},
+											"content": [
+												{
+													"nodeType": "text",
+													"value": "Transform to Portable Text",
+													"marks": [],
+													"data": {}
+												}
+											]
+										}
 									]
 								},
 								{
 									"nodeType": "list-item",
 									"data": {},
 									"content": [
-										{ "nodeType": "paragraph", "data": {}, "content": [
-											{ "nodeType": "text", "value": "Ingest into EmDash", "marks": [], "data": {} }
-										]}
+										{
+											"nodeType": "paragraph",
+											"data": {},
+											"content": [
+												{
+													"nodeType": "text",
+													"value": "Ingest into EmDash",
+													"marks": [],
+													"data": {}
+												}
+											]
+										}
 									]
 								}
 							]
@@ -129,27 +208,34 @@
 									"nodeType": "paragraph",
 									"data": {},
 									"content": [
-										{ "nodeType": "text", "value": "The best migration is the one you don't notice happened.", "marks": [], "data": {} }
+										{
+											"nodeType": "text",
+											"value": "The best migration is the one you don't notice happened.",
+											"marks": [],
+											"data": {}
+										}
 									]
 								}
 							]
 						},
 						{
 							"nodeType": "embedded-entry-block",
-							"data": { "target": { "sys": { "id": "code-block-1", "type": "Link", "linkType": "Entry" } } },
+							"data": {
+								"target": { "sys": { "id": "code-block-1", "type": "Link", "linkType": "Entry" } }
+							},
 							"content": []
 						},
 						{
 							"nodeType": "embedded-entry-block",
-							"data": { "target": { "sys": { "id": "html-block-1", "type": "Link", "linkType": "Entry" } } },
+							"data": {
+								"target": { "sys": { "id": "html-block-1", "type": "Link", "linkType": "Entry" } }
+							},
 							"content": []
 						},
 						{
 							"nodeType": "paragraph",
 							"data": {},
-							"content": [
-								{ "nodeType": "text", "value": "", "marks": [], "data": {} }
-							]
+							"content": [{ "nodeType": "text", "value": "", "marks": [], "data": {} }]
 						}
 					]
 				},
@@ -158,9 +244,7 @@
 					{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-1" } },
 					{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-2" } }
 				],
-				"author": [
-					{ "sys": { "type": "Link", "linkType": "Entry", "id": "author-1" } }
-				],
+				"author": [{ "sys": { "type": "Link", "linkType": "Entry", "id": "author-1" } }],
 				"publishDate": "2025-06-15T00:00+01:00",
 				"localeList": { "sys": { "type": "Link", "linkType": "Entry", "id": "locale-list-1" } }
 			}
@@ -187,62 +271,91 @@
 							"nodeType": "paragraph",
 							"data": {},
 							"content": [
-								{ "nodeType": "text", "value": "Contentful supports embedding entries and assets directly into rich text fields. This post exercises every embedded block type the converter handles.", "marks": [], "data": {} }
+								{
+									"nodeType": "text",
+									"value": "Contentful supports embedding entries and assets directly into rich text fields. This post exercises every embedded block type the converter handles.",
+									"marks": [],
+									"data": {}
+								}
 							]
 						},
 						{
 							"nodeType": "embedded-entry-block",
-							"data": { "target": { "sys": { "id": "html-block-2", "type": "Link", "linkType": "Entry" } } },
+							"data": {
+								"target": { "sys": { "id": "html-block-2", "type": "Link", "linkType": "Entry" } }
+							},
 							"content": []
 						},
 						{
 							"nodeType": "paragraph",
 							"data": {},
 							"content": [
-								{ "nodeType": "text", "value": "Here is an image embedded via a ", "marks": [], "data": {} },
-								{ "nodeType": "text", "value": "blogImage", "marks": [{ "type": "code" }], "data": {} },
+								{
+									"nodeType": "text",
+									"value": "Here is an image embedded via a ",
+									"marks": [],
+									"data": {}
+								},
+								{
+									"nodeType": "text",
+									"value": "blogImage",
+									"marks": [{ "type": "code" }],
+									"data": {}
+								},
 								{ "nodeType": "text", "value": " entry:", "marks": [], "data": {} }
 							]
 						},
 						{
 							"nodeType": "embedded-entry-block",
-							"data": { "target": { "sys": { "id": "image-block-1", "type": "Link", "linkType": "Entry" } } },
+							"data": {
+								"target": { "sys": { "id": "image-block-1", "type": "Link", "linkType": "Entry" } }
+							},
 							"content": []
 						},
 						{
 							"nodeType": "embedded-entry-block",
-							"data": { "target": { "sys": { "id": "code-block-2", "type": "Link", "linkType": "Entry" } } },
+							"data": {
+								"target": { "sys": { "id": "code-block-2", "type": "Link", "linkType": "Entry" } }
+							},
 							"content": []
 						},
 						{
 							"nodeType": "paragraph",
 							"data": {},
 							"content": [
-								{ "nodeType": "text", "value": "And here is a legacy embedded asset (an image inserted directly rather than through a blogImage entry):", "marks": [], "data": {} }
+								{
+									"nodeType": "text",
+									"value": "And here is a legacy embedded asset (an image inserted directly rather than through a blogImage entry):",
+									"marks": [],
+									"data": {}
+								}
 							]
 						},
 						{
 							"nodeType": "embedded-asset-block",
-							"data": { "target": { "sys": { "id": "asset-1", "type": "Link", "linkType": "Asset" } } },
+							"data": {
+								"target": { "sys": { "id": "asset-1", "type": "Link", "linkType": "Asset" } }
+							},
 							"content": []
 						},
 						{
 							"nodeType": "paragraph",
 							"data": {},
 							"content": [
-								{ "nodeType": "text", "value": "That covers every embedded block type the converter needs to handle.", "marks": [], "data": {} }
+								{
+									"nodeType": "text",
+									"value": "That covers every embedded block type the converter needs to handle.",
+									"marks": [],
+									"data": {}
+								}
 							]
 						}
 					]
 				},
 				"featureImage": { "sys": { "type": "Link", "linkType": "Asset", "id": "asset-1" } },
 				"featured": true,
-				"tags": [
-					{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-3" } }
-				],
-				"author": [
-					{ "sys": { "type": "Link", "linkType": "Entry", "id": "author-2" } }
-				],
+				"tags": [{ "sys": { "type": "Link", "linkType": "Entry", "id": "tag-3" } }],
+				"author": [{ "sys": { "type": "Link", "linkType": "Entry", "id": "author-2" } }],
 				"publishDate": "2025-07-01T00:00+01:00"
 			}
 		},
@@ -323,7 +436,9 @@
 				"type": "Entry",
 				"createdAt": "2025-06-10T12:01:00.000Z",
 				"updatedAt": "2025-06-10T12:01:00.000Z",
-				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogCodeBlock" } },
+				"contentType": {
+					"sys": { "type": "Link", "linkType": "ContentType", "id": "blogCodeBlock" }
+				},
 				"locale": "en-US"
 			},
 			"fields": {
@@ -338,7 +453,9 @@
 				"type": "Entry",
 				"createdAt": "2025-07-01T10:01:00.000Z",
 				"updatedAt": "2025-07-01T10:01:00.000Z",
-				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogCodeBlock" } },
+				"contentType": {
+					"sys": { "type": "Link", "linkType": "ContentType", "id": "blogCodeBlock" }
+				},
 				"locale": "en-US"
 			},
 			"fields": {
@@ -352,7 +469,9 @@
 				"type": "Entry",
 				"createdAt": "2025-06-10T12:02:00.000Z",
 				"updatedAt": "2025-06-10T12:02:00.000Z",
-				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogEmbeddedHtml" } },
+				"contentType": {
+					"sys": { "type": "Link", "linkType": "ContentType", "id": "blogEmbeddedHtml" }
+				},
 				"locale": "en-US"
 			},
 			"fields": {
@@ -366,7 +485,9 @@
 				"type": "Entry",
 				"createdAt": "2025-07-01T10:02:00.000Z",
 				"updatedAt": "2025-07-01T10:02:00.000Z",
-				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "blogEmbeddedHtml" } },
+				"contentType": {
+					"sys": { "type": "Link", "linkType": "ContentType", "id": "blogEmbeddedHtml" }
+				},
 				"locale": "en-US"
 			},
 			"fields": {
@@ -396,7 +517,9 @@
 				"type": "Entry",
 				"createdAt": "2025-06-01T08:00:00.000Z",
 				"updatedAt": "2025-06-01T08:00:00.000Z",
-				"contentType": { "sys": { "type": "Link", "linkType": "ContentType", "id": "configLocaleList" } },
+				"contentType": {
+					"sys": { "type": "Link", "linkType": "ContentType", "id": "configLocaleList" }
+				},
 				"locale": "en-US"
 			},
 			"fields": {
