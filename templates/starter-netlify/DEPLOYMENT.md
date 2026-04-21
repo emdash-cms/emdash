@@ -23,5 +23,6 @@ Set these in Netlify site environment variables:
 - `S3_SECRET_ACCESS_KEY`
 - `S3_REGION`
 - `S3_PUBLIC_URL`
+- `CONTACT_WEBHOOK_URL` (optional; receives contact form submissions)
 
 The template falls back to local SQLite/uploads when these variables are missing, which is intended for local development only.

@@ -60,6 +60,7 @@ A flexible baseline template for agencies building local business sites.
 - Posts, pages, categories, and tags
 - `setup:business` wizard for name/contact/hours/socials with structured site settings
 - Tokenized design presets + deterministic `theme/theme.json` per site
+- Built-in contact form route with spam honeypot and webhook notifications
 - Minimal, editable structure for custom components
 
 **Pages:** Homepage, post archive, single post, dynamic content pages, category archive, tag archive, 404

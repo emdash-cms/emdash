@@ -12,7 +12,7 @@ const REQUIRED_KEYS = [
 	"S3_PUBLIC_URL",
 ];
 
-const OPTIONAL_KEYS = ["SITE_URL"];
+const OPTIONAL_KEYS = ["SITE_URL", "CONTACT_WEBHOOK_URL"];
 
 function parseArgs(argv) {
 	const providerArg = argv.find((arg) => arg.startsWith("--provider="));
