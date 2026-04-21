@@ -34,6 +34,12 @@ export interface SiteSettings {
 	phone?: string;
 	email?: string;
 	address?: string;
+	locality?: string;
+	region?: string;
+	postalCode?: string;
+	country?: string;
+	latitude?: number;
+	longitude?: number;
 	hours?: string;
 	facebookUrl?: string;
 	instagramUrl?: string;

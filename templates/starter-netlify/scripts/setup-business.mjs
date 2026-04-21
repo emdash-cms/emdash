@@ -203,9 +203,16 @@ async function main() {
 
 	const businessName = await ask("Business name", "My Site");
 	const tagline = await ask("Tagline", "Built with EmDash");
+	const siteUrl = await ask("Site URL (https://example.com)");
 	const phone = await ask("Phone");
 	const email = await ask("Email");
 	const address = await ask("Address");
+	const locality = await ask("City / Locality");
+	const region = await ask("State / Region");
+	const postalCode = await ask("Postal Code");
+	const country = await ask("Country");
+	const latitudeInput = await ask("Latitude (optional)");
+	const longitudeInput = await ask("Longitude (optional)");
 	const hours = await ask("Business hours", "Mon-Fri 9:00 AM - 5:00 PM");
 	const facebookUrl = await ask("Facebook URL");
 	const instagramUrl = await ask("Instagram URL");
@@ -225,13 +232,28 @@ async function main() {
 	seed.settings = seed.settings ?? {};
 	seed.settings.title = businessName;
 	seed.settings.tagline = tagline;
+	setOrDelete(seed.settings, "url", siteUrl);
 	setOrDelete(seed.settings, "phone", phone);
 	setOrDelete(seed.settings, "email", email);
 	setOrDelete(seed.settings, "address", address);
+	setOrDelete(seed.settings, "locality", locality);
+	setOrDelete(seed.settings, "region", region);
+	setOrDelete(seed.settings, "postalCode", postalCode);
+	setOrDelete(seed.settings, "country", country);
 	setOrDelete(seed.settings, "hours", hours);
 	setOrDelete(seed.settings, "facebookUrl", facebookUrl);
 	setOrDelete(seed.settings, "instagramUrl", instagramUrl);
 	setOrDelete(seed.settings, "googleMapsUrl", googleMapsUrl);
+	if (latitudeInput.trim() && !Number.isNaN(Number(latitudeInput))) {
+		seed.settings.latitude = Number(latitudeInput);
+	} else {
+		delete seed.settings.latitude;
+	}
+	if (longitudeInput.trim() && !Number.isNaN(Number(longitudeInput))) {
+		seed.settings.longitude = Number(longitudeInput);
+	} else {
+		delete seed.settings.longitude;
+	}
 
 	const contactSummary = [
 		phone ? `Phone: ${phone}` : "",

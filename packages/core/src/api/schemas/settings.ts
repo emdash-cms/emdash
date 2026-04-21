@@ -37,6 +37,8 @@ const optionalPhone = z
 	.optional();
 const optionalAddress = z.string().max(300).optional();
 const optionalHours = z.string().max(500).optional();
+const optionalLatitude = z.number().min(-90).max(90).optional();
+const optionalLongitude = z.number().min(-180).max(180).optional();
 
 export const settingsUpdateBody = z
 	.object({
@@ -47,6 +49,12 @@ export const settingsUpdateBody = z
 		phone: optionalPhone,
 		email: optionalEmail,
 		address: optionalAddress,
+		locality: z.string().max(120).optional(),
+		region: z.string().max(120).optional(),
+		postalCode: z.string().max(40).optional(),
+		country: z.string().max(120).optional(),
+		latitude: optionalLatitude,
+		longitude: optionalLongitude,
 		hours: optionalHours,
 		facebookUrl: optionalHttpUrl,
 		instagramUrl: optionalHttpUrl,
@@ -73,6 +81,12 @@ export const siteSettingsSchema = z
 		phone: z.string().optional(),
 		email: z.string().optional(),
 		address: z.string().optional(),
+		locality: z.string().optional(),
+		region: z.string().optional(),
+		postalCode: z.string().optional(),
+		country: z.string().optional(),
+		latitude: z.number().optional(),
+		longitude: z.number().optional(),
 		hours: z.string().optional(),
 		facebookUrl: z.string().optional(),
 		instagramUrl: z.string().optional(),

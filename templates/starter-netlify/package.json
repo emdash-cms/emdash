@@ -16,6 +16,7 @@
     "setup:hosting": "node ./scripts/setup-hosting.mjs --provider=netlify",
     "apply:theme": "node ./scripts/apply-theme.mjs",
     "check:images": "node ./scripts/check-images.mjs",
+    "check:seo": "node ./scripts/check-seo.mjs",
     "typecheck": "astro check"
   },
   "dependencies": {

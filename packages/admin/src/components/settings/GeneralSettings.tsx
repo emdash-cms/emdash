@@ -317,6 +317,52 @@ export function GeneralSettings() {
 							description={t`Business street address`}
 						/>
 						<Input
+							label={t`City / Locality`}
+							value={formData.locality || ""}
+							onChange={(e) => handleChange("locality", e.target.value)}
+							description={t`City or locality for LocalBusiness schema`}
+						/>
+						<Input
+							label={t`State / Region`}
+							value={formData.region || ""}
+							onChange={(e) => handleChange("region", e.target.value)}
+							description={t`State, province, or region`}
+						/>
+						<Input
+							label={t`Postal Code`}
+							value={formData.postalCode || ""}
+							onChange={(e) => handleChange("postalCode", e.target.value)}
+							description={t`ZIP or postal code`}
+						/>
+						<Input
+							label={t`Country`}
+							value={formData.country || ""}
+							onChange={(e) => handleChange("country", e.target.value)}
+							description={t`Country name or code`}
+						/>
+						<Input
+							label={t`Latitude`}
+							type="number"
+							step="any"
+							value={formData.latitude ?? ""}
+							onChange={(e) => {
+								const value = e.target.value.trim();
+								handleChange("latitude", value === "" ? undefined : Number(value));
+							}}
+							description={t`Latitude for LocalBusiness geo coordinates`}
+						/>
+						<Input
+							label={t`Longitude`}
+							type="number"
+							step="any"
+							value={formData.longitude ?? ""}
+							onChange={(e) => {
+								const value = e.target.value.trim();
+								handleChange("longitude", value === "" ? undefined : Number(value));
+							}}
+							description={t`Longitude for LocalBusiness geo coordinates`}
+						/>
+						<Input
 							label={t`Hours`}
 							value={formData.hours || ""}
 							onChange={(e) => handleChange("hours", e.target.value)}

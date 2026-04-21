@@ -27,9 +27,16 @@ const {
 	siteTagline,
 	siteLogo,
 	siteFavicon,
+	siteUrl,
 	phone,
 	email,
 	address,
+	locality,
+	region,
+	postalCode,
+	country,
+	latitude,
+	longitude,
 	hours,
 	facebookUrl,
 	instagramUrl,
@@ -37,6 +44,53 @@ const {
 } = resolveStarterSiteIdentity(await getSiteSettings());
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 const pageDescription = description ?? siteTagline;
+let resolvedCanonical = canonical ?? null;
+if (!resolvedCanonical && siteUrl) {
+	try {
+		resolvedCanonical = new URL(Astro.url.pathname, siteUrl).toString();
+	} catch {
+		resolvedCanonical = null;
+	}
+}
+const resolvedOgImage = image ?? siteLogo?.url ?? null;
+const openingHours = (hours ?? "")
+	.split(/\n|;/)
+	.map((value) => value.trim())
+	.filter(Boolean);
+const localBusinessSchema = (phone || email || address || locality || region || postalCode || country || hours)
+	? {
+			"@context": "https://schema.org",
+			"@type": "LocalBusiness",
+			name: siteTitle,
+			url: siteUrl ?? Astro.url.origin,
+			description: pageDescription,
+			...(phone ? { telephone: phone } : {}),
+			...(email ? { email } : {}),
+			...(siteLogo?.url ? { image: siteLogo.url } : {}),
+			...((address || locality || region || postalCode || country)
+				? {
+						address: {
+							"@type": "PostalAddress",
+							...(address ? { streetAddress: address } : {}),
+							...(locality ? { addressLocality: locality } : {}),
+							...(region ? { addressRegion: region } : {}),
+							...(postalCode ? { postalCode } : {}),
+							...(country ? { addressCountry: country } : {}),
+						},
+					}
+				: {}),
+			...(latitude !== null && longitude !== null
+				? {
+						geo: {
+							"@type": "GeoCoordinates",
+							latitude,
+							longitude,
+						},
+					}
+				: {}),
+			...(openingHours.length > 0 ? { openingHours } : {}),
+		}
+	: null;
 
 const menu = await getMenu("primary");
 
@@ -47,8 +101,8 @@ const pageCtx = createPublicPageContext({
 	title: fullTitle,
 	pageTitle: pageTitle ?? title,
 	description: pageDescription,
-	canonical,
-	image,
+	canonical: resolvedCanonical,
+	image: resolvedOgImage,
 	content,
 	siteName: siteTitle,
 });
@@ -62,7 +116,12 @@ const pageCtx = createPublicPageContext({
 		<title>{fullTitle}</title>
 		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		{pageDescription && <meta name="description" content={pageDescription} />}
-		{canonical && <link rel="canonical" href={canonical} />}
+		{resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
+		{
+			localBusinessSchema && (
+				<script type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
+			)
+		}
 		<EmDashHead page={pageCtx} />
 	</head>
 	<body>
