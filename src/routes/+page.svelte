@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { site } from '$lib/content';
-
-  const phoneHref = `tel:${site.phone.replace(/[^\d+]/g, '')}`;
+  let { data } = $props();
+  const site = $derived(data.site);
+  const phoneHref = $derived(`tel:${site.phone.replace(/[^\\d+]/g, '')}`);
 </script>
 
 <svelte:head>

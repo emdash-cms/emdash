@@ -1,6 +1,6 @@
 # Symballo Starter (SvelteKit)
 
-This is the Svelte 5/SvelteKit migration target for the local-business starter.
+This is the Svelte 5/SvelteKit local-business starter.
 
 ## Development
 
@@ -11,7 +11,7 @@ pnpm dev
 
 ## What to edit first
 
-- `src/lib/content.ts`: business identity, hours, social links, starter pages/posts
+- `data/cms.json`: business identity, hours, posts, pages
 - `src/routes/+page.svelte`: landing page layout/content blocks
 - `src/styles.css`: visual styling
 
@@ -21,4 +21,4 @@ pnpm dev
 - `/posts`: post list
 - `/posts/[slug]`: post detail
 - `/pages/[slug]`: page detail
-- `/admin`: reserved link target for future admin integration
+- `/admin`: built-in Svelte admin panel for editing site details, posts, and pages
