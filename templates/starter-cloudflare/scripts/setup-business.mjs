@@ -4,52 +4,9 @@ import { createInterface } from "node:readline/promises";
 import process from "node:process";
 
 const SEED_PATH = resolve(process.cwd(), "seed/seed.json");
-const THEME_PATH = resolve(process.cwd(), "src/styles/theme.css");
-
-const PRESETS = {
-	classic: {
-		label: "Classic Warm",
-		fontSans: '"Instrument Sans", "Segoe UI", "Helvetica Neue", sans-serif',
-		fontDisplay: '"Fraunces", Georgia, serif',
-		bg: "#f5efe6",
-		surface: "#fffaf2",
-		text: "#1f1b16",
-		muted: "#6c6255",
-		brand: "#a14d2d",
-		brandSoft: "#f5d2c4",
-		border: "#d6c7b7",
-		radius: "14px",
-		shadow: "0 14px 34px rgba(43, 24, 12, 0.1)",
-	},
-	coastal: {
-		label: "Coastal Fresh",
-		fontSans: '"Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif',
-		fontDisplay: '"Newsreader", "Times New Roman", serif',
-		bg: "#edf7f8",
-		surface: "#ffffff",
-		text: "#0f2530",
-		muted: "#4b6971",
-		brand: "#126f86",
-		brandSoft: "#cceaf1",
-		border: "#b7dce5",
-		radius: "18px",
-		shadow: "0 12px 28px rgba(16, 77, 95, 0.14)",
-	},
-	orchard: {
-		label: "Orchard Bold",
-		fontSans: '"Outfit", "Segoe UI", "Helvetica Neue", sans-serif',
-		fontDisplay: '"Bricolage Grotesque", "Trebuchet MS", sans-serif',
-		bg: "#fff8ee",
-		surface: "#ffffff",
-		text: "#1f1a12",
-		muted: "#655641",
-		brand: "#cc5a15",
-		brandSoft: "#ffd9bf",
-		border: "#f2c9a8",
-		radius: "12px",
-		shadow: "0 12px 30px rgba(120, 52, 16, 0.16)",
-	},
-};
+const PRESETS_PATH = resolve(process.cwd(), "theme/presets.json");
+const THEME_CONFIG_PATH = resolve(process.cwd(), "theme/theme.json");
+const THEME_CSS_PATH = resolve(process.cwd(), "src/styles/theme.css");
 
 function askPortableText(text) {
 	return [
@@ -111,19 +68,19 @@ function setOrDelete(settings, key, value) {
 	delete settings[key];
 }
 
-function buildThemeCss(preset) {
+function buildThemeCss(tokens) {
 	return `:root {
-\t--font-sans: ${preset.fontSans};
-\t--font-display: ${preset.fontDisplay};
-\t--bg: ${preset.bg};
-\t--surface: ${preset.surface};
-\t--text: ${preset.text};
-\t--muted: ${preset.muted};
-\t--brand: ${preset.brand};
-\t--brand-soft: ${preset.brandSoft};
-\t--border: ${preset.border};
-\t--radius: ${preset.radius};
-\t--shadow: ${preset.shadow};
+\t--font-sans: ${tokens.fontSans};
+\t--font-display: ${tokens.fontDisplay};
+\t--bg: ${tokens.bg};
+\t--surface: ${tokens.surface};
+\t--text: ${tokens.text};
+\t--muted: ${tokens.muted};
+\t--brand: ${tokens.brand};
+\t--brand-soft: ${tokens.brandSoft};
+\t--border: ${tokens.border};
+\t--radius: ${tokens.radius};
+\t--shadow: ${tokens.shadow};
 }
 
 * {
@@ -220,11 +177,21 @@ footer {
 `;
 }
 
+function loadPresets() {
+	if (!existsSync(PRESETS_PATH)) {
+		console.error(`Missing presets file: ${PRESETS_PATH}`);
+		process.exit(1);
+	}
+	return JSON.parse(readFileSync(PRESETS_PATH, "utf8"));
+}
+
 async function main() {
 	if (!existsSync(SEED_PATH)) {
 		console.error(`Missing seed file: ${SEED_PATH}`);
 		process.exit(1);
 	}
+
+	const presets = loadPresets();
 
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
 
@@ -245,16 +212,16 @@ async function main() {
 	const googleMapsUrl = await ask("Google Maps URL");
 
 	console.log("\nChoose a design preset:");
-	const presetKeys = Object.keys(PRESETS);
+	const presetKeys = Object.keys(presets);
 	for (const key of presetKeys) {
-		console.log(`- ${key}: ${PRESETS[key].label}`);
+		console.log(`- ${key}: ${presets[key].label}`);
 	}
 	const presetKeyInput = (await ask("Preset", "classic")).toLowerCase();
 	const presetKey = presetKeys.includes(presetKeyInput) ? presetKeyInput : "classic";
 
 	rl.close();
 
-	const seed = JSON.parse(readFileSync(SEED_PATH, "utf8"));	
+	const seed = JSON.parse(readFileSync(SEED_PATH, "utf8"));
 	seed.settings = seed.settings ?? {};
 	seed.settings.title = businessName;
 	seed.settings.tagline = tagline;
@@ -271,7 +238,9 @@ async function main() {
 		email ? `Email: ${email}` : "",
 		address ? `Address: ${address}` : "",
 		hours ? `Hours: ${hours}` : "",
-	].filter(Boolean).join(" | ");
+	]
+		.filter(Boolean)
+		.join(" | ");
 
 	upsertPage(seed, {
 		id: "about",
@@ -285,8 +254,7 @@ async function main() {
 		},
 	});
 
-	const hasContactData =
-		Boolean(phone || email || address || hours || facebookUrl || instagramUrl || googleMapsUrl);
+	const hasContactData = Boolean(phone || email || address || hours || facebookUrl || instagramUrl || googleMapsUrl);
 
 	if (hasContactData) {
 		upsertPage(seed, {
@@ -319,13 +287,19 @@ async function main() {
 		posts[0].data.excerpt = `${businessName} is now live. Edit this post in the admin panel.`;
 	}
 
+	const selectedPreset = presets[presetKey];
 	ensureMenu(seed, hasContactData);
 
 	writeFileSync(SEED_PATH, `${JSON.stringify(seed, null, "\t")}\n`);
-	writeFileSync(THEME_PATH, buildThemeCss(PRESETS[presetKey]));
+	writeFileSync(
+		THEME_CONFIG_PATH,
+		`${JSON.stringify({ preset: presetKey, tokens: selectedPreset.tokens }, null, "\t")}\n`,
+	);
+	writeFileSync(THEME_CSS_PATH, buildThemeCss(selectedPreset.tokens));
 
 	console.log(`\nUpdated ${SEED_PATH}`);
-	console.log(`Updated ${THEME_PATH}`);
+	console.log(`Updated ${THEME_CONFIG_PATH}`);
+	console.log(`Updated ${THEME_CSS_PATH}`);
 	console.log("Run `pnpm bootstrap` next to initialize and seed the project.");
 }
 

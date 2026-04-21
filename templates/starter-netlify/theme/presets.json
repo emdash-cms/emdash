@@ -1,0 +1,50 @@
+{
+  "classic": {
+    "label": "Classic Warm",
+    "tokens": {
+      "fontSans": "\"Instrument Sans\", \"Segoe UI\", \"Helvetica Neue\", sans-serif",
+      "fontDisplay": "\"Fraunces\", Georgia, serif",
+      "bg": "#f5efe6",
+      "surface": "#fffaf2",
+      "text": "#1f1b16",
+      "muted": "#6c6255",
+      "brand": "#a14d2d",
+      "brandSoft": "#f5d2c4",
+      "border": "#d6c7b7",
+      "radius": "14px",
+      "shadow": "0 14px 34px rgba(43, 24, 12, 0.1)"
+    }
+  },
+  "coastal": {
+    "label": "Coastal Fresh",
+    "tokens": {
+      "fontSans": "\"Plus Jakarta Sans\", \"Avenir Next\", \"Segoe UI\", sans-serif",
+      "fontDisplay": "\"Newsreader\", \"Times New Roman\", serif",
+      "bg": "#edf7f8",
+      "surface": "#ffffff",
+      "text": "#0f2530",
+      "muted": "#4b6971",
+      "brand": "#126f86",
+      "brandSoft": "#cceaf1",
+      "border": "#b7dce5",
+      "radius": "18px",
+      "shadow": "0 12px 28px rgba(16, 77, 95, 0.14)"
+    }
+  },
+  "orchard": {
+    "label": "Orchard Bold",
+    "tokens": {
+      "fontSans": "\"Outfit\", \"Segoe UI\", \"Helvetica Neue\", sans-serif",
+      "fontDisplay": "\"Bricolage Grotesque\", \"Trebuchet MS\", sans-serif",
+      "bg": "#fff8ee",
+      "surface": "#ffffff",
+      "text": "#1f1a12",
+      "muted": "#655641",
+      "brand": "#cc5a15",
+      "brandSoft": "#ffd9bf",
+      "border": "#f2c9a8",
+      "radius": "12px",
+      "shadow": "0 12px 30px rgba(120, 52, 16, 0.16)"
+    }
+  }
+}

@@ -18,6 +18,7 @@ SYNC_ITEMS=(
 	"public"
 	"seed"
 	"scripts"
+	"theme"
 	"tsconfig.json"
 	"emdash-env.d.ts"
 	".gitignore"

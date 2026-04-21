@@ -59,7 +59,7 @@ A flexible baseline template for agencies building local business sites.
 - Dynamic page routes for CMS-created pages
 - Posts, pages, categories, and tags
 - `setup:business` wizard for name/contact/hours/socials with structured site settings
-- Design preset generator (classic/coastal/orchard)
+- Tokenized design presets + deterministic `theme/theme.json` per site
 - Minimal, editable structure for custom components
 
 **Pages:** Homepage, post archive, single post, dynamic content pages, category archive, tag archive, 404

@@ -16,6 +16,7 @@
 		"seed": "emdash seed",
 		"setup:business": "node ./scripts/setup-business.mjs",
 		"setup:hosting": "node ./scripts/setup-hosting.mjs",
+		"apply:theme": "node ./scripts/apply-theme.mjs",
 		"check:images": "node ./scripts/check-images.mjs"
 	},
 	"dependencies": {
