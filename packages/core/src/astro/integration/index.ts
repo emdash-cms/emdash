@@ -92,8 +92,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 	// Validate siteUrl if provided in astro.config.mjs.
 	// Env-var fallback (EMDASH_SITE_URL / SITE_URL) is handled at runtime by
-	// getPublicOrigin() in api/public-url.ts — NOT here — so Docker images built
-	// without a domain can pick it up at container start via process.env.
+	// getPublicOrigin() in api/public-url.ts — NOT here — so deployments can
+	// resolve the public domain from process.env at runtime.
 	if (resolvedConfig.siteUrl) {
 		const raw = resolvedConfig.siteUrl;
 		try {
@@ -195,8 +195,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// internal origin AND the public origin from getPublicOrigin(),
 				// which resolves siteUrl from config or env vars at runtime.
 				// Astro's check can't do this because allowedDomains is baked
-				// at build time, which breaks Docker deployments where the
-				// domain is only known at container start via EMDASH_SITE_URL.
+				// at build time, which breaks deployments where the domain is
+				// only known at process start via EMDASH_SITE_URL.
 				//
 				// When siteUrl is known at build time, also set allowedDomains
 				// so Astro.url reflects the public origin (helps user template
