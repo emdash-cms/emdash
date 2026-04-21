@@ -1,13 +1,11 @@
 ---
 import { getMenu, getSiteSettings } from "emdash";
 import {
-	WidgetArea,
 	EmDashHead,
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
-import LiveSearch from "emdash/ui/search";
 import { resolveStarterSiteIdentity } from "../utils/site-identity";
 import "../styles/theme.css";
 
@@ -17,11 +15,26 @@ interface Props {
 	description?: string | null;
 	image?: string | null;
 	canonical?: string | null;
+	hideHeader?: boolean;
+	hideFooter?: boolean;
+	mainClass?: string;
+	bodyClass?: string;
 	/** Pass content reference for plugin page contributions on content pages */
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, pageTitle, description, image, canonical, content } = Astro.props;
+const {
+	title,
+	pageTitle,
+	description,
+	image,
+	canonical,
+	content,
+	hideHeader = false,
+	hideFooter = false,
+	mainClass,
+	bodyClass,
+} = Astro.props;
 const {
 	siteTitle,
 	siteTagline,
@@ -124,77 +137,83 @@ const pageCtx = createPublicPageContext({
 		}
 		<EmDashHead page={pageCtx} />
 	</head>
-	<body>
+	<body class={bodyClass}>
 		<EmDashBodyStart page={pageCtx} />
 
-		<header>
-			<nav>
-				<a href="/">
-					{siteLogo
-						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} style="height:48px;width:auto;margin:-8px 0;display:block;" />
-						: siteTitle
-					}
-				</a>
-				{
-					menu?.items.map((item) => (
-						<a href={item.url} target={item.target}>
-							{item.label}
+		{
+			!hideHeader && (
+				<header>
+					<nav>
+						<a href="/">
+							{siteLogo
+								? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} style="height:48px;width:auto;margin:-8px 0;display:block;" />
+								: siteTitle
+							}
 						</a>
-					))
-				}
-				<LiveSearch placeholder="Search..." collections={["posts", "pages"]} />
-			</nav>
-		</header>
+						{
+							menu?.items.map((item) => (
+								<a href={item.url} target={item.target}>
+									{item.label}
+								</a>
+							))
+						}
+					</nav>
+				</header>
+			)
+		}
 
-		<main>
+		<main class={mainClass}>
 			<slot />
 		</main>
 
-		<footer>
-			<WidgetArea name="sidebar" />
-			{
-				(phone || email || address || hours || facebookUrl || instagramUrl || googleMapsUrl) && (
-					<section aria-label="Business Information">
-						<h2>Business Information</h2>
-						<ul>
-							{phone && (
-								<li>
-									<strong>Phone:</strong>{" "}
-									<a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>
-								</li>
-							)}
-							{email && (
-								<li>
-									<strong>Email:</strong> <a href={`mailto:${email}`}>{email}</a>
-								</li>
-							)}
-							{address && (
-								<li>
-									<strong>Address:</strong>{" "}
-									{googleMapsUrl ? <a href={googleMapsUrl}>{address}</a> : address}
-								</li>
-							)}
-							{hours && (
-								<li>
-									<strong>Hours:</strong>{" "}
-									<span style="white-space: pre-line">{hours}</span>
-								</li>
-							)}
-						</ul>
-						{
-							(facebookUrl || instagramUrl) && (
-								<p>
-									<strong>Follow:</strong>{" "}
-									{facebookUrl && <a href={facebookUrl}>Facebook</a>}
-									{facebookUrl && instagramUrl ? " · " : ""}
-									{instagramUrl && <a href={instagramUrl}>Instagram</a>}
-								</p>
-							)
-						}
-					</section>
-				)
-			}
-		</footer>
+		{
+			!hideFooter && (
+				<footer>
+					{
+						(phone || email || address || hours || facebookUrl || instagramUrl || googleMapsUrl) && (
+							<section aria-label="Business Information">
+								<h2>Business Information</h2>
+								<ul>
+									{phone && (
+										<li>
+											<strong>Phone:</strong>{" "}
+											<a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>
+										</li>
+									)}
+									{email && (
+										<li>
+											<strong>Email:</strong> <a href={`mailto:${email}`}>{email}</a>
+										</li>
+									)}
+									{address && (
+										<li>
+											<strong>Address:</strong>{" "}
+											{googleMapsUrl ? <a href={googleMapsUrl}>{address}</a> : address}
+										</li>
+									)}
+									{hours && (
+										<li>
+											<strong>Hours:</strong>{" "}
+											<span style="white-space: pre-line">{hours}</span>
+										</li>
+									)}
+								</ul>
+								{
+									(facebookUrl || instagramUrl) && (
+										<p>
+											<strong>Follow:</strong>{" "}
+											{facebookUrl && <a href={facebookUrl}>Facebook</a>}
+											{facebookUrl && instagramUrl ? " · " : ""}
+											{instagramUrl && <a href={instagramUrl}>Instagram</a>}
+										</p>
+									)
+								}
+							</section>
+						)
+					}
+				</footer>
+			)
+		}
 
 		<EmDashBodyEnd page={pageCtx} />
 	</body>

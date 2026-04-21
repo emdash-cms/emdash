@@ -18,8 +18,7 @@ Recommended workflow:
 2. Ensure every featured image has descriptive `alt` text.
 3. Use compressed JPG/WebP for photos and SVG/PNG for logos.
 
-Theme workflow:
+Developer workflow:
 
-1. Select a preset via `pnpm setup:business` (writes `theme/theme.json`).
-2. Edit tokens in `theme/theme.json` for client-specific design tweaks.
-3. Run `pnpm apply:theme` to regenerate `src/styles/theme.css`.
+1. Customize layout and styles directly in `src/pages`, `src/layouts`, and `src/styles`.
+2. Keep design ownership with the developer; hand off content editing in admin.

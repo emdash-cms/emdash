@@ -18,7 +18,7 @@
 			"slug": "posts",
 			"label": "Posts",
 			"labelSingular": "Post",
-			"supports": ["drafts", "revisions", "search", "seo"],
+			"supports": ["drafts"],
 			"fields": [
 				{
 					"slug": "title",
@@ -49,7 +49,7 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
-			"supports": ["drafts", "revisions", "search"],
+			"supports": ["drafts"],
 			"fields": [
 				{
 					"slug": "title",
@@ -68,31 +68,6 @@
 		}
 	],
 
-	"taxonomies": [
-		{
-			"name": "category",
-			"label": "Categories",
-			"labelSingular": "Category",
-			"hierarchical": true,
-			"collections": ["posts"],
-			"terms": [
-				{ "slug": "general", "label": "General" },
-				{ "slug": "updates", "label": "Updates" }
-			]
-		},
-		{
-			"name": "tag",
-			"label": "Tags",
-			"labelSingular": "Tag",
-			"hierarchical": false,
-			"collections": ["posts"],
-			"terms": [
-				{ "slug": "starter", "label": "Starter" },
-				{ "slug": "example", "label": "Example" }
-			]
-		}
-	],
-
 	"menus": [
 		{
 			"name": "primary",
@@ -100,33 +75,8 @@
 			"items": [
 				{ "type": "custom", "label": "Home", "url": "/" },
 				{ "type": "custom", "label": "Posts", "url": "/posts" },
-				{ "type": "custom", "label": "About", "url": "/about" }
-			]
-		}
-	],
-
-	"widgetAreas": [
-		{
-			"name": "sidebar",
-			"label": "Sidebar",
-			"description": "Sidebar widget area",
-			"widgets": [
-				{
-					"type": "component",
-					"componentId": "core:search",
-					"title": "Search"
-				},
-				{
-					"type": "component",
-					"componentId": "core:categories",
-					"title": "Categories"
-				},
-				{
-					"type": "component",
-					"componentId": "core:recent-posts",
-					"title": "Recent Posts",
-					"settings": { "count": 5 }
-				}
+				{ "type": "custom", "label": "About", "url": "/about" },
+				{ "type": "custom", "label": "Contact", "url": "/contact" }
 			]
 		}
 	],
@@ -189,10 +139,6 @@
 							]
 						}
 					]
-				},
-				"taxonomies": {
-					"category": ["general"],
-					"tag": ["starter", "example"]
 				}
 			}
 		]

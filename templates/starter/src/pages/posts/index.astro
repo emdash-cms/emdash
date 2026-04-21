@@ -1,5 +1,5 @@
 ---
-import { getEmDashCollection, getEntryTerms } from "emdash";
+import { getEmDashCollection } from "emdash";
 import Base from "../../layouts/Base.astro";
 import CoverImage from "../../components/CoverImage.astro";
 
@@ -8,37 +8,23 @@ const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 });
 Astro.cache.set(cacheHint);
 
-// Fetch tags for each post
-const postsWithTags = await Promise.all(
-	posts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		return { post, tags };
-	})
-);
 ---
 
 <Base title="All Posts">
 	<h1>Posts</h1>
 
 	{
-		postsWithTags.length === 0 ? (
+		posts.length === 0 ? (
 			<p>No posts yet.</p>
 		) : (
 			<ul>
-				{postsWithTags.map(({ post, tags }) => (
+				{posts.map((post) => (
 					<li>
 						<a href={`/posts/${post.id}`}>
 							<CoverImage image={post.data.featured_image} altFallback={post.data.title} />
 							<h2>{post.data.title}</h2>
 						</a>
 						{post.data.excerpt && <p>{post.data.excerpt}</p>}
-						{tags.length > 0 && (
-							<div>
-								{tags.map((t) => (
-									<a href={`/tag/${t.slug}`}>{t.label}</a>
-								))}
-							</div>
-						)}
 					</li>
 				))}
 			</ul>

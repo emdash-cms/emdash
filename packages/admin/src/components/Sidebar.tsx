@@ -4,26 +4,14 @@ import {
 	SquaresFour,
 	FileText,
 	Image,
-	ChatCircle,
 	Gear,
-	PuzzlePiece,
-	Storefront,
-	Palette,
-	Upload,
-	Database,
 	List,
-	GridFour,
 	Users,
-	Stack,
-	ArrowsLeftRight,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
-import { usePluginAdmins } from "../lib/plugin-context";
 import { cn } from "../lib/utils";
 import { LogoIcon } from "./Logo.js";
 
@@ -152,19 +140,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const { t } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
-	const pluginAdmins = usePluginAdmins();
 
 	const { data: user } = useCurrentUser();
 	const userRole = user?.role ?? 0;
-
-	// Fetch pending comment count for badge
-	const { data: commentCounts } = useQuery({
-		queryKey: ["commentCounts"],
-		queryFn: fetchCommentCounts,
-		staleTime: 60 * 1000,
-		retry: false,
-		enabled: userRole >= ROLE_EDITOR,
-	});
 
 	// --- Build nav item groups ---
 
@@ -180,68 +158,13 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	contentItems.push({ to: "/media", label: t`Media`, icon: Image });
 
 	const manageItems: NavItem[] = [
-		{
-			to: "/comments",
-			label: t`Comments`,
-			icon: ChatCircle,
-			minRole: ROLE_EDITOR,
-			badge: commentCounts?.pending,
-		},
 		{ to: "/menus", label: t`Menus`, icon: List, minRole: ROLE_EDITOR },
-		{ to: "/redirects", label: t`Redirects`, icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
-		{ to: "/widgets", label: t`Widgets`, icon: GridFour, minRole: ROLE_EDITOR },
-		{ to: "/sections", label: t`Sections`, icon: Stack, minRole: ROLE_EDITOR },
-		...manifest.taxonomies.map((tax) => ({
-			to: "/taxonomies/$taxonomy" as const,
-			label: tax.label,
-			icon: FileText,
-			params: { taxonomy: tax.name },
-			minRole: ROLE_EDITOR,
-		})),
-		{ to: "/bylines", label: t`Bylines`, icon: FileText, minRole: ROLE_EDITOR },
 	];
 
 	const adminItems: NavItem[] = [
-		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
-		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
-	];
-
-	if (manifest.marketplace) {
-		adminItems.push(
-			{
-				to: "/plugins/marketplace",
-				label: t`Marketplace`,
-				icon: Storefront,
-				minRole: ROLE_ADMIN,
-			},
-			{ to: "/themes/marketplace", label: t`Themes`, icon: Palette, minRole: ROLE_ADMIN },
-		);
-	}
-
-	adminItems.push(
-		{ to: "/import/wordpress", label: t`Import`, icon: Upload, minRole: ROLE_ADMIN },
 		{ to: "/settings", label: t`Settings`, icon: Gear, minRole: ROLE_ADMIN },
-	);
-
-	const pluginItems: NavItem[] = [];
-	for (const [pluginId, config] of Object.entries(manifest.plugins)) {
-		if (config.enabled === false) continue;
-		if (config.adminPages && config.adminPages.length > 0) {
-			const pluginPages = pluginAdmins[pluginId]?.pages;
-			const isBlocksMode = config.adminMode === "blocks";
-			for (const page of config.adminPages) {
-				if (!isBlocksMode && !pluginPages?.[page.path]) continue;
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
-				pluginItems.push({ to: `/plugins/${pluginId}${page.path}`, label, icon: PuzzlePiece });
-			}
-		}
-	}
+	];
 
 	const filterByRole = (items: NavItem[]) =>
 		items.filter((item) => !item.minRole || userRole >= item.minRole);
@@ -249,7 +172,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const visibleContent = filterByRole(contentItems);
 	const visibleManage = filterByRole(manageItems);
 	const visibleAdmin = filterByRole(adminItems);
-	const visiblePlugins = filterByRole(pluginItems);
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
@@ -258,7 +180,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			return <NavMenuLink key={`${item.to}-${index}`} item={item} isActive={active} />;
 		});
 	}
-
 	return (
 		<>
 			{/* Injected styles — Tailwind 4 strips [data-sidebar] attribute selectors from CSS files.
@@ -384,7 +305,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 					<KumoSidebar.Separator />
 
-					{/* Manage — comments, menus, taxonomies, etc. (collapsible) */}
+					{/* Manage — owner-safe content administration */}
 					{visibleManage.length > 0 && (
 						<KumoSidebar.Group collapsible defaultOpen>
 							<KumoSidebar.GroupLabel>{t`Manage`}</KumoSidebar.GroupLabel>
@@ -396,7 +317,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 					<KumoSidebar.Separator />
 
-					{/* Admin — content types, users, plugins, import (collapsible) */}
+					{/* Admin — site administration */}
 					{visibleAdmin.length > 0 && (
 						<KumoSidebar.Group collapsible defaultOpen>
 							<KumoSidebar.GroupLabel>{t`Admin`}</KumoSidebar.GroupLabel>
@@ -406,18 +327,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						</KumoSidebar.Group>
 					)}
 
-					{/* Plugin pages (collapsible) */}
-					{visiblePlugins.length > 0 && (
-						<>
-							<KumoSidebar.Separator />
-							<KumoSidebar.Group collapsible defaultOpen>
-								<KumoSidebar.GroupLabel>{t`Plugins`}</KumoSidebar.GroupLabel>
-								<KumoSidebar.GroupContent>
-									<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
-								</KumoSidebar.GroupContent>
-							</KumoSidebar.Group>
-						</>
-					)}
 				</KumoSidebar.Content>
 
 				<KumoSidebar.Footer>
