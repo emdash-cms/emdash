@@ -188,6 +188,33 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm run --filter @emdash-cms/admin test
 
+  template-starter-variants:
+    name: Starter template checks (${{ matrix.template }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        template:
+          - "@emdash-cms/template-starter"
+          - "@emdash-cms/template-starter-vercel"
+          - "@emdash-cms/template-starter-netlify"
+          - "@emdash-cms/template-starter-cloudflare"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "${{ matrix.template }}" typecheck
+      - run: pnpm --filter "${{ matrix.template }}" build
+      - run: pnpm --filter "${{ matrix.template }}" check:images
+      - run: pnpm --filter "${{ matrix.template }}" check:seo
+
   test-e2e-rollup:
     name: E2E Tests
     if: always()

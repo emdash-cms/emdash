@@ -9,7 +9,8 @@
 
 	"settings": {
 		"title": "My Site",
-		"tagline": "Built with EmDash"
+		"tagline": "Built with EmDash",
+		"url": "https://example.com"
 	},
 
 	"collections": [
