@@ -38,7 +38,10 @@ import {
 	RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID,
 	VIRTUAL_SEED_ID,
 	RESOLVED_VIRTUAL_SEED_ID,
+	VIRTUAL_WAIT_UNTIL_ID,
+	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
 	generateSeedModule,
+	generateWaitUntilModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -176,6 +179,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_SEED_ID) {
 				return RESOLVED_VIRTUAL_SEED_ID;
 			}
+			if (id === VIRTUAL_WAIT_UNTIL_ID) {
+				return RESOLVED_VIRTUAL_WAIT_UNTIL_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -234,6 +240,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === RESOLVED_VIRTUAL_SEED_ID) {
 				const projectRoot = fileURLToPath(astroConfig.root);
 				return generateSeedModule(projectRoot);
+			}
+			// Generate wait-until module — re-exports cloudflare:workers'
+			// waitUntil under the Cloudflare adapter, undefined otherwise.
+			if (id === RESOLVED_VIRTUAL_WAIT_UNTIL_ID) {
+				return generateWaitUntilModule(astroConfig.adapter?.name);
 			}
 		},
 	};

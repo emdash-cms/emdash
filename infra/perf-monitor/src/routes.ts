@@ -17,14 +17,49 @@ export interface TargetRoute {
 	expectedStatuses: number[];
 }
 
-export const TARGET_URL = "https://blog-demo.emdashcms.com";
+/**
+ * A deployed demo we measure. Sites share the same route set and are compared
+ * head-to-head on the dashboard. `blog` is the baseline; `cache` runs with
+ * Astro's experimental cache provider enabled.
+ */
+export interface Site {
+	/** Stable slug stored in `perf_results.site`. */
+	id: string;
+	label: string;
+	targetUrl: string;
+	/** Cloudflare Worker name — matched against build.succeeded events. */
+	workerName: string;
+}
+
+export const SITES: readonly Site[] = [
+	{
+		id: "blog",
+		label: "Baseline",
+		targetUrl: "https://blog-demo.emdashcms.com",
+		workerName: "emdash-demo-blog",
+	},
+	{
+		id: "cache",
+		label: "Astro cache",
+		targetUrl: "https://cache-demo.emdashcms.com",
+		workerName: "emdash-demo-cache",
+	},
+] as const;
+
+export const DEFAULT_SITE_ID = "blog";
+
+export function getSite(id: string): Site | undefined {
+	return SITES.find((s) => s.id === id);
+}
 
 /**
- * The name of the Worker that serves the demo site. Queue consumer filters
- * deploy events by this name -- other Worker builds on the account are ignored.
- * If blog-demo is renamed, update this.
+ * Worker name whose build.succeeded events drive deploy-attributed
+ * measurements. Both sites build from the same repo on every main-branch
+ * commit, so measuring on the baseline worker's event covers both (see
+ * `handleBuildSucceeded`). If only cache-demo deploys (rare), the cron
+ * job will catch it on the next tick.
  */
-export const DEMO_WORKER_NAME = "emdash-demo-blog";
+export const TRIGGER_WORKER_NAME = "emdash-demo-blog";
 
 /**
  * GitHub repo used for PR number lookup. SHA -> merged PR resolution happens

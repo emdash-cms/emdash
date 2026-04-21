@@ -4,85 +4,23 @@
  * Provides functions to query taxonomy definitions and terms.
  */
 
-import type { Kysely } from "kysely";
-import { sql } from "kysely";
-
-import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { requestCached, setRequestCacheEntry } from "../request-cache.js";
-import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 /**
- * Worker-lifetime cache of "does any taxonomy term assignment exist?".
+ * No-op — kept for API compatibility.
  *
- * Stored on `globalThis` with a Symbol key so a single value is shared
- * even when the bundler duplicates this module across chunks — without
- * that, each chunk gets its own local variable and the probe re-runs on
- * every caller. (Same pattern as request-context.ts.) Module-scoped —
- * rather than keyed on the Kysely instance — because every anonymous
- * request in a D1 Sessions deployment gets a fresh session-bound Kysely,
- * and keying on the Kysely made the probe miss on every single request.
- *
- * Requests that route to an isolated DB (playground / DO preview) bypass
- * this cache — see `hasAnyTermAssignments`.
- */
-const HAS_TERMS_KEY = Symbol.for("emdash:has-term-assignments-singleton");
-interface HasTermsHolder {
-	value: boolean | null;
-}
-const termsHolder: HasTermsHolder =
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
-	((globalThis as Record<symbol, unknown>)[HAS_TERMS_KEY] as HasTermsHolder | undefined) ??
-	(() => {
-		const h: HasTermsHolder = { value: null };
-		(globalThis as Record<symbol, unknown>)[HAS_TERMS_KEY] = h;
-		return h;
-	})();
-
-/**
- * Invalidate the cached "has any term assignments" check.
- *
- * Called by admin routes after creating/deleting term assignments, updating
- * terms, or deleting taxonomies.
+ * Used to invalidate a worker-lifetime "has any term assignments?" probe.
+ * That probe added a query on every cold isolate to save one query on
+ * sites with zero term assignments (i.e. the wrong tradeoff), so we
+ * dropped it. The batch term join below returns an empty map for empty
+ * sites at the same cost as the probe, without the pre-check.
  */
 export function invalidateTermCache(): void {
-	termsHolder.value = null;
-}
-
-/**
- * Check whether any row exists in content_taxonomies for the given DB.
- * Result is cached for the lifetime of the worker unless the request is
- * routed to an isolated DB, in which case the probe runs every time.
- *
- * Rethrows any error that is not a "missing table" error so callers see
- * real DB failures (permissions, connectivity, syntax) rather than
- * silently short-circuiting to "no terms". Pre-migration databases return
- * `false` without logging — the expected state before the table exists.
- */
-async function hasAnyTermAssignments(db: Kysely<Database>): Promise<boolean> {
-	const isolated = getRequestContext()?.dbIsIsolated === true;
-	if (!isolated && termsHolder.value !== null) {
-		return termsHolder.value;
-	}
-
-	try {
-		const result = await sql<{ entry_id: string }>`
-			SELECT entry_id FROM content_taxonomies LIMIT 1
-		`.execute(db);
-		const value = result.rows.length > 0;
-		if (!isolated) termsHolder.value = value;
-		return value;
-	} catch (error) {
-		if (isMissingTableError(error)) {
-			if (!isolated) termsHolder.value = false;
-			return false;
-		}
-		// Don't cache unknown failures; let the next call retry.
-		throw error;
-	}
+	// Intentionally empty.
 }
 
 /**
@@ -307,29 +245,36 @@ export async function getTermsForEntries(
 
 	const db = await getDb();
 
-	// Skip the query entirely when no assignments exist anywhere.
-	if (!(await hasAnyTermAssignments(db))) {
-		return result;
-	}
-
 	// Chunk the IN clause so we stay below D1's ~100 bound-parameter limit
 	// (and equivalent limits on other dialects). Matches getContentBylinesMany.
+	//
+	// Sites with no term assignments get back empty rows for one query —
+	// the previous "has any term assignments" probe spent a round-trip on
+	// every request to save that single query on empty sites, which is
+	// backwards. Pre-migration databases (content_taxonomies missing) fall
+	// through to the `isMissingTableError` catch and return empties.
 	for (const chunk of chunks(uniqueIds, SQL_BATCH_SIZE)) {
-		const rows = await db
-			.selectFrom("content_taxonomies")
-			.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
-			.select([
-				"content_taxonomies.entry_id",
-				"taxonomies.id",
-				"taxonomies.name",
-				"taxonomies.slug",
-				"taxonomies.label",
-				"taxonomies.parent_id",
-			])
-			.where("content_taxonomies.collection", "=", collection)
-			.where("content_taxonomies.entry_id", "in", chunk)
-			.where("taxonomies.name", "=", taxonomyName)
-			.execute();
+		let rows;
+		try {
+			rows = await db
+				.selectFrom("content_taxonomies")
+				.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
+				.select([
+					"content_taxonomies.entry_id",
+					"taxonomies.id",
+					"taxonomies.name",
+					"taxonomies.slug",
+					"taxonomies.label",
+					"taxonomies.parent_id",
+				])
+				.where("content_taxonomies.collection", "=", collection)
+				.where("content_taxonomies.entry_id", "in", chunk)
+				.where("taxonomies.name", "=", taxonomyName)
+				.execute();
+		} catch (error) {
+			if (isMissingTableError(error)) return result;
+			throw error;
+		}
 
 		for (const row of rows) {
 			const entryId = row.entry_id;
@@ -360,9 +305,8 @@ export async function getTermsForEntries(
  * getEmDashCollection to eagerly hydrate `entry.data.terms` and avoid
  * the N+1 pattern that callers hit when they loop and call getEntryTerms.
  *
- * Includes a short-circuit: when no term assignments exist in the database,
- * returns an empty Map without issuing a query. The cache is invalidated
- * on term create/update/delete (see invalidateTermCache).
+ * Pre-migration databases (content_taxonomies missing) return an empty
+ * Map — the join falls through to the `isMissingTableError` branch.
  */
 export async function getAllTermsForEntries(
 	collection: string,
@@ -391,34 +335,41 @@ export async function getAllTermsForEntries(
 	// round-trip just to confirm "no terms".
 	const applicableTaxonomyNames = await getCollectionTaxonomyNames(collection);
 
-	// Skip the query entirely when no assignments exist anywhere, but still
-	// prime the cache with empty arrays so downstream getEntryTerms calls
-	// don't reach the DB for this collection.
-	if (!(await hasAnyTermAssignments(db))) {
-		for (const id of uniqueIds) {
-			primeEntryTermsCache(collection, id, {}, applicableTaxonomyNames);
-		}
-		return result;
-	}
-
 	// Chunk the IN clause to stay below D1's ~100 bound-parameter limit
 	// (and equivalent limits on other dialects). Matches getContentBylinesMany.
+	//
+	// Previously we did a separate "has any assignments" probe to skip the
+	// join on empty sites. That traded one query per request for a query
+	// saved only on empty sites — backwards. Now the join runs directly
+	// (returning zero rows cheaply) and pre-migration databases are caught
+	// by the `isMissingTableError` branch below.
 	for (const chunk of chunks(uniqueIds, SQL_BATCH_SIZE)) {
-		const rows = await db
-			.selectFrom("content_taxonomies")
-			.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
-			.select([
-				"content_taxonomies.entry_id",
-				"taxonomies.id",
-				"taxonomies.name",
-				"taxonomies.slug",
-				"taxonomies.label",
-				"taxonomies.parent_id",
-			])
-			.where("content_taxonomies.collection", "=", collection)
-			.where("content_taxonomies.entry_id", "in", chunk)
-			.orderBy("taxonomies.label", "asc")
-			.execute();
+		let rows;
+		try {
+			rows = await db
+				.selectFrom("content_taxonomies")
+				.innerJoin("taxonomies", "taxonomies.id", "content_taxonomies.taxonomy_id")
+				.select([
+					"content_taxonomies.entry_id",
+					"taxonomies.id",
+					"taxonomies.name",
+					"taxonomies.slug",
+					"taxonomies.label",
+					"taxonomies.parent_id",
+				])
+				.where("content_taxonomies.collection", "=", collection)
+				.where("content_taxonomies.entry_id", "in", chunk)
+				.orderBy("taxonomies.label", "asc")
+				.execute();
+		} catch (error) {
+			if (isMissingTableError(error)) {
+				for (const id of uniqueIds) {
+					primeEntryTermsCache(collection, id, {}, applicableTaxonomyNames);
+				}
+				return result;
+			}
+			throw error;
+		}
 
 		for (const row of rows) {
 			const entryId = row.entry_id;

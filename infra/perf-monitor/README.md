@@ -1,24 +1,29 @@
 # Emdash Perf Monitor
 
-Tracks cold start / TTFB of the emdash demo site (`blog-demo.emdashcms.com`) over time from multiple regions.
+Tracks cold start / TTFB of the emdash demo sites over time from multiple regions. Two sites are measured in parallel so the effect of Astro's experimental cache provider can be compared head-to-head:
+
+- `blog` -- `blog-demo.emdashcms.com` (baseline, catalog Astro)
+- `cache` -- `cache-demo.emdashcms.com` (prerelease Astro with `cacheCloudflare()` enabled)
+
+Each measurement row is tagged with a `site` column matching one of those ids.
 
 ## Architecture
 
 - **Coordinator Worker** (`emdash-perf-coordinator`) owns the D1 database, cron trigger, queue consumer, HTTP API, and frontend dashboard. Served at `https://perf.emdashcms.com`.
 - **4 Probe Workers** (`emdash-perf-probe-{use,euw,ape,aps}`) are placed near AWS regions via `placement.region`. They receive measurement requests from the coordinator via service bindings and run `fetch()` timing from their placed location.
 - **D1 database** (`emdash_perf`) stores all measurements, tagged by `source`: `deploy` (queue-triggered, has SHA + PR) or `cron` (ambient baseline, untagged).
-- **Cloudflare Queue** (`emdash-perf-deploy-events`) subscribes to `cf.workersBuilds.worker.build.succeeded` events. The coordinator consumes these, filters for the demo Worker, resolves the PR via the GitHub API, and runs a measurement. This is the primary attribution path.
+- **Cloudflare Queue** (`emdash-perf-deploy-events`) subscribes to `cf.workersBuilds.worker.build.succeeded` events. The coordinator consumes these, filters for the baseline demo Worker, resolves the PR via the GitHub API, and runs a measurement against every registered site. This is the primary attribution path; see `src/routes.ts` for the site registry.
 
 All five Workers are built from this directory by the Cloudflare Vite plugin -- the coordinator entry is `src/index.ts` and the four probes are defined as `auxiliaryWorkers` in `vite.config.ts`.
 
 ## Measurement triggers
 
-| Trigger                | When                               | `source` | SHA        | PR       | On graph? | Persisted? |
-| ---------------------- | ---------------------------------- | -------- | ---------- | -------- | --------- | ---------- |
-| Queue event            | Every successful `blog-demo` build | `deploy` | from event | resolved | yes       | yes        |
-| Cron (`*/30 * * * *`)  | Every 30 min                       | `cron`   | null       | null     | yes       | yes        |
-| `pnpm trigger`         | Private/quiet check (default)      | n/a      | n/a        | n/a      | no        | **no**     |
-| `pnpm trigger --store` | Manual, persisted                  | `manual` | optional   | optional | **no**    | yes        |
+| Trigger                | When                               | `source` | Sites        | SHA        | PR       | On graph? | Persisted? |
+| ---------------------- | ---------------------------------- | -------- | ------------ | ---------- | -------- | --------- | ---------- |
+| Queue event            | Every successful `blog-demo` build | `deploy` | all          | from event | resolved | yes       | yes        |
+| Cron (`*/30 * * * *`)  | Every 30 min                       | `cron`   | all          | null       | null     | yes       | yes        |
+| `pnpm trigger`         | Private/quiet check (default)      | n/a      | all (or one) | n/a        | n/a      | no        | **no**     |
+| `pnpm trigger --store` | Manual, persisted                  | `manual` | all (or one) | optional   | optional | **no**    | yes        |
 
 The queue is the deploy-attribution path. The cron is a safety net that fills gaps between deploys and catches regressions the queue might miss.
 
@@ -131,6 +136,7 @@ pnpm cf-typegen
 
 ## Operational notes
 
-- **Filter worker name**: `DEMO_WORKER_NAME` in `src/routes.ts` must match the Worker name that serves blog-demo.emdashcms.com. Events for other Workers on the account are received and discarded. If blog-demo is ever renamed, update this constant.
+- **Trigger worker name**: `TRIGGER_WORKER_NAME` in `src/routes.ts` is the Worker whose `build.succeeded` event drives deploy-attributed runs. Events for any other Worker are discarded (the cron job still measures every site on its own schedule). Since every registered site rebuilds from the same main-branch commit, one event triggers a measurement for all of them. If the baseline demo is ever renamed, update this constant.
+- **Adding a site**: add an entry to `SITES` in `src/routes.ts` with a stable `id` (stored in `perf_results.site`), `targetUrl`, and Worker name. Existing rows continue to use their recorded site id.
 - **PR lookup**: hits the public GitHub API unauthenticated (60 req/hr per IP). One call per deploy, so rate limits are a non-issue. If deploy rate ever gets anywhere near that, add a fine-grained PAT via `wrangler secret put GITHUB_TOKEN` and pass it in `src/github.ts`.
 - **DLQ**: failed messages retry 3x, then go to `emdash-perf-deploy-events-dlq`. Check this periodically if deploy-attributed results stop appearing.

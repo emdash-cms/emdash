@@ -60,6 +60,24 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 }
 
 /**
+ * Look up an entry in the request-scoped cache without inserting one.
+ *
+ * Returns the in-flight or resolved promise if the key exists in the
+ * current request, otherwise `undefined`. Callers can use this to
+ * opportunistically satisfy a narrower query (e.g. `getSiteSetting("seo")`)
+ * from a broader one (`getSiteSettings()`) that's already been loaded
+ * by a parent template — avoiding a redundant round-trip.
+ *
+ * No-ops outside a request context.
+ */
+export function peekRequestCache<T>(key: string): Promise<T> | undefined {
+	const ctx = getRequestContext();
+	if (!ctx) return undefined;
+	const cache = store.get(ctx);
+	return cache?.get(key) as Promise<T> | undefined;
+}
+
+/**
  * Pre-populate the request-scoped cache with a resolved value.
  *
  * Internal helper shared between hydration paths (taxonomy terms,

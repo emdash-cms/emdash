@@ -198,7 +198,7 @@ msgid "{0} preview"
 msgstr "Aperçu de {0}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:316
+#: packages/admin/src/components/TaxonomySidebar.tsx:313
 msgid "{0} updated"
 msgstr ""
 
@@ -434,15 +434,15 @@ msgstr "Actions"
 msgid "Active"
 msgstr "Actif"
 
-#: packages/admin/src/components/ContentEditor.tsx:1719
+#: packages/admin/src/components/ContentEditor.tsx:1714
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
-#: packages/admin/src/components/TaxonomySidebar.tsx:439
+#: packages/admin/src/components/TaxonomySidebar.tsx:436
 msgid "Add"
 msgstr "Ajouter"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:238
+#: packages/admin/src/components/TaxonomySidebar.tsx:235
 msgid "Add {label}"
 msgstr "Ajouter {label}"
 
@@ -500,7 +500,7 @@ msgid "Add New"
 msgstr "Ajouter"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:449
+#: packages/admin/src/components/TaxonomySidebar.tsx:446
 msgid "Add new {0}"
 msgstr ""
 
@@ -520,7 +520,7 @@ msgstr "Ajoutez des modules d'extension à votre fichier astro.config.mjs pour �
 msgid "Add Sub-Field"
 msgstr "Ajouter un sous-champ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:237
+#: packages/admin/src/components/TaxonomySidebar.tsx:234
 msgid "Add tags..."
 msgstr "Ajouter des étiquettes..."
 
@@ -626,7 +626,7 @@ msgstr "Alternativement, vous pouvez exporter depuis WordPress (Outils → Expor
 #: packages/admin/src/components/MarketplaceBrowse.tsx:138
 #: packages/admin/src/components/PluginManager.tsx:90
 #: packages/admin/src/components/PluginManager.tsx:109
-#: packages/admin/src/components/TaxonomySidebar.tsx:321
+#: packages/admin/src/components/TaxonomySidebar.tsx:318
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
 #: packages/admin/src/router.tsx:1520
 msgid "An error occurred"
@@ -864,8 +864,8 @@ msgstr "Peut consulter le contenu"
 #: packages/admin/src/components/ContentEditor.tsx:636
 #: packages/admin/src/components/ContentEditor.tsx:842
 #: packages/admin/src/components/ContentEditor.tsx:894
-#: packages/admin/src/components/ContentEditor.tsx:1822
-#: packages/admin/src/components/ContentEditor.tsx:1875
+#: packages/admin/src/components/ContentEditor.tsx:1817
+#: packages/admin/src/components/ContentEditor.tsx:1870
 #: packages/admin/src/components/ContentList.tsx:445
 #: packages/admin/src/components/ContentList.tsx:516
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -931,7 +931,7 @@ msgstr "Catégories ({0})"
 msgid "Categories will be imported"
 msgstr "Les catégories seront importées"
 
-#: packages/admin/src/components/ContentEditor.tsx:1579
+#: packages/admin/src/components/ContentEditor.tsx:1574
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -1241,7 +1241,7 @@ msgstr "Impossible de détecter WordPress"
 msgid "Count"
 msgstr "Nombre"
 
-#: packages/admin/src/components/ContentEditor.tsx:1846
+#: packages/admin/src/components/ContentEditor.tsx:1841
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1270,7 +1270,7 @@ msgstr "Créer un compte"
 msgid "Create an account"
 msgstr "Créer un compte"
 
-#: packages/admin/src/components/ContentEditor.tsx:1794
+#: packages/admin/src/components/ContentEditor.tsx:1789
 msgid "Create byline"
 msgstr "Créer un auteur"
 
@@ -1385,7 +1385,7 @@ msgstr "Créé : {0}"
 msgid "Creating collections and fields..."
 msgstr "En cours de création de collections et de champs..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1846
+#: packages/admin/src/components/ContentEditor.tsx:1841
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1673,8 +1673,8 @@ msgstr "Fermer"
 msgid "Display a navigation menu"
 msgstr "Afficher un menu de navigation"
 
-#: packages/admin/src/components/ContentEditor.tsx:1797
-#: packages/admin/src/components/ContentEditor.tsx:1859
+#: packages/admin/src/components/ContentEditor.tsx:1792
+#: packages/admin/src/components/ContentEditor.tsx:1854
 msgid "Display name"
 msgstr "Nom affiché"
 
@@ -1725,7 +1725,7 @@ msgstr "Pas encore de compte ? <0>S'inscrire</0>"
 msgid "Done"
 msgstr "Fait"
 
-#: packages/admin/src/components/ContentEditor.tsx:1740
+#: packages/admin/src/components/ContentEditor.tsx:1735
 msgid "Down"
 msgstr "Vers le bas"
 
@@ -1772,7 +1772,7 @@ msgid "e.g., MacBook Pro, iPhone"
 msgstr "p. ex. : MacBook Pro, iPhone"
 
 #: packages/admin/src/components/ContentEditor.tsx:974
-#: packages/admin/src/components/ContentEditor.tsx:1749
+#: packages/admin/src/components/ContentEditor.tsx:1744
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1797,7 +1797,7 @@ msgstr "Modifier {collectionLabel}"
 msgid "Edit {title}"
 msgstr "Modifier {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1856
+#: packages/admin/src/components/ContentEditor.tsx:1851
 msgid "Edit byline"
 msgstr "Modifier l'auteur"
 
@@ -1920,7 +1920,7 @@ msgid "Enabled"
 msgstr "Activé"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1192
+#: packages/admin/src/components/ContentEditor.tsx:1187
 msgid "Enter {0}..."
 msgstr "Saisissez {0}..."
 
@@ -1929,7 +1929,7 @@ msgstr "Saisissez {0}..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Saisissez une URL (https://…) ou un chemin relatif (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1406
+#: packages/admin/src/components/ContentEditor.tsx:1401
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr ""
 
@@ -1945,7 +1945,7 @@ msgstr "Passez en mode sans distraction"
 msgid "Enter email"
 msgstr "Saisissez l'adresse mail"
 
-#: packages/admin/src/components/ContentEditor.tsx:1213
+#: packages/admin/src/components/ContentEditor.tsx:1208
 msgid "Enter markdown content..."
 msgstr "Saisissez du contenu Markdown..."
 
@@ -2028,7 +2028,7 @@ msgstr "Échec de l'audit de sécurité"
 msgid "Failed to add domain"
 msgstr "Échec de l'ajout du domaine"
 
-#: packages/admin/src/components/ContentEditor.tsx:1840
+#: packages/admin/src/components/ContentEditor.tsx:1835
 msgid "Failed to create byline"
 msgstr "Échec de la création de l'auteur"
 
@@ -2036,7 +2036,7 @@ msgstr "Échec de la création de l'auteur"
 msgid "Failed to create some collections"
 msgstr "Échec de la création de certaines collections"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:456
+#: packages/admin/src/components/TaxonomySidebar.tsx:453
 msgid "Failed to create term"
 msgstr ""
 
@@ -2122,11 +2122,11 @@ msgid "Failed to send test email"
 msgstr "Échec de l'envoi de l'e-mail de test"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:320
+#: packages/admin/src/components/TaxonomySidebar.tsx:317
 msgid "Failed to update {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1890
+#: packages/admin/src/components/ContentEditor.tsx:1885
 msgid "Failed to update byline"
 msgstr "Échec de la mise à jour de l'auteur"
 
@@ -2520,7 +2520,7 @@ msgstr "En cours d'installation..."
 msgid "Integer"
 msgstr "Entier"
 
-#: packages/admin/src/components/ContentEditor.tsx:1475
+#: packages/admin/src/components/ContentEditor.tsx:1470
 msgid "Invalid JSON"
 msgstr "JSON invalide"
 
@@ -3043,7 +3043,7 @@ msgid "NEW"
 msgstr "NOUVEAU"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:427
+#: packages/admin/src/components/TaxonomySidebar.tsx:424
 msgid "New {0}"
 msgstr ""
 
@@ -3101,7 +3101,7 @@ msgid "No"
 msgstr "Non"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:394
 msgid "No {0} available."
 msgstr "Aucun {0} disponible."
 
@@ -3132,7 +3132,7 @@ msgstr "Aucun jeton d'API pour l'instant. Créez-en un pour commencer."
 msgid "No approved comments yet."
 msgstr "Aucun commentaire approuvé pour l'instant."
 
-#: packages/admin/src/components/ContentEditor.tsx:1781
+#: packages/admin/src/components/ContentEditor.tsx:1776
 msgid "No bylines selected."
 msgstr "Aucun auteur sélectionnée."
 
@@ -3692,7 +3692,7 @@ msgstr "Publié {0}"
 msgid "Published At"
 msgstr "Publié le"
 
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/ContentEditor.tsx:1784
 msgid "Quick create byline"
 msgstr "Création rapide d'un auteur"
 
@@ -3769,7 +3769,7 @@ msgstr "Utilisateur enregistré"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "L'inscription a été annulée ou a expiré. Veuillez réessayer."
 
-#: packages/admin/src/components/ContentEditor.tsx:1758
+#: packages/admin/src/components/ContentEditor.tsx:1753
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
@@ -3781,7 +3781,7 @@ msgstr "Supprimer"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:222
+#: packages/admin/src/components/TaxonomySidebar.tsx:219
 msgid "Remove {0}"
 msgstr "Supprimer {0}"
 
@@ -3793,7 +3793,7 @@ msgstr "Supprimer le domaine"
 msgid "Remove Domain?"
 msgstr "Supprimer le domaine ?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1587
+#: packages/admin/src/components/ContentEditor.tsx:1582
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "Supprimer l'image"
@@ -3995,7 +3995,7 @@ msgstr "Rôle"
 msgid "Role {role}"
 msgstr "Rôle {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1763
+#: packages/admin/src/components/ContentEditor.tsx:1758
 msgid "Role label"
 msgstr "Libellé du rôle"
 
@@ -4006,7 +4006,7 @@ msgstr "Libellé du rôle"
 msgid "Same window"
 msgstr "Même fenêtre"
 
-#: packages/admin/src/components/ContentEditor.tsx:1896
+#: packages/admin/src/components/ContentEditor.tsx:1891
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -4046,7 +4046,7 @@ msgid "Saved"
 msgstr "Enregistré"
 
 #: packages/admin/src/components/ContentEditor.tsx:580
-#: packages/admin/src/components/ContentEditor.tsx:1896
+#: packages/admin/src/components/ContentEditor.tsx:1891
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
@@ -4296,7 +4296,7 @@ msgstr "Paramètres de sécurité"
 msgid "Select"
 msgstr "Sélectionner"
 
-#: packages/admin/src/components/ContentEditor.tsx:1611
+#: packages/admin/src/components/ContentEditor.tsx:1606
 msgid "Select {label}"
 msgstr "Sélectionner {label}"
 
@@ -4304,7 +4304,7 @@ msgstr "Sélectionner {label}"
 msgid "Select all"
 msgstr "Tout sélectionner"
 
-#: packages/admin/src/components/ContentEditor.tsx:1702
+#: packages/admin/src/components/ContentEditor.tsx:1697
 msgid "Select byline..."
 msgstr "Sélectionner l'auteur..."
 
@@ -4322,7 +4322,7 @@ msgstr "Sélectionner le contenu"
 msgid "Select Favicon"
 msgstr "Sélectionner la favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1602
+#: packages/admin/src/components/ContentEditor.tsx:1597
 msgid "Select image"
 msgstr "Sélectionner une image"
 
@@ -4556,8 +4556,8 @@ msgid "Skipped"
 msgstr "Ignoré"
 
 #: packages/admin/src/components/ContentEditor.tsx:775
-#: packages/admin/src/components/ContentEditor.tsx:1805
-#: packages/admin/src/components/ContentEditor.tsx:1867
+#: packages/admin/src/components/ContentEditor.tsx:1800
+#: packages/admin/src/components/ContentEditor.tsx:1862
 #: packages/admin/src/components/ContentTypeEditor.tsx:109
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
@@ -4697,7 +4697,7 @@ msgstr "Les étiquettes seront importées"
 msgid "Target"
 msgstr "Cible"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:495
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Taxonomies"
 msgstr "Taxonomies"
 
@@ -4797,7 +4797,7 @@ msgstr "Thème : {label}"
 msgid "Themes"
 msgstr "Thèmes"
 
-#: packages/admin/src/components/ContentEditor.tsx:1615
+#: packages/admin/src/components/ContentEditor.tsx:1610
 msgid "This field is required"
 msgstr "Ce champ est obligatoire"
 
@@ -5012,8 +5012,8 @@ msgstr "Incompatibilité de type ({0})"
 msgid "Unable to reach marketplace"
 msgstr "Impossible d'accéder à la place de marché"
 
-#: packages/admin/src/components/ContentEditor.tsx:1910
-#: packages/admin/src/components/ContentEditor.tsx:1925
+#: packages/admin/src/components/ContentEditor.tsx:1905
+#: packages/admin/src/components/ContentEditor.tsx:1920
 msgid "Unassigned"
 msgstr "Non attribué"
 
@@ -5079,7 +5079,7 @@ msgstr "Déprogrammer"
 msgid "Untitled"
 msgstr "Sans titre"
 
-#: packages/admin/src/components/ContentEditor.tsx:1737
+#: packages/admin/src/components/ContentEditor.tsx:1732
 msgid "Up"
 msgstr "En haut"
 
@@ -5237,7 +5237,7 @@ msgstr "Utilisez votre clé d'accès enregistrée pour vous connecter en toute s
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Utilisé comme identifiant. Lettres minuscules, chiffres et traits de soulignement uniquement."
 
-#: packages/admin/src/components/ContentEditor.tsx:1288
+#: packages/admin/src/components/ContentEditor.tsx:1283
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Utilisé comme visuel principal de cet article sur les pages contenant des listes et en haut de l'article"
 

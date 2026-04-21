@@ -89,6 +89,7 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 	}
 }
 
+import { after } from "./after.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
@@ -777,15 +778,29 @@ export class EmDashRuntime {
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
 
-		await phase("rt.cron", "Cron init + stale-lock recovery", async () => {
+		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
 				cronExecutor = new CronExecutor(db, invokeCronHook);
 
-				// Recover stale locks from previous crashes
-				const recovered = await cronExecutor.recoverStaleLocks();
-				if (recovered > 0) {
-					console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
-				}
+				// Recover stale locks from previous crashes. Pure bookkeeping
+				// against the _emdash_cron_tasks table — no request needs the
+				// result — so we defer it past the response via after(). On
+				// Cloudflare this goes into waitUntil (extending the worker
+				// lifetime); on Node it's fire-and-forget (the process stays
+				// up anyway). Saves one cold-start write per D1 isolate.
+				const executorForRecovery = cronExecutor;
+				after(async () => {
+					try {
+						const recovered = await executorForRecovery.recoverStaleLocks();
+						if (recovered > 0) {
+							console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
+						}
+					} catch (error) {
+						// Keep the `[cron]` prefix so a failure is easy to trace back
+						// rather than surfacing as a generic deferred-task error.
+						console.error("[cron] Failed to recover stale task locks:", error);
+					}
+				});
 
 				// Detect platform and create appropriate scheduler.
 				// On Cloudflare Workers, setTimeout is available but unreliable for

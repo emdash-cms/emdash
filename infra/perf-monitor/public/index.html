@@ -358,6 +358,10 @@
 
 			<div class="controls">
 				<div>
+					<label>Site</label>
+					<select id="site-select"></select>
+				</div>
+				<div>
 					<label>Route</label>
 					<select id="route-select"></select>
 				</div>
@@ -370,6 +374,7 @@
 				<div>
 					<label>Period</label>
 					<select id="period-select">
+						<option value="1h">1 hour</option>
 						<option value="24h">24 hours</option>
 						<option value="7d" selected>7 days</option>
 						<option value="30d">30 days</option>
@@ -478,6 +483,8 @@
 			function periodToSince(period) {
 				const now = new Date();
 				switch (period) {
+					case "1h":
+						return new Date(now - 60 * 60 * 1000).toISOString();
 					case "24h":
 						return new Date(now - 24 * 60 * 60 * 1000).toISOString();
 					case "7d":
@@ -489,6 +496,47 @@
 					default:
 						return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
 				}
+			}
+
+			// 7d/30d/90d views show per-point samples that are too spiky to read.
+			// Bucket by UTC day so the trend is visible. Median, not mean, so a
+			// single cron spike doesn't pull the bucket.
+			const DAILY_BUCKET_PERIODS = new Set(["7d", "30d", "90d"]);
+
+			/**
+			 * Parse a D1-stored timestamp ("YYYY-MM-DD HH:MM:SS", no TZ) as UTC.
+			 * `new Date("YYYY-MM-DD HH:MM:SS")` is implementation-defined and most
+			 * browsers treat it as *local* time, which shifts samples across UTC
+			 * day boundaries when we bucket with `getUTC*`. Normalize first.
+			 */
+			function parseStoredTimestamp(ts) {
+				if (!ts) return null;
+				if (ts.includes("T") || ts.endsWith("Z")) return new Date(ts);
+				return new Date(ts.replace(" ", "T") + "Z");
+			}
+
+			function median(nums) {
+				const sorted = nums.filter((n) => n != null).sort((a, b) => a - b);
+				if (sorted.length === 0) return null;
+				const mid = sorted.length >> 1;
+				return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+			}
+
+			function bucketByUtcDay(points) {
+				const byDay = new Map();
+				for (const p of points) {
+					const d = p.x instanceof Date ? p.x : new Date(p.x);
+					const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+					if (!byDay.has(day)) byDay.set(day, []);
+					byDay.get(day).push(p.y);
+				}
+				return [...byDay.entries()]
+					.map(([day, ys]) => ({
+						x: new Date(`${day}T12:00:00Z`),
+						y: median(ys),
+					}))
+					.filter((p) => p.y != null)
+					.sort((a, b) => a.x - b.x);
 			}
 
 			function formatMs(ms) {
@@ -504,8 +552,9 @@
 				return "bad";
 			}
 
-			function formatTime(iso) {
-				const d = new Date(iso);
+			function formatTime(ts) {
+				const d = parseStoredTimestamp(ts);
+				if (!d) return "";
 				const pad = (n) => String(n).padStart(2, "0");
 				return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 			}
@@ -555,13 +604,16 @@
 			async function loadConfig() {
 				configData = await fetchJson("/api/config");
 
-				// Show the target site (without protocol, it's tidier)
-				if (configData.target) {
-					document.getElementById("target-label").textContent = configData.target.replace(
-						/^https?:\/\//,
-						"",
-					);
+				const siteSelect = document.getElementById("site-select");
+				const sites = configData.sites ?? [];
+				for (const site of sites) {
+					const opt = document.createElement("option");
+					opt.value = site.id;
+					opt.textContent = site.label ? `${site.label} (${site.id})` : site.id;
+					if (site.id === configData.defaultSite) opt.selected = true;
+					siteSelect.appendChild(opt);
 				}
+				updateTargetLabel();
 
 				const routeSelect = document.getElementById("route-select");
 				for (const route of configData.routes) {
@@ -580,8 +632,22 @@
 				}
 			}
 
+			function currentSite() {
+				return document.getElementById("site-select").value || configData?.defaultSite || "blog";
+			}
+
+			function updateTargetLabel() {
+				const site = (configData?.sites ?? []).find((s) => s.id === currentSite());
+				const label = document.getElementById("target-label");
+				if (site?.targetUrl) {
+					label.textContent = site.targetUrl.replace(/^https?:\/\//, "");
+				} else {
+					label.textContent = "";
+				}
+			}
+
 			async function loadSummary() {
-				const data = await fetchJson("/api/summary");
+				const data = await fetchJson(`/api/summary?site=${encodeURIComponent(currentSite())}`);
 				const container = document.getElementById("summary-cards");
 				container.innerHTML = "";
 
@@ -697,10 +763,13 @@
 				const regions =
 					regionFilter === "all" ? configData.regions.map((r) => r.id) : [regionFilter];
 
+				const site = currentSite();
+				const bucketDaily = DAILY_BUCKET_PERIODS.has(period);
+
 				// Fetch chart data for each region in parallel
 				const chartDataPromises = regions.map((region) =>
 					fetchJson(
-						`/api/chart?route=${encodeURIComponent(route)}&region=${region}&since=${since}&limit=500`,
+						`/api/chart?site=${encodeURIComponent(site)}&route=${encodeURIComponent(route)}&region=${region}&since=${since}&limit=500`,
 					),
 				);
 				const chartResults = await Promise.all(chartDataPromises);
@@ -715,15 +784,26 @@
 					const result = chartResults[i];
 					const color = REGION_COLORS[region] || "#888";
 
+					const rawCold = result.data.map((d) => ({
+						x: parseStoredTimestamp(d.timestamp),
+						y: d.coldTtfbMs,
+						prNumber: d.prNumber,
+						sha: d.sha,
+						source: d.source,
+					}));
+					const rawWarm = result.data.map((d) => ({
+						x: parseStoredTimestamp(d.timestamp),
+						y: d.warmTtfbMs,
+						prNumber: d.prNumber,
+						sha: d.sha,
+						source: d.source,
+					}));
+					const coldPoints = bucketDaily ? bucketByUtcDay(rawCold) : rawCold;
+					const warmPoints = bucketDaily ? bucketByUtcDay(rawWarm) : rawWarm;
+
 					coldDatasets.push({
 						label: REGION_LABELS[region] || region,
-						data: result.data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.coldTtfbMs,
-							prNumber: d.prNumber,
-							sha: d.sha,
-							source: d.source,
-						})),
+						data: coldPoints,
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
@@ -749,13 +829,7 @@
 
 					warmDatasets.push({
 						label: REGION_LABELS[region] || region,
-						data: result.data.map((d) => ({
-							x: new Date(d.timestamp),
-							y: d.warmTtfbMs,
-							prNumber: d.prNumber,
-							sha: d.sha,
-							source: d.source,
-						})),
+						data: warmPoints,
 						borderColor: color,
 						backgroundColor: color + "20",
 						borderWidth: 1.5,
@@ -787,8 +861,8 @@
 							const key = `deploy-${marker.sha || marker.timestamp}-${region}`;
 							annotations[key] = {
 								type: "line",
-								xMin: new Date(marker.timestamp),
-								xMax: new Date(marker.timestamp),
+								xMin: parseStoredTimestamp(marker.timestamp),
+								xMax: parseStoredTimestamp(marker.timestamp),
 								borderColor: "#ff6b6b40",
 								borderWidth: 1,
 								borderDash: [4, 4],
@@ -830,6 +904,7 @@
 				const since = periodToSince(period);
 
 				const params = new URLSearchParams({
+					site: currentSite(),
 					since,
 					limit: "50",
 				});
@@ -893,6 +968,10 @@
 					await refresh();
 
 					// Refresh on control changes
+					document.getElementById("site-select").addEventListener("change", () => {
+						updateTargetLabel();
+						refresh();
+					});
 					document.getElementById("route-select").addEventListener("change", refresh);
 					document.getElementById("region-select").addEventListener("change", refresh);
 					document.getElementById("period-select").addEventListener("change", refresh);
