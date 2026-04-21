@@ -2,9 +2,9 @@ import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
 import { defineConfig, fontProviders } from "astro/config";
+import { slackPlugin } from "emdash-plugin-slack";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
-import { slackPlugin } from "emdash-plugin-slack";
 
 export default defineConfig({
 	output: "server",
