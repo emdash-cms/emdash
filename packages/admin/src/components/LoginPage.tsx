@@ -24,7 +24,7 @@ import { sanitizeRedirectUrl } from "../lib/url";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
-import { LogoLockup } from "./Logo.js";
+import { BrandLogo } from "./Logo.js";
 
 // ============================================================================
 // Types
@@ -266,7 +266,11 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 				<div className="flex flex-col items-center">
-					<LogoLockup className="h-10 mb-4" />
+					<BrandLogo
+						logoUrl={manifest?.admin?.logo}
+						siteName={manifest?.admin?.siteName}
+						className="h-10 mb-4"
+					/>
 					<Loader />
 				</div>
 			</div>
@@ -278,7 +282,11 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<LogoLockup className="h-10 mx-auto mb-2" />
+					<BrandLogo
+						logoUrl={manifest?.admin?.logo}
+						siteName={manifest?.admin?.siteName}
+						className="h-10 mx-auto mb-2"
+					/>
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{method === "passkey" && t`Sign in to your site`}
 						{method === "magic-link" && t`Sign in with email`}
