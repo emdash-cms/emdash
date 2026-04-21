@@ -290,6 +290,62 @@ export function GeneralSettings() {
 					</div>
 				</div>
 
+				{/* Business Profile */}
+				<div className="rounded-lg border bg-kumo-base p-6">
+					<h2 className="mb-4 text-lg font-semibold">{t`Business Profile`}</h2>
+					<p className="mb-6 text-sm text-kumo-subtle">
+						{t`These fields are used by starter templates for contact details and footer business info.`}
+					</p>
+					<div className="space-y-4">
+						<Input
+							label={t`Phone`}
+							value={formData.phone || ""}
+							onChange={(e) => handleChange("phone", e.target.value)}
+							description={t`Public phone number (e.g., +1 (555) 123-4567)`}
+						/>
+						<Input
+							label={t`Email`}
+							type="email"
+							value={formData.email || ""}
+							onChange={(e) => handleChange("email", e.target.value)}
+							description={t`Public contact email`}
+						/>
+						<Input
+							label={t`Address`}
+							value={formData.address || ""}
+							onChange={(e) => handleChange("address", e.target.value)}
+							description={t`Business street address`}
+						/>
+						<Input
+							label={t`Hours`}
+							value={formData.hours || ""}
+							onChange={(e) => handleChange("hours", e.target.value)}
+							description={t`Business hours text shown to visitors`}
+						/>
+						<Input
+							label={t`Facebook URL`}
+							type="url"
+							value={formData.facebookUrl || ""}
+							onChange={(e) => handleChange("facebookUrl", e.target.value)}
+							description={t`Full Facebook page URL`}
+						/>
+						<Input
+							label={t`Instagram URL`}
+							type="url"
+							value={formData.instagramUrl || ""}
+							onChange={(e) => handleChange("instagramUrl", e.target.value)}
+							description={t`Full Instagram profile URL`}
+						/>
+						<Input
+							label={t`Google Maps URL`}
+							type="url"
+							value={formData.googleMapsUrl || ""}
+							onChange={(e) => handleChange("googleMapsUrl", e.target.value)}
+							description={t`Public map URL for directions`}
+						/>
+					</div>
+				</div>
+
 				{/* Save Button */}
 				<div className="flex justify-end">
 					<Button type="submit" disabled={saveMutation.isPending} icon={<FloppyDisk />}>

@@ -31,6 +31,13 @@ export interface SiteSettings {
 	tagline?: string;
 	logo?: MediaReference;
 	favicon?: MediaReference;
+	phone?: string;
+	email?: string;
+	address?: string;
+	hours?: string;
+	facebookUrl?: string;
+	instagramUrl?: string;
+	googleMapsUrl?: string;
 
 	// URLs
 	url?: string;

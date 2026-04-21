@@ -10,6 +10,13 @@ export interface SiteSettings {
 	tagline?: string;
 	logo?: { mediaId: string; alt?: string; url?: string };
 	favicon?: { mediaId: string; url?: string };
+	phone?: string;
+	email?: string;
+	address?: string;
+	hours?: string;
+	facebookUrl?: string;
+	instagramUrl?: string;
+	googleMapsUrl?: string;
 
 	// URLs
 	url?: string;

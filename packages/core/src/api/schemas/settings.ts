@@ -28,12 +28,29 @@ const seoSettings = z.object({
 	bingVerification: z.string().max(100).optional(),
 });
 
+const optionalHttpUrl = z.union([httpUrl, z.literal("")]).optional();
+const optionalEmail = z.union([z.string().email(), z.literal("")]).optional();
+const optionalPhone = z
+	.string()
+	.max(40)
+	.regex(/^[\d+\-().\s]*$/, "Phone number contains invalid characters")
+	.optional();
+const optionalAddress = z.string().max(300).optional();
+const optionalHours = z.string().max(500).optional();
+
 export const settingsUpdateBody = z
 	.object({
 		title: z.string().optional(),
 		tagline: z.string().optional(),
 		logo: mediaReference.optional(),
 		favicon: mediaReference.optional(),
+		phone: optionalPhone,
+		email: optionalEmail,
+		address: optionalAddress,
+		hours: optionalHours,
+		facebookUrl: optionalHttpUrl,
+		instagramUrl: optionalHttpUrl,
+		googleMapsUrl: optionalHttpUrl,
 		url: z.union([httpUrl, z.literal("")]).optional(),
 		postsPerPage: z.number().int().min(1).max(100).optional(),
 		dateFormat: z.string().optional(),
@@ -53,6 +70,13 @@ export const siteSettingsSchema = z
 		tagline: z.string().optional(),
 		logo: mediaReference.optional(),
 		favicon: mediaReference.optional(),
+		phone: z.string().optional(),
+		email: z.string().optional(),
+		address: z.string().optional(),
+		hours: z.string().optional(),
+		facebookUrl: z.string().optional(),
+		instagramUrl: z.string().optional(),
+		googleMapsUrl: z.string().optional(),
 		url: z.string().optional(),
 		postsPerPage: z.number().int().optional(),
 		dateFormat: z.string().optional(),
