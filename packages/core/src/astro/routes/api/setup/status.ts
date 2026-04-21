@@ -106,6 +106,8 @@ export const GET: APIRoute = async ({ locals }) => {
 					description: seed.meta?.description || "",
 					collections: seed.collections?.length || 0,
 					hasContent: !!(seed.content && Object.keys(seed.content).length > 0),
+					title: seed.settings?.title,
+					tagline: seed.settings?.tagline,
 				}
 			: null;
 

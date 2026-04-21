@@ -32,6 +32,8 @@ interface SetupStatusResponse {
 		description: string;
 		collections: number;
 		hasContent: boolean;
+		title?: string;
+		tagline?: string;
 	};
 	/** Auth mode - "cloudflare-access" or "passkey" */
 	authMode?: "cloudflare-access" | "passkey";
@@ -114,8 +116,8 @@ interface SiteStepProps {
 
 function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const { t } = useLingui();
-	const [title, setTitle] = React.useState("");
-	const [tagline, setTagline] = React.useState("");
+	const [title, setTitle] = React.useState(seedInfo?.title ?? "");
+	const [tagline, setTagline] = React.useState(seedInfo?.tagline ?? "");
 	const [includeContent, setIncludeContent] = React.useState(true);
 	const [errors, setErrors] = React.useState<Record<string, string>>({});
 
