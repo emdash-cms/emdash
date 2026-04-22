@@ -40,7 +40,10 @@ import {
 	RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID,
 	VIRTUAL_SEED_ID,
 	RESOLVED_VIRTUAL_SEED_ID,
+	VIRTUAL_WAIT_UNTIL_ID,
+	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
 	generateSeedModule,
+	generateWaitUntilModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -182,6 +185,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_SEED_ID) {
 				return RESOLVED_VIRTUAL_SEED_ID;
 			}
+			if (id === VIRTUAL_WAIT_UNTIL_ID) {
+				return RESOLVED_VIRTUAL_WAIT_UNTIL_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -190,11 +196,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate a module that statically imports the configured dialect
 			// This allows Vite to properly resolve and bundle it
 			if (id === RESOLVED_VIRTUAL_DIALECT_ID) {
-				return generateDialectModule(
-					resolvedConfig.database?.entrypoint,
-					resolvedConfig.database?.type,
-					resolvedConfig.database?.config,
-				);
+				return generateDialectModule({
+					entrypoint: resolvedConfig.database?.entrypoint,
+					type: resolvedConfig.database?.type,
+					supportsRequestScope: resolvedConfig.database?.supportsRequestScope ?? false,
+				});
 			}
 			// Generate a module that statically imports the configured storage
 			if (id === RESOLVED_VIRTUAL_STORAGE_ID) {
@@ -244,6 +250,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === RESOLVED_VIRTUAL_SEED_ID) {
 				const projectRoot = fileURLToPath(astroConfig.root);
 				return generateSeedModule(projectRoot);
+			}
+			// Generate wait-until module — re-exports cloudflare:workers'
+			// waitUntil under the Cloudflare adapter, undefined otherwise.
+			if (id === RESOLVED_VIRTUAL_WAIT_UNTIL_ID) {
+				return generateWaitUntilModule(astroConfig.adapter?.name);
 			}
 		},
 	};

@@ -521,6 +521,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/well-known/oauth-authorization-server.ts"),
 	});
 
+	// RFC 7591 Dynamic Client Registration
+	injectRoute({
+		pattern: "/_emdash/api/oauth/register",
+		entrypoint: resolveRoute("api/oauth/register.ts"),
+	});
+
 	// Plugin-defined API routes
 	// All plugin routes are handled by a single catch-all handler
 	injectRoute({

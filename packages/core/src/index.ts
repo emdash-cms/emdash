@@ -130,6 +130,10 @@ export type {
 export { getRequestContext, runWithContext } from "./request-context.js";
 export type { EmDashRequestContext } from "./request-context.js";
 
+// Defer work past the response (waitUntil on workerd, fire-and-forget on Node)
+export { after } from "./after.js";
+export type { WaitUntilFn } from "./after.js";
+
 // i18n configuration (from Astro config)
 export { getI18nConfig, isI18nEnabled, getFallbackChain } from "./i18n/config.js";
 export type { I18nConfig } from "./i18n/config.js";
@@ -400,7 +404,9 @@ export {
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
+	getAllTermsForEntries,
 	getEntriesByTerm,
+	invalidateTermCache,
 } from "./taxonomies/index.js";
 export type {
 	TaxonomyDef,

@@ -275,6 +275,19 @@ export interface EmDashConfig {
 	marketplace?: string;
 
 	/**
+	 * Maximum allowed media file upload size in bytes.
+	 *
+	 * Applies to both direct multipart uploads and signed-URL uploads.
+	 * When unset, defaults to 52_428_800 (50 MB).
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({ maxUploadSize: 100 * 1024 * 1024 }) // 100 MB
+	 * ```
+	 */
+	maxUploadSize?: number;
+
+	/**
 	 * Public browser-facing origin for the site.
 	 *
 	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
@@ -340,6 +353,56 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	mediaProviders?: MediaProviderDescriptor[];
+
+	/**
+	 * Admin UI font configuration.
+	 *
+	 * By default, EmDash loads Noto Sans via the Astro Font API, covering
+	 * Latin, Latin Extended, Cyrillic, Cyrillic Extended, Greek, Greek
+	 * Extended, Devanagari, and Vietnamese. Fonts are downloaded from
+	 * Google at build time and self-hosted, so there are no runtime CDN
+	 * requests.
+	 *
+	 * To add support for additional writing systems (Arabic, CJK, etc.),
+	 * pass script names. EmDash resolves the matching Noto Sans variant
+	 * from Google Fonts and merges all script faces under a single
+	 * font-family, so the browser downloads only the glyphs it needs
+	 * via unicode-range.
+	 *
+	 * Set to `false` to disable font injection entirely and use system fonts.
+	 *
+	 * @example
+	 * ```ts
+	 * // Add Arabic and Japanese support
+	 * emdash({
+	 *   fonts: {
+	 *     scripts: ["arabic", "japanese"],
+	 *   },
+	 * })
+	 * ```
+	 *
+	 * @example
+	 * ```ts
+	 * // Disable web fonts entirely (use system fonts)
+	 * emdash({
+	 *   fonts: false,
+	 * })
+	 * ```
+	 */
+	fonts?:
+		| false
+		| {
+				/**
+				 * Additional Noto Sans script families to include.
+				 *
+				 * Available scripts: arabic, armenian, bengali, chinese-simplified,
+				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic,
+				 * georgian, gujarati, gurmukhi, hebrew, japanese, kannada, khmer,
+				 * korean, lao, malayalam, myanmar, oriya, sinhala, tamil, telugu,
+				 * thai, tibetan.
+				 */
+				scripts?: string[];
+		  };
 }
 
 /**

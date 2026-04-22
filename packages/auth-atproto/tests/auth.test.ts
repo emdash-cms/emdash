@@ -11,9 +11,9 @@ describe("atproto auth config", () => {
 			expect(descriptor.id).toBe("atproto");
 		});
 
-		it("has label 'AT Protocol'", () => {
+		it("has label 'Atmosphere'", () => {
 			const descriptor = atproto();
-			expect(descriptor.label).toBe("AT Protocol");
+			expect(descriptor.label).toBe("Atmosphere");
 		});
 
 		it("points adminEntry to the admin module", () => {

@@ -110,6 +110,58 @@ test.describe("Content Types", () => {
 		});
 	});
 
+	test.describe("Save Content Type Settings", () => {
+		test("toggling a feature and saving persists across reloads", async ({ admin }) => {
+			await admin.goto("/content-types/posts");
+			await admin.waitForShell();
+			await admin.waitForLoading();
+
+			const toggleLabel = admin.page.locator("label", { hasText: "Enable comments" });
+			const saveButton = admin.page.getByRole("button", { name: "Save Changes" });
+
+			// On initial load there are no unsaved changes
+			await expect(saveButton).toBeDisabled();
+
+			// Flip the toggle -- Save should enable
+			await toggleLabel.click();
+			await expect(saveButton).toBeEnabled();
+
+			// Save: the PUT must return 200 and no failure toast should render
+			const savePut = admin.page.waitForResponse(
+				(res) =>
+					res.url().includes("/api/schema/collections/posts") && res.request().method() === "PUT",
+				{ timeout: 10000 },
+			);
+			await saveButton.click();
+			expect((await savePut).status()).toBe(200);
+			await expect(admin.page.getByText("Failed to save")).not.toBeVisible();
+
+			// Reload -- the saved change is reflected server-side, so the editor
+			// loads with no unsaved diff
+			await admin.page.reload();
+			await admin.waitForShell();
+			await admin.waitForLoading();
+			await expect(saveButton).toBeDisabled();
+
+			// Restore the original toggle state so the shared DB used by other E2E
+			// tests (e.g. comments.spec.ts) isn't left with commentsEnabled flipped.
+			await toggleLabel.click();
+			await expect(saveButton).toBeEnabled();
+			const restorePut = admin.page.waitForResponse(
+				(res) =>
+					res.url().includes("/api/schema/collections/posts") && res.request().method() === "PUT",
+				{ timeout: 10000 },
+			);
+			await saveButton.click();
+			expect((await restorePut).status()).toBe(200);
+			await expect(admin.page.getByText("Failed to save")).not.toBeVisible();
+			await admin.page.reload();
+			await admin.waitForShell();
+			await admin.waitForLoading();
+			await expect(saveButton).toBeDisabled();
+		});
+	});
+
 	test.describe("Create Content Type", () => {
 		test("creates a new content type and redirects to editor", async ({ admin }) => {
 			await admin.goto("/content-types/new");

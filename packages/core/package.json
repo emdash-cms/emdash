@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -66,6 +66,10 @@
     "./db/postgres": {
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
+    },
+    "./database/instrumentation": {
+      "types": "./dist/database/instrumentation.d.mts",
+      "default": "./dist/database/instrumentation.mjs"
     },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
@@ -148,6 +152,7 @@
     "#mcp/*": "./src/mcp/*",
     "#comments/*": "./src/comments/*",
     "#bylines/*": "./src/bylines/*",
+    "#taxonomies/*": "./src/taxonomies/*",
     "#redirects/*": "./src/redirects/*",
     "#types": "./src/astro/types.js"
   },

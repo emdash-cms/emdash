@@ -37,6 +37,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		: undefined;
 
 	try {
+		// Verify FTS indexes are healthy on first use. At most once per worker
+		// lifetime; no-op after that. Moved off the cold-start hot path to
+		// keep anonymous public reads fast.
+		await emdash.ensureSearchHealthy?.();
+
 		const result = await searchWithDb(emdash.db, query.q, {
 			collections,
 			status: query.status,

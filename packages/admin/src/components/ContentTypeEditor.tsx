@@ -158,7 +158,11 @@ export function ContentTypeEditor({
 	const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? "");
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
-	const [supports, setSupports] = React.useState<string[]>(collection?.supports ?? ["drafts"]);
+	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
+	// so it isn't sent back on save (the API enum rejects it).
+	const [supports, setSupports] = React.useState<string[]>(
+		(collection?.supports ?? ["drafts"]).filter((s) => s !== "seo"),
+	);
 
 	// SEO state
 	const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false);
@@ -195,7 +199,7 @@ export function ContentTypeEditor({
 			description !== (collection.description ?? "") ||
 			urlPattern !== (collection.urlPattern ?? "") ||
 			JSON.stringify([...supports].toSorted()) !==
-				JSON.stringify([...collection.supports].toSorted()) ||
+				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
 			commentsEnabled !== collection.commentsEnabled ||
 			commentsModeration !== collection.commentsModeration ||

@@ -5,8 +5,12 @@ packages:
   - templates/*
   - packages/blocks/playground
   - e2e/fixture
+  - fixtures/*
   - docs
   - i18n
+  - infra/blog-demo
+  - infra/cache-demo
+  - infra/perf-monitor
 
 catalog:
   "@arethetypeswrong/cli": ^0.18.2

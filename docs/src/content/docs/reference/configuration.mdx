@@ -98,6 +98,36 @@ import seoPlugin from "@emdash-cms/plugin-seo";
 plugins: [seoPlugin()];
 ```
 
+### `fonts`
+
+**Optional.** Admin UI font configuration.
+
+By default, EmDash loads [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans) via the [Astro Font API](https://docs.astro.build/en/guides/fonts/). Fonts are downloaded from Google at build time and self-hosted, so there are no runtime CDN requests. The base font covers Latin, Cyrillic, Greek, Devanagari, and Vietnamese scripts.
+
+To add support for additional writing systems, pass script names:
+
+```js
+emdash({
+  fonts: {
+    scripts: ["arabic", "japanese"],
+  },
+})
+```
+
+Available scripts: `arabic`, `armenian`, `bengali`, `chinese-simplified`, `chinese-traditional`, `chinese-hongkong`, `devanagari`, `ethiopic`, `georgian`, `gujarati`, `gurmukhi`, `hebrew`, `japanese`, `kannada`, `khmer`, `korean`, `lao`, `malayalam`, `myanmar`, `oriya`, `sinhala`, `tamil`, `telugu`, `thai`, `tibetan`.
+
+Each script maps to the corresponding Noto Sans variant on Google Fonts (e.g. `"arabic"` loads Noto Sans Arabic). All font faces share a single `font-family` name and use `unicode-range` so the browser only downloads the files it needs for the characters on the page.
+
+Set to `false` to disable font injection entirely and use system fonts:
+
+```js
+emdash({
+  fonts: false,
+})
+```
+
+The admin CSS uses the `--font-emdash` CSS variable. This is set automatically by the font configuration above.
+
 ### `auth`
 
 **Optional.** Authentication configuration.
@@ -270,6 +300,28 @@ export default defineConfig({
 });
 ```
 
+### `maxUploadSize`
+
+**Optional.** Maximum allowed media file upload size in bytes. Applies to both direct multipart uploads and signed-URL uploads. Defaults to `52_428_800` (50 MB).
+
+```js
+emdash({
+	database: sqlite({ url: "file:./data.db" }),
+	storage: local({
+		directory: "./uploads",
+		baseUrl: "/_emdash/api/media/file",
+	}),
+	maxUploadSize: 100 * 1024 * 1024, // 100 MB
+});
+```
+
+| Value | Description |
+| ----- | ----------- |
+| `number` (bytes) | Must be a positive finite integer |
+| omitted | Defaults to 50 MB |
+
+Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
+
 ## Database Adapters
 
 Import from `emdash/db`:
@@ -334,7 +386,7 @@ Cloudflare D1 database. Import from `@emdash-cms/cloudflare`.
 | ---------------- | -------- | -------------------- | --------------------------------------------------- |
 | `binding`        | `string` | —                    | D1 binding name from `wrangler.jsonc`               |
 | `session`        | `string` | `"disabled"`         | Read replication mode: `"disabled"`, `"auto"`, or `"primary-first"` |
-| `bookmarkCookie` | `string` | `"__ec_d1_bookmark"` | Cookie name for session bookmarks                   |
+| `bookmarkCookie` | `string` | `"__em_d1_bookmark"` | Cookie name for session bookmarks                   |
 
 ```js
 // Basic

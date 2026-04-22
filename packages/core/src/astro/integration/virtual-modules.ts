@@ -60,6 +60,9 @@ export const RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID = "\0" + VIRTUAL_BLOCK_COMPONE
 export const VIRTUAL_SEED_ID = "virtual:emdash/seed";
 export const RESOLVED_VIRTUAL_SEED_ID = "\0" + VIRTUAL_SEED_ID;
 
+export const VIRTUAL_WAIT_UNTIL_ID = "virtual:emdash/wait-until";
+export const RESOLVED_VIRTUAL_WAIT_UNTIL_ID = "\0" + VIRTUAL_WAIT_UNTIL_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -69,62 +72,42 @@ export function generateConfigModule(serializableConfig: Record<string, unknown>
 
 /**
  * Generates the dialect virtual module.
- * Statically imports the configured database dialect and exports the dialect type.
  *
- * For D1 adapters, also re-exports session helpers (isSessionEnabled, getD1Binding,
- * getDefaultConstraint, getBookmarkCookieName, createSessionDialect) used by
- * middleware for per-request read replica sessions.
- *
- * For non-D1 adapters, session exports are no-ops.
+ * Adapters that set `supportsRequestScope: true` on their descriptor are
+ * expected to export `createRequestScopedDb` from their runtime entrypoint;
+ * the generator re-exports it so middleware can ask for a per-request Kysely
+ * (used for D1 Sessions API, bookmark cookies, read-replica routing). Other
+ * adapters get a stub that returns null.
  */
-export function generateDialectModule(
-	dbEntrypoint?: string,
-	dbType?: string,
-	dbConfig?: unknown,
-): string {
-	if (!dbEntrypoint) {
+export function generateDialectModule(opts: {
+	entrypoint?: string;
+	type?: string;
+	supportsRequestScope: boolean;
+}): string {
+	const { entrypoint, supportsRequestScope } = opts;
+	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
-			`export const isSessionEnabled = () => false;`,
-			`export const getD1Binding = () => null;`,
-			`export const getDefaultConstraint = () => "first-unconstrained";`,
-			`export const getBookmarkCookieName = () => "";`,
-			`export const createSessionDialect = undefined;`,
+			`export const createRequestScopedDb = (_opts) => null;`,
 		].join("\n");
 	}
-	const type = dbType ?? "sqlite";
+	const type = opts.type ?? "sqlite";
 
-	// Check if the adapter is D1 (has session helpers)
-	const isD1 = dbEntrypoint.includes("cloudflare") && dbEntrypoint.includes("d1");
-
-	// Check if sessions are enabled in the config
-	const sessionMode =
-		isD1 && dbConfig && typeof dbConfig === "object" && "session" in dbConfig
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime-checked above
-				(dbConfig as { session?: string }).session
-			: undefined;
-	const sessionEnabled = !!sessionMode && sessionMode !== "disabled";
-
-	if (isD1 && sessionEnabled) {
+	if (supportsRequestScope) {
 		return `
-import { createDialect as _createDialect } from "${dbEntrypoint}";
-export { isSessionEnabled, getD1Binding, getDefaultConstraint, getBookmarkCookieName, createSessionDialect } from "${dbEntrypoint}";
+import { createDialect as _createDialect } from "${entrypoint}";
+export { createRequestScopedDb } from "${entrypoint}";
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
 	}
 
-	// Non-D1 or sessions disabled: export no-ops
 	return `
-import { createDialect as _createDialect } from "${dbEntrypoint}";
+import { createDialect as _createDialect } from "${entrypoint}";
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
-export const isSessionEnabled = () => false;
-export const getD1Binding = () => null;
-export const getDefaultConstraint = () => "first-unconstrained";
-export const getBookmarkCookieName = () => "";
-export const createSessionDialect = undefined;
+export const createRequestScopedDb = (_opts) => null;
 `;
 }
 
@@ -392,6 +375,25 @@ export function generateBlockComponentsModule(descriptors: PluginDescriptor[]): 
 	});
 
 	return `${imports.join("\n")}\nexport const pluginBlockComponents = { ${spreads.join(", ")} };`;
+}
+
+/**
+ * Generates the wait-until virtual module.
+ *
+ * Under @astrojs/cloudflare, re-exports `waitUntil` from `cloudflare:workers`
+ * so `after(fn)` in core can extend the worker's lifetime past the response
+ * for deferred bookkeeping. For any other adapter, exports `undefined` —
+ * Node's long-lived event loop keeps deferred promises running without a
+ * lifetime extender.
+ *
+ * Keeping the adapter check here — rather than in core — means core itself
+ * has no Cloudflare-specific imports or code paths.
+ */
+export function generateWaitUntilModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `export { waitUntil } from "cloudflare:workers";`;
+	}
+	return `export const waitUntil = undefined;`;
 }
 
 /**

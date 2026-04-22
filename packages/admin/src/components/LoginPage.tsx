@@ -210,8 +210,8 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	if (authModeLoading || (authInfo?.authMode && authInfo.authMode !== "passkey")) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
-				<div className="text-center">
-					<LogoLockup className="h-10 mx-auto mb-4" />
+				<div className="flex flex-col items-center">
+					<LogoLockup className="h-10 mb-4" />
 					<Loader />
 				</div>
 			</div>

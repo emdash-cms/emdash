@@ -2,7 +2,7 @@ This file provides guidance to agentic coding tools when working with code in th
 
 ## Project Status
 
-**Beta.** EmDash is published to npm. All development happens inside this monorepo using `workspace:*` links. See [CONTRIBUTING.md](CONTRIBUTING.md) for the human-readable contributor guide (setup, repo layout, "build your own site" workflow).
+**Beta, post pre-release.** EmDash is published to npm and in active use, with i18n, RTL, and the plugin system shipped. We're no longer in the scorched-earth pre-release phase -- real users depend on current behavior, so backwards compatibility now matters (see Rules below). All development happens inside this monorepo using `workspace:*` links. See [CONTRIBUTING.md](CONTRIBUTING.md) for the human-readable contributor guide (setup, repo layout, "build your own site" workflow).
 
 ## Repository Structure
 
@@ -18,11 +18,11 @@ This is a monorepo using pnpm workspaces.
 
 # Rules
 
-This is a pre-release project. Do not add backwards compatibility or legacy patterns. Do not deprecate -- remove instead. Do not add migration paths.
-
-**Build for the known future.** If we know we'll need something, build it now. Only defer things where there's genuine uncertainty about whether or how we'll need them. "We'll need it later" is a reason to do it now, not a reason to punt.
+**Backwards compatibility matters now.** We're out of pre-release, but pre-1.0. Real installs depend on current behavior, schemas, and API shapes. Breaking changes are allowed in minors, but need an explicit decision, a bump on the affected package, and a changeset that calls the break out clearly. Prefer additive changes: new fields, new routes, new options with sensible defaults. If an old API is obsolete, mark the replacement as preferred and keep the old path working unless there's a reason it can't. Database migrations are forward-only -- never write one that leaves existing content inaccessible. When in doubt, open a Discussion before coding.
 
 **TDD for bugs.** Write a failing test -> fix the bug -> verify the test passes. A bug without a reproducing test is not fixed.
+
+**Localize everything user-facing.** All admin UI strings, aria labels, and toast messages go through Lingui. All admin layout uses RTL-safe logical Tailwind classes. See the Localization and RTL sections below.
 
 ## Contribution Rules (for AI agents and human contributors)
 
@@ -86,19 +86,9 @@ See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets) for full guidanc
 4. Add a changeset if the change affects a published package: `pnpm changeset`.
 5. Open the PR with the `pr` skill. Fill out every section of the PR template. Check the AI disclosure box.
 
-### Dev Servers
-
-Use `bgproc` (not raw process management):
-
-```bash
-bgproc start -n devserver -w -- pnpm dev   # start and wait for port
-bgproc stop devserver                       # stop
-bgproc logs devserver                       # view logs
-```
-
 ## Architecture Overview
 
-EmDash is an Astro-native CMS that stores its schema in the database, not in code.
+EmDash is an Astro-native CMS
 
 ### Core Architecture
 
@@ -306,6 +296,215 @@ Handlers in `api/handlers/*.ts` contain business logic. Routes should be thin wr
 - Entire body wrapped in try/catch. Errors return `{ success: false, error: { code, message } }`.
 - Error codes are `SCREAMING_SNAKE_CASE`: `NOT_FOUND`, `VALIDATION_ERROR`, `CONTENT_CREATE_ERROR`, etc.
 
+### Performance: caching and query patterns
+
+EmDash runs on D1 with the Sessions API. Anonymous reads go to the nearest replica; writes and authenticated reads route to the primary. The primary is thousands of miles from some CF colos -- every round-trip matters, especially on cold isolates.
+
+A few rules and patterns cover 90% of the footguns.
+
+**Always add requestCached to query helpers called from templates.** Page-level template code runs inside the ALS request context, so the per-request cache (`src/request-cache.ts`) deduplicates identical calls within a single render. A single un-cached helper called from three widgets turns into three primary-routed reads on a page that should have made one. Rule of thumb: if a helper takes stable arguments (slug, key, entry ID) and can be called from multiple components, wrap it.
+
+```typescript
+// WRONG — every caller re-queries
+export async function getSiteSetting(key: string) {
+	const db = await getDb();
+	return db.selectFrom("options").where("name", "=", key)...
+}
+
+// RIGHT — shared within one render
+export function getSiteSetting(key: string) {
+	return requestCached(`siteSetting:${key}`, async () => {
+		const db = await getDb();
+		return ...;
+	});
+}
+```
+
+The cache key must include every argument that changes the result. Missing an argument means wrong values get served; including too much just means more cache misses.
+
+`requestCached` caches the _promise_, so concurrent callers share the in-flight query. On error the entry is deleted so the next call retries.
+
+**Module-scope singletons must live on `globalThis`.** Vite duplicates modules across chunks during SSR bundling. A plain `let cache: X | null = null` in a module becomes _two_ variables if two chunks inline the module -- defeating the singleton. Use a `Symbol.for` key on `globalThis`, as `request-context.ts` does. See also `packages/core/src/bylines/index.ts` (`bylinesHolder`) for the pattern applied to a boolean cache. The fix cut ~2 cold-start queries per D1 isolate.
+
+**Prefer the batch query to a "has any" probe.** Adding a `SELECT id FROM foo LIMIT 1` before a batch query to skip it on empty sites trades one extra query on every real request for saving one query on sites that almost never exist. On live sites the batch query returns empty at the same cost; handle missing tables with an `isMissingTableError` catch.
+
+**Defer bookkeeping past the response with `after(fn)`.** Maintenance writes (cron recovery, audit log flushes) don't need to block TTFB. `after(fn)` hands the promise to workerd's `waitUntil` when available, or fire-and-forgets on Node. Errors are caught and logged with the `[emdash]` prefix -- add your own `try/catch` inside `fn` with a module-specific prefix (e.g. `[cron]`) for better grep-ability. Deferred writes still happen; they just don't gate the response.
+
+```typescript
+import { after } from "emdash";
+
+after(async () => {
+	try {
+		await recoverStaleLocks();
+	} catch (error) {
+		console.error("[cron] recovery failed:", error);
+	}
+});
+```
+
+**One query beats two whenever possible.** Every query pays a round-trip to the replica (and the primary for writes). If you're fetching parent + children, use a `LEFT JOIN`. If you're fetching related records by a list of IDs, batch with `WHERE id IN (...)` -- but chunk at `SQL_BATCH_SIZE` (from `utils/chunks.ts`) to stay below D1's bind-parameter limit.
+
+**Every new helper gets a query-count impact check.** The fixture harness (`pnpm query-counts`, see `scripts/query-counts.mjs`) builds `fixtures/perf-site/` and records per-route query counts in `scripts/query-counts.snapshot.{sqlite,d1}.json`. CI auto-updates the snapshots on PRs; review the diff. Fewer queries on a route is always the right direction. More requires a conversation.
+
+### Admin UI: Use Kumo Components
+
+The admin UI is built on [Kumo](https://github.com/cloudflare/kumo) (Cloudflare's design system). Use Kumo components for all standard UI elements -- never roll your own buttons, inputs, dialogs, selects, etc. This gives us consistent styling, dark mode, accessibility, and RTL support for free.
+
+**Look up component docs from the CLI** -- don't guess at props:
+
+```bash
+npx @cloudflare/kumo doc Button    # docs for a specific component
+npx @cloudflare/kumo ls            # list all available components
+npx @cloudflare/kumo docs          # docs for everything
+```
+
+Key components (all from `@cloudflare/kumo`):
+
+- **`Button`** -- all clickable actions. Supports `variant`, `size`, `icon`, and `loading`.
+- **`LinkButton`** -- anchor styled as a button. Use for navigation, never `<a>` with manual styling. Supports `external` prop for new-tab links.
+- **`Dialog`** -- all modals. Use `ConfirmDialog` (ours) for simple confirm/cancel flows.
+- **`Input`**, **`InputArea`**, **`Select`**, **`Checkbox`**, **`Switch`** -- form controls.
+- **`Toast`** / **`Toasty`** -- notifications.
+- **`Loader`** -- loading spinners.
+- **`Badge`** -- status labels, counts.
+- **`Popover`**, **`Dropdown`**, **`Tooltip`** -- overlays.
+- **`CommandPalette`** -- the admin command palette.
+- **`Label`** -- form labels (pairs with inputs).
+
+```typescript
+import { Button, LinkButton, Loader } from "@cloudflare/kumo";
+
+// loading prop -- shows spinner and disables interaction automatically
+<Button variant="primary" loading={mutation.isPending}>
+	{t`Save`}
+</Button>
+
+// icon prop with conditional Loader -- use when the icon itself changes per state
+// (e.g. different icons for idle/pending/done -- see SaveButton.tsx for the full pattern)
+<Button
+	variant={isSaved ? "secondary" : "primary"}
+	icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
+	disabled={isSaving || isSaved}
+	aria-busy={isSaving}
+>
+	{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
+</Button>
+
+// icon prop -- pass a Phosphor icon component or React element
+<Button variant="secondary" icon={PlusIcon}>{t`Add item`}</Button>
+
+// icon-only buttons require shape + aria-label
+<Button shape="square" icon={TrashIcon} aria-label={t`Delete`} variant="ghost" />
+
+// LinkButton for navigation -- never use <a> with manual button classes
+<LinkButton href="/_emdash/admin" variant="ghost" icon={HouseIcon}>
+	{t`Dashboard`}
+</LinkButton>
+
+// external links open in new tab with rel="noopener noreferrer"
+<LinkButton href="https://docs.example.com" external>{t`Docs`}</LinkButton>
+```
+
+**Styling rules:**
+
+- **Use semantic color tokens**, not raw Tailwind colors. `bg-kumo-brand` not `bg-blue-500`. `text-kumo-subtle` not `text-gray-500`. The full token list is in the Kumo styles.
+- **Never use `dark:` prefixes.** Kumo's semantic tokens use CSS `light-dark()` to handle dark mode automatically. If you're writing `dark:bg-something`, you're bypassing the design system.
+- Don't reach for raw HTML elements or Tailwind-only solutions when a Kumo component exists. If you need a button, use `Button`. If you need a link that looks like a button, use `LinkButton`. If you need `buttonVariants()` classes on a non-button element, import `buttonVariants` from `@cloudflare/kumo`.
+
+### Admin UI: Localization (Lingui)
+
+Every user-facing string in the admin UI goes through Lingui. No hard-coded English literals in JSX, attributes, or TypeScript strings that end up in the DOM.
+
+- Catalogs live in `packages/admin/src/locales/{locale}/messages.po`. English is the source.
+- Enabled locales are defined in `packages/admin/src/locales/locales.ts`.
+- After adding or changing strings, run `pnpm locale:extract` then `pnpm locale:compile`. CI fails if catalogs are stale.
+- Set `EMDASH_PSEUDO_LOCALE=1` in dev to render pseudo-localized text -- any untranslated English leaking through is immediately visible.
+
+```typescript
+import { useLingui } from "@lingui/react/macro";
+import { Trans } from "@lingui/react/macro";
+
+// Simple strings -- tagged template
+function DeleteButton() {
+	const { t } = useLingui();
+	return (
+		<button type="button" aria-label={t`Delete post`}>
+			{t`Delete`}
+		</button>
+	);
+}
+
+// JSX with interpolation or nested components -- <Trans> macro
+<Trans>
+	Published by <strong>{authorName}</strong> on {formattedDate}
+</Trans>;
+
+// Pluralization -- use plural macro
+import { plural } from "@lingui/core/macro";
+const label = plural(count, { one: "# item", other: "# items" });
+
+// Module-scope constants -- use msg`` descriptors, resolve with t() inside component
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
+interface BlockTransform {
+	id: string;
+	label: MessageDescriptor;
+}
+
+const blockTransforms: BlockTransform[] = [
+	{ id: "paragraph", label: msg`Paragraph` },
+	{ id: "heading1", label: msg`Heading 1` },
+];
+
+function BlockMenu() {
+	const { t } = useLingui();
+	return blockTransforms.map((b) => <span key={b.id}>{t(b.label)}</span>);
+}
+```
+
+Common mistakes to avoid:
+
+- **Bare string literals in JSX**: `<button>Save</button>` -- must be `<button>{t\`Save\`}</button>`or`<button><Trans>Save</Trans></button>`.
+- **Unwrapped aria labels, titles, placeholders, alt text**: these are user-facing too. `aria-label="Close"` -> ``aria-label={t`Close`}``.
+- **Concatenating translated pieces**: ``t`Hello ` + name`` breaks word order in other languages. Use `` t`Hello ${name}` `` or `<Trans>`.
+- **Calling `t` at module scope**: the locale isn't bound yet. Use `msg` to create a `MessageDescriptor`, then resolve it with `t(descriptor)` inside the component. Type the constant as `MessageDescriptor` (from `@lingui/core`).
+- **Reusing the same key for different meanings**: give them distinct messages or use context.
+
+Server-side (API error messages): still English-only for now. Keep error codes stable (`SCREAMING_SNAKE_CASE`) -- the admin UI maps codes to localized messages client-side.
+
+### Admin UI: RTL-safe Tailwind
+
+The admin supports RTL locales. Use logical Tailwind classes, never physical ones. An LTR-only class that slips in will misplace UI in Arabic.
+
+| Use                                          | Not                           |
+| -------------------------------------------- | ----------------------------- |
+| `ms-*` / `me-*` (margin-inline-start/end)    | `ml-*` / `mr-*`               |
+| `ps-*` / `pe-*` (padding-inline-start/end)   | `pl-*` / `pr-*`               |
+| `start-*` / `end-*` (inset-inline-start/end) | `left-*` / `right-*`          |
+| `text-start` / `text-end`                    | `text-left` / `text-right`    |
+| `border-s` / `border-e`                      | `border-l` / `border-r`       |
+| `rounded-s-*` / `rounded-e-*`                | `rounded-l-*` / `rounded-r-*` |
+| `float-start` / `float-end`                  | `float-left` / `float-right`  |
+
+For icons that indicate direction (chevrons, arrows, back/forward), flip them in RTL. Use `rtl:-scale-x-100` on the icon, or pick a bidi-aware icon. Don't rely on the icon being visually neutral.
+
+`LocaleDirectionProvider` (`packages/admin/src/locales/LocaleDirectionProvider.tsx`) syncs `document.documentElement.dir` and `lang` with the active locale. You don't need to set these manually.
+
+**Always test new admin UI in Arabic** before considering it done. Switch the locale in the admin and walk through the feature. Broken directionality is the single most common i18n regression.
+
+### Content Localization
+
+Content tables use a row-per-locale model (see migration `019_i18n.ts`):
+
+- Every `ec_*` table has a `locale` column (defaults to `'en'`) and a `translation_group` ULID shared across translations of the same piece of content.
+- Slug uniqueness is `UNIQUE(slug, locale)` -- not global. Two posts can share a slug across locales.
+- Any new query against a content table must filter by `locale` or deliberately operate across locales (e.g. the translations endpoint). Forgetting the filter is a correctness bug, not a style issue.
+- Indexes exist on both `locale` and `translation_group`. Use them.
+- Fetch all translations of a single piece via `GET /_emdash/api/content/{collection}/{id}/translations`.
+
+When adding new content-table features (new columns, new filters, new list endpoints), ask: does this need to be per-locale or per-translation-group? Per-locale is usually correct for display fields; per-group is correct for anything identifying "the same thing" across languages (e.g. comment counts, view counts might aggregate across the group).
+
 ### Admin UI: API Error Handling
 
 All admin API functions use `throwResponseError()` from `lib/api/client.ts` to surface server error messages to the user. Never throw a generic error when the response body contains a message.
@@ -426,7 +625,7 @@ When accepting redirect URLs from query params or request bodies:
 - **pnpm** -- package manager
 - **tsdown** -- TypeScript builds (ESM + DTS)
 - **vitest** -- testing
-- **oxfmt** -- code formatting (tabs for indentation, configured in `.prettierrc`). All source files use tabs, not spaces.
+- **oxfmt** -- code formatting (tabs for indentation). All source files use tabs, not spaces.
 
 ## TypeScript Configuration
 
