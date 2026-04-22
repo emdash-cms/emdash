@@ -11,6 +11,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { resolvePublicMediaUrl } from "../media/url.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
 import type { SiteSettings, SiteSettingKey, MediaReference } from "./types.js";
@@ -31,7 +32,7 @@ function isMediaReference(value: unknown): value is MediaReference {
 async function resolveMediaReference(
 	mediaRef: MediaReference | undefined,
 	db: Kysely<Database>,
-	_storage: Storage | null,
+	storage: Storage | null,
 ): Promise<(MediaReference & { url?: string }) | undefined> {
 	if (!mediaRef?.mediaId) {
 		return mediaRef;
@@ -42,10 +43,12 @@ async function resolveMediaReference(
 		const media = await mediaRepo.findById(mediaRef.mediaId);
 
 		if (media) {
-			// Construct URL using the same pattern as API handlers
+			// Defer URL construction to the storage adapter so CDN/custom-domain
+			// configuration (e.g. R2 publicUrl) is honored. Falls back to the
+			// internal /_emdash/api/media/file route when no adapter is available.
 			return {
 				...mediaRef,
-				url: `/_emdash/api/media/file/${media.storageKey}`,
+				url: resolvePublicMediaUrl(storage, media.storageKey),
 			};
 		}
 	} catch {

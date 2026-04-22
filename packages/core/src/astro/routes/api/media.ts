@@ -16,20 +16,28 @@ import { isParseError, parseQuery } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { generatePlaceholder } from "#media/placeholder.js";
+import { resolvePublicMediaUrl } from "#media/url.js";
 import { computeContentHash } from "#utils/hash.js";
 
+import type { Storage } from "../../../storage/types.js";
 import type { MediaItem } from "../../types.js";
 
 export const prerender = false;
 
 /**
- * Add URL to media items
- * Uses relative URLs to ensure portability across deployments
+ * Add URL to media items.
+ *
+ * Defers to the storage adapter's `getPublicUrl()` so CDN / custom-domain
+ * configuration (e.g. R2 `publicUrl`) is honored; falls back to the internal
+ * file route when no adapter is configured.
  */
-function addUrlToMedia(item: MediaItem): MediaItem & { url: string } {
+function addUrlToMedia(
+	item: MediaItem,
+	storage: Storage | null | undefined,
+): MediaItem & { url: string } {
 	return {
 		...item,
-		url: `/_emdash/api/media/file/${item.storageKey}`,
+		url: resolvePublicMediaUrl(storage, item.storageKey),
 	};
 }
 
@@ -60,8 +68,8 @@ export const GET: APIRoute = async ({ request, locals }) => {
 		return unwrapResult(result);
 	}
 
-	// Add URL to each media item (relative URLs for portability)
-	const itemsWithUrl = result.data.items.map((item) => addUrlToMedia(item));
+	// Add URL to each media item (honors configured storage publicUrl when set)
+	const itemsWithUrl = result.data.items.map((item) => addUrlToMedia(item, emdash.storage));
 
 	return apiSuccess({ items: itemsWithUrl, nextCursor: result.data.nextCursor });
 };
@@ -130,7 +138,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const existing = await repo.findByContentHash(contentHash);
 		if (existing) {
 			// Same content already exists - return existing item
-			const itemWithUrl = addUrlToMedia(existing);
+			const itemWithUrl = addUrlToMedia(existing, emdash.storage);
 			return apiSuccess({ item: itemWithUrl, deduplicated: true });
 		}
 
@@ -195,8 +203,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return unwrapResult(result);
 		}
 
-		// Add URL to the response (relative URL for portability)
-		const itemWithUrl = addUrlToMedia(result.data.item);
+		// Add URL to the response (honors configured storage publicUrl when set)
+		const itemWithUrl = addUrlToMedia(result.data.item, emdash.storage);
 
 		return apiSuccess({ item: itemWithUrl }, 201);
 	} catch (error) {
