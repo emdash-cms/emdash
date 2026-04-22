@@ -378,13 +378,41 @@ export interface EmDashConfig {
 				 * Additional Noto Sans script families to include.
 				 *
 				 * Available scripts: arabic, armenian, bengali, chinese-simplified,
-				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic,
+				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic, farsi,
 				 * georgian, gujarati, gurmukhi, hebrew, japanese, kannada, khmer,
 				 * korean, lao, malayalam, myanmar, oriya, sinhala, tamil, telugu,
 				 * thai, tibetan.
 				 */
 				scripts?: string[];
 		  };
+
+	/**
+	 * Admin UI branding (white-labeling).
+	 *
+	 * Overrides the default EmDash logo and name in the admin panel.
+	 * Use this to white-label the CMS for agency or enterprise deployments.
+	 * These settings are separate from the public site settings (title, logo,
+	 * favicon) which remain available for SEO and front-end use.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   admin: {
+	 *     logo: "/images/agency-logo.webp",
+	 *     siteName: "AgencyX CMS",
+	 *     favicon: "/favicon.ico",
+	 *   },
+	 * })
+	 * ```
+	 */
+	admin?: {
+		/** URL or path to a custom logo image for the admin UI (login page, sidebar). */
+		logo?: string;
+		/** Custom name displayed in the admin sidebar and browser tab. */
+		siteName?: string;
+		/** URL or path to a custom favicon for the admin panel. */
+		favicon?: string;
+	};
 }
 
 /**

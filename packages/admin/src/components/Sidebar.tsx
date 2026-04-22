@@ -25,7 +25,7 @@ import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { usePluginAdmins } from "../lib/plugin-context";
 import { cn } from "../lib/utils";
-import { LogoIcon } from "./Logo.js";
+import { BrandIcon } from "./Logo.js";
 
 // Re-export for Shell.tsx and Header.tsx
 export { KumoSidebar as Sidebar, useSidebar };
@@ -59,6 +59,11 @@ export interface SidebarNavProps {
 		version?: string;
 		commit?: string;
 		marketplace?: string;
+		admin?: {
+			logo?: string;
+			siteName?: string;
+			favicon?: string;
+		};
 	};
 }
 
@@ -376,8 +381,15 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						to="/"
 						className="emdash-brand-link flex w-full min-w-0 items-center gap-2 px-3 py-1"
 					>
-						<LogoIcon className="size-5 shrink-0" aria-hidden="true" />
-						<span className="emdash-brand-text font-semibold truncate">EmDash</span>
+						<BrandIcon
+							logoUrl={manifest.admin?.logo}
+							siteName={manifest.admin?.siteName}
+							className="size-5 shrink-0"
+							aria-hidden="true"
+						/>
+						<span className="emdash-brand-text font-semibold truncate">
+							{manifest.admin?.siteName || "EmDash"}
+						</span>
 					</Link>
 				</KumoSidebar.Header>
 
@@ -446,7 +458,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 				<KumoSidebar.Footer>
 					<p className="emdash-nav-label px-3 py-2 text-[11px] text-white/30">
-						EmDash CMS v{manifest.version || "0.0.0"}
+						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
 						{manifest.commit && ` (${manifest.commit})`}
 					</p>
 				</KumoSidebar.Footer>

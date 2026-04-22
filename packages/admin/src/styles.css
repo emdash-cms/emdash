@@ -34,7 +34,9 @@
 	--color-kumo-brand: #2271b1;
 	--color-kumo-brand-hover: #135e96;
 	--text-color-kumo-brand: #2271b1;
+}
 
+[data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
 	--color-kumo-base: #ffffff;
 	--color-kumo-elevated: #f0f0f1;

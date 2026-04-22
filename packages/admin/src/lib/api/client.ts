@@ -146,6 +146,15 @@ export interface AdminManifest {
 	 * in the EmDash integration. Enables marketplace features in the UI.
 	 */
 	marketplace?: string;
+	/**
+	 * Admin branding overrides for white-labeling.
+	 * Set via the `admin` config in `astro.config.mjs`.
+	 */
+	admin?: {
+		logo?: string;
+		siteName?: string;
+		favicon?: string;
+	};
 }
 
 /**

@@ -142,6 +142,15 @@ export interface EmDashManifest {
 	 * When true, the admin UI can show marketplace browse/install features.
 	 */
 	marketplace?: boolean;
+	/**
+	 * Admin branding overrides for white-labeling.
+	 * Set via the `admin` config in `astro.config.mjs`.
+	 */
+	admin?: {
+		logo?: string;
+		siteName?: string;
+		favicon?: string;
+	};
 }
 
 /**

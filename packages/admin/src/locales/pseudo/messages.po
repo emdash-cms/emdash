@@ -54,7 +54,7 @@ msgstr ""
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
 #: packages/admin/src/components/ContentTypeList.tsx:69
-#: packages/admin/src/components/RepeaterField.tsx:131
+#: packages/admin/src/components/RepeaterField.tsx:145
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr ""
 
@@ -198,7 +198,7 @@ msgid "{0} preview"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:316
+#: packages/admin/src/components/TaxonomySidebar.tsx:313
 msgid "{0} updated"
 msgstr ""
 
@@ -438,11 +438,11 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
-#: packages/admin/src/components/TaxonomySidebar.tsx:439
+#: packages/admin/src/components/TaxonomySidebar.tsx:436
 msgid "Add"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:238
+#: packages/admin/src/components/TaxonomySidebar.tsx:235
 msgid "Add {label}"
 msgstr ""
 
@@ -483,11 +483,11 @@ msgstr ""
 msgid "Add fields"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:153
+#: packages/admin/src/components/RepeaterField.tsx:167
 msgid "Add First Item"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:137
+#: packages/admin/src/components/RepeaterField.tsx:151
 msgid "Add Item"
 msgstr ""
 
@@ -500,7 +500,7 @@ msgid "Add New"
 msgstr ""
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:449
+#: packages/admin/src/components/TaxonomySidebar.tsx:446
 msgid "Add new {0}"
 msgstr ""
 
@@ -520,7 +520,7 @@ msgstr ""
 msgid "Add Sub-Field"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:237
+#: packages/admin/src/components/TaxonomySidebar.tsx:234
 msgid "Add tags..."
 msgstr ""
 
@@ -538,12 +538,12 @@ msgid "Additional data to import."
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:373
+#: packages/admin/src/components/Sidebar.tsx:378
 msgid "Admin navigation"
 msgstr ""
 
@@ -626,7 +626,7 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:138
 #: packages/admin/src/components/PluginManager.tsx:90
 #: packages/admin/src/components/PluginManager.tsx:109
-#: packages/admin/src/components/TaxonomySidebar.tsx:321
+#: packages/admin/src/components/TaxonomySidebar.tsx:318
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
 #: packages/admin/src/router.tsx:1520
 msgid "An error occurred"
@@ -839,7 +839,7 @@ msgid "Bullet List"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:928
-#: packages/admin/src/components/Sidebar.tsx:201
+#: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr ""
 
@@ -1086,7 +1086,7 @@ msgid "Comment Detail"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:185
+#: packages/admin/src/components/Sidebar.tsx:190
 msgid "Comments"
 msgstr ""
 
@@ -1126,7 +1126,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/SectionEditor.tsx:174
-#: packages/admin/src/components/Sidebar.tsx:400
+#: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr ""
 
@@ -1169,7 +1169,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:39
-#: packages/admin/src/components/Sidebar.tsx:205
+#: packages/admin/src/components/Sidebar.tsx:210
 msgid "Content Types"
 msgstr ""
 
@@ -1336,7 +1336,7 @@ msgstr ""
 msgid "Create Token"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:495
+#: packages/admin/src/components/SetupWizard.tsx:505
 msgid "Create your account"
 msgstr ""
 
@@ -1425,8 +1425,8 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:171
-#: packages/admin/src/components/Sidebar.tsx:389
+#: packages/admin/src/components/Sidebar.tsx:176
+#: packages/admin/src/components/Sidebar.tsx:401
 msgid "Dashboard"
 msgstr ""
 
@@ -1716,7 +1716,7 @@ msgstr ""
 msgid "Domain updated"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:358
+#: packages/admin/src/components/LoginPage.tsx:366
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr ""
 
@@ -1967,7 +1967,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:83
 #: packages/admin/src/components/MenuEditor.tsx:122
-#: packages/admin/src/components/SetupWizard.tsx:478
+#: packages/admin/src/components/SetupWizard.tsx:484
 msgid "Error"
 msgstr ""
 
@@ -2036,7 +2036,7 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:456
+#: packages/admin/src/components/TaxonomySidebar.tsx:453
 msgid "Failed to create term"
 msgstr ""
 
@@ -2081,7 +2081,7 @@ msgstr ""
 msgid "Failed to load revisions"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:480
+#: packages/admin/src/components/SetupWizard.tsx:486
 msgid "Failed to load setup"
 msgstr ""
 
@@ -2122,7 +2122,7 @@ msgid "Failed to send test email"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:320
+#: packages/admin/src/components/TaxonomySidebar.tsx:317
 msgid "Failed to update {0}"
 msgstr ""
 
@@ -2351,7 +2351,7 @@ msgid "image URLs updated in"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:228
 msgid "Import"
 msgstr ""
 
@@ -2537,7 +2537,7 @@ msgid "Invite User"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/RepeaterField.tsx:218
+#: packages/admin/src/components/RepeaterField.tsx:232
 msgid "Item {0}"
 msgstr ""
 
@@ -2577,7 +2577,7 @@ msgstr ""
 msgid "Label"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:371
+#: packages/admin/src/components/LoginPage.tsx:379
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -2717,7 +2717,7 @@ msgstr ""
 msgid "Loading settings..."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:467
+#: packages/admin/src/components/SetupWizard.tsx:473
 msgid "Loading setup..."
 msgstr ""
 
@@ -2777,7 +2777,7 @@ msgstr ""
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:414
+#: packages/admin/src/components/Sidebar.tsx:426
 msgid "Manage"
 msgstr ""
 
@@ -2822,7 +2822,7 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:86
 #: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/components/PluginManager.tsx:309
-#: packages/admin/src/components/Sidebar.tsx:214
+#: packages/admin/src/components/Sidebar.tsx:219
 msgid "Marketplace"
 msgstr ""
 
@@ -2839,7 +2839,7 @@ msgid "Max Value"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1417
-#: packages/admin/src/components/Sidebar.tsx:180
+#: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
 msgstr ""
@@ -2921,7 +2921,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:190
+#: packages/admin/src/components/Sidebar.tsx:195
 msgid "Menus"
 msgstr ""
 
@@ -3043,7 +3043,7 @@ msgid "NEW"
 msgstr ""
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:427
+#: packages/admin/src/components/TaxonomySidebar.tsx:424
 msgid "New {0}"
 msgstr ""
 
@@ -3101,7 +3101,7 @@ msgid "No"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:394
 msgid "No {0} available."
 msgstr ""
 
@@ -3192,7 +3192,7 @@ msgstr ""
 msgid "No headings in document"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:144
+#: packages/admin/src/components/RepeaterField.tsx:158
 msgid "No items yet"
 msgstr ""
 
@@ -3391,7 +3391,7 @@ msgstr ""
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:313
+#: packages/admin/src/components/LoginPage.tsx:321
 msgid "Or continue with"
 msgstr ""
 
@@ -3599,8 +3599,8 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:125
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
-#: packages/admin/src/components/Sidebar.tsx:207
-#: packages/admin/src/components/Sidebar.tsx:438
+#: packages/admin/src/components/Sidebar.tsx:212
+#: packages/admin/src/components/Sidebar.tsx:450
 msgid "Plugins"
 msgstr ""
 
@@ -3744,7 +3744,7 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:333
 #: packages/admin/src/components/Redirects.tsx:352
-#: packages/admin/src/components/Sidebar.tsx:191
+#: packages/admin/src/components/Sidebar.tsx:196
 msgid "Redirects"
 msgstr ""
 
@@ -3781,7 +3781,7 @@ msgstr ""
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:222
+#: packages/admin/src/components/TaxonomySidebar.tsx:219
 msgid "Remove {0}"
 msgstr ""
 
@@ -3808,7 +3808,7 @@ msgid "Remove Image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/RepeaterField.tsx:254
+#: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Remove item {0}"
 msgstr ""
 
@@ -4239,7 +4239,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:132
-#: packages/admin/src/components/Sidebar.tsx:193
+#: packages/admin/src/components/Sidebar.tsx:198
 msgid "Sections"
 msgstr ""
 
@@ -4248,7 +4248,7 @@ msgstr ""
 msgid "secure context"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:496
+#: packages/admin/src/components/SetupWizard.tsx:506
 msgid "Secure your account"
 msgstr ""
 
@@ -4347,7 +4347,7 @@ msgstr ""
 msgid "Select which content types to import."
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:349
+#: packages/admin/src/components/RepeaterField.tsx:363
 msgid "Select..."
 msgstr ""
 
@@ -4428,7 +4428,7 @@ msgstr ""
 msgid "Set up your passkey"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:494
+#: packages/admin/src/components/SetupWizard.tsx:504
 msgid "Set up your site"
 msgstr ""
 
@@ -4441,7 +4441,7 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/PluginManager.tsx:380
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "Settings"
 msgstr ""
@@ -4476,20 +4476,20 @@ msgstr ""
 msgid "Sign in instead"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:283
+#: packages/admin/src/components/LoginPage.tsx:291
 msgid "Sign in to your site"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:284
+#: packages/admin/src/components/LoginPage.tsx:292
 msgid "Sign in with email"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:340
+#: packages/admin/src/components/LoginPage.tsx:348
 msgid "Sign in with email link"
 msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
-#: packages/admin/src/components/LoginPage.tsx:304
+#: packages/admin/src/components/LoginPage.tsx:312
 msgid "Sign in with Passkey"
 msgstr ""
 
@@ -4697,7 +4697,7 @@ msgstr ""
 msgid "Target"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:495
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Taxonomies"
 msgstr ""
 
@@ -4792,7 +4792,7 @@ msgstr ""
 msgid "Theme: {label}"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:218
+#: packages/admin/src/components/Sidebar.tsx:223
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:75
 msgid "Themes"
 msgstr ""
@@ -5229,7 +5229,7 @@ msgstr ""
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:351
+#: packages/admin/src/components/LoginPage.tsx:359
 msgid "Use your registered passkey to sign in securely."
 msgstr ""
 
@@ -5270,7 +5270,7 @@ msgid "User not found"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:206
+#: packages/admin/src/components/Sidebar.tsx:211
 msgid "Users"
 msgstr ""
 
@@ -5347,7 +5347,7 @@ msgstr ""
 msgid "We'll check what import options are available for your site."
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:352
+#: packages/admin/src/components/LoginPage.tsx:360
 msgid "We'll send you a link to sign in without a password."
 msgstr ""
 
@@ -5406,7 +5406,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:333
-#: packages/admin/src/components/Sidebar.tsx:192
+#: packages/admin/src/components/Sidebar.tsx:197
 msgid "Widgets"
 msgstr ""
 
@@ -5484,7 +5484,7 @@ msgstr ""
 msgid "You'll be signing up as"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:499
+#: packages/admin/src/components/SetupWizard.tsx:509
 msgid "You're signed in via Cloudflare Access"
 msgstr ""
 

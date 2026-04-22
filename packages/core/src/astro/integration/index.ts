@@ -160,6 +160,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		marketplace: resolvedConfig.marketplace,
 		siteUrl: resolvedConfig.siteUrl,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		admin: resolvedConfig.admin,
 	};
 
 	// Determine auth mode for route injection
