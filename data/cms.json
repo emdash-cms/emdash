@@ -1,18 +1,53 @@
 {
   "site": {
-    "title": "Manning's Restaurant",
-    "tagline": "Regional ingredients. Memorable evenings.",
+    "title": "Local Restaurant",
+    "tagline": "Elevated American Dining Mixed With Southern Flair",
     "phone": "(555) 123-4567",
     "email": "hello@symballo.agency",
-    "address": "123 Main Street, Your Town, ST 00000",
+    "address": "123 Main Street, Clayton, NC 27520",
     "hours": [
-      { "label": "Monday", "opens": "11:00", "closes": "21:00", "closed": false },
-      { "label": "Tuesday", "opens": "11:00", "closes": "21:00", "closed": false },
-      { "label": "Wednesday", "opens": "11:00", "closes": "21:00", "closed": false },
-      { "label": "Thursday", "opens": "11:00", "closes": "21:00", "closed": false },
-      { "label": "Friday", "opens": "11:00", "closes": "22:00", "closed": false },
-      { "label": "Saturday", "opens": "11:00", "closes": "22:00", "closed": false },
-      { "label": "Sunday", "opens": "10:00", "closes": "20:00", "closed": false }
+      {
+        "label": "Monday",
+        "opens": "11:00",
+        "closes": "21:00",
+        "closed": false
+      },
+      {
+        "label": "Tuesday",
+        "opens": "11:00",
+        "closes": "21:00",
+        "closed": false
+      },
+      {
+        "label": "Wednesday",
+        "opens": "11:00",
+        "closes": "21:00",
+        "closed": false
+      },
+      {
+        "label": "Thursday",
+        "opens": "11:00",
+        "closes": "21:00",
+        "closed": false
+      },
+      {
+        "label": "Friday",
+        "opens": "11:00",
+        "closes": "22:00",
+        "closed": false
+      },
+      {
+        "label": "Saturday",
+        "opens": "11:00",
+        "closes": "22:00",
+        "closed": false
+      },
+      {
+        "label": "Sunday",
+        "opens": "10:00",
+        "closes": "20:00",
+        "closed": false
+      }
     ],
     "facebookUrl": "https://facebook.com",
     "instagramUrl": "https://instagram.com"
@@ -20,20 +55,28 @@
   "posts": [
     {
       "slug": "welcome",
-      "title": "Welcome to Symballo Brasserie",
-      "excerpt": "A quick intro to the template and how to update it.",
+      "title": "Celebrate our 33rd year in business!",
+      "excerpt": "with appetizers at just $3.33 each for a limited time!",
       "publishedAt": "2026-04-21",
-      "body": "Replace this post content with your business updates, events, or announcements.",
-      "bannerEnabled": false,
-      "bannerStartDate": "",
-      "bannerEndDate": ""
+      "body": "Something new is brewing...",
+      "seoTitle": "You know it!",
+      "seoDescription": "This is it, ya'll",
+      "seoKeywords": "key words!",
+      "seoNoIndex": false,
+      "bannerEnabled": true,
+      "bannerStartDate": "2026-04-22",
+      "bannerEndDate": "2026-04-24"
     }
   ],
   "pages": [
     {
       "slug": "contact",
       "title": "Contact",
-      "body": "Add your booking details, map, and contact form instructions here."
+      "body": "Add your booking details, map, and contact form instructions here.",
+      "seoTitle": "",
+      "seoDescription": "",
+      "seoKeywords": "",
+      "seoNoIndex": false
     }
   ]
 }

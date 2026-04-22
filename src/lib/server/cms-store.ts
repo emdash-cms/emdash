@@ -46,6 +46,10 @@ function normalizePosts(value: unknown): Post[] {
         excerpt: typeof post.excerpt === 'string' ? post.excerpt : '',
         publishedAt: typeof post.publishedAt === 'string' ? post.publishedAt : new Date().toISOString().slice(0, 10),
         body: typeof post.body === 'string' ? post.body : '',
+        seoTitle: typeof post.seoTitle === 'string' ? post.seoTitle : '',
+        seoDescription: typeof post.seoDescription === 'string' ? post.seoDescription : '',
+        seoKeywords: typeof post.seoKeywords === 'string' ? post.seoKeywords : '',
+        seoNoIndex: Boolean(post.seoNoIndex),
         bannerEnabled: Boolean(post.bannerEnabled),
         bannerStartDate: typeof post.bannerStartDate === 'string' ? post.bannerStartDate : '',
         bannerEndDate: typeof post.bannerEndDate === 'string' ? post.bannerEndDate : ''
@@ -66,7 +70,11 @@ function normalizePages(value: unknown): Page[] {
       return {
         slug: page.slug,
         title: page.title,
-        body: typeof page.body === 'string' ? page.body : ''
+        body: typeof page.body === 'string' ? page.body : '',
+        seoTitle: typeof page.seoTitle === 'string' ? page.seoTitle : '',
+        seoDescription: typeof page.seoDescription === 'string' ? page.seoDescription : '',
+        seoKeywords: typeof page.seoKeywords === 'string' ? page.seoKeywords : '',
+        seoNoIndex: Boolean(page.seoNoIndex)
       };
     })
     .filter((entry): entry is Page => entry !== null);

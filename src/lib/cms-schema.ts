@@ -22,6 +22,10 @@ export type Post = {
   excerpt: string;
   publishedAt: string;
   body: string;
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string;
+  seoNoIndex: boolean;
   bannerEnabled: boolean;
   bannerStartDate: string;
   bannerEndDate: string;
@@ -31,6 +35,10 @@ export type Page = {
   slug: string;
   title: string;
   body: string;
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string;
+  seoNoIndex: boolean;
 };
 
 export type CmsData = {
@@ -67,6 +75,10 @@ export const defaultCmsData: CmsData = {
       excerpt: 'A quick intro to the template and how to update it.',
       publishedAt: '2026-04-21',
       body: 'Replace this post content with your business updates, events, or announcements.',
+      seoTitle: 'Welcome to Symballo Brasserie',
+      seoDescription: 'A quick intro to the template and how to update it.',
+      seoKeywords: 'local business, brasserie, restaurant',
+      seoNoIndex: false,
       bannerEnabled: false,
       bannerStartDate: '',
       bannerEndDate: ''
@@ -76,7 +88,11 @@ export const defaultCmsData: CmsData = {
     {
       slug: 'contact',
       title: 'Contact',
-      body: 'Add your booking details, map, and contact form instructions here.'
+      body: 'Add your booking details, map, and contact form instructions here.',
+      seoTitle: 'Contact',
+      seoDescription: 'Get in touch and plan your next visit.',
+      seoKeywords: 'contact, reservations, location',
+      seoNoIndex: false
     }
   ]
 };
