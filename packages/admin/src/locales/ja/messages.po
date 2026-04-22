@@ -200,7 +200,7 @@ msgstr "{0}プレビュー"
 #. placeholder {0}: taxonomy.label
 #: packages/admin/src/components/TaxonomySidebar.tsx:313
 msgid "{0} updated"
-msgstr ""
+msgstr "{0}を更新しました"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
@@ -1931,7 +1931,7 @@ msgstr "URL（https://…）または相対パス（/…）を入力"
 
 #: packages/admin/src/components/ContentEditor.tsx:1401
 msgid "Enter a valid URL (e.g. https://example.com)"
-msgstr ""
+msgstr "有効なURL（例: https://example.com）を入力"
 
 #: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Enter credentials manually"
@@ -2104,7 +2104,7 @@ msgstr "パスキーの名前変更に失敗しました"
 
 #: packages/admin/src/router.tsx:1519
 msgid "Failed to save"
-msgstr ""
+msgstr "保存に失敗しました"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:64
 #: packages/admin/src/components/settings/SeoSettings.tsx:58
@@ -2124,7 +2124,7 @@ msgstr "テストメールの送信に失敗しました"
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:317
 msgid "Failed to update {0}"
-msgstr ""
+msgstr "{0}の更新に失敗しました"
 
 #: packages/admin/src/components/ContentEditor.tsx:1885
 msgid "Failed to update byline"
@@ -5357,7 +5357,7 @@ msgstr "確認リンクを送信しました:"
 
 #: packages/admin/src/components/FieldEditor.tsx:231
 msgid "Web address"
-msgstr ""
+msgstr "ウェブアドレス"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:159
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:163
