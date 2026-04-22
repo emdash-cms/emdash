@@ -17,10 +17,10 @@ import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { apiFetch, parseApiResponse } from "../lib/api/client";
+import { apiFetch, fetchManifest, parseApiResponse } from "../lib/api/client";
 import { useAuthProviderList, type AuthProviderModule } from "../lib/auth-provider-context";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
-import { LogoLockup } from "./Logo.js";
+import { BrandLogo } from "./Logo.js";
 
 // ============================================================================
 // Types
@@ -471,6 +471,12 @@ export function SetupWizard() {
 		retry: false,
 	});
 
+	// Fetch manifest for admin branding
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
 	// Check if using Cloudflare Access auth
 	const useAccessAuth = status?.authMode === "cloudflare-access";
 
@@ -555,7 +561,11 @@ export function SetupWizard() {
 			<div className="w-full max-w-lg">
 				{/* Header */}
 				<div className="text-center mb-6">
-					<LogoLockup className="h-10 mx-auto mb-2" />
+					<BrandLogo
+						logoUrl={manifest?.admin?.logo}
+						siteName={manifest?.admin?.siteName}
+						className="h-10 mx-auto mb-2"
+					/>
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && t`Set up your site`}
 						{currentStep === "admin" && t`Create your account`}

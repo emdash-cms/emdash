@@ -539,12 +539,12 @@ msgid "Additional data to import."
 msgstr "要导入的其他数据。"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理员"
 
-#: packages/admin/src/components/Sidebar.tsx:373
+#: packages/admin/src/components/Sidebar.tsx:378
 msgid "Admin navigation"
 msgstr "管理员导航"
 
@@ -767,7 +767,7 @@ msgstr "返回到 {collectionLabel} 列表"
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
-#: packages/admin/src/components/LoginPage.tsx:311
+#: packages/admin/src/components/LoginPage.tsx:319
 #: packages/admin/src/components/SignupPage.tsx:280
 msgid "Back to login"
 msgstr "返回登录"
@@ -841,7 +841,7 @@ msgid "Bullet List"
 msgstr "无序列表"
 
 #: packages/admin/src/components/ContentEditor.tsx:928
-#: packages/admin/src/components/Sidebar.tsx:201
+#: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "署名"
 
@@ -1092,7 +1092,7 @@ msgid "Comment Detail"
 msgstr "评论详情"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:185
+#: packages/admin/src/components/Sidebar.tsx:190
 msgid "Comments"
 msgstr "评论"
 
@@ -1132,7 +1132,7 @@ msgstr "已连接 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/SectionEditor.tsx:174
-#: packages/admin/src/components/Sidebar.tsx:400
+#: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "内容"
 
@@ -1175,7 +1175,7 @@ msgstr "要导入的内容"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:39
-#: packages/admin/src/components/Sidebar.tsx:205
+#: packages/admin/src/components/Sidebar.tsx:210
 msgid "Content Types"
 msgstr "内容类型"
 
@@ -1342,7 +1342,7 @@ msgstr "创建分类"
 msgid "Create Token"
 msgstr "创建令牌"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:571
 msgid "Create your account"
 msgstr "创建您的账户"
 
@@ -1431,8 +1431,8 @@ msgstr "深色"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:171
-#: packages/admin/src/components/Sidebar.tsx:389
+#: packages/admin/src/components/Sidebar.tsx:176
+#: packages/admin/src/components/Sidebar.tsx:401
 msgid "Dashboard"
 msgstr "仪表板"
 
@@ -1722,7 +1722,7 @@ msgstr "域名已移除"
 msgid "Domain updated"
 msgstr "域名已更新"
 
-#: packages/admin/src/components/LoginPage.tsx:332
+#: packages/admin/src/components/LoginPage.tsx:340
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "还没有账号？<0>立即注册</0>"
 
@@ -1963,7 +1963,7 @@ msgstr "输入名称"
 msgid "Enter the code from your terminal"
 msgstr "输入终端中的代码"
 
-#: packages/admin/src/components/LoginPage.tsx:325
+#: packages/admin/src/components/LoginPage.tsx:333
 msgid "Enter your handle to sign in."
 msgstr ""
 
@@ -1977,7 +1977,7 @@ msgstr "输入您的 WordPress 站点 URL"
 
 #: packages/admin/src/components/MenuEditor.tsx:83
 #: packages/admin/src/components/MenuEditor.tsx:122
-#: packages/admin/src/components/SetupWizard.tsx:544
+#: packages/admin/src/components/SetupWizard.tsx:550
 msgid "Error"
 msgstr "错误"
 
@@ -2091,7 +2091,7 @@ msgstr "加载插件失败：{0}"
 msgid "Failed to load revisions"
 msgstr "加载修订历史失败"
 
-#: packages/admin/src/components/SetupWizard.tsx:546
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Failed to load setup"
 msgstr "加载设置失败"
 
@@ -2361,7 +2361,7 @@ msgid "image URLs updated in"
 msgstr "图片 URL 已更新于"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:228
 msgid "Import"
 msgstr "导入"
 
@@ -2587,7 +2587,7 @@ msgstr "关键词"
 msgid "Label"
 msgstr "标签"
 
-#: packages/admin/src/components/LoginPage.tsx:371
+#: packages/admin/src/components/LoginPage.tsx:353
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -2727,7 +2727,7 @@ msgstr "正在加载区块..."
 msgid "Loading settings..."
 msgstr "正在加载设置..."
 
-#: packages/admin/src/components/SetupWizard.tsx:533
+#: packages/admin/src/components/SetupWizard.tsx:539
 msgid "Loading setup..."
 msgstr "正在加载设置..."
 
@@ -2787,7 +2787,7 @@ msgstr "仅限小写字母、数字和连字符"
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "仅限小写字母、数字和下划线，以字母开头"
 
-#: packages/admin/src/components/Sidebar.tsx:414
+#: packages/admin/src/components/Sidebar.tsx:426
 msgid "Manage"
 msgstr "管理"
 
@@ -2832,7 +2832,7 @@ msgstr "市场"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:86
 #: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/components/PluginManager.tsx:309
-#: packages/admin/src/components/Sidebar.tsx:214
+#: packages/admin/src/components/Sidebar.tsx:219
 msgid "Marketplace"
 msgstr "市场"
 
@@ -2849,7 +2849,7 @@ msgid "Max Value"
 msgstr "最大值"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1417
-#: packages/admin/src/components/Sidebar.tsx:180
+#: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
 msgstr "媒体"
@@ -2931,7 +2931,7 @@ msgstr "菜单顺序已更新。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:190
+#: packages/admin/src/components/Sidebar.tsx:195
 msgid "Menus"
 msgstr "菜单"
 
@@ -3401,7 +3401,7 @@ msgstr "或从库中选择"
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "或点击浏览。接受从 WordPress 导出的 .xml 文件。"
 
-#: packages/admin/src/components/LoginPage.tsx:261
+#: packages/admin/src/components/LoginPage.tsx:269
 msgid "Or continue with"
 msgstr "或继续使用"
 
@@ -3605,8 +3605,8 @@ msgstr "插件已更新"
 #: packages/admin/src/components/PluginManager.tsx:125
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
-#: packages/admin/src/components/Sidebar.tsx:207
-#: packages/admin/src/components/Sidebar.tsx:438
+#: packages/admin/src/components/Sidebar.tsx:212
+#: packages/admin/src/components/Sidebar.tsx:450
 msgid "Plugins"
 msgstr "插件"
 
@@ -3750,7 +3750,7 @@ msgstr "正在重定向到登录..."
 
 #: packages/admin/src/components/Redirects.tsx:333
 #: packages/admin/src/components/Redirects.tsx:352
-#: packages/admin/src/components/Sidebar.tsx:191
+#: packages/admin/src/components/Sidebar.tsx:196
 msgid "Redirects"
 msgstr "重定向"
 
@@ -4245,7 +4245,7 @@ msgstr "区块标题"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:132
-#: packages/admin/src/components/Sidebar.tsx:193
+#: packages/admin/src/components/Sidebar.tsx:198
 msgid "Sections"
 msgstr "区块"
 
@@ -4254,7 +4254,7 @@ msgstr "区块"
 msgid "secure context"
 msgstr "安全上下文"
 
-#: packages/admin/src/components/SetupWizard.tsx:562
+#: packages/admin/src/components/SetupWizard.tsx:572
 msgid "Secure your account"
 msgstr "保护您的账户"
 
@@ -4430,7 +4430,7 @@ msgstr "SEO 标题"
 msgid "Set a custom display size for this image instance."
 msgstr "为此图片实例设置自定义显示尺寸。"
 
-#: packages/admin/src/components/SetupWizard.tsx:560
+#: packages/admin/src/components/SetupWizard.tsx:570
 msgid "Set up your site"
 msgstr "设置您的站点"
 
@@ -4443,7 +4443,7 @@ msgstr "正在设置..."
 #: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/PluginManager.tsx:380
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "Settings"
 msgstr "设置"
@@ -4482,27 +4482,27 @@ msgstr ""
 msgid "Sign in instead"
 msgstr "改为登录"
 
-#: packages/admin/src/components/LoginPage.tsx:232
+#: packages/admin/src/components/LoginPage.tsx:240
 msgid "Sign in to your site"
 msgstr "登录到您的网站"
 
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
-#: packages/admin/src/components/LoginPage.tsx:231
+#: packages/admin/src/components/LoginPage.tsx:239
 #: packages/admin/src/components/SetupWizard.tsx:291
 msgid "Sign in with {0}"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:229
+#: packages/admin/src/components/LoginPage.tsx:237
 msgid "Sign in with email"
 msgstr "使用邮箱登录"
 
-#: packages/admin/src/components/LoginPage.tsx:290
+#: packages/admin/src/components/LoginPage.tsx:298
 msgid "Sign in with email link"
 msgstr "使用邮箱链接登录"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
-#: packages/admin/src/components/LoginPage.tsx:252
+#: packages/admin/src/components/LoginPage.tsx:260
 msgid "Sign in with Passkey"
 msgstr "使用通行密钥登录"
 
@@ -4805,7 +4805,7 @@ msgstr "主题提供的区块无法删除。编辑区块以创建自定义副本
 msgid "Theme: {label}"
 msgstr "主题：{label}"
 
-#: packages/admin/src/components/Sidebar.tsx:218
+#: packages/admin/src/components/Sidebar.tsx:223
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:75
 msgid "Themes"
 msgstr "主题"
@@ -5242,7 +5242,7 @@ msgstr "在路径中使用 [param] 或 [...rest] 进行模式匹配。"
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr "使用设备的生物识别认证、安全密钥或 PIN 码登录。"
 
-#: packages/admin/src/components/LoginPage.tsx:326
+#: packages/admin/src/components/LoginPage.tsx:334
 msgid "Use your registered passkey to sign in securely."
 msgstr "使用您注册的通行密钥安全登录。"
 
@@ -5283,7 +5283,7 @@ msgid "User not found"
 msgstr "未找到用户"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:206
+#: packages/admin/src/components/Sidebar.tsx:211
 msgid "Users"
 msgstr "用户"
 
@@ -5360,7 +5360,7 @@ msgstr "我们无法连接到位于 {0} 的 WordPress 站点。这可能意味�
 msgid "We'll check what import options are available for your site."
 msgstr "我们将检查您的站点有哪些导入选项可用。"
 
-#: packages/admin/src/components/LoginPage.tsx:323
+#: packages/admin/src/components/LoginPage.tsx:331
 msgid "We'll send you a link to sign in without a password."
 msgstr "我们将向您发送一个无需密码即可登录的链接。"
 
@@ -5419,7 +5419,7 @@ msgstr "整数"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:333
-#: packages/admin/src/components/Sidebar.tsx:192
+#: packages/admin/src/components/Sidebar.tsx:197
 msgid "Widgets"
 msgstr "小部件"
 
@@ -5497,7 +5497,7 @@ msgstr "您将被重定向到 WordPress 以授权连接。"
 msgid "You'll be signing up as"
 msgstr "您将注册为"
 
-#: packages/admin/src/components/SetupWizard.tsx:565
+#: packages/admin/src/components/SetupWizard.tsx:575
 msgid "You're signed in via Cloudflare Access"
 msgstr "您已通过 Cloudflare Access 登录"
 

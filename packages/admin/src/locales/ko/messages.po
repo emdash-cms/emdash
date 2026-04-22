@@ -59,7 +59,7 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(#개 항목)} other {(#개 항목)}}"
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:181
+#: packages/admin/src/components/SetupWizard.tsx:183
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {#개 컬렉션} other {#개 컬렉션}}"
 
@@ -315,8 +315,9 @@ msgstr "• EmDash 미디어 저장소에 업로드됨"
 msgid "• URLs in your content are updated automatically"
 msgstr "• 콘텐츠의 URL이 자동으로 업데이트됩니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:250
-#: packages/admin/src/components/SetupWizard.tsx:310
+#: packages/admin/src/components/SetupWizard.tsx:252
+#: packages/admin/src/components/SetupWizard.tsx:304
+#: packages/admin/src/components/SetupWizard.tsx:359
 #: packages/admin/src/components/WordPressImport.tsx:1431
 msgid "← Back"
 msgstr "← 뒤로"
@@ -409,7 +410,7 @@ msgstr "동의 및 설치"
 msgid "Accept & Update"
 msgstr "동의 및 업데이트"
 
-#: packages/admin/src/components/SetupWizard.tsx:332
+#: packages/admin/src/components/SetupWizard.tsx:381
 msgid "Account"
 msgstr "계정"
 
@@ -538,12 +539,12 @@ msgid "Additional data to import."
 msgstr "가져올 추가 데이터입니다."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "관리자"
 
-#: packages/admin/src/components/Sidebar.tsx:373
+#: packages/admin/src/components/Sidebar.tsx:378
 msgid "Admin navigation"
 msgstr "관리자 탐색 메뉴"
 
@@ -694,7 +695,7 @@ msgstr "EmDash 사용자에게 WordPress 작성자를 할당합니다. 게시물
 msgid "Authentication error: {0}"
 msgstr "인증 오류: {0}"
 
-#: packages/admin/src/components/LoginPage.tsx:253
+#: packages/admin/src/components/LoginPage.tsx:195
 msgid "Authentication error: {error}"
 msgstr "인증 오류: {error}"
 
@@ -764,8 +765,9 @@ msgstr "뒤로"
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel} 목록으로 돌아가기"
 
-#: packages/admin/src/components/LoginPage.tsx:174
-#: packages/admin/src/components/LoginPage.tsx:210
+#: packages/admin/src/components/LoginPage.tsx:117
+#: packages/admin/src/components/LoginPage.tsx:153
+#: packages/admin/src/components/LoginPage.tsx:319
 #: packages/admin/src/components/SignupPage.tsx:280
 msgid "Back to login"
 msgstr "로그인으로 돌아가기"
@@ -839,7 +841,7 @@ msgid "Bullet List"
 msgstr "글머리 기호 목록"
 
 #: packages/admin/src/components/ContentEditor.tsx:928
-#: packages/admin/src/components/Sidebar.tsx:201
+#: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "작성자 정보"
 
@@ -957,7 +959,7 @@ msgstr "업데이트 확인"
 msgid "Check Site"
 msgstr "사이트 확인"
 
-#: packages/admin/src/components/LoginPage.tsx:158
+#: packages/admin/src/components/LoginPage.tsx:101
 #: packages/admin/src/components/SignupPage.tsx:129
 #: packages/admin/src/components/SignupPage.tsx:401
 msgid "Check your email"
@@ -971,6 +973,10 @@ msgstr "{urlInput} 확인 중..."
 msgid "Checking authentication..."
 msgstr "인증 확인 중..."
 
+#: packages/admin/src/components/SetupWizard.tsx:315
+msgid "Choose how to sign in"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
 msgstr "선호하는 관리 언어를 선택하세요"
@@ -979,7 +985,7 @@ msgstr "선호하는 관리 언어를 선택하세요"
 msgid "Click the link in the email to continue setting up your account."
 msgstr "계정 설정을 계속하려면 이메일에 있는 링크를 클릭하세요."
 
-#: packages/admin/src/components/LoginPage.tsx:169
+#: packages/admin/src/components/LoginPage.tsx:112
 msgid "Click the link in the email to sign in."
 msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 
@@ -1086,7 +1092,7 @@ msgid "Comment Detail"
 msgstr "댓글 세부정보"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:185
+#: packages/admin/src/components/Sidebar.tsx:190
 msgid "Comments"
 msgstr "댓글"
 
@@ -1126,7 +1132,7 @@ msgstr "연결됨 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/SectionEditor.tsx:174
-#: packages/admin/src/components/Sidebar.tsx:400
+#: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "콘텐츠"
 
@@ -1169,7 +1175,7 @@ msgstr "가져올 콘텐츠"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:39
-#: packages/admin/src/components/Sidebar.tsx:205
+#: packages/admin/src/components/Sidebar.tsx:210
 msgid "Content Types"
 msgstr "콘텐츠 유형"
 
@@ -1185,8 +1191,8 @@ msgstr "콘텐츠 쓰기"
 msgid "Continue"
 msgstr "계속"
 
-#: packages/admin/src/components/SetupWizard.tsx:175
-#: packages/admin/src/components/SetupWizard.tsx:258
+#: packages/admin/src/components/SetupWizard.tsx:177
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Continue →"
 msgstr "계속 →"
 
@@ -1291,7 +1297,7 @@ msgstr "새 토큰 만들기"
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "WordPress에서 하나 만들기: 사용자 → 프로필 → 애플리케이션 비밀번호"
 
-#: packages/admin/src/components/SetupWizard.tsx:305
+#: packages/admin/src/components/SetupWizard.tsx:325
 msgid "Create Passkey"
 msgstr "패스키 생성"
 
@@ -1336,7 +1342,7 @@ msgstr "분류 만들기"
 msgid "Create Token"
 msgstr "토큰 만들기"
 
-#: packages/admin/src/components/SetupWizard.tsx:495
+#: packages/admin/src/components/SetupWizard.tsx:571
 msgid "Create your account"
 msgstr "계정 만들기"
 
@@ -1425,8 +1431,8 @@ msgstr "어두운 테마"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:171
-#: packages/admin/src/components/Sidebar.tsx:389
+#: packages/admin/src/components/Sidebar.tsx:176
+#: packages/admin/src/components/Sidebar.tsx:401
 msgid "Dashboard"
 msgstr "대시보드"
 
@@ -1716,7 +1722,7 @@ msgstr "도메인이 삭제됨"
 msgid "Domain updated"
 msgstr "도메인이 업데이트되었습니다."
 
-#: packages/admin/src/components/LoginPage.tsx:358
+#: packages/admin/src/components/LoginPage.tsx:340
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "계정이 없으신가요? <0>회원가입</0>"
 
@@ -1845,13 +1851,13 @@ msgstr "이메일"
 msgid "Email (optional)"
 msgstr "이메일(선택사항)"
 
-#: packages/admin/src/components/LoginPage.tsx:183
+#: packages/admin/src/components/LoginPage.tsx:126
 #: packages/admin/src/components/SignupPage.tsx:65
 #: packages/admin/src/components/users/InviteUserModal.tsx:154
 msgid "Email address"
 msgstr "이메일 주소"
 
-#: packages/admin/src/components/SetupWizard.tsx:204
+#: packages/admin/src/components/SetupWizard.tsx:206
 #: packages/admin/src/components/SignupPage.tsx:48
 msgid "Email is required"
 msgstr "이메일은 필수입니다"
@@ -1957,6 +1963,10 @@ msgstr "이름을 입력하세요"
 msgid "Enter the code from your terminal"
 msgstr "터미널에서 코드를 입력하세요"
 
+#: packages/admin/src/components/LoginPage.tsx:333
+msgid "Enter your handle to sign in."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1289
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "콘텐츠를 직접 가져오려면 WordPress 자격 증명을 입력하세요."
@@ -1967,7 +1977,7 @@ msgstr "WordPress 사이트 URL을 입력하세요."
 
 #: packages/admin/src/components/MenuEditor.tsx:83
 #: packages/admin/src/components/MenuEditor.tsx:122
-#: packages/admin/src/components/SetupWizard.tsx:478
+#: packages/admin/src/components/SetupWizard.tsx:550
 msgid "Error"
 msgstr "오류"
 
@@ -2081,7 +2091,7 @@ msgstr "플러그인을 로드하지 못했습니다: {0}"
 msgid "Failed to load revisions"
 msgstr "버전을 로드하지 못했습니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:480
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Failed to load setup"
 msgstr "설정을 로드하지 못했습니다."
 
@@ -2112,8 +2122,8 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "설정을 저장하지 못했습니다."
 
-#: packages/admin/src/components/LoginPage.tsx:127
-#: packages/admin/src/components/LoginPage.tsx:132
+#: packages/admin/src/components/LoginPage.tsx:70
+#: packages/admin/src/components/LoginPage.tsx:75
 msgid "Failed to send magic link"
 msgstr "매직 링크를 보내지 못했습니다."
 
@@ -2320,7 +2330,7 @@ msgstr "이미지 검수로 인해 아이콘이 흐리게 표시됨"
 msgid "ID"
 msgstr "ID"
 
-#: packages/admin/src/components/LoginPage.tsx:160
+#: packages/admin/src/components/LoginPage.tsx:103
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0>에 대한 계정이 존재하는 경우 로그인 링크가 전송되었습니다."
 
@@ -2351,7 +2361,7 @@ msgid "image URLs updated in"
 msgstr "이미지 URL이 다음에서 업데이트되었습니다."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:228
 msgid "Import"
 msgstr "가져오기"
 
@@ -2440,7 +2450,7 @@ msgstr "콘텐츠 가져오는 중..."
 msgid "Importing Media"
 msgstr "미디어 가져오기"
 
-#: packages/admin/src/components/SetupWizard.tsx:163
+#: packages/admin/src/components/SetupWizard.tsx:165
 msgid "Include sample content (recommended for new sites)"
 msgstr "샘플 콘텐츠 포함(새 사이트에 권장)"
 
@@ -2553,7 +2563,7 @@ msgstr "항목이 삭제되었습니다."
 msgid "Item updated"
 msgstr "항목이 업데이트되었습니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:238
+#: packages/admin/src/components/SetupWizard.tsx:240
 #: packages/admin/src/components/SignupPage.tsx:204
 msgid "Jane Doe"
 msgstr "제인 도"
@@ -2577,7 +2587,7 @@ msgstr "키워드"
 msgid "Label"
 msgstr "라벨"
 
-#: packages/admin/src/components/LoginPage.tsx:371
+#: packages/admin/src/components/LoginPage.tsx:353
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -2717,7 +2727,7 @@ msgstr "섹션 로드 중..."
 msgid "Loading settings..."
 msgstr "설정 로드 중..."
 
-#: packages/admin/src/components/SetupWizard.tsx:467
+#: packages/admin/src/components/SetupWizard.tsx:539
 msgid "Loading setup..."
 msgstr "설정 로드 중..."
 
@@ -2777,7 +2787,7 @@ msgstr "소문자, 숫자, 하이픈만 가능"
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "문자로 시작하는 소문자, 숫자, 밑줄만 가능"
 
-#: packages/admin/src/components/Sidebar.tsx:414
+#: packages/admin/src/components/Sidebar.tsx:426
 msgid "Manage"
 msgstr "관리"
 
@@ -2822,7 +2832,7 @@ msgstr "마켓플레이스"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:86
 #: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/components/PluginManager.tsx:309
-#: packages/admin/src/components/Sidebar.tsx:214
+#: packages/admin/src/components/Sidebar.tsx:219
 msgid "Marketplace"
 msgstr "마켓플레이스"
 
@@ -2839,7 +2849,7 @@ msgid "Max Value"
 msgstr "최대값"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1417
-#: packages/admin/src/components/Sidebar.tsx:180
+#: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
 msgstr "미디어"
@@ -2921,7 +2931,7 @@ msgstr "메뉴 순서가 업데이트되었습니다."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:190
+#: packages/admin/src/components/Sidebar.tsx:195
 msgid "Menus"
 msgstr "메뉴"
 
@@ -3009,7 +3019,7 @@ msgstr "여러 줄 일반 텍스트"
 msgid "Multiple choices from options"
 msgstr "옵션의 다중 선택"
 
-#: packages/admin/src/components/SetupWizard.tsx:145
+#: packages/admin/src/components/SetupWizard.tsx:147
 msgid "My Awesome Blog"
 msgstr "내 멋진 블로그"
 
@@ -3391,7 +3401,7 @@ msgstr "또는 라이브러리에서 선택"
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "또는 클릭하여 찾아보세요. WordPress에서 내보낸 .xml 파일을 허용합니다."
 
-#: packages/admin/src/components/LoginPage.tsx:313
+#: packages/admin/src/components/LoginPage.tsx:269
 msgid "Or continue with"
 msgstr "또는 다음으로 계속"
 
@@ -3450,10 +3460,6 @@ msgstr "리디렉션 루프의 일부"
 msgid "Pass"
 msgstr "통과"
 
-#: packages/admin/src/components/SetupWizard.tsx:333
-msgid "Passkey"
-msgstr "패스키"
-
 #: packages/admin/src/components/settings/SecuritySettings.tsx:98
 msgid "Passkey added successfully"
 msgstr "패스키가 성공적으로 추가되었습니다"
@@ -3494,10 +3500,6 @@ msgstr "패스키는 비밀번호 없이 안전하게 계정에 로그인할 수
 #: packages/admin/src/components/SignupPage.tsx:212
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "패스키는 장치의 생체 인식, PIN 또는 보안 키를 사용하여 비밀번호 없이 안전하게 로그인하는 방법입니다."
-
-#: packages/admin/src/components/SetupWizard.tsx:297
-msgid "Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in."
-msgstr "패스키는 비밀번호보다 더 안전합니다. 로그인하려면 기기의 생체 인식, PIN 또는 보안 키를 사용하세요."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:303
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:300
@@ -3546,12 +3548,16 @@ msgstr "{title}을(를) 영구적으로 삭제"
 msgid "Permissions"
 msgstr "권한"
 
+#: packages/admin/src/components/SetupWizard.tsx:317
+msgid "Pick any method to create your admin account."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:313
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
 msgid "Plain"
 msgstr "일반"
 
-#: packages/admin/src/components/SetupWizard.tsx:206
+#: packages/admin/src/components/SetupWizard.tsx:208
 msgid "Please enter a valid email"
 msgstr "유효한 이메일을 입력해주세요"
 
@@ -3599,8 +3605,8 @@ msgstr "플러그인이 업데이트되었습니다."
 #: packages/admin/src/components/PluginManager.tsx:125
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
-#: packages/admin/src/components/Sidebar.tsx:207
-#: packages/admin/src/components/Sidebar.tsx:438
+#: packages/admin/src/components/Sidebar.tsx:212
+#: packages/admin/src/components/Sidebar.tsx:450
 msgid "Plugins"
 msgstr "플러그인"
 
@@ -3625,7 +3631,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "WordPress에서 파일 다운로드 준비 중..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:166
-#: packages/admin/src/components/SetupWizard.tsx:258
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Preparing..."
 msgstr "준비 중..."
 
@@ -3744,7 +3750,7 @@ msgstr "로그인으로 리디렉션 중..."
 
 #: packages/admin/src/components/Redirects.tsx:333
 #: packages/admin/src/components/Redirects.tsx:352
-#: packages/admin/src/components/Sidebar.tsx:191
+#: packages/admin/src/components/Sidebar.tsx:196
 msgid "Redirects"
 msgstr "리디렉션"
 
@@ -4239,7 +4245,7 @@ msgstr "섹션 제목"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:132
-#: packages/admin/src/components/Sidebar.tsx:193
+#: packages/admin/src/components/Sidebar.tsx:198
 msgid "Sections"
 msgstr "섹션"
 
@@ -4248,7 +4254,7 @@ msgstr "섹션"
 msgid "secure context"
 msgstr "보안 환경"
 
-#: packages/admin/src/components/SetupWizard.tsx:496
+#: packages/admin/src/components/SetupWizard.tsx:572
 msgid "Secure your account"
 msgstr "계정을 보호하세요"
 
@@ -4372,7 +4378,7 @@ msgstr "새 팀 구성원에게 초대 이메일을 보냅니다."
 msgid "Send Invite"
 msgstr "초대 보내기"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 msgid "Send magic link"
 msgstr "로그인 링크 보내기"
 
@@ -4388,7 +4394,7 @@ msgstr "테스트 보내기"
 msgid "Send Test Email"
 msgstr "테스트 이메일 보내기"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 #: packages/admin/src/components/settings/EmailSettings.tsx:162
 #: packages/admin/src/components/SignupPage.tsx:87
 #: packages/admin/src/components/SignupPage.tsx:150
@@ -4424,15 +4430,11 @@ msgstr "SEO 제목"
 msgid "Set a custom display size for this image instance."
 msgstr "이 이미지의 표시 크기를 직접 지정합니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:295
-msgid "Set up your passkey"
-msgstr "패스키 설정"
-
-#: packages/admin/src/components/SetupWizard.tsx:494
+#: packages/admin/src/components/SetupWizard.tsx:570
 msgid "Set up your site"
 msgstr "사이트 설정"
 
-#: packages/admin/src/components/SetupWizard.tsx:175
+#: packages/admin/src/components/SetupWizard.tsx:177
 msgid "Setting up..."
 msgstr "설정 중..."
 
@@ -4441,7 +4443,7 @@ msgstr "설정 중..."
 #: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/PluginManager.tsx:380
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "Settings"
 msgstr "설정"
@@ -4472,24 +4474,35 @@ msgstr "이미지 위로 마우스를 가져가면 표시됩니다."
 msgid "Sign in"
 msgstr "로그인"
 
+#: packages/admin/src/components/SetupWizard.tsx:382
+msgid "Sign In"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "대신 로그인하세요"
 
-#: packages/admin/src/components/LoginPage.tsx:283
+#: packages/admin/src/components/LoginPage.tsx:240
 msgid "Sign in to your site"
 msgstr "사이트에 로그인"
 
-#: packages/admin/src/components/LoginPage.tsx:284
+#. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
+#. placeholder {0}: provider.label
+#: packages/admin/src/components/LoginPage.tsx:239
+#: packages/admin/src/components/SetupWizard.tsx:291
+msgid "Sign in with {0}"
+msgstr ""
+
+#: packages/admin/src/components/LoginPage.tsx:237
 msgid "Sign in with email"
 msgstr "이메일로 로그인"
 
-#: packages/admin/src/components/LoginPage.tsx:340
+#: packages/admin/src/components/LoginPage.tsx:298
 msgid "Sign in with email link"
 msgstr "이메일 링크로 로그인"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
-#: packages/admin/src/components/LoginPage.tsx:304
+#: packages/admin/src/components/LoginPage.tsx:260
 msgid "Sign in with Passkey"
 msgstr "패스키로 로그인"
 
@@ -4506,7 +4519,7 @@ msgstr "옵션 중 단일 선택"
 msgid "Single line text input"
 msgstr "한 줄 텍스트 입력"
 
-#: packages/admin/src/components/SetupWizard.tsx:331
+#: packages/admin/src/components/SetupWizard.tsx:380
 msgid "Site"
 msgstr "사이트"
 
@@ -4518,12 +4531,12 @@ msgstr "사이트 기본 정보"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "사이트 기본 정보, 로고, 파비콘, 읽기 설정"
 
-#: packages/admin/src/components/SetupWizard.tsx:329
+#: packages/admin/src/components/SetupWizard.tsx:378
 msgid "Site Settings"
 msgstr "사이트 설정"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:156
-#: packages/admin/src/components/SetupWizard.tsx:141
+#: packages/admin/src/components/SetupWizard.tsx:143
 msgid "Site Title"
 msgstr "사이트 제목"
 
@@ -4531,7 +4544,7 @@ msgstr "사이트 제목"
 msgid "Site title & tagline"
 msgstr "사이트 제목 및 태그라인"
 
-#: packages/admin/src/components/SetupWizard.tsx:125
+#: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Site title is required"
 msgstr "사이트 제목이 필요합니다"
 
@@ -4675,7 +4688,7 @@ msgid "System ({resolvedLabel})"
 msgstr "시스템({resolvedLabel})"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:162
-#: packages/admin/src/components/SetupWizard.tsx:152
+#: packages/admin/src/components/SetupWizard.tsx:154
 msgid "Tagline"
 msgstr "사이트 설명"
 
@@ -4709,7 +4722,7 @@ msgstr "분류가 생성되었습니다."
 msgid "Taxonomy not found:"
 msgstr "분류를 찾을 수 없습니다:"
 
-#: packages/admin/src/components/SetupWizard.tsx:180
+#: packages/admin/src/components/SetupWizard.tsx:182
 msgid "Template:"
 msgstr "템플릿:"
 
@@ -4742,7 +4755,7 @@ msgstr "다음 테이블에는 콘텐츠가 포함되어 있지만 컬렉션으�
 msgid "The invited user will have this role once they complete registration."
 msgstr "초대된 사용자는 등록을 완료하면 이 역할이 부여 됩니다."
 
-#: packages/admin/src/components/LoginPage.tsx:170
+#: packages/admin/src/components/LoginPage.tsx:113
 #: packages/admin/src/components/SignupPage.tsx:138
 msgid "The link will expire in 15 minutes."
 msgstr "링크는 15분 후에 만료됩니다."
@@ -4792,7 +4805,7 @@ msgstr "테마가 제공되는 섹션은 삭제할 수 없습니다. 섹션을 �
 msgid "Theme: {label}"
 msgstr "테마: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:218
+#: packages/admin/src/components/Sidebar.tsx:223
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:75
 msgid "Themes"
 msgstr "테마 마켓플레이스"
@@ -4867,7 +4880,7 @@ msgstr "그러면 사이트에서 플러그인과 해당 번들이 제거됩니�
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "게시된 버전으로 되돌아갑니다. 초안 변경사항이 손실됩니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:156
+#: packages/admin/src/components/SetupWizard.tsx:158
 msgid "Thoughts, tutorials, and more"
 msgstr "생각, 튜토리얼 등"
 
@@ -5229,7 +5242,7 @@ msgstr "패턴 일치를 위해 경로에 [param] 또는 [...rest]를 사용하�
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr "기기의 생체 인증, 보안 키 또는 PIN을 사용하여 로그인하세요."
 
-#: packages/admin/src/components/LoginPage.tsx:351
+#: packages/admin/src/components/LoginPage.tsx:334
 msgid "Use your registered passkey to sign in securely."
 msgstr "등록된 패스키를 사용하여 안전하게 로그인하세요."
 
@@ -5270,7 +5283,7 @@ msgid "User not found"
 msgstr "사용자를 찾을 수 없습니다"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:206
+#: packages/admin/src/components/Sidebar.tsx:211
 msgid "Users"
 msgstr "사용자"
 
@@ -5347,7 +5360,7 @@ msgstr "{0}에서 WordPress 사이트에 연결하지 못했습니다. WordPress
 msgid "We'll check what import options are available for your site."
 msgstr "사이트에서 사용 가능한 가져오기 옵션을 확인합니다."
 
-#: packages/admin/src/components/LoginPage.tsx:352
+#: packages/admin/src/components/LoginPage.tsx:331
 msgid "We'll send you a link to sign in without a password."
 msgstr "비밀번호 없이 로그인할 수 있는 링크를 이메일로 보내드립니다."
 
@@ -5406,7 +5419,7 @@ msgstr "정수"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:333
-#: packages/admin/src/components/Sidebar.tsx:192
+#: packages/admin/src/components/Sidebar.tsx:197
 msgid "Widgets"
 msgstr "위젯"
 
@@ -5484,7 +5497,7 @@ msgstr "연결을 승인하기 위해 WordPress로 이동합니다."
 msgid "You'll be signing up as"
 msgstr "다음 계정으로 가입합니다:"
 
-#: packages/admin/src/components/SetupWizard.tsx:499
+#: packages/admin/src/components/SetupWizard.tsx:575
 msgid "You're signed in via Cloudflare Access"
 msgstr "Cloudflare Access로 로그인되어 있습니다"
 
@@ -5493,7 +5506,7 @@ msgid "you@company.com"
 msgstr "you@company.com"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:336
-#: packages/admin/src/components/SetupWizard.tsx:226
+#: packages/admin/src/components/SetupWizard.tsx:228
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -5511,7 +5524,7 @@ msgstr "브라우저가 패스키를 지원하지 않습니다. Chrome, Safari, 
 msgid "Your device doesn't support the required security features."
 msgstr "기기가 필수 보안 기능을 지원하지 않습니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:222
+#: packages/admin/src/components/SetupWizard.tsx:224
 msgid "Your Email"
 msgstr "이메일"
 
@@ -5531,7 +5544,7 @@ msgstr "Instagram 사용자 이름"
 msgid "Your LinkedIn profile username"
 msgstr "LinkedIn 프로필 사용자 이름"
 
-#: packages/admin/src/components/SetupWizard.tsx:234
+#: packages/admin/src/components/SetupWizard.tsx:236
 msgid "Your Name"
 msgstr "이름 입력"
 

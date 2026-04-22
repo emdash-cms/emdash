@@ -539,12 +539,12 @@ msgid "Additional data to import."
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:373
+#: packages/admin/src/components/Sidebar.tsx:378
 msgid "Admin navigation"
 msgstr ""
 
@@ -767,7 +767,7 @@ msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
-#: packages/admin/src/components/LoginPage.tsx:311
+#: packages/admin/src/components/LoginPage.tsx:319
 #: packages/admin/src/components/SignupPage.tsx:280
 msgid "Back to login"
 msgstr "Itzuli login egitera"
@@ -841,7 +841,7 @@ msgid "Bullet List"
 msgstr "Buleta zerrenda"
 
 #: packages/admin/src/components/ContentEditor.tsx:928
-#: packages/admin/src/components/Sidebar.tsx:201
+#: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr ""
 
@@ -1092,7 +1092,7 @@ msgid "Comment Detail"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:185
+#: packages/admin/src/components/Sidebar.tsx:190
 msgid "Comments"
 msgstr ""
 
@@ -1132,7 +1132,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/SectionEditor.tsx:174
-#: packages/admin/src/components/Sidebar.tsx:400
+#: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "Edukia"
 
@@ -1175,7 +1175,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:39
-#: packages/admin/src/components/Sidebar.tsx:205
+#: packages/admin/src/components/Sidebar.tsx:210
 msgid "Content Types"
 msgstr "Eduki motak"
 
@@ -1342,7 +1342,7 @@ msgstr ""
 msgid "Create Token"
 msgstr "Sortu tokena"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:571
 msgid "Create your account"
 msgstr ""
 
@@ -1431,8 +1431,8 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:171
-#: packages/admin/src/components/Sidebar.tsx:389
+#: packages/admin/src/components/Sidebar.tsx:176
+#: packages/admin/src/components/Sidebar.tsx:401
 msgid "Dashboard"
 msgstr "Lan-lekua"
 
@@ -1722,7 +1722,7 @@ msgstr ""
 msgid "Domain updated"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:332
+#: packages/admin/src/components/LoginPage.tsx:340
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Ez duzu konturik? <0>Eman izena</0>"
 
@@ -1963,7 +1963,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:325
+#: packages/admin/src/components/LoginPage.tsx:333
 msgid "Enter your handle to sign in."
 msgstr ""
 
@@ -1977,7 +1977,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:83
 #: packages/admin/src/components/MenuEditor.tsx:122
-#: packages/admin/src/components/SetupWizard.tsx:544
+#: packages/admin/src/components/SetupWizard.tsx:550
 msgid "Error"
 msgstr ""
 
@@ -2091,7 +2091,7 @@ msgstr ""
 msgid "Failed to load revisions"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:546
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Failed to load setup"
 msgstr ""
 
@@ -2361,7 +2361,7 @@ msgid "image URLs updated in"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:228
 msgid "Import"
 msgstr "Inportatu"
 
@@ -2587,7 +2587,7 @@ msgstr ""
 msgid "Label"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:371
+#: packages/admin/src/components/LoginPage.tsx:353
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -2727,7 +2727,7 @@ msgstr ""
 msgid "Loading settings..."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:533
+#: packages/admin/src/components/SetupWizard.tsx:539
 msgid "Loading setup..."
 msgstr ""
 
@@ -2787,7 +2787,7 @@ msgstr ""
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:414
+#: packages/admin/src/components/Sidebar.tsx:426
 msgid "Manage"
 msgstr ""
 
@@ -2832,7 +2832,7 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:86
 #: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/components/PluginManager.tsx:309
-#: packages/admin/src/components/Sidebar.tsx:214
+#: packages/admin/src/components/Sidebar.tsx:219
 msgid "Marketplace"
 msgstr ""
 
@@ -2849,7 +2849,7 @@ msgid "Max Value"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1417
-#: packages/admin/src/components/Sidebar.tsx:180
+#: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
 msgstr "Media"
@@ -2931,7 +2931,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:84
-#: packages/admin/src/components/Sidebar.tsx:190
+#: packages/admin/src/components/Sidebar.tsx:195
 msgid "Menus"
 msgstr "Menuak"
 
@@ -3401,7 +3401,7 @@ msgstr ""
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:261
+#: packages/admin/src/components/LoginPage.tsx:269
 msgid "Or continue with"
 msgstr "Edo jarraitu honekin"
 
@@ -3605,8 +3605,8 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:125
 #: packages/admin/src/components/PluginManager.tsx:134
 #: packages/admin/src/components/PluginManager.tsx:143
-#: packages/admin/src/components/Sidebar.tsx:207
-#: packages/admin/src/components/Sidebar.tsx:438
+#: packages/admin/src/components/Sidebar.tsx:212
+#: packages/admin/src/components/Sidebar.tsx:450
 msgid "Plugins"
 msgstr "Pluginak"
 
@@ -3750,7 +3750,7 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:333
 #: packages/admin/src/components/Redirects.tsx:352
-#: packages/admin/src/components/Sidebar.tsx:191
+#: packages/admin/src/components/Sidebar.tsx:196
 msgid "Redirects"
 msgstr ""
 
@@ -4245,7 +4245,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:132
-#: packages/admin/src/components/Sidebar.tsx:193
+#: packages/admin/src/components/Sidebar.tsx:198
 msgid "Sections"
 msgstr "Atalak"
 
@@ -4254,7 +4254,7 @@ msgstr "Atalak"
 msgid "secure context"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:562
+#: packages/admin/src/components/SetupWizard.tsx:572
 msgid "Secure your account"
 msgstr ""
 
@@ -4430,7 +4430,7 @@ msgstr ""
 msgid "Set a custom display size for this image instance."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:560
+#: packages/admin/src/components/SetupWizard.tsx:570
 msgid "Set up your site"
 msgstr ""
 
@@ -4443,7 +4443,7 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/PluginManager.tsx:380
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "Settings"
 msgstr "Ezarpenak"
@@ -4482,27 +4482,27 @@ msgstr ""
 msgid "Sign in instead"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:232
+#: packages/admin/src/components/LoginPage.tsx:240
 msgid "Sign in to your site"
 msgstr "Sartu zure webgunera"
 
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
-#: packages/admin/src/components/LoginPage.tsx:231
+#: packages/admin/src/components/LoginPage.tsx:239
 #: packages/admin/src/components/SetupWizard.tsx:291
 msgid "Sign in with {0}"
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:229
+#: packages/admin/src/components/LoginPage.tsx:237
 msgid "Sign in with email"
 msgstr "Sartu emailarekin"
 
-#: packages/admin/src/components/LoginPage.tsx:290
+#: packages/admin/src/components/LoginPage.tsx:298
 msgid "Sign in with email link"
 msgstr "Sartu email bidezko estekarekin"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
-#: packages/admin/src/components/LoginPage.tsx:252
+#: packages/admin/src/components/LoginPage.tsx:260
 msgid "Sign in with Passkey"
 msgstr "Sartu sarbide-gakoarekin"
 
@@ -4805,7 +4805,7 @@ msgstr ""
 msgid "Theme: {label}"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:218
+#: packages/admin/src/components/Sidebar.tsx:223
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:75
 msgid "Themes"
 msgstr ""
@@ -5242,7 +5242,7 @@ msgstr ""
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:326
+#: packages/admin/src/components/LoginPage.tsx:334
 msgid "Use your registered passkey to sign in securely."
 msgstr "Erabili zuk erregistratutako sarbide-gakoa era seguruan sartzeko."
 
@@ -5283,7 +5283,7 @@ msgid "User not found"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:206
+#: packages/admin/src/components/Sidebar.tsx:211
 msgid "Users"
 msgstr "Erabiltzaileak"
 
@@ -5360,7 +5360,7 @@ msgstr ""
 msgid "We'll check what import options are available for your site."
 msgstr ""
 
-#: packages/admin/src/components/LoginPage.tsx:323
+#: packages/admin/src/components/LoginPage.tsx:331
 msgid "We'll send you a link to sign in without a password."
 msgstr "Pasahitz gabe sartzeko esteka bat bidaliko dizugu."
 
@@ -5419,7 +5419,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:333
-#: packages/admin/src/components/Sidebar.tsx:192
+#: packages/admin/src/components/Sidebar.tsx:197
 msgid "Widgets"
 msgstr "Widgetak"
 
@@ -5497,7 +5497,7 @@ msgstr ""
 msgid "You'll be signing up as"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:565
+#: packages/admin/src/components/SetupWizard.tsx:575
 msgid "You're signed in via Cloudflare Access"
 msgstr ""
 
