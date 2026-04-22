@@ -4,7 +4,7 @@
  * POST /_emdash/api/import/contentful/execute
  *
  * Accepts a Contentful CDA response JSON file and imports content into the
- * database in dependency order: tags → authors/bylines → posts.
+ * database in dependency order: tags -> authors/bylines -> posts.
  *
  * Uses handleContentCreate for posts to preserve createdAt/publishedAt dates.
  */
@@ -17,7 +17,7 @@ import { BylineRepository } from "#db/repositories/byline.js";
 import { ContentRepository } from "#db/repositories/content.js";
 import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
 import { parseContentfulExport, mapTag, mapAuthor, mapPost } from "#import/contentful/index.js";
-import { resolveImportByline, ensureUniqueBylineSlug } from "#import/utils.js";
+import { ensureUniqueBylineSlug } from "#import/utils.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
@@ -26,16 +26,16 @@ export const prerender = false;
 export interface ContentfulImportConfig {
 	/** Blog hostname for internal/external link detection */
 	blogHostname?: string;
-	/** Whether to skip items that already exist (matched by slug) */
+	/** Whether to skip posts that already exist (matched by slug + locale) */
 	skipExisting?: boolean;
-	/** BCP 47 locale for all imported items. Defaults to "en-us". */
+	/** BCP 47 locale override for all imported items. Defaults to the site default locale or "en". */
 	locale?: string;
 }
 
 export interface ContentfulImportResult {
 	success: boolean;
 	tags: { created: number; skipped: number; errors: string[] };
-	authors: { created: number; updated: number; errors: string[] };
+	authors: { created: number; skipped: number; updated: number; errors: string[] };
 	bylines: { created: number; skipped: number; errors: string[] };
 	posts: {
 		created: number;
@@ -67,11 +67,23 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("VALIDATION_ERROR", "No file provided", 400);
 		}
 
-		const config: ContentfulImportConfig = configJson ? JSON.parse(configJson) : {};
+		let config: ContentfulImportConfig = {};
+		if (configJson) {
+			try {
+				config = JSON.parse(configJson) as ContentfulImportConfig;
+			} catch {
+				return apiError("VALIDATION_ERROR", "Invalid import config JSON", 400);
+			}
+		}
 
 		// Parse the Contentful export
 		const text = await file.text();
-		const raw = JSON.parse(text) as Record<string, unknown>;
+		let raw: Record<string, unknown>;
+		try {
+			raw = JSON.parse(text) as Record<string, unknown>;
+		} catch {
+			return apiError("VALIDATION_ERROR", "Invalid Contentful export JSON", 400);
+		}
 		const parsed = parseContentfulExport(raw);
 
 		const result = await executeContentfulImport(parsed, config, emdash, emdashManifest);
@@ -89,12 +101,12 @@ async function executeContentfulImport(
 	manifest: EmDashManifest,
 ): Promise<ContentfulImportResult> {
 	const { byType, includes } = parsed;
-	const locale = config.locale ?? "en-us";
+	const locale = config.locale ?? manifest.i18n?.defaultLocale ?? "en";
 
 	const result: ContentfulImportResult = {
 		success: true,
 		tags: { created: 0, skipped: 0, errors: [] },
-		authors: { created: 0, updated: 0, errors: [] },
+		authors: { created: 0, skipped: 0, updated: 0, errors: [] },
 		bylines: { created: 0, skipped: 0, errors: [] },
 		posts: { created: 0, updated: 0, skipped: 0, errors: [] },
 		counts: Object.fromEntries([...parsed.byType.entries()].map(([k, v]) => [k, v.length])),
@@ -104,9 +116,10 @@ async function executeContentfulImport(
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
 	const bylineCache = new Map<string, string>();
+	const authorsCollection = manifest.collections["authors"];
+	const bylineSyncLocale = config.locale ?? manifest.i18n?.defaultLocale ?? "en";
 
-	// ── Step 1: Tags ────────────────────────────────────────────────────
-
+	// Step 1: Tags
 	const tags = byType.get("blogTag") ?? [];
 	for (const entry of tags) {
 		const term = mapTag(entry);
@@ -130,43 +143,70 @@ async function executeContentfulImport(
 		}
 	}
 
-	// ── Step 2: Authors + Bylines ───────────────────────────────────────
-
+	// Step 2: Authors + Bylines
 	const authors = byType.get("blogAuthor") ?? [];
 	const seenAuthorSlugs = new Set<string>();
 
 	for (const entry of authors) {
 		const author = mapAuthor(entry, includes);
 		if (!author.slug) continue;
+		const authorLocale = config.locale ?? author.locale ?? locale;
+		const authorKey = `${authorLocale}:${author.slug}`;
 
-		// Skip duplicate author slugs in the export
-		if (seenAuthorSlugs.has(author.slug)) continue;
-		seenAuthorSlugs.add(author.slug);
+		if (seenAuthorSlugs.has(authorKey)) {
+			result.authors.skipped++;
+			continue;
+		}
+		seenAuthorSlugs.add(authorKey);
 
-		// Create or update the author collection entry
-		if (manifest.collections["authors"]) {
+		if (authorsCollection) {
 			try {
-				const existing = await contentRepo.findBySlug("authors", author.slug);
+				const filteredAuthorData = filterDataForCollection(
+					author.data as Record<string, unknown>,
+					authorsCollection,
+				);
+				const existing = await contentRepo.findBySlug("authors", author.slug, authorLocale);
 				if (existing) {
-					result.authors.updated++;
-				} else {
-					await emdash.handleContentCreate("authors", {
-						data: author.data as Record<string, unknown>,
+					const updateResult = await emdash.handleContentUpdate("authors", existing.id, {
+						data: filteredAuthorData,
 						slug: author.slug,
 						status: "published",
-						locale,
 					});
-					result.authors.created++;
+					if (!updateResult.success) {
+						result.authors.errors.push(
+							`authors/${author.slug}: ${formatHandlerError(updateResult.error)}`,
+						);
+					} else {
+						result.authors.updated++;
+					}
+				} else {
+					const createResult = await emdash.handleContentCreate("authors", {
+						data: filteredAuthorData,
+						slug: author.slug,
+						status: "published",
+						locale: authorLocale,
+					});
+					if (!createResult.success) {
+						result.authors.errors.push(
+							`authors/${author.slug}: ${formatHandlerError(createResult.error)}`,
+						);
+					} else {
+						result.authors.created++;
+					}
 				}
 			} catch (err) {
 				result.authors.errors.push(`authors/${author.slug}: ${(err as Error).message}`);
 			}
 		}
 
-		// Create byline for this author (if it doesn't exist)
 		try {
 			const existingByline = await bylineRepo.findBySlug(author.slug);
 			if (existingByline) {
+				if (authorLocale === bylineSyncLocale && existingByline.displayName !== author.data.name) {
+					await bylineRepo.update(existingByline.id, {
+						displayName: author.data.name,
+					});
+				}
 				bylineCache.set(author.slug, existingByline.id);
 				result.bylines.skipped++;
 			} else {
@@ -185,8 +225,7 @@ async function executeContentfulImport(
 		}
 	}
 
-	// ── Step 3: Posts ────────────────────────────────────────────────────
-
+	// Step 3: Posts
 	const posts = byType.get("blogPost") ?? [];
 	const postsCollection = manifest.collections["posts"];
 	if (!postsCollection) {
@@ -203,22 +242,21 @@ async function executeContentfulImport(
 			blogHostname: config.blogHostname,
 		});
 		const title = (mapped.data.title as string) || "Untitled";
+		const postLocale = config.locale ?? mapped.locale ?? locale;
 
 		if (!mapped.slug) {
 			mapped.slug = slugify(title);
 		}
 
 		try {
-			// Idempotency: skip or update if slug already exists
 			if (config.skipExisting) {
-				const existing = await contentRepo.findBySlug("posts", mapped.slug, locale);
+				const existing = await contentRepo.findBySlug("posts", mapped.slug, postLocale);
 				if (existing) {
 					result.posts.skipped++;
 					continue;
 				}
 			}
 
-			// Resolve byline IDs from author slugs
 			const bylines = mapped.authorSlugs
 				.map((slug) => {
 					const bylineId = bylineCache.get(slug);
@@ -226,13 +264,9 @@ async function executeContentfulImport(
 				})
 				.filter((b): b is { bylineId: string } => b !== null);
 
-			// Preserve original dates
 			const createdAt = mapped.createdAt ?? undefined;
 			const publishedAt = mapped.publishDate ?? createdAt;
 
-			// Filter data to only include fields that exist in the collection schema.
-			// handleContentCreate passes all data keys to SQL INSERT, so unknown
-			// columns cause a SQLite error.
 			const collectionFields = postsCollection.fields
 				? new Set(Object.keys(postsCollection.fields))
 				: null;
@@ -248,25 +282,28 @@ async function executeContentfulImport(
 				slug: mapped.slug,
 				status: "published",
 				bylines: bylines.length > 0 ? bylines : undefined,
-				locale,
+				locale: postLocale,
 				createdAt,
 				publishedAt,
+				seo: postsCollection.hasSeo ? mapped.seo : undefined,
 			});
 
 			if (createResult.success) {
 				result.posts.created++;
 
-				// Set tag terms on the created post
 				if (mapped.tagSlugs.length > 0) {
-					const createdData = createResult.data as { id?: string } | undefined;
-					if (createdData?.id) {
+					const responseData = createResult.data as
+						| { item?: { id?: string } }
+						| undefined;
+					const postId = responseData?.item?.id;
+					if (postId) {
 						const termIds: string[] = [];
 						for (const tagSlug of mapped.tagSlugs) {
 							const term = await taxonomyRepo.findBySlug("tag", tagSlug);
 							if (term) termIds.push(term.id);
 						}
 						if (termIds.length > 0) {
-							await taxonomyRepo.setTermsForEntry("posts", createdData.id, "tag", termIds);
+							await taxonomyRepo.setTermsForEntry("posts", postId, "tag", termIds);
 						}
 					}
 				}
@@ -297,4 +334,26 @@ async function executeContentfulImport(
 		result.posts.errors.length === 0;
 
 	return result;
+}
+
+function filterDataForCollection(
+	data: Record<string, unknown>,
+	collection: EmDashManifest["collections"][string],
+): Record<string, unknown> {
+	const collectionFields = collection.fields ? new Set(Object.keys(collection.fields)) : null;
+	const filteredData: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(data)) {
+		if (value === undefined) continue;
+		if (collectionFields && !collectionFields.has(key)) continue;
+		filteredData[key] = value;
+	}
+	return filteredData;
+}
+
+function formatHandlerError(
+	error: { code?: string; message?: string } | string | undefined,
+): string {
+	return typeof error === "object" && error !== null
+		? `${error.code ?? "UNKNOWN"}: ${error.message ?? "Unknown error"}`
+		: String(error ?? "Unknown error");
 }

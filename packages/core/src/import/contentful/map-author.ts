@@ -6,16 +6,17 @@ import type { ContentfulIncludes } from "@emdash-cms/contentful-to-portable-text
 
 export interface MappedAuthor {
 	slug: string;
+	locale?: string;
 	data: {
 		name: string;
-		bio?: string;
-		job_title?: string;
+		bio?: string | null;
+		job_title?: string | null;
 		profile_image?: { src: string; alt: string } | null;
 	};
 }
 
 export function mapAuthor(
-	entry: { sys: { id: string }; fields: Record<string, unknown> },
+	entry: { sys: { id: string; locale?: string }; fields: Record<string, unknown> },
 	includes: ContentfulIncludes,
 ): MappedAuthor {
 	// Resolve profile image asset
@@ -32,10 +33,11 @@ export function mapAuthor(
 
 	return {
 		slug: ((entry.fields.slug as string) ?? "").trim(),
+		locale: entry.sys.locale,
 		data: {
 			name: ((entry.fields.name as string) ?? "").trim(),
-			bio: (entry.fields.bio as string) ?? undefined,
-			job_title: (entry.fields.jobTitle as string) ?? undefined,
+			bio: (entry.fields.bio as string) ?? null,
+			job_title: (entry.fields.jobTitle as string) ?? null,
 			profile_image: profileImage,
 		},
 	};

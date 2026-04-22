@@ -185,6 +185,36 @@ describe("mapPost", () => {
 		expect(result2.authorSlugs).toEqual(["jane"]);
 	});
 
+	it("handles singular (non-array) tag and author references", () => {
+		const includes = emptyIncludes();
+		includes.entries.set("tag-1", {
+			id: "tag-1",
+			contentType: "blogTag",
+			fields: { name: "Solo Tag", slug: "solo-tag" },
+		});
+		includes.entries.set("author-1", {
+			id: "author-1",
+			contentType: "blogAuthor",
+			fields: { name: "Solo Author", slug: "solo-author" },
+		});
+
+		const result = mapPost(
+			{
+				sys: { id: "post-1", createdAt: "2025-01-01T00:00:00Z" },
+				fields: {
+					title: "Test",
+					slug: "test",
+					tag: { sys: { id: "tag-1" } },
+					author: { sys: { id: "author-1" } },
+				},
+			},
+			includes,
+		);
+
+		expect(result.tagSlugs).toEqual(["solo-tag"]);
+		expect(result.authorSlugs).toEqual(["solo-author"]);
+	});
+
 	it("resolves featured image from asset link", () => {
 		const includes = emptyIncludes();
 		includes.assets.set("asset-1", {

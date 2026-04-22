@@ -34,7 +34,7 @@ export interface MappedPost {
 
 export function mapPost(
 	entry: {
-		sys: { id: string; createdAt: string };
+		sys: { id: string; createdAt: string; locale?: string };
 		fields: Record<string, unknown>;
 	},
 	includes: ContentfulIncludes,
@@ -61,11 +61,10 @@ export function mapPost(
 		};
 	}
 
-	// Resolve tag slugs from entry links
-	// Handle both "tags" and "tag" field names
-	const tagLinks = (fields.tags ?? fields.tag ?? []) as Array<{
-		sys: { id: string };
-	}>;
+	// Resolve tag slugs from entry links.
+	// Handle both "tags" (array) and "tag" (single link or array) field names.
+	const rawTags = fields.tags ?? fields.tag;
+	const tagLinks = normalizeLinks(rawTags);
 	const tagSlugs: string[] = [];
 	for (const link of tagLinks) {
 		const tagEntry = includes.entries.get(link.sys.id);
@@ -74,11 +73,10 @@ export function mapPost(
 		}
 	}
 
-	// Resolve author slugs from entry links
-	// Handle both "authors" and "author" field names
-	const authorLinks = (fields.authors ?? fields.author ?? []) as Array<{
-		sys: { id: string };
-	}>;
+	// Resolve author slugs from entry links.
+	// Handle both "authors" (array) and "author" (single link or array) field names.
+	const rawAuthors = fields.authors ?? fields.author;
+	const authorLinks = normalizeLinks(rawAuthors);
 	const authorSlugs: string[] = [];
 	for (const link of authorLinks) {
 		const authorEntry = includes.entries.get(link.sys.id);
@@ -130,6 +128,7 @@ export function mapPost(
 
 	return {
 		slug: ((fields.slug as string) ?? "").trim(),
+		locale: entry.sys.locale,
 		data,
 		seo,
 		publishDate: (fields.publishDate as string) ?? entry.sys.createdAt,
@@ -137,4 +136,17 @@ export function mapPost(
 		tagSlugs,
 		authorSlugs,
 	};
+}
+
+/** Normalize a Contentful link field to an array. Handles single objects, arrays, and nullish. */
+function normalizeLinks(
+	value: unknown,
+): Array<{ sys: { id: string } }> {
+	if (!value) return [];
+	if (Array.isArray(value)) return value as Array<{ sys: { id: string } }>;
+	// Single link object (e.g. fields.author: { sys: { id: "..." } })
+	if (typeof value === "object" && (value as { sys?: unknown }).sys) {
+		return [value as { sys: { id: string } }];
+	}
+	return [];
 }
