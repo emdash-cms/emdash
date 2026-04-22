@@ -21,6 +21,23 @@
 
   async function saveContent() {
     if (!draft) return;
+    const invalidBannerPost = draft.posts.find(
+      (post) => post.bannerEnabled && (!post.bannerStartDate || !post.bannerEndDate)
+    );
+
+    if (invalidBannerPost) {
+      status = `Banner dates are required for "${invalidBannerPost.title || invalidBannerPost.slug}".`;
+      return;
+    }
+
+    const badDateRangePost = draft.posts.find(
+      (post) => post.bannerEnabled && post.bannerStartDate && post.bannerEndDate && post.bannerEndDate < post.bannerStartDate
+    );
+
+    if (badDateRangePost) {
+      status = `Banner end date must be on or after start date for "${badDateRangePost.title || badDateRangePost.slug}".`;
+      return;
+    }
 
     saving = true;
     status = '';
@@ -32,7 +49,12 @@
     });
 
     saving = false;
-    status = response.ok ? 'All changes saved.' : 'Save failed. Try again.';
+    if (response.ok) {
+      status = 'All changes saved.';
+    } else {
+      const body = (await response.json()) as { error?: string };
+      status = body.error || 'Save failed. Try again.';
+    }
   }
 
   function addPost() {
@@ -45,7 +67,10 @@
         title: 'New Post',
         excerpt: '',
         publishedAt: new Date().toISOString().slice(0, 10),
-        body: ''
+        body: '',
+        bannerEnabled: false,
+        bannerStartDate: '',
+        bannerEndDate: ''
       }
     ];
     selectedPostIndex = draft.posts.length - 1;
@@ -72,6 +97,17 @@
 
     draft.pages = draft.pages.filter((_, i) => i !== index);
     selectedPageIndex = Math.max(0, Math.min(selectedPageIndex, draft.pages.length - 1));
+  }
+
+  function addHoursRow() {
+    if (!draft) return;
+    draft.site.hours = [...draft.site.hours, { label: 'Holiday', opens: '11:00', closes: '17:00', closed: false }];
+  }
+
+  function removeHoursRow(index: number) {
+    if (!draft) return;
+    if (draft.site.hours.length <= 7) return;
+    draft.site.hours = draft.site.hours.filter((_, i) => i !== index);
   }
 
   onMount(loadContent);
@@ -168,9 +204,31 @@
             <label>Phone<input bind:value={draft.site.phone} /></label>
             <label>Email<input bind:value={draft.site.email} /></label>
             <label>Address<input bind:value={draft.site.address} /></label>
-            <label>Hours<textarea bind:value={draft.site.hours}></textarea></label>
             <label>Facebook URL<input bind:value={draft.site.facebookUrl} /></label>
             <label>Instagram URL<input bind:value={draft.site.instagramUrl} /></label>
+          </div>
+          <div class="hours-panel">
+            <div class="pane-head">
+              <h3>Business Hours</h3>
+              <button on:click={addHoursRow}>+ Add Day</button>
+            </div>
+            <p class="hours-note">Keep at least 7 entries so every weekday is covered. Add extra rows for holidays.</p>
+            <div class="hours-grid">
+              {#each draft.site.hours as row, i}
+                <div class="hours-row">
+                  <label>Day/Event<input bind:value={row.label} /></label>
+                  <label>Open<input type="time" bind:value={row.opens} disabled={row.closed} /></label>
+                  <label>Close<input type="time" bind:value={row.closes} disabled={row.closed} /></label>
+                  <label class="check-row">
+                    <input type="checkbox" bind:checked={row.closed} />
+                    Closed
+                  </label>
+                  <button class="danger" disabled={draft.site.hours.length <= 7} on:click={() => removeHoursRow(i)}>
+                    Remove
+                  </button>
+                </div>
+              {/each}
+            </div>
           </div>
         </section>
       {/if}
@@ -208,6 +266,18 @@
                 <label>Title<input bind:value={post.title} /></label>
                 <label>Date<input type="date" bind:value={post.publishedAt} /></label>
                 <label>Excerpt<input bind:value={post.excerpt} /></label>
+              </div>
+              <div class="banner-box">
+                <label class="check-row">
+                  <input type="checkbox" bind:checked={post.bannerEnabled} />
+                  Show sitewide banner linked to this post
+                </label>
+                {#if post.bannerEnabled}
+                  <div class="form-grid">
+                    <label>Banner Start Date<input type="date" bind:value={post.bannerStartDate} required /></label>
+                    <label>Banner End Date<input type="date" bind:value={post.bannerEndDate} required /></label>
+                  </div>
+                {/if}
               </div>
               <label>Body<textarea class="large" bind:value={post.body}></textarea></label>
             {/if}
@@ -364,6 +434,8 @@
   .nav {
     display: grid;
     gap: 0.35rem;
+    justify-items: start;
+    align-content: start;
   }
 
   .nav button {
@@ -373,6 +445,7 @@
     color: var(--text-strong);
     padding: 0.55rem 0.65rem;
     border-radius: 6px;
+    width: 168px;
   }
 
   .nav button:hover,
@@ -384,6 +457,7 @@
   .sidebar-actions {
     display: grid;
     gap: 0.55rem;
+    justify-items: start;
   }
 
   .sidebar-actions button {
@@ -392,6 +466,7 @@
     color: var(--text-strong);
     border-radius: 6px;
     padding: 0.5rem;
+    width: 168px;
   }
 
   .workspace {
@@ -566,6 +641,58 @@
     gap: 0.8rem;
   }
 
+  .hours-panel {
+    margin-top: 1rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 0.8rem;
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .hours-note {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 0.82rem;
+  }
+
+  .hours-grid {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .hours-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr auto auto;
+    gap: 0.5rem;
+    align-items: end;
+    border: 1px solid var(--field-border);
+    border-radius: 8px;
+    padding: 0.55rem;
+    background: var(--field-bg);
+  }
+
+  .check-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 38px;
+  }
+
+  .check-row input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+  }
+
+  .banner-box {
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: rgba(63, 111, 211, 0.06);
+    display: grid;
+    gap: 0.6rem;
+  }
+
   label {
     display: grid;
     gap: 0.35rem;
@@ -628,6 +755,11 @@
 
     .form-grid {
       grid-template-columns: 1fr;
+    }
+
+    .hours-row {
+      grid-template-columns: 1fr;
+      align-items: stretch;
     }
 
     .topbar {

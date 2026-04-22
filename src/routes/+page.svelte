@@ -2,6 +2,11 @@
   let { data } = $props();
   const site = $derived(data.site);
   const phoneHref = $derived(`tel:${site.phone.replace(/[^\\d+]/g, '')}`);
+  const hoursLines = $derived(
+    (site.hours ?? []).map((entry) =>
+      entry.closed ? `${entry.label}: Closed` : `${entry.label}: ${entry.opens} - ${entry.closes}`
+    )
+  );
 </script>
 
 <svelte:head>
@@ -78,7 +83,7 @@
   </div>
   <div>
     <strong>Hours</strong>
-    <p style="white-space: pre-line">{site.hours}</p>
+    <p style="white-space: pre-line">{hoursLines.join('\n')}</p>
   </div>
   <div>
     <strong>Plan Your Visit</strong>

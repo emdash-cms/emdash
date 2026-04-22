@@ -1,10 +1,17 @@
+export type BusinessHoursEntry = {
+  label: string;
+  opens: string;
+  closes: string;
+  closed: boolean;
+};
+
 export type SiteSettings = {
   title: string;
   tagline: string;
   phone: string;
   email: string;
   address: string;
-  hours: string;
+  hours: BusinessHoursEntry[];
   facebookUrl: string;
   instagramUrl: string;
 };
@@ -15,6 +22,9 @@ export type Post = {
   excerpt: string;
   publishedAt: string;
   body: string;
+  bannerEnabled: boolean;
+  bannerStartDate: string;
+  bannerEndDate: string;
 };
 
 export type Page = {
@@ -29,6 +39,16 @@ export type CmsData = {
   pages: Page[];
 };
 
+export const defaultWeeklyHours: BusinessHoursEntry[] = [
+  { label: 'Monday', opens: '11:00', closes: '21:00', closed: false },
+  { label: 'Tuesday', opens: '11:00', closes: '21:00', closed: false },
+  { label: 'Wednesday', opens: '11:00', closes: '21:00', closed: false },
+  { label: 'Thursday', opens: '11:00', closes: '21:00', closed: false },
+  { label: 'Friday', opens: '11:00', closes: '22:00', closed: false },
+  { label: 'Saturday', opens: '11:00', closes: '22:00', closed: false },
+  { label: 'Sunday', opens: '10:00', closes: '20:00', closed: false }
+];
+
 export const defaultCmsData: CmsData = {
   site: {
     title: 'Symballo Brasserie',
@@ -36,7 +56,7 @@ export const defaultCmsData: CmsData = {
     phone: '(555) 123-4567',
     email: 'hello@symballo.agency',
     address: '123 Main Street, Your Town, ST 00000',
-    hours: 'Mon-Thu: 11:00 AM - 9:00 PM\\nFri-Sat: 11:00 AM - 10:00 PM\\nSun: 10:00 AM - 8:00 PM',
+    hours: defaultWeeklyHours,
     facebookUrl: 'https://facebook.com',
     instagramUrl: 'https://instagram.com'
   },
@@ -46,7 +66,10 @@ export const defaultCmsData: CmsData = {
       title: 'Welcome to Symballo Brasserie',
       excerpt: 'A quick intro to the template and how to update it.',
       publishedAt: '2026-04-21',
-      body: 'Replace this post content with your business updates, events, or announcements.'
+      body: 'Replace this post content with your business updates, events, or announcements.',
+      bannerEnabled: false,
+      bannerStartDate: '',
+      bannerEndDate: ''
     }
   ],
   pages: [

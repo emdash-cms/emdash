@@ -1,11 +1,19 @@
 {
   "site": {
-    "title": "Symballo Brasserie",
+    "title": "Manning's Restaurant",
     "tagline": "Regional ingredients. Memorable evenings.",
     "phone": "(555) 123-4567",
     "email": "hello@symballo.agency",
     "address": "123 Main Street, Your Town, ST 00000",
-    "hours": "Mon-Thu: 11:00 AM - 9:00 PM\nFri-Sat: 11:00 AM - 10:00 PM\nSun: 10:00 AM - 8:00 PM",
+    "hours": [
+      { "label": "Monday", "opens": "11:00", "closes": "21:00", "closed": false },
+      { "label": "Tuesday", "opens": "11:00", "closes": "21:00", "closed": false },
+      { "label": "Wednesday", "opens": "11:00", "closes": "21:00", "closed": false },
+      { "label": "Thursday", "opens": "11:00", "closes": "21:00", "closed": false },
+      { "label": "Friday", "opens": "11:00", "closes": "22:00", "closed": false },
+      { "label": "Saturday", "opens": "11:00", "closes": "22:00", "closed": false },
+      { "label": "Sunday", "opens": "10:00", "closes": "20:00", "closed": false }
+    ],
     "facebookUrl": "https://facebook.com",
     "instagramUrl": "https://instagram.com"
   },
@@ -15,7 +23,10 @@
       "title": "Welcome to Symballo Brasserie",
       "excerpt": "A quick intro to the template and how to update it.",
       "publishedAt": "2026-04-21",
-      "body": "Replace this post content with your business updates, events, or announcements."
+      "body": "Replace this post content with your business updates, events, or announcements.",
+      "bannerEnabled": false,
+      "bannerStartDate": "",
+      "bannerEndDate": ""
     }
   ],
   "pages": [
