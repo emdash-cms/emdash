@@ -5,7 +5,7 @@
  * These are imported at build time via the virtual:emdash/auth-providers module.
  */
 
-import { Button, Input, LinkButton } from "@cloudflare/kumo";
+import { Button, Input } from "@cloudflare/kumo";
 import * as React from "react";
 
 // ============================================================================
@@ -26,10 +26,10 @@ function AtprotoIcon({ className }: { className?: string }) {
 
 export function LoginButton() {
 	return (
-		<LinkButton href="#" variant="outline" className="w-full justify-center">
+		<Button type="button" variant="outline" className="w-full justify-center">
 			<AtprotoIcon className="h-5 w-5" />
 			<span>Atmosphere</span>
-		</LinkButton>
+		</Button>
 	);
 }
 
