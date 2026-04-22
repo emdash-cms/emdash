@@ -32,6 +32,7 @@ const ELEMENT_TYPES = new Set([
 	"date_input",
 	"combobox",
 	"repeater",
+	"media_picker",
 ]);
 
 const REPEATER_SUB_FIELD_TYPES = new Set(["text_input", "number_input", "select", "toggle"]);
@@ -537,6 +538,27 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 						}
 					}
 				}
+			}
+			break;
+		}
+		case "media_picker": {
+			if (value.mime_type_filter !== undefined && typeof value.mime_type_filter !== "string") {
+				errors.push({
+					path: `${path}.mime_type_filter`,
+					message: "Field 'mime_type_filter' must be a string",
+				});
+			}
+			if (value.initial_value !== undefined && typeof value.initial_value !== "string") {
+				errors.push({
+					path: `${path}.initial_value`,
+					message: "Field 'initial_value' must be a string",
+				});
+			}
+			if (value.placeholder !== undefined && typeof value.placeholder !== "string") {
+				errors.push({
+					path: `${path}.placeholder`,
+					message: "Field 'placeholder' must be a string",
+				});
 			}
 			break;
 		}

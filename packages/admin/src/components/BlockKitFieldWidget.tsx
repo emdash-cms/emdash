@@ -1,6 +1,11 @@
-import { Input, Switch } from "@cloudflare/kumo";
+import { Button, Input, Switch } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
+import { useLingui } from "@lingui/react/macro";
+import { Image as ImageIcon, X } from "@phosphor-icons/react";
 import * as React from "react";
+
+import type { MediaItem } from "../lib/api";
+import { MediaPickerModal } from "./MediaPickerModal";
 
 interface BlockKitFieldWidgetProps {
 	label: string;
@@ -113,6 +118,8 @@ function BlockKitFieldElement({
 				</div>
 			);
 		}
+		case "media_picker":
+			return <MediaPickerWidget element={element} value={value} onChange={onChange} />;
 		default:
 			return (
 				<div className="text-sm text-kumo-subtle">
@@ -120,4 +127,76 @@ function BlockKitFieldElement({
 				</div>
 			);
 	}
+}
+
+function MediaPickerWidget({
+	element,
+	value,
+	onChange,
+}: {
+	element: Extract<Element, { type: "media_picker" }>;
+	value: unknown;
+	onChange: (actionId: string, value: unknown) => void;
+}) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const url = typeof value === "string" && value.length > 0 ? value : "";
+	const mimeTypeFilter = element.mime_type_filter ?? "image/";
+
+	const handleSelect = (item: MediaItem) => {
+		const isLocalProvider = !item.provider || item.provider === "local";
+		const nextUrl = isLocalProvider
+			? `/_emdash/api/media/file/${item.storageKey || item.id}`
+			: item.url;
+		onChange(element.action_id, nextUrl);
+	};
+
+	return (
+		<div>
+			<label className="text-sm font-medium mb-1.5 block">{element.label}</label>
+			{url ? (
+				<div className="relative group">
+					<img
+						src={url}
+						alt=""
+						className="max-h-40 w-full rounded-md border border-kumo-line object-contain bg-kumo-muted"
+					/>
+					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
+							{t`Change`}
+						</Button>
+						<Button
+							type="button"
+							shape="square"
+							variant="destructive"
+							className="h-8 w-8"
+							onClick={() => onChange(element.action_id, "")}
+							aria-label={t`Remove`}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			) : (
+				<Button
+					type="button"
+					variant="outline"
+					className="w-full h-24 border-dashed"
+					onClick={() => setPickerOpen(true)}
+				>
+					<div className="flex flex-col items-center gap-1.5 text-kumo-subtle">
+						<ImageIcon className="h-6 w-6" />
+						<span className="text-sm">{element.placeholder ?? t`Select media`}</span>
+					</div>
+				</Button>
+			)}
+			<MediaPickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				onSelect={handleSelect}
+				mimeTypeFilter={mimeTypeFilter}
+				title={t`Select ${element.label}`}
+			/>
+		</div>
+	);
 }
