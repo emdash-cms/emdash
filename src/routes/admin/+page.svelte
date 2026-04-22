@@ -4,13 +4,14 @@
 
   type AdminView = 'dashboard' | 'site' | 'posts' | 'pages';
 
-  let draft: CmsData | null = null;
-  let saving = false;
-  let status = '';
-  let view: AdminView = 'dashboard';
-  let selectedPostIndex = 0;
-  let selectedPageIndex = 0;
-  let darkMode = false;
+  let draft = $state<CmsData | null>(null);
+  let saving = $state(false);
+  let status = $state('');
+  let view = $state<AdminView>('dashboard');
+  let selectedPostIndex = $state(0);
+  let selectedPageIndex = $state(0);
+  let darkMode = $state(false);
+  const editorTabs = ['Basic info', 'Author', 'Publisher', 'Files', 'More info'];
 
   async function loadContent() {
     const response = await fetch('/api/admin/content');
@@ -111,6 +112,28 @@
   }
 
   onMount(loadContent);
+
+  const currentEntityTitle = $derived.by(() => {
+    if (!draft) return 'Content';
+    if (view === 'posts' && draft.posts[selectedPostIndex]) return draft.posts[selectedPostIndex].title || 'Untitled post';
+    if (view === 'pages' && draft.pages[selectedPageIndex]) return draft.pages[selectedPageIndex].title || 'Untitled page';
+    if (view === 'site') return draft.site.title || 'Site settings';
+    return 'Dashboard';
+  });
+
+  const currentEntityMeta = $derived.by(() => {
+    if (!draft) return '';
+    if (view === 'posts' && draft.posts[selectedPostIndex]) {
+      const post = draft.posts[selectedPostIndex];
+      return `${post.slug} | ${post.publishedAt}`;
+    }
+    if (view === 'pages' && draft.pages[selectedPageIndex]) {
+      const page = draft.pages[selectedPageIndex];
+      return `${page.slug} | Page`;
+    }
+    if (view === 'site') return 'Business profile';
+    return 'Overview';
+  });
 </script>
 
 <svelte:head>
@@ -123,47 +146,90 @@
   <div class="admin-shell" class:dark={darkMode}>
     <header class="chrome-bar">
       <div class="chrome-left">
-        <strong>Symballo CMS</strong>
-        <a href="/" target="_blank" rel="noreferrer">View Site</a>
+        <button class="icon-btn" aria-label="Toggle navigation">☰</button>
+        <label class="search-pill">
+          <span>◌</span>
+          <input type="text" placeholder="Search" />
+        </label>
       </div>
       <div class="chrome-right">
-        <button class="mode-toggle" on:click={() => (darkMode = !darkMode)}>
+        <button class="pill ghost">Guide</button>
+        <button class="pill ghost">Support</button>
+        <a class="view-site-link" href="/" target="_blank" rel="noreferrer">Open site</a>
+        <button class="mode-toggle" onclick={() => (darkMode = !darkMode)}>
           {darkMode ? 'Light' : 'Dark'} Mode
         </button>
-        <button class="save top-save" on:click={saveContent} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+        <button class="pill save top-save" onclick={saveContent} disabled={saving}>{saving ? 'Saving...' : 'Publish'}</button>
       </div>
     </header>
 
     <aside class="sidebar">
       <div class="brand">
-        <p class="brand-kicker">Symballo</p>
-        <strong>Site Admin</strong>
+        <span class="brand-dot"></span>
+        <div>
+          <p class="brand-kicker">Symballo</p>
+          <strong>Untitled CMS</strong>
+        </div>
       </div>
 
-      <nav class="nav">
-        <button class:active={view === 'dashboard'} on:click={() => (view = 'dashboard')}>Dashboard</button>
-        <button class:active={view === 'site'} on:click={() => (view = 'site')}>Site Details</button>
-        <button class:active={view === 'posts'} on:click={() => (view = 'posts')}>Posts</button>
-        <button class:active={view === 'pages'} on:click={() => (view = 'pages')}>Pages</button>
+      <nav class="nav stack">
+        <button class:active={view === 'dashboard'} onclick={() => (view = 'dashboard')}>
+          <span class="nav-icon">◧</span>Dashboard
+        </button>
+        <button class:active={view === 'site'} onclick={() => (view = 'site')}>
+          <span class="nav-icon">⌘</span>Site Details
+        </button>
       </nav>
 
+      <div class="nav-group">
+        <p class="group-label">Content</p>
+        <nav class="nav">
+          <button class:active={view === 'posts'} onclick={() => (view = 'posts')}>
+            <span class="nav-icon">◫</span>Posts
+          </button>
+          <button class:active={view === 'pages'} onclick={() => (view = 'pages')}>
+            <span class="nav-icon">☰</span>Pages
+          </button>
+        </nav>
+        <div class="subnav">
+          <button class="sub-item">View all <span>{draft.posts.length}</span></button>
+          <button class="sub-item">Recent <span>{Math.min(draft.posts.length, 8)}</span></button>
+          <button class="sub-item">Scheduled <span>{draft.posts.filter((p) => p.bannerEnabled).length}</span></button>
+        </div>
+      </div>
+
       <div class="sidebar-actions">
-        <button on:click={addPost}>+ New Post</button>
-        <button on:click={addPage}>+ New Page</button>
+        <button onclick={addPost}>+ New Post</button>
+        <button onclick={addPage}>+ New Page</button>
       </div>
     </aside>
 
     <main class="workspace">
-      <header class="topbar panel">
-        <div>
-          <h1>Dashboard</h1>
-          <p>Manage business details, pages, and posts from one place.</p>
+      <div class="workspace-sticky">
+        <header class="topbar">
+          <div class="record-head">
+            <div class="record-art">{currentEntityTitle.slice(0, 1)}</div>
+            <div>
+              <h1>{currentEntityTitle}</h1>
+              <p>{currentEntityMeta}</p>
+            </div>
+          </div>
+          <div class="topbar-note">Customize content to make your storefront stand out.</div>
+          <div class="topbar-actions">
+            <button class="pill ghost">Copy link</button>
+            <button class="pill ghost">Save draft</button>
+            <button class="pill save" onclick={saveContent} disabled={saving}>{saving ? 'Saving...' : 'Publish'}</button>
+          </div>
+        </header>
+        <div class="tabs-line">
+          <div class="tabs panel">
+            {#each editorTabs as tab, i}
+              <button class="tab" class:active={i === 0}>{tab}</button>
+            {/each}
+          </div>
         </div>
-        <div class="topbar-actions">
-          {#if status}<span class="status">{status}</span>{/if}
-          <button class="save" on:click={saveContent} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
-        </div>
-      </header>
+        {#if status}<p class="status-inline">{status}</p>{/if}
+      </div>
 
       {#if view === 'dashboard'}
         <section class="panel dashboard-grid">
@@ -188,9 +254,9 @@
         <section class="panel quick-actions">
           <h2>Quick Actions</h2>
           <div class="quick-grid">
-            <button on:click={() => (view = 'site')}>Edit Site Details</button>
-            <button on:click={() => (view = 'posts')}>Manage Posts</button>
-            <button on:click={() => (view = 'pages')}>Manage Pages</button>
+            <button onclick={() => (view = 'site')}>Edit Site Details</button>
+            <button onclick={() => (view = 'posts')}>Manage Posts</button>
+            <button onclick={() => (view = 'pages')}>Manage Pages</button>
           </div>
         </section>
       {/if}
@@ -210,7 +276,7 @@
           <div class="hours-panel">
             <div class="pane-head">
               <h3>Business Hours</h3>
-              <button on:click={addHoursRow}>+ Add Day</button>
+              <button onclick={addHoursRow}>+ Add Day</button>
             </div>
             <p class="hours-note">Keep at least 7 entries so every weekday is covered. Add extra rows for holidays.</p>
             <div class="hours-grid">
@@ -223,7 +289,7 @@
                     <input type="checkbox" bind:checked={row.closed} />
                     Closed
                   </label>
-                  <button class="danger" disabled={draft.site.hours.length <= 7} on:click={() => removeHoursRow(i)}>
+                  <button class="danger" disabled={draft.site.hours.length <= 7} onclick={() => removeHoursRow(i)}>
                     Remove
                   </button>
                 </div>
@@ -238,12 +304,12 @@
           <div class="list-pane">
             <div class="pane-head">
               <h2>Posts</h2>
-              <button on:click={addPost}>+ Add</button>
+              <button onclick={addPost}>+ Add</button>
             </div>
             <ul class="item-list">
               {#each draft.posts as post, i}
                 <li>
-                  <button class="item-row" class:selected={selectedPostIndex === i} on:click={() => (selectedPostIndex = i)}>
+                  <button class="item-row" class:selected={selectedPostIndex === i} onclick={() => (selectedPostIndex = i)}>
                     <span>{post.title || 'Untitled'}</span>
                     <small>{post.slug}</small>
                   </button>
@@ -259,7 +325,7 @@
               {@const post = draft.posts[selectedPostIndex]}
               <div class="pane-head">
                 <h3>Edit Post</h3>
-                <button class="danger" on:click={() => removePost(selectedPostIndex)}>Delete</button>
+                <button class="danger" onclick={() => removePost(selectedPostIndex)}>Delete</button>
               </div>
               <div class="form-grid">
                 <label>Slug<input bind:value={post.slug} /></label>
@@ -290,12 +356,12 @@
           <div class="list-pane">
             <div class="pane-head">
               <h2>Pages</h2>
-              <button on:click={addPage}>+ Add</button>
+              <button onclick={addPage}>+ Add</button>
             </div>
             <ul class="item-list">
               {#each draft.pages as page, i}
                 <li>
-                  <button class="item-row" class:selected={selectedPageIndex === i} on:click={() => (selectedPageIndex = i)}>
+                  <button class="item-row" class:selected={selectedPageIndex === i} onclick={() => (selectedPageIndex = i)}>
                     <span>{page.title || 'Untitled'}</span>
                     <small>{page.slug}</small>
                   </button>
@@ -311,7 +377,7 @@
               {@const page = draft.pages[selectedPageIndex]}
               <div class="pane-head">
                 <h3>Edit Page</h3>
-                <button class="danger" on:click={() => removePage(selectedPageIndex)}>Delete</button>
+                <button class="danger" onclick={() => removePage(selectedPageIndex)}>Delete</button>
               </div>
               <div class="form-grid">
                 <label>Slug<input bind:value={page.slug} /></label>
@@ -329,46 +395,50 @@
 <style>
   .admin-shell {
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 248px 1fr;
     grid-template-rows: 56px 1fr;
     min-height: 100vh;
-    background: #eef2f8;
-    color: #5a6b84;
-    --chrome-bg: linear-gradient(90deg, #2f5ea9, #3b6ab2);
-    --sidebar-bg: #ffffff;
-    --sidebar-border: #d8deea;
-    --panel-bg: #f8fbff;
-    --panel-border: #dbe3f0;
-    --text-strong: #6a7f98;
-    --text-soft: #8ca0b8;
-    --btn-bg: #3f6fd3;
-    --btn-border: #3f6fd3;
+    background: #eceff4;
+    color: #5a677a;
+    --shell-bg: #eceff4;
+    --chrome-bg: linear-gradient(90deg, #f8fafc, #f2f5f9);
+    --chrome-border: #d9e0ea;
+    --sidebar-bg: radial-gradient(circle at 25% -10%, rgba(110, 132, 170, 0.18), transparent 45%), #f8fafc;
+    --sidebar-border: #d9e0ea;
+    --panel-bg: #ffffff;
+    --panel-border: #d9e0ea;
+    --text-strong: #162034;
+    --text-soft: #6f7f96;
+    --btn-bg: #2a3a51;
+    --btn-border: #2a3a51;
     --btn-text: #ffffff;
-    --active-nav-bg: #e9f0ff;
-    --active-nav-border: #bfd0f6;
-    --field-bg: #ffffff;
-    --field-border: #cad6eb;
-    --field-text: #4e5f77;
+    --active-nav-bg: #eaf0fa;
+    --active-nav-border: #ccd7ea;
+    --field-bg: #f8fafd;
+    --field-border: #d2dbea;
+    --field-text: #23324a;
   }
 
   .admin-shell.dark {
-    background: #0f141c;
-    color: #e8edf6;
-    --chrome-bg: linear-gradient(90deg, #25467e, #274d8b);
-    --sidebar-bg: #111923;
-    --sidebar-border: #283142;
-    --panel-bg: #131b27;
-    --panel-border: #2a3447;
-    --text-strong: #d6deec;
-    --text-soft: #9fb0cb;
-    --btn-bg: #c56642;
-    --btn-border: #c56642;
+    background: #060a10;
+    color: #dfe7f6;
+    --shell-bg: #060a10;
+    --chrome-bg: linear-gradient(90deg, #040a13, #080e17);
+    --chrome-border: #1c2738;
+    --sidebar-bg: radial-gradient(circle at 50% -20%, rgba(100, 125, 173, 0.15), transparent 42%), #0d141f;
+    --sidebar-border: #1f2c40;
+    --panel-bg: #090f18;
+    --panel-border: #1d2a3d;
+    --text-strong: #f2f6ff;
+    --text-soft: #8f9db4;
+    --btn-bg: #1f2a3b;
+    --btn-border: #303f58;
     --btn-text: #ffffff;
-    --active-nav-bg: #1a2433;
-    --active-nav-border: #3a4b69;
-    --field-bg: #0d1420;
-    --field-border: #35445e;
-    --field-text: #e8edf6;
+    --active-nav-bg: #1a2536;
+    --active-nav-border: #2d3f5a;
+    --field-bg: #0f1723;
+    --field-border: #26364f;
+    --field-text: #f2f6ff;
   }
 
   .chrome-bar {
@@ -378,7 +448,8 @@
     align-items: center;
     padding: 0 1rem;
     background: var(--chrome-bg);
-    color: #eef4ff;
+    color: var(--text-strong);
+    border-bottom: 1px solid var(--chrome-border);
   }
 
   .chrome-left,
@@ -388,17 +459,51 @@
     gap: 0.75rem;
   }
 
-  .chrome-left a {
-    color: #eef4ff;
-    text-decoration: none;
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel-bg);
+    color: var(--text-strong);
+    font-size: 0.96rem;
+  }
+
+  .search-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--panel-border);
+    background: var(--panel-bg);
+    border-radius: 999px;
+    padding: 0.36rem 0.7rem;
+    min-width: 190px;
+  }
+
+  .search-pill span {
+    color: var(--text-soft);
     font-size: 0.9rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .search-pill input {
+    border: 0;
+    background: transparent;
+    color: var(--text-strong);
+    width: 100%;
+    padding: 0;
+    outline: none;
+  }
+
+  .view-site-link {
+    color: var(--text-soft);
+    text-decoration: none;
+    font-size: 0.86rem;
   }
 
   .mode-toggle {
-    border: 1px solid rgba(255, 255, 255, 0.45);
+    border: 1px solid var(--panel-border);
     background: transparent;
-    color: #fff;
+    color: var(--text-soft);
     border-radius: 999px;
     padding: 0.35rem 0.7rem;
     font-size: 0.8rem;
@@ -412,7 +517,7 @@
   .sidebar {
     border-right: 1px solid var(--sidebar-border);
     background: var(--sidebar-bg);
-    padding: 1rem;
+    padding: 1rem 0.95rem;
     display: grid;
     grid-template-rows: auto 1fr auto;
     gap: 1rem;
@@ -426,26 +531,54 @@
     color: var(--text-soft);
   }
 
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .brand-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #7b8ca8, #44526b);
+    flex: 0 0 auto;
+  }
+
   .brand strong {
-    font-size: 1.1rem;
+    font-size: 1.06rem;
     color: var(--text-strong);
   }
 
   .nav {
     display: grid;
-    gap: 0.35rem;
+    gap: 0.45rem;
     justify-items: start;
     align-content: start;
   }
 
+  .nav.stack {
+    margin-top: 0.4rem;
+  }
+
+  .nav-icon {
+    font-size: 0.9rem;
+    color: var(--text-soft);
+    flex: 0 0 auto;
+  }
+
   .nav button {
     text-align: left;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.48rem;
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-strong);
     padding: 0.55rem 0.65rem;
     border-radius: 6px;
     width: 168px;
+    font-weight: 500;
   }
 
   .nav button:hover,
@@ -458,6 +591,7 @@
     display: grid;
     gap: 0.55rem;
     justify-items: start;
+    margin-top: auto;
   }
 
   .sidebar-actions button {
@@ -467,27 +601,102 @@
     border-radius: 6px;
     padding: 0.5rem;
     width: 168px;
+    font-weight: 600;
+  }
+
+  .nav-group {
+    border-top: 1px solid var(--sidebar-border);
+    padding-top: 0.9rem;
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .group-label {
+    margin: 0;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-soft);
+  }
+
+  .subnav {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.2rem;
+  }
+
+  .sub-item {
+    width: 168px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-soft);
+    padding: 0.48rem 0.58rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.86rem;
+  }
+
+  .sub-item span {
+    min-width: 20px;
+    text-align: center;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    padding: 0.1rem 0.34rem;
+    font-size: 0.74rem;
   }
 
   .workspace {
-    padding: 1.25rem;
+    padding: 0.8rem 1.5rem 1.4rem;
     display: grid;
-    gap: 1rem;
+    gap: 0.75rem;
+    background: var(--shell-bg);
+  }
+
+  .workspace-sticky {
+    position: sticky;
+    top: 56px;
+    z-index: 12;
+    background: var(--shell-bg);
+    padding-top: 0.4rem;
+    border-bottom: 1px solid var(--panel-border);
+    margin-bottom: 0.45rem;
   }
 
   .topbar {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr auto;
     gap: 1rem;
+    align-items: start;
+    padding: 0.45rem 0.05rem 0.55rem;
+  }
+
+  .record-head {
+    display: flex;
     align-items: center;
-    padding: 1rem 1.15rem;
+    gap: 0.8rem;
+  }
+
+  .record-art {
+    width: 40px;
+    height: 56px;
+    border-radius: 9px;
+    border: 1px solid var(--panel-border);
+    background: linear-gradient(180deg, #f6cf70, #d48a3f 60%, #79321f);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    text-transform: uppercase;
   }
 
   .topbar h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 3.02rem;
     font-weight: 500;
     color: var(--text-strong);
+    line-height: 0.95;
   }
 
   .topbar p {
@@ -496,30 +705,87 @@
     font-size: 0.88rem;
   }
 
+  .topbar-note {
+    color: var(--text-soft);
+    font-size: 1.05rem;
+    line-height: 1.2;
+    max-width: 320px;
+    justify-self: end;
+    padding-top: 0.35rem;
+  }
+
   .topbar-actions {
     display: flex;
     align-items: center;
     gap: 0.7rem;
+    justify-self: end;
+    padding-top: 0.3rem;
   }
 
-  .status {
-    font-size: 0.85rem;
+  .status-inline {
+    margin: 0.1rem 0 0.45rem;
     color: #4bbf87;
+    font-size: 0.85rem;
+  }
+
+  .pill {
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border-radius: 999px;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.88rem;
+    line-height: 1;
+  }
+
+  .pill.ghost {
+    background: transparent;
+    color: var(--text-soft);
+    border-color: var(--panel-border);
   }
 
   .save {
     border: 1px solid var(--btn-border);
     background: var(--btn-bg);
     color: var(--btn-text);
-    border-radius: 6px;
-    padding: 0.55rem 0.9rem;
   }
 
   .panel {
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 1rem;
+  }
+
+  .tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.18rem 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .tabs-line {
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid var(--panel-border);
+    margin-bottom: 0.2rem;
+  }
+
+  .tab {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-soft);
+    border-radius: 8px;
+    padding: 0.48rem 0.72rem;
+    font-size: 0.88rem;
+  }
+
+  .tab.active {
+    color: var(--text-strong);
+    border-color: var(--active-nav-border);
+    background: rgba(116, 141, 183, 0.2);
   }
 
   .dashboard-grid {
@@ -720,12 +986,24 @@
   }
 
   .danger {
-    border-color: #c96f6f;
-    color: #b04747;
-    background: #fff5f5;
+    border-color: #8f4545;
+    color: #d86f6f;
+    background: rgba(143, 69, 69, 0.15);
   }
 
   @media (max-width: 1080px) {
+    .topbar {
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+    }
+
+    .topbar-note,
+    .topbar-actions {
+      justify-self: start;
+      max-width: none;
+      padding-top: 0;
+    }
+
     .dashboard-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -762,16 +1040,20 @@
       align-items: stretch;
     }
 
-    .topbar {
-      flex-direction: column;
-      align-items: flex-start;
+    .chrome-bar {
+      padding: 0.45rem 0.6rem;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 56px;
     }
 
-    .chrome-bar {
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 0.65rem 0.9rem;
-      gap: 0.45rem;
+    .workspace-sticky {
+      top: 72px;
+    }
+
+    .search-pill {
+      min-width: 130px;
     }
   }
 </style>
