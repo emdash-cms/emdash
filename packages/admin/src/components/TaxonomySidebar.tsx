@@ -115,7 +115,7 @@ function CategoryCheckboxTree({
 		<div>
 			<label
 				className="flex items-center py-1 cursor-pointer hover:bg-kumo-tint/50 rounded px-2"
-				style={{ marginLeft: `${level}rem` }}
+				style={{ marginInlineStart: `${level}rem` }}
 			>
 				<input
 					type="checkbox"
