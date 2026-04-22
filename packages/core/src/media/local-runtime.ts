@@ -183,19 +183,22 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 /**
  * Helper to convert a MediaRepository item to MediaProviderItem
  */
-export function repoItemToProviderItem(item: {
-	id: string;
-	filename: string;
-	mimeType: string;
-	size: number | null;
-	width: number | null;
-	height: number | null;
-	alt: string | null;
-	caption: string | null;
-	storageKey: string;
-	blurhash: string | null;
-	dominantColor: string | null;
-}): MediaProviderItem {
+export function repoItemToProviderItem(
+	item: {
+		id: string;
+		filename: string;
+		mimeType: string;
+		size: number | null;
+		width: number | null;
+		height: number | null;
+		alt: string | null;
+		caption: string | null;
+		storageKey: string;
+		blurhash: string | null;
+		dominantColor: string | null;
+	},
+	storage?: import("../storage/types.js").Storage | null,
+): MediaProviderItem {
 	return {
 		id: item.id,
 		filename: item.filename,
@@ -204,7 +207,7 @@ export function repoItemToProviderItem(item: {
 		width: item.width ?? undefined,
 		height: item.height ?? undefined,
 		alt: item.alt ?? undefined,
-		previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
+		previewUrl: resolvePublicMediaUrl(storage, item.storageKey),
 		meta: {
 			storageKey: item.storageKey,
 			caption: item.caption,
