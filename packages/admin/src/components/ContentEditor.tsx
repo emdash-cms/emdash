@@ -40,7 +40,7 @@ import type {
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
-import { contentUrl } from "../lib/url.js";
+import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -1650,7 +1650,7 @@ interface FileFieldValue {
 interface FileFieldRendererProps {
 	id?: string;
 	label: string;
-	value: FileFieldValue | string | undefined;
+	value: FileFieldValue | undefined;
 	onChange: (value: FileFieldValue | null) => void;
 	required?: boolean;
 }
@@ -1659,33 +1659,26 @@ interface FileFieldRendererProps {
  * File field with media picker
  *
  * Like ImageFieldRenderer but for arbitrary file types. Shows a mime-type-appropriate
- * icon, filename, and size instead of an image preview. Handles backwards compatibility
- * with legacy string URLs.
+ * icon, filename, and size instead of an image preview.
  */
 function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 
 	// Normalize value to derive display info.
-	// Prefer direct src; for local files, derive URL from meta.storageKey or id.
+	// For local files, derive URL from meta.storageKey (always an internal /_emdash/…
+	// path, safe by construction). For external providers, use value.src but only when
+	// it's an http(s) URL — a hostile provider plugin could otherwise return a data:
+	// or javascript: URL that gets rendered as a clickable link.
 	const normalized = React.useMemo(() => {
-		if (typeof value === "string") {
-			if (!value) return null;
-			return {
-				displayUrl: value,
-				filename: value.split("/").pop() || value,
-				mimeType: "",
-				size: undefined as number | undefined,
-			};
-		}
-		if (!value) return null;
-		const displayUrl =
-			value.src ||
-			(!value.provider || value.provider === "local"
-				? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
-				: undefined);
+		if (!value || typeof value === "string") return null;
+		const isLocal = !value.provider || value.provider === "local";
+		const storageKey =
+			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const localUrl = isLocal && storageKey ? `/_emdash/api/media/file/${storageKey}` : undefined;
+		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
 		return {
-			displayUrl,
+			displayUrl: localUrl ?? externalUrl,
 			filename: value.filename || t`Untitled file`,
 			mimeType: value.mimeType || "",
 			size: value.size,
@@ -1709,6 +1702,9 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 		onChange(null);
 	};
 
+	const hasMime = normalized?.mimeType;
+	const hasSize = normalized?.size;
+
 	return (
 		<div id={id}>
 			<Label>{label}</Label>
@@ -1730,10 +1726,13 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 						) : (
 							<p className="text-sm font-medium truncate">{normalized.filename}</p>
 						)}
-						<p className="text-xs text-kumo-subtle">
-							{normalized.mimeType}
-							{normalized.size ? ` • ${formatFileSize(normalized.size)}` : ""}
-						</p>
+						{(hasMime || hasSize) && (
+							<p className="text-xs text-kumo-subtle">
+								{hasMime ? normalized.mimeType : null}
+								{hasMime && hasSize ? " • " : null}
+								{hasSize ? formatFileSize(normalized.size as number) : null}
+							</p>
+						)}
 					</div>
 					<div className="flex gap-1">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
@@ -1745,7 +1744,7 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 							variant="destructive"
 							className="h-8 w-8"
 							onClick={handleRemove}
-							aria-label={t`Remove file`}
+							aria-label={t`Remove ${label}`}
 						>
 							<X className="h-4 w-4" />
 						</Button>
@@ -1757,6 +1756,7 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 					variant="outline"
 					className="mt-2 w-full h-32 border-dashed"
 					onClick={() => setPickerOpen(true)}
+					aria-label={t`Select ${label}`}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
 						<Paperclip className="h-8 w-8" />

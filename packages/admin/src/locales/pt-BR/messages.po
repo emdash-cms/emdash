@@ -932,7 +932,7 @@ msgid "Categories will be imported"
 msgstr "Categorias serão importadas"
 
 #: packages/admin/src/components/ContentEditor.tsx:1591
-#: packages/admin/src/components/ContentEditor.tsx:1740
+#: packages/admin/src/components/ContentEditor.tsx:1739
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -3786,6 +3786,10 @@ msgstr "Remover"
 msgid "Remove {0}"
 msgstr "Remover {0}"
 
+#: packages/admin/src/components/ContentEditor.tsx:1747
+msgid "Remove {label}"
+msgstr ""
+
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
 msgid "Remove Domain"
 msgstr "Remover domínio"
@@ -3793,10 +3797,6 @@ msgstr "Remover domínio"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:419
 msgid "Remove Domain?"
 msgstr "Remover domínio?"
-
-#: packages/admin/src/components/ContentEditor.tsx:1748
-msgid "Remove file"
-msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1599
 #: packages/admin/src/components/SeoImageField.tsx:55
@@ -4302,6 +4302,7 @@ msgid "Select"
 msgstr "Selecionar"
 
 #: packages/admin/src/components/ContentEditor.tsx:1623
+#: packages/admin/src/components/ContentEditor.tsx:1759
 #: packages/admin/src/components/ContentEditor.tsx:1773
 msgid "Select {label}"
 msgstr "Selecionar {label}"
@@ -5090,7 +5091,7 @@ msgstr "Cancelar agendamento"
 msgid "Untitled"
 msgstr "Sem título"
 
-#: packages/admin/src/components/ContentEditor.tsx:1689
+#: packages/admin/src/components/ContentEditor.tsx:1682
 msgid "Untitled file"
 msgstr ""
 

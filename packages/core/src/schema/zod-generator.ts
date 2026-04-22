@@ -109,6 +109,12 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 				alt: z.string().optional(),
 				width: z.number().optional(),
 				height: z.number().optional(),
+				/** Provider ID (e.g. "local", "cloudflare-images") */
+				provider: z.string().optional(),
+				/** Admin-side preview URL for external providers (not persisted by plugins) */
+				previewUrl: z.string().optional(),
+				/** Provider-specific metadata; for local media this carries storageKey */
+				meta: z.record(z.string(), z.unknown()).optional(),
 			});
 
 		case "file":
@@ -118,6 +124,10 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 				filename: z.string().optional(),
 				mimeType: z.string().optional(),
 				size: z.number().optional(),
+				/** Provider ID (e.g. "local", "s3") */
+				provider: z.string().optional(),
+				/** Provider-specific metadata; for local media this carries storageKey */
+				meta: z.record(z.string(), z.unknown()).optional(),
 			});
 
 		case "reference":
@@ -362,10 +372,10 @@ function fieldTypeToTypeScript(field: Field): string {
 			return "PortableTextBlock[]";
 
 		case "image":
-			return "{ id: string; src?: string; alt?: string; width?: number; height?: number }";
+			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
 
 		case "file":
-			return "{ id: string; src?: string; filename?: string; mimeType?: string; size?: number }";
+			return "{ id: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";
 
 		case "reference":
 			// Could be enhanced to include the referenced collection type

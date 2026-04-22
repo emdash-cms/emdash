@@ -934,7 +934,7 @@ msgid "Categories will be imported"
 msgstr "دسته‌ها درون‌ریزی خواهند شد"
 
 #: packages/admin/src/components/ContentEditor.tsx:1591
-#: packages/admin/src/components/ContentEditor.tsx:1740
+#: packages/admin/src/components/ContentEditor.tsx:1739
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -3788,6 +3788,10 @@ msgstr "حذف"
 msgid "Remove {0}"
 msgstr "حذف {0}"
 
+#: packages/admin/src/components/ContentEditor.tsx:1747
+msgid "Remove {label}"
+msgstr ""
+
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
 msgid "Remove Domain"
 msgstr "حذف دامنه"
@@ -3795,10 +3799,6 @@ msgstr "حذف دامنه"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:419
 msgid "Remove Domain?"
 msgstr "حذف دامنه؟"
-
-#: packages/admin/src/components/ContentEditor.tsx:1748
-msgid "Remove file"
-msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1599
 #: packages/admin/src/components/SeoImageField.tsx:55
@@ -4304,6 +4304,7 @@ msgid "Select"
 msgstr "انتخاب"
 
 #: packages/admin/src/components/ContentEditor.tsx:1623
+#: packages/admin/src/components/ContentEditor.tsx:1759
 #: packages/admin/src/components/ContentEditor.tsx:1773
 msgid "Select {label}"
 msgstr "انتخاب {label}"
@@ -5092,7 +5093,7 @@ msgstr "لغو زمان‌بندی"
 msgid "Untitled"
 msgstr "بی‌نام"
 
-#: packages/admin/src/components/ContentEditor.tsx:1689
+#: packages/admin/src/components/ContentEditor.tsx:1682
 msgid "Untitled file"
 msgstr ""
 

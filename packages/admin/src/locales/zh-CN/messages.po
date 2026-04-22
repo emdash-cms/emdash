@@ -932,7 +932,7 @@ msgid "Categories will be imported"
 msgstr "分类将被导入"
 
 #: packages/admin/src/components/ContentEditor.tsx:1591
-#: packages/admin/src/components/ContentEditor.tsx:1740
+#: packages/admin/src/components/ContentEditor.tsx:1739
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -3786,6 +3786,10 @@ msgstr "移除"
 msgid "Remove {0}"
 msgstr "移除 {0}"
 
+#: packages/admin/src/components/ContentEditor.tsx:1747
+msgid "Remove {label}"
+msgstr ""
+
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
 msgid "Remove Domain"
 msgstr "移除域名"
@@ -3793,10 +3797,6 @@ msgstr "移除域名"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:419
 msgid "Remove Domain?"
 msgstr "移除域名？"
-
-#: packages/admin/src/components/ContentEditor.tsx:1748
-msgid "Remove file"
-msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1599
 #: packages/admin/src/components/SeoImageField.tsx:55
@@ -4302,6 +4302,7 @@ msgid "Select"
 msgstr "选择"
 
 #: packages/admin/src/components/ContentEditor.tsx:1623
+#: packages/admin/src/components/ContentEditor.tsx:1759
 #: packages/admin/src/components/ContentEditor.tsx:1773
 msgid "Select {label}"
 msgstr "选择 {label}"
@@ -5090,7 +5091,7 @@ msgstr "取消定时发布"
 msgid "Untitled"
 msgstr "无标题"
 
-#: packages/admin/src/components/ContentEditor.tsx:1689
+#: packages/admin/src/components/ContentEditor.tsx:1682
 msgid "Untitled file"
 msgstr ""
 

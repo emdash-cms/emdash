@@ -271,17 +271,20 @@ describe("ContentEditor", () => {
 				isNew: true,
 			});
 
-			// The button that opens the picker should be present.
-			const selectBtn = screen.getByRole("button", { name: /Select file/i });
+			// The button that opens the picker should be present and labeled with the
+			// field's label (accessibility).
+			const selectBtn = screen.getByRole("button", { name: /Select Attachment/i });
 			await expect.element(selectBtn).toBeInTheDocument();
 
-			// And there must not be a text input masquerading as the file field.
-			// The old bug rendered `<Input>` with label "Attachment"; the field label now
-			// belongs to the picker region, not a text input.
-			const attachmentInputs = screen.getByLabelText("Attachment").all();
-			for (const el of attachmentInputs) {
-				expect(el.element().tagName).not.toBe("INPUT");
-			}
+			// And there must not be a text input inside the file field region — the old
+			// bug rendered an `<Input>` labeled "Attachment" as a plain text field.
+			// Use the field id (`field-attachment`) as an unconditional positive selector.
+			const fieldRoot = document.getElementById("field-attachment");
+			expect(fieldRoot).not.toBeNull();
+			const textInputs = fieldRoot!.querySelectorAll(
+				'input:not([type="file"]):not([type="hidden"])',
+			);
+			expect(textInputs).toHaveLength(0);
 		});
 
 		it("renders existing file field values as a filename, not a text input", async () => {
