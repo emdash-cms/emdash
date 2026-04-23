@@ -53,9 +53,12 @@ async function syndicateContent(
 	collection: string,
 	contentId: string,
 	content: Record<string, unknown>,
+	options: { allowCreate?: boolean } = {},
 ): Promise<void> {
 	const storageKey = `${collection}:${contentId}`;
 	const existing = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
+
+	if (!existing?.atUri && options.allowCreate === false) return;
 
 	if (existing && existing.status === "synced") {
 		const syncOnUpdate = (await ctx.kv.get<boolean>("settings:syncOnUpdate")) ?? true;
@@ -284,6 +287,7 @@ async function syncPublication(ctx: PluginContext) {
 async function syndicatePublishedContent(
 	event: { content: Record<string, unknown>; collection: string },
 	ctx: PluginContext,
+	options: { allowCreate?: boolean } = {},
 ) {
 	const { content, collection } = event;
 	const contentId = typeof content.id === "string" ? content.id : String(content.id);
@@ -293,7 +297,7 @@ async function syndicatePublishedContent(
 	if (!(await isCollectionAllowed(ctx, collection))) return;
 
 	try {
-		await syndicateContent(ctx, collection, contentId, content);
+		await syndicateContent(ctx, collection, contentId, content, options);
 	} catch (error) {
 		ctx.log.error(`Failed to syndicate ${collection}/${contentId}`, error);
 
@@ -330,7 +334,7 @@ export default definePlugin({
 				event: { content: Record<string, unknown>; collection: string; isNew: boolean },
 				ctx: PluginContext,
 			) => {
-				await syndicatePublishedContent(event, ctx);
+				await syndicatePublishedContent(event, ctx, { allowCreate: false });
 			},
 		},
 
@@ -339,7 +343,7 @@ export default definePlugin({
 				event: { content: Record<string, unknown>; collection: string },
 				ctx: PluginContext,
 			) => {
-				await syndicatePublishedContent(event, ctx);
+				await syndicatePublishedContent(event, ctx, { allowCreate: true });
 			},
 		},
 
