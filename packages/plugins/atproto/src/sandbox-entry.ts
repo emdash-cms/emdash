@@ -574,13 +574,13 @@ async function buildStatusPage(ctx: PluginContext) {
 			elements: [
 				{
 					type: "button",
-					text: "Test Connection",
+					label: "Test Connection",
 					action_id: "test_connection",
 					style: handle && appPassword ? "primary" : undefined,
 				},
 				{
 					type: "button",
-					text: pubUri ? "Update Publication" : "Sync Publication",
+					label: pubUri ? "Update Publication" : "Sync Publication",
 					action_id: "sync_publication",
 					style: did && siteUrl && siteName ? "primary" : undefined,
 				},
