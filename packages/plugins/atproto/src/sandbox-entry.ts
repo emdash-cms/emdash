@@ -527,7 +527,8 @@ async function buildStatusPage(ctx: PluginContext) {
 				type: "banner",
 				variant: "alert",
 				title: "Not connected",
-				description: "Handle configured but not yet connected. Save settings and test the connection.",
+				description:
+					"Handle configured but not yet connected. Save settings and test the connection.",
 			});
 		}
 
