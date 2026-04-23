@@ -38,7 +38,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 	// Filter out non-published translations for users without read_drafts so a
 	// subscriber can't enumerate locales that aren't yet live.
-	if (result.success && !hasPermission(user, "content:read_drafts" as Permission)) {
+	if (result.success && !hasPermission(user, "content:read_drafts")) {
 		const data =
 			result.data && typeof result.data === "object"
 				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
