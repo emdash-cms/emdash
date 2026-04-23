@@ -61,17 +61,20 @@ export function buildPublication(
  */
 export function buildDocument(opts: {
 	publicationUri: string;
+	collection?: string;
 	content: Record<string, unknown>;
 	coverImageBlob?: BlobRefLike;
 	bskyPostRef?: { uri: string; cid: string };
 }): StandardDocument {
-	const { publicationUri, content, coverImageBlob, bskyPostRef } = opts;
+	const { publicationUri, collection, content, coverImageBlob, bskyPostRef } = opts;
 
-	const slug = getString(content, "slug");
-	const title = getString(content, "title") || "Untitled";
-	const description = getString(content, "excerpt") || getString(content, "description");
-	const publishedAt = getString(content, "published_at") || new Date().toISOString();
-	const updatedAt = getString(content, "updated_at");
+	const title = getContentString(content, "title") || "Untitled";
+	const description = getContentString(content, "excerpt") || getContentString(content, "description");
+	const publishedAt =
+		getString(content, "publishedAt") ||
+		getString(content, "published_at") ||
+		new Date().toISOString();
+	const updatedAt = getString(content, "updatedAt") || getString(content, "updated_at");
 	const tags = extractTags(content);
 
 	const doc: StandardDocument = {
@@ -81,9 +84,8 @@ export function buildDocument(opts: {
 		publishedAt,
 	};
 
-	if (slug) {
-		doc.path = `/${slug}`;
-	}
+	const path = buildContentPath(collection, content);
+	if (path) doc.path = path;
 
 	if (description) {
 		doc.description = description;
@@ -136,12 +138,33 @@ function getString(obj: Record<string, unknown>, key: string): string | undefine
 	return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
+function getContentData(content: Record<string, unknown>): Record<string, unknown> {
+	return content.data && typeof content.data === "object"
+		? (content.data as Record<string, unknown>)
+		: {};
+}
+
+function getContentString(content: Record<string, unknown>, key: string): string | undefined {
+	return getString(content, key) || getString(getContentData(content), key);
+}
+
+export function buildContentPath(
+	collection: string | undefined,
+	content: Record<string, unknown>,
+): string | undefined {
+	const slug = getString(content, "slug");
+	if (!slug) return undefined;
+
+	if (!collection || collection === "pages") return `/${slug}`;
+	return `/${collection}/${slug}`;
+}
+
 /**
  * Extract tags from content. Handles both string arrays and
  * tag objects with a name property.
  */
 function extractTags(content: Record<string, unknown>): string[] {
-	const raw = content.tags;
+	const raw = content.tags || getContentData(content).tags;
 	if (!Array.isArray(raw)) return [];
 
 	const tags: string[] = [];
@@ -167,7 +190,9 @@ function extractTags(content: Record<string, unknown>): string[] {
 export function extractPlainText(content: Record<string, unknown>): string | undefined {
 	// Try common content field names
 	const body =
-		getString(content, "body") || getString(content, "content") || getString(content, "text");
+		getContentString(content, "body") ||
+		getContentString(content, "content") ||
+		getContentString(content, "text");
 
 	if (!body) return undefined;
 

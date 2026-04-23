@@ -52,17 +52,19 @@ export type BskyEmbed = {
  */
 export function buildBskyPost(opts: {
 	template: string;
+	collection?: string;
 	content: Record<string, unknown>;
 	siteUrl: string;
 	thumbBlob?: BlobRef;
 	langs?: string[];
 }): BskyPost {
-	const { template, content, siteUrl, thumbBlob, langs } = opts;
+	const { template, collection, content, siteUrl, thumbBlob, langs } = opts;
 
-	const title = (content.title as string) || "Untitled";
-	const slug = content.slug as string;
-	const excerpt = (content.excerpt || content.description || "") as string;
-	const url = slug ? `${stripTrailingSlash(siteUrl)}/${slug}` : siteUrl;
+	const title = getContentString(content, "title") || "Untitled";
+	const excerpt =
+		getContentString(content, "excerpt") || getContentString(content, "description") || "";
+	const path = buildContentPath(collection, content);
+	const url = path ? `${stripTrailingSlash(siteUrl)}${path}` : siteUrl;
 
 	// Apply template -- substitute before truncation so we can detect
 	// if the URL survives intact after truncation
@@ -182,4 +184,30 @@ function truncateGraphemes(text: string, maxGraphemes: number): string {
 
 function stripTrailingSlash(url: string): string {
 	return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+function getString(obj: Record<string, unknown>, key: string): string | undefined {
+	const value = obj[key];
+	return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function getContentData(content: Record<string, unknown>): Record<string, unknown> {
+	return content.data && typeof content.data === "object"
+		? (content.data as Record<string, unknown>)
+		: {};
+}
+
+function getContentString(content: Record<string, unknown>, key: string): string | undefined {
+	return getString(content, key) || getString(getContentData(content), key);
+}
+
+function buildContentPath(
+	collection: string | undefined,
+	content: Record<string, unknown>,
+): string | undefined {
+	const slug = getString(content, "slug");
+	if (!slug) return undefined;
+
+	if (!collection || collection === "pages") return `/${slug}`;
+	return `/${collection}/${slug}`;
 }

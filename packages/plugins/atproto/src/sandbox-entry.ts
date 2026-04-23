@@ -101,6 +101,7 @@ async function syndicateContent(
 		const rkey = rkeyFromUri(existing.atUri);
 		const doc = buildDocument({
 			publicationUri,
+			collection,
 			content,
 			coverImageBlob,
 			bskyPostRef:
@@ -134,7 +135,7 @@ async function syndicateContent(
 
 		ctx.log.info(`Updated AT Protocol document for ${collection}/${contentId}`);
 	} else {
-		const doc = buildDocument({ publicationUri, content, coverImageBlob });
+		const doc = buildDocument({ publicationUri, collection, content, coverImageBlob });
 		const result = await createRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", doc);
 
 		const enableCrosspost = (await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ?? true;
@@ -150,6 +151,7 @@ async function syndicateContent(
 					.slice(0, 3);
 				const post = buildBskyPost({
 					template,
+					collection,
 					content,
 					siteUrl,
 					thumbBlob: coverImageBlob,
@@ -167,7 +169,13 @@ async function syndicateContent(
 				bskyPostRef = { uri: postResult.uri, cid: postResult.cid };
 
 				const rkey = rkeyFromUri(result.uri);
-				const updatedDoc = buildDocument({ publicationUri, content, coverImageBlob, bskyPostRef });
+				const updatedDoc = buildDocument({
+					publicationUri,
+					collection,
+					content,
+					coverImageBlob,
+					bskyPostRef,
+				});
 				await putRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey, updatedDoc);
 
 				ctx.log.info(`Cross-posted ${collection}/${contentId} to Bluesky`);
