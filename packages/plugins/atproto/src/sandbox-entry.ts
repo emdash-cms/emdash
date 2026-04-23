@@ -99,15 +99,51 @@ async function syndicateContent(
 
 	if (existing && existing.atUri) {
 		const rkey = rkeyFromUri(existing.atUri);
+		bskyPostRef =
+			existing.bskyPostUri && existing.bskyPostCid
+				? { uri: existing.bskyPostUri, cid: existing.bskyPostCid }
+				: undefined;
+
+		const enableCrosspost = (await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ?? true;
+		if (enableCrosspost && existing.bskyPostUri) {
+			try {
+				const template =
+					(await ctx.kv.get<string>("settings:crosspostTemplate")) || "{title}\n\n{url}";
+				const langsStr = (await ctx.kv.get<string>("settings:langs")) || "en";
+				const langs = langsStr
+					.split(",")
+					.map((s: string) => s.trim())
+					.filter(Boolean)
+					.slice(0, 3);
+				const post = buildBskyPost({
+					template,
+					collection,
+					content,
+					siteUrl,
+					thumbBlob: coverImageBlob,
+					langs,
+				});
+				const postResult = await putRecord(
+					ctx,
+					pdsHost,
+					accessJwt,
+					did,
+					"app.bsky.feed.post",
+					rkeyFromUri(existing.bskyPostUri),
+					post,
+				);
+				bskyPostRef = { uri: postResult.uri, cid: postResult.cid };
+			} catch (error) {
+				ctx.log.warn("Failed to update Bluesky cross-post, document still synced", error);
+			}
+		}
+
 		const doc = buildDocument({
 			publicationUri,
 			collection,
 			content,
 			coverImageBlob,
-			bskyPostRef:
-				existing.bskyPostUri && existing.bskyPostCid
-					? { uri: existing.bskyPostUri, cid: existing.bskyPostCid }
-					: undefined,
+			bskyPostRef,
 		});
 
 		const result = await putRecord(
@@ -125,8 +161,8 @@ async function syndicateContent(
 			contentId: existing.contentId,
 			atUri: result.uri,
 			atCid: result.cid,
-			bskyPostUri: existing.bskyPostUri,
-			bskyPostCid: existing.bskyPostCid,
+			bskyPostUri: bskyPostRef?.uri,
+			bskyPostCid: bskyPostRef?.cid,
 			publishedAt: existing.publishedAt,
 			lastSyncedAt: new Date().toISOString(),
 			status: "synced",
