@@ -9,6 +9,7 @@
 import { definePlugin } from "emdash";
 import type { PluginContext } from "emdash";
 
+import { getAdminPageTarget, type AdminInteraction } from "./admin-routing.js";
 import {
 	ensureSession,
 	createRecord,
@@ -19,7 +20,6 @@ import {
 	requireHttp,
 	normalizePdsHost,
 } from "./atproto.js";
-import { getAdminPageTarget, type AdminInteraction } from "./admin-routing.js";
 import { buildBskyPost } from "./bluesky.js";
 import { buildPublication, buildDocument } from "./standard-site.js";
 

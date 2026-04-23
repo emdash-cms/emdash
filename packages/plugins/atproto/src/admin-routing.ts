@@ -5,7 +5,9 @@ export interface AdminInteraction {
 	values?: Record<string, unknown>;
 }
 
-export function getAdminPageTarget(interaction?: AdminInteraction): "status" | "sync-widget" | null {
+export function getAdminPageTarget(
+	interaction?: AdminInteraction,
+): "status" | "sync-widget" | null {
 	const interactionType = interaction?.type ?? "page_load";
 	const page = interaction?.page ?? "/status";
 
