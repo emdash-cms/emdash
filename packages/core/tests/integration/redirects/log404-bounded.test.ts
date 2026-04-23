@@ -178,4 +178,33 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 			.executeTakeFirstOrThrow();
 		expect(bumped.hits).toBe(2);
 	});
+
+	it("handles concurrent inserts for the same new path atomically", async () => {
+		// Regression: `log404` used to be SELECT-then-INSERT/UPDATE, which
+		// races under concurrency — both callers could miss the SELECT and
+		// the second INSERT would fail with a uniqueness violation once a
+		// UNIQUE index on `path` was added. The fix uses a single atomic
+		// upsert (ON CONFLICT DO UPDATE).
+		//
+		// better-sqlite3 is synchronous, so Promise.all doesn't produce real
+		// parallelism; the test instead sends a batch of concurrent upserts
+		// and asserts the end state: exactly one row, with the full count
+		// reflected in `hits`. Any lost updates or uniqueness errors would
+		// cause this to fail.
+		const concurrency = 10;
+		const pending: Array<Promise<void>> = [];
+		for (let i = 0; i < concurrency; i++) {
+			pending.push(repo.log404({ path: "/race" }));
+		}
+		await Promise.all(pending);
+
+		const rows = await db
+			.selectFrom("_emdash_404_log")
+			.selectAll()
+			.where("path", "=", "/race")
+			.execute();
+
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.hits).toBe(concurrency);
+	});
 });

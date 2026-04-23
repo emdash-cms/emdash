@@ -419,28 +419,10 @@ export class RedirectRepository {
 		const userAgent = truncateOrNull(entry.userAgent, USER_AGENT_MAX_LENGTH);
 		const ip = entry.ip ?? null;
 
-		// Upsert: check for existing row by path, bump if present, insert if not.
-		const existing = await this.db
-			.selectFrom("_emdash_404_log")
-			.select("id")
-			.where("path", "=", entry.path)
-			.executeTakeFirst();
-
-		if (existing) {
-			await this.db
-				.updateTable("_emdash_404_log")
-				.set({
-					hits: sql`hits + 1`,
-					last_seen_at: now,
-					referrer,
-					user_agent: userAgent,
-					ip,
-				})
-				.where("id", "=", existing.id)
-				.execute();
-			return;
-		}
-
+		// Atomic upsert by path. The UNIQUE index on `path` makes this safe
+		// under concurrency: two requests for the same new path can't both
+		// insert — the second one hits the conflict branch and increments
+		// hits instead of failing with a uniqueness error.
 		await this.db
 			.insertInto("_emdash_404_log")
 			.values({
@@ -453,11 +435,20 @@ export class RedirectRepository {
 				last_seen_at: now,
 				created_at: now,
 			})
+			.onConflict((oc) =>
+				oc.column("path").doUpdateSet({
+					hits: sql`hits + 1`,
+					last_seen_at: now,
+					referrer,
+					user_agent: userAgent,
+					ip,
+				}),
+			)
 			.execute();
 
-		// Enforce the row cap. Deterministic: every insert of a brand-new path
-		// counts the table and evicts the oldest rows if over cap. Updates
-		// (dedup hits) don't grow the table, so they skip this step.
+		// Enforce the row cap. Cheap when the table is under cap (single
+		// COUNT(*) query); evicts oldest rows if we're over. Updates (dedup
+		// hits) don't grow the table so this is a no-op for repeat paths.
 		await this.enforce404Cap();
 	}
 
@@ -466,7 +457,7 @@ export class RedirectRepository {
 	 * MAX_404_LOG_ROWS. "Oldest" is by `last_seen_at`, so a path that keeps
 	 * getting hit stays in the table even if it was first seen long ago.
 	 *
-	 * Exposed (package-private) for tests; callers should prefer `log404`.
+	 * Private — callers use `log404`, which invokes this after every upsert.
 	 */
 	private async enforce404Cap(): Promise<void> {
 		const countRow = await this.db
@@ -477,22 +468,23 @@ export class RedirectRepository {
 		if (count <= MAX_404_LOG_ROWS) return;
 
 		const excess = count - MAX_404_LOG_ROWS;
-		const victims = await this.db
-			.selectFrom("_emdash_404_log")
-			.select("id")
-			.orderBy("last_seen_at", "asc")
-			.orderBy("id", "asc")
-			.limit(excess)
-			.execute();
 
-		if (victims.length === 0) return;
-
+		// Evict the oldest rows in a single SQL statement. Using a subquery
+		// (rather than materialising the victim IDs in JS and passing them
+		// back as bind parameters) keeps the statement bounded regardless of
+		// how far over cap the table is — important for existing installs
+		// that crossed the threshold before this cap was introduced.
 		await this.db
 			.deleteFrom("_emdash_404_log")
 			.where(
 				"id",
 				"in",
-				victims.map((v) => v.id),
+				this.db
+					.selectFrom("_emdash_404_log")
+					.select("id")
+					.orderBy("last_seen_at", "asc")
+					.orderBy("id", "asc")
+					.limit(excess),
 			)
 			.execute();
 	}

@@ -8,8 +8,11 @@ import { sql } from "kysely";
  * inserted a new row, so an attacker could grow the table without bound.
  *
  * Changes:
- *   - Adds `hits` (default 1) and `last_seen_at` (default current timestamp)
- *   - Backfills existing rows: hits=1, last_seen_at=created_at
+ *   - Adds `hits` (default 1, NOT NULL)
+ *   - Adds `last_seen_at` (nullable; SQLite can't add NOT NULL with a
+ *     non-constant default to a populated table, so the column is nullable
+ *     at the schema level and backfilled from `created_at` for existing rows;
+ *     new inserts via `log404` always set it)
  *   - Deduplicates existing rows by path, keeping the most recent row per
  *     path and summing hits
  *   - Adds a UNIQUE index on `path` so upsert semantics work
@@ -35,41 +38,46 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	`.execute(db);
 
 	// 2. Deduplicate existing rows by path.
-	//    For each path, keep the row with the most recent created_at, set its
-	//    hits to the count of rows for that path, set last_seen_at to the
-	//    latest created_at, and delete the rest.
+	//    For each path, roll up hits and pick the freshest last_seen_at onto
+	//    a single keeper row, then delete the non-keepers. Uses window
+	//    functions (ROW_NUMBER) so the dedup SQL is valid on both SQLite
+	//    (3.25+, 2018) and Postgres. The previous GROUP BY approach was
+	//    accepted by SQLite but invalid on Postgres because `id` wasn't in
+	//    the GROUP BY or wrapped in an aggregate.
 	await sql`
+		WITH ranked AS (
+			SELECT
+				id,
+				path,
+				ROW_NUMBER() OVER (
+					PARTITION BY path
+					ORDER BY created_at DESC, id DESC
+				) AS rn,
+				COUNT(*) OVER (PARTITION BY path) AS path_count,
+				MAX(created_at) OVER (PARTITION BY path) AS latest_created_at
+			FROM _emdash_404_log
+		)
 		UPDATE _emdash_404_log
 		SET
-			hits = (
-				SELECT COUNT(*) FROM _emdash_404_log AS inner_log
-				WHERE inner_log.path = _emdash_404_log.path
-			),
-			last_seen_at = (
-				SELECT MAX(created_at) FROM _emdash_404_log AS inner_log
-				WHERE inner_log.path = _emdash_404_log.path
-			)
-		WHERE id IN (
-			SELECT id FROM _emdash_404_log AS outer_log
-			WHERE created_at = (
-				SELECT MAX(created_at) FROM _emdash_404_log AS inner_log
-				WHERE inner_log.path = outer_log.path
-			)
-		)
+			hits = (SELECT path_count FROM ranked WHERE ranked.id = _emdash_404_log.id),
+			last_seen_at = (SELECT latest_created_at FROM ranked WHERE ranked.id = _emdash_404_log.id)
+		WHERE id IN (SELECT id FROM ranked WHERE rn = 1)
 	`.execute(db);
 
-	// Delete the duplicates (rows that weren't the most recent per path).
+	// Delete the non-keepers (every row except the freshest per path).
 	await sql`
 		DELETE FROM _emdash_404_log
-		WHERE id NOT IN (
+		WHERE id IN (
 			SELECT id FROM (
-				SELECT id FROM _emdash_404_log AS outer_log
-				WHERE created_at = (
-					SELECT MAX(created_at) FROM _emdash_404_log AS inner_log
-					WHERE inner_log.path = outer_log.path
-				)
-				GROUP BY path
-			)
+				SELECT
+					id,
+					ROW_NUMBER() OVER (
+						PARTITION BY path
+						ORDER BY created_at DESC, id DESC
+					) AS rn
+				FROM _emdash_404_log
+			) AS ranked
+			WHERE rn > 1
 		)
 	`.execute(db);
 
