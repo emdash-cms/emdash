@@ -41,7 +41,7 @@ describe("createRecord", () => {
 	it("refreshes the session when the PDS returns a 400 ExpiredToken response", async () => {
 		const kv = new Map<string, unknown>([
 			["settings:pdsHost", "bsky.social"],
-			["settings:handle", "afterword.blog"],
+			["settings:handle", "example.com"],
 			["settings:appPassword", "app-password"],
 			["state:accessJwt", "stale-access"],
 			["state:refreshJwt", "refresh-token"],
@@ -60,7 +60,7 @@ describe("createRecord", () => {
 						accessJwt: "fresh-access",
 						refreshJwt: "fresh-refresh",
 						did: "did:plc:test",
-						handle: "afterword.blog",
+						handle: "example.com",
 					}),
 					{ status: 200 },
 				),
@@ -89,7 +89,7 @@ describe("createRecord", () => {
 			"stale-access",
 			"did:plc:test",
 			"site.standard.publication",
-			{ name: "Afterword" },
+			{ name: "Example Site" },
 		);
 
 		expect(result).toEqual({ uri: "at://did:plc:test/site.standard.publication/abc", cid: "cid" });
