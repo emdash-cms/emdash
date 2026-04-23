@@ -30,7 +30,7 @@ const DURATION_PATTERN = /^(\d+)([smhdw])$/;
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const id = params.id!;

@@ -30,6 +30,25 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 
 	const result = await emdash.handleContentGet(collection, id, locale);
 
+	// Hide non-published items from users without content:read_drafts. Return
+	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.
+	if (result.success && !hasPermission(user, "content:read_drafts")) {
+		const data =
+			result.data && typeof result.data === "object"
+				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+					(result.data as Record<string, unknown>)
+				: undefined;
+		const item =
+			data?.item && typeof data.item === "object"
+				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+					(data.item as Record<string, unknown>)
+				: undefined;
+		const status = typeof item?.status === "string" ? item.status : null;
+		if (status !== "published") {
+			return apiError("NOT_FOUND", `Content item not found: ${id}`, 404);
+		}
+	}
+
 	return unwrapResult(result);
 };
 

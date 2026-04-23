@@ -97,15 +97,19 @@ See the [Configuration guide](/reference/configuration#oauth) for setup instruct
 
 EmDash uses role-based access control with five levels:
 
-| Role        | Level | Description                     |
-| ----------- | ----- | ------------------------------- |
-| Subscriber  | 10    | View-only access                |
-| Contributor | 20    | Create content (needs approval) |
-| Author      | 30    | Create/edit/publish own content |
-| Editor      | 40    | Manage all content              |
-| Admin       | 50    | Full access including settings  |
+| Role        | Level | Description                                |
+| ----------- | ----- | ------------------------------------------ |
+| Subscriber  | 10    | Read published content (no draft access)   |
+| Contributor | 20    | Create content (needs approval to publish) |
+| Author      | 30    | Create/edit/publish own content            |
+| Editor      | 40    | Manage all content                         |
+| Admin       | 50    | Full access including settings             |
 
 Each role inherits permissions from all lower levels. The first user is always created as Admin.
+
+### Subscribers and draft content
+
+Subscribers hold the `content:read` permission so member-only published content can be served to authenticated readers. They cannot see drafts, scheduled items, trashed items, revisions, or preview URLs — those are gated on `content:read_drafts`, granted to Contributor and above. The list and get endpoints transparently filter to `status=published` for Subscribers; editor-only views (`/compare`, `/revisions`, `/trash`, `/preview-url`) reject Subscriber requests outright.
 
 ## Inviting Users
 

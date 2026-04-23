@@ -13,7 +13,7 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const id = params.id!;
