@@ -519,14 +519,15 @@ async function buildStatusPage(ctx: PluginContext) {
 		if (did) {
 			blocks.push({
 				type: "banner",
-				style: "success",
-				text: `Connected as ${handle} (${did})`,
+				title: "Connected",
+				description: `Connected as ${handle} (${did})`,
 			});
 		} else if (handle) {
 			blocks.push({
 				type: "banner",
-				style: "warning",
-				text: "Handle configured but not yet connected. Save settings and test the connection.",
+				variant: "alert",
+				title: "Not connected",
+				description: "Handle configured but not yet connected. Save settings and test the connection.",
 			});
 		}
 
@@ -642,7 +643,7 @@ async function buildStatusPage(ctx: PluginContext) {
 		return { blocks };
 	} catch (error) {
 		ctx.log.error("Failed to build status page", error);
-		return { blocks: [{ type: "banner", style: "error", text: "Failed to load settings" }] };
+		return { blocks: [{ type: "banner", variant: "error", title: "Failed to load settings" }] };
 	}
 }
 
@@ -665,7 +666,7 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 	} catch (error) {
 		ctx.log.error("Failed to save settings", error);
 		return {
-			blocks: [{ type: "banner", style: "error", text: "Failed to save settings" }],
+			blocks: [{ type: "banner", variant: "error", title: "Failed to save settings" }],
 			toast: { message: "Failed to save settings", type: "error" },
 		};
 	}
