@@ -43,7 +43,7 @@ import {
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
-import { resolvePublicMediaUrl } from "../media/url.js";
+import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { getRequestContext, runWithContext } from "../request-context.js";
@@ -306,7 +306,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						locals.emdash = {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
-							getPublicMediaUrl: (key: string) => resolvePublicMediaUrl(runtime.storage, key),
+							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
 						} as EmDashHandlers;
 					} catch {
 						// Non-fatal — EmDashHead will fall back to base SEO contributions
@@ -447,7 +447,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Direct access (for advanced use cases)
 					storage: runtime.storage,
 					db: runtime.db,
-					getPublicMediaUrl: (key: string) => resolvePublicMediaUrl(runtime.storage, key),
+					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
