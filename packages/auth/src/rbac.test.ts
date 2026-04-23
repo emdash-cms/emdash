@@ -58,6 +58,20 @@ describe("rbac", () => {
 		it("denies author from editing any media", () => {
 			expect(hasPermission({ role: Role.AUTHOR }, "media:edit_any")).toBe(false);
 		});
+
+		// content:read_drafts gates non-published content reads and editor-only
+		// views (revisions, compare, trash, preview-url).
+		it("denies subscriber from reading drafts", () => {
+			expect(hasPermission({ role: Role.SUBSCRIBER }, "content:read_drafts")).toBe(false);
+		});
+
+		it("allows contributor to read drafts", () => {
+			expect(hasPermission({ role: Role.CONTRIBUTOR }, "content:read_drafts")).toBe(true);
+		});
+
+		it("allows editor to read drafts", () => {
+			expect(hasPermission({ role: Role.EDITOR }, "content:read_drafts")).toBe(true);
+		});
 	});
 
 	describe("requirePermission", () => {

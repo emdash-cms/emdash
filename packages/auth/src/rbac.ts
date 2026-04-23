@@ -11,6 +11,11 @@ import { Role, type RoleLevel } from "./types.js";
 export const Permissions = {
 	// Content
 	"content:read": Role.SUBSCRIBER,
+	// content:read_drafts gates non-published content (drafts, scheduled, trash)
+	// and editor-only views (revisions, compare, preview-url). Subscribers may
+	// hold content:read for member-only published content but must not see
+	// drafts.
+	"content:read_drafts": Role.CONTRIBUTOR,
 	"content:create": Role.CONTRIBUTOR,
 	"content:edit_own": Role.AUTHOR,
 	"content:edit_any": Role.EDITOR,

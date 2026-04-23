@@ -5,6 +5,7 @@
  * POST /_emdash/api/content/{collection} - Create content
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
@@ -26,7 +27,14 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	const result = await emdash.handleContentList(collection, query);
+	// Subscribers must only see published content; force the status filter
+	// regardless of caller-supplied value. Any user with content:read_drafts
+	// (CONTRIBUTOR+) keeps the requested filter.
+	const params_ = hasPermission(user, "content:read_drafts")
+		? query
+		: { ...query, status: "published" };
+
+	const result = await emdash.handleContentList(collection, params_);
 
 	return unwrapResult(result);
 };
