@@ -69,7 +69,8 @@ export function buildDocument(opts: {
 	const { publicationUri, collection, content, coverImageBlob, bskyPostRef } = opts;
 
 	const title = getContentString(content, "title") || "Untitled";
-	const description = getContentString(content, "excerpt") || getContentString(content, "description");
+	const description =
+		getContentString(content, "excerpt") || getContentString(content, "description");
 	const publishedAt =
 		getString(content, "publishedAt") ||
 		getString(content, "published_at") ||
