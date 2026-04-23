@@ -237,6 +237,42 @@ async function syncPublication(ctx: PluginContext) {
 	};
 }
 
+async function syndicatePublishedContent(
+	event: { content: Record<string, unknown>; collection: string },
+	ctx: PluginContext,
+) {
+	const { content, collection } = event;
+	const contentId = typeof content.id === "string" ? content.id : String(content.id);
+	const status = content.status as string | undefined;
+
+	if (status !== "published") return;
+	if (!(await isCollectionAllowed(ctx, collection))) return;
+
+	try {
+		await syndicateContent(ctx, collection, contentId, content);
+	} catch (error) {
+		ctx.log.error(`Failed to syndicate ${collection}/${contentId}`, error);
+
+		const storageKey = `${collection}:${contentId}`;
+		const existing = await ctx.storage.records!.get(storageKey);
+		const record = (existing as SyndicationRecord | null) || {
+			collection,
+			contentId,
+			atUri: "",
+			atCid: "",
+			publishedAt: new Date().toISOString(),
+		};
+
+		await ctx.storage.records!.put(storageKey, {
+			...record,
+			status: "error",
+			lastSyncedAt: new Date().toISOString(),
+			errorMessage: error instanceof Error ? error.message : String(error),
+			retryCount: ((record as SyndicationRecord).retryCount || 0) + 1,
+		});
+	}
+}
+
 // ── Plugin definition ───────────────────────────────────────────
 
 export default definePlugin({
@@ -250,36 +286,16 @@ export default definePlugin({
 				event: { content: Record<string, unknown>; collection: string; isNew: boolean },
 				ctx: PluginContext,
 			) => {
-				const { content, collection } = event;
-				const contentId = typeof content.id === "string" ? content.id : String(content.id);
-				const status = content.status as string | undefined;
+				await syndicatePublishedContent(event, ctx);
+			},
+		},
 
-				if (status !== "published") return;
-				if (!(await isCollectionAllowed(ctx, collection))) return;
-
-				try {
-					await syndicateContent(ctx, collection, contentId, content);
-				} catch (error) {
-					ctx.log.error(`Failed to syndicate ${collection}/${contentId}`, error);
-
-					const storageKey = `${collection}:${contentId}`;
-					const existing = await ctx.storage.records!.get(storageKey);
-					const record = (existing as SyndicationRecord | null) || {
-						collection,
-						contentId,
-						atUri: "",
-						atCid: "",
-						publishedAt: new Date().toISOString(),
-					};
-
-					await ctx.storage.records!.put(storageKey, {
-						...record,
-						status: "error",
-						lastSyncedAt: new Date().toISOString(),
-						errorMessage: error instanceof Error ? error.message : String(error),
-						retryCount: ((record as SyndicationRecord).retryCount || 0) + 1,
-					});
-				}
+		"content:afterPublish": {
+			handler: async (
+				event: { content: Record<string, unknown>; collection: string },
+				ctx: PluginContext,
+			) => {
+				await syndicatePublishedContent(event, ctx);
 			},
 		},
 
