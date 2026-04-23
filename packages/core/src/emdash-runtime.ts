@@ -2222,22 +2222,24 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 	): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterSave")) {
-			this.hooks
-				.runContentAfterSave(content, collection, isNew)
-				.catch((err) => console.error("EmDash afterSave hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterSave")) {
+				await this.hooks.runContentAfterSave(content, collection, isNew);
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
+			// Sandboxed plugins
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [id] = pluginKey.split(":");
+				if (!id || !this.isPluginEnabled(id)) continue;
 
-			plugin
-				.invokeHook("content:afterSave", { content, collection, isNew })
-				.catch((err) => console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err));
-		}
+				try {
+					await plugin.invokeHook("content:afterSave", { content, collection, isNew });
+				} catch (err) {
+					console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
+				}
+			}
+		});
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
@@ -2262,24 +2264,24 @@ export class EmDashRuntime {
 	}
 
 	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterPublish")) {
-			this.hooks
-				.runContentAfterPublish(content, collection)
-				.catch((err) => console.error("EmDash afterPublish hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterPublish")) {
+				await this.hooks.runContentAfterPublish(content, collection);
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterPublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err),
-				);
-		}
+				try {
+					await plugin.invokeHook("content:afterPublish", { content, collection });
+				} catch (err) {
+					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+				}
+			}
+		});
 	}
 
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
