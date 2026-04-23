@@ -24,6 +24,18 @@ import type { EmDashConfig } from "../astro/integration/runtime.js";
  */
 const HEADER_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9a-z]+$/;
 
+/**
+ * Normalise a list of header names the way both the config path and any
+ * caller passing a pre-resolved list should do: trim, lowercase, drop
+ * empty, drop anything that isn't a valid RFC 7230 token. Invalid names
+ * would crash `Headers.get()` at runtime.
+ */
+export function normalizeTrustedHeaders(names: readonly string[]): string[] {
+	return names
+		.map((h) => h.trim().toLowerCase())
+		.filter((h) => h.length > 0 && HEADER_NAME_PATTERN.test(h));
+}
+
 function isValidHeaderName(name: string): boolean {
 	return HEADER_NAME_PATTERN.test(name);
 }
@@ -40,15 +52,16 @@ function getEnvTrustedHeaders(): string[] {
 	if (_envCache !== null) return _envCache;
 	let raw: string | undefined;
 	try {
-		// Prefer import.meta.env (Vite/Astro convention) with a process.env
-		// fallback for Node deployments where import.meta.env isn't populated
-		// with runtime envs.
+		// Prefer process.env so SSR/container deployments can override this
+		// value at runtime (Vite/Astro inline import.meta.env at build time,
+		// which locks the value into the bundle). Fall back to import.meta.env
+		// for bundler-managed environments where process.env isn't populated.
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env shape varies by bundler
 		const importMetaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> })
 			.env;
 		raw =
-			importMetaEnv?.EMDASH_TRUSTED_PROXY_HEADERS ||
-			(typeof process !== "undefined" ? process.env?.EMDASH_TRUSTED_PROXY_HEADERS : undefined);
+			(typeof process !== "undefined" ? process.env?.EMDASH_TRUSTED_PROXY_HEADERS : undefined) ||
+			importMetaEnv?.EMDASH_TRUSTED_PROXY_HEADERS;
 	} catch {
 		raw = undefined;
 	}
@@ -72,7 +85,7 @@ function getEnvTrustedHeaders(): string[] {
 export function getTrustedProxyHeaders(config: EmDashConfig | null | undefined): string[] {
 	if (config && config.trustedProxyHeaders !== undefined) {
 		return config.trustedProxyHeaders
-			.map((h) => h.toLowerCase())
+			.map((h) => h.trim().toLowerCase())
 			.filter((h) => h.length > 0 && isValidHeaderName(h));
 	}
 	return getEnvTrustedHeaders();

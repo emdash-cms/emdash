@@ -8,7 +8,7 @@
  */
 
 import type { EmDashConfig } from "../astro/integration/runtime.js";
-import { getTrustedProxyHeaders } from "../auth/trusted-proxy.js";
+import { getTrustedProxyHeaders, normalizeTrustedHeaders } from "../auth/trusted-proxy.js";
 import type { GeoInfo, RequestMeta } from "./types.js";
 
 /**
@@ -147,7 +147,10 @@ function resolveTrustedHeaders(
 	value: EmDashConfig | null | { trustedProxyHeaders?: string[] } | string[] | undefined,
 ): string[] {
 	if (Array.isArray(value)) {
-		return value.map((h) => h.toLowerCase());
+		// Apply the same RFC 7230 validation the config/env path does so a
+		// caller passing a pre-resolved list with bad entries can't crash
+		// `Headers.get()` downstream.
+		return normalizeTrustedHeaders(value);
 	}
 	return getTrustedProxyHeaders(value);
 }

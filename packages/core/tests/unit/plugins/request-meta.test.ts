@@ -610,5 +610,16 @@ describe("extractRequestMeta", () => {
 			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
 			expect(meta.ip).toBe("1.1.1.1");
 		});
+
+		it("validates a pre-resolved string[] of trusted headers", () => {
+			// Passing the array form (used by the plugin runtime with a list
+			// pre-resolved from the config) must not trust an invalid header
+			// name — headers.get() would throw a TypeError.
+			const req = createRequest({
+				headers: { "x-real-ip": "203.0.113.50" },
+			});
+			const meta = extractRequestMeta(req, ["bad name", " x-real-ip ", "bad:colon"]);
+			expect(meta.ip).toBe("203.0.113.50");
+		});
 	});
 });

@@ -85,4 +85,13 @@ describe("getTrustedProxyHeaders", () => {
 		process.env.EMDASH_TRUSTED_PROXY_HEADERS = "x-real-ip, x y z , bad:one, ok-name";
 		expect(getTrustedProxyHeaders(undefined)).toEqual(["x-real-ip", "ok-name"]);
 	});
+
+	it("trims whitespace from config entries before matching", () => {
+		// Common typo: `"x-real-ip "` (trailing space). Previously the raw
+		// value was lowercased but not trimmed, so validation silently
+		// dropped it and per-IP bucketing was disabled.
+		expect(
+			getTrustedProxyHeaders({ trustedProxyHeaders: [" x-real-ip ", "fly-client-ip"] }),
+		).toEqual(["x-real-ip", "fly-client-ip"]);
+	});
 });

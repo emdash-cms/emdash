@@ -19,6 +19,7 @@ import type {
 } from "./astro/integration/runtime.js";
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
+import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { runMigrations } from "./database/migrations/runner.js";
@@ -2080,6 +2081,7 @@ export class EmDashRuntime {
 			const routeRegistry = new PluginRouteRegistry({
 				db: this.db,
 				emailPipeline: this.email ?? undefined,
+				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
 			routeRegistry.register(trustedPlugin);
 
