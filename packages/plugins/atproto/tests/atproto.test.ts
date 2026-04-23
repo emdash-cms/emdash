@@ -66,9 +66,12 @@ describe("createRecord", () => {
 				),
 			)
 			.mockResolvedValueOnce(
-				new Response(JSON.stringify({ uri: "at://did:plc:test/site.standard.publication/abc", cid: "cid" }), {
-					status: 200,
-				}),
+				new Response(
+					JSON.stringify({ uri: "at://did:plc:test/site.standard.publication/abc", cid: "cid" }),
+					{
+						status: 200,
+					},
+				),
 			);
 		const ctx = {
 			http: { fetch },
