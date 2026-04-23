@@ -41,10 +41,14 @@ interface SyndicationRecord {
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+const DEFAULT_SYNDICATED_COLLECTIONS = ["posts"];
+
 async function isCollectionAllowed(ctx: PluginContext, collection: string): Promise<boolean> {
 	const setting = await ctx.kv.get<string>("settings:collections");
-	if (!setting || setting.trim() === "") return true;
-	const allowed = setting.split(",").map((s: string) => s.trim().toLowerCase());
+	const configured = setting?.trim();
+	const allowed = configured
+		? configured.split(",").map((s: string) => s.trim().toLowerCase())
+		: DEFAULT_SYNDICATED_COLLECTIONS;
 	return allowed.includes(collection.toLowerCase());
 }
 
@@ -565,6 +569,7 @@ async function buildStatusPage(ctx: PluginContext) {
 		const pdsHost = await ctx.kv.get<string>("settings:pdsHost");
 		const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
 		const siteName = await ctx.kv.get<string>("settings:siteName");
+		const collections = await ctx.kv.get<string>("settings:collections");
 		const enableBskyCrosspost =
 			(await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ??
 			(await ctx.kv.get<boolean>("settings:enableCrosspost"));
@@ -624,6 +629,12 @@ async function buildStatusPage(ctx: PluginContext) {
 					action_id: "siteName",
 					label: "Site Name",
 					initial_value: siteName ?? "",
+				},
+				{
+					type: "text_input",
+					action_id: "collections",
+					label: "Collections to syndicate",
+					initial_value: collections ?? DEFAULT_SYNDICATED_COLLECTIONS.join(","),
 				},
 				{
 					type: "toggle",
@@ -721,6 +732,8 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 			await ctx.kv.set("settings:pdsHost", normalizePdsHost(values.pdsHost));
 		if (typeof values.siteUrl === "string") await ctx.kv.set("settings:siteUrl", values.siteUrl);
 		if (typeof values.siteName === "string") await ctx.kv.set("settings:siteName", values.siteName);
+		if (typeof values.collections === "string")
+			await ctx.kv.set("settings:collections", values.collections);
 		if (typeof values.enableBskyCrosspost === "boolean")
 			await ctx.kv.set("settings:enableBskyCrosspost", values.enableBskyCrosspost);
 		if (typeof values.enableCrosspost === "boolean")

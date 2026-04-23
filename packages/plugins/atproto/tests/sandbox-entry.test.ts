@@ -51,4 +51,27 @@ describe("sandbox hooks", () => {
 		expect(ctx.http.fetch).not.toHaveBeenCalled();
 		expect(ctx.kv.get).not.toHaveBeenCalledWith("settings:siteUrl");
 	});
+
+	it("does not syndicate pages by default", async () => {
+		const { default: plugin } = await import("../src/sandbox-entry.js");
+		const ctx = createCtx();
+		const handler = (plugin as any).hooks["content:afterPublish"].handler;
+
+		await handler(
+			{
+				collection: "pages",
+				content: {
+					id: "page-1",
+					status: "published",
+					title: "About",
+				},
+			},
+			ctx,
+		);
+
+		expect(ctx.kv.get).toHaveBeenCalledWith("settings:collections");
+		expect(ctx.storage.records.get).not.toHaveBeenCalled();
+		expect(ctx.storage.records.put).not.toHaveBeenCalled();
+		expect(ctx.http.fetch).not.toHaveBeenCalled();
+	});
 });
