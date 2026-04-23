@@ -74,4 +74,29 @@ describe("sandbox hooks", () => {
 		expect(ctx.storage.records.put).not.toHaveBeenCalled();
 		expect(ctx.http.fetch).not.toHaveBeenCalled();
 	});
+
+	it("does not expose standard.site metadata for pages by default", async () => {
+		const { default: plugin } = await import("../src/sandbox-entry.js");
+		const ctx = createCtx();
+		ctx.storage.records.get.mockResolvedValueOnce({
+			atUri: "at://did:example/site.standard.document/abc",
+			status: "synced",
+		});
+
+		const result = await (plugin as any).hooks["page:metadata"](
+			{
+				page: {
+					content: {
+						collection: "pages",
+						id: "page-1",
+					},
+				},
+			},
+			ctx,
+		);
+
+		expect(result).toBeNull();
+		expect(ctx.kv.get).toHaveBeenCalledWith("settings:collections");
+		expect(ctx.storage.records.get).not.toHaveBeenCalled();
+	});
 });

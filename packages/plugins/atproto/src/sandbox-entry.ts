@@ -385,6 +385,7 @@ export default definePlugin({
 		) => {
 			const pageContent = event.page.content;
 			if (!pageContent) return null;
+			if (!(await isCollectionAllowed(ctx, pageContent.collection))) return null;
 
 			const storageKey = `${pageContent.collection}:${pageContent.id}`;
 			const record = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
