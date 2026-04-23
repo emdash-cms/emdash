@@ -11,6 +11,8 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import type { SandboxEmailSendCallback } from "emdash";
 import { ulid } from "emdash";
 
+import { sandboxHttpFetch } from "./bridge-http.js";
+
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 
@@ -809,41 +811,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		text: string;
 	}> {
 		const { capabilities, allowedHosts } = this.ctx.props;
-		const hasUnrestricted = capabilities.includes("network:fetch:any");
-		const hasFetch = capabilities.includes("network:fetch") || hasUnrestricted;
-		if (!hasFetch) {
-			throw new Error("Missing capability: network:fetch");
-		}
-
-		if (!hasUnrestricted) {
-			const host = new URL(url).host;
-			if (allowedHosts.length === 0) {
-				throw new Error(
-					`Plugin has no allowed hosts configured. Add hosts to allowedHosts to enable HTTP requests.`,
-				);
-			}
-			const allowed = allowedHosts.some((pattern) => {
-				if (pattern.startsWith("*.")) {
-					return host.endsWith(pattern.slice(1)) || host === pattern.slice(2);
-				}
-				return host === pattern;
-			});
-			if (!allowed) {
-				throw new Error(`Host not allowed: ${host}. Allowed: ${allowedHosts.join(", ")}`);
-			}
-		}
-
-		const response = await fetch(url, init);
-		const headers: Record<string, string> = {};
-		response.headers.forEach((value, key) => {
-			headers[key] = value;
-		});
-
-		return {
-			status: response.status,
-			headers,
-			text: await response.text(),
-		};
+		return sandboxHttpFetch(url, init, { capabilities, allowedHosts });
 	}
 
 	// =========================================================================
