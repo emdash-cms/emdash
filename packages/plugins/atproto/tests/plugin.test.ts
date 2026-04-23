@@ -28,7 +28,9 @@ describe("atprotoPlugin descriptor", () => {
 
 	it("exposes an admin status page and widget", () => {
 		const descriptor = atprotoPlugin();
-		expect(descriptor.adminPages).toEqual([{ path: "/status", label: "AT Protocol", icon: "globe" }]);
+		expect(descriptor.adminPages).toEqual([
+			{ path: "/status", label: "AT Protocol", icon: "globe" },
+		]);
 		expect(descriptor.adminWidgets).toEqual([
 			{ id: "sync-status", title: "AT Protocol", size: "third" },
 		]);
