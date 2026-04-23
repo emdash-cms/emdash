@@ -2321,7 +2321,7 @@ export class EmDashRuntime {
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);
-			const meta = extractRequestMeta(request);
+			const meta = extractRequestMeta(request, this.config);
 			const result = await plugin.invokeRoute(routeName, body, {
 				url: request.url,
 				method: request.method,

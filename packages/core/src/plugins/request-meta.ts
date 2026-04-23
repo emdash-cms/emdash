@@ -7,6 +7,8 @@
  *
  */
 
+import type { EmDashConfig } from "../astro/integration/runtime.js";
+import { getTrustedProxyHeaders } from "../auth/trusted-proxy.js";
 import type { GeoInfo, RequestMeta } from "./types.js";
 
 /**
@@ -41,6 +43,23 @@ function parseFirstForwardedIp(header: string): string | null {
 }
 
 /**
+ * Read an IP from an operator-declared trusted header. XFF-style headers
+ * (any name ending in `forwarded-for`) are parsed as comma-separated lists
+ * and the first entry is used; everything else is treated as a single
+ * trimmed value.
+ */
+function readIpFromHeader(headers: Headers, name: string): string | null {
+	const value = headers.get(name);
+	if (!value) return null;
+	if (name.endsWith("forwarded-for")) {
+		return parseFirstForwardedIp(value);
+	}
+	const trimmed = value.trim();
+	if (!trimmed) return null;
+	return IP_PATTERN.test(trimmed) ? trimmed : null;
+}
+
+/**
  * Get the Cloudflare `cf` object from the request, if present.
  * Returns undefined when not running on Cloudflare Workers.
  */
@@ -69,32 +88,52 @@ function extractGeo(cf: CfProperties | undefined): GeoInfo | null {
  * Extract normalized request metadata from a Request object.
  *
  * IP resolution order:
- * 1. `CF-Connecting-IP` header — only trusted when a `cf` object is
- *    present on the request (proving the request came through Cloudflare's
- *    edge, which strips/overwrites client-supplied values).
- * 2. `X-Forwarded-For` header (first entry) — best-effort, spoofable
- *    when there is no trusted reverse proxy.
- * 3. `null`
+ * 1. `CF-Connecting-IP` — trusted only when a `cf` object is present on the
+ *    request. CF edge overwrites any client-supplied value, so this is the
+ *    cryptographically trustworthy path on Workers. Operator-declared
+ *    trusted headers cannot override it.
+ * 2. `X-Forwarded-For` first entry — trusted only with a `cf` object.
+ * 3. Operator-declared trusted proxy headers (from `config.trustedProxyHeaders`
+ *    or the `EMDASH_TRUSTED_PROXY_HEADERS` env var), tried in order. Used as
+ *    the primary source off-CF and as a fill-in on CF.
+ * 4. `null`
+ *
+ * The second argument accepts either the EmDash config or a pre-resolved
+ * list of trusted headers, so callers that already have the list don't have
+ * to round-trip through the config every request.
  */
-export function extractRequestMeta(request: Request): RequestMeta {
+export function extractRequestMeta(
+	request: Request,
+	configOrTrustedHeaders?: EmDashConfig | null | { trustedProxyHeaders?: string[] } | string[],
+): RequestMeta {
 	const headers = request.headers;
 	const cf = getCfObject(request);
+	const trusted = resolveTrustedHeaders(configOrTrustedHeaders);
 
-	// IP: only trust headers when the cf object confirms we're on Cloudflare.
-	// Without a trusted reverse proxy, X-Forwarded-For is trivially spoofable.
 	let ip: string | null = null;
+
+	// On Cloudflare, prefer the cryptographically trustworthy headers first.
 	if (cf) {
 		const cfIp = headers.get("cf-connecting-ip")?.trim();
 		if (cfIp && IP_PATTERN.test(cfIp)) {
 			ip = cfIp;
 		}
+		if (!ip) {
+			const xff = headers.get("x-forwarded-for");
+			ip = xff ? parseFirstForwardedIp(xff) : null;
+		}
 	}
-	if (!ip && cf) {
-		// Only trust X-Forwarded-For when we're behind Cloudflare (which
-		// overwrites the header). In standalone deployments without a trusted
-		// proxy, XFF is trivially spoofable.
-		const xff = headers.get("x-forwarded-for");
-		ip = xff ? parseFirstForwardedIp(xff) : null;
+
+	// Fall through to operator-declared trusted headers. On CF this fills
+	// in when the CF headers are absent; off-CF it's the primary source.
+	if (!ip) {
+		for (const name of trusted) {
+			const value = readIpFromHeader(headers, name);
+			if (value) {
+				ip = value;
+				break;
+			}
+		}
 	}
 
 	const userAgent = headers.get("user-agent")?.trim() || null;
@@ -102,6 +141,15 @@ export function extractRequestMeta(request: Request): RequestMeta {
 	const geo = extractGeo(cf);
 
 	return { ip, userAgent, referer, geo };
+}
+
+function resolveTrustedHeaders(
+	value: EmDashConfig | null | { trustedProxyHeaders?: string[] } | string[] | undefined,
+): string[] {
+	if (Array.isArray(value)) {
+		return value.map((h) => h.toLowerCase());
+	}
+	return getTrustedProxyHeaders(value);
 }
 
 // =============================================================================

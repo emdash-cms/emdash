@@ -285,6 +285,32 @@ export interface EmDashConfig {
 	siteUrl?: string;
 
 	/**
+	 * Headers to trust for client IP resolution when running behind a reverse
+	 * proxy. The first header in this list that is present on the request
+	 * wins. Applies to rate limiting for auth endpoints and comment
+	 * submission.
+	 *
+	 * Common values:
+	 * - `x-real-ip` — nginx, Caddy, Traefik
+	 * - `fly-client-ip` — Fly.io
+	 * - `x-forwarded-for` — generic (first entry is used)
+	 *
+	 * Only set this when you **control the reverse proxy**. Untrusted
+	 * clients can set any header they like; trusting headers from an open
+	 * network is an IP-spoofing vulnerability that defeats rate limiting.
+	 *
+	 * On Cloudflare the `cf` object on the request is used automatically —
+	 * you normally don't need to set this. Leave unset (or empty) to
+	 * preserve the default: IP is resolved only when the request came
+	 * through Cloudflare's edge.
+	 *
+	 * Falls back to `EMDASH_TRUSTED_PROXY_HEADERS` env var (comma-separated)
+	 * when this option is not set, so operators can configure at deploy
+	 * time without touching the Astro config.
+	 */
+	trustedProxyHeaders?: string[];
+
+	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
 	 *
 	 * When set, the integration injects a playground middleware (order: "pre")

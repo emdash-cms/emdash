@@ -854,6 +854,13 @@ export interface PluginContextFactoryOptions {
 	 * If not provided (or no provider configured), ctx.email will be undefined.
 	 */
 	emailPipeline?: EmailPipeline;
+	/**
+	 * Pre-resolved list of trusted proxy header names (from the runtime
+	 * `EmDashConfig.trustedProxyHeaders` or the env var). Plugin route
+	 * handlers pass this to `extractRequestMeta` so plugins see the same
+	 * client IP the core auth path does.
+	 */
+	trustedProxyHeaders?: string[];
 }
 
 /**
