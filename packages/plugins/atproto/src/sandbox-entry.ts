@@ -17,6 +17,7 @@ import {
 	rkeyFromUri,
 	uploadBlob,
 	requireHttp,
+	normalizePdsHost,
 } from "./atproto.js";
 import { buildBskyPost } from "./bluesky.js";
 import { buildPublication, buildDocument } from "./standard-site.js";
@@ -42,7 +43,7 @@ interface SyndicationRecord {
 async function isCollectionAllowed(ctx: PluginContext, collection: string): Promise<boolean> {
 	const setting = await ctx.kv.get<string>("settings:collections");
 	if (!setting || setting.trim() === "") return true;
-	const allowed = setting.split(",").map((s) => s.trim().toLowerCase());
+	const allowed = setting.split(",").map((s: string) => s.trim().toLowerCase());
 	return allowed.includes(collection.toLowerCase());
 }
 
@@ -143,7 +144,7 @@ async function syndicateContent(
 				const langsStr = (await ctx.kv.get<string>("settings:langs")) || "en";
 				const langs = langsStr
 					.split(",")
-					.map((s) => s.trim())
+					.map((s: string) => s.trim())
 					.filter(Boolean)
 					.slice(0, 3);
 				const post = buildBskyPost({
@@ -188,6 +189,51 @@ async function syndicateContent(
 
 		ctx.log.info(`Created AT Protocol document for ${collection}/${contentId}`);
 	}
+}
+
+async function syncPublication(ctx: PluginContext) {
+	const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
+	const siteName = await ctx.kv.get<string>("settings:siteName");
+	if (!siteUrl || !siteName)
+		return {
+			success: false,
+			error: "Site URL and name are required",
+		};
+
+	const { accessJwt, did, pdsHost } = await ensureSession(ctx);
+	const publication = buildPublication(siteUrl, siteName);
+	const existingUri = await ctx.kv.get<string>("state:publicationUri");
+
+	let result;
+	if (existingUri) {
+		const rkey = rkeyFromUri(existingUri);
+		result = await putRecord(
+			ctx,
+			pdsHost,
+			accessJwt,
+			did,
+			"site.standard.publication",
+			rkey,
+			publication,
+		);
+	} else {
+		result = await createRecord(
+			ctx,
+			pdsHost,
+			accessJwt,
+			did,
+			"site.standard.publication",
+			publication,
+		);
+	}
+
+	await ctx.kv.set("state:publicationUri", result.uri);
+	await ctx.kv.set("state:publicationCid", result.cid);
+	return {
+		success: true,
+		uri: result.uri,
+		cid: result.cid,
+	};
 }
 
 // ── Plugin definition ───────────────────────────────────────────
@@ -345,48 +391,7 @@ export default definePlugin({
 		"sync-publication": {
 			handler: async (_routeCtx: unknown, ctx: PluginContext) => {
 				try {
-					const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
-					const siteName = await ctx.kv.get<string>("settings:siteName");
-					if (!siteUrl || !siteName)
-						return {
-							success: false,
-							error: "Site URL and name are required",
-						};
-
-					const { accessJwt, did, pdsHost } = await ensureSession(ctx);
-					const publication = buildPublication(siteUrl, siteName);
-					const existingUri = await ctx.kv.get<string>("state:publicationUri");
-
-					let result;
-					if (existingUri) {
-						const rkey = rkeyFromUri(existingUri);
-						result = await putRecord(
-							ctx,
-							pdsHost,
-							accessJwt,
-							did,
-							"site.standard.publication",
-							rkey,
-							publication,
-						);
-					} else {
-						result = await createRecord(
-							ctx,
-							pdsHost,
-							accessJwt,
-							did,
-							"site.standard.publication",
-							publication,
-						);
-					}
-
-					await ctx.kv.set("state:publicationUri", result.uri);
-					await ctx.kv.set("state:publicationCid", result.cid);
-					return {
-						success: true,
-						uri: result.uri,
-						cid: result.cid,
-					};
+					return await syncPublication(ctx);
 				} catch (error) {
 					return {
 						success: false,
@@ -450,6 +455,9 @@ export default definePlugin({
 				if (interaction.type === "block_action" && interaction.action_id === "test_connection") {
 					return testConnection(ctx);
 				}
+				if (interaction.type === "block_action" && interaction.action_id === "sync_publication") {
+					return syncPublicationAdmin(ctx);
+				}
 				return { blocks: [] };
 			},
 		},
@@ -498,7 +506,10 @@ async function buildStatusPage(ctx: PluginContext) {
 		const appPassword = await ctx.kv.get<string>("settings:appPassword");
 		const pdsHost = await ctx.kv.get<string>("settings:pdsHost");
 		const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
-		const enableCrosspost = await ctx.kv.get<boolean>("settings:enableCrosspost");
+		const siteName = await ctx.kv.get<string>("settings:siteName");
+		const enableBskyCrosspost =
+			(await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ??
+			(await ctx.kv.get<boolean>("settings:enableCrosspost"));
 		const did = await ctx.kv.get<string>("state:did");
 		const pubUri = await ctx.kv.get<string>("state:publicationUri");
 
@@ -540,7 +551,7 @@ async function buildStatusPage(ctx: PluginContext) {
 					type: "text_input",
 					action_id: "pdsHost",
 					label: "PDS Host",
-					initial_value: pdsHost ?? "https://bsky.social",
+					initial_value: pdsHost ?? "bsky.social",
 				},
 				{
 					type: "text_input",
@@ -549,10 +560,16 @@ async function buildStatusPage(ctx: PluginContext) {
 					initial_value: siteUrl ?? "",
 				},
 				{
+					type: "text_input",
+					action_id: "siteName",
+					label: "Site Name",
+					initial_value: siteName ?? "",
+				},
+				{
 					type: "toggle",
-					action_id: "enableCrosspost",
+					action_id: "enableBskyCrosspost",
 					label: "Cross-post to Bluesky",
-					initial_value: enableCrosspost ?? false,
+					initial_value: enableBskyCrosspost ?? true,
 				},
 			],
 			submit: { label: "Save Settings", action_id: "save_settings" },
@@ -566,6 +583,12 @@ async function buildStatusPage(ctx: PluginContext) {
 					text: "Test Connection",
 					action_id: "test_connection",
 					style: handle && appPassword ? "primary" : undefined,
+				},
+				{
+					type: "button",
+					text: pubUri ? "Update Publication" : "Sync Publication",
+					action_id: "sync_publication",
+					style: did && siteUrl && siteName ? "primary" : undefined,
 				},
 			],
 		});
@@ -592,7 +615,7 @@ async function buildStatusPage(ctx: PluginContext) {
 							{ key: "status", label: "Status", format: "badge" },
 							{ key: "lastSyncedAt", label: "Synced", format: "relative_time" },
 						],
-						rows: items.map((r) => ({
+						rows: items.map((r: SyndicationRecord & { id: string }) => ({
 							collection: r.collection,
 							contentId: r.contentId,
 							status: r.status,
@@ -634,10 +657,14 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 		if (typeof values.handle === "string") await ctx.kv.set("settings:handle", values.handle);
 		if (typeof values.appPassword === "string" && values.appPassword)
 			await ctx.kv.set("settings:appPassword", values.appPassword);
-		if (typeof values.pdsHost === "string") await ctx.kv.set("settings:pdsHost", values.pdsHost);
+		if (typeof values.pdsHost === "string")
+			await ctx.kv.set("settings:pdsHost", normalizePdsHost(values.pdsHost));
 		if (typeof values.siteUrl === "string") await ctx.kv.set("settings:siteUrl", values.siteUrl);
+		if (typeof values.siteName === "string") await ctx.kv.set("settings:siteName", values.siteName);
+		if (typeof values.enableBskyCrosspost === "boolean")
+			await ctx.kv.set("settings:enableBskyCrosspost", values.enableBskyCrosspost);
 		if (typeof values.enableCrosspost === "boolean")
-			await ctx.kv.set("settings:enableCrosspost", values.enableCrosspost);
+			await ctx.kv.set("settings:enableBskyCrosspost", values.enableCrosspost);
 
 		const page = await buildStatusPage(ctx);
 		return { ...page, toast: { message: "Settings saved", type: "success" } };
@@ -664,6 +691,30 @@ async function testConnection(ctx: PluginContext) {
 			...page,
 			toast: {
 				message: `Connection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+				type: "error",
+			},
+		};
+	}
+}
+
+async function syncPublicationAdmin(ctx: PluginContext) {
+	try {
+		const result = await syncPublication(ctx);
+		const page = await buildStatusPage(ctx);
+		return {
+			...page,
+			toast: result.success
+				? { message: "Publication synced", type: "success" }
+				: { message: result.error ?? "Failed to sync publication", type: "error" },
+		};
+	} catch (error) {
+		const page = await buildStatusPage(ctx);
+		return {
+			...page,
+			toast: {
+				message: `Publication sync failed: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
 				type: "error",
 			},
 		};

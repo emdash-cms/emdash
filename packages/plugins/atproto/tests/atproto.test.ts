@@ -1,6 +1,25 @@
 import { describe, it, expect } from "vitest";
 
-import { rkeyFromUri } from "../src/atproto.js";
+import { normalizePdsHost, rkeyFromUri } from "../src/atproto.js";
+
+describe("normalizePdsHost", () => {
+	it("defaults to bsky.social", () => {
+		expect(normalizePdsHost(undefined)).toBe("bsky.social");
+	});
+
+	it("accepts host-only values", () => {
+		expect(normalizePdsHost("bsky.social")).toBe("bsky.social");
+	});
+
+	it("accepts full PDS URLs", () => {
+		expect(normalizePdsHost("https://bsky.social")).toBe("bsky.social");
+		expect(normalizePdsHost("https://example.com/")).toBe("example.com");
+	});
+
+	it("preserves ports", () => {
+		expect(normalizePdsHost("http://localhost:2583")).toBe("localhost:2583");
+	});
+});
 
 describe("rkeyFromUri", () => {
 	it("extracts rkey from a standard AT-URI", () => {
