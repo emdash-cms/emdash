@@ -106,4 +106,56 @@ describe("POST /setup — site_url write-once lock", () => {
 		const options = new OptionsRepository(db);
 		expect(await options.get("emdash:site_url")).toBe("http://real-site.example");
 	});
+
+	it("is atomic under concurrent setup POSTs with different Hosts", async () => {
+		// Two concurrent callers observe an empty site_url and race to
+		// write. Without DB-level write-once semantics, the last writer
+		// wins and the legitimate host can still be replaced.
+		const [a, b] = await Promise.all([
+			postSetup(
+				buildContext(
+					db,
+					buildRequest("real-site.example", { title: "My Site", includeContent: false }),
+				),
+			),
+			postSetup(
+				buildContext(
+					db,
+					buildRequest("attacker.example", { title: "My Site", includeContent: false }),
+				),
+			),
+		]);
+		expect(a.status).toBe(200);
+		expect(b.status).toBe(200);
+
+		const options = new OptionsRepository(db);
+		const stored = await options.get("emdash:site_url");
+		// Whichever call won the race must now stick — a third caller must
+		// not be able to overwrite it.
+		expect(["http://real-site.example", "http://attacker.example"]).toContain(stored);
+
+		const third = await postSetup(
+			buildContext(db, buildRequest("other.example", { title: "My Site", includeContent: false })),
+		);
+		expect(third.status).toBe(200);
+		expect(await options.get("emdash:site_url")).toBe(stored);
+	});
+
+	it("does not overwrite a legitimately-stored empty string", async () => {
+		// Defence-in-depth: if site_url was somehow stored as "" (e.g.
+		// manual DB edit, legacy data, test fixture), the guard must treat
+		// it as present, not missing.
+		const options = new OptionsRepository(db);
+		await options.set("emdash:site_url", "");
+
+		const res = await postSetup(
+			buildContext(
+				db,
+				buildRequest("attacker.example", { title: "My Site", includeContent: false }),
+			),
+		);
+		expect(res.status).toBe(200);
+
+		expect(await options.get("emdash:site_url")).toBe("");
+	});
 });

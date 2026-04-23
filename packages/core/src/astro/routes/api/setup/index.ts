@@ -89,15 +89,12 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			const options = new OptionsRepository(emdash.db);
 
 			// Store the canonical site URL from the setup request.
-			// Write-once: if site_url is already stored (e.g. from an earlier
-			// step of the setup wizard), don't overwrite it. A spoofed Host
-			// header on a subsequent setup call during the wizard window
-			// could otherwise poison the URL used in auth emails.
-			const existingSiteUrl = await options.get("emdash:site_url");
-			if (!existingSiteUrl) {
-				const siteUrl = getPublicOrigin(url, emdash.config);
-				await options.set("emdash:site_url", siteUrl);
-			}
+			// Write-once at the DB level so concurrent setup POSTs can't both
+			// observe an empty value and race to write. A spoofed Host header
+			// on a later call during the wizard window must not be able to
+			// replace the first value.
+			const siteUrl = getPublicOrigin(url, emdash.config);
+			await options.setIfAbsent("emdash:site_url", siteUrl);
 
 			if (useExternalAuth) {
 				// External auth mode: mark setup complete now

@@ -56,6 +56,31 @@ export class OptionsRepository {
 	}
 
 	/**
+	 * Set an option value only if no row with that name exists. Atomic at the
+	 * database level via INSERT ... ON CONFLICT DO NOTHING, so concurrent
+	 * callers can't race past the check.
+	 *
+	 * Returns true when the row was inserted, false when a row already
+	 * existed (regardless of its value — even an empty string or null).
+	 */
+	async setIfAbsent<T = unknown>(name: string, value: T): Promise<boolean> {
+		const row: OptionTable = {
+			name,
+			value: JSON.stringify(value),
+		};
+
+		const result = await this.db
+			.insertInto("options")
+			.values(row)
+			.onConflict((oc) => oc.column("name").doNothing())
+			.executeTakeFirst();
+
+		// SQLite reports numInsertedOrUpdatedRows; Postgres reports the same.
+		// When the ON CONFLICT branch fires and does nothing, the count is 0.
+		return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
+	}
+
+	/**
 	 * Delete an option
 	 */
 	async delete(name: string): Promise<boolean> {
