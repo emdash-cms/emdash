@@ -61,11 +61,16 @@ const BLOCKED_PATTERNS: Array<{ start: number; end: number }> = [
 	{ start: ip4ToNum(0, 0, 0, 0), end: ip4ToNum(0, 255, 255, 255) },
 ];
 
+// Bracket-stripped form is used for lookups (validateExternalUrl strips
+// brackets from parsed.hostname before checking), so "::1" appears here
+// without brackets. The "::1" case is already covered by isPrivateIp, but
+// keeping it here makes the intent explicit and gives a clearer error
+// message for the common `http://[::1]/` form.
 const BLOCKED_HOSTNAMES = new Set([
 	"localhost",
 	"metadata.google.internal",
 	"metadata.google",
-	"[::1]",
+	"::1",
 ]);
 
 /**
@@ -236,8 +241,10 @@ export function validateExternalUrl(url: string): URL {
 		}
 	}
 
-	// Check if hostname is an IP address in a private range
-	if (isPrivateIp(hostname)) {
+	// Check if hostname is an IP address in a private range. Use the
+	// normalized form so "127.0.0.1.." and friends don't bypass parseIpv4
+	// (which rejects extra trailing dots).
+	if (isPrivateIp(normalizedHost)) {
 		throw new SsrfError("URLs targeting private IP addresses are not allowed");
 	}
 
@@ -338,7 +345,10 @@ export const cloudflareDohResolver: DnsResolver = async (hostname) => {
 			if (body.Status !== 0) {
 				throw new Error(`DoH ${type} lookup failed: rcode=${body.Status}`);
 			}
-			return body.Answer.map((a) => a.data).filter((d) => typeof d === "string");
+			// DoH Answer arrays often include CNAME records alongside A/AAAA
+			// records. Their `data` is a hostname, not an IP. Filter to just
+			// IP literals so isPrivateIp sees real addresses.
+			return body.Answer.map((a) => a.data).filter(isIpLiteral);
 		} finally {
 			clearTimeout(timeout);
 		}

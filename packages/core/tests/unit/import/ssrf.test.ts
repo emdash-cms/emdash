@@ -221,6 +221,19 @@ describe("validateExternalUrl", () => {
 		expect(() => validateExternalUrl("http://0.0.0.0/")).toThrow(SsrfError);
 		expect(() => validateExternalUrl("http://0.0.0.1/")).toThrow(SsrfError);
 	});
+
+	// IPv4 literals with trailing dots. A single trailing dot is stripped by
+	// the WHATWG URL parser, but multiple trailing dots are preserved on
+	// .hostname. parseIpv4 rejects anything with a dot count != 4, so
+	// "127.0.0.1.." falls through to isPrivateIp's IPv6 fallback and
+	// returns false, bypassing the private-IP check. We must strip trailing
+	// dots before the private-IP check.
+	it("blocks IPv4 literals with trailing dots", () => {
+		expect(() => validateExternalUrl("http://127.0.0.1./")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://127.0.0.1../")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://169.254.169.254../")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://10.0.0.1../")).toThrow(SsrfError);
+	});
 });
 
 // =============================================================================
@@ -732,5 +745,47 @@ describe("cloudflareDohResolver", () => {
 		});
 		const ips = await cloudflareDohResolver("example.com");
 		expect(ips).toEqual(["93.184.216.34"]);
+	});
+
+	// DoH responses often include CNAME records in the Answer chain alongside
+	// (or instead of) A/AAAA records. Their `data` field is a hostname, not
+	// an IP. If we return them, the validator's isPrivateIp check silently
+	// accepts them (parseIpv4 returns null → "not private" → pass).
+	it("filters CNAME-style hostname answers, keeping only IP literals", async () => {
+		stubFetch({
+			A: {
+				body: {
+					Status: 0,
+					Answer: [
+						{ data: "cdn.example.com." }, // CNAME target, not an IP
+						{ data: "93.184.216.34" }, // real A record
+					],
+				},
+			},
+			AAAA: {
+				body: {
+					Status: 0,
+					Answer: [{ data: "other.example.com." }, { data: "2606:4700::1" }],
+				},
+			},
+		});
+		const ips = await cloudflareDohResolver("example.com");
+		expect(ips).toEqual(["93.184.216.34", "2606:4700::1"]);
+	});
+
+	it("rejects a response that contains only CNAME strings", async () => {
+		stubFetch({
+			A: {
+				body: {
+					Status: 0,
+					Answer: [{ data: "target.example.com." }],
+				},
+			},
+			AAAA: { body: { Status: 0, Answer: [] } },
+		});
+		const ips = await cloudflareDohResolver("cname-only.example");
+		// No IPs at all — the caller should treat this as "could not resolve"
+		// and fail closed, not pretend the CNAME target is an address.
+		expect(ips).toEqual([]);
 	});
 });
