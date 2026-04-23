@@ -466,6 +466,8 @@ export interface NotFoundLogTable {
 	referrer: string | null;
 	user_agent: string | null;
 	ip: string | null;
+	hits: number;
+	last_seen_at: string;
 	created_at: string;
 }
 
