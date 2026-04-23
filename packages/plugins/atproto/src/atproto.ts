@@ -64,6 +64,18 @@ function xrpcUrl(pdsHost: string, method: string): string {
 	return `https://${normalizePdsHost(pdsHost)}/xrpc/${method}`;
 }
 
+async function responseNeedsSessionRefresh(res: Response): Promise<boolean> {
+	if (res.status === 401) return true;
+	if (res.status !== 400) return false;
+
+	try {
+		const body = (await res.clone().json()) as Record<string, unknown>;
+		return body.error === "ExpiredToken";
+	} catch {
+		return false;
+	}
+}
+
 /** Validate that a PDS response contains expected string fields. */
 function requireString(data: Record<string, unknown>, field: string, context: string): string {
 	const value = data[field];
@@ -222,8 +234,8 @@ export async function createRecord(
 		body: JSON.stringify({ repo: did, collection, record }),
 	});
 
-	// Retry once on 401 with refreshed token
-	if (res.status === 401) {
+	// Retry once when the PDS reports an expired access token.
+	if (await responseNeedsSessionRefresh(res)) {
 		const refreshed = await ensureSessionFresh(ctx, pdsHost);
 		if (refreshed) {
 			res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.createRecord"), {
@@ -272,7 +284,7 @@ export async function putRecord(
 		body: JSON.stringify({ repo: did, collection, rkey, record }),
 	});
 
-	if (res.status === 401) {
+	if (await responseNeedsSessionRefresh(res)) {
 		const refreshed = await ensureSessionFresh(ctx, pdsHost);
 		if (refreshed) {
 			res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.putRecord"), {
@@ -320,7 +332,7 @@ export async function deleteRecord(
 		body: JSON.stringify({ repo: did, collection, rkey }),
 	});
 
-	if (res.status === 401) {
+	if (await responseNeedsSessionRefresh(res)) {
 		const refreshed = await ensureSessionFresh(ctx, pdsHost);
 		if (refreshed) {
 			res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.deleteRecord"), {
