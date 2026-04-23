@@ -131,9 +131,14 @@ describe("POST /setup/admin — session nonce binding", () => {
 
 		const cookie = jar.get("emdash_setup_nonce");
 		expect(cookie).toBeDefined();
-		expect(cookie!.value).toMatch(/^[A-Za-z0-9_-]{20,}$/);
+		// 32 bytes base64url-encoded with no padding = 43 chars. Lock the
+		// shape so accidental entropy changes trip this test.
+		expect(cookie!.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
 		expect(cookie!.options.httpOnly).toBe(true);
-		expect(cookie!.options.sameSite).toMatch(/^(strict|lax)$/);
+		// The route sets sameSite: "strict" deliberately — this is the
+		// property that prevents cross-site submission of the cookie.
+		// Allowing "lax" here would silently accept a regression.
+		expect(cookie!.options.sameSite).toBe("strict");
 		expect(cookie!.options.path).toBe("/_emdash/");
 
 		const options = new OptionsRepository(db);
@@ -141,6 +146,41 @@ describe("POST /setup/admin — session nonce binding", () => {
 		expect(setupState).toBeDefined();
 		expect(setupState?.email).toBe("real@admin.example");
 		expect(setupState?.nonce).toBe(cookie!.value);
+	});
+
+	it("sets Secure on the nonce cookie when the public origin is HTTPS, even if the internal request URL is HTTP", async () => {
+		// Simulates a TLS-terminating reverse proxy: browser speaks
+		// https:// to the proxy, proxy speaks http:// to the app. The
+		// cookie must still be marked Secure so it's never sent over a
+		// plain-text channel on the public side.
+		const { jar, cookies } = createCookieJar();
+		const request = buildAdminRequest(adminBody);
+		const ctx = buildContext(db, request, cookies);
+		// Force the "internal" view to be HTTP…
+		(ctx as { url: URL }).url = new URL("http://internal.localhost/_emdash/api/setup/admin");
+		// …while config.siteUrl declares the public HTTPS origin.
+		(ctx.locals as { emdash: { config: { siteUrl: string } } }).emdash.config = {
+			siteUrl: "https://public.example.com",
+		};
+
+		const res = await postAdmin(ctx);
+		expect(res.status).toBe(200);
+
+		const cookie = jar.get("emdash_setup_nonce");
+		expect(cookie).toBeDefined();
+		expect(cookie!.options.secure).toBe(true);
+	});
+
+	it("omits Secure on the nonce cookie when the public origin is HTTP (local dev)", async () => {
+		// Mirror of the test above: a plain http://localhost deployment
+		// must not set Secure (Chromium would drop the cookie entirely).
+		const { jar, cookies } = createCookieJar();
+		const res = await postAdmin(buildContext(db, buildAdminRequest(adminBody), cookies));
+		expect(res.status).toBe(200);
+
+		const cookie = jar.get("emdash_setup_nonce");
+		expect(cookie).toBeDefined();
+		expect(cookie!.options.secure).toBe(false);
 	});
 
 	it("rejects /admin/verify when no nonce cookie is present", async () => {

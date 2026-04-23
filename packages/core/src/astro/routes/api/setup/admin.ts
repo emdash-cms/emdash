@@ -95,11 +95,18 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		// accessible to JS (nothing in the admin UI needs to read it) and
 		// must not be sent on cross-site navigations. The /_emdash/ path
 		// scope keeps it away from user-authored frontend code.
+		//
+		// Derive `secure` from the public origin, not the internal request
+		// URL. Behind a TLS-terminating reverse proxy the internal hop is
+		// often `http:` while the browser-facing origin is `https:` —
+		// using `url.protocol` there would drop the Secure flag on a
+		// sensitive cookie over the public HTTPS connection.
+		const publicOrigin = new URL(siteUrl);
 		cookies.set(SETUP_NONCE_COOKIE, nonce, {
 			path: "/_emdash/",
 			httpOnly: true,
 			sameSite: "strict",
-			secure: url.protocol === "https:",
+			secure: publicOrigin.protocol === "https:",
 			maxAge: SETUP_NONCE_MAX_AGE_SECONDS,
 		});
 
