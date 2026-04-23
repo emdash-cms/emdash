@@ -19,6 +19,7 @@ import {
 	requireHttp,
 	normalizePdsHost,
 } from "./atproto.js";
+import { getAdminPageTarget, type AdminInteraction } from "./admin-routing.js";
 import { buildBskyPost } from "./bluesky.js";
 import { buildPublication, buildDocument } from "./standard-site.js";
 
@@ -436,26 +437,19 @@ export default definePlugin({
 
 		admin: {
 			handler: async (routeCtx: any, ctx: PluginContext) => {
-				const interaction = routeCtx.input as {
-					type: string;
-					page?: string;
-					action_id?: string;
-					values?: Record<string, unknown>;
-				};
+				const interaction = routeCtx.input as AdminInteraction | undefined;
+				const interactionType = interaction?.type ?? "page_load";
+				const pageTarget = getAdminPageTarget(interaction);
 
-				if (interaction.type === "page_load" && interaction.page === "widget:sync-status") {
-					return buildSyncWidget(ctx);
-				}
-				if (interaction.type === "page_load" && interaction.page === "/status") {
-					return buildStatusPage(ctx);
-				}
-				if (interaction.type === "form_submit" && interaction.action_id === "save_settings") {
+				if (pageTarget === "sync-widget") return buildSyncWidget(ctx);
+				if (pageTarget === "status") return buildStatusPage(ctx);
+				if (interactionType === "form_submit" && interaction?.action_id === "save_settings") {
 					return saveSettings(ctx, interaction.values ?? {});
 				}
-				if (interaction.type === "block_action" && interaction.action_id === "test_connection") {
+				if (interactionType === "block_action" && interaction?.action_id === "test_connection") {
 					return testConnection(ctx);
 				}
-				if (interaction.type === "block_action" && interaction.action_id === "sync_publication") {
+				if (interactionType === "block_action" && interaction?.action_id === "sync_publication") {
 					return syncPublicationAdmin(ctx);
 				}
 				return { blocks: [] };
