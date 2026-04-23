@@ -7,12 +7,14 @@
  * - validateExternalUrl blocking internal targets
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-	validateExternalUrl,
-	SsrfError,
+	cloudflareDohResolver,
 	normalizeIPv6MappedToIPv4,
+	resolveAndValidateExternalUrl,
+	SsrfError,
+	validateExternalUrl,
 } from "../../../src/import/ssrf.js";
 
 describe("validateExternalUrl", () => {
@@ -401,5 +403,334 @@ describe("normalizeIPv6MappedToIPv4", () => {
 	it("returns null for dotted-decimal mapped form (handled separately)", () => {
 		// ::ffff:127.0.0.1 uses the dotted-decimal regex, not hex normalization
 		expect(normalizeIPv6MappedToIPv4("::ffff:127.0.0.1")).toBeNull();
+	});
+});
+
+// =============================================================================
+// Wildcard DNS services — hostname blocklist
+//
+// Services like nip.io map "127.0.0.1.nip.io" to 127.0.0.1. Without DNS
+// resolution they pass validateExternalUrl since the hostname is neither an
+// IP literal nor on the small internal-names list. Adding the apex domains
+// to BLOCKED_HOSTNAMES catches the most widely-used rebinding tools without
+// requiring a network round-trip.
+// =============================================================================
+
+describe("validateExternalUrl — wildcard DNS rebinding services", () => {
+	it("blocks nip.io and its subdomains", () => {
+		expect(() => validateExternalUrl("http://nip.io/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://127.0.0.1.nip.io/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://169.254.169.254.nip.io/latest/")).toThrow(SsrfError);
+	});
+
+	it("blocks sslip.io and its subdomains", () => {
+		expect(() => validateExternalUrl("http://sslip.io/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://127.0.0.1.sslip.io/")).toThrow(SsrfError);
+	});
+
+	it("blocks xip.io and its subdomains", () => {
+		expect(() => validateExternalUrl("http://xip.io/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://10.0.0.1.xip.io/")).toThrow(SsrfError);
+	});
+
+	it("blocks traefik.me and its subdomains", () => {
+		expect(() => validateExternalUrl("http://traefik.me/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://127.0.0.1.traefik.me/")).toThrow(SsrfError);
+	});
+
+	it("is case-insensitive for blocklisted hostnames", () => {
+		expect(() => validateExternalUrl("http://NIP.IO/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://127.0.0.1.Nip.Io/")).toThrow(SsrfError);
+	});
+
+	// Trailing-dot FQDN form. The WHATWG URL parser preserves the dot on
+	// `.hostname`, so a naive exact-match or `.endsWith(suffix)` check misses
+	// these. Without explicit normalization, attackers can bypass both
+	// BLOCKED_HOSTNAMES and the suffix list by appending a single dot.
+	it("blocks trailing-dot FQDNs on the hostname blocklist", () => {
+		expect(() => validateExternalUrl("http://localhost./")).toThrow(SsrfError);
+	});
+
+	it("blocks trailing-dot FQDNs on the wildcard suffix list", () => {
+		expect(() => validateExternalUrl("http://nip.io./")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://127.0.0.1.nip.io./")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://sslip.io./")).toThrow(SsrfError);
+	});
+
+	it("allows look-alike domains that are not on the blocklist", () => {
+		// Defensive: we should only block specific known services, not any
+		// domain that happens to contain "nip" or similar.
+		expect(validateExternalUrl("http://nippon.example.com/")).toBeInstanceOf(URL);
+	});
+});
+
+// =============================================================================
+// resolveAndValidateExternalUrl — async DNS-aware validation
+//
+// Runs validateExternalUrl first (cheap pre-flight), then resolves the
+// hostname via an injectable resolver and checks each returned IP against
+// the private-range blocklist. Catches DNS rebinding attacks using domains
+// the attacker controls (not just known public rebinding services).
+// =============================================================================
+
+describe("resolveAndValidateExternalUrl", () => {
+	// Helper: build a stubbed resolver that returns a fixed list of IPs.
+	function resolver(ips: string[]): (host: string) => Promise<string[]> {
+		return async () => ips;
+	}
+
+	// Helper: a resolver that fails. Used to assert fail-closed behaviour.
+	function failingResolver(error = new Error("DNS failure")) {
+		return async () => {
+			throw error;
+		};
+	}
+
+	it("accepts public IPs", async () => {
+		const url = await resolveAndValidateExternalUrl("https://example.com/", {
+			resolver: resolver(["93.184.216.34"]),
+		});
+		expect(url).toBeInstanceOf(URL);
+		expect(url.hostname).toBe("example.com");
+	});
+
+	it("rejects hostnames that resolve to loopback", async () => {
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver(["127.0.0.1"]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("rejects hostnames that resolve to cloud metadata IP", async () => {
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver(["169.254.169.254"]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("rejects hostnames that resolve to any RFC1918 address", async () => {
+		for (const ip of ["10.0.0.1", "172.16.0.1", "192.168.1.1"]) {
+			await expect(
+				resolveAndValidateExternalUrl("https://attacker.example/", {
+					resolver: resolver([ip]),
+				}),
+			).rejects.toThrow(SsrfError);
+		}
+	});
+
+	it("rejects if ANY resolved IP is private (multi-record DNS rebinding)", async () => {
+		// Attacker serves two A records; we must reject if either is private,
+		// not just the first one.
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver(["93.184.216.34", "127.0.0.1"]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("rejects IPv6 loopback in resolved records", async () => {
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver(["::1"]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("rejects IPv6 link-local in resolved records (any case)", async () => {
+		for (const ip of ["fe80::1", "FE80::1", "Fe80::abcd"]) {
+			await expect(
+				resolveAndValidateExternalUrl("https://attacker.example/", {
+					resolver: resolver([ip]),
+				}),
+			).rejects.toThrow(SsrfError);
+		}
+	});
+
+	it("rejects IPv6 unique-local in resolved records (any case)", async () => {
+		for (const ip of ["fc00::1", "FC00::1", "fd12:3456::1", "FD00::BEEF"]) {
+			await expect(
+				resolveAndValidateExternalUrl("https://attacker.example/", {
+					resolver: resolver([ip]),
+				}),
+			).rejects.toThrow(SsrfError);
+		}
+	});
+
+	it("rejects IPv4-mapped IPv6 loopback in resolved records", async () => {
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver(["::ffff:127.0.0.1"]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("accepts public IPv6 addresses", async () => {
+		const url = await resolveAndValidateExternalUrl("https://example.com/", {
+			resolver: resolver(["2606:4700:4700::1111"]),
+		});
+		expect(url).toBeInstanceOf(URL);
+	});
+
+	it("runs synchronous validateExternalUrl first (short-circuits on literal IP)", async () => {
+		// 127.0.0.1 as a literal hostname is caught by validateExternalUrl
+		// before any DNS lookup. Pass a resolver that would throw to prove it
+		// isn't called.
+		const r = failingResolver(new Error("should not be called"));
+		await expect(
+			resolveAndValidateExternalUrl("http://127.0.0.1/", { resolver: r }),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("fails closed when the resolver throws", async () => {
+		await expect(
+			resolveAndValidateExternalUrl("https://example.com/", {
+				resolver: failingResolver(),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("rejects empty resolver result (hostname resolves to nothing)", async () => {
+		await expect(
+			resolveAndValidateExternalUrl("https://example.com/", {
+				resolver: resolver([]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it("returns the parsed URL on success", async () => {
+		const url = await resolveAndValidateExternalUrl("https://example.com/path?q=1", {
+			resolver: resolver(["93.184.216.34"]),
+		});
+		expect(url.pathname).toBe("/path");
+		expect(url.searchParams.get("q")).toBe("1");
+	});
+});
+
+// =============================================================================
+// cloudflareDohResolver — unit tests for the DoH parser
+//
+// Stubs globalThis.fetch to simulate various DoH responses. The resolver
+// must:
+//   - return IPs from valid A and AAAA responses
+//   - treat NXDOMAIN (Status=3) as an empty result (legitimately non-existent)
+//   - fail closed on SERVFAIL (Status=2), REFUSED (Status=5), and other
+//     non-zero statuses, so that split-view DNS can't smuggle a private IP
+//     past the check by SERVFAIL'ing one record type
+//   - fail on HTTP errors
+//   - fail on malformed JSON or responses with missing fields
+// =============================================================================
+
+describe("cloudflareDohResolver", () => {
+	let originalFetch: typeof globalThis.fetch;
+
+	beforeEach(() => {
+		originalFetch = globalThis.fetch;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	function stubFetch(
+		responses: Record<"A" | "AAAA", { body?: unknown; status?: number; throws?: Error }>,
+	): void {
+		globalThis.fetch = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const type: "A" | "AAAA" = url.includes("type=AAAA") ? "AAAA" : "A";
+			const res = responses[type];
+			if (res.throws) throw res.throws;
+			return new Response(JSON.stringify(res.body ?? {}), { status: res.status ?? 200 });
+			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub
+		}) as unknown as typeof globalThis.fetch;
+	}
+
+	it("returns A and AAAA records from a valid Status=0 response", async () => {
+		stubFetch({
+			A: { body: { Status: 0, Answer: [{ data: "93.184.216.34" }] } },
+			AAAA: { body: { Status: 0, Answer: [{ data: "2606:4700::1" }] } },
+		});
+
+		const ips = await cloudflareDohResolver("example.com");
+		expect(ips).toContain("93.184.216.34");
+		expect(ips).toContain("2606:4700::1");
+	});
+
+	it("treats NXDOMAIN (Status=3) as empty (legitimately no records)", async () => {
+		stubFetch({
+			A: { body: { Status: 3 } },
+			AAAA: { body: { Status: 3 } },
+		});
+		const ips = await cloudflareDohResolver("does-not-exist.example");
+		expect(ips).toEqual([]);
+	});
+
+	it("fails closed on SERVFAIL (Status=2)", async () => {
+		// Split-view attack: attacker authoritative NS returns SERVFAIL to
+		// Cloudflare's resolver but real records to the victim's resolver.
+		// If we silently treated SERVFAIL as empty, we'd combine whatever
+		// the other record type returned and call it "public" — bypassing
+		// the check.
+		stubFetch({
+			A: { body: { Status: 2 } },
+			AAAA: { body: { Status: 0, Answer: [{ data: "2606:4700::1" }] } },
+		});
+		await expect(cloudflareDohResolver("attacker.example")).rejects.toThrow();
+	});
+
+	it("fails closed on REFUSED (Status=5)", async () => {
+		stubFetch({
+			A: { body: { Status: 5 } },
+			AAAA: { body: { Status: 0, Answer: [{ data: "2606:4700::1" }] } },
+		});
+		await expect(cloudflareDohResolver("attacker.example")).rejects.toThrow();
+	});
+
+	it("fails closed on HTTP errors from the DoH endpoint", async () => {
+		stubFetch({
+			A: { status: 500 },
+			AAAA: { body: { Status: 0, Answer: [] } },
+		});
+		await expect(cloudflareDohResolver("example.com")).rejects.toThrow();
+	});
+
+	it("fails closed on malformed response bodies missing Status", async () => {
+		stubFetch({
+			A: { body: {} },
+			AAAA: { body: { Status: 0, Answer: [] } },
+		});
+		await expect(cloudflareDohResolver("example.com")).rejects.toThrow();
+	});
+
+	it("fails closed on network errors", async () => {
+		stubFetch({
+			A: { throws: new Error("network down") },
+			AAAA: { body: { Status: 0, Answer: [] } },
+		});
+		await expect(cloudflareDohResolver("example.com")).rejects.toThrow();
+	});
+
+	it("returns empty array when both A and AAAA return no records but Status=0", async () => {
+		stubFetch({
+			A: { body: { Status: 0, Answer: [] } },
+			AAAA: { body: { Status: 0, Answer: [] } },
+		});
+		const ips = await cloudflareDohResolver("example.com");
+		expect(ips).toEqual([]);
+	});
+
+	it("skips Answer entries without string data", async () => {
+		stubFetch({
+			A: {
+				body: {
+					Status: 0,
+					Answer: [{ data: "93.184.216.34" }, { data: 12345 }, {}, { notData: "foo" }],
+				},
+			},
+			AAAA: { body: { Status: 0, Answer: [] } },
+		});
+		const ips = await cloudflareDohResolver("example.com");
+		expect(ips).toEqual(["93.184.216.34"]);
 	});
 });
