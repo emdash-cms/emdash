@@ -5,31 +5,51 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  # intentionally hardcoded so that all Bonk workflows coexist peacefully
+  group: bonk-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   bonk:
-    if: github.event.sender.type != 'Bot' && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR')
+    if: github.event.sender.type != 'Bot' && (contains(github.event.comment.body, '/bonk') || contains(github.event.comment.body, '@ask-bonk'))
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-      cancel-in-progress: false
+    timeout-minutes: 45
     permissions:
       id-token: write
+      contents: write
       issues: write
       pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@v6
         with:
-          persist-credentials: false
+          fetch-depth: 1
 
-      - name: Run Bonk
-        uses: ask-bonk/ask-bonk/github@a96a0dc8f935aa38e71b33a473a8076738b53599 # main 2026-03-23
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Lil Bonk
+        uses: ask-bonk/ask-bonk/github@main
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
         with:
-          model: "cloudflare-ai-gateway/anthropic/claude-opus-4-6"
+          model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
           mentions: "/bonk,@ask-bonk"
+          opencode_version: "1.4.6"
+          permissions: write
+          
