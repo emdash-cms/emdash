@@ -1,4 +1,4 @@
-name: Review
+name: Review PR
 
 on:
   issue_comment:
