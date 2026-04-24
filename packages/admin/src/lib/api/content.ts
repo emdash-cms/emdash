@@ -136,6 +136,8 @@ export async function fetchContentList(
 		limit?: number;
 		status?: string;
 		locale?: string;
+		/** Case-insensitive substring search across title, name, and slug. */
+		q?: string;
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -143,6 +145,7 @@ export async function fetchContentList(
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.status) params.set("status", options.status);
 	if (options?.locale) params.set("locale", options.locale);
+	if (options?.q) params.set("q", options.q);
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);

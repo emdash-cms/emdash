@@ -110,6 +110,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { useDebouncedValue } from "./lib/hooks";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -295,14 +296,20 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
+	// Keep the raw search local for instant feedback; debounce before firing
+	// the API call so typing doesn't stampede the server.
+	const [searchQuery, setSearchQuery] = React.useState("");
+	const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale }],
+			queryKey: ["content", collection, { locale: activeLocale, q: debouncedSearch }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam,
 					limit: 100,
+					q: debouncedSearch || undefined,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -419,6 +426,8 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			searchQuery={searchQuery}
+			onSearchChange={setSearchQuery}
 		/>
 	);
 }

@@ -8,7 +8,7 @@
 import { Button, Dialog, Input, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchCollections, fetchContentList, getDraftStatus } from "../lib/api";
@@ -55,13 +55,21 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		}
 	}, [collections, selectedCollection]);
 
+	// Push search to the server so the picker can find items across the
+	// entire collection, not just whatever has already been scrolled into
+	// view. Falls back to no-search when the box is empty.
+	const searchParam = debouncedSearch.trim() || undefined;
 	const { data: contentResult, isLoading: contentLoading } = useQuery({
-		queryKey: ["content-picker", selectedCollection, { limit: 50 }],
-		queryFn: () => fetchContentList(selectedCollection, { limit: 50 }),
+		queryKey: ["content-picker", selectedCollection, { limit: 50, q: searchParam }],
+		queryFn: () => fetchContentList(selectedCollection, { limit: 50, q: searchParam }),
 		enabled: open && !!selectedCollection,
+		// Keep the previous page's rows visible while the debounced search
+		// refetches, so the list doesn't flash to empty between keystrokes.
+		placeholderData: keepPreviousData,
 	});
 
-	// Sync initial page into accumulated items
+	// Sync initial page into accumulated items. The query re-runs when the
+	// debounced search changes, so we reset the accumulator each time.
 	React.useEffect(() => {
 		if (contentResult) {
 			setAllItems(contentResult.items);
@@ -76,6 +84,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 			const result = await fetchContentList(selectedCollection, {
 				limit: 50,
 				cursor: nextCursor,
+				q: searchParam,
 			});
 			setAllItems((prev) => [...prev, ...result.items]);
 			setNextCursor(result.nextCursor);
@@ -84,11 +93,8 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		}
 	};
 
-	const filteredItems = React.useMemo(() => {
-		if (!debouncedSearch) return allItems;
-		const query = debouncedSearch.toLowerCase();
-		return allItems.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [allItems, debouncedSearch]);
+	// Items arrive pre-filtered from the server; alias for readability.
+	const filteredItems = allItems;
 
 	// Reset state when modal opens or collection changes
 	React.useEffect(() => {

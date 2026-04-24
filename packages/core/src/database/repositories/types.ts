@@ -68,6 +68,11 @@ export interface FindManyOptions {
 		status?: string;
 		authorId?: string;
 		locale?: string;
+		/**
+		 * Case-insensitive substring match against searchable text columns
+		 * (currently title, name, slug). Trimmed; empty strings are ignored.
+		 */
+		search?: string;
 	};
 	orderBy?: {
 		field: string;

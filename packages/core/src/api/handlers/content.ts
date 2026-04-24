@@ -237,13 +237,18 @@ export async function handleContentList(
 		orderBy?: string;
 		order?: "asc" | "desc";
 		locale?: string;
+		/** Case-insensitive substring search over title/name/slug */
+		q?: string;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const where: { status?: string; locale?: string } = {};
+		const where: { status?: string; locale?: string; search?: string } = {};
 		if (params.status) where.status = params.status;
 		if (params.locale) where.locale = params.locale;
+		if (typeof params.q === "string" && params.q.trim().length > 0) {
+			where.search = params.q;
+		}
 
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,

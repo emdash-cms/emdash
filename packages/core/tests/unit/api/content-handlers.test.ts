@@ -312,3 +312,38 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 });
+
+describe("Content Handlers — list search", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		for (let i = 0; i < 8; i++) {
+			const result = await handleContentCreate(db, "post", {
+				data: { title: `Post ${i}` },
+			});
+			if (!result.success) throw new Error("seed failed");
+		}
+		await handleContentCreate(db, "post", { data: { title: "Bleeding" } });
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	// Regression guard — before this change the admin had to fetch every
+	// page to find "Bleeding" because `q` wasn't sent to the server.
+	it("filters items by q (case-insensitive substring)", async () => {
+		const result = await handleContentList(db, "post", { q: "leed" });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.items.map((i) => i.data.title)).toEqual(["Bleeding"]);
+	});
+
+	it("ignores an all-whitespace q", async () => {
+		const result = await handleContentList(db, "post", { q: "   " });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.items).toHaveLength(9);
+	});
+});

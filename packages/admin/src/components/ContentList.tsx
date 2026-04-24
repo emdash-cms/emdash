@@ -44,6 +44,13 @@ export interface ContentListProps {
 	onLocaleChange?: (locale: string) => void;
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
+	/**
+	 * Controlled search query. When `onSearchChange` is also provided, the
+	 * input becomes parent-controlled and local client-side filtering is
+	 * disabled — the parent is expected to drive filtering via the API.
+	 */
+	searchQuery?: string;
+	onSearchChange?: (query: string) => void;
 }
 
 type ViewTab = "all" | "trash";
@@ -84,35 +91,51 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
+	searchQuery: searchQueryProp,
+	onSearchChange,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
-	const [searchQuery, setSearchQuery] = React.useState("");
+	const [localSearchQuery, setLocalSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
 
-	// Reset page when search changes
+	// Server-driven search kicks in when the parent opts in with onSearchChange.
+	// In that mode `items` is already the filtered set — we forward the input
+	// instead of filtering locally. Legacy mode keeps the original client-side
+	// filter so existing callers (e.g. the picker before it migrated) still
+	// work.
+	const serverSideSearch = typeof onSearchChange === "function";
+	const searchQuery = serverSideSearch ? (searchQueryProp ?? "") : localSearchQuery;
+
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setSearchQuery(e.target.value);
+		const next = e.target.value;
+		if (serverSideSearch) {
+			onSearchChange?.(next);
+		} else {
+			setLocalSearchQuery(next);
+		}
 		setPage(0);
 	};
 
 	const filteredItems = React.useMemo(() => {
-		if (!searchQuery) return items;
+		if (serverSideSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
 		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery]);
+	}, [items, searchQuery, serverSideSearch]);
 
 	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
 	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
 	// Auto-fetch next API page when user reaches the last client-side page.
-	// skip when a search query is active
-	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	// skip when a *client-side* search is active, because filtering can
+	// collapse `filteredItems` below the loaded count and trigger a spurious
+	// fetch. Server-side search has no such concern — the server returns the
+	// full result set.
 	React.useEffect(() => {
-		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+		if (page >= totalPages - 1 && hasMore && onLoadMore && (serverSideSearch || !searchQuery)) {
 			onLoadMore();
 		}
-	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+	}, [page, totalPages, hasMore, onLoadMore, searchQuery, serverSideSearch]);
 
 	return (
 		<div className="space-y-4">

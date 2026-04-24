@@ -111,6 +111,30 @@ export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<
 }
 
 /**
+ * List column names for a table. Returns an empty array if the table
+ * does not exist. Used by callers that need to build SQL fragments
+ * referencing columns whose presence varies between collections.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export async function listTableColumns(db: Kysely<any>, tableName: string): Promise<string[]> {
+	if (isPostgres(db)) {
+		const result = await sql<{ column_name: string }>`
+			SELECT column_name FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = ${tableName}
+		`.execute(db);
+		return result.rows.map((r) => r.column_name);
+	}
+
+	// SQLite 3.16+ exposes PRAGMAs as table-valued functions that accept
+	// bound parameters. Guard the identifier defensively anyway.
+	validateIdentifier(tableName, "table name");
+	const result = await sql<{ name: string }>`
+		SELECT name FROM pragma_table_info(${tableName})
+	`.execute(db);
+	return result.rows.map((r) => r.name);
+}
+
+/**
  * Column type for binary data.
  *
  * sqlite:   blob
