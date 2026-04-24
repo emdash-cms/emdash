@@ -377,6 +377,11 @@ function ContentListPage() {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
 
+	// Server returns `total` on every page; the first page is authoritative
+	// because filters don't change within a fetch cycle. Fall back to the
+	// loaded count so old servers (pre-total) still render a denominator.
+	const total = data?.pages[0]?.total ?? items.length;
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -419,6 +424,7 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			total={total}
 		/>
 	);
 }
