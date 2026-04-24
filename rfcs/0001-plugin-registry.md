@@ -42,11 +42,12 @@ Or a native plugin, distributed via npm:
 ```bash
 # Scaffold a native plugin project
 $ emdash plugin init --type native
-# Creates a plugin.json manifest with npmPackage field
+# Creates a plugin.json manifest with the npm package name recorded as a publish hint
 
 # Publish a release that references an npm version
 $ emdash plugin publish --npm @example/emdash-advanced-seo@1.0.0
-# Verifies package.json contains matching DID, creates a release record
+# Verifies the npm package.json contains a matching DID, captures the npm integrity hash,
+# and creates a release record with source=#npmSource and runtime=#nativeRuntime
 ```
 
 A CMS user installs either type:
@@ -91,7 +92,7 @@ The AT Protocol gives us identity, cryptographic signing, data portability and a
 - **Mandating a specific artifact host.** Authors choose where to host their bundle artifacts. The initial design assumes a published artifact URL.
 - **Trust and moderation primitives in v1.** Reviews, reports, labellers and other social or moderation features are planned, but will be specified in later RFCs.
 - **Supporting private/authenticated packages in the initial version.** Paid and private plugins are a future extension. The initial design focuses on public, open-source packages.
-- **FAIR protocol compatibility.** While we draw on FAIR's metadata design as prior art, we do not aim for wire-level compatibility with FAIR clients. The architectures are fundamentally different (HTTP repository polling vs. atproto firehose indexing). A compatibility layer could be added later if needed.
+- **Wire-level FAIR compatibility in v1.** FAIR's HTTP repository API and this proposal's atproto-records-as-transport are different publishing surfaces, and we are not specifying a bridge between them in v1. Cross-protocol interop is tracked as an open question; see [Unresolved Questions](#unresolved-questions).
 - **Inter-plugin dependency resolution in v1.** Per-plugin dependency and peer declarations are deferred to a follow-on RFC. A narrow host-compatibility field (`compatibility.emdash`, a semver range on the EmDash runtime) is included in v1.
 - **Replacing npm for native plugins.** The registry provides discovery, identity and metadata for native plugins, but npm remains the distribution mechanism. We don't reimplement package management.
 
@@ -99,19 +100,20 @@ The AT Protocol gives us identity, cryptographic signing, data portability and a
 
 ## FAIR Package Manager
 
-[FAIR](https://fair.pm/) (Federated And Independent Repositories) is a decentralised package manager built for the WordPress ecosystem, backed by the Linux Foundation. It uses W3C Decentralised Identifiers (DIDs) as package identifiers and defines HTTP APIs for repository servers to serve metadata.
+[FAIR](https://fair.pm/) (Federated And Independent Repositories) is a decentralised package manager originating in the WordPress ecosystem and supported by the Linux Foundation. It uses W3C DIDs (both `did:web` and `did:plc`) as package identifiers and defines an HTTP-level repository API that can be served from a dedicated server or a static host such as GitHub.
 
-FAIR validates the general approach of decentralised package identity using DIDs, but differs architecturally:
+FAIR validates the general approach of decentralised package identity. EmDash differs principally in how metadata moves through the network:
 
-|                       | FAIR                                          | This proposal                                                |
-| --------------------- | --------------------------------------------- | ------------------------------------------------------------ |
-| Identity model        | One DID per package                           | One DID per author, multiple packages per account            |
-| Metadata transport    | Custom HTTP repository API                    | atproto records in the author's repo                         |
-| Author infrastructure | Must run or use a repository server           | Only needs an Atmosphere account                             |
-| Discovery             | Aggregators crawl repositories                | AppView subscribes to the relay firehose                     |
-| Signing               | Separate verification method on DID documents | Repo-level signing (records are signed as part of the MST)   |
-| Ratings, reviews etc  | None                                          | Deferred to follow-on RFCs                                   |
-| Artifact hosting      | Repository serves binaries                    | Author hosts anywhere; URL + SRI integrity in release record |
+|                       | FAIR                                                                                           | This proposal                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Identity model        | One DID per package; publisher keys registered on the package DID document                     | One DID per author, multiple packages per account                                            |
+| Metadata transport    | HTTP repository API, servable from any static host                                             | atproto records in the author's repo, distributed via the firehose                           |
+| Author infrastructure | Any host that can serve the repository API; CLI tooling automates setup                        | An Atmosphere account (hosted or self-hosted PDS)                                            |
+| Discovery             | Aggregators (e.g. AspireCloud) index known repositories                                        | AppView subscribes to the relay firehose                                                     |
+| Signing               | Publisher signing keys registered as verification methods on the DID document                  | Repo-level signing (records are signed as part of the MST)                                   |
+| Ratings, reviews, etc | Not in the base protocol; addressed via the labeller layer                                     | Deferred to follow-on RFCs, also via a labeller layer                                        |
+| Artifact hosting      | Served from the repository host                                                                | Author hosts the artifact anywhere; URL + SRI integrity in release record                    |
+| Trust model           | Light base protocol; code scanning and gating live in labellers with a site-side policy engine | Same pattern: permissive protocol, labeller-attached trust signals, site-decided enforcement |
 
 ## npm, crates.io, PyPI
 
@@ -121,7 +123,7 @@ Traditional centralised registries. Authors publish to a single server that hand
 
 This RFC has two direct antecedents in EmDash's own community discussions:
 
-- **[#307](https://github.com/emdash-cms/emdash/discussions/307)** by @erlend-sh introduced FAIR as a model for decentralised package management for EmDash, and pointed out that FAIR is itself built on atproto and the PLC directory. That observation is what led to this proposal's architecture: rather than adopt FAIR's HTTP repository model on top of atproto identity, we use atproto records directly as the transport, since the identity, signing and event-stream primitives are already there.
+- **[#307](https://github.com/emdash-cms/emdash/discussions/307)** by @erlend-sh introduced FAIR as a model for decentralised package management for EmDash, and noted the shared use of DIDs as a point of overlap between FAIR and the atproto stack EmDash was already planning to use. That overlap is what led to this proposal's architecture: rather than adopt FAIR's HTTP repository model, we use atproto records directly as the transport, because the identity, signing and event-stream primitives are already there.
 
 - **[#296](https://github.com/emdash-cms/emdash/discussions/296#discussioncomment-16534494)** by @BenjaminPrice laid out a decentralised marketplace design whose trust model this RFC adopts and extends. Specific elements carried forward from #296:
   - The framing that _the sandbox proves safety, signing proves provenance_ — the basis of the Security Model in this RFC, and the reason we do not require deep code inspection or mandatory security gates.
@@ -152,7 +154,7 @@ This proposal builds on the [AT Protocol](https://atproto.com/guides/overview) (
 
 - **[Lexicon](https://atproto.com/specs/lexicon)** — A schema language for describing record types and APIs, similar to JSON Schema. Applications define lexicons to declare the shape of data they read and write. Lexicons are identified by NSIDs (Namespaced Identifiers) in reverse-DNS format, e.g. `site.standard.document` or `app.bsky.feed.post`.
 
-- **[AT URI](https://atproto.com/specs/at-uri-scheme)** — A URI scheme for referencing specific records: `at://<did>/<collection>/<rkey>`. For example, `at://did:plc:abc123/com.emdashcms.registry.package/gallery-plugin`.
+- **[AT URI](https://atproto.com/specs/at-uri-scheme)** — A URI scheme for referencing specific records: `at://<did>/<collection>/<rkey>`. For example, `at://did:plc:abc123/example.packages.record/gallery-plugin`.
 
 - **[Relay and Firehose](https://atproto.com/specs/sync)** — Relays aggregate data from many PDSes into a single event stream (the "firehose"). Any service can subscribe to the firehose to receive real-time notifications of record creates, updates and deletes across the entire network. Bluesky operates public relay infrastructure, and third-party relays exist as well.
 
@@ -204,6 +206,18 @@ For these plugins, the registry is a **discovery and metadata layer**. It adds v
 - Users get a unified directory for the whole EmDash ecosystem.
 
 npm remains the distribution mechanism for native plugins. The registry does not attempt to replace it.
+
+#### The native-plugin escape-hatch tension
+
+Listing native plugins in the same registry as sandboxed ones has a real tension worth naming. The pitch for EmDash's sandbox is that plugins ship with enforced, declared capabilities — users can install without reading source, because the sandbox prevents anything the plugin didn't explicitly ask for. Native plugins don't offer that guarantee: they run with full platform privileges. Listing both types side by side with roughly equal prominence risks users installing native plugins the same way they'd install sandboxed ones, treating the two as interchangeable when they're very much not.
+
+This RFC accepts that tradeoff because the install friction is already very different — a sandboxed plugin is one click from the admin UI, while a native plugin requires an `npm install`, an `astro.config.mjs` edit and a rebuild. That gap is a non-trivial signal on its own. The UI should lean into it, not try to erase it. Specifically:
+
+- **Primary discovery surfaces should default to sandboxed-only** and require an explicit opt-in or separate tab to show native plugins. "I want to install something right now" is a different flow from "I'm looking at native integrations I might adopt."
+- **Native-plugin install instructions must include the trust framing.** Not a warning banner, but a clear statement that the plugin runs with full platform access and is not subject to sandbox enforcement. Informed consent, same principle as capability listings for sandboxed plugins.
+- **Managed-host clients may choose to hide native plugins entirely** from their directory. The protocol does not mandate that either plugin type be surfaced; a client is free to show only the variants it can install safely on its platform.
+
+The combination of capability-declared sandboxed plugins plus clearly-gated native plugins is intended to give platforms a choice: expose both with appropriate UX differentiation, or expose only the runtime tier they can reasonably support. Pretending native plugins don't exist would push authors towards the alternative — unlisted npm packages discovered through word of mouth — which has worse trust properties than a registry-indexed listing with explicit framing.
 
 ## Architecture Overview
 
@@ -263,44 +277,54 @@ graph TD
 
 ## Lexicons
 
-All lexicons will probably use the namespace `com.emdashcms.*`.
+> **Namespace placeholder.** This draft uses `example.packages.*` for the shared package/registry records and `com.emdashcms.plugin.*` for EmDash-specific runtime extensions. The `example.*` namespace is a deliberate placeholder — the intended shape is a reverse-DNS namespace on a domain that signals shared infrastructure rather than single-project ownership (e.g. something under a `community.*` or `.community` TLD), following the precedent of `community.lexicon.*`. The concrete namespace will be decided before the lexicons are published; until then, treat every `example.packages.*` NSID in this document as "the eventual shared-infrastructure namespace, whatever it ends up being called."
 
-### `com.emdashcms.registry.package`
+The namespace split has two layers:
 
-Describes a plugin package. Stored in the author's repo with the slug as the record key, producing human-readable AT URIs like:
+- **`example.packages.*`** — identity, artifacts, signing, mirrors, source variants, integrity. Intentionally host-neutral so other hosts can publish compatible records.
+- **`com.emdashcms.plugin.*`** — EmDash-specific runtime semantics (capabilities, sandbox runtime, native-runtime hints, compatibility). Attached to release records via an open `runtime` union.
+
+Another host (a hypothetical "Foo CMS" adopting the same identity layer) would add `com.foocms.plugin.*` runtime variants the same way. That interop is intentional but out of scope for v1 — EmDash is the only host this RFC specifies.
+
+### `example.packages.record`
+
+Describes a package. Stored in the author's repo with the slug as the record key, producing human-readable AT URIs like:
 
 ```
-at://did:plc:abc123/com.emdashcms.registry.package/gallery-plugin
+at://did:plc:abc123/example.packages.record/gallery-plugin
 ```
 
 Or, using a handle:
 
 ```
-at://example.dev/com.emdashcms.registry.package/gallery-plugin
+at://example.dev/example.packages.record/gallery-plugin
 ```
 
 **Schema:**
 
-| Property      | Type              | Required    | Description                                                                                                                                                          |
-| ------------- | ----------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `slug`        | string            | yes         | URL-safe package slug, matching the record key. Combined with the author DID, it forms the canonical package identity `did/slug`. `[a-z][a-z0-9\-_]*`, max 64 chars. |
-| `name`        | string            | yes         | Human-readable package name. Max 200 chars.                                                                                                                          |
-| `description` | string            | yes         | Short package description. Max 500 chars.                                                                                                                            |
-| `type`        | string            | yes         | Plugin type: `"sandboxed"` or `"native"`.                                                                                                                            |
-| `license`     | string            | yes         | SPDX licence expression, or `"proprietary"`.                                                                                                                         |
-| `authors`     | Author[]          | yes         | At least one author.                                                                                                                                                 |
-| `npmPackage`  | string            | conditional | npm package name for native plugins (e.g. `"@example/emdash-advanced-seo"`). Required if type is `native`. Must not be present if type is `sandboxed`.               |
-| `security`    | Contact[]         | no          | Security contacts. Recommended.                                                                                                                                      |
-| `homepage`    | string (uri)      | no          | URL to project homepage (docs site, marketing page, etc.).                                                                                                           |
-| `repository`  | Repository        | no          | Source code repository. Used by tooling for "view source", "file an issue", and provenance cross-checks.                                                             |
-| `keywords`    | string[]          | no          | Search keywords. Max 10 items.                                                                                                                                       |
-| `readme`      | string            | no          | Long-form description. Markdown. Max 50,000 chars.                                                                                                                   |
-| `createdAt`   | string (datetime) | yes         | ISO 8601 creation timestamp.                                                                                                                                         |
+| Property      | Type              | Required | Description                                                                                                                                                                                                                     |
+| ------------- | ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `slug`        | string            | yes      | URL-safe package slug, matching the record key. Combined with the author DID, it forms the canonical package identity `did/slug`. `[a-z][a-z0-9\-_]*`, max 64 chars.                                                            |
+| `name`        | string            | yes      | Human-readable package name. Max 200 chars.                                                                                                                                                                                     |
+| `description` | string            | yes      | Short package description. Max 500 chars.                                                                                                                                                                                       |
+| `license`     | string            | yes      | SPDX licence expression, or `"proprietary"`.                                                                                                                                                                                    |
+| `authors`     | Author[]          | yes      | At least one author.                                                                                                                                                                                                            |
+| `homepage`    | string (uri)      | no       | URL to project homepage (docs site, marketing page, etc.).                                                                                                                                                                      |
+| `repository`  | Repository        | no       | Source code repository. Used by tooling for "view source", "file an issue", and provenance cross-checks.                                                                                                                        |
+| `keywords`    | string[]          | no       | Search keywords. Max 10 items.                                                                                                                                                                                                  |
+| `icon`        | blob              | no       | Package icon. PNG, max 1 MiB, recommended 256×256. Displayed in listings and detail pages; clients can fetch it from the author's PDS without downloading any release artifact.                                                 |
+| `screenshots` | Screenshot[]      | no       | Up to 5 screenshots. Each screenshot bundles an image blob with an optional caption. Stored on the package record, not inside the release tarball, so directory clients can display them without fetching the artifact.         |
+| `readme`      | blob              | no       | Long-form description. `text/markdown`, max 256 KiB. Stored as a blob rather than an inline string so the record stays small and the README can be updated independently without rewriting the package record.                  |
+| `security`    | string (uri)      | no       | URL to a security policy (e.g. a `.well-known/security.txt` or a vendor-specific disclosure page). A single URL is intentional — aligns with `security.txt` conventions and avoids duplicating what the link already describes. |
+| `deprecated`  | Deprecation       | no       | Marks the package as deprecated. Authors set this to direct installs elsewhere; clients should display the deprecation notice and, where possible, suggest the replacement package.                                             |
+| `createdAt`   | string (datetime) | yes      | ISO 8601 creation timestamp.                                                                                                                                                                                                    |
+
+Neither a "plugin type" (sandboxed vs native) nor an npm package name appears on the package record. Both are properties of how a specific _release_ is distributed and executed, and both live on the release record (see [`example.packages.release`](#examplepackagesrelease)). In practice a package's releases will all share one runtime variant, but making that a per-release declaration is what keeps the package record host-neutral.
 
 **Package identity:**
 
 - The canonical package identity is `did/slug`.
-- The canonical record reference is the package record's AT URI, for example `at://did:plc:abc123/com.emdashcms.registry.package/gallery-plugin`.
+- The canonical record reference is the package record's AT URI, for example `at://did:plc:abc123/example.packages.record/gallery-plugin`.
 - EmDash implementations may derive a local runtime key from `did/slug` for storage, routing or namespacing. That encoding is implementation-defined, but it must remain stable for a given package identity.
 - Handles are mutable by design. An author changing their handle from `example.dev` to `example.bsky.social` does not affect canonical identity — the `did` stays the same and so does the package. Clients should re-resolve handles each time they display a package, rather than caching the handle string.
 
@@ -326,14 +350,11 @@ This RFC introduces `did/slug` as a new canonical registry identity. It is layer
 **Package mutability:**
 
 - `slug` is immutable.
-- `type` is immutable.
-- `npmPackage` is immutable once set on a native package.
-- Package type migration is not supported in v1. A sandboxed package cannot become native, and a native package cannot become sandboxed.
+- Runtime changes for a package — e.g. releases switching from sandboxed to native — are technically possible because the package record no longer carries a `type` field, but are strongly discouraged. In practice, existing installs of a package cannot cleanly migrate across runtime variants (the storage, host access and capability models differ), so a "runtime migration" should be modelled as deprecating the old package and publishing a new one that the `deprecated.replacement` field points at. Clients should flag abrupt runtime changes in an existing package's release history as suspicious.
 
 **Package validation rules:**
 
-- Native packages must include `npmPackage`.
-- Sandboxed packages must not include `npmPackage`.
+- There is no cross-field validation on the package record beyond the per-field rules in the schema table. All runtime-type-specific validation (npm package names, capability strings, etc.) lives on the release record.
 
 **Author object:**
 
@@ -343,15 +364,6 @@ This RFC introduces `did/slug` as a new canonical registry identity. It is layer
 | `url`    | string (uri) | no       |
 | `email`  | string       | no       |
 
-**Contact object:**
-
-| Property | Type         | Required |
-| -------- | ------------ | -------- |
-| `url`    | string (uri) | no       |
-| `email`  | string       | no       |
-
-At least one of `url` or `email` must be provided per contact.
-
 **Repository object:**
 
 | Property    | Type         | Required | Description                                                                                                        |
@@ -360,25 +372,47 @@ At least one of `url` or `email` must be provided per contact.
 | `url`       | string (uri) | yes      | Clone or browse URL (e.g. `https://github.com/example/emdash-gallery`, `https://tangled.sh/@example.dev/gallery`). |
 | `directory` | string       | no       | Subpath within the repo, for monorepos (e.g. `packages/gallery`).                                                  |
 
-### `com.emdashcms.registry.release`
+**Screenshot object:**
+
+| Property  | Type   | Required | Description                                                             |
+| --------- | ------ | -------- | ----------------------------------------------------------------------- |
+| `image`   | blob   | yes      | Image blob. `image/png`, `image/jpeg`, or `image/webp`. Max 2 MiB each. |
+| `caption` | string | no       | Alt text / caption for the screenshot. Max 200 chars.                   |
+
+**Deprecation object:**
+
+| Property       | Type              | Required | Description                                                                                                                                            |
+| -------------- | ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `reason`       | string            | yes      | Short human-readable reason. Max 500 chars. Displayed to users considering installing.                                                                 |
+| `replacement`  | string (at-uri)   | no       | AT URI of a replacement package (e.g. `at://did:plc:xyz/example.packages.record/gallery-v2`). May live under a different DID if ownership transferred. |
+| `deprecatedAt` | string (datetime) | no       | When the package was marked deprecated. Defaults to record update time.                                                                                |
+
+Setting `deprecated` is a one-way move at the UX level: once a client sees a deprecated package, it surfaces the deprecation prominently on install. Authors can technically remove the field from the record, but tooling should warn against it — deprecations are usually set in response to security or ownership events, and un-deprecating quietly is a vector for confusing users. This is policy, not protocol: the lexicon allows the field to be removed, but the reference CLI refuses.
+
+### `example.packages.release`
 
 Describes a release of a package. The record key is auto-generated (a [TID](https://atproto.com/specs/record-key)).
 
+The release record separates two concerns that have historically been fused in package registries:
+
+- **Source** — _how_ the client retrieves the bytes. A tarball at some URL, an npm package name, or any future form. Described by the `source` field, an open union of source variants defined in `example.packages.defs`.
+- **Runtime** — _what_ the bytes are for and how the host runs them. For EmDash that's the sandboxed runtime (capability-gated, installed at runtime) or the native runtime (full-privilege Astro integration, installed via the build pipeline). Described by the `runtime` field, an open union populated by host-specific lexicons.
+
+Keeping these orthogonal means adding a new distribution channel (e.g. OCI images, or a private CDN protocol) doesn't require a new trust/runtime decision, and adding a new runtime tier (e.g. a reviewed-native tier) doesn't force a distribution decision. The two v1 combinations (tarball + sandboxed, npm + native) map exactly to today's supported shapes; other combinations are allowed by the lexicon but rejected by v1 publish and install policy (see [Release validation rules](#release-validation-rules)).
+
 **Schema:**
 
-| Property        | Type              | Required    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --------------- | ----------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `package`       | string (at-uri)   | yes         | AT URI of the package record this release belongs to.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `version`       | string            | yes         | Semver version string.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `url`           | string (uri)      | conditional | URL where the artifact can be downloaded. Required for sandboxed plugins (the `.tar.gz` bundle URL). Not present for native plugins (npm is the distribution channel).                                                                                                                                                                                                                                                                                                                                                                       |
-| `integrity`     | string            | yes         | [Subresource Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hash of the release artifact, in SRI format (`<algo>-<base64>`, e.g. `"sha256-abc..."`, `"sha512-abc..."`). Algorithm must be `sha256`, `sha384`, or `sha512`. For sandboxed releases, computed by the CLI over the `.tar.gz` bytes. For native releases, captured from npm's `dist.integrity` at publish time. Because the release record is signed as part of the author's atproto repo MST, this hash is transitively authenticated. |
-| `capabilities`  | string[]          | conditional | Declared capabilities for a sandboxed plugin release. Required if package type is `sandboxed`. Not present for native plugins.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `allowedHosts`  | string[]          | no          | Allowed outbound host patterns for a sandboxed plugin release. Optional for sandboxed plugins. Not present for native plugins.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `npmVersion`    | string            | conditional | Exact npm version string for native plugins (e.g. `"@example/emdash-advanced-seo@1.0.0"`). Required if package type is `native`.                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `sbom`          | Sbom              | no          | Optional reference to a software bill of materials for this release.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `compatibility` | Compatibility     | no          | Declares host compatibility constraints. Clients should refuse to install a release whose declared constraints are not satisfied by their own version.                                                                                                                                                                                                                                                                                                                                                                                       |
-| `changelog`     | string            | no          | Release notes. Markdown. Max 10,000 chars.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `createdAt`     | string (datetime) | yes         | ISO 8601 creation timestamp.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Property    | Type              | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------- | ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package`   | string (at-uri)   | yes      | AT URI of the package record this release belongs to.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `version`   | string            | yes      | Semver version string.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `integrity` | string            | yes      | [Subresource Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hash of the release artifact, in SRI format (`<algo>-<base64>`, e.g. `"sha256-abc..."`, `"sha512-abc..."`). Algorithm must be `sha256`, `sha384`, or `sha512`. Always computed over the bytes that `source` identifies — for `#tarballSource` this is the `.tar.gz`; for `#npmSource` it is the tarball npm serves for the given name and version. Because the release record is signed as part of the author's atproto repo MST, this hash is transitively authenticated. |
+| `source`    | union             | yes      | How to retrieve the release artifact. Open union of source variants defined in `example.packages.defs` — v1 ships `#tarballSource` and `#npmSource`. See [Source variants](#source-variants).                                                                                                                                                                                                                                                                                                                                                                                   |
+| `runtime`   | union             | no       | How the host runs this release. Open union of runtime variants defined by each host — EmDash contributes `com.emdashcms.plugin.runtime#sandboxedRuntime` and `#nativeRuntime`. A release without a `runtime` is valid at the protocol layer (it is "some artifact somewhere" — potentially interesting to a generic directory) but is not installable by EmDash. See [Runtime variants](#runtime-variants).                                                                                                                                                                     |
+| `sbom`      | Sbom              | no       | Reference to a software bill of materials for this release.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `changelog` | blob              | no       | Release notes. `text/markdown` blob, max 64 KiB. A blob (rather than an inline string) so the release record itself stays small and changelogs can be fetched independently.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `yanked`    | Yanked            | no       | Marks the release as yanked — still resolvable by AT URI, still installable by a client that explicitly selects this exact version, but excluded from latest-release selection and discovery. Distinct from record deletion: deletion removes the release entirely; yanking keeps it as history but pushes the "latest" pointer to a different version.                                                                                                                                                                                                                         |
+| `createdAt` | string (datetime) | yes      | ISO 8601 creation timestamp.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 **Sbom object:**
 
@@ -388,26 +422,70 @@ Describes a release of a package. The record key is auto-generated (a [TID](http
 | `url`       | string (uri) | yes      | URL where the SBOM document can be fetched.                                                                                                        |
 | `integrity` | string       | yes      | SRI integrity hash of the SBOM document (same format rules as the release `integrity` field), so it is transitively signed via the release record. |
 
-**Compatibility object:**
+**Yanked object:**
+
+| Property   | Type              | Required | Description                                                                                                |
+| ---------- | ----------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `reason`   | string            | yes      | One of `"security"`, `"defect"`, `"author_request"`, `"other"` (open enum via `knownValues`).              |
+| `message`  | string            | no       | Human-readable explanation. Max 500 chars. Displayed to operators who already have this version installed. |
+| `yankedAt` | string (datetime) | no       | When the release was yanked. Defaults to record update time if absent.                                     |
+
+#### Source variants
+
+Source variants live in `example.packages.defs` and are referenced from the release record's `source` field. The union is open (`closed: false`): unknown source types parse successfully and are simply skipped by clients that don't understand them, so a future `#ociSource` or `#gitSource` lands additively.
+
+**`example.packages.defs#tarballSource`** — the artifact is a gzipped tar archive served over HTTPS.
+
+| Property | Type     | Required | Description                                                                                                                                                                                                                                        |
+| -------- | -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `urls`   | string[] | yes      | Ordered list of URLs where the artifact can be retrieved. At least one. First entry is the author's canonical location; later entries are author-declared alternates (e.g. a CDN). Clients try them in order and re-verify integrity against each. |
+
+**`example.packages.defs#npmSource`** — the artifact is an npm package tarball addressed by name and version.
+
+| Property  | Type   | Required | Description                                               |
+| --------- | ------ | -------- | --------------------------------------------------------- |
+| `package` | string | yes      | npm package name (e.g. `"@example/emdash-advanced-seo"`). |
+| `version` | string | yes      | Exact npm version (e.g. `"1.0.0"`). No ranges.            |
+
+#### Runtime variants
+
+Runtime variants are host-specific. EmDash defines them in `com.emdashcms.plugin.runtime`; another host (e.g. a hypothetical Foo CMS) would define its own under `com.foocms.plugin.runtime` and publish releases using those variants in the same `runtime` union slot.
+
+**`com.emdashcms.plugin.runtime#sandboxedRuntime`** — capability-gated runtime installed at runtime into EmDash's sandbox.
+
+| Property        | Type          | Required | Description                                                                                                                                        |
+| --------------- | ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capabilities`  | string[]      | yes      | Declared capabilities (e.g. `"read:content"`, `"email:send"`). At least one. Must match the capabilities declared in the bundle's `manifest.json`. |
+| `allowedHosts`  | string[]      | no       | Allowed outbound host patterns. Omission means no outbound host access. Must match the bundle manifest.                                            |
+| `compatibility` | Compatibility | no       | Host-version constraint (see below).                                                                                                               |
+
+**`com.emdashcms.plugin.runtime#nativeRuntime`** — native Astro integration runtime, installed via the build pipeline.
+
+| Property        | Type          | Required | Description                                                                   |
+| --------------- | ------------- | -------- | ----------------------------------------------------------------------------- |
+| `compatibility` | Compatibility | no       | Host-version constraint (see below). May include `astro` as well as `emdash`. |
+
+**Compatibility object** (reused by both runtime variants):
 
 | Property | Type   | Required | Description                                                                                                                                                                                                                  |
 | -------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `emdash` | string | no       | A semver range (e.g. `">=2.0.0 <3"`, `"^2.4.0"`) the EmDash runtime must satisfy. If present, clients on a version outside the range must refuse to install the release. If omitted, no host-version constraint is declared. |
 
-The `compatibility` object is intentionally narrow in v1: it only describes the host runtime. Per-plugin dependencies, peer declarations and capability negotiation between plugins are deferred to the follow-on dependency-metadata RFC. New sub-keys (e.g. `node`, `astro`, or individual plugin peer ranges) will be added there as optional properties on this object.
+`compatibility` is intentionally narrow in v1: only the host runtime version. Per-plugin dependencies, peer declarations and capability negotiation between plugins are deferred to the follow-on dependency-metadata RFC. New sub-keys (e.g. `node`, individual plugin peer ranges) will be added there as optional properties on this object.
 
-**Release validation rules:**
+#### Release validation rules
 
 - Every release `version` must be valid semver.
-- Within a package, `version` must be unique across non-deleted release records. If two records claim the same version, the record with the earliest `createdAt` wins and later records are treated as invalid duplicates — they must be ignored by the AppView and rejected by install clients. This prevents a compromised account from silently overriding a clean prior release.
+- Within a package, `version` must be unique across non-deleted, non-yanked release records. If two records claim the same version, the record with the earliest `createdAt` wins and later records are treated as invalid duplicates — they must be ignored by the AppView and rejected by install clients. This prevents a compromised account from silently overriding a clean prior release.
 - Every release must include `integrity`, in SRI format, using `sha256`, `sha384` or `sha512`.
-- For sandboxed packages, a release must include `url` and `capabilities`.
-- For sandboxed packages, a release may include `allowedHosts`.
-- For native packages, a release must include `npmVersion`.
-- For native packages, a release must not include `url`, `capabilities`, or `allowedHosts`.
-- For native releases, the CLI refuses to publish if npm's metadata does not include a modern `dist.integrity` — legacy packages with only `shasum` (SHA-1) must republish with modern packaging before they can be listed in the registry.
-- `sbom` is optional for both package types. Consumption and labelling of SBOM data is out of scope for v1 and deferred to the follow-on trust RFC.
-- `compatibility` is optional for both package types. When present, `compatibility.emdash` must parse as a valid semver range. Clients must refuse to install a release whose declared range is not satisfied by their own EmDash runtime version, and the error must name the constraint and the running version.
+- Every release must include a `source`. A release without a source is not installable and must be rejected at publish and ingest.
+- `runtime` is optional at the protocol layer. EmDash clients refuse to install a release without a known `runtime` variant — the release is indexable metadata, but not actionable.
+- **v1 allowed combinations:** `#tarballSource` × `#sandboxedRuntime`, and `#npmSource` × `#nativeRuntime`. Any other source/runtime combination is rejected by the reference publish CLI and by EmDash install clients. This is v1 policy, not protocol — the lexicons permit other combinations, and lifting these restrictions in a later RFC does not invalidate any existing records.
+- **Tarball-sourced releases:** the archive must be a valid gzipped tar, must be no larger than 50 MB, and must hash to the release's `integrity`. The CLI refuses to publish, and the default AppView refuses to mirror, any release exceeding the size cap.
+- **Sandboxed-runtime releases:** the bundle manifest's `capabilities` and `allowedHosts` must match the runtime variant's corresponding fields. This is checked at publish time by the CLI and at install time by the client.
+- **npm-sourced releases:** the CLI refuses to publish if npm's metadata does not include a modern `dist.integrity` — legacy packages with only `shasum` (SHA-1) must republish with modern packaging before they can be listed in the registry.
+- `sbom` is optional. Consumption and labelling of SBOM data is out of scope for v1 and deferred to the follow-on trust RFC.
+- When `compatibility.emdash` is present, it must parse as a valid semver range. Clients must refuse to install a release whose declared range is not satisfied by their own EmDash runtime version, and the error must name the constraint and the running version.
 
 **Sandboxed bundle format:**
 
@@ -415,25 +493,26 @@ The full bundle format is specified separately as part of the sandboxed plugin r
 
 - A sandboxed release artifact is a gzipped tar archive (`.tar.gz`).
 - The archive root must contain `manifest.json` and `backend.js`.
-- The archive root may contain `admin.js`, `README.md`, `icon.png`, and a `screenshots/` directory. When present, `icon.png` must be 256×256, and `screenshots/` may contain up to 5 images.
+- The archive root may contain `admin.js` and `README.md`. Icons and screenshots are _not_ bundled in the tarball — they live as blobs on the package record, so directory clients can display them without downloading any artifact.
 - The `.tar.gz` must be no larger than 50 MB. The CLI refuses to publish, and the default AppView refuses to mirror, any release exceeding this limit.
-- The release `integrity` hash is computed over the exact `.tar.gz` bytes served at `url`.
-- The manifest's `capabilities` and `allowedHosts` must match the corresponding fields in the release record. This is the only part of the manifest the registry validates at install time — everything else (runtime plugin ID, storage declarations, hook declarations, route declarations, admin metadata) is opaque to the registry and is validated by the EmDash runtime when loading the plugin.
+- The release `integrity` hash is computed over the exact `.tar.gz` bytes served at the source's URL.
+- The manifest's `capabilities` and `allowedHosts` must match the corresponding fields in the release's `runtime` variant. This is the only part of the manifest the registry validates at install time — everything else (runtime plugin ID, storage declarations, hook declarations, route declarations, admin metadata) is opaque to the registry and is validated by the EmDash runtime when loading the plugin.
 - The registry does not inspect `backend.js`, `admin.js` or any other bundle content beyond what's described above. If `admin.js` is malformed, breaks at load, or isn't present when the manifest says it should be, that's an EmDash runtime concern surfaced at install — the registry will still serve and mirror the bundle.
 
 **Latest release selection:**
 
-- The latest release is the highest non-deleted semver version for a package.
+- The latest release is the highest non-deleted, non-yanked semver version for a package.
 - Duplicate-version records are invalid and ignored (see validation rules); there is no `createdAt` tiebreaker at selection time.
+- Yanked releases remain resolvable by their AT URI and installable when explicitly pinned, but are excluded from "latest" lookups and from default discovery listings.
 
-**`allowedHosts` syntax:**
+**`allowedHosts` syntax** (on `#sandboxedRuntime`):
 
 - Each entry is a hostname pattern, without scheme, path, or port.
 - Exact hostnames like `images.example.com` are allowed.
 - A leading `*.` wildcard is allowed for subdomains, for example `*.example.com`.
 - If `allowedHosts` is omitted, the plugin has no outbound host access.
 
-For sandboxed plugins, `capabilities` and `allowedHosts` are release-level metadata. The publish tooling reads them from the bundle manifest and writes them into the release record. EmDash verifies that the downloaded bundle manifest matches the release record before installation. Runtime enforcement uses the installed bundle manifest.
+For sandboxed plugins, `capabilities` and `allowedHosts` are release-level metadata on the runtime variant. The publish tooling reads them from the bundle manifest and writes them into the runtime variant. EmDash verifies that the downloaded bundle manifest matches the runtime variant before installation. Runtime enforcement uses the installed bundle manifest.
 
 Inter-plugin dependencies, peer declarations, reviews, reports and other trust-layer records are intentionally out of scope for v1. They are planned follow-on RFCs once the core package and release records are proven out.
 
@@ -445,7 +524,8 @@ atproto lexicons are immutable contracts once published. This RFC adopts the evo
 - **No renaming, retyping, or tightening.** A field cannot be renamed, have its type changed, or have its validation narrowed. A previously optional field cannot become required.
 - **Breaking changes require a new NSID.** If a genuinely incompatible shape is needed, we publish a new lexicon under a new NSID (atproto does not define a `.v2` suffix convention — pick a new name). The old NSID is retained for records that were published under it.
 - **v1 fields lean towards optional.** Because any field we make required in v1 is effectively permanent for this NSID, we only require fields whose absence would make the record meaningless. When in doubt, optional.
-- **Experimental NSIDs are allowed, but not for the core records.** Follow-on lexicons that are still being proven out may use a marker in the NSID — e.g. `com.emdashcms.experimental.review` — to signal they may change. The `package` and `release` records in this RFC are not experimental: committing to stable NSIDs here is part of what makes third-party adoption viable.
+- **Experimental NSIDs are allowed, but not for the core records.** Follow-on lexicons that are still being proven out may use a marker in the NSID — e.g. `com.emdashcms.experimental.review` — to signal they may change. The shared `record` and `release` records, and the EmDash runtime variants, are not experimental: committing to stable NSIDs here is part of what makes third-party adoption viable.
+- **Open unions for cross-host extensibility.** The release record's `runtime` field is an open union populated by host-specific lexicons. Adding a new host's runtime variant (or a new EmDash runtime variant, e.g. a future reviewed-native tier) is additive and does not require re-publishing the shared `example.packages.*` namespace. The same pattern can extend to `source` in the future.
 
 This is the same approach Bluesky has taken in practice: `app.bsky.*` lexicons have accumulated optional fields over years without NSID changes, and genuinely incompatible shapes (moderation, chat) have shipped as new namespaces rather than versioned old ones.
 
@@ -485,7 +565,7 @@ sequenceDiagram
     participant AppView
 
     User->>Admin: Browse / search plugins
-    Admin->>AppView: GET /v1/packages?q=seo&type=native
+    Admin->>AppView: GET /v1/packages?q=seo&runtime=native
     AppView-->>Admin: Search results
     User->>Admin: View plugin details
     Admin->>User: Shows npm install instructions
@@ -501,11 +581,13 @@ sequenceDiagram
 
 1. Resolve handle `example.dev` to a DID via the atproto handle resolution mechanism.
 2. Form the canonical package identity: `<did>/gallery-plugin`.
-3. Construct the AT URI: `at://<did>/com.emdashcms.registry.package/gallery-plugin`.
+3. Construct the AT URI: `at://<did>/example.packages.record/gallery-plugin`.
 4. Fetch the package record from the author's PDS.
-5. Fetch the latest release record by highest semver version.
-6. **If sandboxed:** Fetch the artifact (see [Artifact retrieval](#artifact-retrieval)). Verify the integrity hash. Verify the bundle manifest matches the release record's `capabilities` and `allowedHosts`. Install to the sandbox.
-7. **If native:** Display the npm package name, version and integrity hash. The user installs via npm and configures their Astro config themselves.
+5. Fetch the latest release record by highest non-yanked semver version.
+6. Inspect `release.runtime` to decide the install flow:
+   - **`#sandboxedRuntime`:** Fetch the artifact (see [Artifact retrieval](#artifact-retrieval)) using the URLs in `release.source.urls`. Verify the integrity hash. Verify the bundle manifest matches the runtime variant's `capabilities` and `allowedHosts`. Install to the sandbox.
+   - **`#nativeRuntime`:** Display the npm package name, version, and integrity hash from `release.source` (an `#npmSource`). The user installs via npm and configures their Astro config themselves.
+   - **Unknown runtime variant:** EmDash cannot install the release. A generic directory may still display it, but the EmDash admin UI treats it as non-installable.
 
 ### Metadata resolution
 
@@ -525,22 +607,22 @@ The client fetches artifacts in this order:
 
 1. **Local mirror**, if configured.
 2. **AppView mirrors**, as advertised in the release response envelope (see below).
-3. **Author's `url`**, as a last-resort source.
+3. **Author-declared URLs** in `release.source.urls` (for `#tarballSource`), in order. For `#npmSource`, npm's registry stands in for this step.
 4. Fail, surfacing the reason to the user.
 
-AppView mirrors are tried _before_ the author's `url` because URL rot is exactly the problem mirroring solves. The author's URL is the canonical declaration but the least operationally reliable source; an AppView's mirror is typically on a managed CDN.
+AppView mirrors are tried _before_ the author-declared URLs because URL rot is exactly the problem mirroring solves. The author's URLs are the canonical declaration but the least operationally reliable source; an AppView's mirror is typically on a managed CDN.
 
-The client always verifies the downloaded bytes against the release's `integrity` hash, no matter which source served them. The hash is the trust boundary.
+The client always verifies the downloaded bytes against the release's top-level `integrity` hash, no matter which source served them. The hash is the trust boundary.
 
 ### Artifact mirroring
 
-The default AppView auto-mirrors every sandboxed release it indexes:
+The default AppView auto-mirrors every `#tarballSource`-based release with a known runtime it indexes (in v1: `#sandboxedRuntime` releases). `#npmSource` releases are not mirrored — npm is the distribution channel, and the admin UI surfaces the expected `integrity` for operators and CI to pin against.
 
-1. On indexing a new release record, the AppView fetches the artifact from the author's `url`.
-2. It validates: the bytes hash to the release's `integrity`; the archive parses as a valid gzipped tar; the archive root contains `manifest.json` and `backend.js`; the archive is under the 50 MB cap; the parsed manifest's `capabilities` and `allowedHosts` match the release record.
+1. On indexing a new release record, the AppView fetches the artifact from the first URL in `release.source.urls`, falling back to subsequent entries if any fail.
+2. It validates: the bytes hash to the release's `integrity`; the archive parses as a valid gzipped tar; the archive root contains `manifest.json` and `backend.js`; the archive is under the 50 MB cap; the parsed manifest's `capabilities` and `allowedHosts` match the release's `runtime` variant.
 3. It stores the validated bytes in its own content-addressed object store and advertises one or more mirror URLs on subsequent release responses.
 
-This validation exists to keep the mirror honest — the AppView operator does not want to become a dumping ground for arbitrary binaries published under `com.emdashcms.registry.release` records. It is _not_ a trust signal for clients. The client re-verifies integrity on download regardless, because a mirror operator might be compromised, stale, or lazy.
+This validation exists to keep the mirror honest — the AppView operator does not want to become a dumping ground for arbitrary binaries published under `example.packages.release` records. It is _not_ a trust signal for clients. The client re-verifies integrity on download regardless, because a mirror operator might be compromised, stale, or lazy.
 
 **Release response envelope.** When the AppView returns a release, it wraps the signed record in an envelope with mirror URLs it is currently serving:
 
@@ -556,7 +638,7 @@ This validation exists to keep the mirror honest — the AppView operator does n
 - The `release` object is the signed record from the author's repo, passed through verbatim.
 - `mirrors` is an AppView-specific field, not part of the signed record. Different AppViews can legitimately advertise different URLs for the same release.
 - The URL shape is opaque. AppViews choose whatever path scheme suits their infrastructure; clients treat the URLs as-is.
-- `mirrors` may be empty (AppView operator chose not to mirror; artifact was rejected at validation; mirror is temporarily unavailable). An empty `mirrors` array is simply skipped in the retrieval chain — the client proceeds to the author's canonical `url` as described in [Artifact retrieval](#artifact-retrieval).
+- `mirrors` may be empty (AppView operator chose not to mirror; artifact was rejected at validation; mirror is temporarily unavailable). An empty `mirrors` array is simply skipped in the retrieval chain — the client proceeds to the author-declared URLs in `release.source` as described in [Artifact retrieval](#artifact-retrieval).
 
 **Domain separation.** Following the same pattern Bluesky uses for video and blob hosting (`video.bsky.app`, `cdn.bsky.app` separate from `api.bsky.app`), the default AppView serves its API and its artifact mirror on separate domains, backed by independent Workers. The API service stays cheap, cookieless and low-latency; the artifact service carries the bandwidth. **This is an operational choice, not a protocol constant** — the CDN domain is advertised in the `mirrors` field, not hardcoded anywhere.
 
@@ -592,7 +674,7 @@ Two files with confusingly similar names appear in the publish flow:
 - **`plugin.json`** — the author's local source file, created by `emdash plugin init`. Describes the package-level metadata (name, slug, type, description, authors, license, repository, etc.) the CLI needs to construct a package record. Analogous to `package.json`.
 - **`manifest.json`** — the file inside the built `.tar.gz` bundle (sandboxed plugins only). Describes the runtime plugin ID, version, capabilities, allowed hosts, storage, hooks, routes and admin metadata the EmDash runtime needs to load the plugin. Produced by the build step, not authored directly.
 
-On first publish, the CLI reads `plugin.json` and creates the `com.emdashcms.registry.package` record in the author's atproto repo. Subsequent publishes create release records against the existing package. This means there's no separate "register" step — publishing is the only way a package appears in the registry.
+On first publish, the CLI reads `plugin.json` and creates the `example.packages.record` record in the author's atproto repo. Subsequent publishes create release records against the existing package. This means there's no separate "register" step — publishing is the only way a package appears in the registry.
 
 ### Sandboxed plugins
 
@@ -606,7 +688,7 @@ $ emdash plugin publish --url https://github.com/example/gallery/releases/downlo
 
 1. Fetches the bundle archive from the URL, validates it is under the 50 MB cap, and computes its SRI integrity hash.
 2. Reads the bundle manifest to extract `capabilities` and `allowedHosts`.
-3. Creates the release record pointing to the provided URL.
+3. Creates the release record with `source: #tarballSource` (carrying `urls: [<the provided URL>]`) and `runtime: #sandboxedRuntime` (carrying the extracted `capabilities` and `allowedHosts`).
 
 Directory-based packaging, upload flows, and hosted artifact publishing are planned follow-on work and intentionally omitted from the initial spec.
 
@@ -619,7 +701,7 @@ $ emdash plugin publish --npm @example/emdash-advanced-seo@1.0.0
 1. Fetches the npm package metadata from the registry, including `dist.integrity`.
 2. Verifies that the `package.json` contains an `emdash.author` field matching the authenticated Atmosphere account's DID.
 3. Verifies that `dist.integrity` is present in SRI format. Refuses to publish if only a legacy `shasum` is available.
-4. Creates the release record with `npmVersion` and the captured `integrity`. The release record is signed as part of the atproto repo MST, so the integrity hash is transitively authenticated by the author's key.
+4. Creates the release record with `source: #npmSource` (carrying the npm package name and version), `runtime: #nativeRuntime`, and the captured `integrity`. The release record is signed as part of the atproto repo MST, so the integrity hash is transitively authenticated by the author's key.
 
 The author publishes to npm as they normally would. The `emdash plugin publish --npm` step creates the registry record that links the npm package to their atproto identity and locks in the exact bytes that the author blessed. This is a separate step from `npm publish` — it registers the release in the EmDash directory, it doesn't replace npm.
 
@@ -650,19 +732,21 @@ If the `emdash.author` field is missing or doesn't match, the CLI refuses to cre
 
 **Registry AppView (default instance)**
 
-The core indexing service. Subscribes to a relay firehose, filters for `com.emdashcms.registry.*` records, indexes into a database, auto-mirrors sandboxed release artifacts, and serves a public read API. The reference deployment splits the API service and the artifact mirror across two Cloudflare Workers on separate domains, following the same pattern Bluesky uses for `api.bsky.app` vs. `video.bsky.app` / `cdn.bsky.app`. The API stays low-bandwidth and cookieless; the artifact mirror carries the egress. The AppView software is open source and can be self-hosted by anyone. We would expect that EmDash hosting platforms might choose to run their own AppView instances, both for resilience and to have more control over the mirroring policies.
+The core indexing service. Subscribes to a relay firehose, filters for `example.packages.*` records, indexes into a database, auto-mirrors sandboxed release artifacts, and serves a public read API. The reference deployment splits the API service and the artifact mirror across two Cloudflare Workers on separate domains, following the same pattern Bluesky uses for `api.bsky.app` vs. `video.bsky.app` / `cdn.bsky.app`. The API stays low-bandwidth and cookieless; the artifact mirror carries the egress. The AppView software is open source and can be self-hosted by anyone. We would expect that EmDash hosting platforms might choose to run their own AppView instances, both for resilience and to have more control over the mirroring policies.
 
 API surface:
 
-| Endpoint                                      | Description                                                                                           |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `GET /v1/packages`                            | List/search packages. Supports `?q=` for search, `?type=sandboxed\|native` for filtering, pagination. |
-| `GET /v1/packages/:did/:slug`                 | Get a specific package by canonical package identity.                                                 |
-| `GET /v1/packages/:did/:slug/releases`        | List releases for the package identified by `did/slug`.                                               |
-| `GET /v1/packages/:did/:slug/releases/latest` | Get the latest release for the package, wrapped in an envelope with current mirror URLs.              |
-| `GET /v1/resolve/:handle/:slug`               | Resolve `handle/slug` to its canonical `did/slug` identity and return the package.                    |
+| Endpoint                                      | Description                                                                                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/packages`                            | List/search packages. Supports `?q=` for search, `?runtime=sandboxed\|native` for filtering by latest-release runtime variant, pagination. |
+| `GET /v1/packages/:did/:slug`                 | Get a specific package by canonical package identity.                                                                                      |
+| `GET /v1/packages/:did/:slug/releases`        | List releases for the package identified by `did/slug`.                                                                                    |
+| `GET /v1/packages/:did/:slug/releases/latest` | Get the latest release for the package, wrapped in an envelope with current mirror URLs.                                                   |
+| `GET /v1/resolve/:handle/:slug`               | Resolve `handle/slug` to its canonical `did/slug` identity and return the package.                                                         |
 
 All release-returning endpoints return the envelope described in [Artifact mirroring](#artifact-mirroring): the signed release record plus a `mirrors` array of URLs the AppView is currently serving the artifact from. The specific mirror URL scheme is an implementation detail of each AppView and is not part of the protocol.
+
+The `runtime` filter on `/v1/packages` is derived from the latest-release runtime variant, not from a field on the package record itself — the package record is host-neutral, and "this is a sandboxed-runtime EmDash plugin" is a property of its releases. AppViews maintain this derivation in their index. Packages whose latest release has an unknown runtime variant (or no runtime at all) are not returned by a `?runtime=sandboxed` or `?runtime=native` filter.
 
 **AppView selection.** EmDash sites choose which AppView they use via a three-layer precedence chain:
 
@@ -685,8 +769,8 @@ These are AppView-implementation concerns, not protocol rules — third-party Ap
 
 **Upstream sync.** The default AppView sources its events from a public relay; the specific source is an operational setting rather than a protocol constant. Practical options:
 
-- **Direct relay subscription.** Bluesky's Sync 1.1 relay at `relay1.us-east.bsky.network` is the canonical public firehose. The AppView subscribes via `com.atproto.sync.subscribeRepos` and filters for `com.emdashcms.registry.*` records.
-- **Tap as a sync layer.** [Tap](https://docs.bsky.app/blog/introducing-tap) is a single-tenant Go service that subscribes to a relay, verifies MST integrity and signatures, and emits filtered events for a configured set of collections. Its "collection signal" mode is designed for exactly this case — track only repositories that contain at least one `com.emdashcms.registry.*` record. This is the recommended upstream for the reference AppView: we get cryptographic verification and filtering out of the box without reimplementing them in the AppView.
+- **Direct relay subscription.** Bluesky's Sync 1.1 relay at `relay1.us-east.bsky.network` is the canonical public firehose. The AppView subscribes via `com.atproto.sync.subscribeRepos` and filters for `example.packages.*` records.
+- **Tap as a sync layer.** [Tap](https://docs.bsky.app/blog/introducing-tap) is a single-tenant Go service that subscribes to a relay, verifies MST integrity and signatures, and emits filtered events for a configured set of collections. Its "collection signal" mode is designed for exactly this case — track only repositories that contain at least one `example.packages.*` record. This is the recommended upstream for the reference AppView: we get cryptographic verification and filtering out of the box without reimplementing them in the AppView.
 - **Jetstream.** `jetstream2.us-east.bsky.network` exposes a simplified JSON firehose that's useful for prototyping and for implementations that don't want to handle CAR/CBOR decoding directly.
 
 The choice between these is operational. The protocol is identical regardless of how events are sourced — if any given upstream becomes unavailable or starts filtering records we depend on, the AppView can be pointed at an alternative without client-side changes.
@@ -730,42 +814,66 @@ const client = new RegistryClient({
 
 // Discovery (reads from AppView)
 const results = await client.search("gallery");
-const nativeOnly = await client.search("seo", { type: "native" });
+const nativeOnly = await client.search("seo", { runtime: "native" });
 const pkg = await client.getPackage("example.dev", "gallery-plugin");
 
 // Release responses are enveloped: the signed record plus AppView-advertised mirror URLs.
 const { release, mirrors } = await client.getLatestRelease("example.dev", "gallery-plugin");
 // mirrors[] is the ordered list of AppView mirror URLs; the client tries these before the
-// author's canonical `url` and verifies the downloaded bytes against release.integrity.
+// author-declared URLs in release.source.urls, and verifies the downloaded bytes against
+// release.integrity at each step.
 
-// Publishing a sandboxed plugin (writes to PDS via OAuth agent)
+// Publishing a sandboxed plugin (writes to PDS via OAuth agent).
+// The package record is host-neutral: no runtime field, no npm reference.
 await client.createPackage(agent, {
 	slug: "gallery-plugin",
 	name: "Gallery Plugin",
-	type: "sandboxed",
 	description: "A beautiful image gallery.",
 	license: "MIT",
 	authors: [{ name: "example", url: "https://example.dev" }],
 });
 
+// The release carries the source + runtime union variants.
 await client.createRelease(agent, {
-	package: "at://did:plc:abc123/com.emdashcms.registry.package/gallery-plugin",
+	package: "at://did:plc:abc123/example.packages.record/gallery-plugin",
 	version: "1.0.0",
-	url: "https://github.com/example/gallery/releases/download/v1.0.0/gallery-plugin-1.0.0.tar.gz",
 	integrity: "sha256-q1w2e3r4...",
-	capabilities: ["read:content", "read:media"],
-	allowedHosts: ["images.example.com"],
+	source: {
+		$type: "example.packages.defs#tarballSource",
+		urls: [
+			"https://github.com/example/gallery/releases/download/v1.0.0/gallery-plugin-1.0.0.tar.gz",
+		],
+	},
+	runtime: {
+		$type: "com.emdashcms.plugin.runtime#sandboxedRuntime",
+		capabilities: ["read:content", "read:media"],
+		allowedHosts: ["images.example.com"],
+		compatibility: { emdash: ">=2.0.0 <3" },
+	},
 });
 
-// Publishing a native plugin
+// Publishing a native plugin — again, the package record is host-neutral.
 await client.createPackage(agent, {
 	slug: "advanced-seo",
 	name: "Advanced SEO",
-	type: "native",
-	npmPackage: "@example/emdash-advanced-seo",
 	description: "Comprehensive SEO tooling for EmDash.",
 	license: "MIT",
 	authors: [{ name: "example", url: "https://example.dev" }],
+});
+
+await client.createRelease(agent, {
+	package: "at://did:plc:abc123/example.packages.record/advanced-seo",
+	version: "1.0.0",
+	integrity: "sha512-...",
+	source: {
+		$type: "example.packages.defs#npmSource",
+		package: "@example/emdash-advanced-seo",
+		version: "1.0.0",
+	},
+	runtime: {
+		$type: "com.emdashcms.plugin.runtime#nativeRuntime",
+		compatibility: { emdash: ">=2.0.0" },
+	},
 });
 ```
 
@@ -775,22 +883,22 @@ GitHub Actions, hosted upload services, artifact caches and labellers are planne
 
 - **A PDS.** Authors use any existing PDS — Bluesky's hosted service, a self-hosted instance, or any other compliant PDS. We may in future host a PDS to allow easy signup for authors, but this is not a v1 deliverable and is not required for the system to function.
 - **A relay.** We subscribe to existing relay infrastructure.
-- **A sync / firehose-filtering layer.** We use [Tap](https://docs.bsky.app/blog/introducing-tap) to subscribe to a relay, verify MST integrity and signatures, and deliver filtered `com.emdashcms.registry.*` events to the AppView. This replaces what would otherwise be bespoke firehose-handling code.
-- **A custom signing system.** atproto's repo-level signing is sufficient. We do not need a separate signing ceremony as FAIR requires.
+- **A sync / firehose-filtering layer.** We use [Tap](https://docs.bsky.app/blog/introducing-tap) to subscribe to a relay, verify MST integrity and signatures, and deliver filtered `example.packages.*` events to the AppView. This replaces what would otherwise be bespoke firehose-handling code.
+- **A custom signing system.** atproto's repo-level MST signing covers every record in the author's repo as a side-effect of normal publishing, so releases don't need a separate per-artifact signing step.
 - **A DID directory.** We use the existing [PLC directory](https://plc.directory/) and [did:web](https://atproto.com/specs/did) resolution.
 
 ## Reference Implementations
 
 We provide reference implementations for every component in the initial system. The goal is that every required layer of the stack can be run independently.
 
-| Component                 | What it is                                             | We host a default?            | Others can run their own?                               |
-| ------------------------- | ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------- |
-| **Lexicons**              | JSON schema definitions for `com.emdashcms.registry.*` | n/a (published in a Git repo) | n/a                                                     |
-| **AppView**               | Firehose consumer + index + read API                   | ✅ Yes                        | ✅ Yes — subscribe to the relay, index the same records |
-| **Package mirror**        | Optional artifact mirror for sandboxed releases        | ✅ Yes                        | ✅ Yes — the protocol allows any mirror strategy        |
-| **Web directory**         | Browsable plugin directory website                     | ✅ Yes                        | ✅ Yes — reads from any AppView API                     |
-| **CLI (`emdash plugin`)** | Publish, search and manage plugins                     | n/a (distributed via npm)     | n/a                                                     |
-| **Client library**        | TypeScript SDK for third-party integrations            | n/a (published to npm)        | n/a                                                     |
+| Component                 | What it is                                                                    | We host a default?            | Others can run their own?                               |
+| ------------------------- | ----------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------- |
+| **Lexicons**              | JSON schema definitions for `example.packages.*` and `com.emdashcms.plugin.*` | n/a (published in a Git repo) | n/a                                                     |
+| **AppView**               | Firehose consumer + index + read API                                          | ✅ Yes                        | ✅ Yes — subscribe to the relay, index the same records |
+| **Package mirror**        | Optional artifact mirror for sandboxed releases                               | ✅ Yes                        | ✅ Yes — the protocol allows any mirror strategy        |
+| **Web directory**         | Browsable plugin directory website                                            | ✅ Yes                        | ✅ Yes — reads from any AppView API                     |
+| **CLI (`emdash plugin`)** | Publish, search and manage plugins                                            | n/a (distributed via npm)     | n/a                                                     |
+| **Client library**        | TypeScript SDK for third-party integrations                                   | n/a (published to npm)        | n/a                                                     |
 
 The reference AppView is designed to run on Cloudflare Workers + D1, but the reference implementations are not Cloudflare-specific in their interfaces, only in their deployment target. Any host could reimplement the same APIs against their own infrastructure.
 
@@ -838,8 +946,8 @@ Every release record contains a signed SRI `integrity` hash of the artifact. Bec
 A client verifies:
 
 1. The release record belongs to the expected DID (via repo signature).
-2. The artifact served at the release's transport endpoint (the `url` for sandboxed, the npm tarball for native) matches the release's `integrity` hash.
-3. For sandboxed plugins, the bundle manifest additionally matches the release record's `capabilities` and `allowedHosts`.
+2. The artifact served at the location(s) named by `release.source` (a URL list under `#tarballSource`, or npm's tarball for the given name and version under `#npmSource`) matches the release's top-level `integrity` hash.
+3. For `#sandboxedRuntime` releases, the bundle manifest additionally matches the runtime variant's `capabilities` and `allowedHosts`.
 
 For sandboxed plugins, step 2 runs inside the admin UI before installation — the bundle is downloaded, hashed, and compared against the record.
 
@@ -854,12 +962,15 @@ The `emdash.author` field in `package.json` remains useful — it prevents someo
 
 atproto handles key rotation at the DID level. If an author's key is compromised, they rotate it via the [PLC directory](https://plc.directory/) (or did:web update). Existing records remain valid (they were signed by the old key at the time), but new records must use the new key. This is handled transparently by the PDS.
 
-### Plugin type and trust
+### Runtime variants and trust
 
-The `type` field in the package record is an important trust signal that the admin UI should surface clearly:
+The runtime variant attached to a release is the trust signal the admin UI must surface clearly. Because the variant lives on each release (not the package), it is always authoritative for the version being installed:
 
-- **Sandboxed plugins** run with declared, enforced capabilities and host access constraints. The admin UI can show "This plugin requests read:content, email:send, and outbound access to images.example.com" and the user can make an informed decision knowing the sandbox enforces those boundaries.
-- **Native plugins** have full platform access. The admin UI should clearly communicate this: "This is a native plugin. It runs with full platform access and requires a rebuild to install." This is not a warning about quality, it is information about the trust model.
+- **`#sandboxedRuntime` releases** run with declared, enforced capabilities and host access constraints. The admin UI can show "This plugin requests read:content, email:send, and outbound access to images.example.com" and the user can make an informed decision knowing the sandbox enforces those boundaries.
+- **`#nativeRuntime` releases** have full platform access. The admin UI should clearly communicate this: "This is a native plugin. It runs with full platform access and requires a rebuild to install." This is not a warning about quality, it is information about the trust model.
+- **Releases with an unknown runtime variant** are not installable by EmDash. A release with no `runtime` at all, or a `runtime.$type` EmDash doesn't recognise (e.g. a variant belonging to another host), is shown in directory contexts if at all but must not trigger an install flow.
+
+See also the [native-plugin escape-hatch tension](#the-native-plugin-escape-hatch-tension) discussion for the UX/policy framing around listing both runtime tiers in the same directory.
 
 ### Threat model
 
@@ -877,20 +988,22 @@ The `type` field in the package record is an important trust signal that the adm
 
 ## Protocol-level testing
 
-- **Lexicon validation:** Automated tests that verify record creation and validation against the lexicon schemas, for both sandboxed and native package types.
+- **Lexicon validation:** Automated tests that verify record creation and validation against the lexicon schemas, for all v1-supported source/runtime combinations and for out-of-policy combinations (which must be rejected by the publish tooling even though the lexicons permit them).
 - **Round-trip tests:** Create package and release records on a test PDS, verify they appear in the AppView index, verify the EmDash client can resolve and install from them.
-- **Integrity verification:** Test that the EmDash client correctly rejects sandboxed plugin artifacts whose SRI integrity hash does not match the release record, across all supported algorithms (`sha256`, `sha384`, `sha512`).
+- **Integrity verification:** Test that the EmDash client correctly rejects artifacts whose SRI integrity hash does not match the release record, across all supported algorithms (`sha256`, `sha384`, `sha512`) and for both `#tarballSource` and `#npmSource`.
 - **Provenance verification:** Test that install fetches package and release records from the author's repo (or equivalent verified proof) and rejects AppView metadata that does not match source records.
-- **npm ownership verification:** Test that the CLI rejects native plugin registration when the npm package's `emdash.author` field is missing or doesn't match the authenticated DID.
+- **npm ownership verification:** Test that the CLI rejects `#npmSource` release registration when the npm package's `emdash.author` field is missing or doesn't match the authenticated DID.
 - **Metadata fallback:** Test that the EmDash client falls back to PDS-direct record lookup when the AppView is unreachable.
-- **Artifact source fallback:** Test that the client walks the local mirror → AppView mirror → author `url` chain correctly when earlier sources are unavailable, and that integrity is re-verified at each source.
-- **AppView mirror validation:** Test that the AppView rejects artifacts that exceed the 50 MB cap, fail to parse as valid `.tar.gz`, are missing required root entries, or whose parsed manifest capabilities/allowedHosts disagree with the release record.
+- **Artifact source fallback:** Test that the client walks the local mirror → AppView mirror → each URL in `source.urls` chain correctly when earlier sources are unavailable, and that integrity is re-verified at each source.
+- **AppView mirror validation:** Test that the AppView rejects artifacts that exceed the 50 MB cap, fail to parse as valid `.tar.gz`, are missing required root entries, or whose parsed manifest capabilities/allowedHosts disagree with the release's runtime variant.
+- **Unknown runtime variant handling:** Test that the EmDash install client refuses to install a release whose `runtime.$type` is unknown or absent, and that a generic directory can still render the release's metadata.
+- **Yanked release handling:** Test that yanked releases are excluded from latest-release selection and from `?runtime=*` filters, but remain fetchable by explicit AT URI, and that their yank reason is surfaced on any admin with this version installed.
 - **Deletion handling:** Delete package and release records on a test PDS, verify the AppView retains tombstones internally, removes the mirrored artifact from its object store, and removes them from search and install flows.
 
 ## Integration testing
 
 - **End-to-end publish flow:** CLI login → init → publish (`--url` for sandboxed, `--npm` for native) → verify record exists → verify AppView indexes it → verify EmDash can install it.
-- **Third-party directory:** Verify a frontend-only directory can read and display packages from the AppView API, with correct type filtering.
+- **Third-party directory:** Verify a frontend-only directory can read and display packages from the AppView API, with correct `runtime=*` filtering derived from the latest release's runtime variant.
 
 ## Adversarial testing
 
@@ -898,7 +1011,8 @@ The `type` field in the package record is an important trust signal that the adm
 - **Mirror as arbitrary-file dump:** Publish a release record whose `integrity` points at an unrelated binary; verify the AppView refuses to mirror it.
 - **Duplicate-version override:** Publish a second release record with the same `version` as an existing release; verify the AppView ignores the later record, install clients refuse it, and the earlier record remains canonical.
 - **Ingestion spam:** Publish records faster than the AppView's per-DID rate limit; verify excess records are dropped at ingest and the AppView stays responsive.
-- **Mismatched npm ownership:** Attempt to create a registry record for an npm package whose `emdash.author` field contains a different DID; verify the CLI and AppView reject it.
+- **Mismatched npm ownership:** Attempt to create an `#npmSource` release for an npm package whose `emdash.author` field contains a different DID; verify the CLI and AppView reject it.
+- **Out-of-policy source/runtime combination:** Attempt to publish a release with `#tarballSource` paired with `#nativeRuntime`, or `#npmSource` paired with `#sandboxedRuntime`. Verify the reference CLI refuses to publish and the EmDash install client refuses to install, even though the lexicons permit the combination.
 - **Forged records:** Attempt to create records claiming to be from a different DID; verify the AppView and client reject them.
 
 # Drawbacks
@@ -921,9 +1035,9 @@ The `type` field in the package record is an important trust signal that the adm
 
 ## Use FAIR directly
 
-Adopt the FAIR protocol as-is, writing an EmDash-specific extension. This would mean each package gets its own DID, authors run (or use) a FAIR repository server, and we build an aggregator for discovery.
+Adopt the FAIR protocol as-is, writing an EmDash-specific extension. This would mean each package gets its own DID, authors publish to a FAIR-compatible repository host, and we run or consume an aggregator for discovery.
 
-**Why not:** Higher infrastructure burden on authors. No social layer. Weaker discovery (crawling vs. firehose). The WordPress-specific reference implementation provides little reusable code for EmDash.
+**Why not:** Higher infrastructure burden on authors. No social layer. Weaker discovery (crawling vs. firehose). The PHP-specific reference implementation provides little reusable code for EmDash.
 
 ## Build a traditional centralised registry
 
@@ -979,7 +1093,7 @@ The current centralised marketplace uses a `_plugin_state` table with `source='m
 
 ## Phase 1: Foundation
 
-- Design and publish lexicons. This blocks everything else and is worth spending disproportionate time on. During development, publish under the `com.emdashcms.experimental.*` namespace. This allows us to iterate on the lexicon during developoment. Move to `com.emdashcms.registry.*` once the schema is stable and we are ready to commit to the protocol, and in any case before the public beta launch.
+- Design and publish lexicons. This blocks everything else and is worth spending disproportionate time on. During development, publish the shared identity records under a clearly-experimental NSID (e.g. `com.emdashcms.experimental.package`, `com.emdashcms.experimental.release`). This allows us to iterate on the lexicon without committing. Move to the stable shared namespace (the one that replaces the `example.packages.*` placeholder used throughout this draft) once the schema is stable and we are ready to commit to the protocol, and in any case before the public beta launch.
 - Build the AppView: firehose subscription, record indexing, read API.
 - Build the CLI: login, init, publish (`--url` and `--npm`), search.
 - Wire up the admin UI's plugin install flow for sandboxed plugins (search, provenance verification, integrity verification, install).
@@ -998,4 +1112,14 @@ The design of these follow-on RFCs builds directly on the groundwork in [#296](h
 
 # Unresolved Questions
 
-- **Multi-author packages.** Can a package have multiple accounts authorised to publish releases? atproto records are per-account, so this may need a delegation mechanism or a shared account.
+- **Shared-infrastructure namespace.** This draft uses `example.packages.*` as a placeholder. The intended shape is a namespace rooted on a domain that signals shared infrastructure rather than single-project ownership — likely a `.community` TLD or similar, following the `community.lexicon.*` pattern. The concrete domain needs to be decided (and registered) before v1 publish. See [Lexicons](#lexicons) for the placeholder rationale.
+
+- **Multi-author packages.** Credits can be listed on the package record (`authors[]` is already present in the schema), but authorising multiple accounts to _publish releases_ is a harder problem — atproto records are per-repo, so every release under a single package is by construction signed by one DID. Options under consideration: a shared org-DID with delegated access; a co-author attestation record that other DIDs write to cross-sign a package they're credited on; or treating handoff as deprecation-plus-republish under a new DID. Needs its own design pass before v1.
+
+- **Update discovery for installed plugins.** Once an admin has a plugin installed, how do they learn there's a new version — and how do they distinguish a normal update from one marked `yanked: { reason: "security" }` that they should prioritise? This RFC defines the data; it doesn't specify the subscription/polling model or the admin UI surfaces that use it. Candidate approaches include a per-site poll of the AppView for latest releases, firehose-derived push notifications for operators running their own AppView, and an in-admin "available updates" surface that differentiates security yanks from normal releases.
+
+- **Moderation gap before labellers land.** The registry is permissive about what records authors can publish: anyone can publish `did:plc:whoever/example.packages.record/gallery-plugin`, including an imposter parking the slug next to a legitimate author. Labeller-based verification (modelled on Bluesky's `verified` labels) is the long-term answer and lives in the trust/moderation RFC, but that RFC hasn't been written yet. In the interim, the directory is small enough that squatting is a real UX risk. Needs a position, even if that position is "known limitation, rely on handle prominence and manual takedowns until labellers exist."
+
+- **Migration story for existing npm-distributed EmDash plugins.** EmDash's own first-party plugins (`@emdash-cms/plugin-atproto`, `@emdash-cms/plugin-forms`, etc.) are distributed via npm today with no registry records. The "For existing marketplace installs" section covers sandboxed marketplace plugins; it doesn't cover the native plugins authors publish directly to npm. Options: retroactively publish registry records for historical releases (forward-only, old versions stay npm-only); shim at the AppView layer (synthesize package records from npm metadata for known emdash-adjacent packages); require authors to republish going forward. Needs a decision before the directory launches empty of all the plugins users actually use.
+
+- **Deprecation / un-deprecation policy.** The lexicon allows authors to remove the `deprecated` field from a package record (it's just a field edit). The reference CLI refuses to do this to prevent quiet re-activation, but a non-reference client could. Worth deciding whether this should be a protocol-level constraint (e.g. "once set, `deprecated` must remain set"), a label-driven mitigation, or simply a documented risk.
