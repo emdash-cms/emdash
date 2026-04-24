@@ -538,9 +538,7 @@ describe("ContentRepository", () => {
 				// we don't care what it matches, only that the query succeeds.
 				const massive = "z".repeat(5000);
 
-				await expect(
-					repo.findMany("page", { where: { search: massive } }),
-				).resolves.toBeDefined();
+				await expect(repo.findMany("page", { where: { search: massive } })).resolves.toBeDefined();
 			});
 		});
 

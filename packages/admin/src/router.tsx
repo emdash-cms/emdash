@@ -307,11 +307,7 @@ function ContentListPage() {
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: [
-				"content",
-				collection,
-				{ locale: activeLocale, q: debouncedSearch, sort },
-			],
+			queryKey: ["content", collection, { locale: activeLocale, q: debouncedSearch, sort }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,

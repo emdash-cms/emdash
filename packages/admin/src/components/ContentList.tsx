@@ -152,8 +152,7 @@ export function ContentList({
 	// When the server reports a total, it's the source of truth for the
 	// denominator. Otherwise fall back to the size of the (possibly partial)
 	// client list, matching pre-refactor behavior.
-	const effectiveTotal =
-		typeof total === "number" && !searchQuery ? total : filteredItems.length;
+	const effectiveTotal = typeof total === "number" && !searchQuery ? total : filteredItems.length;
 	const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
 
 	// Clamp the current page in case `total` shrinks after a delete/search
@@ -182,14 +181,7 @@ export function ContentList({
 		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [
-		clampedPage,
-		filteredItems.length,
-		hasMore,
-		onLoadMore,
-		searchQuery,
-		serverSideSearch,
-	]);
+	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSideSearch]);
 
 	return (
 		<div className="space-y-4">
