@@ -455,5 +455,24 @@ describe("ContentList", () => {
 			// Post 0 should not be visible
 			expect(screen.getByText("Post 0").query()).toBeNull();
 		});
+
+		// Regression: before this change `totalPages` was derived only from
+		// loaded items, so the denominator grew in increments of 5 (API
+		// fetches 100, page size 20 → 5 client pages per fetch). When the
+		// parent supplies an authoritative `total`, the denominator must
+		// reflect it from the first render.
+		it("uses `total` as a stable denominator instead of items.length", async () => {
+			// Only the first 20 items have been loaded, but the server knows
+			// there are 143 total.
+			const items = Array.from({ length: 20 }, (_, i) =>
+				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+			);
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} total={143} hasMore={true} />,
+			);
+
+			// 143 / 20 = 8 pages. The denominator should read 8, not "/5".
+			await expect.element(screen.getByText("1 / 8")).toBeInTheDocument();
+		});
 	});
 });

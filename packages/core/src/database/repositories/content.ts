@@ -519,12 +519,16 @@ export class ContentRepository {
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
-		const rows = await query.execute();
+		// Run the page fetch and the unbounded count together — the UI needs
+		// both to render a stable denominator, and issuing them in parallel
+		// on SQLite is essentially free.
+		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
 		const mappedResult: FindManyResult<ContentItem> = {
 			items: items.map((row) => this.mapRow(type, row as Record<string, unknown>)),
+			total,
 		};
 
 		if (hasMore && items.length > 0) {

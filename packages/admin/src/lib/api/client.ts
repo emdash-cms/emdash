@@ -40,6 +40,11 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 export interface FindManyResult<T> {
 	items: T[];
 	nextCursor?: string;
+	/**
+	 * Total number of rows matching the filters (ignoring pagination).
+	 * Optional because older servers may not return it.
+	 */
+	total?: number;
 }
 
 /**

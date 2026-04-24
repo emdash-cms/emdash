@@ -264,6 +264,7 @@ export async function handleContentList(
 			data: {
 				items: result.items,
 				nextCursor: result.nextCursor,
+				total: result.total,
 			},
 		};
 	} catch (error) {

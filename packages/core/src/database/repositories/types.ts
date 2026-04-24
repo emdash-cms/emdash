@@ -80,6 +80,12 @@ export interface FindManyOptions {
 export interface FindManyResult<T> {
 	items: T[];
 	nextCursor?: string; // Base64-encoded JSON: {orderValue: string, id: string}
+	/**
+	 * Total number of rows matching the where clause (ignoring pagination).
+	 * Optional because not every caller needs it; repositories that compute
+	 * it should set it so the UI can render a stable pagination denominator.
+	 */
+	total?: number;
 }
 
 /** Encode a cursor from order value + id */

@@ -145,6 +145,7 @@ export const contentListResponseSchema = z
 	.object({
 		items: z.array(contentItemSchema),
 		nextCursor: z.string().optional(),
+		total: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "ContentListResponse" });
 
