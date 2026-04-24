@@ -23,6 +23,13 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+function extractTextAlign(node: ProseMirrorNode): "center" | "right" | "justify" | undefined {
+	const v = node.attrs?.textAlign;
+	// "left" is the default; omit so existing payloads stay byte-identical
+	if (v === "center" || v === "right" || v === "justify") return v;
+	return undefined;
+}
+
 /**
  * Convert ProseMirror document to Portable Text
  */
@@ -102,12 +109,15 @@ function convertParagraph(node: ProseMirrorNode): PortableTextTextBlock | null {
 		return null;
 	}
 
+	const textAlign = extractTextAlign(node);
+
 	return {
 		_type: "block",
 		_key: generateKey(),
 		style: "normal",
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
+		...(textAlign ? { textAlign } : {}),
 	};
 }
 
@@ -143,12 +153,15 @@ function convertHeading(node: ProseMirrorNode): PortableTextTextBlock | null {
 		return null;
 	}
 
+	const textAlign = extractTextAlign(node);
+
 	return {
 		_type: "block",
 		_key: generateKey(),
 		style,
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
+		...(textAlign ? { textAlign } : {}),
 	};
 }
 
