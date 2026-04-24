@@ -46,6 +46,20 @@ import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
 
+/**
+ * Parse a JSON column expected to contain an array of strings.
+ *
+ * Throws on malformed JSON rather than returning []; callers are responsible
+ * for deciding how to handle/log the error. Empty string / null inputs return
+ * [] (they represent "no value"). Non-string array entries are filtered out.
+ */
+function parseStringArray(raw: string | null | undefined): string[] {
+	if (!raw) return [];
+	const parsed: unknown = JSON.parse(raw);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((v): v is string => typeof v === "string");
+}
+
 /** Combined result from a single-pass page contribution collection */
 interface PageContributions {
 	metadata: PageMetadataContribution[];
@@ -1489,7 +1503,7 @@ export class EmDashRuntime {
 				label: row.label,
 				labelSingular: row.label_singular ?? undefined,
 				hierarchical: row.hierarchical === 1,
-				collections: row.collections ? (JSON.parse(row.collections) as string[]).toSorted() : [],
+				collections: parseStringArray(row.collections).toSorted(),
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);

@@ -8,7 +8,7 @@ export default defineConfig({
 			babel: {
 				plugins: ["@lingui/babel-plugin-lingui-macro"],
 			},
-		}) as Plugin[],
+		}),
 	],
 	test: {
 		globals: true,

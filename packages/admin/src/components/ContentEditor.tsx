@@ -228,17 +228,9 @@ export function ContentEditor({
 			[],
 	);
 
-	// Track portableText editor for document outline — use a ref to
-	// ensure only the first portableText field claims the slot even when
-	// multiple PT fields render in the same pass.
+	// Track portableText editor for document outline. Only the "content"
+	// field wires its editor into this slot (see onEditorReady below).
 	const [portableTextEditor, setPortableTextEditor] = React.useState<Editor | null>(null);
-	const ptEditorClaimedRef = React.useRef(false);
-	const handlePTEditorReady = React.useCallback((editor: Editor) => {
-		if (!ptEditorClaimedRef.current) {
-			ptEditorClaimedRef.current = true;
-			setPortableTextEditor(editor);
-		}
-	}, []);
 
 	// Block sidebar state – when a block (e.g. image) requests sidebar space, this holds
 	// the panel data. When non-null the sidebar shows the block panel instead of the
@@ -352,7 +344,7 @@ export function ContentEditor({
 		(data: Record<string, unknown>) => {
 			for (const [name, field] of Object.entries(fields)) {
 				if (field.kind === "url") {
-					const val = typeof data[name] === "string" ? (data[name] as string).trim() : "";
+					const val = typeof data[name] === "string" ? data[name].trim() : "";
 					if (val && !isValidUrl(val)) return true;
 				}
 			}

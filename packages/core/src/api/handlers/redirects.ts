@@ -318,7 +318,7 @@ export async function handleRedirectDelete(
 function loopError(loopPath: string[]): ApiResult<never> {
 	const hops = loopPath
 		.slice(0, -1)
-		.map((p, i) => `${p} \u2192 ${loopPath[i + 1]!}`)
+		.map((p, i) => `${p} \u2192 ${loopPath[i + 1]}`)
 		.join("\n");
 	return {
 		success: false,

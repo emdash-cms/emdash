@@ -11,6 +11,7 @@ import { FTSManager } from "../search/fts-manager.js";
 import {
 	type Collection,
 	type CollectionSource,
+	type CollectionSupport,
 	type ColumnType,
 	type Field,
 	type CreateCollectionInput,
@@ -47,6 +48,34 @@ function isFieldType(value: string): value is FieldType {
 
 function isColumnType(value: string): value is ColumnType {
 	return COLUMN_TYPES.has(value);
+}
+
+const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport>([
+	"drafts",
+	"revisions",
+	"preview",
+	"scheduling",
+	"search",
+	"seo",
+]);
+
+function isCollectionSupport(value: unknown): value is CollectionSupport {
+	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
+}
+
+/**
+ * Parse a collection's `supports` column (stored as a JSON array of
+ * CollectionSupport keys). Unknown/invalid entries are filtered out so the
+ * runtime value matches the declared `CollectionSupport[]` type.
+ *
+ * Throws on malformed JSON so corruption surfaces loudly; returns an empty
+ * array only for explicitly null/empty values or non-array JSON.
+ */
+function parseSupports(raw: string | null | undefined): CollectionSupport[] {
+	if (!raw) return [];
+	const parsed: unknown = JSON.parse(raw);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter(isCollectionSupport);
 }
 
 /**
@@ -243,7 +272,7 @@ export class SchemaRegistry {
 			// Sync FTS state when the supports array changes (e.g. search toggled on/off)
 			if (input.supports !== undefined) {
 				const hadSearch = existing.supports.includes("search");
-				const hasSearch = (JSON.parse(row.supports ?? "[]") as string[]).includes("search");
+				const hasSearch = parseSupports(row.supports).includes("search");
 				if (hadSearch !== hasSearch) {
 					await this.syncSearchState(slug, trx);
 				}
@@ -525,7 +554,7 @@ export class SchemaRegistry {
 			.executeTakeFirst();
 		if (!row) return;
 
-		const wantsSearch = (JSON.parse(row.supports ?? "[]") as string[]).includes("search");
+		const wantsSearch = parseSupports(row.supports).includes("search");
 		const searchableFields = await ftsManager.getSearchableFields(collectionSlug);
 		const config = await ftsManager.getSearchConfig(collectionSlug);
 		const ftsActive = config?.enabled === true;
@@ -881,7 +910,7 @@ export class SchemaRegistry {
 			labelSingular: row.label_singular ?? undefined,
 			description: row.description ?? undefined,
 			icon: row.icon ?? undefined,
-			supports: row.supports ? JSON.parse(row.supports) : [],
+			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
 			urlPattern: row.url_pattern ?? undefined,

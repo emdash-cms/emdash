@@ -7,6 +7,7 @@
 
 import {
 	S3Client,
+	type S3ClientConfig,
 	PutObjectCommand,
 	GetObjectCommand,
 	DeleteObjectCommand,
@@ -131,9 +132,14 @@ export class S3Storage implements Storage {
 		this.publicUrl = config.publicUrl;
 		this.endpoint = config.endpoint;
 
-		this.client = new S3Client({
+		// S3ClientConfig types `credentials` as required, but the SDK accepts
+		// omitted credentials at runtime (falls back to the provider chain).
+		/* eslint-disable typescript-eslint(no-unsafe-type-assertion) -- upstream @aws-sdk/client-s3 overstates required fields */
+		const clientConfig = {
 			endpoint: config.endpoint,
 			region: config.region || "auto",
+			// Required for R2 and some S3-compatible services
+			forcePathStyle: true,
 			...(config.accessKeyId && config.secretAccessKey
 				? {
 						credentials: {
@@ -142,9 +148,9 @@ export class S3Storage implements Storage {
 						},
 					}
 				: {}),
-			// Required for R2 and some S3-compatible services
-			forcePathStyle: true,
-		} as ConstructorParameters<typeof S3Client>[0]);
+		} as S3ClientConfig;
+		/* eslint-enable typescript-eslint(no-unsafe-type-assertion) */
+		this.client = new S3Client(clientConfig);
 	}
 
 	async upload(options: {

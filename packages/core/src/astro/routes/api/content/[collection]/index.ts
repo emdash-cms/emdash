@@ -61,15 +61,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 				mapErrorStatus(source.error?.code),
 			);
 		}
-		const sourceData =
-			source.data && typeof source.data === "object"
-				? (source.data as Record<string, unknown>)
-				: undefined;
-		const sourceItem =
-			sourceData?.item && typeof sourceData.item === "object"
-				? (sourceData.item as Record<string, unknown>)
-				: sourceData;
-		const sourceAuthor = typeof sourceItem?.authorId === "string" ? sourceItem.authorId : "";
+		const sourceAuthor = source.data.item.authorId ?? "";
 		const translationDenied = requireOwnerPerm(
 			user,
 			sourceAuthor,

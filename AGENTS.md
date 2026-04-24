@@ -35,6 +35,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
 - **Do not make bulk/spray changes** (e.g., "fix all lint warnings", "add types everywhere", "improve error handling across codebase"). If you see a systemic issue, open a Discussion.
 - **Do not touch code outside the scope of your change.** No drive-by refactors, no "while I'm here" improvements, no added comments or logging in unrelated files.
 - **All CI checks must pass.** Typecheck, lint, format, and tests. No exceptions.
+- **All non-trivial code changes should have an adversarial review.** Before opening the PR, perform cycles of adversarial review in a sub-agent, then fix, then re-review until no issues remain.
 
 ## Workflow
 

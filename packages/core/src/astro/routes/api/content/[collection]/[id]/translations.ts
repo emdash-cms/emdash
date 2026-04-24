@@ -6,7 +6,7 @@
  * Returns all locale variants linked to the same translation group.
  */
 
-import { hasPermission, type Permission } from "@emdash-cms/auth";
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";

@@ -27,6 +27,22 @@ import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 
 /**
+ * Narrow a caught error to one carrying a structured `apiError` discriminant.
+ * Used by transaction callbacks that want to surface a specific error code
+ * through the standard Error throwing path.
+ */
+function hasApiError(error: unknown): error is Error & { apiError: { code: string } } {
+	if (!(error instanceof Error) || !("apiError" in error)) return false;
+	const { apiError } = error;
+	return (
+		typeof apiError === "object" &&
+		apiError !== null &&
+		"code" in apiError &&
+		typeof apiError.code === "string"
+	);
+}
+
+/**
  * Extract a slug source (title or name) from content data.
  * Returns null if no suitable string field is found.
  */
@@ -604,11 +620,10 @@ export async function handleContentUpdate(
 	} catch (error) {
 		// Handle structured errors thrown from inside the transaction
 		// (rev check failures, not-found)
-		if (error instanceof Error && "apiError" in error) {
-			const { code } = (error as Error & { apiError: { code: string } }).apiError;
+		if (hasApiError(error)) {
 			return {
 				success: false,
-				error: { code, message: error.message },
+				error: { code: error.apiError.code, message: error.message },
 			};
 		}
 		console.error("Content update error:", error);

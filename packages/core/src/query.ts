@@ -478,7 +478,7 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 			// Edit mode (authenticated editors) has collection-wide draft access.
 			if (isPreviewMode && !isEditMode) {
 				const dbId = entryDatabaseId(baseEntry);
-				if (preview!.id !== dbId && preview!.id !== id) {
+				if (preview.id !== dbId && preview.id !== id) {
 					// Token doesn't match — serve only if publicly visible, without draft access
 					if (isVisible(baseEntry)) {
 						return successResult(wrapEntry(baseEntry), {
