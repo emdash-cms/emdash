@@ -312,3 +312,55 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 });
+
+describe("Content Handlers — list search and total", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		// Seed enough items that limit-based pagination actually kicks in
+		// and we can assert total > items.length.
+		for (let i = 0; i < 8; i++) {
+			const result = await handleContentCreate(db, "post", {
+				data: { title: `Post ${i}` },
+			});
+			if (!result.success) throw new Error("seed failed");
+		}
+		await handleContentCreate(db, "post", { data: { title: "Bleeding" } });
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	// Regression guard — before this change the admin had to fetch every
+	// page to find "Bleeding" because `q` wasn't sent to the server.
+	it("filters items by q (case-insensitive substring)", async () => {
+		const result = await handleContentList(db, "post", { q: "leed" });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.items.map((i) => i.data.title)).toEqual(["Bleeding"]);
+	});
+
+	it("returns total independent of limit", async () => {
+		const result = await handleContentList(db, "post", { limit: 2 });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.items).toHaveLength(2);
+		expect(result.data?.total).toBe(9);
+	});
+
+	it("total reflects filter, not the full collection", async () => {
+		const result = await handleContentList(db, "post", { q: "leed", limit: 10 });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.total).toBe(1);
+	});
+
+	it("ignores an all-whitespace q", async () => {
+		const result = await handleContentList(db, "post", { q: "   " });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.total).toBe(9);
+	});
+});

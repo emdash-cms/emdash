@@ -455,5 +455,96 @@ describe("ContentList", () => {
 			// Post 0 should not be visible
 			expect(screen.getByText("Post 0").query()).toBeNull();
 		});
+
+		// Regression: before this change `totalPages` was derived from the
+		// loaded-page count only, so the denominator grew in increments of 5
+		// (API fetches 100, page size 20 → 5 client pages per fetch). When
+		// the parent supplies an authoritative `total`, the denominator must
+		// reflect it from the first render.
+		it("uses `total` as a stable denominator instead of items.length", async () => {
+			// Only the first 20 items have been loaded, but the server knows
+			// there are 143 total.
+			const items = Array.from({ length: 20 }, (_, i) =>
+				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+			);
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} total={143} hasMore={true} />,
+			);
+
+			// 143 / 20 = 8 pages. The denominator should read 8, not "/5".
+			await expect.element(screen.getByText("1 / 8")).toBeInTheDocument();
+		});
+	});
+
+	// Controlled search + sort are opt-in via parent callbacks — regression
+	// tests for the API the router now uses.
+	describe("controlled search", () => {
+		it("forwards the typed query to onSearchChange without local filtering", async () => {
+			const onSearchChange = vi.fn();
+			const items = [
+				makeItem({ id: "1", data: { title: "Alpha" } }),
+				makeItem({ id: "2", data: { title: "Beta" } }),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					searchQuery=""
+					onSearchChange={onSearchChange}
+				/>,
+			);
+
+			await screen.getByRole("searchbox").fill("beta");
+
+			expect(onSearchChange).toHaveBeenCalledWith("beta");
+			// In controlled mode the component must NOT filter locally — the
+			// parent is responsible for pushing the next `items` prop.
+			await expect.element(screen.getByText("Alpha")).toBeInTheDocument();
+			await expect.element(screen.getByText("Beta")).toBeInTheDocument();
+		});
+	});
+
+	describe("sortable headers", () => {
+		it("calls onSortChange when a header is clicked", async () => {
+			const onSortChange = vi.fn();
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "updatedAt", direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: /^Title:/ }).click();
+
+			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "desc" });
+		});
+
+		it("toggles direction when clicking the active column", async () => {
+			const onSortChange = vi.fn();
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "title", direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: /^Title:/ }).click();
+
+			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "asc" });
+		});
+
+		it("falls back to static headers when onSortChange is not provided", async () => {
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+
+			// No button should be rendered for the header — the cell is just a label.
+			expect(screen.getByRole("button", { name: /^Title:/ }).query()).toBeNull();
+		});
 	});
 });

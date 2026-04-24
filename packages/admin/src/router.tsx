@@ -22,7 +22,7 @@ import * as React from "react";
 
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
-import { ContentList } from "./components/ContentList";
+import { ContentList, type ContentListSort } from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
@@ -110,6 +110,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { useDebouncedValue } from "./lib/hooks";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -295,14 +296,30 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
+	// Server-side search + sort state. We keep the raw search string local
+	// so typing feels instant, then debounce before firing the API call.
+	const [searchQuery, setSearchQuery] = React.useState("");
+	const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
+	const [sort, setSort] = React.useState<ContentListSort>({
+		field: "updatedAt",
+		direction: "desc",
+	});
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale }],
+			queryKey: [
+				"content",
+				collection,
+				{ locale: activeLocale, q: debouncedSearch, sort },
+			],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam,
 					limit: 100,
+					q: debouncedSearch || undefined,
+					orderBy: sort.field,
+					order: sort.direction,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -377,6 +394,11 @@ function ContentListPage() {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
 
+	// Server returns `total` on every page; the first page is authoritative
+	// because filters don't change within a fetch cycle. Fall back to the
+	// loaded count so old servers (pre-total) still render a denominator.
+	const total = data?.pages[0]?.total ?? items.length;
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -419,6 +441,11 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			searchQuery={searchQuery}
+			onSearchChange={setSearchQuery}
+			sort={sort}
+			onSortChange={setSort}
+			total={total}
 		/>
 	);
 }

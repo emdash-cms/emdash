@@ -11,6 +11,9 @@ import {
 	MagnifyingGlass,
 	CaretLeft,
 	CaretRight,
+	CaretUp,
+	CaretDown,
+	CaretUpDown,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -19,6 +22,13 @@ import type { ContentItem, TrashedContentItem } from "../lib/api";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+
+/** Sortable content list columns. Maps to the server's order field whitelist. */
+export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
+export interface ContentListSort {
+	field: ContentListSortField;
+	direction: "asc" | "desc";
+}
 
 export interface ContentListProps {
 	collection: string;
@@ -44,6 +54,27 @@ export interface ContentListProps {
 	onLocaleChange?: (locale: string) => void;
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
+	/**
+	 * Controlled search query. When `onSearchChange` is also provided, the
+	 * input becomes parent-controlled and local client-side filtering is
+	 * disabled — the parent is expected to drive filtering via the API.
+	 */
+	searchQuery?: string;
+	onSearchChange?: (query: string) => void;
+	/**
+	 * Controlled sort state. When `onSortChange` is also provided, the column
+	 * headers become sort controls that invoke it. Uncontrolled sort keeps
+	 * the backward-compatible "static headers, server-default ordering"
+	 * behavior for callers that haven't opted in yet.
+	 */
+	sort?: ContentListSort;
+	onSortChange?: (sort: ContentListSort) => void;
+	/**
+	 * Total rows matching the current filters (ignoring pagination). When
+	 * set, the pagination denominator reflects this stable count instead of
+	 * growing as more API pages are fetched.
+	 */
+	total?: number;
 }
 
 type ViewTab = "all" | "trash";
@@ -84,35 +115,76 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
+	searchQuery: searchQueryProp,
+	onSearchChange,
+	sort,
+	onSortChange,
+	total,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
-	const [searchQuery, setSearchQuery] = React.useState("");
+	const [localSearchQuery, setLocalSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
 
-	// Reset page when search changes
+	// Server-driven mode kicks in when the parent opts in with onSearchChange.
+	// In that mode `items` is already the filtered set and we trust `total`
+	// to compute a stable denominator. In legacy mode we keep the original
+	// client-side filter so existing callers (e.g. the picker) don't break.
+	const serverSideSearch = typeof onSearchChange === "function";
+	const searchQuery = serverSideSearch ? (searchQueryProp ?? "") : localSearchQuery;
+
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setSearchQuery(e.target.value);
+		const next = e.target.value;
+		if (serverSideSearch) {
+			onSearchChange?.(next);
+		} else {
+			setLocalSearchQuery(next);
+		}
 		setPage(0);
 	};
 
 	const filteredItems = React.useMemo(() => {
-		if (!searchQuery) return items;
+		if (serverSideSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
 		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery]);
+	}, [items, searchQuery, serverSideSearch]);
 
-	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+	// When the server reports a total, it's the source of truth for the
+	// denominator. Otherwise fall back to the size of the (possibly partial)
+	// client list, matching pre-refactor behavior.
+	const effectiveTotal =
+		typeof total === "number" && !searchQuery ? total : filteredItems.length;
+	const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
 
-	// Auto-fetch next API page when user reaches the last client-side page.
-	// skip when a search query is active
-	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	// Clamp the current page in case `total` shrinks after a delete/search
+	// (e.g. user was on page 5 of 10, then typed a query that collapses to
+	// 1 page — without clamping we'd render an empty table until a refetch).
+	const clampedPage = Math.min(page, totalPages - 1);
+	const paginatedItems = filteredItems.slice(
+		clampedPage * PAGE_SIZE,
+		(clampedPage + 1) * PAGE_SIZE,
+	);
+
+	// Auto-fetch the next API page when the user is on a client page whose
+	// items haven't been loaded yet. We only skip when a client-side search
+	// is active, because that's the only case where filtering can collapse
+	// `filteredItems` to fewer than `page` worth of rows and trigger a
+	// spurious fetch.
 	React.useEffect(() => {
-		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+		if (!hasMore || !onLoadMore) return;
+		if (!serverSideSearch && searchQuery) return;
+		const loadedPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+	}, [
+		clampedPage,
+		filteredItems.length,
+		hasMore,
+		onLoadMore,
+		searchQuery,
+		serverSideSearch,
+	]);
 
 	return (
 		<div className="space-y-4">
@@ -186,20 +258,32 @@ export function ContentList({
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Title`}
-									</th>
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Status`}
-									</th>
+									<SortableTh
+										field="title"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Title`}
+									/>
+									<SortableTh
+										field="status"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Status`}
+									/>
 									{i18n && (
-										<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-											{t`Locale`}
-										</th>
+										<SortableTh
+											field="locale"
+											sort={sort}
+											onSortChange={onSortChange}
+											label={t`Locale`}
+										/>
 									)}
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Date`}
-									</th>
+									<SortableTh
+										field="updatedAt"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Date`}
+									/>
 									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
@@ -247,34 +331,32 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{searchQuery
-									? plural(filteredItems.length, {
-											one: `# item matching "${searchQuery}"`,
-											other: `# items matching "${searchQuery}"`,
-										})
-									: plural(filteredItems.length, {
-											one: `#${hasMore ? "+" : ""} item`,
-											other: `#${hasMore ? "+" : ""} items`,
-										})}
+								{renderItemCount({
+									searchQuery,
+									filteredCount: filteredItems.length,
+									total,
+									hasMore,
+									serverSideSearch,
+								})}
 							</span>
 							<div className="flex items-center gap-2">
 								<Button
 									variant="outline"
 									shape="square"
-									disabled={page === 0}
-									onClick={() => setPage(page - 1)}
+									disabled={clampedPage === 0}
+									onClick={() => setPage(clampedPage - 1)}
 									aria-label={t`Previous page`}
 								>
 									<CaretLeft className="h-4 w-4" aria-hidden="true" />
 								</Button>
 								<span className="text-sm">
-									{page + 1} / {totalPages}
+									{clampedPage + 1} / {totalPages}
 								</span>
 								<Button
 									variant="outline"
 									shape="square"
-									disabled={page >= totalPages - 1}
-									onClick={() => setPage(page + 1)}
+									disabled={clampedPage >= totalPages - 1}
+									onClick={() => setPage(clampedPage + 1)}
 									aria-label={t`Next page`}
 								>
 									<CaretRight className="h-4 w-4" aria-hidden="true" />
@@ -342,6 +424,112 @@ export function ContentList({
 				</>
 			)}
 		</div>
+	);
+}
+
+/**
+ * Render the row-count line above pagination. The rules are:
+ * - A search query always wins — say how many matches there are.
+ * - When the server reported a total, use it (no `+` suffix needed — we know the count).
+ * - Otherwise fall back to the pre-refactor behavior: loaded count, with `+`
+ *   when there are more pages the user hasn't fetched yet.
+ */
+function renderItemCount({
+	searchQuery,
+	filteredCount,
+	total,
+	hasMore,
+	serverSideSearch,
+}: {
+	searchQuery: string;
+	filteredCount: number;
+	total: number | undefined;
+	hasMore: boolean | undefined;
+	serverSideSearch: boolean;
+}): string {
+	if (searchQuery) {
+		const count = serverSideSearch ? (total ?? filteredCount) : filteredCount;
+		return plural(count, {
+			one: `# item matching "${searchQuery}"`,
+			other: `# items matching "${searchQuery}"`,
+		});
+	}
+	if (typeof total === "number") {
+		return plural(total, {
+			one: `# item`,
+			other: `# items`,
+		});
+	}
+	return plural(filteredCount, {
+		one: `#${hasMore ? "+" : ""} item`,
+		other: `#${hasMore ? "+" : ""} items`,
+	});
+}
+
+interface SortableThProps {
+	field: ContentListSortField;
+	sort: ContentListSort | undefined;
+	onSortChange: ((sort: ContentListSort) => void) | undefined;
+	label: string;
+}
+
+/**
+ * Table header that doubles as a sort control when the parent opted in by
+ * passing `onSortChange`. When no callback is provided we fall back to a
+ * plain `<th>` so legacy callers (and screen readers) see exactly the same
+ * markup as before this change.
+ */
+function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
+	const { t } = useLingui();
+	const isActive = sort?.field === field;
+	const direction = isActive ? sort?.direction : undefined;
+
+	if (!onSortChange) {
+		return (
+			<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+				{label}
+			</th>
+		);
+	}
+
+	const ariaSort: "ascending" | "descending" | "none" = isActive
+		? direction === "asc"
+			? "ascending"
+			: "descending"
+		: "none";
+
+	const handleClick = () => {
+		// Default to descending for a new column; toggle direction when
+		// clicking the already-active one.
+		if (isActive) {
+			onSortChange({ field, direction: direction === "asc" ? "desc" : "asc" });
+		} else {
+			onSortChange({ field, direction: "desc" });
+		}
+	};
+
+	const Icon = isActive ? (direction === "asc" ? CaretUp : CaretDown) : CaretUpDown;
+	const sortHint = isActive
+		? direction === "asc"
+			? t`sorted ascending — click to sort descending`
+			: t`sorted descending — click to sort ascending`
+		: t`click to sort descending`;
+
+	return (
+		<th scope="col" aria-sort={ariaSort} className="px-4 py-3 text-start text-sm font-medium">
+			<button
+				type="button"
+				onClick={handleClick}
+				aria-label={`${label}: ${sortHint}`}
+				className={cn(
+					"inline-flex items-center gap-1 hover:text-kumo-brand",
+					isActive ? "text-kumo-fg" : "text-kumo-subtle",
+				)}
+			>
+				<span>{label}</span>
+				<Icon className="h-3 w-3" aria-hidden="true" />
+			</button>
+		</th>
 	);
 }
 

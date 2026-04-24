@@ -427,6 +427,148 @@ describe("ContentRepository", () => {
 			expect(result.items).toEqual([]);
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		describe("search", () => {
+			// Regression guard for the admin "search doesn't find existing
+			// content" bug: clients used to filter client-side against whatever
+			// pages had already been fetched, so results past the first page
+			// were invisible. The repo now has to honor search server-side
+			// across the whole collection.
+			it("finds items by a title substring match", async () => {
+				await repo.create({ type: "page", slug: "bleeding", data: { title: "Bleeding" } });
+				await repo.create({ type: "page", slug: "unrelated", data: { title: "Unrelated" } });
+
+				const result = await repo.findMany("page", { where: { search: "leed" } });
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.slug).toBe("bleeding");
+			});
+
+			it("is case-insensitive", async () => {
+				await repo.create({ type: "page", slug: "mixed-case", data: { title: "MiXeD CaSe" } });
+
+				const result = await repo.findMany("page", { where: { search: "mixed case" } });
+
+				expect(result.items.map((i) => i.slug)).toEqual(["mixed-case"]);
+			});
+
+			it("matches against slug for collections without a title column", async () => {
+				// `page` has a title column by default in the fixture, but slug
+				// is the universal fallback — prove it participates.
+				await repo.create({ type: "page", slug: "no-title-slug", data: {} });
+
+				const result = await repo.findMany("page", { where: { search: "no-title" } });
+
+				expect(result.items).toHaveLength(1);
+			});
+
+			it("escapes LIKE wildcards so they don't act as patterns", async () => {
+				await repo.create({ type: "page", slug: "normal", data: { title: "Normal" } });
+				await repo.create({ type: "page", slug: "literal", data: { title: "Has % in it" } });
+
+				// A plain `%` in a LIKE pattern would match everything; the
+				// repo must escape it and only return the row that literally
+				// contains the character.
+				const result = await repo.findMany("page", { where: { search: "%" } });
+
+				expect(result.items.map((i) => i.slug)).toEqual(["literal"]);
+			});
+
+			it("ignores empty / whitespace search input", async () => {
+				const result = await repo.findMany("page", { where: { search: "   " } });
+
+				expect(result.items).toHaveLength(0); // no pages created in this test
+			});
+
+			it("handles pathological search input without throwing", async () => {
+				await repo.create({ type: "page", slug: "shorty", data: { title: "shorty" } });
+
+				// A 1000-char input should be truncated before reaching SQL;
+				// we don't care what it matches, only that the query succeeds.
+				const massive = "z".repeat(5000);
+
+				await expect(
+					repo.findMany("page", { where: { search: massive } }),
+				).resolves.toBeDefined();
+			});
+		});
+
+		describe("total", () => {
+			// Regression guard for the admin "denominator grows as you page
+			// forward" bug: each list response must include the full count so
+			// the UI doesn't have to reverse-engineer it from accumulated
+			// pages.
+			it("reports total rows regardless of limit", async () => {
+				const result = await repo.findMany("post", { limit: 2 });
+
+				expect(result.items).toHaveLength(2);
+				expect(result.total).toBe(5);
+			});
+
+			it("total respects the where clause", async () => {
+				const result = await repo.findMany("post", {
+					limit: 2,
+					where: { status: "published" },
+				});
+
+				expect(result.total).toBe(3);
+			});
+
+			it("total respects the search clause", async () => {
+				await repo.create({
+					type: "page",
+					slug: "alpha",
+					data: { title: "Alpha" },
+				});
+				await repo.create({
+					type: "page",
+					slug: "beta",
+					data: { title: "Beta" },
+				});
+				await repo.create({
+					type: "page",
+					slug: "alpha-two",
+					data: { title: "Alpha two" },
+				});
+
+				const result = await repo.findMany("page", {
+					limit: 1,
+					where: { search: "alpha" },
+				});
+
+				expect(result.items).toHaveLength(1);
+				expect(result.total).toBe(2);
+			});
+		});
+
+		describe("orderBy", () => {
+			// Regression guard for "table headers aren't sort controls": the
+			// admin now sends orderBy={field,direction} — the repo must accept
+			// the columns the UI wants to expose, not just dates.
+			it("accepts status as an order field", async () => {
+				const result = await repo.findMany("post", {
+					orderBy: { field: "status", direction: "asc" },
+				});
+
+				// alphabetical asc places 'draft' before 'published'
+				expect(result.items[0]!.status).toBe("draft");
+			});
+
+			it("accepts locale as an order field", async () => {
+				await repo.findMany("post", {
+					orderBy: { field: "locale", direction: "desc" },
+				});
+				// no throw = pass
+			});
+
+			it("rejects unknown fields to block column enumeration", async () => {
+				await expect(
+					repo.findMany("post", {
+						orderBy: { field: "password", direction: "asc" },
+					}),
+				).rejects.toThrow(EmDashValidationError);
+			});
+		});
 	});
 
 	describe("update", () => {

@@ -1,7 +1,8 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type RawBuilder, type SqlBool } from "kysely";
 import { ulid } from "ulidx";
 
 import { slugify } from "../../utils/slugify.js";
+import { listTableColumns } from "../dialect-helpers.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import { RevisionRepository } from "./revision.js";
@@ -90,6 +91,36 @@ const REGEX_ESCAPE_PATTERN = /[.*+?^${}()|[\]\\]/g;
  */
 function escapeRegExp(s: string): string {
 	return s.replace(REGEX_ESCAPE_PATTERN, "\\$&");
+}
+
+/**
+ * Escape LIKE wildcard characters so user-supplied search input can't
+ * accidentally act as a wildcard. Paired with `ESCAPE '\\'` at the SQL
+ * call site so the backslash itself works as the escape character.
+ */
+function escapeLike(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+/**
+ * Hard cap on the search input length; anything longer is almost certainly
+ * not what a human typed and would just waste a SELECT.
+ */
+const SEARCH_MAX_LENGTH = 200;
+
+/**
+ * Columns that content search targets, in priority order. A column only
+ * participates if it actually exists on the collection's table — every
+ * collection has `slug`, but `title` and `name` are user-defined fields.
+ */
+const SEARCHABLE_COLUMNS = ["title", "name", "slug"] as const;
+
+/**
+ * A prepared search filter. Computed once per query so the list fetch and
+ * the total count can share the same normalized pattern + column list.
+ */
+interface SearchSpec {
+	toSql: () => RawBuilder<SqlBool>;
 }
 
 /**
@@ -469,6 +500,12 @@ export class ContentRepository {
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
 
+		// Resolve the search pattern + the columns it targets once, before we
+		// build the filter so both the list query and the count query below
+		// can reuse them. Introspecting columns keeps us from referencing a
+		// field that a given collection happens not to define.
+		const searchSpec = await this.resolveSearchSpec(tableName, options.where?.search);
+
 		// Build query with parameterized values (no string interpolation)
 		// Note: Dynamic content tables have deleted_at column, cast needed for Kysely
 		let query = this.db
@@ -487,6 +524,10 @@ export class ContentRepository {
 
 		if (options.where?.locale) {
 			query = query.where("locale" as any, "=", options.where.locale);
+		}
+
+		if (searchSpec) {
+			query = query.where(searchSpec.toSql());
 		}
 
 		// Handle cursor pagination
@@ -519,12 +560,19 @@ export class ContentRepository {
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
-		const rows = await query.execute();
+		// Run the page fetch and the unbounded count together — the UI needs
+		// both to render a stable denominator, and issuing them in parallel
+		// on SQLite is essentially free.
+		const [rows, total] = await Promise.all([
+			query.execute(),
+			this.countWithFilters(tableName, options.where, searchSpec),
+		]);
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
 		const mappedResult: FindManyResult<ContentItem> = {
 			items: items.map((row) => this.mapRow(type, row as Record<string, unknown>)),
+			total,
 		};
 
 		if (hasMore && items.length > 0) {
@@ -747,10 +795,29 @@ export class ContentRepository {
 	 */
 	async count(
 		type: string,
-		where?: { status?: string; authorId?: string; locale?: string },
+		where?: { status?: string; authorId?: string; locale?: string; search?: string },
 	): Promise<number> {
 		const tableName = getTableName(type);
+		const searchSpec = await this.resolveSearchSpec(tableName, where?.search);
+		return this.countWithFilters(tableName, where, searchSpec);
+	}
 
+	/**
+	 * Internal count that reuses an already-resolved search spec. Extracted
+	 * so `findMany` can introspect columns once and share the result with
+	 * the total count.
+	 */
+	private async countWithFilters(
+		tableName: string,
+		where:
+			| {
+					status?: string;
+					authorId?: string;
+					locale?: string;
+			  }
+			| undefined,
+		searchSpec: SearchSpec | null,
+	): Promise<number> {
 		let query = this.db
 			.selectFrom(tableName as keyof Database)
 			.select((eb) => eb.fn.count("id").as("count"))
@@ -768,8 +835,49 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", where.locale);
 		}
 
+		if (searchSpec) {
+			query = query.where(searchSpec.toSql());
+		}
+
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
+	}
+
+	/**
+	 * Normalize and introspect the search input. Returns `null` when there's
+	 * nothing to search for — either the caller didn't pass one, the input
+	 * was empty after trimming, or none of the searchable columns exist on
+	 * this collection's table.
+	 */
+	private async resolveSearchSpec(
+		tableName: string,
+		rawSearch: string | undefined,
+	): Promise<SearchSpec | null> {
+		if (typeof rawSearch !== "string") return null;
+		const trimmed = rawSearch.trim();
+		if (!trimmed) return null;
+
+		// Clamp the input; a 200-char search is already well past anything
+		// a human would type and stops pathological inputs from reaching SQL.
+		const bounded = trimmed.slice(0, SEARCH_MAX_LENGTH);
+		const pattern = `%${escapeLike(bounded.toLowerCase())}%`;
+
+		const columns = new Set(await listTableColumns(this.db, tableName));
+		const searchable = SEARCHABLE_COLUMNS.filter((col) => columns.has(col));
+		if (searchable.length === 0) return null;
+
+		return {
+			toSql: () => {
+				// LOWER() on both sides keeps matching case-insensitive on both
+				// SQLite (where LIKE is already case-insensitive for ASCII) and
+				// Postgres (where it isn't).
+				const fragments = searchable.map(
+					(col) => sql<SqlBool>`LOWER(${sql.ref(col)}) LIKE ${pattern} ESCAPE '\\'`,
+				);
+				if (fragments.length === 1) return fragments[0];
+				return sql<SqlBool>`(${sql.join(fragments, sql` OR `)})`;
+			},
+		};
 	}
 
 	// get overall statistics (total, published, draft) for a content type in a single query
@@ -1198,7 +1306,10 @@ export class ContentRepository {
 			scheduledAt: "scheduled_at",
 			deletedAt: "deleted_at",
 			title: "title",
+			name: "name",
 			slug: "slug",
+			status: "status",
+			locale: "locale",
 		};
 
 		const mapped = mapping[field];

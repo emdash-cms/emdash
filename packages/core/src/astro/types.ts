@@ -188,6 +188,7 @@ export interface EmDashHandlers {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			q?: string;
 		},
 	) => Promise<HandlerResponse>;
 

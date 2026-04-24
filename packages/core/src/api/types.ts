@@ -10,6 +10,12 @@ import type { ContentItem } from "../database/repositories/types.js";
 export interface ListResponse<T> {
 	items: T[];
 	nextCursor?: string;
+	/**
+	 * Total number of rows matching the filters, ignoring pagination. Used
+	 * by the admin to render a stable pagination denominator. Optional so
+	 * callers that don't surface a row count don't pay for the extra query.
+	 */
+	total?: number;
 }
 
 /**
