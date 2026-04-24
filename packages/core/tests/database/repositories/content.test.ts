@@ -462,6 +462,57 @@ describe("ContentRepository", () => {
 				expect(result.items).toHaveLength(1);
 			});
 
+			it("searches slug-only collections that have no title/name columns", async () => {
+				// Create a collection that has neither `title` nor `name` — the
+				// search must still work via the universal `slug` column.
+				await registry.createCollection({
+					slug: "bare",
+					label: "Bare",
+					labelSingular: "Bare",
+				});
+				await repo.create({ type: "bare", slug: "target-slug", data: {} });
+				await repo.create({ type: "bare", slug: "other-slug", data: {} });
+
+				const result = await repo.findMany("bare", { where: { search: "target" } });
+
+				expect(result.items.map((i) => i.slug)).toEqual(["target-slug"]);
+				expect(result.total).toBe(1);
+			});
+
+			it("keeps list items and total consistent across pagination", async () => {
+				// Regression guard: both queries must see the same WHERE.
+				// A bug where only one side consumed the search spec would
+				// leave total correct but items wrong (or vice versa).
+				for (let i = 0; i < 6; i++) {
+					await repo.create({
+						type: "page",
+						slug: `match-${i}`,
+						data: { title: `Match ${i}` },
+					});
+				}
+				await repo.create({ type: "page", slug: "miss", data: { title: "Miss" } });
+
+				const page1 = await repo.findMany("page", {
+					limit: 2,
+					where: { search: "match" },
+					orderBy: { field: "slug", direction: "asc" },
+				});
+
+				expect(page1.items).toHaveLength(2);
+				expect(page1.total).toBe(6);
+				expect(page1.nextCursor).toBeDefined();
+
+				const page2 = await repo.findMany("page", {
+					limit: 2,
+					cursor: page1.nextCursor,
+					where: { search: "match" },
+					orderBy: { field: "slug", direction: "asc" },
+				});
+
+				expect(page2.total).toBe(6); // total stays stable across pages
+				expect(page2.items.every((i) => i.slug?.startsWith("match-"))).toBe(true);
+			});
+
 			it("escapes LIKE wildcards so they don't act as patterns", async () => {
 				await repo.create({ type: "page", slug: "normal", data: { title: "Normal" } });
 				await repo.create({ type: "page", slug: "literal", data: { title: "Has % in it" } });

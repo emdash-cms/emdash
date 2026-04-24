@@ -8,7 +8,7 @@
 import { Button, Dialog, Input, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchCollections, fetchContentList, getDraftStatus } from "../lib/api";
@@ -63,6 +63,9 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		queryKey: ["content-picker", selectedCollection, { limit: 50, q: searchParam }],
 		queryFn: () => fetchContentList(selectedCollection, { limit: 50, q: searchParam }),
 		enabled: open && !!selectedCollection,
+		// Keep the previous page's rows visible while the debounced search
+		// refetches, so the list doesn't flash to empty between keystrokes.
+		placeholderData: keepPreviousData,
 	});
 
 	// Sync initial page into accumulated items. The query re-runs when the

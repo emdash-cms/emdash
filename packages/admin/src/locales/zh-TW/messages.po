@@ -216,7 +216,7 @@ msgstr "{changedCount, plural, one {# 個變更來自下一個修訂版本} othe
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# 個文件} other {# 個文件}}"
 
-#: packages/admin/src/components/ContentList.tsx:452
+#: packages/admin/src/components/ContentList.tsx:457
 msgid "{count, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -230,7 +230,7 @@ msgstr "{current} / {total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:463
+#: packages/admin/src/components/ContentList.tsx:468
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr ""
 
@@ -266,7 +266,7 @@ msgstr "{pluginName} 正在請求額外權限："
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} 需要以下權限："
 
-#: packages/admin/src/components/ContentList.tsx:458
+#: packages/admin/src/components/ContentList.tsx:463
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -424,8 +424,8 @@ msgid "Account Info"
 msgstr "帳戶資訊"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:306
-#: packages/admin/src/components/ContentList.tsx:288
-#: packages/admin/src/components/ContentList.tsx:391
+#: packages/admin/src/components/ContentList.tsx:293
+#: packages/admin/src/components/ContentList.tsx:396
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:619
@@ -497,7 +497,7 @@ msgstr "添加項目"
 msgid "Add links to build your navigation menu"
 msgstr "添加鏈接以構建您的導航菜單"
 
-#: packages/admin/src/components/ContentList.tsx:212
+#: packages/admin/src/components/ContentList.tsx:217
 msgid "Add New"
 msgstr "添加新內容"
 
@@ -557,7 +557,7 @@ msgstr "管理員"
 msgid "After send:"
 msgstr "發送後："
 
-#: packages/admin/src/components/ContentList.tsx:239
+#: packages/admin/src/components/ContentList.tsx:244
 msgid "All"
 msgstr "全部"
 
@@ -669,7 +669,7 @@ msgstr "已批准"
 msgid "Arbitrary JSON data"
 msgstr "任意 JSON 數據"
 
-#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:751
 msgid "archived"
 msgstr "已歸檔"
 
@@ -868,9 +868,9 @@ msgstr "可以查看內容"
 #: packages/admin/src/components/ContentEditor.tsx:894
 #: packages/admin/src/components/ContentEditor.tsx:1817
 #: packages/admin/src/components/ContentEditor.tsx:1870
-#: packages/admin/src/components/ContentList.tsx:633
-#: packages/admin/src/components/ContentList.tsx:704
-#: packages/admin/src/components/ContentPickerModal.tsx:256
+#: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/ContentList.tsx:710
+#: packages/admin/src/components/ContentPickerModal.tsx:259
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
 #: packages/admin/src/components/MediaDetailPanel.tsx:234
@@ -985,14 +985,10 @@ msgstr "點擊郵件中的鏈接以繼續設置您的帳戶。"
 msgid "Click the link in the email to sign in."
 msgstr "點擊郵件中的鏈接即可登錄。"
 
-#: packages/admin/src/components/ContentList.tsx:516
-msgid "click to sort descending"
-msgstr ""
-
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
-#: packages/admin/src/components/ContentPickerModal.tsx:123
-#: packages/admin/src/components/ContentPickerModal.tsx:129
-#: packages/admin/src/components/ContentPickerModal.tsx:133
+#: packages/admin/src/components/ContentPickerModal.tsx:126
+#: packages/admin/src/components/ContentPickerModal.tsx:132
+#: packages/admin/src/components/ContentPickerModal.tsx:136
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:205
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:207
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:366
@@ -1350,7 +1346,7 @@ msgstr "創建您的帳戶"
 msgid "Create your first navigation menu to get started"
 msgstr "創建您的第一個導航菜單以開始使用"
 
-#: packages/admin/src/components/ContentList.tsx:303
+#: packages/admin/src/components/ContentList.tsx:308
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "創建第一個內容"
@@ -1437,7 +1433,7 @@ msgid "Dashboard"
 msgstr "儀表板"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:303
-#: packages/admin/src/components/ContentList.tsx:285
+#: packages/admin/src/components/ContentList.tsx:290
 msgid "Date"
 msgstr "日期"
 
@@ -1535,11 +1531,11 @@ msgid "Delete permanently"
 msgstr "永久刪除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:715
+#: packages/admin/src/components/ContentList.tsx:721
 msgid "Delete Permanently"
 msgstr "永久刪除"
 
-#: packages/admin/src/components/ContentList.tsx:695
+#: packages/admin/src/components/ContentList.tsx:701
 msgid "Delete Permanently?"
 msgstr "永久刪除？"
 
@@ -1560,7 +1556,7 @@ msgstr "刪除重定向？"
 msgid "Delete Section?"
 msgstr "刪除區塊？"
 
-#: packages/admin/src/components/ContentList.tsx:388
+#: packages/admin/src/components/ContentList.tsx:393
 msgid "Deleted"
 msgstr "已刪除"
 
@@ -1739,12 +1735,12 @@ msgstr "下移"
 msgid "Downloading"
 msgstr "下載中"
 
-#: packages/admin/src/components/ContentList.tsx:741
+#: packages/admin/src/components/ContentList.tsx:747
 msgid "draft"
 msgstr "草稿"
 
 #: packages/admin/src/components/ContentEditor.tsx:793
-#: packages/admin/src/components/ContentPickerModal.tsx:220
+#: packages/admin/src/components/ContentPickerModal.tsx:223
 msgid "Draft"
 msgstr "草稿"
 
@@ -1765,7 +1761,7 @@ msgstr "拖放或點擊瀏覽 (.xml)"
 msgid "Drop your WordPress export file here"
 msgstr "將 WordPress 導出文件拖放到此處"
 
-#: packages/admin/src/components/ContentList.tsx:606
+#: packages/admin/src/components/ContentList.tsx:612
 msgid "Duplicate {title}"
 msgstr "複製 {title}"
 
@@ -1799,7 +1795,7 @@ msgstr "編輯 {0}"
 msgid "Edit {collectionLabel}"
 msgstr "編輯 {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:598
+#: packages/admin/src/components/ContentList.tsx:604
 msgid "Edit {title}"
 msgstr "編輯 {title}"
 
@@ -2673,14 +2669,14 @@ msgstr "列表視圖"
 msgid "Live View"
 msgstr "實時預覽"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:244
+#: packages/admin/src/components/ContentPickerModal.tsx:247
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
 msgid "Load more"
 msgstr "加載更多"
 
-#: packages/admin/src/components/ContentList.tsx:372
-#: packages/admin/src/components/ContentList.tsx:420
+#: packages/admin/src/components/ContentList.tsx:377
+#: packages/admin/src/components/ContentList.tsx:425
 msgid "Load More"
 msgstr "加載更多"
 
@@ -2692,7 +2688,7 @@ msgstr "正在加載合集..."
 msgid "Loading comments..."
 msgstr "正在加載評論..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:172
+#: packages/admin/src/components/ContentPickerModal.tsx:175
 msgid "Loading content..."
 msgstr "正在加載內容..."
 
@@ -2731,9 +2727,9 @@ msgstr "正在加載設置..."
 msgid "Loading terms..."
 msgstr "正在加載詞條..."
 
-#: packages/admin/src/components/ContentList.tsx:372
-#: packages/admin/src/components/ContentList.tsx:420
-#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/ContentList.tsx:377
+#: packages/admin/src/components/ContentList.tsx:425
+#: packages/admin/src/components/ContentPickerModal.tsx:244
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 #: packages/admin/src/components/settings/SecuritySettings.tsx:117
@@ -2745,7 +2741,7 @@ msgstr "正在加載詞條..."
 msgid "Loading..."
 msgstr "加載中..."
 
-#: packages/admin/src/components/ContentList.tsx:278
+#: packages/admin/src/components/ContentList.tsx:283
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "語言區域"
@@ -2968,7 +2964,7 @@ msgstr "最小值"
 msgid "Moderation Signals"
 msgstr "審覈信號"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:219
+#: packages/admin/src/components/ContentPickerModal.tsx:222
 msgid "Modified"
 msgstr "已修改"
 
@@ -2976,11 +2972,11 @@ msgstr "已修改"
 msgid "Modify collection schemas"
 msgstr "修改合集模式"
 
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "將「{title}」移至回收站？您可以稍後恢復它。"
 
-#: packages/admin/src/components/ContentList.tsx:618
+#: packages/admin/src/components/ContentList.tsx:624
 msgid "Move {title} to trash"
 msgstr "將 {title} 移至回收站"
 
@@ -2990,12 +2986,12 @@ msgstr "下移"
 
 #: packages/admin/src/components/ContentEditor.tsx:879
 #: packages/admin/src/components/ContentEditor.tsx:901
-#: packages/admin/src/components/ContentList.tsx:640
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Move to Trash"
 msgstr "移至回收站"
 
 #: packages/admin/src/components/ContentEditor.tsx:885
-#: packages/admin/src/components/ContentList.tsx:625
+#: packages/admin/src/components/ContentList.tsx:631
 msgid "Move to Trash?"
 msgstr "移至回收站？"
 
@@ -3094,7 +3090,7 @@ msgid "Next"
 msgstr "下一步"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:378
-#: packages/admin/src/components/ContentList.tsx:360
+#: packages/admin/src/components/ContentList.tsx:365
 msgid "Next page"
 msgstr "下一頁"
 
@@ -3112,7 +3108,7 @@ msgid "No {0} available."
 msgstr "暫無{0}。"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:296
+#: packages/admin/src/components/ContentList.tsx:301
 msgid "No {0} yet."
 msgstr "暫無 {0}。"
 
@@ -3154,11 +3150,11 @@ msgstr "暫無待審覈評論。"
 msgid "No comments match your search."
 msgstr "暫無評論符合您的搜索。"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:179
+#: packages/admin/src/components/ContentPickerModal.tsx:182
 msgid "No content found"
 msgstr "未找到內容"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:185
+#: packages/admin/src/components/ContentPickerModal.tsx:188
 msgid "No content in this collection"
 msgstr "此合集中無內容"
 
@@ -3279,7 +3275,7 @@ msgstr "無結果"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "「{debouncedQuery}」無結果。請嘗試其他搜索詞。"
 
-#: packages/admin/src/components/ContentList.tsx:310
+#: packages/admin/src/components/ContentList.tsx:315
 msgid "No results for \"{searchQuery}\""
 msgstr "未找到匹配「{searchQuery}」的結果"
 
@@ -3528,7 +3524,7 @@ msgid "Pattern (Regex)"
 msgstr "模式（正則表達式）"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:764
+#: packages/admin/src/components/ContentList.tsx:770
 msgid "pending"
 msgstr "待處理"
 
@@ -3540,11 +3536,11 @@ msgstr "待處理"
 msgid "Pending changes"
 msgstr "待處理的更改"
 
-#: packages/admin/src/components/ContentList.tsx:698
+#: packages/admin/src/components/ContentList.tsx:704
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "永久刪除「{title}」？此操作無法撤銷。"
 
-#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:693
 msgid "Permanently delete {title}"
 msgstr "永久刪除 {title}"
 
@@ -3654,7 +3650,7 @@ msgid "Previous"
 msgstr "上一步"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
-#: packages/admin/src/components/ContentList.tsx:348
+#: packages/admin/src/components/ContentList.tsx:353
 msgid "Previous page"
 msgstr "上一頁"
 
@@ -3679,12 +3675,12 @@ msgstr "發佈"
 msgid "Publish changes"
 msgstr "發佈更改"
 
-#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentList.tsx:745
 msgid "published"
 msgstr "已發佈"
 
 #: packages/admin/src/components/ContentEditor.tsx:787
-#: packages/admin/src/components/ContentPickerModal.tsx:217
+#: packages/admin/src/components/ContentPickerModal.tsx:220
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
 msgstr "已發佈"
@@ -3914,7 +3910,7 @@ msgstr "重置爲原始"
 msgid "Restore"
 msgstr "恢復"
 
-#: packages/admin/src/components/ContentList.tsx:675
+#: packages/admin/src/components/ContentList.tsx:681
 msgid "Restore {title}"
 msgstr "恢復 {title}"
 
@@ -4078,7 +4074,7 @@ msgstr "定時發佈於"
 msgid "Schedule for later"
 msgstr "稍後定時發佈"
 
-#: packages/admin/src/components/ContentList.tsx:743
+#: packages/admin/src/components/ContentList.tsx:749
 msgid "scheduled"
 msgstr "已定時"
 
@@ -4148,12 +4144,12 @@ msgid "Search"
 msgstr "搜索"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:223
+#: packages/admin/src/components/ContentList.tsx:228
 msgid "Search {0}"
 msgstr "搜索 {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:222
+#: packages/admin/src/components/ContentList.tsx:227
 msgid "Search {0}..."
 msgstr "搜索 {0}..."
 
@@ -4165,7 +4161,7 @@ msgstr "搜索評論"
 msgid "Search comments..."
 msgstr "搜索評論..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:144
+#: packages/admin/src/components/ContentPickerModal.tsx:147
 msgid "Search content..."
 msgstr "搜索內容..."
 
@@ -4319,7 +4315,7 @@ msgstr "選擇署名..."
 msgid "Select comment by {0}"
 msgstr "選擇 {0} 的評論"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:120
+#: packages/admin/src/components/ContentPickerModal.tsx:123
 msgid "Select Content"
 msgstr "選擇內容"
 
@@ -4616,14 +4612,6 @@ msgstr "排序插件"
 msgid "Sort themes"
 msgstr "排序主題"
 
-#: packages/admin/src/components/ContentList.tsx:514
-msgid "sorted ascending — click to sort descending"
-msgstr ""
-
-#: packages/admin/src/components/ContentList.tsx:515
-msgid "sorted descending — click to sort ascending"
-msgstr ""
-
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
@@ -4653,7 +4641,7 @@ msgid "Start Import"
 msgstr "開始導入"
 
 #: packages/admin/src/components/ContentEditor.tsx:781
-#: packages/admin/src/components/ContentList.tsx:271
+#: packages/admin/src/components/ContentList.tsx:276
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
@@ -4893,8 +4881,8 @@ msgstr "時區"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "用於顯示日期的時區（例如：America/New_York）"
 
-#: packages/admin/src/components/ContentList.tsx:265
-#: packages/admin/src/components/ContentList.tsx:385
+#: packages/admin/src/components/ContentList.tsx:270
+#: packages/admin/src/components/ContentList.tsx:390
 #: packages/admin/src/components/SectionEditor.tsx:189
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
@@ -4959,11 +4947,11 @@ msgstr "回收站"
 #: packages/admin/src/components/comments/CommentInbox.tsx:223
 #: packages/admin/src/components/comments/CommentInbox.tsx:264
 #: packages/admin/src/components/comments/CommentInbox.tsx:520
-#: packages/admin/src/components/ContentList.tsx:245
+#: packages/admin/src/components/ContentList.tsx:250
 msgid "Trash"
 msgstr "回收站"
 
-#: packages/admin/src/components/ContentList.tsx:399
+#: packages/admin/src/components/ContentList.tsx:404
 msgid "Trash is empty"
 msgstr "回收站爲空"
 
@@ -4980,7 +4968,7 @@ msgstr "真/假切換"
 msgid "Try a different search term"
 msgstr "嘗試其他搜索詞"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:180
+#: packages/admin/src/components/ContentPickerModal.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:102
 msgid "Try adjusting your search"
 msgstr "嘗試調整您的搜索"
@@ -5331,7 +5319,7 @@ msgstr "在市場查看"
 msgid "View mode"
 msgstr "查看模式"
 
-#: packages/admin/src/components/ContentList.tsx:589
+#: packages/admin/src/components/ContentList.tsx:595
 msgid "View published {title}"
 msgstr "查看已發佈的 {title}"
 

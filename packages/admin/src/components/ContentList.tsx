@@ -170,6 +170,11 @@ export function ContentList({
 	// is active, because that's the only case where filtering can collapse
 	// `filteredItems` to fewer than `page` worth of rows and trigger a
 	// spurious fetch.
+	//
+	// Safety: relies on `onLoadMore` being deduped against concurrent calls.
+	// The router wires this to TanStack Query's `fetchNextPage`, which is
+	// idempotent while a fetch is in flight. Other callers are responsible
+	// for not stampeding the effect — for example by gating on `isLoading`.
 	React.useEffect(() => {
 		if (!hasMore || !onLoadMore) return;
 		if (!serverSideSearch && searchQuery) return;
@@ -480,7 +485,6 @@ interface SortableThProps {
  * markup as before this change.
  */
 function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
-	const { t } = useLingui();
 	const isActive = sort?.field === field;
 	const direction = isActive ? sort?.direction : undefined;
 
@@ -509,20 +513,22 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	};
 
 	const Icon = isActive ? (direction === "asc" ? CaretUp : CaretDown) : CaretUpDown;
-	const sortHint = isActive
-		? direction === "asc"
-			? t`sorted ascending — click to sort descending`
-			: t`sorted descending — click to sort ascending`
-		: t`click to sort descending`;
 
 	return (
 		<th scope="col" aria-sort={ariaSort} className="px-4 py-3 text-start text-sm font-medium">
+			{/*
+			 * The button's accessible name is just the column label — the
+			 * sort state is conveyed via `aria-sort` on the <th>, which
+			 * screen readers announce automatically. Adding a verbose
+			 * aria-label would make each header re-read the sort
+			 * instruction on every focus, which is noisy.
+			 */}
 			<button
 				type="button"
 				onClick={handleClick}
-				aria-label={`${label}: ${sortHint}`}
 				className={cn(
-					"inline-flex items-center gap-1 hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded hover:text-kumo-brand",
+					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
 					isActive ? "text-kumo-fg" : "text-kumo-subtle",
 				)}
 			>

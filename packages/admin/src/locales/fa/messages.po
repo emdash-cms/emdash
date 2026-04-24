@@ -218,7 +218,7 @@ msgstr "{changedCount, plural, one {# تغییر نسبت به بازبینی ب
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# فایل} other {# فایل}}"
 
-#: packages/admin/src/components/ContentList.tsx:452
+#: packages/admin/src/components/ContentList.tsx:457
 msgid "{count, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -232,7 +232,7 @@ msgstr "{current} از {total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:463
+#: packages/admin/src/components/ContentList.tsx:468
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr ""
 
@@ -268,7 +268,7 @@ msgstr "{pluginName} مجوزهای اضافی درخواست می‌کند:"
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} به مجوزهای زیر نیاز دارد:"
 
-#: packages/admin/src/components/ContentList.tsx:458
+#: packages/admin/src/components/ContentList.tsx:463
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -426,8 +426,8 @@ msgid "Account Info"
 msgstr "اطلاعات حساب کاربری"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:306
-#: packages/admin/src/components/ContentList.tsx:288
-#: packages/admin/src/components/ContentList.tsx:391
+#: packages/admin/src/components/ContentList.tsx:293
+#: packages/admin/src/components/ContentList.tsx:396
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:619
@@ -499,7 +499,7 @@ msgstr "افزودن مورد"
 msgid "Add links to build your navigation menu"
 msgstr "لینک‌ها را برای ساخت فهرست ناوبری خود بیفزایید"
 
-#: packages/admin/src/components/ContentList.tsx:212
+#: packages/admin/src/components/ContentList.tsx:217
 msgid "Add New"
 msgstr "افزودن جدید"
 
@@ -559,7 +559,7 @@ msgstr "مدیر"
 msgid "After send:"
 msgstr "پس از ارسال:"
 
-#: packages/admin/src/components/ContentList.tsx:239
+#: packages/admin/src/components/ContentList.tsx:244
 msgid "All"
 msgstr "همه"
 
@@ -671,7 +671,7 @@ msgstr "تأییدشده"
 msgid "Arbitrary JSON data"
 msgstr "داده JSON دلخواه"
 
-#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:751
 msgid "archived"
 msgstr "بایگانی‌شده"
 
@@ -870,9 +870,9 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/ContentEditor.tsx:894
 #: packages/admin/src/components/ContentEditor.tsx:1817
 #: packages/admin/src/components/ContentEditor.tsx:1870
-#: packages/admin/src/components/ContentList.tsx:633
-#: packages/admin/src/components/ContentList.tsx:704
-#: packages/admin/src/components/ContentPickerModal.tsx:256
+#: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/ContentList.tsx:710
+#: packages/admin/src/components/ContentPickerModal.tsx:259
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
 #: packages/admin/src/components/MediaDetailPanel.tsx:234
@@ -987,14 +987,10 @@ msgstr "روی لینک ایمیل کلیک کنید تا راه‌اندازی 
 msgid "Click the link in the email to sign in."
 msgstr "روی لینک ایمیل کلیک کنید تا وارد شوید."
 
-#: packages/admin/src/components/ContentList.tsx:516
-msgid "click to sort descending"
-msgstr ""
-
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
-#: packages/admin/src/components/ContentPickerModal.tsx:123
-#: packages/admin/src/components/ContentPickerModal.tsx:129
-#: packages/admin/src/components/ContentPickerModal.tsx:133
+#: packages/admin/src/components/ContentPickerModal.tsx:126
+#: packages/admin/src/components/ContentPickerModal.tsx:132
+#: packages/admin/src/components/ContentPickerModal.tsx:136
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:205
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:207
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:366
@@ -1352,7 +1348,7 @@ msgstr "حساب کاربری خود را بسازید"
 msgid "Create your first navigation menu to get started"
 msgstr "اولین فهرست ناوبری خود را بسازید تا شروع شود"
 
-#: packages/admin/src/components/ContentList.tsx:303
+#: packages/admin/src/components/ContentList.tsx:308
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "اولین مورد خود را بسازید"
@@ -1439,7 +1435,7 @@ msgid "Dashboard"
 msgstr "داشبورد"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:303
-#: packages/admin/src/components/ContentList.tsx:285
+#: packages/admin/src/components/ContentList.tsx:290
 msgid "Date"
 msgstr "تاریخ"
 
@@ -1537,11 +1533,11 @@ msgid "Delete permanently"
 msgstr "حذف دائمی"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:715
+#: packages/admin/src/components/ContentList.tsx:721
 msgid "Delete Permanently"
 msgstr "حذف دائمی"
 
-#: packages/admin/src/components/ContentList.tsx:695
+#: packages/admin/src/components/ContentList.tsx:701
 msgid "Delete Permanently?"
 msgstr "حذف دائمی؟"
 
@@ -1562,7 +1558,7 @@ msgstr "حذف    تغییر مسیر؟"
 msgid "Delete Section?"
 msgstr "حذف بخش؟"
 
-#: packages/admin/src/components/ContentList.tsx:388
+#: packages/admin/src/components/ContentList.tsx:393
 msgid "Deleted"
 msgstr "حذف‌شده"
 
@@ -1741,12 +1737,12 @@ msgstr "پایین"
 msgid "Downloading"
 msgstr "در حال دریافت"
 
-#: packages/admin/src/components/ContentList.tsx:741
+#: packages/admin/src/components/ContentList.tsx:747
 msgid "draft"
 msgstr "پیش‌نویس"
 
 #: packages/admin/src/components/ContentEditor.tsx:793
-#: packages/admin/src/components/ContentPickerModal.tsx:220
+#: packages/admin/src/components/ContentPickerModal.tsx:223
 msgid "Draft"
 msgstr "پیش‌نویس"
 
@@ -1767,7 +1763,7 @@ msgstr "بکشید و رها کنید یا برای مرور کلیک کنید (
 msgid "Drop your WordPress export file here"
 msgstr "فایل برون‌ریزی وردپرس خود را اینجا رها کنید"
 
-#: packages/admin/src/components/ContentList.tsx:606
+#: packages/admin/src/components/ContentList.tsx:612
 msgid "Duplicate {title}"
 msgstr "تکثیر {title}"
 
@@ -1801,7 +1797,7 @@ msgstr "ویرایش {0}"
 msgid "Edit {collectionLabel}"
 msgstr "ویرایش {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:598
+#: packages/admin/src/components/ContentList.tsx:604
 msgid "Edit {title}"
 msgstr "ویرایش {title}"
 
@@ -2675,14 +2671,14 @@ msgstr "نمای لیستی"
 msgid "Live View"
 msgstr "نمای زنده"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:244
+#: packages/admin/src/components/ContentPickerModal.tsx:247
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
 msgid "Load more"
 msgstr "بارگذاری بیشتر"
 
-#: packages/admin/src/components/ContentList.tsx:372
-#: packages/admin/src/components/ContentList.tsx:420
+#: packages/admin/src/components/ContentList.tsx:377
+#: packages/admin/src/components/ContentList.tsx:425
 msgid "Load More"
 msgstr "بارگذاری بیشتر"
 
@@ -2694,7 +2690,7 @@ msgstr "در حال بارگذاری مجموعه‌ها..."
 msgid "Loading comments..."
 msgstr "در حال بارگذاری دیدگاه‌ها..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:172
+#: packages/admin/src/components/ContentPickerModal.tsx:175
 msgid "Loading content..."
 msgstr "در حال بارگذاری محتوا..."
 
@@ -2733,9 +2729,9 @@ msgstr "در حال بارگذاری راه‌اندازی..."
 msgid "Loading terms..."
 msgstr "در حال بارگذاری اصطلاحات..."
 
-#: packages/admin/src/components/ContentList.tsx:372
-#: packages/admin/src/components/ContentList.tsx:420
-#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/ContentList.tsx:377
+#: packages/admin/src/components/ContentList.tsx:425
+#: packages/admin/src/components/ContentPickerModal.tsx:244
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 #: packages/admin/src/components/settings/SecuritySettings.tsx:117
@@ -2747,7 +2743,7 @@ msgstr "در حال بارگذاری اصطلاحات..."
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
 
-#: packages/admin/src/components/ContentList.tsx:278
+#: packages/admin/src/components/ContentList.tsx:283
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "منطقه"
@@ -2970,7 +2966,7 @@ msgstr "حداقل مقدار"
 msgid "Moderation Signals"
 msgstr "سیگنال‌های تعدیل"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:219
+#: packages/admin/src/components/ContentPickerModal.tsx:222
 msgid "Modified"
 msgstr "تغییریافته"
 
@@ -2978,11 +2974,11 @@ msgstr "تغییریافته"
 msgid "Modify collection schemas"
 msgstr "تغییر طرح‌های مجموعه"
 
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "انتقال «{title}» به سطل زباله؟ می‌توانید بعداً بازیابی کنید."
 
-#: packages/admin/src/components/ContentList.tsx:618
+#: packages/admin/src/components/ContentList.tsx:624
 msgid "Move {title} to trash"
 msgstr "انتقال {title} به سطل زباله"
 
@@ -2992,12 +2988,12 @@ msgstr "انتقال به پایین"
 
 #: packages/admin/src/components/ContentEditor.tsx:879
 #: packages/admin/src/components/ContentEditor.tsx:901
-#: packages/admin/src/components/ContentList.tsx:640
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Move to Trash"
 msgstr "انتقال به سطل زباله"
 
 #: packages/admin/src/components/ContentEditor.tsx:885
-#: packages/admin/src/components/ContentList.tsx:625
+#: packages/admin/src/components/ContentList.tsx:631
 msgid "Move to Trash?"
 msgstr "انتقال به سطل زباله؟"
 
@@ -3096,7 +3092,7 @@ msgid "Next"
 msgstr "بعدی"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:378
-#: packages/admin/src/components/ContentList.tsx:360
+#: packages/admin/src/components/ContentList.tsx:365
 msgid "Next page"
 msgstr "صفحه بعدی"
 
@@ -3114,7 +3110,7 @@ msgid "No {0} available."
 msgstr "{0} موجود نیست."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:296
+#: packages/admin/src/components/ContentList.tsx:301
 msgid "No {0} yet."
 msgstr "هنوز {0} موجود نیست."
 
@@ -3156,11 +3152,11 @@ msgstr "هیچ دیدگاهی در انتظار تعدیل نیست."
 msgid "No comments match your search."
 msgstr "هیچ دیدگاهی با جستجوی شما مطابقت ندارد."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:179
+#: packages/admin/src/components/ContentPickerModal.tsx:182
 msgid "No content found"
 msgstr "محتوایی یافت نشد"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:185
+#: packages/admin/src/components/ContentPickerModal.tsx:188
 msgid "No content in this collection"
 msgstr "محتوایی در این مجموعه نیست"
 
@@ -3281,7 +3277,7 @@ msgstr "بدون نتایج"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "نتیجه‌ای برای «{debouncedQuery}» یافت نشد. عبارت جستجوی دیگری را امتحان کنید."
 
-#: packages/admin/src/components/ContentList.tsx:310
+#: packages/admin/src/components/ContentList.tsx:315
 msgid "No results for \"{searchQuery}\""
 msgstr "نتیجه‌ای برای «{searchQuery}» یافت نشد"
 
@@ -3530,7 +3526,7 @@ msgid "Pattern (Regex)"
 msgstr "الگو (عبارت منظم)"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:764
+#: packages/admin/src/components/ContentList.tsx:770
 msgid "pending"
 msgstr "در انتظار"
 
@@ -3542,11 +3538,11 @@ msgstr "در انتظار"
 msgid "Pending changes"
 msgstr "تغییرات در انتظار"
 
-#: packages/admin/src/components/ContentList.tsx:698
+#: packages/admin/src/components/ContentList.tsx:704
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "حذف دائمی «{title}»؟ این عمل قابل بازگشت نیست."
 
-#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:693
 msgid "Permanently delete {title}"
 msgstr "حذف دائمی {title}"
 
@@ -3656,7 +3652,7 @@ msgid "Previous"
 msgstr "قبلی"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
-#: packages/admin/src/components/ContentList.tsx:348
+#: packages/admin/src/components/ContentList.tsx:353
 msgid "Previous page"
 msgstr "صفحه قبلی"
 
@@ -3681,12 +3677,12 @@ msgstr "انتشار"
 msgid "Publish changes"
 msgstr "انتشار تغییرات"
 
-#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentList.tsx:745
 msgid "published"
 msgstr "منتشرشده"
 
 #: packages/admin/src/components/ContentEditor.tsx:787
-#: packages/admin/src/components/ContentPickerModal.tsx:217
+#: packages/admin/src/components/ContentPickerModal.tsx:220
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
 msgstr "منتشرشده"
@@ -3916,7 +3912,7 @@ msgstr "بازنشانی به حالت اصلی"
 msgid "Restore"
 msgstr "بازیابی"
 
-#: packages/admin/src/components/ContentList.tsx:675
+#: packages/admin/src/components/ContentList.tsx:681
 msgid "Restore {title}"
 msgstr "بازیابی {title}"
 
@@ -4080,7 +4076,7 @@ msgstr "زمان‌بندی برای"
 msgid "Schedule for later"
 msgstr "زمان‌بندی برای بعد"
 
-#: packages/admin/src/components/ContentList.tsx:743
+#: packages/admin/src/components/ContentList.tsx:749
 msgid "scheduled"
 msgstr "زمان‌بندی‌شده"
 
@@ -4150,12 +4146,12 @@ msgid "Search"
 msgstr "جستجو"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:223
+#: packages/admin/src/components/ContentList.tsx:228
 msgid "Search {0}"
 msgstr "جستجوی {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:222
+#: packages/admin/src/components/ContentList.tsx:227
 msgid "Search {0}..."
 msgstr "جستجوی {0}..."
 
@@ -4167,7 +4163,7 @@ msgstr "جستجوی دیدگاه‌ها"
 msgid "Search comments..."
 msgstr "جستجوی دیدگاه‌ها..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:144
+#: packages/admin/src/components/ContentPickerModal.tsx:147
 msgid "Search content..."
 msgstr "جستجوی محتوا..."
 
@@ -4321,7 +4317,7 @@ msgstr "انتخاب نگارنده..."
 msgid "Select comment by {0}"
 msgstr "انتخاب دیدگاه توسط {0}"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:120
+#: packages/admin/src/components/ContentPickerModal.tsx:123
 msgid "Select Content"
 msgstr "انتخاب محتوا"
 
@@ -4618,14 +4614,6 @@ msgstr "مرتب‌سازی افزونه‌ها"
 msgid "Sort themes"
 msgstr "مرتب‌سازی قالب‌ها"
 
-#: packages/admin/src/components/ContentList.tsx:514
-msgid "sorted ascending — click to sort descending"
-msgstr ""
-
-#: packages/admin/src/components/ContentList.tsx:515
-msgid "sorted descending — click to sort ascending"
-msgstr ""
-
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
@@ -4655,7 +4643,7 @@ msgid "Start Import"
 msgstr "شروع درون‌ریزی"
 
 #: packages/admin/src/components/ContentEditor.tsx:781
-#: packages/admin/src/components/ContentList.tsx:271
+#: packages/admin/src/components/ContentList.tsx:276
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
@@ -4895,8 +4883,8 @@ msgstr "منطقه زمانی"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "منطقه زمانی برای نمایش تاریخ‌ها (مثلاً America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:265
-#: packages/admin/src/components/ContentList.tsx:385
+#: packages/admin/src/components/ContentList.tsx:270
+#: packages/admin/src/components/ContentList.tsx:390
 #: packages/admin/src/components/SectionEditor.tsx:189
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
@@ -4961,11 +4949,11 @@ msgstr "زباله‌دان"
 #: packages/admin/src/components/comments/CommentInbox.tsx:223
 #: packages/admin/src/components/comments/CommentInbox.tsx:264
 #: packages/admin/src/components/comments/CommentInbox.tsx:520
-#: packages/admin/src/components/ContentList.tsx:245
+#: packages/admin/src/components/ContentList.tsx:250
 msgid "Trash"
 msgstr "زباله‌دان"
 
-#: packages/admin/src/components/ContentList.tsx:399
+#: packages/admin/src/components/ContentList.tsx:404
 msgid "Trash is empty"
 msgstr "سطل زباله خالی است"
 
@@ -4982,7 +4970,7 @@ msgstr "تغییر صحیح/غلط"
 msgid "Try a different search term"
 msgstr "عبارت جستجوی دیگری را امتحان کنید"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:180
+#: packages/admin/src/components/ContentPickerModal.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:102
 msgid "Try adjusting your search"
 msgstr "جستجوی خود را تنظیم کنید"
@@ -5333,7 +5321,7 @@ msgstr "مشاهده در فروشگاه"
 msgid "View mode"
 msgstr "حالت نمایش"
 
-#: packages/admin/src/components/ContentList.tsx:589
+#: packages/admin/src/components/ContentList.tsx:595
 msgid "View published {title}"
 msgstr "مشاهده {title} منتشرشده"
 

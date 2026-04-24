@@ -216,7 +216,7 @@ msgstr "{changedCount, plural, one {次のリビジョンから#件の変更} ot
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {#件のファイル} other {#件のファイル}}"
 
-#: packages/admin/src/components/ContentList.tsx:452
+#: packages/admin/src/components/ContentList.tsx:457
 msgid "{count, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -230,7 +230,7 @@ msgstr "{current}/{total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:463
+#: packages/admin/src/components/ContentList.tsx:468
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr ""
 
@@ -266,7 +266,7 @@ msgstr "{pluginName}が追加の権限を要求しています:"
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName}に以下の権限が必要です:"
 
-#: packages/admin/src/components/ContentList.tsx:458
+#: packages/admin/src/components/ContentList.tsx:463
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -424,8 +424,8 @@ msgid "Account Info"
 msgstr "アカウント情報"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:306
-#: packages/admin/src/components/ContentList.tsx:288
-#: packages/admin/src/components/ContentList.tsx:391
+#: packages/admin/src/components/ContentList.tsx:293
+#: packages/admin/src/components/ContentList.tsx:396
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:619
@@ -497,7 +497,7 @@ msgstr "アイテムを追加"
 msgid "Add links to build your navigation menu"
 msgstr "ナビゲーションメニューを構築するためにリンクを追加"
 
-#: packages/admin/src/components/ContentList.tsx:212
+#: packages/admin/src/components/ContentList.tsx:217
 msgid "Add New"
 msgstr "新規追加"
 
@@ -557,7 +557,7 @@ msgstr "管理者"
 msgid "After send:"
 msgstr "送信後:"
 
-#: packages/admin/src/components/ContentList.tsx:239
+#: packages/admin/src/components/ContentList.tsx:244
 msgid "All"
 msgstr "すべて"
 
@@ -669,7 +669,7 @@ msgstr "承認済み"
 msgid "Arbitrary JSON data"
 msgstr "任意のJSONデータ"
 
-#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:751
 msgid "archived"
 msgstr "アーカイブ済み"
 
@@ -868,9 +868,9 @@ msgstr "コンテンツを閲覧可能"
 #: packages/admin/src/components/ContentEditor.tsx:894
 #: packages/admin/src/components/ContentEditor.tsx:1817
 #: packages/admin/src/components/ContentEditor.tsx:1870
-#: packages/admin/src/components/ContentList.tsx:633
-#: packages/admin/src/components/ContentList.tsx:704
-#: packages/admin/src/components/ContentPickerModal.tsx:256
+#: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/ContentList.tsx:710
+#: packages/admin/src/components/ContentPickerModal.tsx:259
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
 #: packages/admin/src/components/MediaDetailPanel.tsx:234
@@ -985,14 +985,10 @@ msgstr "メール内のリンクをクリックしてアカウントの設定を
 msgid "Click the link in the email to sign in."
 msgstr "メール内のリンクをクリックしてサインインしてください。"
 
-#: packages/admin/src/components/ContentList.tsx:516
-msgid "click to sort descending"
-msgstr ""
-
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
-#: packages/admin/src/components/ContentPickerModal.tsx:123
-#: packages/admin/src/components/ContentPickerModal.tsx:129
-#: packages/admin/src/components/ContentPickerModal.tsx:133
+#: packages/admin/src/components/ContentPickerModal.tsx:126
+#: packages/admin/src/components/ContentPickerModal.tsx:132
+#: packages/admin/src/components/ContentPickerModal.tsx:136
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:205
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:207
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:366
@@ -1350,7 +1346,7 @@ msgstr "アカウントを作成"
 msgid "Create your first navigation menu to get started"
 msgstr "最初のナビゲーションメニューを作成して始めましょう"
 
-#: packages/admin/src/components/ContentList.tsx:303
+#: packages/admin/src/components/ContentList.tsx:308
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "最初のコンテンツを作成しましょう"
@@ -1437,7 +1433,7 @@ msgid "Dashboard"
 msgstr "ダッシュボード"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:303
-#: packages/admin/src/components/ContentList.tsx:285
+#: packages/admin/src/components/ContentList.tsx:290
 msgid "Date"
 msgstr "日付"
 
@@ -1535,11 +1531,11 @@ msgid "Delete permanently"
 msgstr "完全に削除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:715
+#: packages/admin/src/components/ContentList.tsx:721
 msgid "Delete Permanently"
 msgstr "完全に削除"
 
-#: packages/admin/src/components/ContentList.tsx:695
+#: packages/admin/src/components/ContentList.tsx:701
 msgid "Delete Permanently?"
 msgstr "完全に削除しますか？"
 
@@ -1560,7 +1556,7 @@ msgstr "リダイレクトを削除しますか？"
 msgid "Delete Section?"
 msgstr "セクションを削除しますか？"
 
-#: packages/admin/src/components/ContentList.tsx:388
+#: packages/admin/src/components/ContentList.tsx:393
 msgid "Deleted"
 msgstr "削除済み"
 
@@ -1739,12 +1735,12 @@ msgstr "下へ"
 msgid "Downloading"
 msgstr "ダウンロード中"
 
-#: packages/admin/src/components/ContentList.tsx:741
+#: packages/admin/src/components/ContentList.tsx:747
 msgid "draft"
 msgstr "下書き"
 
 #: packages/admin/src/components/ContentEditor.tsx:793
-#: packages/admin/src/components/ContentPickerModal.tsx:220
+#: packages/admin/src/components/ContentPickerModal.tsx:223
 msgid "Draft"
 msgstr "下書き"
 
@@ -1765,7 +1761,7 @@ msgstr "ドラッグ＆ドロップまたはクリックして参照（.xml）"
 msgid "Drop your WordPress export file here"
 msgstr "WordPressのエクスポートファイルをここにドロップ"
 
-#: packages/admin/src/components/ContentList.tsx:606
+#: packages/admin/src/components/ContentList.tsx:612
 msgid "Duplicate {title}"
 msgstr "{title}を複製"
 
@@ -1799,7 +1795,7 @@ msgstr "{0}を編集"
 msgid "Edit {collectionLabel}"
 msgstr "{collectionLabel}を編集"
 
-#: packages/admin/src/components/ContentList.tsx:598
+#: packages/admin/src/components/ContentList.tsx:604
 msgid "Edit {title}"
 msgstr "{title}を編集"
 
@@ -2673,14 +2669,14 @@ msgstr "リスト表示"
 msgid "Live View"
 msgstr "ライブビュー"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:244
+#: packages/admin/src/components/ContentPickerModal.tsx:247
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
 msgid "Load more"
 msgstr "もっと読み込む"
 
-#: packages/admin/src/components/ContentList.tsx:372
-#: packages/admin/src/components/ContentList.tsx:420
+#: packages/admin/src/components/ContentList.tsx:377
+#: packages/admin/src/components/ContentList.tsx:425
 msgid "Load More"
 msgstr "もっと読み込む"
 
@@ -2692,7 +2688,7 @@ msgstr "コレクションを読み込み中..."
 msgid "Loading comments..."
 msgstr "コメントを読み込み中..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:172
+#: packages/admin/src/components/ContentPickerModal.tsx:175
 msgid "Loading content..."
 msgstr "コンテンツを読み込み中..."
 
@@ -2731,9 +2727,9 @@ msgstr "セットアップを読み込み中..."
 msgid "Loading terms..."
 msgstr "タームを読み込み中..."
 
-#: packages/admin/src/components/ContentList.tsx:372
-#: packages/admin/src/components/ContentList.tsx:420
-#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/ContentList.tsx:377
+#: packages/admin/src/components/ContentList.tsx:425
+#: packages/admin/src/components/ContentPickerModal.tsx:244
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 #: packages/admin/src/components/settings/SecuritySettings.tsx:117
@@ -2745,7 +2741,7 @@ msgstr "タームを読み込み中..."
 msgid "Loading..."
 msgstr "読み込み中..."
 
-#: packages/admin/src/components/ContentList.tsx:278
+#: packages/admin/src/components/ContentList.tsx:283
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "ロケール"
@@ -2968,7 +2964,7 @@ msgstr "最小値"
 msgid "Moderation Signals"
 msgstr "モデレーションシグナル"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:219
+#: packages/admin/src/components/ContentPickerModal.tsx:222
 msgid "Modified"
 msgstr "更新日"
 
@@ -2976,11 +2972,11 @@ msgstr "更新日"
 msgid "Modify collection schemas"
 msgstr "コレクションスキーマを変更"
 
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "\"{title}\"をゴミ箱に移動しますか？後で復元できます。"
 
-#: packages/admin/src/components/ContentList.tsx:618
+#: packages/admin/src/components/ContentList.tsx:624
 msgid "Move {title} to trash"
 msgstr "{title}をゴミ箱に移動"
 
@@ -2990,12 +2986,12 @@ msgstr "下に移動"
 
 #: packages/admin/src/components/ContentEditor.tsx:879
 #: packages/admin/src/components/ContentEditor.tsx:901
-#: packages/admin/src/components/ContentList.tsx:640
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Move to Trash"
 msgstr "ゴミ箱に移動"
 
 #: packages/admin/src/components/ContentEditor.tsx:885
-#: packages/admin/src/components/ContentList.tsx:625
+#: packages/admin/src/components/ContentList.tsx:631
 msgid "Move to Trash?"
 msgstr "ゴミ箱に移動しますか？"
 
@@ -3094,7 +3090,7 @@ msgid "Next"
 msgstr "次へ"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:378
-#: packages/admin/src/components/ContentList.tsx:360
+#: packages/admin/src/components/ContentList.tsx:365
 msgid "Next page"
 msgstr "次のページ"
 
@@ -3112,7 +3108,7 @@ msgid "No {0} available."
 msgstr "利用可能な{0}がありません。"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:296
+#: packages/admin/src/components/ContentList.tsx:301
 msgid "No {0} yet."
 msgstr "まだ{0}がありません。"
 
@@ -3154,11 +3150,11 @@ msgstr "モデレーション待ちのコメントはありません。"
 msgid "No comments match your search."
 msgstr "検索に一致するコメントはありません。"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:179
+#: packages/admin/src/components/ContentPickerModal.tsx:182
 msgid "No content found"
 msgstr "コンテンツが見つかりません"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:185
+#: packages/admin/src/components/ContentPickerModal.tsx:188
 msgid "No content in this collection"
 msgstr "このコレクションにはコンテンツがありません"
 
@@ -3279,7 +3275,7 @@ msgstr "結果なし"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "\"{debouncedQuery}\"の結果はありません。別の検索キーワードをお試しください。"
 
-#: packages/admin/src/components/ContentList.tsx:310
+#: packages/admin/src/components/ContentList.tsx:315
 msgid "No results for \"{searchQuery}\""
 msgstr "\"{searchQuery}\"の検索結果はありません"
 
@@ -3528,7 +3524,7 @@ msgid "Pattern (Regex)"
 msgstr "パターン（正規表現）"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:764
+#: packages/admin/src/components/ContentList.tsx:770
 msgid "pending"
 msgstr "保留中"
 
@@ -3540,11 +3536,11 @@ msgstr "保留中"
 msgid "Pending changes"
 msgstr "未保存の変更"
 
-#: packages/admin/src/components/ContentList.tsx:698
+#: packages/admin/src/components/ContentList.tsx:704
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "\"{title}\"を完全に削除しますか？この操作は取り消せません。"
 
-#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:693
 msgid "Permanently delete {title}"
 msgstr "{title}を完全に削除"
 
@@ -3654,7 +3650,7 @@ msgid "Previous"
 msgstr "前へ"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
-#: packages/admin/src/components/ContentList.tsx:348
+#: packages/admin/src/components/ContentList.tsx:353
 msgid "Previous page"
 msgstr "前のページ"
 
@@ -3679,12 +3675,12 @@ msgstr "公開"
 msgid "Publish changes"
 msgstr "変更を公開"
 
-#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentList.tsx:745
 msgid "published"
 msgstr "公開済み"
 
 #: packages/admin/src/components/ContentEditor.tsx:787
-#: packages/admin/src/components/ContentPickerModal.tsx:217
+#: packages/admin/src/components/ContentPickerModal.tsx:220
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
 msgstr "公開済み"
@@ -3914,7 +3910,7 @@ msgstr "元に戻す"
 msgid "Restore"
 msgstr "復元"
 
-#: packages/admin/src/components/ContentList.tsx:675
+#: packages/admin/src/components/ContentList.tsx:681
 msgid "Restore {title}"
 msgstr "{title}を復元"
 
@@ -4078,7 +4074,7 @@ msgstr "公開予約日時"
 msgid "Schedule for later"
 msgstr "後で公開予約"
 
-#: packages/admin/src/components/ContentList.tsx:743
+#: packages/admin/src/components/ContentList.tsx:749
 msgid "scheduled"
 msgstr "予約済み"
 
@@ -4148,12 +4144,12 @@ msgid "Search"
 msgstr "検索"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:223
+#: packages/admin/src/components/ContentList.tsx:228
 msgid "Search {0}"
 msgstr "{0}を検索"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:222
+#: packages/admin/src/components/ContentList.tsx:227
 msgid "Search {0}..."
 msgstr "{0}を検索..."
 
@@ -4165,7 +4161,7 @@ msgstr "コメントを検索"
 msgid "Search comments..."
 msgstr "コメントを検索..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:144
+#: packages/admin/src/components/ContentPickerModal.tsx:147
 msgid "Search content..."
 msgstr "コンテンツを検索..."
 
@@ -4319,7 +4315,7 @@ msgstr "署名を選択..."
 msgid "Select comment by {0}"
 msgstr "{0}のコメントを選択"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:120
+#: packages/admin/src/components/ContentPickerModal.tsx:123
 msgid "Select Content"
 msgstr "コンテンツを選択"
 
@@ -4616,14 +4612,6 @@ msgstr "プラグインを並べ替え"
 msgid "Sort themes"
 msgstr "テーマを並べ替え"
 
-#: packages/admin/src/components/ContentList.tsx:514
-msgid "sorted ascending — click to sort descending"
-msgstr ""
-
-#: packages/admin/src/components/ContentList.tsx:515
-msgid "sorted descending — click to sort ascending"
-msgstr ""
-
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
@@ -4653,7 +4641,7 @@ msgid "Start Import"
 msgstr "インポートを開始"
 
 #: packages/admin/src/components/ContentEditor.tsx:781
-#: packages/admin/src/components/ContentList.tsx:271
+#: packages/admin/src/components/ContentList.tsx:276
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
@@ -4893,8 +4881,8 @@ msgstr "タイムゾーン"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "日付表示のタイムゾーン（例: Asia/Tokyo）"
 
-#: packages/admin/src/components/ContentList.tsx:265
-#: packages/admin/src/components/ContentList.tsx:385
+#: packages/admin/src/components/ContentList.tsx:270
+#: packages/admin/src/components/ContentList.tsx:390
 #: packages/admin/src/components/SectionEditor.tsx:189
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
@@ -4959,11 +4947,11 @@ msgstr "ゴミ箱"
 #: packages/admin/src/components/comments/CommentInbox.tsx:223
 #: packages/admin/src/components/comments/CommentInbox.tsx:264
 #: packages/admin/src/components/comments/CommentInbox.tsx:520
-#: packages/admin/src/components/ContentList.tsx:245
+#: packages/admin/src/components/ContentList.tsx:250
 msgid "Trash"
 msgstr "ゴミ箱"
 
-#: packages/admin/src/components/ContentList.tsx:399
+#: packages/admin/src/components/ContentList.tsx:404
 msgid "Trash is empty"
 msgstr "ゴミ箱は空です"
 
@@ -4980,7 +4968,7 @@ msgstr "真偽値のトグル"
 msgid "Try a different search term"
 msgstr "別の検索キーワードをお試しください"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:180
+#: packages/admin/src/components/ContentPickerModal.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:102
 msgid "Try adjusting your search"
 msgstr "検索条件を変更してみてください"
@@ -5331,7 +5319,7 @@ msgstr "マーケットプレイスで表示"
 msgid "View mode"
 msgstr "表示モード"
 
-#: packages/admin/src/components/ContentList.tsx:589
+#: packages/admin/src/components/ContentList.tsx:595
 msgid "View published {title}"
 msgstr "公開済みの{title}を表示"
 
