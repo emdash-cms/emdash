@@ -456,4 +456,30 @@ describe("ContentList", () => {
 			expect(screen.getByText("Post 0").query()).toBeNull();
 		});
 	});
+
+	describe("controlled search", () => {
+		it("forwards the typed query to onSearchChange without local filtering", async () => {
+			const onSearchChange = vi.fn();
+			const items = [
+				makeItem({ id: "1", data: { title: "Alpha" } }),
+				makeItem({ id: "2", data: { title: "Beta" } }),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					searchQuery=""
+					onSearchChange={onSearchChange}
+				/>,
+			);
+
+			await screen.getByRole("searchbox").fill("beta");
+
+			expect(onSearchChange).toHaveBeenCalledWith("beta");
+			// In controlled mode the component must NOT filter locally — the
+			// parent is responsible for pushing the next `items` prop.
+			await expect.element(screen.getByText("Alpha")).toBeInTheDocument();
+			await expect.element(screen.getByText("Beta")).toBeInTheDocument();
+		});
+	});
 });

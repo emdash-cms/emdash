@@ -79,7 +79,7 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr ""
 
 #. placeholder {0}: filteredItems.length
-#: packages/admin/src/components/ContentList.tsx:251
+#: packages/admin/src/components/ContentList.tsx:274
 msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -141,7 +141,7 @@ msgstr ""
 #. placeholder {0}: filteredItems.length
 #. placeholder {1}: hasMore ? "+" : ""
 #. placeholder {2}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:255
+#: packages/admin/src/components/ContentList.tsx:278
 msgid "{0, plural, one {#{1} item} other {#{2} items}}"
 msgstr ""
 
@@ -422,8 +422,8 @@ msgid "Account Info"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:306
-#: packages/admin/src/components/ContentList.tsx:204
-#: packages/admin/src/components/ContentList.tsx:309
+#: packages/admin/src/components/ContentList.tsx:227
+#: packages/admin/src/components/ContentList.tsx:332
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:619
@@ -495,7 +495,7 @@ msgstr ""
 msgid "Add links to build your navigation menu"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:140
+#: packages/admin/src/components/ContentList.tsx:163
 msgid "Add New"
 msgstr ""
 
@@ -555,7 +555,7 @@ msgstr "Kudeatzailea"
 msgid "After send:"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:167
+#: packages/admin/src/components/ContentList.tsx:190
 msgid "All"
 msgstr ""
 
@@ -628,7 +628,7 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:318
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1520
+#: packages/admin/src/router.tsx:1529
 msgid "An error occurred"
 msgstr ""
 
@@ -667,7 +667,7 @@ msgstr ""
 msgid "Arbitrary JSON data"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:557
+#: packages/admin/src/components/ContentList.tsx:580
 msgid "archived"
 msgstr ""
 
@@ -866,9 +866,9 @@ msgstr "Edukia ikusi dezake"
 #: packages/admin/src/components/ContentEditor.tsx:894
 #: packages/admin/src/components/ContentEditor.tsx:1817
 #: packages/admin/src/components/ContentEditor.tsx:1870
-#: packages/admin/src/components/ContentList.tsx:445
-#: packages/admin/src/components/ContentList.tsx:516
-#: packages/admin/src/components/ContentPickerModal.tsx:253
+#: packages/admin/src/components/ContentList.tsx:468
+#: packages/admin/src/components/ContentList.tsx:539
+#: packages/admin/src/components/ContentPickerModal.tsx:259
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
 #: packages/admin/src/components/MediaDetailPanel.tsx:234
@@ -984,9 +984,9 @@ msgid "Click the link in the email to sign in."
 msgstr "Egin klik emailean webgunean sartzeko."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
-#: packages/admin/src/components/ContentPickerModal.tsx:120
 #: packages/admin/src/components/ContentPickerModal.tsx:126
-#: packages/admin/src/components/ContentPickerModal.tsx:130
+#: packages/admin/src/components/ContentPickerModal.tsx:132
+#: packages/admin/src/components/ContentPickerModal.tsx:136
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:205
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:207
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:366
@@ -1344,7 +1344,7 @@ msgstr ""
 msgid "Create your first navigation menu to get started"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:219
+#: packages/admin/src/components/ContentList.tsx:242
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr ""
@@ -1431,7 +1431,7 @@ msgid "Dashboard"
 msgstr "Lan-lekua"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:303
-#: packages/admin/src/components/ContentList.tsx:201
+#: packages/admin/src/components/ContentList.tsx:224
 msgid "Date"
 msgstr ""
 
@@ -1529,11 +1529,11 @@ msgid "Delete permanently"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:527
+#: packages/admin/src/components/ContentList.tsx:550
 msgid "Delete Permanently"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:507
+#: packages/admin/src/components/ContentList.tsx:530
 msgid "Delete Permanently?"
 msgstr ""
 
@@ -1554,7 +1554,7 @@ msgstr ""
 msgid "Delete Section?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:306
+#: packages/admin/src/components/ContentList.tsx:329
 msgid "Deleted"
 msgstr ""
 
@@ -1733,12 +1733,12 @@ msgstr ""
 msgid "Downloading"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:553
+#: packages/admin/src/components/ContentList.tsx:576
 msgid "draft"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:793
-#: packages/admin/src/components/ContentPickerModal.tsx:217
+#: packages/admin/src/components/ContentPickerModal.tsx:223
 msgid "Draft"
 msgstr ""
 
@@ -1759,7 +1759,7 @@ msgstr ""
 msgid "Drop your WordPress export file here"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:418
+#: packages/admin/src/components/ContentList.tsx:441
 msgid "Duplicate {title}"
 msgstr ""
 
@@ -1793,7 +1793,7 @@ msgstr ""
 msgid "Edit {collectionLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:410
+#: packages/admin/src/components/ContentList.tsx:433
 msgid "Edit {title}"
 msgstr ""
 
@@ -2102,7 +2102,7 @@ msgstr ""
 msgid "Failed to rename passkey"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1528
 msgid "Failed to save"
 msgstr ""
 
@@ -2667,14 +2667,14 @@ msgstr ""
 msgid "Live View"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/ContentPickerModal.tsx:247
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
 msgid "Load more"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:290
-#: packages/admin/src/components/ContentList.tsx:338
+#: packages/admin/src/components/ContentList.tsx:313
+#: packages/admin/src/components/ContentList.tsx:361
 msgid "Load More"
 msgstr ""
 
@@ -2686,7 +2686,7 @@ msgstr ""
 msgid "Loading comments..."
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:169
+#: packages/admin/src/components/ContentPickerModal.tsx:175
 msgid "Loading content..."
 msgstr ""
 
@@ -2725,9 +2725,9 @@ msgstr ""
 msgid "Loading terms..."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:290
-#: packages/admin/src/components/ContentList.tsx:338
-#: packages/admin/src/components/ContentPickerModal.tsx:238
+#: packages/admin/src/components/ContentList.tsx:313
+#: packages/admin/src/components/ContentList.tsx:361
+#: packages/admin/src/components/ContentPickerModal.tsx:244
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 #: packages/admin/src/components/settings/SecuritySettings.tsx:117
@@ -2739,7 +2739,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Kargatzen..."
 
-#: packages/admin/src/components/ContentList.tsx:197
+#: packages/admin/src/components/ContentList.tsx:220
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Hizkuntza"
@@ -2962,7 +2962,7 @@ msgstr ""
 msgid "Moderation Signals"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:216
+#: packages/admin/src/components/ContentPickerModal.tsx:222
 msgid "Modified"
 msgstr ""
 
@@ -2970,11 +2970,11 @@ msgstr ""
 msgid "Modify collection schemas"
 msgstr "Aldatu bildumen eskemak"
 
-#: packages/admin/src/components/ContentList.tsx:439
+#: packages/admin/src/components/ContentList.tsx:462
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:430
+#: packages/admin/src/components/ContentList.tsx:453
 msgid "Move {title} to trash"
 msgstr ""
 
@@ -2984,12 +2984,12 @@ msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:879
 #: packages/admin/src/components/ContentEditor.tsx:901
-#: packages/admin/src/components/ContentList.tsx:452
+#: packages/admin/src/components/ContentList.tsx:475
 msgid "Move to Trash"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:885
-#: packages/admin/src/components/ContentList.tsx:437
+#: packages/admin/src/components/ContentList.tsx:460
 msgid "Move to Trash?"
 msgstr ""
 
@@ -3088,7 +3088,7 @@ msgid "Next"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:378
-#: packages/admin/src/components/ContentList.tsx:278
+#: packages/admin/src/components/ContentList.tsx:301
 msgid "Next page"
 msgstr ""
 
@@ -3106,7 +3106,7 @@ msgid "No {0} available."
 msgstr ""
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:212
+#: packages/admin/src/components/ContentList.tsx:235
 msgid "No {0} yet."
 msgstr ""
 
@@ -3148,11 +3148,11 @@ msgstr ""
 msgid "No comments match your search."
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:176
+#: packages/admin/src/components/ContentPickerModal.tsx:182
 msgid "No content found"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:182
+#: packages/admin/src/components/ContentPickerModal.tsx:188
 msgid "No content in this collection"
 msgstr ""
 
@@ -3273,7 +3273,7 @@ msgstr "Emaitzarik ez"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:226
+#: packages/admin/src/components/ContentList.tsx:249
 msgid "No results for \"{searchQuery}\""
 msgstr ""
 
@@ -3522,7 +3522,7 @@ msgid "Pattern (Regex)"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:576
+#: packages/admin/src/components/ContentList.tsx:599
 msgid "pending"
 msgstr ""
 
@@ -3534,11 +3534,11 @@ msgstr ""
 msgid "Pending changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:510
+#: packages/admin/src/components/ContentList.tsx:533
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:499
+#: packages/admin/src/components/ContentList.tsx:522
 msgid "Permanently delete {title}"
 msgstr ""
 
@@ -3648,7 +3648,7 @@ msgid "Previous"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
-#: packages/admin/src/components/ContentList.tsx:266
+#: packages/admin/src/components/ContentList.tsx:289
 msgid "Previous page"
 msgstr ""
 
@@ -3673,12 +3673,12 @@ msgstr ""
 msgid "Publish changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:551
+#: packages/admin/src/components/ContentList.tsx:574
 msgid "published"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:787
-#: packages/admin/src/components/ContentPickerModal.tsx:214
+#: packages/admin/src/components/ContentPickerModal.tsx:220
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
 msgstr ""
@@ -3908,7 +3908,7 @@ msgstr ""
 msgid "Restore"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:487
+#: packages/admin/src/components/ContentList.tsx:510
 msgid "Restore {title}"
 msgstr ""
 
@@ -4072,7 +4072,7 @@ msgstr ""
 msgid "Schedule for later"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:555
+#: packages/admin/src/components/ContentList.tsx:578
 msgid "scheduled"
 msgstr ""
 
@@ -4142,12 +4142,12 @@ msgid "Search"
 msgstr "Bilatu"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:151
+#: packages/admin/src/components/ContentList.tsx:174
 msgid "Search {0}"
 msgstr ""
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:150
+#: packages/admin/src/components/ContentList.tsx:173
 msgid "Search {0}..."
 msgstr ""
 
@@ -4159,7 +4159,7 @@ msgstr ""
 msgid "Search comments..."
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:141
+#: packages/admin/src/components/ContentPickerModal.tsx:147
 msgid "Search content..."
 msgstr ""
 
@@ -4313,7 +4313,7 @@ msgstr ""
 msgid "Select comment by {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:117
+#: packages/admin/src/components/ContentPickerModal.tsx:123
 msgid "Select Content"
 msgstr ""
 
@@ -4639,7 +4639,7 @@ msgid "Start Import"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:781
-#: packages/admin/src/components/ContentList.tsx:193
+#: packages/admin/src/components/ContentList.tsx:216
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
@@ -4879,8 +4879,8 @@ msgstr ""
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:190
-#: packages/admin/src/components/ContentList.tsx:303
+#: packages/admin/src/components/ContentList.tsx:213
+#: packages/admin/src/components/ContentList.tsx:326
 #: packages/admin/src/components/SectionEditor.tsx:189
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
@@ -4945,11 +4945,11 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:223
 #: packages/admin/src/components/comments/CommentInbox.tsx:264
 #: packages/admin/src/components/comments/CommentInbox.tsx:520
-#: packages/admin/src/components/ContentList.tsx:173
+#: packages/admin/src/components/ContentList.tsx:196
 msgid "Trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:317
+#: packages/admin/src/components/ContentList.tsx:340
 msgid "Trash is empty"
 msgstr ""
 
@@ -4966,7 +4966,7 @@ msgstr ""
 msgid "Try a different search term"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:177
+#: packages/admin/src/components/ContentPickerModal.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:102
 msgid "Try adjusting your search"
 msgstr ""
@@ -5317,7 +5317,7 @@ msgstr ""
 msgid "View mode"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:401
+#: packages/admin/src/components/ContentList.tsx:424
 msgid "View published {title}"
 msgstr ""
 

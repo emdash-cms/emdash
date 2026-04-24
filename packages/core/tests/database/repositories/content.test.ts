@@ -427,6 +427,73 @@ describe("ContentRepository", () => {
 			expect(result.items).toEqual([]);
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		describe("search", () => {
+			// Regression guard for the admin "search doesn't find existing
+			// content" bug: clients used to filter client-side against whatever
+			// pages had already been fetched, so results past the first page
+			// were invisible. The repo now has to honor search server-side
+			// across the whole collection.
+			it("finds items by a title substring match", async () => {
+				await repo.create({ type: "page", slug: "bleeding", data: { title: "Bleeding" } });
+				await repo.create({ type: "page", slug: "unrelated", data: { title: "Unrelated" } });
+
+				const result = await repo.findMany("page", { where: { search: "leed" } });
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.slug).toBe("bleeding");
+			});
+
+			it("is case-insensitive", async () => {
+				await repo.create({ type: "page", slug: "mixed-case", data: { title: "MiXeD CaSe" } });
+
+				const result = await repo.findMany("page", { where: { search: "mixed case" } });
+
+				expect(result.items.map((i) => i.slug)).toEqual(["mixed-case"]);
+			});
+
+			it("matches against slug when no title column exists on the collection", async () => {
+				await registry.createCollection({
+					slug: "bare",
+					label: "Bare",
+					labelSingular: "Bare",
+				});
+				await repo.create({ type: "bare", slug: "target-slug", data: {} });
+				await repo.create({ type: "bare", slug: "other-slug", data: {} });
+
+				const result = await repo.findMany("bare", { where: { search: "target" } });
+
+				expect(result.items.map((i) => i.slug)).toEqual(["target-slug"]);
+			});
+
+			it("escapes LIKE wildcards so they don't act as patterns", async () => {
+				await repo.create({ type: "page", slug: "normal", data: { title: "Normal" } });
+				await repo.create({ type: "page", slug: "literal", data: { title: "Has % in it" } });
+
+				// A plain `%` in a LIKE pattern would match everything; the
+				// repo must escape it and only return the row that literally
+				// contains the character.
+				const result = await repo.findMany("page", { where: { search: "%" } });
+
+				expect(result.items.map((i) => i.slug)).toEqual(["literal"]);
+			});
+
+			it("ignores empty / whitespace search input", async () => {
+				const result = await repo.findMany("page", { where: { search: "   " } });
+
+				expect(result.items).toHaveLength(0); // no pages created in this test
+			});
+
+			it("handles pathological search input without throwing", async () => {
+				await repo.create({ type: "page", slug: "shorty", data: { title: "shorty" } });
+
+				// Input well past the bound should be truncated before reaching
+				// SQL. We only care that the query succeeds.
+				const massive = "z".repeat(5000);
+
+				await expect(repo.findMany("page", { where: { search: massive } })).resolves.toBeDefined();
+			});
+		});
 	});
 
 	describe("update", () => {
