@@ -1,21 +1,25 @@
 name: Review
 
 on:
+  issue_comment:
+    types: [created]
   pull_request_review_comment:
     types: [created]
 
 concurrency:
   # share the bonk-* group so /review and /bonk don't pile up on the same PR
-  group: bonk-${{ github.event.pull_request.number || github.ref }}
+  group: bonk-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
   review:
-    # mentions in this check must match the `mentions` input below
+    # mentions in this check must match the `mentions` input below.
+    # For issue_comment events, require the comment to be on a PR (not an issue).
     if: >-
       github.event.sender.type != 'Bot'
       && contains(github.event.comment.body, '/review')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -25,20 +29,26 @@ jobs:
     steps:
       - name: Get PR number
         id: pr-number
+        env:
+          # issue_comment on a PR exposes the number via github.event.issue.number;
+          # pull_request_review_comment exposes it via github.event.pull_request.number.
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
-          echo "number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Verify PR exists
         id: verify-pr
-        run: |
-          if gh api /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} > /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "::warning::PR #${{ github.event.pull_request.number }} not found, skipping review"
-          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr-number.outputs.number }}
+        run: |
+          if gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PR #${PR_NUMBER} not found, skipping review"
+          fi
 
       - name: Checkout repository
         if: steps.verify-pr.outputs.exists == 'true'
