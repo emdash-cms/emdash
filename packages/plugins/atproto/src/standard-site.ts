@@ -5,6 +5,8 @@
  * from EmDash content.
  */
 
+import { buildContentPath, getContentData, getContentString, getString } from "./content.js";
+
 // ── Types ───────────────────────────────────────────────────────
 
 export interface StandardPublication {
@@ -133,32 +135,6 @@ const APOS_RE = /&#39;/g;
 const WHITESPACE_RE = /\s+/g;
 const HASH_PREFIX_RE = /^#/;
 const MAX_TEXT_CONTENT_LENGTH = 10_000;
-
-function getString(obj: Record<string, unknown>, key: string): string | undefined {
-	const v = obj[key];
-	return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
-function getContentData(content: Record<string, unknown>): Record<string, unknown> {
-	return content.data && typeof content.data === "object"
-		? (content.data as Record<string, unknown>)
-		: {};
-}
-
-function getContentString(content: Record<string, unknown>, key: string): string | undefined {
-	return getString(content, key) || getString(getContentData(content), key);
-}
-
-export function buildContentPath(
-	collection: string | undefined,
-	content: Record<string, unknown>,
-): string | undefined {
-	const slug = getString(content, "slug");
-	if (!slug) return undefined;
-
-	if (!collection || collection === "pages") return `/${slug}`;
-	return `/${collection}/${slug}`;
-}
 
 /**
  * Extract tags from content. Handles both string arrays and

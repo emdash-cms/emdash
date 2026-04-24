@@ -2225,20 +2225,30 @@ export class EmDashRuntime {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
-				await this.hooks.runContentAfterSave(content, collection, isNew);
+				try {
+					await this.hooks.runContentAfterSave(content, collection, isNew);
+				} catch (err) {
+					console.error("EmDash afterSave hook error:", err);
+				}
 			}
 
 			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
 			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
 				const [id] = pluginKey.split(":");
 				if (!id || !this.isPluginEnabled(id)) continue;
 
-				try {
-					await plugin.invokeHook("content:afterSave", { content, collection, isNew });
-				} catch (err) {
-					console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
-				}
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterSave", { content, collection, isNew });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
+						}
+					})(),
+				);
 			}
+			await Promise.allSettled(tasks);
 		});
 	}
 
@@ -2267,20 +2277,30 @@ export class EmDashRuntime {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterPublish")) {
-				await this.hooks.runContentAfterPublish(content, collection);
+				try {
+					await this.hooks.runContentAfterPublish(content, collection);
+				} catch (err) {
+					console.error("EmDash afterPublish hook error:", err);
+				}
 			}
 
 			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
 			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
 				const [pluginId] = pluginKey.split(":");
 				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-				try {
-					await plugin.invokeHook("content:afterPublish", { content, collection });
-				} catch (err) {
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
-				}
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterPublish", { content, collection });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+						}
+					})(),
+				);
 			}
+			await Promise.allSettled(tasks);
 		});
 	}
 

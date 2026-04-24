@@ -16,8 +16,14 @@ describe("normalizePdsHost", () => {
 		expect(normalizePdsHost("https://example.com/")).toBe("example.com");
 	});
 
-	it("preserves ports", () => {
-		expect(normalizePdsHost("http://localhost:2583")).toBe("localhost:2583");
+	it("preserves ports for https URLs", () => {
+		expect(normalizePdsHost("https://localhost:2583")).toBe("localhost:2583");
+	});
+
+	it("rejects non-https protocols", () => {
+		expect(() => normalizePdsHost("http://localhost:2583")).toThrow(
+			"Invalid PDS host protocol: http:",
+		);
 	});
 });
 

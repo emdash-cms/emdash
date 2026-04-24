@@ -30,6 +30,8 @@ export interface BlobRef {
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
 /** Get the HTTP client from plugin context, or throw a helpful error. */
 export function requireHttp(ctx: PluginContext) {
 	if (!ctx.http) {
@@ -44,7 +46,7 @@ export function requireHttp(ctx: PluginContext) {
  */
 export function normalizePdsHost(value: string | null | undefined): string {
 	const raw = value?.trim() || "bsky.social";
-	const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+	const withScheme = URL_SCHEME_RE.test(raw) ? raw : `https://${raw}`;
 
 	let url: URL;
 	try {
@@ -53,7 +55,7 @@ export function normalizePdsHost(value: string | null | undefined): string {
 		throw new Error(`Invalid PDS host: ${raw}`);
 	}
 
-	if (url.protocol !== "https:" && url.protocol !== "http:") {
+	if (url.protocol !== "https:") {
 		throw new Error(`Invalid PDS host protocol: ${url.protocol}`);
 	}
 
