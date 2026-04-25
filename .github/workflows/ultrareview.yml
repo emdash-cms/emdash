@@ -12,11 +12,8 @@ on:
   pull_request_review_comment:
     types: [created]
 
-concurrency:
-  # share the bonk-* group so /review, /ultrareview, /bonk, /ultrabonk
-  # don't pile up on the same PR
-  group: bonk-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+# Concurrency is at job level (below) rather than workflow level so it's only
+# evaluated when the `if:` filter passes.
 
 jobs:
   ultrareview:
@@ -27,7 +24,13 @@ jobs:
       && contains(github.event.comment.body, '/ultrareview')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
+    # Per-workflow group key so /review, /ultrareview, /bonk, /ultrabonk all
+    # have independent queues per target.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
