@@ -1,4 +1,10 @@
-name: Review PR
+name: Ultra-review PR
+
+# Frontier-model variant of review.yml. Same flow, different model and trigger.
+# Use /ultrareview when you want a deeper review pass than /review provides --
+# typically for high-risk PRs (security-sensitive, architectural, or where you
+# suspect there's a subtle cross-file bug). Costs ~10x as much as /review,
+# so this is a manual escalation, not a default.
 
 on:
   issue_comment:
@@ -7,17 +13,18 @@ on:
     types: [created]
 
 concurrency:
-  # share the bonk-* group so /review and /bonk don't pile up on the same PR
+  # share the bonk-* group so /review, /ultrareview, /bonk, /ultrabonk
+  # don't pile up on the same PR
   group: bonk-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  review:
+  ultrareview:
     # mentions in this check must match the `mentions` input below.
     # For issue_comment events, require the comment to be on a PR (not an issue).
     if: >-
       github.event.sender.type != 'Bot'
-      && contains(github.event.comment.body, '/review')
+      && contains(github.event.comment.body, '/ultrareview')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
     runs-on: ubuntu-latest
@@ -47,7 +54,7 @@ jobs:
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::PR #${PR_NUMBER} not found, skipping review"
+            echo "::warning::PR #${PR_NUMBER} not found, skipping ultrareview"
           fi
 
       - name: Checkout repository
@@ -101,14 +108,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
-          # Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
-          # version, whose bundled models.dev snapshot predates it and would
-          # otherwise raise ProviderModelNotFoundError.
+          # Register claude-opus-4-7 (released 2026-04-16) with the pinned
+          # opencode version (1.4.6 published 2026-04-15), whose bundled
+          # models.dev snapshot predates it and would otherwise raise
+          # ProviderModelNotFoundError.
           OPENCODE_CONFIG_CONTENT: |
-            {"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
+            {"provider":{"cloudflare-ai-gateway":{"models":{"anthropic/claude-opus-4-7":{"id":"anthropic/claude-opus-4-7","name":"Claude Opus 4.7","family":"claude-opus","attachment":true,"reasoning":true,"tool_call":true,"temperature":false,"release_date":"2026-04-16","modalities":{"input":["text","image","pdf"],"output":["text"]},"cost":{"input":5,"output":25,"cache_read":0.5,"cache_write":6.25},"limit":{"context":1000000,"output":128000}}}}}}
         with:
-          model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
-          mentions: "/review"
+          model: "cloudflare-ai-gateway/anthropic/claude-opus-4-7"
+          mentions: "/ultrareview"
           opencode_version: "1.4.6"
           permissions: write
           # NO_PUSH scopes the installation token to contents:read so the
@@ -116,14 +124,14 @@ jobs:
           # remain enabled in the agent definition so it can scaffold fixes
           # locally to verify reasoning.
           token_permissions: NO_PUSH
-          # Custom agent defined in .opencode/agents/auto-reviewer.md.
-          # Holds the review philosophy, investigation protocol, and posting
-          # protocol so workflows stay small.
+          # Shared agent: see .opencode/agents/auto-reviewer.md
           agent: auto-reviewer
           prompt: |
             Review pull request #${{ steps.pr-number.outputs.number }} ("${{ steps.pr-details.outputs.title }}").
 
             Follow your agent instructions for investigation, severity calibration, and posting. Post a single review with line-anchored comments via the gh CLI; the summary will be posted as a separate workflow comment.
+
+            This is an /ultrareview invocation -- the human escalated to a frontier model because they suspect there's something subtle. Spend extra effort on cross-file consequences and sibling-implementation asymmetries.
 
             <pr_number>${{ steps.pr-number.outputs.number }}</pr_number>
             <pr_description>
