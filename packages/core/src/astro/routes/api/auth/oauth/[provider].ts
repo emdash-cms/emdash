@@ -87,12 +87,29 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 	try {
 		const url = new URL(request.url);
 
-		// Get OAuth providers from environment
-		// Access via locals.runtime for Cloudflare, or import.meta.env for Node
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
-		const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
-		const env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
+		// Get OAuth providers from environment.
+		// Resolution order:
+		//   1. locals.runtime.env  — Astro v5 + @astrojs/cloudflare
+		//   2. cloudflare:workers  — Astro v6 + @astrojs/cloudflare (locals.runtime.env was removed)
+		//   3. import.meta.env     — Node.js / Vite dev server fallback
+		let env: Record<string, unknown>;
+		try {
+			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
+			const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
+			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
+			env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
+		} catch {
+			// Astro v6: locals.runtime.env accessor throws — import from cloudflare:workers instead
+			try {
+				const { env: cfEnv } = await import("cloudflare:workers");
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- cloudflare:workers env is typed as Cloudflare.Env; cast to generic record for getOAuthConfig
+				env = cfEnv as Record<string, unknown>;
+			} catch {
+				// Not running on Cloudflare Workers — fall back to Vite's import.meta.env
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion)
+				env = import.meta.env as Record<string, unknown>;
+			}
+		}
 		const providers = getOAuthConfig(env);
 
 		if (!providers[provider]) {
