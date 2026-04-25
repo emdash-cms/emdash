@@ -13,14 +13,16 @@ import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/
 import { sql, type Kysely } from "kysely";
 
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
+import { ContentRepository } from "./database/repositories/content.js";
 import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
+import { SchemaRegistry } from "./schema/registry.js";
 import type { Storage } from "./storage/types.js";
 
 /**
  * Result of a system cleanup run.
- * Each field is the number of rows deleted, or -1 if the cleanup failed.
+ * Each field is the number of rows deleted/processed, or -1 if the task failed.
  */
 export interface CleanupResult {
 	challenges: number;
@@ -28,7 +30,14 @@ export interface CleanupResult {
 	pendingUploads: number;
 	pendingUploadFiles: number;
 	revisionsPruned: number;
+	scheduledPublished: number;
 }
+
+/**
+ * Callback used by publishDueContent to publish a single content item.
+ * Receives the collection slug and item id. Return value is ignored.
+ */
+export type PublishFn = (collection: string, id: string) => Promise<unknown>;
 
 /** Max revisions to keep per entry during periodic pruning */
 const REVISION_KEEP_COUNT = 50;
@@ -46,10 +55,13 @@ const REVISION_PRUNE_THRESHOLD = REVISION_KEEP_COUNT;
  * @param storage - Optional storage backend for deleting orphaned files.
  *   When omitted, pending upload DB rows are still deleted but the
  *   corresponding files in object storage are not removed.
+ * @param publishFn - Optional callback to publish a content item. When provided,
+ *   any scheduled content whose scheduled_at has passed will be published.
  */
 export async function runSystemCleanup(
 	db: Kysely<Database>,
 	storage?: Storage,
+	publishFn?: PublishFn,
 ): Promise<CleanupResult> {
 	const result: CleanupResult = {
 		challenges: -1,
@@ -57,6 +69,7 @@ export async function runSystemCleanup(
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
 		revisionsPruned: -1,
+		scheduledPublished: -1,
 	};
 
 	// 1. Passkey challenges (expire after 60s, clean anything past 5 min)
@@ -113,7 +126,63 @@ export async function runSystemCleanup(
 		console.error("[cleanup] Failed to prune revisions:", error);
 	}
 
+	// 5. Publish due scheduled content
+	if (publishFn) {
+		try {
+			result.scheduledPublished = await publishDueContent(db, publishFn);
+		} catch (error) {
+			console.error("[cleanup] Failed to publish due scheduled content:", error);
+		}
+	} else {
+		result.scheduledPublished = 0;
+	}
+
 	return result;
+}
+
+/**
+ * Find all scheduled content whose scheduled_at has passed and publish it.
+ *
+ * Iterates every collection in the schema registry, queries for due items,
+ * and calls publishFn for each. Failures on individual items are logged and
+ * skipped so one bad item does not block the rest.
+ *
+ * Returns the total number of items successfully published.
+ */
+async function publishDueContent(db: Kysely<Database>, publishFn: PublishFn): Promise<number> {
+	const registry = new SchemaRegistry(db);
+	const collections = await registry.listCollections();
+	if (collections.length === 0) return 0;
+
+	const contentRepo = new ContentRepository(db);
+	let published = 0;
+
+	for (const collection of collections) {
+		let dueItems;
+		try {
+			dueItems = await contentRepo.findReadyToPublish(collection.slug);
+		} catch (error) {
+			console.error(
+				`[cleanup] Failed to query due content for collection "${collection.slug}":`,
+				error,
+			);
+			continue;
+		}
+
+		for (const item of dueItems) {
+			try {
+				await publishFn(collection.slug, item.id);
+				published++;
+			} catch (error) {
+				console.error(
+					`[cleanup] Failed to publish scheduled item "${item.id}" in "${collection.slug}":`,
+					error,
+				);
+			}
+		}
+	}
+
+	return published;
 }
 
 /**

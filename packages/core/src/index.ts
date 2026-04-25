@@ -57,6 +57,7 @@ export {
 	handleContentSchedule,
 	handleContentUnschedule,
 	handleContentCountScheduled,
+	handleContentPublishDue,
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,

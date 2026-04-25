@@ -125,6 +125,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/content/[collection]/[id]/schedule.ts"),
 	});
 
+	// Cron routes
+	injectRoute({
+		pattern: "/_emdash/api/cron/publish-due",
+		entrypoint: resolveRoute("api/cron/publish-due.ts"),
+	});
+
 	// Revision management routes (for restore, etc.)
 	injectRoute({
 		pattern: "/_emdash/api/revisions/[revisionId]",

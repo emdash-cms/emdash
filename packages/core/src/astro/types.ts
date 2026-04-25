@@ -269,6 +269,8 @@ export interface EmDashHandlers {
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
 
+	handleContentPublishDue: () => Promise<HandlerResponse>;
+
 	handleContentDiscardDraft: (collection: string, id: string) => Promise<HandlerResponse>;
 
 	handleContentCompare: (collection: string, id: string) => Promise<HandlerResponse>;

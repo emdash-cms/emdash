@@ -25,6 +25,7 @@ export {
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,
+	handleContentPublishDue,
 	type TrashedContentItem,
 } from "./content.js";
 

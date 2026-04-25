@@ -439,6 +439,29 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Frontend rebuild hook URLs.
+	 *
+	 * An array of URLs that EmDash will POST to (with no body) after any
+	 * content is published — including both manual publishes and scheduled
+	 * content that goes live automatically. Use this to trigger rebuilds of
+	 * static frontends on services like Vercel, Netlify, or Cloudflare Pages.
+	 *
+	 * Each URL receives a POST request. Failures are logged but never surface
+	 * as errors to the publish caller. Requests are fire-and-forget.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   rebuildHooks: [
+	 *     "https://api.vercel.com/v1/integrations/deploy/prj_xxx/yyy",
+	 *     "https://api.netlify.com/build_hooks/abc123",
+	 *   ],
+	 * })
+	 * ```
+	 */
+	rebuildHooks?: string[];
 }
 
 /**

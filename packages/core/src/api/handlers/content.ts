@@ -1281,6 +1281,81 @@ export async function handleContentTranslations(
 }
 
 // ---------------------------------------------------------------------------
+// Publish-due (scheduled content)
+// ---------------------------------------------------------------------------
+
+/**
+ * Publish all content items whose scheduled_at has passed.
+ *
+ * Iterates over every collection, finds items where scheduled_at <= now,
+ * and publishes each one. Returns a count of published items broken down
+ * by collection, plus the published items themselves so callers can fire
+ * content:afterPublish hooks per item.
+ */
+export async function handleContentPublishDue(db: Kysely<Database>): Promise<
+	ApiResult<{
+		published: number;
+		byCollection: Record<string, number>;
+		items: Array<{ item: ContentItem; collection: string }>;
+	}>
+> {
+	try {
+		const collections = await db.selectFrom("_emdash_collections").select("slug").execute();
+
+		const byCollection: Record<string, number> = {};
+		const items: Array<{ item: ContentItem; collection: string }> = [];
+		let totalPublished = 0;
+
+		const repo = new ContentRepository(db);
+
+		for (const { slug } of collections) {
+			const due = await repo.findReadyToPublish(slug);
+			if (due.length === 0) continue;
+
+			const hasSeo = await collectionHasSeo(db, slug);
+			let count = 0;
+
+			for (const item of due) {
+				try {
+					const published = await withTransaction(db, async (trx) => {
+						const txRepo = new ContentRepository(trx);
+						return txRepo.publish(slug, item.id);
+					});
+
+					await hydrateSeo(db, slug, published, hasSeo);
+					items.push({ item: published, collection: slug });
+					count++;
+				} catch (itemError) {
+					console.error(
+						`[publish-due] Failed to publish item "${item.id}" in collection "${slug}":`,
+						itemError,
+					);
+				}
+			}
+
+			if (count > 0) {
+				byCollection[slug] = count;
+				totalPublished += count;
+			}
+		}
+
+		return {
+			success: true,
+			data: { published: totalPublished, byCollection, items },
+		};
+	} catch (error) {
+		console.error("Content publish-due error:", error);
+		return {
+			success: false,
+			error: {
+				code: "CONTENT_PUBLISH_DUE_ERROR",
+				message: "Failed to publish due content",
+			},
+		};
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Non-translatable field sync
 // ---------------------------------------------------------------------------
 

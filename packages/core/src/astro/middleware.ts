@@ -409,6 +409,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handleContentSchedule: runtime.handleContentSchedule.bind(runtime),
 					handleContentUnschedule: runtime.handleContentUnschedule.bind(runtime),
 					handleContentCountScheduled: runtime.handleContentCountScheduled.bind(runtime),
+					handleContentPublishDue: runtime.handleContentPublishDue.bind(runtime),
 					handleContentDiscardDraft: runtime.handleContentDiscardDraft.bind(runtime),
 					handleContentCompare: runtime.handleContentCompare.bind(runtime),
 					handleContentTranslations: runtime.handleContentTranslations.bind(runtime),

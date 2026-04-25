@@ -129,6 +129,7 @@ import {
 	handleContentSchedule,
 	handleContentUnschedule,
 	handleContentCountScheduled,
+	handleContentPublishDue,
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,
@@ -1927,6 +1928,21 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
+	async handleContentPublishDue() {
+		const result = await handleContentPublishDue(this.db);
+
+		if (result.success && result.data && result.data.published > 0) {
+			// Fire content:afterPublish hooks per item (without per-item rebuild)
+			for (const { item, collection } of result.data.items) {
+				this.runAfterPublishHooks(contentItemToRecord(item), collection, false);
+			}
+			// Fire rebuild hooks once for the whole batch
+			this.fireRebuildHooks();
+		}
+
+		return result;
+	}
+
 	async handleContentDiscardDraft(collection: string, id: string) {
 		return handleContentDiscardDraft(this.db, collection, id);
 	}
@@ -2275,7 +2291,11 @@ export class EmDashRuntime {
 		}
 	}
 
-	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+	private runAfterPublishHooks(
+		content: Record<string, unknown>,
+		collection: string,
+		fireRebuild = true,
+	): void {
 		// Trusted plugins
 		if (this.hooks.hasHooks("content:afterPublish")) {
 			this.hooks
@@ -2294,6 +2314,33 @@ export class EmDashRuntime {
 					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err),
 				);
 		}
+
+		if (fireRebuild) {
+			this.fireRebuildHooks();
+		}
+	}
+
+	/**
+	 * Fire all configured rebuild hooks after the response closes.
+	 *
+	 * Each URL in config.rebuildHooks receives a POST request. Requests are
+	 * deferred past the response via after() so Cloudflare Workers doesn't
+	 * cancel in-flight fetches when the isolate response closes. Failures are
+	 * logged but never surface as errors to the caller.
+	 */
+	private fireRebuildHooks(): void {
+		const hooks = this.config.rebuildHooks;
+		if (!hooks || hooks.length === 0) return;
+
+		after(async () => {
+			for (const url of hooks) {
+				try {
+					await fetch(url, { method: "POST" });
+				} catch (err) {
+					console.error(`[emdash] Rebuild hook failed for ${url}:`, err);
+				}
+			}
+		});
 	}
 
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
