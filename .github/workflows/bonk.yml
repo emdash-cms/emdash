@@ -62,11 +62,22 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
-          # Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
-          # version (1.4.6 published 2026-04-15), whose bundled models.dev
-          # snapshot predates it and would otherwise raise ProviderModelNotFoundError.
+          # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
+          #
+          # 1. Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
+          #    version (1.4.6 published 2026-04-15). Without this, opencode
+          #    raises ProviderModelNotFoundError because the model post-dates
+          #    its bundled models.dev snapshot.
+          #
+          # 2. Resolve the two opencode permission defaults that ask interactively
+          #    (`external_directory` and `doom_loop`) so a CI run with no TTY
+          #    can never deadlock waiting for approval. external_directory is
+          #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
+          #    home-dir caches); doom_loop is deny so a stuck loop aborts
+          #    instead of prompting. Repro: PR #769 timed out at 30 min waiting
+          #    for an `external_directory` prompt on `git show ... > /tmp/foo`.
           OPENCODE_CONFIG_CONTENT: |
-            {"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
+            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
         with:
           model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
           mentions: "/bonk,@ask-bonk"
