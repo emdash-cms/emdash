@@ -310,7 +310,7 @@ describe("Bubble Menu", () => {
 		});
 
 		// Should have a URL input with placeholder
-		const input = menu.querySelector('input[type="url"]');
+		const input = menu.querySelector('input[placeholder*="example.com"]');
 		expect(input).toBeTruthy();
 	});
 
@@ -323,11 +323,11 @@ describe("Bubble Menu", () => {
 		linkBtn.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[placeholder*="example.com"]')).toBeTruthy();
 		});
 
 		// Type a URL into the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector('input[placeholder*="example.com"]') as HTMLInputElement;
 		input.focus();
 		// Use native value setter + input event for React controlled input
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -358,10 +358,10 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[placeholder*="example.com"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector('input[placeholder*="example.com"]') as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,
@@ -461,10 +461,10 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[placeholder*="example.com"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector('input[placeholder*="example.com"]') as HTMLInputElement;
 		input.focus();
 
 		// Press Escape
@@ -501,11 +501,11 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Edit link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[placeholder*="example.com"]')).toBeTruthy();
 		});
 
 		// Clear the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector('input[placeholder*="example.com"]') as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,

@@ -7,6 +7,7 @@
  */
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
+import { sanitizeHref } from "../utils/url.js";
 // Standard responsive breakpoints
 const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
@@ -32,6 +33,14 @@ export interface Props {
 		displayWidth?: number;
 		/** Display height for this instance (overrides original) */
 		displayHeight?: number;
+		/**
+		 * Optional link. When set, the image is rendered inside an `<a>` using
+		 * `sanitizeHref`-validated `href`.
+		 */
+		link?: {
+			href: string;
+			blank?: boolean;
+		};
 	};
 }
 
@@ -57,7 +66,11 @@ if (!node?.asset) {
 	return null;
 }
 
-const { asset, alt = "", caption, width, height, displayWidth, displayHeight } = node;
+const { asset, alt = "", caption, width, height, displayWidth, displayHeight, link } = node;
+
+const linkHref = link?.href ? sanitizeHref(link.href) : null;
+const linkTarget = link?.blank ? "_blank" : undefined;
+const linkRel = link?.blank ? "noopener noreferrer" : undefined;
 
 // Calculate aspect ratio from original dimensions
 const aspectRatio = width && height ? width / height : undefined;
@@ -147,17 +160,35 @@ const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseSty
 ---
 
 <figure class="emdash-image">
-	<img
-		src={src}
-		srcset={srcset}
-		sizes={sizes}
-		alt={alt}
-		width={renderWidth}
-		height={renderHeight}
-		loading="lazy"
-		decoding="async"
-		style={imgStyle}
-	/>
+	{
+		linkHref ? (
+			<a href={linkHref} target={linkTarget} rel={linkRel}>
+				<img
+					src={src}
+					srcset={srcset}
+					sizes={sizes}
+					alt={alt}
+					width={renderWidth}
+					height={renderHeight}
+					loading="lazy"
+					decoding="async"
+					style={imgStyle}
+				/>
+			</a>
+		) : (
+			<img
+				src={src}
+				srcset={srcset}
+				sizes={sizes}
+				alt={alt}
+				width={renderWidth}
+				height={renderHeight}
+				loading="lazy"
+				decoding="async"
+				style={imgStyle}
+			/>
+		)
+	}
 	{caption && <figcaption>{caption}</figcaption>}
 </figure>
 

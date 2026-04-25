@@ -5,7 +5,7 @@
  * Shows preview and allows editing alt text, caption, and link settings.
  */
 
-import { Button, Input, InputArea, Label, LinkButton } from "@cloudflare/kumo";
+import { Button, Checkbox, Input, InputArea, Label, LinkButton } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	X,
@@ -37,6 +37,11 @@ export interface ImageAttributes {
 	displayWidth?: number;
 	/** Display height for this instance (defaults to original) */
 	displayHeight?: number;
+	/** When set, the image renders inside an `<a>` linking to `href`. */
+	link?: {
+		href: string;
+		blank?: boolean;
+	} | null;
 }
 
 export interface ImageDetailPanelProps {
@@ -67,6 +72,8 @@ export function ImageDetailPanel({
 	const [alt, setAlt] = React.useState(attributes.alt ?? "");
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
 	const [title, setTitle] = React.useState(attributes.title ?? "");
+	const [linkHref, setLinkHref] = React.useState(attributes.link?.href ?? "");
+	const [linkBlank, setLinkBlank] = React.useState(Boolean(attributes.link?.blank));
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 
 	// Dimension state - default to display dimensions, fall back to original
@@ -127,17 +134,21 @@ export function ImageDetailPanel({
 			caption !== (attributes.caption ?? "") ||
 			title !== (attributes.title ?? "") ||
 			displayWidth !== originalDisplayWidth ||
-			displayHeight !== originalDisplayHeight
+			displayHeight !== originalDisplayHeight ||
+			linkHref !== (attributes.link?.href ?? "") ||
+			linkBlank !== Boolean(attributes.link?.blank)
 		);
-	}, [attributes, alt, caption, title, displayWidth, displayHeight]);
+	}, [attributes, alt, caption, title, displayWidth, displayHeight, linkHref, linkBlank]);
 
 	const handleSave = () => {
+		const trimmedHref = linkHref.trim();
 		onUpdate({
 			alt: alt || undefined,
 			caption: caption || undefined,
 			title: title || undefined,
 			displayWidth,
 			displayHeight,
+			link: trimmedHref ? { href: trimmedHref, ...(linkBlank ? { blank: true } : {}) } : null,
 		});
 		onClose();
 	};
@@ -319,6 +330,23 @@ export function ImageDetailPanel({
 						description={t`Shown when hovering over the image.`}
 					/>
 
+					<div className="space-y-2">
+						<Input
+							label={t`Link URL`}
+							type="text"
+							value={linkHref}
+							onChange={(e) => setLinkHref(e.target.value)}
+							placeholder={t`https://example.com or /page`}
+							description={t`When set, the image becomes a clickable link to this URL.`}
+						/>
+						<Checkbox
+							checked={linkBlank}
+							onCheckedChange={(checked) => setLinkBlank(checked)}
+							disabled={!linkHref.trim()}
+							label={t`Open in new tab`}
+						/>
+					</div>
+
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!attributes.mediaId && attributes.src && (
 						<div>
@@ -483,6 +511,23 @@ export function ImageDetailPanel({
 						placeholder={t`Optional tooltip on hover`}
 						description={t`Shown when hovering over the image.`}
 					/>
+
+					<div className="space-y-2">
+						<Input
+							label={t`Link URL`}
+							type="text"
+							value={linkHref}
+							onChange={(e) => setLinkHref(e.target.value)}
+							placeholder={t`https://example.com or /page`}
+							description={t`When set, the image becomes a clickable link to this URL.`}
+						/>
+						<Checkbox
+							checked={linkBlank}
+							onCheckedChange={(checked) => setLinkBlank(checked)}
+							disabled={!linkHref.trim()}
+							label={t`Open in new tab`}
+						/>
+					</div>
 
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!attributes.mediaId && attributes.src && (

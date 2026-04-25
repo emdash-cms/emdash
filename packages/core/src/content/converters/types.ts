@@ -67,6 +67,14 @@ export interface PortableTextImageBlock {
 	displayWidth?: number;
 	/** Display height for this instance (overrides original) */
 	displayHeight?: number;
+	/**
+	 * Optional link. When set, the image is rendered inside an `<a>` using
+	 * `sanitizeHref`-validated `href`. Mirrors `PortableTextLinkMark`.
+	 */
+	link?: {
+		href: string;
+		blank?: boolean;
+	};
 }
 
 /**
