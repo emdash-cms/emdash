@@ -145,6 +145,21 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(postResult.data?.item.slug).toBe("about");
 			expect(pageResult.data?.item.slug).toBe("about");
 		});
+
+		it("preserves publishedAt and createdAt when provided — content migration use case", async () => {
+			const originalCreated = "2019-03-15T10:30:00.000Z";
+			const originalPublished = "2019-03-16T09:00:00.000Z";
+
+			const result = await handleContentCreate(db, "post", {
+				data: { title: "Migrated Post" },
+				createdAt: originalCreated,
+				publishedAt: originalPublished,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.createdAt).toBe(originalCreated);
+			expect(result.data?.item.publishedAt).toBe(originalPublished);
+		});
 	});
 
 	describe("handleContentDuplicate", () => {
@@ -262,6 +277,38 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(duplicated.success).toBe(true);
 			expect(duplicated.data?.item.byline?.id).toBe(byline.id);
 			expect(duplicated.data?.item.bylines).toHaveLength(1);
+		});
+	});
+
+	describe("handleContentUpdate — publishedAt override", () => {
+		it("persists publishedAt when provided", async () => {
+			const created = await handleContentCreate(db, "post", { data: { title: "Hi" } });
+			expect(created.success).toBe(true);
+
+			const newPublishedAt = "2019-03-16T09:00:00.000Z";
+			const updated = await handleContentUpdate(db, "post", created.data!.item.id, {
+				publishedAt: newPublishedAt,
+			});
+
+			expect(updated.success).toBe(true);
+			expect(updated.data?.item.publishedAt).toBe(newPublishedAt);
+		});
+
+		it("leaves createdAt untouched on update", async () => {
+			const originalCreated = "2019-03-15T10:30:00.000Z";
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Hi" },
+				createdAt: originalCreated,
+			});
+			expect(created.success).toBe(true);
+
+			const updated = await handleContentUpdate(db, "post", created.data!.item.id, {
+				data: { title: "Edited" },
+				publishedAt: "2020-01-01T00:00:00.000Z",
+			});
+
+			expect(updated.success).toBe(true);
+			expect(updated.data?.item.createdAt).toBe(originalCreated);
 		});
 	});
 });

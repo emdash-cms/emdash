@@ -1,0 +1,146 @@
+name: Review PR
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+# Concurrency is at job level (below) rather than workflow level so it's only
+# evaluated when the `if:` filter passes.
+
+jobs:
+  review:
+    # mentions in this check must match the `mentions` input below.
+    # For issue_comment events, require the comment to be on a PR (not an issue).
+    if: >-
+      github.event.sender.type != 'Bot'
+      && contains(github.event.comment.body, '/review')
+      && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
+    # Per-workflow group key so /review, /ultrareview, /bonk, /ultrabonk all
+    # have independent queues per target.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Get PR number
+        id: pr-number
+        env:
+          # issue_comment on a PR exposes the number via github.event.issue.number;
+          # pull_request_review_comment exposes it via github.event.pull_request.number.
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          echo "number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify PR exists
+        id: verify-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr-number.outputs.number }}
+        run: |
+          if gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PR #${PR_NUMBER} not found, skipping review"
+          fi
+
+      - name: Checkout repository
+        if: steps.verify-pr.outputs.exists == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        if: steps.verify-pr.outputs.exists == 'true'
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - name: Setup Node.js
+        if: steps.verify-pr.outputs.exists == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        if: steps.verify-pr.outputs.exists == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Get PR details
+        if: steps.verify-pr.outputs.exists == 'true'
+        id: pr-details
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr_data.json
+          # Use heredoc form for every field — PR titles and bodies can contain
+          # newlines that would otherwise corrupt $GITHUB_OUTPUT and let a PR
+          # author smuggle arbitrary step outputs via their title/body.
+          {
+            echo 'title<<PR_TITLE_EOF'
+            jq -r .title /tmp/pr_data.json
+            echo PR_TITLE_EOF
+            echo "sha=$(jq -r .head.sha /tmp/pr_data.json)"
+            echo 'body<<PR_BODY_EOF'
+            jq -r .body /tmp/pr_data.json
+            echo PR_BODY_EOF
+          } >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr-number.outputs.number }}
+
+      - name: Run Bonk
+        if: steps.verify-pr.outputs.exists == 'true'
+        uses: ask-bonk/ask-bonk/github@a96a0dc8f935aa38e71b33a473a8076738b53599 # main as of 2026-04-24
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
+          CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
+          #
+          # 1. Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
+          #    version, whose bundled models.dev snapshot predates it and would
+          #    otherwise raise ProviderModelNotFoundError.
+          #
+          # 2. Resolve the two opencode permission defaults that ask interactively
+          #    (`external_directory` and `doom_loop`) so a CI run with no TTY
+          #    can never deadlock waiting for approval. external_directory is
+          #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
+          #    home-dir caches); doom_loop is deny so a stuck loop aborts
+          #    instead of prompting.
+          OPENCODE_CONFIG_CONTENT: |
+            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
+        with:
+          model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
+          mentions: "/review"
+          opencode_version: "1.4.6"
+          permissions: write
+          # NO_PUSH scopes the installation token to contents:read so the
+          # reviewer cannot push, even if it tries to commit. Write tools
+          # remain enabled in the agent definition so it can scaffold fixes
+          # locally to verify reasoning.
+          token_permissions: NO_PUSH
+          # Custom agent defined in .opencode/agents/auto-reviewer.md.
+          # Holds the review philosophy, investigation protocol, and posting
+          # protocol so workflows stay small.
+          agent: auto-reviewer
+          prompt: |
+            Review pull request #${{ steps.pr-number.outputs.number }} ("${{ steps.pr-details.outputs.title }}").
+
+            Follow your agent instructions for investigation, severity calibration, and posting. Post a single review with line-anchored comments via the gh CLI; the summary will be posted as a separate workflow comment.
+
+            <pr_number>${{ steps.pr-number.outputs.number }}</pr_number>
+            <pr_description>
+            ${{ steps.pr-details.outputs.body }}
+            </pr_description>
+
+            If the PR looks good, respond with only "LGTM!" and skip posting a review.

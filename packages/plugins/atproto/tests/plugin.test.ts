@@ -23,17 +23,21 @@ describe("atprotoPlugin descriptor", () => {
 		expect(descriptor.capabilities).toContain("network:fetch:any");
 	});
 
-	it("declares storage with publications collection", () => {
+	it("declares the storage used by the sandbox implementation", () => {
 		const descriptor = atprotoPlugin();
-		expect(descriptor.storage).toHaveProperty("publications");
-		expect(descriptor.storage!.publications!.indexes).toContain("contentId");
-		expect(descriptor.storage!.publications!.indexes).toContain("platform");
-		expect(descriptor.storage!.publications!.indexes).toContain("publishedAt");
+		expect(descriptor.storage).toHaveProperty("records");
+		expect(descriptor.storage!.records!.indexes).toContain("contentId");
+		expect(descriptor.storage!.records!.indexes).toContain("status");
+		expect(descriptor.storage!.records!.indexes).toContain("lastSyncedAt");
 	});
 
-	it("has admin pages and widgets", () => {
+	it("exposes an admin status page and widget", () => {
 		const descriptor = atprotoPlugin();
-		expect(descriptor.adminPages![0]!.label).toBe("AT Protocol");
-		expect(descriptor.adminWidgets![0]!.title).toBe("AT Protocol");
+		expect(descriptor.adminPages).toEqual([
+			{ path: "/status", label: "AT Protocol", icon: "globe" },
+		]);
+		expect(descriptor.adminWidgets).toEqual([
+			{ id: "sync-status", title: "AT Protocol", size: "third" },
+		]);
 	});
 });

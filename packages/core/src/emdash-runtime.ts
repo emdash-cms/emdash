@@ -19,6 +19,7 @@ import type {
 } from "./astro/integration/runtime.js";
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
+import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { runMigrations } from "./database/migrations/runner.js";
@@ -44,6 +45,20 @@ import { hashString } from "./utils/hash.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
+
+/**
+ * Parse a JSON column expected to contain an array of strings.
+ *
+ * Throws on malformed JSON rather than returning []; callers are responsible
+ * for deciding how to handle/log the error. Empty string / null inputs return
+ * [] (they represent "no value"). Non-string array entries are filtered out.
+ */
+function parseStringArray(raw: string | null | undefined): string[] {
+	if (!raw) return [];
+	const parsed: unknown = JSON.parse(raw);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((v): v is string => typeof v === "string");
+}
 
 /** Combined result from a single-pass page contribution collection */
 interface PageContributions {
@@ -1488,7 +1503,7 @@ export class EmDashRuntime {
 				label: row.label,
 				labelSingular: row.label_singular ?? undefined,
 				hierarchical: row.hierarchical === 1,
-				collections: row.collections ? (JSON.parse(row.collections) as string[]).toSorted() : [],
+				collections: parseStringArray(row.collections).toSorted(),
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
@@ -2080,6 +2095,7 @@ export class EmDashRuntime {
 			const routeRegistry = new PluginRouteRegistry({
 				db: this.db,
 				emailPipeline: this.email ?? undefined,
+				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
 			routeRegistry.register(trustedPlugin);
 
@@ -2220,22 +2236,34 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 	): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterSave")) {
-			this.hooks
-				.runContentAfterSave(content, collection, isNew)
-				.catch((err) => console.error("EmDash afterSave hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterSave")) {
+				try {
+					await this.hooks.runContentAfterSave(content, collection, isNew);
+				} catch (err) {
+					console.error("EmDash afterSave hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [id] = pluginKey.split(":");
+				if (!id || !this.isPluginEnabled(id)) continue;
 
-			plugin
-				.invokeHook("content:afterSave", { content, collection, isNew })
-				.catch((err) => console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err));
-		}
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterSave", { content, collection, isNew });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
+						}
+					})(),
+				);
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
@@ -2260,24 +2288,34 @@ export class EmDashRuntime {
 	}
 
 	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterPublish")) {
-			this.hooks
-				.runContentAfterPublish(content, collection)
-				.catch((err) => console.error("EmDash afterPublish hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterPublish")) {
+				try {
+					await this.hooks.runContentAfterPublish(content, collection);
+				} catch (err) {
+					console.error("EmDash afterPublish hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterPublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err),
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterPublish", { content, collection });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+						}
+					})(),
 				);
-		}
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
@@ -2321,7 +2359,7 @@ export class EmDashRuntime {
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);
-			const meta = extractRequestMeta(request);
+			const meta = extractRequestMeta(request, this.config);
 			const result = await plugin.invokeRoute(routeName, body, {
 				url: request.url,
 				method: request.method,

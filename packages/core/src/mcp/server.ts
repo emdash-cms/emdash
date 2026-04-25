@@ -84,6 +84,15 @@ interface EmDashExtra {
 	tokenScopes?: string[];
 }
 
+function isPublished(t: unknown): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		"status" in t &&
+		(t as Record<string, unknown>).status === "published"
+	);
+}
+
 function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashExtra {
 	const payload = extra.authInfo?.extra as EmDashExtra | undefined;
 	if (!payload?.emdash) {
@@ -126,6 +135,26 @@ function requireRole(
 ): void {
 	const payload = getExtra(extra);
 	if (payload.userRole < minRole) {
+		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
+	}
+}
+
+/**
+ * Whether the current user may read non-published content (drafts, scheduled,
+ * trashed, revisions, compare). SUBSCRIBER may hold content:read for
+ * member-only published content but must not see drafts.
+ */
+function canReadDrafts(extra: { authInfo?: { extra?: Record<string, unknown> } }): boolean {
+	const payload = getExtra(extra);
+	return hasPermission({ role: payload.userRole }, "content:read_drafts");
+}
+
+/**
+ * Throw if the current user cannot read non-published content. Used by
+ * editor-only views (revisions, compare, trash, preview-url).
+ */
+function requireDraftAccess(extra: { authInfo?: { extra?: Record<string, unknown> } }): void {
+	if (!canReadDrafts(extra)) {
 		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
 	}
 }
@@ -240,9 +269,12 @@ export function createMcpServer(): McpServer {
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
+			// Subscribers must only see published content; force the status
+			// filter regardless of caller-supplied value.
+			const status = canReadDrafts(extra) ? args.status : "published";
 			return unwrap(
 				await ec.handleContentList(args.collection, {
-					status: args.status,
+					status,
 					limit: args.limit,
 					cursor: args.cursor,
 					orderBy: args.orderBy,
@@ -276,7 +308,29 @@ export function createMcpServer(): McpServer {
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentGet(args.collection, args.id, args.locale));
+			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
+			// Hide non-published items from users without draft access. Return a
+			// not-found error so subscribers can't enumerate draft IDs by status.
+			if (result.success && !canReadDrafts(extra)) {
+				const data =
+					result.data && typeof result.data === "object"
+						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+							(result.data as Record<string, unknown>)
+						: undefined;
+				const item =
+					data?.item && typeof data.item === "object"
+						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+							(data.item as Record<string, unknown>)
+						: undefined;
+				const status = typeof item?.status === "string" ? item.status : null;
+				if (status !== "published") {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -676,6 +730,7 @@ export function createMcpServer(): McpServer {
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:read");
+			requireDraftAccess(extra);
 			const ec = getEmDash(extra);
 			return unwrap(await ec.handleContentCompare(args.collection, args.id));
 		},
@@ -733,6 +788,7 @@ export function createMcpServer(): McpServer {
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:read");
+			requireDraftAccess(extra);
 			const ec = getEmDash(extra);
 			return unwrap(
 				await ec.handleContentListTrashed(args.collection, {
@@ -780,7 +836,23 @@ export function createMcpServer(): McpServer {
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentTranslations(args.collection, args.id));
+			const result = await ec.handleContentTranslations(args.collection, args.id);
+			// Filter out non-published translations for users without draft
+			// access so a subscriber can't enumerate locales that aren't yet live.
+			if (result.success && !canReadDrafts(extra)) {
+				const data =
+					result.data && typeof result.data === "object"
+						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+							(result.data as Record<string, unknown>)
+						: undefined;
+				const translations = Array.isArray(data?.translations) ? data.translations : [];
+				const filtered = translations.filter(isPublished);
+				return unwrap({
+					success: true,
+					data: { ...data, translations: filtered },
+				});
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -1460,6 +1532,7 @@ export function createMcpServer(): McpServer {
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:read");
+			requireDraftAccess(extra);
 			const ec = getEmDash(extra);
 			return unwrap(
 				await ec.handleRevisionList(args.collection, args.id, {

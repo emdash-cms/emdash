@@ -15,7 +15,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { getSource } from "#import/index.js";
-import { validateExternalUrl, SsrfError } from "#import/ssrf.js";
+import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
 import { resolveImportByline } from "#import/utils.js";
 import type { FieldType } from "#schema/types.js";
@@ -49,9 +49,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, wpPluginExecuteBody);
 		if (isParseError(body)) return body;
 
-		// SSRF: reject internal/private network targets
+		// SSRF: reject internal/private network targets. Uses DNS resolution
+		// to catch hostnames that resolve to private addresses.
 		try {
-			validateExternalUrl(body.url);
+			await resolveAndValidateExternalUrl(body.url);
 		} catch (e) {
 			const msg = e instanceof SsrfError ? e.message : "Invalid URL";
 			return apiError("SSRF_BLOCKED", msg, 400);

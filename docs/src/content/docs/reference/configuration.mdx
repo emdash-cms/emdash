@@ -266,6 +266,8 @@ Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`siteUrl
 
 With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`siteUrl`** matches the public HTTPS origin.
 
+If your proxy writes a client-IP header, set [**`trustedProxyHeaders`**](#trustedproxyheaders) so EmDash's rate limits can use the real client IP instead of bucketing every request under a shared "unknown" key.
+
 <Aside type="caution">
 	Your reverse proxy should forward a **port-aware** `Host` / `X-Forwarded-Host` when you use non-default ports. If the proxy strips the port, **`rpId`** and Astro’s rebuilt URL can be wrong.
 </Aside>
@@ -299,6 +301,39 @@ export default defineConfig({
 	],
 });
 ```
+
+### `trustedProxyHeaders`
+
+**Optional.** Headers to trust for client-IP resolution when running behind a reverse proxy you control. Used by auth rate limits (magic-link, signup, passkey, OAuth device flow) and the public comment endpoint.
+
+On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can bucket by real client IP instead of treating every request as "unknown".
+
+```js
+emdash({
+	database: sqlite({ url: "file:./data.db" }),
+	// nginx / Caddy / Traefik
+	trustedProxyHeaders: ["x-real-ip"],
+});
+```
+
+Headers are tried in order. Values matching `*-forwarded-for` are parsed as comma-separated lists and the first entry is used.
+
+```js
+emdash({
+	// Fly.io, falling back to generic X-Forwarded-For
+	trustedProxyHeaders: ["fly-client-ip", "x-forwarded-for"],
+});
+```
+
+When not set in config, EmDash reads the `EMDASH_TRUSTED_PROXY_HEADERS` env var (comma-separated). An explicit empty array in config overrides the env var.
+
+<Aside type="caution">
+	**Only set this when you control the reverse proxy.** Untrusted clients can set any header
+	they like; trusting forwarded-IP headers from an open network is an IP-spoofing vulnerability
+	that defeats rate limiting. If EmDash is exposed directly to the public internet with no
+	proxy in front, leave this unset — rate limits will fall back to a shared "unknown" bucket
+	(stricter defaults) rather than trust a spoofable header.
+</Aside>
 
 ### `maxUploadSize`
 

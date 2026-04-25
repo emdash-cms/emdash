@@ -11,7 +11,15 @@ This is a monorepo using pnpm workspaces.
 `CLAUDE.md` is a symlink to `AGENTS.md`. `.opencode/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
 - **Root**: Workspace configuration and shared tooling
-- **packages/core**: Main `emdash` package - Astro integration and core APIs
+- **packages/core**: Main `emdash` package -- Astro integration, runtime, schema, API routes, CLI
+- **packages/admin**: `@emdash-cms/admin` -- React admin UI shipped as a single mounted app under `/_emdash/admin/*`
+- **packages/auth**: `@emdash-cms/auth` -- RBAC primitives (`Permissions`, `hasPermission`, `canActOnOwn`), passkey + magic link, RoleLevel ladder
+- **packages/blocks**: `@emdash-cms/blocks` -- shared Portable Text block defs and renderers
+- **packages/cloudflare**: `@emdash-cms/cloudflare` -- D1/R2/Workers integration helpers
+- **packages/marketplace**: `@emdash-cms/marketplace` -- plugin/theme marketplace client
+- **packages/x402**: `@emdash-cms/x402` -- HTTP 402 payment middleware
+- **packages/create-emdash**: `create-emdash` -- scaffolding CLI for new sites
+- **packages/gutenberg-to-portable-text**: WordPress import helper
 - **demos/**: Demo applications and examples (`demos/simple/` is the primary dev target)
 - **templates/**: Starter templates (blog, marketing, portfolio, starter, blank) -- contributors copy these into `demos/` to build their own sites
 - **docs/**: Public documentation site (Starlight)
@@ -35,6 +43,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
 - **Do not make bulk/spray changes** (e.g., "fix all lint warnings", "add types everywhere", "improve error handling across codebase"). If you see a systemic issue, open a Discussion.
 - **Do not touch code outside the scope of your change.** No drive-by refactors, no "while I'm here" improvements, no added comments or logging in unrelated files.
 - **All CI checks must pass.** Typecheck, lint, format, and tests. No exceptions.
+- **All non-trivial code changes should have an adversarial review.** Before opening the PR, perform cycles of adversarial review in a sub-agent, then fix, then re-review until no issues remain.
 
 ## Workflow
 
@@ -48,7 +57,6 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
 - Run `pnpm typecheck` (packages) or `pnpm typecheck:demos` (Astro demos) after each round of edits.
 - Format regularly. pnpm format in the root uses oxfmt with tabs for indentation and is very fast. Don't let formatting pile up.
 - Commit regularly, and always format and quick lint beforehand.
-- Update tasks.md when completing tasks. Write a journal entry when starting or finishing significant work, or if you learn anything interesting or useful that you'd like to remember.
 
 ### Before Committing
 
@@ -84,7 +92,7 @@ See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets) for full guidanc
 2. Full lint suite clean: `pnpm --silent lint:json | jq '.diagnostics | length'`. Returns JSON with stderr piped to /dev/null, so it won't break parsers. Fix any issues.
 3. Format with `pnpm format` (oxfmt with tabs for indentation, configured in `.prettierrc`).
 4. Add a changeset if the change affects a published package: `pnpm changeset`.
-5. Open the PR with the `pr` skill. Fill out every section of the PR template. Check the AI disclosure box.
+5. Open the PR (via `gh pr create` or the GitHub UI). Fill out every section of the PR template -- copy `.github/PULL_REQUEST_TEMPLATE.md` into the body if using the API/CLI. Check the AI disclosure box if any code was AI-generated.
 
 ## Architecture Overview
 
@@ -204,34 +212,51 @@ const body = await parseBody(request, createContentSchema);
 if (!emdash) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 ```
 
-**Handler results** -- when using the handler layer (`api/handlers/*.ts`), always unwrap consistently:
+**Handler results** -- prefer the `unwrapResult()` helper over manual unwrapping:
 
 ```typescript
-const result = await handler.handleContentGet(collection, id);
+import { unwrapResult } from "#api/error.js";
+
+// RIGHT -- one-liner; returns the right status from the error code automatically
+const result = await handleContentGet(db, collection, id);
+return unwrapResult(result);
+
+// Manual unwrap is only needed when you want to do something between the
+// success check and the response (e.g. set a custom header):
+import { apiError, mapErrorStatus } from "#api/error.js";
 if (!result.success) {
-	return apiError(result.error.code, result.error.message, mapErrorToStatus(result.error.code));
+	return apiError(result.error.code, result.error.message, mapErrorStatus(result.error.code));
 }
 return Response.json(result.data);
 ```
 
+Note the function is named `mapErrorStatus`, not `mapErrorToStatus`.
+
 ### API Routes: Authorization
 
-Every route that modifies state must check authorization. The auth middleware only checks authentication (is the user logged in); individual routes must check roles:
+Every route that modifies state must check authorization. The auth middleware only checks authentication (is the user logged in); individual routes must check **permissions**.
+
+Authorization is permission-based, not role-based. The `Permissions` map in `@emdash-cms/auth` (see `packages/auth/src/rbac.ts`) lists every gate -- `"content:read_drafts"`, `"content:edit_own"`, `"content:edit_any"`, `"schema:manage"`, `"media:upload"`, etc. -- and binds each to a minimum `RoleLevel`. Roles still exist as the underlying ladder (SUBSCRIBER < CONTRIBUTOR < AUTHOR < EDITOR < ADMIN), but route code never references them directly.
+
+Use the helpers from `#api/authorize.js`:
 
 ```typescript
-import { requireRole, Role } from "../../auth/permissions.js";
+import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
 
-// At the top of any state-changing handler:
-const roleError = requireRole(user, Role.EDITOR);
-if (roleError) return roleError;
+// Simple permission check -- use for any-actor capabilities (settings, schema, etc.)
+const denied = requirePerm(user, "schema:manage");
+if (denied) return denied;
+
+// Ownership-aware check -- use for resources where authors can act on their own
+// but only editors can act on anyone else's. Pass the resource owner's id and
+// both the "own" and "any" permissions.
+const denied = requireOwnerPerm(user, post.authorId, "content:edit_own", "content:edit_any");
+if (denied) return denied;
 ```
 
-Minimum roles:
+`requirePerm` returns `null` on success, or a `Response` (401 if unauthenticated, 403 if authorized but missing the permission) that you should return directly. Same shape for `requireOwnerPerm`.
 
-- **ADMIN**: settings, schema, plugins, user management, imports, search rebuild
-- **EDITOR**: all content CRUD, media, taxonomies, menus, widgets, publish/unpublish
-- **AUTHOR**: own content CRUD, media upload
-- **CONTRIBUTOR**: own content create/edit (no publish), media upload
+To find the right permission string for a new endpoint, scan `packages/auth/src/rbac.ts`. If no existing permission fits, add one there with a sensible minimum role -- this is the authoritative list. Never invent a permission string in a route file.
 
 ### API Routes: CSRF Protection
 
@@ -606,10 +631,13 @@ Dynamic content tables are managed by `SchemaRegistry` in `schema/registry.ts`:
 ### Testing
 
 - **Framework:** vitest. Tests in `packages/core/tests/`.
-- **Database:** Tests use real in-memory SQLite via `better-sqlite3` + Kysely. No DB mocking.
-- **Utilities:** `tests/utils/test-db.ts` provides `createTestDatabase()`, `setupTestDatabase()` (with migrations), and `setupTestDatabaseWithCollections()` (with standard post/page collections).
+- **Database:** Tests use real databases, never mocks. SQLite (`better-sqlite3`) for the default in-memory case; PostgreSQL via a real `pg` connection with per-test schema isolation for parity tests of dialect-sensitive code (set `PG_CONNECTION_STRING` to opt in).
+- **Utilities:** `tests/utils/test-db.ts` provides:
+  - SQLite: `createTestDatabase()`, `setupTestDatabase()` (runs migrations), `setupTestDatabaseWithCollections()` (migrations + standard post/page collections), `teardownTestDatabase()`
+  - Postgres: `setupTestPostgresDatabase()`, `setupTestPostgresDatabaseWithCollections()`, `teardownTestPostgresDatabase()`
+  - Dialect-agnostic: `setupForDialect(dialect)`, `setupForDialectWithCollections(dialect)`, `teardownForDialect(ctx)`, plus a `describeEachDialect(name, fn)` wrapper that runs the same test suite against each dialect. Use this for any code that builds queries -- regressions tend to be SQLite-only or Postgres-only.
 - **Structure:** `tests/unit/` for unit, `tests/integration/` for integration (real DB), `tests/e2e/` for Playwright. Test files mirror source structure.
-- **Lifecycle:** Each test gets a fresh in-memory DB in `beforeEach`, destroyed in `afterEach`.
+- **Lifecycle:** Each test gets a fresh DB in `beforeEach`, destroyed in `afterEach`.
 
 ### URL and Redirect Handling
 

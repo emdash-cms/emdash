@@ -16,7 +16,11 @@ import { SeoRepository } from "../database/repositories/seo.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
-import { validateExternalUrl, SsrfError, stripCredentialHeaders } from "../import/ssrf.js";
+import {
+	resolveAndValidateExternalUrl,
+	SsrfError,
+	stripCredentialHeaders,
+} from "../import/ssrf.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
@@ -599,9 +603,10 @@ export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
 			let currentInit = init;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
-				// Validate each URL against SSRF rules (private IPs, metadata endpoints)
+				// Validate each URL against SSRF rules (private IPs, metadata
+				// endpoints, wildcard DNS, resolved-IP private ranges).
 				try {
-					validateExternalUrl(currentUrl);
+					await resolveAndValidateExternalUrl(currentUrl);
 				} catch (e) {
 					const msg = e instanceof SsrfError ? e.message : "SSRF validation failed";
 					throw new Error(
@@ -849,6 +854,13 @@ export interface PluginContextFactoryOptions {
 	 * If not provided (or no provider configured), ctx.email will be undefined.
 	 */
 	emailPipeline?: EmailPipeline;
+	/**
+	 * Pre-resolved list of trusted proxy header names (from the runtime
+	 * `EmDashConfig.trustedProxyHeaders` or the env var). Plugin route
+	 * handlers pass this to `extractRequestMeta` so plugins see the same
+	 * client IP the core auth path does.
+	 */
+	trustedProxyHeaders?: string[];
 }
 
 /**

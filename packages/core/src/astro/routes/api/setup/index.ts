@@ -89,9 +89,12 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			const options = new OptionsRepository(emdash.db);
 
 			// Store the canonical site URL from the setup request.
-			// This is trusted because setup runs on the real domain.
+			// Write-once at the DB level so concurrent setup POSTs can't both
+			// observe an empty value and race to write. A spoofed Host header
+			// on a later call during the wizard window must not be able to
+			// replace the first value.
 			const siteUrl = getPublicOrigin(url, emdash.config);
-			await options.set("emdash:site_url", siteUrl);
+			await options.setIfAbsent("emdash:site_url", siteUrl);
 
 			if (useExternalAuth) {
 				// External auth mode: mark setup complete now

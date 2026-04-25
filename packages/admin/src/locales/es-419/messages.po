@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: packages/admin/src/components/ContentEditor.tsx:962
+#: packages/admin/src/components/ContentEditor.tsx:954
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 msgid " (default)"
 msgstr " (por defecto)"
@@ -435,7 +435,7 @@ msgstr "Acciones"
 msgid "Active"
 msgstr "Activo"
 
-#: packages/admin/src/components/ContentEditor.tsx:1714
+#: packages/admin/src/components/ContentEditor.tsx:1706
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -761,7 +761,7 @@ msgstr "Proveedores disponibles"
 msgid "Back"
 msgstr "Atrás"
 
-#: packages/admin/src/components/ContentEditor.tsx:543
+#: packages/admin/src/components/ContentEditor.tsx:535
 msgid "Back to {collectionLabel} list"
 msgstr "Volver a la lista {collectionLabel}"
 
@@ -840,7 +840,7 @@ msgstr "Explore temas y obtenga una vista previa de ellos con su propio contenid
 msgid "Bullet List"
 msgstr "Lista de viñetas"
 
-#: packages/admin/src/components/ContentEditor.tsx:928
+#: packages/admin/src/components/ContentEditor.tsx:920
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "Firmas"
@@ -863,11 +863,11 @@ msgstr "Puede ver contenido"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:636
-#: packages/admin/src/components/ContentEditor.tsx:842
-#: packages/admin/src/components/ContentEditor.tsx:894
-#: packages/admin/src/components/ContentEditor.tsx:1817
-#: packages/admin/src/components/ContentEditor.tsx:1870
+#: packages/admin/src/components/ContentEditor.tsx:628
+#: packages/admin/src/components/ContentEditor.tsx:834
+#: packages/admin/src/components/ContentEditor.tsx:886
+#: packages/admin/src/components/ContentEditor.tsx:1809
+#: packages/admin/src/components/ContentEditor.tsx:1862
 #: packages/admin/src/components/ContentList.tsx:445
 #: packages/admin/src/components/ContentList.tsx:516
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -933,7 +933,7 @@ msgstr "Categorías ({0})"
 msgid "Categories will be imported"
 msgstr "Las categorías serán importadas"
 
-#: packages/admin/src/components/ContentEditor.tsx:1574
+#: packages/admin/src/components/ContentEditor.tsx:1566
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -1247,7 +1247,7 @@ msgstr "No se pudo detectar WordPress"
 msgid "Count"
 msgstr "Contar"
 
-#: packages/admin/src/components/ContentEditor.tsx:1841
+#: packages/admin/src/components/ContentEditor.tsx:1833
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1276,7 +1276,7 @@ msgstr "Crear una cuenta"
 msgid "Create an account"
 msgstr "Crea una cuenta"
 
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/ContentEditor.tsx:1781
 msgid "Create byline"
 msgstr "Crear firma"
 
@@ -1383,7 +1383,7 @@ msgid "Created At"
 msgstr "Creado en"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:862
+#: packages/admin/src/components/ContentEditor.tsx:854
 msgid "Created: {0}"
 msgstr "Creado: {0}"
 
@@ -1391,7 +1391,7 @@ msgstr "Creado: {0}"
 msgid "Creating collections and fields..."
 msgstr "Creando colecciones y campos..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1841
+#: packages/admin/src/components/ContentEditor.tsx:1833
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1400,7 +1400,7 @@ msgstr "Creando colecciones y campos..."
 msgid "Creating..."
 msgstr "Creando..."
 
-#: packages/admin/src/components/ContentEditor.tsx:965
+#: packages/admin/src/components/ContentEditor.tsx:957
 msgid "current"
 msgstr "actual"
 
@@ -1661,12 +1661,12 @@ msgstr "Desactivado"
 msgid "Disabled:"
 msgstr "Desactivado:"
 
-#: packages/admin/src/components/ContentEditor.tsx:621
-#: packages/admin/src/components/ContentEditor.tsx:643
+#: packages/admin/src/components/ContentEditor.tsx:613
+#: packages/admin/src/components/ContentEditor.tsx:635
 msgid "Discard changes"
 msgstr "Descartar cambios"
 
-#: packages/admin/src/components/ContentEditor.tsx:627
+#: packages/admin/src/components/ContentEditor.tsx:619
 msgid "Discard draft changes?"
 msgstr "¿Descartar cambios en el borrador?"
 
@@ -1679,8 +1679,8 @@ msgstr "Descartar"
 msgid "Display a navigation menu"
 msgstr "Mostrar un menú de navegación"
 
-#: packages/admin/src/components/ContentEditor.tsx:1792
-#: packages/admin/src/components/ContentEditor.tsx:1854
+#: packages/admin/src/components/ContentEditor.tsx:1784
+#: packages/admin/src/components/ContentEditor.tsx:1846
 msgid "Display name"
 msgstr "Nombre para mostrar"
 
@@ -1698,7 +1698,7 @@ msgstr "Tamaño de visualización"
 msgid "Displayed below the image as a visible caption."
 msgstr "Se muestra debajo de la imagen como leyenda visible."
 
-#: packages/admin/src/components/ContentEditor.tsx:597
+#: packages/admin/src/components/ContentEditor.tsx:589
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Modo sin distracciones (⌘⇧\\)"
 
@@ -1731,7 +1731,7 @@ msgstr "¿No tienes una cuenta? <0>Registrarse</0>"
 msgid "Done"
 msgstr "Hecho"
 
-#: packages/admin/src/components/ContentEditor.tsx:1735
+#: packages/admin/src/components/ContentEditor.tsx:1727
 msgid "Down"
 msgstr "Abajo"
 
@@ -1743,7 +1743,7 @@ msgstr "Descargando"
 msgid "draft"
 msgstr "borrador"
 
-#: packages/admin/src/components/ContentEditor.tsx:793
+#: packages/admin/src/components/ContentEditor.tsx:785
 #: packages/admin/src/components/ContentPickerModal.tsx:217
 msgid "Draft"
 msgstr "Borrador"
@@ -1777,8 +1777,8 @@ msgstr "por ejemplo, canalización de CI/CD"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "por ejemplo, MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:974
-#: packages/admin/src/components/ContentEditor.tsx:1744
+#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:1736
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1795,7 +1795,7 @@ msgstr "Editar"
 msgid "Edit {0}"
 msgstr "Editar {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:560
+#: packages/admin/src/components/ContentEditor.tsx:552
 msgid "Edit {collectionLabel}"
 msgstr "Editar {collectionLabel}"
 
@@ -1803,7 +1803,7 @@ msgstr "Editar {collectionLabel}"
 msgid "Edit {title}"
 msgstr "Editar {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1851
+#: packages/admin/src/components/ContentEditor.tsx:1843
 msgid "Edit byline"
 msgstr "Editar firma"
 
@@ -1926,7 +1926,7 @@ msgid "Enabled"
 msgstr "Activado"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1187
+#: packages/admin/src/components/ContentEditor.tsx:1179
 msgid "Enter {0}..."
 msgstr "Introduzca {0}..."
 
@@ -1935,7 +1935,7 @@ msgstr "Introduzca {0}..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Introduzca una URL (https://…) o una ruta relativa (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1401
+#: packages/admin/src/components/ContentEditor.tsx:1393
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr ""
 
@@ -1943,7 +1943,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Ingrese las credenciales manualmente"
 
-#: packages/admin/src/components/ContentEditor.tsx:596
+#: packages/admin/src/components/ContentEditor.tsx:588
 msgid "Enter distraction-free mode"
 msgstr "Ingrese al modo sin distracciones"
 
@@ -1951,7 +1951,7 @@ msgstr "Ingrese al modo sin distracciones"
 msgid "Enter email"
 msgstr "Ingrese el correo electrónico"
 
-#: packages/admin/src/components/ContentEditor.tsx:1208
+#: packages/admin/src/components/ContentEditor.tsx:1200
 msgid "Enter markdown content..."
 msgstr "Introduzca contenido Markdown..."
 
@@ -1989,7 +1989,7 @@ msgstr "Error al guardar la sección"
 msgid "Exists"
 msgstr "existe"
 
-#: packages/admin/src/components/ContentEditor.tsx:554
+#: packages/admin/src/components/ContentEditor.tsx:546
 msgid "Exit distraction-free mode"
 msgstr "Salir del modo sin distracciones"
 
@@ -2038,7 +2038,7 @@ msgstr "Auditoría de seguridad fallida"
 msgid "Failed to add domain"
 msgstr "No se pudo agregar el dominio"
 
-#: packages/admin/src/components/ContentEditor.tsx:1835
+#: packages/admin/src/components/ContentEditor.tsx:1827
 msgid "Failed to create byline"
 msgstr "No se pudo crear la firma"
 
@@ -2136,7 +2136,7 @@ msgstr "No se pudo enviar el correo electrónico de prueba"
 msgid "Failed to update {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1885
+#: packages/admin/src/components/ContentEditor.tsx:1877
 msgid "Failed to update byline"
 msgstr "No se pudo actualizar la firma"
 
@@ -2530,7 +2530,7 @@ msgstr "Instalando..."
 msgid "Integer"
 msgstr "Entero"
 
-#: packages/admin/src/components/ContentEditor.tsx:1470
+#: packages/admin/src/components/ContentEditor.tsx:1462
 msgid "Invalid JSON"
 msgstr "JSON no válido"
 
@@ -2673,7 +2673,7 @@ msgstr "Campo de golf"
 msgid "List view"
 msgstr "Vista de lista"
 
-#: packages/admin/src/components/ContentEditor.tsx:676
+#: packages/admin/src/components/ContentEditor.tsx:668
 msgid "Live View"
 msgstr "Vista en vivo"
 
@@ -2992,13 +2992,13 @@ msgstr "Mover {title} a la papelera"
 msgid "Move down"
 msgstr "Bajar"
 
-#: packages/admin/src/components/ContentEditor.tsx:879
-#: packages/admin/src/components/ContentEditor.tsx:901
+#: packages/admin/src/components/ContentEditor.tsx:871
+#: packages/admin/src/components/ContentEditor.tsx:893
 #: packages/admin/src/components/ContentList.tsx:452
 msgid "Move to Trash"
 msgstr "Mover a la papelera"
 
-#: packages/admin/src/components/ContentEditor.tsx:885
+#: packages/admin/src/components/ContentEditor.tsx:877
 #: packages/admin/src/components/ContentList.tsx:437
 msgid "Move to Trash?"
 msgstr "¿Mover a la Papelera?"
@@ -3057,7 +3057,7 @@ msgstr "NUEVO"
 msgid "New {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:560
+#: packages/admin/src/components/ContentEditor.tsx:552
 msgid "New {collectionLabel}"
 msgstr "Nuevo {collectionLabel}"
 
@@ -3142,7 +3142,7 @@ msgstr "Aún no hay tokens API. Crea uno para comenzar."
 msgid "No approved comments yet."
 msgstr "Aún no hay comentarios aprobados."
 
-#: packages/admin/src/components/ContentEditor.tsx:1776
+#: packages/admin/src/components/ContentEditor.tsx:1768
 msgid "No bylines selected."
 msgstr "No se han seleccionado firmas."
 
@@ -3430,7 +3430,7 @@ msgstr "Esquema"
 msgid "Overrides the page title in search engine results"
 msgstr "Anula el título de la página en los resultados del motor de búsqueda."
 
-#: packages/admin/src/components/ContentEditor.tsx:916
+#: packages/admin/src/components/ContentEditor.tsx:908
 msgid "Ownership"
 msgstr "Propiedad"
 
@@ -3532,7 +3532,7 @@ msgstr "pendiente"
 msgid "Pending"
 msgstr "Pendiente"
 
-#: packages/admin/src/components/ContentEditor.tsx:791
+#: packages/admin/src/components/ContentEditor.tsx:783
 msgid "Pending changes"
 msgstr "Cambios pendientes"
 
@@ -3635,7 +3635,7 @@ msgstr "Preparándose para descargar archivos de WordPress..."
 msgid "Preparing..."
 msgstr "Preparante..."
 
-#: packages/admin/src/components/ContentEditor.tsx:610
+#: packages/admin/src/components/ContentEditor.tsx:602
 #: packages/admin/src/components/ContentTypeEditor.tsx:79
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
@@ -3645,7 +3645,7 @@ msgstr "Avance"
 msgid "Preview content before publishing"
 msgstr "Vista previa del contenido antes de publicar"
 
-#: packages/admin/src/components/ContentEditor.tsx:610
+#: packages/admin/src/components/ContentEditor.tsx:602
 msgid "Preview draft"
 msgstr "Vista previa del borrador"
 
@@ -3670,12 +3670,12 @@ msgstr "Navegación primaria"
 msgid "Provider:"
 msgstr "Proveedor:"
 
-#: packages/admin/src/components/ContentEditor.tsx:665
-#: packages/admin/src/components/ContentEditor.tsx:772
+#: packages/admin/src/components/ContentEditor.tsx:657
+#: packages/admin/src/components/ContentEditor.tsx:764
 msgid "Publish"
 msgstr "Publicar"
 
-#: packages/admin/src/components/ContentEditor.tsx:655
+#: packages/admin/src/components/ContentEditor.tsx:647
 msgid "Publish changes"
 msgstr "Publicar cambios"
 
@@ -3683,7 +3683,7 @@ msgstr "Publicar cambios"
 msgid "published"
 msgstr "publicado"
 
-#: packages/admin/src/components/ContentEditor.tsx:787
+#: packages/admin/src/components/ContentEditor.tsx:779
 #: packages/admin/src/components/ContentPickerModal.tsx:214
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
@@ -3698,7 +3698,7 @@ msgstr "Publicado {0}"
 msgid "Published At"
 msgstr "Publicado en"
 
-#: packages/admin/src/components/ContentEditor.tsx:1784
+#: packages/admin/src/components/ContentEditor.tsx:1776
 msgid "Quick create byline"
 msgstr "Creación rápida de firma"
 
@@ -3775,7 +3775,7 @@ msgstr "Usuario registrado"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "El registro fue cancelado o agotado. Por favor inténtalo de nuevo."
 
-#: packages/admin/src/components/ContentEditor.tsx:1753
+#: packages/admin/src/components/ContentEditor.tsx:1745
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
@@ -3799,7 +3799,7 @@ msgstr "Eliminar dominio"
 msgid "Remove Domain?"
 msgstr "¿Quitar dominio?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1582
+#: packages/admin/src/components/ContentEditor.tsx:1574
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "Quitar imagen"
@@ -4001,7 +4001,7 @@ msgstr "Role"
 msgid "Role {role}"
 msgstr "Rol {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1758
+#: packages/admin/src/components/ContentEditor.tsx:1750
 msgid "Role label"
 msgstr "Etiqueta de rol"
 
@@ -4012,7 +4012,7 @@ msgstr "Etiqueta de rol"
 msgid "Same window"
 msgstr "Misma ventana"
 
-#: packages/admin/src/components/ContentEditor.tsx:1891
+#: packages/admin/src/components/ContentEditor.tsx:1883
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -4046,13 +4046,13 @@ msgstr "Guardar configuración"
 msgid "Save Social Links"
 msgstr "Guardar enlaces sociales"
 
-#: packages/admin/src/components/ContentEditor.tsx:585
+#: packages/admin/src/components/ContentEditor.tsx:577
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "Guardado"
 
-#: packages/admin/src/components/ContentEditor.tsx:580
-#: packages/admin/src/components/ContentEditor.tsx:1891
+#: packages/admin/src/components/ContentEditor.tsx:572
+#: packages/admin/src/components/ContentEditor.tsx:1883
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
@@ -4066,15 +4066,15 @@ msgstr "Guardado"
 msgid "Saving..."
 msgstr "Salvando..."
 
-#: packages/admin/src/components/ContentEditor.tsx:831
+#: packages/admin/src/components/ContentEditor.tsx:823
 msgid "Schedule"
 msgstr "Cronograma"
 
-#: packages/admin/src/components/ContentEditor.tsx:817
+#: packages/admin/src/components/ContentEditor.tsx:809
 msgid "Schedule for"
 msgstr "Horario para"
 
-#: packages/admin/src/components/ContentEditor.tsx:854
+#: packages/admin/src/components/ContentEditor.tsx:846
 msgid "Schedule for later"
 msgstr "Agenda para más tarde"
 
@@ -4082,12 +4082,12 @@ msgstr "Agenda para más tarde"
 msgid "scheduled"
 msgstr "programado"
 
-#: packages/admin/src/components/ContentEditor.tsx:794
+#: packages/admin/src/components/ContentEditor.tsx:786
 msgid "Scheduled"
 msgstr "Programado"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:804
+#: packages/admin/src/components/ContentEditor.tsx:796
 msgid "Scheduled for: {0}"
 msgstr "Programado para: {0}"
 
@@ -4302,7 +4302,7 @@ msgstr "Configuración de seguridad"
 msgid "Select"
 msgstr "Seleccionar"
 
-#: packages/admin/src/components/ContentEditor.tsx:1606
+#: packages/admin/src/components/ContentEditor.tsx:1598
 msgid "Select {label}"
 msgstr "Seleccione {label}"
 
@@ -4310,7 +4310,7 @@ msgstr "Seleccione {label}"
 msgid "Select all"
 msgstr "Seleccionar todo"
 
-#: packages/admin/src/components/ContentEditor.tsx:1697
+#: packages/admin/src/components/ContentEditor.tsx:1689
 msgid "Select byline..."
 msgstr "Seleccione firma..."
 
@@ -4328,7 +4328,7 @@ msgstr "Seleccionar contenido"
 msgid "Select Favicon"
 msgstr "Seleccionar favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1597
+#: packages/admin/src/components/ContentEditor.tsx:1589
 msgid "Select image"
 msgstr "Seleccionar imagen"
 
@@ -4403,7 +4403,7 @@ msgstr "Enviar correo electrónico de prueba"
 msgid "Sending..."
 msgstr "Envío..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1006
+#: packages/admin/src/components/ContentEditor.tsx:998
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
@@ -4568,9 +4568,9 @@ msgstr "Saltar importación de medios"
 msgid "Skipped"
 msgstr "Saltado"
 
-#: packages/admin/src/components/ContentEditor.tsx:775
-#: packages/admin/src/components/ContentEditor.tsx:1800
-#: packages/admin/src/components/ContentEditor.tsx:1862
+#: packages/admin/src/components/ContentEditor.tsx:767
+#: packages/admin/src/components/ContentEditor.tsx:1792
+#: packages/admin/src/components/ContentEditor.tsx:1854
 #: packages/admin/src/components/ContentTypeEditor.tsx:109
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
@@ -4651,7 +4651,7 @@ msgstr "Correo basura"
 msgid "Start Import"
 msgstr "Iniciar importación"
 
-#: packages/admin/src/components/ContentEditor.tsx:781
+#: packages/admin/src/components/ContentEditor.tsx:773
 #: packages/admin/src/components/ContentList.tsx:193
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 #: packages/admin/src/components/Redirects.tsx:452
@@ -4810,7 +4810,7 @@ msgstr "Tema: {label}"
 msgid "Themes"
 msgstr "Temas"
 
-#: packages/admin/src/components/ContentEditor.tsx:1610
+#: packages/admin/src/components/ContentEditor.tsx:1602
 msgid "This field is required"
 msgstr "Este campo es obligatorio"
 
@@ -4854,7 +4854,7 @@ msgstr "Esta sección fue importada de otro sistema."
 msgid "This will grant CLI access with your permissions."
 msgstr "Esto otorgará acceso CLI con sus permisos."
 
-#: packages/admin/src/components/ContentEditor.tsx:888
+#: packages/admin/src/components/ContentEditor.tsx:880
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Esto moverá el artículo a la papelera. Puedes restaurarlo más tarde desde la papelera."
 
@@ -4876,7 +4876,7 @@ msgstr "Esto eliminará permanentemente este comentario. Esta acción no se pued
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Esto eliminará el plugin y su paquete de su sitio."
 
-#: packages/admin/src/components/ContentEditor.tsx:630
+#: packages/admin/src/components/ContentEditor.tsx:622
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Esto volverá a la versión publicada. Los borradores de cambios se perderán."
 
@@ -4942,11 +4942,11 @@ msgstr "Herramientas → Exportar"
 msgid "Track content history"
 msgstr "Seguimiento del historial de contenido"
 
-#: packages/admin/src/components/ContentEditor.tsx:984
+#: packages/admin/src/components/ContentEditor.tsx:976
 msgid "Translate"
 msgstr "Traducir"
 
-#: packages/admin/src/components/ContentEditor.tsx:942
+#: packages/admin/src/components/ContentEditor.tsx:934
 msgid "Translations"
 msgstr "Traducciones"
 
@@ -5025,8 +5025,8 @@ msgstr "El tipo no coincide ({0})"
 msgid "Unable to reach marketplace"
 msgstr "No se puede llegar al mercado"
 
-#: packages/admin/src/components/ContentEditor.tsx:1905
-#: packages/admin/src/components/ContentEditor.tsx:1920
+#: packages/admin/src/components/ContentEditor.tsx:1897
+#: packages/admin/src/components/ContentEditor.tsx:1912
 msgid "Unassigned"
 msgstr "No asignado"
 
@@ -5076,7 +5076,7 @@ msgstr "Desbloquear relación de aspecto"
 msgid "Unnamed passkey"
 msgstr "Passkey sin nombre"
 
-#: packages/admin/src/components/ContentEditor.tsx:659
+#: packages/admin/src/components/ContentEditor.tsx:651
 msgid "Unpublish"
 msgstr "Despublicar"
 
@@ -5084,7 +5084,7 @@ msgstr "Despublicar"
 msgid "Unregistered Content Tables Found"
 msgstr "Se encontraron tablas de contenido no registrado"
 
-#: packages/admin/src/components/ContentEditor.tsx:806
+#: packages/admin/src/components/ContentEditor.tsx:798
 msgid "Unschedule"
 msgstr "Desprogramar"
 
@@ -5092,7 +5092,7 @@ msgstr "Desprogramar"
 msgid "Untitled"
 msgstr "Intitulado"
 
-#: packages/admin/src/components/ContentEditor.tsx:1732
+#: packages/admin/src/components/ContentEditor.tsx:1724
 msgid "Up"
 msgstr "Arriba"
 
@@ -5128,7 +5128,7 @@ msgid "Updated At"
 msgstr "Actualizado en"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:863
+#: packages/admin/src/components/ContentEditor.tsx:855
 msgid "Updated: {0}"
 msgstr "Actualizado: {0}"
 
@@ -5250,7 +5250,7 @@ msgstr "Utilice su Passkey registrada para iniciar sesión de forma segura."
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Utilizado como identificador. Sólo letras minúsculas, números y guiones bajos."
 
-#: packages/admin/src/components/ContentEditor.tsx:1283
+#: packages/admin/src/components/ContentEditor.tsx:1275
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Se utiliza como elemento visual principal de esta entrada en las páginas de listado y en la parte superior de la entrada."
 
