@@ -12,11 +12,8 @@ on:
   pull_request_review_comment:
     types: [created]
 
-concurrency:
-  # share the bonk-* group so /review, /ultrareview, /bonk, /ultrabonk
-  # don't pile up on the same PR
-  group: bonk-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+# Concurrency is at job level (below) rather than workflow level so it's only
+# evaluated when the `if:` filter passes.
 
 jobs:
   ultrareview:
@@ -27,7 +24,13 @@ jobs:
       && contains(github.event.comment.body, '/ultrareview')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
+    # Per-workflow group key so /review, /ultrareview, /bonk, /ultrabonk all
+    # have independent queues per target.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
@@ -108,12 +111,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
-          # Register claude-opus-4-7 (released 2026-04-16) with the pinned
-          # opencode version (1.4.6 published 2026-04-15), whose bundled
-          # models.dev snapshot predates it and would otherwise raise
-          # ProviderModelNotFoundError.
+          # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
+          #
+          # 1. Register claude-opus-4-7 (released 2026-04-16) with the pinned
+          #    opencode version (1.4.6 published 2026-04-15), whose bundled
+          #    models.dev snapshot predates it and would otherwise raise
+          #    ProviderModelNotFoundError.
+          #
+          # 2. Resolve the two opencode permission defaults that ask interactively
+          #    (`external_directory` and `doom_loop`) so a CI run with no TTY
+          #    can never deadlock waiting for approval. external_directory is
+          #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
+          #    home-dir caches); doom_loop is deny so a stuck loop aborts
+          #    instead of prompting.
           OPENCODE_CONFIG_CONTENT: |
-            {"provider":{"cloudflare-ai-gateway":{"models":{"anthropic/claude-opus-4-7":{"id":"anthropic/claude-opus-4-7","name":"Claude Opus 4.7","family":"claude-opus","attachment":true,"reasoning":true,"tool_call":true,"temperature":false,"release_date":"2026-04-16","modalities":{"input":["text","image","pdf"],"output":["text"]},"cost":{"input":5,"output":25,"cache_read":0.5,"cache_write":6.25},"limit":{"context":1000000,"output":128000}}}}}}
+            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"anthropic/claude-opus-4-7":{"id":"anthropic/claude-opus-4-7","name":"Claude Opus 4.7","family":"claude-opus","attachment":true,"reasoning":true,"tool_call":true,"temperature":false,"release_date":"2026-04-16","modalities":{"input":["text","image","pdf"],"output":["text"]},"cost":{"input":5,"output":25,"cache_read":0.5,"cache_write":6.25},"limit":{"context":1000000,"output":128000}}}}}}
         with:
           model: "cloudflare-ai-gateway/anthropic/claude-opus-4-7"
           mentions: "/ultrareview"
