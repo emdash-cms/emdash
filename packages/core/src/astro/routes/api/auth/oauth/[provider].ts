@@ -99,9 +99,11 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
 			env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
 		} catch {
-			// Astro v6: locals.runtime.env accessor throws — import from cloudflare:workers instead
+			// Astro v6: locals.runtime.env accessor throws — import from cloudflare:workers instead.
+			// Variable prevents Rollup static analysis; the import resolves at runtime only on Cloudflare Workers.
 			try {
-				const { env: cfEnv } = await import("cloudflare:workers");
+				const cfWorkersModId = "cloudflare:workers";
+				const { env: cfEnv } = await import(cfWorkersModId);
 				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- cloudflare:workers env is typed as Cloudflare.Env; cast to generic record for getOAuthConfig
 				env = cfEnv as Record<string, unknown>;
 			} catch {
