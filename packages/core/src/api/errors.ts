@@ -12,6 +12,7 @@ export const ErrorCode = {
 	VALIDATION_ERROR: "VALIDATION_ERROR",
 	INVALID_INPUT: "INVALID_INPUT",
 	INVALID_JSON: "INVALID_JSON",
+	INVALID_CURSOR: "INVALID_CURSOR",
 	CONFLICT: "CONFLICT",
 	NOT_CONFIGURED: "NOT_CONFIGURED",
 	UNAUTHORIZED: "UNAUTHORIZED",
@@ -335,6 +336,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.VALIDATION_ERROR:
 		case ErrorCode.INVALID_INPUT:
 		case ErrorCode.INVALID_JSON:
+		case ErrorCode.INVALID_CURSOR:
 		case ErrorCode.MISSING_PARAM:
 		case ErrorCode.INVALID_REQUEST:
 		case ErrorCode.NOT_SUPPORTED:

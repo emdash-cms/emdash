@@ -316,7 +316,7 @@ export function createMcpServer(): McpServer {
 					.max(100)
 					.optional()
 					.describe("Max items to return (default 50, max 100)"),
-				cursor: z.string().optional().describe("Pagination cursor from a previous response"),
+				cursor: z.string().min(1).optional().describe("Pagination cursor from a previous response"),
 				orderBy: z
 					.string()
 					.optional()
@@ -845,7 +845,7 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1218,7 +1218,7 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Filter by MIME type prefix (e.g. 'image/', 'application/pdf')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1411,7 +1411,7 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1435,11 +1435,20 @@ export function createMcpServer(): McpServer {
 				const limit = Math.min(args.limit ?? 50, 100);
 				const terms = await repo.findByName(args.taxonomy);
 
-				// Manual cursor pagination over the sorted results
+				// Manual cursor pagination over the sorted results.
+				// taxonomy_list_terms uses a term id as cursor (not the
+				// base64-encoded keyset cursor used elsewhere). An
+				// unrecognised cursor is a client bug — return a structured
+				// INVALID_CURSOR rather than silently restarting from the
+				// top, matching the behaviour of decodeCursor for other
+				// list tools (MCP_BUGS.md #12).
 				let startIdx = 0;
 				if (args.cursor) {
 					const cursorIdx = terms.findIndex((t) => t.id === args.cursor);
-					if (cursorIdx >= 0) startIdx = cursorIdx + 1;
+					if (cursorIdx < 0) {
+						return respondError("INVALID_CURSOR", `Invalid pagination cursor: ${args.cursor}`);
+					}
+					startIdx = cursorIdx + 1;
 				}
 
 				const page = terms.slice(startIdx, startIdx + limit);

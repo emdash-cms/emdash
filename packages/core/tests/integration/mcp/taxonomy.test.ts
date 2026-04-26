@@ -57,29 +57,36 @@ describe("taxonomy_list", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("returns empty list when no taxonomies exist", async () => {
+	it("returns only the seeded defaults when no extra taxonomies are added", async () => {
+		// Migration 006 seeds two default taxonomies: 'category' (hierarchical)
+		// and 'tag' (flat), both linked to the 'posts' collection. A fresh
+		// install always has these.
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const result = await harness.client.callTool({
 			name: "taxonomy_list",
 			arguments: {},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
-		const { taxonomies } = extractJson<{ taxonomies: unknown[] }>(result);
-		expect(taxonomies).toEqual([]);
+		const { taxonomies } = extractJson<{
+			taxonomies: Array<{ name: string }>;
+		}>(result);
+		const names = taxonomies.map((t) => t.name).toSorted();
+		expect(names).toEqual(["category", "tag"]);
 	});
 
-	it("lists multiple taxonomies", async () => {
+	it("lists user-created taxonomies alongside the defaults", async () => {
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({ slug: "post", label: "Posts" });
+		// Use names that don't collide with the seeded `category` / `tag`.
 		await setupTaxonomy(db, {
-			name: "categories",
-			label: "Categories",
+			name: "section",
+			label: "Sections",
 			hierarchical: true,
 			collections: ["post"],
 		});
 		await setupTaxonomy(db, {
-			name: "tags",
-			label: "Tags",
+			name: "topic",
+			label: "Topics",
 			collections: ["post"],
 		});
 
@@ -92,15 +99,14 @@ describe("taxonomy_list", () => {
 			taxonomies: Array<{ name: string; hierarchical?: boolean; collections?: string[] }>;
 		}>(result);
 		const names = taxonomies.map((t) => t.name).toSorted();
-		expect(names).toEqual(["categories", "tags"]);
+		expect(names).toEqual(["category", "section", "tag", "topic"]);
 
-		const cats = taxonomies.find((t) => t.name === "categories");
-		expect(cats?.hierarchical).toBe(true);
-		expect(cats?.collections).toEqual(["post"]);
+		const section = taxonomies.find((t) => t.name === "section");
+		expect(section?.hierarchical).toBe(true);
+		expect(section?.collections).toEqual(["post"]);
 	});
 
 	it("any logged-in user (SUBSCRIBER) can read taxonomies", async () => {
-		await setupTaxonomy(db, { name: "tags", label: "Tags" });
 		harness = await connectMcpHarness({ db, userId: SUBSCRIBER_ID, userRole: Role.SUBSCRIBER });
 		const result = await harness.client.callTool({
 			name: "taxonomy_list",
@@ -109,23 +115,11 @@ describe("taxonomy_list", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 	});
 
-	it("bug #7 surface: lists taxonomy that references a collection that doesn't exist", async () => {
-		// Seed taxonomy referencing a never-created collection. This is the
-		// scenario from MCP_BUGS.md #7. taxonomy_list will show it, but
-		// schema_list_collections won't.
-		await setupTaxonomy(db, {
-			name: "categories",
-			label: "Categories",
-			collections: [],
-		});
-		// Manually rewrite the row to reference a non-existent collection.
-		// This simulates a deployed-DB inconsistency.
-		await db
-			.updateTable("_emdash_taxonomy_defs")
-			.set({ collections: JSON.stringify(["nonexistent_collection"]) })
-			.where("name", "=", "categories")
-			.execute();
-
+	it("bug #7: orphaned collection slugs are filtered from taxonomy_list output", async () => {
+		// The seed taxonomies (category, tag) both reference 'posts' — a
+		// collection that doesn't exist in this test DB (no auto-seed). After
+		// the bug #7 fix, `taxonomy_list` filters those orphans out. We don't
+		// need to manufacture an orphan; the seed already gives us one.
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 
 		const taxResult = await harness.client.callTool({
@@ -135,16 +129,20 @@ describe("taxonomy_list", () => {
 		const { taxonomies } = extractJson<{
 			taxonomies: Array<{ name: string; collections?: string[] }>;
 		}>(taxResult);
-		expect(taxonomies[0]?.collections).toEqual(["nonexistent_collection"]);
 
+		// Each seeded taxonomy referenced 'posts'. After filtering, that
+		// orphan slug is gone — the array should be empty for both seeds.
+		for (const t of taxonomies) {
+			expect(t.collections).not.toContain("posts");
+		}
+
+		// And schema_list_collections agrees: there is no 'posts' collection.
 		const collResult = await harness.client.callTool({
 			name: "schema_list_collections",
 			arguments: {},
 		});
 		const { items } = extractJson<{ items: Array<{ slug: string }> }>(collResult);
-		expect(items.find((c) => c.slug === "nonexistent_collection")).toBeUndefined();
-		// MCP should surface this drift somehow (e.g. annotate the taxonomy
-		// or filter the orphan). Today: silently inconsistent.
+		expect(items.find((c) => c.slug === "posts")).toBeUndefined();
 	});
 });
 
@@ -294,7 +292,7 @@ describe("taxonomy_create_term", () => {
 			arguments: { taxonomy: "categories", slug: "tech", label: "Tech" },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
-		const term = extractJson<{ slug: string; label: string }>(result);
+		const { term } = extractJson<{ term: { slug: string; label: string } }>(result);
 		expect(term.slug).toBe("tech");
 		expect(term.label).toBe("Tech");
 	});
@@ -305,7 +303,7 @@ describe("taxonomy_create_term", () => {
 			name: "taxonomy_create_term",
 			arguments: { taxonomy: "categories", slug: "tech", label: "Tech" },
 		});
-		const parentId = extractJson<{ id: string }>(parent).id;
+		const parentId = extractJson<{ term: { id: string } }>(parent).term.id;
 
 		const child = await harness.client.callTool({
 			name: "taxonomy_create_term",
@@ -317,8 +315,8 @@ describe("taxonomy_create_term", () => {
 			},
 		});
 		expect(child.isError, extractText(child)).toBeFalsy();
-		const childTerm = extractJson<{ parentId: string | null }>(child);
-		expect(childTerm.parentId).toBe(parentId);
+		const { term } = extractJson<{ term: { parentId: string | null } }>(child);
+		expect(term.parentId).toBe(parentId);
 	});
 
 	it("rejects duplicate slug within the same taxonomy", async () => {
@@ -365,7 +363,7 @@ describe("taxonomy_create_term", () => {
 			name: "taxonomy_create_term",
 			arguments: { taxonomy: "tags", slug: "stuff", label: "Stuff" },
 		});
-		const tagId = extractJson<{ id: string }>(tag).id;
+		const tagId = extractJson<{ term: { id: string } }>(tag).term.id;
 
 		const result = await harness.client.callTool({
 			name: "taxonomy_create_term",

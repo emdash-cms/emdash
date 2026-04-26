@@ -5,6 +5,7 @@
  * `new Response(JSON.stringify({ error: ... }), ...)` patterns.
  */
 
+import { InvalidCursorError } from "../database/repositories/types.js";
 import { mapErrorStatus } from "./errors.js";
 import type { ApiResult } from "./types.js";
 
@@ -54,6 +55,11 @@ export function handleError(
 	fallbackMessage: string,
 	fallbackCode: string,
 ): Response {
+	// Bubble malformed-cursor errors as a structured 400 instead of a
+	// generic 500 — see MCP_BUGS.md #12.
+	if (error instanceof InvalidCursorError) {
+		return apiError("INVALID_CURSOR", error.message, 400);
+	}
 	console.error(`[${fallbackCode}]`, error);
 	return apiError(fallbackCode, fallbackMessage, 500);
 }

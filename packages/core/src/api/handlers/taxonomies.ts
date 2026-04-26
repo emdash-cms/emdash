@@ -122,16 +122,27 @@ export async function handleTaxonomyList(
 	db: Kysely<Database>,
 ): Promise<ApiResult<TaxonomyListResponse>> {
 	try {
-		const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
+		const [rows, collectionRows] = await Promise.all([
+			db.selectFrom("_emdash_taxonomy_defs").selectAll().execute(),
+			db.selectFrom("_emdash_collections").select("slug").execute(),
+		]);
 
-		const taxonomies: TaxonomyDef[] = rows.map((row) => ({
-			id: row.id,
-			name: row.name,
-			label: row.label,
-			labelSingular: row.label_singular ?? undefined,
-			hierarchical: row.hierarchical === 1,
-			collections: row.collections ? JSON.parse(row.collections) : [],
-		}));
+		// Filter orphan collection references on read so the response stays
+		// consistent with `schema_list_collections`. Storage is untouched —
+		// re-creating the collection re-links automatically.
+		const realCollections = new Set(collectionRows.map((r) => r.slug));
+
+		const taxonomies: TaxonomyDef[] = rows.map((row) => {
+			const stored: string[] = row.collections ? JSON.parse(row.collections) : [];
+			return {
+				id: row.id,
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular ?? undefined,
+				hierarchical: row.hierarchical === 1,
+				collections: stored.filter((slug) => realCollections.has(slug)),
+			};
+		});
 
 		return { success: true, data: { taxonomies } };
 	} catch {
