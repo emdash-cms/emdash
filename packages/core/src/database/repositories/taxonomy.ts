@@ -43,8 +43,7 @@ export class TaxonomyRepository {
 
 		// Empty-string parentId is coerced to null defensively. Higher layers
 		// also normalize this — see handleTermCreate / handleTermUpdate.
-		const parentId =
-			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		const parentId = input.parentId === undefined || input.parentId === "" ? null : input.parentId;
 		const row: TaxonomyTable = {
 			id,
 			name: input.name,

@@ -364,11 +364,9 @@ export function createMcpServer(): McpServer {
 				return respondHandlerError(error, "INTERNAL_ERROR");
 			}
 		};
-		return (originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown)(
-			name,
-			config,
-			wrapped,
-		);
+		return (
+			originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown
+		)(name, config, wrapped);
 	}) as typeof server.registerTool;
 
 	// =====================================================================
@@ -1868,8 +1866,7 @@ export function createMcpServer(): McpServer {
 		"menu_delete",
 		{
 			title: "Delete Menu",
-			description:
-				"Delete a menu. Items are also removed. Cannot be undone.",
+			description: "Delete a menu. Items are also removed. Cannot be undone.",
 			inputSchema: z.object({
 				name: z.string().describe("Menu name to delete"),
 			}),

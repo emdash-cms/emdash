@@ -518,13 +518,12 @@ export async function handleContentCreate(
 			};
 		}
 		// SQLite UNIQUE constraint OR Postgres unique_violation — slug
-		// collisions and any other unique violations land here.
+		// collisions and any other unique violations land here. Match
+		// specifically on "unique constraint failed" / "duplicate key" so we
+		// don't false-positive on NOT NULL or CHECK violations whose
+		// messages also contain "constraint failed".
 		const message = error instanceof Error ? error.message.toLowerCase() : "";
-		if (
-			message.includes("unique") ||
-			message.includes("duplicate key") ||
-			message.includes("constraint failed")
-		) {
+		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
 			// Detect slug-specific collisions by message fingerprint
 			if (message.includes("slug")) {
 				return {
@@ -539,21 +538,7 @@ export async function handleContentCreate(
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: error instanceof Error ? error.message : "Conflict",
-				},
-			};
-		}
-		// SQLite "no such column" / Postgres "column does not exist" — happens
-		// when `data` includes a key that's not a real field on the collection.
-		if (
-			message.includes("no such column") ||
-			(message.includes("column") && message.includes("does not exist"))
-		) {
-			return {
-				success: false,
-				error: {
-					code: "UNKNOWN_FIELD",
-					message: error instanceof Error ? error.message : "Unknown field",
+					message: "Unique constraint violation",
 				},
 			};
 		}
@@ -743,13 +728,13 @@ export async function handleContentUpdate(
 			};
 		}
 		const message = error instanceof Error ? error.message.toLowerCase() : "";
-		if (message.includes("unique") || message.includes("duplicate key")) {
+		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
 			if (message.includes("slug")) {
 				return {
 					success: false,
 					error: {
 						code: "SLUG_CONFLICT",
-						message: error instanceof Error ? error.message : "Slug conflict",
+						message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
 					},
 				};
 			}
@@ -757,19 +742,7 @@ export async function handleContentUpdate(
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: error instanceof Error ? error.message : "Conflict",
-				},
-			};
-		}
-		if (
-			message.includes("no such column") ||
-			(message.includes("column") && message.includes("does not exist"))
-		) {
-			return {
-				success: false,
-				error: {
-					code: "UNKNOWN_FIELD",
-					message: error instanceof Error ? error.message : "Unknown field",
+					message: "Unique constraint violation",
 				},
 			};
 		}

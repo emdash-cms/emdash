@@ -512,10 +512,7 @@ export async function handleMenuSetItems(
 		}
 
 		await withTransaction(db, async (trx) => {
-			await trx
-				.deleteFrom("_emdash_menu_items")
-				.where("menu_id", "=", menu.id)
-				.execute();
+			await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
 
 			const insertedIds: string[] = [];
 			for (let i = 0; i < items.length; i++) {
