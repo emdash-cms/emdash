@@ -13,6 +13,8 @@ import type {
 	ContextBlock,
 	DateInputElement,
 	RadioElement,
+	RepeaterElement,
+	RepeaterSubField,
 	DividerBlock,
 	Element,
 	FieldsBlock,
@@ -325,6 +327,29 @@ function radio(
 	};
 }
 
+function repeater(
+	actionId: string,
+	label: string,
+	fields: RepeaterSubField[],
+	opts?: {
+		itemLabel?: string;
+		minItems?: number;
+		maxItems?: number;
+		initialValue?: Array<Record<string, unknown>>;
+	},
+): RepeaterElement {
+	return {
+		type: "repeater",
+		action_id: actionId,
+		label,
+		fields,
+		...(opts?.itemLabel !== undefined && { item_label: opts.itemLabel }),
+		...(opts?.minItems !== undefined && { min_items: opts.minItems }),
+		...(opts?.maxItems !== undefined && { max_items: opts.maxItems }),
+		...(opts?.initialValue !== undefined && { initial_value: opts.initialValue }),
+	};
+}
+
 function timeseriesChart(opts: {
 	blockId?: string;
 	series: ChartSeries[];
@@ -429,4 +454,5 @@ export const elements = {
 	combobox,
 	dateInput,
 	radio,
+	repeater,
 };
