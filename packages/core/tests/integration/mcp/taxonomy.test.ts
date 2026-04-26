@@ -577,15 +577,38 @@ describe("taxonomy_delete_term (bug #13 / F12)", () => {
 		expect(extractText(result)).toMatch(/VALIDATION_ERROR|children/i);
 	});
 
-	it("deletes a leaf term", async () => {
+	it("deletes a leaf term and the row is actually gone", async () => {
 		await harness.client.callTool({
 			name: "taxonomy_create_term",
 			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf" },
 		});
+
+		// Pre-condition: the term is listable.
+		const before = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "tags" },
+		});
+		const beforeSlugs = extractJson<{ items: Array<{ slug: string }> }>(before).items.map(
+			(t) => t.slug,
+		);
+		expect(beforeSlugs).toContain("leaf");
+
 		const result = await harness.client.callTool({
 			name: "taxonomy_delete_term",
 			arguments: { taxonomy: "tags", termSlug: "leaf" },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
+
+		// Post-condition: the term is no longer listable. A regression where
+		// the handler returns success: true without actually deleting the row
+		// fails this assertion.
+		const after = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "tags" },
+		});
+		const afterSlugs = extractJson<{ items: Array<{ slug: string }> }>(after).items.map(
+			(t) => t.slug,
+		);
+		expect(afterSlugs).not.toContain("leaf");
 	});
 });

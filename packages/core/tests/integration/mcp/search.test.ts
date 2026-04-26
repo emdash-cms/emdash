@@ -204,14 +204,11 @@ describe("search", () => {
 			name: "search",
 			arguments: { query: "" },
 		});
-		// Either errors with a clear message, or returns no items.
-		// What's NOT acceptable is throwing an opaque FTS5 syntax error.
-		if (result.isError) {
-			expect(extractText(result)).not.toMatch(/syntax|fts5/i);
-		} else {
-			const data = extractJson<{ items: unknown[] }>(result);
-			expect(data.items).toEqual([]);
-		}
+		// Empty queries are sanitized to a no-op and return zero matches.
+		// They must not surface as an error.
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<{ items: unknown[] }>(result);
+		expect(data.items).toEqual([]);
 	});
 
 	it("handles special characters in query without leaking FTS5 syntax errors", async () => {
@@ -219,20 +216,15 @@ describe("search", () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 
 		// FTS5 has special operators: AND OR NOT NEAR " * ( ) :
-		// User input with these chars must be sanitized or quoted. Either
-		// branch is acceptable: a clean error or an empty result. What is
-		// NOT acceptable is leaking SQLite/FTS5 internals to the caller.
+		// `searchSingleCollection` swallows malformed-input FTS5 errors and
+		// returns no matches; the response is a clean empty list.
 		const result = await harness.client.callTool({
 			name: "search",
 			arguments: { query: 'NOT "quotes" AND* (' },
 		});
-		if (result.isError) {
-			expect(extractText(result)).not.toMatch(/fts5|syntax error|sqlite/i);
-		} else {
-			// Sanitized path: a well-formed `items` list (possibly empty).
-			const data = extractJson<{ items: unknown[] }>(result);
-			expect(Array.isArray(data.items)).toBe(true);
-		}
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<{ items: unknown[] }>(result);
+		expect(data.items).toEqual([]);
 	});
 
 	it("respects the limit parameter", async () => {

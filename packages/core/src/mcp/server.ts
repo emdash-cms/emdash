@@ -1758,18 +1758,8 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const menus = await ec.db
-					.selectFrom("_emdash_menus" as never)
-					.select([
-						"id" as never,
-						"name" as never,
-						"label" as never,
-						"created_at" as never,
-						"updated_at" as never,
-					])
-					.orderBy("name" as never, "asc")
-					.execute();
-				return jsonResult(menus);
+				const { handleMenuList } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuList(ec.db));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_LIST_ERROR");
 			}
@@ -1793,22 +1783,8 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const menu = (await ec.db
-					.selectFrom("_emdash_menus" as never)
-					.selectAll()
-					.where("name" as never, "=", args.name as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-
-				if (!menu) return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
-
-				const items = await ec.db
-					.selectFrom("_emdash_menu_items" as never)
-					.selectAll()
-					.where("menu_id" as never, "=", menu.id as never)
-					.orderBy("sort_order" as never, "asc")
-					.execute();
-
-				return jsonResult({ ...menu, items });
+				const { handleMenuGet } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuGet(ec.db, args.name));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_GET_ERROR");
 			}

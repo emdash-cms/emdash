@@ -107,20 +107,6 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(result.data?.item.slug).toBeNull();
 		});
 
-		it("rejects non-string title via field validation", async () => {
-			// Field validation now enforces type: string. This test used to
-			// document the slug-generator's silent-skip behavior on a
-			// non-string title, which only happened because no validation
-			// ran. With validation in place, the create is rejected.
-			const result = await handleContentCreate(db, "post", {
-				data: { title: 42 },
-			});
-
-			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe("VALIDATION_ERROR");
-			expect(result.error?.message).toMatch(/title/);
-		});
-
 		it("should leave slug null when title is empty string", async () => {
 			const result = await handleContentCreate(db, "post", {
 				data: { title: "" },

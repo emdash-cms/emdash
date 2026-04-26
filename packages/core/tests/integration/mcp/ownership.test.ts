@@ -123,8 +123,11 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 			// AUTHOR has only content:edit_own — without an authorId match,
 			// they have no "own" claim and lack content:edit_any.
 			expect(result.isError).toBe(true);
-			// Crucially: NOT the null-author internal error. A clean 403-equivalent.
+			// Negative: NOT the null-author internal error.
 			expect(extractText(result)).not.toMatch(NULL_AUTHOR_ERROR);
+			// Positive: clean permission error with the structured code.
+			const meta = (result as { _meta?: { code?: string } })._meta;
+			expect(meta?.code).toBe("INSUFFICIENT_PERMISSIONS");
 		});
 
 		it("CONTRIBUTOR cannot update content with null authorId", async () => {
@@ -138,6 +141,8 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			expect(result.isError).toBe(true);
 			expect(extractText(result)).not.toMatch(NULL_AUTHOR_ERROR);
+			const meta = (result as { _meta?: { code?: string } })._meta;
+			expect(meta?.code).toBe("INSUFFICIENT_PERMISSIONS");
 		});
 	});
 
@@ -167,6 +172,8 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			expect(result.isError).toBe(true);
 			expect(extractText(result)).not.toMatch(NULL_AUTHOR_ERROR);
+			const meta = (result as { _meta?: { code?: string } })._meta;
+			expect(meta?.code).toBe("INSUFFICIENT_PERMISSIONS");
 		});
 	});
 
@@ -323,9 +330,12 @@ describe("MCP ownership — error shape consistency", () => {
 		});
 
 		expect(result.isError).toBe(true);
-		// "authorId" is an internal column name. A user-facing permission
-		// error should not leak it. After fix, message should be a clean
-		// "Insufficient permissions" or similar.
+		// Negative: "authorId" is an internal column name and must not leak
+		// to the user-facing message.
 		expect(extractText(result)).not.toMatch(/authorId/);
+		// Positive: the response carries a permissions code so callers can
+		// distinguish "you can't do this" from any other failure mode.
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("INSUFFICIENT_PERMISSIONS");
 	});
 });

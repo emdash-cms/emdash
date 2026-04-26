@@ -345,6 +345,9 @@ async function validateParentTerm(
 
 	// Walk up the parent chain to detect cycles. Bound the walk so a
 	// pre-existing pathological state can't make the validator hang.
+	// The depth-exceeded error only fires when we hit the limit AND there
+	// was still chain to walk — a legitimate chain of exactly MAX_DEPTH
+	// ancestors exits with `cursor === null` and is accepted.
 	if (termId !== undefined) {
 		const MAX_DEPTH = 100;
 		let cursor: string | null = parent.parentId;
@@ -361,7 +364,7 @@ async function validateParentTerm(
 			cursor = next.parentId;
 			steps++;
 		}
-		if (steps >= MAX_DEPTH) {
+		if (cursor !== null && steps >= MAX_DEPTH) {
 			return {
 				code: "VALIDATION_ERROR",
 				message: "Parent chain exceeds maximum depth",

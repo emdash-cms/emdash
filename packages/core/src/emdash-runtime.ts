@@ -1740,6 +1740,20 @@ export class EmDashRuntime {
 		// Normalize media fields (fill dimensions, storageKey, etc.)
 		processedData = await this.normalizeMediaFields(collection, processedData);
 
+		// Validate against the collection schema. Hook output is validated
+		// rather than `body.data` so plugins that mutate field values can't
+		// sneak invalid data past.
+		const { validateContentData } = await import("./api/handlers/validation.js");
+		const validation = await validateContentData(this.db, collection, processedData, {
+			partial: false,
+		});
+		if (!validation.ok) {
+			return {
+				success: false as const,
+				error: validation.error,
+			};
+		}
+
 		// Create the content
 		const result = await handleContentCreate(this.db, collection, {
 			...body,

@@ -27,7 +27,6 @@ import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
-import { validateContentData } from "./validation.js";
 
 /**
  * Narrow a caught error to one carrying a structured `apiError` discriminant.
@@ -445,14 +444,6 @@ export async function handleContentCreate(
 			};
 		}
 
-		// Field-level validation against the collection schema (required,
-		// select / multiSelect, reference target existence). Runs before
-		// the transaction so a doomed write never opens a connection.
-		const validation = await validateContentData(db, collection, body.data, { partial: false });
-		if (!validation.ok) {
-			return { success: false, error: validation.error };
-		}
-
 		// Wrap content + SEO writes in a transaction for atomicity
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
@@ -587,19 +578,6 @@ export async function handleContentUpdate(
 					message: `Collection "${collection}" does not have SEO enabled. Remove the seo field or enable SEO on this collection.`,
 				},
 			};
-		}
-
-		// Field-level validation against the collection schema. Partial
-		// mode: only fields actually present in `body.data` are validated.
-		// Updates that don't touch `data` (e.g. byline-only edits, status
-		// flips) skip this entirely.
-		if (body.data) {
-			const validation = await validateContentData(db, collection, body.data, {
-				partial: true,
-			});
-			if (!validation.ok) {
-				return { success: false, error: validation.error };
-			}
 		}
 
 		const repo = new ContentRepository(db);

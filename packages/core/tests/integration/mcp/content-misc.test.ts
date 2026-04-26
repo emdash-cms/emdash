@@ -537,7 +537,7 @@ describe("idempotency", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("publish twice in a row is safe (second call is no-op or idempotent success)", async () => {
+	it("publish twice is idempotent: second call succeeds, status stays published, publishedAt is preserved", async () => {
 		const created = await harness.client.callTool({
 			name: "content_create",
 			arguments: { collection: "post", data: { title: "T" } },
@@ -549,43 +549,48 @@ describe("idempotency", () => {
 			arguments: { collection: "post", id },
 		});
 		expect(first.isError, extractText(first)).toBeFalsy();
+		const firstItem = extractJson<{
+			item: { status: string; publishedAt: string | null };
+		}>(first).item;
+		expect(firstItem.status).toBe("published");
+		expect(firstItem.publishedAt).toBeTruthy();
+
+		// Wait briefly so a regression that reassigns publishedAt would produce
+		// a distinguishable timestamp.
+		await new Promise((r) => setTimeout(r, 5));
 
 		const second = await harness.client.callTool({
 			name: "content_publish",
 			arguments: { collection: "post", id },
 		});
-		// Either succeeds (idempotent) or returns a clear "already published"
-		// signal — but must not crash or produce a generic error.
-		if (second.isError) {
-			expect(extractText(second)).toMatch(/already|published|no.changes|nothing/i);
-		} else {
-			// Idempotent path: response must still describe a published item
-			// (so callers can rely on the post-condition regardless of which
-			// branch the implementation takes).
-			const item = extractJson<{ item: { status: string } }>(second).item;
-			expect(item.status).toBe("published");
-		}
+		// Contract: publish is idempotent. Second call succeeds, status
+		// remains published, and publishedAt is preserved (the repository
+		// uses COALESCE so the original timestamp survives a re-publish).
+		expect(second.isError, extractText(second)).toBeFalsy();
+		const secondItem = extractJson<{
+			item: { status: string; publishedAt: string | null };
+		}>(second).item;
+		expect(secondItem.status).toBe("published");
+		expect(secondItem.publishedAt).toBe(firstItem.publishedAt);
 	});
 
-	it("unpublish on a draft (already unpublished) is safe", async () => {
+	it("unpublish on a draft (already unpublished) is idempotent: status stays draft", async () => {
 		const created = await harness.client.callTool({
 			name: "content_create",
 			arguments: { collection: "post", data: { title: "T" } },
 		});
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 
-		// Item is born as draft. Unpublish should be a no-op or clear error.
+		// Item is born as draft. Contract: unpublish is idempotent — succeeds
+		// and the item stays draft.
 		const result = await harness.client.callTool({
 			name: "content_unpublish",
 			arguments: { collection: "post", id },
 		});
-		if (result.isError) {
-			expect(extractText(result)).toMatch(/already|draft|not.published/i);
-		} else {
-			// Idempotent path: status must remain draft after the call.
-			const item = extractJson<{ item: { status: string } }>(result).item;
-			expect(item.status).toBe("draft");
-		}
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const item = extractJson<{ item: { status: string; publishedAt: string | null } }>(result).item;
+		expect(item.status).toBe("draft");
+		expect(item.publishedAt).toBeNull();
 	});
 
 	it("schedule then publish: schedule is preserved or cleared cleanly", async () => {

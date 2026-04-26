@@ -135,7 +135,7 @@ export async function handleMenuGet(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
+				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
 
@@ -480,76 +480,94 @@ export async function handleMenuSetItems(
 	menuName: string,
 	items: MenuSetItemsInput[],
 ): Promise<ApiResult<{ name: string; itemCount: number }>> {
+	// Validate parentIndex references — must be strictly earlier so
+	// the array can be inserted in order with parents resolved first.
+	// Negative indices are out of range; only Zod's `.nonnegative()` at
+	// the MCP boundary catches them today, so guard explicitly here for
+	// any caller that bypasses Zod (REST routes, direct handler use).
+	for (let i = 0; i < items.length; i++) {
+		const item = items[i];
+		if (item?.parentIndex !== undefined) {
+			if (item.parentIndex < 0 || item.parentIndex >= i) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `item[${i}].parentIndex (${item.parentIndex}) must reference an earlier item`,
+					},
+				};
+			}
+		}
+	}
+
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", menuName)
-			.executeTakeFirst();
+		// Sentinel for "menu not found" thrown from inside the transaction
+		// so the rollback fires before we return the structured error.
+		const notFoundSentinel = Symbol("menu-not-found");
 
-		if (!menu) {
-			return {
-				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
-			};
-		}
+		try {
+			await withTransaction(db, async (trx) => {
+				// Existence check INSIDE the transaction so a concurrent
+				// menu_delete between lookup and write can't leave orphan
+				// items on D1 (FKs disabled by default).
+				const menu = await trx
+					.selectFrom("_emdash_menus")
+					.select("id")
+					.where("name", "=", menuName)
+					.executeTakeFirst();
 
-		// Validate parentIndex references — must be strictly earlier so
-		// the array can be inserted in order with parents resolved first.
-		for (let i = 0; i < items.length; i++) {
-			const item = items[i];
-			if (item?.parentIndex !== undefined) {
-				if (item.parentIndex >= i) {
-					return {
-						success: false,
-						error: {
-							code: "VALIDATION_ERROR",
-							message: `item[${i}].parentIndex (${item.parentIndex}) must reference an earlier item`,
-						},
-					};
+				if (!menu) {
+					throw notFoundSentinel;
 				}
-			}
-		}
 
-		await withTransaction(db, async (trx) => {
-			await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
+				await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
 
-			const insertedIds: string[] = [];
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				if (!item) continue;
-				const id = ulid();
-				const parentId =
-					item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
+				const insertedIds: string[] = [];
+				for (let i = 0; i < items.length; i++) {
+					const item = items[i];
+					if (!item) continue;
+					const id = ulid();
+					const parentId =
+						item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
+					await trx
+						.insertInto("_emdash_menu_items")
+						.values({
+							id,
+							menu_id: menu.id,
+							parent_id: parentId,
+							sort_order: i,
+							type: item.type,
+							reference_collection: item.referenceCollection ?? null,
+							reference_id: item.referenceId ?? null,
+							custom_url: item.customUrl ?? null,
+							label: item.label,
+							title_attr: item.titleAttr ?? null,
+							target: item.target ?? null,
+							css_classes: item.cssClasses ?? null,
+						})
+						.execute();
+					insertedIds.push(id);
+				}
+
 				await trx
-					.insertInto("_emdash_menu_items")
-					.values({
-						id,
-						menu_id: menu.id,
-						parent_id: parentId,
-						sort_order: i,
-						type: item.type,
-						reference_collection: item.referenceCollection ?? null,
-						reference_id: item.referenceId ?? null,
-						custom_url: item.customUrl ?? null,
-						label: item.label,
-						title_attr: item.titleAttr ?? null,
-						target: item.target ?? null,
-						css_classes: item.cssClasses ?? null,
-					})
+					.updateTable("_emdash_menus")
+					.set({ updated_at: new Date().toISOString() })
+					.where("id", "=", menu.id)
 					.execute();
-				insertedIds.push(id);
+			});
+		} catch (error) {
+			if (error === notFoundSentinel) {
+				return {
+					success: false,
+					error: { code: "NOT_FOUND", message: "Menu not found" },
+				};
 			}
-
-			await trx
-				.updateTable("_emdash_menus")
-				.set({ updated_at: new Date().toISOString() })
-				.where("id", "=", menu.id)
-				.execute();
-		});
+			throw error;
+		}
 
 		return { success: true, data: { name: menuName, itemCount: items.length } };
-	} catch {
+	} catch (error) {
+		console.error("[emdash] handleMenuSetItems failed:", error);
 		return {
 			success: false,
 			error: { code: "MENU_SET_ITEMS_ERROR", message: "Failed to set menu items" },

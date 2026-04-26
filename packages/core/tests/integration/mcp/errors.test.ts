@@ -168,7 +168,12 @@ describe("MCP error envelope — content_list (bug #3)", () => {
 		const text = extractText(result);
 		expect(text).not.toMatch(GENERIC_LIST);
 		expect(text).not.toMatch(UNKNOWN_ERROR);
-		expect(text).toMatch(/orderBy|order|column|definitely_not_a_column|invalid/i);
+		// Concrete: response must echo the offending column AND carry a
+		// stable validation-style code. Avoids matching unrelated phrases
+		// that happen to contain "order" or "column".
+		expect(text).toContain("definitely_not_a_column");
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("VALIDATION_ERROR");
 	});
 });
 
@@ -334,6 +339,41 @@ describe("MCP error envelope — F7 (codes propagated for SchemaError + auth)", 
 		const meta = (result as { _meta?: { code?: string } })._meta;
 		expect(meta?.code).toBe("INSUFFICIENT_SCOPE");
 		expect(extractText(result)).toMatch(/INSUFFICIENT_SCOPE/);
+	});
+
+	it("backwards compat: content:write token can call menu_create (implicit grant)", async () => {
+		// PATs issued before menus:manage was split out of content:write
+		// must continue to work. Verify the implicit grant flows through
+		// the full MCP stack.
+		db = await setupTestDatabaseWithCollections();
+		harness = await connectMcpHarness({
+			db,
+			userId: "user_admin",
+			userRole: Role.ADMIN,
+			tokenScopes: ["content:write"],
+		});
+		const result = await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+
+	it("menus:manage token cannot call content_create (no reverse grant)", async () => {
+		db = await setupTestDatabaseWithCollections();
+		harness = await connectMcpHarness({
+			db,
+			userId: "user_admin",
+			userRole: Role.ADMIN,
+			tokenScopes: ["menus:manage"],
+		});
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "x" } },
+		});
+		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("INSUFFICIENT_SCOPE");
 	});
 
 	it("INSUFFICIENT_PERMISSIONS for a role that's too low", async () => {

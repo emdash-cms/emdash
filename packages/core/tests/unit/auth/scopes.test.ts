@@ -63,4 +63,40 @@ describe("requireScope", () => {
 		expect(requireScope({ tokenScopes: ["media:read"] }, "media:write")).toBeInstanceOf(Response);
 		expect(requireScope({ tokenScopes: ["schema:read"] }, "schema:write")).toBeInstanceOf(Response);
 	});
+
+	describe("backwards compatibility: content:write implicit grants", () => {
+		// Before the menu/taxonomy mutation MCP tools were split out into
+		// `menus:manage` and `taxonomies:manage`, the only scope checked for
+		// those operations was `content:write`. Tokens issued before the
+		// split must continue to work — `content:write` implicitly grants
+		// `menus:manage` and `taxonomies:manage`.
+
+		it("content:write grants menus:manage", () => {
+			expect(requireScope({ tokenScopes: ["content:write"] }, "menus:manage")).toBeNull();
+		});
+
+		it("content:write grants taxonomies:manage", () => {
+			expect(requireScope({ tokenScopes: ["content:write"] }, "taxonomies:manage")).toBeNull();
+		});
+
+		it("content:read does NOT grant menus:manage (read-only doesn't escalate)", () => {
+			expect(requireScope({ tokenScopes: ["content:read"] }, "menus:manage")).toBeInstanceOf(
+				Response,
+			);
+		});
+
+		it("menus:manage alone allows menu operations", () => {
+			expect(requireScope({ tokenScopes: ["menus:manage"] }, "menus:manage")).toBeNull();
+		});
+
+		it("menus:manage does not grant content:write (no reverse implication)", () => {
+			expect(requireScope({ tokenScopes: ["menus:manage"] }, "content:write")).toBeInstanceOf(
+				Response,
+			);
+		});
+
+		it("taxonomies:manage alone allows taxonomy operations", () => {
+			expect(requireScope({ tokenScopes: ["taxonomies:manage"] }, "taxonomies:manage")).toBeNull();
+		});
+	});
 });

@@ -348,7 +348,7 @@ describe("schema_delete_collection", () => {
 			arguments: { slug: "post" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/content|empty|force|not.empty/i);
+		expect(extractText(result)).toMatch(/content|empty|force|not empty/i);
 	});
 
 	it("force deletes a collection with content", async () => {
