@@ -24,49 +24,120 @@ const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 // Helpers
 // ---------------------------------------------------------------------------
 
-type HandlerResult = { success: boolean; data?: unknown; error?: unknown };
+type HandlerResult = {
+	success: boolean;
+	data?: unknown;
+	error?: unknown;
+};
+
+type SuccessEnvelope = {
+	content: Array<{ type: "text"; text: string }>;
+	_meta?: Record<string, unknown>;
+};
+
+type ErrorEnvelope = {
+	content: Array<{ type: "text"; text: string }>;
+	isError: true;
+	_meta: { code: string; details?: Record<string, unknown> };
+};
 
 /**
- * Unwrap an ApiResult<T> into MCP tool result format.
- * On success, returns the data as pretty-printed JSON text content.
- * On failure, returns the error message with isError flag.
+ * Return a successful tool response with the data as pretty-printed JSON.
  */
-function unwrap(result: HandlerResult): {
-	content: Array<{ type: "text"; text: string }>;
-	isError?: true;
-} {
-	if (result.success && result.data !== undefined) {
-		return {
-			content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
-		};
-	}
-	const errMsg =
-		result.error && typeof result.error === "object" && "message" in result.error
-			? String((result.error as Record<string, unknown>).message)
-			: "Unknown error";
-	return { content: [{ type: "text", text: errMsg }], isError: true };
-}
-
-/**
- * Return a JSON text block.
- */
-function jsonResult(data: unknown): {
-	content: Array<{ type: "text"; text: string }>;
-} {
+function respondData(data: unknown): SuccessEnvelope {
 	return {
 		content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
 	};
 }
 
 /**
- * Return an error text block.
+ * Return a structured error tool response.
+ *
+ * The error code is emitted both in the human-readable message (as a stable
+ * `[CODE]` prefix that callers can match on) and in `_meta.code` so MCP-aware
+ * clients can read it programmatically once the SDK supports forwarding meta.
  */
-function errorResult(error: unknown): {
-	content: Array<{ type: "text"; text: string }>;
-	isError: true;
-} {
-	const msg = error instanceof Error ? error.message : String(error);
-	return { content: [{ type: "text", text: msg }], isError: true };
+function respondError(
+	code: string,
+	message: string,
+	details?: Record<string, unknown>,
+): ErrorEnvelope {
+	const text = `[${code}] ${message}`;
+	const meta: { code: string; details?: Record<string, unknown> } = { code };
+	if (details !== undefined) meta.details = details;
+	return {
+		content: [{ type: "text", text }],
+		isError: true,
+		_meta: meta,
+	};
+}
+
+/**
+ * Map an unknown thrown error to a structured error envelope.
+ *
+ * Recognises:
+ *  - `Error` objects with an `apiError: { code }` annotation (handlers throw
+ *    these for NOT_FOUND / CONFLICT inside transactions; see
+ *    `api/handlers/content.ts:538`).
+ *  - Plain `Error` instances — message preserved, code falls back to
+ *    `fallbackCode` (or `INTERNAL_ERROR`).
+ *  - Strings — used directly as the message.
+ *  - Anything else — coerced via `String()`.
+ *
+ * The original message is always preserved so tests and humans can see the
+ * specific failure cause.
+ */
+function respondHandlerError(error: unknown, fallbackCode = "INTERNAL_ERROR"): ErrorEnvelope {
+	let code = fallbackCode;
+	let message: string;
+
+	if (error instanceof Error) {
+		message = error.message || fallbackCode;
+		const apiError = (error as { apiError?: { code?: string } }).apiError;
+		if (apiError && typeof apiError.code === "string") {
+			code = apiError.code;
+		}
+	} else if (typeof error === "string") {
+		message = error;
+	} else {
+		message = String(error);
+	}
+
+	return respondError(code, message);
+}
+
+/**
+ * Unwrap an ApiResult<T> into MCP tool result format.
+ *
+ * On success returns the data as JSON. On failure propagates the structured
+ * `{ code, message, details }` from the handler so the caller sees both a
+ * machine-readable code (in `_meta.code` and as a `[CODE]` message prefix)
+ * and the original human-readable message.
+ */
+function unwrap(result: HandlerResult): SuccessEnvelope | ErrorEnvelope {
+	if (result.success && result.data !== undefined) {
+		return respondData(result.data);
+	}
+	const err =
+		result.error && typeof result.error === "object"
+			? (result.error as { code?: unknown; message?: unknown; details?: unknown })
+			: undefined;
+	if (!err) return respondError("INTERNAL_ERROR", "Unknown error");
+	const code = typeof err.code === "string" && err.code ? err.code : "INTERNAL_ERROR";
+	const message = typeof err.message === "string" && err.message ? err.message : "Unknown error";
+	const details =
+		err.details && typeof err.details === "object"
+			? (err.details as Record<string, unknown>)
+			: undefined;
+	return respondError(code, message, details);
+}
+
+/**
+ * Return a JSON text block (success path for tools that don't go through
+ * the ApiResult-returning handler layer, e.g. schema/menu/taxonomy).
+ */
+function jsonResult(data: unknown): SuccessEnvelope {
+	return respondData(data);
 }
 
 // ---------------------------------------------------------------------------
@@ -183,26 +254,18 @@ function requireOwnership(
  * Extract the author ID from a content handler response.
  *
  * Content handlers return `{ item: { id, authorId, ... }, _rev? }`.
- * This helper navigates that shape safely.
+ * This helper navigates that shape safely. Returns "" when authorId is
+ * missing or non-string (e.g. seed-imported content with no author);
+ * `canActOnOwn` then decides based on the caller's permissions —
+ * an actor with `*:edit_any` succeeds, an actor with only `*:edit_own`
+ * is denied with a clean permission error.
  */
 function extractContentAuthorId(data: unknown): string {
-	if (!data || typeof data !== "object") {
-		throw new McpError(
-			ErrorCode.InternalError,
-			"Cannot determine content ownership: no data returned",
-		);
-	}
+	if (!data || typeof data !== "object") return "";
 	const obj = data as Record<string, unknown>;
 	const item =
 		obj.item && typeof obj.item === "object" ? (obj.item as Record<string, unknown>) : obj;
-	const authorId = typeof item?.authorId === "string" ? item.authorId : "";
-	if (!authorId) {
-		throw new McpError(
-			ErrorCode.InternalError,
-			"Cannot determine content ownership: content has no authorId",
-		);
-	}
-	return authorId;
+	return typeof item?.authorId === "string" ? item.authorId : "";
 }
 
 /**
@@ -882,7 +945,7 @@ export function createMcpServer(): McpServer {
 				const items = await registry.listCollections();
 				return jsonResult({ items });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_LIST_ERROR");
 			}
 		},
 	);
@@ -915,11 +978,11 @@ export function createMcpServer(): McpServer {
 				const registry = new SchemaRegistry(ec.db);
 				const collection = await registry.getCollectionWithFields(args.slug);
 				if (!collection) {
-					return errorResult(`Collection '${args.slug}' not found`);
+					return respondError("NOT_FOUND", `Collection '${args.slug}' not found`);
 				}
 				return jsonResult(collection);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_GET_ERROR");
 			}
 		},
 	);
@@ -962,12 +1025,12 @@ export function createMcpServer(): McpServer {
 					labelSingular: args.labelSingular,
 					description: args.description,
 					icon: args.icon,
-					supports: args.supports,
+					supports: args.supports ?? ["drafts", "revisions"],
 				});
 				ec.invalidateManifest();
 				return jsonResult(collection);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_CREATE_ERROR");
 			}
 		},
 	);
@@ -999,7 +1062,7 @@ export function createMcpServer(): McpServer {
 				ec.invalidateManifest();
 				return jsonResult({ deleted: args.slug });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_DELETE_ERROR");
 			}
 		},
 	);
@@ -1103,7 +1166,7 @@ export function createMcpServer(): McpServer {
 				ec.invalidateManifest();
 				return jsonResult(field);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "FIELD_CREATE_ERROR");
 			}
 		},
 	);
@@ -1132,7 +1195,7 @@ export function createMcpServer(): McpServer {
 				ec.invalidateManifest();
 				return jsonResult({ deleted: args.fieldSlug, collection: args.collection });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "FIELD_DELETE_ERROR");
 			}
 		},
 	);
@@ -1305,7 +1368,7 @@ export function createMcpServer(): McpServer {
 				});
 				return jsonResult(results);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SEARCH_ERROR");
 			}
 		},
 	);
@@ -1332,7 +1395,7 @@ export function createMcpServer(): McpServer {
 				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
 				return unwrap(await handleTaxonomyList(ec.db));
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "TAXONOMY_LIST_ERROR");
 			}
 		},
 	);
@@ -1364,7 +1427,7 @@ export function createMcpServer(): McpServer {
 				const taxonomies = (listResult.data as { taxonomies: Array<{ name: string; id?: string }> })
 					.taxonomies;
 				const taxonomy = taxonomies.find((t: { name: string }) => t.name === args.taxonomy);
-				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
+				if (!taxonomy) return respondError("NOT_FOUND", `Taxonomy '${args.taxonomy}' not found`);
 
 				// Paginated term query via repository (avoids N+1 of handleTermList)
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
@@ -1395,7 +1458,7 @@ export function createMcpServer(): McpServer {
 					nextCursor,
 				});
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "TAXONOMY_LIST_TERMS_ERROR");
 			}
 		},
 	);
@@ -1430,7 +1493,7 @@ export function createMcpServer(): McpServer {
 					}),
 				);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "TAXONOMY_TERM_CREATE_ERROR");
 			}
 		},
 	);
@@ -1467,7 +1530,7 @@ export function createMcpServer(): McpServer {
 					.execute();
 				return jsonResult(menus);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "MENU_LIST_ERROR");
 			}
 		},
 	);
@@ -1495,7 +1558,7 @@ export function createMcpServer(): McpServer {
 					.where("name" as never, "=", args.name as never)
 					.executeTakeFirst()) as { id: string } | undefined;
 
-				if (!menu) return errorResult(`Menu '${args.name}' not found`);
+				if (!menu) return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
 
 				const items = await ec.db
 					.selectFrom("_emdash_menu_items" as never)
@@ -1506,7 +1569,7 @@ export function createMcpServer(): McpServer {
 
 				return jsonResult({ ...menu, items });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "MENU_GET_ERROR");
 			}
 		},
 	);
@@ -1566,7 +1629,10 @@ export function createMcpServer(): McpServer {
 			}
 			const revItem = revision.data?.item;
 			if (!revItem?.collection || !revItem?.entryId) {
-				return errorResult("Revision is missing collection or entry reference");
+				return respondError(
+					"VALIDATION_ERROR",
+					"Revision is missing collection or entry reference",
+				);
 			}
 
 			// Fetch the content entry to check ownership
