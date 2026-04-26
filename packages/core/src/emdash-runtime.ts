@@ -252,6 +252,45 @@ export interface RuntimeDependencies {
 }
 
 /**
+ * Constructor parameters for `EmDashRuntime`.
+ *
+ * Production code should use `EmDashRuntime.create()` which discovers and
+ * loads all parts (database, plugins, hooks, cron, etc.) and then calls the
+ * constructor. Direct construction is supported for callers that already
+ * have all the dependencies in hand — for example, integration tests that
+ * supply a pre-migrated database and an empty plugin set.
+ *
+ * Every field corresponds 1:1 to internal state set on the runtime — none of
+ * these are derived. If you don't have a value for one, see what `create()`
+ * passes for that field as the canonical default.
+ */
+export interface EmDashRuntimeParts {
+	db: Kysely<Database>;
+	storage: Storage | null;
+	configuredPlugins: ResolvedPlugin[];
+	sandboxedPlugins: Map<string, SandboxedPlugin>;
+	sandboxedPluginEntries: SandboxedPluginEntry[];
+	hooks: HookPipeline;
+	enabledPlugins: Set<string>;
+	pluginStates: Map<string, string>;
+	config: EmDashConfig;
+	mediaProviders: Map<string, MediaProvider>;
+	mediaProviderEntries: MediaProviderEntry[];
+	cronExecutor: CronExecutor | null;
+	cronScheduler: CronScheduler | null;
+	emailPipeline: EmailPipeline | null;
+	allPipelinePlugins: ResolvedPlugin[];
+	pipelineFactoryOptions: {
+		db: Kysely<Database>;
+		storage?: Storage;
+		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
+	};
+	runtimeDeps: RuntimeDependencies;
+	pipelineRef: { current: HookPipeline };
+	manifestCacheKey: string;
+}
+
+/**
  * Convert a ContentItem to Record<string, unknown> for hook consumption.
  * Hooks receive the full item as a flat record.
  */
@@ -351,51 +390,27 @@ export class EmDashRuntime {
 		return this._db;
 	}
 
-	private constructor(
-		db: Kysely<Database>,
-		storage: Storage | null,
-		configuredPlugins: ResolvedPlugin[],
-		sandboxedPlugins: Map<string, SandboxedPlugin>,
-		sandboxedPluginEntries: SandboxedPluginEntry[],
-		hooks: HookPipeline,
-		enabledPlugins: Set<string>,
-		pluginStates: Map<string, string>,
-		config: EmDashConfig,
-		mediaProviders: Map<string, MediaProvider>,
-		mediaProviderEntries: MediaProviderEntry[],
-		cronExecutor: CronExecutor | null,
-		cronScheduler: CronScheduler | null,
-		emailPipeline: EmailPipeline | null,
-		allPipelinePlugins: ResolvedPlugin[],
-		pipelineFactoryOptions: {
-			db: Kysely<Database>;
-			storage?: Storage;
-			siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
-		},
-		runtimeDeps: RuntimeDependencies,
-		pipelineRef: { current: HookPipeline },
-		manifestCacheKey: string,
-	) {
-		this._db = db;
-		this.storage = storage;
-		this.configuredPlugins = configuredPlugins;
-		this.sandboxedPlugins = sandboxedPlugins;
-		this.sandboxedPluginEntries = sandboxedPluginEntries;
-		this.schemaRegistry = new SchemaRegistry(db);
-		this._hooks = hooks;
-		this.enabledPlugins = enabledPlugins;
-		this.pluginStates = pluginStates;
-		this.config = config;
-		this.mediaProviders = mediaProviders;
-		this.mediaProviderEntries = mediaProviderEntries;
-		this.cronExecutor = cronExecutor;
-		this.cronScheduler = cronScheduler;
-		this.email = emailPipeline;
-		this.allPipelinePlugins = allPipelinePlugins;
-		this.pipelineFactoryOptions = pipelineFactoryOptions;
-		this.runtimeDeps = runtimeDeps;
-		this.pipelineRef = pipelineRef;
-		this._manifestCacheKey = manifestCacheKey;
+	constructor(parts: EmDashRuntimeParts) {
+		this._db = parts.db;
+		this.storage = parts.storage;
+		this.configuredPlugins = parts.configuredPlugins;
+		this.sandboxedPlugins = parts.sandboxedPlugins;
+		this.sandboxedPluginEntries = parts.sandboxedPluginEntries;
+		this.schemaRegistry = new SchemaRegistry(parts.db);
+		this._hooks = parts.hooks;
+		this.enabledPlugins = parts.enabledPlugins;
+		this.pluginStates = parts.pluginStates;
+		this.config = parts.config;
+		this.mediaProviders = parts.mediaProviders;
+		this.mediaProviderEntries = parts.mediaProviderEntries;
+		this.cronExecutor = parts.cronExecutor;
+		this.cronScheduler = parts.cronScheduler;
+		this.email = parts.emailPipeline;
+		this.allPipelinePlugins = parts.allPipelinePlugins;
+		this.pipelineFactoryOptions = parts.pipelineFactoryOptions;
+		this.runtimeDeps = parts.runtimeDeps;
+		this.pipelineRef = parts.pipelineRef;
+		this._manifestCacheKey = parts.manifestCacheKey;
 	}
 
 	/**
@@ -872,16 +887,16 @@ export class EmDashRuntime {
 			].join("|"),
 		);
 
-		return new EmDashRuntime(
+		return new EmDashRuntime({
 			db,
 			storage,
-			deps.plugins,
+			configuredPlugins: deps.plugins,
 			sandboxedPlugins,
-			deps.sandboxedPluginEntries,
-			pipeline,
+			sandboxedPluginEntries: deps.sandboxedPluginEntries,
+			hooks: pipeline,
 			enabledPlugins,
 			pluginStates,
-			deps.config,
+			config: deps.config,
 			mediaProviders,
 			mediaProviderEntries,
 			cronExecutor,
@@ -889,10 +904,10 @@ export class EmDashRuntime {
 			emailPipeline,
 			allPipelinePlugins,
 			pipelineFactoryOptions,
-			deps,
+			runtimeDeps: deps,
 			pipelineRef,
 			manifestCacheKey,
-		);
+		});
 	}
 
 	/**
