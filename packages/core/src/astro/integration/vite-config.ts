@@ -335,7 +335,12 @@ export function createViteConfig(
 						// during pre-bundling and can't resolve them. Vite's exclude
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
-						exclude: ["virtual:emdash"],
+						// tiptap deps not used in this repo; excluded so optimizeDeps does not fail to resolve them on fresh installs (issue #771).
+						exclude: [
+							"virtual:emdash",
+							"@tiptap/extension-collaboration",
+							"@tiptap/y-tiptap",
+						],
 						include: [
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
@@ -393,7 +398,20 @@ export function createViteConfig(
 			include: useSource
 				? ["@astrojs/react/client.js"]
 				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
-			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
+			exclude: cloudflare
+				? [
+						// tiptap deps not used in this repo; excluded so optimizeDeps does not fail to resolve them on fresh installs (issue #771).
+						"virtual:emdash",
+						"@tiptap/extension-collaboration",
+						"@tiptap/y-tiptap",
+					]
+				: [
+						...NODE_NATIVE_EXTERNALS,
+						// tiptap deps not used in this repo; excluded so optimizeDeps does not fail to resolve them on fresh installs (issue #771).
+						"virtual:emdash",
+						"@tiptap/extension-collaboration",
+						"@tiptap/y-tiptap",
+					],
 		},
 	};
 }
