@@ -1609,7 +1609,7 @@ export function createMcpServer(): McpServer {
 				// unrecognised cursor is a client bug — return a structured
 				// INVALID_CURSOR rather than silently restarting from the
 				// top, matching the behaviour of decodeCursor for other
-				// list tools (MCP_BUGS.md #12).
+				// list tools.
 				let startIdx = 0;
 				if (args.cursor) {
 					const cursorIdx = terms.findIndex((t) => t.id === args.cursor);

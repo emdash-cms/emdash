@@ -1829,9 +1829,7 @@ export class EmDashRuntime {
 			processedData = await this.normalizeMediaFields(collection, processedData);
 
 			// Validate field-level shape BEFORE the draft-revision write so
-			// invalid updates can't silently land in revision history. The
-			// downstream API handler also validates (defense-in-depth, and
-			// safer for direct REST callers that bypass this runtime path).
+			// invalid updates can't silently land in revision history.
 			const { validateContentData } = await import("./api/handlers/validation.js");
 			const validation = await validateContentData(this.db, collection, processedData, {
 				partial: true,

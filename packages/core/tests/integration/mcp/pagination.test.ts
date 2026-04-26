@@ -1,25 +1,17 @@
 /**
  * MCP pagination / cursor tests.
  *
- * Maps to MCP_BUGS.md #12: a malformed `cursor` argument silently returns
- * the first page instead of erroring. UI bugs that pass garbage cursors
- * would silently re-fetch the whole table.
+ * Malformed cursors must produce a structured `INVALID_CURSOR` error
+ * instead of silently returning the first page (the latter would let UI
+ * pagination bugs re-fetch the whole table without any signal).
  *
- * Mechanism: `decodeCursor()` returns `null` on parse failure
- * (`database/repositories/types.ts:91-101`). Every call site wraps the use
- * in `if (decoded) { ... }` with no else branch — when decoding fails, the
- * cursor filter is silently dropped and the query returns the first page.
+ * `decodeCursor()` throws `InvalidCursorError` on invalid input; handler
+ * catches translate that to `INVALID_CURSOR`. The MCP boundary also
+ * applies `z.string().min(1).max(2048)` to reject obvious DoS attempts
+ * before they reach the decoder.
  *
- * **Expected fix:** either `decodeCursor()` throws on invalid input, or
- * each caller throws an `EmDashValidationError("Invalid cursor")` when
- * decoding returns null. The MCP layer surfaces that as a structured
- * `INVALID_CURSOR` error.
- *
- * Cursor handling is shared infra used by content lists, redirects, audit
- * logs, bylines, comments, plugin storage, etc. The fix should propagate
- * to all of them. These tests cover the MCP-visible surface
- * (content_list, content_list_trashed, revision_list, media_list,
- * taxonomy_list_terms).
+ * Tests cover the MCP-visible list surface: content_list,
+ * content_list_trashed, media_list, revision_list, taxonomy_list_terms.
  */
 
 import { Role } from "@emdash-cms/auth";

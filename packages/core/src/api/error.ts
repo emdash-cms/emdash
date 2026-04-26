@@ -56,7 +56,7 @@ export function handleError(
 	fallbackCode: string,
 ): Response {
 	// Bubble malformed-cursor errors as a structured 400 instead of a
-	// generic 500 — see MCP_BUGS.md #12.
+	// generic 500.
 	if (error instanceof InvalidCursorError) {
 		return apiError("INVALID_CURSOR", error.message, 400);
 	}

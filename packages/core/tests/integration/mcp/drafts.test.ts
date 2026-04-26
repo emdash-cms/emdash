@@ -1,35 +1,18 @@
 /**
  * MCP draft / revision data round-trip tests.
  *
- * Maps to MCP_BUGS.md #2: `content_get` and `content_update` on a
- * collection that supports revisions return the **published** column data
- * even when a newer draft revision exists. Agents see "no change after
- * update" and conclude the API is broken when in fact the update succeeded
- * but isn't surfaced.
+ * For collections that support revisions, `content_update` writes the
+ * new data into a draft revision rather than the content table columns
+ * (the columns hold the live/published values). `content_get` and
+ * `content_update` hydrate the response item with the draft revision's
+ * data when one exists, exposing the previously-published values as
+ * `liveData` alongside.
  *
- * Mechanism: `ContentRepository.findByIdOrSlug()` reads from the content
- * table columns. Updates to a revision-supporting collection write the new
- * data into a draft revision (`_emdash_revisions` table) and only update
- * `draft_revision_id` + `updated_at` on the content row — the data columns
- * stay at the live published values until publish promotes the draft.
+ * The user-visible contract: "if I update X to Y, then read back, I see Y"
+ * — even for revision-supporting collections.
  *
- * **Expected fix:** `content_get` and `content_update` should resolve the
- * effective data — when a draft revision exists, return the draft's data.
- * Existing `content_compare` tool already exposes both sides; the issue
- * is that the default read path doesn't surface draft state at all.
- *
- * Acceptable resolutions:
- *   1. `data` reflects the **draft** when a draft exists (publish-on-write
- *      style). Add a `_state: "draft" | "published"` indicator.
- *   2. Response includes both `data` (published) and `draftData` (when
- *      present). Callers explicitly choose.
- *
- * Either is fine; tests below assert the user-visible round-trip property:
- * "if I update X to Y, then read back, I see Y." That property fails today
- * for revision-supporting collections.
- *
- * Bug #9 (slug update) and #17 (revision_restore semantics) live in this
- * same area — the response shape is what makes them hard to verify.
+ * Slug updates and `revision_restore` round-trips share the same response
+ * shape, so they're tested here too.
  */
 
 import { Role } from "@emdash-cms/auth";

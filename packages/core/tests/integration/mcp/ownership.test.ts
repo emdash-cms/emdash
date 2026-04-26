@@ -1,23 +1,13 @@
 /**
  * MCP ownership / authorization integration tests.
  *
- * Maps to MCP_BUGS.md #1: admins blocked from editing seed-created content
- * (rows whose `authorId` is null) by an MCP-only ownership check that
- * throws before RBAC runs.
+ * The MCP server's `extractContentAuthorId()` returns "" (empty string)
+ * for content with null authorId — mirroring the REST handler. Then
+ * `canActOnOwn(user, "", own, any)` defers to the "any" permission so
+ * EDITOR+ can edit seed-imported content while CONTRIBUTOR/AUTHOR are
+ * denied with a clean permission error.
  *
- * The REST API treats null authorId as "no specified owner" and lets the
- * `requireOwnerPerm()` check fall through to role-based permissions; an
- * EDITOR/ADMIN with `content:edit_any` succeeds. The MCP server's
- * `extractContentAuthorId()` instead throws an InternalError and aborts
- * the call. These tests pin down the divergence and lay out every
- * permutation of role × ownership × null-author so the omnibus fix can be
- * graded against full coverage.
- *
- * **Expected fix:** the MCP ownership extraction returns "" (empty string)
- * for null authorId, mirroring the REST handler at
- * `packages/core/src/astro/routes/api/content/[collection]/[id].ts:87`.
- * Then `canActOnOwn(user, "", own, any)` defers to `any` permission and
- * EDITOR+ pass while CONTRIBUTOR/AUTHOR are denied (no ownership claim).
+ * These tests cover every permutation of role × ownership × null-author.
  */
 
 import { Role } from "@emdash-cms/auth";

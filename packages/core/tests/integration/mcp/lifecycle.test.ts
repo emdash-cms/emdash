@@ -1,24 +1,14 @@
 /**
  * MCP content lifecycle tests.
  *
- * Maps to:
- *   - MCP_BUGS.md #10: `content_unpublish` leaves `publishedAt` populated.
- *     Status flips to "draft" but the timestamp doesn't clear, so callers
- *     can't tell from the data whether something is currently live.
- *   - MCP_BUGS.md #11: `schema_create_collection` ignores its documented
- *     `supports` default. The MCP tool description says default is
- *     `['drafts', 'revisions']`, but `SchemaRegistry.createCollection`
- *     stores `null` when `supports` is omitted.
+ * Covers two contracts that callers rely on:
  *
- * **Expected fix for #10:** `unpublish` should null out `published_at`,
- *   OR introduce a separate `last_published_at` and have a clear
- *   "currently live" derived signal. Tests below assert the simpler
- *   resolution (clear `published_at`).
- *
- * **Expected fix for #11:** either the MCP tool applies the documented
- *   default before calling the registry, or the registry itself defaults
- *   to `['drafts', 'revisions']`. Either way, the behavior should match
- *   the documented contract.
+ * - `content_unpublish` clears `published_at` so a missing/null timestamp
+ *   unambiguously means the item is not currently live. Re-publishing
+ *   assigns a fresh timestamp.
+ * - `schema_create_collection` applies its documented default of
+ *   `['drafts', 'revisions']` for `supports` when the caller omits it.
+ *   Explicit `[]` is preserved as an opt-out.
  */
 
 import { Role } from "@emdash-cms/auth";

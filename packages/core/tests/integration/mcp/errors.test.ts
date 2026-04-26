@@ -1,35 +1,20 @@
 /**
  * MCP error envelope fidelity tests.
  *
- * Maps to MCP_BUGS.md #3: specific failure modes (unknown collection,
- * duplicate slug, unknown field, bad orderBy, etc.) all return a single
- * generic string ("Failed to create content", "Failed to list content").
- * Agents waste turns guessing at the cause.
+ * Specific failure modes (unknown collection, duplicate slug, unknown
+ * field, bad orderBy, etc.) must return discriminated error codes so
+ * callers can act on them programmatically:
  *
- * Two layers contribute to the bug:
- *   1. `handleContentCreate` / `handleContentList` (api/handlers/content.ts)
- *      catch every error and replace it with a fixed message + opaque code,
- *      so even repository-level signals like UNIQUE constraint violations
- *      reach the MCP layer as `CONTENT_CREATE_ERROR: Failed to create...`.
- *   2. `unwrap()` in mcp/server.ts only forwards `error.message` — the
- *      `error.code` (`VALIDATION_ERROR`, `NOT_FOUND`, etc.) is dropped.
- *      Even when handlers DO return structured errors, MCP loses them.
- *
- * **Expected fix:**
- *   - Handlers detect known failure shapes (unique violation, FK miss,
- *     unknown collection, etc.) and return discriminated codes:
+ *   - Handlers detect known failure shapes and return one of:
  *     `SLUG_CONFLICT`, `COLLECTION_NOT_FOUND`, `UNKNOWN_FIELD`,
  *     `INVALID_ORDER_BY`, `VALIDATION_ERROR`.
- *   - `unwrap()` emits structured errors that include the code (either as
- *     a tag in the message, e.g. `[SLUG_CONFLICT] Slug already exists`,
- *     or in `_meta` once the SDK supports it).
+ *   - The MCP envelope emits the code as a `[CODE]` prefix on the
+ *     message text and as `_meta.code` for SDK-aware clients.
  *
- * Tests below assert two properties for every failure case:
- *   (a) the response is `isError: true` (already true today)
- *   (b) the message names the specific failure mode, not the generic
+ * Each test asserts:
+ *   (a) the response is `isError: true`
+ *   (b) the code/message names the specific failure, not a generic
  *       "Failed to ..." string
- *
- * (b) currently fails for every covered case.
  */
 
 import { Role } from "@emdash-cms/auth";

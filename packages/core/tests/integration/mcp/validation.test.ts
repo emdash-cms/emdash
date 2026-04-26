@@ -1,26 +1,18 @@
 /**
  * MCP field-level validation tests.
  *
- * Maps to:
- *   - MCP_BUGS.md #4: required fields not enforced. Creating a content
- *     item without a `required: true` field succeeds with empty values.
- *   - MCP_BUGS.md #5: select / multiSelect option lists not enforced.
- *     Arbitrary string values pass through.
- *   - MCP_BUGS.md #6: reference fields accept non-existent target IDs.
+ * `EmDashRuntime.handleContentCreate` and `handleContentUpdate` validate
+ * `data` against the collection's schema before any write:
  *
- * Root cause is shared: `handleContentCreate` (and `handleContentUpdate`)
- * never run field-level Zod validation. The schemas exist on each field
- * (`fields/all-fields.test.ts:142-149` proves they reject invalid values
- * in isolation) — they're just not wired into the create/update path.
+ *   - required fields must be present and non-empty
+ *   - select / multiSelect values must match the configured options
+ *   - reference fields must resolve to a real, non-trashed target
  *
- * **Expected fix:** the create/update handlers fetch the collection's
- * fields, build a Zod schema (or use the existing per-field schemas),
- * and validate `body.data` before writing. Failures return
- * `{ code: "VALIDATION_ERROR", message: "<field>: <reason>" }`.
- *
- * These tests cover both REST and MCP because they exercise the handler
- * directly through the MCP layer; once the handler validates, both
- * transports benefit.
+ * Failures return `{ code: "VALIDATION_ERROR", message: "<field>: <reason>" }`
+ * with all offending fields named in one message so callers can fix
+ * everything in a single round trip. These tests cover both REST and MCP
+ * because validation runs at the runtime layer and both transports go
+ * through it.
  */
 
 import { Role } from "@emdash-cms/auth";

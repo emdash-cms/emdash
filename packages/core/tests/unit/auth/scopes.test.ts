@@ -96,7 +96,21 @@ describe("requireScope", () => {
 		});
 
 		it("taxonomies:manage alone allows taxonomy operations", () => {
-			expect(requireScope({ tokenScopes: ["taxonomies:manage"] }, "taxonomies:manage")).toBeNull();
+			expect(
+				requireScope({ tokenScopes: ["taxonomies:manage"] }, "taxonomies:manage"),
+			).toBeNull();
+		});
+
+		it("prototype-chain keys do not crash or grant access", () => {
+			// Defense in depth: the implicit-grants table is a Map, but a
+			// regression to a plain-object lookup would let Object.prototype
+			// keys (`__proto__`, `constructor`, `toString`) walk the chain
+			// and either crash with "x.includes is not a function" or
+			// accidentally satisfy the check. Either is a 500 instead of a
+			// 403. Verify both paths reject cleanly.
+			for (const key of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+				expect(requireScope({ tokenScopes: [key] }, "menus:manage")).toBeInstanceOf(Response);
+			}
 		});
 	});
 });

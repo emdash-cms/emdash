@@ -103,7 +103,7 @@ export function encodeCursor(orderValue: string, id: string): string {
  * Repository callers should let this propagate; handler catch blocks
  * map it to a structured `INVALID_CURSOR` error so client pagination
  * bugs surface immediately rather than silently re-fetching the first
- * page (see MCP_BUGS.md #12).
+ * page.
  */
 export class InvalidCursorError extends Error {
 	constructor(cursor: string) {

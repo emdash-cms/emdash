@@ -173,7 +173,7 @@ export async function handleMenuUpdate(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
+				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
 
@@ -217,7 +217,7 @@ export async function handleMenuDelete(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
+				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
 
@@ -559,7 +559,7 @@ export async function handleMenuSetItems(
 			if (error === notFoundSentinel) {
 				return {
 					success: false,
-					error: { code: "NOT_FOUND", message: "Menu not found" },
+					error: { code: "NOT_FOUND", message: `Menu '${menuName}' not found` },
 				};
 			}
 			throw error;

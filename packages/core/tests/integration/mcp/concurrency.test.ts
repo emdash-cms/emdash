@@ -1,31 +1,12 @@
 /**
- * MCP concurrency tests.
+ * MCP concurrency tests — InMemoryTransport surface.
  *
- * Maps to MCP_BUGS.md #8: parallel MCP calls on the same authenticated
- * session return spurious 401s. Some calls in a batch succeed; others
- * fail with `Streamable HTTP error: Server returned 401 after successful
- * authentication`. Retrying serially: all succeed.
- *
- * The bug as reported lives in the production HTTP transport layer —
- * specifically the auth middleware path through `astro/middleware/auth.ts`.
- * The InMemoryTransport used by these integration tests doesn't exercise
- * that code path, so true reproduction needs a live HTTP server (which
- * lives in `tests/integration/smoke/site-matrix-smoke.test.ts`).
- *
- * What we CAN test here is the runtime + handler + tool dispatch under
- * concurrent invocation: shared mutable state, race conditions in the
- * MCP server's tool registration, draft revision creation under load,
- * and so on. If the in-memory path is racy, the bug surface is wider
- * than just the HTTP transport.
- *
- * **Expected fix:** for the HTTP-level 401 race, the auth handler should
- * not mutate per-request session state in a way that's visible across
- * concurrent requests. For runtime-level races, sequential semantics
- * should hold even when calls overlap.
- *
- * The smoke-test counterpart for #8 (parallel HTTP calls against a real
- * dev server) is added separately in
- * `tests/integration/smoke/site-matrix-smoke.test.ts`.
+ * Exercises the runtime + handler + tool dispatch under concurrent
+ * invocation: shared mutable state, race conditions in tool registration,
+ * draft revision creation under load. The HTTP-transport-level 401 race
+ * (where parallel requests sometimes lose the runtime singleton during
+ * cold-start) lives in the smoke test against a live server, since
+ * InMemoryTransport doesn't exercise the auth middleware path.
  */
 
 import { Role } from "@emdash-cms/auth";
@@ -58,10 +39,10 @@ describe("MCP concurrency — in-memory transport (bug #8 partial)", () => {
 	});
 
 	it("14 parallel read calls all succeed (no spurious failures)", async () => {
-		// Mirrors the failure mode reported in MCP_BUGS.md #8 — ~14 batched
-		// calls, several came back as spurious 401s. Over the in-memory
-		// transport the auth path is bypassed, so a failure here would
-		// indicate the bug is broader than the HTTP layer.
+		// 14 batched calls — covers the same fan-out a real session sees.
+		// Over the in-memory transport the auth path is bypassed, so a
+		// failure here would indicate a runtime-level race rather than the
+		// HTTP-transport 401 issue (which the smoke test covers).
 		// Each iteration must call the tool fresh — .fill() would reuse one
 		// Promise. `void i` keeps the lint rule from misreading the callback
 		// as constant.

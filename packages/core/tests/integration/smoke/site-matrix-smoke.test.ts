@@ -367,9 +367,10 @@ describe.sequential("MCP endpoint verification", () => {
 					expect(toolNames).toContain("content_list");
 					expect(toolNames).toContain("schema_list_collections");
 
-					// MCP_BUGS.md #8: parallel calls on the same authenticated
-					// session were returning spurious 401s. Send 14 concurrent
-					// tools/list calls and verify all succeed. The InMemoryTransport
+					// Send 14 concurrent tools/list calls and verify all succeed —
+					// guards against an auth-middleware race observed in production
+					// where parallel requests on the same authenticated session
+					// occasionally returned spurious 401s. The InMemoryTransport
 					// integration test cannot reach this code path; only a live
 					// HTTP server exercises the auth middleware that's racy.
 					const concurrentResponses = await Promise.all(

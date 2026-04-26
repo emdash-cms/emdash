@@ -13,6 +13,7 @@ export {
 	ContentRepository,
 	MediaRepository,
 	EmDashValidationError,
+	InvalidCursorError,
 } from "./database/repositories/index.js";
 export type {
 	ContentItem,

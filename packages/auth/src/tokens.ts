@@ -61,10 +61,15 @@ export function validateScopes(scopes: string[]): string[] {
  * for menu and taxonomy mutations. After splitting those out into
  * `menus:manage` and `taxonomies:manage`, existing PATs with `content:write`
  * continue to work via this grant table.
+ *
+ * Lookup is one-hop — chaining (`A → B → C`) is NOT supported. If a chain
+ * is needed, expand the values explicitly. Backed by a `Map` rather than a
+ * plain object so prototype-chain keys (`__proto__`, `constructor`, etc.)
+ * can't smuggle non-array values through bracket access.
  */
-const IMPLICIT_SCOPE_GRANTS: Record<string, readonly string[]> = {
-	"content:write": ["menus:manage", "taxonomies:manage"],
-};
+const IMPLICIT_SCOPE_GRANTS = new Map<string, readonly string[]>([
+	["content:write", ["menus:manage", "taxonomies:manage"]],
+]);
 
 /**
  * Check if a set of scopes includes a required scope.
@@ -77,7 +82,7 @@ export function hasScope(scopes: string[], required: string): boolean {
 	if (scopes.includes("admin")) return true;
 	if (scopes.includes(required)) return true;
 	for (const held of scopes) {
-		const granted = IMPLICIT_SCOPE_GRANTS[held];
+		const granted = IMPLICIT_SCOPE_GRANTS.get(held);
 		if (granted?.includes(required)) return true;
 	}
 	return false;
