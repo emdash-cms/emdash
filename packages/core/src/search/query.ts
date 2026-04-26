@@ -246,9 +246,11 @@ async function searchSingleCollection(
 		// stray operators, or other malformed input. Treat these as
 		// "no matches" so the user gets an empty result rather than an
 		// internals-leaking error. Other errors (table missing, IO) still
-		// propagate.
+		// propagate. Intentionally not logged: any anonymous client can
+		// trigger this path, and the underlying error message embeds the
+		// raw query, so logging would be both noisy and a log-injection
+		// vector.
 		if (isFts5SyntaxError(error)) {
-			console.warn("[search] swallowed fts5 syntax error:", error);
 			return [];
 		}
 		throw error;
@@ -335,8 +337,9 @@ export async function getSuggestions(
 		} catch (error) {
 			// Same swallow as searchSingleCollection: malformed prefix
 			// queries should yield no suggestions, not surface DB errors.
+			// Intentionally not logged (anonymous-triggerable, echoes
+			// user input -- see searchSingleCollection for rationale).
 			if (isFts5SyntaxError(error)) {
-				console.warn("[search] swallowed fts5 syntax error in suggestions:", error);
 				continue;
 			}
 			throw error;
