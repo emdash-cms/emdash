@@ -204,31 +204,10 @@ describe("MCP cursor pagination — other list tools (bug #12 propagation)", () 
 		expect(result.isError).toBe(true);
 	});
 
-	it("revision_list rejects malformed cursor (when collection supports revisions)", async () => {
-		const repo = new ContentRepository(db);
-		const item = await repo.create({
-			type: "post",
-			data: { title: "T" },
-			slug: "rev-cursor",
-			status: "draft",
-			authorId: ADMIN_ID,
-		});
-
-		// revision_list might or might not accept a cursor today, but if it
-		// does, garbage should error. If it ignores the cursor entirely the
-		// test will fail on the assertion below — which is itself a bug
-		// (silently ignoring an unrecognized argument).
-		const result = await harness.client.callTool({
-			name: "revision_list",
-			arguments: { collection: "post", id: item.id, cursor: "garbage" },
-		});
-
-		// Either it errors on the bogus cursor (good), or it ignores cursor
-		// entirely (which silently masks pagination bugs in clients). For
-		// now we just assert it doesn't crash; tighten this once the cursor
-		// fix is applied uniformly.
-		expect(result).toBeDefined();
-	});
+	// (revision_list cursor test deleted: the tool's input schema doesn't
+	// declare a cursor parameter, and Zod's default behavior is to drop
+	// unknown keys silently — so the previous "expect(result).toBeDefined()"
+	// was meaningless. Forcing schema strict-mode is out of scope.)
 
 	it("media_list rejects malformed cursor", async () => {
 		const result = await harness.client.callTool({
@@ -264,7 +243,10 @@ describe("MCP cursor pagination — limit clamping (regression guard)", () => {
 		// Either Zod rejects via inputSchema (also fine) or the handler clamps.
 		// Both are valid; what's NOT valid is silently honoring 1000 against
 		// a real backend.
-		if (!result.isError) {
+		if (result.isError) {
+			// Rejection branch: must be a validation error, not a generic 500.
+			expect(extractText(result)).toMatch(/limit|max|exceed|invalid/i);
+		} else {
 			const data = extractJson<{ items: unknown[] }>(result);
 			expect(data.items.length).toBeLessThanOrEqual(100);
 		}

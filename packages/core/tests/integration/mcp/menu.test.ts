@@ -160,7 +160,8 @@ describe("menu_get", () => {
 			arguments: { name: "ghost" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|ghost/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("ghost");
 	});
 
 	it("empty menu returns empty items array", async () => {

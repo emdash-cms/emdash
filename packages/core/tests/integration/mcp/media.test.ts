@@ -192,7 +192,8 @@ describe("media_get", () => {
 			arguments: { id: "01NOTAMEDIAID" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|01NOTAMEDIAID/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("01NOTAMEDIAID");
 	});
 
 	it("any logged-in user can get media", async () => {
@@ -309,7 +310,8 @@ describe("media_update", () => {
 			arguments: { id: "01NEVEREXISTED", alt: "x" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|01NEVEREXISTED/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("01NEVEREXISTED");
 	});
 });
 
@@ -375,7 +377,8 @@ describe("media_delete", () => {
 			arguments: { id: "01NOPE" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|01NOPE/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("01NOPE");
 	});
 
 	it("delete is idempotent — second delete on same id returns NOT_FOUND, not crash", async () => {
@@ -388,7 +391,7 @@ describe("media_delete", () => {
 			arguments: { id },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
 	});
 });
 

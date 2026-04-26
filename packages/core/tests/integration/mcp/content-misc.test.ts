@@ -71,7 +71,7 @@ describe("content_duplicate", () => {
 			arguments: { collection: "post", id: "01NEVER" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|01NEVER/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
 	});
 
 	it("rejects duplicating in non-existent collection", async () => {
@@ -163,7 +163,8 @@ describe("content_permanent_delete", () => {
 			arguments: { collection: "post", id: "01NEVEREXISTED" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|01NEVEREXISTED/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("01NEVEREXISTED");
 	});
 });
 
@@ -409,7 +410,7 @@ describe("soft-delete visibility", () => {
 			arguments: { collection: "post", id },
 		});
 		expect(got.isError).toBe(true);
-		expect(extractText(got)).toMatch(/not.found/i);
+		expect(extractText(got)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
 	});
 
 	it("content_list does NOT include trashed items by default", async () => {
@@ -495,7 +496,7 @@ describe("edit-while-trashed", () => {
 			arguments: { collection: "post", id, data: { title: "Edit while dead" } },
 		});
 		expect(updated.isError).toBe(true);
-		expect(extractText(updated)).toMatch(/not.found|trash/i);
+		expect(extractText(updated)).toMatch(/\bNOT_FOUND\b|\bnot found\b|trash/i);
 	});
 
 	it("content_publish on a trashed item is rejected", async () => {
@@ -557,6 +558,12 @@ describe("idempotency", () => {
 		// signal — but must not crash or produce a generic error.
 		if (second.isError) {
 			expect(extractText(second)).toMatch(/already|published|no.changes|nothing/i);
+		} else {
+			// Idempotent path: response must still describe a published item
+			// (so callers can rely on the post-condition regardless of which
+			// branch the implementation takes).
+			const item = extractJson<{ item: { status: string } }>(second).item;
+			expect(item.status).toBe("published");
 		}
 	});
 
@@ -574,6 +581,10 @@ describe("idempotency", () => {
 		});
 		if (result.isError) {
 			expect(extractText(result)).toMatch(/already|draft|not.published/i);
+		} else {
+			// Idempotent path: status must remain draft after the call.
+			const item = extractJson<{ item: { status: string } }>(result).item;
+			expect(item.status).toBe("draft");
 		}
 	});
 
@@ -624,7 +635,7 @@ describe("idempotency", () => {
 			arguments: { collection: "post", id },
 		});
 		expect(second.isError).toBe(true);
-		expect(extractText(second)).toMatch(/not.found/i);
+		expect(extractText(second)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
 	});
 });
 
@@ -646,12 +657,60 @@ describe("content_unschedule gap", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("MCP exposes content_unschedule once the gap is filled", async () => {
+	it("MCP exposes content_unschedule", async () => {
 		const tools = await harness.client.listTools();
 		const names = tools.tools.map((t) => t.name);
-		// The runtime has handleContentUnschedule, but no MCP tool exists.
-		// Schedule + cancel-schedule is a needed pair; without unschedule,
-		// agents have no way to cancel a scheduled publication.
 		expect(names).toContain("content_unschedule");
+	});
+
+	it("schedule + unschedule clears scheduledAt and re-publish still works (F12)", async () => {
+		// Create a draft item.
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Scheduled post" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+
+		// Schedule for the near future.
+		const future = new Date(Date.now() + 60_000).toISOString();
+		const schedule = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: { collection: "post", id, scheduledAt: future },
+		});
+		expect(schedule.isError, extractText(schedule)).toBeFalsy();
+
+		// Sanity: scheduledAt is set.
+		const afterSchedule = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id },
+		});
+		const scheduled = extractJson<{ item: { scheduledAt: string | null; status: string } }>(
+			afterSchedule,
+		).item;
+		expect(scheduled.scheduledAt).toBeTruthy();
+
+		// Unschedule.
+		const unschedule = await harness.client.callTool({
+			name: "content_unschedule",
+			arguments: { collection: "post", id },
+		});
+		expect(unschedule.isError, extractText(unschedule)).toBeFalsy();
+
+		// scheduledAt is now null.
+		const afterUnschedule = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id },
+		});
+		const cleared = extractJson<{ item: { scheduledAt: string | null } }>(afterUnschedule).item;
+		expect(cleared.scheduledAt).toBeNull();
+
+		// Re-publish still works after unschedule.
+		const republish = await harness.client.callTool({
+			name: "content_publish",
+			arguments: { collection: "post", id },
+		});
+		expect(republish.isError, extractText(republish)).toBeFalsy();
+		const final = extractJson<{ item: { status: string } }>(republish).item;
+		expect(final.status).toBe("published");
 	});
 });

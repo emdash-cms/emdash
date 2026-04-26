@@ -291,7 +291,10 @@ describe("MCP validation — reference field targets (bug #6)", () => {
 		expect(result.isError).toBe(true);
 		const text = extractText(result);
 		expect(text).toMatch(VALIDATION_ERROR);
-		expect(text).toMatch(/reference|parent_page|not.found|target|01NOTAREALPAGE/i);
+		// Tight match: the error must specifically mention the offending field
+		// and include the target id verbatim, OR explicitly say "not found".
+		expect(text).toContain("parent_page");
+		expect(text).toMatch(/\bnot found\b|01NOTAREALPAGE/);
 	});
 
 	it("accepts reference to a real target id (regression guard)", async () => {

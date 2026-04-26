@@ -148,6 +148,17 @@ export interface ContentItem {
 	translationGroup: string | null;
 	/** SEO metadata — only populated for collections with `has_seo` enabled */
 	seo?: ContentSeo;
+	/**
+	 * For collections that support `revisions`: when a draft revision exists,
+	 * `data` reflects the unsaved draft and `liveData` carries the currently-
+	 * published values. When no draft exists, `liveData` is undefined.
+	 *
+	 * Hydrated by `EmDashRuntime.hydrateDraftData()` — repositories themselves
+	 * never set this field; it's purely a runtime-overlay concept that gives
+	 * agents a clear picture of "draft vs. live" without re-fetching the
+	 * revision history.
+	 */
+	liveData?: Record<string, unknown>;
 }
 
 export class EmDashValidationError extends Error {

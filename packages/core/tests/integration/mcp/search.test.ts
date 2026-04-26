@@ -187,7 +187,9 @@ describe("search", () => {
 			arguments: { query: "rocket", collections: ["post"] },
 		});
 		const data = extractJson<{ items: Array<{ collection?: string; type?: string }> }>(result);
-		// All results should be from the post collection
+		// We seeded one post and one page that both match "rocket". Scoping
+		// to ["post"] must keep at least the post hit and exclude the page.
+		expect(data.items.length).toBeGreaterThan(0);
 		for (const item of data.items) {
 			const c = item.collection ?? item.type;
 			expect(c).toBe("post");
@@ -217,14 +219,19 @@ describe("search", () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 
 		// FTS5 has special operators: AND OR NOT NEAR " * ( ) :
-		// User input with these chars must be sanitized or quoted.
+		// User input with these chars must be sanitized or quoted. Either
+		// branch is acceptable: a clean error or an empty result. What is
+		// NOT acceptable is leaking SQLite/FTS5 internals to the caller.
 		const result = await harness.client.callTool({
 			name: "search",
 			arguments: { query: 'NOT "quotes" AND* (' },
 		});
 		if (result.isError) {
-			// If it errors, the message must not leak SQLite/FTS5 internals
 			expect(extractText(result)).not.toMatch(/fts5|syntax error|sqlite/i);
+		} else {
+			// Sanitized path: a well-formed `items` list (possibly empty).
+			const data = extractJson<{ items: unknown[] }>(result);
+			expect(Array.isArray(data.items)).toBe(true);
 		}
 	});
 

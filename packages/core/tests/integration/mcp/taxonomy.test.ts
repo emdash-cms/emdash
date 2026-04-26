@@ -204,7 +204,8 @@ describe("taxonomy_list_terms", () => {
 			arguments: { taxonomy: "nonexistent" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|nonexistent/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("nonexistent");
 	});
 
 	it("paginates with limit + cursor", async () => {
@@ -354,7 +355,8 @@ describe("taxonomy_create_term", () => {
 			arguments: { taxonomy: "ghost", slug: "x", label: "X" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|ghost|taxonomy/i);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("ghost");
 	});
 
 	it("rejects parentId pointing to a different taxonomy", async () => {

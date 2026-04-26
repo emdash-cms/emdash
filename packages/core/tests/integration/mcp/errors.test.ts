@@ -76,7 +76,9 @@ describe("MCP error envelope — content_create (bug #3)", () => {
 		// Message should name the specific failure (collection not found).
 		expect(text).not.toMatch(GENERIC_CREATE);
 		expect(text).not.toMatch(UNKNOWN_ERROR);
-		expect(text).toMatch(/collection|nonexistent|not.found/i);
+		// Tight match: explicitly the COLLECTION_NOT_FOUND code (or message),
+		// rather than any text that happens to contain "collection".
+		expect(text).toMatch(/COLLECTION_NOT_FOUND|Collection ['"]?nonexistent['"]? not found/i);
 	});
 
 	it("duplicate slug returns a SLUG_CONFLICT-style error", async () => {
@@ -153,7 +155,7 @@ describe("MCP error envelope — content_list (bug #3)", () => {
 		const text = extractText(result);
 		expect(text).not.toMatch(GENERIC_LIST);
 		expect(text).not.toMatch(UNKNOWN_ERROR);
-		expect(text).toMatch(/collection|nonexistent|not.found/i);
+		expect(text).toMatch(/COLLECTION_NOT_FOUND|Collection ['"]?nonexistent['"]? not found/i);
 	});
 
 	it("invalid orderBy column returns an INVALID_ORDER_BY-style error", async () => {
@@ -196,7 +198,8 @@ describe("MCP error envelope — content_get (bug #3)", () => {
 
 		expect(result.isError).toBe(true);
 		const text = extractText(result);
-		expect(text).toMatch(/not.found|01NONEXISTENT/i);
+		expect(text).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(text).toContain("01NONEXISTENT");
 	});
 });
 
@@ -228,7 +231,8 @@ describe("MCP error envelope — content_update (bug #3)", () => {
 		const text = extractText(result);
 		expect(text).not.toMatch(GENERIC_UPDATE);
 		expect(text).not.toMatch(UNKNOWN_ERROR);
-		expect(text).toMatch(/not.found|01NEVEREXISTED/i);
+		expect(text).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(text).toContain("01NEVEREXISTED");
 	});
 
 	it("stale _rev returns a CONFLICT-style error (not a generic one)", async () => {

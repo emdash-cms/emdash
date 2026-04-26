@@ -483,3 +483,78 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 		expect(readTitle(extractJson<ItemEnvelope>(got).item)).toBe("v1");
 	});
 });
+
+// ---------------------------------------------------------------------------
+// F13: liveData carries the published values when a draft revision exists.
+// When no draft exists, liveData is undefined.
+// ---------------------------------------------------------------------------
+
+describe("MCP drafts — liveData hydration (F13)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "post",
+			label: "Posts",
+			supports: ["drafts", "revisions"],
+		});
+		await registry.createField("post", { slug: "title", label: "Title", type: "string" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("liveData is undefined when there is no draft revision", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "First" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+
+		const got = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id },
+		});
+		const item = extractJson<{
+			item: { data: { title: string }; liveData?: { title?: string } };
+		}>(got).item;
+		expect(item.data.title).toBe("First");
+		expect(item.liveData).toBeUndefined();
+	});
+
+	it("liveData carries the published values when a draft revision exists", async () => {
+		// Create + publish, so the live value is "published title".
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "published title" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: { collection: "post", id },
+		});
+
+		// Update writes a draft revision (data column stays at "published title").
+		await harness.client.callTool({
+			name: "content_update",
+			arguments: { collection: "post", id, data: { title: "draft title" } },
+		});
+
+		// Read back: data reflects the draft, liveData carries the published value.
+		const got = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id },
+		});
+		const item = extractJson<{
+			item: { data: { title: string }; liveData?: { title?: string } };
+		}>(got).item;
+		expect(item.data.title).toBe("draft title");
+		expect(item.liveData?.title).toBe("published title");
+	});
+});

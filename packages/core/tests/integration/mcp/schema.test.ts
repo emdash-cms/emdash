@@ -156,7 +156,8 @@ describe("schema_get_collection", () => {
 			arguments: { slug: "nonexistent" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|nonexistent/i);
+		expect(extractText(result)).toMatch(/COLLECTION_NOT_FOUND|\bnot found\b/i);
+		expect(extractText(result)).toContain("nonexistent");
 	});
 
 	it("requires EDITOR or higher", async () => {
@@ -371,7 +372,8 @@ describe("schema_delete_collection", () => {
 			arguments: { slug: "nonexistent" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/not.found|nonexistent/i);
+		expect(extractText(result)).toMatch(/COLLECTION_NOT_FOUND|\bnot found\b/i);
+		expect(extractText(result)).toContain("nonexistent");
 	});
 
 	it("requires ADMIN role", async () => {
@@ -503,7 +505,8 @@ describe("schema_create_field", () => {
 			},
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/collection|ghost|not.found/i);
+		expect(extractText(result)).toMatch(/COLLECTION_NOT_FOUND|\bnot found\b/i);
+		expect(extractText(result)).toContain("ghost");
 	});
 
 	it("rejects field type not in the enum", async () => {
@@ -608,7 +611,8 @@ describe("schema_delete_field", () => {
 			arguments: { collection: "post", fieldSlug: "ghost" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/field|ghost|not.found/i);
+		expect(extractText(result)).toMatch(/FIELD_NOT_FOUND|\bnot found\b/i);
+		expect(extractText(result)).toContain("ghost");
 	});
 
 	it("returns clear error for missing collection", async () => {
@@ -617,7 +621,8 @@ describe("schema_delete_field", () => {
 			arguments: { collection: "noplace", fieldSlug: "title" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/collection|noplace|not.found/i);
+		expect(extractText(result)).toMatch(/COLLECTION_NOT_FOUND|\bnot found\b/i);
+		expect(extractText(result)).toContain("noplace");
 	});
 
 	it("requires ADMIN role", async () => {
