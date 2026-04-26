@@ -336,11 +336,7 @@ export function createViteConfig(
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
 						// tiptap deps not used in this repo; excluded so optimizeDeps does not fail to resolve them on fresh installs (issue #771).
-						exclude: [
-							"virtual:emdash",
-							"@tiptap/extension-collaboration",
-							"@tiptap/y-tiptap",
-						],
+						exclude: ["virtual:emdash", "@tiptap/extension-collaboration", "@tiptap/y-tiptap"],
 						include: [
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
