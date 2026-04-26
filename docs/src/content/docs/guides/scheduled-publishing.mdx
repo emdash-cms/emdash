@@ -1,0 +1,167 @@
+---
+title: Scheduled Publishing
+description: Publish content at a future date and trigger frontend rebuilds automatically.
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+EmDash supports scheduling content to go live at a specific date and time. When the scheduled time passes, a cron job calls the publish-due endpoint, EmDash publishes the batch, and your configured rebuild hooks fire so your static frontend picks up the new content.
+
+## How It Works
+
+1. An editor sets a **Publish date** on a content item in the admin UI. The item enters `scheduled` status and is excluded from public queries until its time arrives.
+2. A cron job calls `POST /_emdash/api/cron/publish-due` on your chosen schedule (e.g. every 5 minutes).
+3. EmDash finds all items whose `scheduled_at` has passed, publishes each one, and fires `content:afterPublish` hooks per item.
+4. If any items were published, EmDash fires all configured [`rebuildHooks`](/reference/configuration/#rebuildhooks) URLs once for the batch.
+5. Your host rebuilds the frontend and the new content goes live.
+
+## Setup
+
+<Steps>
+
+1. **Set `EMDASH_CRON_SECRET`**
+
+   Generate a random secret and add it to your environment. This token authorizes calls to the publish-due endpoint.
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+   Add the output as `EMDASH_CRON_SECRET` in your deployment environment (Cloudflare Workers secrets, Vercel environment variables, `.env`, etc.).
+
+   <Aside type="caution">
+     In production, the endpoint returns `503` if this secret is not set — it refuses to run unprotected.
+   </Aside>
+
+2. **Configure `rebuildHooks`** (optional, for static frontends)
+
+   Add your host's deploy hook URLs to `astro.config.mjs`. Each URL receives a POST request after a publish batch.
+
+   ```js title="astro.config.mjs"
+   import emdash from "emdash/astro";
+   import { sqlite } from "emdash/db";
+
+   export default defineConfig({
+     integrations: [
+       emdash({
+         database: sqlite({ url: "file:./data.db" }),
+         storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
+         rebuildHooks: [
+           process.env.VERCEL_DEPLOY_HOOK_URL,
+           // Add more hooks here — Netlify, Cloudflare Pages, etc.
+         ].filter(Boolean),
+       }),
+     ],
+   });
+   ```
+
+3. **Set up a cron job**
+
+   Call `POST /_emdash/api/cron/publish-due` on a schedule. Every 5 minutes is a reasonable default. How you set this up depends on your deployment target.
+
+   <Tabs>
+     <TabItem label="Vercel Cron">
+
+     Add a cron to `vercel.json`:
+
+     ```json title="vercel.json"
+     {
+       "crons": [
+         {
+           "path": "/_emdash/api/cron/publish-due",
+           "schedule": "*/5 * * * *"
+         }
+       ]
+     }
+     ```
+
+     Vercel Cron automatically sets `Authorization: Bearer <CRON_SECRET>` when you name the env var `CRON_SECRET`. EmDash checks `EMDASH_CRON_SECRET` first, then falls back to `CRON_SECRET`, so either name works.
+
+     </TabItem>
+     <TabItem label="Cloudflare Workers">
+
+     Add a cron trigger to `wrangler.jsonc`:
+
+     ```jsonc title="wrangler.jsonc"
+     {
+       "triggers": {
+         "crons": ["*/5 * * * *"]
+       }
+     }
+     ```
+
+     Then handle the scheduled event in your Worker entry point. EmDash exposes a `handleScheduled()` helper:
+
+     ```ts title="src/worker.ts"
+     import { handleScheduled } from "emdash/astro/scheduled";
+     import { app } from "./app.js";
+
+     export default {
+       fetch: app.fetch,
+       async scheduled(event, env, ctx) {
+         ctx.waitUntil(handleScheduled(env));
+       },
+     };
+     ```
+
+     <Aside>
+       `handleScheduled` calls the publish-due handler directly without an HTTP round-trip, so no `EMDASH_CRON_SECRET` is needed for this path.
+     </Aside>
+
+     </TabItem>
+     <TabItem label="Node.js / Self-hosted">
+
+     Use any HTTP scheduler (cron, systemd timer, GitHub Actions, etc.) to POST to the endpoint:
+
+     ```bash
+     curl -X POST https://cms.example.com/_emdash/api/cron/publish-due \
+       -H "Authorization: Bearer $EMDASH_CRON_SECRET"
+     ```
+
+     Or add a cron entry on the host machine:
+
+     ```
+     */5 * * * * curl -s -X POST https://cms.example.com/_emdash/api/cron/publish-due -H "Authorization: Bearer YOUR_SECRET"
+     ```
+
+     </TabItem>
+   </Tabs>
+
+</Steps>
+
+## Response Format
+
+The endpoint returns JSON describing what was published:
+
+```json
+{
+  "published": 3,
+  "byCollection": {
+    "posts": 2,
+    "announcements": 1
+  },
+  "items": [...]
+}
+```
+
+If nothing was due, it returns `{ "published": 0, "byCollection": {}, "items": [] }` — no rebuild hooks are fired in that case.
+
+## Getting Deploy Hook URLs
+
+<Tabs>
+  <TabItem label="Vercel">
+
+  In the Vercel dashboard: **Project → Settings → Git → Deploy Hooks** → Create hook. Copy the generated URL and set it as `VERCEL_DEPLOY_HOOK_URL` in your CMS environment, then reference it from `rebuildHooks` in `astro.config.mjs`.
+
+  </TabItem>
+  <TabItem label="Netlify">
+
+  In the Netlify dashboard: **Site → Site configuration → Build & deploy → Build hooks** → Add build hook. Copy the URL directly into `rebuildHooks`.
+
+  </TabItem>
+  <TabItem label="Cloudflare Pages">
+
+  Use a [Cloudflare Pages Deploy Hook](https://developers.cloudflare.com/pages/configuration/deploy-hooks/) from **Pages project → Settings → Builds & deployments → Deploy Hooks**.
+
+  </TabItem>
+</Tabs>

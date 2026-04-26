@@ -335,6 +335,25 @@ When not set in config, EmDash reads the `EMDASH_TRUSTED_PROXY_HEADERS` env var 
 	(stricter defaults) rather than trust a spoofable header.
 </Aside>
 
+### `rebuildHooks`
+
+**Optional.** Array of URLs to POST to after any content is published or unpublished, including scheduled publishing. Use this to trigger a static site rebuild on Vercel, Netlify, Cloudflare Pages, or any webhook-aware host.
+
+```js
+emdash({
+  database: sqlite({ url: "file:./data.db" }),
+  storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
+  rebuildHooks: [
+    "https://api.vercel.com/v1/integrations/deploy/prj_xxx/yyy",
+    "https://api.netlify.com/build_hooks/abc123",
+  ],
+})
+```
+
+Requests are fire-and-forget — they are deferred past the response via `after()` so Cloudflare Workers does not cancel in-flight fetches when the isolate closes. Hook failures are logged with the `[emdash]` prefix but never surface as errors to the caller.
+
+For **scheduled publishing**, set a cron job that calls `POST /_emdash/api/cron/publish-due` (see [Scheduled Publishing](/guides/scheduled-publishing/)). That endpoint uses the same rebuild hook pipeline after publishing the batch.
+
 ### `maxUploadSize`
 
 **Optional.** Maximum allowed media file upload size in bytes. Applies to both direct multipart uploads and signed-URL uploads. Defaults to `52_428_800` (50 MB).
@@ -557,6 +576,7 @@ EmDash respects these environment variables:
 | `EMDASH_AUTH_SECRET`    | Secret for passkey authentication        |
 | `EMDASH_PREVIEW_SECRET` | Secret for preview token generation      |
 | `EMDASH_URL`            | Remote EmDash URL for schema sync      |
+| `EMDASH_CRON_SECRET`    | Bearer token that authorizes `POST /_emdash/api/cron/publish-due`. Required in production; dev mode allows localhost-only calls without it. Also checked under `CRON_SECRET` for Vercel Cron compatibility. |
 
 Generate an auth secret with:
 
