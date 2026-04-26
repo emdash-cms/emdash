@@ -295,6 +295,80 @@ describe("MCP error envelope — error code preservation through unwrap()", () =
 		const text = extractText(result);
 		const meta = (result as { _meta?: { code?: string } })._meta;
 		const codeFromMeta = meta?.code;
-		expect(codeFromMeta === "NOT_FOUND" || /NOT_FOUND/i.test(text)).toBe(true);
+		expect(codeFromMeta === "NOT_FOUND" || /\bNOT_FOUND\b/.test(text)).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// F7: error envelope correctly carries codes for SchemaError, McpError,
+// and SDK-thrown auth errors.
+// ---------------------------------------------------------------------------
+
+describe("MCP error envelope — F7 (codes propagated for SchemaError + auth)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("INSUFFICIENT_SCOPE for a token without the required scope", async () => {
+		db = await setupTestDatabaseWithCollections();
+		// Only grant content:read; content_create needs content:write.
+		harness = await connectMcpHarness({
+			db,
+			userId: "user_admin",
+			userRole: Role.ADMIN,
+			tokenScopes: ["content:read"],
+		});
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "x" } },
+		});
+		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("INSUFFICIENT_SCOPE");
+		expect(extractText(result)).toMatch(/INSUFFICIENT_SCOPE/);
+	});
+
+	it("INSUFFICIENT_PERMISSIONS for a role that's too low", async () => {
+		db = await setupTestDatabaseWithCollections();
+		harness = await connectMcpHarness({
+			db,
+			userId: "user_subscriber",
+			userRole: Role.SUBSCRIBER,
+		});
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "x" } },
+		});
+		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("INSUFFICIENT_PERMISSIONS");
+	});
+
+	it("SchemaError code (RESERVED_SLUG) propagates through schema_create_collection", async () => {
+		db = await setupTestDatabaseWithCollections();
+		harness = await connectMcpHarness({
+			db,
+			userId: "user_admin",
+			userRole: Role.ADMIN,
+		});
+		// '_emdash_collections' is the prefix used for system tables — that
+		// kind of slug is reserved. Pick a guaranteed reserved slug
+		// (the '_emdash' prefix or e.g. 'media' — see RESERVED_COLLECTION_SLUGS).
+		const result = await harness.client.callTool({
+			name: "schema_create_collection",
+			arguments: { slug: "media", label: "Reserved" },
+		});
+		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		// SchemaError carries `code` directly; respondHandlerError should
+		// forward it. Whichever specific reserved-slug code applies is fine
+		// — just assert it's a stable string that isn't the generic fallback.
+		expect(meta?.code).toBeDefined();
+		expect(meta?.code).not.toBe("INTERNAL_ERROR");
+		expect(meta?.code).not.toBe("");
 	});
 });

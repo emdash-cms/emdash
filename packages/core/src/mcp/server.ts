@@ -12,7 +12,6 @@
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import type { EmDashHandlers } from "../astro/types.js";
@@ -73,29 +72,72 @@ function respondError(
 }
 
 /**
+ * Auth/permission errors thrown from `requireScope` / `requireRole` /
+ * `requireOwnership` / `requireDraftAccess`. Carries a stable string `code`
+ * field so `respondHandlerError` can surface it through `_meta.code` and
+ * the message prefix.
+ *
+ * Distinct from `McpError` (which the SDK catches at JSON-RPC level — the
+ * code there is numeric, not a stable EmDash error code).
+ */
+class EmDashAuthError extends Error {
+	override readonly name = "EmDashAuthError";
+	constructor(
+		message: string,
+		readonly code: string,
+	) {
+		super(message);
+	}
+}
+
+/**
  * Map an unknown thrown error to a structured error envelope.
  *
- * Recognises:
- *  - `Error` objects with an `apiError: { code }` annotation (handlers throw
- *    these for NOT_FOUND / CONFLICT inside transactions; see
- *    `api/handlers/content.ts:538`).
+ * Recognises (in priority order):
+ *  - `EmDashAuthError` — `code` is a stable EmDash auth code
+ *    (`UNAUTHORIZED`, `INSUFFICIENT_SCOPE`, `INSUFFICIENT_PERMISSIONS`).
+ *  - `Error` objects with an `apiError: { code, details? }` annotation
+ *    (handlers throw these for NOT_FOUND / CONFLICT inside transactions;
+ *    see `api/handlers/content.ts:538`).
+ *  - `SchemaError` (and any error with a string `code` field) — the code
+ *    is forwarded verbatim. `details` is forwarded too if present.
  *  - Plain `Error` instances — message preserved, code falls back to
  *    `fallbackCode` (or `INTERNAL_ERROR`).
  *  - Strings — used directly as the message.
  *  - Anything else — coerced via `String()`.
  *
  * The original message is always preserved so tests and humans can see the
- * specific failure cause.
+ * specific failure cause. Numeric `code` values (e.g. on `McpError`) are
+ * ignored — the field is reserved for stable string codes.
  */
 function respondHandlerError(error: unknown, fallbackCode = "INTERNAL_ERROR"): ErrorEnvelope {
 	let code = fallbackCode;
 	let message: string;
+	let details: Record<string, unknown> | undefined;
 
-	if (error instanceof Error) {
+	if (error instanceof EmDashAuthError) {
 		message = error.message || fallbackCode;
-		const apiError = (error as { apiError?: { code?: string } }).apiError;
-		if (apiError && typeof apiError.code === "string") {
+		code = error.code;
+	} else if (error instanceof Error) {
+		message = error.message || fallbackCode;
+		const apiError = (error as { apiError?: { code?: string; details?: unknown } }).apiError;
+		if (apiError && typeof apiError.code === "string" && apiError.code) {
 			code = apiError.code;
+			if (apiError.details && typeof apiError.details === "object") {
+				details = apiError.details as Record<string, unknown>;
+			}
+		} else {
+			// Errors that carry their own `code` (SchemaError, custom errors).
+			// Skip numeric codes (McpError, Node fs errors) — `_meta.code` is
+			// reserved for stable string codes.
+			const rawCode = (error as { code?: unknown }).code;
+			if (typeof rawCode === "string" && rawCode) {
+				code = rawCode;
+			}
+			const rawDetails = (error as { details?: unknown }).details;
+			if (rawDetails && typeof rawDetails === "object") {
+				details = rawDetails as Record<string, unknown>;
+			}
 		}
 	} else if (typeof error === "string") {
 		message = error;
@@ -103,7 +145,7 @@ function respondHandlerError(error: unknown, fallbackCode = "INTERNAL_ERROR"): E
 		message = String(error);
 	}
 
-	return respondError(code, message);
+	return respondError(code, message, details);
 }
 
 /**
@@ -189,7 +231,7 @@ function requireScope(
 ): void {
 	const payload = getExtra(extra);
 	if (payload.tokenScopes && !hasScope(payload.tokenScopes, scope)) {
-		throw new McpError(ErrorCode.InvalidRequest, `Insufficient scope: requires ${scope}`);
+		throw new EmDashAuthError(`Insufficient scope: requires ${scope}`, "INSUFFICIENT_SCOPE");
 	}
 }
 
@@ -206,7 +248,10 @@ function requireRole(
 ): void {
 	const payload = getExtra(extra);
 	if (payload.userRole < minRole) {
-		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
+		throw new EmDashAuthError(
+			"Insufficient permissions for this operation",
+			"INSUFFICIENT_PERMISSIONS",
+		);
 	}
 }
 
@@ -226,7 +271,10 @@ function canReadDrafts(extra: { authInfo?: { extra?: Record<string, unknown> } }
  */
 function requireDraftAccess(extra: { authInfo?: { extra?: Record<string, unknown> } }): void {
 	if (!canReadDrafts(extra)) {
-		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
+		throw new EmDashAuthError(
+			"Insufficient permissions for this operation",
+			"INSUFFICIENT_PERMISSIONS",
+		);
 	}
 }
 
@@ -246,7 +294,10 @@ function requireOwnership(
 	const payload = getExtra(extra);
 	const user = { id: payload.userId, role: payload.userRole };
 	if (!canActOnOwn(user, ownerId, ownPermission, anyPermission)) {
-		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
+		throw new EmDashAuthError(
+			"Insufficient permissions for this operation",
+			"INSUFFICIENT_PERMISSIONS",
+		);
 	}
 }
 
@@ -289,6 +340,36 @@ export function createMcpServer(): McpServer {
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
 	);
+
+	// Wrap every tool registration's callback so EmDashAuthError throws
+	// (from requireScope / requireRole / requireOwnership / requireDraftAccess)
+	// surface as structured `_meta.code`-bearing tool error envelopes
+	// instead of the SDK's text-only fallback in createToolError().
+	//
+	// Type-erased on purpose — the SDK's overloads are too narrow for a
+	// generic wrapper, but the runtime contract (callback returns the tool
+	// result envelope) holds for every registered tool.
+	const originalRegisterTool = server.registerTool.bind(server);
+	(server as { registerTool: typeof server.registerTool }).registerTool = ((
+		name: string,
+		config: unknown,
+		callback: (...callbackArgs: unknown[]) => Promise<SuccessEnvelope | ErrorEnvelope>,
+	) => {
+		const wrapped = async (
+			...callbackArgs: unknown[]
+		): Promise<SuccessEnvelope | ErrorEnvelope> => {
+			try {
+				return await callback(...callbackArgs);
+			} catch (error) {
+				return respondHandlerError(error, "INTERNAL_ERROR");
+			}
+		};
+		return (originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown)(
+			name,
+			config,
+			wrapped,
+		);
+	}) as typeof server.registerTool;
 
 	// =====================================================================
 	// Content tools
@@ -451,9 +532,9 @@ export function createMcpServer(): McpServer {
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
 				if (!hasPermission(user, "content:publish_own" as Permission)) {
-					throw new McpError(
-						ErrorCode.InvalidRequest,
+					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
+						"INSUFFICIENT_PERMISSIONS",
 					);
 				}
 				const result = await emdash.handleContentCreate(args.collection, {
