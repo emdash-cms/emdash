@@ -27,6 +27,23 @@ const FTS_OPERATORS_PATTERN = /\b(AND|OR|NOT|NEAR)\b/i;
 const DOUBLE_QUOTE_PATTERN = /"/g;
 
 /**
+ * Detect FTS5 query syntax errors. Match specifically on the SQLite FTS5
+ * error fingerprints rather than a broad "fts5" / "syntax error" filter
+ * (which would also swallow internal table-corruption errors). The two
+ * fingerprints we care about are:
+ *
+ *  - "fts5: syntax error near …" — unbalanced quotes, stray operators,
+ *    other malformed user input
+ *  - "unknown special query: …" — bare special tokens like `^*` that
+ *    parse but don't resolve to a real FTS5 directive
+ */
+function isFts5SyntaxError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	const message = error.message.toLowerCase();
+	return message.includes("fts5: syntax error") || message.includes("unknown special query");
+}
+
+/**
  * Search across multiple collections
  *
  * Public API that auto-injects the database.
@@ -230,8 +247,8 @@ async function searchSingleCollection(
 		// "no matches" so the user gets an empty result rather than an
 		// internals-leaking error. Other errors (table missing, IO) still
 		// propagate.
-		const message = error instanceof Error ? error.message.toLowerCase() : "";
-		if (message.includes("fts5") || message.includes("syntax error")) {
+		if (isFts5SyntaxError(error)) {
+			console.warn("[search] swallowed fts5 syntax error:", error);
 			return [];
 		}
 		throw error;
@@ -296,23 +313,34 @@ export async function getSuggestions(
 			continue;
 		}
 
-		const results = await sql<{
-			id: string;
-			title: string;
-		}>`
-			SELECT 
-				c.id,
-				c.title
-			FROM "${sql.raw(ftsTable)}" f
-			JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
-			WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
-			AND c.status = 'published'
-			AND c.deleted_at IS NULL
-			AND c.title IS NOT NULL
-			${locale ? sql`AND c.locale = ${locale}` : sql``}
-			ORDER BY bm25("${sql.raw(ftsTable)}")
-			LIMIT ${limit}
-		`.execute(db);
+		let results;
+		try {
+			results = await sql<{
+				id: string;
+				title: string;
+			}>`
+				SELECT 
+					c.id,
+					c.title
+				FROM "${sql.raw(ftsTable)}" f
+				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
+				WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
+				AND c.status = 'published'
+				AND c.deleted_at IS NULL
+				AND c.title IS NOT NULL
+				${locale ? sql`AND c.locale = ${locale}` : sql``}
+				ORDER BY bm25("${sql.raw(ftsTable)}")
+				LIMIT ${limit}
+			`.execute(db);
+		} catch (error) {
+			// Same swallow as searchSingleCollection: malformed prefix
+			// queries should yield no suggestions, not surface DB errors.
+			if (isFts5SyntaxError(error)) {
+				console.warn("[search] swallowed fts5 syntax error in suggestions:", error);
+				continue;
+			}
+			throw error;
+		}
 
 		for (const row of results.rows) {
 			suggestions.push({

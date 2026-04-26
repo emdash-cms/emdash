@@ -1651,7 +1651,7 @@ export function createMcpServer(): McpServer {
 			}),
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "taxonomies:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1688,7 +1688,7 @@ export function createMcpServer(): McpServer {
 			}),
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "taxonomies:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1722,7 +1722,7 @@ export function createMcpServer(): McpServer {
 			annotations: { destructiveHint: true },
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "taxonomies:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1827,7 +1827,7 @@ export function createMcpServer(): McpServer {
 			}),
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "menus:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1850,7 +1850,7 @@ export function createMcpServer(): McpServer {
 			}),
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "menus:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1873,7 +1873,7 @@ export function createMcpServer(): McpServer {
 			annotations: { destructiveHint: true },
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "menus:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1934,7 +1934,7 @@ export function createMcpServer(): McpServer {
 			}),
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "menus:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {

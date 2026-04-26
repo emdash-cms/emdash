@@ -36,6 +36,8 @@ export const VALID_SCOPES = [
 	"media:write",
 	"schema:read",
 	"schema:write",
+	"taxonomies:manage",
+	"menus:manage",
 	"admin",
 ] as const;
 

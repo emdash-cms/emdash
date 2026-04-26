@@ -184,6 +184,8 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
 	"media:write": Role.CONTRIBUTOR,
 	"schema:read": Role.EDITOR,
 	"schema:write": Role.ADMIN,
+	"taxonomies:manage": Role.EDITOR,
+	"menus:manage": Role.EDITOR,
 	admin: Role.ADMIN,
 };
 
