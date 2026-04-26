@@ -20,6 +20,8 @@ import { validateIdentifier } from "../../database/validate.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { Field } from "../../schema/types.js";
 import { generateZodSchema } from "../../schema/zod-generator.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 
 type ValidationResult =
 	| { ok: true }
@@ -157,14 +159,41 @@ export async function validateContentData(
 
 		const ids = [...new Set(refs.map((r) => r.id))];
 		const tableName = `ec_${target}`;
-		const rows = await sql<{ id: string }>`
-			SELECT id FROM ${sql.ref(tableName)}
-			WHERE id IN (${sql.join(ids)})
-			AND deleted_at IS NULL
-		`
-			.execute(db)
-			.catch(() => ({ rows: [] as { id: string }[] }));
-		const found = new Set(rows.rows.map((r) => r.id));
+
+		// Chunk the IN clause to stay below D1's bind-parameter limit. One
+		// reference per request is the common case today; chunking makes the
+		// helper safe if a future multiSelect-of-references is added.
+		const found = new Set<string>();
+		let targetTableMissing = false;
+		for (const idChunk of chunks(ids, SQL_BATCH_SIZE)) {
+			try {
+				const rows = await sql<{ id: string }>`
+					SELECT id FROM ${sql.ref(tableName)}
+					WHERE id IN (${sql.join(idChunk)})
+					AND deleted_at IS NULL
+				`.execute(db);
+				for (const row of rows.rows) {
+					found.add(row.id);
+				}
+			} catch (error) {
+				// Missing table = the target collection table doesn't exist
+				// (orphan reference). Treat all those references as missing.
+				// Any other DB error (permissions, connection, syntax) must
+				// propagate — silently dropping data integrity errors as
+				// "not found" is exactly the bug F5 fixes.
+				if (isMissingTableError(error)) {
+					targetTableMissing = true;
+					break;
+				}
+				throw error;
+			}
+		}
+		if (targetTableMissing) {
+			for (const ref of refs) {
+				issues.push(`${ref.field}: target '${ref.id}' not found in collection '${target}'`);
+			}
+			continue;
+		}
 		for (const ref of refs) {
 			if (!found.has(ref.id)) {
 				issues.push(`${ref.field}: target '${ref.id}' not found in collection '${target}'`);

@@ -409,3 +409,65 @@ describe("MCP validation — multi-field error messaging", () => {
 		expect(text).toMatch(/priority/i);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// F4: validation runs on UPDATE for revision-supporting collections.
+//
+// Before the fix, the runtime wrote the draft revision *before* the API
+// handler ran (and called the handler with `data: undefined`), so update-
+// time validation was bypassed for any collection that supports revisions.
+// ---------------------------------------------------------------------------
+
+describe("MCP validation — UPDATE on revision-supporting collections (F4)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+	let postId: string;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "post",
+			label: "Posts",
+			supports: ["drafts", "revisions"],
+		});
+		await registry.createField("post", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			required: true,
+		});
+
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const create = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Initial title" } },
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+		postId = JSON.parse(extractText(create)).item.id as string;
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("rejects update with empty required field BEFORE creating a draft revision", async () => {
+		const result = await harness.client.callTool({
+			name: "content_update",
+			arguments: { collection: "post", id: postId, data: { title: "" } },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(VALIDATION_ERROR);
+
+		// And no draft revision was written — listing revisions returns empty.
+		const list = await harness.client.callTool({
+			name: "revision_list",
+			arguments: { collection: "post", id: postId },
+		});
+		expect(list.isError, extractText(list)).toBeFalsy();
+		const { items } = JSON.parse(extractText(list)) as { items: unknown[] };
+		expect(items).toEqual([]);
+	});
+});

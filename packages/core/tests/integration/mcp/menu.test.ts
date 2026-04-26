@@ -187,10 +187,10 @@ describe("menu_get", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Bug #15 — gap: no menu mutation tools
+// Bug #15 / F6 / F12 — happy paths for menu mutation tools.
 // ---------------------------------------------------------------------------
 
-describe("menu tooling gaps (bug #15)", () => {
+describe("menu mutations (bug #15 / F6 / F12)", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
 
@@ -204,23 +204,189 @@ describe("menu tooling gaps (bug #15)", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("MCP exposes menu_create once the gap is filled", async () => {
-		const tools = await harness.client.listTools();
-		const names = tools.tools.map((t) => t.name);
-		expect(names).toContain("menu_create");
-	});
-
-	it("MCP exposes menu_update once the gap is filled", async () => {
-		const tools = await harness.client.listTools();
-		const names = tools.tools.map((t) => t.name);
-		expect(names).toContain("menu_update");
-	});
-
-	it("MCP exposes menu_item_create or equivalent once the gap is filled", async () => {
+	it("MCP exposes menu_create, menu_update, menu_set_items, menu_delete", async () => {
 		const tools = await harness.client.listTools();
 		const names = new Set(tools.tools.map((t) => t.name));
-		const hasItemMutation =
-			names.has("menu_item_create") || names.has("menu_add_item") || names.has("menu_set_items");
-		expect(hasItemMutation).toBe(true);
+		expect(names.has("menu_create")).toBe(true);
+		expect(names.has("menu_update")).toBe(true);
+		expect(names.has("menu_set_items")).toBe(true);
+		expect(names.has("menu_delete")).toBe(true);
+	});
+
+	it("menu_create + menu_get round-trip", async () => {
+		const create = await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main Menu" },
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main" },
+		});
+		expect(get.isError, extractText(get)).toBeFalsy();
+		const menu = extractJson<{ name: string; label: string; items: unknown[] }>(get);
+		expect(menu.name).toBe("main");
+		expect(menu.label).toBe("Main Menu");
+		expect(menu.items).toEqual([]);
+	});
+
+	it("menu_create with a duplicate name returns CONFLICT", async () => {
+		await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main" },
+		});
+		const dup = await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Other" },
+		});
+		expect(dup.isError).toBe(true);
+		expect(extractText(dup)).toMatch(/CONFLICT|already exists/i);
+	});
+
+	it("menu_update changes the label", async () => {
+		await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Original" },
+		});
+		const update = await harness.client.callTool({
+			name: "menu_update",
+			arguments: { name: "main", label: "Renamed" },
+		});
+		expect(update.isError, extractText(update)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main" },
+		});
+		const menu = extractJson<{ label: string }>(get);
+		expect(menu.label).toBe("Renamed");
+	});
+
+	it("menu_set_items with empty list clears all items", async () => {
+		await seedMenu(db, "main", "Main", [
+			{ label: "Home", url: "/" },
+			{ label: "Blog", url: "/blog" },
+		]);
+
+		const result = await harness.client.callTool({
+			name: "menu_set_items",
+			arguments: { name: "main", items: [] },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main" },
+		});
+		const menu = extractJson<{ items: unknown[] }>(get);
+		expect(menu.items).toEqual([]);
+	});
+
+	it("menu_set_items supports 3-level nesting via parentIndex chain", async () => {
+		await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main" },
+		});
+
+		const result = await harness.client.callTool({
+			name: "menu_set_items",
+			arguments: {
+				name: "main",
+				items: [
+					{ label: "Root", type: "custom", customUrl: "/" },
+					{ label: "Child", type: "custom", customUrl: "/child", parentIndex: 0 },
+					{ label: "Grandchild", type: "custom", customUrl: "/gc", parentIndex: 1 },
+				],
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main" },
+		});
+		const menu = extractJson<{
+			items: Array<{ id: string; label: string; parent_id: string | null; sort_order: number }>;
+		}>(get);
+		expect(menu.items).toHaveLength(3);
+
+		const byLabel = new Map(menu.items.map((i) => [i.label, i]));
+		const root = byLabel.get("Root");
+		const child = byLabel.get("Child");
+		const grand = byLabel.get("Grandchild");
+		expect(root?.parent_id).toBeNull();
+		expect(child?.parent_id).toBe(root?.id);
+		expect(grand?.parent_id).toBe(child?.id);
+	});
+
+	it("menu_set_items rejects parentIndex >= i (must be earlier)", async () => {
+		await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main" },
+		});
+		const result = await harness.client.callTool({
+			name: "menu_set_items",
+			arguments: {
+				name: "main",
+				items: [
+					{ label: "A", type: "custom", customUrl: "/a", parentIndex: 0 }, // self-ref
+				],
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/VALIDATION_ERROR|parentIndex/);
+	});
+
+	it("F6: menu_delete removes both menu and items (D1 cascade safe)", async () => {
+		await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main" },
+		});
+		await harness.client.callTool({
+			name: "menu_set_items",
+			arguments: {
+				name: "main",
+				items: [
+					{ label: "A", type: "custom", customUrl: "/a" },
+					{ label: "B", type: "custom", customUrl: "/b" },
+					{ label: "C", type: "custom", customUrl: "/c" },
+				],
+			},
+		});
+
+		// Sanity: menu_get sees 3 items.
+		const before = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main" },
+		});
+		const menuBefore = extractJson<{
+			id: string;
+			items: unknown[];
+		}>(before);
+		expect(menuBefore.items).toHaveLength(3);
+
+		// Delete.
+		const del = await harness.client.callTool({
+			name: "menu_delete",
+			arguments: { name: "main" },
+		});
+		expect(del.isError, extractText(del)).toBeFalsy();
+
+		// Items table is empty for that menu_id.
+		const orphans = await db
+			.selectFrom("_emdash_menu_items" as never)
+			.select(["id" as never])
+			.where("menu_id" as never, "=", menuBefore.id as never)
+			.execute();
+		expect(orphans).toEqual([]);
+
+		// menu_get returns NOT_FOUND.
+		const after = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main" },
+		});
+		expect(after.isError).toBe(true);
+		expect(extractText(after)).toMatch(/NOT_FOUND/);
 	});
 });

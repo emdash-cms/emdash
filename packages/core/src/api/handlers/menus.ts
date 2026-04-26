@@ -221,6 +221,10 @@ export async function handleMenuDelete(
 			};
 		}
 
+		// D1 has FOREIGN KEYS off by default, so the migration's `ON DELETE
+		// CASCADE` won't fire there. Delete items explicitly first — this is
+		// idempotent on SQLite/Postgres where the cascade also fires.
+		await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
 		await db.deleteFrom("_emdash_menus").where("id", "=", menu.id).execute();
 
 		return { success: true, data: { deleted: true } };

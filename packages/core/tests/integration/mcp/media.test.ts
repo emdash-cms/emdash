@@ -393,16 +393,16 @@ describe("media_delete", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Bug #14 — gap: no media_upload / media_create tool
+// Bug #14 — gap: media_create tool is now available
+// F1: media_create persists authorId so ownership checks subsequently succeed
 // ---------------------------------------------------------------------------
 
-describe("media tooling gaps (bug #14)", () => {
+describe("media_create (bug #14 / F1)", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
-		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 	});
 
 	afterEach(async () => {
@@ -410,12 +410,57 @@ describe("media tooling gaps (bug #14)", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("MCP exposes media_upload (or media_create) once the gap is filled", async () => {
+	it("MCP exposes media_create", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const tools = await harness.client.listTools();
 		const names = new Set(tools.tools.map((t) => t.name));
-		// Today: missing — agents can read/update/delete but cannot create.
-		// After fix: at least one of these names is present.
-		const hasUpload = names.has("media_upload") || names.has("media_create");
-		expect(hasUpload).toBe(true);
+		expect(names.has("media_create")).toBe(true);
+	});
+
+	it("AUTHOR creates media; subsequent media_get returns it; same author can update; different author cannot", async () => {
+		// AUTHOR creates the media item via media_create.
+		harness = await connectMcpHarness({ db, userId: AUTHOR_ID, userRole: Role.AUTHOR });
+		const create = await harness.client.callTool({
+			name: "media_create",
+			arguments: {
+				filename: "logo.png",
+				mimeType: "image/png",
+				storageKey: "media/logo-key",
+				size: 4096,
+			},
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+		const created = extractJson<{ item: { id: string; filename: string } }>(create);
+		expect(created.item.filename).toBe("logo.png");
+
+		// media_get returns the same id.
+		const got = await harness.client.callTool({
+			name: "media_get",
+			arguments: { id: created.item.id },
+		});
+		expect(got.isError, extractText(got)).toBeFalsy();
+		const fetched = extractJson<{ item: { id: string } }>(got);
+		expect(fetched.item.id).toBe(created.item.id);
+
+		// Same AUTHOR can update — proves authorId was persisted.
+		const ownUpdate = await harness.client.callTool({
+			name: "media_update",
+			arguments: { id: created.item.id, alt: "company logo" },
+		});
+		expect(ownUpdate.isError, extractText(ownUpdate)).toBeFalsy();
+		await harness.cleanup();
+
+		// A different AUTHOR is denied.
+		harness = await connectMcpHarness({
+			db,
+			userId: OTHER_AUTHOR_ID,
+			userRole: Role.AUTHOR,
+		});
+		const otherUpdate = await harness.client.callTool({
+			name: "media_update",
+			arguments: { id: created.item.id, alt: "intruder caption" },
+		});
+		expect(otherUpdate.isError).toBe(true);
+		expect(extractText(otherUpdate)).toMatch(/insufficient|permission|forbidden/i);
 	});
 });

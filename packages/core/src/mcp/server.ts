@@ -1632,8 +1632,8 @@ export function createMcpServer(): McpServer {
 			title: "Delete Taxonomy Term",
 			description:
 				"Permanently delete a term from a taxonomy. Any content tagged with this " +
-				"term loses the association. Child terms (in hierarchical taxonomies) are " +
-				"also removed by foreign-key cascade.",
+				"term loses the association. Cannot delete a term that has children — " +
+				"delete children first.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name"),
 				termSlug: z.string().describe("Slug of the term to delete"),
@@ -1809,8 +1809,7 @@ export function createMcpServer(): McpServer {
 		{
 			title: "Delete Menu",
 			description:
-				"Delete a menu and all its items. Items are removed via foreign-key cascade. " +
-				"Cannot be undone.",
+				"Delete a menu. Items are also removed. Cannot be undone.",
 			inputSchema: z.object({
 				name: z.string().describe("Menu name to delete"),
 			}),
@@ -1821,13 +1820,31 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const result = await ec.db
-					.deleteFrom("_emdash_menus" as never)
+				// D1 has foreign keys disabled by default, so the migration's
+				// `ON DELETE CASCADE` won't fire. Resolve the menu, then
+				// explicitly delete items first inside a transaction so
+				// partial failures roll back. Idempotent on SQLite/Postgres.
+				const menu = (await ec.db
+					.selectFrom("_emdash_menus" as never)
+					.select(["id" as never])
 					.where("name" as never, "=", args.name as never)
-					.executeTakeFirst();
-				if ((result.numDeletedRows ?? 0n) === 0n) {
+					.executeTakeFirst()) as { id: string } | undefined;
+
+				if (!menu) {
 					return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
 				}
+
+				await ec.db.transaction().execute(async (trx) => {
+					await trx
+						.deleteFrom("_emdash_menu_items" as never)
+						.where("menu_id" as never, "=", menu.id as never)
+						.execute();
+					await trx
+						.deleteFrom("_emdash_menus" as never)
+						.where("id" as never, "=", menu.id as never)
+						.execute();
+				});
+
 				return jsonResult({ deleted: args.name });
 			} catch (error) {
 				return respondHandlerError(error, "MENU_DELETE_ERROR");

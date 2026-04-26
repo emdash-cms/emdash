@@ -302,6 +302,77 @@ export async function handleTermList(
 }
 
 /**
+ * Validate a parent term reference for create/update.
+ *
+ * Returns `null` on success or a structured error message that callers
+ * wrap in their own ApiResult.
+ *
+ *   - `parentId === undefined` -> no-op (no parent change requested).
+ *   - `parentId === null` -> caller intends to detach; no-op here.
+ *   - parent must exist (FK exists -> term row not soft-deleted).
+ *   - parent must live in the same taxonomy.
+ *   - if `termId` is provided (update path), reject `parentId === termId`
+ *     (self-parent) and walk up the parent chain to detect cycles.
+ */
+async function validateParentTerm(
+	repo: TaxonomyRepository,
+	taxonomyName: string,
+	termId: string | undefined,
+	parentId: string | null | undefined,
+): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
+	if (parentId === undefined || parentId === null) return null;
+
+	if (termId !== undefined && parentId === termId) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: "A term cannot be its own parent",
+		};
+	}
+
+	const parent = await repo.findById(parentId);
+	if (!parent) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: `Parent term '${parentId}' not found`,
+		};
+	}
+	if (parent.name !== taxonomyName) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: `Parent term '${parentId}' belongs to taxonomy '${parent.name}', not '${taxonomyName}'`,
+		};
+	}
+
+	// Walk up the parent chain to detect cycles. Bound the walk so a
+	// pre-existing pathological state can't make the validator hang.
+	if (termId !== undefined) {
+		const MAX_DEPTH = 100;
+		let cursor: string | null = parent.parentId;
+		let steps = 0;
+		while (cursor !== null && steps < MAX_DEPTH) {
+			if (cursor === termId) {
+				return {
+					code: "VALIDATION_ERROR",
+					message: "Cycle detected: cannot make a descendant the parent",
+				};
+			}
+			const next = await repo.findById(cursor);
+			if (!next) break;
+			cursor = next.parentId;
+			steps++;
+		}
+		if (steps >= MAX_DEPTH) {
+			return {
+				code: "VALIDATION_ERROR",
+				message: "Parent chain exceeds maximum depth",
+			};
+		}
+	}
+
+	return null;
+}
+
+/**
  * Create a new term in a taxonomy
  */
 export async function handleTermCreate(
@@ -314,6 +385,10 @@ export async function handleTermCreate(
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
+
+		// Coerce empty-string parentId to undefined (treat as "no parent").
+		const parentId =
+			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
 
 		// Check for slug conflict
 		const existing = await repo.findBySlug(taxonomyName, input.slug);
@@ -328,35 +403,17 @@ export async function handleTermCreate(
 		}
 
 		// Validate parentId: must exist AND belong to the same taxonomy.
-		// Reading parent term via the repo also confirms it isn't soft-
-		// deleted (the table has no deleted_at; a missing row is enough).
-		if (input.parentId) {
-			const parent = await repo.findById(input.parentId);
-			if (!parent) {
-				return {
-					success: false,
-					error: {
-						code: "VALIDATION_ERROR",
-						message: `Parent term '${input.parentId}' not found`,
-					},
-				};
-			}
-			if (parent.name !== taxonomyName) {
-				return {
-					success: false,
-					error: {
-						code: "VALIDATION_ERROR",
-						message: `Parent term '${input.parentId}' belongs to taxonomy '${parent.name}', not '${taxonomyName}'`,
-					},
-				};
-			}
+		// (Cycle check is N/A on create — the term doesn't exist yet.)
+		const parentError = await validateParentTerm(repo, taxonomyName, undefined, parentId);
+		if (parentError) {
+			return { success: false, error: parentError };
 		}
 
 		const term = await repo.create({
 			name: taxonomyName,
 			slug: input.slug,
 			label: input.label,
-			parentId: input.parentId ?? undefined,
+			parentId: parentId ?? undefined,
 			data: input.description ? { description: input.description } : undefined,
 		});
 
@@ -462,24 +519,36 @@ export async function handleTermUpdate(
 			};
 		}
 
+		// Coerce empty-string slug/parentId to undefined (treat as "no change").
+		// `null` parentId is a valid request meaning "detach from parent".
+		const newSlug = input.slug === "" || input.slug === undefined ? undefined : input.slug;
+		const newParentId =
+			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+
 		// Check if new slug conflicts
-		if (input.slug && input.slug !== termSlug) {
-			const existing = await repo.findBySlug(taxonomyName, input.slug);
+		if (newSlug !== undefined && newSlug !== termSlug) {
+			const existing = await repo.findBySlug(taxonomyName, newSlug);
 			if (existing && existing.id !== term.id) {
 				return {
 					success: false,
 					error: {
 						code: "CONFLICT",
-						message: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
+						message: `Term with slug '${newSlug}' already exists in taxonomy '${taxonomyName}'`,
 					},
 				};
 			}
 		}
 
+		// Validate parentId: existence, same-taxonomy, no self-parent, no cycle.
+		const parentError = await validateParentTerm(repo, taxonomyName, term.id, newParentId);
+		if (parentError) {
+			return { success: false, error: parentError };
+		}
+
 		const updated = await repo.update(term.id, {
-			slug: input.slug,
+			slug: newSlug,
 			label: input.label,
-			parentId: input.parentId,
+			parentId: newParentId,
 			data: input.description !== undefined ? { description: input.description } : undefined,
 		});
 

@@ -41,12 +41,16 @@ export class TaxonomyRepository {
 	async create(input: CreateTaxonomyInput): Promise<Taxonomy> {
 		const id = ulid();
 
+		// Empty-string parentId is coerced to null defensively. Higher layers
+		// also normalize this — see handleTermCreate / handleTermUpdate.
+		const parentId =
+			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
 		const row: TaxonomyTable = {
 			id,
 			name: input.name,
 			slug: input.slug,
 			label: input.label,
-			parent_id: input.parentId ?? null,
+			parent_id: parentId,
 			data: input.data ? JSON.stringify(input.data) : null,
 		};
 
@@ -132,7 +136,10 @@ export class TaxonomyRepository {
 		const updates: Partial<TaxonomyTable> = {};
 		if (input.slug !== undefined) updates.slug = input.slug;
 		if (input.label !== undefined) updates.label = input.label;
-		if (input.parentId !== undefined) updates.parent_id = input.parentId;
+		if (input.parentId !== undefined) {
+			// Defense in depth: empty-string parentId means null (no parent).
+			updates.parent_id = input.parentId === "" ? null : input.parentId;
+		}
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {
