@@ -240,21 +240,113 @@ describe("taxonomy_list_terms", () => {
 		for (const t of p2.items) expect(p1Slugs).not.toContain(t.slug);
 	});
 
-	it("malformed cursor returns an error (bug #12 propagation)", async () => {
+	it("paginates correctly when multiple terms share the same label", async () => {
+		// Keyset pagination over (label, id) needs a stable id tiebreaker
+		// at the SQL layer or tied-label rows can swap order between calls
+		// — producing duplicates or skipped items. Three terms share
+		// label "shared"; pagination must walk through them in a stable
+		// order with no duplicates and no gaps.
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const slugs = ["shared-1", "shared-2", "shared-3", "unique-a"];
+		for (const slug of slugs) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: {
+					taxonomy: "categories",
+					slug,
+					label: slug.startsWith("shared") ? "shared" : slug,
+				},
+			});
+		}
+
+		// Walk one item at a time so every cursor transition exercises the
+		// (label, id) keyset.
+		const collected: string[] = [];
+		let cursor: string | undefined;
+		// Hard cap to prevent the test hanging if pagination loops.
+		for (let i = 0; i < 10; i++) {
+			const page = await harness.client.callTool({
+				name: "taxonomy_list_terms",
+				arguments: { taxonomy: "categories", limit: 1, ...(cursor ? { cursor } : {}) },
+			});
+			const data = extractJson<{
+				items: Array<{ slug: string; id: string }>;
+				nextCursor?: string;
+			}>(page);
+			if (data.items.length === 0) break;
+			for (const item of data.items) collected.push(item.slug);
+			if (!data.nextCursor) break;
+			cursor = data.nextCursor;
+		}
+
+		// Each slug appears exactly once. Order doesn't matter for this
+		// assertion — just no duplicates and no missing entries.
+		expect(collected.toSorted()).toEqual(slugs.toSorted());
+	});
+
+	it("survives concurrent deletion of the cursor-term", async () => {
+		// The base64 keyset cursor encodes a (label, id) position rather
+		// than a row reference, so deleting the cursor-term between pages
+		// must not error — the next page just continues from the next
+		// position in sort order.
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		for (const slug of ["alpha", "bravo", "charlie", "delta"]) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: { taxonomy: "categories", slug, label: slug },
+			});
+		}
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 2 },
+		});
+		const p1 = extractJson<{
+			items: Array<{ slug: string }>;
+			nextCursor?: string;
+		}>(page1);
+		expect(p1.items.map((i) => i.slug)).toEqual(["alpha", "bravo"]);
+		expect(p1.nextCursor).toBeTruthy();
+
+		// Delete the cursor-term ('bravo') out of band.
+		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
+		const repo = new TaxonomyRepository(db);
+		const bravo = await repo.findBySlug("categories", "bravo");
+		if (!bravo) throw new Error("bravo missing — fixture broken");
+		await db.deleteFrom("taxonomies").where("id", "=", bravo.id).execute();
+
+		// Page 2 must still work and return the items strictly after the
+		// cursor's position. Pre-fix the cursor stored 'bravo's id and
+		// findIndex would have returned -1 → INVALID_CURSOR. Post-fix the
+		// cursor stores ('bravo', '<bravo-id>') and the keyset comparison
+		// finds the first term with (label, id) > ('bravo', '<bravo-id>')
+		// — that's 'charlie'.
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 2, cursor: p1.nextCursor },
+		});
+		expect(page2.isError, extractText(page2)).toBeFalsy();
+		const p2 = extractJson<{ items: Array<{ slug: string }> }>(page2);
+		expect(p2.items.map((i) => i.slug)).toEqual(["charlie", "delta"]);
+	});
+
+	it("malformed cursor returns INVALID_CURSOR", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		await harness.client.callTool({
 			name: "taxonomy_create_term",
 			arguments: { taxonomy: "categories", slug: "t1", label: "T1" },
 		});
 
-		// taxonomy_list_terms uses an in-memory cursor (term id), so a
-		// totally-bogus value should ideally error. Today it silently
-		// resets to start because `cursorIdx` returns -1.
+		// taxonomy_list_terms uses a base64 keyset cursor over (label, id).
+		// A completely bogus value fails decodeCursor and surfaces as a
+		// structured INVALID_CURSOR error.
 		const result = await harness.client.callTool({
 			name: "taxonomy_list_terms",
 			arguments: { taxonomy: "categories", cursor: "garbage_cursor_xyz" },
 		});
 		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("INVALID_CURSOR");
 	});
 
 	it("any logged-in user (SUBSCRIBER) can read terms", async () => {
@@ -602,7 +694,9 @@ describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
 			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf", parentId: deepest },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/maximum depth|MAX_DEPTH|exceeds/i);
+		expect(extractText(result)).toMatch(/maximum depth/i);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("VALIDATION_ERROR");
 	});
 });
 

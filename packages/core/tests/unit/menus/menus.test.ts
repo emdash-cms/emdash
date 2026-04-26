@@ -587,19 +587,39 @@ describe("Navigation Menus", () => {
 			expect(result.error?.message).toMatch(/parentIndex/);
 		});
 
-		it("returns NOT_FOUND for missing menu (existence checked inside transaction)", async () => {
+		it("returns NOT_FOUND for missing menu and leaves unrelated items untouched", async () => {
 			const { handleMenuSetItems } = await import("../../../src/api/handlers/menus.js");
+
+			// Seed a real menu with items so the rollback assertion has
+			// something to potentially clobber. A regression where the
+			// handler deleted ALL items before the existence check (the
+			// shape of the bug we want to guard against) would wipe these.
+			const otherMenuId = await setupMenu("real");
+			const otherItemId = ulid();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: otherItemId,
+					menu_id: otherMenuId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "/x",
+					label: "X",
+				})
+				.execute();
+
 			const result = await handleMenuSetItems(db, "ghost", [
 				{ label: "A", type: "custom", customUrl: "/a" },
 			]);
 			expect(result.success).toBe(false);
 			expect(result.error?.code).toBe("NOT_FOUND");
 
-			// And no items were inserted — confirms the transaction rolled
-			// back. A regression that committed before the existence check
-			// would leave orphan rows referencing a non-existent menu_id.
+			// Unrelated menu's item survives — confirms the transaction
+			// rolled back (or never started its destructive phase).
 			const items = await db.selectFrom("_emdash_menu_items").selectAll().execute();
-			expect(items).toEqual([]);
+			expect(items).toHaveLength(1);
+			expect(items[0]?.id).toBe(otherItemId);
+			expect(items[0]?.menu_id).toBe(otherMenuId);
 		});
 	});
 });

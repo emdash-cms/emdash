@@ -93,11 +93,15 @@ export class TaxonomyRepository {
 	 * Get all terms for a taxonomy (e.g., all categories)
 	 */
 	async findByName(name: string, options: { parentId?: string | null } = {}): Promise<Taxonomy[]> {
+		// `id asc` is a stable tiebreaker for terms that share a label.
+		// Without it the SQL ordering is implementation-defined when labels
+		// match, which breaks keyset pagination over `(label, id)`.
 		let query = this.db
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
-			.orderBy("label", "asc");
+			.orderBy("label", "asc")
+			.orderBy("id", "asc");
 
 		if (options.parentId !== undefined) {
 			if (options.parentId === null) {
@@ -120,6 +124,7 @@ export class TaxonomyRepository {
 			.selectAll()
 			.where("parent_id", "=", parentId)
 			.orderBy("label", "asc")
+			.orderBy("id", "asc")
 			.execute();
 
 		return rows.map((row) => this.rowToTaxonomy(row));

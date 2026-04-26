@@ -114,6 +114,8 @@ describe("MCP validation — required fields (bug #4)", () => {
 		expect(result.isError).toBe(true);
 		expect(extractText(result)).toMatch(VALIDATION_ERROR);
 		expect(extractText(result)).toMatch(/title/i);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("VALIDATION_ERROR");
 	});
 
 	it("accepts create with required title present (regression guard)", async () => {

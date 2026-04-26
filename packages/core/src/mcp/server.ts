@@ -1660,7 +1660,9 @@ export function createMcpServer(): McpServer {
 			title: "Create Taxonomy Term",
 			description:
 				"Create a new term in a taxonomy. For hierarchical taxonomies like " +
-				"categories, you can specify a parentId to create a child term.",
+				"categories, you can specify a parentId to create a child term. The " +
+				"parent must exist and belong to the same taxonomy. Parent chains are " +
+				"limited to 100 ancestors deep.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				slug: z.string().describe("URL-safe identifier for the term"),
@@ -1696,7 +1698,10 @@ export function createMcpServer(): McpServer {
 			description:
 				"Update an existing term in a taxonomy. Any field can be omitted to leave " +
 				"it unchanged. Renaming a term's slug must not collide with another term in " +
-				"the same taxonomy. Set parentId to null to detach from a parent.",
+				"the same taxonomy. Set parentId to null to detach from a parent. The new " +
+				"parent must exist, belong to the same taxonomy, and not introduce a cycle " +
+				"(a term cannot be its own ancestor). Parent chains are limited to 100 " +
+				"ancestors deep.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				termSlug: z.string().describe("Current slug of the term to update"),

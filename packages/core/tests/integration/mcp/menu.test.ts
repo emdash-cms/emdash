@@ -103,6 +103,34 @@ describe("menu_list", () => {
 		expect(data.map((m) => m.name)).toEqual(["footer", "main", "sidebar"]);
 	});
 
+	it("itemCount reflects per-menu item count (LEFT JOIN correctness)", async () => {
+		// handleMenuList uses a single LEFT JOIN + GROUP BY for the count.
+		// A regression to INNER JOIN would drop empty menus; a regression
+		// in the count column or join key would silently report wrong
+		// numbers per menu. Seed three menus with known, distinct counts.
+		await seedMenu(db, "empty", "Empty");
+		await seedMenu(db, "single", "Single", [{ label: "Home", url: "/" }]);
+		await seedMenu(db, "triple", "Triple", [
+			{ label: "Home", url: "/" },
+			{ label: "About", url: "/about" },
+			{ label: "Blog", url: "/blog" },
+		]);
+
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({ name: "menu_list", arguments: {} });
+		const data = extractJson<Array<{ name: string; itemCount: number }>>(result);
+
+		const empty = data.find((m) => m.name === "empty");
+		const single = data.find((m) => m.name === "single");
+		const triple = data.find((m) => m.name === "triple");
+		expect(empty?.itemCount).toBe(0);
+		expect(single?.itemCount).toBe(1);
+		expect(triple?.itemCount).toBe(3);
+		// Empty menu must still be present — guards against an INNER JOIN
+		// regression where it would disappear.
+		expect(data.map((m) => m.name)).toContain("empty");
+	});
+
 	it("any logged-in user can list menus", async () => {
 		await seedMenu(db, "main", "Main");
 		harness = await connectMcpHarness({ db, userId: SUBSCRIBER_ID, userRole: Role.SUBSCRIBER });
