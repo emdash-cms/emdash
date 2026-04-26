@@ -1018,6 +1018,7 @@ export class ContentRepository {
 			UPDATE ${sql.ref(tableName)}
 			SET live_revision_id = NULL,
 				status = 'draft',
+				published_at = NULL,
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
