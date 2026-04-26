@@ -22,8 +22,8 @@ msgstr " (default)"
 msgid " (opens in new window)"
 msgstr " (opens in new window)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:645
-#: packages/admin/src/components/MediaPickerModal.tsx:727
+#: packages/admin/src/components/MediaPickerModal.tsx:658
+#: packages/admin/src/components/MediaPickerModal.tsx:740
 msgid " (selected)"
 msgstr " (selected)"
 
@@ -38,7 +38,7 @@ msgid ": use"
 msgstr ": use"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
-#: packages/admin/src/components/MediaPickerModal.tsx:585
+#: packages/admin/src/components/MediaPickerModal.tsx:598
 msgid "(from {0})"
 msgstr "(from {0})"
 
@@ -84,7 +84,7 @@ msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matchi
 msgstr "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 
 #. placeholder {0}: items.length
-#: packages/admin/src/components/MediaPickerModal.tsx:460
+#: packages/admin/src/components/MediaPickerModal.tsx:473
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# item} other {# items}}"
 
@@ -210,8 +210,8 @@ msgstr "{0} updated to v{1}"
 
 #. placeholder {0}: item.filename
 #. placeholder {1}: selected ? t` (selected)` : ""
-#: packages/admin/src/components/MediaPickerModal.tsx:645
-#: packages/admin/src/components/MediaPickerModal.tsx:727
+#: packages/admin/src/components/MediaPickerModal.tsx:658
+#: packages/admin/src/components/MediaPickerModal.tsx:740
 msgid "{0}{1}"
 msgstr "{0}{1}"
 
@@ -434,7 +434,7 @@ msgstr "Actions"
 msgid "Active"
 msgstr "Active"
 
-#: packages/admin/src/components/ContentEditor.tsx:1872
+#: packages/admin/src/components/ContentEditor.tsx:1877
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -746,7 +746,7 @@ msgstr "Auto (slug change)"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Auto-generated from name (you can edit)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:524
+#: packages/admin/src/components/MediaPickerModal.tsx:537
 msgid "Available media"
 msgstr "Available media"
 
@@ -864,15 +864,15 @@ msgstr "Can view content"
 #: packages/admin/src/components/ContentEditor.tsx:630
 #: packages/admin/src/components/ContentEditor.tsx:836
 #: packages/admin/src/components/ContentEditor.tsx:888
-#: packages/admin/src/components/ContentEditor.tsx:1975
-#: packages/admin/src/components/ContentEditor.tsx:2028
+#: packages/admin/src/components/ContentEditor.tsx:1980
+#: packages/admin/src/components/ContentEditor.tsx:2033
 #: packages/admin/src/components/ContentList.tsx:445
 #: packages/admin/src/components/ContentList.tsx:516
 #: packages/admin/src/components/ContentPickerModal.tsx:253
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
 #: packages/admin/src/components/MediaDetailPanel.tsx:234
-#: packages/admin/src/components/MediaPickerModal.tsx:592
+#: packages/admin/src/components/MediaPickerModal.tsx:605
 #: packages/admin/src/components/MenuEditor.tsx:294
 #: packages/admin/src/components/MenuEditor.tsx:439
 #: packages/admin/src/components/MenuList.tsx:143
@@ -931,8 +931,8 @@ msgstr "Categories ({0})"
 msgid "Categories will be imported"
 msgstr "Categories will be imported"
 
-#: packages/admin/src/components/ContentEditor.tsx:1583
-#: packages/admin/src/components/ContentEditor.tsx:1731
+#: packages/admin/src/components/ContentEditor.tsx:1586
+#: packages/admin/src/components/ContentEditor.tsx:1735
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -998,9 +998,9 @@ msgstr "Click the link in the email to sign in."
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:447
 #: packages/admin/src/components/MediaDetailPanel.tsx:131
 #: packages/admin/src/components/MediaDetailPanel.tsx:133
-#: packages/admin/src/components/MediaPickerModal.tsx:356
-#: packages/admin/src/components/MediaPickerModal.tsx:362
-#: packages/admin/src/components/MediaPickerModal.tsx:366
+#: packages/admin/src/components/MediaPickerModal.tsx:369
+#: packages/admin/src/components/MediaPickerModal.tsx:375
+#: packages/admin/src/components/MediaPickerModal.tsx:379
 #: packages/admin/src/components/MenuEditor.tsx:256
 #: packages/admin/src/components/MenuEditor.tsx:262
 #: packages/admin/src/components/MenuEditor.tsx:266
@@ -1230,7 +1230,7 @@ msgstr "Copy token"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "Could not copy automatically. Please select the URL above and copy manually."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:315
+#: packages/admin/src/components/MediaPickerModal.tsx:328
 msgid "Could not load image from URL"
 msgstr "Could not load image from URL"
 
@@ -1242,7 +1242,7 @@ msgstr "Couldn't detect WordPress"
 msgid "Count"
 msgstr "Count"
 
-#: packages/admin/src/components/ContentEditor.tsx:1999
+#: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1271,7 +1271,7 @@ msgstr "Create Account"
 msgid "Create an account"
 msgstr "Create an account"
 
-#: packages/admin/src/components/ContentEditor.tsx:1947
+#: packages/admin/src/components/ContentEditor.tsx:1952
 msgid "Create byline"
 msgstr "Create byline"
 
@@ -1386,7 +1386,7 @@ msgstr "Created: {0}"
 msgid "Creating collections and fields..."
 msgstr "Creating collections and fields..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1999
+#: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1674,8 +1674,8 @@ msgstr "Dismiss"
 msgid "Display a navigation menu"
 msgstr "Display a navigation menu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1950
-#: packages/admin/src/components/ContentEditor.tsx:2012
+#: packages/admin/src/components/ContentEditor.tsx:1955
+#: packages/admin/src/components/ContentEditor.tsx:2017
 msgid "Display name"
 msgstr "Display name"
 
@@ -1726,7 +1726,7 @@ msgstr "Don't have an account? <0>Sign up</0>"
 msgid "Done"
 msgstr "Done"
 
-#: packages/admin/src/components/ContentEditor.tsx:1893
+#: packages/admin/src/components/ContentEditor.tsx:1898
 msgid "Down"
 msgstr "Down"
 
@@ -1773,7 +1773,7 @@ msgid "e.g., MacBook Pro, iPhone"
 msgstr "e.g., MacBook Pro, iPhone"
 
 #: packages/admin/src/components/ContentEditor.tsx:968
-#: packages/admin/src/components/ContentEditor.tsx:1902
+#: packages/admin/src/components/ContentEditor.tsx:1907
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1798,7 +1798,7 @@ msgstr "Edit {collectionLabel}"
 msgid "Edit {title}"
 msgstr "Edit {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2009
+#: packages/admin/src/components/ContentEditor.tsx:2014
 msgid "Edit byline"
 msgstr "Edit byline"
 
@@ -1930,7 +1930,7 @@ msgstr "Enter {0}..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Enter a URL (https://…) or a relative path (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1410
+#: packages/admin/src/components/ContentEditor.tsx:1413
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Enter a valid URL (e.g. https://example.com)"
 
@@ -2029,7 +2029,7 @@ msgstr "Failed security audit"
 msgid "Failed to add domain"
 msgstr "Failed to add domain"
 
-#: packages/admin/src/components/ContentEditor.tsx:1993
+#: packages/admin/src/components/ContentEditor.tsx:1998
 msgid "Failed to create byline"
 msgstr "Failed to create byline"
 
@@ -2127,7 +2127,7 @@ msgstr "Failed to send test email"
 msgid "Failed to update {0}"
 msgstr "Failed to update {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2043
+#: packages/admin/src/components/ContentEditor.tsx:2048
 msgid "Failed to update byline"
 msgstr "Failed to update byline"
 
@@ -2343,7 +2343,7 @@ msgstr "Image Settings"
 msgid "Image shown when this page is shared on social media"
 msgstr "Image shown when this page is shared on social media"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:383
+#: packages/admin/src/components/MediaPickerModal.tsx:396
 msgid "Image URL"
 msgstr "Image URL"
 
@@ -2449,8 +2449,8 @@ msgstr "Include sample content (recommended for new sites)"
 msgid "Incompatible"
 msgstr "Incompatible"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:394
-#: packages/admin/src/components/MediaPickerModal.tsx:595
+#: packages/admin/src/components/MediaPickerModal.tsx:407
+#: packages/admin/src/components/MediaPickerModal.tsx:608
 msgid "Insert"
 msgstr "Insert"
 
@@ -2474,7 +2474,7 @@ msgstr "Insert a reusable section"
 msgid "Insert an image"
 msgstr "Insert an image"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:376
+#: packages/admin/src/components/MediaPickerModal.tsx:389
 msgid "Insert from URL"
 msgstr "Insert from URL"
 
@@ -2521,7 +2521,7 @@ msgstr "Installing..."
 msgid "Integer"
 msgstr "Integer"
 
-#: packages/admin/src/components/ContentEditor.tsx:1479
+#: packages/admin/src/components/ContentEditor.tsx:1482
 msgid "Invalid JSON"
 msgstr "Invalid JSON"
 
@@ -3133,7 +3133,7 @@ msgstr "No API tokens yet. Create one to get started."
 msgid "No approved comments yet."
 msgstr "No approved comments yet."
 
-#: packages/admin/src/components/ContentEditor.tsx:1934
+#: packages/admin/src/components/ContentEditor.tsx:1939
 msgid "No bylines selected."
 msgstr "No bylines selected."
 
@@ -3211,12 +3211,12 @@ msgid "No maximum"
 msgstr "No maximum"
 
 #: packages/admin/src/components/MediaLibrary.tsx:369
-#: packages/admin/src/components/MediaPickerModal.tsx:508
+#: packages/admin/src/components/MediaPickerModal.tsx:521
 msgid "No media available from this provider"
 msgstr "No media available from this provider"
 
 #: packages/admin/src/components/MediaLibrary.tsx:363
-#: packages/admin/src/components/MediaPickerModal.tsx:502
+#: packages/admin/src/components/MediaPickerModal.tsx:515
 msgid "No media found"
 msgstr "No media found"
 
@@ -3384,7 +3384,7 @@ msgstr "Optional tooltip on hover"
 msgid "Options (one per line)"
 msgstr "Options (one per line)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:406
+#: packages/admin/src/components/MediaPickerModal.tsx:419
 msgid "or choose from library"
 msgstr "or choose from library"
 
@@ -3560,7 +3560,7 @@ msgstr "Please enter a valid email"
 msgid "Please enter a valid email address"
 msgstr "Please enter a valid email address"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:291
+#: packages/admin/src/components/MediaPickerModal.tsx:304
 msgid "Please enter a valid URL"
 msgstr "Please enter a valid URL"
 
@@ -3693,7 +3693,7 @@ msgstr "Published {0}"
 msgid "Published At"
 msgstr "Published At"
 
-#: packages/admin/src/components/ContentEditor.tsx:1942
+#: packages/admin/src/components/ContentEditor.tsx:1947
 msgid "Quick create byline"
 msgstr "Quick create byline"
 
@@ -3770,7 +3770,7 @@ msgstr "Registered user"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registration was cancelled or timed out. Please try again."
 
-#: packages/admin/src/components/ContentEditor.tsx:1911
+#: packages/admin/src/components/ContentEditor.tsx:1916
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 #: packages/admin/src/components/settings/GeneralSettings.tsx:246
@@ -3786,7 +3786,7 @@ msgstr "Remove"
 msgid "Remove {0}"
 msgstr "Remove {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1739
+#: packages/admin/src/components/ContentEditor.tsx:1743
 msgid "Remove {label}"
 msgstr "Remove {label}"
 
@@ -3798,7 +3798,7 @@ msgstr "Remove Domain"
 msgid "Remove Domain?"
 msgstr "Remove Domain?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1591
+#: packages/admin/src/components/ContentEditor.tsx:1594
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "Remove image"
@@ -4000,7 +4000,7 @@ msgstr "Role"
 msgid "Role {role}"
 msgstr "Role {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1916
+#: packages/admin/src/components/ContentEditor.tsx:1921
 msgid "Role label"
 msgstr "Role label"
 
@@ -4011,7 +4011,7 @@ msgstr "Role label"
 msgid "Same window"
 msgstr "Same window"
 
-#: packages/admin/src/components/ContentEditor.tsx:2049
+#: packages/admin/src/components/ContentEditor.tsx:2054
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -4051,7 +4051,7 @@ msgid "Saved"
 msgstr "Saved"
 
 #: packages/admin/src/components/ContentEditor.tsx:574
-#: packages/admin/src/components/ContentEditor.tsx:2049
+#: packages/admin/src/components/ContentEditor.tsx:2054
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
@@ -4176,7 +4176,7 @@ msgstr "Search Engine Optimization"
 msgid "Search engine optimization and verification"
 msgstr "Search engine optimization and verification"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:452
+#: packages/admin/src/components/MediaPickerModal.tsx:465
 msgid "Search media"
 msgstr "Search media"
 
@@ -4202,7 +4202,7 @@ msgid "Search themes..."
 msgstr "Search themes..."
 
 #: packages/admin/src/components/MediaLibrary.tsx:336
-#: packages/admin/src/components/MediaPickerModal.tsx:451
+#: packages/admin/src/components/MediaPickerModal.tsx:464
 msgid "Search..."
 msgstr "Search..."
 
@@ -4301,9 +4301,9 @@ msgstr "Security Settings"
 msgid "Select"
 msgstr "Select"
 
-#: packages/admin/src/components/ContentEditor.tsx:1615
-#: packages/admin/src/components/ContentEditor.tsx:1751
-#: packages/admin/src/components/ContentEditor.tsx:1765
+#: packages/admin/src/components/ContentEditor.tsx:1618
+#: packages/admin/src/components/ContentEditor.tsx:1755
+#: packages/admin/src/components/ContentEditor.tsx:1770
 msgid "Select {label}"
 msgstr "Select {label}"
 
@@ -4311,7 +4311,7 @@ msgstr "Select {label}"
 msgid "Select all"
 msgstr "Select all"
 
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:1860
 msgid "Select byline..."
 msgstr "Select byline..."
 
@@ -4329,15 +4329,19 @@ msgstr "Select Content"
 msgid "Select Favicon"
 msgstr "Select Favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1755
+#: packages/admin/src/components/ContentEditor.tsx:1759
 msgid "Select file"
 msgstr "Select file"
 
-#: packages/admin/src/components/ContentEditor.tsx:1606
+#: packages/admin/src/components/MediaPickerModal.tsx:86
+msgid "Select File"
+msgstr "Select File"
+
+#: packages/admin/src/components/ContentEditor.tsx:1609
 msgid "Select image"
 msgstr "Select image"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:78
+#: packages/admin/src/components/MediaPickerModal.tsx:86
 msgid "Select Image"
 msgstr "Select Image"
 
@@ -4362,7 +4366,7 @@ msgstr "Select which content types to import."
 msgid "Select..."
 msgstr "Select..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:582
+#: packages/admin/src/components/MediaPickerModal.tsx:595
 msgid "Selected:"
 msgstr "Selected:"
 
@@ -4567,8 +4571,8 @@ msgid "Skipped"
 msgstr "Skipped"
 
 #: packages/admin/src/components/ContentEditor.tsx:769
-#: packages/admin/src/components/ContentEditor.tsx:1958
-#: packages/admin/src/components/ContentEditor.tsx:2020
+#: packages/admin/src/components/ContentEditor.tsx:1963
+#: packages/admin/src/components/ContentEditor.tsx:2025
 #: packages/admin/src/components/ContentTypeEditor.tsx:109
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
@@ -4808,8 +4812,8 @@ msgstr "Theme: {label}"
 msgid "Themes"
 msgstr "Themes"
 
-#: packages/admin/src/components/ContentEditor.tsx:1619
-#: packages/admin/src/components/ContentEditor.tsx:1768
+#: packages/admin/src/components/ContentEditor.tsx:1622
+#: packages/admin/src/components/ContentEditor.tsx:1773
 msgid "This field is required"
 msgstr "This field is required"
 
@@ -4974,7 +4978,7 @@ msgid "True/false toggle"
 msgstr "True/false toggle"
 
 #: packages/admin/src/components/MediaLibrary.tsx:366
-#: packages/admin/src/components/MediaPickerModal.tsx:505
+#: packages/admin/src/components/MediaPickerModal.tsx:518
 msgid "Try a different search term"
 msgstr "Try a different search term"
 
@@ -5024,8 +5028,8 @@ msgstr "Type mismatch ({0})"
 msgid "Unable to reach marketplace"
 msgstr "Unable to reach marketplace"
 
-#: packages/admin/src/components/ContentEditor.tsx:2063
-#: packages/admin/src/components/ContentEditor.tsx:2078
+#: packages/admin/src/components/ContentEditor.tsx:2068
+#: packages/admin/src/components/ContentEditor.tsx:2083
 msgid "Unassigned"
 msgstr "Unassigned"
 
@@ -5091,11 +5095,11 @@ msgstr "Unschedule"
 msgid "Untitled"
 msgstr "Untitled"
 
-#: packages/admin/src/components/ContentEditor.tsx:1674
+#: packages/admin/src/components/ContentEditor.tsx:1677
 msgid "Untitled file"
 msgstr "Untitled file"
 
-#: packages/admin/src/components/ContentEditor.tsx:1890
+#: packages/admin/src/components/ContentEditor.tsx:1895
 msgid "Up"
 msgstr "Up"
 
@@ -5144,15 +5148,19 @@ msgstr "Updating content URLs..."
 msgid "Updating..."
 msgstr "Updating..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:473
+#: packages/admin/src/components/MediaPickerModal.tsx:486
 msgid "Upload"
 msgstr "Upload"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:88
+msgid "Upload a file to get started"
+msgstr "Upload a file to get started"
 
 #: packages/admin/src/components/WordPressImport.tsx:1221
 msgid "Upload an export file"
 msgstr "Upload an export file"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:507
+#: packages/admin/src/components/MediaPickerModal.tsx:89
 msgid "Upload an image to get started"
 msgstr "Upload an image to get started"
 
@@ -5165,9 +5173,13 @@ msgstr "Upload and delete media"
 msgid "Upload Export File"
 msgstr "Upload Export File"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:489
+#: packages/admin/src/components/MediaPickerModal.tsx:502
 msgid "Upload failed: {uploadError}"
 msgstr "Upload failed: {uploadError}"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:90
+msgid "Upload File"
+msgstr "Upload File"
 
 #: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Upload files"
@@ -5177,7 +5189,7 @@ msgstr "Upload files"
 msgid "Upload Files"
 msgstr "Upload Files"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:516
+#: packages/admin/src/components/MediaPickerModal.tsx:90
 msgid "Upload Image"
 msgstr "Upload Image"
 
@@ -5217,7 +5229,7 @@ msgid "Uploading {0}/{1}..."
 msgstr "Uploading {0}/{1}..."
 
 #: packages/admin/src/components/MediaLibrary.tsx:290
-#: packages/admin/src/components/MediaPickerModal.tsx:473
+#: packages/admin/src/components/MediaPickerModal.tsx:486
 msgid "Uploading..."
 msgstr "Uploading..."
 

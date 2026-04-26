@@ -240,6 +240,36 @@ describe("MediaPickerModal", () => {
 		});
 	});
 
+	describe("mediaKind", () => {
+		it("uses file-specific copy when mediaKind is 'file'", async () => {
+			// Use an empty media list so the empty state copy renders.
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({ items: [] });
+
+			const screen = await renderModal({ mediaKind: "file", hideUrlInput: true });
+
+			// Default title should be "Select File", not "Select Image"
+			await expect.element(screen.getByText("Select File")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Select Image");
+
+			// Empty-state hint and CTA should reference files, not images
+			await expect.element(screen.getByText("Upload a file to get started")).toBeInTheDocument();
+			await expect.element(screen.getByText("Upload File")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Upload an image to get started");
+			expect(document.body.textContent).not.toContain("Upload Image");
+		});
+
+		it("defaults to image-specific copy when mediaKind is unset", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({ items: [] });
+
+			const screen = await renderModal();
+
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Upload an image to get started")).toBeInTheDocument();
+		});
+	});
+
 	describe("cancel and close", () => {
 		it("Cancel closes modal", async () => {
 			const onOpenChange = vi.fn();

@@ -1285,7 +1285,10 @@ function FieldRenderer({
 		}
 
 		case "file": {
-			// value is either a FileFieldValue object, a legacy string URL, or undefined
+			// value is either a FileFieldValue object or undefined.
+			// The file field type was unusable before this PR (rendered as a text input
+			// that produced raw strings nobody could meaningfully save), so there is no
+			// "legacy string" data to preserve here.
 			const fileValue =
 				value != null && typeof value === "object" ? (value as FileFieldValue) : undefined;
 			return (
@@ -1624,7 +1627,7 @@ function ImageFieldRenderer({
 
 /**
  * File field value — matches the "file" shape validated by the Zod generator:
- * { id, src?, filename?, mimeType?, size? }
+ * { id, provider?, src?, filename?, mimeType?, size?, meta? }
  */
 interface FileFieldValue {
 	id: string;
@@ -1663,7 +1666,7 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 	// it's an http(s) URL — a hostile provider plugin could otherwise return a data:
 	// or javascript: URL that gets rendered as a clickable link.
 	const normalized = React.useMemo(() => {
-		if (!value || typeof value === "string") return null;
+		if (!value) return null;
 		const isLocal = !value.provider || value.provider === "local";
 		const storageKey =
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
@@ -1694,8 +1697,9 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 		onChange(null);
 	};
 
-	const hasMime = normalized?.mimeType;
-	const hasSize = normalized?.size;
+	const hasMime = !!normalized?.mimeType;
+	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
+	const hasSize = size !== undefined;
 
 	return (
 		<div id={id}>
@@ -1722,7 +1726,7 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 							<p className="text-xs text-kumo-subtle">
 								{hasMime ? normalized.mimeType : null}
 								{hasMime && hasSize ? " • " : null}
-								{hasSize ? formatFileSize(normalized.size as number) : null}
+								{hasSize ? formatFileSize(size) : null}
 							</p>
 						)}
 					</div>
@@ -1762,6 +1766,7 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 				onSelect={handleSelect}
 				mimeTypeFilter=""
 				hideUrlInput
+				mediaKind="file"
 				title={t`Select ${label}`}
 			/>
 			{required && !normalized && (

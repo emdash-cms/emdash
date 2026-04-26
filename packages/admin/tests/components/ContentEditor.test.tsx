@@ -315,6 +315,36 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
 		});
 
+		it("renders 0-byte file size instead of hiding it", async () => {
+			// Regression test: a previous truthiness check (`const hasSize = normalized?.size`)
+			// hid the size label for valid 0-byte files even though `formatFileSize(0)`
+			// returns "0 B".
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-empty",
+						filename: "empty.txt",
+						mimeType: "text/plain",
+						size: 0,
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			await expect.element(screen.getByText("empty.txt")).toBeInTheDocument();
+			// "0 B" must be rendered, not silently hidden
+			await expect.element(screen.getByText(/0\s*B/)).toBeInTheDocument();
+		});
+
 		it("renders json fields as a textarea", async () => {
 			const screen = await renderEditor({
 				fields: { metadata: { kind: "json", label: "Metadata" } },

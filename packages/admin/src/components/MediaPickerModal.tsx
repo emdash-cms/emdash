@@ -9,7 +9,7 @@
 import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Upload, Image, Check, Globe, MagnifyingGlass } from "@phosphor-icons/react";
+import { Upload, Image, Check, Globe, MagnifyingGlass, Paperclip } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -48,6 +48,12 @@ export interface MediaPickerModalProps {
 	 * so non-image pickers (e.g. generic file pickers) should hide it.
 	 */
 	hideUrlInput?: boolean;
+	/**
+	 * What kind of media this picker is for. Drives user-facing copy
+	 * (default title, empty-state message, upload button label, empty-state icon).
+	 * Defaults to "image" — set to "file" for generic file pickers.
+	 */
+	mediaKind?: "image" | "file";
 }
 
 /**
@@ -73,9 +79,16 @@ export function MediaPickerModal({
 	mimeTypeFilter = "image/",
 	title: providedTitle,
 	hideUrlInput = false,
+	mediaKind = "image",
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
-	const title = providedTitle ?? t`Select Image`;
+	const isFileKind = mediaKind === "file";
+	const title = providedTitle ?? (isFileKind ? t`Select File` : t`Select Image`);
+	const emptyStateUploadHint = isFileKind
+		? t`Upload a file to get started`
+		: t`Upload an image to get started`;
+	const emptyStateUploadCta = isFileKind ? t`Upload File` : t`Upload Image`;
+	const EmptyStateIcon = isFileKind ? Paperclip : Image;
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -498,13 +511,13 @@ export function MediaPickerModal({
 						</div>
 					) : items.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-full text-center p-8">
-							<Image className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
+							<EmptyStateIcon className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
 							<h3 className="text-lg font-medium">{t`No media found`}</h3>
 							<p className="text-sm text-kumo-subtle mt-1">
 								{canSearch && searchQuery
 									? t`Try a different search term`
 									: canUpload
-										? t`Upload an image to get started`
+										? emptyStateUploadHint
 										: t`No media available from this provider`}
 							</p>
 							{canUpload && !searchQuery && (
@@ -513,7 +526,7 @@ export function MediaPickerModal({
 									icon={<Upload />}
 									onClick={() => fileInputRef.current?.click()}
 								>
-									{t`Upload Image`}
+									{emptyStateUploadCta}
 								</Button>
 							)}
 						</div>
