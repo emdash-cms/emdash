@@ -97,21 +97,28 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 
 		it("should leave slug null when no title or name is present", async () => {
+			// `data: {}` — no title, no name. Slug source isn't there, so the
+			// auto-generator has nothing to work with.
 			const result = await handleContentCreate(db, "post", {
-				data: { content: [{ _type: "block", children: [{ _type: "span", text: "hi" }] }] },
+				data: {},
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.data?.item.slug).toBeNull();
 		});
 
-		it("should leave slug null when title is not a string", async () => {
+		it("rejects non-string title via field validation", async () => {
+			// Field validation now enforces type: string. This test used to
+			// document the slug-generator's silent-skip behavior on a
+			// non-string title, which only happened because no validation
+			// ran. With validation in place, the create is rejected.
 			const result = await handleContentCreate(db, "post", {
 				data: { title: 42 },
 			});
 
-			expect(result.success).toBe(true);
-			expect(result.data?.item.slug).toBeNull();
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("VALIDATION_ERROR");
+			expect(result.error?.message).toMatch(/title/);
 		});
 
 		it("should leave slug null when title is empty string", async () => {

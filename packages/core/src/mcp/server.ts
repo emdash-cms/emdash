@@ -778,6 +778,40 @@ export function createMcpServer(): McpServer {
 	);
 
 	server.registerTool(
+		"content_unschedule",
+		{
+			title: "Cancel Scheduled Publication",
+			description:
+				"Cancel a previously scheduled publication. The item remains in its current " +
+				"status (typically 'draft' or 'scheduled'); only the scheduledAt timestamp is " +
+				"cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+			inputSchema: z.object({
+				collection: z.string().describe("Collection slug"),
+				id: z.string().describe("Content item ID or slug"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.AUTHOR);
+			const ec = getEmDash(extra);
+
+			const existing = await ec.handleContentGet(args.collection, args.id);
+			if (!existing.success) {
+				return unwrap(existing);
+			}
+			requireOwnership(
+				extra,
+				extractContentAuthorId(existing.data),
+				"content:publish_own",
+				"content:publish_any",
+			);
+
+			const resolvedId = extractContentId(existing.data) ?? args.id;
+			return unwrap(await ec.handleContentUnschedule(args.collection, resolvedId));
+		},
+	);
+
+	server.registerTool(
 		"content_compare",
 		{
 			title: "Compare Live vs Draft",
@@ -1236,6 +1270,54 @@ export function createMcpServer(): McpServer {
 	);
 
 	server.registerTool(
+		"media_create",
+		{
+			title: "Register Uploaded Media",
+			description:
+				"Register a media file that has already been uploaded to storage. The " +
+				"caller is responsible for placing the file at `storageKey` (typically " +
+				"using a signed upload URL obtained from the admin UI or a separate API). " +
+				"This tool persists the metadata record so the file is discoverable via " +
+				"media_list / media_get and can be referenced by content. For binary " +
+				"uploads the MCP transport is not appropriate — use the signed-upload " +
+				"flow instead.",
+			inputSchema: z.object({
+				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
+				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
+				storageKey: z.string().describe("Storage path/key the file was uploaded to"),
+				size: z.number().int().nonnegative().optional().describe("File size in bytes"),
+				width: z.number().int().positive().optional().describe("Image width in pixels"),
+				height: z.number().int().positive().optional().describe("Image height in pixels"),
+				contentHash: z.string().optional().describe("Hash of the file contents (for dedupe)"),
+				blurhash: z.string().optional().describe("Blurhash for image placeholders"),
+				dominantColor: z
+					.string()
+					.optional()
+					.describe("Hex color string for the image's dominant color"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.AUTHOR);
+			const { emdash, userId } = getExtra(extra);
+			return unwrap(
+				await emdash.handleMediaCreate({
+					filename: args.filename,
+					mimeType: args.mimeType,
+					storageKey: args.storageKey,
+					size: args.size,
+					width: args.width,
+					height: args.height,
+					contentHash: args.contentHash,
+					blurhash: args.blurhash,
+					dominantColor: args.dominantColor,
+					authorId: userId,
+				}),
+			);
+		},
+	);
+
+	server.registerTool(
 		"media_get",
 		{
 			title: "Get Media Item",
@@ -1507,6 +1589,74 @@ export function createMcpServer(): McpServer {
 		},
 	);
 
+	server.registerTool(
+		"taxonomy_update_term",
+		{
+			title: "Update Taxonomy Term",
+			description:
+				"Update an existing term in a taxonomy. Any field can be omitted to leave " +
+				"it unchanged. Renaming a term's slug must not collide with another term in " +
+				"the same taxonomy. Set parentId to null to detach from a parent.",
+			inputSchema: z.object({
+				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
+				termSlug: z.string().describe("Current slug of the term to update"),
+				slug: z.string().optional().describe("New slug (must be unique in the taxonomy)"),
+				label: z.string().optional().describe("New display name"),
+				parentId: z
+					.string()
+					.nullable()
+					.optional()
+					.describe("New parent term ID; null to detach"),
+				description: z.string().optional().describe("New description"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
+				return unwrap(
+					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
+						slug: args.slug,
+						label: args.label,
+						parentId: args.parentId,
+						description: args.description,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_TERM_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_delete_term",
+		{
+			title: "Delete Taxonomy Term",
+			description:
+				"Permanently delete a term from a taxonomy. Any content tagged with this " +
+				"term loses the association. Child terms (in hierarchical taxonomies) are " +
+				"also removed by foreign-key cascade.",
+			inputSchema: z.object({
+				taxonomy: z.string().describe("Taxonomy name"),
+				termSlug: z.string().describe("Slug of the term to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTermDelete(ec.db, args.taxonomy, args.termSlug));
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_TERM_DELETE_ERROR");
+			}
+		},
+	);
+
 	// =====================================================================
 	// Menu tools
 	// =====================================================================
@@ -1579,6 +1729,245 @@ export function createMcpServer(): McpServer {
 				return jsonResult({ ...menu, items });
 			} catch (error) {
 				return respondHandlerError(error, "MENU_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_create",
+		{
+			title: "Create Menu",
+			description:
+				"Create a new navigation menu. The `name` is the stable identifier used " +
+				"by site templates (e.g. 'main', 'footer'); `label` is the human-readable " +
+				"name shown in the admin. Add items afterwards with menu_set_items.",
+			inputSchema: z.object({
+				name: z
+					.string()
+					.regex(/^[a-z][a-z0-9_]*$/)
+					.describe("Stable identifier (lowercase letters, numbers, underscores)"),
+				label: z.string().describe("Display name for the admin"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { ulid } = await import("ulidx");
+				const id = ulid();
+				const now = new Date().toISOString();
+				await ec.db
+					.insertInto("_emdash_menus" as never)
+					.values({
+						id,
+						name: args.name,
+						label: args.label,
+						created_at: now,
+						updated_at: now,
+					} as never)
+					.execute();
+				return jsonResult({ id, name: args.name, label: args.label });
+			} catch (error) {
+				const message = error instanceof Error ? error.message.toLowerCase() : "";
+				if (message.includes("unique") || message.includes("duplicate")) {
+					return respondError("CONFLICT", `Menu '${args.name}' already exists`);
+				}
+				return respondHandlerError(error, "MENU_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_update",
+		{
+			title: "Update Menu",
+			description: "Update a menu's label. The `name` (stable identifier) cannot be changed.",
+			inputSchema: z.object({
+				name: z.string().describe("Menu name to update"),
+				label: z.string().describe("New display label"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const result = await ec.db
+					.updateTable("_emdash_menus" as never)
+					.set({ label: args.label, updated_at: new Date().toISOString() } as never)
+					.where("name" as never, "=", args.name as never)
+					.executeTakeFirst();
+				if ((result.numUpdatedRows ?? 0n) === 0n) {
+					return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
+				}
+				return jsonResult({ name: args.name, label: args.label });
+			} catch (error) {
+				return respondHandlerError(error, "MENU_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_delete",
+		{
+			title: "Delete Menu",
+			description:
+				"Delete a menu and all its items. Items are removed via foreign-key cascade. " +
+				"Cannot be undone.",
+			inputSchema: z.object({
+				name: z.string().describe("Menu name to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const result = await ec.db
+					.deleteFrom("_emdash_menus" as never)
+					.where("name" as never, "=", args.name as never)
+					.executeTakeFirst();
+				if ((result.numDeletedRows ?? 0n) === 0n) {
+					return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
+				}
+				return jsonResult({ deleted: args.name });
+			} catch (error) {
+				return respondHandlerError(error, "MENU_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_set_items",
+		{
+			title: "Set Menu Items",
+			description:
+				"Replace the entire item list of a menu in one call. This is atomic: the " +
+				"existing items are deleted and the new list is inserted in the order " +
+				"provided. Use this rather than per-item add/remove tools so the resulting " +
+				"order and parent links are unambiguous.",
+			inputSchema: z.object({
+				name: z.string().describe("Menu name to update"),
+				items: z
+					.array(
+						z.object({
+							label: z.string().describe("Item display text"),
+							type: z
+								.enum(["custom", "page", "post", "taxonomy", "collection"])
+								.describe("Item kind"),
+							customUrl: z
+								.string()
+								.optional()
+								.describe("URL for type='custom' items (ignored otherwise)"),
+							referenceCollection: z
+								.string()
+								.optional()
+								.describe("Target collection slug for content references"),
+							referenceId: z
+								.string()
+								.optional()
+								.describe("Target content/term ID for references"),
+							titleAttr: z.string().optional().describe("HTML title attribute"),
+							target: z
+								.string()
+								.optional()
+								.describe("HTML target attribute, e.g. '_blank'"),
+							cssClasses: z.string().optional().describe("Space-separated CSS classes"),
+							/**
+							 * Items are positioned by array index, but parents may be referenced
+							 * by their array index — items with `parentIndex` set are nested under
+							 * the item at that position. Items without `parentIndex` are top-level.
+							 */
+							parentIndex: z
+								.number()
+								.int()
+								.nonnegative()
+								.optional()
+								.describe(
+									"Array index of the parent item (must be earlier in the list). Omit for top-level items.",
+								),
+						}),
+					)
+					.describe("Ordered list of menu items"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const menu = (await ec.db
+					.selectFrom("_emdash_menus" as never)
+					.select(["id" as never])
+					.where("name" as never, "=", args.name as never)
+					.executeTakeFirst()) as { id: string } | undefined;
+				if (!menu) return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
+
+				// Validate parentIndex references — must be a strictly-earlier item
+				// (so the array can be inserted in order with parents resolved).
+				for (let i = 0; i < args.items.length; i++) {
+					const item = args.items[i];
+					if (item?.parentIndex !== undefined) {
+						if (item.parentIndex >= i) {
+							return respondError(
+								"VALIDATION_ERROR",
+								`item[${i}].parentIndex (${item.parentIndex}) must reference an earlier item`,
+							);
+						}
+					}
+				}
+
+				const { ulid } = await import("ulidx");
+				const now = new Date().toISOString();
+
+				// Atomic replace: delete existing items, insert new list.
+				// Wrapping in a transaction so a partial failure rolls back.
+				await ec.db.transaction().execute(async (trx) => {
+					await trx
+						.deleteFrom("_emdash_menu_items" as never)
+						.where("menu_id" as never, "=", menu.id as never)
+						.execute();
+
+					const insertedIds: string[] = [];
+					for (let i = 0; i < args.items.length; i++) {
+						const item = args.items[i];
+						if (!item) continue;
+						const id = ulid();
+						const parentId =
+							item.parentIndex !== undefined ? insertedIds[item.parentIndex] : null;
+						await trx
+							.insertInto("_emdash_menu_items" as never)
+							.values({
+								id,
+								menu_id: menu.id,
+								parent_id: parentId,
+								sort_order: i,
+								type: item.type,
+								reference_collection: item.referenceCollection ?? null,
+								reference_id: item.referenceId ?? null,
+								custom_url: item.customUrl ?? null,
+								label: item.label,
+								title_attr: item.titleAttr ?? null,
+								target: item.target ?? null,
+								css_classes: item.cssClasses ?? null,
+								created_at: now,
+							} as never)
+							.execute();
+						insertedIds.push(id);
+					}
+
+					await trx
+						.updateTable("_emdash_menus" as never)
+						.set({ updated_at: now } as never)
+						.where("id" as never, "=", menu.id as never)
+						.execute();
+				});
+
+				return jsonResult({ name: args.name, itemCount: args.items.length });
+			} catch (error) {
+				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
 			}
 		},
 	);

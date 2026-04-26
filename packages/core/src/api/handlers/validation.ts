@@ -86,6 +86,18 @@ export async function validateContentData(
 
 	const issues: string[] = [];
 
+	// Detect unknown keys explicitly so callers get a useful error rather
+	// than silently dropped data. Leading-underscore keys (e.g. `_slug`,
+	// `_rev`) are reserved for internal handler/runtime use and aren't real
+	// fields; skip them.
+	const knownFields = new Set(collectionWithFields.fields.map((f) => f.slug));
+	for (const key of Object.keys(data)) {
+		if (key.startsWith("_")) continue;
+		if (!knownFields.has(key)) {
+			issues.push(`${key}: unknown field on collection '${collection}'`);
+		}
+	}
+
 	// Zod handles type, enum, length and missing-required (in non-partial
 	// mode) checks. Empty-string handling for required string fields is
 	// done as a separate pass below since Zod's `z.string()` accepts "".

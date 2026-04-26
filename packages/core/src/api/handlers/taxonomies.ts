@@ -327,6 +327,31 @@ export async function handleTermCreate(
 			};
 		}
 
+		// Validate parentId: must exist AND belong to the same taxonomy.
+		// Reading parent term via the repo also confirms it isn't soft-
+		// deleted (the table has no deleted_at; a missing row is enough).
+		if (input.parentId) {
+			const parent = await repo.findById(input.parentId);
+			if (!parent) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Parent term '${input.parentId}' not found`,
+					},
+				};
+			}
+			if (parent.name !== taxonomyName) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Parent term '${input.parentId}' belongs to taxonomy '${parent.name}', not '${taxonomyName}'`,
+					},
+				};
+			}
+		}
+
 		const term = await repo.create({
 			name: taxonomyName,
 			slug: input.slug,

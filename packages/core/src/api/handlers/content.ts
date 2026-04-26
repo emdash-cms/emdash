@@ -24,6 +24,7 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateContentData } from "./validation.js";
@@ -291,6 +292,22 @@ export async function handleContentList(
 				error: { code: "INVALID_CURSOR", message: error.message },
 			};
 		}
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			// e.g. invalid orderBy field
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
 		console.error("Content list error:", error);
 		return {
 			success: false,
@@ -485,6 +502,61 @@ export async function handleContentCreate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		// SQLite UNIQUE constraint OR Postgres unique_violation — slug
+		// collisions and any other unique violations land here.
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (
+			message.includes("unique") ||
+			message.includes("duplicate key") ||
+			message.includes("constraint failed")
+		) {
+			// Detect slug-specific collisions by message fingerprint
+			if (message.includes("slug")) {
+				return {
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: error instanceof Error ? error.message : "Conflict",
+				},
+			};
+		}
+		// SQLite "no such column" / Postgres "column does not exist" — happens
+		// when `data` includes a key that's not a real field on the collection.
+		if (
+			message.includes("no such column") ||
+			(message.includes("column") && message.includes("does not exist"))
+		) {
+			return {
+				success: false,
+				error: {
+					code: "UNKNOWN_FIELD",
+					message: error instanceof Error ? error.message : "Unknown field",
+				},
+			};
+		}
 		console.error("Content create error:", error);
 		return {
 			success: false,
@@ -653,6 +725,52 @@ export async function handleContentUpdate(
 			return {
 				success: false,
 				error: { code: error.apiError.code, message: error.message },
+			};
+		}
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (message.includes("unique") || message.includes("duplicate key")) {
+			if (message.includes("slug")) {
+				return {
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: error instanceof Error ? error.message : "Slug conflict",
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: error instanceof Error ? error.message : "Conflict",
+				},
+			};
+		}
+		if (
+			message.includes("no such column") ||
+			(message.includes("column") && message.includes("does not exist"))
+		) {
+			return {
+				success: false,
+				error: {
+					code: "UNKNOWN_FIELD",
+					message: error instanceof Error ? error.message : "Unknown field",
+				},
 			};
 		}
 		console.error("Content update error:", error);
