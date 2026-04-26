@@ -1140,7 +1140,9 @@ export function createMcpServer(): McpServer {
 					labelSingular: args.labelSingular,
 					description: args.description,
 					icon: args.icon,
-					supports: args.supports ?? ["drafts", "revisions"],
+					// SchemaRegistry.createCollection now defaults `supports` to
+					// ['drafts', 'revisions'] when undefined; pass through verbatim.
+					supports: args.supports,
 				});
 				ec.invalidateManifest();
 				return jsonResult(collection);
@@ -1831,25 +1833,9 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const { ulid } = await import("ulidx");
-				const id = ulid();
-				const now = new Date().toISOString();
-				await ec.db
-					.insertInto("_emdash_menus" as never)
-					.values({
-						id,
-						name: args.name,
-						label: args.label,
-						created_at: now,
-						updated_at: now,
-					} as never)
-					.execute();
-				return jsonResult({ id, name: args.name, label: args.label });
+				const { handleMenuCreate } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuCreate(ec.db, { name: args.name, label: args.label }));
 			} catch (error) {
-				const message = error instanceof Error ? error.message.toLowerCase() : "";
-				if (message.includes("unique") || message.includes("duplicate")) {
-					return respondError("CONFLICT", `Menu '${args.name}' already exists`);
-				}
 				return respondHandlerError(error, "MENU_CREATE_ERROR");
 			}
 		},
@@ -1870,15 +1856,8 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const result = await ec.db
-					.updateTable("_emdash_menus" as never)
-					.set({ label: args.label, updated_at: new Date().toISOString() } as never)
-					.where("name" as never, "=", args.name as never)
-					.executeTakeFirst();
-				if ((result.numUpdatedRows ?? 0n) === 0n) {
-					return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
-				}
-				return jsonResult({ name: args.name, label: args.label });
+				const { handleMenuUpdate } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuUpdate(ec.db, args.name, { label: args.label }));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_UPDATE_ERROR");
 			}
@@ -1901,32 +1880,8 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				// D1 has foreign keys disabled by default, so the migration's
-				// `ON DELETE CASCADE` won't fire. Resolve the menu, then
-				// explicitly delete items first inside a transaction so
-				// partial failures roll back. Idempotent on SQLite/Postgres.
-				const menu = (await ec.db
-					.selectFrom("_emdash_menus" as never)
-					.select(["id" as never])
-					.where("name" as never, "=", args.name as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-
-				if (!menu) {
-					return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
-				}
-
-				await ec.db.transaction().execute(async (trx) => {
-					await trx
-						.deleteFrom("_emdash_menu_items" as never)
-						.where("menu_id" as never, "=", menu.id as never)
-						.execute();
-					await trx
-						.deleteFrom("_emdash_menus" as never)
-						.where("id" as never, "=", menu.id as never)
-						.execute();
-				});
-
-				return jsonResult({ deleted: args.name });
+				const { handleMenuDelete } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuDelete(ec.db, args.name));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_DELETE_ERROR");
 			}
@@ -1986,73 +1941,8 @@ export function createMcpServer(): McpServer {
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const menu = (await ec.db
-					.selectFrom("_emdash_menus" as never)
-					.select(["id" as never])
-					.where("name" as never, "=", args.name as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-				if (!menu) return respondError("NOT_FOUND", `Menu '${args.name}' not found`);
-
-				// Validate parentIndex references — must be a strictly-earlier item
-				// (so the array can be inserted in order with parents resolved).
-				for (let i = 0; i < args.items.length; i++) {
-					const item = args.items[i];
-					if (item?.parentIndex !== undefined) {
-						if (item.parentIndex >= i) {
-							return respondError(
-								"VALIDATION_ERROR",
-								`item[${i}].parentIndex (${item.parentIndex}) must reference an earlier item`,
-							);
-						}
-					}
-				}
-
-				const { ulid } = await import("ulidx");
-				const now = new Date().toISOString();
-
-				// Atomic replace: delete existing items, insert new list.
-				// Wrapping in a transaction so a partial failure rolls back.
-				await ec.db.transaction().execute(async (trx) => {
-					await trx
-						.deleteFrom("_emdash_menu_items" as never)
-						.where("menu_id" as never, "=", menu.id as never)
-						.execute();
-
-					const insertedIds: string[] = [];
-					for (let i = 0; i < args.items.length; i++) {
-						const item = args.items[i];
-						if (!item) continue;
-						const id = ulid();
-						const parentId = item.parentIndex !== undefined ? insertedIds[item.parentIndex] : null;
-						await trx
-							.insertInto("_emdash_menu_items" as never)
-							.values({
-								id,
-								menu_id: menu.id,
-								parent_id: parentId,
-								sort_order: i,
-								type: item.type,
-								reference_collection: item.referenceCollection ?? null,
-								reference_id: item.referenceId ?? null,
-								custom_url: item.customUrl ?? null,
-								label: item.label,
-								title_attr: item.titleAttr ?? null,
-								target: item.target ?? null,
-								css_classes: item.cssClasses ?? null,
-								created_at: now,
-							} as never)
-							.execute();
-						insertedIds.push(id);
-					}
-
-					await trx
-						.updateTable("_emdash_menus" as never)
-						.set({ updated_at: now } as never)
-						.where("id" as never, "=", menu.id as never)
-						.execute();
-				});
-
-				return jsonResult({ name: args.name, itemCount: args.items.length });
+				const { handleMenuSetItems } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuSetItems(ec.db, args.name, args.items));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
 			}

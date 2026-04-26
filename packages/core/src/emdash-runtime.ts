@@ -1682,14 +1682,32 @@ export class EmDashRuntime {
 					? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed to object above
 						(item.data as Record<string, unknown>)
 					: {};
-			const mergedData = { ...liveData, ...revision.data };
-			// Mutate in place — the response object is built fresh by the
-			// handler and not retained anywhere else.
-			item.data = mergedData;
-			item.liveData = liveData;
-			return result;
-		} catch {
-			// Non-fatal — fall back to the unhydrated response
+			// Strip leading-underscore keys (`_slug`, `_rev`, etc.) from the
+			// revision data — those are handler-internal markers and don't
+			// belong in the surfaced `data` field. Match syncDataColumns at
+			// content.ts:~1119.
+			const revisionData: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(revision.data)) {
+				if (!key.startsWith("_")) revisionData[key] = value;
+			}
+			const mergedData = { ...liveData, ...revisionData };
+			// Return a clone rather than mutating in place. The response
+			// object isn't retained by the runtime today, but a future
+			// request-cache layer would observe stale-after-mutation bugs;
+			// cloning closes that footgun.
+			return {
+				...result,
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape preserved
+				data: {
+					...((result as { data?: unknown }).data as Record<string, unknown>),
+					item: { ...item, data: mergedData, liveData },
+				},
+			} as T;
+		} catch (error) {
+			// Non-fatal — fall back to the unhydrated response. Log so the
+			// failure isn't completely silent (the response will look stale
+			// to the caller but no error is raised).
+			console.error("[emdash] draft hydration failed:", error);
 			return result;
 		}
 	}
@@ -1882,12 +1900,18 @@ export class EmDashRuntime {
 			bylines: bodyWithoutRev.bylines,
 		});
 
+		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
+		// the same effective data the response surfaces — for revision-
+		// supporting collections, that's the just-saved draft, not the live
+		// columns.
+		const hydrated = await this.hydrateDraftData(result);
+
 		// Run afterSave hooks (fire-and-forget)
-		if (result.success && result.data) {
-			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, false);
+		if (hydrated.success && hydrated.data) {
+			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false);
 		}
 
-		return this.hydrateDraftData(result);
+		return hydrated;
 	}
 
 	async handleContentDelete(collection: string, id: string) {

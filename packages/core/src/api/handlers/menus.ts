@@ -447,6 +447,119 @@ export interface ReorderItem {
 	sortOrder: number;
 }
 
+// ---------------------------------------------------------------------------
+// Atomic-replace menu items (used by the MCP `menu_set_items` tool)
+// ---------------------------------------------------------------------------
+
+export interface MenuSetItemsInput {
+	label: string;
+	type: "custom" | "page" | "post" | "taxonomy" | "collection";
+	customUrl?: string;
+	referenceCollection?: string;
+	referenceId?: string;
+	titleAttr?: string;
+	target?: string;
+	cssClasses?: string;
+	/**
+	 * Index of the parent item in this same array. Must be strictly less
+	 * than the current item's index so the insert order resolves parents
+	 * before children. `undefined` makes the item top-level.
+	 */
+	parentIndex?: number;
+}
+
+/**
+ * Replace the entire set of items for a menu in one atomic transaction.
+ *
+ * Existing items are deleted and the new list is inserted in the order
+ * provided. `parentIndex` references resolve to actual parent IDs as the
+ * insert proceeds.
+ */
+export async function handleMenuSetItems(
+	db: Kysely<Database>,
+	menuName: string,
+	items: MenuSetItemsInput[],
+): Promise<ApiResult<{ name: string; itemCount: number }>> {
+	try {
+		const menu = await db
+			.selectFrom("_emdash_menus")
+			.select("id")
+			.where("name", "=", menuName)
+			.executeTakeFirst();
+
+		if (!menu) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: "Menu not found" },
+			};
+		}
+
+		// Validate parentIndex references — must be strictly earlier so
+		// the array can be inserted in order with parents resolved first.
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item?.parentIndex !== undefined) {
+				if (item.parentIndex >= i) {
+					return {
+						success: false,
+						error: {
+							code: "VALIDATION_ERROR",
+							message: `item[${i}].parentIndex (${item.parentIndex}) must reference an earlier item`,
+						},
+					};
+				}
+			}
+		}
+
+		await withTransaction(db, async (trx) => {
+			await trx
+				.deleteFrom("_emdash_menu_items")
+				.where("menu_id", "=", menu.id)
+				.execute();
+
+			const insertedIds: string[] = [];
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i];
+				if (!item) continue;
+				const id = ulid();
+				const parentId =
+					item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
+				await trx
+					.insertInto("_emdash_menu_items")
+					.values({
+						id,
+						menu_id: menu.id,
+						parent_id: parentId,
+						sort_order: i,
+						type: item.type,
+						reference_collection: item.referenceCollection ?? null,
+						reference_id: item.referenceId ?? null,
+						custom_url: item.customUrl ?? null,
+						label: item.label,
+						title_attr: item.titleAttr ?? null,
+						target: item.target ?? null,
+						css_classes: item.cssClasses ?? null,
+					})
+					.execute();
+				insertedIds.push(id);
+			}
+
+			await trx
+				.updateTable("_emdash_menus")
+				.set({ updated_at: new Date().toISOString() })
+				.where("id", "=", menu.id)
+				.execute();
+		});
+
+		return { success: true, data: { name: menuName, itemCount: items.length } };
+	} catch {
+		return {
+			success: false,
+			error: { code: "MENU_SET_ITEMS_ERROR", message: "Failed to set menu items" },
+		};
+	}
+}
+
 /**
  * Batch reorder menu items.
  */
