@@ -80,6 +80,16 @@ const API_TOKEN_SCOPE_VALUES: {
 		description: msg`Modify collection schemas`,
 	},
 	{
+		scope: API_TOKEN_SCOPES.TaxonomiesManage,
+		label: msg`Taxonomies Manage`,
+		description: msg`Create, update, and delete taxonomy terms`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.MenusManage,
+		label: msg`Menus Manage`,
+		description: msg`Create, update, and delete navigation menus`,
+	},
+	{
 		scope: API_TOKEN_SCOPES.Admin,
 		label: msg`Admin`,
 		description: msg`Full admin access`,
