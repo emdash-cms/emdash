@@ -1,5 +1,15 @@
 import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
 
+/**
+ * Hard cap on cursor length. Cursors we issue are short JSON-in-base64
+ * blobs; a real cursor is well under 200 chars. This guards against
+ * malicious callers passing megabyte-sized strings to force the base64
+ * decoder to allocate (decodeBase64 is O(N) in input size). The MCP and
+ * REST schemas also clamp at 2048 — this 4096 cap is a defense-in-depth
+ * floor inside the repository helpers.
+ */
+const MAX_CURSOR_LENGTH = 4096;
+
 export interface CreateContentInput {
 	type: string;
 	slug?: string | null;
@@ -111,6 +121,7 @@ export class InvalidCursorError extends Error {
  */
 export function decodeCursor(cursor: string): { orderValue: string; id: string } {
 	if (!cursor) throw new InvalidCursorError(cursor);
+	if (cursor.length > MAX_CURSOR_LENGTH) throw new InvalidCursorError(cursor);
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(decodeBase64(cursor));

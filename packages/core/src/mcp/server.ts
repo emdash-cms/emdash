@@ -395,7 +395,12 @@ export function createMcpServer(): McpServer {
 					.max(100)
 					.optional()
 					.describe("Max items to return (default 50, max 100)"),
-				cursor: z.string().min(1).optional().describe("Pagination cursor from a previous response"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
 				orderBy: z
 					.string()
 					.optional()
@@ -958,7 +963,7 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().min(1).optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1333,7 +1338,7 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Filter by MIME type prefix (e.g. 'image/', 'application/pdf')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().min(1).optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1574,7 +1579,7 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().min(1).optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},

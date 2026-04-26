@@ -1695,11 +1695,14 @@ export class EmDashRuntime {
 			// object isn't retained by the runtime today, but a future
 			// request-cache layer would observe stale-after-mutation bugs;
 			// cloning closes that footgun.
+			// `r.data` was narrowed to `{ item?: ... }` at the top of this
+			// method; spread its other keys (e.g. `_rev`) alongside the
+			// hydrated item without going back through `unknown`.
 			return {
 				...result,
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape preserved
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
 				data: {
-					...((result as { data?: unknown }).data as Record<string, unknown>),
+					...r.data,
 					item: { ...item, data: mergedData, liveData },
 				},
 			} as T;

@@ -162,8 +162,7 @@ export function createTestRuntime(
  * under test as in production.
  */
 export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime exposes the same surface; missing fields are not used by MCP tools
-	return {
+	const handlers: EmDashHandlers = {
 		// Content
 		handleContentList: runtime.handleContentList.bind(runtime),
 		handleContentGet: runtime.handleContentGet.bind(runtime),
@@ -221,7 +220,8 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 		collectPageFragments: runtime.collectPageFragments.bind(runtime),
 		ensureSearchHealthy: runtime.ensureSearchHealthy.bind(runtime),
-	} as unknown as EmDashHandlers;
+	};
+	return handlers;
 }
 
 // ---------------------------------------------------------------------------

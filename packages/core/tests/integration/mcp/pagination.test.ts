@@ -155,6 +155,24 @@ describe("MCP cursor pagination — content_list (bug #12)", () => {
 		}
 	});
 
+	it("rejects oversized cursor without attempting to decode it (DoS guard)", async () => {
+		await seedPosts(db, 3);
+
+		// Cursors we issue are well under 200 chars. A multi-KB cursor is
+		// almost certainly an attacker probing the base64 decoder. The
+		// MCP input schema caps cursors at 2048 chars; this test forces a
+		// rejection at the schema boundary rather than letting the
+		// decoder allocate against a giant string.
+		const huge = "A".repeat(10_000);
+
+		const result = await harness.client.callTool({
+			name: "content_list",
+			arguments: { collection: "post", cursor: huge },
+		});
+
+		expect(result.isError).toBe(true);
+	});
+
 	it("malformed cursor on second page does not skip back to start", async () => {
 		await seedPosts(db, 5);
 

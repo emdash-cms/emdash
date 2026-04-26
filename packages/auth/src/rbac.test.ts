@@ -141,8 +141,8 @@ describe("rbac", () => {
 			// be able to edit content with ownerId="" — that ownerId means
 			// "no recorded owner" (e.g. seed-imported content), and granting
 			// edit-own would be an accidental privilege escalation.
-			const user = { role: Role.AUTHOR, id: "" };
-			expect(canActOnOwn(user, "", "content:edit_own", "content:edit_any")).toBe(false);
+			const orphanedUser = { role: Role.AUTHOR, id: "" };
+			expect(canActOnOwn(orphanedUser, "", "content:edit_own", "content:edit_any")).toBe(false);
 		});
 	});
 
