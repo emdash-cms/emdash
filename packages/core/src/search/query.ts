@@ -198,14 +198,16 @@ async function searchSingleCollection(
 	const bm25Expr = bm25Args ? `bm25("${ftsTable}", ${bm25Args})` : `bm25("${ftsTable}")`;
 
 	// Snippet column index is 2 (after id=0, locale=1, first searchable field=2)
-	const results = await sql<{
-		id: string;
-		slug: string | null;
-		locale: string;
-		title: string | null;
-		snippet: string;
-		score: number;
-	}>`
+	let results;
+	try {
+		results = await sql<{
+			id: string;
+			slug: string | null;
+			locale: string;
+			title: string | null;
+			snippet: string;
+			score: number;
+		}>`
 		SELECT 
 			c.id,
 			c.slug,
@@ -222,6 +224,18 @@ async function searchSingleCollection(
 		ORDER BY score
 		LIMIT ${limit}
 	`.execute(db);
+	} catch (error) {
+		// FTS5 returns syntax errors for queries with unbalanced quotes,
+		// stray operators, or other malformed input. Treat these as
+		// "no matches" so the user gets an empty result rather than an
+		// internals-leaking error. Other errors (table missing, IO) still
+		// propagate.
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (message.includes("fts5") || message.includes("syntax error")) {
+			return [];
+		}
+		throw error;
+	}
 
 	return results.rows.map((row) => ({
 		collection,

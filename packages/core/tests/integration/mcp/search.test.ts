@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { FTSManager } from "../../../src/search/fts-manager.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -46,6 +47,11 @@ async function setupSearchablePostCollection(db: Kysely<Database>): Promise<void
 		type: "text",
 		searchable: true,
 	});
+	// Activate the FTS index. Production sites do this either via the seed
+	// pipeline or the admin "Enable search" toggle. Without it, the FTS
+	// table and triggers don't exist and the test would silently miss real
+	// indexing bugs.
+	await new FTSManager(db).enableSearch("post");
 }
 
 describe("search", () => {
@@ -148,6 +154,9 @@ describe("search", () => {
 			type: "string",
 			searchable: true,
 		});
+		const fts = new FTSManager(db);
+		await fts.enableSearch("post");
+		await fts.enableSearch("page");
 
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const post = await harness.client.callTool({

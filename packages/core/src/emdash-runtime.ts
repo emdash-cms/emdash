@@ -1644,11 +1644,54 @@ export class EmDashRuntime {
 	}
 
 	async handleContentGet(collection: string, id: string, locale?: string) {
-		return handleContentGet(this.db, collection, id, locale);
+		const result = await handleContentGet(this.db, collection, id, locale);
+		return this.hydrateDraftData(result);
 	}
 
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {
-		return handleContentGetIncludingTrashed(this.db, collection, id, locale);
+		const result = await handleContentGetIncludingTrashed(this.db, collection, id, locale);
+		return this.hydrateDraftData(result);
+	}
+
+	/**
+	 * If the response item has a `draftRevisionId`, replace `item.data` with
+	 * the draft revision's data and expose the original published values as
+	 * `liveData`. This makes the content_get / content_update round-trip
+	 * intuitive — read returns the latest content the caller has saved
+	 * (their pending draft), with the previously-published values still
+	 * accessible for compare-style flows.
+	 *
+	 * No-op when no draft exists or the response is an error.
+	 */
+	private async hydrateDraftData<T>(result: T): Promise<T> {
+		if (!result || typeof result !== "object") return result;
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape probed below
+		const r = result as {
+			success?: boolean;
+			data?: { item?: Record<string, unknown> };
+		};
+		if (!r.success || !r.data?.item) return result;
+		const item = r.data.item;
+		const draftRevisionId = typeof item.draftRevisionId === "string" ? item.draftRevisionId : null;
+		if (!draftRevisionId) return result;
+		try {
+			const revision = await new RevisionRepository(this.db).findById(draftRevisionId);
+			if (!revision) return result;
+			const liveData =
+				item.data && typeof item.data === "object"
+					? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed to object above
+						(item.data as Record<string, unknown>)
+					: {};
+			const mergedData = { ...liveData, ...revision.data };
+			// Mutate in place — the response object is built fresh by the
+			// handler and not retained anywhere else.
+			item.data = mergedData;
+			item.liveData = liveData;
+			return result;
+		} catch {
+			// Non-fatal — fall back to the unhydrated response
+			return result;
+		}
 	}
 
 	async handleContentCreate(
@@ -1829,7 +1872,7 @@ export class EmDashRuntime {
 			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, false);
 		}
 
-		return result;
+		return this.hydrateDraftData(result);
 	}
 
 	async handleContentDelete(collection: string, id: string) {

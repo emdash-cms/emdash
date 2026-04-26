@@ -1602,11 +1602,7 @@ export function createMcpServer(): McpServer {
 				termSlug: z.string().describe("Current slug of the term to update"),
 				slug: z.string().optional().describe("New slug (must be unique in the taxonomy)"),
 				label: z.string().optional().describe("New display name"),
-				parentId: z
-					.string()
-					.nullable()
-					.optional()
-					.describe("New parent term ID; null to detach"),
+				parentId: z.string().nullable().optional().describe("New parent term ID; null to detach"),
 				description: z.string().optional().describe("New description"),
 			}),
 		},
@@ -1744,7 +1740,7 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				name: z
 					.string()
-					.regex(/^[a-z][a-z0-9_]*$/)
+					.regex(COLLECTION_SLUG_PATTERN)
 					.describe("Stable identifier (lowercase letters, numbers, underscores)"),
 				label: z.string().describe("Display name for the admin"),
 			}),
@@ -1865,15 +1861,9 @@ export function createMcpServer(): McpServer {
 								.string()
 								.optional()
 								.describe("Target collection slug for content references"),
-							referenceId: z
-								.string()
-								.optional()
-								.describe("Target content/term ID for references"),
+							referenceId: z.string().optional().describe("Target content/term ID for references"),
 							titleAttr: z.string().optional().describe("HTML title attribute"),
-							target: z
-								.string()
-								.optional()
-								.describe("HTML target attribute, e.g. '_blank'"),
+							target: z.string().optional().describe("HTML target attribute, e.g. '_blank'"),
 							cssClasses: z.string().optional().describe("Space-separated CSS classes"),
 							/**
 							 * Items are positioned by array index, but parents may be referenced
@@ -1935,8 +1925,7 @@ export function createMcpServer(): McpServer {
 						const item = args.items[i];
 						if (!item) continue;
 						const id = ulid();
-						const parentId =
-							item.parentIndex !== undefined ? insertedIds[item.parentIndex] : null;
+						const parentId = item.parentIndex !== undefined ? insertedIds[item.parentIndex] : null;
 						await trx
 							.insertInto("_emdash_menu_items" as never)
 							.values({
