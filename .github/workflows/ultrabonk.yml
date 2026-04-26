@@ -1,4 +1,10 @@
-name: Bonk
+name: Ultrabonk
+
+# Frontier-model variant of bonk.yml. Same flow, different model and trigger.
+# Use /ultrabonk when /bonk's default model isn't strong enough -- typically
+# for cross-file refactors, subtle bug fixes, or anything where you want a
+# better chance the first attempt is correct. Costs ~10x as much as /bonk,
+# so reach for it deliberately.
 
 on:
   issue_comment:
@@ -9,24 +15,21 @@ on:
     types: [submitted]
 
 # Concurrency is at job level (below) rather than workflow level so it's only
-# evaluated when the `if:` filter passes. Otherwise every issue_comment event
-# in the repo would enter the group and could evict in-flight runs from
-# unrelated, non-matching comments.
+# evaluated when the `if:` filter passes.
 
 jobs:
-  bonk:
+  ultrabonk:
     if: >-
       github.event.sender.type != 'Bot'
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association)
       && (
         ((github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment')
-          && (contains(github.event.comment.body, '/bonk') || contains(github.event.comment.body, '@ask-bonk')))
+          && contains(github.event.comment.body, '/ultrabonk'))
         || (github.event_name == 'pull_request_review'
-          && (contains(github.event.review.body, '/bonk') || contains(github.event.review.body, '@ask-bonk')))
+          && contains(github.event.review.body, '/ultrabonk'))
       )
     # Per-workflow group key so /bonk, /ultrabonk, /review, /ultrareview all
-    # have independent queues per target. Spamming /bonk on the same issue/PR
-    # serializes; different actions on the same target run in parallel.
+    # have independent queues per target.
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
       cancel-in-progress: false
@@ -56,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Lil Bonk
+      - name: Run Ultrabonk
         uses: ask-bonk/ask-bonk/github@a96a0dc8f935aa38e71b33a473a8076738b53599 # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
@@ -64,23 +67,22 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
           # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
           #
-          # 1. Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
-          #    version (1.4.6 published 2026-04-15). Without this, opencode
-          #    raises ProviderModelNotFoundError because the model post-dates
-          #    its bundled models.dev snapshot.
+          # 1. Register claude-opus-4-7 (released 2026-04-16) with the pinned
+          #    opencode version (1.4.6 published 2026-04-15), whose bundled
+          #    models.dev snapshot predates it and would otherwise raise
+          #    ProviderModelNotFoundError.
           #
           # 2. Resolve the two opencode permission defaults that ask interactively
           #    (`external_directory` and `doom_loop`) so a CI run with no TTY
           #    can never deadlock waiting for approval. external_directory is
           #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
           #    home-dir caches); doom_loop is deny so a stuck loop aborts
-          #    instead of prompting. Repro: PR #769 timed out at 30 min waiting
-          #    for an `external_directory` prompt on `git show ... > /tmp/foo`.
+          #    instead of prompting.
           OPENCODE_CONFIG_CONTENT: |
-            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
+            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"anthropic/claude-opus-4-7":{"id":"anthropic/claude-opus-4-7","name":"Claude Opus 4.7","family":"claude-opus","attachment":true,"reasoning":true,"tool_call":true,"temperature":false,"release_date":"2026-04-16","modalities":{"input":["text","image","pdf"],"output":["text"]},"cost":{"input":5,"output":25,"cache_read":0.5,"cache_write":6.25},"limit":{"context":1000000,"output":128000}}}}}}
         with:
-          model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
-          mentions: "/bonk,@ask-bonk"
+          model: "cloudflare-ai-gateway/anthropic/claude-opus-4-7"
+          mentions: "/ultrabonk"
           opencode_version: "1.4.6"
           permissions: write
           # Custom prompt so the model knows its response will become a PR body
