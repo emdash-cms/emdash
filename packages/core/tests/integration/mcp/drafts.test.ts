@@ -490,11 +490,13 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 			.selectFrom("ec_post" as never)
 			.select(["title", "live_revision_id", "draft_revision_id"] as never)
 			.where("id" as never, "=", id)
-			.executeTakeFirst()) as {
-			title: unknown;
-			live_revision_id: string | null;
-			draft_revision_id: string | null;
-		} | undefined;
+			.executeTakeFirst()) as
+			| {
+					title: unknown;
+					live_revision_id: string | null;
+					draft_revision_id: string | null;
+			  }
+			| undefined;
 		expect(dbRow?.title).toBe("v1");
 		// A new draft revision was created. It is distinct from BOTH the
 		// original v1 revision id (we created a new revision row carrying
@@ -556,10 +558,12 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 			.selectFrom("ec_post" as never)
 			.select(["title", "draft_revision_id"] as never)
 			.where("id" as never, "=", id)
-			.executeTakeFirst()) as {
-			title: unknown;
-			draft_revision_id: string | null;
-		} | undefined;
+			.executeTakeFirst()) as
+			| {
+					title: unknown;
+					draft_revision_id: string | null;
+			  }
+			| undefined;
 		expect(dbRow?.title).toBe("v2");
 		expect(dbRow?.draft_revision_id).toBeTruthy();
 	});
