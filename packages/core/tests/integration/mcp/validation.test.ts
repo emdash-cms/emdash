@@ -97,6 +97,25 @@ describe("MCP validation — required fields (bug #4)", () => {
 		expect(extractText(result)).toMatch(VALIDATION_ERROR);
 	});
 
+	it("rejects create with non-string value for a string field", async () => {
+		// Zod's `z.string()` rejects numbers/booleans/objects. The MCP
+		// boundary lets these through (data is `z.record(z.string(),
+		// z.unknown())`), so the check has to live in the runtime
+		// validator. Guard against future regressions like swapping in
+		// `z.coerce.string()`.
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "post",
+				// eslint-disable-next-line typescript-eslint(no-explicit-any) -- intentionally bypass MCP type to hit runtime validation
+				data: { title: 42 } as any,
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(VALIDATION_ERROR);
+		expect(extractText(result)).toMatch(/title/i);
+	});
+
 	it("accepts create with required title present (regression guard)", async () => {
 		const result = await harness.client.callTool({
 			name: "content_create",

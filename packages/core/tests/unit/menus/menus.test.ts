@@ -594,6 +594,12 @@ describe("Navigation Menus", () => {
 			]);
 			expect(result.success).toBe(false);
 			expect(result.error?.code).toBe("NOT_FOUND");
+
+			// And no items were inserted — confirms the transaction rolled
+			// back. A regression that committed before the existence check
+			// would leave orphan rows referencing a non-existent menu_id.
+			const items = await db.selectFrom("_emdash_menu_items").selectAll().execute();
+			expect(items).toEqual([]);
 		});
 	});
 });

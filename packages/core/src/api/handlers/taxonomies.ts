@@ -343,33 +343,37 @@ async function validateParentTerm(
 		};
 	}
 
-	// Walk up the parent chain to detect cycles. Bound the walk so a
-	// pre-existing pathological state can't make the validator hang.
-	// The depth-exceeded error only fires when we hit the limit AND there
+	// Walk up the parent chain. Two checks fold into one walk:
+	//   - Cycle detection (only on update — a non-existent term-being-
+	//     created can't be its own ancestor): if the walk revisits termId
+	//     the proposed parent makes the term a descendant of itself.
+	//   - Depth bound: refuse to extend a chain past MAX_DEPTH ancestors.
+	//     Runs on both create and update so a malicious or buggy caller
+	//     can't grow the tree without limit.
+	//
+	// The depth-exceeded error fires only when we hit the limit AND there
 	// was still chain to walk — a legitimate chain of exactly MAX_DEPTH
 	// ancestors exits with `cursor === null` and is accepted.
-	if (termId !== undefined) {
-		const MAX_DEPTH = 100;
-		let cursor: string | null = parent.parentId;
-		let steps = 0;
-		while (cursor !== null && steps < MAX_DEPTH) {
-			if (cursor === termId) {
-				return {
-					code: "VALIDATION_ERROR",
-					message: "Cycle detected: cannot make a descendant the parent",
-				};
-			}
-			const next = await repo.findById(cursor);
-			if (!next) break;
-			cursor = next.parentId;
-			steps++;
-		}
-		if (cursor !== null && steps >= MAX_DEPTH) {
+	const MAX_DEPTH = 100;
+	let cursor: string | null = parent.parentId;
+	let steps = 0;
+	while (cursor !== null && steps < MAX_DEPTH) {
+		if (termId !== undefined && cursor === termId) {
 			return {
 				code: "VALIDATION_ERROR",
-				message: "Parent chain exceeds maximum depth",
+				message: "Cycle detected: cannot make a descendant the parent",
 			};
 		}
+		const next = await repo.findById(cursor);
+		if (!next) break;
+		cursor = next.parentId;
+		steps++;
+	}
+	if (cursor !== null && steps >= MAX_DEPTH) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: "Parent chain exceeds maximum depth",
+		};
 	}
 
 	return null;

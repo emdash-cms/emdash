@@ -348,7 +348,12 @@ describe("schema_delete_collection", () => {
 			arguments: { slug: "post" },
 		});
 		expect(result.isError).toBe(true);
-		expect(extractText(result)).toMatch(/content|empty|force|not empty/i);
+		// Tight: the error must say "has content" and tell the caller how
+		// to override (force: true). Loose word matches like /empty|content/
+		// passed against unrelated 500s, hiding regressions.
+		const text = extractText(result);
+		expect(text).toMatch(/has content/i);
+		expect(text).toContain("force: true");
 	});
 
 	it("force deletes a collection with content", async () => {

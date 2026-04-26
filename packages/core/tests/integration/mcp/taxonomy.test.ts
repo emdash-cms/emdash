@@ -541,6 +541,69 @@ describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
 			expect(term.parentId).toBeNull();
 		}
 	});
+
+	// ----- MAX_DEPTH boundary -----
+	// validateParentTerm walks up the parent chain bounded by MAX_DEPTH=100
+	// to prevent a pathological pre-existing cycle from hanging the
+	// validator. The boundary is "more than 100 ancestors": exactly-100 is
+	// accepted, 101+ is rejected.
+
+	it("accepts a chain of exactly MAX_DEPTH (100) ancestors", async () => {
+		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
+		const repo = new TaxonomyRepository(db);
+		// Build root → 1 → 2 → ... → 100. 101 terms total. The deepest
+		// term has 100 ancestors; setting it as parent of a new term means
+		// validateParentTerm walks 100 hops up before exhausting the chain.
+		let parentId: string | undefined;
+		const ids: string[] = [];
+		for (let i = 0; i < 101; i++) {
+			const term = await repo.create({
+				name: "tags",
+				slug: `chain-${i}`,
+				label: `Chain ${i}`,
+				parentId,
+			});
+			ids.push(term.id);
+			parentId = term.id;
+		}
+		const deepest = ids.at(-1);
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf", parentId: deepest },
+		});
+		// New term's parent is the 100-deep tail. Walking up from there
+		// reaches the root after exactly 100 hops; cursor becomes null,
+		// the depth-exceeded check does NOT fire.
+		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+
+	it("rejects a chain that exceeds MAX_DEPTH", async () => {
+		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
+		const repo = new TaxonomyRepository(db);
+		// Build a 102-term chain. The deepest term has 101 ancestors —
+		// one more than MAX_DEPTH allows.
+		let parentId: string | undefined;
+		const ids: string[] = [];
+		for (let i = 0; i < 102; i++) {
+			const term = await repo.create({
+				name: "tags",
+				slug: `chain-${i}`,
+				label: `Chain ${i}`,
+				parentId,
+			});
+			ids.push(term.id);
+			parentId = term.id;
+		}
+		const deepest = ids.at(-1);
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf", parentId: deepest },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/maximum depth|MAX_DEPTH|exceeds/i);
+	});
 });
 
 describe("taxonomy_delete_term (bug #13 / F12)", () => {

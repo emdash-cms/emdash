@@ -1599,29 +1599,43 @@ export function createMcpServer(): McpServer {
 
 				// Paginated term query via repository (avoids N+1 of handleTermList)
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
+				const { decodeCursor, encodeCursor, InvalidCursorError } =
+					await import("../database/repositories/types.js");
 				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
 				const terms = await repo.findByName(args.taxonomy);
 
-				// Manual cursor pagination over the sorted results.
-				// taxonomy_list_terms uses a term id as cursor (not the
-				// base64-encoded keyset cursor used elsewhere). An
-				// unrecognised cursor is a client bug — return a structured
-				// INVALID_CURSOR rather than silently restarting from the
-				// top, matching the behaviour of decodeCursor for other
-				// list tools.
+				// Manual keyset pagination over the sorted-by-label results.
+				// Using a base64-encoded `(label, id)` cursor matches the
+				// scheme other list endpoints use and tolerates concurrent
+				// deletion of the cursor-term — the cursor is a position,
+				// not a row reference, so a missing row just means we skip
+				// past it rather than erroring.
 				let startIdx = 0;
 				if (args.cursor) {
-					const cursorIdx = terms.findIndex((t) => t.id === args.cursor);
-					if (cursorIdx < 0) {
-						return respondError("INVALID_CURSOR", `Invalid pagination cursor: ${args.cursor}`);
+					let decoded: { orderValue: string; id: string };
+					try {
+						decoded = decodeCursor(args.cursor);
+					} catch (error) {
+						if (error instanceof InvalidCursorError) {
+							return respondError("INVALID_CURSOR", error.message);
+						}
+						throw error;
 					}
-					startIdx = cursorIdx + 1;
+					// Find the first term that sorts strictly after the cursor
+					// position. Stable order is `(label asc, id asc)` so a
+					// `(label, id)` tuple comparison is the keyset.
+					startIdx = terms.findIndex(
+						(t) =>
+							t.label > decoded.orderValue || (t.label === decoded.orderValue && t.id > decoded.id),
+					);
+					if (startIdx < 0) startIdx = terms.length;
 				}
 
 				const page = terms.slice(startIdx, startIdx + limit);
 				const hasMore = startIdx + limit < terms.length;
-				const nextCursor = hasMore ? page.at(-1)?.id : undefined;
+				const last = page.at(-1);
+				const nextCursor = hasMore && last ? encodeCursor(last.label, last.id) : undefined;
 
 				return jsonResult({
 					items: page.map((t) => ({

@@ -42,26 +42,33 @@ export interface MenuWithItems extends MenuRow {
  */
 export async function handleMenuList(db: Kysely<Database>): Promise<ApiResult<MenuListItem[]>> {
 	try {
-		const menus = await db
-			.selectFrom("_emdash_menus")
-			.select(["id", "name", "label", "created_at", "updated_at"])
-			.orderBy("name", "asc")
+		// Single query: LEFT JOIN + GROUP BY for the per-menu item count.
+		// Avoids the N+1 of one count query per menu.
+		const rows = await db
+			.selectFrom("_emdash_menus as m")
+			.leftJoin("_emdash_menu_items as i", "i.menu_id", "m.id")
+			.select(({ fn }) => [
+				"m.id",
+				"m.name",
+				"m.label",
+				"m.created_at",
+				"m.updated_at",
+				fn.count<number>("i.id").as("itemCount"),
+			])
+			.groupBy(["m.id", "m.name", "m.label", "m.created_at", "m.updated_at"])
+			.orderBy("m.name", "asc")
 			.execute();
 
-		const menusWithCounts = await Promise.all(
-			menus.map(async (menu) => {
-				const { count } = await db
-					.selectFrom("_emdash_menu_items")
-					.select(({ fn }) => fn.countAll<number>().as("count"))
-					.where("menu_id", "=", menu.id)
-					.executeTakeFirstOrThrow();
-
-				return {
-					...menu,
-					itemCount: count,
-				};
-			}),
-		);
+		// SQLite returns count as `number`, but some dialects (Postgres)
+		// return `string` from a count() aggregate. Normalize to number.
+		const menusWithCounts: MenuListItem[] = rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			label: row.label,
+			created_at: row.created_at,
+			updated_at: row.updated_at,
+			itemCount: typeof row.itemCount === "string" ? Number(row.itemCount) : row.itemCount,
+		}));
 
 		return { success: true, data: menusWithCounts };
 	} catch {

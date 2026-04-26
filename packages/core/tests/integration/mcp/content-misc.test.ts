@@ -12,7 +12,7 @@
  */
 
 import { Role } from "@emdash-cms/auth";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -555,9 +555,12 @@ describe("idempotency", () => {
 		expect(firstItem.status).toBe("published");
 		expect(firstItem.publishedAt).toBeTruthy();
 
-		// Wait briefly so a regression that reassigns publishedAt would produce
-		// a distinguishable timestamp.
-		await new Promise((r) => setTimeout(r, 5));
+		// Pin publishedAt to a known fixed value so the comparison can't be
+		// satisfied by coincidence (two publishes within the same ms would
+		// produce identical ISO strings even on a regression that drops the
+		// COALESCE preservation).
+		const KNOWN = "2020-01-01T00:00:00.000Z";
+		await sql`UPDATE ec_post SET published_at = ${KNOWN} WHERE id = ${id}`.execute(db);
 
 		const second = await harness.client.callTool({
 			name: "content_publish",
@@ -565,13 +568,13 @@ describe("idempotency", () => {
 		});
 		// Contract: publish is idempotent. Second call succeeds, status
 		// remains published, and publishedAt is preserved (the repository
-		// uses COALESCE so the original timestamp survives a re-publish).
+		// uses COALESCE so the existing timestamp survives a re-publish).
 		expect(second.isError, extractText(second)).toBeFalsy();
 		const secondItem = extractJson<{
 			item: { status: string; publishedAt: string | null };
 		}>(second).item;
 		expect(secondItem.status).toBe("published");
-		expect(secondItem.publishedAt).toBe(firstItem.publishedAt);
+		expect(secondItem.publishedAt).toBe(KNOWN);
 	});
 
 	it("unpublish on a draft (already unpublished) is idempotent: status stays draft", async () => {
@@ -579,7 +582,11 @@ describe("idempotency", () => {
 			name: "content_create",
 			arguments: { collection: "post", data: { title: "T" } },
 		});
-		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		const createdItem = extractJson<{
+			item: { id: string; version: number };
+		}>(created).item;
+		const id = createdItem.id;
+		const versionBefore = createdItem.version;
 
 		// Item is born as draft. Contract: unpublish is idempotent — succeeds
 		// and the item stays draft.
@@ -588,9 +595,16 @@ describe("idempotency", () => {
 			arguments: { collection: "post", id },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
-		const item = extractJson<{ item: { status: string; publishedAt: string | null } }>(result).item;
+		const item = extractJson<{
+			item: { status: string; publishedAt: string | null; version: number };
+		}>(result).item;
 		expect(item.status).toBe("draft");
 		expect(item.publishedAt).toBeNull();
+		// Idempotent: nothing meaningful changed. A regression that always
+		// bumps the version or creates a phantom revision would surface here.
+		// (updated_at can tick because the UPDATE re-runs; version is the
+		// stricter invariant.)
+		expect(item.version).toBe(versionBefore);
 	});
 
 	it("schedule then publish: schedule is preserved or cleared cleanly", async () => {

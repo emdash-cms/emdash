@@ -200,12 +200,29 @@ describe("search", () => {
 		await setupSearchablePostCollection(db);
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 
+		// Seed a published item so a regression that interprets an empty
+		// query as "match all" would produce a non-empty list and fail.
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "post",
+				data: { title: "matchable", body: "indexed content" },
+			},
+		});
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: extractJson<{ item: { id: string } }>(created).item.id,
+			},
+		});
+
 		const result = await harness.client.callTool({
 			name: "search",
 			arguments: { query: "" },
 		});
 		// Empty queries are sanitized to a no-op and return zero matches.
-		// They must not surface as an error.
+		// They must not surface as an error AND must not match all items.
 		expect(result.isError, extractText(result)).toBeFalsy();
 		const data = extractJson<{ items: unknown[] }>(result);
 		expect(data.items).toEqual([]);
@@ -214,6 +231,23 @@ describe("search", () => {
 	it("handles special characters in query without leaking FTS5 syntax errors", async () => {
 		await setupSearchablePostCollection(db);
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		// Seed a published item so a regression that lets malformed input
+		// fall through to "match all" would surface a non-empty list.
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "post",
+				data: { title: "matchable", body: "indexed content" },
+			},
+		});
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: extractJson<{ item: { id: string } }>(created).item.id,
+			},
+		});
 
 		// FTS5 has special operators: AND OR NOT NEAR " * ( ) :
 		// `searchSingleCollection` swallows malformed-input FTS5 errors and

@@ -96,9 +96,7 @@ describe("requireScope", () => {
 		});
 
 		it("taxonomies:manage alone allows taxonomy operations", () => {
-			expect(
-				requireScope({ tokenScopes: ["taxonomies:manage"] }, "taxonomies:manage"),
-			).toBeNull();
+			expect(requireScope({ tokenScopes: ["taxonomies:manage"] }, "taxonomies:manage")).toBeNull();
 		});
 
 		it("prototype-chain keys do not crash or grant access", () => {
