@@ -415,55 +415,153 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("revision_restore replaces the current draft and the data is visible on read", async () => {
-		// v1
+	/**
+	 * Bug #17 repro from MCP_BUGS.md: live=v1, draft=v2 (unpublished),
+	 * restore v1. Per the tool contract ("Replaces the current draft..."),
+	 * the live row must remain v1 and the draft must become v1. The
+	 * pre-fix behavior wrote v1 onto the live row and left the draft
+	 * pointing at v2.
+	 */
+	it("restore replaces the current draft and leaves the live row alone", async () => {
+		// Create v1, publish so live = v1.
 		const created = await harness.client.callTool({
 			name: "content_create",
 			arguments: { collection: "post", data: { title: "v1" } },
 		});
 		const id = extractJson<ItemEnvelope>(created).item.id;
-
-		// Publish v1, then update to v2 (creates draft revision)
 		await harness.client.callTool({
 			name: "content_publish",
 			arguments: { collection: "post", id },
 		});
+
+		// Find the v1 revision id BEFORE updating to v2 — once we update
+		// without publishing, v1 is still in revision history.
+		const revsBeforeUpdate = await harness.client.callTool({
+			name: "revision_list",
+			arguments: { collection: "post", id },
+		});
+		const v1Rev = extractJson<{
+			items: Array<{ id: string; data?: { title?: unknown } }>;
+		}>(revsBeforeUpdate).items.find((r) => r.data?.title === "v1");
+		expect(v1Rev, "v1 revision must exist after publish").toBeTruthy();
+
+		// Update to v2 (creates a draft revision; live remains v1).
 		await harness.client.callTool({
 			name: "content_update",
 			arguments: { collection: "post", id, data: { title: "v2" } },
 		});
-		// Publish v2
-		await harness.client.callTool({
-			name: "content_publish",
-			arguments: { collection: "post", id },
-		});
 
-		// List revisions and find the v1 revision
-		const revs = await harness.client.callTool({
-			name: "revision_list",
-			arguments: { collection: "post", id },
-		});
-		const revData = extractJson<{
-			items: Array<{ id: string; data?: { title?: unknown }; title?: unknown }>;
-		}>(revs);
-		const v1Rev = revData.items.find(
-			(r) => (r.data?.title ?? r.title) === "v1" || (r.data?.title ?? r.title) === "v1",
-		);
-		expect(v1Rev).toBeTruthy();
+		// Sanity: before restore, get returns v2 (the draft) and liveData=v1.
+		const preRestore = extractJson<ItemEnvelope>(
+			await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id },
+			}),
+		).item as ItemEnvelope["item"] & { liveData?: { title?: unknown } };
+		expect(readTitle(preRestore)).toBe("v2");
+		expect(preRestore.liveData?.title).toBe("v1");
+		const v2DraftId = preRestore.draftRevisionId;
+		expect(v2DraftId, "v2 draft revision id must be set").toBeTruthy();
 
-		// Restore v1 — should make v1 the current draft
+		// Restore v1.
 		const restored = await harness.client.callTool({
 			name: "revision_restore",
 			arguments: { collection: "post", id, revisionId: v1Rev!.id },
 		});
 		expect(restored.isError, extractText(restored)).toBeFalsy();
 
-		// content_get should now reflect v1 in the visible data
-		const got = await harness.client.callTool({
-			name: "content_get",
+		// The restore response itself must show the new draft state (v1),
+		// not stale data. Same shape as the bug-#2 fix for content_update.
+		const restoredItem = extractJson<ItemEnvelope>(restored).item;
+		expect(readTitle(restoredItem)).toBe("v1");
+
+		// And a follow-up content_get must agree.
+		const postRestore = extractJson<ItemEnvelope>(
+			await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id },
+			}),
+		).item;
+		expect(readTitle(postRestore)).toBe("v1");
+
+		// The live row must still hold v1 (unchanged from the original
+		// publish — restore must NOT overwrite live).
+		const dbRow = (await db
+			.selectFrom("ec_post" as never)
+			.select(["title", "live_revision_id", "draft_revision_id"] as never)
+			.where("id" as never, "=", id)
+			.executeTakeFirst()) as {
+			title: unknown;
+			live_revision_id: string | null;
+			draft_revision_id: string | null;
+		} | undefined;
+		expect(dbRow?.title).toBe("v1");
+		// A new draft revision was created. It is distinct from BOTH the
+		// original v1 revision id (we created a new revision row carrying
+		// v1's data — we don't reuse history rows) AND the v2 draft id
+		// (the v2 draft was abandoned). This is the strongest differentia
+		// from the pre-fix behavior, which left v2's draft pointer
+		// in place.
+		expect(dbRow?.draft_revision_id).toBeTruthy();
+		expect(dbRow?.draft_revision_id).not.toBe(v1Rev!.id);
+		expect(dbRow?.draft_revision_id).not.toBe(v2DraftId);
+	});
+
+	/**
+	 * Companion case: restoring while no draft exists should still create
+	 * a new draft (rather than no-op or overwrite live).
+	 */
+	it("restore creates a new draft when none exists", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "v1" } },
+		});
+		const id = extractJson<ItemEnvelope>(created).item.id;
+		await harness.client.callTool({
+			name: "content_publish",
 			arguments: { collection: "post", id },
 		});
-		expect(readTitle(extractJson<ItemEnvelope>(got).item)).toBe("v1");
+		// Update + publish v2 so there's no live draft.
+		await harness.client.callTool({
+			name: "content_update",
+			arguments: { collection: "post", id, data: { title: "v2" } },
+		});
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: { collection: "post", id },
+		});
+
+		const revs = extractJson<{
+			items: Array<{ id: string; data?: { title?: unknown } }>;
+		}>(
+			await harness.client.callTool({
+				name: "revision_list",
+				arguments: { collection: "post", id },
+			}),
+		);
+		const v1Rev = revs.items.find((r) => r.data?.title === "v1");
+		expect(v1Rev).toBeTruthy();
+
+		// Now live = v2, no draft. Restore v1.
+		const restored = await harness.client.callTool({
+			name: "revision_restore",
+			arguments: { collection: "post", id, revisionId: v1Rev!.id },
+		});
+		expect(restored.isError, extractText(restored)).toBeFalsy();
+		expect(readTitle(extractJson<ItemEnvelope>(restored).item)).toBe("v1");
+
+		// Live row should still hold v2; a new draft now exists pointing
+		// at v1.
+		const dbRow = (await db
+			.selectFrom("ec_post" as never)
+			.select(["title", "draft_revision_id"] as never)
+			.where("id" as never, "=", id)
+			.executeTakeFirst()) as {
+			title: unknown;
+			draft_revision_id: string | null;
+		} | undefined;
+		expect(dbRow?.title).toBe("v2");
+		expect(dbRow?.draft_revision_id).toBeTruthy();
 	});
 });
 

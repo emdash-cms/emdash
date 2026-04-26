@@ -2137,7 +2137,74 @@ export class EmDashRuntime {
 	}
 
 	async handleRevisionRestore(revisionId: string, callerUserId: string) {
-		return handleRevisionRestore(this.db, revisionId, callerUserId);
+		// Discover the parent entry up front so we can branch on whether
+		// the collection uses draft revisions.
+		const revisionRepo = new RevisionRepository(this.db);
+		const revision = await revisionRepo.findById(revisionId);
+		if (!revision) {
+			return {
+				success: false as const,
+				error: {
+					code: "NOT_FOUND",
+					message: `Revision not found: ${revisionId}`,
+				},
+			};
+		}
+
+		const collectionInfo = await this.schemaRegistry.getCollectionWithFields(revision.collection);
+		const usesDraftRevisions = collectionInfo?.supports?.includes("revisions") ?? false;
+
+		// Non-revision collections: keep the legacy behavior of writing the
+		// revision's data straight onto the live row. This preserves
+		// behavior for collections that opt out of the draft model.
+		if (!usesDraftRevisions) {
+			const result = await handleRevisionRestore(this.db, revisionId, callerUserId);
+			return this.hydrateDraftData(result);
+		}
+
+		// Revision-capable collections: restore is "make this revision the
+		// current draft". The live row's data columns are left untouched
+		// (only `draft_revision_id` and `updated_at` change). The caller
+		// must then `content_publish` to promote the restored draft to
+		// live, matching the documented tool contract.
+		try {
+			const newDraft = await revisionRepo.create({
+				collection: revision.collection,
+				entryId: revision.entryId,
+				data: revision.data,
+				authorId: callerUserId,
+			});
+
+			validateIdentifier(revision.collection, "collection");
+			const tableName = `ec_${revision.collection}`;
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${newDraft.id},
+					updated_at = ${new Date().toISOString()}
+				WHERE id = ${revision.entryId}
+			`.execute(this.db);
+
+			// Fire-and-forget: prune old revisions to prevent unbounded growth
+			void revisionRepo
+				.pruneOldRevisions(revision.collection, revision.entryId, 50)
+				.catch(() => {});
+
+			// Return the freshly-fetched item with the new draft hydrated
+			// onto `data`. Without this the response would echo the live
+			// columns and the next `content_get` would surface different
+			// values (the bug that motivated this rewrite).
+			const refetched = await handleContentGet(this.db, revision.collection, revision.entryId);
+			return this.hydrateDraftData(refetched);
+		} catch (error) {
+			console.error("[emdash] revision restore failed:", error);
+			return {
+				success: false as const,
+				error: {
+					code: "REVISION_RESTORE_ERROR",
+					message: "Failed to restore revision",
+				},
+			};
+		}
 	}
 
 	// =========================================================================
