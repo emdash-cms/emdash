@@ -537,7 +537,7 @@ msgstr "En cours d'ajout..."
 msgid "Additional data to import."
 msgstr "Données supplémentaires à importer."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:104
 #: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -641,7 +641,7 @@ msgid "Analyzing WordPress site..."
 msgstr "Analyse du site WordPress en cours..."
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:186
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
 msgid "API Tokens"
 msgstr "Jetons d'API"
 
@@ -781,7 +781,7 @@ msgid "Back to sections"
 msgstr "Retour aux sections"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:181
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:191
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:107
@@ -882,8 +882,8 @@ msgstr "Peut consulter le contenu"
 #: packages/admin/src/components/Sections.tsx:207
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:456
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:466
 #: packages/admin/src/components/settings/SecuritySettings.tsx:210
 #: packages/admin/src/components/TaxonomyManager.tsx:304
 #: packages/admin/src/components/TaxonomyManager.tsx:523
@@ -1098,7 +1098,7 @@ msgstr "Terminer l'inscription"
 msgid "Configure Field"
 msgstr "Configurer le champ"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Confirm"
 msgstr "Confirmer"
 
@@ -1199,7 +1199,7 @@ msgstr "Continuer l'importation"
 msgid "Contributor"
 msgstr "Contributeur"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
 msgid "Copied to clipboard"
 msgstr "Copié dans le presse-papiers"
@@ -1217,11 +1217,11 @@ msgstr "Copier le lien d'invitation"
 msgid "Copy slug"
 msgstr "Copier le slug"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
 msgid "Copy this token now — it won't be shown again."
 msgstr "Copiez ce jeton maintenant — il ne sera plus affiché."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
 msgid "Copy token"
 msgstr "Copier le jeton"
 
@@ -1283,7 +1283,7 @@ msgstr "Créer un menu"
 msgid "Create New Menu"
 msgstr "Créer un nouveau menu"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:399
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr "Créer un nouveau jeton"
 
@@ -1296,7 +1296,7 @@ msgid "Create Passkey"
 msgstr "Créer une clé d'accès"
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:188
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:198
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Créer des jetons d'accès personnels pour un accès programmatique à l'API"
 
@@ -1331,8 +1331,8 @@ msgstr "Créer des sections dans la bibliothèque Sections pour les utiliser ici
 msgid "Create Taxonomy"
 msgstr "Créer une taxonomie"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:261
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:271
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Create Token"
 msgstr "Créer un jeton"
 
@@ -1375,7 +1375,7 @@ msgstr "Créé"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:310
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "Créé le {0}"
@@ -1397,7 +1397,7 @@ msgstr "En cours de création de collections et de champs..."
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 #: packages/admin/src/components/TaxonomyManager.tsx:526
 msgid "Creating..."
 msgstr "Création en cours..."
@@ -1672,8 +1672,8 @@ msgstr "Ignorer les modifications"
 msgid "Discard draft changes?"
 msgstr "Supprimer les brouillons de modifications ?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:236
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:246
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:248
 msgid "Dismiss"
 msgstr "Fermer"
 
@@ -1771,7 +1771,7 @@ msgstr "Déposer votre fichier d'exportation WordPress ici"
 msgid "Duplicate {title}"
 msgstr "Dupliquer {title}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:413
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr "p. ex. : pipeline CI/CD"
 
@@ -2000,11 +2000,11 @@ msgid "Expand details"
 msgstr "Développer les détails"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
 msgid "Expires {0}"
 msgstr "Expire le {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:439
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:449
 msgid "Expiry"
 msgstr "Expiration"
 
@@ -2221,7 +2221,7 @@ msgstr "Pour une expérience d'importation optimale, installez le"
 msgid "Full access"
 msgstr "Accès complet"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:105
 msgid "Full admin access"
 msgstr "Accès administrateur complet"
 
@@ -2286,7 +2286,7 @@ msgstr "Hauteur"
 msgid "Hide from search engines"
 msgstr "Masquer des moteurs de recherche"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Hide token"
 msgstr "Masquer le jeton"
 
@@ -2617,7 +2617,7 @@ msgstr "Dernière utilisation"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "Dernière utilisation le {0}"
@@ -3136,7 +3136,7 @@ msgstr "Aucune erreur 404 enregistrée pour le moment."
 msgid "No alt text"
 msgstr "Aucun texte alternatif"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
 msgid "No API tokens yet. Create one to get started."
 msgstr "Aucun jeton d'API pour l'instant. Créez-en un pour commencer."
 
@@ -3725,6 +3725,10 @@ msgstr "Lire les entrées de contenu"
 msgid "Read media files"
 msgstr "Lire les fichiers multimédias"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+msgid "Read site settings"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
 msgstr "Lecture"
@@ -3968,15 +3972,15 @@ msgstr "Révision restaurée"
 msgid "Revisions"
 msgstr "Révisions"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:346
 msgid "Revoke token"
 msgstr "Révoquer le jeton"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:321
 msgid "Revoke?"
 msgstr "Révoquer ?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Revoking..."
 msgstr "Révocation en cours..."
 
@@ -4113,12 +4117,12 @@ msgstr "Lecture du schéma"
 msgid "Schema Write"
 msgstr "Écriture du schéma"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:419
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr "Champs d'application"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
 msgid "Scopes: {0}"
 msgstr "Champs d'application : {0}"
 
@@ -4458,6 +4462,14 @@ msgstr "Mise en place en cours..."
 msgid "Settings"
 msgstr "Paramètres"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
+msgid "Settings Manage"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+msgid "Settings Read"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
 msgstr "Paramètres enregistrés avec succès"
@@ -4471,7 +4483,7 @@ msgstr "Partager ce lien avec l'utilisateur invité"
 msgid "Short Text"
 msgstr "Texte court"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Show token"
 msgstr "Afficher le jeton"
 
@@ -4929,11 +4941,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "Changer de thème (actuel : {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:200
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Token created: {0}"
 msgstr "Jeton créé : {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:410
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr "Nom du jeton"
 
@@ -5111,6 +5123,10 @@ msgstr "Champ de mise à jour"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
 msgid "Update settings for {0}"
 msgstr "Mettre à jour les paramètres pour {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
+msgid "Update site settings"
+msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:218

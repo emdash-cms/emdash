@@ -537,7 +537,7 @@ msgstr ""
 msgid "Additional data to import."
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:104
 #: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -641,7 +641,7 @@ msgid "Analyzing WordPress site..."
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:186
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
 msgid "API Tokens"
 msgstr "API-Tokens"
 
@@ -781,7 +781,7 @@ msgid "Back to sections"
 msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:181
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:191
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:107
@@ -882,8 +882,8 @@ msgstr "Kann Inhalte ansehen"
 #: packages/admin/src/components/Sections.tsx:207
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:456
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:466
 #: packages/admin/src/components/settings/SecuritySettings.tsx:210
 #: packages/admin/src/components/TaxonomyManager.tsx:304
 #: packages/admin/src/components/TaxonomyManager.tsx:523
@@ -1098,7 +1098,7 @@ msgstr ""
 msgid "Configure Field"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1199,7 +1199,7 @@ msgstr ""
 msgid "Contributor"
 msgstr "Mitwirkende"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
 msgid "Copied to clipboard"
 msgstr "In die Zwischenablage kopiert"
@@ -1217,11 +1217,11 @@ msgstr ""
 msgid "Copy slug"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
 msgid "Copy this token now — it won't be shown again."
 msgstr "Kopiere dieses Token jetzt — es wird nicht noch einmal angezeigt."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
 msgid "Copy token"
 msgstr "Token kopieren"
 
@@ -1283,7 +1283,7 @@ msgstr ""
 msgid "Create New Menu"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:399
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr "Neues Token erstellen"
 
@@ -1296,7 +1296,7 @@ msgid "Create Passkey"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:188
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:198
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Persönliche Zugangstokens für programmatischen API-Zugriff erstellen"
 
@@ -1331,8 +1331,8 @@ msgstr ""
 msgid "Create Taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:261
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:271
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Create Token"
 msgstr "Token erstellen"
 
@@ -1375,7 +1375,7 @@ msgstr ""
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:310
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "Erstellt am {0}"
@@ -1397,7 +1397,7 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 #: packages/admin/src/components/TaxonomyManager.tsx:526
 msgid "Creating..."
 msgstr "Wird erstellt..."
@@ -1672,8 +1672,8 @@ msgstr "Änderungen verwerfen"
 msgid "Discard draft changes?"
 msgstr "Änderungen am Entwurf verwerfen?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:236
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:246
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:248
 msgid "Dismiss"
 msgstr "Schließen"
 
@@ -1771,7 +1771,7 @@ msgstr ""
 msgid "Duplicate {title}"
 msgstr "{title} duplizieren"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:413
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr "z. B. CI/CD-Pipeline"
 
@@ -2000,11 +2000,11 @@ msgid "Expand details"
 msgstr ""
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
 msgid "Expires {0}"
 msgstr "Läuft ab am {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:439
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:449
 msgid "Expiry"
 msgstr "Ablauf"
 
@@ -2221,7 +2221,7 @@ msgstr ""
 msgid "Full access"
 msgstr "Voller Zugriff"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:105
 msgid "Full admin access"
 msgstr "Voller Admin-Zugriff"
 
@@ -2286,7 +2286,7 @@ msgstr ""
 msgid "Hide from search engines"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Hide token"
 msgstr "Token ausblenden"
 
@@ -2617,7 +2617,7 @@ msgstr ""
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "Zuletzt verwendet am {0}"
@@ -3136,7 +3136,7 @@ msgstr ""
 msgid "No alt text"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
 msgid "No API tokens yet. Create one to get started."
 msgstr "Noch keine API-Tokens. Erstelle eins, um loszulegen."
 
@@ -3725,6 +3725,10 @@ msgstr "Inhaltseinträge lesen"
 msgid "Read media files"
 msgstr "Mediendateien lesen"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+msgid "Read site settings"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
 msgstr ""
@@ -3968,15 +3972,15 @@ msgstr ""
 msgid "Revisions"
 msgstr "Revisionen"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:346
 msgid "Revoke token"
 msgstr "Token widerrufen"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:321
 msgid "Revoke?"
 msgstr "Widerrufen?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Revoking..."
 msgstr "Wird widerrufen..."
 
@@ -4113,12 +4117,12 @@ msgstr "Schema lesen"
 msgid "Schema Write"
 msgstr "Schema bearbeiten"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:419
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr "Berechtigungen"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
 msgid "Scopes: {0}"
 msgstr "Berechtigungen: {0}"
 
@@ -4458,6 +4462,14 @@ msgstr ""
 msgid "Settings"
 msgstr "Einstellungen"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
+msgid "Settings Manage"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+msgid "Settings Read"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
 msgstr ""
@@ -4471,7 +4483,7 @@ msgstr ""
 msgid "Short Text"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Show token"
 msgstr "Token anzeigen"
 
@@ -4929,11 +4941,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "Theme umschalten (aktuell: {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:200
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Token created: {0}"
 msgstr "Token erstellt: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:410
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr "Token-Name"
 
@@ -5110,6 +5122,10 @@ msgstr ""
 #. placeholder {0}: editingDomain?.domain
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
 msgid "Update settings for {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
+msgid "Update site settings"
 msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"

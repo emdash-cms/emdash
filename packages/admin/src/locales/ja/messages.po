@@ -537,7 +537,7 @@ msgstr "追加中..."
 msgid "Additional data to import."
 msgstr "インポートする追加データ。"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:104
 #: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -641,7 +641,7 @@ msgid "Analyzing WordPress site..."
 msgstr "WordPressサイトを解析中..."
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:186
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
 msgid "API Tokens"
 msgstr "APIトークン"
 
@@ -781,7 +781,7 @@ msgid "Back to sections"
 msgstr "セクションに戻る"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:181
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:191
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:107
@@ -882,8 +882,8 @@ msgstr "コンテンツを閲覧可能"
 #: packages/admin/src/components/Sections.tsx:207
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:456
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:466
 #: packages/admin/src/components/settings/SecuritySettings.tsx:210
 #: packages/admin/src/components/TaxonomyManager.tsx:304
 #: packages/admin/src/components/TaxonomyManager.tsx:523
@@ -1098,7 +1098,7 @@ msgstr "登録を完了"
 msgid "Configure Field"
 msgstr "フィールドを設定"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Confirm"
 msgstr "確認"
 
@@ -1199,7 +1199,7 @@ msgstr "インポートを続行"
 msgid "Contributor"
 msgstr "寄稿者"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
 msgid "Copied to clipboard"
 msgstr "クリップボードにコピーしました"
@@ -1217,11 +1217,11 @@ msgstr "招待リンクをコピー"
 msgid "Copy slug"
 msgstr "スラッグをコピー"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
 msgid "Copy this token now — it won't be shown again."
 msgstr "今すぐこのトークンをコピーしてください。再表示はされません。"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
 msgid "Copy token"
 msgstr "トークンをコピー"
 
@@ -1283,7 +1283,7 @@ msgstr "メニューを作成"
 msgid "Create New Menu"
 msgstr "新しいメニューを作成"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:399
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr "新しいトークンを作成"
 
@@ -1296,7 +1296,7 @@ msgid "Create Passkey"
 msgstr "パスキーを作成"
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:188
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:198
 msgid "Create personal access tokens for programmatic API access"
 msgstr "プログラムからのAPIアクセス用にパーソナルアクセストークンを作成"
 
@@ -1331,8 +1331,8 @@ msgstr "セクションライブラリでセクションを作成して使用で
 msgid "Create Taxonomy"
 msgstr "タクソノミーを作成"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:261
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:271
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Create Token"
 msgstr "トークンを作成"
 
@@ -1375,7 +1375,7 @@ msgstr "作成済み"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:310
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "作成日: {0}"
@@ -1397,7 +1397,7 @@ msgstr "コレクションとフィールドを作成中..."
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 #: packages/admin/src/components/TaxonomyManager.tsx:526
 msgid "Creating..."
 msgstr "作成中..."
@@ -1672,8 +1672,8 @@ msgstr "変更を破棄"
 msgid "Discard draft changes?"
 msgstr "下書きの変更を破棄しますか？"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:236
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:246
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:248
 msgid "Dismiss"
 msgstr "閉じる"
 
@@ -1771,7 +1771,7 @@ msgstr "WordPressのエクスポートファイルをここにドロップ"
 msgid "Duplicate {title}"
 msgstr "{title}を複製"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:413
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr "例: CI/CDパイプライン"
 
@@ -2000,11 +2000,11 @@ msgid "Expand details"
 msgstr "詳細を展開"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
 msgid "Expires {0}"
 msgstr "有効期限: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:439
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:449
 msgid "Expiry"
 msgstr "有効期限"
 
@@ -2221,7 +2221,7 @@ msgstr "最適なインポートのために、以下をインストールして
 msgid "Full access"
 msgstr "フルアクセス"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:105
 msgid "Full admin access"
 msgstr "管理者フルアクセス"
 
@@ -2286,7 +2286,7 @@ msgstr "高さ"
 msgid "Hide from search engines"
 msgstr "検索エンジンから非表示"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Hide token"
 msgstr "トークンを非表示"
 
@@ -2617,7 +2617,7 @@ msgstr "最終使用"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "最終使用日: {0}"
@@ -3136,7 +3136,7 @@ msgstr "404エラーはまだ記録されていません。"
 msgid "No alt text"
 msgstr "代替テキストなし"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
 msgid "No API tokens yet. Create one to get started."
 msgstr "APIトークンはまだありません。作成して使い始めましょう。"
 
@@ -3725,6 +3725,10 @@ msgstr "コンテンツエントリを読み取り"
 msgid "Read media files"
 msgstr "メディアファイルを読み取り"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+msgid "Read site settings"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
 msgstr "閲覧"
@@ -3968,15 +3972,15 @@ msgstr "リビジョンを復元しました"
 msgid "Revisions"
 msgstr "リビジョン"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:346
 msgid "Revoke token"
 msgstr "トークンを取り消す"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:321
 msgid "Revoke?"
 msgstr "取り消しますか？"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Revoking..."
 msgstr "取り消し中..."
 
@@ -4113,12 +4117,12 @@ msgstr "スキーマ読み取り"
 msgid "Schema Write"
 msgstr "スキーマ書き込み"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:419
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr "スコープ"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
 msgid "Scopes: {0}"
 msgstr "スコープ: {0}"
 
@@ -4458,6 +4462,14 @@ msgstr "セットアップ中..."
 msgid "Settings"
 msgstr "設定"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
+msgid "Settings Manage"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+msgid "Settings Read"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
 msgstr "設定を保存しました"
@@ -4471,7 +4483,7 @@ msgstr "招待したユーザーとこのリンクを共有してください"
 msgid "Short Text"
 msgstr "短文テキスト"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Show token"
 msgstr "トークンを表示"
 
@@ -4929,11 +4941,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "テーマを切り替え（現在: {label}）"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:200
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Token created: {0}"
 msgstr "トークンを作成しました: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:410
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr "トークン名"
 
@@ -5111,6 +5123,10 @@ msgstr "フィールドを更新"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
 msgid "Update settings for {0}"
 msgstr "{0}の設定を更新"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
+msgid "Update site settings"
+msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:218

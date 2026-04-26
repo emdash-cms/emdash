@@ -90,6 +90,16 @@ const API_TOKEN_SCOPE_VALUES: {
 		description: msg`Create, update, and delete navigation menus`,
 	},
 	{
+		scope: API_TOKEN_SCOPES.SettingsRead,
+		label: msg`Settings Read`,
+		description: msg`Read site settings`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.SettingsManage,
+		label: msg`Settings Manage`,
+		description: msg`Update site settings`,
+	},
+	{
 		scope: API_TOKEN_SCOPES.Admin,
 		label: msg`Admin`,
 		description: msg`Full admin access`,

@@ -18,6 +18,54 @@ import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+/** http(s) scheme matcher used by `settings_update` URL validation. */
+const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+
+// ---------------------------------------------------------------------------
+// Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
+// REST handler validates against). Defined inline to match the rest of the
+// MCP tool registrations rather than reaching across into the REST layer.
+// ---------------------------------------------------------------------------
+
+const settingsMediaReferenceSchema = z.object({
+	mediaId: z.string().describe("Media item ID (use media_create or media_list)"),
+	alt: z.string().optional().describe("Alt text for the media reference"),
+});
+
+const settingsSocialSchema = z.object({
+	twitter: z.string().optional(),
+	github: z.string().optional(),
+	facebook: z.string().optional(),
+	instagram: z.string().optional(),
+	linkedin: z.string().optional(),
+	youtube: z.string().optional(),
+});
+
+const settingsSeoSchema = z.object({
+	titleSeparator: z
+		.string()
+		.max(10)
+		.optional()
+		.describe("Separator between page title and site title (e.g. ' | ')"),
+	defaultOgImage: settingsMediaReferenceSchema
+		.optional()
+		.describe("Default Open Graph image when content has none"),
+	robotsTxt: z
+		.string()
+		.max(5000)
+		.optional()
+		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+	googleVerification: z
+		.string()
+		.max(100)
+		.optional()
+		.describe("Google Search Console verification token"),
+	bingVerification: z
+		.string()
+		.max(100)
+		.optional()
+		.describe("Bing Webmaster Tools verification token"),
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -2022,6 +2070,91 @@ export function createMcpServer(): McpServer {
 			);
 
 			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
+		},
+	);
+
+	// =====================================================================
+	// Settings tools
+	// =====================================================================
+
+	server.registerTool(
+		"settings_get",
+		{
+			title: "Get Site Settings",
+			description:
+				"Get all site-wide settings (title, tagline, logo, favicon, URL, " +
+				"date/time formatting, social links, SEO defaults). Media references " +
+				"(logo, favicon, defaultOgImage) include resolved URLs. Unset values " +
+				"are omitted from the response.",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireScope(extra, "settings:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleSettingsGet } = await import("../api/handlers/settings.js");
+				return unwrap(await handleSettingsGet(ec.db, ec.storage));
+			} catch (error) {
+				return respondHandlerError(error, "SETTINGS_READ_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"settings_update",
+		{
+			title: "Update Site Settings",
+			description:
+				"Update one or more site-wide settings. This is a partial update: only " +
+				"the fields provided are changed; omitted fields are left as-is. Returns " +
+				"the full settings object after the update. To set a media reference " +
+				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
+				"(and optional `alt`) — the media item must already exist (use " +
+				"media_create first).",
+			inputSchema: z.object({
+				title: z.string().optional().describe("Site title"),
+				tagline: z.string().optional().describe("Site tagline / short description"),
+				logo: settingsMediaReferenceSchema
+					.optional()
+					.describe("Logo media reference ({ mediaId, alt? })"),
+				favicon: settingsMediaReferenceSchema
+					.optional()
+					.describe("Favicon media reference ({ mediaId, alt? })"),
+				url: z
+					.union([
+						z
+							.string()
+							.url()
+							.refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
+						z.literal(""),
+					])
+					.optional()
+					.describe("Canonical site URL (http or https). Empty string clears it."),
+				postsPerPage: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.optional()
+					.describe("Default page size for content listings"),
+				dateFormat: z.string().optional().describe("Date format token string"),
+				timezone: z.string().optional().describe("IANA timezone identifier"),
+				social: settingsSocialSchema.optional().describe("Social handles / URLs"),
+				seo: settingsSeoSchema.optional().describe("Site-wide SEO defaults"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "settings:manage");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			try {
+				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
+				return unwrap(await handleSettingsUpdate(ec.db, ec.storage, args));
+			} catch (error) {
+				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
+			}
 		},
 	);
 

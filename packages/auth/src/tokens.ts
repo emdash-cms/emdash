@@ -38,6 +38,8 @@ export const VALID_SCOPES = [
 	"schema:write",
 	"taxonomies:manage",
 	"menus:manage",
+	"settings:read",
+	"settings:manage",
 	"admin",
 ] as const;
 
