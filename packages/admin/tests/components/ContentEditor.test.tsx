@@ -262,6 +262,143 @@ describe("ContentEditor", () => {
 			await expect.element(all[2]!).toBeChecked();
 		});
 
+		it("renders file fields with a Select file button (not a plain text input)", async () => {
+			// Regression test for #718: the "file" field kind used to fall through to the
+			// default case and render a text input, making it impossible to actually attach
+			// a file. It must render a media picker trigger instead.
+			const screen = await renderEditor({
+				fields: { attachment: { kind: "file", label: "Attachment" } },
+				isNew: true,
+			});
+
+			// The button that opens the picker should be present and labeled with the
+			// field's label (accessibility).
+			const selectBtn = screen.getByRole("button", { name: /Select Attachment/i });
+			await expect.element(selectBtn).toBeInTheDocument();
+
+			// And there must not be a text input inside the file field region — the old
+			// bug rendered an `<Input>` labeled "Attachment" as a plain text field.
+			// Use the field id (`field-attachment`) as an unconditional positive selector.
+			const fieldRoot = document.getElementById("field-attachment");
+			expect(fieldRoot).not.toBeNull();
+			const textInputs = fieldRoot!.querySelectorAll(
+				'input:not([type="file"]):not([type="hidden"])',
+			);
+			expect(textInputs).toHaveLength(0);
+		});
+
+		it("renders existing file field values as a filename, not a text input", async () => {
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-1",
+						filename: "report.pdf",
+						mimeType: "application/pdf",
+						size: 102400,
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			// Filename should be visible
+			await expect.element(screen.getByText("report.pdf")).toBeInTheDocument();
+			// Change button present (picker is wired up)
+			await expect.element(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+		});
+
+		it("renders 0-byte file size instead of hiding it", async () => {
+			// Regression test: a previous truthiness check (`const hasSize = normalized?.size`)
+			// hid the size label for valid 0-byte files even though `formatFileSize(0)`
+			// returns "0 B".
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-empty",
+						filename: "empty.txt",
+						mimeType: "text/plain",
+						size: 0,
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			await expect.element(screen.getByText("empty.txt")).toBeInTheDocument();
+			// "0 B" must be rendered, not silently hidden
+			await expect.element(screen.getByText(/0\s*B/)).toBeInTheDocument();
+		});
+
+		it("falls back to value.src and then value.id for local files without meta.storageKey", async () => {
+			// Regression test: local files without meta.storageKey previously lost their
+			// download link because the URL was only built from storageKey.
+			const itemWithSrc = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-no-key",
+						provider: "local",
+						src: "/_emdash/api/media/file/file-no-key",
+						filename: "backup.zip",
+						mimeType: "application/zip",
+						size: 2048,
+					},
+				},
+			});
+			const screen1 = await renderEditor({
+				isNew: false,
+				item: itemWithSrc,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+			const link1 = screen1.getByRole("link", { name: "backup.zip" });
+			await expect.element(link1).toHaveAttribute("href", "/_emdash/api/media/file/file-no-key");
+
+			// When src is also missing, fall back to value.id
+			const itemNoSrc = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-fallback",
+						provider: "local",
+						filename: "notes.txt",
+						mimeType: "text/plain",
+						size: 512,
+					},
+				},
+			});
+			const screen2 = await renderEditor({
+				isNew: false,
+				item: itemNoSrc,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+			const link2 = screen2.getByRole("link", { name: "notes.txt" });
+			await expect.element(link2).toHaveAttribute("href", "/_emdash/api/media/file/file-fallback");
+		});
+
 		it("renders json fields as a textarea", async () => {
 			const screen = await renderEditor({
 				fields: { metadata: { kind: "json", label: "Metadata" } },

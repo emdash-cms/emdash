@@ -18,6 +18,7 @@ import {
 	Eye,
 	Image as ImageIcon,
 	MagnifyingGlass,
+	Paperclip,
 	X,
 	Trash,
 	ArrowsInSimple,
@@ -37,8 +38,9 @@ import type {
 	TranslationSummary,
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
-import { contentUrl } from "../lib/url.js";
+import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -1282,6 +1284,24 @@ function FieldRenderer({
 			);
 		}
 
+		case "file": {
+			// value is either a FileFieldValue object or undefined.
+			// The file field type was unusable before this PR (rendered as a text input
+			// that produced raw strings nobody could meaningfully save), so there is no
+			// "legacy string" data to preserve here.
+			const fileValue =
+				value != null && typeof value === "object" ? (value as FileFieldValue) : undefined;
+			return (
+				<FileFieldRenderer
+					id={id}
+					label={label}
+					value={fileValue}
+					onChange={handleChange}
+					required={field.required}
+				/>
+			);
+		}
+
 		case "repeater": {
 			const validation = field.validation;
 			const subFields = (validation?.subFields ?? []) as Array<{
@@ -1599,6 +1619,164 @@ function ImageFieldRenderer({
 			/>
 			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
+				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+			)}
+		</div>
+	);
+}
+
+/**
+ * File field value — matches the "file" shape validated by the Zod generator:
+ * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ */
+interface FileFieldValue {
+	id: string;
+	/** Provider ID (e.g., "local", "s3") */
+	provider?: string;
+	/** Direct URL for non-local media */
+	src?: string;
+	filename?: string;
+	mimeType?: string;
+	size?: number;
+	/** Provider-specific metadata */
+	meta?: Record<string, unknown>;
+}
+
+interface FileFieldRendererProps {
+	id?: string;
+	label: string;
+	value: FileFieldValue | undefined;
+	onChange: (value: FileFieldValue | null) => void;
+	required?: boolean;
+}
+
+/**
+ * File field with media picker
+ *
+ * Like ImageFieldRenderer but for arbitrary file types. Shows a mime-type-appropriate
+ * icon, filename, and size instead of an image preview.
+ */
+function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRendererProps) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+
+	// Normalize value to derive display info.
+	// For local files, prefer meta.storageKey; fall back to value.src when it's an
+	// internal media path; finally fall back to value.id so local files remain
+	// clickable even when metadata is sparse. For external providers, use value.src
+	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
+	// return a data: or javascript: URL that gets rendered as a clickable link.
+	const normalized = React.useMemo(() => {
+		if (!value) return null;
+		const isLocal = !value.provider || value.provider === "local";
+		const storageKey =
+			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const localSrc =
+			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+		const localUrl = isLocal
+			? storageKey
+				? `/_emdash/api/media/file/${storageKey}`
+				: (localSrc ?? `/_emdash/api/media/file/${value.id}`)
+			: undefined;
+		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		return {
+			displayUrl: localUrl ?? externalUrl,
+			filename: value.filename || t`Untitled file`,
+			mimeType: value.mimeType || "",
+			size: value.size,
+		};
+	}, [value, t]);
+
+	const handleSelect = (item: MediaItem) => {
+		const isLocalProvider = !item.provider || item.provider === "local";
+		onChange({
+			id: item.id,
+			provider: item.provider || "local",
+			src: isLocalProvider ? undefined : item.url,
+			filename: item.filename,
+			mimeType: item.mimeType,
+			size: item.size,
+			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
+		});
+	};
+
+	const handleRemove = () => {
+		onChange(null);
+	};
+
+	const hasMime = !!normalized?.mimeType;
+	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
+	const hasSize = size !== undefined;
+
+	return (
+		<div id={id}>
+			<Label>{label}</Label>
+			{normalized ? (
+				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+					<span className="text-3xl" aria-hidden="true">
+						{getFileIcon(normalized.mimeType)}
+					</span>
+					<div className="flex-1 min-w-0">
+						{normalized.displayUrl ? (
+							<a
+								href={normalized.displayUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm font-medium truncate block hover:underline"
+							>
+								{normalized.filename}
+							</a>
+						) : (
+							<p className="text-sm font-medium truncate">{normalized.filename}</p>
+						)}
+						{(hasMime || hasSize) && (
+							<p className="text-xs text-kumo-subtle">
+								{hasMime ? normalized.mimeType : null}
+								{hasMime && hasSize ? " • " : null}
+								{hasSize ? formatFileSize(size) : null}
+							</p>
+						)}
+					</div>
+					<div className="flex gap-1">
+						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
+							{t`Change`}
+						</Button>
+						<Button
+							type="button"
+							shape="square"
+							variant="destructive"
+							className="h-8 w-8"
+							onClick={handleRemove}
+							aria-label={t`Remove ${label}`}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			) : (
+				<Button
+					type="button"
+					variant="outline"
+					className="mt-2 w-full h-32 border-dashed"
+					onClick={() => setPickerOpen(true)}
+					aria-label={t`Select ${label}`}
+				>
+					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
+						<Paperclip className="h-8 w-8" />
+						<span>{t`Select file`}</span>
+					</div>
+				</Button>
+			)}
+			<MediaPickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				onSelect={handleSelect}
+				mimeTypeFilter=""
+				hideUrlInput
+				mediaKind="file"
+				title={t`Select ${label}`}
+			/>
+			{required && !normalized && (
 				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
 			)}
 		</div>

@@ -9,7 +9,7 @@
 import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Upload, Image, Check, Globe, MagnifyingGlass } from "@phosphor-icons/react";
+import { Upload, Image, Check, Globe, MagnifyingGlass, Paperclip } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -42,6 +42,18 @@ export interface MediaPickerModalProps {
 	/** Filter by mime type prefix, e.g. "image/" */
 	mimeTypeFilter?: string;
 	title?: string;
+	/**
+	 * Hide the "Insert from URL" input. Defaults to false.
+	 * The URL input probes image dimensions and is only meaningful for image pickers,
+	 * so non-image pickers (e.g. generic file pickers) should hide it.
+	 */
+	hideUrlInput?: boolean;
+	/**
+	 * What kind of media this picker is for. Drives user-facing copy
+	 * (default title, empty-state message, upload button label, empty-state icon).
+	 * Defaults to "image" — set to "file" for generic file pickers.
+	 */
+	mediaKind?: "image" | "file";
 }
 
 /**
@@ -66,9 +78,17 @@ export function MediaPickerModal({
 	onSelect,
 	mimeTypeFilter = "image/",
 	title: providedTitle,
+	hideUrlInput = false,
+	mediaKind = "image",
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
-	const title = providedTitle ?? t`Select Image`;
+	const isFileKind = mediaKind === "file";
+	const title = providedTitle ?? (isFileKind ? t`Select File` : t`Select Image`);
+	const emptyStateUploadHint = isFileKind
+		? t`Upload a file to get started`
+		: t`Upload an image to get started`;
+	const emptyStateUploadCta = isFileKind ? t`Upload File` : t`Upload Image`;
+	const EmptyStateIcon = isFileKind ? Paperclip : Image;
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -362,41 +382,45 @@ export function MediaPickerModal({
 					/>
 				</div>
 
-				{/* URL Input */}
-				<div className="border-b pb-4">
-					<Label>{t`Insert from URL`}</Label>
-					<div className="flex gap-2 mt-1.5">
-						<div className="flex-1 relative">
-							<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-							<Input
-								type="url"
-								placeholder="https://example.com/image.jpg"
-								aria-label={t`Image URL`}
-								value={imageUrl}
-								onChange={(e) => {
-									setImageUrl(e.target.value);
-									setUrlError(null);
-								}}
-								onKeyDown={handleUrlKeyDown}
-								className="ps-9"
-							/>
+				{/* URL Input (image pickers only — probes image dimensions) */}
+				{!hideUrlInput && (
+					<>
+						<div className="border-b pb-4">
+							<Label>{t`Insert from URL`}</Label>
+							<div className="flex gap-2 mt-1.5">
+								<div className="flex-1 relative">
+									<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+									<Input
+										type="url"
+										placeholder="https://example.com/image.jpg"
+										aria-label={t`Image URL`}
+										value={imageUrl}
+										onChange={(e) => {
+											setImageUrl(e.target.value);
+											setUrlError(null);
+										}}
+										onKeyDown={handleUrlKeyDown}
+										className="ps-9"
+									/>
+								</div>
+								<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
+									{isProbing ? <Loader size="sm" /> : t`Insert`}
+								</Button>
+							</div>
+							{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
 						</div>
-						<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
-							{isProbing ? <Loader size="sm" /> : t`Insert`}
-						</Button>
-					</div>
-					{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
-				</div>
 
-				{/* Divider with "or" */}
-				<div className="relative py-2">
-					<div className="absolute inset-0 flex items-center">
-						<span className="w-full border-t" />
-					</div>
-					<div className="relative flex justify-center text-xs uppercase">
-						<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
-					</div>
-				</div>
+						{/* Divider with "or" */}
+						<div className="relative py-2">
+							<div className="absolute inset-0 flex items-center">
+								<span className="w-full border-t" />
+							</div>
+							<div className="relative flex justify-center text-xs uppercase">
+								<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
+							</div>
+						</div>
+					</>
+				)}
 
 				{/* Provider Tabs */}
 				{providerTabs.length > 1 && (
@@ -487,13 +511,13 @@ export function MediaPickerModal({
 						</div>
 					) : items.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-full text-center p-8">
-							<Image className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
+							<EmptyStateIcon className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
 							<h3 className="text-lg font-medium">{t`No media found`}</h3>
 							<p className="text-sm text-kumo-subtle mt-1">
 								{canSearch && searchQuery
 									? t`Try a different search term`
 									: canUpload
-										? t`Upload an image to get started`
+										? emptyStateUploadHint
 										: t`No media available from this provider`}
 							</p>
 							{canUpload && !searchQuery && (
@@ -502,7 +526,7 @@ export function MediaPickerModal({
 									icon={<Upload />}
 									onClick={() => fileInputRef.current?.click()}
 								>
-									{t`Upload Image`}
+									{emptyStateUploadCta}
 								</Button>
 							)}
 						</div>
