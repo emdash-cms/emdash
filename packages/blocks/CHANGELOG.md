@@ -4,9 +4,9 @@
 
 ### Minor Changes
 
-- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an `empty` Block Kit block: a styled empty-state placeholder with title, optional description, copyable shell command, size variant (`sm`/`base`/`lg`), and an optional list of action elements (CTAs). Plugin admin pages can now render proper empty states for lists, tables, and onboarding flows without rolling their own layout.
+- [#792](https://github.com/emdash-cms/emdash/pull/792) [`6e0e921`](https://github.com/emdash-cms/emdash/commit/6e0e9215e00f6f2e84ade30447e4c30b1812dbf5) Thanks [@all3f0r1](https://github.com/all3f0r1)! - Adds an `empty` Block Kit block: a styled empty-state placeholder with title, optional description, copyable shell command, size variant (`sm`/`base`/`lg`), and an optional list of action elements (CTAs). Plugin admin pages can now render proper empty states for lists, tables, and onboarding flows without rolling their own layout.
 
-- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a `repeater` Block Kit element: array-of-objects with scalar sub-fields, drag-to-reorder, and collapsible item cards. Plugin block forms can now capture repeating data (FAQ rows, carousel slides, card grids) inline in the portable-text editor.
+- [#679](https://github.com/emdash-cms/emdash/pull/679) [`493e317`](https://github.com/emdash-cms/emdash/commit/493e3172d4539d8e041e6d2bf2d7d2dc89b2a10d) Thanks [@drudge](https://github.com/drudge)! - Adds a `repeater` Block Kit element: array-of-objects with scalar sub-fields, drag-to-reorder, and collapsible item cards. Plugin block forms can now capture repeating data (FAQ rows, carousel slides, card grids) inline in the portable-text editor.
 
 ## 0.7.0
 
