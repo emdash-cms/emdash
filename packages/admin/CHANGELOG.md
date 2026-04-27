@@ -1,5 +1,38 @@
 # @emdash-cms/admin
 
+## 0.8.0
+
+### Minor Changes
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a `repeater` Block Kit element: array-of-objects with scalar sub-fields, drag-to-reorder, and collapsible item cards. Plugin block forms can now capture repeating data (FAQ rows, carousel slides, card grids) inline in the portable-text editor.
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `settings_get` and `settings_update` MCP tools so agents can read and update site-wide settings (title, tagline, logo, favicon, URL, posts-per-page, date format, timezone, social, SEO). `settings_get` resolves media references (logo/favicon/seo.defaultOgImage) to URLs; `settings_update` is a partial update that preserves omitted fields. New `settings:read` (EDITOR+) and `settings:manage` (ADMIN) API token scopes back the tools, with matching options in the personal API token settings UI.
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds pluggable auth provider system with AT Protocol as the first plugin-based provider. Refactors GitHub and Google OAuth from hardcoded buttons into the same `AuthProviderDescriptor` interface. All auth methods (passkey, AT Protocol, GitHub, Google) are equal options on the login page and setup wizard.
+
+### Patch Changes
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Wires up the block configuration sidebar inside `WidgetEditor`. `PortableTextEditor` now receives `onBlockSidebarOpen`/`onBlockSidebarClose` callbacks that hold the active `BlockSidebarPanel` in local state, and renders `ImageDetailPanel` when the panel type is `"image"` — mirroring the content-entry editor. Without this, clicking a block's settings button or the media picker inside widget content had no visible effect.
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds Korean translations for 21 admin UI strings that previously fell back to English. Korean (ko) coverage is now complete.
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Change text direction of input fields and tiptap editor depending upon the language entered
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix taxonomies not nesting correctly in a RTL layout
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Make the admin collection list column headers sortable. `Title`, `Status`, `Locale`, and `Date` are now clickable buttons that toggle direction; the current sort state is exposed via `aria-sort` on the `<th>` so screen readers announce it correctly.
+
+  The server's `orderBy` field whitelist now accepts `status`, `locale`, and `name` alongside the existing date fields — unchanged from a security standpoint, the repo still rejects unknown field names to prevent column enumeration.
+
+  Callers of `<ContentList>` that don't pass `onSortChange` render the previous static-label headers, so legacy integrations (e.g. the content picker) are unaffected.
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes plugin block defaults so initial values are seeded without overriding later edits.
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Prefill site title and tagline in Setup Wizard from seed file
+
+- Updated dependencies [[`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a), [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a)]:
+  - @emdash-cms/blocks@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes

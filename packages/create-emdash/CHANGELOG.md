@@ -1,5 +1,11 @@
 # create-emdash
 
+## 0.8.0
+
+### Minor Changes
+
+- [#796](https://github.com/emdash-cms/emdash/pull/796) [`ba12ca5`](https://github.com/emdash-cms/emdash/commit/ba12ca5ee300dc97bbbdbd5690dcb11bf10cce2a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds support for positional directory argument, allowing `npm create emdash .` to scaffold into the current directory and `npm create emdash my-project` to skip the interactive name prompt.
+
 ## 0.7.0
 
 ## 0.6.0

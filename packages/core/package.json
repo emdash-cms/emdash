@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -211,7 +211,7 @@
   },
   "peerDependencies": {
     "@astrojs/react": ">=5.0.0-beta.0",
-    "@emdash-cms/auth-atproto": "workspace:>=0.1.0",
+    "@emdash-cms/auth-atproto": "workspace:>=0.2.0",
     "@tanstack/react-query": ">=5.0.0",
     "@tanstack/react-router": ">=1.100.0",
     "astro": ">=6.0.0-beta.0",
