@@ -222,7 +222,7 @@ async function searchSingleCollection(
 			slug: string | null;
 			locale: string;
 			title: string | null;
-			snippet: string;
+			snippet: string | null;
 			score: number;
 		}>`
 		SELECT 
@@ -262,7 +262,12 @@ async function searchSingleCollection(
 		slug: row.slug,
 		locale: row.locale,
 		title: row.title ?? undefined,
-		snippet: sanitizeSnippet(row.snippet),
+		// SQLite's snippet() returns NULL when the targeted column is
+		// NULL for that row — even if the row matched via a different
+		// searchable column. Skip sanitization in that case so we don't
+		// throw on `null.replace`. The SearchResult.snippet field is
+		// already optional, so omitting it is the documented contract.
+		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
 		score: Math.abs(row.score), // bm25 returns negative scores
 	}));
 }

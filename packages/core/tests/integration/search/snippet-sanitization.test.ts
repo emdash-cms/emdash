@@ -91,6 +91,47 @@ describe("search snippet sanitization", () => {
 		expect(snippet).toContain("&lt;");
 	});
 
+	it("does not crash when the snippet column is NULL", async () => {
+		// FTS triggers insert raw column values with no COALESCE, so any
+		// row whose title (the column the snippet() call targets) is
+		// NULL produces a NULL snippet from SQLite — even when the row
+		// matched via a different searchable column. A regression that
+		// drops the null-guard throws "Cannot read properties of null
+		// (reading 'replace')" before these assertions can run.
+		const registry = new SchemaRegistry(db);
+		await registry.updateField("post", "content", { searchable: true });
+		const ftsManager = new FTSManager(db);
+		await ftsManager.enableSearch("post");
+
+		await repo.create(
+			createPostFixture({
+				slug: "no-title",
+				status: "published",
+				data: {
+					// Deliberately NULL title — matched via the content
+					// column so this row still surfaces in results.
+					title: null,
+					content: [
+						{
+							_type: "block",
+							style: "normal",
+							children: [{ _type: "span", text: "Quokka spotted today" }],
+						},
+					],
+				},
+			}),
+		);
+
+		const { items } = await searchWithDb(db, "Quokka", {
+			collections: ["post"],
+		});
+
+		expect(items).toHaveLength(1);
+		// Whether the snippet ends up as a string or undefined doesn't
+		// matter — the contract is "the search call must not throw".
+		expect(typeof items[0]!.snippet === "string" || items[0]!.snippet === undefined).toBe(true);
+	});
+
 	it("preserves `<mark>` highlight tags as live HTML", async () => {
 		// The whole point of returning a snippet is highlighting matches.
 		// Sanitization must not strip the markers we deliberately added.
