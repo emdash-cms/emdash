@@ -13,7 +13,9 @@
  */
 
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
+import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 import {
 	createEditable,
 	createNoop,
@@ -270,6 +272,51 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 	type: T,
 	filter?: CollectionFilter,
 ): Promise<CollectionResult<D>> {
+	// Cache per (type, filter) within a single request. Edit mode and
+	// preview are request-scoped and stable, so they don't need to be
+	// part of the key. Widgets and layouts frequently request the same
+	// collection shape as the page itself (e.g. a "recent posts" list
+	// appears on the home page AND in the sidebar) — caching collapses
+	// those duplicate queries, along with the bylines and taxonomy-term
+	// hydration each call would otherwise re-do.
+	return requestCached(collectionCacheKey(type, filter), () =>
+		getEmDashCollectionUncached<T, D>(type, filter),
+	);
+}
+
+/**
+ * Build a canonical cache key for `getEmDashCollection`.
+ *
+ * `JSON.stringify` is insertion-order-sensitive, so two callers passing
+ * semantically identical filters with different key orders would miss
+ * the cache. We fix the top-level field order and sort `where` keys
+ * (order there is irrelevant), while preserving `orderBy` key order
+ * because that's the sort priority.
+ */
+function collectionCacheKey(type: string, filter?: CollectionFilter): string {
+	if (!filter) return `collection:${type}:`;
+	const parts = [
+		filter.status ?? "",
+		filter.limit ?? "",
+		filter.cursor ?? "",
+		filter.where ? stableStringify(filter.where) : "",
+		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
+		filter.locale ?? "",
+	];
+	return `collection:${type}:${parts.join("|")}`;
+}
+
+function stableStringify(value: Record<string, unknown>): string {
+	const keys = Object.keys(value).toSorted();
+	const ordered: Record<string, unknown> = {};
+	for (const k of keys) ordered[k] = value[k];
+	return JSON.stringify(ordered);
+}
+
+async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
+	type: T,
+	filter?: CollectionFilter,
+): Promise<CollectionResult<D>> {
 	// Dynamic import to avoid build-time issues
 	const { getLiveCollection } = await import("astro:content");
 
@@ -313,8 +360,13 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 		};
 	});
 
-	// Eagerly hydrate bylines for all entries
-	await hydrateEntryBylines(type, entriesWithEdit);
+	// Eagerly hydrate bylines and taxonomy terms for all entries in parallel.
+	// Both are independent queries, so running them concurrently halves the
+	// round-trip cost on remote databases (D1 replicas, etc.).
+	await Promise.all([
+		hydrateEntryBylines(type, entriesWithEdit),
+		hydrateEntryTerms(type, entriesWithEdit),
+	]);
 
 	return { entries: entriesWithEdit, nextCursor, cacheHint: cacheHint ?? {} };
 }
@@ -386,12 +438,12 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	const localeChain =
 		requestedLocale && isI18nEnabled() ? getFallbackChain(requestedLocale) : [requestedLocale];
 
-	/** Return a successful EntryResult with bylines hydrated */
+	/** Return a successful EntryResult with bylines and taxonomy terms hydrated */
 	async function successResult(
 		wrapped: ContentEntry<D>,
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
-		await hydrateEntryBylines(type, [wrapped]);
+		await Promise.all([hydrateEntryBylines(type, [wrapped]), hydrateEntryTerms(type, [wrapped])]);
 		return {
 			entry: wrapped,
 			isPreview: opts.isPreview,
@@ -426,7 +478,7 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 			// Edit mode (authenticated editors) has collection-wide draft access.
 			if (isPreviewMode && !isEditMode) {
 				const dbId = entryDatabaseId(baseEntry);
-				if (preview!.id !== dbId && preview!.id !== id) {
+				if (preview.id !== dbId && preview.id !== id) {
 					// Token doesn't match — serve only if publicly visible, without draft access
 					if (isVisible(baseEntry)) {
 						return successResult(wrapEntry(baseEntry), {
@@ -525,10 +577,55 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 			data.byline = credits[0]?.byline ?? null;
 		}
 	} catch (err) {
-		// Only swallow "table not found" errors from pre-migration databases
-		const msg = err instanceof Error ? err.message : "";
-		if (!msg.includes("no such table")) {
+		// Only swallow "table not found" errors from pre-migration databases.
+		// Matches SQLite/D1 ("no such table") and PostgreSQL ("relation/table
+		// ... does not exist") via the shared helper.
+		if (!isMissingTableError(err)) {
+			const msg = err instanceof Error ? err.message : String(err);
 			console.warn("[emdash] Failed to hydrate bylines:", msg);
+		}
+	}
+}
+
+/**
+ * Eagerly hydrate taxonomy term data onto entry.data for one or more entries.
+ *
+ * Attaches `terms` (Record keyed by taxonomy name with an array of TaxonomyTerm
+ * values) to each entry's data object. Uses a single batched JOIN query across
+ * all taxonomies so the cost is O(1) regardless of the number of entries or
+ * taxonomies on the site.
+ *
+ * This eliminates the common N+1 pattern where templates loop over list
+ * results and call getEntryTerms() per entry. With hydration, the list page
+ * stays at a single round-trip for term data.
+ *
+ * Fails silently if the taxonomy tables don't exist yet (pre-migration).
+ */
+async function hydrateEntryTerms<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
+	if (entries.length === 0) return;
+
+	try {
+		const { getAllTermsForEntries } = await import("./taxonomies/index.js");
+
+		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
+		if (ids.length === 0) return;
+
+		const termsMap = await getAllTermsForEntries(type, ids);
+
+		for (const entry of entries) {
+			const data = entryData(entry);
+			const dbId = dataStr(data, "id");
+			if (!dbId) continue;
+
+			data.terms = termsMap.get(dbId) ?? {};
+		}
+	} catch (err) {
+		// Only swallow "table not found" errors from pre-migration databases.
+		// Matches SQLite/D1 ("no such table") and PostgreSQL ("relation/table
+		// ... does not exist") via the shared helper.
+		if (!isMissingTableError(err)) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.warn("[emdash] Failed to hydrate terms:", msg);
 		}
 	}
 }
@@ -637,6 +734,22 @@ function patternToRegex(pattern: string): { regex: RegExp; paramNames: string[] 
 	return { regex: new RegExp(`^${regexStr}$`), paramNames };
 }
 
+/** Cached compiled URL patterns for resolveEmDashPath */
+interface CachedPattern {
+	slug: string;
+	regex: RegExp;
+	paramNames: string[];
+}
+let cachedUrlPatterns: CachedPattern[] | null = null;
+
+/**
+ * Invalidate the cached URL patterns used by resolveEmDashPath.
+ * Call when collection URL patterns change (schema updates).
+ */
+export function invalidateUrlPatternCache(): void {
+	cachedUrlPatterns = null;
+}
+
 /**
  * Resolve a URL path to a content entry by matching against collection URL patterns.
  *
@@ -659,32 +772,39 @@ function patternToRegex(pattern: string): { regex: RegExp; paramNames: string[] 
 export async function resolveEmDashPath<T = Record<string, unknown>>(
 	path: string,
 ): Promise<ResolvePathResult<T> | null> {
-	const { getDb } = await import("./loader.js");
-	const { SchemaRegistry } = await import("./schema/registry.js");
-	const db = await getDb();
-	const registry = new SchemaRegistry(db);
-	const collections = await registry.listCollections();
+	// Build and cache compiled patterns on first call
+	if (!cachedUrlPatterns) {
+		const { getDb } = await import("./loader.js");
+		const { SchemaRegistry } = await import("./schema/registry.js");
+		const db = await getDb();
+		const registry = new SchemaRegistry(db);
+		const collections = await registry.listCollections();
 
-	for (const collection of collections) {
-		if (!collection.urlPattern) continue;
+		cachedUrlPatterns = [];
+		for (const collection of collections) {
+			if (!collection.urlPattern) continue;
+			const { regex, paramNames } = patternToRegex(collection.urlPattern);
+			cachedUrlPatterns.push({ slug: collection.slug, regex, paramNames });
+		}
+	}
 
-		const { regex, paramNames } = patternToRegex(collection.urlPattern);
-		const match = path.match(regex);
+	for (const pattern of cachedUrlPatterns) {
+		const match = path.match(pattern.regex);
 		if (!match) continue;
 
 		// Extract params
 		const params: Record<string, string> = {};
-		for (let i = 0; i < paramNames.length; i++) {
-			params[paramNames[i]] = match[i + 1];
+		for (let i = 0; i < pattern.paramNames.length; i++) {
+			params[pattern.paramNames[i]] = match[i + 1];
 		}
 
 		// Look up entry by slug (most common pattern)
 		const slug = params.slug;
 		if (!slug) continue;
 
-		const { entry } = await getEmDashEntry<string, T>(collection.slug, slug);
+		const { entry } = await getEmDashEntry<string, T>(pattern.slug, slug);
 		if (entry) {
-			return { entry, collection: collection.slug, params };
+			return { entry, collection: pattern.slug, params };
 		}
 	}
 

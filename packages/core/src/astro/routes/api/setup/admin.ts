@@ -8,6 +8,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { generateToken } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { generateRegistrationOptions } from "@emdash-cms/auth/passkey";
 
@@ -17,9 +18,10 @@ import { getPublicOrigin } from "#api/public-url.js";
 import { setupAdminBody } from "#api/schemas.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
+import { SETUP_NONCE_COOKIE, SETUP_NONCE_MAX_AGE_SECONDS } from "#auth/setup-nonce.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ cookies, request, locals }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
@@ -47,12 +49,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, setupAdminBody);
 		if (isParseError(body)) return body;
 
-		// Store admin info in setup state for later
-		await options.set("emdash:setup_state", {
-			step: "admin",
-			email: body.email.toLowerCase(),
-			name: body.name || null,
-		});
+		// Preserve title/tagline from step 1 by reading existing setup state
+		// before we overwrite it below.
+		const existingState = await options.get<Record<string, unknown>>("emdash:setup_state");
+
+		// Mint a fresh session nonce. This binds the follow-up
+		// /setup/admin/verify call to the same browser that made this
+		// request, so an unauthenticated attacker on another host cannot
+		// substitute their own email into the setup state during the
+		// setup window. Rotates on every call so a legitimate retry
+		// always gets a working session.
+		const nonce = generateToken();
 
 		// Get passkey config
 		const url = new URL(request.url);
@@ -78,12 +85,35 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			challengeStore,
 		);
 
-		// Store the temp user ID with the setup state
+		// Store the nonce alongside the rest of the setup state, preserving
+		// title/tagline from step 1. The verify endpoint will constant-time
+		// compare the nonce with the incoming cookie.
 		await options.set("emdash:setup_state", {
+			...existingState,
 			step: "admin",
 			email: body.email.toLowerCase(),
 			name: body.name || null,
 			tempUserId: tempUser.id,
+			nonce,
+		});
+
+		// HttpOnly + SameSite=Strict + path-scoped. The cookie must not be
+		// accessible to JS (nothing in the admin UI needs to read it) and
+		// must not be sent on cross-site navigations. The /_emdash/ path
+		// scope keeps it away from user-authored frontend code.
+		//
+		// Derive `secure` from the public origin, not the internal request
+		// URL. Behind a TLS-terminating reverse proxy the internal hop is
+		// often `http:` while the browser-facing origin is `https:` —
+		// using `url.protocol` there would drop the Secure flag on a
+		// sensitive cookie over the public HTTPS connection.
+		const publicOrigin = new URL(siteUrl);
+		cookies.set(SETUP_NONCE_COOKIE, nonce, {
+			path: "/_emdash/",
+			httpOnly: true,
+			sameSite: "strict",
+			secure: publicOrigin.protocol === "https:",
+			maxAge: SETUP_NONCE_MAX_AGE_SECONDS,
 		});
 
 		return apiSuccess({

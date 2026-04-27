@@ -26,5 +26,11 @@
 	},
 	"devDependencies": {
 		"@astrojs/check": "catalog:"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"better-sqlite3",
+			"esbuild"
+		]
 	}
 }

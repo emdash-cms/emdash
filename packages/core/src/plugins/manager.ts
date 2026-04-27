@@ -62,6 +62,11 @@ export interface PluginManagerOptions {
 		filename: string,
 		contentType: string,
 	) => Promise<{ uploadUrl: string; mediaId: string }>;
+	/**
+	 * Pre-resolved list of trusted proxy header names for client-IP
+	 * resolution in plugin route handlers. Thread through from the runtime.
+	 */
+	trustedProxyHeaders?: string[];
 }
 
 /**
@@ -81,6 +86,7 @@ export class PluginManager {
 			db: options.db,
 			storage: options.storage,
 			getUploadUrl: options.getUploadUrl,
+			trustedProxyHeaders: options.trustedProxyHeaders,
 		};
 	}
 
@@ -333,9 +339,13 @@ export class PluginManager {
 	/**
 	 * Run content:afterDelete hooks across all active plugins
 	 */
-	async runContentAfterDelete(id: string, collection: string): Promise<HookResult<void>[]> {
+	async runContentAfterDelete(
+		id: string,
+		collection: string,
+		permanent: boolean,
+	): Promise<HookResult<void>[]> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentAfterDelete(id, collection);
+		return this.hookPipeline!.runContentAfterDelete(id, collection, permanent);
 	}
 
 	/**

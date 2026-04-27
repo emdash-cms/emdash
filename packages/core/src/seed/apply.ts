@@ -14,7 +14,9 @@ import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
+import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
@@ -342,7 +344,6 @@ export async function applySeed(
 	// 7. Content (created before menus so refs can resolve)
 	if (includeContent && seed.content) {
 		const contentRepo = new ContentRepository(db);
-		const bylineRepo = new BylineRepository(db);
 
 		// Create content entries
 		for (const [collectionSlug, entries] of Object.entries(seed.content)) {
@@ -366,25 +367,48 @@ export async function applySeed(
 							result,
 						);
 
+						// Update content + bylines + taxonomies atomically
 						const status = entry.status || "published";
-						await contentRepo.update(collectionSlug, existing.id, {
-							status,
-							data: resolvedData,
+						await withTransaction(db, async (trx) => {
+							const trxContentRepo = new ContentRepository(trx);
+							const trxBylineRepo = new BylineRepository(trx);
+							const trxRevisionRepo = new RevisionRepository(trx);
+
+							await trxContentRepo.update(collectionSlug, existing.id, {
+								status,
+								data: resolvedData,
+							});
+
+							await applyContentBylines(
+								trxBylineRepo,
+								collectionSlug,
+								existing.id,
+								entry,
+								seedBylineIdMap,
+								true,
+							);
+							await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+
+							// Seed is declarative — when status is "published", promote to a live
+							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+							// and `live_revision_id` is populated for downstream queries.
+							//
+							// Create a fresh revision from the updated data and stage it as the
+							// draft so `publish()` picks it up instead of re-syncing stale data
+							// from an existing live revision.
+							if (status === "published") {
+								const draft = await trxRevisionRepo.create({
+									collection: collectionSlug,
+									entryId: existing.id,
+									data: resolvedData,
+								});
+								await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
+								await trxContentRepo.publish(collectionSlug, existing.id);
+							}
 						});
 
 						seedIdMap.set(entry.id, existing.id);
 						result.content.updated++;
-
-						// Update bylines and taxonomy assignments
-						await applyContentBylines(
-							bylineRepo,
-							collectionSlug,
-							existing.id,
-							entry,
-							seedBylineIdMap,
-							true,
-						);
-						await applyContentTaxonomies(db, collectionSlug, existing.id, entry, true);
 						continue;
 					}
 
@@ -410,24 +434,37 @@ export async function applySeed(
 					}
 				}
 
-				// Create entry
+				// Create entry + bylines + taxonomies atomically
 				const status = entry.status || "published";
-				const created = await contentRepo.create({
-					type: collectionSlug,
-					slug: entry.slug,
-					status,
-					data: resolvedData,
-					locale: entry.locale,
-					translationOf,
-					// Set published_at for published content so RSS/Archives work correctly
-					publishedAt: status === "published" ? new Date().toISOString() : null,
+				const created = await withTransaction(db, async (trx) => {
+					const trxContentRepo = new ContentRepository(trx);
+					const trxBylineRepo = new BylineRepository(trx);
+
+					const item = await trxContentRepo.create({
+						type: collectionSlug,
+						slug: entry.slug,
+						status,
+						data: resolvedData,
+						locale: entry.locale,
+						translationOf,
+						publishedAt: status === "published" ? new Date().toISOString() : null,
+					});
+
+					await applyContentBylines(trxBylineRepo, collectionSlug, item.id, entry, seedBylineIdMap);
+					await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+
+					// Seed is declarative — when status is "published", promote to a live
+					// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+					// and `live_revision_id` is populated for downstream queries.
+					if (status === "published") {
+						await trxContentRepo.publish(collectionSlug, item.id);
+					}
+
+					return item;
 				});
 
 				seedIdMap.set(entry.id, created.id);
 				result.content.created++;
-
-				await applyContentBylines(bylineRepo, collectionSlug, created.id, entry, seedBylineIdMap);
-				await applyContentTaxonomies(db, collectionSlug, created.id, entry, false);
 			}
 		}
 	}
@@ -636,6 +673,16 @@ export async function applySeed(
 		}
 	}
 
+	// Invalidate caches that may have been affected by seed data.
+	// Seed creates bylines, redirects, and collections, all of which
+	// have module-level caches in the hot path.
+	const { invalidateBylineCache } = await import("../bylines/index.js");
+	const { invalidateRedirectCache } = await import("../redirects/cache.js");
+	const { invalidateUrlPatternCache } = await import("../query.js");
+	invalidateBylineCache();
+	invalidateRedirectCache();
+	invalidateUrlPatternCache();
+
 	return result;
 }
 
@@ -771,7 +818,15 @@ async function applyContentTaxonomies(
 			.execute();
 	}
 
-	if (!entry.taxonomies) return;
+	if (!entry.taxonomies) {
+		// In update mode we may have just deleted rows above; invalidate so
+		// hydration doesn't serve stale "has terms" cached value.
+		if (isUpdate) {
+			const { invalidateTermCache } = await import("../taxonomies/index.js");
+			invalidateTermCache();
+		}
+		return;
+	}
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
 		const termRepo = new TaxonomyRepository(db);
@@ -783,6 +838,12 @@ async function applyContentTaxonomies(
 			}
 		}
 	}
+
+	// Seed writes directly to content_taxonomies. Clear the cache so
+	// the worker lifetime cached "has any term assignments" probe
+	// re-runs on the next read.
+	const { invalidateTermCache } = await import("../taxonomies/index.js");
+	invalidateTermCache();
 }
 
 /**

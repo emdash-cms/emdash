@@ -27,6 +27,23 @@ const FTS_OPERATORS_PATTERN = /\b(AND|OR|NOT|NEAR)\b/i;
 const DOUBLE_QUOTE_PATTERN = /"/g;
 
 /**
+ * Detect FTS5 query syntax errors. Match specifically on the SQLite FTS5
+ * error fingerprints rather than a broad "fts5" / "syntax error" filter
+ * (which would also swallow internal table-corruption errors). The two
+ * fingerprints we care about are:
+ *
+ *  - "fts5: syntax error near …" — unbalanced quotes, stray operators,
+ *    other malformed user input
+ *  - "unknown special query: …" — bare special tokens like `^*` that
+ *    parse but don't resolve to a real FTS5 directive
+ */
+function isFts5SyntaxError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	const message = error.message.toLowerCase();
+	return message.includes("fts5: syntax error") || message.includes("unknown special query");
+}
+
+/**
  * Search across multiple collections
  *
  * Public API that auto-injects the database.
@@ -198,14 +215,16 @@ async function searchSingleCollection(
 	const bm25Expr = bm25Args ? `bm25("${ftsTable}", ${bm25Args})` : `bm25("${ftsTable}")`;
 
 	// Snippet column index is 2 (after id=0, locale=1, first searchable field=2)
-	const results = await sql<{
-		id: string;
-		slug: string | null;
-		locale: string;
-		title: string | null;
-		snippet: string;
-		score: number;
-	}>`
+	let results;
+	try {
+		results = await sql<{
+			id: string;
+			slug: string | null;
+			locale: string;
+			title: string | null;
+			snippet: string;
+			score: number;
+		}>`
 		SELECT 
 			c.id,
 			c.slug,
@@ -222,6 +241,20 @@ async function searchSingleCollection(
 		ORDER BY score
 		LIMIT ${limit}
 	`.execute(db);
+	} catch (error) {
+		// FTS5 returns syntax errors for queries with unbalanced quotes,
+		// stray operators, or other malformed input. Treat these as
+		// "no matches" so the user gets an empty result rather than an
+		// internals-leaking error. Other errors (table missing, IO) still
+		// propagate. Intentionally not logged: any anonymous client can
+		// trigger this path, and the underlying error message embeds the
+		// raw query, so logging would be both noisy and a log-injection
+		// vector.
+		if (isFts5SyntaxError(error)) {
+			return [];
+		}
+		throw error;
+	}
 
 	return results.rows.map((row) => ({
 		collection,
@@ -275,29 +308,42 @@ export async function getSuggestions(
 		const ftsTable = ftsManager.getFtsTableName(collection);
 		const contentTable = ftsManager.getContentTableName(collection);
 
-		// Use prefix search for autocomplete
-		const prefixQuery = `${escapeQuery(query)}*`;
-		if (!prefixQuery || prefixQuery === "*") {
+		// Use prefix search for autocomplete. `escapeQuery` already appends `*`
+		// to each term for prefix matching, so we must not append another one.
+		const prefixQuery = escapeQuery(query);
+		if (!prefixQuery) {
 			continue;
 		}
 
-		const results = await sql<{
-			id: string;
-			title: string;
-		}>`
-			SELECT 
-				c.id,
-				c.title
-			FROM "${sql.raw(ftsTable)}" f
-			JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
-			WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
-			AND c.status = 'published'
-			AND c.deleted_at IS NULL
-			AND c.title IS NOT NULL
-			${locale ? sql`AND c.locale = ${locale}` : sql``}
-			ORDER BY bm25("${sql.raw(ftsTable)}")
-			LIMIT ${limit}
-		`.execute(db);
+		let results;
+		try {
+			results = await sql<{
+				id: string;
+				title: string;
+			}>`
+				SELECT 
+					c.id,
+					c.title
+				FROM "${sql.raw(ftsTable)}" f
+				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
+				WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
+				AND c.status = 'published'
+				AND c.deleted_at IS NULL
+				AND c.title IS NOT NULL
+				${locale ? sql`AND c.locale = ${locale}` : sql``}
+				ORDER BY bm25("${sql.raw(ftsTable)}")
+				LIMIT ${limit}
+			`.execute(db);
+		} catch (error) {
+			// Same swallow as searchSingleCollection: malformed prefix
+			// queries should yield no suggestions, not surface DB errors.
+			// Intentionally not logged (anonymous-triggerable, echoes
+			// user input -- see searchSingleCollection for rationale).
+			if (isFts5SyntaxError(error)) {
+				continue;
+			}
+			throw error;
+		}
 
 		for (const row of results.rows) {
 			suggestions.push({
@@ -368,20 +414,19 @@ function escapeQuery(query: string): string {
 		return "";
 	}
 
-	// FTS5 special characters that need escaping in terms: " * ^
-	// We'll wrap terms in quotes to handle most cases
-	// But first, escape any existing quotes
+	// If already a quoted phrase, escape only interior quotes and preserve phrase syntax
+	if (query.startsWith('"') && query.endsWith('"') && query.length >= 2) {
+		const inner = query.slice(1, -1);
+		return `"${inner.replace(DOUBLE_QUOTE_PATTERN, '""')}"`;
+	}
+
+	// Escape any existing quotes
 	const escaped = query.replace(DOUBLE_QUOTE_PATTERN, '""');
 
 	// If the query contains FTS5 operators (AND, OR, NOT, NEAR),
-	// pass through as-is (user knows what they're doing)
+	// pass through with quotes escaped but operators preserved
 	if (FTS_OPERATORS_PATTERN.test(query)) {
 		return escaped;
-	}
-
-	// If already quoted, pass through
-	if (query.startsWith('"') && query.endsWith('"')) {
-		return query;
 	}
 
 	// For simple queries, wrap each word to handle special chars

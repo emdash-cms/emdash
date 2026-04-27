@@ -29,12 +29,16 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
+	fetchManifest,
 	fetchWidgetAreas,
 	fetchWidgetComponents,
 	fetchMenus,
@@ -50,9 +54,10 @@ import {
 	type CreateWidgetInput,
 	type UpdateWidgetInput,
 } from "../lib/api";
+import { getPluginBlocks } from "../lib/pluginBlocks";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { PortableTextEditor } from "./PortableTextEditor";
+import { PortableTextEditor, type PluginBlockDef } from "./PortableTextEditor";
 
 /** Palette item types that can be dragged into areas */
 interface PaletteItemData {
@@ -76,25 +81,26 @@ function isPaletteItem(data: DragItemData): data is PaletteItemData {
 /** Built-in widget types available in the palette */
 const BUILTIN_WIDGETS: Array<{
 	id: string;
-	label: string;
-	description: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
 	input: CreateWidgetInput;
 }> = [
 	{
 		id: "palette-content",
-		label: "Content Block",
-		description: "Rich text content",
-		input: { type: "content", title: "Content Block" },
+		label: msg`Content Block`,
+		description: msg`Rich text content`,
+		input: { type: "content" },
 	},
 	{
 		id: "palette-menu",
-		label: "Menu",
-		description: "Display a navigation menu",
-		input: { type: "menu", title: "Menu" },
+		label: msg`Menu`,
+		description: msg`Display a navigation menu`,
+		input: { type: "menu" },
 	},
 ];
 
 export function Widgets() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
@@ -114,6 +120,13 @@ export function Widgets() {
 		queryKey: ["widget-components"],
 		queryFn: fetchWidgetComponents,
 	});
+
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
+	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
 	const createAreaMutation = useMutation({
 		mutationFn: createWidgetArea,
@@ -317,7 +330,7 @@ export function Widgets() {
 											variant="ghost"
 											shape="square"
 											aria-label="Close"
-											className="absolute right-4 top-4"
+											className="absolute end-4 top-4"
 										>
 											<X className="h-4 w-4" />
 											<span className="sr-only">Close</span>
@@ -370,9 +383,9 @@ export function Widgets() {
 									<DraggablePaletteItem
 										key={item.id}
 										id={item.id}
-										label={item.label}
-										description={item.description}
-										widgetInput={item.input}
+										label={t(item.label)}
+										description={t(item.description)}
+										widgetInput={{ ...item.input, title: t(item.label) }}
 									/>
 								))}
 								{components.map((comp) => (
@@ -407,6 +420,7 @@ export function Widgets() {
 									onToggleWidget={toggleWidget}
 									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
 									components={components}
+									pluginBlocks={pluginBlocks}
 								/>
 							))
 						)}
@@ -477,12 +491,14 @@ function WidgetAreaPanel({
 	onToggleWidget,
 	isDraggingPalette,
 	components,
+	pluginBlocks,
 }: {
 	area: WidgetArea;
 	expandedWidgets: Set<string>;
 	onToggleWidget: (id: string) => void;
 	isDraggingPalette: boolean;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -537,6 +553,7 @@ function WidgetAreaPanel({
 								isExpanded={expandedWidgets.has(widget.id)}
 								onToggle={() => onToggleWidget(widget.id)}
 								components={components}
+								pluginBlocks={pluginBlocks}
 							/>
 						))}
 					</SortableContext>
@@ -582,12 +599,14 @@ function WidgetItem({
 	isExpanded,
 	onToggle,
 	components,
+	pluginBlocks,
 }: {
 	widget: Widget;
 	areaName: string;
 	isExpanded: boolean;
 	onToggle: () => void;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -649,7 +668,7 @@ function WidgetItem({
 				>
 					<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
 				</button>
-				<button onClick={onToggle} className="flex-1 text-left" aria-expanded={isExpanded}>
+				<button onClick={onToggle} className="flex-1 text-start" aria-expanded={isExpanded}>
 					<div className="flex items-center gap-2">
 						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
 						<span className="font-medium">{widget.title || "Untitled Widget"}</span>
@@ -670,6 +689,7 @@ function WidgetItem({
 				<WidgetEditor
 					widget={widget}
 					components={components}
+					pluginBlocks={pluginBlocks}
 					onSave={(input) => updateMutation.mutate(input)}
 					isSaving={updateMutation.isPending}
 				/>
@@ -682,11 +702,13 @@ function WidgetItem({
 function WidgetEditor({
 	widget,
 	components,
+	pluginBlocks,
 	onSave,
 	isSaving,
 }: {
 	widget: Widget;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateWidgetInput) => void;
 	isSaving: boolean;
 }) {
@@ -738,6 +760,7 @@ function WidgetEditor({
 						onChange={(value) => setContent(value as unknown[])}
 						minimal
 						placeholder="Write widget content..."
+						pluginBlocks={pluginBlocks}
 					/>
 				</div>
 			)}
@@ -841,13 +864,7 @@ function ComponentPropField({
 				/>
 			);
 		case "boolean":
-			return (
-				<Switch
-					label={def.label}
-					checked={typeof value === "boolean" ? value : false}
-					onCheckedChange={onChange}
-				/>
-			);
+			return <Switch label={def.label} checked={Boolean(value)} onCheckedChange={onChange} />;
 		case "select": {
 			const items: Record<string, string> = {};
 			for (const opt of def.options ?? []) {

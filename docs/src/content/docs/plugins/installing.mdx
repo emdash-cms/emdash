@@ -97,7 +97,7 @@ The plugin's sandbox code is removed from your R2 bucket and it stops running im
 
 ## From Configuration
 
-For trusted plugins (your own code, or packages you install via npm), add them directly to your Astro config:
+For native plugins (your own code, or packages you install via npm), add them directly to your Astro config:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -115,7 +115,7 @@ export default defineConfig({
 });
 ```
 
-Config-based plugins:
+Native plugins:
 
 - Run in-process (not sandboxed)
 - Have full access to Node.js APIs
@@ -123,16 +123,18 @@ Config-based plugins:
 - Cannot be installed or removed from the admin UI
 
 <Aside type="tip">
-  Use config-based plugins for first-party code and plugins you maintain yourself. Use marketplace plugins for third-party extensions where sandbox isolation provides security benefits.
+  Use native plugins only when you need features that require build-time integration: React admin pages, Portable Text rendering components, or page fragment injection. For everything else, prefer sandboxed plugins -- they can be installed, updated, and removed without code changes or redeployments.
 </Aside>
 
 ## Marketplace vs. Config: When to Use Which
 
-| | Marketplace | Config |
+| | Marketplace (sandboxed) | Config (native) |
 | --- | --- | --- |
-| **Execution** | Sandboxed V8 isolate | In-process |
-| **Install method** | Admin UI | Code change + deploy |
-| **Capabilities** | Enforced at runtime | Documentation only |
+| **Install method** | One-click in admin UI | Code change + `npm install` + deploy |
+| **Execution** | Isolated V8 isolate | In-process |
+| **Capabilities** | Enforced at runtime | Advisory only |
 | **Node.js APIs** | Not available | Full access |
-| **Best for** | Third-party plugins | First-party code |
+| **React admin pages** | No (Block Kit instead) | Yes |
+| **PT rendering components** | No | Yes |
 | **Updates** | One-click in admin | Version bump + deploy |
+| **Best for** | Most plugins | Plugins needing build-time integration |

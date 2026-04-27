@@ -5,6 +5,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { bylineCreateBody, bylinesListQuery } from "#api/schemas.js";
+import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
 export const prerender = false;
@@ -65,6 +66,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			isGuest: body.isGuest,
 		});
 
+		invalidateBylineCache();
 		return apiSuccess(byline, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create byline", "BYLINE_CREATE_ERROR");

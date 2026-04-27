@@ -1,0 +1,80 @@
+/*
+  theme.css -- override any :root variable here to retheme the site.
+
+  This is the only file you need to edit to customize the site's visual
+  appearance. All defaults are listed below as comments. Uncomment and
+  change any value to override it.
+
+  Base.astro puts its defaults inside @layer base, so declarations here
+  (which are unlayered) always take priority -- no specificity tricks needed.
+
+  Note: this template defines explicit dark mode colors in Base.astro.
+  Overriding light-mode --color-* variables here won't affect dark mode.
+  To customize dark mode, also override --color-* variables inside a
+  @media (prefers-color-scheme: dark) block and/or in the :root.dark rule.
+*/
+
+:root {
+	/* --- Colors ---
+	--color-bg: #ffffff;
+	--color-text: #0f172a;
+	--color-muted: #64748b;
+	--color-border: #e2e8f0;
+	--color-surface: #f8fafc;
+	--color-primary: #6366f1;
+	--color-primary-dark: #4f46e5;
+	--color-primary-light: #818cf8;
+	--color-accent: #f472b6;
+	--color-accent-light: #f9a8d4;
+	--color-success: #22c55e;
+	--color-warning: #f59e0b;
+	*/
+
+	/* --- Typography ---
+	--font-mono: ui-monospace, "SF Mono", monospace;
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+	--font-size-3xl: 2rem;
+	--font-size-4xl: 2.5rem;
+	--font-size-5xl: 3.5rem;
+	--font-size-6xl: 4.5rem;
+	*/
+
+	/* --- Spacing ---
+	--spacing-xs: 0.25rem;
+	--spacing-sm: 0.5rem;
+	--spacing-md: 1rem;
+	--spacing-lg: 1.5rem;
+	--spacing-xl: 2rem;
+	--spacing-2xl: 3rem;
+	--spacing-3xl: 4rem;
+	--spacing-4xl: 6rem;
+	--spacing-5xl: 8rem;
+	*/
+
+	/* --- Layout ---
+	--max-width: 720px;
+	--wide-width: 1200px;
+	--radius-sm: 6px;
+	--radius: 10px;
+	--radius-lg: 16px;
+	--radius-full: 9999px;
+	*/
+
+	/* --- Transitions ---
+	--transition-fast: 150ms ease;
+	--transition-base: 200ms ease;
+	--transition-slow: 300ms ease;
+	*/
+
+	/* --- Shadows ---
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+	--shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+	--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+	--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+	*/
+}

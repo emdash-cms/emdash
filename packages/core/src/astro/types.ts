@@ -102,6 +102,7 @@ export type ManifestAuthMode = string;
  */
 export interface EmDashManifest {
 	version: string;
+	commit?: string;
 	hash: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
@@ -141,6 +142,15 @@ export interface EmDashManifest {
 	 * When true, the admin UI can show marketplace browse/install features.
 	 */
 	marketplace?: boolean;
+	/**
+	 * Admin branding overrides for white-labeling.
+	 * Set via the `admin` config in `astro.config.mjs`.
+	 */
+	admin?: {
+		logo?: string;
+		siteName?: string;
+		favicon?: string;
+	};
 }
 
 /**
@@ -370,4 +380,12 @@ export interface EmDashHandlers {
 	collectPageFragments: (
 		page: import("../plugins/types.js").PublicPageContext,
 	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
+
+	/**
+	 * Lazy search index health check. Search routes call this before
+	 * querying so a crash-corrupted index gets repaired on first use
+	 * rather than stalling cold start. Optional because it's only
+	 * meaningful when an FTS5-capable runtime is wired in.
+	 */
+	ensureSearchHealthy?: () => Promise<void>;
 }

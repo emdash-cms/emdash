@@ -190,13 +190,9 @@ function MyComponent() {
 }
 ```
 
-After adding or changing translatable strings, run extraction to update the PO catalogs:
+**Don't include `messages.po` changes in feature or bugfix PRs.** A workflow runs `pnpm locale:extract` on merge to `main` and commits the catalog updates automatically. Including extracted PO changes in a non-translation PR creates churn and merge conflicts, since the line-number references in the catalogs shift on every edit. If you ran extraction locally and ended up with `.po` changes, revert them before opening the PR.
 
-```bash
-pnpm run locale:extract
-```
-
-This updates `packages/admin/src/locales/*/messages.po` with any new or changed strings. Commit the updated PO files alongside your code changes.
+Translation PRs are the exception — see [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).
 
 ### What to wrap
 

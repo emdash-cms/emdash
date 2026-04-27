@@ -1,0 +1,37 @@
+{
+	"name": "@emdash-cms/perf-demo-site",
+	"version": "0.0.2",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"deploy": "astro build && wrangler deploy",
+		"typecheck": "astro check",
+		"bootstrap": "emdash init && emdash seed",
+		"seed": "emdash seed"
+	},
+	"dependencies": {
+		"@astrojs/cloudflare": "catalog:",
+		"@astrojs/react": "catalog:",
+		"@emdash-cms/cloudflare": "workspace:*",
+		"@emdash-cms/plugin-forms": "workspace:*",
+		"@emdash-cms/plugin-webhook-notifier": "workspace:*",
+		"astro": "catalog:",
+		"emdash": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@astrojs/check": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"wrangler": "catalog:"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild",
+			"workerd"
+		]
+	}
+}

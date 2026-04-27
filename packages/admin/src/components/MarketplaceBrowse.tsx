@@ -6,6 +6,8 @@
  */
 
 import { Badge, Button } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
 	PuzzlePiece,
@@ -48,6 +50,7 @@ export interface MarketplaceBrowseProps {
 }
 
 export function MarketplaceBrowse({ installedPluginIds = new Set() }: MarketplaceBrowseProps) {
+	const { t } = useLingui();
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [sort, setSort] = React.useState<SortOption>("installs");
 	const [capability, setCapability] = React.useState<string>("");
@@ -80,29 +83,29 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-3xl font-bold">Marketplace</h1>
-				<p className="mt-1 text-kumo-subtle">Browse and install plugins to extend your site.</p>
+				<h1 className="text-3xl font-bold">{t`Marketplace`}</h1>
+				<p className="mt-1 text-kumo-subtle">{t`Browse and install plugins to extend your site.`}</p>
 			</div>
 
 			{/* Search + Sort */}
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div className="relative flex-1">
-					<MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
 					<input
 						type="search"
-						placeholder="Search plugins..."
+						placeholder={t`Search plugins...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full rounded-md border bg-kumo-base px-3 py-2 pl-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+						className="w-full rounded-md border bg-kumo-base px-3 py-2 ps-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
 					/>
 				</div>
 				<select
 					value={capability}
 					onChange={(e) => setCapability(e.target.value)}
 					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
-					aria-label="Filter by capability"
+					aria-label={t`Filter by capability`}
 				>
-					<option value="">All capabilities</option>
+					<option value="">{t`All capabilities`}</option>
 					{Object.entries(CAPABILITY_LABELS).map(([value, label]) => (
 						<option key={value} value={value}>
 							{label}
@@ -116,7 +119,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 						if (isSortOption(v)) setSort(v);
 					}}
 					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
-					aria-label="Sort plugins"
+					aria-label={t`Sort plugins`}
 				>
 					{Object.entries(SORT_LABELS).map(([value, label]) => (
 						<option key={value} value={value}>
@@ -130,13 +133,13 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 			{error && (
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6 text-center">
 					<Warning className="mx-auto h-8 w-8 text-kumo-danger" />
-					<h3 className="mt-3 font-medium text-kumo-danger">Unable to reach marketplace</h3>
+					<h3 className="mt-3 font-medium text-kumo-danger">{t`Unable to reach marketplace`}</h3>
 					<p className="mt-1 text-sm text-kumo-subtle">
-						{error instanceof Error ? error.message : "An error occurred"}
+						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
 					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="mr-2 h-4 w-4" />
-						Retry
+						<ArrowsClockwise className="me-2 h-4 w-4" />
+						{t`Retry`}
 					</Button>
 				</div>
 			)}
@@ -168,11 +171,11 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					{plugins.length === 0 ? (
 						<div className="rounded-lg border bg-kumo-base p-8 text-center">
 							<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
-							<h3 className="mt-4 text-lg font-medium">No plugins found</h3>
+							<h3 className="mt-4 text-lg font-medium">{t`No plugins found`}</h3>
 							<p className="mt-2 text-sm text-kumo-subtle">
 								{debouncedQuery
-									? `No results for "${debouncedQuery}". Try a different search term.`
-									: "The marketplace is empty. Check back later for new plugins."}
+									? t`No results for "${debouncedQuery}". Try a different search term.`
+									: t`The marketplace is empty. Check back later for new plugins.`}
 							</p>
 						</div>
 					) : (
@@ -193,7 +196,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 										onClick={() => void fetchNextPage()}
 										disabled={isFetchingNextPage}
 									>
-										{isFetchingNextPage ? "Loading..." : "Load more"}
+										{isFetchingNextPage ? t`Loading...` : t`Load more`}
 									</Button>
 								</div>
 							)}
@@ -215,6 +218,7 @@ interface PluginCardProps {
 }
 
 function PluginCard({ plugin, isInstalled }: PluginCardProps) {
+	const { t } = useLingui();
 	const navigate = useNavigate();
 	const auditVerdict = plugin.latestVersion?.audit?.verdict;
 	const imageVerdict = plugin.latestVersion?.imageAudit?.verdict;
@@ -235,7 +239,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 						alt=""
 						className={`h-10 w-10 rounded-lg object-cover ${isImageFlagged ? "blur-sm" : ""}`}
 						loading="lazy"
-						aria-label={isImageFlagged ? "Icon blurred due to image audit" : undefined}
+						aria-label={isImageFlagged ? t`Icon blurred due to image audit` : undefined}
 					/>
 				) : (
 					<PluginAvatar name={plugin.name} />
@@ -255,7 +259,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 									void navigate({ to: "/plugins-manager" });
 								}}
 							>
-								<Badge variant="secondary">Installed</Badge>
+								<Badge variant="secondary">{t`Installed`}</Badge>
 							</span>
 						)}
 					</div>
@@ -282,7 +286,10 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 					{auditVerdict && <AuditBadge verdict={auditVerdict} />}
 					{plugin.capabilities.length > 0 && (
 						<span className="text-xs text-kumo-subtle">
-							{plugin.capabilities.length} permission{plugin.capabilities.length !== 1 ? "s" : ""}
+							{plural(plugin.capabilities.length, {
+								one: "# permission",
+								other: "# permissions",
+							})}
 						</span>
 					)}
 				</div>
@@ -305,14 +312,15 @@ function PluginAvatar({ name }: { name: string }) {
 }
 
 export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
+	const { t } = useLingui();
 	if (verdict === "pass") {
 		return (
 			<span
 				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-green-500/10 text-green-600"
-				title="Security audit passed"
+				title={t`Security audit passed`}
 			>
 				<ShieldCheck className="h-3 w-3" />
-				Pass
+				{t`Pass`}
 			</span>
 		);
 	}
@@ -320,20 +328,20 @@ export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
 		return (
 			<span
 				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-warning/10 text-warning"
-				title="Security audit flagged concerns"
+				title={t`Security audit flagged concerns`}
 			>
 				<Warning className="h-3 w-3" />
-				Warn
+				{t`Warn`}
 			</span>
 		);
 	}
 	return (
 		<span
 			className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-kumo-danger/10 text-kumo-danger"
-			title="Security audit failed"
+			title={t`Security audit failed`}
 		>
 			<ShieldWarning className="h-3 w-3" />
-			Fail
+			{t`Fail`}
 		</span>
 	);
 }

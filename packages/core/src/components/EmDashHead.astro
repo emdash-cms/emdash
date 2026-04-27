@@ -16,8 +16,12 @@
 import type { PublicPageContext, PageMetadataContribution } from "../plugins/types.js";
 import { resolvePageMetadata, renderPageMetadata } from "../page/metadata.js";
 import { renderFragments } from "../page/fragments.js";
-import { generateBaseSeoContributions } from "../page/seo-contributions.js";
+import {
+	generateBaseSeoContributions,
+	generateSiteSeoContributions,
+} from "../page/seo-contributions.js";
 import { getPageRuntime } from "../page/index.js";
+import { getSiteSetting } from "../settings/index.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -33,14 +37,26 @@ let metadataHtml = "";
 let fragmentsHtml = "";
 
 if (runtime) {
-	// Plugin contributions come BEFORE base, so resolvePageMetadata's
-	// first-wins dedup lets plugins override base SEO defaults
-	const pluginContributions = await runtime.collectPageMetadata(page);
-	const allContributions = [...pluginContributions, ...baseContributions];
+	// Run independent async loads in parallel: site SEO settings (for
+	// search engine verification meta tags) and plugin page-metadata
+	// contributions. Plugin contributions come BEFORE site/base in the
+	// array, so resolvePageMetadata's first-wins dedup lets plugins
+	// override defaults.
+	//
+	// `getSiteSetting("seo")` is request-cached and — crucially — reads
+	// from `getSiteSettings()`'s cached batch when a parent template has
+	// already called it. So this is either a single-key query or free,
+	// not a second round-trip.
+	const [seoSettings, pluginContributions, fragments] = await Promise.all([
+		getSiteSetting("seo"),
+		runtime.collectPageMetadata(page),
+		runtime.collectPageFragments(page),
+	]);
+
+	const siteContributions = generateSiteSeoContributions(seoSettings);
+	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
 	const resolved = resolvePageMetadata(allContributions);
 	metadataHtml = renderPageMetadata(resolved);
-
-	const fragments = await runtime.collectPageFragments(page);
 	fragmentsHtml = renderFragments(fragments, "head");
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO

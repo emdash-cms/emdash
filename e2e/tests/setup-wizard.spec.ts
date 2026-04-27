@@ -89,7 +89,7 @@ test.describe("Setup Wizard", () => {
 		await admin.page.getByRole("button", { name: "Continue" }).click();
 
 		await expect(admin.page.locator("text=Secure your account")).toBeVisible();
-		await expect(admin.page.locator("text=Set up your passkey")).toBeVisible();
+		await expect(admin.page.locator("text=Choose how to sign in")).toBeVisible();
 	});
 
 	test("setup wizard not accessible after setup complete", async ({ admin }) => {

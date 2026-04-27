@@ -1,10 +1,11 @@
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { Kysely, SqliteDialect, sql } from "kysely";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
+import { FTSManager } from "../../../src/search/fts-manager.js";
 
 describe("SchemaRegistry", () => {
 	let db: Kysely<EmDashDatabase>;
@@ -43,6 +44,26 @@ describe("SchemaRegistry", () => {
 			expect(collection.supports).toEqual(["drafts", "revisions"]);
 			expect(collection.source).toBe("manual");
 			expect(collection.id).toBeDefined();
+		});
+
+		it("F14: defaults supports to ['drafts', 'revisions'] when undefined", async () => {
+			const collection = await registry.createCollection({
+				slug: "default_supports",
+				label: "Default Supports",
+				// supports omitted entirely
+			});
+
+			expect(collection.supports.toSorted()).toEqual(["drafts", "revisions"].toSorted());
+		});
+
+		it("F14: preserves explicit empty supports array (opt-out)", async () => {
+			const collection = await registry.createCollection({
+				slug: "no_supports",
+				label: "No Supports",
+				supports: [],
+			});
+
+			expect(collection.supports).toEqual([]);
 		});
 
 		it("should create the content table when creating a collection", async () => {
@@ -369,6 +390,329 @@ describe("SchemaRegistry", () => {
 
 			// Fields should be gone (cascade delete)
 			const field = await registry.getField("temp", "field1");
+			expect(field).toBeNull();
+		});
+	});
+
+	describe("Search (FTS) Integration", () => {
+		let ftsManager: FTSManager;
+
+		beforeEach(() => {
+			ftsManager = new FTSManager(db);
+		});
+
+		it("does not auto-enable FTS when adding a searchable field", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("does not auto-enable FTS when adding search support to a collection", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["drafts"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+
+			await registry.updateCollection("articles", { supports: ["drafts", "search"] });
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("disables FTS when search support is removed from a collection", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.updateCollection("articles", { supports: ["drafts"] });
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("rebuilds FTS table to include a new searchable field when collection already has search enabled", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.createField("articles", {
+				slug: "body",
+				label: "Body",
+				type: "text",
+				searchable: true,
+			});
+
+			await expect(
+				sql`SELECT body FROM "_emdash_fts_articles" LIMIT 0`.execute(db),
+			).resolves.toBeDefined();
+		});
+
+		it("deletes a searchable field from a search-enabled collection without error", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await registry.createField("articles", {
+				slug: "body",
+				label: "Body",
+				type: "text",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+
+			await expect(registry.deleteField("articles", "body")).resolves.toBeUndefined();
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+			await expect(
+				sql`SELECT title FROM "_emdash_fts_articles" LIMIT 0`.execute(db),
+			).resolves.toBeDefined();
+		});
+
+		it("drops FTS table when deleting a search-enabled collection", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.deleteCollection("articles");
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("disables FTS when the last searchable field is deleted", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch("articles");
+			expect(await ftsManager.ftsTableExists("articles")).toBe(true);
+
+			await registry.deleteField("articles", "title");
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("does not create FTS table when collection supports search but has no searchable fields", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: false,
+			});
+
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+		});
+
+		it("preserves weights in config when search support is toggled off", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+
+			await ftsManager.enableSearch("articles", { weights: { title: 10 } });
+			const initialConfig = await ftsManager.getSearchConfig("articles");
+			expect(initialConfig?.weights).toEqual({ title: 10 });
+
+			await registry.updateCollection("articles", { supports: ["drafts"] });
+			expect(await ftsManager.ftsTableExists("articles")).toBe(false);
+
+			const finalConfig = await ftsManager.getSearchConfig("articles");
+			expect(finalConfig?.weights).toEqual({ title: 10 });
+		});
+	});
+
+	describe("atomicity: rollback on FTS sync failure", () => {
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it("rolls back updateCollection when FTS disable fails", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			const ftsManager = new FTSManager(db);
+			await ftsManager.enableSearch("articles");
+
+			vi.spyOn(FTSManager.prototype, "disableSearch").mockRejectedValueOnce(
+				new Error("FTS sync sabotaged"),
+			);
+
+			await expect(
+				registry.updateCollection("articles", { supports: ["drafts"] }),
+			).rejects.toThrow();
+
+			const collection = await registry.getCollection("articles");
+			expect(collection?.supports).toContain("search");
+		});
+
+		it("rolls back updateField when FTS rebuild fails", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			const ftsManager = new FTSManager(db);
+			await ftsManager.enableSearch("articles");
+
+			vi.spyOn(FTSManager.prototype, "disableSearch").mockRejectedValueOnce(
+				new Error("FTS sync sabotaged"),
+			);
+
+			await expect(
+				registry.updateField("articles", "title", { searchable: false }),
+			).rejects.toThrow();
+
+			const field = await registry.getField("articles", "title");
+			expect(field?.searchable).toBe(true);
+		});
+
+		it("rolls back deleteField when FTS rebuild fails", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await registry.createField("articles", {
+				slug: "body",
+				label: "Body",
+				type: "text",
+				searchable: true,
+			});
+			const ftsManager = new FTSManager(db);
+			await ftsManager.enableSearch("articles");
+
+			vi.spyOn(FTSManager.prototype, "rebuildIndex").mockRejectedValueOnce(
+				new Error("FTS sync sabotaged"),
+			);
+
+			await expect(registry.deleteField("articles", "body")).rejects.toThrow();
+
+			const field = await registry.getField("articles", "body");
+			expect(field).not.toBeNull();
+		});
+
+		it("rolls back createField when FTS rebuild fails", async () => {
+			await registry.createCollection({
+				slug: "articles",
+				label: "Articles",
+				supports: ["search"],
+			});
+			await registry.createField("articles", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			const ftsManager = new FTSManager(db);
+			await ftsManager.enableSearch("articles");
+
+			vi.spyOn(FTSManager.prototype, "rebuildIndex").mockRejectedValueOnce(
+				new Error("FTS sync sabotaged"),
+			);
+
+			await expect(
+				registry.createField("articles", {
+					slug: "body",
+					label: "Body",
+					type: "text",
+					searchable: true,
+				}),
+			).rejects.toThrow();
+
+			const field = await registry.getField("articles", "body");
 			expect(field).toBeNull();
 		});
 	});

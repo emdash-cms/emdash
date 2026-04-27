@@ -24,11 +24,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type { AdminManifest } from "../src/lib/api";
 import { createAdminRouter } from "../src/router";
-import { createTestQueryClient, createMockFetch } from "./utils/test-helpers";
+import { render } from "./utils/render.tsx";
+import { createTestQueryClient, createMockFetch, waitFor } from "./utils/test-helpers";
 
 // ---------------------------------------------------------------------------
 // Component mocks – keep layout plumbing out of these tests
@@ -43,16 +43,38 @@ vi.mock("../src/components/AdminCommandPalette", () => ({
 }));
 
 vi.mock("../src/components/ContentEditor", () => ({
-	ContentEditor: ({ onSave }: { onSave: (payload: { data: Record<string, unknown> }) => void }) => (
-		<form
-			data-testid="content-editor"
-			onSubmit={(e) => {
-				e.preventDefault();
-				onSave({ data: { title: "Test Post" } });
-			}}
-		>
-			<button type="submit">Save</button>
-		</form>
+	ContentEditor: ({
+		item,
+		onSave,
+		onAutosave,
+	}: {
+		item?: { data?: { title?: string }; slug?: string | null };
+		onSave?: (payload: { data: Record<string, unknown> }) => void;
+		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
+	}) => (
+		<div data-testid="content-editor">
+			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
+			<div data-testid="mock-slug">{item?.slug ?? ""}</div>
+			<form
+				onSubmit={(e) => {
+					e.preventDefault();
+					onSave?.({ data: { title: "Test Post" } });
+				}}
+			>
+				<button type="submit">Save</button>
+			</form>
+			<button
+				type="button"
+				onClick={() =>
+					onAutosave?.({
+						data: { title: "Autosaved Title" },
+						slug: "autosaved-title",
+					})
+				}
+			>
+				Trigger Draft Sync
+			</button>
+		</div>
 	),
 }));
 
@@ -257,7 +279,9 @@ describe("ContentNewPage – locale passed to createContent", () => {
 		const screen = await render(<TestApp />);
 
 		// Wait for the editor to appear (manifest must have loaded)
-		await expect.element(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
 
 		// Capture outgoing requests
 		const requests: { url: string; body: unknown }[] = [];
@@ -272,12 +296,123 @@ describe("ContentNewPage – locale passed to createContent", () => {
 			return origFetch(input, init);
 		};
 
-		await screen.getByRole("button", { name: "Save" }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
 
 		globalThis.fetch = origFetch;
 
 		// After the fix: the POST body must include locale: "de"
 		expect(requests).toHaveLength(1);
 		expect(requests[0]!.body).toMatchObject({ locale: "de" });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Tests: ContentEditPage – autosave cache stays in sync
+// ---------------------------------------------------------------------------
+
+describe("ContentEditPage – autosave cache patching", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		const manifestWithRevisions: AdminManifest = {
+			...MANIFEST,
+			i18n: undefined,
+			collections: {
+				posts: {
+					...MANIFEST.collections.posts,
+					supports: ["drafts", "revisions"],
+				},
+			},
+		};
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: manifestWithRevisions })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 30 },
+			})
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			.on("GET", "/_emdash/api/content/posts/post_1", {
+				data: {
+					item: {
+						id: "post_1",
+						type: "posts",
+						slug: "published-slug",
+						status: "draft",
+						locale: "en",
+						translationGroup: null,
+						data: { title: "Published Title" },
+						authorId: null,
+						primaryBylineId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+						updatedAt: "2025-01-01T00:00:00Z",
+						publishedAt: "2025-01-01T00:00:00Z",
+						scheduledAt: null,
+						liveRevisionId: "rev_live",
+						draftRevisionId: "rev_draft",
+					},
+				},
+			})
+			.on("GET", "/_emdash/api/revisions/rev_draft", {
+				data: {
+					item: {
+						id: "rev_draft",
+						collection: "posts",
+						entryId: "post_1",
+						data: { title: "Draft Title", _slug: "draft-slug" },
+						authorId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+					},
+				},
+			})
+			.on("PUT", "/_emdash/api/content/posts/post_1", {
+				data: {
+					item: {
+						id: "post_1",
+						type: "posts",
+						slug: "published-slug",
+						status: "draft",
+						locale: "en",
+						translationGroup: null,
+						data: { title: "Published Title" },
+						authorId: null,
+						primaryBylineId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+						updatedAt: "2025-01-02T00:00:00Z",
+						publishedAt: "2025-01-01T00:00:00Z",
+						scheduledAt: null,
+						liveRevisionId: "rev_live",
+						draftRevisionId: "rev_draft",
+					},
+				},
+			});
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("keeps the edited draft title and slug after autosave completes", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+
+		const screen = await render(<TestApp />);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+			expect(screen.getByTestId("mock-slug").element().textContent).toBe("draft-slug");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
+			expect(screen.getByTestId("mock-slug").element().textContent).toBe("autosaved-title");
+		});
 	});
 });

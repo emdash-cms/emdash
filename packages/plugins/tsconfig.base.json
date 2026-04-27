@@ -4,6 +4,6 @@
 		"declaration": true,
 		"declarationMap": true,
 		"jsx": "react-jsx",
-		"lib": ["es2022", "DOM", "DOM.Iterable"]
+		"lib": ["es2024", "DOM", "DOM.Iterable"]
 	}
 }

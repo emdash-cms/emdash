@@ -1,6 +1,5 @@
-import { i18n } from "@lingui/core";
 import "vitest-browser-react";
+import { i18n } from "@lingui/core";
 
-if (!i18n.locale) {
-	i18n.loadAndActivate({ locale: "en", messages: {} });
-}
+// Initialize i18n for browser tests with empty English messages
+i18n.loadAndActivate({ locale: "en", messages: {} });

@@ -1,8 +1,9 @@
 import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
+import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
@@ -15,6 +16,15 @@ const PNG_EXTENSION_REGEX = /\.png$/;
 // Mock fetch globally
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
+
+// Bypass DoH so the fetch mock only sees the calls these tests model.
+let previousResolver: ReturnType<typeof setDefaultDnsResolver> | undefined;
+beforeAll(() => {
+	previousResolver = setDefaultDnsResolver(async () => ["93.184.216.34"]);
+});
+afterAll(() => {
+	setDefaultDnsResolver(previousResolver ?? null);
+});
 
 // Create a mock storage that tracks uploads
 function createMockStorage(): Storage & { uploads: UploadOptions[] } {

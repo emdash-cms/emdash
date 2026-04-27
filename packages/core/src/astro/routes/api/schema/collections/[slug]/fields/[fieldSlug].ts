@@ -57,6 +57,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		fieldSlug,
 		body as UpdateFieldInput,
 	);
+	if (result.success) emdash!.invalidateManifest();
 	return unwrapResult(result);
 };
 
@@ -72,5 +73,6 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	if (denied) return denied;
 
 	const result = await handleSchemaFieldDelete(emdash!.db, collectionSlug, fieldSlug);
+	if (result.success) emdash!.invalidateManifest();
 	return unwrapResult(result);
 };

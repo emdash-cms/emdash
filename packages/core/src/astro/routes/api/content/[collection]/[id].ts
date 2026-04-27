@@ -6,7 +6,7 @@
  * DELETE /_emdash/api/content/{collection}/{id} - Delete content
  */
 
-import { hasPermission, type Permission } from "@emdash-cms/auth";
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
@@ -29,6 +29,25 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	}
 
 	const result = await emdash.handleContentGet(collection, id, locale);
+
+	// Hide non-published items from users without content:read_drafts. Return
+	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.
+	if (result.success && !hasPermission(user, "content:read_drafts")) {
+		const data =
+			result.data && typeof result.data === "object"
+				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+					(result.data as Record<string, unknown>)
+				: undefined;
+		const item =
+			data?.item && typeof data.item === "object"
+				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+					(data.item as Record<string, unknown>)
+				: undefined;
+		const status = typeof item?.status === "string" ? item.status : null;
+		if (status !== "published") {
+			return apiError("NOT_FOUND", `Content item not found: ${id}`, 404);
+		}
+	}
 
 	return unwrapResult(result);
 };
@@ -69,12 +88,21 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const editDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
 	if (editDenied) return editDenied;
 
+	// Only EDITOR+ can write publishedAt directly — incl. clearing to null.
+	if (body.publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
+		return apiError(
+			"FORBIDDEN",
+			"Writing publishedAt requires content:publish_any permission",
+			403,
+		);
+	}
+
 	// Use the resolved ID (handles slug → ID resolution)
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 
 	// Only allow authorId changes if user has content:edit_any permission (editor+)
 	const canChangeAuthor =
-		body.authorId !== undefined && user && hasPermission(user, "content:edit_any" as Permission);
+		body.authorId !== undefined && user && hasPermission(user, "content:edit_any");
 	const updateBody = canChangeAuthor ? body : { ...body, authorId: undefined };
 
 	// Pass _rev through for optimistic concurrency validation

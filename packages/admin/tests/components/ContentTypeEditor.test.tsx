@@ -1,12 +1,12 @@
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "vitest-browser-react";
 
 import {
 	ContentTypeEditor,
 	type ContentTypeEditorProps,
 } from "../../src/components/ContentTypeEditor";
 import type { SchemaCollectionWithFields, SchemaField } from "../../src/lib/api";
+import { render } from "../utils/render";
 
 // Regexes hoisted to module scope to avoid recompilation per call
 const EDIT_TITLE_RE = /Edit Title field/i;
@@ -196,7 +196,7 @@ describe("ContentTypeEditor", () => {
 			labelSingular: "Article",
 			description: undefined,
 			urlPattern: undefined,
-			supports: ["drafts"], // default
+			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
 	});

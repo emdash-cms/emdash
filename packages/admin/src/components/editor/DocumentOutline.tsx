@@ -8,6 +8,7 @@
  */
 
 import { Button } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { CaretDown, CaretRight, List } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -17,13 +18,13 @@ import { cn } from "../../lib/utils";
 function getIndentClass(level: number) {
 	switch (level) {
 		case 1:
-			return "pl-0";
+			return "ps-0";
 		case 2:
-			return "pl-4";
+			return "ps-4";
 		case 3:
-			return "pl-8";
+			return "ps-8";
 		default:
-			return "pl-0";
+			return "ps-0";
 	}
 }
 
@@ -113,6 +114,7 @@ export interface DocumentOutlineProps {
  * Document outline component showing heading tree structure
  */
 export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
+	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(true);
 	const [headings, setHeadings] = React.useState<HeadingItem[]>([]);
 	const [currentPos, setCurrentPos] = React.useState(0);
@@ -175,7 +177,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 			>
 				<span className="flex items-center gap-2">
 					<List className="h-4 w-4" />
-					<span className="font-semibold">Outline</span>
+					<span className="font-semibold">{t`Outline`}</span>
 				</span>
 				{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
 			</Button>
@@ -183,7 +185,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 			{isExpanded && (
 				<div className="space-y-0.5">
 					{headings.length === 0 ? (
-						<p className="text-sm text-kumo-subtle px-2 py-1">No headings in document</p>
+						<p className="text-sm text-kumo-subtle px-2 py-1">{t`No headings in document`}</p>
 					) : (
 						headings.map((heading) => {
 							const isCurrent = currentHeading?.key === heading.key;
@@ -193,7 +195,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 									type="button"
 									onClick={() => handleHeadingClick(heading)}
 									className={cn(
-										"w-full text-left px-2 py-1 text-sm rounded transition-colors",
+										"w-full text-start px-2 py-1 text-sm rounded transition-colors",
 										"hover:bg-kumo-tint/50 cursor-pointer",
 										"truncate",
 										getIndentClass(heading.level),

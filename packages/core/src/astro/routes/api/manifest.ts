@@ -11,6 +11,8 @@ import type { APIRoute } from "astro";
 
 import { getAuthMode } from "#auth/mode.js";
 
+import { COMMIT, VERSION } from "../../../version.js";
+import { getStoredConfig } from "../../integration/runtime.js";
 import type { EmDashManifest } from "../../types.js";
 
 export const prerender = false;
@@ -20,6 +22,10 @@ export const GET: APIRoute = async ({ locals }) => {
 
 	// Determine auth mode from config
 	const authMode = getAuthMode(emdash?.config);
+
+	// Read admin branding from build-time config
+	const storedConfig = getStoredConfig();
+	const adminBranding = storedConfig?.admin;
 
 	// Check if self-signup is enabled (any allowed domain with enabled = 1)
 	// Only relevant for passkey auth — external auth providers handle their own signup
@@ -41,15 +47,18 @@ export const GET: APIRoute = async ({ locals }) => {
 				...emdashManifest,
 				authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 				signupEnabled,
+				admin: adminBranding,
 			}
 		: {
-				version: "0.1.0",
+				version: VERSION,
+				commit: COMMIT,
 				hash: "default",
 				collections: {},
 				plugins: {},
 				taxonomies: [],
 				authMode: "passkey",
 				signupEnabled,
+				admin: adminBranding,
 			};
 
 	return Response.json(

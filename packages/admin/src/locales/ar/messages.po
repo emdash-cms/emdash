@@ -1,0 +1,5610 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+# , fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"PO-Revision-Date: 2026-04-15 04:23+0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: \n"
+"Language: \n"
+"Plural-Forms: \n"
+
+#: packages/admin/src/components/ContentEditor.tsx:954
+#: packages/admin/src/components/LocaleSwitcher.tsx:72
+msgid " (default)"
+msgstr " الافتراضي"
+
+#: packages/admin/src/components/MenuEditor.tsx:344
+msgid " (opens in new window)"
+msgstr " (يفتح في نافذة جديدة)"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:634
+#: packages/admin/src/components/MediaPickerModal.tsx:716
+msgid " (selected)"
+msgstr " (محدد)"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:310
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
+msgid ", or open the admin at"
+msgstr "، أو افتح لوحة الإدارة على"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:309
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:306
+msgid ": use"
+msgstr ": استخدم"
+
+#. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
+#: packages/admin/src/components/MediaPickerModal.tsx:574
+msgid "(from {0})"
+msgstr "(من {0})"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:157
+msgid "(synced)"
+msgstr "(متزامن)"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:312
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:309
+msgid "(with your dev port)."
+msgstr "(مع منفذ التطوير الخاص بك)."
+
+#. placeholder {0}: items.length
+#. placeholder {0}: orphan.rowCount
+#: packages/admin/src/components/ContentTypeList.tsx:69
+#: packages/admin/src/components/RepeaterField.tsx:145
+msgid "{0, plural, one {(# item)} other {(# items)}}"
+msgstr "{0, plural, few {(# عناصر)} many {(# عنصرًا)}} other {(# عنصر)}}"
+
+#. placeholder {0}: seedInfo.collections
+#: packages/admin/src/components/SetupWizard.tsx:183
+msgid "{0, plural, one {# collection} other {# collections}}"
+msgstr "{0, plural, few {# مجموعات} many {# مجموعةً} other {# مجموعة}}"
+
+#. placeholder {0}: comments.length
+#: packages/admin/src/components/comments/CommentInbox.tsx:351
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, few {# تعليقات} many {# تعليقًا} other {# تعليق}}"
+
+#. placeholder {0}: result.errors.length
+#: packages/admin/src/components/WordPressImport.tsx:2107
+msgid "{0, plural, one {# content error} other {# content errors}}"
+msgstr "{0, plural, few {# أخطاء في المحتوى} many {# خطأً في المحتوى} other {# خطأ في المحتوى}}"
+
+#. placeholder {0}: result.imported
+#: packages/admin/src/components/WordPressImport.tsx:2083
+msgid "{0, plural, one {# content item imported} other {# content items imported}}"
+msgstr "{0, plural, few {# عناصر محتوى تم استيرادها} other {# عنصر محتوى تم استيراده}}"
+
+#. placeholder {0}: filteredItems.length
+#: packages/admin/src/components/ContentList.tsx:283
+msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
+msgstr "{0, plural, few {# عناصر مطابقة لـ \"{searchQuery}\"} many {# عنصرًا مطابقًا لـ \"{searchQuery}\"} other {# عنصر مطابق لـ \"{searchQuery}\"}}"
+
+#. placeholder {0}: items.length
+#: packages/admin/src/components/MediaPickerModal.tsx:449
+msgid "{0, plural, one {# item} other {# items}}"
+msgstr "{0, plural, few {# عناصر} many {# عنصرًا} other {# عنصر}}"
+
+#. placeholder {0}: mediaResult.failed.length
+#: packages/admin/src/components/WordPressImport.tsx:2112
+msgid "{0, plural, one {# media error} other {# media errors}}"
+msgstr "{0, plural, few {# أخطاء في الوسائط} many {# خطأً في الوسائط} other {# خطأ في الوسائط}}"
+
+#. placeholder {0}: mediaResult.imported.length
+#: packages/admin/src/components/WordPressImport.tsx:2099
+msgid "{0, plural, one {# media file imported} other {# media files imported}}"
+msgstr "{0, plural, few {# ملفات وسائط تم استيرادها} other {# ملف وسائط تم استيراده}}"
+
+#. placeholder {0}: stats.mediaCount
+#: packages/admin/src/components/Dashboard.tsx:123
+msgid "{0, plural, one {# media file} other {# media files}}"
+msgstr "{0, plural, few {# ملفات وسائط} other {# ملف وسائط}}"
+
+#. placeholder {0}: navMenus.length
+#: packages/admin/src/components/WordPressImport.tsx:1764
+msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
+msgstr "{0, plural, few {# قوائم سيتم استيرادها} many {# قائمةً سيتم استيرادها} other {# قائمة سيتم استيرادها}}"
+
+#. placeholder {0}: plugin.capabilities.length
+#: packages/admin/src/components/MarketplaceBrowse.tsx:289
+msgid "{0, plural, one {# permission} other {# permissions}}"
+msgstr "{0, plural, few {# صلاحيات} many {# صلاحيةً} other {# صلاحية}}"
+
+#. placeholder {0}: mapping.postCount
+#: packages/admin/src/components/WordPressImport.tsx:2319
+msgid "{0, plural, one {# post} other {# posts}}"
+msgstr "{0, plural, few {# منشورات} many {# منشورًا} other {# منشور}}"
+
+#. placeholder {0}: loopRedirectIds.size
+#: packages/admin/src/components/Redirects.tsx:425
+msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
+msgstr "{0, plural, few {يوجد # إعادات توجيه تدور في حلقة لا منتهية.} other {يوجد # إعادة توجيه تدور في حلقة لا منتهية.}}"
+
+#. placeholder {0}: selected.size
+#: packages/admin/src/components/comments/CommentInbox.tsx:235
+msgid "{0, plural, one {# selected} other {# selected}}"
+msgstr "{0, plural, other {تم تحديد #}}"
+
+#. placeholder {0}: result.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2091
+msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
+msgstr "{0, plural, other {تم تخطي # (موجود بالفعل)}}"
+
+#. placeholder {0}: stats.userCount
+#: packages/admin/src/components/Dashboard.tsx:128
+msgid "{0, plural, one {# user} other {# users}}"
+msgstr "{0, plural, few {# مستخدمين} many {# مستخدمًا} other {# مستخدم}}"
+
+#. placeholder {0}: filteredItems.length
+#. placeholder {1}: hasMore ? "+" : ""
+#. placeholder {2}: hasMore ? "+" : ""
+#: packages/admin/src/components/ContentList.tsx:287
+msgid "{0, plural, one {#{1} item} other {#{2} items}}"
+msgstr "{0, plural, one {#{1} عنصر} other {#{2} عناصر}}"
+
+#. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
+#: packages/admin/src/components/WordPressImport.tsx:1133
+msgid "{0} detected"
+msgstr "{0} تم اكتشافه"
+
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/PluginManager.tsx:103
+msgid "{0} has been deactivated"
+msgstr "تم إلغاء تفعيل {0}"
+
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/PluginManager.tsx:260
+msgid "{0} has been removed"
+msgstr "تم إزالة {0}"
+
+#. placeholder {0}: plugin.installCount.toLocaleString()
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
+msgid "{0} installs"
+msgstr "{0} عمليات تثبيت"
+
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/PluginManager.tsx:84
+msgid "{0} is now active"
+msgstr "{0} أصبحت نشطة الآن"
+
+#. placeholder {0}: postType.count
+#. placeholder {1}: postType.suggestedCollection
+#: packages/admin/src/components/WordPressImport.tsx:1836
+msgid "{0} items → {1}"
+msgstr "{0} عنصر → {1}"
+
+#. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
+#: packages/admin/src/components/WordPressImport.tsx:1757
+msgid "{0} items will be imported"
+msgstr "سيتم استيراد {0} عنصر"
+
+#. placeholder {0}: plugin.capabilities.length
+#. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
+#: packages/admin/src/components/PluginManager.tsx:348
+msgid "{0} permission{1}"
+msgstr "{0} صلاحية{1}"
+
+#. placeholder {0}: plugins?.length ?? 0
+#: packages/admin/src/components/PluginManager.tsx:165
+msgid "{0} plugins"
+msgstr "{0} إضافة"
+
+#. placeholder {0}: theme.name
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:208
+msgid "{0} preview"
+msgstr "معاينة {0}"
+
+#. placeholder {0}: taxonomy.label
+#: packages/admin/src/components/TaxonomySidebar.tsx:313
+msgid "{0} updated"
+msgstr ""
+
+#. placeholder {0}: plugin.name
+#. placeholder {1}: updateInfo?.latest
+#: packages/admin/src/components/PluginManager.tsx:247
+msgid "{0} updated to v{1}"
+msgstr "تم تحديث {0} إلى الإصدار {1}"
+
+#. placeholder {0}: item.filename
+#. placeholder {1}: selected ? t` (selected)` : ""
+#: packages/admin/src/components/MediaPickerModal.tsx:634
+#: packages/admin/src/components/MediaPickerModal.tsx:716
+msgid "{0}{1}"
+msgstr "{0}{1}"
+
+#. placeholder {0}: draft.description.length
+#: packages/admin/src/components/SeoPanel.tsx:164
+msgid "{0}/160 characters"
+msgstr "{0}/160 حرف"
+
+#: packages/admin/src/components/RevisionHistory.tsx:337
+msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
+msgstr "{changedCount, plural, few {# تغييرات من المراجعة التالية} many {# تغييرًا من المراجعة التالية} other {# تغيير من المراجعة التالية}}"
+
+#: packages/admin/src/components/WordPressImport.tsx:1935
+msgid "{count, plural, one {# file} other {# files}}"
+msgstr "{count, plural, few {# ملفات} many {# ملفًا} other {# ملف}}"
+
+#: packages/admin/src/components/WordPressImport.tsx:2184
+msgid "{count, plural, one {# item} other {# items}}"
+msgstr "{count, plural, few {# عناصر} many {# عنصرًا} other {# عنصر}}"
+
+#: packages/admin/src/components/WordPressImport.tsx:2006
+msgid "{current} of {total}"
+msgstr "{current} من {total}"
+
+#: packages/admin/src/components/LocaleSwitcher.tsx:107
+msgid "{label} — no translation"
+msgstr "{label} — بدون ترجمة"
+
+#: packages/admin/src/components/LocaleSwitcher.tsx:107
+msgid "{label} — view translation"
+msgstr "{label} — عرض الترجمة"
+
+#: packages/admin/src/components/WordPressImport.tsx:2306
+msgid "{matchedCount} of {totalCount} assigned"
+msgstr "تم تعيين {matchedCount} من {totalCount}"
+
+#: packages/admin/src/components/WordPressImport.tsx:2294
+msgid "{matchedCount} of {totalCount} authors matched by email"
+msgstr "{matchedCount} من {totalCount} مؤلف مطابَق بالبريد الإلكتروني"
+
+#: packages/admin/src/components/WordPressImport.tsx:1740
+msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
+msgstr "{needsNewCollections, plural, few {سيتم انشاء # مجموعات جديدة} many {سيتم إنشاء # مجموعةً جديدة} other {سيتم إنشاء # مجموعة جديدة}}"
+
+#: packages/admin/src/components/WordPressImport.tsx:1749
+msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
+msgstr "{needsNewFields, plural, few {سيتم إضافة حقول إلى # مجموعات موجودة حاليًا} many {سيتم إضافة حقول إلى # مجموعةً موجود حاليًا} other {سيتم إضافة حقول إلى # مجموعة موجودة حاليًا}}"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
+msgid "{pluginName} is requesting additional permissions:"
+msgstr "{pluginName} تطلب صلاحيات إضافية:"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:77
+msgid "{pluginName} requires the following permissions:"
+msgstr "{pluginName} تتطلب الصلاحيات التالية:"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:156
+msgid "{total, plural, one {# total} other {# total}}"
+msgstr "{total, plural, other {إجمالي #}}"
+
+#: packages/admin/src/components/MediaLibrary.tsx:140
+#: packages/admin/src/components/MediaLibrary.tsx:176
+msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
+msgstr "{total, plural, one {تم رفع الملف} few {تم رفع # ملفات} many {تم رفع # ملفًا} other {تم رفع # ملف}}"
+
+#: packages/admin/src/components/MediaLibrary.tsx:145
+#: packages/admin/src/components/MediaLibrary.tsx:181
+msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
+msgstr "{total, plural, one {فشل الرفع} other {جميع عمليات الرفع الـ # فشلت}}"
+
+#: packages/admin/src/components/Dashboard.tsx:113
+msgid "{totalDrafts, plural, one {# draft} other {# drafts}}"
+msgstr "{totalDrafts, plural, few {# مسودات} many {# مسودةً} other {# مسودة}}"
+
+#: packages/admin/src/components/Dashboard.tsx:118
+msgid "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
+msgstr "{totalScheduled, plural, other {تم جدولة #}}"
+
+#: packages/admin/src/components/RevisionHistory.tsx:349
+msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
+msgstr "{unchangedCount, plural, one {إخفاء # غير متغير} other {إخفاء # غير متغيرة}}"
+
+#: packages/admin/src/components/RevisionHistory.tsx:350
+msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
+msgstr "{unchangedCount, plural, other {إظهار # لم تتغير}}"
+
+#: packages/admin/src/components/MediaLibrary.tsx:150
+#: packages/admin/src/components/MediaLibrary.tsx:186
+msgid "{uploaded} uploaded, {failed} failed"
+msgstr "تم رفع {uploaded}، وفشل {failed}"
+
+#: packages/admin/src/components/WordPressImport.tsx:1956
+msgid "• Files are downloaded from your WordPress site"
+msgstr "• يتم تنزيل الملفات من موقع WordPress الخاص بك"
+
+#: packages/admin/src/components/WordPressImport.tsx:1957
+msgid "• Uploaded to your EmDash media storage"
+msgstr "• يتم رفعها إلى مساحة تخزين وسائط EmDash الخاصة بك"
+
+#: packages/admin/src/components/WordPressImport.tsx:1958
+msgid "• URLs in your content are updated automatically"
+msgstr "• يتم تحديث الروابط في محتواك تلقائيًا"
+
+#: packages/admin/src/components/SetupWizard.tsx:252
+#: packages/admin/src/components/SetupWizard.tsx:304
+#: packages/admin/src/components/SetupWizard.tsx:359
+#: packages/admin/src/components/WordPressImport.tsx:1431
+msgid "← Back"
+msgstr "← رجوع"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:44
+msgid "1 year"
+msgstr "1 سنة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1352
+msgid "1. Log into your WordPress admin"
+msgstr "1. قم بتسجيل الدخول إلى لوحة تحكم WordPress الخاصة بك"
+
+#: packages/admin/src/components/WordPressImport.tsx:1105
+msgid "1. Log into your WordPress admin dashboard"
+msgstr "1. قم بتسجيل الدخول إلى لوحة تحكم WordPress الخاصة بك"
+
+#: packages/admin/src/components/WordPressImport.tsx:1107
+msgid "2. Go to"
+msgstr "2. اذهب إلى"
+
+#: packages/admin/src/components/WordPressImport.tsx:1353
+msgid "2. Go to Users → Profile"
+msgstr "2. اذهب إلى المستخدمون > الملف الشخصي"
+
+#: packages/admin/src/components/WordPressImport.tsx:1354
+msgid "3. Scroll to \"Application Passwords\""
+msgstr "3. قم بتمرير الصفحة إلى \"كلمات مرور التطبيق\""
+
+#: packages/admin/src/components/WordPressImport.tsx:1109
+msgid "3. Select \"All content\""
+msgstr "3. قم بتحديد \"كل المحتوى\""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:42
+msgid "30 days"
+msgstr "30 يوم"
+
+#: packages/admin/src/components/Redirects.tsx:152
+msgid "301 Permanent"
+msgstr "301 دائم"
+
+#: packages/admin/src/components/Redirects.tsx:153
+msgid "302 Temporary"
+msgstr "302 مؤقت"
+
+#: packages/admin/src/components/Redirects.tsx:154
+msgid "307 Temporary (Strict)"
+msgstr "307 مؤقت (صارم)"
+
+#: packages/admin/src/components/Redirects.tsx:155
+msgid "308 Permanent (Strict)"
+msgstr "308 دائم (صارم)"
+
+#: packages/admin/src/components/WordPressImport.tsx:1110
+msgid "4. Click \"Download Export File\""
+msgstr "4. اضغط على \"تنزيل ملف التصدير\""
+
+#: packages/admin/src/components/WordPressImport.tsx:1355
+msgid "4. Enter \"EmDash\" and click \"Add New\""
+msgstr "4. قم بإدخال \"EmDash\" واضغط على \"إضافة جديد\""
+
+#: packages/admin/src/components/Redirects.tsx:369
+msgid "404 Errors"
+msgstr "أخطاء 404"
+
+#: packages/admin/src/components/WordPressImport.tsx:1356
+msgid "5. Copy the generated password"
+msgstr "5. انسخ كلمة المرور التي تم توليدها"
+
+#: packages/admin/src/components/WordPressImport.tsx:1111
+msgid "5. Upload the file here"
+msgstr "5. قم برفع الملف هنا"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:41
+msgid "7 days"
+msgstr "7 أيام"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:43
+msgid "90 days"
+msgstr "90 يوم"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:165
+msgid "A short description of your site"
+msgstr "وصف مختصر لموقعك"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
+msgid "Accept & Install"
+msgstr "قبول وتثبيت"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:147
+msgid "Accept & Update"
+msgstr "قبول وتحديث"
+
+#: packages/admin/src/components/SetupWizard.tsx:381
+msgid "Account"
+msgstr "الحساب"
+
+#: packages/admin/src/components/SignupPage.tsx:260
+msgid "Account exists"
+msgstr "الحساب موجود"
+
+#: packages/admin/src/components/users/UserDetail.tsx:216
+msgid "Account Info"
+msgstr "معلومات الحساب"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:306
+#: packages/admin/src/components/ContentList.tsx:236
+#: packages/admin/src/components/ContentList.tsx:341
+#: packages/admin/src/components/ContentTypeList.tsx:106
+#: packages/admin/src/components/MediaLibrary.tsx:419
+#: packages/admin/src/components/TaxonomyManager.tsx:619
+msgid "Actions"
+msgstr "الإجراءات"
+
+#: packages/admin/src/components/users/UserDetail.tsx:206
+msgid "Active"
+msgstr "نشط"
+
+#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/MenuEditor.tsx:297
+#: packages/admin/src/components/TaxonomyManager.tsx:214
+#: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:436
+msgid "Add"
+msgstr "إضافة"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:235
+msgid "Add {label}"
+msgstr "إضافة {label}"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:208
+msgid "Add a new passkey"
+msgstr "إضافة مفتاح مرور جديد"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:309
+msgid "Add an allowed domain"
+msgstr "إضافة نطاق مسموح به"
+
+#: packages/admin/src/components/FieldEditor.tsx:545
+msgid "Add at least one sub-field to define the repeater structure."
+msgstr "أضف حقلًا فرعيًا واحدًا على الأقل لتحديد هيكل الحقل التكراري."
+
+#: packages/admin/src/components/MenuEditor.tsx:234
+#: packages/admin/src/components/MenuEditor.tsx:323
+msgid "Add Content"
+msgstr "إضافة محتوى"
+
+#: packages/admin/src/components/MenuEditor.tsx:246
+#: packages/admin/src/components/MenuEditor.tsx:253
+#: packages/admin/src/components/MenuEditor.tsx:326
+msgid "Add Custom Link"
+msgstr "إضافة رابط مخصص"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:354
+msgid "Add Domain"
+msgstr "إضافة نطاق"
+
+#: packages/admin/src/components/FieldEditor.tsx:331
+#: packages/admin/src/components/FieldEditor.tsx:656
+msgid "Add Field"
+msgstr "إضافة حقل"
+
+#: packages/admin/src/components/WordPressImport.tsx:1847
+msgid "Add fields"
+msgstr "إضافة حقول"
+
+#: packages/admin/src/components/RepeaterField.tsx:167
+msgid "Add First Item"
+msgstr "إضافة أول عنصر"
+
+#: packages/admin/src/components/RepeaterField.tsx:151
+msgid "Add Item"
+msgstr "إضافة عنصر"
+
+#: packages/admin/src/components/MenuEditor.tsx:316
+msgid "Add links to build your navigation menu"
+msgstr "أضف روابط لتصميم قائمة التنقل الخاصة بك"
+
+#: packages/admin/src/components/ContentList.tsx:160
+msgid "Add New"
+msgstr "إضافة جديد"
+
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:446
+msgid "Add new {0}"
+msgstr ""
+
+#: packages/admin/src/components/SeoPanel.tsx:187
+msgid "Add noindex meta tag"
+msgstr "إضافة علامة noindex الذاتية"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:229
+msgid "Add Passkey"
+msgstr "إضافة مفتاح مرور"
+
+#: packages/admin/src/components/PluginManager.tsx:201
+msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
+msgstr "قم بإدراج إضافات لملف astro.config.mjs الخاص بك لتطوير وظائف EmDash."
+
+#: packages/admin/src/components/FieldEditor.tsx:539
+msgid "Add Sub-Field"
+msgstr "إضافة حقل فرعي"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:234
+msgid "Add tags..."
+msgstr "إضافة وسوم..."
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:124
+msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
+msgstr "أضف ملفاتك الشخصية في وسائل التواصل الاجتماعي. ستكون متاحة لمظهر موقعك ويمكن عرضها في الترويسات والتذييلات أو سيرة المؤلف."
+
+#: packages/admin/src/components/MenuEditor.tsx:297
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
+msgid "Adding..."
+msgstr "جاري الإضافة..."
+
+#: packages/admin/src/components/WordPressImport.tsx:1583
+msgid "Additional data to import."
+msgstr "بيانات إضافية للاستيراد."
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:104
+#: packages/admin/src/components/Sidebar.tsx:438
+#: packages/admin/src/components/users/roleDefinitions.ts:42
+msgid "Admin"
+msgstr "مسؤول"
+
+#: packages/admin/src/components/Sidebar.tsx:378
+msgid "Admin navigation"
+msgstr "تنقل لوحة الإدارة"
+
+#: packages/admin/src/components/WelcomeModal.tsx:25
+msgid "Administrator"
+msgstr "مسؤول"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:233
+msgid "After send:"
+msgstr "بعد الإرسال:"
+
+#: packages/admin/src/components/ContentList.tsx:187
+msgid "All"
+msgstr "الكل"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:108
+msgid "All capabilities"
+msgstr "جميع الصلاحيات"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:140
+msgid "All collections"
+msgstr "جميع المجموعات"
+
+#: packages/admin/src/components/WordPressImport.tsx:2351
+msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
+msgstr "سيكون جميع المحتوى المستورد غير مُسنَد. يمكنك إعادة تعيين المؤلفين لاحقًا من محرر المحتوى."
+
+#: packages/admin/src/components/LocaleSwitcher.tsx:68
+msgid "All locales"
+msgstr "جميع المَحليات"
+
+#: packages/admin/src/components/users/UserList.tsx:42
+#: packages/admin/src/components/users/UserList.tsx:46
+msgid "All roles"
+msgstr "جميع الأدوار"
+
+#: packages/admin/src/components/Sections.tsx:240
+msgid "All Sources"
+msgstr "جميع المصادر"
+
+#: packages/admin/src/components/Redirects.tsx:395
+msgid "All statuses"
+msgstr "جميع الحالات"
+
+#: packages/admin/src/components/Redirects.tsx:404
+msgid "All types"
+msgstr "جميع الأنواع"
+
+#: packages/admin/src/components/Settings.tsx:99
+msgid "Allow users from specific domains to sign up"
+msgstr "السماح للمستخدمين من نطاقات معينة بالتسجيل"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:245
+msgid "Allowed Domains"
+msgstr "النطاقات المسموح بها"
+
+#: packages/admin/src/components/SignupPage.tsx:438
+msgid "Already have an account?"
+msgstr "لديك حساب بالفعل؟"
+
+#: packages/admin/src/components/PluginManager.tsx:569
+msgid "Also delete plugin storage data"
+msgstr "كذلك حذف بيانات تخزين الإضافة"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:298
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:463
+#: packages/admin/src/components/MediaDetailPanel.tsx:202
+msgid "Alt Text"
+msgstr "النص البديل"
+
+#: packages/admin/src/components/MediaLibrary.tsx:612
+#: packages/admin/src/components/MediaLibrary.tsx:669
+msgid "Alt text set"
+msgstr "تم تعيين النص البديل"
+
+#: packages/admin/src/components/WordPressImport.tsx:1225
+msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
+msgstr "كبديل عن ذلك، يمكنك التصدير من WordPress (الأدوات > التصدير) ورفع الملف."
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:138
+#: packages/admin/src/components/PluginManager.tsx:90
+#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/TaxonomySidebar.tsx:318
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
+#: packages/admin/src/router.tsx:1531
+msgid "An error occurred"
+msgstr "حدث خطأ"
+
+#: packages/admin/src/components/WordPressImport.tsx:1405
+msgid "Analyzing export file..."
+msgstr "جاري تحليل ملف التصدير..."
+
+#: packages/admin/src/components/WordPressImport.tsx:726
+msgid "Analyzing WordPress site..."
+msgstr "جاري تحليل موقع WordPress..."
+
+#: packages/admin/src/components/Settings.tsx:109
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
+msgid "API Tokens"
+msgstr "رموز API"
+
+#: packages/admin/src/components/WordPressImport.tsx:1320
+msgid "Application Password"
+msgstr "كلمة مرور التطبيق"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:148
+#: packages/admin/src/components/comments/CommentInbox.tsx:244
+#: packages/admin/src/components/comments/CommentInbox.tsx:496
+msgid "Approve"
+msgstr "موافقة"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:195
+msgid "approved"
+msgstr "موافق عليه"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:209
+msgid "Approved"
+msgstr "موافق عليه"
+
+#: packages/admin/src/components/FieldEditor.tsx:219
+msgid "Arbitrary JSON data"
+msgstr "بيانات JSON غير مقيدة"
+
+#: packages/admin/src/components/ContentList.tsx:655
+msgid "archived"
+msgstr "مؤرشف"
+
+#. placeholder {0}: deleteTarget.label
+#: packages/admin/src/components/ContentTypeList.tsx:145
+msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
+msgstr "هل أنت متأكد من رغبتك بحذف \"{0}\"؟ سيؤدي هذا إلى حذف جميع المحتوى في هذه المجموعة كذلك."
+
+#: packages/admin/src/components/MenuList.tsx:208
+msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
+msgstr "هل أنت متأكد من رغبتك بحذف هذه القائمة؟ سيؤدي هذا إلى حذف جميع عناصر القائمة كذلك. لا يمكن التراجع عن هذا الإجراء."
+
+#: packages/admin/src/components/WelcomeModal.tsx:53
+msgid "As an administrator, you can invite other users from the Users section."
+msgstr "كمسؤول، يمكنك دعوة مستخدمين آخرين من منطقة \"المستخدمين\"."
+
+#: packages/admin/src/components/WordPressImport.tsx:2289
+msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
+msgstr "قم بتعيين مؤلفي WordPress إلى مستخدمي EmDash. سيتم نسب المنشورات إلى المستخدم المحدد."
+
+#. placeholder {0}: error.message
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:279
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:278
+msgid "Authentication error: {0}"
+msgstr "خطأ في المصادقة: {0}"
+
+#: packages/admin/src/components/LoginPage.tsx:195
+msgid "Authentication error: {error}"
+msgstr "خطأ في المصادقة: {error}"
+
+#. placeholder {0}: manifest?.authMode
+#: packages/admin/src/components/settings/SecuritySettings.tsx:133
+msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
+msgstr "تتم إدارة المصادقة بواسطة مزود خارجي ({0}). إعدادات مفاتيح المرور غير متاحة عند استخدام المصادقة الخارجية."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:263
+msgid "Authentication was cancelled or timed out. Please try again."
+msgstr "تم إلغاء المصادقة أو انتهت مهلتها. يرجى المحاولة مجددًا."
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:77
+#: packages/admin/src/components/comments/CommentInbox.tsx:294
+#: packages/admin/src/components/users/roleDefinitions.ts:30
+#: packages/admin/src/components/WelcomeModal.tsx:27
+msgid "Author"
+msgstr "مؤلف"
+
+#: packages/admin/src/components/WordPressImport.tsx:2304
+msgid "Author Mapping"
+msgstr "تعيين المؤلفين"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:197
+msgid "Authorization denied"
+msgstr "تم رفض التفويض"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:259
+msgid "Authorize"
+msgstr "تفويض"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:176
+msgid "Authorize Device"
+msgstr "تفويض الجهاز"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:259
+msgid "Authorizing..."
+msgstr "جاري التفويض..."
+
+#: packages/admin/src/components/Redirects.tsx:502
+msgid "auto"
+msgstr "تلقائي"
+
+#: packages/admin/src/components/Redirects.tsx:406
+msgid "Auto (slug change)"
+msgstr "تلقائي (تغيير الاسم اللطيف)"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:260
+msgid "Auto-generated from name (you can edit)"
+msgstr "تم توليده تلقائيًا من الاسم (يمكنك التعديل)"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:513
+msgid "Available media"
+msgstr "الوسائط المتاحة"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:242
+msgid "Available Providers"
+msgstr "المزودون المتاحون"
+
+#: packages/admin/src/components/MenuEditor.tsx:218
+#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:2360
+msgid "Back"
+msgstr "رجوع"
+
+#: packages/admin/src/components/ContentEditor.tsx:535
+msgid "Back to {collectionLabel} list"
+msgstr "العودة إلى قائمة {collectionLabel}"
+
+#: packages/admin/src/components/LoginPage.tsx:117
+#: packages/admin/src/components/LoginPage.tsx:153
+#: packages/admin/src/components/LoginPage.tsx:311
+#: packages/admin/src/components/SignupPage.tsx:280
+msgid "Back to login"
+msgstr "العودة إلى تسجيل الدخول"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:125
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:402
+msgid "Back to marketplace"
+msgstr "العودة إلى السوق"
+
+#: packages/admin/src/components/SectionEditor.tsx:69
+#: packages/admin/src/components/SectionEditor.tsx:154
+msgid "Back to sections"
+msgstr "العودة إلى الأقسام"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:191
+#: packages/admin/src/components/settings/EmailSettings.tsx:86
+#: packages/admin/src/components/settings/EmailSettings.tsx:105
+#: packages/admin/src/components/settings/GeneralSettings.tsx:107
+#: packages/admin/src/components/settings/GeneralSettings.tsx:125
+#: packages/admin/src/components/settings/SecuritySettings.tsx:104
+#: packages/admin/src/components/settings/SeoSettings.tsx:83
+#: packages/admin/src/components/settings/SeoSettings.tsx:101
+#: packages/admin/src/components/settings/SocialSettings.tsx:77
+#: packages/admin/src/components/settings/SocialSettings.tsx:95
+msgid "Back to settings"
+msgstr "العودة إلى الإعدادات"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:88
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:112
+msgid "Back to Themes"
+msgstr "العودة إلى المظاهر"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:228
+msgid "Before send:"
+msgstr "قبل الإرسال:"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:146
+msgid "Bing Verification"
+msgstr "تحقق Bing"
+
+#: packages/admin/src/components/FieldEditor.tsx:170
+#: packages/admin/src/components/FieldEditor.tsx:585
+msgid "Boolean"
+msgstr "منطقي"
+
+#: packages/admin/src/components/SeoPanel.tsx:165
+msgid "Brief summary shown below the title in search results"
+msgstr "ملخص مختصر يظهر أسفل العنوان في نتائج البحث"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:87
+msgid "Browse and install plugins to extend your site."
+msgstr "تصفح وثبّت الإضافات لتطوير موقعك."
+
+#: packages/admin/src/components/WordPressImport.tsx:957
+#: packages/admin/src/components/WordPressImport.tsx:1424
+msgid "Browse Files"
+msgstr "تصفح الملفات"
+
+#: packages/admin/src/components/PluginManager.tsx:194
+msgid "Browse the"
+msgstr "تصفح"
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
+msgid "Browse themes and preview them with your own content."
+msgstr "تصفح المظاهر وقم بمعاينتها مع محتواك الخاص."
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:101
+#: packages/admin/src/components/PortableTextEditor.tsx:729
+msgid "Bullet List"
+msgstr "قائمة نقطية"
+
+#: packages/admin/src/components/ContentEditor.tsx:920
+#: packages/admin/src/components/Sidebar.tsx:206
+msgid "Bylines"
+msgstr "أسماء المؤلفين"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:25
+msgid "Can create content"
+msgstr "يمكنه إنشاء المحتوى"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:37
+msgid "Can manage all content"
+msgstr "يمكنه إدارة جميع المحتوى"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:31
+msgid "Can publish own content"
+msgstr "يمكنه نشر محتواه الخاص"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:19
+msgid "Can view content"
+msgstr "يمكنه عرض المحتوى"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
+#: packages/admin/src/components/ConfirmDialog.tsx:57
+#: packages/admin/src/components/ContentEditor.tsx:628
+#: packages/admin/src/components/ContentEditor.tsx:834
+#: packages/admin/src/components/ContentEditor.tsx:886
+#: packages/admin/src/components/ContentEditor.tsx:1809
+#: packages/admin/src/components/ContentEditor.tsx:1862
+#: packages/admin/src/components/ContentList.tsx:543
+#: packages/admin/src/components/ContentList.tsx:614
+#: packages/admin/src/components/ContentPickerModal.tsx:253
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
+#: packages/admin/src/components/FieldEditor.tsx:645
+#: packages/admin/src/components/MediaDetailPanel.tsx:234
+#: packages/admin/src/components/MediaPickerModal.tsx:581
+#: packages/admin/src/components/MenuEditor.tsx:294
+#: packages/admin/src/components/MenuEditor.tsx:439
+#: packages/admin/src/components/MenuList.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:575
+#: packages/admin/src/components/Redirects.tsx:176
+#: packages/admin/src/components/SectionPickerModal.tsx:130
+#: packages/admin/src/components/Sections.tsx:207
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:466
+#: packages/admin/src/components/settings/SecuritySettings.tsx:210
+#: packages/admin/src/components/TaxonomyManager.tsx:304
+#: packages/admin/src/components/TaxonomyManager.tsx:523
+#: packages/admin/src/components/users/InviteUserModal.tsx:200
+#: packages/admin/src/components/WordPressImport.tsx:1778
+msgid "Cancel"
+msgstr "إلغاء"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:146
+msgid "Cancel rename"
+msgstr "إلغاء إعادة التسمية"
+
+#: packages/admin/src/components/Sections.tsx:405
+msgid "Cannot delete theme sections"
+msgstr "لا يمكن حذف أقسام المظهر"
+
+#: packages/admin/src/components/SeoPanel.tsx:176
+msgid "Canonical URL"
+msgstr "الرابط الأساسي"
+
+#: packages/admin/src/components/PluginManager.tsx:414
+msgid "Capabilities"
+msgstr "الإمكانيات"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:62
+msgid "Capability consent"
+msgstr "الموافقة على الصلاحية"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:306
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:471
+#: packages/admin/src/components/MediaDetailPanel.tsx:210
+msgid "Caption"
+msgstr "التسمية التوضيحية"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:193
+msgid "Categories"
+msgstr "الفئات"
+
+#. placeholder {0}: analysis.categories
+#: packages/admin/src/components/WordPressImport.tsx:1622
+msgid "Categories ({0})"
+msgstr "الفئات ({0})"
+
+#: packages/admin/src/components/WordPressImport.tsx:1619
+msgid "Categories will be imported"
+msgstr "سيتم استيراد الفئات"
+
+#: packages/admin/src/components/ContentEditor.tsx:1566
+#: packages/admin/src/components/FieldEditor.tsx:391
+#: packages/admin/src/components/SeoImageField.tsx:47
+msgid "Change"
+msgstr "تغيير"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:237
+msgid "Change Favicon"
+msgstr "تغيير أيقونة المتصفح"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:193
+msgid "Change Logo"
+msgstr "تغيير الشعار"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:137
+msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
+msgstr "الحرف بين عنوان الصفحة واسم الموقع (مثال: \"منشوري | موقعي\")"
+
+#: packages/admin/src/components/PluginManager.tsx:154
+msgid "Check for updates"
+msgstr "التحقق من التحديثات"
+
+#: packages/admin/src/components/WordPressImport.tsx:928
+msgid "Check Site"
+msgstr "فحص الموقع"
+
+#: packages/admin/src/components/LoginPage.tsx:101
+#: packages/admin/src/components/SignupPage.tsx:129
+#: packages/admin/src/components/SignupPage.tsx:401
+msgid "Check your email"
+msgstr "يرجى تفقد بريدك الإلكتروني"
+
+#: packages/admin/src/components/WordPressImport.tsx:692
+msgid "Checking {urlInput}..."
+msgstr "جاري التحقق من {urlInput}..."
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:155
+msgid "Checking authentication..."
+msgstr "جاري التحقق من المصادقة..."
+
+#: packages/admin/src/components/SetupWizard.tsx:315
+msgid "Choose how to sign in"
+msgstr ""
+
+#: packages/admin/src/components/Settings.tsx:130
+msgid "Choose your preferred admin language"
+msgstr "إختر لغة التحكم المفضلة لديك"
+
+#: packages/admin/src/components/SignupPage.tsx:137
+msgid "Click the link in the email to continue setting up your account."
+msgstr "اضغط على الرابط في البريد الإلكتروني لمتابعة إعداد حسابك."
+
+#: packages/admin/src/components/LoginPage.tsx:112
+msgid "Click the link in the email to sign in."
+msgstr "إضغط على الرابط في البريد الإلكتروني لتسجيل الدخول."
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:59
+#: packages/admin/src/components/ContentPickerModal.tsx:120
+#: packages/admin/src/components/ContentPickerModal.tsx:126
+#: packages/admin/src/components/ContentPickerModal.tsx:130
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:205
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:207
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:366
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:368
+#: packages/admin/src/components/FieldEditor.tsx:334
+#: packages/admin/src/components/FieldEditor.tsx:340
+#: packages/admin/src/components/FieldEditor.tsx:344
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:447
+#: packages/admin/src/components/MediaDetailPanel.tsx:131
+#: packages/admin/src/components/MediaDetailPanel.tsx:133
+#: packages/admin/src/components/MediaPickerModal.tsx:349
+#: packages/admin/src/components/MediaPickerModal.tsx:355
+#: packages/admin/src/components/MediaPickerModal.tsx:359
+#: packages/admin/src/components/MenuEditor.tsx:256
+#: packages/admin/src/components/MenuEditor.tsx:262
+#: packages/admin/src/components/MenuEditor.tsx:266
+#: packages/admin/src/components/MenuEditor.tsx:398
+#: packages/admin/src/components/MenuEditor.tsx:404
+#: packages/admin/src/components/MenuEditor.tsx:408
+#: packages/admin/src/components/MenuList.tsx:107
+#: packages/admin/src/components/MenuList.tsx:113
+#: packages/admin/src/components/MenuList.tsx:117
+#: packages/admin/src/components/Redirects.tsx:111
+#: packages/admin/src/components/Redirects.tsx:117
+#: packages/admin/src/components/SectionPickerModal.tsx:60
+#: packages/admin/src/components/SectionPickerModal.tsx:66
+#: packages/admin/src/components/SectionPickerModal.tsx:70
+#: packages/admin/src/components/Sections.tsx:151
+#: packages/admin/src/components/Sections.tsx:157
+#: packages/admin/src/components/Sections.tsx:161
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:376
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:382
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:386
+#: packages/admin/src/components/TaxonomyManager.tsx:223
+#: packages/admin/src/components/TaxonomyManager.tsx:229
+#: packages/admin/src/components/TaxonomyManager.tsx:233
+#: packages/admin/src/components/TaxonomyManager.tsx:437
+#: packages/admin/src/components/TaxonomyManager.tsx:443
+#: packages/admin/src/components/TaxonomyManager.tsx:447
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:304
+#: packages/admin/src/components/users/InviteUserModal.tsx:88
+#: packages/admin/src/components/users/InviteUserModal.tsx:94
+#: packages/admin/src/components/users/InviteUserModal.tsx:98
+#: packages/admin/src/components/WelcomeModal.tsx:54
+msgid "Close"
+msgstr "إغلاق"
+
+#: packages/admin/src/components/users/UserDetail.tsx:121
+msgid "Close panel"
+msgstr "إغلاق اللوحة"
+
+#: packages/admin/src/components/ContentTypeList.tsx:244
+#: packages/admin/src/components/Redirects.tsx:450
+msgid "Code"
+msgstr "كود"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:93
+#: packages/admin/src/components/PortableTextEditor.tsx:759
+msgid "Code Block"
+msgstr "كتلة كود"
+
+#: packages/admin/src/components/PluginManager.tsx:401
+msgid "Collapse"
+msgstr "طي"
+
+#: packages/admin/src/components/PluginManager.tsx:395
+msgid "Collapse details"
+msgstr "طي التفاصيل"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:158
+msgid "colleague@example.com"
+msgstr "colleague@example.com"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:106
+msgid "Collection:"
+msgstr "المجموعة:"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:488
+msgid "Collections"
+msgstr "المجموعات"
+
+#: packages/admin/src/components/WordPressImport.tsx:2160
+msgid "Collections created:"
+msgstr "المجموعات المُنشأة:"
+
+#: packages/admin/src/components/SectionEditor.tsx:226
+msgid "Comma-separated keywords for search."
+msgstr "كلمات مفتاحية مفصولة بفاصلة للبحث."
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:95
+#: packages/admin/src/components/comments/CommentInbox.tsx:297
+msgid "Comment"
+msgstr "تعليق"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:58
+msgid "Comment Detail"
+msgstr "تفاصيل التعليق"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:153
+#: packages/admin/src/components/Sidebar.tsx:190
+msgid "Comments"
+msgstr "التعليقات"
+
+#: packages/admin/src/components/SignupPage.tsx:402
+msgid "Complete signup"
+msgstr "إكمال التسجيل"
+
+#: packages/admin/src/components/FieldEditor.tsx:331
+msgid "Configure Field"
+msgstr "تهيئة الحقل"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
+msgid "Confirm"
+msgstr "تأكيد"
+
+#: packages/admin/src/components/WordPressImport.tsx:1337
+msgid "Connect & Analyze"
+msgstr "الاتصال والتحليل"
+
+#. placeholder {0}: siteTitle || "WordPress"
+#: packages/admin/src/components/WordPressImport.tsx:1287
+msgid "Connect to {0}"
+msgstr "الاتصال بـ {0}"
+
+#: packages/admin/src/components/WordPressImport.tsx:1203
+msgid "Connect with WordPress"
+msgstr "الاتصال بـ WordPress"
+
+#. placeholder {0}: new Date(account.createdAt).toLocaleDateString()
+#: packages/admin/src/components/users/UserDetail.tsx:286
+msgid "Connected {0}"
+msgstr "متصل {0}"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:365
+#: packages/admin/src/components/comments/CommentDetail.tsx:103
+#: packages/admin/src/components/comments/CommentInbox.tsx:300
+#: packages/admin/src/components/Dashboard.tsx:164
+#: packages/admin/src/components/PortableTextEditor.tsx:1431
+#: packages/admin/src/components/SectionEditor.tsx:174
+#: packages/admin/src/components/Sidebar.tsx:412
+msgid "Content"
+msgstr "محتوى"
+
+#: packages/admin/src/components/Widgets.tsx:90
+msgid "Content Block"
+msgstr "كتلة محتوى"
+
+#. placeholder {0}: result.errors.length
+#: packages/admin/src/components/WordPressImport.tsx:2215
+msgid "Content Errors ({0})"
+msgstr "أخطاء المحتوى ({0})"
+
+#: packages/admin/src/components/WordPressImport.tsx:1147
+msgid "Content found:"
+msgstr "المحتوى الذي تم العثور عليه:"
+
+#: packages/admin/src/components/RevisionHistory.tsx:131
+msgid "Content has been updated to the selected revision."
+msgstr "تم تحديث المحتوى إلى المراجعة المحددة."
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:110
+msgid "Content ID:"
+msgstr "معرف المحتوى:"
+
+#: packages/admin/src/components/WordPressImport.tsx:2204
+msgid "content items"
+msgstr "عناصر المحتوى"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:54
+msgid "Content Read"
+msgstr "قراءة المحتوى"
+
+#: packages/admin/src/components/RevisionHistory.tsx:296
+msgid "Content snapshot:"
+msgstr "لقطة المحتوى:"
+
+#: packages/admin/src/components/WordPressImport.tsx:1561
+msgid "Content to Import"
+msgstr "المحتوى المراد استيراده"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:185
+#: packages/admin/src/components/ContentTypeList.tsx:39
+#: packages/admin/src/components/Sidebar.tsx:210
+msgid "Content Types"
+msgstr "أنواع المحتوى"
+
+#: packages/admin/src/components/WordPressImport.tsx:2143
+msgid "Content was skipped because it already exists"
+msgstr "تم تخطي المحتوى لأنه موجود بالفعل"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:59
+msgid "Content Write"
+msgstr "كتابة المحتوى"
+
+#: packages/admin/src/components/SignupPage.tsx:90
+msgid "Continue"
+msgstr "متابعة"
+
+#: packages/admin/src/components/SetupWizard.tsx:177
+#: packages/admin/src/components/SetupWizard.tsx:260
+msgid "Continue →"
+msgstr "متابعة >"
+
+#: packages/admin/src/components/WordPressImport.tsx:2362
+msgid "Continue Import"
+msgstr "متابعة الاستيراد"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:24
+#: packages/admin/src/components/WelcomeModal.tsx:28
+msgid "Contributor"
+msgstr "مساهم"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
+#: packages/admin/src/components/users/InviteUserModal.tsx:134
+msgid "Copied to clipboard"
+msgstr "تم النسخ إلى الحافظة"
+
+#. placeholder {0}: section.slug
+#: packages/admin/src/components/Sections.tsx:397
+msgid "Copy {0} to clipboard"
+msgstr "نسخ {0} إلى الحافظة"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:124
+msgid "Copy invite link"
+msgstr "نسخ رابط الدعوة"
+
+#: packages/admin/src/components/Sections.tsx:396
+msgid "Copy slug"
+msgstr "نسخ الاسم اللطيف"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
+msgid "Copy this token now — it won't be shown again."
+msgstr "قم بنسخ هذا الرمز الآن — لن يظهر لاحقًا"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
+msgid "Copy token"
+msgstr "نسخ الرمز"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:138
+msgid "Could not copy automatically. Please select the URL above and copy manually."
+msgstr "تعذّر النسخ تلقائيًا. يرجى تحديد الرابط أعلاه ونسخه يدويًا."
+
+#: packages/admin/src/components/MediaPickerModal.tsx:308
+msgid "Could not load image from URL"
+msgstr "تعذّر تحميل الصورة من الرابط"
+
+#: packages/admin/src/components/WordPressImport.tsx:1094
+msgid "Couldn't detect WordPress"
+msgstr "تعذّر اكتشاف WordPress"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:618
+msgid "Count"
+msgstr "العدد"
+
+#: packages/admin/src/components/ContentEditor.tsx:1833
+#: packages/admin/src/components/MenuList.tsx:146
+#: packages/admin/src/components/Redirects.tsx:185
+#: packages/admin/src/components/Sections.tsx:210
+#: packages/admin/src/components/TaxonomyManager.tsx:311
+msgid "Create"
+msgstr "إنشاء"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:730
+msgid "Create a bullet list"
+msgstr "إنشاء قائمة نقطية"
+
+#. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
+#: packages/admin/src/components/TaxonomyManager.tsx:219
+msgid "Create a new {0}"
+msgstr "إنشاء {0} جديد"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:740
+msgid "Create a numbered list"
+msgstr "إنشاء قائمة مرقمة"
+
+#: packages/admin/src/components/SignupPage.tsx:219
+msgid "Create Account"
+msgstr "إنشاء حساب"
+
+#: packages/admin/src/components/SignupPage.tsx:400
+msgid "Create an account"
+msgstr "إنشاء حساب"
+
+#: packages/admin/src/components/ContentEditor.tsx:1781
+msgid "Create byline"
+msgstr "إنشاء اسم مؤلف"
+
+#: packages/admin/src/components/MenuList.tsx:97
+#: packages/admin/src/components/MenuList.tsx:160
+msgid "Create Menu"
+msgstr "إنشاء قائمة"
+
+#: packages/admin/src/components/MenuList.tsx:104
+msgid "Create New Menu"
+msgstr "إنشاء قائمة جديدة"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+msgid "Create New Token"
+msgstr "إنشاء رمز جديد"
+
+#: packages/admin/src/components/WordPressImport.tsx:1331
+msgid "Create one in WordPress: Users → Profile → Application Passwords"
+msgstr "أنشئ واحدة في WordPress: المستخدمون → الملف الشخصي → كلمات مرور التطبيق"
+
+#: packages/admin/src/components/SetupWizard.tsx:325
+msgid "Create Passkey"
+msgstr "إنشاء مفتاح مرور"
+
+#: packages/admin/src/components/Settings.tsx:110
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:198
+msgid "Create personal access tokens for programmatic API access"
+msgstr "إنشاء رمز وصول شخصي للوصول إلى API برمجيًا"
+
+#. placeholder {0}: item.path
+#: packages/admin/src/components/Redirects.tsx:239
+msgid "Create redirect for {0}"
+msgstr "إنشاء إعادة توجيه لـ {0}"
+
+#: packages/admin/src/components/Redirects.tsx:238
+msgid "Create redirect for this path"
+msgstr "إنشاء إعادة توجيه لهذا الرابط"
+
+#: packages/admin/src/components/Redirects.tsx:442
+msgid "Create redirect rules to manage URL changes."
+msgstr "قم بإنشاء قواعد إعادة التوجيه للتحكم بتغييرات الروابط."
+
+#: packages/admin/src/components/WordPressImport.tsx:1782
+msgid "Create Schema & Import"
+msgstr "إنشاء المخطط والاستيراد"
+
+#: packages/admin/src/components/Sections.tsx:148
+#: packages/admin/src/components/Sections.tsx:268
+msgid "Create Section"
+msgstr "إنشاء قسم"
+
+#: packages/admin/src/components/SectionPickerModal.tsx:109
+msgid "Create sections in the Sections library to use them here"
+msgstr "قم بإنشاء أقسام في مكتبة الأقسام لاستخدامها هنا"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:430
+#: packages/admin/src/components/TaxonomyManager.tsx:526
+msgid "Create Taxonomy"
+msgstr "إنشاء تصنيف"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:271
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
+msgid "Create Token"
+msgstr "إنشاء رمز"
+
+#: packages/admin/src/components/SetupWizard.tsx:571
+msgid "Create your account"
+msgstr "قم بإنشاء حسابك"
+
+#: packages/admin/src/components/MenuList.tsx:158
+msgid "Create your first navigation menu to get started"
+msgstr "قم بإنشاء أول قائمة تنقل خاصة بك للبدء"
+
+#: packages/admin/src/components/ContentList.tsx:251
+#: packages/admin/src/components/ContentTypeList.tsx:122
+msgid "Create your first one"
+msgstr "قم بإنشاء أول واحد خاص بك"
+
+#: packages/admin/src/components/Sections.tsx:265
+msgid "Create your first reusable content section to get started."
+msgstr "أنشئ أول قسم محتوى قابل لإعادة الاستخدام خاص بك للبدء."
+
+#: packages/admin/src/components/SignupPage.tsx:210
+msgid "Create your passkey"
+msgstr "إنشاء مفتاح مرور خاص بك"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
+msgid "Create, update, and delete navigation menus"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+msgid "Create, update, and delete taxonomy terms"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
+msgid "Create, update, delete content"
+msgstr "إنشاء، تحديث، حذف المحتوى"
+
+#: packages/admin/src/components/users/UserDetail.tsx:219
+msgid "Created"
+msgstr "تم الإنشاء"
+
+#. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
+#. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:310
+#: packages/admin/src/components/users/UserDetail.tsx:260
+msgid "Created {0}"
+msgstr "تم إنشاء {0}"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:121
+msgid "Created At"
+msgstr "تم الإنشاء في"
+
+#. placeholder {0}: new Date(item.createdAt).toLocaleString()
+#: packages/admin/src/components/ContentEditor.tsx:854
+msgid "Created: {0}"
+msgstr "تم الإنشاء: {0}"
+
+#: packages/admin/src/components/WordPressImport.tsx:803
+msgid "Creating collections and fields..."
+msgstr "جاري إنشاء المجموعات والحقول..."
+
+#: packages/admin/src/components/ContentEditor.tsx:1833
+#: packages/admin/src/components/MenuList.tsx:146
+#: packages/admin/src/components/Redirects.tsx:182
+#: packages/admin/src/components/Sections.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
+#: packages/admin/src/components/TaxonomyManager.tsx:526
+msgid "Creating..."
+msgstr "جاري الإنشاء..."
+
+#: packages/admin/src/components/ContentEditor.tsx:957
+msgid "current"
+msgstr "الحالي"
+
+#: packages/admin/src/components/RevisionHistory.tsx:264
+msgid "Current"
+msgstr "الحالي"
+
+#: packages/admin/src/components/Sections.tsx:242
+msgid "Custom"
+msgstr "مخصص"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:156
+msgid "Custom robots.txt content. Leave empty to use the default."
+msgstr "محتوى robots.txt مخصص. اتركه فارغًا لاستخدام الافتراضي."
+
+#: packages/admin/src/components/SectionEditor.tsx:161
+msgid "Custom Section"
+msgstr "قسم مخصص"
+
+#: packages/admin/src/components/ThemeToggle.tsx:22
+msgid "dark"
+msgstr "داكن"
+
+#: packages/admin/src/components/ThemeToggle.tsx:24
+msgid "Dark"
+msgstr "داكن"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:131
+#: packages/admin/src/components/ContentTypeList.tsx:246
+#: packages/admin/src/components/Dashboard.tsx:42
+#: packages/admin/src/components/Sidebar.tsx:176
+#: packages/admin/src/components/Sidebar.tsx:401
+msgid "Dashboard"
+msgstr "لوحة المعلومات"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:303
+#: packages/admin/src/components/ContentList.tsx:233
+msgid "Date"
+msgstr "التاريخ"
+
+#: packages/admin/src/components/FieldEditor.tsx:176
+#: packages/admin/src/components/FieldEditor.tsx:586
+msgid "Date & Time"
+msgstr "تاريخ ووقت"
+
+#: packages/admin/src/components/FieldEditor.tsx:177
+msgid "Date and time picker"
+msgstr "منتقي التاريخ والوقت"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:279
+msgid "Date Format"
+msgstr "تنسيق التاريخ"
+
+#: packages/admin/src/components/FieldEditor.tsx:159
+msgid "Decimal number"
+msgstr "عدد عشري"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:332
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:394
+msgid "Default Role"
+msgstr "الدور الافتراضي"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:271
+msgid "Default role:"
+msgstr "الدور الافتراضي:"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:433
+msgid "Define a new taxonomy for classifying content"
+msgstr "قم بتعريف تصنيف جديد لتنظيم المحتوى"
+
+#: packages/admin/src/components/ContentTypeList.tsx:40
+msgid "Define the structure of your content"
+msgstr "حدد هيكل محتواك"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:274
+#: packages/admin/src/components/comments/CommentInbox.tsx:414
+#: packages/admin/src/components/ContentTypeList.tsx:148
+#: packages/admin/src/components/MediaDetailPanel.tsx:230
+#: packages/admin/src/components/MediaDetailPanel.tsx:255
+#: packages/admin/src/components/MenuEditor.tsx:372
+#: packages/admin/src/components/MenuList.tsx:209
+#: packages/admin/src/components/Redirects.tsx:559
+#: packages/admin/src/components/Sections.tsx:306
+#: packages/admin/src/components/Sections.tsx:405
+#: packages/admin/src/components/TaxonomyManager.tsx:656
+msgid "Delete"
+msgstr "حذف"
+
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:254
+msgid "Delete \"{0}\"? This cannot be undone."
+msgstr "حذف \"{0}\"؟ لا يمكن التراجع عن هذا الإجراء."
+
+#. placeholder {0}: collection.label
+#. placeholder {0}: domain.domain
+#. placeholder {0}: section.title
+#: packages/admin/src/components/ContentTypeList.tsx:229
+#: packages/admin/src/components/Sections.tsx:406
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
+#: packages/admin/src/components/TaxonomyManager.tsx:79
+msgid "Delete {0}"
+msgstr "حذف {0}"
+
+#. placeholder {0}: menu.name
+#: packages/admin/src/components/MenuList.tsx:191
+msgid "Delete {0} menu"
+msgstr "حذف قائمة {0}"
+
+#. placeholder {0}: taxonomyDef.labelSingular || "Term"
+#: packages/admin/src/components/TaxonomyManager.tsx:652
+msgid "Delete {0}?"
+msgstr "حذف {0}؟"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:412
+msgid "Delete Comment?"
+msgstr "حذف التعليق؟"
+
+#: packages/admin/src/components/ContentTypeList.tsx:142
+msgid "Delete Content Type?"
+msgstr "حذف نوع المحتوى؟"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:253
+msgid "Delete Media?"
+msgstr "حذف الوسائط؟"
+
+#: packages/admin/src/components/MenuList.tsx:207
+msgid "Delete Menu"
+msgstr "حذف القائمة"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:532
+msgid "Delete permanently"
+msgstr "حذف نهائي"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:182
+#: packages/admin/src/components/ContentList.tsx:625
+msgid "Delete Permanently"
+msgstr "حذف نهائي"
+
+#: packages/admin/src/components/ContentList.tsx:605
+msgid "Delete Permanently?"
+msgstr "حذف نهائي؟"
+
+#: packages/admin/src/components/Redirects.tsx:516
+msgid "Delete redirect"
+msgstr "حذف إعادة التوجيه"
+
+#. placeholder {0}: r.source
+#: packages/admin/src/components/Redirects.tsx:517
+msgid "Delete redirect {0}"
+msgstr "حذف إعادة التوجيه {0}"
+
+#: packages/admin/src/components/Redirects.tsx:557
+msgid "Delete Redirect?"
+msgstr "حذف إعادة التوجيه؟"
+
+#: packages/admin/src/components/Sections.tsx:294
+msgid "Delete Section?"
+msgstr "حذف القسم؟"
+
+#: packages/admin/src/components/ContentList.tsx:338
+msgid "Deleted"
+msgstr "محذوف"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:415
+#: packages/admin/src/components/ContentTypeList.tsx:149
+#: packages/admin/src/components/MediaDetailPanel.tsx:230
+#: packages/admin/src/components/MediaDetailPanel.tsx:256
+#: packages/admin/src/components/MenuList.tsx:210
+#: packages/admin/src/components/Redirects.tsx:560
+#: packages/admin/src/components/Sections.tsx:307
+#: packages/admin/src/components/TaxonomyManager.tsx:657
+msgid "Deleting..."
+msgstr "جاري الحذف..."
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:260
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:153
+msgid "Demo"
+msgstr "عرض توضيحي"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:270
+msgid "Deny"
+msgstr "رفض"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:301
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
+#: packages/admin/src/components/MediaDetailPanel.tsx:205
+msgid "Describe this image for accessibility"
+msgstr "قم بوصف هذه الصورة لإمكانية الوصول"
+
+#: packages/admin/src/components/SectionEditor.tsx:215
+msgid "Describe what this section is for..."
+msgstr "قم بوصف الغرض من هذا القسم..."
+
+#: packages/admin/src/components/SectionEditor.tsx:212
+#: packages/admin/src/components/Sections.tsx:198
+msgid "Description"
+msgstr "الوصف"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:286
+msgid "Description (optional)"
+msgstr "الوصف (اختياري)"
+
+#: packages/admin/src/components/Redirects.tsx:449
+msgid "Destination"
+msgstr "الوجهة"
+
+#: packages/admin/src/components/Redirects.tsx:136
+msgid "Destination path"
+msgstr "رابط الوجهة"
+
+#: packages/admin/src/components/PluginManager.tsx:401
+msgid "details"
+msgstr "تفاصيل"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:186
+msgid "Device authorized"
+msgstr "تم تفويض الجهاز"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+msgid "Device code"
+msgstr "رمز الجهاز"
+
+#: packages/admin/src/components/users/UserDetail.tsx:256
+msgid "Device-bound"
+msgstr "مرتبط بالجهاز"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:104
+msgid "Device-bound passkey"
+msgstr "مفتاح مرور مرتبط بالجهاز"
+
+#: packages/admin/src/components/SignupPage.tsx:142
+msgid "Didn't receive the email?"
+msgstr "لم تتلقى البريد الإلكتروني؟"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:176
+msgid "Dimensions:"
+msgstr "الأبعاد:"
+
+#: packages/admin/src/components/users/UserDetail.tsx:319
+msgid "Disable"
+msgstr "تعطيل"
+
+#: packages/admin/src/components/PluginManager.tsx:389
+msgid "Disable plugin"
+msgstr "تعطيل الإضافة"
+
+#: packages/admin/src/components/Redirects.tsx:485
+msgid "Disable redirect"
+msgstr "تعطيل إعادة التوجيه"
+
+#: packages/admin/src/components/PluginManager.tsx:308
+#: packages/admin/src/components/Redirects.tsx:397
+#: packages/admin/src/components/users/UserDetail.tsx:201
+msgid "Disabled"
+msgstr "معطل"
+
+#: packages/admin/src/components/PluginManager.tsx:468
+msgid "Disabled:"
+msgstr "معطل:"
+
+#: packages/admin/src/components/ContentEditor.tsx:613
+#: packages/admin/src/components/ContentEditor.tsx:635
+msgid "Discard changes"
+msgstr "التخلي عن التغييرات"
+
+#: packages/admin/src/components/ContentEditor.tsx:619
+msgid "Discard draft changes?"
+msgstr "التخلي عن تغييرات المسودة؟"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:246
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:248
+msgid "Dismiss"
+msgstr "إخفاء"
+
+#: packages/admin/src/components/Widgets.tsx:97
+msgid "Display a navigation menu"
+msgstr "عرض قائمة تنقل"
+
+#: packages/admin/src/components/ContentEditor.tsx:1784
+#: packages/admin/src/components/ContentEditor.tsx:1846
+msgid "Display name"
+msgstr "اسم العرض"
+
+#: packages/admin/src/components/MenuList.tsx:138
+msgid "Display name for admin interface"
+msgstr "اسم العرض لواجهة الإدارة"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:247
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:412
+msgid "Display Size"
+msgstr "حجم العرض"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:310
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:475
+msgid "Displayed below the image as a visible caption."
+msgstr "تُعرض أسفل الصورة كتسمية مرئية."
+
+#: packages/admin/src/components/ContentEditor.tsx:589
+msgid "Distraction-free mode (⌘⇧\\)"
+msgstr "وضع الخلو من التشتيت (⌘⇧\\)"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:769
+msgid "Divider"
+msgstr "فاصل"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:324
+msgid "Domain"
+msgstr "النطاق"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:86
+msgid "Domain added successfully"
+msgstr "تم إضافة النطاق بنجاح"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
+msgid "Domain removed"
+msgstr "تم إزالة النطاق"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
+msgid "Domain updated"
+msgstr "تم تحديث النطاق"
+
+#: packages/admin/src/components/LoginPage.tsx:332
+msgid "Don't have an account? <0>Sign up</0>"
+msgstr "أليس لديك حساب؟ قم ب<0>التسجيل</0>"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:144
+#: packages/admin/src/components/WordPressImport.tsx:1991
+msgid "Done"
+msgstr "تم"
+
+#: packages/admin/src/components/ContentEditor.tsx:1727
+msgid "Down"
+msgstr "أسفل"
+
+#: packages/admin/src/components/WordPressImport.tsx:1989
+msgid "Downloading"
+msgstr "جاري التنزيل"
+
+#: packages/admin/src/components/ContentList.tsx:651
+msgid "draft"
+msgstr "مسودة"
+
+#: packages/admin/src/components/ContentEditor.tsx:785
+#: packages/admin/src/components/ContentPickerModal.tsx:217
+msgid "Draft"
+msgstr "مسودة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:117
+msgid "draft, published, or archived"
+msgstr "مسودة، منشورة، أو مؤرشفة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:69
+#: packages/admin/src/components/Dashboard.tsx:188
+msgid "Drafts"
+msgstr "المسودات"
+
+#: packages/admin/src/components/WordPressImport.tsx:952
+msgid "Drag and drop or click to browse (.xml)"
+msgstr "اسحب وأفلت أو اضغط للتصفح (.xml)"
+
+#: packages/admin/src/components/WordPressImport.tsx:1418
+msgid "Drop your WordPress export file here"
+msgstr "قم بإفلات ملف تصدير WordPress الخاص بك هنا"
+
+#: packages/admin/src/components/ContentList.tsx:516
+msgid "Duplicate {title}"
+msgstr "استنساخ {title}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+msgid "e.g., CI/CD Pipeline"
+msgstr "على سبيل المثال، خط CI/CD"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:333
+msgid "e.g., MacBook Pro, iPhone"
+msgstr "مثال: MacBook Pro, iPhone"
+
+#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:1736
+#: packages/admin/src/components/MenuEditor.tsx:367
+#: packages/admin/src/components/MenuList.tsx:185
+#: packages/admin/src/components/Sections.tsx:390
+#: packages/admin/src/components/TaxonomyManager.tsx:214
+msgid "Edit"
+msgstr "تعديل"
+
+#. placeholder {0}: collection.label
+#. placeholder {0}: domain.domain
+#. placeholder {0}: term.label
+#: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:281
+#: packages/admin/src/components/TaxonomyManager.tsx:71
+msgid "Edit {0}"
+msgstr "تعديل {0}"
+
+#: packages/admin/src/components/ContentEditor.tsx:552
+msgid "Edit {collectionLabel}"
+msgstr "تعديل {collectionLabel}"
+
+#: packages/admin/src/components/ContentList.tsx:508
+msgid "Edit {title}"
+msgstr "تعديل {title}"
+
+#: packages/admin/src/components/ContentEditor.tsx:1843
+msgid "Edit byline"
+msgstr "تعديل اسم المؤلف"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:369
+msgid "Edit Domain"
+msgstr "تعديل النطاق"
+
+#: packages/admin/src/components/FieldEditor.tsx:331
+msgid "Edit Field"
+msgstr "تعديل الحقل"
+
+#: packages/admin/src/components/MenuEditor.tsx:395
+msgid "Edit Menu Item"
+msgstr "تعديل عنصر القائمة"
+
+#: packages/admin/src/components/MenuEditor.tsx:225
+msgid "Edit menu items"
+msgstr "تعديل عناصر القائمة"
+
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Edit redirect"
+msgstr "تعديل إعادة التوجيه"
+
+#: packages/admin/src/components/Redirects.tsx:102
+msgid "Edit Redirect"
+msgstr "تعديل إعادة التوجيه"
+
+#. placeholder {0}: r.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Edit redirect {0}"
+msgstr "تعديل إعادة التوجيه {0}"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:36
+#: packages/admin/src/components/WelcomeModal.tsx:26
+msgid "Editor"
+msgstr "محرر"
+
+#: packages/admin/src/components/Settings.tsx:115
+#: packages/admin/src/components/SignupPage.tsx:196
+#: packages/admin/src/components/users/UserDetail.tsx:154
+msgid "Email"
+msgstr "البريد الإلكتروني"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:332
+msgid "Email (optional)"
+msgstr "البريد الإلكتروني (اختياري)"
+
+#: packages/admin/src/components/LoginPage.tsx:126
+#: packages/admin/src/components/SignupPage.tsx:65
+#: packages/admin/src/components/users/InviteUserModal.tsx:154
+msgid "Email address"
+msgstr "عنوان البريد الإلكتروني"
+
+#: packages/admin/src/components/SetupWizard.tsx:206
+#: packages/admin/src/components/SignupPage.tsx:48
+msgid "Email is required"
+msgstr "البريد الإلكتروني مطلوب"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:224
+msgid "Email Middleware"
+msgstr "وسيط البريد الإلكتروني"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:134
+msgid "Email Pipeline"
+msgstr "مسار البريد الإلكتروني"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:208
+msgid "Email provider active"
+msgstr "مزود البريد الإلكتروني نشط"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:90
+#: packages/admin/src/components/settings/EmailSettings.tsx:109
+msgid "Email Settings"
+msgstr "إعدادات البريد الإلكتروني"
+
+#: packages/admin/src/components/users/UserDetail.tsx:235
+msgid "Email verified"
+msgstr "تم التحقق من البريد الإلكتروني"
+
+#: packages/admin/src/components/SignupPage.tsx:188
+msgid "Email verified!"
+msgstr "تم التحقق من البريد الإلكتروني!"
+
+#. placeholder {0}: block.label
+#: packages/admin/src/components/PortableTextEditor.tsx:1443
+msgid "Embed a {0}"
+msgstr "تضمين {0}"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1446
+msgid "Embeds"
+msgstr "المضمنات"
+
+#: packages/admin/src/components/WordPressImport.tsx:1038
+msgid "EmDash Exporter"
+msgstr "مُصدّر EmDash"
+
+#: packages/admin/src/components/WordPressImport.tsx:1137
+msgid "EmDash Exporter plugin detected! You can import directly."
+msgstr "تم اكتشاف إضافة مُصدّر EmDash. يمكنك استيرادها مباشرة."
+
+#: packages/admin/src/components/users/UserDetail.tsx:319
+msgid "Enable"
+msgstr "تفعيل"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:85
+msgid "Enable full-text search on this collection"
+msgstr "تفعيل البحث النصي الكامل على هذه المجموعة"
+
+#: packages/admin/src/components/PluginManager.tsx:389
+msgid "Enable plugin"
+msgstr "تفعيل الإضافة"
+
+#: packages/admin/src/components/Redirects.tsx:485
+msgid "Enable redirect"
+msgstr "تفعيل إعادة التوجيه"
+
+#: packages/admin/src/components/Redirects.tsx:169
+#: packages/admin/src/components/Redirects.tsx:396
+msgid "Enabled"
+msgstr "مُفعَّل"
+
+#. placeholder {0}: label.toLowerCase()
+#: packages/admin/src/components/ContentEditor.tsx:1179
+msgid "Enter {0}..."
+msgstr "أدخل {0}..."
+
+#: packages/admin/src/components/MenuEditor.tsx:279
+#: packages/admin/src/components/MenuEditor.tsx:423
+msgid "Enter a URL (https://…) or a relative path (/…)"
+msgstr "قم بإدخال رابطًا (https://…) أو رابطًا نسبيًا (/…)"
+
+#: packages/admin/src/components/ContentEditor.tsx:1393
+msgid "Enter a valid URL (e.g. https://example.com)"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1210
+msgid "Enter credentials manually"
+msgstr "إدخال بيانات الاعتماد يدويًا"
+
+#: packages/admin/src/components/ContentEditor.tsx:588
+msgid "Enter distraction-free mode"
+msgstr "الدخول إلى وضع الخلو من التشتت"
+
+#: packages/admin/src/components/users/UserDetail.tsx:158
+msgid "Enter email"
+msgstr "أدخل البريد الإلكتروني"
+
+#: packages/admin/src/components/ContentEditor.tsx:1200
+msgid "Enter markdown content..."
+msgstr "أدخل محتوى Markdown..."
+
+#: packages/admin/src/components/users/UserDetail.tsx:151
+msgid "Enter name"
+msgstr "أدخل الاسم"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:177
+msgid "Enter the code from your terminal"
+msgstr "أدخل الرمز من الطرفية الخاصة بك"
+
+#: packages/admin/src/components/LoginPage.tsx:325
+msgid "Enter your handle to sign in."
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1289
+msgid "Enter your WordPress credentials to import content directly."
+msgstr "أدخل بيانات اعتماد WordPress لاستيراد المحتوى مباشرةً."
+
+#: packages/admin/src/components/WordPressImport.tsx:915
+msgid "Enter your WordPress site URL"
+msgstr "أدخل رابط موقع WordPress الخاص بك"
+
+#: packages/admin/src/components/MenuEditor.tsx:83
+#: packages/admin/src/components/MenuEditor.tsx:122
+#: packages/admin/src/components/SetupWizard.tsx:550
+msgid "Error"
+msgstr "خطأ"
+
+#: packages/admin/src/components/SectionEditor.tsx:49
+msgid "Error saving section"
+msgstr "خطأ في حفظ القسم"
+
+#: packages/admin/src/components/WordPressImport.tsx:1873
+msgid "Exists"
+msgstr "موجود"
+
+#: packages/admin/src/components/ContentEditor.tsx:546
+msgid "Exit distraction-free mode"
+msgstr "الخروج من وضع الخلو من التشتت"
+
+#: packages/admin/src/components/PluginManager.tsx:401
+msgid "Expand"
+msgstr "توسيع"
+
+#: packages/admin/src/components/PluginManager.tsx:395
+msgid "Expand details"
+msgstr "توسيع التفاصيل"
+
+#. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
+msgid "Expires {0}"
+msgstr "ينتهي في {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:449
+msgid "Expiry"
+msgstr "الإنتهاء"
+
+#: packages/admin/src/components/WordPressImport.tsx:1103
+msgid "Export from WordPress manually"
+msgstr "التصدير من WordPress يدويًا"
+
+#: packages/admin/src/components/WordPressImport.tsx:1227
+msgid "Export your content from WordPress to import everything including drafts."
+msgstr "صدّر محتواك من WordPress لاستيراد كل شيء بما في ذلك المسودات."
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:140
+msgid "Facebook"
+msgstr "فيسبوك"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:344
+msgid "Fail"
+msgstr "فشل"
+
+#: packages/admin/src/components/WordPressImport.tsx:1993
+msgid "Failed"
+msgstr "فشل"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:198
+msgid "Failed security audit"
+msgstr "فشل التدقيق الأمني"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:91
+msgid "Failed to add domain"
+msgstr "فشل في إضافة النطاق"
+
+#: packages/admin/src/components/ContentEditor.tsx:1827
+msgid "Failed to create byline"
+msgstr "فشل في إنشاء اسم المؤلف"
+
+#: packages/admin/src/components/WordPressImport.tsx:1544
+msgid "Failed to create some collections"
+msgstr "فشل في إنشاء بعض المجموعات"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:453
+msgid "Failed to create term"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:108
+msgid "Failed to disable plugin"
+msgstr "فشل في تعطيل الإضافة"
+
+#: packages/admin/src/components/PluginManager.tsx:89
+msgid "Failed to enable plugin"
+msgstr "فشل في تفعيل الإضافة"
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:269
+msgid "Failed to generate preview"
+msgstr "فشل في توليد المعاينة"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:163
+msgid "Failed to generate preview URL"
+msgstr "فشل في توليد رابط المعاينة"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:212
+msgid "Failed to load allowed domains"
+msgstr "فشل في تحميل النطاقات المسموح بها"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:94
+msgid "Failed to load email settings"
+msgstr "فشل في تحميل إعدادات البريد الإلكتروني"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:148
+msgid "Failed to load passkeys"
+msgstr "فشل في تحميل مفاتيح المرور"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:120
+msgid "Failed to load plugin"
+msgstr "فشل في تحميل الإضافة"
+
+#. placeholder {0}: error.message
+#: packages/admin/src/components/PluginManager.tsx:135
+msgid "Failed to load plugins: {0}"
+msgstr "فشل في تحميل الإضافات: {0}"
+
+#: packages/admin/src/components/RevisionHistory.tsx:180
+msgid "Failed to load revisions"
+msgstr "فشل في تحميل المراجعات"
+
+#: packages/admin/src/components/SetupWizard.tsx:552
+msgid "Failed to load setup"
+msgstr "فشل في تحميل الإعداد"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
+msgid "Failed to load theme"
+msgstr "فشل في تحميل المظهر"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:131
+msgid "Failed to remove domain"
+msgstr "فشل في إزالة النطاق"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:99
+#: packages/admin/src/components/settings/SecuritySettings.tsx:82
+msgid "Failed to remove passkey"
+msgstr "فشل في إزالة مفتاح المرور"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:66
+msgid "Failed to rename passkey"
+msgstr "فشل في إعادة تسمية مفتاح المرور"
+
+#: packages/admin/src/router.tsx:1530
+msgid "Failed to save"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:64
+#: packages/admin/src/components/settings/SeoSettings.tsx:58
+#: packages/admin/src/components/settings/SocialSettings.tsx:52
+msgid "Failed to save settings"
+msgstr "فشل في حفظ الإعدادات"
+
+#: packages/admin/src/components/LoginPage.tsx:70
+#: packages/admin/src/components/LoginPage.tsx:75
+msgid "Failed to send magic link"
+msgstr "فشل في إرسال الرابط السحري"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:62
+msgid "Failed to send test email"
+msgstr "فشل في إرسال البريد الإلكتروني التجريبي"
+
+#. placeholder {0}: taxonomy.label.toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:317
+msgid "Failed to update {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1877
+msgid "Failed to update byline"
+msgstr "فشل في تحديث اسم المؤلف"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:114
+msgid "Failed to update domain"
+msgstr "فشل في تحديث النطاق"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:221
+#: packages/admin/src/components/settings/GeneralSettings.tsx:226
+msgid "Favicon"
+msgstr "أيقونة المتصفح"
+
+#: packages/admin/src/components/WordPressImport.tsx:1013
+msgid "Feature"
+msgstr "ميزة"
+
+#: packages/admin/src/components/ContentTypeList.tsx:103
+msgid "Features"
+msgstr "الميزات"
+
+#: packages/admin/src/components/WordPressImport.tsx:727
+msgid "Fetching content from the EmDash Exporter API."
+msgstr "جاري جلب المحتوى من واجهة برمجة تطبيقات EmDash Exporter."
+
+#: packages/admin/src/components/FieldEditor.tsx:568
+msgid "Field label"
+msgstr "تسمية الحقل"
+
+#: packages/admin/src/components/FieldEditor.tsx:403
+msgid "Field Label"
+msgstr "تسمية الحقل"
+
+#: packages/admin/src/components/FieldEditor.tsx:415
+msgid "Field slugs cannot be changed after creation"
+msgstr "لا يمكن تغيير الأسماء اللطيفة للحقول بعد الإنشاء"
+
+#: packages/admin/src/components/WordPressImport.tsx:2166
+msgid "Fields created:"
+msgstr "الحقول المُنشأة:"
+
+#: packages/admin/src/components/FieldEditor.tsx:206
+msgid "File"
+msgstr "ملف"
+
+#. placeholder {0}: progress.current
+#: packages/admin/src/components/WordPressImport.tsx:2021
+msgid "File {0}"
+msgstr "الملف {0}"
+
+#: packages/admin/src/components/FieldEditor.tsx:207
+msgid "File from media library"
+msgstr "ملف من مكتبة الوسائط"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:192
+#: packages/admin/src/components/MediaLibrary.tsx:416
+msgid "Filename"
+msgstr "اسم الملف"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:196
+msgid "Filename cannot be changed after upload"
+msgstr "لا يمكن تغيير اسم الملف بعد الرفع"
+
+#: packages/admin/src/components/WordPressImport.tsx:2199
+msgid "files imported"
+msgstr "ملفات تم استيرادها"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:106
+msgid "Filter by capability"
+msgstr "تصفية حسب الإمكانية"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:184
+msgid "Filter by collection"
+msgstr "تصفية حسب المجموعة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1228
+msgid "For a complete import including drafts and all content, export from WordPress."
+msgstr "للاستيراد الكامل بما في ذلك المسودات وجميع المحتوى، قم بالتصدير من WordPress."
+
+#: packages/admin/src/components/WordPressImport.tsx:1037
+msgid "For the best import experience, install the"
+msgstr "للحصول على أفضل تجربة استيراد، قم بتثبيت"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:43
+msgid "Full access"
+msgstr "الوصول الكامل"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:105
+msgid "Full admin access"
+msgstr "وصول التحكم الكامل"
+
+#: packages/admin/src/components/Settings.tsx:69
+msgid "General"
+msgstr "عام"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:111
+#: packages/admin/src/components/settings/GeneralSettings.tsx:129
+msgid "General Settings"
+msgstr "الإعدادات العامة"
+
+#: packages/admin/src/components/WelcomeModal.tsx:143
+msgid "Get Started"
+msgstr "بدء الاستخدام"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:134
+msgid "GitHub"
+msgstr "GitHub"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:337
+msgid "Give this passkey a name to help you identify it later."
+msgstr "أعط مفتاح المرور هذا اسمًا لمساعدتك في التعرف عليه لاحقًا."
+
+#: packages/admin/src/components/WordPressImport.tsx:2251
+msgid "Go to Dashboard"
+msgstr "الذهاب إلى لوحة المعلومات"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:140
+msgid "Google Verification"
+msgstr "تحقق Google"
+
+#: packages/admin/src/components/MediaLibrary.tsx:232
+msgid "Grid view"
+msgstr "عرض شبكي"
+
+#: packages/admin/src/components/Redirects.tsx:160
+msgid "Group (optional)"
+msgstr "المجموعة (اختياري)"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:61
+#: packages/admin/src/components/PortableTextEditor.tsx:699
+msgid "Heading 1"
+msgstr "عنوان 1"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:69
+#: packages/admin/src/components/PortableTextEditor.tsx:709
+msgid "Heading 2"
+msgstr "عنوان 2"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:77
+#: packages/admin/src/components/PortableTextEditor.tsx:719
+msgid "Heading 3"
+msgstr "عنوان 3"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:282
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:447
+msgid "Height"
+msgstr "الارتفاع"
+
+#: packages/admin/src/components/SeoPanel.tsx:186
+msgid "Hide from search engines"
+msgstr "إخفاء من محركات البحث"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
+msgid "Hide token"
+msgstr "إخفاء الرمز"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:481
+msgid "Hierarchical (like categories, with parent/child relationships)"
+msgstr "هرمي (مثل الفئات، بعلاقات أب/ابن)"
+
+#: packages/admin/src/components/Redirects.tsx:217
+#: packages/admin/src/components/Redirects.tsx:451
+msgid "Hits"
+msgstr "الزيارات"
+
+#: packages/admin/src/components/MenuEditor.tsx:272
+msgid "Home"
+msgstr "الرئيسية"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:237
+msgid "Homepage"
+msgstr "الصفحة الرئيسية"
+
+#: packages/admin/src/components/PluginManager.tsx:339
+msgid "Hooks"
+msgstr "المُشعرات"
+
+#: packages/admin/src/components/WordPressImport.tsx:1350
+msgid "How to create an Application Password"
+msgstr "كيفية إنشاء كلمة مرور التطبيق"
+
+#: packages/admin/src/components/MenuEditor.tsx:280
+msgid "https://example.com or /about"
+msgstr "https://example.com أو /about"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:242
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:152
+msgid "Icon blurred due to image audit"
+msgstr "تم تعتيم الأيقونة بسبب التدقيق على الصورة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:103
+msgid "ID"
+msgstr "المعرف"
+
+#: packages/admin/src/components/LoginPage.tsx:103
+msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
+msgstr "إذا كان يوجد حساب لـ <0>{email}</0>، قمنا بإرسال رابط لتسجيل دخول."
+
+#: packages/admin/src/components/FieldEditor.tsx:200
+#: packages/admin/src/components/PortableTextEditor.tsx:1413
+msgid "Image"
+msgstr "صورة"
+
+#: packages/admin/src/components/FieldEditor.tsx:201
+msgid "Image from media library"
+msgstr "صورة من مكتبة الوسائط"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:203
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:364
+msgid "Image Settings"
+msgstr "إعدادات الصورة"
+
+#: packages/admin/src/components/SeoImageField.tsx:75
+msgid "Image shown when this page is shared on social media"
+msgstr "الصورة التي تظهر عند مشاركة هذه الصفحة على وسائل التواصل الاجتماعي"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:374
+msgid "Image URL"
+msgstr "رابط الصورة"
+
+#: packages/admin/src/components/WordPressImport.tsx:2203
+msgid "image URLs updated in"
+msgstr "تم تحديث روابط الصور في"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:227
+#: packages/admin/src/components/Sidebar.tsx:228
+msgid "Import"
+msgstr "استيراد"
+
+#. placeholder {0}: postType.name
+#: packages/admin/src/components/WordPressImport.tsx:1821
+msgid "Import {0}"
+msgstr "استيراد {0}"
+
+#: packages/admin/src/components/WordPressImport.tsx:1196
+msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
+msgstr "استيراد جميع المحتوى مباشرةً بما في ذلك المسودات وأنواع المنشورات المخصصة وحقول ACF وبيانات تحسين محركات البحث. لا حاجة لتنزيل ملف."
+
+#: packages/admin/src/components/WordPressImport.tsx:2249
+msgid "Import Another File"
+msgstr "استيراد ملف آخر"
+
+#: packages/admin/src/components/WordPressImport.tsx:1007
+msgid "Import Capabilities"
+msgstr "إمكانيات الاستيراد"
+
+#: packages/admin/src/components/WordPressImport.tsx:2137
+msgid "Import Complete"
+msgstr "اكتمل الاستيراد"
+
+#: packages/admin/src/components/WordPressImport.tsx:2138
+msgid "Import Completed with Errors"
+msgstr "اكتمل الاستيراد مع وجود أخطاء"
+
+#: packages/admin/src/components/WordPressImport.tsx:1529
+msgid "Import failed"
+msgstr "فشل الاستيراد"
+
+#: packages/admin/src/components/WordPressImport.tsx:608
+msgid "Import from WordPress"
+msgstr "الاستيراد من WordPress"
+
+#: packages/admin/src/components/WordPressImport.tsx:1686
+msgid "Import logo and favicon"
+msgstr "استيراد الشعار وأيقونة المتصفح"
+
+#: packages/admin/src/components/WordPressImport.tsx:1970
+msgid "Import Media"
+msgstr "استيراد الوسائط"
+
+#: packages/admin/src/components/WordPressImport.tsx:1923
+msgid "Import Media Files"
+msgstr "استيراد ملفات الوسائط"
+
+#: packages/admin/src/components/WordPressImport.tsx:1595
+msgid "Import navigation menus"
+msgstr "استيراد قوائم التنقل"
+
+#: packages/admin/src/components/WordPressImport.tsx:610
+msgid "Import posts, pages, and custom post types from WordPress."
+msgstr "استيراد المنشورات والصفحات وأنواع المنشورات المخصصة من WordPress."
+
+#: packages/admin/src/components/WordPressImport.tsx:1702
+msgid "Import SEO settings"
+msgstr "استيراد إعدادات تحسين محركات البحث"
+
+#: packages/admin/src/components/WordPressImport.tsx:1658
+msgid "Import site configuration from WordPress."
+msgstr "استيراد تهيئة الموقع من WordPress."
+
+#: packages/admin/src/components/WordPressImport.tsx:1670
+msgid "Import site title and tagline"
+msgstr "استيراد عنوان الموقع والشعار الكتابي"
+
+#: packages/admin/src/components/WordPressImport.tsx:1194
+msgid "Import via EmDash Exporter"
+msgstr "الاستيراد عبر EmDash Exporter"
+
+#: packages/admin/src/components/Sections.tsx:243
+msgid "Imported"
+msgstr "مستورد"
+
+#: packages/admin/src/components/WordPressImport.tsx:2177
+msgid "Imported by Collection"
+msgstr "مستورد حسب المجموعة"
+
+#: packages/admin/src/components/WordPressImport.tsx:811
+msgid "Importing content..."
+msgstr "جاري استيراد المحتوى..."
+
+#: packages/admin/src/components/WordPressImport.tsx:2002
+msgid "Importing Media"
+msgstr "جاري استيراد الوسائط"
+
+#: packages/admin/src/components/SetupWizard.tsx:165
+msgid "Include sample content (recommended for new sites)"
+msgstr "تضمين محتوى نموذجي (مُوصى به للمواقع الجديدة)"
+
+#: packages/admin/src/components/WordPressImport.tsx:1843
+msgid "Incompatible"
+msgstr "غير متوافق"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:385
+#: packages/admin/src/components/MediaPickerModal.tsx:584
+msgid "Insert"
+msgstr "إدراج"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:750
+msgid "Insert a blockquote"
+msgstr "إدراج كتلة إقتباس"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:760
+msgid "Insert a code block"
+msgstr "إدراج كتلة كود"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:770
+msgid "Insert a horizontal rule"
+msgstr "إدراج فاصل أفقي"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1428
+msgid "Insert a reusable section"
+msgstr "إدراج قسم قابل لإعادة الاستخدام"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1414
+msgid "Insert an image"
+msgstr "إدراج صورة"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:367
+msgid "Insert from URL"
+msgstr "إدراج من رابط"
+
+#: packages/admin/src/components/SectionPickerModal.tsx:57
+msgid "Insert Section"
+msgstr "إدراج قسم"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:146
+msgid "Instagram"
+msgstr "إنستغرام"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
+msgid "Install"
+msgstr "تثبيت"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:190
+msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
+msgstr "قم بتثبيت وتفعيل إضافة مزود البريد الإلكتروني لتمكين ميزات البريد مثل الدعوات والروابط السحرية واسترداد كلمة المرور."
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:196
+msgid "Install blocked"
+msgstr "تم حظر التثبيت"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:262
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:183
+msgid "Installed"
+msgstr "مثبَّت"
+
+#. placeholder {0}: plugin.marketplaceVersion || plugin.version
+#: packages/admin/src/components/PluginManager.tsx:437
+msgid "Installed from marketplace (v{0})"
+msgstr "مثبَّت من السوق (الإصدار {0})"
+
+#: packages/admin/src/components/PluginManager.tsx:456
+msgid "Installed:"
+msgstr "مثبَّت:"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+msgid "Installing..."
+msgstr "جاري التثبيت..."
+
+#: packages/admin/src/components/FieldEditor.tsx:164
+#: packages/admin/src/components/FieldEditor.tsx:584
+msgid "Integer"
+msgstr "عدد صحيح"
+
+#: packages/admin/src/components/ContentEditor.tsx:1462
+msgid "Invalid JSON"
+msgstr ""
+
+#: packages/admin/src/components/SignupPage.tsx:258
+msgid "Invalid link"
+msgstr "رابط غير صحيح"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:79
+msgid "Invite Link Created"
+msgstr "تم إنشاء رابط الدعوة"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:79
+msgid "Invite User"
+msgstr "دعوة مستخدم"
+
+#. placeholder {0}: index + 1
+#: packages/admin/src/components/RepeaterField.tsx:232
+msgid "Item {0}"
+msgstr "العنصر {0}"
+
+#: packages/admin/src/components/MenuEditor.tsx:65
+msgid "Item added"
+msgstr "تم إضافة العنصر"
+
+#: packages/admin/src/components/MenuEditor.tsx:77
+msgid "Item deleted"
+msgstr "تم حذف العنصر"
+
+#: packages/admin/src/components/MenuEditor.tsx:102
+msgid "Item updated"
+msgstr "تم تحديث العنصر"
+
+#: packages/admin/src/components/SetupWizard.tsx:240
+#: packages/admin/src/components/SignupPage.tsx:204
+msgid "Jane Doe"
+msgstr "جين دو"
+
+#: packages/admin/src/components/FieldEditor.tsx:218
+msgid "JSON"
+msgstr "JSON"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:304
+#: packages/admin/src/components/SectionEditor.tsx:221
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:195
+msgid "Keywords"
+msgstr "الكلمات المفتاحية"
+
+#: packages/admin/src/components/FieldEditor.tsx:400
+#: packages/admin/src/components/FieldEditor.tsx:554
+#: packages/admin/src/components/MenuEditor.tsx:272
+#: packages/admin/src/components/MenuEditor.tsx:415
+#: packages/admin/src/components/MenuList.tsx:137
+#: packages/admin/src/components/TaxonomyManager.tsx:455
+msgid "Label"
+msgstr "التسمية"
+
+#: packages/admin/src/components/LoginPage.tsx:345
+#: packages/admin/src/components/Settings.tsx:129
+#: packages/admin/src/components/Settings.tsx:134
+msgid "Language"
+msgstr "اللغة"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:700
+msgid "Large section heading"
+msgstr "عنوان قسم كبير"
+
+#: packages/admin/src/components/PluginManager.tsx:462
+msgid "Last enabled:"
+msgstr "آخر تفعيل:"
+
+#: packages/admin/src/components/users/UserDetail.tsx:227
+msgid "Last login"
+msgstr "آخر تسجيل دخول"
+
+#: packages/admin/src/components/Redirects.tsx:218
+msgid "Last seen"
+msgstr "آخر ظهور"
+
+#: packages/admin/src/components/users/UserDetail.tsx:223
+msgid "Last updated"
+msgstr "آخر تحديث"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:161
+msgid "Last used"
+msgstr "آخر استخدام"
+
+#. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
+#. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:262
+msgid "Last used {0}"
+msgstr "آخر استخدام في {0}"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:341
+msgid "Leave blank to use a discoverable passkey."
+msgstr "اتركه فارغًا لاستخدام مفتاح مرور قابل للاكتشاف."
+
+#: packages/admin/src/components/WordPressImport.tsx:2331
+msgid "Leave unassigned"
+msgstr "تركه دون تعيين"
+
+#: packages/admin/src/components/MediaLibrary.tsx:314
+msgid "Library"
+msgstr "المكتبة"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:209
+msgid "License"
+msgstr "الترخيص"
+
+#: packages/admin/src/components/ThemeToggle.tsx:22
+msgid "light"
+msgstr "فاتح"
+
+#: packages/admin/src/components/ThemeToggle.tsx:24
+msgid "Light"
+msgstr "فاتح"
+
+#: packages/admin/src/components/SignupPage.tsx:256
+msgid "Link expired"
+msgstr "انتهت صلاحية الرابط"
+
+#: packages/admin/src/components/FieldEditor.tsx:213
+msgid "Link to another content item"
+msgstr "الربط مع عنصر محتوى آخر"
+
+#. placeholder {0}: user.oauthAccounts.length
+#: packages/admin/src/components/users/UserDetail.tsx:276
+msgid "Linked Accounts ({0})"
+msgstr "الحسابات المربوطة ({0})"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:152
+msgid "LinkedIn"
+msgstr "لينكد إن"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:216
+msgid "Links"
+msgstr "الروابط"
+
+#: packages/admin/src/components/MediaLibrary.tsx:241
+msgid "List view"
+msgstr "عرض قائمة"
+
+#: packages/admin/src/components/ContentEditor.tsx:668
+msgid "Live View"
+msgstr "العرض المباشر"
+
+#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/MarketplaceBrowse.tsx:199
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
+msgid "Load more"
+msgstr "تحميل المزيد"
+
+#: packages/admin/src/components/ContentList.tsx:322
+#: packages/admin/src/components/ContentList.tsx:370
+msgid "Load More"
+msgstr "تحميل المزيد"
+
+#: packages/admin/src/components/ContentTypeList.tsx:114
+msgid "Loading collections..."
+msgstr "جاري تحميل المجموعات..."
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:314
+msgid "Loading comments..."
+msgstr "جاري تحميل التعليقات..."
+
+#: packages/admin/src/components/ContentPickerModal.tsx:169
+msgid "Loading content..."
+msgstr "جاري تحميل المحتوى..."
+
+#: packages/admin/src/components/MenuEditor.tsx:198
+msgid "Loading menu..."
+msgstr "جاري تحميل القائمة..."
+
+#: packages/admin/src/components/MenuList.tsx:75
+msgid "Loading menus..."
+msgstr "جاري تحميل القوائم..."
+
+#: packages/admin/src/components/PluginManager.tsx:126
+msgid "Loading plugins..."
+msgstr "جاري تحميل الإضافات..."
+
+#: packages/admin/src/components/Redirects.tsx:437
+msgid "Loading redirects..."
+msgstr "جاري تحميل إعادات التوجيه..."
+
+#: packages/admin/src/components/SectionPickerModal.tsx:94
+#: packages/admin/src/components/Sections.tsx:250
+msgid "Loading sections..."
+msgstr "جاري تحميل الأقسام..."
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:114
+#: packages/admin/src/components/settings/SeoSettings.tsx:90
+#: packages/admin/src/components/settings/SocialSettings.tsx:84
+msgid "Loading settings..."
+msgstr "جاري تحميل الإعدادات..."
+
+#: packages/admin/src/components/SetupWizard.tsx:539
+msgid "Loading setup..."
+msgstr "جاري تحميل الإعداد..."
+
+#: packages/admin/src/components/TaxonomyManager.tsx:623
+msgid "Loading terms..."
+msgstr "جاري تحميل المصطلحات..."
+
+#: packages/admin/src/components/ContentList.tsx:322
+#: packages/admin/src/components/ContentList.tsx:370
+#: packages/admin/src/components/ContentPickerModal.tsx:238
+#: packages/admin/src/components/MarketplaceBrowse.tsx:199
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
+#: packages/admin/src/components/settings/SecuritySettings.tsx:117
+#: packages/admin/src/components/TaxonomyManager.tsx:583
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:250
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:145
+#: packages/admin/src/components/WelcomeModal.tsx:143
+msgid "Loading..."
+msgstr "جاري التحميل..."
+
+#: packages/admin/src/components/ContentList.tsx:226
+#: packages/admin/src/components/LocaleSwitcher.tsx:60
+msgid "Locale"
+msgstr "المَحلية"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:271
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:272
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:436
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:437
+msgid "Lock aspect ratio"
+msgstr "تثبيت نسبة العرض إلى الارتفاع"
+
+#: packages/admin/src/components/Header.tsx:101
+msgid "Log out"
+msgstr "تسجيل الخروج"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:177
+#: packages/admin/src/components/settings/GeneralSettings.tsx:182
+msgid "Logo"
+msgstr "الشعار"
+
+#: packages/admin/src/components/WordPressImport.tsx:1689
+msgid "Logo & favicon"
+msgstr "الشعار وأيقونة المتصفح"
+
+#: packages/admin/src/components/FieldEditor.tsx:152
+#: packages/admin/src/components/FieldEditor.tsx:582
+msgid "Long Text"
+msgstr "نص طويل"
+
+#: packages/admin/src/components/Sections.tsx:191
+msgid "Lowercase letters, numbers, and hyphens only"
+msgstr "أحرف صغيرة وأرقام وشرطات فقط"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:473
+msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
+msgstr "أحرف صغيرة وأرقام وشرطات سفلية فقط، تبدأ بحرف"
+
+#: packages/admin/src/components/Sidebar.tsx:426
+msgid "Manage"
+msgstr "إدارة"
+
+#. placeholder {0}: taxonomyDef.label.toLowerCase()
+#. placeholder {1}: taxonomyDef.collections.join(", ")
+#: packages/admin/src/components/TaxonomyManager.tsx:602
+msgid "Manage {0} for {1}"
+msgstr "إدارة {0} لـ {1}"
+
+#: packages/admin/src/components/PluginManager.tsx:170
+msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
+msgstr "إدارة الإضافات المثبَّتة. فعّل أو عطّل الإضافات للتحكم في وظائفها."
+
+#: packages/admin/src/components/MenuList.tsx:85
+msgid "Manage navigation menus for your site"
+msgstr "إدارة قوائم التنقل لموقعك"
+
+#: packages/admin/src/components/Redirects.tsx:334
+msgid "Manage URL redirects and view 404 errors."
+msgstr "إدارة إعادات توجيه الروابط وعرض أخطاء 404."
+
+#: packages/admin/src/components/Settings.tsx:93
+msgid "Manage your passkeys and authentication"
+msgstr "إدارة مفاتيح مرورك والمصادقة"
+
+#: packages/admin/src/components/Redirects.tsx:405
+msgid "Manual"
+msgstr "يدوي"
+
+#: packages/admin/src/components/WordPressImport.tsx:2287
+msgid "Map Authors"
+msgstr "تعيين المؤلفين"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:508
+msgid "Mark as spam"
+msgstr "تحديد كغير مرغوب فيه"
+
+#: packages/admin/src/components/PluginManager.tsx:196
+msgid "marketplace"
+msgstr "السوق"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:86
+#: packages/admin/src/components/PluginManager.tsx:161
+#: packages/admin/src/components/PluginManager.tsx:309
+#: packages/admin/src/components/Sidebar.tsx:219
+msgid "Marketplace"
+msgstr "السوق"
+
+#: packages/admin/src/components/FieldEditor.tsx:630
+msgid "Max Items"
+msgstr "الحد الأقصى للعناصر"
+
+#: packages/admin/src/components/FieldEditor.tsx:471
+msgid "Max Length"
+msgstr "الحد الأقصى للطول"
+
+#: packages/admin/src/components/FieldEditor.tsx:501
+msgid "Max Value"
+msgstr "القيمة القصوى"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1417
+#: packages/admin/src/components/Sidebar.tsx:185
+#: packages/admin/src/components/WordPressImport.tsx:1164
+msgid "Media"
+msgstr "وسائط"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:130
+msgid "Media Details"
+msgstr "تفاصيل الوسائط"
+
+#. placeholder {0}: mediaResult.failed.length
+#: packages/admin/src/components/WordPressImport.tsx:2233
+msgid "Media Errors ({0})"
+msgstr "أخطاء الوسائط ({0})"
+
+#: packages/admin/src/components/WordPressImport.tsx:2195
+msgid "Media Import"
+msgstr "استيراد الوسائط"
+
+#: packages/admin/src/components/WordPressImport.tsx:2136
+msgid "Media Import Complete"
+msgstr "اكتمل استيراد الوسائط"
+
+#: packages/admin/src/components/WordPressImport.tsx:2147
+msgid "Media import was skipped"
+msgstr "تم تخطي استيراد الوسائط"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:154
+#: packages/admin/src/components/MediaLibrary.tsx:226
+msgid "Media Library"
+msgstr "مكتبة الوسائط"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:64
+msgid "Media Read"
+msgstr "قراءة الوسائط"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:69
+msgid "Media Write"
+msgstr "كتابة الوسائط"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:710
+msgid "Medium section heading"
+msgstr "عنوان قسم متوسط"
+
+#: packages/admin/src/components/Widgets.tsx:96
+msgid "Menu"
+msgstr "قائمة"
+
+#. placeholder {0}: menu.label
+#: packages/admin/src/components/MenuList.tsx:40
+msgid "Menu \"{0}\" has been created."
+msgstr "تم إنشاء القائمة \"{0}\"."
+
+#: packages/admin/src/components/MenuList.tsx:39
+msgid "Menu created"
+msgstr "تم إنشاء القائمة"
+
+#: packages/admin/src/components/MenuList.tsx:55
+msgid "Menu deleted"
+msgstr "تم حذف القائمة"
+
+#: packages/admin/src/components/MenuEditor.tsx:65
+msgid "Menu item has been added."
+msgstr "تم إضافة عنصر القائمة."
+
+#: packages/admin/src/components/MenuEditor.tsx:78
+msgid "Menu item has been deleted."
+msgstr "تم حذف عنصر القائمة."
+
+#: packages/admin/src/components/MenuEditor.tsx:103
+msgid "Menu item has been updated."
+msgstr "تم تحديث عنصر القائمة."
+
+#: packages/admin/src/components/MenuEditor.tsx:206
+msgid "Menu not found"
+msgstr "لم يتم العثور على القائمة"
+
+#: packages/admin/src/components/MenuEditor.tsx:117
+msgid "Menu order has been updated."
+msgstr "تم تحديث ترتيب القائمة."
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:161
+#: packages/admin/src/components/MenuList.tsx:84
+#: packages/admin/src/components/Sidebar.tsx:195
+msgid "Menus"
+msgstr "القوائم"
+
+#. placeholder {0}: navMenus.length
+#: packages/admin/src/components/WordPressImport.tsx:1600
+msgid "Menus ({0})"
+msgstr "القوائم ({0})"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:89
+msgid "Menus Manage"
+msgstr ""
+
+#: packages/admin/src/components/SeoPanel.tsx:161
+msgid "Meta Description"
+msgstr "الوصف التعريفي"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
+msgid "Meta tag content for Bing Webmaster Tools verification"
+msgstr "محتوى علامة meta لتحقق Bing Webmaster Tools"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:143
+msgid "Meta tag content for Google Search Console verification"
+msgstr "محتوى علامة meta لتحقق Google Search Console"
+
+#: packages/admin/src/components/WordPressImport.tsx:1707
+msgid "Meta titles, descriptions, and social images"
+msgstr "العناوين التعريفية والأوصاف والصور الاجتماعية"
+
+#: packages/admin/src/components/FieldEditor.tsx:623
+msgid "Min Items"
+msgstr "الحد الأدنى للعناصر"
+
+#: packages/admin/src/components/FieldEditor.tsx:464
+msgid "Min Length"
+msgstr "الحد الأدنى للطول"
+
+#: packages/admin/src/components/FieldEditor.tsx:494
+msgid "Min Value"
+msgstr "القيمة الدنيا"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:129
+msgid "Moderation Signals"
+msgstr "إشارات الإشراف"
+
+#: packages/admin/src/components/ContentPickerModal.tsx:216
+msgid "Modified"
+msgstr "معدَّل"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:80
+msgid "Modify collection schemas"
+msgstr "تغيير مخططات المجموعات"
+
+#: packages/admin/src/components/ContentList.tsx:537
+msgid "Move \"{title}\" to trash? You can restore it later."
+msgstr "نقل \"{title}\" إلى سلة المحذوفات؟ يمكنك استعادته لاحقًا."
+
+#: packages/admin/src/components/ContentList.tsx:528
+msgid "Move {title} to trash"
+msgstr "نقل {title} إلى سلة المحذوفات"
+
+#: packages/admin/src/components/MenuEditor.tsx:360
+msgid "Move down"
+msgstr "تحريك للأسفل"
+
+#: packages/admin/src/components/ContentEditor.tsx:871
+#: packages/admin/src/components/ContentEditor.tsx:893
+#: packages/admin/src/components/ContentList.tsx:550
+msgid "Move to Trash"
+msgstr "نقل إلى سلة المحذوفات"
+
+#: packages/admin/src/components/ContentEditor.tsx:877
+#: packages/admin/src/components/ContentList.tsx:535
+msgid "Move to Trash?"
+msgstr "نقل إلى سلة المحذوفات؟"
+
+#: packages/admin/src/components/MenuEditor.tsx:351
+msgid "Move up"
+msgstr "تحريك للأعلى"
+
+#: packages/admin/src/components/FieldEditor.tsx:188
+msgid "Multi Select"
+msgstr "اختيار متعدد"
+
+#: packages/admin/src/components/FieldEditor.tsx:153
+msgid "Multi-line plain text"
+msgstr "نص عادي متعدد الأسطر"
+
+#: packages/admin/src/components/FieldEditor.tsx:189
+msgid "Multiple choices from options"
+msgstr "اختيارات متعددة من الخيارات المتاحة"
+
+#: packages/admin/src/components/SetupWizard.tsx:147
+msgid "My Awesome Blog"
+msgstr "مدونتي الرائعة"
+
+#: packages/admin/src/components/ContentTypeList.tsx:94
+#: packages/admin/src/components/MenuList.tsx:125
+#: packages/admin/src/components/TaxonomyManager.tsx:241
+#: packages/admin/src/components/TaxonomyManager.tsx:464
+#: packages/admin/src/components/TaxonomyManager.tsx:617
+#: packages/admin/src/components/users/UserDetail.tsx:148
+msgid "Name"
+msgstr "الاسم"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:390
+msgid "Name and label are required"
+msgstr "الاسم والتسمية مطلوبان"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:396
+msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
+msgstr "يجب أن يبدأ الاسم بحرف ويحتوي فقط على أحرف صغيرة وأرقام وشرطات سفلية"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:335
+msgid "Navigation"
+msgstr "التنقل"
+
+#: packages/admin/src/components/users/UserDetail.tsx:231
+msgid "Never"
+msgstr "أبدًا"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
+msgid "NEW"
+msgstr "جديد"
+
+#. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:424
+msgid "New {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:552
+msgid "New {collectionLabel}"
+msgstr "{collectionLabel} جديد"
+
+#: packages/admin/src/components/WordPressImport.tsx:1845
+msgid "New collection"
+msgstr "مجموعة جديدة"
+
+#: packages/admin/src/components/ContentTypeList.tsx:44
+msgid "New Content Type"
+msgstr "نوع محتوى جديد"
+
+#: packages/admin/src/components/Redirects.tsx:102
+#: packages/admin/src/components/Redirects.tsx:337
+msgid "New Redirect"
+msgstr "إعادة توجيه جديدة"
+
+#: packages/admin/src/components/Sections.tsx:141
+msgid "New Section"
+msgstr "قسم جديد"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:466
+msgid "new tab"
+msgstr "علامة تبويب جديدة"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:607
+msgid "New Taxonomy"
+msgstr "تصنيف جديد"
+
+#: packages/admin/src/components/MenuEditor.tsx:286
+#: packages/admin/src/components/MenuEditor.tsx:289
+#: packages/admin/src/components/MenuEditor.tsx:431
+#: packages/admin/src/components/MenuEditor.tsx:434
+msgid "New window"
+msgstr "نافذة جديدة"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:321
+msgid "Next"
+msgstr "التالي"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:378
+#: packages/admin/src/components/ContentList.tsx:310
+msgid "Next page"
+msgstr "الصفحة التالية"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:474
+msgid "Next screenshot"
+msgstr "لقطة الشاشة التالية"
+
+#: packages/admin/src/components/users/UserDetail.tsx:236
+msgid "No"
+msgstr "لا"
+
+#. placeholder {0}: taxonomy.label.toLowerCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:394
+msgid "No {0} available."
+msgstr "لا يوجد {0} متاح."
+
+#. placeholder {0}: collectionLabel.toLowerCase()
+#: packages/admin/src/components/ContentList.tsx:244
+msgid "No {0} yet."
+msgstr "لا يوجد {0} بعد."
+
+#. placeholder {0}: taxonomyDef.label.toLowerCase()
+#: packages/admin/src/components/TaxonomyManager.tsx:626
+msgid "No {0} yet. Create one to get started."
+msgstr "لا يوجد {0} بعد. قم بإنشاء أحدها للبدء."
+
+#: packages/admin/src/components/Redirects.tsx:209
+msgid "No 404 errors recorded yet."
+msgstr "لم يتم تسجيل أخطاء 404 بعد."
+
+#: packages/admin/src/components/MediaLibrary.tsx:612
+#: packages/admin/src/components/MediaLibrary.tsx:669
+msgid "No alt text"
+msgstr "لا يوجد نص بديل"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+msgid "No API tokens yet. Create one to get started."
+msgstr "لا يوجد رموز API بعد. قم بإنشاء أحدها للبدء."
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:554
+msgid "No approved comments yet."
+msgstr "لا توجد تعليقات موافق عليها بعد."
+
+#: packages/admin/src/components/ContentEditor.tsx:1768
+msgid "No bylines selected."
+msgstr "لم يتم اختيار اسماء مؤلفين."
+
+#: packages/admin/src/components/Dashboard.tsx:172
+msgid "No collections configured"
+msgstr "لم يتم تهيئة مجموعات"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:553
+msgid "No comments awaiting moderation."
+msgstr "لا توجد تعليقات في انتظار الإشراف."
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:549
+msgid "No comments match your search."
+msgstr "لا توجد تعليقات مطابقة لبحثك."
+
+#: packages/admin/src/components/ContentPickerModal.tsx:176
+msgid "No content found"
+msgstr "لم يتم العثور على محتوى"
+
+#: packages/admin/src/components/ContentPickerModal.tsx:182
+msgid "No content in this collection"
+msgstr "لا يوجد محتوى في هذه المجموعة"
+
+#: packages/admin/src/components/ContentTypeList.tsx:120
+msgid "No content types yet."
+msgstr "لا يوجد أنواع محتوى بعد."
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:275
+msgid "No detailed description available."
+msgstr "لا يوجد وصف مفصّل متاح."
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:300
+msgid "No domains configured. Users must be invited individually."
+msgstr "لم يتم تهيئة نطاقات. يجب دعوة المستخدمين بشكل فردي."
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:187
+msgid "No email provider configured"
+msgstr "لم يتم تهيئة مزود البريد الإلكتروني"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:83
+msgid "No email provider configured. Share this link manually."
+msgstr "لم يتم تهيئة مزود بريد إلكتروني. شارك هذا الرابط يدويًا."
+
+#: packages/admin/src/components/WordPressImport.tsx:2349
+msgid "No EmDash users found"
+msgstr "لم يتم العثور على مستخدمي EmDash"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:40
+msgid "No expiry"
+msgstr "بدون إنتهاء"
+
+#: packages/admin/src/components/RevisionHistory.tsx:327
+msgid "No fields to compare"
+msgstr "لا توجد حقول للمقارنة"
+
+#: packages/admin/src/components/editor/DocumentOutline.tsx:188
+msgid "No headings in document"
+msgstr "لا يوجد عناوين في المستند"
+
+#: packages/admin/src/components/RepeaterField.tsx:158
+msgid "No items yet"
+msgstr "لا توجد عناصر بعد"
+
+#: packages/admin/src/components/FieldEditor.tsx:634
+msgid "No limit"
+msgstr "بدون حد"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:266
+msgid "No matching passkey found for this account."
+msgstr "لم يتم العثور على مفتاح مرور مطابق لهذا الحساب."
+
+#: packages/admin/src/components/FieldEditor.tsx:475
+#: packages/admin/src/components/FieldEditor.tsx:505
+msgid "No maximum"
+msgstr "بدون حد أقصى"
+
+#: packages/admin/src/components/MediaLibrary.tsx:369
+#: packages/admin/src/components/MediaPickerModal.tsx:497
+msgid "No media available from this provider"
+msgstr "لا توجد وسائط متاحة من هذا المزود"
+
+#: packages/admin/src/components/MediaLibrary.tsx:363
+#: packages/admin/src/components/MediaPickerModal.tsx:491
+msgid "No media found"
+msgstr "لم يتم العثور على وسائط"
+
+#: packages/admin/src/components/MediaLibrary.tsx:352
+msgid "No media yet"
+msgstr "لا توجد وسائط بعد"
+
+#: packages/admin/src/components/MenuEditor.tsx:315
+msgid "No menu items yet"
+msgstr "لا توجد عناصر قائمة بعد"
+
+#: packages/admin/src/components/MenuList.tsx:157
+msgid "No menus yet"
+msgstr "لا توجد قوائم بعد"
+
+#: packages/admin/src/components/FieldEditor.tsx:468
+#: packages/admin/src/components/FieldEditor.tsx:498
+msgid "No minimum"
+msgstr "بدون حد أدنى"
+
+#: packages/admin/src/components/users/UserDetail.tsx:248
+msgid "No passkeys registered"
+msgstr "لم يتم تسجيل مفاتيح مرور"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:199
+msgid "No passkeys registered yet."
+msgstr "لم يتم تسجيل مفاتيح مرور بعد."
+
+#: packages/admin/src/components/PluginManager.tsx:190
+msgid "No plugins configured"
+msgstr "لم يتم تهيئة إضافات"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:174
+msgid "No plugins found"
+msgstr "لم يتم العثور على إضافات"
+
+#: packages/admin/src/components/Sections.tsx:341
+msgid "No preview"
+msgstr "لا يوجد معاينة"
+
+#: packages/admin/src/components/Dashboard.tsx:236
+msgid "No recent activity"
+msgstr "لا يوجد نشاط حديث"
+
+#: packages/admin/src/components/Redirects.tsx:441
+msgid "No redirects yet"
+msgstr "لا توجد إعادات توجيه بعد"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:940
+msgid "No results"
+msgstr "لا يوجد نتائج"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:177
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:150
+msgid "No results for \"{debouncedQuery}\". Try a different search term."
+msgstr "لا يوجد نتائج لـ \"{debouncedQuery}\". جرّب مصطلح بحث مختلف."
+
+#: packages/admin/src/components/ContentList.tsx:258
+msgid "No results for \"{searchQuery}\""
+msgstr "لا يوجد نتائج لـ \"{searchQuery}\""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:452
+msgid "No results found"
+msgstr "لم يتم العثور على نتائج"
+
+#: packages/admin/src/components/RevisionHistory.tsx:183
+msgid "No revisions yet"
+msgstr "لا توجد مراجعات بعد"
+
+#: packages/admin/src/components/SectionPickerModal.tsx:107
+msgid "No sections available"
+msgstr "لا توجد أقسام متاحة"
+
+#: packages/admin/src/components/SectionPickerModal.tsx:101
+#: packages/admin/src/components/Sections.tsx:257
+msgid "No sections found"
+msgstr "لم يتم العثور على أقسام"
+
+#: packages/admin/src/components/Sections.tsx:263
+msgid "No sections yet"
+msgstr "لا توجد أقسام بعد"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:555
+msgid "No spam comments."
+msgstr "لا توجد تعليقات غير مرغوب فيها."
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:147
+msgid "No themes found"
+msgstr "لم يتم العثور على مظاهر"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:270
+#: packages/admin/src/components/TaxonomyManager.tsx:276
+msgid "None (top level)"
+msgstr "بدون (المستوى الأعلى)"
+
+#: packages/admin/src/components/FieldEditor.tsx:158
+#: packages/admin/src/components/FieldEditor.tsx:583
+msgid "Number"
+msgstr "عدد"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
+msgid "Number of posts to show per page on list views"
+msgstr "عدد المنشورات الظاهرة لكل صفحة في عروض القائمة"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:109
+#: packages/admin/src/components/PortableTextEditor.tsx:739
+msgid "Numbered List"
+msgstr "قائمة مرقمة"
+
+#: packages/admin/src/components/SeoImageField.tsx:41
+msgid "OG Image"
+msgstr "صورة OG"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:314
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:311
+msgid "on a custom hostname is not treated as secure, even on loopback."
+msgstr "على اسم مضيف مخصص لا يُعامَل على أنه آمن، حتى على loopback."
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:278
+msgid "Only authorize codes you recognize."
+msgstr "قم بتفويض الرموز التي تعرفها فقط."
+
+#: packages/admin/src/components/SignupPage.tsx:95
+msgid "Only email addresses from allowed domains can sign up."
+msgstr "يمكن فقط لعناوين البريد الإلكتروني من النطاقات المسموح بها التسجيل."
+
+#: packages/admin/src/components/MenuList.tsx:130
+msgid "Only lowercase letters, numbers, and hyphens"
+msgstr "أحرف صغيرة وأرقام وشرطات فقط"
+
+#: packages/admin/src/components/SignupPage.tsx:403
+msgid "Oops!"
+msgstr "عذرًا!"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:333
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:334
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:498
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:499
+msgid "Open in new tab"
+msgstr "فتح في علامة تبويب جديدة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1364
+msgid "Open WordPress Profile"
+msgstr "فتح ملف WordPress الشخصي"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:474
+msgid "Optional caption displayed below the image"
+msgstr "تسمية توضيحية اختيارية تُعرض أسفل الصورة"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:213
+msgid "Optional caption for display"
+msgstr "تسمية توضيحية اختيارية للعرض"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:289
+msgid "Optional description"
+msgstr "وصف اختياري"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:318
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
+msgid "Optional tooltip on hover"
+msgstr "تلميح اختياري عند التمرير"
+
+#: packages/admin/src/components/FieldEditor.tsx:513
+msgid "Options (one per line)"
+msgstr "الخيارات (خيار واحد لكل سطر)"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:397
+msgid "or choose from library"
+msgstr "أو اختر من المكتبة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1420
+msgid "Or click to browse. Accepts .xml files exported from WordPress."
+msgstr "أو اضغط للتصفح. يقبل ملفات .xml المُصدَّرة من WordPress."
+
+#: packages/admin/src/components/LoginPage.tsx:261
+msgid "Or continue with"
+msgstr "أو المواصلة مع"
+
+#: packages/admin/src/components/WordPressImport.tsx:1221
+msgid "Or upload an export file"
+msgstr "أو ارفع ملف تصدير"
+
+#: packages/admin/src/components/WordPressImport.tsx:940
+msgid "or upload directly"
+msgstr "أو ارفع مباشرةً"
+
+#: packages/admin/src/components/MenuEditor.tsx:116
+msgid "Order saved"
+msgstr "تم حفظ الترتيب"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:235
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:400
+msgid "Original:"
+msgstr "الأصلي:"
+
+#: packages/admin/src/components/editor/DocumentOutline.tsx:180
+msgid "Outline"
+msgstr "مخطط المستند"
+
+#: packages/admin/src/components/SeoPanel.tsx:152
+msgid "Overrides the page title in search engine results"
+msgstr "يَحل محل عنوان الصفحة في نتائج محركات البحث"
+
+#: packages/admin/src/components/ContentEditor.tsx:908
+msgid "Ownership"
+msgstr "الملكية"
+
+#: packages/admin/src/components/PluginManager.tsx:446
+msgid "Package"
+msgstr "الحزمة"
+
+#: packages/admin/src/components/PluginManager.tsx:327
+#: packages/admin/src/components/WordPressImport.tsx:1158
+msgid "Pages"
+msgstr "الصفحات"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:53
+msgid "Paragraph"
+msgstr "فقرة"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:266
+msgid "Parent"
+msgstr "الأب"
+
+#: packages/admin/src/components/Redirects.tsx:490
+#: packages/admin/src/components/Redirects.tsx:496
+msgid "Part of a redirect loop"
+msgstr "جزء من حلقة إعادة توجيه لا منتهية"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:323
+msgid "Pass"
+msgstr "نجح"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:98
+msgid "Passkey added successfully"
+msgstr "تم إضافة مفتاح المرور بنجاح"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:129
+msgid "Passkey name"
+msgstr "اسم مفتاح المرور"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:329
+msgid "Passkey Name (optional)"
+msgstr "اسم مفتاح المرور (اختياري)"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:352
+msgid "Passkey registered successfully!"
+msgstr "تم تسجيل مفتاح المرور بنجاح!"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:76
+msgid "Passkey removed"
+msgstr "تم إزالة مفتاح المرور"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:60
+msgid "Passkey renamed"
+msgstr "تم إعادة تسمية مفتاح المرور"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:181
+msgid "Passkeys"
+msgstr "مفاتيح المرور"
+
+#. placeholder {0}: user.credentials.length
+#: packages/admin/src/components/users/UserDetail.tsx:245
+msgid "Passkeys ({0})"
+msgstr "مفاتيح المرور ({0})"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:185
+msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
+msgstr "مفاتيح المرور هي طريقة آمنة وبدون كلمة مرور لتسجيل الدخول إلى حسابك. يمكنك تسجيل مفاتيح مرور متعددة لأجهزة مختلفة."
+
+#: packages/admin/src/components/SignupPage.tsx:212
+msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
+msgstr "مفاتيح المرور هي طريقة آمنة خالية من كلمات المرور لتسجيل الدخول باستخدام القياسات الحيوية لجهازك أو رمز PIN أو مفتاح الأمان."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:303
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:300
+msgid "Passkeys Not Available Here"
+msgstr "مفاتيح المرور غير متاحة هنا"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:307
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:304
+msgid "Passkeys require a"
+msgstr "مفاتيح المرور تتطلب"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:158
+msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
+msgstr "مفاتيح المرور تتطلب HTTPS أو http://localhost (مع منفذك)؛ هذا اسم المضيف ليس سياق متصفح آمن."
+
+#: packages/admin/src/components/Redirects.tsx:216
+msgid "Path"
+msgstr "الرابط النسبي"
+
+#: packages/admin/src/components/FieldEditor.tsx:480
+msgid "Pattern (Regex)"
+msgstr "النمط (Regex)"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:196
+#: packages/admin/src/components/ContentList.tsx:674
+msgid "pending"
+msgstr "معلّق"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:204
+msgid "Pending"
+msgstr "معلّق"
+
+#: packages/admin/src/components/ContentEditor.tsx:783
+msgid "Pending changes"
+msgstr "تغييرات معلّقة"
+
+#: packages/admin/src/components/ContentList.tsx:608
+msgid "Permanently delete \"{title}\"? This cannot be undone."
+msgstr "حذف \"{title}\" نهائيًا؟ لا يمكن التراجع عن هذا الإجراء."
+
+#: packages/admin/src/components/ContentList.tsx:597
+msgid "Permanently delete {title}"
+msgstr "حذف {title} نهائيًا"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:284
+msgid "Permissions"
+msgstr "الصلاحيات"
+
+#: packages/admin/src/components/SetupWizard.tsx:317
+msgid "Pick any method to create your admin account."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:313
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
+msgid "Plain"
+msgstr "عادي"
+
+#: packages/admin/src/components/SetupWizard.tsx:208
+msgid "Please enter a valid email"
+msgstr "يرجى إدخال بريد إلكتروني صحيح"
+
+#: packages/admin/src/components/SignupPage.tsx:53
+msgid "Please enter a valid email address"
+msgstr "يرجى إدخال عنوان بريد إلكتروني صحيح"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:284
+msgid "Please enter a valid URL"
+msgstr "يرجى إدخال رابط صحيح"
+
+#: packages/admin/src/components/WordPressImport.tsx:1015
+msgid "Plugin"
+msgstr "إضافة"
+
+#: packages/admin/src/components/PluginManager.tsx:102
+msgid "Plugin disabled"
+msgstr "تم تعطيل الإضافة"
+
+#: packages/admin/src/components/PluginManager.tsx:83
+msgid "Plugin enabled"
+msgstr "تم تفعيل الإضافة"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:122
+msgid "Plugin not found"
+msgstr "لم يتم العثور على الإضافة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1039
+msgid "plugin on your WordPress site."
+msgstr "إضافة على موقع WordPress الخاص بك."
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+msgid "Plugin Permissions"
+msgstr "صلاحيات الإضافة"
+
+#: packages/admin/src/components/PluginManager.tsx:259
+msgid "Plugin uninstalled"
+msgstr "تم إلغاء تثبيت الإضافة"
+
+#: packages/admin/src/components/PluginManager.tsx:246
+msgid "Plugin updated"
+msgstr "تم تحديث الإضافة"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/PluginManager.tsx:125
+#: packages/admin/src/components/PluginManager.tsx:134
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/Sidebar.tsx:212
+#: packages/admin/src/components/Sidebar.tsx:450
+msgid "Plugins"
+msgstr "الإضافات"
+
+#: packages/admin/src/components/SeoPanel.tsx:177
+msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
+msgstr "يرشد محركات البحث إلى النسخة الأصلية من هذه الصفحة، إذا كانت مكررة من رابط آخر"
+
+#: packages/admin/src/components/WordPressImport.tsx:1152
+msgid "Posts"
+msgstr "المنشورات"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:270
+msgid "Posts Per Page"
+msgstr "المنشورات لكل صفحة"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:170
+msgid "Preparing registration..."
+msgstr "جاري تجهيز التسجيل..."
+
+#: packages/admin/src/components/WordPressImport.tsx:2047
+msgid "Preparing to download files from WordPress..."
+msgstr "جاري التحضير لتنزيل الملفات من WordPress..."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:166
+#: packages/admin/src/components/SetupWizard.tsx:260
+msgid "Preparing..."
+msgstr "جاري التحضير..."
+
+#: packages/admin/src/components/ContentEditor.tsx:602
+#: packages/admin/src/components/ContentTypeEditor.tsx:79
+#: packages/admin/src/components/MediaLibrary.tsx:415
+msgid "Preview"
+msgstr "معاينة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:80
+msgid "Preview content before publishing"
+msgstr "معاينة المحتوى قبل النشر"
+
+#: packages/admin/src/components/ContentEditor.tsx:602
+msgid "Preview draft"
+msgstr "معاينة المسودة"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:314
+msgid "Previous"
+msgstr "السابق"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:359
+#: packages/admin/src/components/ContentList.tsx:298
+msgid "Previous page"
+msgstr "الصفحة السابقة"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:456
+msgid "Previous screenshot"
+msgstr "لقطة الشاشة السابقة"
+
+#: packages/admin/src/components/MenuList.tsx:137
+msgid "Primary Navigation"
+msgstr "التنقل الرئيسي"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:211
+msgid "Provider:"
+msgstr "المزود:"
+
+#: packages/admin/src/components/ContentEditor.tsx:657
+#: packages/admin/src/components/ContentEditor.tsx:764
+msgid "Publish"
+msgstr "نشر"
+
+#: packages/admin/src/components/ContentEditor.tsx:647
+msgid "Publish changes"
+msgstr "نشر التغييرات"
+
+#: packages/admin/src/components/ContentList.tsx:649
+msgid "published"
+msgstr "منشور"
+
+#: packages/admin/src/components/ContentEditor.tsx:779
+#: packages/admin/src/components/ContentPickerModal.tsx:214
+#: packages/admin/src/components/Dashboard.tsx:187
+msgid "Published"
+msgstr "منشور"
+
+#. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:337
+msgid "Published {0}"
+msgstr "تم نشر {0}"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:133
+msgid "Published At"
+msgstr "تم النشر في"
+
+#: packages/admin/src/components/ContentEditor.tsx:1776
+msgid "Quick create byline"
+msgstr "إنشاء اسم مؤلف بشكل سريع"
+
+#: packages/admin/src/components/editor/BlockMenu.tsx:85
+#: packages/admin/src/components/PortableTextEditor.tsx:749
+msgid "Quote"
+msgstr "إقتباس"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:75
+msgid "Read collection schemas"
+msgstr "قراءة مخططات المجموعات"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
+msgid "Read content entries"
+msgstr "قراءة مدخلات المحتوى"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
+msgid "Read media files"
+msgstr "قراءة ملفات الوسائط"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+msgid "Read site settings"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:267
+msgid "Reading"
+msgstr "القراءة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1849
+msgid "Ready"
+msgstr "جاهز"
+
+#: packages/admin/src/components/Dashboard.tsx:228
+msgid "Recent Activity"
+msgstr "النشاط الأخير"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:153
+msgid "Recipient email"
+msgstr "بريد المستلم"
+
+#. placeholder {0}: user.email
+#: packages/admin/src/components/users/UserDetail.tsx:336
+msgid "Recovery link sent to {0}"
+msgstr "تم إرسال رابط الاستعادة إلى {0}"
+
+#: packages/admin/src/components/Redirects.tsx:423
+msgid "Redirect loop detected"
+msgstr "تم اكتشاف حلقة إعادة توجيه لا منتهية"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:163
+msgid "Redirecting to login..."
+msgstr "جاري إعادة التوجيه إلى تسجيل الدخول..."
+
+#: packages/admin/src/components/Redirects.tsx:333
+#: packages/admin/src/components/Redirects.tsx:352
+#: packages/admin/src/components/Sidebar.tsx:196
+msgid "Redirects"
+msgstr "إعادات التوجيه"
+
+#: packages/admin/src/components/FieldEditor.tsx:212
+msgid "Reference"
+msgstr "مرجع"
+
+#: packages/admin/src/components/ContentTypeList.tsx:78
+msgid "Register"
+msgstr "تسجيل"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
+#: packages/admin/src/components/settings/SecuritySettings.tsx:224
+msgid "Register Passkey"
+msgstr "تسجيل مفتاح المرور"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:83
+msgid "Registered user"
+msgstr "مستخدم مسجل"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:266
+msgid "Registration was cancelled or timed out. Please try again."
+msgstr "تم إلغاء التسجيل أو انتهت مهلته. يرجى المحاولة مجددًا."
+
+#: packages/admin/src/components/ContentEditor.tsx:1745
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
+#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:246
+#: packages/admin/src/components/settings/PasskeyItem.tsx:187
+#: packages/admin/src/components/settings/PasskeyItem.tsx:209
+msgid "Remove"
+msgstr "إزالة"
+
+#. placeholder {0}: passkey.name
+#. placeholder {0}: term.label
+#: packages/admin/src/components/settings/PasskeyItem.tsx:188
+#: packages/admin/src/components/TaxonomySidebar.tsx:219
+msgid "Remove {0}"
+msgstr "إزالة {0}"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
+msgid "Remove Domain"
+msgstr "إزالة النطاق"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:419
+msgid "Remove Domain?"
+msgstr "إزالة النطاق؟"
+
+#: packages/admin/src/components/ContentEditor.tsx:1574
+#: packages/admin/src/components/SeoImageField.tsx:55
+msgid "Remove image"
+msgstr "إزالة الصورة"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:346
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:512
+msgid "Remove Image"
+msgstr "إزالة الصورة"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:175
+msgid "Remove Image?"
+msgstr "إزالة الصورة؟"
+
+#. placeholder {0}: index + 1
+#: packages/admin/src/components/RepeaterField.tsx:268
+msgid "Remove item {0}"
+msgstr "إزالة العنصر {0}"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:188
+msgid "Remove passkey"
+msgstr "إزالة مفتاح المرور"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:203
+msgid "Remove passkey?"
+msgstr "إزالة مفتاح المرور؟"
+
+#: packages/admin/src/components/FieldEditor.tsx:614
+msgid "Remove sub-field"
+msgstr "إزالة الحقل الفرعي"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:176
+msgid "Remove this image from the document?"
+msgstr "إزالة هذه الصورة من المستند؟"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:178
+#: packages/admin/src/components/settings/PasskeyItem.tsx:210
+msgid "Removing..."
+msgstr "جاري الإزالة..."
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:176
+msgid "Rename"
+msgstr "إعادة تسمية"
+
+#. placeholder {0}: passkey.name
+#: packages/admin/src/components/settings/PasskeyItem.tsx:177
+msgid "Rename {0}"
+msgstr "إعادة تسمية {0}"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:177
+msgid "Rename passkey"
+msgstr "إعادة تسمية مفتاح المرور"
+
+#: packages/admin/src/components/FieldEditor.tsx:236
+msgid "Repeater"
+msgstr "حقل تكراري"
+
+#: packages/admin/src/components/FieldEditor.tsx:237
+msgid "Repeating group of fields"
+msgstr "مجموعة حقول تكرارية"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:191
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:226
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:389
+msgid "Replace Image"
+msgstr "استبدال الصورة"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:117
+msgid "Reply to:"
+msgstr "رد على:"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:226
+msgid "Repository"
+msgstr "المستودع"
+
+#: packages/admin/src/components/SignupPage.tsx:274
+msgid "Request a new link"
+msgstr "طلب رابط جديد"
+
+#: packages/admin/src/components/FieldEditor.tsx:430
+#: packages/admin/src/components/FieldEditor.tsx:602
+msgid "Required"
+msgstr "مطلوب"
+
+#: packages/admin/src/components/WordPressImport.tsx:1862
+msgid "Required fields:"
+msgstr "الحقول المطلوبة:"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:302
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:467
+msgid "Required for accessibility. Describes the image for screen readers."
+msgstr "مطلوب لإمكانية الوصول. يصف الصورة لقارئات الشاشة."
+
+#. placeholder {0}: latest.minEmDashVersion
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:335
+msgid "Requires EmDash {0}"
+msgstr "يتطلب EmDash {0}"
+
+#: packages/admin/src/components/SignupPage.tsx:153
+msgid "Resend email"
+msgstr "إعادة إرسال البريد الإلكتروني"
+
+#: packages/admin/src/components/SignupPage.tsx:152
+msgid "Resend in {resendCooldown}s"
+msgstr "إعادة الإرسال بعد {resendCooldown}ث"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:254
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:419
+msgid "Reset to original"
+msgstr "إعادة التعيين إلى الأصل"
+
+#: packages/admin/src/components/RevisionHistory.tsx:220
+msgid "Restore"
+msgstr "استعادة"
+
+#: packages/admin/src/components/ContentList.tsx:585
+msgid "Restore {title}"
+msgstr "استعادة {title}"
+
+#: packages/admin/src/components/RevisionHistory.tsx:136
+msgid "Restore failed"
+msgstr "فشلت الاستعادة"
+
+#: packages/admin/src/components/RevisionHistory.tsx:214
+msgid "Restore Revision?"
+msgstr "استعادة المراجعة؟"
+
+#: packages/admin/src/components/RevisionHistory.tsx:281
+#: packages/admin/src/components/RevisionHistory.tsx:282
+msgid "Restore this version"
+msgstr "استعادة هذا الإصدار"
+
+#. placeholder {0}: formatFullDate(restoreTarget.createdAt)
+#: packages/admin/src/components/RevisionHistory.tsx:217
+msgid "Restore this version from {0}? This will update the current content to this revision's data."
+msgstr "استعادة هذا الإصدار من {0}؟ سيتم تحديث المحتوى الحالي إلى بيانات هذه المراجعة."
+
+#: packages/admin/src/components/RevisionHistory.tsx:221
+msgid "Restoring..."
+msgstr "جاري الاستعادة..."
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:142
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:120
+msgid "Retry"
+msgstr "إعادة المحاولة"
+
+#: packages/admin/src/components/Sections.tsx:134
+msgid "Reusable content blocks you can insert into any content"
+msgstr "كتل محتوى قابلة لإعادة الاستخدام يمكنك إدراجها في أي محتوى"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+msgid "Review New Permissions"
+msgstr "مراجعة الصلاحيات الجديدة"
+
+#: packages/admin/src/components/RevisionHistory.tsx:130
+msgid "Revision restored"
+msgstr "تم استعادة المراجعة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:74
+#: packages/admin/src/components/RevisionHistory.tsx:161
+msgid "Revisions"
+msgstr "المراجعات"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:346
+msgid "Revoke token"
+msgstr "إبطال الرمز"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:321
+msgid "Revoke?"
+msgstr "إبطال؟"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
+msgid "Revoking..."
+msgstr "جاري الإبطال..."
+
+#: packages/admin/src/components/FieldEditor.tsx:194
+msgid "Rich Text"
+msgstr "نص منسق"
+
+#: packages/admin/src/components/Widgets.tsx:91
+msgid "Rich text content"
+msgstr "محتوى نصي منسق"
+
+#: packages/admin/src/components/FieldEditor.tsx:195
+msgid "Rich text editor"
+msgstr "محرر النص المنسق"
+
+#. placeholder {0}: latest.audit.riskScore
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:322
+msgid "Risk score: {0}/100"
+msgstr "درجة المخاطرة: {0}/100"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:166
+#: packages/admin/src/components/users/UserDetail.tsx:169
+#: packages/admin/src/components/users/UserDetail.tsx:181
+msgid "Role"
+msgstr "الدور"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:61
+msgid "Role {role}"
+msgstr "الدور {role}"
+
+#: packages/admin/src/components/ContentEditor.tsx:1750
+msgid "Role label"
+msgstr "تسمية الدور"
+
+#: packages/admin/src/components/MenuEditor.tsx:286
+#: packages/admin/src/components/MenuEditor.tsx:288
+#: packages/admin/src/components/MenuEditor.tsx:431
+#: packages/admin/src/components/MenuEditor.tsx:433
+msgid "Same window"
+msgstr "نفس النافذة"
+
+#: packages/admin/src/components/ContentEditor.tsx:1883
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
+#: packages/admin/src/components/MediaDetailPanel.tsx:241
+#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/Redirects.tsx:184
+#: packages/admin/src/components/SaveButton.tsx:42
+msgid "Save"
+msgstr "حفظ"
+
+#: packages/admin/src/components/users/UserDetail.tsx:311
+msgid "Save Changes"
+msgstr "حفظ التغييرات"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:70
+msgid "Save content as draft before publishing"
+msgstr "حفظ المحتوى كمسودة قبل النشر"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:137
+msgid "Save name"
+msgstr "حفظ الاسم"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:164
+msgid "Save SEO Settings"
+msgstr "حفظ إعدادات تحسين محركات البحث"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
+msgid "Save Settings"
+msgstr "حفظ الإعدادات"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:169
+msgid "Save Social Links"
+msgstr "حفظ روابط التواصل الاجتماعي"
+
+#: packages/admin/src/components/ContentEditor.tsx:577
+#: packages/admin/src/components/SaveButton.tsx:42
+msgid "Saved"
+msgstr "تم الحفظ"
+
+#: packages/admin/src/components/ContentEditor.tsx:572
+#: packages/admin/src/components/ContentEditor.tsx:1883
+#: packages/admin/src/components/FieldEditor.tsx:656
+#: packages/admin/src/components/MediaDetailPanel.tsx:241
+#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/Redirects.tsx:181
+#: packages/admin/src/components/SaveButton.tsx:42
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
+#: packages/admin/src/components/settings/SeoSettings.tsx:164
+#: packages/admin/src/components/settings/SocialSettings.tsx:169
+#: packages/admin/src/components/TaxonomyManager.tsx:308
+#: packages/admin/src/components/users/UserDetail.tsx:311
+msgid "Saving..."
+msgstr "جاري الحفظ..."
+
+#: packages/admin/src/components/ContentEditor.tsx:823
+msgid "Schedule"
+msgstr "جدولة"
+
+#: packages/admin/src/components/ContentEditor.tsx:809
+msgid "Schedule for"
+msgstr "جدولة لـ"
+
+#: packages/admin/src/components/ContentEditor.tsx:846
+msgid "Schedule for later"
+msgstr "جدولة لوقت لاحق"
+
+#: packages/admin/src/components/ContentList.tsx:653
+msgid "scheduled"
+msgstr "مجدول"
+
+#: packages/admin/src/components/ContentEditor.tsx:786
+msgid "Scheduled"
+msgstr "مجدول"
+
+#. placeholder {0}: formatScheduledDate(item.scheduledAt)
+#: packages/admin/src/components/ContentEditor.tsx:796
+msgid "Scheduled for: {0}"
+msgstr "مجدول لـ: {0}"
+
+#: packages/admin/src/components/WordPressImport.tsx:2155
+msgid "Schema Changes"
+msgstr "تغييرات المخطط"
+
+#: packages/admin/src/components/WordPressImport.tsx:1529
+msgid "Schema preparation failed"
+msgstr "فشل تجهيز المخطط"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:74
+msgid "Schema Read"
+msgstr "قراءة المخطط"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:79
+msgid "Schema Write"
+msgstr "كتابة المخطط"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
+msgid "Scopes"
+msgstr "النطاقات"
+
+#. placeholder {0}: token.scopes.join(", ")
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
+msgid "Scopes: {0}"
+msgstr "النطاقات: {0}"
+
+#. placeholder {0}: i + 1
+#. placeholder {0}: index + 1
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:180
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:299
+msgid "Screenshot {0}"
+msgstr "لقطة الشاشة {0}"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: screenshots.length
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:464
+msgid "Screenshot {0} of {1}"
+msgstr "لقطة الشاشة {0} من {1}"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:257
+msgid "Screenshot blurred due to image audit"
+msgstr "تم تعتيم لقطة الشاشة بسبب التدقيق على الصورة"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:442
+msgid "Screenshot viewer"
+msgstr "عارض لقطات الشاشة"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:170
+msgid "Screenshots"
+msgstr "لقطات الشاشة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:84
+msgid "Search"
+msgstr "بحث"
+
+#. placeholder {0}: collectionLabel.toLowerCase()
+#: packages/admin/src/components/ContentList.tsx:171
+msgid "Search {0}"
+msgstr "بحث {0}"
+
+#. placeholder {0}: collectionLabel.toLowerCase()
+#: packages/admin/src/components/ContentList.tsx:170
+msgid "Search {0}..."
+msgstr "بحث {0}..."
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:170
+msgid "Search comments"
+msgstr "البحث في التعليقات"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:169
+msgid "Search comments..."
+msgstr "البحث في التعليقات..."
+
+#: packages/admin/src/components/ContentPickerModal.tsx:141
+msgid "Search content..."
+msgstr "البحث في المحتوى..."
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:130
+msgid "Search Engine Optimization"
+msgstr "تحسين محركات البحث"
+
+#: packages/admin/src/components/Settings.tsx:82
+msgid "Search engine optimization and verification"
+msgstr "تحسين محركات البحث والتحقق"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:441
+msgid "Search media"
+msgstr "البحث في الوسائط"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:425
+msgid "Search pages and content..."
+msgstr "البحث في الصفحات والمحتوى..."
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:96
+msgid "Search plugins..."
+msgstr "البحث في الإضافات..."
+
+#: packages/admin/src/components/SectionPickerModal.tsx:81
+#: packages/admin/src/components/Sections.tsx:224
+msgid "Search sections..."
+msgstr "البحث في الأقسام..."
+
+#: packages/admin/src/components/Redirects.tsx:384
+msgid "Search source or destination..."
+msgstr "البحث في المصدر أو الوجهة..."
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:87
+msgid "Search themes..."
+msgstr "البحث في المظاهر..."
+
+#: packages/admin/src/components/MediaLibrary.tsx:336
+#: packages/admin/src/components/MediaPickerModal.tsx:440
+msgid "Search..."
+msgstr "بحث..."
+
+#: packages/admin/src/components/FieldEditor.tsx:453
+msgid "Searchable"
+msgstr "قابل للبحث"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1427
+msgid "Section"
+msgstr "قسم"
+
+#: packages/admin/src/components/SectionEditor.tsx:77
+msgid "Section \"{slug}\" could not be found."
+msgstr "لم يتم العثور على القسم \"{slug}\"."
+
+#: packages/admin/src/components/Sections.tsx:91
+msgid "Section created"
+msgstr "تم إنشاء القسم"
+
+#: packages/admin/src/components/Sections.tsx:105
+msgid "Section deleted"
+msgstr "تم حذف القسم"
+
+#: packages/admin/src/components/SectionEditor.tsx:186
+msgid "Section Details"
+msgstr "تفاصيل القسم"
+
+#: packages/admin/src/components/SectionEditor.tsx:73
+msgid "Section Not Found"
+msgstr "القسم غير موجود"
+
+#: packages/admin/src/components/SectionEditor.tsx:41
+msgid "Section saved"
+msgstr "تم حفظ القسم"
+
+#: packages/admin/src/components/SectionEditor.tsx:192
+msgid "Section title"
+msgstr "عنوان القسم"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:177
+#: packages/admin/src/components/Sections.tsx:132
+#: packages/admin/src/components/Sidebar.tsx:198
+msgid "Sections"
+msgstr "أقسام"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:308
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:305
+msgid "secure context"
+msgstr "سياق آمن"
+
+#: packages/admin/src/components/SetupWizard.tsx:572
+msgid "Secure your account"
+msgstr "تأمين حسابك"
+
+#: packages/admin/src/components/Settings.tsx:92
+msgid "Security"
+msgstr "الأمن"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:318
+msgid "Security Audit"
+msgstr "التدقيق الأمني"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:341
+msgid "Security audit failed"
+msgstr "فشل التدقيق الأمني"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:331
+msgid "Security audit flagged concerns"
+msgstr "التدقيق الأمني أشار إلى مخاوف"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:126
+msgid "Security audit flagged potential concerns with this plugin."
+msgstr "التدقيق الأمني أشار إلى مخاوف محتملة مع هذه الإضافة."
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:127
+msgid "Security audit flagged this plugin as potentially unsafe."
+msgstr "التدقيق الأمني صنّف هذه الإضافة على أنها غير آمنة محتملة."
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:320
+msgid "Security audit passed"
+msgstr "نجح التدقيق الأمني"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:272
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:275
+msgid "Security error. Make sure you're on a secure connection."
+msgstr "خطأ أمني. تأكد من أنك على اتصال آمن."
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:243
+#: packages/admin/src/components/Header.tsx:85
+#: packages/admin/src/components/settings/SecuritySettings.tsx:108
+msgid "Security Settings"
+msgstr "إعدادات الأمن"
+
+#: packages/admin/src/components/FieldEditor.tsx:182
+#: packages/admin/src/components/FieldEditor.tsx:587
+msgid "Select"
+msgstr "اختيار"
+
+#: packages/admin/src/components/ContentEditor.tsx:1598
+msgid "Select {label}"
+msgstr "اختيار {label}"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:290
+msgid "Select all"
+msgstr "اختيار الكل"
+
+#: packages/admin/src/components/ContentEditor.tsx:1689
+msgid "Select byline..."
+msgstr "اختيار اسم مؤلف..."
+
+#. placeholder {0}: comment.authorName
+#: packages/admin/src/components/comments/CommentInbox.tsx:463
+msgid "Select comment by {0}"
+msgstr "اختيار تعليق {0}"
+
+#: packages/admin/src/components/ContentPickerModal.tsx:117
+msgid "Select Content"
+msgstr "اختيار المحتوى"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:258
+#: packages/admin/src/components/settings/GeneralSettings.tsx:314
+msgid "Select Favicon"
+msgstr "اختيار أيقونة المتصفح"
+
+#: packages/admin/src/components/ContentEditor.tsx:1589
+msgid "Select image"
+msgstr "اختيار صورة"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:71
+msgid "Select Image"
+msgstr "اختيار صورة"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:214
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
+msgid "Select Logo"
+msgstr "اختيار الشعار"
+
+#: packages/admin/src/components/SeoImageField.tsx:70
+msgid "Select OG image"
+msgstr "اختيار صورة OG"
+
+#: packages/admin/src/components/SeoImageField.tsx:82
+msgid "Select OG Image"
+msgstr "اختيار صورة OG"
+
+#: packages/admin/src/components/WordPressImport.tsx:1562
+msgid "Select which content types to import."
+msgstr "اختر أنواع المحتوى المراد استيرادها."
+
+#: packages/admin/src/components/RepeaterField.tsx:363
+msgid "Select..."
+msgstr "اختيار..."
+
+#: packages/admin/src/components/MediaPickerModal.tsx:571
+msgid "Selected:"
+msgstr "المحدد:"
+
+#: packages/admin/src/components/Settings.tsx:98
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:172
+msgid "Self-Signup Domains"
+msgstr "نطاقات التسجيل الذاتي"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:148
+msgid "Send a test email through the full pipeline to verify your email configuration."
+msgstr "أرسل بريدًا إلكترونيًا تجريبيًا عبر المسار الكامل للتحقق من تهيئة بريدك الإلكتروني."
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:84
+msgid "Send an invitation email to a new team member."
+msgstr "أرسل بريدًا إلكترونيًا دعوةً لعضو فريق جديد."
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:203
+msgid "Send Invite"
+msgstr "إرسال الدعوة"
+
+#: packages/admin/src/components/LoginPage.tsx:149
+msgid "Send magic link"
+msgstr "إرسال رابط سحري"
+
+#: packages/admin/src/components/users/UserDetail.tsx:332
+msgid "Send Recovery Link"
+msgstr "إرسال رابط الاسترداد"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:162
+msgid "Send Test"
+msgstr "إرسال تجريبي"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:145
+msgid "Send Test Email"
+msgstr "إرسال بريد إلكتروني تجريبي"
+
+#: packages/admin/src/components/LoginPage.tsx:149
+#: packages/admin/src/components/settings/EmailSettings.tsx:162
+#: packages/admin/src/components/SignupPage.tsx:87
+#: packages/admin/src/components/SignupPage.tsx:150
+#: packages/admin/src/components/users/InviteUserModal.tsx:203
+#: packages/admin/src/components/users/UserDetail.tsx:332
+msgid "Sending..."
+msgstr "جاري الإرسال..."
+
+#: packages/admin/src/components/ContentEditor.tsx:998
+#: packages/admin/src/components/Settings.tsx:81
+msgid "SEO"
+msgstr "تحسين محركات البحث"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:87
+#: packages/admin/src/components/settings/SeoSettings.tsx:105
+msgid "SEO Settings"
+msgstr "إعدادات تحسين محركات البحث"
+
+#: packages/admin/src/components/WordPressImport.tsx:1705
+msgid "SEO settings (Yoast)"
+msgstr "إعدادات تحسين محركات البحث (Yoast)"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:53
+msgid "SEO settings saved"
+msgstr "تم حفظ إعدادات تحسين محركات البحث"
+
+#: packages/admin/src/components/SeoPanel.tsx:151
+msgid "SEO Title"
+msgstr "عنوان تحسين محركات البحث"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:290
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:455
+msgid "Set a custom display size for this image instance."
+msgstr "عيّن حجم عرض مخصص لنسخة هذه الصورة."
+
+#: packages/admin/src/components/SetupWizard.tsx:570
+msgid "Set up your site"
+msgstr "إعداد موقعك"
+
+#: packages/admin/src/components/SetupWizard.tsx:177
+msgid "Setting up..."
+msgstr "جاري الإعداد..."
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:235
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/PluginManager.tsx:378
+#: packages/admin/src/components/PluginManager.tsx:380
+#: packages/admin/src/components/Settings.tsx:62
+#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/WordPressImport.tsx:1655
+msgid "Settings"
+msgstr "الإعدادات"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
+msgid "Settings Manage"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+msgid "Settings Read"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:59
+msgid "Settings saved successfully"
+msgstr "تم حفظ الإعدادات بنجاح"
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:109
+msgid "Share this link with the invited user"
+msgstr "شارك هذا الرابط مع المستخدم المدعو"
+
+#: packages/admin/src/components/FieldEditor.tsx:146
+#: packages/admin/src/components/FieldEditor.tsx:581
+msgid "Short Text"
+msgstr "نص قصير"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
+msgid "Show token"
+msgstr "عرض الرمز"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:319
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
+msgid "Shown when hovering over the image."
+msgstr "يُعرض عند التحويم فوق الصورة."
+
+#: packages/admin/src/components/SignupPage.tsx:440
+msgid "Sign in"
+msgstr "تسجيل الدخول"
+
+#: packages/admin/src/components/SetupWizard.tsx:382
+msgid "Sign In"
+msgstr ""
+
+#: packages/admin/src/components/SignupPage.tsx:269
+msgid "Sign in instead"
+msgstr "تسجيل الدخول بدلًا من ذلك"
+
+#: packages/admin/src/components/LoginPage.tsx:232
+msgid "Sign in to your site"
+msgstr "قم بتسجيل الدخول إلى موقعك"
+
+#. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
+#. placeholder {0}: provider.label
+#: packages/admin/src/components/LoginPage.tsx:231
+#: packages/admin/src/components/SetupWizard.tsx:291
+msgid "Sign in with {0}"
+msgstr ""
+
+#: packages/admin/src/components/LoginPage.tsx:229
+msgid "Sign in with email"
+msgstr "تسجيل الدخول بالبريد الإلكتروني"
+
+#: packages/admin/src/components/LoginPage.tsx:290
+msgid "Sign in with email link"
+msgstr "تسجيل الدخول برابط البريد الإلكتروني"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:136
+#: packages/admin/src/components/LoginPage.tsx:252
+msgid "Sign in with Passkey"
+msgstr "تسجيل الدخول بمفتاح مرور"
+
+#. placeholder {0}: user.email
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:190
+msgid "Signed in as {0}"
+msgstr "تم تسجيل الدخول بوصفك {0}"
+
+#: packages/admin/src/components/FieldEditor.tsx:183
+msgid "Single choice from options"
+msgstr "اختيار واحد من الخيارات المتاحة"
+
+#: packages/admin/src/components/FieldEditor.tsx:147
+msgid "Single line text input"
+msgstr "إدخال نص في سطر واحد"
+
+#: packages/admin/src/components/SetupWizard.tsx:380
+msgid "Site"
+msgstr "الموقع"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:153
+msgid "Site Identity"
+msgstr "هوية الموقع"
+
+#: packages/admin/src/components/Settings.tsx:70
+msgid "Site identity, logo, favicon, and reading preferences"
+msgstr "هوية الموقع، الشعار، أيقونة المتصفح، وإعدادات القراءة"
+
+#: packages/admin/src/components/SetupWizard.tsx:378
+msgid "Site Settings"
+msgstr "إعدادات الموقع"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:156
+#: packages/admin/src/components/SetupWizard.tsx:143
+msgid "Site Title"
+msgstr "عنوان الموقع"
+
+#: packages/admin/src/components/WordPressImport.tsx:1673
+msgid "Site title & tagline"
+msgstr "عنوان الموقع والشعار الكتابي"
+
+#: packages/admin/src/components/SetupWizard.tsx:127
+msgid "Site title is required"
+msgstr "عنوان الموقع مطلوب"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:168
+msgid "Site URL"
+msgstr "رابط الموقع"
+
+#: packages/admin/src/components/MediaLibrary.tsx:418
+msgid "Size"
+msgstr "الحجم"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:170
+msgid "Size:"
+msgstr "الحجم:"
+
+#: packages/admin/src/components/WordPressImport.tsx:1967
+msgid "Skip Media Import"
+msgstr "تخطي استيراد الوسائط"
+
+#: packages/admin/src/components/WordPressImport.tsx:1992
+msgid "Skipped"
+msgstr "تم التخطي"
+
+#: packages/admin/src/components/ContentEditor.tsx:767
+#: packages/admin/src/components/ContentEditor.tsx:1792
+#: packages/admin/src/components/ContentEditor.tsx:1854
+#: packages/admin/src/components/ContentTypeEditor.tsx:109
+#: packages/admin/src/components/ContentTypeList.tsx:97
+#: packages/admin/src/components/FieldEditor.tsx:224
+#: packages/admin/src/components/FieldEditor.tsx:407
+#: packages/admin/src/components/SectionEditor.tsx:197
+#: packages/admin/src/components/Sections.tsx:182
+#: packages/admin/src/components/TaxonomyManager.tsx:250
+msgid "Slug"
+msgstr "الاسم اللطيف"
+
+#: packages/admin/src/components/Sections.tsx:122
+msgid "Slug copied to clipboard"
+msgstr "تم نسخ الاسم اللطيف إلى الحافظة"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:720
+msgid "Small section heading"
+msgstr "عنوان قسم صغير"
+
+#: packages/admin/src/components/Settings.tsx:75
+#: packages/admin/src/components/settings/SocialSettings.tsx:81
+#: packages/admin/src/components/settings/SocialSettings.tsx:99
+msgid "Social Links"
+msgstr "روابط وسائل التواصل الاجتماعي"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:47
+msgid "Social links saved"
+msgstr "تم حفظ روابط التواصل الاجتماعي"
+
+#: packages/admin/src/components/Settings.tsx:76
+msgid "Social media profile links"
+msgstr "روابط الملفات الشخصية في وسائل التواصل الاجتماعي"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:122
+msgid "Social Profiles"
+msgstr "الملفات الشخصية في وسائل التواصل الاجتماعي"
+
+#: packages/admin/src/components/WordPressImport.tsx:1721
+msgid "Some content types cannot be imported"
+msgstr "لا يمكن استيراد بعض أنواع المحتوى"
+
+#: packages/admin/src/components/SignupPage.tsx:261
+msgid "Something went wrong"
+msgstr "حدث خطأ ما"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:122
+msgid "Sort plugins"
+msgstr "ترتيب الإضافات"
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:100
+msgid "Sort themes"
+msgstr "ترتيب المظاهر"
+
+#: packages/admin/src/components/ContentTypeList.tsx:100
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
+#: packages/admin/src/components/PluginManager.tsx:434
+#: packages/admin/src/components/Redirects.tsx:447
+#: packages/admin/src/components/SectionEditor.tsx:232
+msgid "Source"
+msgstr "المصدر"
+
+#: packages/admin/src/components/Redirects.tsx:128
+msgid "Source path"
+msgstr "الرابط النسبي للمصدر"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:197
+msgid "spam"
+msgstr "غير مرغوب فيه"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:159
+#: packages/admin/src/components/comments/CommentInbox.tsx:214
+#: packages/admin/src/components/comments/CommentInbox.tsx:254
+msgid "Spam"
+msgstr "غير مرغوب فيه"
+
+#: packages/admin/src/components/WordPressImport.tsx:1783
+msgid "Start Import"
+msgstr "بدء الاستيراد"
+
+#: packages/admin/src/components/ContentEditor.tsx:773
+#: packages/admin/src/components/ContentList.tsx:219
+#: packages/admin/src/components/ContentTypeEditor.tsx:115
+#: packages/admin/src/components/Redirects.tsx:452
+msgid "Status"
+msgstr "الحالة"
+
+#: packages/admin/src/components/Redirects.tsx:145
+msgid "Status code"
+msgstr "رمز الحالة"
+
+#: packages/admin/src/components/WordPressImport.tsx:1582
+msgid "Structure"
+msgstr "الهيكل"
+
+#: packages/admin/src/components/FieldEditor.tsx:524
+msgid "Sub-Fields"
+msgstr "الحقول الفرعية"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:18
+#: packages/admin/src/components/WelcomeModal.tsx:29
+msgid "Subscriber"
+msgstr "مشترك"
+
+#: packages/admin/src/components/users/UserDetail.tsx:256
+msgid "Synced"
+msgstr "متزامن"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:104
+msgid "Synced passkey"
+msgstr "مفتاح مرور متزامن"
+
+#: packages/admin/src/components/ThemeToggle.tsx:24
+msgid "System ({resolvedLabel})"
+msgstr "النظام ({resolvedLabel})"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/SetupWizard.tsx:154
+msgid "Tagline"
+msgstr "الشعار"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:202
+msgid "Tags"
+msgstr "الوسوم"
+
+#. placeholder {0}: analysis.tags
+#: packages/admin/src/components/WordPressImport.tsx:1640
+msgid "Tags ({0})"
+msgstr "الوسوم ({0})"
+
+#: packages/admin/src/components/WordPressImport.tsx:1637
+msgid "Tags will be imported"
+msgstr "سيتم استيراد الوسوم"
+
+#: packages/admin/src/components/MenuEditor.tsx:283
+#: packages/admin/src/components/MenuEditor.tsx:428
+msgid "Target"
+msgstr "الهدف"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
+msgid "Taxonomies"
+msgstr "التصنيفات"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
+msgid "Taxonomies Manage"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:668
+msgid "Taxonomy created"
+msgstr "تم إنشاء التصنيف"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:589
+msgid "Taxonomy not found:"
+msgstr "لم يتم العثور على التصنيف:"
+
+#: packages/admin/src/components/SetupWizard.tsx:182
+msgid "Template:"
+msgstr "القالب:"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:214
+#: packages/admin/src/components/TaxonomyManager.tsx:610
+msgid "Term"
+msgstr "المصطلح"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:564
+msgid "Term deleted"
+msgstr "تم حذف المصطلح"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:157
+msgid "test@example.com"
+msgstr "test@example.com"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:198
+msgid "The device will not be granted access."
+msgstr "لن يتم منح الجهاز إذن الوصول."
+
+#: packages/admin/src/components/WordPressImport.tsx:1723
+msgid "The existing collection has fields with incompatible types."
+msgstr "المجموعة الموجودة تحتوي على حقول بأنواع غير متوافقة."
+
+#: packages/admin/src/components/ContentTypeList.tsx:58
+msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
+msgstr "الجداول التالية تحتوي على محتوى لكنها غير مسجلة كمجموعات. سجّلها لإدارة هذا المحتوى في لوحة الإدارة."
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:181
+msgid "The invited user will have this role once they complete registration."
+msgstr "سيكون للمستخدم المدعو هذا الدور بمجرد إكمال التسجيل."
+
+#: packages/admin/src/components/LoginPage.tsx:113
+#: packages/admin/src/components/SignupPage.tsx:138
+msgid "The link will expire in 15 minutes."
+msgstr "ستنتهي صلاحية الرابط بعد 15 دقيقة."
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:178
+msgid "The marketplace is empty. Check back later for new plugins."
+msgstr "السوق فارغ. تحقق لاحقًا للعثور على إضافات جديدة."
+
+#: packages/admin/src/components/MenuList.tsx:56
+msgid "The menu has been deleted."
+msgstr "تم حذف القائمة."
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+msgid "The name of your site, used in the header and metadata"
+msgstr "اسم موقعك، يُستخدم في الترويسة والبيانات الوصفية"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:172
+msgid "The public URL of your site (used for canonical links and sitemaps)"
+msgstr "الرابط العام لموقعك (يُستخدم للروابط الأساسية وخرائط الموقع)"
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:151
+msgid "The theme marketplace is empty. Check back later."
+msgstr "سوق المظاهر فارغ. تحقق لاحقًا."
+
+#: packages/admin/src/components/Sections.tsx:241
+msgid "Theme"
+msgstr "المظهر"
+
+#. placeholder {0}: section.themeId
+#: packages/admin/src/components/SectionEditor.tsx:245
+msgid "Theme ID: {0}"
+msgstr "معرف المظهر: {0}"
+
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:93
+msgid "Theme not found"
+msgstr "لم يتم العثور على المظهر"
+
+#: packages/admin/src/components/SectionEditor.tsx:161
+msgid "Theme Section"
+msgstr "قسم مظهر"
+
+#: packages/admin/src/components/Sections.tsx:298
+msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
+msgstr "لا يمكن حذف الأقسام المزودة من مظهر. قم بتعديل القسم لإنشاء نسخة مخصصة، ثم احذفها."
+
+#: packages/admin/src/components/ThemeToggle.tsx:32
+msgid "Theme: {label}"
+msgstr "المظهر: {label}"
+
+#: packages/admin/src/components/Sidebar.tsx:223
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:75
+msgid "Themes"
+msgstr "المظاهر"
+
+#: packages/admin/src/components/ContentEditor.tsx:1602
+msgid "This field is required"
+msgstr "هذا الحقل مطلوب"
+
+#: packages/admin/src/components/SectionEditor.tsx:239
+msgid "This is a custom section."
+msgstr "هذا قسم مخصص."
+
+#: packages/admin/src/components/WordPressImport.tsx:1138
+msgid "This is a WordPress site."
+msgstr "هذا موقع WordPress."
+
+#: packages/admin/src/components/users/InviteUserModal.tsx:112
+msgid "This link expires in 7 days and can only be used once."
+msgstr "ينتهي هذا الرابط بعد 7 أيام ويمكن استخدامه مرة واحدة فقط."
+
+#: packages/admin/src/components/WordPressImport.tsx:812
+msgid "This may take a while for large exports."
+msgstr "قد يستغرق هذا بعض الوقت للتصديرات الكبيرة."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:269
+msgid "This passkey is already registered on this device."
+msgstr "مفتاح المرور هذا مسجل بالفعل على هذا الجهاز."
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:287
+msgid "This plugin requires no special permissions."
+msgstr "لا تتطلب هذه الإضافة صلاحيات خاصة."
+
+#: packages/admin/src/components/Redirects.tsx:558
+msgid "This redirect rule will be permanently removed."
+msgstr "سيتم إزالة قاعدة إعادة التوجيه هذه بشكل نهائي."
+
+#: packages/admin/src/components/SectionEditor.tsx:236
+msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
+msgstr "هذا القسم تم توفيره من المظهر. سيؤدي التعديل إلى إنشاء نسخة مخصصة تحل محل نسخة المظهر."
+
+#: packages/admin/src/components/SectionEditor.tsx:241
+msgid "This section was imported from another system."
+msgstr "تم استيراد هذا القسم من نظام آخر."
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:276
+msgid "This will grant CLI access with your permissions."
+msgstr "سيمنح هذا وصول CLI بنفس صلاحياتك."
+
+#: packages/admin/src/components/ContentEditor.tsx:880
+msgid "This will move the item to trash. You can restore it later from the trash."
+msgstr "سيؤدي هذا إلى نقل العنصر إلى سلة المحذوفات. يمكنك استعادته لاحقًا من سلة المحذوفات."
+
+#. placeholder {0}: deleteTarget?.label
+#: packages/admin/src/components/TaxonomyManager.tsx:654
+msgid "This will permanently delete \"{0}\" and remove it from all content."
+msgstr "سيؤدي هذا إلى حذف \"{0}\" نهائيًا وإزالته من جميع المحتوى."
+
+#. placeholder {0}: sectionToDelete?.title
+#: packages/admin/src/components/Sections.tsx:302
+msgid "This will permanently delete \"{0}\". This action cannot be undone."
+msgstr "سيؤدي هذا إلى حذف \"{0}\" نهائيًا. لا يمكن التراجع عن هذا الإجراء."
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:413
+msgid "This will permanently delete this comment. This action cannot be undone."
+msgstr "سيؤدي هذا إلى حذف هذا التعليق نهائيًا. لا يمكن التراجع عن هذا الإجراء."
+
+#: packages/admin/src/components/PluginManager.tsx:560
+msgid "This will remove the plugin and its bundle from your site."
+msgstr "سيؤدي هذا إلى إزالة الإضافة وحزمتها من موقعك."
+
+#: packages/admin/src/components/ContentEditor.tsx:622
+msgid "This will revert to the published version. Your draft changes will be lost."
+msgstr "سيؤدي هذا إلى الرجوع إلى النسخة المنشورة. ستُفقد تغييرات المسودة."
+
+#: packages/admin/src/components/SetupWizard.tsx:158
+msgid "Thoughts, tutorials, and more"
+msgstr "أفكار، شروحات، والمزيد"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:285
+msgid "Timezone"
+msgstr "المنطقة الزمنية"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:288
+msgid "Timezone for displaying dates (e.g., America/New_York)"
+msgstr "المنطقة الزمنية لعرض التواريخ (مثال: America/New_York)"
+
+#: packages/admin/src/components/ContentList.tsx:213
+#: packages/admin/src/components/ContentList.tsx:335
+#: packages/admin/src/components/SectionEditor.tsx:189
+#: packages/admin/src/components/Sections.tsx:168
+msgid "Title"
+msgstr "العنوان"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:315
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:480
+msgid "Title (Tooltip)"
+msgstr "العنوان (تلميح)"
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:134
+msgid "Title Separator"
+msgstr "فاصل العنوان"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:470
+msgid "to close"
+msgstr "للإغلاق"
+
+#: packages/admin/src/components/PluginManager.tsx:198
+msgid "to install plugins, or add them to your astro.config.mjs."
+msgstr "لتثبيت الإضافات، أو أضفها إلى ملف astro.config.mjs الخاص بك."
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:460
+msgid "to select"
+msgstr "للإختيار"
+
+#: packages/admin/src/components/ThemeToggle.tsx:30
+#: packages/admin/src/components/ThemeToggle.tsx:41
+msgid "Toggle theme (current: {label})"
+msgstr "تبديل المظهر (الحالي: {label})"
+
+#. placeholder {0}: newToken.info.name
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+msgid "Token created: {0}"
+msgstr "تم إنشاء الرمز: {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
+msgid "Token Name"
+msgstr "اسم الرمز"
+
+#: packages/admin/src/components/WordPressImport.tsx:1107
+msgid "Tools → Export"
+msgstr "الأدوات > التصدير"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:75
+msgid "Track content history"
+msgstr "تتبع تاريخ المحتوى"
+
+#: packages/admin/src/components/ContentEditor.tsx:976
+msgid "Translate"
+msgstr "ترجمة"
+
+#: packages/admin/src/components/ContentEditor.tsx:934
+msgid "Translations"
+msgstr "الترجمات"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:198
+msgid "trash"
+msgstr "سلة المحذوفات"
+
+#: packages/admin/src/components/comments/CommentDetail.tsx:170
+#: packages/admin/src/components/comments/CommentInbox.tsx:223
+#: packages/admin/src/components/comments/CommentInbox.tsx:264
+#: packages/admin/src/components/comments/CommentInbox.tsx:520
+#: packages/admin/src/components/ContentList.tsx:193
+msgid "Trash"
+msgstr "سلة المحذوفات"
+
+#: packages/admin/src/components/ContentList.tsx:349
+msgid "Trash is empty"
+msgstr "سلة المحذوفات فارغة"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:556
+msgid "Trash is empty."
+msgstr "سلة المحذوفات فارغة."
+
+#: packages/admin/src/components/FieldEditor.tsx:171
+msgid "True/false toggle"
+msgstr "زر صح/خطأ"
+
+#: packages/admin/src/components/MediaLibrary.tsx:366
+#: packages/admin/src/components/MediaPickerModal.tsx:494
+msgid "Try a different search term"
+msgstr "جرّب مصطلح بحث مختلف"
+
+#: packages/admin/src/components/ContentPickerModal.tsx:177
+#: packages/admin/src/components/SectionPickerModal.tsx:102
+msgid "Try adjusting your search"
+msgstr "جرّب تعديل بحثك"
+
+#: packages/admin/src/components/Sections.tsx:258
+msgid "Try adjusting your search or filters."
+msgstr "جرّب تعديل بحثك أو عوامل التصفية."
+
+#: packages/admin/src/components/WordPressImport.tsx:1412
+msgid "Try Again"
+msgstr "حاول مجددًا"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:207
+msgid "Try another code"
+msgstr "جرّب رمزًا آخر"
+
+#: packages/admin/src/components/WordPressImport.tsx:1116
+#: packages/admin/src/components/WordPressImport.tsx:1238
+msgid "Try Another URL"
+msgstr "جرّب رابطًا آخر"
+
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:250
+#: packages/admin/src/components/ThemeMarketplaceDetail.tsx:145
+msgid "Try with my data"
+msgstr "جرّب مع بياناتي"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:128
+msgid "Twitter"
+msgstr "تويتر"
+
+#: packages/admin/src/components/FieldEditor.tsx:571
+#: packages/admin/src/components/MediaLibrary.tsx:417
+msgid "Type"
+msgstr "النوع"
+
+#. placeholder {0}: status.existingType
+#: packages/admin/src/components/WordPressImport.tsx:1881
+msgid "Type mismatch ({0})"
+msgstr "عدم تطابق النوع ({0})"
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:136
+#: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
+msgid "Unable to reach marketplace"
+msgstr "تعذّر الوصول إلى السوق"
+
+#: packages/admin/src/components/ContentEditor.tsx:1897
+#: packages/admin/src/components/ContentEditor.tsx:1912
+msgid "Unassigned"
+msgstr "لم يتم التعيين"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:190
+#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:578
+msgid "Uninstall"
+msgstr "إلغاء التثبيت"
+
+#: packages/admin/src/components/PluginManager.tsx:558
+msgid "Uninstall {pluginName}?"
+msgstr "إلغاء تثبيت {pluginName}؟"
+
+#: packages/admin/src/components/PluginManager.tsx:553
+msgid "Uninstall confirmation"
+msgstr "تأكيد إلغاء التثبيت"
+
+#: packages/admin/src/components/PluginManager.tsx:578
+msgid "Uninstalling..."
+msgstr "جاري إلغاء التثبيت..."
+
+#: packages/admin/src/components/FieldEditor.tsx:439
+msgid "Unique"
+msgstr "فريد"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:105
+msgid "Unique identifier (ULID)"
+msgstr "معرف فريد (ULID)"
+
+#: packages/admin/src/components/users/useRolesConfig.ts:7
+msgid "Unknown"
+msgstr "غير معروف"
+
+#: packages/admin/src/components/users/roleDefinitions.ts:62
+msgid "Unknown role"
+msgstr "دور غير معروف"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:271
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:272
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:436
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:437
+msgid "Unlock aspect ratio"
+msgstr "إلغاء تثبيت نسبة العرض إلى الارتفاع"
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:152
+#: packages/admin/src/components/users/UserDetail.tsx:254
+msgid "Unnamed passkey"
+msgstr "مفتاح مرور بدون اسم"
+
+#: packages/admin/src/components/ContentEditor.tsx:651
+msgid "Unpublish"
+msgstr "إلغاء النشر"
+
+#: packages/admin/src/components/ContentTypeList.tsx:55
+msgid "Unregistered Content Tables Found"
+msgstr "تم العثور على جداول محتوى غير مسجلة"
+
+#: packages/admin/src/components/ContentEditor.tsx:798
+msgid "Unschedule"
+msgstr "إلغاء الجدولة"
+
+#: packages/admin/src/components/Dashboard.tsx:249
+msgid "Untitled"
+msgstr "بدون عنوان"
+
+#: packages/admin/src/components/ContentEditor.tsx:1724
+msgid "Up"
+msgstr "أعلى"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:310
+msgid "Update"
+msgstr "تحديث"
+
+#: packages/admin/src/components/FieldEditor.tsx:656
+msgid "Update Field"
+msgstr "تحديث الحقل"
+
+#. placeholder {0}: editingDomain?.domain
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
+msgid "Update settings for {0}"
+msgstr "تحديث الإعدادات لـ {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
+msgid "Update site settings"
+msgstr ""
+
+#. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
+#: packages/admin/src/components/TaxonomyManager.tsx:218
+msgid "Update the {0} details"
+msgstr "تحديث تفاصيل {0}"
+
+#: packages/admin/src/components/Redirects.tsx:106
+msgid "Update this redirect rule."
+msgstr "تحديث قاعدة التحويل هذه."
+
+#. placeholder {0}: updateInfo.latest
+#: packages/admin/src/components/PluginManager.tsx:363
+msgid "Update to v{0}"
+msgstr "التحديث إلى الإصدار {0}"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:127
+msgid "Updated At"
+msgstr "تم التحديث في"
+
+#. placeholder {0}: new Date(item.updatedAt).toLocaleString()
+#: packages/admin/src/components/ContentEditor.tsx:855
+msgid "Updated: {0}"
+msgstr "تم التحديث: {0}"
+
+#: packages/admin/src/components/WordPressImport.tsx:835
+msgid "Updating content URLs..."
+msgstr "جاري تحديث روابط المحتوى..."
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:363
+msgid "Updating..."
+msgstr "جاري التحديث..."
+
+#: packages/admin/src/components/MediaPickerModal.tsx:462
+msgid "Upload"
+msgstr "رفع"
+
+#: packages/admin/src/components/WordPressImport.tsx:1221
+msgid "Upload an export file"
+msgstr "رفع ملف تصدير"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:496
+msgid "Upload an image to get started"
+msgstr "ارفع صورة للبدء"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:70
+msgid "Upload and delete media"
+msgstr "رفع وحذف الوسائط"
+
+#: packages/admin/src/components/WordPressImport.tsx:1114
+#: packages/admin/src/components/WordPressImport.tsx:1235
+msgid "Upload Export File"
+msgstr "رفع ملف التصدير"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:478
+msgid "Upload failed: {uploadError}"
+msgstr "فشل الرفع: {uploadError}"
+
+#: packages/admin/src/components/MediaLibrary.tsx:323
+msgid "Upload files"
+msgstr "رفع ملفات"
+
+#: packages/admin/src/components/MediaLibrary.tsx:357
+msgid "Upload Files"
+msgstr "رفع ملفات"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:505
+msgid "Upload Image"
+msgstr "رفع صورة"
+
+#: packages/admin/src/components/MediaLibrary.tsx:354
+msgid "Upload images, videos, and documents to get started."
+msgstr "ارفع صور، مقاطع فيديو، ومستندات للبدء."
+
+#: packages/admin/src/components/Dashboard.tsx:89
+msgid "Upload Media"
+msgstr "رفع وسائط"
+
+#: packages/admin/src/components/MediaLibrary.tsx:368
+msgid "Upload media to get started"
+msgstr "ارفع وسائط للبدء"
+
+#. placeholder {0}: activeProviderInfo?.name || t`Library`
+#: packages/admin/src/components/MediaLibrary.tsx:314
+msgid "Upload to {0}"
+msgstr "رفع إلى {0}"
+
+#: packages/admin/src/components/WordPressImport.tsx:951
+msgid "Upload WordPress export file"
+msgstr "رفع ملف تصدير WordPress"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:184
+msgid "Uploaded:"
+msgstr "تم الرفع:"
+
+#: packages/admin/src/components/WordPressImport.tsx:1990
+msgid "Uploading"
+msgstr "جاري الرفع"
+
+#. placeholder {0}: uploadState.progress.current
+#. placeholder {1}: uploadState.progress.total
+#: packages/admin/src/components/MediaLibrary.tsx:289
+msgid "Uploading {0}/{1}..."
+msgstr "جاري رفع {0}/{1}..."
+
+#: packages/admin/src/components/MediaLibrary.tsx:290
+#: packages/admin/src/components/MediaPickerModal.tsx:462
+msgid "Uploading..."
+msgstr "جاري الرفع..."
+
+#: packages/admin/src/components/FieldEditor.tsx:230
+#: packages/admin/src/components/FieldEditor.tsx:588
+#: packages/admin/src/components/MenuEditor.tsx:274
+#: packages/admin/src/components/MenuEditor.tsx:418
+msgid "URL"
+msgstr "الرابط"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:111
+#: packages/admin/src/components/FieldEditor.tsx:225
+msgid "URL-friendly identifier"
+msgstr "معرف مناسب للروابط"
+
+#: packages/admin/src/components/MenuList.tsx:133
+msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
+msgstr "معرف مناسب للروابط (مثال: \"primary\"، \"footer\")"
+
+#: packages/admin/src/components/Redirects.tsx:107
+msgid "Use [param] or [...rest] in paths for pattern matching."
+msgstr "استخدم [param] أو [...rest] في الروابط النسبية لمطابقة الأنماط."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:366
+msgid "Use your device's biometric authentication, security key, or PIN to sign in."
+msgstr "استخدم المصادقة الحيوية لجهازك أو مفتاح الأمان أو رمز PIN لتسجيل الدخول."
+
+#: packages/admin/src/components/LoginPage.tsx:326
+msgid "Use your registered passkey to sign in securely."
+msgstr "قم باستخدام مفتاح المرور المسجل الخاص بك لتسجيل الدخول بشكل آمن."
+
+#: packages/admin/src/components/TaxonomyManager.tsx:476
+msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
+msgstr "يُستخدم كمعرف. أحرف صغيرة وأرقام وشرطات سفلية فقط."
+
+#: packages/admin/src/components/ContentEditor.tsx:1275
+msgid "Used as the main visual for this post on listing pages and at the top of the post"
+msgstr "يُستخدم كالصورة الرئيسية لهذا المنشور في صفحات القائمة وأعلى المنشور"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:206
+msgid "Used by screen readers and when image fails to load"
+msgstr "يُستخدم بواسطة قارئات الشاشة وعند فشل تحميل الصورة"
+
+#: packages/admin/src/components/SectionEditor.tsx:207
+#: packages/admin/src/components/Sections.tsx:194
+msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
+msgstr "يُستخدم لتحديد هوية هذا القسم. أحرف صغيرة وأرقام وشرطات فقط."
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
+#: packages/admin/src/components/Header.tsx:37
+#: packages/admin/src/components/Header.tsx:75
+msgid "User"
+msgstr "المستخدم"
+
+#. placeholder {0}: manifest?.authMode
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:197
+msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
+msgstr "تتم إدارة وصول المستخدمين بواسطة مزود خارجي ({0}). إعدادات نطاق التسجيل الذاتي غير متاحة عند استخدام المصادقة الخارجية."
+
+#: packages/admin/src/components/users/UserDetail.tsx:116
+msgid "User Details"
+msgstr "تفاصيل المستخدم"
+
+#: packages/admin/src/components/users/UserDetail.tsx:296
+msgid "User not found"
+msgstr "لم يتم العثور على المستخدم"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:211
+#: packages/admin/src/components/Sidebar.tsx:211
+msgid "Users"
+msgstr "المستخدمين"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:421
+msgid "Users from"
+msgstr "المستخدمون من"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:249
+msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
+msgstr "يمكن للمستخدمين الذين لديهم عناوين بريد إلكتروني من هذه النطاقات التسجيل بدون دعوة. سيتم منحهم الدور الذي تم تحديده تلقائيًا."
+
+#. placeholder {0}: updateInfo.latest
+#: packages/admin/src/components/PluginManager.tsx:312
+msgid "v{0} available"
+msgstr "الإصدار {0} متاح"
+
+#: packages/admin/src/components/FieldEditor.tsx:461
+#: packages/admin/src/components/FieldEditor.tsx:491
+msgid "Validation"
+msgstr "التحقق"
+
+#: packages/admin/src/components/SignupPage.tsx:387
+msgid "Verifying your link..."
+msgstr "جاري التحقق من رابطك..."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:213
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:215
+msgid "Verifying..."
+msgstr "جاري التحقق..."
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:331
+msgid "Version"
+msgstr "الإصدار"
+
+#: packages/admin/src/components/Settings.tsx:116
+msgid "View email provider status and send test emails"
+msgstr "عرض حالة مزود البريد الإلكتروني وإرسال رسائل تجريبية."
+
+#: packages/admin/src/components/PluginManager.tsx:371
+msgid "View in Marketplace"
+msgstr "عرض في السوق"
+
+#: packages/admin/src/components/MediaLibrary.tsx:227
+msgid "View mode"
+msgstr "وضع العرض"
+
+#: packages/admin/src/components/ContentList.tsx:499
+msgid "View published {title}"
+msgstr "عرض {title} المنشور"
+
+#: packages/admin/src/components/Header.tsx:51
+msgid "View Site"
+msgstr "عرض الموقع"
+
+#: packages/admin/src/components/Redirects.tsx:429
+msgid "Visitors hitting these paths will see an error."
+msgstr "الزوار الذين يصلون إلى هذه المسارات سيرون خطأً."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:180
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:184
+msgid "Waiting for passkey..."
+msgstr "جاري انتظار مفتاح المرور..."
+
+#: packages/admin/src/components/MarketplaceBrowse.tsx:334
+msgid "Warn"
+msgstr "تحذير"
+
+#. placeholder {0}: result.url
+#: packages/admin/src/components/WordPressImport.tsx:1096
+msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
+msgstr "تعذّر الاتصال بموقع WordPress على {0}. قد يعني هذا أن الموقع ليس WordPress، أو أن REST API معطل، أو أن الموقع غير متاح."
+
+#: packages/admin/src/components/WordPressImport.tsx:917
+msgid "We'll check what import options are available for your site."
+msgstr "سنقوم بالتحقق من خيارات الاستيراد المتاحة لموقعك."
+
+#: packages/admin/src/components/LoginPage.tsx:323
+msgid "We'll send you a link to sign in without a password."
+msgstr "سنقوم بإرسال رابط إليك لتسجيل الدخول بدون كلمة مرور."
+
+#: packages/admin/src/components/SignupPage.tsx:131
+msgid "We've sent a verification link to"
+msgstr "لقد أرسلنا رابط تحقق إلى"
+
+#: packages/admin/src/components/FieldEditor.tsx:231
+msgid "Web address"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:159
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:163
+msgid "WebAuthn is not supported in this browser"
+msgstr "WebAuthn غير مدعوم في هذا المتصفح"
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:236
+msgid "Website"
+msgstr "الموقع الإلكتروني"
+
+#: packages/admin/src/components/WelcomeModal.tsx:96
+msgid "Welcome to EmDash, {firstName}!"
+msgstr "أهلا بك في EmDash، {firstName}!"
+
+#: packages/admin/src/components/WelcomeModal.tsx:96
+msgid "Welcome to EmDash!"
+msgstr "أهلا بك في EmDash!"
+
+#: packages/admin/src/components/WordPressImport.tsx:1954
+msgid "What happens when you import:"
+msgstr "ما يحدث عند الاستيراد:"
+
+#: packages/admin/src/components/WordPressImport.tsx:1735
+msgid "What will happen when you import"
+msgstr "ما سيحدث عند الاستيراد"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:123
+msgid "When the entry was created"
+msgstr "متى تم إنشاء المُدخل"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:129
+msgid "When the entry was last modified"
+msgstr "متى تم تحديث المُدخل في آخر مرة"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:135
+msgid "When the entry was published"
+msgstr "متى تم نشر المُدخل"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:490
+msgid "Which content types can use this taxonomy"
+msgstr "أنواع المحتوى التي يمكنها استخدام هذا التصنيف"
+
+#: packages/admin/src/components/FieldEditor.tsx:165
+msgid "Whole number"
+msgstr "عدد صحيح"
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:169
+#: packages/admin/src/components/PluginManager.tsx:333
+#: packages/admin/src/components/Sidebar.tsx:197
+msgid "Widgets"
+msgstr "عناصر واجهة المستخدم"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:425
+msgid "Width"
+msgstr "العرض"
+
+#: packages/admin/src/components/WordPressImport.tsx:1877
+msgid "Will create"
+msgstr "سيتم إنشاء"
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:422
+msgid "will no longer be able to sign up without an invite. Existing users are not affected."
+msgstr "لن يتمكنوا من التسجيل بدون دعوة بعد الآن. لن يتأثر المستخدمون الحاليون."
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:193
+msgid "Without an email provider, invite links must be shared manually."
+msgstr "عند عدم وجود مزود بريد إلكتروني، يجب مشاركة روابط الدعوة يدويًا."
+
+#: packages/admin/src/components/WordPressImport.tsx:1306
+msgid "WordPress Username"
+msgstr "اسم مستخدم WordPress"
+
+#: packages/admin/src/components/WordPressImport.tsx:1014
+msgid "WXR File"
+msgstr "ملف WXR"
+
+#: packages/admin/src/components/users/UserDetail.tsx:236
+msgid "Yes"
+msgstr "نعم"
+
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
+msgid "You can close this page and return to your terminal."
+msgstr "يمكنك إغلاق هذه الصفحة والعودة إلى الطرفية الخاصة بك."
+
+#: packages/admin/src/components/WelcomeModal.tsx:43
+msgid "You can create and edit your own content."
+msgstr "يمكنك إنشاء وتحرير محتواك الخاص."
+
+#: packages/admin/src/components/WelcomeModal.tsx:42
+msgid "You can manage content, media, menus, and taxonomies."
+msgstr "يمكنك إدارة المحتوى، الوسائط، القوائم، والتصنيفات."
+
+#: packages/admin/src/components/WelcomeModal.tsx:44
+msgid "You can view and contribute to the site."
+msgstr "يمكنك الاطلاع والمساهمة في الموقع."
+
+#: packages/admin/src/components/users/UserDetail.tsx:175
+msgid "You cannot change your own role"
+msgstr "لا يمكنك تغيير دورك الخاص"
+
+#: packages/admin/src/components/WelcomeModal.tsx:41
+msgid "You have full access to manage this site, including users, settings, and all content."
+msgstr "لديك الصلاحية الكاملة لإدارة هذا الموقع، بما في ذلك المستخدمين، الإعدادات، وكامل المحتوى."
+
+#. placeholder {0}: passkey.name
+#: packages/admin/src/components/settings/PasskeyItem.tsx:206
+msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
+msgstr "لن تتمكن من استخدام \"{0}\" لتسجيل الدخول بعد الآن. لا يمكن التراجع عن هذا الإجراء."
+
+#: packages/admin/src/components/settings/PasskeyItem.tsx:207
+msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
+msgstr "لن تتمكن من استخدام مفتاح المرور هذا لتسجيل الدخول بعد الآن. لا يمكن التراجع عن هذا الإجراء."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:369
+msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
+msgstr "ستتلقى طلبًا لاستخدام المصادقة الحيوية لجهازك أو مفتاح الأمان أو رمز PIN."
+
+#: packages/admin/src/components/WordPressImport.tsx:1199
+msgid "You'll be redirected to WordPress to authorize the connection."
+msgstr "سيتم توجيهك إلى WordPress لتفويض الاتصال."
+
+#: packages/admin/src/components/SignupPage.tsx:190
+msgid "You'll be signing up as"
+msgstr "ستقوم بالتسجيل بوصفك"
+
+#: packages/admin/src/components/SetupWizard.tsx:575
+msgid "You're signed in via Cloudflare Access"
+msgstr "تم تسجيل دخولك عبر Cloudflare Access"
+
+#: packages/admin/src/components/SignupPage.tsx:69
+msgid "you@company.com"
+msgstr "you@company.com"
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:336
+#: packages/admin/src/components/SetupWizard.tsx:228
+msgid "you@example.com"
+msgstr "you@example.com"
+
+#: packages/admin/src/components/WelcomeModal.tsx:39
+msgid "Your account has been created successfully."
+msgstr "تم إنشاء حسابك بنجاح."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:318
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:315
+msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
+msgstr "متصفحك لا يدعم مفاتيح المرور. يرجى استخدام متصفح حديث مثل Chrome أو Safari أو Firefox أو Edge."
+
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:269
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:272
+msgid "Your device doesn't support the required security features."
+msgstr "جهازك لا يدعم ميزات الأمن المطلوبة."
+
+#: packages/admin/src/components/SetupWizard.tsx:224
+msgid "Your Email"
+msgstr "بريدك الإلكتروني"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:143
+msgid "Your Facebook page or profile username"
+msgstr "اسم مستخدم صفحة أو ملف Facebook الشخصي"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:137
+msgid "Your GitHub username"
+msgstr "اسم مستخدم GitHub الخاص بك"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:149
+msgid "Your Instagram username"
+msgstr "اسم مستخدم Instagram الخاص بك"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:155
+msgid "Your LinkedIn profile username"
+msgstr "اسم مستخدم ملف LinkedIn الشخصي"
+
+#: packages/admin/src/components/SetupWizard.tsx:236
+msgid "Your Name"
+msgstr "اسمك"
+
+#: packages/admin/src/components/SignupPage.tsx:200
+msgid "Your name (optional)"
+msgstr "اسمك (اختياري)"
+
+#: packages/admin/src/components/WelcomeModal.tsx:40
+msgid "Your Role"
+msgstr "دورك"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:131
+msgid "Your Twitter/X handle (e.g., @username)"
+msgstr "معرّف Twitter/X الخاص بك (مثال: @username)"
+
+#. placeholder {0}: attachments.count
+#: packages/admin/src/components/WordPressImport.tsx:1925
+msgid "Your WordPress export contains {0} media files."
+msgstr "تصدير WordPress الخاص بك يحتوي على {0} ملف وسائط."
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:161
+msgid "Your YouTube channel ID or handle"
+msgstr "معرف قناة YouTube أو المعرّف الخاص بك"
+
+#: packages/admin/src/components/settings/SocialSettings.tsx:158
+msgid "YouTube"
+msgstr "يوتيوب"
