@@ -118,6 +118,23 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("accordion", () => {
+			const result = validateBlocks([
+				{
+					type: "accordion",
+					label: "Advanced settings",
+					default_open: false,
+					blocks: [{ type: "section", text: "Hidden content" }, { type: "divider" }],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("accordion with empty blocks array", () => {
+			const result = validateBlocks([{ type: "accordion", label: "Empty", blocks: [] }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -410,6 +427,32 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].actions[0].style");
+		});
+
+		it("accordion missing label", () => {
+			const result = validateBlocks([{ type: "accordion", blocks: [] }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((e) => e.path)).toContain("blocks[0].label");
+		});
+
+		it("accordion with invalid nested blocks reports correct path", () => {
+			const result = validateBlocks([
+				{
+					type: "accordion",
+					label: "Wrap",
+					blocks: [{ type: "header" }],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].blocks[0].text");
+		});
+
+		it("accordion with non-boolean default_open", () => {
+			const result = validateBlocks([
+				{ type: "accordion", label: "Wrap", blocks: [], default_open: "yes" },
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
 		});
 
 		it("stats item missing label or value", () => {

@@ -145,6 +145,14 @@ vi.mock("@cloudflare/kumo", () => ({
 			</label>
 		),
 	},
+	Collapsible: ({ children, label, open, onOpenChange }: any) => (
+		<div data-testid="collapsible" data-open={open ? "true" : "false"}>
+			<button type="button" onClick={() => onOpenChange?.(!open)}>
+				{label}
+			</button>
+			{open && <div data-testid="collapsible-content">{children}</div>}
+		</div>
+	),
 	Combobox: Object.assign(
 		({ children, label }: any) => (
 			<div data-testid="combobox">
@@ -467,6 +475,48 @@ describe("BlockRenderer", () => {
 	it("empty block omits contents when actions array is empty", () => {
 		const { container } = renderBlocks([{ type: "empty", title: "X", actions: [] }]);
 		expect(container.querySelectorAll("button").length).toBe(0);
+	});
+
+	it("accordion block renders label closed by default and reveals nested blocks on open", () => {
+		const { container } = renderBlocks([
+			{
+				type: "accordion",
+				label: "Advanced",
+				blocks: [{ type: "header", text: "Hidden heading" }],
+			},
+		]);
+
+		expect(screen.getByText("Advanced")).toBeTruthy();
+		expect(container.querySelector('[data-testid="collapsible"]')?.getAttribute("data-open")).toBe(
+			"false",
+		);
+		expect(screen.queryByText("Hidden heading")).toBeNull();
+
+		fireEvent.click(screen.getByText("Advanced"));
+		expect(screen.getByText("Hidden heading")).toBeTruthy();
+	});
+
+	it("accordion block respects default_open and forwards onAction from nested blocks", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "accordion",
+					label: "Tools",
+					default_open: true,
+					blocks: [
+						{
+							type: "actions",
+							elements: [{ type: "button", action_id: "ping", label: "Ping" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		fireEvent.click(screen.getByText("Ping"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
 	});
 
 	it("columns block renders blocks in columns", () => {

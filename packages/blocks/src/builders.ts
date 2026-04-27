@@ -1,4 +1,5 @@
 import type {
+	AccordionBlock,
 	ActionsBlock,
 	BannerBlock,
 	Block,
@@ -442,6 +443,21 @@ function empty(opts: {
 	};
 }
 
+function accordion(opts: {
+	blockId?: string;
+	label: string;
+	blocks: Block[];
+	defaultOpen?: boolean;
+}): AccordionBlock {
+	return {
+		type: "accordion",
+		label: opts.label,
+		blocks: opts.blocks,
+		...(opts.defaultOpen !== undefined && { default_open: opts.defaultOpen }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -462,6 +478,7 @@ export const blocks = {
 	meter,
 	code: codeBlock,
 	empty,
+	accordion,
 };
 
 export const elements = {
