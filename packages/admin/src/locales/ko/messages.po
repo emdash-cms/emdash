@@ -444,7 +444,7 @@ msgid "Add"
 msgstr "추가"
 
 #. placeholder {0}: field.item_label
-#: packages/admin/src/components/PortableTextEditor.tsx:1266
+#: packages/admin/src/components/PortableTextEditor.tsx:1289
 msgid "Add {0}"
 msgstr ""
 
@@ -493,7 +493,7 @@ msgstr "필드 추가"
 msgid "Add First Item"
 msgstr "첫 번째 항목 추가"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1266
+#: packages/admin/src/components/PortableTextEditor.tsx:1289
 msgid "Add item"
 msgstr ""
 
@@ -1139,7 +1139,7 @@ msgstr "연결됨 {0}"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:1752
+#: packages/admin/src/components/PortableTextEditor.tsx:1779
 #: packages/admin/src/components/SectionEditor.tsx:174
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
@@ -1778,7 +1778,7 @@ msgstr "초안"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "끌어서 놓거나 클릭하여 찾아보세요(.xml)."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1442
+#: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Drag to reorder"
 msgstr ""
 
@@ -1909,11 +1909,11 @@ msgid "Email verified!"
 msgstr "이메일이 확인되었습니다!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:1764
+#: packages/admin/src/components/PortableTextEditor.tsx:1791
 msgid "Embed a {0}"
 msgstr "{0} 삽입"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1767
+#: packages/admin/src/components/PortableTextEditor.tsx:1794
 msgid "Embeds"
 msgstr "삽입"
 
@@ -2356,7 +2356,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0>에 대한 계정이 존재하는 경우 로그인 링크가 전송되었습니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:200
-#: packages/admin/src/components/PortableTextEditor.tsx:1734
+#: packages/admin/src/components/PortableTextEditor.tsx:1761
 msgid "Image"
 msgstr "이미지"
 
@@ -2496,11 +2496,11 @@ msgstr "코드 블록 삽입"
 msgid "Insert a horizontal rule"
 msgstr "수평선 삽입"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1749
+#: packages/admin/src/components/PortableTextEditor.tsx:1776
 msgid "Insert a reusable section"
 msgstr "재사용 가능한 섹션 삽입"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1735
+#: packages/admin/src/components/PortableTextEditor.tsx:1762
 msgid "Insert an image"
 msgstr "이미지 삽입"
 
@@ -2568,7 +2568,7 @@ msgid "Invite User"
 msgstr "사용자 초대"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1428
+#: packages/admin/src/components/PortableTextEditor.tsx:1451
 #: packages/admin/src/components/RepeaterField.tsx:232
 msgid "Item {0}"
 msgstr "항목 {0}"
@@ -2870,7 +2870,7 @@ msgstr "최대 길이"
 msgid "Max Value"
 msgstr "최대값"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1738
+#: packages/admin/src/components/PortableTextEditor.tsx:1765
 #: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
@@ -3228,7 +3228,7 @@ msgstr "비교할 필드가 없습니다."
 msgid "No headings in document"
 msgstr "문서에 제목이 없습니다."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1351
+#: packages/admin/src/components/PortableTextEditor.tsx:1374
 #: packages/admin/src/components/RepeaterField.tsx:158
 msgid "No items yet"
 msgstr "아직 항목이 없습니다"
@@ -3845,7 +3845,7 @@ msgid "Remove Image?"
 msgstr "이미지를 삭제하시겠습니까?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1467
+#: packages/admin/src/components/PortableTextEditor.tsx:1490
 #: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Remove item {0}"
 msgstr "항목 {0} 삭제"
@@ -4243,7 +4243,7 @@ msgstr "검색..."
 msgid "Searchable"
 msgstr "검색 가능"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1748
+#: packages/admin/src/components/PortableTextEditor.tsx:1775
 msgid "Section"
 msgstr "섹션"
 

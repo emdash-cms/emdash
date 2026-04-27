@@ -448,7 +448,7 @@ msgid "Add"
 msgstr "إضافة"
 
 #. placeholder {0}: field.item_label
-#: packages/admin/src/components/PortableTextEditor.tsx:1266
+#: packages/admin/src/components/PortableTextEditor.tsx:1289
 msgid "Add {0}"
 msgstr ""
 
@@ -497,7 +497,7 @@ msgstr "إضافة حقول"
 msgid "Add First Item"
 msgstr "إضافة أول عنصر"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1266
+#: packages/admin/src/components/PortableTextEditor.tsx:1289
 msgid "Add item"
 msgstr ""
 
@@ -1143,7 +1143,7 @@ msgstr "متصل {0}"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:1752
+#: packages/admin/src/components/PortableTextEditor.tsx:1779
 #: packages/admin/src/components/SectionEditor.tsx:174
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
@@ -1782,7 +1782,7 @@ msgstr "المسودات"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "اسحب وأفلت أو اضغط للتصفح (.xml)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1442
+#: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Drag to reorder"
 msgstr ""
 
@@ -1913,11 +1913,11 @@ msgid "Email verified!"
 msgstr "تم التحقق من البريد الإلكتروني!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:1764
+#: packages/admin/src/components/PortableTextEditor.tsx:1791
 msgid "Embed a {0}"
 msgstr "تضمين {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1767
+#: packages/admin/src/components/PortableTextEditor.tsx:1794
 msgid "Embeds"
 msgstr "المضمنات"
 
@@ -2360,7 +2360,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "إذا كان يوجد حساب لـ <0>{email}</0>، قمنا بإرسال رابط لتسجيل دخول."
 
 #: packages/admin/src/components/FieldEditor.tsx:200
-#: packages/admin/src/components/PortableTextEditor.tsx:1734
+#: packages/admin/src/components/PortableTextEditor.tsx:1761
 msgid "Image"
 msgstr "صورة"
 
@@ -2500,11 +2500,11 @@ msgstr "إدراج كتلة كود"
 msgid "Insert a horizontal rule"
 msgstr "إدراج فاصل أفقي"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1749
+#: packages/admin/src/components/PortableTextEditor.tsx:1776
 msgid "Insert a reusable section"
 msgstr "إدراج قسم قابل لإعادة الاستخدام"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1735
+#: packages/admin/src/components/PortableTextEditor.tsx:1762
 msgid "Insert an image"
 msgstr "إدراج صورة"
 
@@ -2572,7 +2572,7 @@ msgid "Invite User"
 msgstr "دعوة مستخدم"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1428
+#: packages/admin/src/components/PortableTextEditor.tsx:1451
 #: packages/admin/src/components/RepeaterField.tsx:232
 msgid "Item {0}"
 msgstr "العنصر {0}"
@@ -2874,7 +2874,7 @@ msgstr "الحد الأقصى للطول"
 msgid "Max Value"
 msgstr "القيمة القصوى"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1738
+#: packages/admin/src/components/PortableTextEditor.tsx:1765
 #: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
@@ -3232,7 +3232,7 @@ msgstr "لا توجد حقول للمقارنة"
 msgid "No headings in document"
 msgstr "لا يوجد عناوين في المستند"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1351
+#: packages/admin/src/components/PortableTextEditor.tsx:1374
 #: packages/admin/src/components/RepeaterField.tsx:158
 msgid "No items yet"
 msgstr "لا توجد عناصر بعد"
@@ -3849,7 +3849,7 @@ msgid "Remove Image?"
 msgstr "إزالة الصورة؟"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1467
+#: packages/admin/src/components/PortableTextEditor.tsx:1490
 #: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Remove item {0}"
 msgstr "إزالة العنصر {0}"
@@ -4247,7 +4247,7 @@ msgstr "بحث..."
 msgid "Searchable"
 msgstr "قابل للبحث"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1748
+#: packages/admin/src/components/PortableTextEditor.tsx:1775
 msgid "Section"
 msgstr "قسم"
 
