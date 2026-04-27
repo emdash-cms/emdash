@@ -1,0 +1,53 @@
+{
+	"name": "@emdash-cms/auth-atproto",
+	"version": "0.1.0",
+	"description": "AT Protocol / Atmosphere authentication provider for EmDash CMS",
+	"type": "module",
+	"main": "src/auth.ts",
+	"exports": {
+		".": "./src/auth.ts",
+		"./admin": "./src/admin.tsx",
+		"./oauth-client": "./src/oauth-client.ts",
+		"./resolve-handle": "./src/resolve-handle.ts",
+		"./routes/*": "./src/routes/*"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"auth",
+		"atproto",
+		"bluesky",
+		"atmosphere"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"peerDependencies": {
+		"astro": ">=5",
+		"emdash": "workspace:*",
+		"react": ">=18"
+	},
+	"devDependencies": {
+		"@atcute/lexicons": "^1.2.10",
+		"@cloudflare/kumo": "^1.16.0",
+		"@types/react": "^19.0.0",
+		"vitest": "catalog:"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/auth-atproto"
+	},
+	"dependencies": {
+		"@atcute/identity-resolver": "^1.2.2",
+		"@atcute/oauth-node-client": "^1.1.0",
+		"@emdash-cms/auth": "workspace:*",
+		"kysely": "^0.27.6"
+	}
+}

@@ -136,6 +136,10 @@ export async function fetchContentList(
 		limit?: number;
 		status?: string;
 		locale?: string;
+		/** Field name to order by, matching the server's whitelist. */
+		orderBy?: string;
+		/** Sort direction; defaults to "desc" on the server. */
+		order?: "asc" | "desc";
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -143,6 +147,8 @@ export async function fetchContentList(
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.status) params.set("status", options.status);
 	if (options?.locale) params.set("locale", options.locale);
+	if (options?.orderBy) params.set("orderBy", options.orderBy);
+	if (options?.order) params.set("order", options.order);
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);

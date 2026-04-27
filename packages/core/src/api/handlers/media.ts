@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 
 import { MediaRepository, type MediaItem } from "../../database/repositories/media.js";
+import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
@@ -43,7 +44,13 @@ export async function handleMediaList(
 				nextCursor: result.nextCursor,
 			},
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: {

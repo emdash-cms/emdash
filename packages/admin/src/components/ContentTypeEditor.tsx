@@ -161,7 +161,7 @@ export function ContentTypeEditor({
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
-		(collection?.supports ?? ["drafts"]).filter((s) => s !== "seo"),
+		(collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"),
 	);
 
 	// SEO state

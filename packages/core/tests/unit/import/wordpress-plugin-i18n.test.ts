@@ -5,14 +5,24 @@
  * surface i18n detection from the EmDash Exporter plugin's API responses.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { wordpressPluginSource } from "../../../src/import/sources/wordpress-plugin.js";
+import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
 
 // ─── Mock fetch ──────────────────────────────────────────────────────────────
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
+
+// Bypass DoH so the fetch mock only sees the calls these tests model.
+let previousResolver: ReturnType<typeof setDefaultDnsResolver> | undefined;
+beforeAll(() => {
+	previousResolver = setDefaultDnsResolver(async () => ["93.184.216.34"]);
+});
+afterAll(() => {
+	setDefaultDnsResolver(previousResolver ?? null);
+});
 
 beforeEach(() => {
 	mockFetch.mockReset();

@@ -5,6 +5,7 @@
  * POST /_emdash/api/content/{collection} - Create content
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
@@ -26,7 +27,14 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	const result = await emdash.handleContentList(collection, query);
+	// Subscribers must only see published content; force the status filter
+	// regardless of caller-supplied value. Any user with content:read_drafts
+	// (CONTRIBUTOR+) keeps the requested filter.
+	const params_ = hasPermission(user, "content:read_drafts")
+		? query
+		: { ...query, status: "published" };
+
+	const result = await emdash.handleContentList(collection, params_);
 
 	return unwrapResult(result);
 };
@@ -53,15 +61,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 				mapErrorStatus(source.error?.code),
 			);
 		}
-		const sourceData =
-			source.data && typeof source.data === "object"
-				? (source.data as Record<string, unknown>)
-				: undefined;
-		const sourceItem =
-			sourceData?.item && typeof sourceData.item === "object"
-				? (sourceData.item as Record<string, unknown>)
-				: sourceData;
-		const sourceAuthor = typeof sourceItem?.authorId === "string" ? sourceItem.authorId : "";
+		const sourceAuthor = source.data.item.authorId ?? "";
 		const translationDenied = requireOwnerPerm(
 			user,
 			sourceAuthor,
@@ -69,6 +69,16 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			"content:edit_any",
 		);
 		if (translationDenied) return translationDenied;
+	}
+
+	// Only EDITOR+ can write publishedAt / createdAt directly — incl. clearing to null.
+	const hasDateOverride = body.publishedAt !== undefined || body.createdAt !== undefined;
+	if (hasDateOverride && !hasPermission(user, "content:publish_any")) {
+		return apiError(
+			"FORBIDDEN",
+			"Writing publishedAt or createdAt requires content:publish_any permission",
+			403,
+		);
 	}
 
 	// Auto-set authorId to current user when creating content

@@ -111,7 +111,7 @@ export async function handleOAuthCallback(
 	const profile = await fetchProfile(provider, tokens.accessToken, providerName);
 
 	// Find or create user
-	return findOrCreateUser(config, adapter, providerName, profile);
+	return findOrCreateOAuthUser(adapter, providerName, profile, config.canSelfSignup);
 }
 
 /**
@@ -200,13 +200,25 @@ async function fetchProfile(
 }
 
 /**
- * Find existing user or create new one (with auto-linking)
+ * Signup policy callback.
+ * Return `{ allowed: true, role }` to permit signup, or `null` to deny.
  */
-async function findOrCreateUser(
-	config: OAuthConsumerConfig,
+export type CanSelfSignup = (
+	email: string,
+) => Promise<{ allowed: boolean; role: RoleLevel } | null>;
+
+/**
+ * Find existing user or create new one (with auto-linking).
+ *
+ * Shared across all OAuth providers (GitHub, Google, AT Protocol, etc.).
+ * The provider-specific token exchange happens before this function is called;
+ * this function only deals with the EmDash user record.
+ */
+export async function findOrCreateOAuthUser(
 	adapter: AuthAdapter,
 	providerName: string,
 	profile: OAuthProfile,
+	canSelfSignup?: CanSelfSignup,
 ): Promise<User> {
 	// Check if OAuth account already linked
 	const existingAccount = await adapter.getOAuthAccount(providerName, profile.id);
@@ -238,8 +250,8 @@ async function findOrCreateUser(
 	}
 
 	// Check if self-signup is allowed
-	if (config.canSelfSignup) {
-		const signup = await config.canSelfSignup(profile.email);
+	if (canSelfSignup) {
+		const signup = await canSelfSignup(profile.email);
 		if (signup?.allowed) {
 			// Create new user
 			const user = await adapter.createUser({

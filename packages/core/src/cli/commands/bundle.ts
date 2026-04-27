@@ -38,7 +38,7 @@ import {
 	ICON_SIZE,
 } from "./bundle-utils.js";
 
-const TS_EXT_RE = /\.tsx?$/;
+const TS_EXT_RE = /\.(tsx?|[mc]?js)$/;
 const SLASH_RE = /\//g;
 const LEADING_AT_RE = /^@/;
 const emdash_SCOPE_RE = /^@emdash-cms\//;
@@ -163,6 +163,8 @@ export const bundleCommand = defineCommand({
 		const tmpDir = join(pluginDir, ".emdash-bundle-tmp");
 
 		try {
+			// Clean up any stale temp directory from a previous failed run
+			await rm(tmpDir, { recursive: true, force: true });
 			await mkdir(tmpDir, { recursive: true });
 
 			// Build main entry to extract manifest.

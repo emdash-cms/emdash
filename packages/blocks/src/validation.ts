@@ -27,7 +27,10 @@ const ELEMENT_TYPES = new Set([
 	"radio",
 	"date_input",
 	"combobox",
+	"repeater",
 ]);
+
+const REPEATER_SUB_FIELD_TYPES = new Set(["text_input", "number_input", "select", "toggle"]);
 
 const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "code"]);
 
@@ -446,6 +449,90 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 					path: `${path}.placeholder`,
 					message: "Field 'placeholder' must be a string",
 				});
+			}
+			break;
+		}
+		case "repeater": {
+			if (!Array.isArray(value.fields)) {
+				errors.push({
+					path: `${path}.fields`,
+					message: "Required field 'fields' must be an array",
+				});
+			} else if (value.fields.length === 0) {
+				errors.push({
+					path: `${path}.fields`,
+					message: "Field 'fields' must not be empty",
+				});
+			} else {
+				for (let i = 0; i < value.fields.length; i++) {
+					const subPath = `${path}.fields[${i}]`;
+					const sub = value.fields[i];
+					if (
+						isRecord(sub) &&
+						typeof sub.type === "string" &&
+						!REPEATER_SUB_FIELD_TYPES.has(sub.type)
+					) {
+						errors.push({
+							path: `${subPath}.type`,
+							message: `Repeater sub-field type '${sub.type}' is not allowed. Expected one of: ${[...REPEATER_SUB_FIELD_TYPES].join(", ")}`,
+						});
+						continue;
+					}
+					validateElement(sub, subPath, errors);
+				}
+			}
+			if (value.item_label !== undefined && typeof value.item_label !== "string") {
+				errors.push({
+					path: `${path}.item_label`,
+					message: "Field 'item_label' must be a string",
+				});
+			}
+			const minOk =
+				value.min_items === undefined ||
+				(Number.isInteger(value.min_items) && (value.min_items as number) >= 0);
+			if (!minOk) {
+				errors.push({
+					path: `${path}.min_items`,
+					message: "Field 'min_items' must be a non-negative integer",
+				});
+			}
+			const maxOk =
+				value.max_items === undefined ||
+				(Number.isInteger(value.max_items) && (value.max_items as number) >= 0);
+			if (!maxOk) {
+				errors.push({
+					path: `${path}.max_items`,
+					message: "Field 'max_items' must be a non-negative integer",
+				});
+			}
+			if (
+				minOk &&
+				maxOk &&
+				value.min_items !== undefined &&
+				value.max_items !== undefined &&
+				(value.min_items as number) > (value.max_items as number)
+			) {
+				errors.push({
+					path: `${path}.min_items`,
+					message: "Field 'min_items' must be less than or equal to 'max_items'",
+				});
+			}
+			if (value.initial_value !== undefined) {
+				if (!Array.isArray(value.initial_value)) {
+					errors.push({
+						path: `${path}.initial_value`,
+						message: "Field 'initial_value' must be an array",
+					});
+				} else {
+					for (let i = 0; i < value.initial_value.length; i++) {
+						if (!isRecord(value.initial_value[i])) {
+							errors.push({
+								path: `${path}.initial_value[${i}]`,
+								message: "Each initial_value entry must be an object",
+							});
+						}
+					}
+				}
 			}
 			break;
 		}

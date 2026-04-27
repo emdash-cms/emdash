@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 
 import { CommentRepository } from "../../database/repositories/comment.js";
 import type { Comment, CommentStatus, PublicComment } from "../../database/repositories/comment.js";
+import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
@@ -60,6 +61,12 @@ export async function handleCommentList(
 			},
 		};
 	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		console.error("Comment list error:", error);
 		return {
 			success: false,
@@ -104,6 +111,12 @@ export async function handleCommentInbox(
 			},
 		};
 	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		console.error("Comment inbox error:", error);
 		return {
 			success: false,

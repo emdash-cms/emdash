@@ -418,8 +418,6 @@ export class FTSManager {
 			console.warn(
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
 			);
-			const fields = await this.getSearchableFields(collectionSlug);
-			const config = await this.getSearchConfig(collectionSlug);
 			if (fields.length > 0) {
 				await this.rebuildIndex(collectionSlug, fields, config?.weights);
 			}
