@@ -15,7 +15,12 @@ import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { local } from "../storage/adapters.js";
 import { notoSans } from "./font-provider.js";
-import { injectCoreRoutes, injectBuiltinAuthRoutes, injectMcpRoute } from "./routes.js";
+import {
+	injectCoreRoutes,
+	injectBuiltinAuthRoutes,
+	injectAuthProviderRoutes,
+	injectMcpRoute,
+} from "./routes.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import { createViteConfig } from "./vite-config.js";
 
@@ -157,9 +162,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		database: resolvedConfig.database,
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,
+		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
 		siteUrl: resolvedConfig.siteUrl,
+		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		admin: resolvedConfig.admin,
 	};
 
 	// Determine auth mode for route injection
@@ -265,7 +273,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Inject all core routes
 				injectCoreRoutes(injectRoute);
 
-				// Only inject passkey/oauth/magic-link routes when NOT using external auth
+				// Inject routes from pluggable auth providers (authProviders config)
+				if (resolvedConfig.authProviders?.length) {
+					injectAuthProviderRoutes(injectRoute, resolvedConfig.authProviders);
+				}
+
+				// Inject passkey/oauth/magic-link routes unless transparent external auth is active
 				if (!useExternalAuth) {
 					injectBuiltinAuthRoutes(injectRoute);
 				}

@@ -22,7 +22,7 @@ import * as React from "react";
 
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
-import { ContentList } from "./components/ContentList";
+import { ContentList, type ContentListSort } from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
@@ -295,14 +295,23 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
+	// Controlled sort state — passed to the list, and included in the query
+	// key so changing direction invalidates the current cursor chain.
+	const [sort, setSort] = React.useState<ContentListSort>({
+		field: "updatedAt",
+		direction: "desc",
+	});
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale }],
+			queryKey: ["content", collection, { locale: activeLocale, sort }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam,
 					limit: 100,
+					orderBy: sort.field,
+					order: sort.direction,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -419,6 +428,8 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			sort={sort}
+			onSortChange={setSort}
 		/>
 	);
 }

@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { generateDialectModule } from "../../../../src/astro/integration/virtual-modules.js";
+import {
+	generateConfigModule,
+	generateDialectModule,
+} from "../../../../src/astro/integration/virtual-modules.js";
+
+describe("generateConfigModule", () => {
+	it("round-trips the serialisable config shape via default export", () => {
+		const source = generateConfigModule({
+			siteUrl: "https://example.com",
+			trustedProxyHeaders: ["x-real-ip", "fly-client-ip"],
+			maxUploadSize: 52_428_800,
+		});
+		// The virtual module is `export default <JSON>` — eval by stripping
+		// the prefix and parsing.
+		const prefix = "export default ";
+		expect(source.startsWith(prefix)).toBe(true);
+		const json = source.slice(prefix.length).replace(/;$/, "");
+		const parsed = JSON.parse(json);
+		expect(parsed.trustedProxyHeaders).toEqual(["x-real-ip", "fly-client-ip"]);
+		expect(parsed.siteUrl).toBe("https://example.com");
+	});
+});
 
 describe("generateDialectModule", () => {
 	it("emits undefined createDialect and null stub when no entrypoint is configured", () => {

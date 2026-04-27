@@ -23,10 +23,10 @@ import { createMcpServer } from "../../../src/mcp/server.js";
 
 const INSUFFICIENT_PERMISSIONS_RE = /Insufficient permissions/i;
 const INSUFFICIENT_SCOPE_RE = /Insufficient scope/i;
-const NO_AUTHOR_ID_RE = /content has no authorId/i;
 
 const AUTHOR_USER_ID = "user_author";
 const OTHER_USER_ID = "user_other";
+const ADMIN_USER_ID = "user_admin";
 const CONTENT_ID = "01CONTENT";
 const CONTENT_SLUG = "test-post";
 const REVISION_ID = "01REVISION";
@@ -821,18 +821,46 @@ describe("MCP Authorization", () => {
 	// -----------------------------------------------------------------------
 
 	describe("missing authorId handling", () => {
-		it("returns clear error when content has no authorId", async () => {
-			// Create handlers where content has no authorId (e.g. imported content)
+		// Content with null/missing authorId (e.g. seed-imported rows) must be
+		// editable by anyone with `*:edit_any` and rejected for actors with only
+		// `*:edit_own` — without leaking internal "authorId" wording.
+		const contentWithoutAuthor = {
+			id: CONTENT_ID,
+			slug: "imported-post",
+			status: "draft",
+			title: "Imported",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			// no authorId
+		};
+
+		it("ADMIN succeeds on content with null authorId", async () => {
 			const handlers = createMockHandlers(AUTHOR_USER_ID);
-			const contentWithoutAuthor = {
-				id: CONTENT_ID,
-				slug: "imported-post",
-				status: "draft",
-				title: "Imported",
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-				// no authorId
-			};
+			handlers.handleContentGet = vi.fn().mockResolvedValue({
+				success: true,
+				data: { item: contentWithoutAuthor },
+			});
+
+			({ client, cleanup } = await setupMcpPair({
+				userId: ADMIN_USER_ID,
+				userRole: Role.ADMIN,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_update",
+				arguments: {
+					collection: "post",
+					id: CONTENT_ID,
+					data: { title: "ok" },
+				},
+			});
+
+			expect(result.isError).toBeFalsy();
+		});
+
+		it("AUTHOR denied on content with null authorId (clean permission error)", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
 			handlers.handleContentGet = vi.fn().mockResolvedValue({
 				success: true,
 				data: { item: contentWithoutAuthor },
@@ -855,7 +883,251 @@ describe("MCP Authorization", () => {
 
 			expect(result.isError).toBe(true);
 			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
-			expect(text).toMatch(NO_AUTHOR_ID_RE);
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+			expect(text).not.toMatch(/authorId/);
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// Draft visibility — SUBSCRIBER must not see non-published content
+	// -----------------------------------------------------------------------
+
+	describe("draft visibility", () => {
+		it("forces status=published on content_list for SUBSCRIBER", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			await client.callTool({
+				name: "content_list",
+				arguments: { collection: "post" },
+			});
+
+			expect(handlers.handleContentList).toHaveBeenCalledWith(
+				"post",
+				expect.objectContaining({ status: "published" }),
+			);
+		});
+
+		it("ignores caller-supplied status=draft from SUBSCRIBER on content_list", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			await client.callTool({
+				name: "content_list",
+				arguments: { collection: "post", status: "draft" },
+			});
+
+			// Even though caller asked for "draft", route forces "published"
+			expect(handlers.handleContentList).toHaveBeenCalledWith(
+				"post",
+				expect.objectContaining({ status: "published" }),
+			);
+		});
+
+		it("respects caller-supplied status filter for CONTRIBUTOR on content_list", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			await client.callTool({
+				name: "content_list",
+				arguments: { collection: "post", status: "draft" },
+			});
+
+			expect(handlers.handleContentList).toHaveBeenCalledWith(
+				"post",
+				expect.objectContaining({ status: "draft" }),
+			);
+		});
+
+		it("hides draft items from SUBSCRIBER on content_get", async () => {
+			// Default mock returns status: "draft"
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(/not found/i);
+		});
+
+		it("allows SUBSCRIBER to read published items via content_get", async () => {
+			const handlers = createMockHandlers();
+			// Override to return published content
+			handlers.handleContentGet = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					item: {
+						id: CONTENT_ID,
+						slug: CONTENT_SLUG,
+						authorId: AUTHOR_USER_ID,
+						status: "published",
+					},
+					_rev: "rev1",
+				},
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+		});
+
+		it("allows CONTRIBUTOR to read drafts via content_get", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+		});
+
+		it("denies SUBSCRIBER on content_compare", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_compare",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+			expect(handlers.handleContentCompare).not.toHaveBeenCalled();
+		});
+
+		it("denies SUBSCRIBER on content_list_trashed", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_list_trashed",
+				arguments: { collection: "post" },
+			});
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+			expect(handlers.handleContentListTrashed).not.toHaveBeenCalled();
+		});
+
+		it("denies SUBSCRIBER on revision_list", async () => {
+			const handlers = createMockHandlers();
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "revision_list",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+			expect(handlers.handleRevisionList).not.toHaveBeenCalled();
+		});
+
+		it("filters non-published translations for SUBSCRIBER", async () => {
+			const handlers = createMockHandlers();
+			handlers.handleContentTranslations = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					translationGroup: "tg-1",
+					translations: [
+						{ id: "t-en", locale: "en", slug: "p", status: "published", updatedAt: "" },
+						{ id: "t-fr", locale: "fr", slug: "p", status: "draft", updatedAt: "" },
+					],
+				},
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_translations",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toContain("t-en");
+			expect(text).not.toContain("t-fr");
+		});
+
+		it("allows CONTRIBUTOR to see all translations", async () => {
+			const handlers = createMockHandlers();
+			handlers.handleContentTranslations = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					translationGroup: "tg-1",
+					translations: [
+						{ id: "t-en", locale: "en", slug: "p", status: "published", updatedAt: "" },
+						{ id: "t-fr", locale: "fr", slug: "p", status: "draft", updatedAt: "" },
+					],
+				},
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_translations",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toContain("t-en");
+			expect(text).toContain("t-fr");
 		});
 	});
 });

@@ -301,7 +301,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			return Response.json({ ok: true });
 		} catch (error) {
 			console.error("Playground initialization failed:", error);
-			console.error((error as Error).stack);
+			if (error instanceof Error) {
+				console.error(error.stack);
+			}
 			return Response.json(
 				{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
 				{ status: 500 },

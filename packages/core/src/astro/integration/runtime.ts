@@ -7,7 +7,7 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
-import type { AuthDescriptor } from "../../auth/types.js";
+import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
@@ -223,6 +223,24 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
+	 * Pluggable auth providers (login methods on the login page).
+	 *
+	 * Auth providers appear as options alongside passkey on the login page
+	 * and setup wizard. Any provider can be used to create the initial
+	 * admin account. Passkey is built-in; providers listed here are additive.
+	 *
+	 * @example
+	 * ```ts
+	 * import { atproto } from "@emdash-cms/auth-atproto";
+	 *
+	 * emdash({
+	 *   authProviders: [atproto()],
+	 * })
+	 * ```
+	 */
+	authProviders?: AuthProviderDescriptor[];
+
+	/**
 	 * MCP (Model Context Protocol) server endpoint.
 	 *
 	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
@@ -283,6 +301,32 @@ export interface EmDashConfig {
 	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
 	 */
 	siteUrl?: string;
+
+	/**
+	 * Headers to trust for client IP resolution when running behind a reverse
+	 * proxy. The first header in this list that is present on the request
+	 * wins. Applies to rate limiting for auth endpoints and comment
+	 * submission.
+	 *
+	 * Common values:
+	 * - `x-real-ip` — nginx, Caddy, Traefik
+	 * - `fly-client-ip` — Fly.io
+	 * - `x-forwarded-for` — generic (first entry is used)
+	 *
+	 * Only set this when you **control the reverse proxy**. Untrusted
+	 * clients can set any header they like; trusting headers from an open
+	 * network is an IP-spoofing vulnerability that defeats rate limiting.
+	 *
+	 * On Cloudflare the `cf` object on the request is used automatically —
+	 * you normally don't need to set this. Leave unset (or empty) to
+	 * preserve the default: IP is resolved only when the request came
+	 * through Cloudflare's edge.
+	 *
+	 * Falls back to `EMDASH_TRUSTED_PROXY_HEADERS` env var (comma-separated)
+	 * when this option is not set, so operators can configure at deploy
+	 * time without touching the Astro config.
+	 */
+	trustedProxyHeaders?: string[];
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
@@ -378,13 +422,41 @@ export interface EmDashConfig {
 				 * Additional Noto Sans script families to include.
 				 *
 				 * Available scripts: arabic, armenian, bengali, chinese-simplified,
-				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic,
+				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic, farsi,
 				 * georgian, gujarati, gurmukhi, hebrew, japanese, kannada, khmer,
 				 * korean, lao, malayalam, myanmar, oriya, sinhala, tamil, telugu,
 				 * thai, tibetan.
 				 */
 				scripts?: string[];
 		  };
+
+	/**
+	 * Admin UI branding (white-labeling).
+	 *
+	 * Overrides the default EmDash logo and name in the admin panel.
+	 * Use this to white-label the CMS for agency or enterprise deployments.
+	 * These settings are separate from the public site settings (title, logo,
+	 * favicon) which remain available for SEO and front-end use.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   admin: {
+	 *     logo: "/images/agency-logo.webp",
+	 *     siteName: "AgencyX CMS",
+	 *     favicon: "/favicon.ico",
+	 *   },
+	 * })
+	 * ```
+	 */
+	admin?: {
+		/** URL or path to a custom logo image for the admin UI (login page, sidebar). */
+		logo?: string;
+		/** Custom name displayed in the admin sidebar and browser tab. */
+		siteName?: string;
+		/** URL or path to a custom favicon for the admin panel. */
+		favicon?: string;
+	};
 }
 
 /**

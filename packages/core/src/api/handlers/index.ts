@@ -113,11 +113,13 @@ export {
 	handleMenuItemUpdate,
 	handleMenuItemDelete,
 	handleMenuItemReorder,
+	handleMenuSetItems,
 	type MenuListItem,
 	type MenuWithItems,
 	type CreateMenuItemInput,
 	type UpdateMenuItemInput,
 	type ReorderItem,
+	type MenuSetItemsInput,
 } from "./menus.js";
 
 // Section handlers

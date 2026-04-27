@@ -12,6 +12,32 @@ import type { Database, RedirectTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
+// Bounded 404 logging
+// ---------------------------------------------------------------------------
+
+/**
+ * Hard cap on rows stored in `_emdash_404_log`. When exceeded, the oldest
+ * rows (by `last_seen_at`) are evicted on insert. Prevents an unauthenticated
+ * attacker from growing the table without bound by requesting unique URLs.
+ */
+export const MAX_404_LOG_ROWS = 10_000;
+
+/** Max stored length for the `Referer` header — truncated on insert. */
+export const REFERRER_MAX_LENGTH = 512;
+
+/** Max stored length for the `User-Agent` header — truncated on insert. */
+export const USER_AGENT_MAX_LENGTH = 256;
+
+/**
+ * Truncate a header-derived string to `max` chars, preserving `null`/`undefined`
+ * as `null`. Empty strings stay empty (the caller decides whether to coerce).
+ */
+function truncateOrNull(value: string | null | undefined, max: number): string | null {
+	if (value === null || value === undefined) return null;
+	return value.length > max ? value.slice(0, max) : value;
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -156,14 +182,12 @@ export class RedirectRepository {
 
 		if (opts.cursor) {
 			const decoded = decodeCursor(opts.cursor);
-			if (decoded) {
-				query = query.where((eb) =>
-					eb.or([
-						eb("created_at", "<", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await query.execute();
@@ -369,22 +393,97 @@ export class RedirectRepository {
 
 	// --- 404 log ------------------------------------------------------------
 
+	/**
+	 * Record a 404 hit for `entry.path`.
+	 *
+	 * Dedups by path: repeat hits increment `hits` and refresh `last_seen_at`
+	 * on the existing row instead of inserting a new one. Referrer and
+	 * user-agent are truncated to bounded lengths so a malicious client can't
+	 * blow up storage with huge headers. When the table would exceed
+	 * MAX_404_LOG_ROWS, the oldest entries (by `last_seen_at`) are evicted.
+	 *
+	 * This is called from the public redirect middleware on every 404 and
+	 * must never throw for an unauthenticated caller — failures bubble up to
+	 * the middleware, which swallows them.
+	 */
 	async log404(entry: {
 		path: string;
 		referrer?: string | null;
 		userAgent?: string | null;
 		ip?: string | null;
 	}): Promise<void> {
+		const now = new Date().toISOString();
+		const referrer = truncateOrNull(entry.referrer, REFERRER_MAX_LENGTH);
+		const userAgent = truncateOrNull(entry.userAgent, USER_AGENT_MAX_LENGTH);
+		const ip = entry.ip ?? null;
+
+		// Atomic upsert by path. The UNIQUE index on `path` makes this safe
+		// under concurrency: two requests for the same new path can't both
+		// insert — the second one hits the conflict branch and increments
+		// hits instead of failing with a uniqueness error.
 		await this.db
 			.insertInto("_emdash_404_log")
 			.values({
 				id: ulid(),
 				path: entry.path,
-				referrer: entry.referrer ?? null,
-				user_agent: entry.userAgent ?? null,
-				ip: entry.ip ?? null,
-				created_at: new Date().toISOString(),
+				referrer,
+				user_agent: userAgent,
+				ip,
+				hits: 1,
+				last_seen_at: now,
+				created_at: now,
 			})
+			.onConflict((oc) =>
+				oc.column("path").doUpdateSet({
+					hits: sql`hits + 1`,
+					last_seen_at: now,
+					referrer,
+					user_agent: userAgent,
+					ip,
+				}),
+			)
+			.execute();
+
+		// Enforce the row cap. Cheap when the table is under cap (single
+		// COUNT(*) query); evicts oldest rows if we're over. Updates (dedup
+		// hits) don't grow the table so this is a no-op for repeat paths.
+		await this.enforce404Cap();
+	}
+
+	/**
+	 * Delete the oldest rows from `_emdash_404_log` if the row count exceeds
+	 * MAX_404_LOG_ROWS. "Oldest" is by `last_seen_at`, so a path that keeps
+	 * getting hit stays in the table even if it was first seen long ago.
+	 *
+	 * Private — callers use `log404`, which invokes this after every upsert.
+	 */
+	private async enforce404Cap(): Promise<void> {
+		const countRow = await this.db
+			.selectFrom("_emdash_404_log")
+			.select((eb) => eb.fn.countAll<number>().as("c"))
+			.executeTakeFirst();
+		const count = Number(countRow?.c ?? 0);
+		if (count <= MAX_404_LOG_ROWS) return;
+
+		const excess = count - MAX_404_LOG_ROWS;
+
+		// Evict the oldest rows in a single SQL statement. Using a subquery
+		// (rather than materialising the victim IDs in JS and passing them
+		// back as bind parameters) keeps the statement bounded regardless of
+		// how far over cap the table is — important for existing installs
+		// that crossed the threshold before this cap was introduced.
+		await this.db
+			.deleteFrom("_emdash_404_log")
+			.where(
+				"id",
+				"in",
+				this.db
+					.selectFrom("_emdash_404_log")
+					.select("id")
+					.orderBy("last_seen_at", "asc")
+					.orderBy("id", "asc")
+					.limit(excess),
+			)
 			.execute();
 	}
 
@@ -408,14 +507,12 @@ export class RedirectRepository {
 
 		if (opts.cursor) {
 			const decoded = decodeCursor(opts.cursor);
-			if (decoded) {
-				query = query.where((eb) =>
-					eb.or([
-						eb("created_at", "<", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await query.execute();
@@ -438,6 +535,10 @@ export class RedirectRepository {
 	}
 
 	async get404Summary(limit = 50): Promise<NotFoundSummary[]> {
+		// Since rows are now deduped by path, each path has exactly one row
+		// with `hits` as the running count and `last_seen_at` as the latest
+		// timestamp. The subquery for `top_referrer` collapses to a simple
+		// pick of the row's stored referrer (the most recent one seen).
 		const rows = await sql<{
 			path: string;
 			count: number;
@@ -446,14 +547,12 @@ export class RedirectRepository {
 		}>`
 			SELECT
 				path,
-				COUNT(*) as count,
-				MAX(created_at) as last_seen,
+				SUM(hits) as count,
+				MAX(last_seen_at) as last_seen,
 				(
 					SELECT referrer FROM _emdash_404_log AS inner_log
 					WHERE inner_log.path = _emdash_404_log.path
 						AND referrer IS NOT NULL AND referrer != ''
-					GROUP BY referrer
-					ORDER BY COUNT(*) DESC
 					LIMIT 1
 				) as top_referrer
 			FROM _emdash_404_log

@@ -1,5 +1,31 @@
 # @emdash-cms/admin
 
+## 0.7.0
+
+### Minor Changes
+
+- [#705](https://github.com/emdash-cms/emdash/pull/705) [`8ebdf1a`](https://github.com/emdash-cms/emdash/commit/8ebdf1af65764cc4b72624e7758c4a666817aade) Thanks [@eba8](https://github.com/eba8)! - Adds admin white-labeling support via `admin` config in `astro.config.mjs`. Agencies can set a custom logo, site name, and favicon for the admin panel, separate from public site settings.
+
+### Patch Changes
+
+- [#680](https://github.com/emdash-cms/emdash/pull/680) [`2e4b205`](https://github.com/emdash-cms/emdash/commit/2e4b205b1df30bdb6bb96259f223b85610de5e78) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Fixes dark mode toggle having no effect with the classic theme.
+
+- [#732](https://github.com/emdash-cms/emdash/pull/732) [`e3e18aa`](https://github.com/emdash-cms/emdash/commit/e3e18aae92d31cf22efd11a0ba06110de24a076a) Thanks [@jcheese1](https://github.com/jcheese1)! - Fixes select dropdown appearing behind dialog by removing explicit z-index values and adding `isolate` to the admin body for proper stacking context.
+
+- [#647](https://github.com/emdash-cms/emdash/pull/647) [`743b080`](https://github.com/emdash-cms/emdash/commit/743b0807f1a37fdedbcd37632058b557f493f3be) Thanks [@arashackdev](https://github.com/arashackdev)! - Adds Persian (Farsi) locale with full admin translations.
+  Adds Vazirmatn as the default font family for Farsi.
+
+- [#689](https://github.com/emdash-cms/emdash/pull/689) [`fa8d753`](https://github.com/emdash-cms/emdash/commit/fa8d7533e8ba7e02599372d580399dae88ecd891) Thanks [@edrpls](https://github.com/edrpls)! - Fixes the taxonomy term picker to match across diacritic boundaries.
+
+  Typing `Mexico` in the admin picker now surfaces a term labeled `México` instead of prompting a duplicate create. Input and term labels are folded via NFD decomposition + lowercase before substring-matching, so editors who type without diacritics — or with locale keyboards that produce precomposed vs. combining forms — still see the canonical term.
+
+  Before this fix, `"mexico"` and `"méxico"` were treated as distinct strings, so the picker showed zero suggestions and the editor had no way to find the existing term except to create a duplicate. Duplicate terms then split the taxonomy and broke public-facing filter pages that group content by slug.
+
+  The exact-match check that gates the "Create new term" button uses the same fold, so typing `Mexico` when `México` exists also suppresses Create — closing the duplicate-creation loop.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

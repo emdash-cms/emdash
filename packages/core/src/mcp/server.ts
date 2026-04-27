@@ -12,61 +12,222 @@
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+/** http(s) scheme matcher used by `settings_update` URL validation. */
+const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+
+// ---------------------------------------------------------------------------
+// Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
+// REST handler validates against). Defined inline to match the rest of the
+// MCP tool registrations rather than reaching across into the REST layer.
+// ---------------------------------------------------------------------------
+
+const settingsMediaReferenceSchema = z.object({
+	mediaId: z.string().describe("Media item ID (use media_create or media_list)"),
+	alt: z.string().optional().describe("Alt text for the media reference"),
+});
+
+const settingsSocialSchema = z.object({
+	twitter: z.string().optional(),
+	github: z.string().optional(),
+	facebook: z.string().optional(),
+	instagram: z.string().optional(),
+	linkedin: z.string().optional(),
+	youtube: z.string().optional(),
+});
+
+const settingsSeoSchema = z.object({
+	titleSeparator: z
+		.string()
+		.max(10)
+		.optional()
+		.describe("Separator between page title and site title (e.g. ' | ')"),
+	defaultOgImage: settingsMediaReferenceSchema
+		.optional()
+		.describe("Default Open Graph image when content has none"),
+	robotsTxt: z
+		.string()
+		.max(5000)
+		.optional()
+		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+	googleVerification: z
+		.string()
+		.max(100)
+		.optional()
+		.describe("Google Search Console verification token"),
+	bingVerification: z
+		.string()
+		.max(100)
+		.optional()
+		.describe("Bing Webmaster Tools verification token"),
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-type HandlerResult = { success: boolean; data?: unknown; error?: unknown };
+type HandlerResult = {
+	success: boolean;
+	data?: unknown;
+	error?: unknown;
+};
+
+type SuccessEnvelope = {
+	content: Array<{ type: "text"; text: string }>;
+	_meta?: Record<string, unknown>;
+};
+
+type ErrorEnvelope = {
+	content: Array<{ type: "text"; text: string }>;
+	isError: true;
+	_meta: { code: string; details?: Record<string, unknown> };
+};
 
 /**
- * Unwrap an ApiResult<T> into MCP tool result format.
- * On success, returns the data as pretty-printed JSON text content.
- * On failure, returns the error message with isError flag.
+ * Return a successful tool response with the data as pretty-printed JSON.
  */
-function unwrap(result: HandlerResult): {
-	content: Array<{ type: "text"; text: string }>;
-	isError?: true;
-} {
-	if (result.success && result.data !== undefined) {
-		return {
-			content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
-		};
-	}
-	const errMsg =
-		result.error && typeof result.error === "object" && "message" in result.error
-			? String((result.error as Record<string, unknown>).message)
-			: "Unknown error";
-	return { content: [{ type: "text", text: errMsg }], isError: true };
-}
-
-/**
- * Return a JSON text block.
- */
-function jsonResult(data: unknown): {
-	content: Array<{ type: "text"; text: string }>;
-} {
+function respondData(data: unknown): SuccessEnvelope {
 	return {
 		content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
 	};
 }
 
 /**
- * Return an error text block.
+ * Return a structured error tool response.
+ *
+ * The error code is emitted both in the human-readable message (as a stable
+ * `[CODE]` prefix that callers can match on) and in `_meta.code` so MCP-aware
+ * clients can read it programmatically once the SDK supports forwarding meta.
  */
-function errorResult(error: unknown): {
-	content: Array<{ type: "text"; text: string }>;
-	isError: true;
-} {
-	const msg = error instanceof Error ? error.message : String(error);
-	return { content: [{ type: "text", text: msg }], isError: true };
+function respondError(
+	code: string,
+	message: string,
+	details?: Record<string, unknown>,
+): ErrorEnvelope {
+	const text = `[${code}] ${message}`;
+	const meta: { code: string; details?: Record<string, unknown> } = { code };
+	if (details !== undefined) meta.details = details;
+	return {
+		content: [{ type: "text", text }],
+		isError: true,
+		_meta: meta,
+	};
+}
+
+/**
+ * Auth/permission errors thrown from `requireScope` / `requireRole` /
+ * `requireOwnership` / `requireDraftAccess`. Carries a stable string `code`
+ * field so `respondHandlerError` can surface it through `_meta.code` and
+ * the message prefix.
+ *
+ * Distinct from `McpError` (which the SDK catches at JSON-RPC level — the
+ * code there is numeric, not a stable EmDash error code).
+ */
+class EmDashAuthError extends Error {
+	override readonly name = "EmDashAuthError";
+	constructor(
+		message: string,
+		readonly code: string,
+	) {
+		super(message);
+	}
+}
+
+/**
+ * Map an unknown thrown error to a structured error envelope.
+ *
+ * Recognises (in priority order):
+ *  - `EmDashAuthError` — `code` is a stable EmDash auth code
+ *    (`UNAUTHORIZED`, `INSUFFICIENT_SCOPE`, `INSUFFICIENT_PERMISSIONS`).
+ *  - `Error` objects with an `apiError: { code, details? }` annotation
+ *    (handlers throw these for NOT_FOUND / CONFLICT inside transactions;
+ *    see `api/handlers/content.ts:538`).
+ *  - `SchemaError` (and any error with a string `code` field) — the code
+ *    is forwarded verbatim. `details` is forwarded too if present.
+ *  - Plain `Error` instances — message preserved, code falls back to
+ *    `fallbackCode` (or `INTERNAL_ERROR`).
+ *  - Strings — used directly as the message.
+ *  - Anything else — coerced via `String()`.
+ *
+ * The original message is always preserved so tests and humans can see the
+ * specific failure cause. Numeric `code` values (e.g. on `McpError`) are
+ * ignored — the field is reserved for stable string codes.
+ */
+function respondHandlerError(error: unknown, fallbackCode = "INTERNAL_ERROR"): ErrorEnvelope {
+	let code = fallbackCode;
+	let message: string;
+	let details: Record<string, unknown> | undefined;
+
+	if (error instanceof EmDashAuthError) {
+		message = error.message || fallbackCode;
+		code = error.code;
+	} else if (error instanceof Error) {
+		message = error.message || fallbackCode;
+		const apiError = (error as { apiError?: { code?: string; details?: unknown } }).apiError;
+		if (apiError && typeof apiError.code === "string" && apiError.code) {
+			code = apiError.code;
+			if (apiError.details && typeof apiError.details === "object") {
+				details = apiError.details as Record<string, unknown>;
+			}
+		} else {
+			// Errors that carry their own `code` (SchemaError, custom errors).
+			// Skip numeric codes (McpError, Node fs errors) — `_meta.code` is
+			// reserved for stable string codes.
+			const rawCode = (error as { code?: unknown }).code;
+			if (typeof rawCode === "string" && rawCode) {
+				code = rawCode;
+			}
+			const rawDetails = (error as { details?: unknown }).details;
+			if (rawDetails && typeof rawDetails === "object") {
+				details = rawDetails as Record<string, unknown>;
+			}
+		}
+	} else if (typeof error === "string") {
+		message = error;
+	} else {
+		message = String(error);
+	}
+
+	return respondError(code, message, details);
+}
+
+/**
+ * Unwrap an ApiResult<T> into MCP tool result format.
+ *
+ * On success returns the data as JSON. On failure propagates the structured
+ * `{ code, message, details }` from the handler so the caller sees both a
+ * machine-readable code (in `_meta.code` and as a `[CODE]` message prefix)
+ * and the original human-readable message.
+ */
+function unwrap(result: HandlerResult): SuccessEnvelope | ErrorEnvelope {
+	if (result.success && result.data !== undefined) {
+		return respondData(result.data);
+	}
+	const err =
+		result.error && typeof result.error === "object"
+			? (result.error as { code?: unknown; message?: unknown; details?: unknown })
+			: undefined;
+	if (!err) return respondError("INTERNAL_ERROR", "Unknown error");
+	const code = typeof err.code === "string" && err.code ? err.code : "INTERNAL_ERROR";
+	const message = typeof err.message === "string" && err.message ? err.message : "Unknown error";
+	const details =
+		err.details && typeof err.details === "object"
+			? (err.details as Record<string, unknown>)
+			: undefined;
+	return respondError(code, message, details);
+}
+
+/**
+ * Return a JSON text block (success path for tools that don't go through
+ * the ApiResult-returning handler layer, e.g. schema/menu/taxonomy).
+ */
+function jsonResult(data: unknown): SuccessEnvelope {
+	return respondData(data);
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +243,15 @@ interface EmDashExtra {
 	userRole: RoleLevel;
 	/** Token scopes — undefined for session auth (all access allowed). */
 	tokenScopes?: string[];
+}
+
+function isPublished(t: unknown): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		"status" in t &&
+		(t as Record<string, unknown>).status === "published"
+	);
 }
 
 function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashExtra {
@@ -109,7 +279,7 @@ function requireScope(
 ): void {
 	const payload = getExtra(extra);
 	if (payload.tokenScopes && !hasScope(payload.tokenScopes, scope)) {
-		throw new McpError(ErrorCode.InvalidRequest, `Insufficient scope: requires ${scope}`);
+		throw new EmDashAuthError(`Insufficient scope: requires ${scope}`, "INSUFFICIENT_SCOPE");
 	}
 }
 
@@ -126,7 +296,33 @@ function requireRole(
 ): void {
 	const payload = getExtra(extra);
 	if (payload.userRole < minRole) {
-		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
+		throw new EmDashAuthError(
+			"Insufficient permissions for this operation",
+			"INSUFFICIENT_PERMISSIONS",
+		);
+	}
+}
+
+/**
+ * Whether the current user may read non-published content (drafts, scheduled,
+ * trashed, revisions, compare). SUBSCRIBER may hold content:read for
+ * member-only published content but must not see drafts.
+ */
+function canReadDrafts(extra: { authInfo?: { extra?: Record<string, unknown> } }): boolean {
+	const payload = getExtra(extra);
+	return hasPermission({ role: payload.userRole }, "content:read_drafts");
+}
+
+/**
+ * Throw if the current user cannot read non-published content. Used by
+ * editor-only views (revisions, compare, trash, preview-url).
+ */
+function requireDraftAccess(extra: { authInfo?: { extra?: Record<string, unknown> } }): void {
+	if (!canReadDrafts(extra)) {
+		throw new EmDashAuthError(
+			"Insufficient permissions for this operation",
+			"INSUFFICIENT_PERMISSIONS",
+		);
 	}
 }
 
@@ -146,7 +342,10 @@ function requireOwnership(
 	const payload = getExtra(extra);
 	const user = { id: payload.userId, role: payload.userRole };
 	if (!canActOnOwn(user, ownerId, ownPermission, anyPermission)) {
-		throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions for this operation");
+		throw new EmDashAuthError(
+			"Insufficient permissions for this operation",
+			"INSUFFICIENT_PERMISSIONS",
+		);
 	}
 }
 
@@ -154,26 +353,18 @@ function requireOwnership(
  * Extract the author ID from a content handler response.
  *
  * Content handlers return `{ item: { id, authorId, ... }, _rev? }`.
- * This helper navigates that shape safely.
+ * This helper navigates that shape safely. Returns "" when authorId is
+ * missing or non-string (e.g. seed-imported content with no author);
+ * `canActOnOwn` then decides based on the caller's permissions —
+ * an actor with `*:edit_any` succeeds, an actor with only `*:edit_own`
+ * is denied with a clean permission error.
  */
 function extractContentAuthorId(data: unknown): string {
-	if (!data || typeof data !== "object") {
-		throw new McpError(
-			ErrorCode.InternalError,
-			"Cannot determine content ownership: no data returned",
-		);
-	}
+	if (!data || typeof data !== "object") return "";
 	const obj = data as Record<string, unknown>;
 	const item =
 		obj.item && typeof obj.item === "object" ? (obj.item as Record<string, unknown>) : obj;
-	const authorId = typeof item?.authorId === "string" ? item.authorId : "";
-	if (!authorId) {
-		throw new McpError(
-			ErrorCode.InternalError,
-			"Cannot determine content ownership: content has no authorId",
-		);
-	}
-	return authorId;
+	return typeof item?.authorId === "string" ? item.authorId : "";
 }
 
 /**
@@ -197,6 +388,34 @@ export function createMcpServer(): McpServer {
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
 	);
+
+	// Wrap every tool registration's callback so EmDashAuthError throws
+	// (from requireScope / requireRole / requireOwnership / requireDraftAccess)
+	// surface as structured `_meta.code`-bearing tool error envelopes
+	// instead of the SDK's text-only fallback in createToolError().
+	//
+	// Type-erased on purpose — the SDK's overloads are too narrow for a
+	// generic wrapper, but the runtime contract (callback returns the tool
+	// result envelope) holds for every registered tool.
+	const originalRegisterTool = server.registerTool.bind(server);
+	(server as { registerTool: typeof server.registerTool }).registerTool = ((
+		name: string,
+		config: unknown,
+		callback: (...callbackArgs: unknown[]) => Promise<SuccessEnvelope | ErrorEnvelope>,
+	) => {
+		const wrapped = async (
+			...callbackArgs: unknown[]
+		): Promise<SuccessEnvelope | ErrorEnvelope> => {
+			try {
+				return await callback(...callbackArgs);
+			} catch (error) {
+				return respondHandlerError(error, "INTERNAL_ERROR");
+			}
+		};
+		return (
+			originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown
+		)(name, config, wrapped);
+	}) as typeof server.registerTool;
 
 	// =====================================================================
 	// Content tools
@@ -224,7 +443,12 @@ export function createMcpServer(): McpServer {
 					.max(100)
 					.optional()
 					.describe("Max items to return (default 50, max 100)"),
-				cursor: z.string().optional().describe("Pagination cursor from a previous response"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
 				orderBy: z
 					.string()
 					.optional()
@@ -240,9 +464,12 @@ export function createMcpServer(): McpServer {
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
+			// Subscribers must only see published content; force the status
+			// filter regardless of caller-supplied value.
+			const status = canReadDrafts(extra) ? args.status : "published";
 			return unwrap(
 				await ec.handleContentList(args.collection, {
-					status: args.status,
+					status,
 					limit: args.limit,
 					cursor: args.cursor,
 					orderBy: args.orderBy,
@@ -276,7 +503,29 @@ export function createMcpServer(): McpServer {
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentGet(args.collection, args.id, args.locale));
+			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
+			// Hide non-published items from users without draft access. Return a
+			// not-found error so subscribers can't enumerate draft IDs by status.
+			if (result.success && !canReadDrafts(extra)) {
+				const data =
+					result.data && typeof result.data === "object"
+						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+							(result.data as Record<string, unknown>)
+						: undefined;
+				const item =
+					data?.item && typeof data.item === "object"
+						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+							(data.item as Record<string, unknown>)
+						: undefined;
+				const status = typeof item?.status === "string" ? item.status : null;
+				if (status !== "published") {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -334,9 +583,9 @@ export function createMcpServer(): McpServer {
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
 				if (!hasPermission(user, "content:publish_own" as Permission)) {
-					throw new McpError(
-						ErrorCode.InvalidRequest,
+					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
+						"INSUFFICIENT_PERMISSIONS",
 					);
 				}
 				const result = await emdash.handleContentCreate(args.collection, {
@@ -661,6 +910,40 @@ export function createMcpServer(): McpServer {
 	);
 
 	server.registerTool(
+		"content_unschedule",
+		{
+			title: "Cancel Scheduled Publication",
+			description:
+				"Cancel a previously scheduled publication. The item remains in its current " +
+				"status (typically 'draft' or 'scheduled'); only the scheduledAt timestamp is " +
+				"cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+			inputSchema: z.object({
+				collection: z.string().describe("Collection slug"),
+				id: z.string().describe("Content item ID or slug"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.AUTHOR);
+			const ec = getEmDash(extra);
+
+			const existing = await ec.handleContentGet(args.collection, args.id);
+			if (!existing.success) {
+				return unwrap(existing);
+			}
+			requireOwnership(
+				extra,
+				extractContentAuthorId(existing.data),
+				"content:publish_own",
+				"content:publish_any",
+			);
+
+			const resolvedId = extractContentId(existing.data) ?? args.id;
+			return unwrap(await ec.handleContentUnschedule(args.collection, resolvedId));
+		},
+	);
+
+	server.registerTool(
 		"content_compare",
 		{
 			title: "Compare Live vs Draft",
@@ -676,6 +959,7 @@ export function createMcpServer(): McpServer {
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:read");
+			requireDraftAccess(extra);
 			const ec = getEmDash(extra);
 			return unwrap(await ec.handleContentCompare(args.collection, args.id));
 		},
@@ -727,12 +1011,13 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:read");
+			requireDraftAccess(extra);
 			const ec = getEmDash(extra);
 			return unwrap(
 				await ec.handleContentListTrashed(args.collection, {
@@ -780,7 +1065,23 @@ export function createMcpServer(): McpServer {
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentTranslations(args.collection, args.id));
+			const result = await ec.handleContentTranslations(args.collection, args.id);
+			// Filter out non-published translations for users without draft
+			// access so a subscriber can't enumerate locales that aren't yet live.
+			if (result.success && !canReadDrafts(extra)) {
+				const data =
+					result.data && typeof result.data === "object"
+						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+							(result.data as Record<string, unknown>)
+						: undefined;
+				const translations = Array.isArray(data?.translations) ? data.translations : [];
+				const filtered = translations.filter(isPublished);
+				return unwrap({
+					success: true,
+					data: { ...data, translations: filtered },
+				});
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -810,7 +1111,7 @@ export function createMcpServer(): McpServer {
 				const items = await registry.listCollections();
 				return jsonResult({ items });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_LIST_ERROR");
 			}
 		},
 	);
@@ -843,11 +1144,11 @@ export function createMcpServer(): McpServer {
 				const registry = new SchemaRegistry(ec.db);
 				const collection = await registry.getCollectionWithFields(args.slug);
 				if (!collection) {
-					return errorResult(`Collection '${args.slug}' not found`);
+					return respondError("NOT_FOUND", `Collection '${args.slug}' not found`);
 				}
 				return jsonResult(collection);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_GET_ERROR");
 			}
 		},
 	);
@@ -890,12 +1191,14 @@ export function createMcpServer(): McpServer {
 					labelSingular: args.labelSingular,
 					description: args.description,
 					icon: args.icon,
+					// SchemaRegistry.createCollection now defaults `supports` to
+					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
 				});
 				ec.invalidateManifest();
 				return jsonResult(collection);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_CREATE_ERROR");
 			}
 		},
 	);
@@ -927,7 +1230,7 @@ export function createMcpServer(): McpServer {
 				ec.invalidateManifest();
 				return jsonResult({ deleted: args.slug });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SCHEMA_DELETE_ERROR");
 			}
 		},
 	);
@@ -1031,7 +1334,7 @@ export function createMcpServer(): McpServer {
 				ec.invalidateManifest();
 				return jsonResult(field);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "FIELD_CREATE_ERROR");
 			}
 		},
 	);
@@ -1060,7 +1363,7 @@ export function createMcpServer(): McpServer {
 				ec.invalidateManifest();
 				return jsonResult({ deleted: args.fieldSlug, collection: args.collection });
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "FIELD_DELETE_ERROR");
 			}
 		},
 	);
@@ -1083,7 +1386,7 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Filter by MIME type prefix (e.g. 'image/', 'application/pdf')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1095,6 +1398,54 @@ export function createMcpServer(): McpServer {
 					mimeType: args.mimeType,
 					limit: args.limit,
 					cursor: args.cursor,
+				}),
+			);
+		},
+	);
+
+	server.registerTool(
+		"media_create",
+		{
+			title: "Register Uploaded Media",
+			description:
+				"Register a media file that has already been uploaded to storage. The " +
+				"caller is responsible for placing the file at `storageKey` (typically " +
+				"using a signed upload URL obtained from the admin UI or a separate API). " +
+				"This tool persists the metadata record so the file is discoverable via " +
+				"media_list / media_get and can be referenced by content. For binary " +
+				"uploads the MCP transport is not appropriate — use the signed-upload " +
+				"flow instead.",
+			inputSchema: z.object({
+				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
+				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
+				storageKey: z.string().describe("Storage path/key the file was uploaded to"),
+				size: z.number().int().nonnegative().optional().describe("File size in bytes"),
+				width: z.number().int().positive().optional().describe("Image width in pixels"),
+				height: z.number().int().positive().optional().describe("Image height in pixels"),
+				contentHash: z.string().optional().describe("Hash of the file contents (for dedupe)"),
+				blurhash: z.string().optional().describe("Blurhash for image placeholders"),
+				dominantColor: z
+					.string()
+					.optional()
+					.describe("Hex color string for the image's dominant color"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.AUTHOR);
+			const { emdash, userId } = getExtra(extra);
+			return unwrap(
+				await emdash.handleMediaCreate({
+					filename: args.filename,
+					mimeType: args.mimeType,
+					storageKey: args.storageKey,
+					size: args.size,
+					width: args.width,
+					height: args.height,
+					contentHash: args.contentHash,
+					blurhash: args.blurhash,
+					dominantColor: args.dominantColor,
+					authorId: userId,
 				}),
 			);
 		},
@@ -1233,7 +1584,7 @@ export function createMcpServer(): McpServer {
 				});
 				return jsonResult(results);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "SEARCH_ERROR");
 			}
 		},
 	);
@@ -1260,7 +1611,7 @@ export function createMcpServer(): McpServer {
 				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
 				return unwrap(await handleTaxonomyList(ec.db));
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "TAXONOMY_LIST_ERROR");
 			}
 		},
 	);
@@ -1276,7 +1627,7 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().optional().describe("Pagination cursor"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1292,24 +1643,47 @@ export function createMcpServer(): McpServer {
 				const taxonomies = (listResult.data as { taxonomies: Array<{ name: string; id?: string }> })
 					.taxonomies;
 				const taxonomy = taxonomies.find((t: { name: string }) => t.name === args.taxonomy);
-				if (!taxonomy) return errorResult(`Taxonomy '${args.taxonomy}' not found`);
+				if (!taxonomy) return respondError("NOT_FOUND", `Taxonomy '${args.taxonomy}' not found`);
 
 				// Paginated term query via repository (avoids N+1 of handleTermList)
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
+				const { decodeCursor, encodeCursor, InvalidCursorError } =
+					await import("../database/repositories/types.js");
 				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
 				const terms = await repo.findByName(args.taxonomy);
 
-				// Manual cursor pagination over the sorted results
+				// Manual keyset pagination over the sorted-by-label results.
+				// Using a base64-encoded `(label, id)` cursor matches the
+				// scheme other list endpoints use and tolerates concurrent
+				// deletion of the cursor-term — the cursor is a position,
+				// not a row reference, so a missing row just means we skip
+				// past it rather than erroring.
 				let startIdx = 0;
 				if (args.cursor) {
-					const cursorIdx = terms.findIndex((t) => t.id === args.cursor);
-					if (cursorIdx >= 0) startIdx = cursorIdx + 1;
+					let decoded: { orderValue: string; id: string };
+					try {
+						decoded = decodeCursor(args.cursor);
+					} catch (error) {
+						if (error instanceof InvalidCursorError) {
+							return respondError("INVALID_CURSOR", error.message);
+						}
+						throw error;
+					}
+					// Find the first term that sorts strictly after the cursor
+					// position. Stable order is `(label asc, id asc)` so a
+					// `(label, id)` tuple comparison is the keyset.
+					startIdx = terms.findIndex(
+						(t) =>
+							t.label > decoded.orderValue || (t.label === decoded.orderValue && t.id > decoded.id),
+					);
+					if (startIdx < 0) startIdx = terms.length;
 				}
 
 				const page = terms.slice(startIdx, startIdx + limit);
 				const hasMore = startIdx + limit < terms.length;
-				const nextCursor = hasMore ? page.at(-1)?.id : undefined;
+				const last = page.at(-1);
+				const nextCursor = hasMore && last ? encodeCursor(last.label, last.id) : undefined;
 
 				return jsonResult({
 					items: page.map((t) => ({
@@ -1323,7 +1697,7 @@ export function createMcpServer(): McpServer {
 					nextCursor,
 				});
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "TAXONOMY_LIST_TERMS_ERROR");
 			}
 		},
 	);
@@ -1334,7 +1708,10 @@ export function createMcpServer(): McpServer {
 			title: "Create Taxonomy Term",
 			description:
 				"Create a new term in a taxonomy. For hierarchical taxonomies like " +
-				"categories, you can specify a parentId to create a child term.",
+				"categories, you can specify a parentId to create a child term. The " +
+				"parent must exist and belong to the same taxonomy. The parent's " +
+				"ancestor chain must not exceed 100 levels — attempts to attach a " +
+				"new term beneath a chain of 100+ existing ancestors are rejected.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				slug: z.string().describe("URL-safe identifier for the term"),
@@ -1344,7 +1721,7 @@ export function createMcpServer(): McpServer {
 			}),
 		},
 		async (args, extra) => {
-			requireScope(extra, "content:write");
+			requireScope(extra, "taxonomies:manage");
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
@@ -1358,7 +1735,75 @@ export function createMcpServer(): McpServer {
 					}),
 				);
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "TAXONOMY_TERM_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_update_term",
+		{
+			title: "Update Taxonomy Term",
+			description:
+				"Update an existing term in a taxonomy. Any field can be omitted to leave " +
+				"it unchanged. Renaming a term's slug must not collide with another term in " +
+				"the same taxonomy. Set parentId to null to detach from a parent. The new " +
+				"parent must exist, belong to the same taxonomy, and not introduce a cycle " +
+				"(a term cannot be its own ancestor). The new parent's ancestor chain must " +
+				"not exceed 100 levels — reparenting under a chain of 100+ ancestors is " +
+				"rejected.",
+			inputSchema: z.object({
+				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
+				termSlug: z.string().describe("Current slug of the term to update"),
+				slug: z.string().optional().describe("New slug (must be unique in the taxonomy)"),
+				label: z.string().optional().describe("New display name"),
+				parentId: z.string().nullable().optional().describe("New parent term ID; null to detach"),
+				description: z.string().optional().describe("New description"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
+				return unwrap(
+					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
+						slug: args.slug,
+						label: args.label,
+						parentId: args.parentId,
+						description: args.description,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_TERM_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_delete_term",
+		{
+			title: "Delete Taxonomy Term",
+			description:
+				"Permanently delete a term from a taxonomy. Any content tagged with this " +
+				"term loses the association. Cannot delete a term that has children — " +
+				"delete children first.",
+			inputSchema: z.object({
+				taxonomy: z.string().describe("Taxonomy name"),
+				termSlug: z.string().describe("Slug of the term to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTermDelete(ec.db, args.taxonomy, args.termSlug));
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_TERM_DELETE_ERROR");
 			}
 		},
 	);
@@ -1382,20 +1827,10 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const menus = await ec.db
-					.selectFrom("_emdash_menus" as never)
-					.select([
-						"id" as never,
-						"name" as never,
-						"label" as never,
-						"created_at" as never,
-						"updated_at" as never,
-					])
-					.orderBy("name" as never, "asc")
-					.execute();
-				return jsonResult(menus);
+				const { handleMenuList } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuList(ec.db));
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "MENU_LIST_ERROR");
 			}
 		},
 	);
@@ -1417,24 +1852,146 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				const menu = (await ec.db
-					.selectFrom("_emdash_menus" as never)
-					.selectAll()
-					.where("name" as never, "=", args.name as never)
-					.executeTakeFirst()) as { id: string } | undefined;
-
-				if (!menu) return errorResult(`Menu '${args.name}' not found`);
-
-				const items = await ec.db
-					.selectFrom("_emdash_menu_items" as never)
-					.selectAll()
-					.where("menu_id" as never, "=", menu.id as never)
-					.orderBy("sort_order" as never, "asc")
-					.execute();
-
-				return jsonResult({ ...menu, items });
+				const { handleMenuGet } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuGet(ec.db, args.name));
 			} catch (error) {
-				return errorResult(error);
+				return respondHandlerError(error, "MENU_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_create",
+		{
+			title: "Create Menu",
+			description:
+				"Create a new navigation menu. The `name` is the stable identifier used " +
+				"by site templates (e.g. 'main', 'footer'); `label` is the human-readable " +
+				"name shown in the admin. Add items afterwards with menu_set_items.",
+			inputSchema: z.object({
+				name: z
+					.string()
+					.regex(COLLECTION_SLUG_PATTERN)
+					.describe("Stable identifier (lowercase letters, numbers, underscores)"),
+				label: z.string().describe("Display name for the admin"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "menus:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleMenuCreate } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuCreate(ec.db, { name: args.name, label: args.label }));
+			} catch (error) {
+				return respondHandlerError(error, "MENU_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_update",
+		{
+			title: "Update Menu",
+			description: "Update a menu's label. The `name` (stable identifier) cannot be changed.",
+			inputSchema: z.object({
+				name: z.string().describe("Menu name to update"),
+				label: z.string().describe("New display label"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "menus:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleMenuUpdate } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuUpdate(ec.db, args.name, { label: args.label }));
+			} catch (error) {
+				return respondHandlerError(error, "MENU_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_delete",
+		{
+			title: "Delete Menu",
+			description: "Delete a menu. Items are also removed. Cannot be undone.",
+			inputSchema: z.object({
+				name: z.string().describe("Menu name to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "menus:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleMenuDelete } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuDelete(ec.db, args.name));
+			} catch (error) {
+				return respondHandlerError(error, "MENU_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_set_items",
+		{
+			title: "Set Menu Items",
+			description:
+				"Replace the entire item list of a menu in one call. This is atomic: the " +
+				"existing items are deleted and the new list is inserted in the order " +
+				"provided. Use this rather than per-item add/remove tools so the resulting " +
+				"order and parent links are unambiguous.",
+			inputSchema: z.object({
+				name: z.string().describe("Menu name to update"),
+				items: z
+					.array(
+						z.object({
+							label: z.string().describe("Item display text"),
+							type: z
+								.enum(["custom", "page", "post", "taxonomy", "collection"])
+								.describe("Item kind"),
+							customUrl: z
+								.string()
+								.optional()
+								.describe("URL for type='custom' items (ignored otherwise)"),
+							referenceCollection: z
+								.string()
+								.optional()
+								.describe("Target collection slug for content references"),
+							referenceId: z.string().optional().describe("Target content/term ID for references"),
+							titleAttr: z.string().optional().describe("HTML title attribute"),
+							target: z.string().optional().describe("HTML target attribute, e.g. '_blank'"),
+							cssClasses: z.string().optional().describe("Space-separated CSS classes"),
+							/**
+							 * Items are positioned by array index, but parents may be referenced
+							 * by their array index — items with `parentIndex` set are nested under
+							 * the item at that position. Items without `parentIndex` are top-level.
+							 */
+							parentIndex: z
+								.number()
+								.int()
+								.nonnegative()
+								.optional()
+								.describe(
+									"Array index of the parent item (must be earlier in the list). Omit for top-level items.",
+								),
+						}),
+					)
+					.describe("Ordered list of menu items"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "menus:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleMenuSetItems } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuSetItems(ec.db, args.name, args.items));
+			} catch (error) {
+				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
 			}
 		},
 	);
@@ -1460,6 +2017,7 @@ export function createMcpServer(): McpServer {
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:read");
+			requireDraftAccess(extra);
 			const ec = getEmDash(extra);
 			return unwrap(
 				await ec.handleRevisionList(args.collection, args.id, {
@@ -1493,7 +2051,10 @@ export function createMcpServer(): McpServer {
 			}
 			const revItem = revision.data?.item;
 			if (!revItem?.collection || !revItem?.entryId) {
-				return errorResult("Revision is missing collection or entry reference");
+				return respondError(
+					"VALIDATION_ERROR",
+					"Revision is missing collection or entry reference",
+				);
 			}
 
 			// Fetch the content entry to check ownership
@@ -1509,6 +2070,91 @@ export function createMcpServer(): McpServer {
 			);
 
 			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
+		},
+	);
+
+	// =====================================================================
+	// Settings tools
+	// =====================================================================
+
+	server.registerTool(
+		"settings_get",
+		{
+			title: "Get Site Settings",
+			description:
+				"Get all site-wide settings (title, tagline, logo, favicon, URL, " +
+				"date/time formatting, social links, SEO defaults). Media references " +
+				"(logo, favicon, defaultOgImage) include resolved URLs. Unset values " +
+				"are omitted from the response.",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireScope(extra, "settings:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleSettingsGet } = await import("../api/handlers/settings.js");
+				return unwrap(await handleSettingsGet(ec.db, ec.storage));
+			} catch (error) {
+				return respondHandlerError(error, "SETTINGS_READ_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"settings_update",
+		{
+			title: "Update Site Settings",
+			description:
+				"Update one or more site-wide settings. This is a partial update: only " +
+				"the fields provided are changed; omitted fields are left as-is. Returns " +
+				"the full settings object after the update. To set a media reference " +
+				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
+				"(and optional `alt`) — the media item must already exist (use " +
+				"media_create first).",
+			inputSchema: z.object({
+				title: z.string().optional().describe("Site title"),
+				tagline: z.string().optional().describe("Site tagline / short description"),
+				logo: settingsMediaReferenceSchema
+					.optional()
+					.describe("Logo media reference ({ mediaId, alt? })"),
+				favicon: settingsMediaReferenceSchema
+					.optional()
+					.describe("Favicon media reference ({ mediaId, alt? })"),
+				url: z
+					.union([
+						z
+							.string()
+							.url()
+							.refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
+						z.literal(""),
+					])
+					.optional()
+					.describe("Canonical site URL (http or https). Empty string clears it."),
+				postsPerPage: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.optional()
+					.describe("Default page size for content listings"),
+				dateFormat: z.string().optional().describe("Date format token string"),
+				timezone: z.string().optional().describe("IANA timezone identifier"),
+				social: settingsSocialSchema.optional().describe("Social handles / URLs"),
+				seo: settingsSeoSchema.optional().describe("Site-wide SEO defaults"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "settings:manage");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			try {
+				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
+				return unwrap(await handleSettingsUpdate(ec.db, ec.storage, args));
+			} catch (error) {
+				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
+			}
 		},
 	);
 

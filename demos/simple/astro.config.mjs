@@ -1,8 +1,11 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
+import { atproto } from "@emdash-cms/auth-atproto";
 import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash, { local } from "emdash/astro";
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
 import { sqlite } from "emdash/db";
 
 export default defineConfig({
@@ -29,6 +32,7 @@ export default defineConfig({
 				directory: "./uploads",
 				baseUrl: "/_emdash/api/media/file",
 			}),
+			authProviders: [github(), google(), atproto()],
 			plugins: [auditLogPlugin()],
 			// HTTPS reverse proxy: uncomment so all origin-dependent features match browser
 			// siteUrl: "https://emdash.local:8443",
