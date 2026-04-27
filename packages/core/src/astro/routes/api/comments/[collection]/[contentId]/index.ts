@@ -139,18 +139,22 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		}
 
 		// Anti-spam: Rate limiting
-		const meta = extractRequestMeta(request);
+		const meta = extractRequestMeta(request, emdash.config);
 		const ipSalt =
 			import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "emdash-ip-salt";
 		let ipHash: string;
 		if (meta.ip) {
 			ipHash = await hashIp(meta.ip, ipSalt);
-		} else if (meta.userAgent) {
-			// Fallback: hash user-agent as a rough identifier when IP is unavailable
-			ipHash = await hashIp(`ua:${meta.userAgent}`, ipSalt);
 		} else {
-			// Fail closed: all unidentifiable requests share one rate-limit bucket.
-			// Use a larger limit since this bucket is shared across all anonymous users.
+			// No trusted IP — fail closed by bucketing all unidentifiable
+			// requests together. A larger limit reflects the shared bucket.
+			//
+			// Self-hosted operators behind a reverse proxy should set
+			// `trustedProxyHeaders` in the EmDash config (or the
+			// EMDASH_TRUSTED_PROXY_HEADERS env var) so this path isn't hit
+			// for legitimate traffic. UA-hashing was previously used here
+			// but was trivially rotatable — the shared bucket is stricter
+			// and forces operators toward a real fix.
 			ipHash = "unknown";
 		}
 		const unknownBucketLimit = ipHash === "unknown" ? 20 : undefined;

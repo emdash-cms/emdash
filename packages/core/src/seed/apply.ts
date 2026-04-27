@@ -14,6 +14,7 @@ import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
+import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
@@ -371,6 +372,7 @@ export async function applySeed(
 						await withTransaction(db, async (trx) => {
 							const trxContentRepo = new ContentRepository(trx);
 							const trxBylineRepo = new BylineRepository(trx);
+							const trxRevisionRepo = new RevisionRepository(trx);
 
 							await trxContentRepo.update(collectionSlug, existing.id, {
 								status,
@@ -386,6 +388,23 @@ export async function applySeed(
 								true,
 							);
 							await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+
+							// Seed is declarative — when status is "published", promote to a live
+							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+							// and `live_revision_id` is populated for downstream queries.
+							//
+							// Create a fresh revision from the updated data and stage it as the
+							// draft so `publish()` picks it up instead of re-syncing stale data
+							// from an existing live revision.
+							if (status === "published") {
+								const draft = await trxRevisionRepo.create({
+									collection: collectionSlug,
+									entryId: existing.id,
+									data: resolvedData,
+								});
+								await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
+								await trxContentRepo.publish(collectionSlug, existing.id);
+							}
 						});
 
 						seedIdMap.set(entry.id, existing.id);
@@ -433,6 +452,13 @@ export async function applySeed(
 
 					await applyContentBylines(trxBylineRepo, collectionSlug, item.id, entry, seedBylineIdMap);
 					await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+
+					// Seed is declarative — when status is "published", promote to a live
+					// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+					// and `live_revision_id` is populated for downstream queries.
+					if (status === "published") {
+						await trxContentRepo.publish(collectionSlug, item.id);
+					}
 
 					return item;
 				});

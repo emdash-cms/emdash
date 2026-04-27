@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
 import { EmDashValidationError } from "../../../../src/database/repositories/types.js";
 import type { Database } from "../../../../src/database/types.js";
 import { createPostFixture, createPageFixture } from "../../../utils/fixtures.js";
@@ -471,6 +472,56 @@ describe("ContentRepository", () => {
 
 			expect(updated.status).toBe("published");
 			expect(updated.scheduledAt).toBeNull();
+		});
+	});
+
+	describe("setDraftRevision()", () => {
+		it("sets the draft_revision_id so publish() picks it up", async () => {
+			const post = await repo.create(createPostFixture());
+			const revisionRepo = new RevisionRepository(db);
+			const draft = await revisionRepo.create({
+				collection: "post",
+				entryId: post.id,
+				data: { ...post.data, title: "Staged for publish" },
+			});
+
+			await repo.setDraftRevision("post", post.id, draft.id);
+
+			const afterStaging = await repo.findById("post", post.id);
+			expect(afterStaging?.draftRevisionId).toBe(draft.id);
+
+			const published = await repo.publish("post", post.id);
+
+			expect(published.liveRevisionId).toBe(draft.id);
+			expect(published.draftRevisionId).toBeNull();
+		});
+
+		it("throws when the content item does not exist", async () => {
+			await expect(
+				repo.setDraftRevision("post", "01K0000000000000000000000", "01K0000000000000000000001"),
+			).rejects.toThrow(EmDashValidationError);
+		});
+
+		it("throws when the revision does not exist", async () => {
+			const post = await repo.create(createPostFixture());
+			await expect(
+				repo.setDraftRevision("post", post.id, "01K0000000000000000000001"),
+			).rejects.toThrow(EmDashValidationError);
+		});
+
+		it("throws when the revision belongs to a different content item", async () => {
+			const post1 = await repo.create(createPostFixture({ slug: "one" }));
+			const post2 = await repo.create(createPostFixture({ slug: "two" }));
+			const revisionRepo = new RevisionRepository(db);
+			const draft = await revisionRepo.create({
+				collection: "post",
+				entryId: post2.id,
+				data: post2.data,
+			});
+
+			await expect(repo.setDraftRevision("post", post1.id, draft.id)).rejects.toThrow(
+				EmDashValidationError,
+			);
 		});
 	});
 

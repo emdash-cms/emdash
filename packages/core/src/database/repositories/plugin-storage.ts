@@ -226,14 +226,12 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 			query = query.where(({ eb }) => eb(sql.join(whereSqlParts, sql.raw("")), "=", sql.raw("1")));
 		}
 
-		// Handle cursor-based pagination
+		// Handle cursor-based pagination — throws on invalid cursor.
 		if (cursor) {
 			const decoded = decodeCursor(cursor);
-			if (decoded) {
-				query = query.where(({ eb }) =>
-					eb(sql`(created_at, id)`, ">", sql`(${decoded.orderValue}, ${decoded.id})`),
-				);
-			}
+			query = query.where(({ eb }) =>
+				eb(sql`(created_at, id)`, ">", sql`(${decoded.orderValue}, ${decoded.id})`),
+			);
 		}
 
 		// Build ORDER BY using sql template

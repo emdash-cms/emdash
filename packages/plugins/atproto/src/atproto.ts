@@ -30,12 +30,52 @@ export interface BlobRef {
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
 /** Get the HTTP client from plugin context, or throw a helpful error. */
 export function requireHttp(ctx: PluginContext) {
 	if (!ctx.http) {
 		throw new Error("AT Protocol plugin requires the network:fetch capability");
 	}
 	return ctx.http;
+}
+
+/**
+ * Normalize user-entered PDS values to the host portion expected by the
+ * AT Protocol XRPC helpers. Users often paste a full service URL.
+ */
+export function normalizePdsHost(value: string | null | undefined): string {
+	const raw = value?.trim() || "bsky.social";
+	const withScheme = URL_SCHEME_RE.test(raw) ? raw : `https://${raw}`;
+
+	let url: URL;
+	try {
+		url = new URL(withScheme);
+	} catch {
+		throw new Error(`Invalid PDS host: ${raw}`);
+	}
+
+	if (url.protocol !== "https:") {
+		throw new Error(`Invalid PDS host protocol: ${url.protocol}`);
+	}
+
+	return url.host;
+}
+
+function xrpcUrl(pdsHost: string, method: string): string {
+	return `https://${normalizePdsHost(pdsHost)}/xrpc/${method}`;
+}
+
+async function responseNeedsSessionRefresh(res: Response): Promise<boolean> {
+	if (res.status === 401) return true;
+	if (res.status !== 400) return false;
+
+	try {
+		const body = (await res.clone().json()) as Record<string, unknown>;
+		return body.error === "ExpiredToken";
+	} catch {
+		return false;
+	}
 }
 
 /** Validate that a PDS response contains expected string fields. */
@@ -59,7 +99,7 @@ export async function createSession(
 	password: string,
 ): Promise<AtSession> {
 	const http = requireHttp(ctx);
-	const res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.server.createSession`, {
+	const res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.server.createSession"), {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ identifier, password }),
@@ -88,7 +128,7 @@ export async function refreshSession(
 	refreshJwt: string,
 ): Promise<AtSession> {
 	const http = requireHttp(ctx);
-	const res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.server.refreshSession`, {
+	const res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.server.refreshSession"), {
 		method: "POST",
 		headers: { Authorization: `Bearer ${refreshJwt}` },
 	});
@@ -123,7 +163,7 @@ export async function ensureSession(ctx: PluginContext): Promise<{
 	did: string;
 	pdsHost: string;
 }> {
-	const pdsHost = (await ctx.kv.get<string>("settings:pdsHost")) || "bsky.social";
+	const pdsHost = normalizePdsHost(await ctx.kv.get<string>("settings:pdsHost"));
 	const handle = await ctx.kv.get<string>("settings:handle");
 	const appPassword = await ctx.kv.get<string>("settings:appPassword");
 
@@ -187,7 +227,7 @@ export async function createRecord(
 	record: unknown,
 ): Promise<AtRecord> {
 	const http = requireHttp(ctx);
-	let res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.createRecord`, {
+	let res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.createRecord"), {
 		method: "POST",
 		headers: {
 			Authorization: `Bearer ${accessJwt}`,
@@ -196,11 +236,11 @@ export async function createRecord(
 		body: JSON.stringify({ repo: did, collection, record }),
 	});
 
-	// Retry once on 401 with refreshed token
-	if (res.status === 401) {
+	// Retry once when the PDS reports an expired access token.
+	if (await responseNeedsSessionRefresh(res)) {
 		const refreshed = await ensureSessionFresh(ctx, pdsHost);
 		if (refreshed) {
-			res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.createRecord`, {
+			res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.createRecord"), {
 				method: "POST",
 				headers: {
 					Authorization: `Bearer ${refreshed.accessJwt}`,
@@ -237,7 +277,7 @@ export async function putRecord(
 	record: unknown,
 ): Promise<AtRecord> {
 	const http = requireHttp(ctx);
-	let res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.putRecord`, {
+	let res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.putRecord"), {
 		method: "POST",
 		headers: {
 			Authorization: `Bearer ${accessJwt}`,
@@ -246,10 +286,10 @@ export async function putRecord(
 		body: JSON.stringify({ repo: did, collection, rkey, record }),
 	});
 
-	if (res.status === 401) {
+	if (await responseNeedsSessionRefresh(res)) {
 		const refreshed = await ensureSessionFresh(ctx, pdsHost);
 		if (refreshed) {
-			res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.putRecord`, {
+			res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.putRecord"), {
 				method: "POST",
 				headers: {
 					Authorization: `Bearer ${refreshed.accessJwt}`,
@@ -285,7 +325,7 @@ export async function deleteRecord(
 	rkey: string,
 ): Promise<void> {
 	const http = requireHttp(ctx);
-	let res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.deleteRecord`, {
+	let res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.deleteRecord"), {
 		method: "POST",
 		headers: {
 			Authorization: `Bearer ${accessJwt}`,
@@ -294,10 +334,10 @@ export async function deleteRecord(
 		body: JSON.stringify({ repo: did, collection, rkey }),
 	});
 
-	if (res.status === 401) {
+	if (await responseNeedsSessionRefresh(res)) {
 		const refreshed = await ensureSessionFresh(ctx, pdsHost);
 		if (refreshed) {
-			res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.deleteRecord`, {
+			res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.deleteRecord"), {
 				method: "POST",
 				headers: {
 					Authorization: `Bearer ${refreshed.accessJwt}`,
@@ -367,7 +407,7 @@ export async function uploadBlob(
 	mimeType: string,
 ): Promise<BlobRef> {
 	const http = requireHttp(ctx);
-	const res = await http.fetch(`https://${pdsHost}/xrpc/com.atproto.repo.uploadBlob`, {
+	const res = await http.fetch(xrpcUrl(pdsHost, "com.atproto.repo.uploadBlob"), {
 		method: "POST",
 		headers: {
 			Authorization: `Bearer ${accessJwt}`,

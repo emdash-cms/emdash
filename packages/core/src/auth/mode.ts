@@ -6,9 +6,21 @@
  */
 
 import type { EmDashConfig } from "../astro/integration/runtime.js";
-import type { AuthDescriptor, AuthResult, ExternalAuthConfig } from "./types.js";
+import type {
+	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthRouteDescriptor,
+	AuthResult,
+	ExternalAuthConfig,
+} from "./types.js";
 
-export type { AuthDescriptor, AuthResult, ExternalAuthConfig };
+export type {
+	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthRouteDescriptor,
+	AuthResult,
+	ExternalAuthConfig,
+};
 
 /**
  * Passkey auth mode (default)
@@ -59,7 +71,7 @@ export function getAuthMode(
 ): AuthMode {
 	const auth = config?.auth;
 
-	// Check for AuthDescriptor (new style)
+	// Check for AuthDescriptor (transparent external auth like Cloudflare Access)
 	if (auth && "entrypoint" in auth && auth.entrypoint) {
 		return {
 			type: "external",
