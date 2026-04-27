@@ -200,7 +200,7 @@ msgstr "{0} 미리보기"
 #. placeholder {0}: taxonomy.label
 #: packages/admin/src/components/TaxonomySidebar.tsx:313
 msgid "{0} updated"
-msgstr ""
+msgstr "{0} 업데이트됨"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
@@ -503,7 +503,7 @@ msgstr "추가"
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:446
 msgid "Add new {0}"
-msgstr ""
+msgstr "새 {0} 추가"
 
 #: packages/admin/src/components/SeoPanel.tsx:187
 msgid "Add noindex meta tag"
@@ -975,7 +975,7 @@ msgstr "인증 확인 중..."
 
 #: packages/admin/src/components/SetupWizard.tsx:317
 msgid "Choose how to sign in"
-msgstr ""
+msgstr "로그인 방법을 선택하세요"
 
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
@@ -1365,11 +1365,11 @@ msgstr "패스키 만들기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
 msgid "Create, update, and delete navigation menus"
-msgstr ""
+msgstr "탐색 메뉴 생성, 업데이트, 삭제"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
 msgid "Create, update, and delete taxonomy terms"
-msgstr ""
+msgstr "분류 항목 생성, 업데이트, 삭제"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
@@ -1945,7 +1945,7 @@ msgstr "URL(https://…) 또는 상대 경로(/…)를 입력하세요."
 
 #: packages/admin/src/components/ContentEditor.tsx:1393
 msgid "Enter a valid URL (e.g. https://example.com)"
-msgstr ""
+msgstr "유효한 URL을 입력하세요 (예: https://example.com)"
 
 #: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Enter credentials manually"
@@ -1973,7 +1973,7 @@ msgstr "터미널에서 코드를 입력하세요"
 
 #: packages/admin/src/components/LoginPage.tsx:325
 msgid "Enter your handle to sign in."
-msgstr ""
+msgstr "로그인하려면 핸들을 입력하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1289
 msgid "Enter your WordPress credentials to import content directly."
@@ -2056,7 +2056,7 @@ msgstr "일부 컬렉션을 생성하지 못했습니다."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:453
 msgid "Failed to create term"
-msgstr ""
+msgstr "분류 항목을 생성하지 못했습니다."
 
 #: packages/admin/src/components/PluginManager.tsx:108
 msgid "Failed to disable plugin"
@@ -2122,7 +2122,7 @@ msgstr "패스키 이름을 바꾸지 못했습니다."
 
 #: packages/admin/src/router.tsx:1530
 msgid "Failed to save"
-msgstr ""
+msgstr "저장하지 못했습니다."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:64
 #: packages/admin/src/components/settings/SeoSettings.tsx:58
@@ -2142,7 +2142,7 @@ msgstr "테스트 이메일을 보내지 못했습니다."
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:317
 msgid "Failed to update {0}"
-msgstr ""
+msgstr "{0}을(를) 업데이트하지 못했습니다."
 
 #: packages/admin/src/components/ContentEditor.tsx:1877
 msgid "Failed to update byline"
@@ -2950,7 +2950,7 @@ msgstr "메뉴({0})"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:89
 msgid "Menus Manage"
-msgstr ""
+msgstr "메뉴 관리"
 
 #: packages/admin/src/components/SeoPanel.tsx:161
 msgid "Meta Description"
@@ -3067,7 +3067,7 @@ msgstr "NEW"
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:424
 msgid "New {0}"
-msgstr ""
+msgstr "새 {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:552
 msgid "New {collectionLabel}"
@@ -3562,7 +3562,7 @@ msgstr "권한"
 
 #: packages/admin/src/components/SetupWizard.tsx:319
 msgid "Pick any method to create your admin account."
-msgstr ""
+msgstr "관리자 계정을 만들 방법을 선택하세요."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:313
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
@@ -3733,7 +3733,7 @@ msgstr "미디어 파일 읽기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
 msgid "Read site settings"
-msgstr ""
+msgstr "사이트 설정 읽기"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
@@ -4466,11 +4466,11 @@ msgstr "설정"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
 msgid "Settings Manage"
-msgstr ""
+msgstr "설정 관리"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
 msgid "Settings Read"
-msgstr ""
+msgstr "설정 읽기"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
@@ -4500,7 +4500,7 @@ msgstr "로그인"
 
 #: packages/admin/src/components/SetupWizard.tsx:384
 msgid "Sign In"
-msgstr ""
+msgstr "로그인"
 
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
@@ -4515,7 +4515,7 @@ msgstr "사이트에 로그인"
 #: packages/admin/src/components/LoginPage.tsx:231
 #: packages/admin/src/components/SetupWizard.tsx:293
 msgid "Sign in with {0}"
-msgstr ""
+msgstr "{0}(으)로 로그인"
 
 #: packages/admin/src/components/LoginPage.tsx:229
 msgid "Sign in with email"
@@ -4740,7 +4740,7 @@ msgstr "분류"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
 msgid "Taxonomies Manage"
-msgstr ""
+msgstr "분류 관리"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:668
 msgid "Taxonomy created"
@@ -5139,7 +5139,7 @@ msgstr "{0}에 대한 설정 업데이트"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
 msgid "Update site settings"
-msgstr ""
+msgstr "사이트 설정 업데이트"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:218
@@ -5402,7 +5402,7 @@ msgstr "다음 주소로 인증 링크를 보냈습니다:"
 
 #: packages/admin/src/components/FieldEditor.tsx:231
 msgid "Web address"
-msgstr ""
+msgstr "웹 주소"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:159
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:163
