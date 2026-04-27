@@ -13,7 +13,7 @@ import { verifyRegistrationResponse, registerPasskey } from "@emdash-cms/auth/pa
 
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
-import { getPublicOrigin } from "#api/public-url.js";
+import { getEnvAllowedOrigins, getPublicOrigin } from "#api/public-url.js";
 import { passkeyRegisterVerifyBody } from "#api/schemas.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
@@ -60,7 +60,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const optionsRepo = new OptionsRepository(emdash.db);
 		const siteName = (await optionsRepo.get<string>("emdash:site_title")) ?? undefined;
 		const siteUrl = getPublicOrigin(url, emdash?.config);
-		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
+		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl, getEnvAllowedOrigins());
 
 		// Verify the registration response
 		const challengeStore = createChallengeStore(emdash.db);

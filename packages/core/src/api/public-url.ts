@@ -26,9 +26,10 @@ import type { EmDashConfig } from "../astro/integration/runtime.js";
  */
 let _envSiteUrl: string | undefined | null = null;
 
-/** @internal Reset cached env value — test-only. */
+/** @internal Reset cached env values — test-only. */
 export function _resetEnvSiteUrlCache(): void {
 	_envSiteUrl = null;
+	_envAllowedOrigins = null;
 }
 
 function getEnvSiteUrl(): string | undefined {
@@ -69,6 +70,44 @@ function getEnvSiteUrl(): string | undefined {
  */
 export function getPublicOrigin(url: URL, config?: EmDashConfig): string {
 	return config?.siteUrl || getEnvSiteUrl() || url.origin;
+}
+
+/**
+ * Resolve additional accepted passkey origins from runtime environment.
+ *
+ * Reads `EMDASH_ALLOWED_ORIGINS` (comma-separated list of origins) for
+ * multi-origin deployments where the same RP is reachable under several
+ * hostnames sharing the registrable parent domain (e.g. apex + preview).
+ *
+ * Each entry is parsed via `new URL()` and reduced to its `origin`. Entries
+ * with non-http(s) protocols or unparseable values are silently skipped.
+ *
+ * Like `getEnvSiteUrl`, uses `process.env` (Vite leaves it untouched at
+ * runtime) and is unavailable on Cloudflare Workers, where `env` bindings
+ * provide values instead.
+ *
+ * Caches after first call.
+ */
+let _envAllowedOrigins: string[] | null = null;
+
+export function getEnvAllowedOrigins(): string[] {
+	if (_envAllowedOrigins !== null) return _envAllowedOrigins;
+	const raw = typeof process !== "undefined" ? process.env?.EMDASH_ALLOWED_ORIGINS || "" : "";
+	const parsed: string[] = [];
+	for (const entry of raw.split(",")) {
+		const trimmed = entry.trim();
+		if (!trimmed) continue;
+		try {
+			const u = new URL(trimmed);
+			if (u.protocol === "http:" || u.protocol === "https:") {
+				parsed.push(u.origin);
+			}
+		} catch {
+			// skip unparseable entries
+		}
+	}
+	_envAllowedOrigins = parsed;
+	return parsed;
 }
 
 /**

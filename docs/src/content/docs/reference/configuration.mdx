@@ -228,6 +228,19 @@ When `siteUrl` is not set in config, EmDash checks environment variables in orde
 	`siteUrl` replaces `passkeyPublicOrigin` (removed). If you were using `passkeyPublicOrigin`, rename it to `siteUrl` -- it now covers passkeys and all other origin-dependent features.
 </Aside>
 
+#### Multi-origin passkey verification
+
+`siteUrl` defines a single canonical origin. When the same EmDash deployment is reachable under several hostnames that share a registrable parent domain (e.g. `https://example.com` and `https://preview.example.com`), passkey verification rejects assertions whose origin doesn't match `siteUrl` exactly -- even though WebAuthn allows passkeys to be valid across subdomains under the same `rpId`.
+
+Set `EMDASH_ALLOWED_ORIGINS` to a comma-separated list of additional accepted origins. The canonical `siteUrl` remains the source of `rpId`, and the listed origins are accepted at verification time:
+
+```bash
+EMDASH_SITE_URL=https://example.com
+EMDASH_ALLOWED_ORIGINS=https://preview.example.com,https://staging.example.com
+```
+
+Each entry must be a valid `http:` or `https:` URL; entries are reduced to their origin (path/query stripped). Each origin must share the registrable parent domain with `siteUrl` -- this is a WebAuthn requirement, not an EmDash one.
+
 #### Reverse proxy setup
 
 Astro only reflects **`X-Forwarded-*`** when the public host is allowed. Configure [**`security.allowedDomains`**](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains) for the hostname (and schemes) your users hit. In **`astro dev`**, add matching **`vite.server.allowedHosts`** so Vite accepts the proxy **`Host`** header.
@@ -466,6 +479,7 @@ EmDash respects these environment variables:
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
 | `EMDASH_SITE_URL`      | Public browser-facing origin (falls back to `SITE_URL`) |
+| `EMDASH_ALLOWED_ORIGINS` | Comma-separated list of additional origins accepted by passkey verification (multi-subdomain deployments). |
 | `EMDASH_DATABASE_URL`   | Override database URL                    |
 | `EMDASH_AUTH_SECRET`    | Secret for passkey authentication        |
 | `EMDASH_PREVIEW_SECRET` | Secret for preview token generation      |
