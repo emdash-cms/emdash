@@ -17,6 +17,7 @@ import type {
 	RepeaterSubField,
 	DividerBlock,
 	Element,
+	EmptyBlock,
 	FieldsBlock,
 	FormBlock,
 	FormField,
@@ -422,6 +423,25 @@ function codeBlock(opts: {
 	};
 }
 
+function empty(opts: {
+	blockId?: string;
+	title: string;
+	description?: string;
+	commandLine?: string;
+	size?: "sm" | "base" | "lg";
+	actions?: Element[];
+}): EmptyBlock {
+	return {
+		type: "empty",
+		title: opts.title,
+		...(opts.description !== undefined && { description: opts.description }),
+		...(opts.commandLine !== undefined && { command_line: opts.commandLine }),
+		...(opts.size !== undefined && { size: opts.size }),
+		...(opts.actions !== undefined && { actions: opts.actions }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -441,6 +461,7 @@ export const blocks = {
 	banner: bannerBlock,
 	meter,
 	code: codeBlock,
+	empty,
 };
 
 export const elements = {

@@ -14,7 +14,10 @@ const BLOCK_TYPES = new Set([
 	"banner",
 	"meter",
 	"code",
+	"empty",
 ]);
+
+const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
 
 const ELEMENT_TYPES = new Set([
 	"button",
@@ -1080,6 +1083,48 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 					path: `${path}.variant`,
 					message: `Field 'variant' must be one of: ${[...BANNER_VARIANTS].join(", ")}`,
 				});
+			}
+			break;
+		}
+		case "empty": {
+			if (typeof value.title !== "string") {
+				errors.push({
+					path: `${path}.title`,
+					message: "Required field 'title' must be a string",
+				});
+			}
+			if (value.description !== undefined && typeof value.description !== "string") {
+				errors.push({
+					path: `${path}.description`,
+					message: "Field 'description' must be a string if provided",
+				});
+			}
+			if (value.command_line !== undefined && typeof value.command_line !== "string") {
+				errors.push({
+					path: `${path}.command_line`,
+					message: "Field 'command_line' must be a string if provided",
+				});
+			}
+			if (
+				value.size !== undefined &&
+				(typeof value.size !== "string" || !EMPTY_SIZES.has(value.size))
+			) {
+				errors.push({
+					path: `${path}.size`,
+					message: `Field 'size' must be one of: ${[...EMPTY_SIZES].join(", ")}`,
+				});
+			}
+			if (value.actions !== undefined) {
+				if (!Array.isArray(value.actions)) {
+					errors.push({
+						path: `${path}.actions`,
+						message: "Field 'actions' must be an array if provided",
+					});
+				} else {
+					for (let i = 0; i < value.actions.length; i++) {
+						validateElement(value.actions[i], `${path}.actions[${i}]`, errors);
+					}
+				}
 			}
 			break;
 		}

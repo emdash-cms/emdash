@@ -108,6 +108,15 @@ vi.mock("@cloudflare/kumo", () => ({
 			<code>{code}</code>
 		</pre>
 	),
+	Empty: ({ title, description, commandLine, size, contents, icon }: any) => (
+		<div data-testid="empty" data-size={size ?? "base"}>
+			{icon}
+			<strong>{title}</strong>
+			{description && <p>{description}</p>}
+			{commandLine && <pre data-testid="empty-command">{commandLine}</pre>}
+			{contents}
+		</div>
+	),
 	Checkbox: {
 		Group: ({ children, legend }: any) => (
 			<fieldset data-testid="checkbox-group">
@@ -191,6 +200,7 @@ vi.mock("@phosphor-icons/react", () => ({
 	Info: () => <span data-testid="icon-info" />,
 	Warning: () => <span data-testid="icon-warning" />,
 	WarningCircle: () => <span data-testid="icon-warning-circle" />,
+	Package: () => <span data-testid="icon-package" />,
 }));
 
 afterEach(cleanup);
@@ -419,6 +429,44 @@ describe("BlockRenderer", () => {
 		const el = screen.getByText("Updated just now");
 		expect(el.tagName).toBe("P");
 		expect(el.className).toContain("text-sm");
+	});
+
+	it("empty block renders title and default icon", () => {
+		renderBlocks([{ type: "empty", title: "No items" }]);
+		expect(screen.getByText("No items")).toBeTruthy();
+		expect(screen.getByTestId("icon-package")).toBeTruthy();
+		expect(screen.getByTestId("empty").getAttribute("data-size")).toBe("base");
+	});
+
+	it("empty block renders description, command line, size, and action buttons", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "empty",
+					title: "No webhooks yet",
+					description: "Create your first webhook.",
+					command_line: "emdash webhooks create",
+					size: "lg",
+					actions: [
+						{ type: "button", action_id: "create", label: "Create webhook", style: "primary" },
+					],
+				},
+			],
+			onAction,
+		);
+
+		expect(screen.getByText("Create your first webhook.")).toBeTruthy();
+		expect(screen.getByTestId("empty-command").textContent).toBe("emdash webhooks create");
+		expect(screen.getByTestId("empty").getAttribute("data-size")).toBe("lg");
+
+		fireEvent.click(screen.getByText("Create webhook"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "create" });
+	});
+
+	it("empty block omits contents when actions array is empty", () => {
+		const { container } = renderBlocks([{ type: "empty", title: "X", actions: [] }]);
+		expect(container.querySelectorAll("button").length).toBe(0);
 	});
 
 	it("columns block renders blocks in columns", () => {

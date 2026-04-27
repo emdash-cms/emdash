@@ -5,6 +5,7 @@ import { CodeBlockComponent } from "./blocks/code.js";
 import { ColumnsBlockComponent } from "./blocks/columns.js";
 import { ContextBlockComponent } from "./blocks/context.js";
 import { DividerBlockComponent } from "./blocks/divider.js";
+import { EmptyBlockComponent } from "./blocks/empty.js";
 import { FieldsBlockComponent } from "./blocks/fields.js";
 import { FormBlockComponent } from "./blocks/form.js";
 import { HeaderBlockComponent } from "./blocks/header.js";
@@ -50,6 +51,8 @@ function renderBlock(
 			return <BannerBlockComponent block={block} />;
 		case "code":
 			return <CodeBlockComponent block={block} />;
+		case "empty":
+			return <EmptyBlockComponent block={block} onAction={onAction} />;
 		default: {
 			const _exhaustive: never = block;
 			return null;

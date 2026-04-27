@@ -96,6 +96,28 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("empty (minimal)", () => {
+			const result = validateBlocks([{ type: "empty", title: "No items" }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("empty (full)", () => {
+			const result = validateBlocks([
+				{
+					type: "empty",
+					title: "No webhooks yet",
+					description: "Create your first webhook to receive notifications.",
+					command_line: "emdash webhooks create",
+					size: "lg",
+					actions: [
+						{ type: "button", action_id: "create", label: "Create webhook", style: "primary" },
+						{ type: "button", action_id: "import", label: "Import" },
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -358,6 +380,36 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].columns[1][0].text");
+		});
+
+		it("empty missing title", () => {
+			const result = validateBlocks([{ type: "empty" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].title");
+		});
+
+		it("empty with invalid size", () => {
+			const result = validateBlocks([{ type: "empty", title: "X", size: "huge" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].size");
+		});
+
+		it("empty with non-array actions", () => {
+			const result = validateBlocks([{ type: "empty", title: "X", actions: "nope" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].actions");
+		});
+
+		it("empty with invalid action element reports correct path", () => {
+			const result = validateBlocks([
+				{
+					type: "empty",
+					title: "X",
+					actions: [{ type: "button", action_id: "go", label: "Go", style: "neon" }],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].actions[0].style");
 		});
 
 		it("stats item missing label or value", () => {
