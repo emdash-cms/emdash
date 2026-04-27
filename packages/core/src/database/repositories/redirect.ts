@@ -182,14 +182,12 @@ export class RedirectRepository {
 
 		if (opts.cursor) {
 			const decoded = decodeCursor(opts.cursor);
-			if (decoded) {
-				query = query.where((eb) =>
-					eb.or([
-						eb("created_at", "<", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await query.execute();
@@ -509,14 +507,12 @@ export class RedirectRepository {
 
 		if (opts.cursor) {
 			const decoded = decodeCursor(opts.cursor);
-			if (decoded) {
-				query = query.where((eb) =>
-					eb.or([
-						eb("created_at", "<", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await query.execute();

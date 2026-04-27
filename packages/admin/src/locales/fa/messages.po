@@ -61,7 +61,7 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# مورد)} other {(# مورد)}}"
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:181
+#: packages/admin/src/components/SetupWizard.tsx:185
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# مجموعه} other {# مجموعه}}"
 
@@ -81,7 +81,7 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr "{0, plural, one {# مورد محتوا درون‌ریزی شد} other {# مورد محتوا درون‌ریزی شد}}"
 
 #. placeholder {0}: filteredItems.length
-#: packages/admin/src/components/ContentList.tsx:251
+#: packages/admin/src/components/ContentList.tsx:283
 msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{0, plural, one {# مورد مطابق با \"{searchQuery}\"} other {# مورد مطابق با \"{searchQuery}\"}}"
 
@@ -143,7 +143,7 @@ msgstr "{0, plural, one {# کاربر} other {# کاربر}}"
 #. placeholder {0}: filteredItems.length
 #. placeholder {1}: hasMore ? "+" : ""
 #. placeholder {2}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:255
+#: packages/admin/src/components/ContentList.tsx:287
 msgid "{0, plural, one {#{1} item} other {#{2} items}}"
 msgstr "{0, plural, one {#{1} مورد} other {#{2} مورد}}"
 
@@ -317,8 +317,9 @@ msgstr "• در فضای رسانه EmDash شما بارگذاری می‌شو�
 msgid "• URLs in your content are updated automatically"
 msgstr "• آدرس‌ها در محتوای شما به‌صورت خودکار به‌روزرسانی می‌شوند"
 
-#: packages/admin/src/components/SetupWizard.tsx:250
-#: packages/admin/src/components/SetupWizard.tsx:310
+#: packages/admin/src/components/SetupWizard.tsx:254
+#: packages/admin/src/components/SetupWizard.tsx:306
+#: packages/admin/src/components/SetupWizard.tsx:361
 #: packages/admin/src/components/WordPressImport.tsx:1431
 msgid "← Back"
 msgstr "← بازگشت"
@@ -411,7 +412,7 @@ msgstr "پذیرش و نصب"
 msgid "Accept & Update"
 msgstr "پذیرش و به‌روزرسانی"
 
-#: packages/admin/src/components/SetupWizard.tsx:332
+#: packages/admin/src/components/SetupWizard.tsx:383
 msgid "Account"
 msgstr "حساب کاربری"
 
@@ -424,8 +425,8 @@ msgid "Account Info"
 msgstr "اطلاعات حساب کاربری"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:306
-#: packages/admin/src/components/ContentList.tsx:204
-#: packages/admin/src/components/ContentList.tsx:309
+#: packages/admin/src/components/ContentList.tsx:236
+#: packages/admin/src/components/ContentList.tsx:341
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:619
@@ -506,7 +507,7 @@ msgstr "افزودن مورد"
 msgid "Add links to build your navigation menu"
 msgstr "لینک‌ها را برای ساخت فهرست ناوبری خود بیفزایید"
 
-#: packages/admin/src/components/ContentList.tsx:140
+#: packages/admin/src/components/ContentList.tsx:160
 msgid "Add New"
 msgstr "افزودن جدید"
 
@@ -548,7 +549,7 @@ msgstr "در حال افزودن..."
 msgid "Additional data to import."
 msgstr "داده‌های اضافی برای درون‌ریزی."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:104
 #: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -566,7 +567,7 @@ msgstr "مدیر"
 msgid "After send:"
 msgstr "پس از ارسال:"
 
-#: packages/admin/src/components/ContentList.tsx:167
+#: packages/admin/src/components/ContentList.tsx:187
 msgid "All"
 msgstr "همه"
 
@@ -639,7 +640,7 @@ msgstr "همچنین می‌توانید از وردپرس برون‌ریزی �
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:318
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1520
+#: packages/admin/src/router.tsx:1531
 msgid "An error occurred"
 msgstr "خطایی رخ داد"
 
@@ -652,7 +653,7 @@ msgid "Analyzing WordPress site..."
 msgstr "در حال تحلیل وبسایت وردپرس..."
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:176
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
 msgid "API Tokens"
 msgstr "توکن‌های API"
 
@@ -678,7 +679,7 @@ msgstr "تأییدشده"
 msgid "Arbitrary JSON data"
 msgstr "داده JSON دلخواه"
 
-#: packages/admin/src/components/ContentList.tsx:557
+#: packages/admin/src/components/ContentList.tsx:655
 msgid "archived"
 msgstr "بایگانی‌شده"
 
@@ -705,7 +706,7 @@ msgstr "نگارندگان وردپرس را به کاربران EmDash تخصی
 msgid "Authentication error: {0}"
 msgstr "خطای احراز هویت: {0}"
 
-#: packages/admin/src/components/LoginPage.tsx:253
+#: packages/admin/src/components/LoginPage.tsx:195
 msgid "Authentication error: {error}"
 msgstr "خطای احراز هویت: {error}"
 
@@ -775,8 +776,9 @@ msgstr "بازگشت"
 msgid "Back to {collectionLabel} list"
 msgstr "بازگشت به لیست {collectionLabel}"
 
-#: packages/admin/src/components/LoginPage.tsx:174
-#: packages/admin/src/components/LoginPage.tsx:210
+#: packages/admin/src/components/LoginPage.tsx:117
+#: packages/admin/src/components/LoginPage.tsx:153
+#: packages/admin/src/components/LoginPage.tsx:311
 #: packages/admin/src/components/SignupPage.tsx:280
 msgid "Back to login"
 msgstr "بازگشت به ورود"
@@ -792,7 +794,7 @@ msgid "Back to sections"
 msgstr "بازگشت به بخش‌ها"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:171
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:191
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:107
@@ -877,8 +879,8 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/ContentEditor.tsx:886
 #: packages/admin/src/components/ContentEditor.tsx:1809
 #: packages/admin/src/components/ContentEditor.tsx:1862
-#: packages/admin/src/components/ContentList.tsx:445
-#: packages/admin/src/components/ContentList.tsx:516
+#: packages/admin/src/components/ContentList.tsx:543
+#: packages/admin/src/components/ContentList.tsx:614
 #: packages/admin/src/components/ContentPickerModal.tsx:253
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
@@ -893,8 +895,8 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/Sections.tsx:207
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:446
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:466
 #: packages/admin/src/components/settings/SecuritySettings.tsx:210
 #: packages/admin/src/components/TaxonomyManager.tsx:304
 #: packages/admin/src/components/TaxonomyManager.tsx:523
@@ -968,7 +970,7 @@ msgstr "بررسی به‌روزرسانی‌ها"
 msgid "Check Site"
 msgstr "بررسی وبسایت"
 
-#: packages/admin/src/components/LoginPage.tsx:158
+#: packages/admin/src/components/LoginPage.tsx:101
 #: packages/admin/src/components/SignupPage.tsx:129
 #: packages/admin/src/components/SignupPage.tsx:401
 msgid "Check your email"
@@ -982,6 +984,10 @@ msgstr "در حال بررسی {urlInput}..."
 msgid "Checking authentication..."
 msgstr "در حال بررسی احراز هویت..."
 
+#: packages/admin/src/components/SetupWizard.tsx:317
+msgid "Choose how to sign in"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
 msgstr "زبان مدیریت مورد نظر خود را انتخاب کنید"
@@ -990,7 +996,7 @@ msgstr "زبان مدیریت مورد نظر خود را انتخاب کنید"
 msgid "Click the link in the email to continue setting up your account."
 msgstr "روی لینک ایمیل کلیک کنید تا راه‌اندازی حساب کاربری خود را ادامه دهید."
 
-#: packages/admin/src/components/LoginPage.tsx:169
+#: packages/admin/src/components/LoginPage.tsx:112
 msgid "Click the link in the email to sign in."
 msgstr "روی لینک ایمیل کلیک کنید تا وارد شوید."
 
@@ -1109,7 +1115,7 @@ msgstr "تکمیل ثبت‌نام"
 msgid "Configure Field"
 msgstr "پیکربندی فیلد"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Confirm"
 msgstr "تأیید"
 
@@ -1196,8 +1202,8 @@ msgstr "نوشتن محتوا"
 msgid "Continue"
 msgstr "ادامه"
 
-#: packages/admin/src/components/SetupWizard.tsx:175
-#: packages/admin/src/components/SetupWizard.tsx:258
+#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Continue →"
 msgstr "ادامه →"
 
@@ -1210,7 +1216,7 @@ msgstr "ادامه درون‌ریزی"
 msgid "Contributor"
 msgstr "مشارکت‌کننده"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
 msgid "Copied to clipboard"
 msgstr "در کلیپ‌بورد کپی شد"
@@ -1228,11 +1234,11 @@ msgstr "کپی لینک دعوت"
 msgid "Copy slug"
 msgstr "کپی نامک"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
 msgid "Copy this token now — it won't be shown again."
 msgstr "این توکن را الان کپی کنید — دیگر نمایش داده نخواهد شد."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
 msgid "Copy token"
 msgstr "کپی توکن"
 
@@ -1294,7 +1300,7 @@ msgstr "ساخت فهرست"
 msgid "Create New Menu"
 msgstr "ساخت فهرستی جدید"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:389
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr "ساخت توکن جدید"
 
@@ -1302,12 +1308,12 @@ msgstr "ساخت توکن جدید"
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "یکی در وردپرس بسازید: کاربران → نمایه → گذرواژه‌های برنامه"
 
-#: packages/admin/src/components/SetupWizard.tsx:305
+#: packages/admin/src/components/SetupWizard.tsx:327
 msgid "Create Passkey"
 msgstr "ساخت شاه‌کلید"
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:198
 msgid "Create personal access tokens for programmatic API access"
 msgstr "توکن‌های دسترسی شخصی برای دسترسی برنامه‌نویسی به API بسازید"
 
@@ -1342,12 +1348,12 @@ msgstr "بخش‌ها را در کتابخانه بخش‌ها بسازید تا
 msgid "Create Taxonomy"
 msgstr "ساخت دسته‌بندی"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:251
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:271
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Create Token"
 msgstr "ساخت توکن"
 
-#: packages/admin/src/components/SetupWizard.tsx:505
+#: packages/admin/src/components/SetupWizard.tsx:573
 msgid "Create your account"
 msgstr "حساب کاربری خود را بسازید"
 
@@ -1355,7 +1361,7 @@ msgstr "حساب کاربری خود را بسازید"
 msgid "Create your first navigation menu to get started"
 msgstr "اولین فهرست ناوبری خود را بسازید تا شروع شود"
 
-#: packages/admin/src/components/ContentList.tsx:219
+#: packages/admin/src/components/ContentList.tsx:251
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "اولین مورد خود را بسازید"
@@ -1368,6 +1374,14 @@ msgstr "اولین بخش محتوای قابل استفاده مجدد خود �
 msgid "Create your passkey"
 msgstr "شاه‌کلید خود را بسازید"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
+msgid "Create, update, and delete navigation menus"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+msgid "Create, update, and delete taxonomy terms"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
 msgstr "ساخت، به‌روزرسانی، حذف محتوا"
@@ -1378,7 +1392,7 @@ msgstr "ساخته‌شده"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:310
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "ساخته شده در {0}"
@@ -1400,7 +1414,7 @@ msgstr "در حال ساخت مجموعه‌ها و فیلدها..."
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 #: packages/admin/src/components/TaxonomyManager.tsx:526
 msgid "Creating..."
 msgstr "در حال ساخت..."
@@ -1442,7 +1456,7 @@ msgid "Dashboard"
 msgstr "داشبورد"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:303
-#: packages/admin/src/components/ContentList.tsx:201
+#: packages/admin/src/components/ContentList.tsx:233
 msgid "Date"
 msgstr "تاریخ"
 
@@ -1540,11 +1554,11 @@ msgid "Delete permanently"
 msgstr "حذف دائمی"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:527
+#: packages/admin/src/components/ContentList.tsx:625
 msgid "Delete Permanently"
 msgstr "حذف دائمی"
 
-#: packages/admin/src/components/ContentList.tsx:507
+#: packages/admin/src/components/ContentList.tsx:605
 msgid "Delete Permanently?"
 msgstr "حذف دائمی؟"
 
@@ -1565,7 +1579,7 @@ msgstr "حذف    تغییر مسیر؟"
 msgid "Delete Section?"
 msgstr "حذف بخش؟"
 
-#: packages/admin/src/components/ContentList.tsx:306
+#: packages/admin/src/components/ContentList.tsx:338
 msgid "Deleted"
 msgstr "حذف‌شده"
 
@@ -1675,8 +1689,8 @@ msgstr "صرف‌نظر از تغییرات"
 msgid "Discard draft changes?"
 msgstr "صرف‌نظر از تغییرات پیش‌نویس؟"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:226
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:246
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:248
 msgid "Dismiss"
 msgstr "رد کردن"
 
@@ -1727,7 +1741,7 @@ msgstr "دامنه حذف شد"
 msgid "Domain updated"
 msgstr "دامنه به‌روزرسانی شد"
 
-#: packages/admin/src/components/LoginPage.tsx:366
+#: packages/admin/src/components/LoginPage.tsx:332
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "حساب کاربری ندارید؟ <0>ثبت‌نام</0>"
 
@@ -1744,7 +1758,7 @@ msgstr "پایین"
 msgid "Downloading"
 msgstr "در حال دریافت"
 
-#: packages/admin/src/components/ContentList.tsx:553
+#: packages/admin/src/components/ContentList.tsx:651
 msgid "draft"
 msgstr "پیش‌نویس"
 
@@ -1774,11 +1788,11 @@ msgstr ""
 msgid "Drop your WordPress export file here"
 msgstr "فایل برون‌ریزی وردپرس خود را اینجا رها کنید"
 
-#: packages/admin/src/components/ContentList.tsx:418
+#: packages/admin/src/components/ContentList.tsx:516
 msgid "Duplicate {title}"
 msgstr "تکثیر {title}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:403
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr "مثلاً CI/CD Pipeline"
 
@@ -1808,7 +1822,7 @@ msgstr "ویرایش {0}"
 msgid "Edit {collectionLabel}"
 msgstr "ویرایش {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:410
+#: packages/admin/src/components/ContentList.tsx:508
 msgid "Edit {title}"
 msgstr "ویرایش {title}"
 
@@ -1860,13 +1874,13 @@ msgstr "ایمیل"
 msgid "Email (optional)"
 msgstr "ایمیل (اختیاری)"
 
-#: packages/admin/src/components/LoginPage.tsx:183
+#: packages/admin/src/components/LoginPage.tsx:126
 #: packages/admin/src/components/SignupPage.tsx:65
 #: packages/admin/src/components/users/InviteUserModal.tsx:154
 msgid "Email address"
 msgstr "آدرس ایمیل"
 
-#: packages/admin/src/components/SetupWizard.tsx:204
+#: packages/admin/src/components/SetupWizard.tsx:208
 #: packages/admin/src/components/SignupPage.tsx:48
 msgid "Email is required"
 msgstr "ایمیل الزامی است"
@@ -1972,6 +1986,10 @@ msgstr "نام را وارد کنید"
 msgid "Enter the code from your terminal"
 msgstr "کد ترمینال خود را وارد کنید"
 
+#: packages/admin/src/components/LoginPage.tsx:325
+msgid "Enter your handle to sign in."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1289
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "اطلاعات ورود وردپرس خود را وارد کنید تا محتوا مستقیماً درون‌ریزی شود."
@@ -1982,7 +2000,7 @@ msgstr "آدرس وبسایت (URL) وردپرس خود را وارد کنید"
 
 #: packages/admin/src/components/MenuEditor.tsx:83
 #: packages/admin/src/components/MenuEditor.tsx:122
-#: packages/admin/src/components/SetupWizard.tsx:484
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Error"
 msgstr "خطا"
 
@@ -2007,11 +2025,11 @@ msgid "Expand details"
 msgstr "باز کردن جزئیات"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
 msgid "Expires {0}"
 msgstr "انقضا در {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:449
 msgid "Expiry"
 msgstr "انقضا"
 
@@ -2096,7 +2114,7 @@ msgstr "بارگذاری افزونه‌ها ناموفق بود: {0}"
 msgid "Failed to load revisions"
 msgstr "بارگذاری بازبینی‌ها ناموفق بود"
 
-#: packages/admin/src/components/SetupWizard.tsx:486
+#: packages/admin/src/components/SetupWizard.tsx:554
 msgid "Failed to load setup"
 msgstr "بارگذاری راه‌اندازی ناموفق بود"
 
@@ -2117,7 +2135,7 @@ msgstr "حذف شاه‌کلید ناموفق بود"
 msgid "Failed to rename passkey"
 msgstr "تغییر نام شاه‌کلید ناموفق بود"
 
-#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1530
 msgid "Failed to save"
 msgstr "ذخیره ناموفق بود"
 
@@ -2127,8 +2145,8 @@ msgstr "ذخیره ناموفق بود"
 msgid "Failed to save settings"
 msgstr "ذخیره تنظیمات ناموفق بود"
 
-#: packages/admin/src/components/LoginPage.tsx:127
-#: packages/admin/src/components/LoginPage.tsx:132
+#: packages/admin/src/components/LoginPage.tsx:70
+#: packages/admin/src/components/LoginPage.tsx:75
 msgid "Failed to send magic link"
 msgstr "ارسال لینک جادویی ناموفق بود"
 
@@ -2228,7 +2246,7 @@ msgstr "برای بهترین تجربه درون‌ریزی، نصب کنید"
 msgid "Full access"
 msgstr "دسترسی کامل"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:105
 msgid "Full admin access"
 msgstr "دسترسی مدیریتی کامل"
 
@@ -2293,7 +2311,7 @@ msgstr "ارتفاع"
 msgid "Hide from search engines"
 msgstr "مخفی‌کردن از موتورهای جستجو"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Hide token"
 msgstr "مخفی‌کردن توکن"
 
@@ -2335,7 +2353,7 @@ msgstr "آیکون به دلیل بررسی تصویر محو شده"
 msgid "ID"
 msgstr "ID"
 
-#: packages/admin/src/components/LoginPage.tsx:160
+#: packages/admin/src/components/LoginPage.tsx:103
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "اگر حساب کاربری برای <0>{email}</0> وجود داشته باشد، لینک ورود ارسال شده است."
 
@@ -2455,7 +2473,7 @@ msgstr "در حال درون‌ریزی محتوا..."
 msgid "Importing Media"
 msgstr "در حال درون‌ریزی رسانه"
 
-#: packages/admin/src/components/SetupWizard.tsx:163
+#: packages/admin/src/components/SetupWizard.tsx:167
 msgid "Include sample content (recommended for new sites)"
 msgstr "شامل محتوای نمونه (توصیه‌شده برای وبسایت‌های جدید)"
 
@@ -2569,7 +2587,7 @@ msgstr "مورد حذف شد"
 msgid "Item updated"
 msgstr "مورد به‌روزرسانی شد"
 
-#: packages/admin/src/components/SetupWizard.tsx:238
+#: packages/admin/src/components/SetupWizard.tsx:242
 #: packages/admin/src/components/SignupPage.tsx:204
 msgid "Jane Doe"
 msgstr "نام نمونه"
@@ -2593,7 +2611,7 @@ msgstr "کلمات کلیدی"
 msgid "Label"
 msgstr "برچسب"
 
-#: packages/admin/src/components/LoginPage.tsx:379
+#: packages/admin/src/components/LoginPage.tsx:345
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
@@ -2625,7 +2643,7 @@ msgstr "آخرین استفاده"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:285
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "آخرین استفاده {0}"
@@ -2689,8 +2707,8 @@ msgstr "نمای زنده"
 msgid "Load more"
 msgstr "بارگذاری بیشتر"
 
-#: packages/admin/src/components/ContentList.tsx:290
-#: packages/admin/src/components/ContentList.tsx:338
+#: packages/admin/src/components/ContentList.tsx:322
+#: packages/admin/src/components/ContentList.tsx:370
 msgid "Load More"
 msgstr "بارگذاری بیشتر"
 
@@ -2733,7 +2751,7 @@ msgstr "در حال بارگذاری بخش‌ها..."
 msgid "Loading settings..."
 msgstr "در حال بارگذاری تنظیمات..."
 
-#: packages/admin/src/components/SetupWizard.tsx:473
+#: packages/admin/src/components/SetupWizard.tsx:541
 msgid "Loading setup..."
 msgstr "در حال بارگذاری راه‌اندازی..."
 
@@ -2741,8 +2759,8 @@ msgstr "در حال بارگذاری راه‌اندازی..."
 msgid "Loading terms..."
 msgstr "در حال بارگذاری اصطلاحات..."
 
-#: packages/admin/src/components/ContentList.tsx:290
-#: packages/admin/src/components/ContentList.tsx:338
+#: packages/admin/src/components/ContentList.tsx:322
+#: packages/admin/src/components/ContentList.tsx:370
 #: packages/admin/src/components/ContentPickerModal.tsx:238
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
@@ -2755,7 +2773,7 @@ msgstr "در حال بارگذاری اصطلاحات..."
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
 
-#: packages/admin/src/components/ContentList.tsx:197
+#: packages/admin/src/components/ContentList.tsx:226
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "منطقه"
@@ -2946,6 +2964,10 @@ msgstr "فهرستها"
 msgid "Menus ({0})"
 msgstr "فهرستها ({0})"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:89
+msgid "Menus Manage"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:161
 msgid "Meta Description"
 msgstr "توضیحات متا"
@@ -2986,11 +3008,11 @@ msgstr "تغییریافته"
 msgid "Modify collection schemas"
 msgstr "تغییر طرح‌های مجموعه"
 
-#: packages/admin/src/components/ContentList.tsx:439
+#: packages/admin/src/components/ContentList.tsx:537
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "انتقال «{title}» به سطل زباله؟ می‌توانید بعداً بازیابی کنید."
 
-#: packages/admin/src/components/ContentList.tsx:430
+#: packages/admin/src/components/ContentList.tsx:528
 msgid "Move {title} to trash"
 msgstr "انتقال {title} به سطل زباله"
 
@@ -3000,12 +3022,12 @@ msgstr "انتقال به پایین"
 
 #: packages/admin/src/components/ContentEditor.tsx:871
 #: packages/admin/src/components/ContentEditor.tsx:893
-#: packages/admin/src/components/ContentList.tsx:452
+#: packages/admin/src/components/ContentList.tsx:550
 msgid "Move to Trash"
 msgstr "انتقال به سطل زباله"
 
 #: packages/admin/src/components/ContentEditor.tsx:877
-#: packages/admin/src/components/ContentList.tsx:437
+#: packages/admin/src/components/ContentList.tsx:535
 msgid "Move to Trash?"
 msgstr "انتقال به سطل زباله؟"
 
@@ -3025,7 +3047,7 @@ msgstr "متن ساده چندخطی"
 msgid "Multiple choices from options"
 msgstr "انتخاب چندگانه از گزینه‌ها"
 
-#: packages/admin/src/components/SetupWizard.tsx:145
+#: packages/admin/src/components/SetupWizard.tsx:149
 msgid "My Awesome Blog"
 msgstr "وبلاگ عالی من"
 
@@ -3104,7 +3126,7 @@ msgid "Next"
 msgstr "بعدی"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:378
-#: packages/admin/src/components/ContentList.tsx:278
+#: packages/admin/src/components/ContentList.tsx:310
 msgid "Next page"
 msgstr "صفحه بعدی"
 
@@ -3122,7 +3144,7 @@ msgid "No {0} available."
 msgstr "{0} موجود نیست."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:212
+#: packages/admin/src/components/ContentList.tsx:244
 msgid "No {0} yet."
 msgstr "هنوز {0} موجود نیست."
 
@@ -3140,7 +3162,7 @@ msgstr "هنوز خطای ۴۰۴ ثبت نشده است."
 msgid "No alt text"
 msgstr "بدون متن جایگزین"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
 msgid "No API tokens yet. Create one to get started."
 msgstr "هنوز توکن API موجود نیست. برای شروع یکی بسازید."
 
@@ -3290,7 +3312,7 @@ msgstr "بدون نتایج"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "نتیجه‌ای برای «{debouncedQuery}» یافت نشد. عبارت جستجوی دیگری را امتحان کنید."
 
-#: packages/admin/src/components/ContentList.tsx:226
+#: packages/admin/src/components/ContentList.tsx:258
 msgid "No results for \"{searchQuery}\""
 msgstr "نتیجه‌ای برای «{searchQuery}» یافت نشد"
 
@@ -3408,7 +3430,7 @@ msgstr "یا از کتابخانه انتخاب کنید"
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "یا برای مرور کلیک کنید. فایل‌های .xml برون‌ریزی‌شده از وردپرس پذیرفته می‌شوند."
 
-#: packages/admin/src/components/LoginPage.tsx:321
+#: packages/admin/src/components/LoginPage.tsx:261
 msgid "Or continue with"
 msgstr "یا ادامه با"
 
@@ -3467,10 +3489,6 @@ msgstr "بخشی از حلقه    تغییر مسیر"
 msgid "Pass"
 msgstr "موفق"
 
-#: packages/admin/src/components/SetupWizard.tsx:333
-msgid "Passkey"
-msgstr "شاه‌کلید"
-
 #: packages/admin/src/components/settings/SecuritySettings.tsx:98
 msgid "Passkey added successfully"
 msgstr "شاه‌کلید با موفقیت افزوده شد"
@@ -3512,10 +3530,6 @@ msgstr "شاه‌کلیدها روشی امن و بدون گذرواژه برا�
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "شاه‌کلیدها روشی امن و بدون گذرواژه برای ورود با استفاده از بیومتریک، پین یا کلید امنیتی دستگاه شما هستند."
 
-#: packages/admin/src/components/SetupWizard.tsx:297
-msgid "Passkeys are more secure than passwords. You'll use your device's biometrics, PIN, or security key to sign in."
-msgstr "شاه‌کلیدها از گذرواژه‌ها امن‌تر هستند. از بیومتریک، پین یا کلید امنیتی دستگاه خود برای ورود استفاده خواهید کرد."
-
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:303
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:300
 msgid "Passkeys Not Available Here"
@@ -3539,7 +3553,7 @@ msgid "Pattern (Regex)"
 msgstr "الگو (عبارت منظم)"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:576
+#: packages/admin/src/components/ContentList.tsx:674
 msgid "pending"
 msgstr "در انتظار"
 
@@ -3551,11 +3565,11 @@ msgstr "در انتظار"
 msgid "Pending changes"
 msgstr "تغییرات در انتظار"
 
-#: packages/admin/src/components/ContentList.tsx:510
+#: packages/admin/src/components/ContentList.tsx:608
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "حذف دائمی «{title}»؟ این عمل قابل بازگشت نیست."
 
-#: packages/admin/src/components/ContentList.tsx:499
+#: packages/admin/src/components/ContentList.tsx:597
 msgid "Permanently delete {title}"
 msgstr "حذف دائمی {title}"
 
@@ -3563,12 +3577,16 @@ msgstr "حذف دائمی {title}"
 msgid "Permissions"
 msgstr "مجوزها"
 
+#: packages/admin/src/components/SetupWizard.tsx:319
+msgid "Pick any method to create your admin account."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:313
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
 msgid "Plain"
 msgstr "ساده"
 
-#: packages/admin/src/components/SetupWizard.tsx:206
+#: packages/admin/src/components/SetupWizard.tsx:210
 msgid "Please enter a valid email"
 msgstr "لطفاً یک ایمیل معتبر وارد کنید"
 
@@ -3642,7 +3660,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "در حال آماده‌سازی دریافت فایل‌ها از وردپرس..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:166
-#: packages/admin/src/components/SetupWizard.tsx:258
+#: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Preparing..."
 msgstr "در حال آماده‌سازی..."
 
@@ -3665,7 +3683,7 @@ msgid "Previous"
 msgstr "قبلی"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
-#: packages/admin/src/components/ContentList.tsx:266
+#: packages/admin/src/components/ContentList.tsx:298
 msgid "Previous page"
 msgstr "صفحه قبلی"
 
@@ -3690,7 +3708,7 @@ msgstr "انتشار"
 msgid "Publish changes"
 msgstr "انتشار تغییرات"
 
-#: packages/admin/src/components/ContentList.tsx:551
+#: packages/admin/src/components/ContentList.tsx:649
 msgid "published"
 msgstr "منتشرشده"
 
@@ -3729,6 +3747,10 @@ msgstr "خواندن ورودی‌های محتوا"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
 msgid "Read media files"
 msgstr "خواندن فایل‌های رسانه"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+msgid "Read site settings"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
@@ -3926,7 +3948,7 @@ msgstr "بازنشانی به حالت اصلی"
 msgid "Restore"
 msgstr "بازیابی"
 
-#: packages/admin/src/components/ContentList.tsx:487
+#: packages/admin/src/components/ContentList.tsx:585
 msgid "Restore {title}"
 msgstr "بازیابی {title}"
 
@@ -3974,15 +3996,15 @@ msgstr "بازبینی بازیابی شد"
 msgid "Revisions"
 msgstr "بازبینی‌ها"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:346
 msgid "Revoke token"
 msgstr "لغو توکن"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:321
 msgid "Revoke?"
 msgstr "لغو؟"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Revoking..."
 msgstr "در حال لغو..."
 
@@ -4090,7 +4112,7 @@ msgstr "زمان‌بندی برای"
 msgid "Schedule for later"
 msgstr "زمان‌بندی برای بعد"
 
-#: packages/admin/src/components/ContentList.tsx:555
+#: packages/admin/src/components/ContentList.tsx:653
 msgid "scheduled"
 msgstr "زمان‌بندی‌شده"
 
@@ -4119,12 +4141,12 @@ msgstr "خواندن طرح"
 msgid "Schema Write"
 msgstr "نوشتن طرح"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr "محدوده‌ها"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:277
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
 msgid "Scopes: {0}"
 msgstr "محدوده‌ها: {0}"
 
@@ -4160,12 +4182,12 @@ msgid "Search"
 msgstr "جستجو"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:151
+#: packages/admin/src/components/ContentList.tsx:171
 msgid "Search {0}"
 msgstr "جستجوی {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:150
+#: packages/admin/src/components/ContentList.tsx:170
 msgid "Search {0}..."
 msgstr "جستجوی {0}..."
 
@@ -4266,7 +4288,7 @@ msgstr "بخش‌ها"
 msgid "secure context"
 msgstr "محیط امن"
 
-#: packages/admin/src/components/SetupWizard.tsx:506
+#: packages/admin/src/components/SetupWizard.tsx:574
 msgid "Secure your account"
 msgstr "حساب کاربری خود را ایمن کنید"
 
@@ -4390,7 +4412,7 @@ msgstr "یک ایمیل دعوت به عضو جدید تیم ارسال کنید
 msgid "Send Invite"
 msgstr "ارسال دعوت"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 msgid "Send magic link"
 msgstr "ارسال لینک جادویی"
 
@@ -4406,7 +4428,7 @@ msgstr "ارسال آزمایشی"
 msgid "Send Test Email"
 msgstr "ارسال ایمیل آزمایشی"
 
-#: packages/admin/src/components/LoginPage.tsx:206
+#: packages/admin/src/components/LoginPage.tsx:149
 #: packages/admin/src/components/settings/EmailSettings.tsx:162
 #: packages/admin/src/components/SignupPage.tsx:87
 #: packages/admin/src/components/SignupPage.tsx:150
@@ -4442,15 +4464,11 @@ msgstr "عنوان سئو"
 msgid "Set a custom display size for this image instance."
 msgstr "یک اندازه نمایش سفارشی برای این نمونه تصویر تنظیم کنید."
 
-#: packages/admin/src/components/SetupWizard.tsx:295
-msgid "Set up your passkey"
-msgstr "شاه‌کلید خود را تنظیم کنید"
-
-#: packages/admin/src/components/SetupWizard.tsx:504
+#: packages/admin/src/components/SetupWizard.tsx:572
 msgid "Set up your site"
 msgstr "وبسایت خود را راه‌اندازی کنید"
 
-#: packages/admin/src/components/SetupWizard.tsx:175
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Setting up..."
 msgstr "در حال راه‌اندازی..."
 
@@ -4463,6 +4481,14 @@ msgstr "در حال راه‌اندازی..."
 #: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "Settings"
 msgstr "تنظیمات"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
+msgid "Settings Manage"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+msgid "Settings Read"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
@@ -4477,7 +4503,7 @@ msgstr "این لینک را با کاربر دعوت‌شده به اشتراک
 msgid "Short Text"
 msgstr "متن کوتاه"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Show token"
 msgstr "نمایش توکن"
 
@@ -4490,24 +4516,35 @@ msgstr "هنگام قرارگیری ماوس روی تصویر نمایش داد
 msgid "Sign in"
 msgstr "ورود"
 
+#: packages/admin/src/components/SetupWizard.tsx:384
+msgid "Sign In"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "یا، وارد شوید"
 
-#: packages/admin/src/components/LoginPage.tsx:291
+#: packages/admin/src/components/LoginPage.tsx:232
 msgid "Sign in to your site"
 msgstr "وارد وبسایت خود شوید"
 
-#: packages/admin/src/components/LoginPage.tsx:292
+#. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
+#. placeholder {0}: provider.label
+#: packages/admin/src/components/LoginPage.tsx:231
+#: packages/admin/src/components/SetupWizard.tsx:293
+msgid "Sign in with {0}"
+msgstr ""
+
+#: packages/admin/src/components/LoginPage.tsx:229
 msgid "Sign in with email"
 msgstr "ورود با ایمیل"
 
-#: packages/admin/src/components/LoginPage.tsx:348
+#: packages/admin/src/components/LoginPage.tsx:290
 msgid "Sign in with email link"
 msgstr "ورود با ارسال لینک به ایمیل"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:136
-#: packages/admin/src/components/LoginPage.tsx:312
+#: packages/admin/src/components/LoginPage.tsx:252
 msgid "Sign in with Passkey"
 msgstr "ورود با شاه‌کلید"
 
@@ -4524,7 +4561,7 @@ msgstr "انتخاب تکی از گزینه‌ها"
 msgid "Single line text input"
 msgstr "ورودی متن تک‌خطی"
 
-#: packages/admin/src/components/SetupWizard.tsx:331
+#: packages/admin/src/components/SetupWizard.tsx:382
 msgid "Site"
 msgstr "وبسایت"
 
@@ -4536,12 +4573,12 @@ msgstr "هویت وبسایت"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "هویت وبسایت، لوگو، فاوآیکون و ترجیحات خواندن"
 
-#: packages/admin/src/components/SetupWizard.tsx:329
+#: packages/admin/src/components/SetupWizard.tsx:380
 msgid "Site Settings"
 msgstr "تنظیمات وبسایت"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:156
-#: packages/admin/src/components/SetupWizard.tsx:141
+#: packages/admin/src/components/SetupWizard.tsx:145
 msgid "Site Title"
 msgstr "عنوان وبسایت"
 
@@ -4549,7 +4586,7 @@ msgstr "عنوان وبسایت"
 msgid "Site title & tagline"
 msgstr "عنوان وبسایت و شعار"
 
-#: packages/admin/src/components/SetupWizard.tsx:125
+#: packages/admin/src/components/SetupWizard.tsx:129
 msgid "Site title is required"
 msgstr "عنوان وبسایت الزامی است"
 
@@ -4657,7 +4694,7 @@ msgid "Start Import"
 msgstr "شروع درون‌ریزی"
 
 #: packages/admin/src/components/ContentEditor.tsx:773
-#: packages/admin/src/components/ContentList.tsx:193
+#: packages/admin/src/components/ContentList.tsx:219
 #: packages/admin/src/components/ContentTypeEditor.tsx:115
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
@@ -4693,7 +4730,7 @@ msgid "System ({resolvedLabel})"
 msgstr "سیستم ({resolvedLabel})"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:162
-#: packages/admin/src/components/SetupWizard.tsx:152
+#: packages/admin/src/components/SetupWizard.tsx:156
 msgid "Tagline"
 msgstr "شعار"
 
@@ -4719,6 +4756,10 @@ msgstr "هدف"
 msgid "Taxonomies"
 msgstr "دسته‌بندی‌ها"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
+msgid "Taxonomies Manage"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomyManager.tsx:668
 msgid "Taxonomy created"
 msgstr "دسته‌بندی ساخته شد"
@@ -4727,7 +4768,7 @@ msgstr "دسته‌بندی ساخته شد"
 msgid "Taxonomy not found:"
 msgstr "دسته‌بندی یافت نشد:"
 
-#: packages/admin/src/components/SetupWizard.tsx:180
+#: packages/admin/src/components/SetupWizard.tsx:184
 msgid "Template:"
 msgstr "قالب:"
 
@@ -4760,7 +4801,7 @@ msgstr "جداول زیر حاوی محتوا هستند اما به‌عنوا�
 msgid "The invited user will have this role once they complete registration."
 msgstr "کاربر دعوت‌شده پس از تکمیل ثبت‌نام این نقش را خواهد داشت."
 
-#: packages/admin/src/components/LoginPage.tsx:170
+#: packages/admin/src/components/LoginPage.tsx:113
 #: packages/admin/src/components/SignupPage.tsx:138
 msgid "The link will expire in 15 minutes."
 msgstr "لینک در ۱۵ دقیقه منقضی خواهد شد."
@@ -4885,7 +4926,7 @@ msgstr "این افزونه و بسته آن را از وبسایت شما حذ�
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "این به نسخه منتشرشده بازمی‌گردد. تغییرات پیش‌نویس شما از بین خواهد رفت."
 
-#: packages/admin/src/components/SetupWizard.tsx:156
+#: packages/admin/src/components/SetupWizard.tsx:160
 msgid "Thoughts, tutorials, and more"
 msgstr "اندیشه‌ها، آموزش‌ها و بیشتر"
 
@@ -4897,8 +4938,8 @@ msgstr "منطقه زمانی"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "منطقه زمانی برای نمایش تاریخ‌ها (مثلاً America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:190
-#: packages/admin/src/components/ContentList.tsx:303
+#: packages/admin/src/components/ContentList.tsx:213
+#: packages/admin/src/components/ContentList.tsx:335
 #: packages/admin/src/components/SectionEditor.tsx:189
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
@@ -4931,11 +4972,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "تغییر قالب (فعلی: {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Token created: {0}"
 msgstr "توکن ساخته شد: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:400
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr "نام توکن"
 
@@ -4963,11 +5004,11 @@ msgstr "زباله‌دان"
 #: packages/admin/src/components/comments/CommentInbox.tsx:223
 #: packages/admin/src/components/comments/CommentInbox.tsx:264
 #: packages/admin/src/components/comments/CommentInbox.tsx:520
-#: packages/admin/src/components/ContentList.tsx:173
+#: packages/admin/src/components/ContentList.tsx:193
 msgid "Trash"
 msgstr "زباله‌دان"
 
-#: packages/admin/src/components/ContentList.tsx:317
+#: packages/admin/src/components/ContentList.tsx:349
 msgid "Trash is empty"
 msgstr "سطل زباله خالی است"
 
@@ -5114,6 +5155,10 @@ msgstr "به‌روزرسانی فیلد"
 msgid "Update settings for {0}"
 msgstr "به‌روزرسانی تنظیمات برای {0}"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
+msgid "Update site settings"
+msgstr ""
+
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:218
 msgid "Update the {0} details"
@@ -5247,7 +5292,7 @@ msgstr "از [param] یا [...rest] در مسیرها برای تطبیق الگ
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr "از احراز هویت بیومتریک، کلید امنیتی یا پین دستگاه خود برای ورود استفاده کنید."
 
-#: packages/admin/src/components/LoginPage.tsx:359
+#: packages/admin/src/components/LoginPage.tsx:326
 msgid "Use your registered passkey to sign in securely."
 msgstr "از شاه‌کلید ثبت‌شده خود برای ورود امن استفاده کنید."
 
@@ -5335,7 +5380,7 @@ msgstr "مشاهده در فروشگاه"
 msgid "View mode"
 msgstr "حالت نمایش"
 
-#: packages/admin/src/components/ContentList.tsx:401
+#: packages/admin/src/components/ContentList.tsx:499
 msgid "View published {title}"
 msgstr "مشاهده {title} منتشرشده"
 
@@ -5365,7 +5410,7 @@ msgstr "نتوانستیم به وبسایت وردپرس در {0} متصل شو
 msgid "We'll check what import options are available for your site."
 msgstr "بررسی خواهیم کرد چه گزینه‌های درون‌ریزی برای وبسایت شما موجود است."
 
-#: packages/admin/src/components/LoginPage.tsx:360
+#: packages/admin/src/components/LoginPage.tsx:323
 msgid "We'll send you a link to sign in without a password."
 msgstr "لینکی برای ورود بدون گذرواژه برای شما ارسال خواهیم کرد."
 
@@ -5502,7 +5547,7 @@ msgstr "به وردپرس هدایت می‌شوید تا اتصال را مجا
 msgid "You'll be signing up as"
 msgstr "شما ثبت‌نام خواهید کرد به‌عنوان"
 
-#: packages/admin/src/components/SetupWizard.tsx:509
+#: packages/admin/src/components/SetupWizard.tsx:577
 msgid "You're signed in via Cloudflare Access"
 msgstr "شما از طریق مجوز کلاودفلر (Cloudflare Access) وارد شده‌اید"
 
@@ -5511,7 +5556,7 @@ msgid "you@company.com"
 msgstr "you@company.com"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:336
-#: packages/admin/src/components/SetupWizard.tsx:226
+#: packages/admin/src/components/SetupWizard.tsx:230
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -5529,7 +5574,7 @@ msgstr "مرورگر شما از شاه‌کلیدها پشتیبانی نمی�
 msgid "Your device doesn't support the required security features."
 msgstr "دستگاه شما از ویژگی‌های امنیتی مورد نیاز پشتیبانی نمی‌کند."
 
-#: packages/admin/src/components/SetupWizard.tsx:222
+#: packages/admin/src/components/SetupWizard.tsx:226
 msgid "Your Email"
 msgstr "ایمیل شما"
 
@@ -5549,7 +5594,7 @@ msgstr "نام کاربری اینستاگرام شما"
 msgid "Your LinkedIn profile username"
 msgstr "نام کاربری پروفایل لینکدین شما"
 
-#: packages/admin/src/components/SetupWizard.tsx:234
+#: packages/admin/src/components/SetupWizard.tsx:238
 msgid "Your Name"
 msgstr "نام شما"
 

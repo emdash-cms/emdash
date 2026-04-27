@@ -6,10 +6,8 @@ on:
   pull_request_review_comment:
     types: [created]
 
-concurrency:
-  # share the bonk-* group so /review and /bonk don't pile up on the same PR
-  group: bonk-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+# Concurrency is at job level (below) rather than workflow level so it's only
+# evaluated when the `if:` filter passes.
 
 jobs:
   review:
@@ -20,7 +18,13 @@ jobs:
       && contains(github.event.comment.body, '/review')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
+    # Per-workflow group key so /review, /ultrareview, /bonk, /ultrabonk all
+    # have independent queues per target.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
@@ -101,31 +105,42 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
+          #
+          # 1. Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
+          #    version, whose bundled models.dev snapshot predates it and would
+          #    otherwise raise ProviderModelNotFoundError.
+          #
+          # 2. Resolve the two opencode permission defaults that ask interactively
+          #    (`external_directory` and `doom_loop`) so a CI run with no TTY
+          #    can never deadlock waiting for approval. external_directory is
+          #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
+          #    home-dir caches); doom_loop is deny so a stuck loop aborts
+          #    instead of prompting.
+          OPENCODE_CONFIG_CONTENT: |
+            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
         with:
           model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
           mentions: "/review"
           opencode_version: "1.4.6"
           permissions: write
-          agent: reviewer
+          # NO_PUSH scopes the installation token to contents:read so the
+          # reviewer cannot push, even if it tries to commit. Write tools
+          # remain enabled in the agent definition so it can scaffold fixes
+          # locally to verify reasoning.
+          token_permissions: NO_PUSH
+          # Custom agent defined in .opencode/agents/auto-reviewer.md.
+          # Holds the review philosophy, investigation protocol, and posting
+          # protocol so workflows stay small.
+          agent: auto-reviewer
           prompt: |
-            Review the following pull request (title: ${{ steps.pr-details.outputs.title }}) against the below review guidelines:
+            Review pull request #${{ steps.pr-number.outputs.number }} ("${{ steps.pr-details.outputs.title }}").
 
-            Please check all the code changes in this pull request against the style guide, also look for any bugs if they exist. Diffs are important but make sure you read the entire file to get proper context. Make it clear the suggestions are merely suggestions and the human can decide what to do.
+            Follow your agent instructions for investigation, severity calibration, and posting. Post a single review with line-anchored comments via the gh CLI; the summary will be posted as a separate workflow comment.
 
-            Refer to AGENTS.md and any additional instructions for our style guide, conventions and repo-wide rules.
-
-            1. Focus on actual violations and bugs. Where possible, comment on the exact line number to help guide the reviewer.
-            2. Break up "needs fixing" (real logic bugs, poor error handling, security issues) vs. "suggestions" (nested logic, unused code, code structure/maintenance guidance) when responding so that a human has clear, actionable feedback.
-            3. Use the gh cli to create comments on the files (or line numbers) where relevant. Use suggestions to suggest fixes, especially where you have high-confidence in the fix. Ensure fixes are valid code and take into account the surrounding code (opening/closing braces, indentation, comments). ALWAYS leave the final "review" comment empty.
-            4. Your summary will be posted as a comment for you by OpenCode.
-
-            In general, aim to provide actionable comments > code suggestions.
-
-            <pr_number>
-            ${{ steps.pr-number.outputs.number }}
-            </pr_number>
+            <pr_number>${{ steps.pr-number.outputs.number }}</pr_number>
             <pr_description>
             ${{ steps.pr-details.outputs.body }}
             </pr_description>
 
-            If the PR looks good, respond with only "LGTM!". No need to pad your response if the PR passes review.
+            If the PR looks good, respond with only "LGTM!" and skip posting a review.

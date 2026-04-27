@@ -49,6 +49,10 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		const body = await parseBody(request, setupAdminBody);
 		if (isParseError(body)) return body;
 
+		// Preserve title/tagline from step 1 by reading existing setup state
+		// before we overwrite it below.
+		const existingState = await options.get<Record<string, unknown>>("emdash:setup_state");
+
 		// Mint a fresh session nonce. This binds the follow-up
 		// /setup/admin/verify call to the same browser that made this
 		// request, so an unauthenticated attacker on another host cannot
@@ -81,9 +85,11 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 			challengeStore,
 		);
 
-		// Store the nonce alongside the rest of the setup state. The verify
-		// endpoint will constant-time compare this with the incoming cookie.
+		// Store the nonce alongside the rest of the setup state, preserving
+		// title/tagline from step 1. The verify endpoint will constant-time
+		// compare the nonce with the incoming cookie.
 		await options.set("emdash:setup_state", {
+			...existingState,
 			step: "admin",
 			email: body.email.toLowerCase(),
 			name: body.name || null,
