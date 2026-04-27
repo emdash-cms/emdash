@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach } from "vitest";
 
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import {
@@ -10,7 +11,24 @@ import {
 	getSiteSettingsWithDb,
 	setSiteSettings,
 } from "../../../src/settings/index.js";
+import type { Storage } from "../../../src/storage/types.js";
 import { setupTestDatabase } from "../../utils/test-db.js";
+
+function fakeStorage(publicUrl: string): Storage {
+	return {
+		upload: async () => ({ key: "", url: "", size: 0 }),
+		download: async () => {
+			throw new Error("not implemented");
+		},
+		delete: async () => {},
+		exists: async () => false,
+		list: async () => ({ files: [] }),
+		getSignedUploadUrl: async () => {
+			throw new Error("not implemented");
+		},
+		getPublicUrl: (key: string) => `${publicUrl.replace(/\/$/, "")}/${key}`,
+	};
+}
 
 describe("Site Settings", () => {
 	let db: Kysely<Database>;
@@ -214,6 +232,50 @@ describe("Site Settings", () => {
 
 			const favicon = await getSiteSettingWithDb("favicon", db, null);
 			expect(favicon?.mediaId).toBe("med_456");
+		});
+
+		it("resolves logo url via storage.getPublicUrl when storage is provided", async () => {
+			const mediaRepo = new MediaRepository(db);
+			const media = await mediaRepo.create({
+				filename: "logo.png",
+				mimeType: "image/png",
+				storageKey: "01J-logo.png",
+			});
+			await setSiteSettings({ logo: { mediaId: media.id, alt: "Logo" } }, db);
+
+			const storage = fakeStorage("https://cdn.example.com");
+			const logo = await getSiteSettingWithDb("logo", db, storage);
+
+			expect(logo?.url).toBe("https://cdn.example.com/01J-logo.png");
+		});
+
+		it("falls back to /_emdash/api/media/file when no storage is provided", async () => {
+			const mediaRepo = new MediaRepository(db);
+			const media = await mediaRepo.create({
+				filename: "logo.png",
+				mimeType: "image/png",
+				storageKey: "01J-fallback.png",
+			});
+			await setSiteSettings({ logo: { mediaId: media.id } }, db);
+
+			const logo = await getSiteSettingWithDb("logo", db, null);
+
+			expect(logo?.url).toBe("/_emdash/api/media/file/01J-fallback.png");
+		});
+
+		it("resolves logo url through getSiteSettingsWithDb when storage is provided", async () => {
+			const mediaRepo = new MediaRepository(db);
+			const media = await mediaRepo.create({
+				filename: "logo.png",
+				mimeType: "image/png",
+				storageKey: "01J-bulk.png",
+			});
+			await setSiteSettings({ logo: { mediaId: media.id } }, db);
+
+			const storage = fakeStorage("https://cdn.example.com/");
+			const settings = await getSiteSettingsWithDb(db, storage);
+
+			expect(settings.logo?.url).toBe("https://cdn.example.com/01J-bulk.png");
 		});
 	});
 });

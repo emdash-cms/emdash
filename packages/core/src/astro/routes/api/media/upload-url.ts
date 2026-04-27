@@ -17,6 +17,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
+import { resolvePublicMediaUrl } from "#media/url.js";
 
 export const prerender = false;
 
@@ -86,7 +87,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 					existing: true,
 					mediaId: existing.id,
 					storageKey: existing.storageKey,
-					url: `/_emdash/api/media/file/${existing.storageKey}`,
+					url: resolvePublicMediaUrl(emdash.storage, existing.storageKey),
 				};
 				return apiSuccess(response);
 			}

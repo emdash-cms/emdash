@@ -21,6 +21,7 @@ import {
 	SsrfError,
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
+import { resolvePublicMediaUrl } from "../media/url.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
@@ -497,7 +498,7 @@ export function createMediaAccessWithWrite(
 			return {
 				mediaId: media.id,
 				storageKey,
-				url: `/_emdash/api/media/file/${storageKey}`,
+				url: resolvePublicMediaUrl(storage, storageKey),
 			};
 		},
 

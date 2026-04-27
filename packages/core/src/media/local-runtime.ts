@@ -23,6 +23,7 @@ import type {
 	EmbedResult,
 	EmbedOptions,
 } from "./types.js";
+import { resolvePublicMediaUrl } from "./url.js";
 
 export interface LocalMediaRuntimeConfig {
 	enabled?: boolean;
@@ -61,7 +62,7 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 					width: item.width ?? undefined,
 					height: item.height ?? undefined,
 					alt: item.alt ?? undefined,
-					previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
+					previewUrl: resolvePublicMediaUrl(storage, item.storageKey),
 					meta: {
 						storageKey: item.storageKey,
 						caption: item.caption,
@@ -85,7 +86,7 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				width: item.width ?? undefined,
 				height: item.height ?? undefined,
 				alt: item.alt ?? undefined,
-				previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
+				previewUrl: resolvePublicMediaUrl(storage, item.storageKey),
 				meta: {
 					storageKey: item.storageKey,
 					caption: item.caption,
@@ -125,7 +126,7 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 		getEmbed(value: MediaValue, _options?: EmbedOptions): EmbedResult {
 			const storageKey =
 				typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id;
-			const src = `/_emdash/api/media/file/${storageKey}`;
+			const src = resolvePublicMediaUrl(storage, storageKey);
 			const mimeType = value.mimeType || "";
 
 			// Determine embed type based on MIME type
@@ -170,8 +171,9 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 		},
 
 		getThumbnailUrl(id: string, _mimeType?: string) {
-			// For local media, return the file URL
-			return `/_emdash/api/media/file/${id}`;
+			// For local media, return the file URL via the configured storage
+			// adapter (honors CDN/custom-domain) or the built-in file route.
+			return resolvePublicMediaUrl(storage, id);
 		},
 	};
 
@@ -181,19 +183,22 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 /**
  * Helper to convert a MediaRepository item to MediaProviderItem
  */
-export function repoItemToProviderItem(item: {
-	id: string;
-	filename: string;
-	mimeType: string;
-	size: number | null;
-	width: number | null;
-	height: number | null;
-	alt: string | null;
-	caption: string | null;
-	storageKey: string;
-	blurhash: string | null;
-	dominantColor: string | null;
-}): MediaProviderItem {
+export function repoItemToProviderItem(
+	item: {
+		id: string;
+		filename: string;
+		mimeType: string;
+		size: number | null;
+		width: number | null;
+		height: number | null;
+		alt: string | null;
+		caption: string | null;
+		storageKey: string;
+		blurhash: string | null;
+		dominantColor: string | null;
+	},
+	storage?: import("../storage/types.js").Storage | null,
+): MediaProviderItem {
 	return {
 		id: item.id,
 		filename: item.filename,
@@ -202,7 +207,7 @@ export function repoItemToProviderItem(item: {
 		width: item.width ?? undefined,
 		height: item.height ?? undefined,
 		alt: item.alt ?? undefined,
-		previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
+		previewUrl: resolvePublicMediaUrl(storage, item.storageKey),
 		meta: {
 			storageKey: item.storageKey,
 			caption: item.caption,
