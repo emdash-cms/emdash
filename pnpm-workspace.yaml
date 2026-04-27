@@ -25,6 +25,7 @@ catalog:
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
   "@lingui/react": ^5.9.4
+  "@iconify-json/ph": ^1.2.2
   "@phosphor-icons/react": ^2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2
@@ -49,6 +50,7 @@ catalog:
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   astro: ^6.0.1
+  astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   publint: 0.3.17
   react: 19.2.4

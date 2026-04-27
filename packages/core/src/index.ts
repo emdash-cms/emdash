@@ -13,6 +13,7 @@ export {
 	ContentRepository,
 	MediaRepository,
 	EmDashValidationError,
+	InvalidCursorError,
 } from "./database/repositories/index.js";
 export type {
 	ContentItem,
@@ -480,11 +481,14 @@ export type {
 	SearchStats,
 } from "./search/index.js";
 
-// Auth types (for platform-specific auth providers)
+// Auth types (for platform-specific auth providers and pluggable login methods)
 export type {
 	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthProviderAdminExports,
 	AuthProviderModule,
 	AuthResult,
+	AuthRouteDescriptor,
 	ExternalAuthConfig,
 } from "./auth/types.js";
 

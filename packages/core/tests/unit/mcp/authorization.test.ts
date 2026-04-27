@@ -23,10 +23,10 @@ import { createMcpServer } from "../../../src/mcp/server.js";
 
 const INSUFFICIENT_PERMISSIONS_RE = /Insufficient permissions/i;
 const INSUFFICIENT_SCOPE_RE = /Insufficient scope/i;
-const NO_AUTHOR_ID_RE = /content has no authorId/i;
 
 const AUTHOR_USER_ID = "user_author";
 const OTHER_USER_ID = "user_other";
+const ADMIN_USER_ID = "user_admin";
 const CONTENT_ID = "01CONTENT";
 const CONTENT_SLUG = "test-post";
 const REVISION_ID = "01REVISION";
@@ -821,18 +821,46 @@ describe("MCP Authorization", () => {
 	// -----------------------------------------------------------------------
 
 	describe("missing authorId handling", () => {
-		it("returns clear error when content has no authorId", async () => {
-			// Create handlers where content has no authorId (e.g. imported content)
+		// Content with null/missing authorId (e.g. seed-imported rows) must be
+		// editable by anyone with `*:edit_any` and rejected for actors with only
+		// `*:edit_own` — without leaking internal "authorId" wording.
+		const contentWithoutAuthor = {
+			id: CONTENT_ID,
+			slug: "imported-post",
+			status: "draft",
+			title: "Imported",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			// no authorId
+		};
+
+		it("ADMIN succeeds on content with null authorId", async () => {
 			const handlers = createMockHandlers(AUTHOR_USER_ID);
-			const contentWithoutAuthor = {
-				id: CONTENT_ID,
-				slug: "imported-post",
-				status: "draft",
-				title: "Imported",
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-				// no authorId
-			};
+			handlers.handleContentGet = vi.fn().mockResolvedValue({
+				success: true,
+				data: { item: contentWithoutAuthor },
+			});
+
+			({ client, cleanup } = await setupMcpPair({
+				userId: ADMIN_USER_ID,
+				userRole: Role.ADMIN,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_update",
+				arguments: {
+					collection: "post",
+					id: CONTENT_ID,
+					data: { title: "ok" },
+				},
+			});
+
+			expect(result.isError).toBeFalsy();
+		});
+
+		it("AUTHOR denied on content with null authorId (clean permission error)", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
 			handlers.handleContentGet = vi.fn().mockResolvedValue({
 				success: true,
 				data: { item: contentWithoutAuthor },
@@ -855,7 +883,8 @@ describe("MCP Authorization", () => {
 
 			expect(result.isError).toBe(true);
 			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
-			expect(text).toMatch(NO_AUTHOR_ID_RE);
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+			expect(text).not.toMatch(/authorId/);
 		});
 	});
 

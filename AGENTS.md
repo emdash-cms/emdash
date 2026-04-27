@@ -442,7 +442,7 @@ Every user-facing string in the admin UI goes through Lingui. No hard-coded Engl
 
 - Catalogs live in `packages/admin/src/locales/{locale}/messages.po`. English is the source.
 - Enabled locales are defined in `packages/admin/src/locales/locales.ts`.
-- After adding or changing strings, run `pnpm locale:extract` then `pnpm locale:compile`. CI fails if catalogs are stale.
+- **Do not include `messages.po` changes in PRs that aren't translation PRs.** A workflow runs `pnpm locale:extract` on merge to `main` and commits the catalog updates. Including extracted PO changes in feature/bugfix PRs creates churn and merge conflicts (the line-number references shift on every edit). If you accidentally extracted, revert the `.po` files before opening the PR.
 - Set `EMDASH_PSEUDO_LOCALE=1` in dev to render pseudo-localized text -- any untranslated English leaking through is immediately visible.
 
 ```typescript

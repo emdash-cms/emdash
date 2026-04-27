@@ -8,10 +8,10 @@ on:
   pull_request_review:
     types: [submitted]
 
-concurrency:
-  # intentionally hardcoded so that all Bonk workflows coexist peacefully
-  group: bonk-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
-  cancel-in-progress: false
+# Concurrency is at job level (below) rather than workflow level so it's only
+# evaluated when the `if:` filter passes. Otherwise every issue_comment event
+# in the repo would enter the group and could evict in-flight runs from
+# unrelated, non-matching comments.
 
 jobs:
   bonk:
@@ -24,8 +24,14 @@ jobs:
         || (github.event_name == 'pull_request_review'
           && (contains(github.event.review.body, '/bonk') || contains(github.event.review.body, '@ask-bonk')))
       )
+    # Per-workflow group key so /bonk, /ultrabonk, /review, /ultrareview all
+    # have independent queues per target. Spamming /bonk on the same issue/PR
+    # serializes; different actions on the same target run in parallel.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: write
@@ -56,13 +62,37 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
-          # Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
-          # version (1.4.6 published 2026-04-15), whose bundled models.dev
-          # snapshot predates it and would otherwise raise ProviderModelNotFoundError.
+          # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
+          #
+          # 1. Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
+          #    version (1.4.6 published 2026-04-15). Without this, opencode
+          #    raises ProviderModelNotFoundError because the model post-dates
+          #    its bundled models.dev snapshot.
+          #
+          # 2. Resolve the two opencode permission defaults that ask interactively
+          #    (`external_directory` and `doom_loop`) so a CI run with no TTY
+          #    can never deadlock waiting for approval. external_directory is
+          #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
+          #    home-dir caches); doom_loop is deny so a stuck loop aborts
+          #    instead of prompting. Repro: PR #769 timed out at 30 min waiting
+          #    for an `external_directory` prompt on `git show ... > /tmp/foo`.
           OPENCODE_CONFIG_CONTENT: |
-            {"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
+            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
         with:
           model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
           mentions: "/bonk,@ask-bonk"
           opencode_version: "1.4.6"
           permissions: write
+          # Custom prompt so the model knows its response will become a PR body
+          # when an auto-PR is opened (issue → branch → PR flow). Without this,
+          # opencode uses the model's free-form response as the PR body verbatim
+          # and the pr-compliance CI check closes PRs missing the template.
+          # See .github/PULL_REQUEST_TEMPLATE.md.
+          prompt: |
+            ${{ github.event.comment.body || github.event.review.body }}
+
+            ---
+
+            If your work results in code changes that get pushed to a new branch (the workflow will commit, push, and open a pull request automatically), structure your final response so it can be used as the pull request body. The repo's pr-compliance check will close PRs that don't follow the template. Read `.github/PULL_REQUEST_TEMPLATE.md` and use that exact structure, filling in the checkboxes that apply and leaving the rest unchecked. Tick the AI-generated code disclosure box.
+
+            If your work doesn't result in code changes (you're answering a question, leaving feedback, or the change happens on an existing PR branch), respond normally -- your response will be posted as a comment, not a PR.

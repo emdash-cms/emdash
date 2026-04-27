@@ -33,7 +33,7 @@ export function atprotoPlugin(): PluginDescriptor {
 		entrypoint: "@emdash-cms/plugin-atproto/sandbox",
 		capabilities: ["read:content", "network:fetch:any"],
 		storage: {
-			publications: { indexes: ["contentId", "platform", "publishedAt"] },
+			records: { indexes: ["contentId", "status", "lastSyncedAt"] },
 		},
 		// Block Kit admin pages (no adminEntry needed -- sandboxed)
 		adminPages: [{ path: "/status", label: "AT Protocol", icon: "globe" }],
