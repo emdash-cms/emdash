@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/auth-atproto",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"description": "AT Protocol / Atmosphere authentication provider for EmDash CMS",
 	"type": "module",
 	"main": "src/auth.ts",
@@ -26,7 +26,7 @@
 	"license": "MIT",
 	"peerDependencies": {
 		"astro": ">=5",
-		"emdash": "workspace:*",
+		"emdash": "workspace:>=0.1.0",
 		"react": ">=18"
 	},
 	"devDependencies": {
