@@ -7,9 +7,7 @@ const seen = [];
 
 for await (const file of glob("**/package.json", {
 	exclude: (path) =>
-		path.includes("node_modules") ||
-		path.includes("/dist/") ||
-		path.includes("/.git/"),
+		path.includes("node_modules") || path.includes("/dist/") || path.includes("/.git/"),
 })) {
 	let pkg;
 	try {
@@ -26,9 +24,7 @@ for await (const file of glob("**/package.json", {
 }
 
 if (offenders.length > 0) {
-	console.error(
-		"::error::Non-0.x versions detected. Releases must stay in 0.x while in pre-1.0:",
-	);
+	console.error("::error::Non-0.x versions detected. Releases must stay in 0.x while in pre-1.0:");
 	for (const o of offenders) console.error(`  ${o}`);
 	process.exit(1);
 }
