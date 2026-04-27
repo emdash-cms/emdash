@@ -13,47 +13,19 @@ import type { BylineSummary, ContentBylineCredit } from "../database/repositorie
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
- * Cached result of "does any byline exist in the database?"
- * null = not yet checked, true/false = cached result.
- * Invalidated when bylines are created or deleted.
- */
-let hasBylines: boolean | null = null;
-
-/**
- * Invalidate the cached "has any bylines" check.
- * Call this when bylines are created, updated, or deleted.
+ * No-op — kept for API compatibility.
+ *
+ * Used to invalidate a worker-lifetime "has any byline?" probe. That
+ * probe added a query on every cold isolate to save one query on sites
+ * with zero bylines (i.e. the wrong tradeoff), so we dropped it. The
+ * batch byline join below returns an empty map for empty sites at the
+ * same cost as the probe, without the pre-check.
  */
 export function invalidateBylineCache(): void {
-	hasBylines = null;
-}
-
-/**
- * Check if any bylines exist in the database. Result is cached
- * for the lifetime of the worker/process and invalidated on writes.
- */
-async function hasAnyBylines(): Promise<boolean> {
-	if (hasBylines !== null) return hasBylines;
-
-	try {
-		const db = await getDb();
-		const result = await sql<{ id: string }>`
-			SELECT id FROM _emdash_bylines LIMIT 1
-		`.execute(db);
-		hasBylines = result.rows.length > 0;
-	} catch (error: unknown) {
-		// Only treat "no such table" as a safe false -- anything else should
-		// not be cached so the next request retries.
-		const message = error instanceof Error ? error.message : "";
-		if (message.includes("no such table")) {
-			hasBylines = false;
-		} else {
-			return false;
-		}
-	}
-
-	return hasBylines;
+	// Intentionally empty.
 }
 
 /**
@@ -176,17 +148,22 @@ export async function getBylinesForEntries(
 		return result;
 	}
 
-	// Skip DB queries entirely when no bylines have been created.
-	// The cache is invalidated when bylines are created/deleted.
-	if (!(await hasAnyBylines())) {
-		return result;
-	}
-
 	const db = await getDb();
 	const repo = new BylineRepository(db);
 
-	// 1. Batch fetch all explicit byline credits
-	const bylinesMap = await repo.getContentBylinesMany(collection, entryIds);
+	// 1. Batch fetch all explicit byline credits. Sites with no bylines
+	// get an empty map back for one query — the previous "has any bylines"
+	// probe traded an extra round-trip on every request to save that one
+	// query on empty sites, which is exactly backwards for the common case.
+	// Pre-migration databases (bylines table missing) fall through to the
+	// `isMissingTableError` catch below and return empty results.
+	let bylinesMap;
+	try {
+		bylinesMap = await repo.getContentBylinesMany(collection, entryIds);
+	} catch (error) {
+		if (isMissingTableError(error)) return result;
+		throw error;
+	}
 
 	// 2. Collect entry IDs that need fallback lookup
 	const fallbackEntryIds: string[] = [];

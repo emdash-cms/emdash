@@ -6,7 +6,7 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Button, Input, Label } from "@cloudflare/kumo";
+import { Button, Input, Label, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm } from "../lib/api/taxonomies.js";
+import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { slugify } from "../lib/utils.js";
 
 interface TaxonomyTerm {
@@ -114,7 +115,7 @@ function CategoryCheckboxTree({
 		<div>
 			<label
 				className="flex items-center py-1 cursor-pointer hover:bg-kumo-tint/50 rounded px-2"
-				style={{ marginLeft: `${level}rem` }}
+				style={{ marginInlineStart: `${level}rem` }}
 			>
 				<input
 					type="checkbox"
@@ -167,17 +168,13 @@ function TagInput({
 	const suggestions = React.useMemo(() => {
 		if (!trimmedInput) return [];
 		return terms
-			.filter(
-				(term) =>
-					term.label.toLowerCase().includes(trimmedInput.toLowerCase()) &&
-					!selectedIds.has(term.id),
-			)
+			.filter((term) => !selectedIds.has(term.id) && termMatches(term, trimmedInput))
 			.slice(0, 5);
 	}, [trimmedInput, terms, selectedIds]);
 
 	const hasExactMatch = React.useMemo(() => {
 		if (!trimmedInput) return false;
-		return terms.some((term) => term.label.toLowerCase() === trimmedInput.toLowerCase());
+		return terms.some((term) => termExactMatches(term, trimmedInput));
 	}, [trimmedInput, terms]);
 
 	const showCreateOption = trimmedInput.length > 0 && !hasExactMatch;
@@ -286,6 +283,7 @@ function TaxonomySection({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
 	const [newCategoryLabel, setNewCategoryLabel] = React.useState("");
 	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
@@ -311,6 +309,14 @@ function TaxonomySection({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name],
+			});
+			toastManager.add({ title: t`${taxonomy.label} updated` });
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to update ${taxonomy.label.toLowerCase()}`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
 			});
 		},
 	});

@@ -17,7 +17,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 
 	if (!emdash?.handleContentListTrashed) {

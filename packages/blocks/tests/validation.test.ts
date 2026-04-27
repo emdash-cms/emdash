@@ -95,6 +95,30 @@ describe("validateBlocks", () => {
 			]);
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
+
+		it("repeater", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "faqs",
+							label: "FAQs",
+							item_label: "FAQ",
+							min_items: 1,
+							max_items: 5,
+							fields: [
+								{ type: "text_input", action_id: "question", label: "Question" },
+								{ type: "text_input", action_id: "answer", label: "Answer", multiline: true },
+							],
+							initial_value: [{ question: "Q1", answer: "A1" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
 	});
 
 	// ── Invalid blocks ───────────────────────────────────────────────────────
@@ -358,6 +382,131 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].items[0].trend");
+		});
+
+		it("repeater with empty fields array", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [{ type: "repeater", action_id: "items", label: "Items", fields: [] }],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].fields");
+			expect(result.errors[0]!.message).toContain("must not be empty");
+		});
+
+		it("repeater with disallowed sub-field type", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "items",
+							label: "Items",
+							fields: [
+								{
+									type: "checkbox",
+									action_id: "opts",
+									label: "Opts",
+									options: [{ label: "A", value: "a" }],
+								},
+							],
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].elements[0].fields[0].type");
+			expect(
+				result.errors.find((e) => e.path === "blocks[0].elements[0].fields[0].type")!.message,
+			).toContain("not allowed");
+		});
+
+		it("repeater with non-integer min_items / max_items", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "items",
+							label: "Items",
+							fields: [{ type: "text_input", action_id: "q", label: "Q" }],
+							min_items: 1.5,
+							max_items: -2,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].elements[0].min_items");
+			expect(paths).toContain("blocks[0].elements[0].max_items");
+		});
+
+		it("repeater with min_items greater than max_items", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "items",
+							label: "Items",
+							fields: [{ type: "text_input", action_id: "q", label: "Q" }],
+							min_items: 5,
+							max_items: 2,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].min_items");
+			expect(result.errors[0]!.message).toContain("less than or equal to 'max_items'");
+		});
+
+		it("repeater initial_value not an array", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "items",
+							label: "Items",
+							fields: [{ type: "text_input", action_id: "q", label: "Q" }],
+							initial_value: "not-an-array",
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].initial_value");
+			expect(result.errors[0]!.message).toContain("must be an array");
+		});
+
+		it("repeater initial_value entry not an object", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "items",
+							label: "Items",
+							fields: [{ type: "text_input", action_id: "q", label: "Q" }],
+							initial_value: [{ q: "ok" }, "bad", null],
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].elements[0].initial_value[1]");
+			expect(paths).toContain("blocks[0].elements[0].initial_value[2]");
 		});
 
 		it("form field with invalid condition (no eq/neq)", () => {

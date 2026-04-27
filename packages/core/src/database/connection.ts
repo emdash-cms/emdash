@@ -1,6 +1,7 @@
 import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 
+import { kyselyLogOption } from "./instrumentation.js";
 import type { Database } from "./types.js";
 
 export interface DatabaseConfig {
@@ -62,7 +63,7 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 				database: sqlite,
 			});
 
-			return new Kysely<Database>({ dialect });
+			return new Kysely<Database>({ dialect, log: kyselyLogOption() });
 		}
 
 		// Handle libSQL (Turso)

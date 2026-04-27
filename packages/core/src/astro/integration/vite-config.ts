@@ -32,17 +32,23 @@ import {
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	VIRTUAL_AUTH_ID,
 	RESOLVED_VIRTUAL_AUTH_ID,
+	VIRTUAL_AUTH_PROVIDERS_ID,
+	RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID,
 	VIRTUAL_MEDIA_PROVIDERS_ID,
 	RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID,
 	VIRTUAL_BLOCK_COMPONENTS_ID,
 	RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID,
 	VIRTUAL_SEED_ID,
 	RESOLVED_VIRTUAL_SEED_ID,
+	VIRTUAL_WAIT_UNTIL_ID,
+	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
 	generateSeedModule,
+	generateWaitUntilModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
 	generateAuthModule,
+	generateAuthProvidersModule,
 	generatePluginsModule,
 	generateAdminRegistryModule,
 	generateSandboxRunnerModule,
@@ -167,6 +173,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_AUTH_ID) {
 				return RESOLVED_VIRTUAL_AUTH_ID;
 			}
+			if (id === VIRTUAL_AUTH_PROVIDERS_ID) {
+				return RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID;
+			}
 			if (id === VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID;
 			}
@@ -176,6 +185,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_SEED_ID) {
 				return RESOLVED_VIRTUAL_SEED_ID;
 			}
+			if (id === VIRTUAL_WAIT_UNTIL_ID) {
+				return RESOLVED_VIRTUAL_WAIT_UNTIL_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -184,11 +196,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate a module that statically imports the configured dialect
 			// This allows Vite to properly resolve and bundle it
 			if (id === RESOLVED_VIRTUAL_DIALECT_ID) {
-				return generateDialectModule(
-					resolvedConfig.database?.entrypoint,
-					resolvedConfig.database?.type,
-					resolvedConfig.database?.config,
-				);
+				return generateDialectModule({
+					entrypoint: resolvedConfig.database?.entrypoint,
+					type: resolvedConfig.database?.type,
+					supportsRequestScope: resolvedConfig.database?.supportsRequestScope ?? false,
+				});
 			}
 			// Generate a module that statically imports the configured storage
 			if (id === RESOLVED_VIRTUAL_STORAGE_ID) {
@@ -222,6 +234,10 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				}
 				return generateAuthModule(authDescriptor.entrypoint);
 			}
+			// Generate auth providers module (pluggable login methods)
+			if (id === RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID) {
+				return generateAuthProvidersModule(resolvedConfig.authProviders ?? []);
+			}
 			// Generate media providers module
 			if (id === RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return generateMediaProvidersModule(resolvedConfig.mediaProviders ?? []);
@@ -234,6 +250,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === RESOLVED_VIRTUAL_SEED_ID) {
 				const projectRoot = fileURLToPath(astroConfig.root);
 				return generateSeedModule(projectRoot);
+			}
+			// Generate wait-until module — re-exports cloudflare:workers'
+			// waitUntil under the Cloudflare adapter, undefined otherwise.
+			if (id === RESOLVED_VIRTUAL_WAIT_UNTIL_ID) {
+				return generateWaitUntilModule(astroConfig.adapter?.name);
 			}
 		},
 	};
@@ -305,7 +326,7 @@ export function createViteConfig(
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
-			...(useSource ? [linguiMacroPlugin(adminSourcePath!, adminDistPath)] : []),
+			...(useSource ? [linguiMacroPlugin(adminSourcePath, adminDistPath)] : []),
 		] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.

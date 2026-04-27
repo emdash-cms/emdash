@@ -26,6 +26,7 @@
 		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
+		"query-counts": "node scripts/query-counts.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
 		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
 		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"

@@ -19,7 +19,9 @@ import type {
 } from "./astro/integration/runtime.js";
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
+import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
+import { kyselyLogOption } from "./database/instrumentation.js";
 import { runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
@@ -43,6 +45,20 @@ import { hashString } from "./utils/hash.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
+
+/**
+ * Parse a JSON column expected to contain an array of strings.
+ *
+ * Throws on malformed JSON rather than returning []; callers are responsible
+ * for deciding how to handle/log the error. Empty string / null inputs return
+ * [] (they represent "no value"). Non-string array entries are filtered out.
+ */
+function parseStringArray(raw: string | null | undefined): string[] {
+	if (!raw) return [];
+	const parsed: unknown = JSON.parse(raw);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((v): v is string => typeof v === "string");
+}
 
 /** Combined result from a single-pass page contribution collection */
 interface PageContributions {
@@ -88,6 +104,7 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 	}
 }
 
+import { after } from "./after.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
@@ -153,6 +170,7 @@ import { FTSManager } from "./search/fts-manager.js";
 const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	string: "string",
 	slug: "string",
+	url: "url",
 	text: "richText",
 	number: "number",
 	integer: "number",
@@ -234,6 +252,45 @@ export interface RuntimeDependencies {
 }
 
 /**
+ * Constructor parameters for `EmDashRuntime`.
+ *
+ * Production code should use `EmDashRuntime.create()` which discovers and
+ * loads all parts (database, plugins, hooks, cron, etc.) and then calls the
+ * constructor. Direct construction is supported for callers that already
+ * have all the dependencies in hand — for example, integration tests that
+ * supply a pre-migrated database and an empty plugin set.
+ *
+ * Every field corresponds 1:1 to internal state set on the runtime — none of
+ * these are derived. If you don't have a value for one, see what `create()`
+ * passes for that field as the canonical default.
+ */
+export interface EmDashRuntimeParts {
+	db: Kysely<Database>;
+	storage: Storage | null;
+	configuredPlugins: ResolvedPlugin[];
+	sandboxedPlugins: Map<string, SandboxedPlugin>;
+	sandboxedPluginEntries: SandboxedPluginEntry[];
+	hooks: HookPipeline;
+	enabledPlugins: Set<string>;
+	pluginStates: Map<string, string>;
+	config: EmDashConfig;
+	mediaProviders: Map<string, MediaProvider>;
+	mediaProviderEntries: MediaProviderEntry[];
+	cronExecutor: CronExecutor | null;
+	cronScheduler: CronScheduler | null;
+	emailPipeline: EmailPipeline | null;
+	allPipelinePlugins: ResolvedPlugin[];
+	pipelineFactoryOptions: {
+		db: Kysely<Database>;
+		storage?: Storage;
+		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
+	};
+	runtimeDeps: RuntimeDependencies;
+	pipelineRef: { current: HookPipeline };
+	manifestCacheKey: string;
+}
+
+/**
  * Convert a ContentItem to Record<string, unknown> for hook consumption.
  * Hooks receive the full item as a flat record.
  */
@@ -286,6 +343,18 @@ export class EmDashRuntime {
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
 
+	private _cachedManifest: EmDashManifest | null = null;
+	private _manifestPromise: Promise<EmDashManifest> | null = null;
+	private readonly _manifestCacheKey: string;
+
+	/**
+	 * Set to true after FTS indexes have been verified for this worker
+	 * lifetime so we don't re-scan on every admin request. See
+	 * ensureSearchHealthy().
+	 */
+	private _searchHealthChecked = false;
+	private _searchHealthPromise: Promise<void> | null = null;
+
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
 		return this._hooks;
@@ -321,49 +390,27 @@ export class EmDashRuntime {
 		return this._db;
 	}
 
-	private constructor(
-		db: Kysely<Database>,
-		storage: Storage | null,
-		configuredPlugins: ResolvedPlugin[],
-		sandboxedPlugins: Map<string, SandboxedPlugin>,
-		sandboxedPluginEntries: SandboxedPluginEntry[],
-		hooks: HookPipeline,
-		enabledPlugins: Set<string>,
-		pluginStates: Map<string, string>,
-		config: EmDashConfig,
-		mediaProviders: Map<string, MediaProvider>,
-		mediaProviderEntries: MediaProviderEntry[],
-		cronExecutor: CronExecutor | null,
-		cronScheduler: CronScheduler | null,
-		emailPipeline: EmailPipeline | null,
-		allPipelinePlugins: ResolvedPlugin[],
-		pipelineFactoryOptions: {
-			db: Kysely<Database>;
-			storage?: Storage;
-			siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
-		},
-		runtimeDeps: RuntimeDependencies,
-		pipelineRef: { current: HookPipeline },
-	) {
-		this._db = db;
-		this.storage = storage;
-		this.configuredPlugins = configuredPlugins;
-		this.sandboxedPlugins = sandboxedPlugins;
-		this.sandboxedPluginEntries = sandboxedPluginEntries;
-		this.schemaRegistry = new SchemaRegistry(db);
-		this._hooks = hooks;
-		this.enabledPlugins = enabledPlugins;
-		this.pluginStates = pluginStates;
-		this.config = config;
-		this.mediaProviders = mediaProviders;
-		this.mediaProviderEntries = mediaProviderEntries;
-		this.cronExecutor = cronExecutor;
-		this.cronScheduler = cronScheduler;
-		this.email = emailPipeline;
-		this.allPipelinePlugins = allPipelinePlugins;
-		this.pipelineFactoryOptions = pipelineFactoryOptions;
-		this.runtimeDeps = runtimeDeps;
-		this.pipelineRef = pipelineRef;
+	constructor(parts: EmDashRuntimeParts) {
+		this._db = parts.db;
+		this.storage = parts.storage;
+		this.configuredPlugins = parts.configuredPlugins;
+		this.sandboxedPlugins = parts.sandboxedPlugins;
+		this.sandboxedPluginEntries = parts.sandboxedPluginEntries;
+		this.schemaRegistry = new SchemaRegistry(parts.db);
+		this._hooks = parts.hooks;
+		this.enabledPlugins = parts.enabledPlugins;
+		this.pluginStates = parts.pluginStates;
+		this.config = parts.config;
+		this.mediaProviders = parts.mediaProviders;
+		this.mediaProviderEntries = parts.mediaProviderEntries;
+		this.cronExecutor = parts.cronExecutor;
+		this.cronScheduler = parts.cronScheduler;
+		this.email = parts.emailPipeline;
+		this.allPipelinePlugins = parts.allPipelinePlugins;
+		this.pipelineFactoryOptions = parts.pipelineFactoryOptions;
+		this.runtimeDeps = parts.runtimeDeps;
+		this.pipelineRef = parts.pipelineRef;
+		this._manifestCacheKey = parts.manifestCacheKey;
 	}
 
 	/**
@@ -413,6 +460,7 @@ export class EmDashRuntime {
 			this.enabledPlugins.delete(pluginId);
 			await this.rebuildHookPipeline();
 		}
+		this.invalidateManifest();
 	}
 
 	/**
@@ -565,36 +613,46 @@ export class EmDashRuntime {
 	/**
 	 * Create and initialize the runtime
 	 */
-	static async create(deps: RuntimeDependencies): Promise<EmDashRuntime> {
-		// Initialize database
-		const db = await EmDashRuntime.getDatabase(deps);
-
-		// Verify and repair FTS indexes (auto-heal crash corruption)
-		// FTS5 is SQLite-only; on other dialects, search is a no-op until
-		// the pluggable SearchProvider work lands.
-		if (isSqlite(db)) {
+	static async create(
+		deps: RuntimeDependencies,
+		timings?: Array<{ name: string; dur: number; desc?: string }>,
+	): Promise<EmDashRuntime> {
+		// Helper: time a phase and push into the shared timings array when
+		// provided. Uses performance.now() — monotonic across async boundaries.
+		// No-op when `timings` wasn't passed (preserves backwards compatibility
+		// with callers that don't care about per-phase breakdown).
+		const phase = async <T>(name: string, desc: string, fn: () => Promise<T>): Promise<T> => {
+			if (!timings) return fn();
+			const t0 = performance.now();
 			try {
-				const ftsManager = new FTSManager(db);
-				const repaired = await ftsManager.verifyAndRepairAll();
-				if (repaired > 0) {
-					console.log(`Repaired ${repaired} corrupted FTS index(es) at startup`);
-				}
-			} catch {
-				// FTS tables may not exist yet (pre-setup). Non-fatal.
+				return await fn();
+			} finally {
+				timings.push({ name, dur: performance.now() - t0, desc });
 			}
-		}
+		};
 
-		// Initialize storage
+		// Initialize database (connects, runs migrations if needed)
+		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
+
+		// FTS verify/repair is deferred off the cold-start hot path.
+		// See EmDashRuntime.ensureSearchHealthy().
+
+		// Initialize storage (sync)
 		const storage = EmDashRuntime.getStorage(deps);
 
 		// Fetch plugin states from database
 		let pluginStates: Map<string, string> = new Map();
-		try {
-			const states = await db.selectFrom("_plugin_state").select(["plugin_id", "status"]).execute();
-			pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-		} catch {
-			// Plugin state table may not exist yet
-		}
+		await phase("rt.plugins", "Plugin states", async () => {
+			try {
+				const states = await db
+					.selectFrom("_plugin_state")
+					.select(["plugin_id", "status"])
+					.execute();
+				pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+			} catch {
+				// Plugin state table may not exist yet
+			}
+		});
 
 		// Build set of enabled plugins
 		const enabledPlugins = new Set<string>();
@@ -605,21 +663,25 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Load site info for plugin context extensions
+		// Load site info for plugin context extensions (1 batch query instead of 3)
 		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
-		try {
-			const optionsRepo = new OptionsRepository(db);
-			const siteName = await optionsRepo.get<string>("emdash:site_title");
-			const siteUrl = await optionsRepo.get<string>("emdash:site_url");
-			const locale = await optionsRepo.get<string>("emdash:locale");
-			siteInfo = {
-				siteName: siteName ?? undefined,
-				siteUrl: siteUrl ?? undefined,
-				locale: locale ?? undefined,
-			};
-		} catch {
-			// Options table may not exist yet (pre-setup)
-		}
+		await phase("rt.site", "Site info options", async () => {
+			try {
+				const optionsRepo = new OptionsRepository(db);
+				const siteOpts = await optionsRepo.getMany<string>([
+					"emdash:site_title",
+					"emdash:site_url",
+					"emdash:locale",
+				]);
+				siteInfo = {
+					siteName: siteOpts.get("emdash:site_title") ?? undefined,
+					siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+					locale: siteOpts.get("emdash:locale") ?? undefined,
+				};
+			} catch {
+				// Options table may not exist yet (pre-setup)
+			}
+		});
 
 		// Build the full list of pipeline-eligible plugins: all configured
 		// plugins (regardless of current enabled status) plus built-in plugins.
@@ -685,11 +747,15 @@ export class EmDashRuntime {
 		const pipeline = createHookPipeline(enabledPluginList, pipelineFactoryOptions);
 
 		// Load sandboxed plugins (build-time)
-		const sandboxedPlugins = await EmDashRuntime.loadSandboxedPlugins(deps, db);
+		const sandboxedPlugins = await phase("rt.sandbox", "Sandboxed plugins", () =>
+			EmDashRuntime.loadSandboxedPlugins(deps, db),
+		);
 
 		// Cold-start: load marketplace-installed plugins from site R2
 		if (deps.config.marketplace && storage) {
-			await EmDashRuntime.loadMarketplacePlugins(db, storage, deps, sandboxedPlugins);
+			await phase("rt.market", "Marketplace plugins", () =>
+				EmDashRuntime.loadMarketplacePlugins(db, storage, deps, sandboxedPlugins),
+			);
 		}
 
 		// Initialize media providers
@@ -707,7 +773,9 @@ export class EmDashRuntime {
 		}
 
 		// Resolve exclusive hooks — auto-select providers and sync with DB
-		await EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps);
+		await phase("rt.hooks", "Exclusive hook resolution", () =>
+			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps),
+		);
 
 		// ── Email pipeline ───────────────────────────────────────────────
 		// The email pipeline orchestrates beforeSend → deliver → afterSend.
@@ -740,63 +808,95 @@ export class EmDashRuntime {
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
 
-		try {
-			cronExecutor = new CronExecutor(db, invokeCronHook);
+		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
+			try {
+				cronExecutor = new CronExecutor(db, invokeCronHook);
 
-			// Recover stale locks from previous crashes
-			const recovered = await cronExecutor.recoverStaleLocks();
-			if (recovered > 0) {
-				console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
-			}
+				// Recover stale locks from previous crashes. Pure bookkeeping
+				// against the _emdash_cron_tasks table — no request needs the
+				// result — so we defer it past the response via after(). On
+				// Cloudflare this goes into waitUntil (extending the worker
+				// lifetime); on Node it's fire-and-forget (the process stays
+				// up anyway). Saves one cold-start write per D1 isolate.
+				const executorForRecovery = cronExecutor;
+				after(async () => {
+					try {
+						const recovered = await executorForRecovery.recoverStaleLocks();
+						if (recovered > 0) {
+							console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
+						}
+					} catch (error) {
+						// Keep the `[cron]` prefix so a failure is easy to trace back
+						// rather than surfacing as a generic deferred-task error.
+						console.error("[cron] Failed to recover stale task locks:", error);
+					}
+				});
 
-			// Detect platform and create appropriate scheduler.
-			// On Cloudflare Workers, setTimeout is available but unreliable for
-			// long durations — use PiggybackScheduler as default.
-			// In Node/Bun, use NodeCronScheduler with real timers.
-			const isWorkersRuntime =
-				typeof globalThis.navigator !== "undefined" &&
-				globalThis.navigator.userAgent === "Cloudflare-Workers";
+				// Detect platform and create appropriate scheduler.
+				// On Cloudflare Workers, setTimeout is available but unreliable for
+				// long durations — use PiggybackScheduler as default.
+				// In Node/Bun, use NodeCronScheduler with real timers.
+				const isWorkersRuntime =
+					typeof globalThis.navigator !== "undefined" &&
+					globalThis.navigator.userAgent === "Cloudflare-Workers";
 
-			if (isWorkersRuntime) {
-				cronScheduler = new PiggybackScheduler(cronExecutor);
-			} else {
-				cronScheduler = new NodeCronScheduler(cronExecutor);
-			}
-
-			// Register system cleanup to run alongside each scheduler tick.
-			// Pass storage so cleanupPendingUploads can delete orphaned files.
-			cronScheduler.setSystemCleanup(async () => {
-				try {
-					await runSystemCleanup(db, storage ?? undefined);
-				} catch (error) {
-					// Non-fatal -- individual cleanup failures are already logged
-					// by runSystemCleanup. This catches unexpected errors.
-					console.error("[cleanup] System cleanup failed:", error);
+				if (isWorkersRuntime) {
+					cronScheduler = new PiggybackScheduler(cronExecutor);
+				} else {
+					cronScheduler = new NodeCronScheduler(cronExecutor);
 				}
-			});
 
-			// Add cron reschedule callback (merges with existing factory options)
-			pipeline.setContextFactory({
-				cronReschedule: () => cronScheduler?.reschedule(),
-			});
+				// Register system cleanup to run alongside each scheduler tick.
+				// Pass storage so cleanupPendingUploads can delete orphaned files.
+				cronScheduler.setSystemCleanup(async () => {
+					try {
+						await runSystemCleanup(db, storage ?? undefined);
+					} catch (error) {
+						// Non-fatal -- individual cleanup failures are already logged
+						// by runSystemCleanup. This catches unexpected errors.
+						console.error("[cleanup] System cleanup failed:", error);
+					}
+				});
 
-			// Start the scheduler
-			await cronScheduler.start();
-		} catch (error) {
-			console.warn("[cron] Failed to initialize cron system:", error);
-			// Non-fatal — CMS works without cron
-		}
+				// Add cron reschedule callback (merges with existing factory options)
+				pipeline.setContextFactory({
+					cronReschedule: () => cronScheduler?.reschedule(),
+				});
 
-		return new EmDashRuntime(
+				// Start the scheduler
+				await cronScheduler.start();
+			} catch (error) {
+				console.warn("[cron] Failed to initialize cron system:", error);
+				// Non-fatal — CMS works without cron
+			}
+		});
+
+		// SHA of emdash commit + user config that affects the manifest.
+		// COMMIT captures emdash code changes; plugin IDs/versions and i18n
+		// capture user astro.config changes (e.g. upgrading a plugin package).
+		// DB-driven changes (collections, fields, plugin toggle) go through
+		// invalidateManifest(). Sorted for stability across nondeterministic
+		// plugin ordering.
+		const manifestCacheKey = await hashString(
+			[
+				COMMIT,
+				...deps.plugins.map((p) => `${p.id}@${p.version ?? ""}`).toSorted(),
+				...deps.sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`).toSorted(),
+				virtualConfig?.i18n?.defaultLocale ?? "",
+				(virtualConfig?.i18n?.locales ?? []).toSorted().join(","),
+			].join("|"),
+		);
+
+		return new EmDashRuntime({
 			db,
 			storage,
-			deps.plugins,
+			configuredPlugins: deps.plugins,
 			sandboxedPlugins,
-			deps.sandboxedPluginEntries,
-			pipeline,
+			sandboxedPluginEntries: deps.sandboxedPluginEntries,
+			hooks: pipeline,
 			enabledPlugins,
 			pluginStates,
-			deps.config,
+			config: deps.config,
 			mediaProviders,
 			mediaProviderEntries,
 			cronExecutor,
@@ -804,9 +904,10 @@ export class EmDashRuntime {
 			emailPipeline,
 			allPipelinePlugins,
 			pipelineFactoryOptions,
-			deps,
+			runtimeDeps: deps,
 			pipelineRef,
-		);
+			manifestCacheKey,
+		});
 	}
 
 	/**
@@ -837,12 +938,14 @@ export class EmDashRuntime {
 	 * Get or create database instance
 	 */
 	private static async getDatabase(deps: RuntimeDependencies): Promise<Kysely<Database>> {
-		// If a per-request DB override is set (e.g. by the playground middleware
-		// which runs before the runtime init), use that directly. This allows
-		// the runtime to initialize against the real DO database instead of
-		// the dummy singleton dialect.
+		// Only use the per-request `ctx.db` when it's an isolated instance
+		// (playground / DO preview). Plain D1 Sessions set `ctx.db` on every
+		// anonymous request — if we captured one of those session-bound
+		// Kyselys into the cached runtime, every request would accidentally
+		// share one request's session. The configured `deps.createDialect`
+		// path gives us a fresh singleton instead.
 		const ctx = getRequestContext();
-		if (ctx?.db) {
+		if (ctx?.dbIsIsolated && ctx.db) {
 			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- db in context is typed as unknown to avoid circular deps
 			return ctx.db as Kysely<Database>;
 		}
@@ -878,9 +981,20 @@ export class EmDashRuntime {
 
 		dbInitPromise = (async () => {
 			const dialect = deps.createDialect(dbConfig.config);
-			const db = new Kysely<Database>({ dialect });
+			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-			await runMigrations(db);
+			const { applied } = await runMigrations(db);
+
+			// If migrations were applied, the schema changed — clear the
+			// DB-persisted manifest cache so getManifest() rebuilds it.
+			if (applied.length > 0) {
+				try {
+					const options = new OptionsRepository(db);
+					await options.delete("emdash:manifest_cache");
+				} catch {
+					// Non-fatal
+				}
+			}
 
 			// Auto-seed schema if no collections exist and setup hasn't run.
 			// This covers first-load on sites that skip the setup wizard.
@@ -1142,9 +1256,82 @@ export class EmDashRuntime {
 	// =========================================================================
 
 	/**
-	 * Build the manifest (rebuilt on each request for freshness)
+	 * Get the manifest, using an in-memory cache with a DB-persisted
+	 * fallback for cold starts. Avoids N+1 schema registry queries
+	 * on every request.
+	 *
+	 * Cache is invalidated by invalidateManifest(), called from schema
+	 * API routes, MCP server, plugin toggle, and taxonomy def changes.
 	 */
 	async getManifest(): Promise<EmDashManifest> {
+		// When the DB is overridden by an isolated instance (playground /
+		// DO-preview sessions), bypass the module-scoped manifest cache —
+		// its schema may diverge from the configured DB. Plain D1 Sessions
+		// routing does NOT set `dbIsIsolated`, so the cache still applies.
+		if (getRequestContext()?.dbIsIsolated) {
+			return this._buildManifest();
+		}
+
+		if (this._cachedManifest) return this._cachedManifest;
+
+		// DB-persisted cache (1 query instead of N+1 rebuild on cold start).
+		// Keyed by SHA of commit + config to bust on deploys. DB-driven
+		// changes (collections, fields, plugins, taxonomies) go through
+		// invalidateManifest().
+		try {
+			const options = new OptionsRepository(this.db);
+			const cached = await options.get<{ key: string; manifest: EmDashManifest }>(
+				"emdash:manifest_cache",
+			);
+			if (cached && cached.key === this._manifestCacheKey && cached.manifest) {
+				this._cachedManifest = cached.manifest;
+				return cached.manifest;
+			}
+		} catch {
+			// Options table may not exist yet
+		}
+
+		// Full rebuild, then persist. Track which promise is current so
+		// an invalidation during the build can't be overwritten.
+		if (!this._manifestPromise) {
+			let manifestPromise: Promise<EmDashManifest>;
+			const isCurrentLoad = () => this._manifestPromise === manifestPromise;
+			manifestPromise = this._loadManifest(isCurrentLoad);
+			this._manifestPromise = manifestPromise;
+		}
+		return this._manifestPromise;
+	}
+
+	private async _loadManifest(isCurrentLoad: () => boolean): Promise<EmDashManifest> {
+		try {
+			const manifest = await this._buildManifest();
+
+			if (isCurrentLoad()) {
+				this._cachedManifest = manifest;
+
+				try {
+					const options = new OptionsRepository(this.db);
+					await options.set("emdash:manifest_cache", {
+						key: this._manifestCacheKey,
+						manifest,
+					});
+				} catch {
+					// Non-fatal — will just rebuild next time
+				}
+			}
+
+			return manifest;
+		} finally {
+			if (isCurrentLoad()) {
+				this._manifestPromise = null;
+			}
+		}
+	}
+
+	/**
+	 * Build the manifest from database (N+1 collection queries).
+	 */
+	private async _buildManifest(): Promise<EmDashManifest> {
 		// Build collections from database.
 		// Use this.db (ALS-aware getter) so playground mode picks up the
 		// per-session DO database instead of the hardcoded singleton.
@@ -1331,7 +1518,7 @@ export class EmDashRuntime {
 				label: row.label,
 				labelSingular: row.label_singular ?? undefined,
 				hierarchical: row.hierarchical === 1,
-				collections: row.collections ? (JSON.parse(row.collections) as string[]).toSorted() : [],
+				collections: parseStringArray(row.collections).toSorted(),
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
@@ -1370,11 +1557,72 @@ export class EmDashRuntime {
 
 	/**
 	 * Invalidate cached data derived from the manifest/schema.
-	 * Called when collections are created, updated, or deleted.
+	 * Called when collections, fields, plugins, or taxonomy defs change.
 	 */
 	invalidateManifest(): void {
-		// Invalidate the URL pattern cache used by resolveEmDashPath
+		this._cachedManifest = null;
+		this._manifestPromise = null;
 		invalidateUrlPatternCache();
+		// Delete DB-persisted cache so the next cold start rebuilds.
+		// Fire-and-forget: in-memory is already cleared for this worker,
+		// DB delete is best-effort for the next cold start.
+		try {
+			const options = new OptionsRepository(this.db);
+			options.delete("emdash:manifest_cache").catch((error) => {
+				console.error("Failed to delete persisted manifest cache", error);
+			});
+		} catch (error) {
+			console.error("Failed to initialize manifest cache invalidation", error);
+		}
+	}
+
+	/**
+	 * Verify and repair FTS indexes on demand. Runs at most once per worker
+	 * lifetime.
+	 *
+	 * Originally called from `EmDashRuntime.create()`, but on a busy D1 link
+	 * (e.g. SIN replica ~80-150ms per query) it added ~1.5s to every cold
+	 * start for a modest-sized site — more than every other init phase
+	 * combined. Anonymous public reads never touch the search write path,
+	 * so the cost isn't paid back for the vast majority of requests.
+	 *
+	 * Instead, search endpoints call this lazily: the first request that
+	 * actually needs the index pays the verify cost (usually fast — no
+	 * rebuild needed), everyone else runs cold-free.
+	 *
+	 * Uses the runtime's singleton database (`this._db`) rather than the
+	 * request-scoped DB. Verify reads only, but `rebuildIndex` writes, and
+	 * a GET search request on D1 carries a `first-unconstrained` session
+	 * that's free to route at a read replica — unsafe for writes. The
+	 * singleton always goes through the default binding, which the D1
+	 * adapter will promote to `first-primary` for write statements.
+	 *
+	 * Safe to call concurrently: repeated callers share the same in-flight
+	 * promise. Errors are swallowed internally so callers don't need to
+	 * defend against FTS not existing yet (pre-setup).
+	 */
+	async ensureSearchHealthy(): Promise<void> {
+		if (this._searchHealthChecked) return;
+		if (this._searchHealthPromise) return this._searchHealthPromise;
+		if (!isSqlite(this._db)) {
+			this._searchHealthChecked = true;
+			return;
+		}
+		this._searchHealthPromise = (async () => {
+			try {
+				const ftsManager = new FTSManager(this._db);
+				const repaired = await ftsManager.verifyAndRepairAll();
+				if (repaired > 0) {
+					console.log(`Repaired ${repaired} corrupted FTS index(es)`);
+				}
+			} catch {
+				// FTS tables may not exist yet (pre-setup). Non-fatal.
+			} finally {
+				this._searchHealthChecked = true;
+				this._searchHealthPromise = null;
+			}
+		})();
+		return this._searchHealthPromise;
 	}
 
 	// =========================================================================
@@ -1396,11 +1644,75 @@ export class EmDashRuntime {
 	}
 
 	async handleContentGet(collection: string, id: string, locale?: string) {
-		return handleContentGet(this.db, collection, id, locale);
+		const result = await handleContentGet(this.db, collection, id, locale);
+		return this.hydrateDraftData(result);
 	}
 
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {
-		return handleContentGetIncludingTrashed(this.db, collection, id, locale);
+		const result = await handleContentGetIncludingTrashed(this.db, collection, id, locale);
+		return this.hydrateDraftData(result);
+	}
+
+	/**
+	 * If the response item has a `draftRevisionId`, replace `item.data` with
+	 * the draft revision's data and expose the original published values as
+	 * `liveData`. This makes the content_get / content_update round-trip
+	 * intuitive — read returns the latest content the caller has saved
+	 * (their pending draft), with the previously-published values still
+	 * accessible for compare-style flows.
+	 *
+	 * No-op when no draft exists or the response is an error.
+	 */
+	private async hydrateDraftData<T>(result: T): Promise<T> {
+		if (!result || typeof result !== "object") return result;
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape probed below
+		const r = result as {
+			success?: boolean;
+			data?: { item?: Record<string, unknown> };
+		};
+		if (!r.success || !r.data?.item) return result;
+		const item = r.data.item;
+		const draftRevisionId = typeof item.draftRevisionId === "string" ? item.draftRevisionId : null;
+		if (!draftRevisionId) return result;
+		try {
+			const revision = await new RevisionRepository(this.db).findById(draftRevisionId);
+			if (!revision) return result;
+			const liveData =
+				item.data && typeof item.data === "object"
+					? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed to object above
+						(item.data as Record<string, unknown>)
+					: {};
+			// Strip leading-underscore keys (`_slug`, `_rev`, etc.) from the
+			// revision data — those are handler-internal markers and don't
+			// belong in the surfaced `data` field. Match syncDataColumns at
+			// content.ts:~1119.
+			const revisionData: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(revision.data)) {
+				if (!key.startsWith("_")) revisionData[key] = value;
+			}
+			const mergedData = { ...liveData, ...revisionData };
+			// Return a clone rather than mutating in place. The response
+			// object isn't retained by the runtime today, but a future
+			// request-cache layer would observe stale-after-mutation bugs;
+			// cloning closes that footgun.
+			// `r.data` was narrowed to `{ item?: ... }` at the top of this
+			// method; spread its other keys (e.g. `_rev`) alongside the
+			// hydrated item without going back through `unknown`.
+			return {
+				...result,
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
+				data: {
+					...r.data,
+					item: { ...item, data: mergedData, liveData },
+				},
+			} as T;
+		} catch (error) {
+			// Non-fatal — fall back to the unhydrated response. Log so the
+			// failure isn't completely silent (the response will look stale
+			// to the caller but no error is raised).
+			console.error("[emdash] draft hydration failed:", error);
+			return result;
+		}
 	}
 
 	async handleContentCreate(
@@ -1427,6 +1739,20 @@ export class EmDashRuntime {
 
 		// Normalize media fields (fill dimensions, storageKey, etc.)
 		processedData = await this.normalizeMediaFields(collection, processedData);
+
+		// Validate against the collection schema. Hook output is validated
+		// rather than `body.data` so plugins that mutate field values can't
+		// sneak invalid data past.
+		const { validateContentData } = await import("./api/handlers/validation.js");
+		const validation = await validateContentData(this.db, collection, processedData, {
+			partial: false,
+		});
+		if (!validation.ok) {
+			return {
+				success: false as const,
+				error: validation.error,
+			};
+		}
 
 		// Create the content
 		const result = await handleContentCreate(this.db, collection, {
@@ -1501,6 +1827,19 @@ export class EmDashRuntime {
 
 			// Normalize media fields (fill dimensions, storageKey, etc.)
 			processedData = await this.normalizeMediaFields(collection, processedData);
+
+			// Validate field-level shape BEFORE the draft-revision write so
+			// invalid updates can't silently land in revision history.
+			const { validateContentData } = await import("./api/handlers/validation.js");
+			const validation = await validateContentData(this.db, collection, processedData, {
+				partial: true,
+			});
+			if (!validation.ok) {
+				return {
+					success: false as const,
+					error: validation.error,
+				};
+			}
 		}
 
 		// Draft-aware revision handling (if collection supports revisions)
@@ -1576,12 +1915,18 @@ export class EmDashRuntime {
 			bylines: bodyWithoutRev.bylines,
 		});
 
+		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
+		// the same effective data the response surfaces — for revision-
+		// supporting collections, that's the just-saved draft, not the live
+		// columns.
+		const hydrated = await this.hydrateDraftData(result);
+
 		// Run afterSave hooks (fire-and-forget)
-		if (result.success && result.data) {
-			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, false);
+		if (hydrated.success && hydrated.data) {
+			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false);
 		}
 
-		return result;
+		return hydrated;
 	}
 
 	async handleContentDelete(collection: string, id: string) {
@@ -1728,6 +2073,7 @@ export class EmDashRuntime {
 		contentHash?: string;
 		blurhash?: string;
 		dominantColor?: string;
+		authorId?: string;
 	}) {
 		// Run beforeUpload hooks
 		let processedInput = input;
@@ -1791,7 +2137,74 @@ export class EmDashRuntime {
 	}
 
 	async handleRevisionRestore(revisionId: string, callerUserId: string) {
-		return handleRevisionRestore(this.db, revisionId, callerUserId);
+		// Discover the parent entry up front so we can branch on whether
+		// the collection uses draft revisions.
+		const revisionRepo = new RevisionRepository(this.db);
+		const revision = await revisionRepo.findById(revisionId);
+		if (!revision) {
+			return {
+				success: false as const,
+				error: {
+					code: "NOT_FOUND",
+					message: `Revision not found: ${revisionId}`,
+				},
+			};
+		}
+
+		const collectionInfo = await this.schemaRegistry.getCollectionWithFields(revision.collection);
+		const usesDraftRevisions = collectionInfo?.supports?.includes("revisions") ?? false;
+
+		// Non-revision collections: keep the legacy behavior of writing the
+		// revision's data straight onto the live row. This preserves
+		// behavior for collections that opt out of the draft model.
+		if (!usesDraftRevisions) {
+			const result = await handleRevisionRestore(this.db, revisionId, callerUserId);
+			return this.hydrateDraftData(result);
+		}
+
+		// Revision-capable collections: restore is "make this revision the
+		// current draft". The live row's data columns are left untouched
+		// (only `draft_revision_id` and `updated_at` change). The caller
+		// must then `content_publish` to promote the restored draft to
+		// live, matching the documented tool contract.
+		try {
+			const newDraft = await revisionRepo.create({
+				collection: revision.collection,
+				entryId: revision.entryId,
+				data: revision.data,
+				authorId: callerUserId,
+			});
+
+			validateIdentifier(revision.collection, "collection");
+			const tableName = `ec_${revision.collection}`;
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${newDraft.id},
+					updated_at = ${new Date().toISOString()}
+				WHERE id = ${revision.entryId}
+			`.execute(this.db);
+
+			// Fire-and-forget: prune old revisions to prevent unbounded growth
+			void revisionRepo
+				.pruneOldRevisions(revision.collection, revision.entryId, 50)
+				.catch(() => {});
+
+			// Return the freshly-fetched item with the new draft hydrated
+			// onto `data`. Without this the response would echo the live
+			// columns and the next `content_get` would surface different
+			// values (the bug that motivated this rewrite).
+			const refetched = await handleContentGet(this.db, revision.collection, revision.entryId);
+			return this.hydrateDraftData(refetched);
+		} catch (error) {
+			console.error("[emdash] revision restore failed:", error);
+			return {
+				success: false as const,
+				error: {
+					code: "REVISION_RESTORE_ERROR",
+					message: "Failed to restore revision",
+				},
+			};
+		}
 	}
 
 	// =========================================================================
@@ -1862,6 +2275,7 @@ export class EmDashRuntime {
 			const routeRegistry = new PluginRouteRegistry({
 				db: this.db,
 				emailPipeline: this.email ?? undefined,
+				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
 			routeRegistry.register(trustedPlugin);
 
@@ -2002,22 +2416,34 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 	): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterSave")) {
-			this.hooks
-				.runContentAfterSave(content, collection, isNew)
-				.catch((err) => console.error("EmDash afterSave hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterSave")) {
+				try {
+					await this.hooks.runContentAfterSave(content, collection, isNew);
+				} catch (err) {
+					console.error("EmDash afterSave hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [id] = pluginKey.split(":");
+				if (!id || !this.isPluginEnabled(id)) continue;
 
-			plugin
-				.invokeHook("content:afterSave", { content, collection, isNew })
-				.catch((err) => console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err));
-		}
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterSave", { content, collection, isNew });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
+						}
+					})(),
+				);
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
@@ -2042,24 +2468,34 @@ export class EmDashRuntime {
 	}
 
 	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterPublish")) {
-			this.hooks
-				.runContentAfterPublish(content, collection)
-				.catch((err) => console.error("EmDash afterPublish hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterPublish")) {
+				try {
+					await this.hooks.runContentAfterPublish(content, collection);
+				} catch (err) {
+					console.error("EmDash afterPublish hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterPublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err),
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterPublish", { content, collection });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+						}
+					})(),
 				);
-		}
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
@@ -2103,7 +2539,7 @@ export class EmDashRuntime {
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);
-			const meta = extractRequestMeta(request);
+			const meta = extractRequestMeta(request, this.config);
 			const result = await plugin.invokeRoute(routeName, body, {
 				url: request.url,
 				method: request.method,

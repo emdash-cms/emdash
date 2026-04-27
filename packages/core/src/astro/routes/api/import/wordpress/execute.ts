@@ -271,7 +271,7 @@ async function importContent(
 			console.error(`Import error for "${post.title || "Untitled"}":`, error);
 			result.errors.push({
 				title: post.title || "Untitled",
-				error: "Failed to import item",
+				error: error instanceof Error && error.message ? error.message : "Failed to import item",
 			});
 		}
 	}

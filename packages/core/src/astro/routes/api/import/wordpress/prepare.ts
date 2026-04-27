@@ -58,6 +58,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to PrepareRequest
 		const result = await prepareImport(emdash.db, body as PrepareRequest);
 
+		// If prepare created any new collections or fields, invalidate the
+		// persisted manifest cache (`emdash:manifest_cache` in the options
+		// table) so that the execute endpoint -- a separate request -- sees
+		// the new schema. Without this the execute step reads a stale
+		// manifest and reports `Collection "<slug>" does not exist` for
+		// every item destined for a freshly-created collection. See #747.
+		if (result.collectionsCreated.length > 0 || result.fieldsCreated.length > 0) {
+			emdash.invalidateManifest();
+		}
+
 		return apiSuccess(result, result.success ? 200 : 400);
 	} catch (error) {
 		return handleError(error, "Failed to prepare import", "WXR_PREPARE_ERROR");

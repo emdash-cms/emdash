@@ -11,6 +11,7 @@ import { FTSManager } from "../search/fts-manager.js";
 import {
 	type Collection,
 	type CollectionSource,
+	type CollectionSupport,
 	type ColumnType,
 	type Field,
 	type CreateCollectionInput,
@@ -47,6 +48,34 @@ function isFieldType(value: string): value is FieldType {
 
 function isColumnType(value: string): value is ColumnType {
 	return COLUMN_TYPES.has(value);
+}
+
+const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport>([
+	"drafts",
+	"revisions",
+	"preview",
+	"scheduling",
+	"search",
+	"seo",
+]);
+
+function isCollectionSupport(value: unknown): value is CollectionSupport {
+	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
+}
+
+/**
+ * Parse a collection's `supports` column (stored as a JSON array of
+ * CollectionSupport keys). Unknown/invalid entries are filtered out so the
+ * runtime value matches the declared `CollectionSupport[]` type.
+ *
+ * Throws on malformed JSON so corruption surfaces loudly; returns an empty
+ * array only for explicitly null/empty values or non-array JSON.
+ */
+function parseSupports(raw: string | null | undefined): CollectionSupport[] {
+	if (!raw) return [];
+	const parsed: unknown = JSON.parse(raw);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter(isCollectionSupport);
 }
 
 /**
@@ -132,11 +161,18 @@ export class SchemaRegistry {
 
 		const id = ulid();
 
+		// Default `supports` to drafts + revisions when the caller didn't
+		// specify it. Explicit empty array (`[]`) is preserved as an opt-out
+		// — only `undefined` triggers the default. This is the canonical
+		// default for new collections; the MCP and admin UI layers used to
+		// duplicate this default but now defer to the registry.
+		const supports = input.supports ?? ["drafts", "revisions"];
+
 		// Insert collection record and create content table in a transaction
 		// so a failure in table creation doesn't leave an orphaned row.
 		// Uses withTransaction for D1 compatibility (no transaction support).
 		// Derive hasSeo from supports array if not explicitly set
-		const hasSeo = input.hasSeo ?? input.supports?.includes("seo") ?? false;
+		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
 
 		await withTransaction(this.db, async (trx) => {
 			await trx
@@ -148,7 +184,7 @@ export class SchemaRegistry {
 					label_singular: input.labelSingular ?? null,
 					description: input.description ?? null,
 					icon: input.icon ?? null,
-					supports: input.supports ? JSON.stringify(input.supports) : null,
+					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
@@ -243,7 +279,7 @@ export class SchemaRegistry {
 			// Sync FTS state when the supports array changes (e.g. search toggled on/off)
 			if (input.supports !== undefined) {
 				const hadSearch = existing.supports.includes("search");
-				const hasSearch = (JSON.parse(row.supports ?? "[]") as string[]).includes("search");
+				const hasSearch = parseSupports(row.supports).includes("search");
 				if (hadSearch !== hasSearch) {
 					await this.syncSearchState(slug, trx);
 				}
@@ -500,14 +536,15 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * Synchronize FTS state with the collection's current supports and searchable fields.
+	 * Synchronize an existing FTS index with the collection's current state.
 	 *
-	 * Called whenever supports or searchable fields change. Reconciles user intent
-	 * (supports includes "search") with FTS implementation reality.
+	 * Only rebuilds or disables — never first-time enables. First-time FTS
+	 * enablement is handled by the seed's explicit enableSearch call (which
+	 * is try-caught) or the admin UI toggle.
 	 *
-	 * - supports search + has searchable fields → enable or rebuild FTS
-	 * - supports search + no searchable fields  → disable FTS if active
-	 * - does not support search                 → disable FTS if active
+	 * - FTS active + still has search support and searchable fields → rebuild
+	 * - FTS active + lost search support or no searchable fields    → disable
+	 * - FTS not active                                              → no-op
 	 *
 	 * Pass `db` when calling from within a transaction so FTS operations
 	 * participate in the same transaction and are rolled back on failure.
@@ -524,18 +561,14 @@ export class SchemaRegistry {
 			.executeTakeFirst();
 		if (!row) return;
 
-		const wantsSearch = (JSON.parse(row.supports ?? "[]") as string[]).includes("search");
+		const wantsSearch = parseSupports(row.supports).includes("search");
 		const searchableFields = await ftsManager.getSearchableFields(collectionSlug);
 		const config = await ftsManager.getSearchConfig(collectionSlug);
 		const ftsActive = config?.enabled === true;
 
-		if (wantsSearch && searchableFields.length > 0) {
-			if (ftsActive) {
-				await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
-			} else {
-				await ftsManager.enableSearch(collectionSlug, { weights: config?.weights });
-			}
-		} else if (ftsActive) {
+		if (wantsSearch && searchableFields.length > 0 && ftsActive) {
+			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
+		} else if (ftsActive && (!wantsSearch || searchableFields.length === 0)) {
 			await ftsManager.disableSearch(collectionSlug);
 		}
 	}
@@ -884,7 +917,7 @@ export class SchemaRegistry {
 			labelSingular: row.label_singular ?? undefined,
 			description: row.description ?? undefined,
 			icon: row.icon ?? undefined,
-			supports: row.supports ? JSON.parse(row.supports) : [],
+			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
 			urlPattern: row.url_pattern ?? undefined,

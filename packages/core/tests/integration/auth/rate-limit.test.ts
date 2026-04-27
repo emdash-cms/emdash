@@ -164,6 +164,98 @@ describe("getClientIp", () => {
 	});
 });
 
+describe("getClientIp with trusted proxy headers", () => {
+	// On non-CF deployments behind an operator-controlled reverse proxy,
+	// the operator declares which header to trust. Without this they get
+	// null (which disables rate limiting) — a real operational foot-gun.
+
+	function cfRequest(url: string, init?: RequestInit): Request {
+		const req = new Request(url, init);
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- test helper
+		(req as unknown as { cf: Record<string, unknown> }).cf = { country: "US" };
+		return req;
+	}
+
+	it("reads the IP from a declared trusted header off-Cloudflare", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "x-real-ip": "203.0.113.50" },
+		});
+		expect(getClientIp(request, ["x-real-ip"])).toBe("203.0.113.50");
+	});
+
+	it("tries trusted headers in declared order", () => {
+		const request = new Request("http://localhost/test", {
+			headers: {
+				"x-real-ip": "203.0.113.50",
+				"fly-client-ip": "198.51.100.7",
+			},
+		});
+		expect(getClientIp(request, ["fly-client-ip", "x-real-ip"])).toBe("198.51.100.7");
+	});
+
+	it("falls through when earlier trusted header is missing", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "x-real-ip": "203.0.113.50" },
+		});
+		expect(getClientIp(request, ["fly-client-ip", "x-real-ip"])).toBe("203.0.113.50");
+	});
+
+	it("takes the first entry when a trusted header is XFF-style", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "x-forwarded-for": "203.0.113.50, 10.0.0.1" },
+		});
+		expect(getClientIp(request, ["x-forwarded-for"])).toBe("203.0.113.50");
+	});
+
+	it("rejects non-IP-shaped values from trusted headers", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "x-real-ip": "<script>alert(1)</script>" },
+		});
+		expect(getClientIp(request, ["x-real-ip"])).toBeNull();
+	});
+
+	it("does not read from headers that are not on the trusted list", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "x-client-ip": "203.0.113.50" },
+		});
+		expect(getClientIp(request, ["x-real-ip"])).toBeNull();
+	});
+
+	it("without cf, returns null when no trusted header is set", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "x-real-ip": "203.0.113.50" },
+		});
+		// Empty list — operator did not opt in. Current null-IP behaviour preserved.
+		expect(getClientIp(request, [])).toBeNull();
+	});
+
+	it("matches header names case-insensitively", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "X-Real-IP": "203.0.113.50" },
+		});
+		expect(getClientIp(request, ["x-real-ip"])).toBe("203.0.113.50");
+	});
+
+	it("CF-Connecting-IP wins over trusted headers on Cloudflare", () => {
+		// Operator on CF misconfigures trustedProxyHeaders — CF-Connecting-IP
+		// is cryptographically trustworthy and must not be overridden.
+		const request = cfRequest("http://localhost/test", {
+			headers: {
+				"cf-connecting-ip": "1.1.1.1",
+				"x-real-ip": "203.0.113.50",
+			},
+		});
+		expect(getClientIp(request, ["x-real-ip"])).toBe("1.1.1.1");
+	});
+
+	it("trusted headers fill in when the CF path produces no IP", () => {
+		const request = cfRequest("http://localhost/test", {
+			headers: { "x-real-ip": "203.0.113.50" },
+		});
+		expect(getClientIp(request, ["x-real-ip"])).toBe("203.0.113.50");
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------

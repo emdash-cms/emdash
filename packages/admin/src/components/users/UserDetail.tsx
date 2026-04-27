@@ -99,13 +99,13 @@ export function UserDetail({
 			<Dialog.Portal>
 				<Dialog.Backdrop
 					className={cn(
-						"fixed inset-0 z-40 bg-black/50 transition-opacity duration-200",
+						"fixed inset-0 bg-black/50 transition-opacity duration-200",
 						"data-starting-style:opacity-0 data-ending-style:opacity-0",
 					)}
 				/>
 				<Dialog.Popup
 					className={cn(
-						"fixed top-0 end-0 z-50 flex h-full w-full max-w-md flex-col bg-kumo-base shadow-xl outline-none",
+						"fixed top-0 end-0 flex h-full w-full max-w-md flex-col bg-kumo-base shadow-xl outline-none",
 						"transform transition-transform duration-200 ease-out",
 						"data-starting-style:ltr:translate-x-full data-starting-style:rtl:-translate-x-full",
 						"data-ending-style:ltr:translate-x-full data-ending-style:rtl:-translate-x-full",
