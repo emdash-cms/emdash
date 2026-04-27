@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/auth-atproto",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "AT Protocol / Atmosphere authentication provider for EmDash CMS",
 	"type": "module",
 	"main": "src/auth.ts",
