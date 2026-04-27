@@ -1661,16 +1661,23 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 
 	// Normalize value to derive display info.
-	// For local files, derive URL from meta.storageKey (always an internal /_emdash/…
-	// path, safe by construction). For external providers, use value.src but only when
-	// it's an http(s) URL — a hostile provider plugin could otherwise return a data:
-	// or javascript: URL that gets rendered as a clickable link.
+	// For local files, prefer meta.storageKey; fall back to value.src when it's an
+	// internal media path; finally fall back to value.id so local files remain
+	// clickable even when metadata is sparse. For external providers, use value.src
+	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
+	// return a data: or javascript: URL that gets rendered as a clickable link.
 	const normalized = React.useMemo(() => {
 		if (!value) return null;
 		const isLocal = !value.provider || value.provider === "local";
 		const storageKey =
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
-		const localUrl = isLocal && storageKey ? `/_emdash/api/media/file/${storageKey}` : undefined;
+		const localSrc =
+			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+		const localUrl = isLocal
+			? storageKey
+				? `/_emdash/api/media/file/${storageKey}`
+				: (localSrc ?? `/_emdash/api/media/file/${value.id}`)
+			: undefined;
 		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
 		return {
 			displayUrl: localUrl ?? externalUrl,

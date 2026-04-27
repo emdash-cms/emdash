@@ -345,6 +345,60 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByText(/0\s*B/)).toBeInTheDocument();
 		});
 
+		it("falls back to value.src and then value.id for local files without meta.storageKey", async () => {
+			// Regression test: local files without meta.storageKey previously lost their
+			// download link because the URL was only built from storageKey.
+			const itemWithSrc = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-no-key",
+						provider: "local",
+						src: "/_emdash/api/media/file/file-no-key",
+						filename: "backup.zip",
+						mimeType: "application/zip",
+						size: 2048,
+					},
+				},
+			});
+			const screen1 = await renderEditor({
+				isNew: false,
+				item: itemWithSrc,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+			const link1 = screen1.getByRole("link", { name: "backup.zip" });
+			await expect.element(link1).toHaveAttribute("href", "/_emdash/api/media/file/file-no-key");
+
+			// When src is also missing, fall back to value.id
+			const itemNoSrc = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-fallback",
+						provider: "local",
+						filename: "notes.txt",
+						mimeType: "text/plain",
+						size: 512,
+					},
+				},
+			});
+			const screen2 = await renderEditor({
+				isNew: false,
+				item: itemNoSrc,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+			const link2 = screen2.getByRole("link", { name: "notes.txt" });
+			await expect.element(link2).toHaveAttribute("href", "/_emdash/api/media/file/file-fallback");
+		});
+
 		it("renders json fields as a textarea", async () => {
 			const screen = await renderEditor({
 				fields: { metadata: { kind: "json", label: "Metadata" } },
