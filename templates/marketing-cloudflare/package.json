@@ -18,7 +18,7 @@
 		"@emdash-cms/cloudflare": "workspace:*",
 		"@iconify-json/ph": "catalog:",
 		"astro": "catalog:",
-		"astro-icon": "catalog:",
+		"astro-iconset": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",
 		"react-dom": "catalog:"
