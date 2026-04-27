@@ -39,6 +39,10 @@ catalog:
   "@tiptap/extension-link": ^3.20.0
   "@tiptap/extension-node-range": ^3.20.0
   "@tiptap/extension-placeholder": ^3.20.0
+  "@tiptap/extension-table": ^3.20.0
+  "@tiptap/extension-table-cell": ^3.20.0
+  "@tiptap/extension-table-header": ^3.20.0
+  "@tiptap/extension-table-row": ^3.20.0
   "@tiptap/extension-text-align": ^3.20.0
   "@tiptap/extension-typography": ^3.20.0
   "@tiptap/extension-underline": ^3.20.0
