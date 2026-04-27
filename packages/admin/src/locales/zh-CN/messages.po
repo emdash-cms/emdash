@@ -538,7 +538,7 @@ msgstr "添加中..."
 msgid "Additional data to import."
 msgstr "要导入的其他数据。"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:104
 #: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -642,7 +642,7 @@ msgid "Analyzing WordPress site..."
 msgstr "正在分析 WordPress 站点..."
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:176
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
 msgid "API Tokens"
 msgstr "API 令牌"
 
@@ -783,7 +783,7 @@ msgid "Back to sections"
 msgstr "返回区块列表"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:171
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:191
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:107
@@ -884,8 +884,8 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/Sections.tsx:207
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:318
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:446
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:466
 #: packages/admin/src/components/settings/SecuritySettings.tsx:210
 #: packages/admin/src/components/TaxonomyManager.tsx:304
 #: packages/admin/src/components/TaxonomyManager.tsx:523
@@ -1104,7 +1104,7 @@ msgstr "完成注册"
 msgid "Configure Field"
 msgstr "配置字段"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Confirm"
 msgstr "确认"
 
@@ -1205,7 +1205,7 @@ msgstr "继续导入"
 msgid "Contributor"
 msgstr "贡献者"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
 msgid "Copied to clipboard"
 msgstr "已复制到剪贴板"
@@ -1223,11 +1223,11 @@ msgstr "复制邀请链接"
 msgid "Copy slug"
 msgstr "复制 slug"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:213
 msgid "Copy this token now — it won't be shown again."
 msgstr "立即复制此令牌 — 它将不再显示。"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
 msgid "Copy token"
 msgstr "复制令牌"
 
@@ -1289,7 +1289,7 @@ msgstr "创建菜单"
 msgid "Create New Menu"
 msgstr "创建新菜单"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:389
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr "创建新令牌"
 
@@ -1302,7 +1302,7 @@ msgid "Create Passkey"
 msgstr "创建通行密钥"
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:178
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:198
 msgid "Create personal access tokens for programmatic API access"
 msgstr "创建个人访问令牌以通过程序访问 API"
 
@@ -1337,8 +1337,8 @@ msgstr "在区块库中创建区块以便在此使用"
 msgid "Create Taxonomy"
 msgstr "创建分类"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:251
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:271
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Create Token"
 msgstr "创建令牌"
 
@@ -1363,6 +1363,14 @@ msgstr "创建您的第一个可重用内容区块以开始使用。"
 msgid "Create your passkey"
 msgstr "创建您的通行密钥"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
+msgid "Create, update, and delete navigation menus"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+msgid "Create, update, and delete taxonomy terms"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
 msgstr "创建、更新、删除内容"
@@ -1373,7 +1381,7 @@ msgstr "已创建"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:310
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "创建于 {0}"
@@ -1395,7 +1403,7 @@ msgstr "正在创建合集和字段..."
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:443
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 #: packages/admin/src/components/TaxonomyManager.tsx:526
 msgid "Creating..."
 msgstr "创建中..."
@@ -1670,8 +1678,8 @@ msgstr "放弃更改"
 msgid "Discard draft changes?"
 msgstr "放弃草稿更改？"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:226
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:246
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:248
 msgid "Dismiss"
 msgstr "关闭"
 
@@ -1769,7 +1777,7 @@ msgstr "将 WordPress 导出文件拖放到此处"
 msgid "Duplicate {title}"
 msgstr "复制 {title}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:403
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr "例如：CI/CD 流水线"
 
@@ -2002,11 +2010,11 @@ msgid "Expand details"
 msgstr "展开详情"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:280
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:300
 msgid "Expires {0}"
 msgstr "过期于 {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:449
 msgid "Expiry"
 msgstr "过期时间"
 
@@ -2223,7 +2231,7 @@ msgstr "为获得最佳导入体验，请安装"
 msgid "Full access"
 msgstr "完全访问权限"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:105
 msgid "Full admin access"
 msgstr "完全管理员访问权限"
 
@@ -2288,7 +2296,7 @@ msgstr "高度"
 msgid "Hide from search engines"
 msgstr "对搜索引擎隐藏"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Hide token"
 msgstr "隐藏令牌"
 
@@ -2619,7 +2627,7 @@ msgstr "最后使用"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:285
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "最后使用于 {0}"
@@ -2940,6 +2948,10 @@ msgstr "菜单"
 msgid "Menus ({0})"
 msgstr "菜单 ({0})"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:89
+msgid "Menus Manage"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:161
 msgid "Meta Description"
 msgstr "Meta 描述"
@@ -3134,7 +3146,7 @@ msgstr "暂无 404 错误记录。"
 msgid "No alt text"
 msgstr "无替代文本"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
 msgid "No API tokens yet. Create one to get started."
 msgstr "暂无 API 令牌。创建一个以开始使用。"
 
@@ -3719,6 +3731,10 @@ msgstr "读取内容条目"
 msgid "Read media files"
 msgstr "读取媒体文件"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+msgid "Read site settings"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
 msgstr "阅读"
@@ -3962,15 +3978,15 @@ msgstr "修订版本已恢复"
 msgid "Revisions"
 msgstr "修订版本"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:346
 msgid "Revoke token"
 msgstr "撤销令牌"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:321
 msgid "Revoke?"
 msgstr "撤销？"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:328
 msgid "Revoking..."
 msgstr "撤销中..."
 
@@ -4107,12 +4123,12 @@ msgstr "模式读取"
 msgid "Schema Write"
 msgstr "模式写入"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr "权限范围"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:277
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
 msgid "Scopes: {0}"
 msgstr "权限范围：{0}"
 
@@ -4448,6 +4464,14 @@ msgstr "正在设置..."
 msgid "Settings"
 msgstr "设置"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
+msgid "Settings Manage"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
+msgid "Settings Read"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
 msgstr "设置保存成功"
@@ -4461,7 +4485,7 @@ msgstr "与此邀请用户分享此链接"
 msgid "Short Text"
 msgstr "短文本"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:203
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
 msgid "Show token"
 msgstr "显示令牌"
 
@@ -4714,6 +4738,10 @@ msgstr "目标"
 msgid "Taxonomies"
 msgstr "分类"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
+msgid "Taxonomies Manage"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomyManager.tsx:668
 msgid "Taxonomy created"
 msgstr "分类已创建"
@@ -4926,11 +4954,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "切换主题（当前：{label}）"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Token created: {0}"
 msgstr "令牌已创建：{0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:400
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr "令牌名称"
 
@@ -5108,6 +5136,10 @@ msgstr "更新字段"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
 msgid "Update settings for {0}"
 msgstr "更新 {0} 的设置"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
+msgid "Update site settings"
+msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:218
