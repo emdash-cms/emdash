@@ -1741,6 +1741,7 @@ export function InlinePortableTextEditor({
 		editorProps: {
 			attributes: {
 				class: "prose prose-sm sm:prose-base dark:prose-invert max-w-none emdash-inline-editor",
+				dir: "auto",
 			},
 		},
 		onUpdate: () => {
@@ -1795,7 +1796,7 @@ export function InlinePortableTextEditor({
 			// Don't save if focus moved to the slash menu (portalled to body)
 			if (related?.closest(".emdash-slash-menu")) return;
 			if (related?.closest(".emdash-media-picker")) return;
-			save();
+			void save();
 		},
 		[save, mediaPickerOpen],
 	);

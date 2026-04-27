@@ -11,7 +11,11 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
-import { PortableTextEditor } from "../../src/components/PortableTextEditor";
+import {
+	_buildPluginBlockFormValues,
+	_hasPluginBlockFormData,
+	PortableTextEditor,
+} from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------
@@ -173,7 +177,123 @@ function textBlock(
 }
 
 // =============================================================================
-// 1. Portable Text ↔ ProseMirror Conversion (via component)
+// 1. Plugin block helpers
+// =============================================================================
+
+describe("plugin block helpers", () => {
+	it("builds form state from field initial_value defaults", () => {
+		const block: PluginBlockDef = {
+			type: "readingTime",
+			pluginId: "reading-time",
+			label: "Reading Time",
+			fields: [
+				{
+					type: "select",
+					action_id: "variant",
+					label: "Style",
+					options: [
+						{ label: "Inline", value: "inline" },
+						{ label: "Compact", value: "compact" },
+					],
+					initial_value: "inline",
+				},
+				{
+					type: "toggle",
+					action_id: "includeHeadings",
+					label: "Include headings",
+					initial_value: true,
+				},
+			],
+		};
+
+		expect(_buildPluginBlockFormValues(block)).toEqual({
+			variant: "inline",
+			includeHeadings: true,
+		});
+		expect(_hasPluginBlockFormData(_buildPluginBlockFormValues(block))).toBe(true);
+	});
+
+	it("merges existing block data over defaults when editing", () => {
+		const block: PluginBlockDef = {
+			type: "readingTime",
+			pluginId: "reading-time",
+			label: "Reading Time",
+			fields: [
+				{
+					type: "select",
+					action_id: "variant",
+					label: "Style",
+					options: [
+						{ label: "Inline", value: "inline" },
+						{ label: "Compact", value: "compact" },
+					],
+					initial_value: "inline",
+				},
+				{
+					type: "toggle",
+					action_id: "includeHeadings",
+					label: "Include headings",
+					initial_value: true,
+				},
+			],
+		};
+
+		expect(
+			_buildPluginBlockFormValues(block, {
+				variant: "compact",
+				customLabel: "Custom label",
+				includeHeadings: false,
+			}),
+		).toEqual({
+			variant: "compact",
+			customLabel: "Custom label",
+			includeHeadings: false,
+		});
+	});
+
+	it("keeps explicit existing values over defaults", () => {
+		const block: PluginBlockDef = {
+			type: "readingTime",
+			pluginId: "reading-time",
+			label: "Reading Time",
+			fields: [
+				{
+					type: "number_input",
+					action_id: "minutes",
+					label: "Minutes",
+					initial_value: 5,
+				},
+				{
+					type: "text_input",
+					action_id: "label",
+					label: "Label",
+					initial_value: "Default label",
+				},
+				{
+					type: "toggle",
+					action_id: "includeHeadings",
+					label: "Include headings",
+					initial_value: true,
+				},
+			],
+		};
+
+		expect(
+			_buildPluginBlockFormValues(block, {
+				minutes: 0,
+				label: "",
+				includeHeadings: false,
+			}),
+		).toEqual({
+			minutes: 0,
+			label: "",
+			includeHeadings: false,
+		});
+	});
+});
+
+// =============================================================================
+// 2. Portable Text ↔ ProseMirror Conversion (via component)
 // =============================================================================
 
 describe("Portable Text ↔ ProseMirror conversion", () => {

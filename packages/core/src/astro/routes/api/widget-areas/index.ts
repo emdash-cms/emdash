@@ -12,6 +12,8 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { createWidgetAreaBody } from "#api/schemas.js";
+import { rowToWidget } from "#widgets/index.js";
+import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
 
@@ -35,13 +37,14 @@ export const GET: APIRoute = async ({ locals }) => {
 				const widgets = await db
 					.selectFrom("_emdash_widgets")
 					.selectAll()
+					.$castTo<WidgetRow>()
 					.where("area_id", "=", area.id)
 					.orderBy("sort_order", "asc")
 					.execute();
 
 				return {
 					...area,
-					widgets,
+					widgets: widgets.map((row) => rowToWidget(row)),
 					widgetCount: widgets.length,
 				};
 			}),

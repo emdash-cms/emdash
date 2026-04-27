@@ -20,6 +20,7 @@ import type { MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
+import { buildRenderMediaUrl } from "../media/url.js";
 // Standard responsive breakpoints
 const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
@@ -53,14 +54,14 @@ function normalizeImage(
 }
 
 /**
- * Build the URL for a local image
+ * Build the URL for a local image. Prefers `meta.storageKey`; falls back to
+ * the internal proxy with `img.id` when no storage key is available.
  */
 function buildLocalImageUrl(img: MediaValue): string {
-	const storageKey = (img.meta?.storageKey as string) || img.id;
-	if (storageKey) {
-		return `/_emdash/api/media/file/${storageKey}`;
-	}
-	return "";
+	return buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, {
+		storageKey: img.meta?.storageKey as string | undefined,
+		id: img.id,
+	});
 }
 
 /**

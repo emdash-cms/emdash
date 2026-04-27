@@ -46,6 +46,10 @@ export const API_TOKEN_SCOPES = {
 	MediaWrite: "media:write",
 	SchemaRead: "schema:read",
 	SchemaWrite: "schema:write",
+	TaxonomiesManage: "taxonomies:manage",
+	MenusManage: "menus:manage",
+	SettingsRead: "settings:read",
+	SettingsManage: "settings:manage",
 	Admin: "admin",
 } as const;
 

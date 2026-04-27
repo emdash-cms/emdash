@@ -305,6 +305,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 					required={subField.required}
+					dir="auto"
 				/>
 			);
 		case "text":
@@ -315,6 +316,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					onChange={(e) => onChange(e.target.value)}
 					required={subField.required}
 					rows={3}
+					dir="auto"
 				/>
 			);
 		case "number":

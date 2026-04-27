@@ -133,44 +133,40 @@ The admin CSS uses the `--font-emdash` CSS variable. This is set automatically b
 **Optional.** Authentication configuration.
 
 ```js
-auth: {
-  // Self-signup configuration
-  selfSignup: {
-    domains: ["example.com"],
-    defaultRole: 20, // Contributor
-  },
-  
-  // OAuth providers
-  oauth: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    },
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    },
-  },
-  
-  // Session configuration
-  session: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    sliding: true, // Reset expiry on activity
-  },
-  
-  // OR use Cloudflare Access (exclusive mode)
-  cloudflareAccess: {
-    teamDomain: "myteam.cloudflareaccess.com",
-    audience: "your-app-audience-tag",
-    autoProvision: true,
-    defaultRole: 30,
-    syncRoles: false,
-    roleMapping: {
-      "Admins": 50,
-      "Editors": 40,
-    },
-  },
-}
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+emdash({
+	auth: {
+		// Self-signup configuration
+		selfSignup: {
+			domains: ["example.com"],
+			defaultRole: 20, // Contributor
+		},
+
+		// Session configuration
+		session: {
+			maxAge: 30 * 24 * 60 * 60, // 30 days
+			sliding: true, // Reset expiry on activity
+		},
+
+		// OR use Cloudflare Access (exclusive mode)
+		cloudflareAccess: {
+			teamDomain: "myteam.cloudflareaccess.com",
+			audience: "your-app-audience-tag",
+			autoProvision: true,
+			defaultRole: 30,
+			syncRoles: false,
+			roleMapping: {
+				Admins: 50,
+				Editors: 40,
+			},
+		},
+	},
+	// Pluggable login providers (top-level, not nested under `auth`)
+	authProviders: [github(), google(), atproto()],
+});
 ```
 
 #### `auth.selfSignup`
@@ -189,22 +185,27 @@ selfSignup: {
 }
 ```
 
-#### `auth.oauth`
+### `authProviders`
 
-Configure OAuth login providers.
+**Optional.** An array of pluggable login providers (top-level, alongside `auth`). Each entry is the result of calling a provider factory:
 
 ```js
-oauth: {
-  github: {
-    clientId: process.env.GITHUB_CLIENT_ID,
-    clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  },
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  },
-}
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+emdash({
+	authProviders: [github(), google(), atproto()],
+});
 ```
+
+Built-in providers:
+
+- `github()` — reads `EMDASH_OAUTH_GITHUB_CLIENT_ID` / `EMDASH_OAUTH_GITHUB_CLIENT_SECRET` (or unprefixed fallbacks).
+- `google()` — reads `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET`.
+- `atproto()` — Atmosphere/AT Protocol login. No env vars needed. Accepts `{ allowedDIDs, allowedHandles, defaultRole }`. See the [Atmosphere login guide](/guides/atmosphere-auth/).
+
+Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
 
 #### `auth.session`
 

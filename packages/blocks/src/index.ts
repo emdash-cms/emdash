@@ -22,6 +22,8 @@ export type {
 	ComboboxElement,
 	DateInputElement,
 	RadioElement,
+	RepeaterElement,
+	RepeaterSubField,
 	Element,
 	// Form
 	FieldCondition,

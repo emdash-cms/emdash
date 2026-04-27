@@ -1136,6 +1136,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					dir="auto"
 					className={
 						minimal
 							? "border-0 bg-transparent px-0 text-lg font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -1197,6 +1198,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
+					dir="auto"
 					placeholder={t`Enter markdown content...`}
 				/>
 			);
@@ -1341,6 +1343,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					dir="auto"
 				/>
 			);
 	}

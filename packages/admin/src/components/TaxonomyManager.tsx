@@ -59,7 +59,7 @@ function TermRow({
 	return (
 		<>
 			<div className="flex items-center gap-4 py-2 px-4 border-b hover:bg-kumo-tint/50">
-				<div style={{ marginLeft: `${level * 1.5}rem` }} className="flex-1">
+				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
 					<span className="font-medium">{term.label}</span>
 					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
 				</div>
