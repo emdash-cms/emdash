@@ -47,10 +47,74 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 	return blocks;
 }
 
+const WHITESPACE_RE = /\s+/;
+
+function normalizeClassTokens(value: string | undefined): string[] {
+	if (!value) return [];
+	return value.trim().split(WHITESPACE_RE).filter(Boolean);
+}
+
+/**
+ * Merge two CSS class strings, deduping whitespace tokens. Whitespace-only
+ * input normalizes to `undefined` so it never persists as garbage.
+ */
+export function mergeCssClasses(a: string | undefined, b: string | undefined): string | undefined {
+	const aTokens = normalizeClassTokens(a);
+	const bTokens = normalizeClassTokens(b);
+	if (aTokens.length === 0) return bTokens.length > 0 ? bTokens.join(" ") : undefined;
+	if (bTokens.length === 0) return aTokens.join(" ");
+	const set = new Set<string>([...aTokens, ...bTokens]);
+	return set.size > 0 ? [...set].join(" ") : undefined;
+}
+
+function readCssClasses(obj: object | null | undefined): string | undefined {
+	if (!obj) return undefined;
+	const v = (obj as { cssClasses?: unknown }).cssClasses;
+	return typeof v === "string" ? v : undefined;
+}
+
+/**
+ * Merge cssClasses from a ProseMirror node onto converted PT block(s).
+ *
+ * Important: this MERGES (rather than overwrites) so that nested styling is
+ * preserved. For example, a `blockquote.cssClasses="card"` containing a
+ * `paragraph.cssClasses="lead"` produces PT blocks whose cssClasses is
+ * `"card lead"` — both classes survive even though PT collapses the visual
+ * hierarchy onto a single property.
+ */
+function applyCssClasses(
+	node: ProseMirrorNode,
+	result: PortableTextBlock | PortableTextBlock[] | null,
+): PortableTextBlock | PortableTextBlock[] | null {
+	if (!result) return null;
+	const outer = readCssClasses(node.attrs);
+	if (!outer) return result;
+
+	const merge = (block: PortableTextBlock): PortableTextBlock => {
+		const inner = readCssClasses(block);
+		const merged = mergeCssClasses(outer, inner);
+		return merged ? ({ ...block, cssClasses: merged } as PortableTextBlock) : block;
+	};
+
+	if (Array.isArray(result)) {
+		// Apply to every produced block. Each PT block round-trips back to its
+		// own PM container (e.g., a styled blockquote with N paragraphs becomes
+		// N styled PT blockquote blocks → N styled PM blockquotes), so the
+		// styling lives on every block, not just the first.
+		return result.map(merge);
+	}
+	return merge(result);
+}
+
 /**
  * Convert a single ProseMirror node to Portable Text block(s)
  */
 function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlock[] | null {
+	const result = convertNodeInner(node);
+	return applyCssClasses(node, result);
+}
+
+function convertNodeInner(node: ProseMirrorNode): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph":
 			return convertParagraph(node);
@@ -73,12 +137,15 @@ function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlo
 		case "image":
 			return convertImage(node);
 
-		case "horizontalRule":
+		case "horizontalRule": {
+			const variant = typeof node.attrs?.variant === "string" ? node.attrs.variant : undefined;
 			return {
 				_type: "break",
 				_key: generateKey(),
 				style: "lineBreak",
+				...(variant ? { variant } : {}),
 			};
+		}
 
 		default:
 			// Preserve unknown blocks
@@ -180,13 +247,18 @@ function convertListItem(
 	level: number,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
+	const itemClasses =
+		typeof item.attrs?.cssClasses === "string" ? item.attrs.cssClasses : undefined;
 
 	for (const child of item.content || []) {
 		if (child.type === "paragraph") {
 			const { children, markDefs } = convertInlineContent(child.content || []);
 
 			if (children.length > 0) {
-				blocks.push({
+				const paraClasses =
+					typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+				const merged = mergeCssClasses(itemClasses, paraClasses);
+				const block: PortableTextTextBlock = {
 					_type: "block",
 					_key: generateKey(),
 					style: "normal",
@@ -194,7 +266,11 @@ function convertListItem(
 					level,
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
+				};
+				if (merged) {
+					block.cssClasses = merged;
+				}
+				blocks.push(block);
 			}
 		} else if (child.type === "bulletList") {
 			blocks.push(...convertListItemNested(child, "bullet", level + 1));
@@ -239,13 +315,19 @@ function convertBlockquote(
 			const { children, markDefs } = convertInlineContent(child.content || []);
 
 			if (children.length > 0) {
-				blocks.push({
+				const innerClasses =
+					typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+				const block: PortableTextTextBlock = {
 					_type: "block",
 					_key: generateKey(),
 					style: "blockquote",
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
+				};
+				if (innerClasses) {
+					block.cssClasses = innerClasses;
+				}
+				blocks.push(block);
 			}
 		}
 	}
@@ -312,7 +394,11 @@ function convertInlineContent(nodes: ProseMirrorNode[]): {
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
-	const markDefMap = new Map<string, string>(); // href -> key
+	// Dedupe map keyed by namespaced strings: `link:${href}` for link marks,
+	// `cssClass:${classes}` for cssClass marks. Namespacing prevents a link
+	// whose href happens to start with `cssClass:` from colliding with a
+	// cssClass entry.
+	const markDefMap = new Map<string, string>();
 
 	for (const node of nodes) {
 		if (node.type === "text" && node.text) {
@@ -388,9 +474,10 @@ function convertMark(
 		case "link": {
 			const href = (typeof mark.attrs?.href === "string" ? mark.attrs.href : "") || "";
 
-			// Check if we already have a mark def for this link
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			// Namespaced dedupe key — see markDefMap declaration.
+			const dedupeKey = `link:${href}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
 			}
 
 			// Create new mark def
@@ -401,7 +488,29 @@ function convertMark(
 				href,
 				blank: mark.attrs?.target === "_blank",
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(dedupeKey, key);
+
+			return key;
+		}
+
+		case "cssClass": {
+			const raw = typeof mark.attrs?.classes === "string" ? mark.attrs.classes : "";
+			const classes = raw.trim();
+			if (!classes) return null;
+
+			// Deduplicate: reuse existing markDef with same classes
+			const dedupeKey = `cssClass:${classes}`;
+			if (markDefMap.has(dedupeKey)) {
+				return markDefMap.get(dedupeKey)!;
+			}
+
+			const key = generateKey();
+			markDefs.push({
+				_type: "cssClass",
+				_key: key,
+				classes,
+			});
+			markDefMap.set(dedupeKey, key);
 
 			return key;
 		}

@@ -56,7 +56,9 @@ export { default as Subscript } from "./marks/Subscript.astro";
 export { default as Underline } from "./marks/Underline.astro";
 export { default as StrikeThrough } from "./marks/StrikeThrough.astro";
 export { default as Link } from "./marks/Link.astro";
+export { default as CssClass } from "./marks/CssClass.astro";
 
+import BlockComponent from "./Block.astro";
 import BreakComponent from "./Break.astro";
 import ButtonComponent from "./Button.astro";
 import ButtonsComponent from "./Buttons.astro";
@@ -69,6 +71,7 @@ import GalleryComponent from "./Gallery.astro";
 import HtmlBlockComponent from "./HtmlBlock.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
+import ListItemComponent from "./ListItem.astro";
 import { emdashMarkComponents } from "./marks.js";
 import PullquoteComponent from "./Pullquote.astro";
 import TableComponent from "./Table.astro";
@@ -97,6 +100,11 @@ export const emdashComponents = {
 		file: FileComponent,
 		pullquote: PullquoteComponent,
 	},
+	// Block + ListItem overrides apply persisted block-level cssClasses to the
+	// rendered element. Without these, plugin-defined block styles would never
+	// reach the published HTML even though they round-trip through the editor.
+	block: BlockComponent,
+	listItem: ListItemComponent,
 	mark: emdashMarkComponents,
 };
 

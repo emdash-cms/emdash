@@ -10,7 +10,7 @@
  */
 
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react";
-import { Extension, type JSONContent, type Range } from "@tiptap/core";
+import { Extension, Mark, type JSONContent, type Range } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -50,6 +50,8 @@ interface PTTextBlock {
 	level?: number;
 	children: PTSpan[];
 	markDefs?: PTMarkDef[];
+	/** Custom CSS classes applied at the block level */
+	cssClasses?: string;
 }
 
 type PTBlock = PTTextBlock | { _type: string; _key: string; [key: string]: unknown };
@@ -71,6 +73,99 @@ function isPMNode(value: unknown): value is PMNode {
 function k(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
+
+const CSS_WHITESPACE_RE = /\s+/;
+
+function normalizeClassTokens(value: string | undefined): string[] {
+	if (!value) return [];
+	return value.trim().split(CSS_WHITESPACE_RE).filter(Boolean);
+}
+
+/** Merge two CSS class strings, deduping whitespace tokens. */
+function mergeClassTokens(a: string | undefined, b: string | undefined): string | undefined {
+	const aTokens = normalizeClassTokens(a);
+	const bTokens = normalizeClassTokens(b);
+	if (aTokens.length === 0) return bTokens.length > 0 ? bTokens.join(" ") : undefined;
+	if (bTokens.length === 0) return aTokens.join(" ");
+	const set = new Set<string>();
+	for (const token of [...aTokens, ...bTokens]) {
+		set.add(token);
+	}
+	return set.size > 0 ? [...set].join(" ") : undefined;
+}
+
+function readCssClasses(obj: object | null | undefined): string | undefined {
+	if (!obj) return undefined;
+	const v = (obj as { cssClasses?: unknown }).cssClasses;
+	return typeof v === "string" ? v : undefined;
+}
+
+// ── TipTap extensions for cssClasses preservation ──────────────────
+//
+// The inline visual editor must preserve `cssClasses` (block-level) and
+// `cssClass` (inline mark) round-trip even though it doesn't expose a
+// toolbar to toggle them — content authored in the admin is read-only here.
+// Without these extensions, TipTap would strip the unknown attribute / mark
+// during schema reconciliation on doc load, silently discarding all styles
+// the moment a user clicks anything in the visual editor.
+
+const InlineBlockStyleExtension = Extension.create({
+	name: "blockStyle",
+	addGlobalAttributes() {
+		return [
+			{
+				types: [
+					"paragraph",
+					"heading",
+					"blockquote",
+					"listItem",
+					"codeBlock",
+					"horizontalRule",
+					"image",
+				],
+				attributes: {
+					cssClasses: {
+						default: null,
+						parseHTML: (el: HTMLElement) => el.getAttribute("data-css-classes") || null,
+						renderHTML: (attributes: { cssClasses?: string | null }) => {
+							if (!attributes.cssClasses) return {};
+							return {
+								"data-css-classes": attributes.cssClasses,
+								class: attributes.cssClasses,
+							};
+						},
+					},
+				},
+			},
+		];
+	},
+});
+
+const InlineCssClassMark = Mark.create({
+	name: "cssClass",
+	excludes: "",
+	addAttributes() {
+		return {
+			classes: {
+				default: null,
+				parseHTML: (el: HTMLElement) => el.getAttribute("data-css-classes"),
+				renderHTML: (attributes: { classes?: string | null }) => {
+					if (!attributes.classes) return {};
+					return {
+						"data-css-classes": attributes.classes,
+						class: attributes.classes,
+					};
+				},
+			},
+		};
+	},
+	parseHTML() {
+		return [{ tag: "span[data-css-classes]" }];
+	},
+	renderHTML({ HTMLAttributes }) {
+		return ["span", HTMLAttributes, 0];
+	},
+});
 
 // ── ProseMirror → Portable Text ────────────────────────────────────
 
@@ -114,6 +209,22 @@ function pmToPortableText(doc: PMNode): PTBlock[] {
 }
 
 function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
+	const result = convertPMNodeInner(node);
+	if (!result) return null;
+	const outer = readCssClasses(node.attrs);
+	if (!outer) return result;
+
+	const merge = (b: PTBlock): PTBlock => {
+		const inner = readCssClasses(b);
+		const merged = mergeClassTokens(outer, inner);
+		return merged ? ({ ...b, cssClasses: merged } as PTBlock) : b;
+	};
+
+	if (Array.isArray(result)) return result.map(merge);
+	return merge(result);
+}
+
+function convertPMNodeInner(node: PMNode): PTBlock | PTBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInline(node.content || []);
@@ -157,13 +268,19 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInline(child.content || []);
 					if (children.length > 0) {
-						blocks.push({
+						const innerClasses =
+							typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+						const block: PTTextBlock = {
 							_type: "block",
 							_key: k(),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
+						};
+						if (innerClasses) {
+							block.cssClasses = innerClasses;
+						}
+						blocks.push(block);
 					}
 				}
 			}
@@ -217,11 +334,16 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 	const blocks: PTTextBlock[] = [];
 	for (const item of items) {
 		if (item.type === "listItem") {
+			const itemClasses =
+				typeof item.attrs?.cssClasses === "string" ? item.attrs.cssClasses : undefined;
 			for (const child of item.content || []) {
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInline(child.content || []);
 					if (children.length > 0) {
-						blocks.push({
+						const paraClasses =
+							typeof child.attrs?.cssClasses === "string" ? child.attrs.cssClasses : undefined;
+						const merged = mergeClassTokens(itemClasses, paraClasses);
+						const block: PTTextBlock = {
 							_type: "block",
 							_key: k(),
 							style: "normal",
@@ -229,7 +351,11 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 							level: 1,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
+						};
+						if (merged) {
+							block.cssClasses = merged;
+						}
+						blocks.push(block);
 					}
 				}
 			}
@@ -241,6 +367,10 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 function convertInline(nodes: PMNode[]): { children: PTSpan[]; markDefs: PTMarkDef[] } {
 	const children: PTSpan[] = [];
 	const markDefs: PTMarkDef[] = [];
+	// Dedupe map keyed by namespaced strings: `link:${href}` for link marks,
+	// `cssClass:${classes}` for cssClass marks. Namespacing prevents a link
+	// whose href happens to start with `cssClass:` from colliding with a
+	// cssClass entry.
 	const markDefMap = new Map<string, string>();
 
 	for (const node of nodes) {
@@ -293,7 +423,8 @@ function convertPMMark(
 			return "code";
 		case "link": {
 			const href = attrStr(mark.attrs, "href");
-			if (markDefMap.has(href)) return markDefMap.get(href)!;
+			const dedupeKey = `link:${href}`;
+			if (markDefMap.has(dedupeKey)) return markDefMap.get(dedupeKey)!;
 			const key = k();
 			markDefs.push({
 				_type: "link",
@@ -301,7 +432,22 @@ function convertPMMark(
 				href,
 				blank: mark.attrs?.target === "_blank",
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(dedupeKey, key);
+			return key;
+		}
+		case "cssClass": {
+			const raw = attrStrOpt(mark.attrs, "classes") ?? "";
+			const classes = raw.trim();
+			if (!classes) return null;
+			const dedupeKey = `cssClass:${classes}`;
+			if (markDefMap.has(dedupeKey)) return markDefMap.get(dedupeKey)!;
+			const key = k();
+			markDefs.push({
+				_type: "cssClass",
+				_key: key,
+				classes,
+			});
+			markDefMap.set(dedupeKey, key);
 			return key;
 		}
 		default:
@@ -344,7 +490,22 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 	return { type: "doc", content: content.length > 0 ? content : [{ type: "paragraph" }] };
 }
 
+function ptCssClasses(block: PTBlock): string | undefined {
+	const v = readCssClasses(block);
+	if (!v) return undefined;
+	const trimmed = v.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+}
+
 function convertPTBlock(block: PTBlock): JSONContent | null {
+	const node = convertPTBlockInner(block);
+	if (!node) return null;
+	const cssClasses = ptCssClasses(block);
+	if (!cssClasses) return node;
+	return { ...node, attrs: { ...node.attrs, cssClasses } };
+}
+
+function convertPTBlockInner(block: PTBlock): JSONContent | null {
 	if (isPTTextBlock(block)) {
 		const { style = "normal", children, markDefs = [] } = block;
 		const pmContent = convertPTSpans(children, markDefs);
@@ -433,15 +594,22 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 function convertPTList(items: PTTextBlock[], listType: "bullet" | "number"): JSONContent {
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		content: items.map((item) => ({
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: convertPTSpans(item.children, item.markDefs || []),
-				},
-			],
-		})),
+		content: items.map((item) => {
+			const cssClasses = ptCssClasses(item);
+			const node: JSONContent = {
+				type: "listItem",
+				content: [
+					{
+						type: "paragraph",
+						content: convertPTSpans(item.children, item.markDefs || []),
+					},
+				],
+			};
+			if (cssClasses) {
+				node.attrs = { cssClasses };
+			}
+			return node;
+		}),
 	};
 }
 
@@ -497,6 +665,16 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PTMarkDef>): Mark
 						type: "link",
 						attrs: { href: md.href, target: md.blank ? "_blank" : null },
 					});
+				} else if (md && md._type === "cssClass") {
+					// md is PTMarkDef with `[key: string]: unknown` — guard at runtime.
+					const raw: unknown = md.classes;
+					const classes = typeof raw === "string" ? raw.trim() : "";
+					if (classes) {
+						pm.push({
+							type: "cssClass",
+							attrs: { classes },
+						});
+					}
 				}
 				break;
 			}
@@ -1590,6 +1768,11 @@ function InlineMediaPicker({
 	);
 }
 
+// ── Internal exports for tests ─────────────────────────────────────
+// Underscore-prefixed: not part of the public API. Used by unit tests
+// to verify converter round-trip behavior without instantiating React.
+export { pmToPortableText as _pmToPortableText, portableTextToPM as _portableTextToPM };
+
 // ── Component ──────────────────────────────────────────────────────
 
 export interface InlinePortableTextEditorProps {
@@ -1703,6 +1886,8 @@ export function InlinePortableTextEditor({
 				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
 			}),
+			InlineBlockStyleExtension,
+			InlineCssClassMark,
 			Image.extend({
 				addAttributes() {
 					return {

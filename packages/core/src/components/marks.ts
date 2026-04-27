@@ -5,6 +5,7 @@
  * components (e.g. Table) that render nested inline content through the PT
  * pipeline.
  */
+import CssClassMark from "./marks/CssClass.astro";
 import LinkMark from "./marks/Link.astro";
 import StrikeThroughMark from "./marks/StrikeThrough.astro";
 import SubscriptMark from "./marks/Subscript.astro";
@@ -17,4 +18,6 @@ export const emdashMarkComponents = {
 	underline: UnderlineMark,
 	"strike-through": StrikeThroughMark,
 	link: LinkMark,
+	// Inline counterpart to BlockStyleExtension — see CssClass.astro.
+	cssClass: CssClassMark,
 };

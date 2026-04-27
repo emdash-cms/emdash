@@ -38,6 +38,7 @@ import type {
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
+	EditorStyleEntry,
 } from "./plugins/types.js";
 import { invalidateUrlPatternCache } from "./query.js";
 import type { FieldType } from "./schema/types.js";
@@ -1426,6 +1427,7 @@ export class EmDashRuntime {
 					fieldTypes: string[];
 					elements?: Element[];
 				}>;
+				editorStyles?: EditorStyleEntry[];
 			}
 		> = {};
 
@@ -1452,6 +1454,7 @@ export class EmDashRuntime {
 				dashboardWidgets: plugin.admin?.widgets ?? [],
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
+				editorStyles: plugin.admin?.editorStyles,
 			};
 		}
 
