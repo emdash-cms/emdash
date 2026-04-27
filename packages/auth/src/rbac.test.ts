@@ -135,6 +135,15 @@ describe("rbac", () => {
 			const editor = { role: Role.EDITOR, id: "editor-1" };
 			expect(canActOnOwn(editor, "user-2", "media:edit_own", "media:edit_any")).toBe(true);
 		});
+
+		it("F17: empty-string ownerId is not treated as 'owned by user with id ''", () => {
+			// A user with id="" and *:edit_own (but NOT *:edit_any) must NOT
+			// be able to edit content with ownerId="" — that ownerId means
+			// "no recorded owner" (e.g. seed-imported content), and granting
+			// edit-own would be an accidental privilege escalation.
+			const orphanedUser = { role: Role.AUTHOR, id: "" };
+			expect(canActOnOwn(orphanedUser, "", "content:edit_own", "content:edit_any")).toBe(false);
+		});
 	});
 
 	describe("requirePermissionOnResource", () => {

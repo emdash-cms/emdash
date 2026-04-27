@@ -232,6 +232,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
 
+	// Fast path: routes outside /_emdash/ that plugins inject (e.g.,
+	// /.well-known/atproto-client-metadata.json) skip the entire runtime
+	// init + middleware chain. External servers fetch these with tight
+	// timeouts (~1-2s) so they must respond quickly even on cold starts.
+	if (!url.pathname.startsWith("/_emdash") && virtualConfig?.authProviders) {
+		const isPluginFastRoute = virtualConfig.authProviders.some(
+			(p: { routes?: { pattern?: string }[] }) =>
+				p.routes?.some((r: { pattern?: string }) => r.pattern && url.pathname === r.pattern),
+		);
+		if (isPluginFastRoute) {
+			return finalizeResponse(await next());
+		}
+	}
+
 	const queryRecorder = isInstrumentationEnabled()
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
 		: undefined;

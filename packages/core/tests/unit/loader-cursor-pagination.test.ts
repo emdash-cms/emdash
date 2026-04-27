@@ -161,22 +161,23 @@ describe("Loader cursor pagination", () => {
 		expect(result.nextCursor).toBeUndefined();
 	});
 
-	it("should handle invalid cursor gracefully", async () => {
+	it("should reject invalid cursor with a clear error", async () => {
 		for (let i = 1; i <= 3; i++) {
 			await createPublishedPost(`Post ${i}`);
 		}
 
 		const loader = emdashLoader();
 
-		// Invalid cursor should be ignored (no cursor condition applied)
+		// Invalid cursors now fail loud rather than silently re-fetching the
+		// first page. The loader catches `InvalidCursorError` from
+		// `decodeCursor` and surfaces it via the loader-result envelope.
 		const result = await runWithContext({ editMode: false, db }, () =>
 			loader.loadCollection!({
 				filter: { type: "post", limit: 10, cursor: "not-a-valid-cursor" },
 			}),
 		);
 
-		// Should return all entries since the invalid cursor is ignored
-		expect(result.entries).toHaveLength(3);
+		expect((result as { error?: Error }).error?.message).toMatch(/Invalid pagination cursor/);
 	});
 
 	it("should work with limit of 1", async () => {
