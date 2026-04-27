@@ -1,5 +1,6 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
+import icon from "astro-icon";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
@@ -15,6 +16,7 @@ export default defineConfig({
 	},
 	integrations: [
 		react(),
+		icon(),
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
 			storage: local({
