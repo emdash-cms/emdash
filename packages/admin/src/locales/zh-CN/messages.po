@@ -1359,11 +1359,11 @@ msgstr "创建您的通行密钥"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
 msgid "Create, update, and delete navigation menus"
-msgstr ""
+msgstr "创建、更新、删除导航菜单"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
 msgid "Create, update, and delete taxonomy terms"
-msgstr ""
+msgstr "创建、更新、删除分类术语"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Create, update, delete content"
@@ -2940,7 +2940,7 @@ msgstr "菜单 ({0})"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:89
 msgid "Menus Manage"
-msgstr ""
+msgstr "菜单管理"
 
 #: packages/admin/src/components/SeoPanel.tsx:161
 msgid "Meta Description"
@@ -3727,7 +3727,7 @@ msgstr "读取媒体文件"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
 msgid "Read site settings"
-msgstr ""
+msgstr "读取网站设置"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
@@ -4464,11 +4464,11 @@ msgstr "设置"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:99
 msgid "Settings Manage"
-msgstr ""
+msgstr "设置管理"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:94
 msgid "Settings Read"
-msgstr ""
+msgstr "设置读取"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:59
 msgid "Settings saved successfully"
@@ -4727,7 +4727,7 @@ msgstr "分类"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:84
 msgid "Taxonomies Manage"
-msgstr ""
+msgstr "分类管理"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:668
 msgid "Taxonomy created"
@@ -5126,7 +5126,7 @@ msgstr "更新 {0} 的设置"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:100
 msgid "Update site settings"
-msgstr ""
+msgstr "更新网站设置"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:218
