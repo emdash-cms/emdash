@@ -17,6 +17,7 @@ import {
 	verifyPreviewSignature,
 } from "#api/handlers/snapshot.js";
 import { getPublicOrigin } from "#api/public-url.js";
+import { resolveSecretsCached } from "#config/secrets.js";
 
 export const prerender = false;
 
@@ -32,24 +33,29 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
 	let authorized = false;
 
 	if (previewSig) {
-		const secret = import.meta.env.EMDASH_PREVIEW_SECRET || import.meta.env.PREVIEW_SECRET || "";
-		if (!secret) {
-			console.warn(
-				"[snapshot] X-Preview-Signature header present but no PREVIEW_SECRET configured",
-			);
+		// Resolves env override or DB-stored value. Always non-empty after
+		// resolution, so the signature path is never silently disabled.
+		// Note: if a separate process signs these (e.g. a preview Worker),
+		// it must use the same `EMDASH_PREVIEW_SECRET` env var — the
+		// auto-generated DB value is per-deployment.
+		const { previewSecret: secret, previewSecretSource } = await resolveSecretsCached(emdash.db);
+		const parsed = parsePreviewSignatureHeader(previewSig);
+		if (!parsed) {
+			console.warn("[snapshot] Failed to parse X-Preview-Signature header");
 		} else {
-			const parsed = parsePreviewSignatureHeader(previewSig);
-			if (!parsed) {
-				console.warn("[snapshot] Failed to parse X-Preview-Signature header");
-			} else {
-				authorized = await verifyPreviewSignature(parsed.source, parsed.exp, parsed.sig, secret);
-				if (!authorized) {
-					console.warn("[snapshot] Preview signature verification failed", {
-						source: parsed.source,
-						exp: parsed.exp,
-						expired: parsed.exp < Date.now() / 1000,
-					});
+			authorized = await verifyPreviewSignature(parsed.source, parsed.exp, parsed.sig, secret);
+			if (!authorized) {
+				const fields: Record<string, unknown> = {
+					source: parsed.source,
+					exp: parsed.exp,
+					expired: parsed.exp < Date.now() / 1000,
+					secretSource: previewSecretSource,
+				};
+				if (previewSecretSource === "db") {
+					fields.hint =
+						"Set EMDASH_PREVIEW_SECRET in both this process and the signing process to share secrets across deployments";
 				}
+				console.warn("[snapshot] Preview signature verification failed", fields);
 			}
 		}
 	}

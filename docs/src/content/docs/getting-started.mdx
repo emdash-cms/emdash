@@ -180,20 +180,35 @@ export const collections = {
 
 ### Environment Variables
 
-For production deployments, you'll need to set:
+For production, set an encryption key now to be ready when plugin
+secret encryption ships in a forthcoming release:
 
 ```bash
-# Required for authentication
-EMDASH_AUTH_SECRET=your-secret-here
-
-# Optional: for content preview
-EMDASH_PREVIEW_SECRET=your-preview-secret
+npx emdash secrets generate
 ```
 
-Generate a secure auth secret with:
+Add the result to your environment as `EMDASH_ENCRYPTION_KEY`. The key
+is parsed and validated by the current release but is not yet used to
+encrypt anything; the encrypt/decrypt path at the plugin storage layer
+ships in a follow-up. Setting it now means your deployment is ready
+when the feature lands.
 
 ```bash
-npx emdash auth secret
+EMDASH_ENCRYPTION_KEY=emdash_enc_v1_...
+```
+
+This key never touches the database; only encrypted ciphertext will
+once encryption ships. Back it up somewhere durable — losing it means
+losing every secret encrypted with it.
+
+The preview HMAC secret and commenter-IP hash salt are auto-generated
+and stored in the database on first use; you don't need to set them.
+You can override either if a separate process needs to share the value
+with your main site:
+
+```bash
+# Optional override — only needed if another process verifies these tokens
+EMDASH_PREVIEW_SECRET=your-preview-secret
 ```
 
 ## Query Content in Pages

@@ -134,6 +134,7 @@
   "imports": {
     "#api/schemas.js": "./src/api/schemas/index.js",
     "#api/*": "./src/api/*",
+    "#config/*": "./src/config/*",
     "#db/*": "./src/database/*",
     "#auth/*": "./src/auth/*",
     "#schema/*": "./src/schema/*",

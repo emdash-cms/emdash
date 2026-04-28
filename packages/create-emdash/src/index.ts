@@ -22,6 +22,7 @@ import {
 	isDirNonEmpty,
 	parseTargetArg,
 	sanitizePackageName,
+	writeEncryptionKey,
 } from "./utils.js";
 
 const targetArg = parseTargetArg(process.argv);
@@ -112,6 +113,26 @@ function selectOptions<K extends string>(
 		label: obj[key].name,
 		hint: obj[key].description,
 	}));
+}
+
+const NEWLINE_PATTERN = /\r?\n/;
+
+/**
+ * Make sure `fileName` is excluded by `.gitignore`. Templates' gitignores
+ * already cover `.env*` but not `.dev.vars`; rather than relying on every
+ * template being current, the scaffolder defensively appends a stanza if
+ * no existing line matches.
+ */
+function ensureGitignored(projectDir: string, fileName: string): void {
+	const target = resolve(projectDir, ".gitignore");
+	const existing = existsSync(target) ? readFileSync(target, "utf-8") : "";
+	const lines = existing.split(NEWLINE_PATTERN);
+	if (lines.some((line) => line.trim() === fileName)) {
+		return;
+	}
+	const sep = existing.length === 0 ? "" : existing.endsWith("\n") ? "" : "\n";
+	const next = `${existing}${sep}${fileName}\n`;
+	writeFileSync(target, next);
 }
 
 async function selectTemplate(platform: Platform): Promise<TemplateConfig> {
@@ -305,7 +326,23 @@ async function main() {
 			writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 		}
 
+		// Scaffold a fresh EMDASH_ENCRYPTION_KEY into the local-secrets file
+		// (Workers: .dev.vars, Node: .env). Idempotent — won't overwrite an
+		// existing entry if the user re-runs scaffolding into a non-empty
+		// directory. We also defensively ensure the file is gitignored.
+		const secretsFile = platform === "cloudflare" ? ".dev.vars" : ".env";
+		const keyResult = writeEncryptionKey(projectDir, secretsFile);
+		ensureGitignored(projectDir, secretsFile);
+
 		s.stop("Project created!");
+
+		if (keyResult === "skipped") {
+			p.log.info(
+				`Existing ${pc.cyan("EMDASH_ENCRYPTION_KEY")} found in ${pc.cyan(secretsFile)}; leaving it alone.`,
+			);
+		} else {
+			p.log.info(`Wrote ${pc.cyan("EMDASH_ENCRYPTION_KEY")} to ${pc.cyan(secretsFile)}.`);
+		}
 
 		if (shouldInstall) {
 			s.start(`Installing dependencies with ${pc.cyan(pm)}...`);

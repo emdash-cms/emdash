@@ -553,16 +553,18 @@ EmDash respects these environment variables:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_SITE_URL`      | Public browser-facing origin (falls back to `SITE_URL`) |
-| `EMDASH_DATABASE_URL`   | Override database URL                    |
-| `EMDASH_AUTH_SECRET`    | Secret for passkey authentication        |
-| `EMDASH_PREVIEW_SECRET` | Secret for preview token generation      |
-| `EMDASH_URL`            | Remote EmDash URL for schema sync      |
+| `EMDASH_SITE_URL`         | Public browser-facing origin (falls back to `SITE_URL`) |
+| `EMDASH_DATABASE_URL`     | Override database URL                    |
+| `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. |
+| `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
+| `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
+| `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set; existing installs should keep this to preserve stable commenter-IP hashes across upgrade. |
+| `EMDASH_URL`              | Remote EmDash URL for schema sync         |
 
-Generate an auth secret with:
+Generate an encryption key with:
 
 ```bash
-npx emdash auth secret
+npx emdash secrets generate
 ```
 
 ## package.json Configuration
