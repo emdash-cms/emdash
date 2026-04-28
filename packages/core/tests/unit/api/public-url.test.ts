@@ -4,7 +4,7 @@ import {
 	getPublicOrigin,
 	getPublicUrl,
 	getEnvAllowedOrigins,
-	_resetEnvSiteUrlCache,
+	_resetEnvCache,
 } from "../../../src/api/public-url.js";
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 
@@ -14,7 +14,7 @@ const origSiteUrl = process.env.SITE_URL;
 const origAllowedOrigins = process.env.EMDASH_ALLOWED_ORIGINS;
 
 afterEach(() => {
-	_resetEnvSiteUrlCache();
+	_resetEnvCache();
 	// Restore original env state (delete if originally absent)
 	if (origEmdashSiteUrl === undefined) delete process.env.EMDASH_SITE_URL;
 	else process.env.EMDASH_SITE_URL = origEmdashSiteUrl;
@@ -26,7 +26,7 @@ afterEach(() => {
 
 // Ensure clean state before every test (no cache, no test env vars).
 beforeEach(() => {
-	_resetEnvSiteUrlCache();
+	_resetEnvCache();
 	delete process.env.EMDASH_SITE_URL;
 	delete process.env.SITE_URL;
 	delete process.env.EMDASH_ALLOWED_ORIGINS;
@@ -101,12 +101,12 @@ describe("getPublicOrigin() env var fallback", () => {
 		expect(getPublicOrigin(url, config)).toBe("https://config.example.com");
 	});
 
-	it("cache is invalidated by _resetEnvSiteUrlCache()", () => {
+	it("cache is invalidated by _resetEnvCache()", () => {
 		process.env.EMDASH_SITE_URL = "https://first.example.com";
 		const url = new URL("http://localhost:4321/x");
 		expect(getPublicOrigin(url, {})).toBe("https://first.example.com");
 
-		_resetEnvSiteUrlCache();
+		_resetEnvCache();
 		process.env.EMDASH_SITE_URL = "https://second.example.com";
 		expect(getPublicOrigin(url, {})).toBe("https://second.example.com");
 	});
@@ -132,22 +132,21 @@ describe("getEnvAllowedOrigins()", () => {
 		expect(getEnvAllowedOrigins()).toEqual(["https://example.com"]);
 	});
 
-	it("skips entries with non-http(s) protocols", () => {
-		process.env.EMDASH_ALLOWED_ORIGINS =
-			"file:///etc/passwd,javascript:alert(1),https://example.com";
-		expect(getEnvAllowedOrigins()).toEqual(["https://example.com"]);
+	it("throws on entries with non-http(s) protocols", () => {
+		process.env.EMDASH_ALLOWED_ORIGINS = "file:///etc/passwd,https://example.com";
+		expect(() => getEnvAllowedOrigins()).toThrow(/EMDASH_ALLOWED_ORIGINS.*must be http or https/);
 	});
 
-	it("skips unparseable entries", () => {
+	it("throws on unparseable entries", () => {
 		process.env.EMDASH_ALLOWED_ORIGINS = "not-a-url,https://example.com";
-		expect(getEnvAllowedOrigins()).toEqual(["https://example.com"]);
+		expect(() => getEnvAllowedOrigins()).toThrow(/EMDASH_ALLOWED_ORIGINS.*invalid URL/);
 	});
 
-	it("cache is invalidated by _resetEnvSiteUrlCache()", () => {
+	it("cache is invalidated by _resetEnvCache()", () => {
 		process.env.EMDASH_ALLOWED_ORIGINS = "https://first.example.com";
 		expect(getEnvAllowedOrigins()).toEqual(["https://first.example.com"]);
 
-		_resetEnvSiteUrlCache();
+		_resetEnvCache();
 		process.env.EMDASH_ALLOWED_ORIGINS = "https://second.example.com";
 		expect(getEnvAllowedOrigins()).toEqual(["https://second.example.com"]);
 	});

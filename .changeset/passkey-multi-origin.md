@@ -3,4 +3,4 @@
 "@emdash-cms/auth": minor
 ---
 
-Adds support for accepting passkey assertions from multiple origins that share an `rpId`. Set `EMDASH_ALLOWED_ORIGINS` (comma-separated) alongside `EMDASH_SITE_URL` to verify passkeys originating from preview/staging subdomains under the same registrable parent domain — previously, the strict origin check rejected them. `PasskeyConfig.origin: string` is replaced by `PasskeyConfig.origins: string[]`; `getPasskeyConfig()` accepts an optional `allowedOrigins` array as its 4th argument.
+Adds support for accepting passkey assertions from multiple origins that share an `rpId`, for deployments reachable under several hostnames (apex + preview/staging) under one registrable parent. Declare additional origins via `EmDashConfig.allowedOrigins` (in `astro.config.mjs`) or the `EMDASH_ALLOWED_ORIGINS` env var (comma-separated); the two sources merge at runtime. EmDash validates the merged set against `siteUrl` and rejects dead config (non-subdomain entries, IP-literal `siteUrl`, trailing dots, empty labels) with source-attributed errors. `PasskeyConfig.origin: string` is replaced by `PasskeyConfig.origins: string[]`.

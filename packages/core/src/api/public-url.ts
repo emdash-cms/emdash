@@ -27,7 +27,7 @@ import type { EmDashConfig } from "../astro/integration/runtime.js";
 let _envSiteUrl: string | undefined | null = null;
 
 /** @internal Reset cached env values — test-only. */
-export function _resetEnvSiteUrlCache(): void {
+export function _resetEnvCache(): void {
 	_envSiteUrl = null;
 	_envAllowedOrigins = null;
 }
@@ -79,14 +79,15 @@ export function getPublicOrigin(url: URL, config?: EmDashConfig): string {
  * multi-origin deployments where the same RP is reachable under several
  * hostnames sharing the registrable parent domain (e.g. apex + preview).
  *
- * Each entry is parsed via `new URL()` and reduced to its `origin`. Entries
- * with non-http(s) protocols or unparseable values are silently skipped.
+ * Each entry is parsed via `new URL()` and reduced to its `origin`. Unlike
+ * `getEnvSiteUrl` (which silently falls back to `url.origin` on bad input),
+ * this throws on any unparseable or non-http(s) entry — `EMDASH_ALLOWED_ORIGINS`
+ * is an allowlist for passkey verification, so silently dropping a typo would
+ * surface as "I can't authenticate on this origin" with no diagnostic. Fail
+ * loud at first read.
  *
- * Like `getEnvSiteUrl`, uses `process.env` (Vite leaves it untouched at
- * runtime) and is unavailable on Cloudflare Workers, where `env` bindings
- * provide values instead.
- *
- * Caches after first call.
+ * Uses `process.env` (Vite leaves it untouched at runtime). Result is cached
+ * on success.
  */
 let _envAllowedOrigins: string[] | null = null;
 
@@ -97,14 +98,20 @@ export function getEnvAllowedOrigins(): string[] {
 	for (const entry of raw.split(",")) {
 		const trimmed = entry.trim();
 		if (!trimmed) continue;
+		let u: URL;
 		try {
-			const u = new URL(trimmed);
-			if (u.protocol === "http:" || u.protocol === "https:") {
-				parsed.push(u.origin);
-			}
-		} catch {
-			// skip unparseable entries
+			u = new URL(trimmed);
+		} catch (e) {
+			throw new Error(`EmDash config error in EMDASH_ALLOWED_ORIGINS: invalid URL: "${trimmed}"`, {
+				cause: e,
+			});
 		}
+		if (u.protocol !== "http:" && u.protocol !== "https:") {
+			throw new Error(
+				`EmDash config error in EMDASH_ALLOWED_ORIGINS: origin must be http or https: "${trimmed}" (got ${u.protocol})`,
+			);
+		}
+		parsed.push(u.origin);
 	}
 	_envAllowedOrigins = parsed;
 	return parsed;

@@ -13,8 +13,9 @@ import { authenticateWithPasskey, PasskeyAuthenticationError } from "@emdash-cms
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
-import { getEnvAllowedOrigins, getPublicOrigin } from "#api/public-url.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { passkeyVerifyBody } from "#api/schemas.js";
+import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allowed-origins.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -35,7 +36,11 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		const options = new OptionsRepository(emdash.db);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
 		const siteUrl = getPublicOrigin(url, emdash?.config);
-		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl, getEnvAllowedOrigins());
+		const allowedOrigins = validateAllowedOrigins(
+			siteUrl,
+			getConfiguredAllowedOrigins(emdash?.config),
+		);
+		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl, allowedOrigins);
 
 		// Authenticate with passkey
 		const adapter = createKyselyAdapter(emdash.db);
