@@ -1073,9 +1073,20 @@ function PluginBlockModal({
 		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
+	// Size the dialog based on field complexity. The default `sm` is right for
+	// simple URL embeds (one field) but cramps Block Kit forms with several
+	// fields or a repeater, which need room for inline sub-field inputs.
+	const dialogSize = (() => {
+		if (!hasFields) return "sm";
+		const fields = block?.fields ?? [];
+		if (fields.some((f) => f.type === "repeater")) return "xl";
+		if (fields.length > 3) return "lg";
+		return "base";
+	})();
+
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size="sm">
+			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 						{isEditing ? "Edit" : "Insert"} {block?.label || ""}
@@ -1112,6 +1123,7 @@ function PluginBlockModal({
 							<Input
 								ref={inputRef}
 								type="url"
+								className="w-full"
 								placeholder={block?.placeholder || "Enter URL..."}
 								value={typeof formValues.id === "string" ? formValues.id : ""}
 								onChange={(e) => handleFieldChange("id", e.target.value)}
@@ -1165,6 +1177,7 @@ function BlockKitField({
 					) : (
 						<Input
 							type="text"
+							className="w-full"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
 							onChange={(e) => onChange(field.action_id, e.target.value)}
@@ -1181,6 +1194,7 @@ function BlockKitField({
 					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 					<Input
 						type="number"
+						className="w-full"
 						min={min}
 						max={max}
 						value={typeof value === "number" ? String(value) : ""}
