@@ -33,9 +33,9 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
-import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 
 /**
  * Block transform options

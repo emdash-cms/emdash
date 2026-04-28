@@ -18,11 +18,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Trash, DotsSixVertical, CaretDown } from "@phosphor-icons/react";
-
-import { CaretNext } from "./ArrowIcons.js";
 import * as React from "react";
 
 import { cn } from "../lib/utils.js";
+import { CaretNext } from "./ArrowIcons.js";
 
 interface RepeaterSubFieldDef {
 	slug: string;

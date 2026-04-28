@@ -19,8 +19,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { ArrowPrev } from "./ArrowIcons.js";
-
 import {
 	fetchMenu,
 	createMenuItem,
@@ -29,6 +27,7 @@ import {
 	reorderMenuItems,
 	type MenuItem,
 } from "../lib/api";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 

@@ -6,18 +6,13 @@
 
 import { Button, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	FloppyDisk,
-	CheckCircle,
-	WarningCircle,
-	MagnifyingGlass,
-} from "@phosphor-icons/react";
+import { FloppyDisk, CheckCircle, WarningCircle, MagnifyingGlass } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { ArrowPrev } from "../ArrowIcons.js";
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
 
 export function SeoSettings() {
 	const { t } = useLingui();

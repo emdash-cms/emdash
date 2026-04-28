@@ -19,18 +19,9 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	Plus,
-	DotsSixVertical,
-	Pencil,
-	Trash,
-	Database,
-	FileText,
-} from "@phosphor-icons/react";
+import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
-
-import { ArrowPrev } from "./ArrowIcons.js";
 
 import type {
 	SchemaCollectionWithFields,
@@ -40,6 +31,7 @@ import type {
 	UpdateCollectionInput,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldEditor } from "./FieldEditor";
 

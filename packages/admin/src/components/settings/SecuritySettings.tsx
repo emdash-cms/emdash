@@ -8,13 +8,12 @@
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Shield, Plus, CheckCircle, WarningCircle, Info } from "@phosphor-icons/react";
-
-import { ArrowPrev } from "../ArrowIcons.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchPasskeys, renamePasskey, deletePasskey, fetchManifest } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
 import { PasskeyRegistration } from "../auth/PasskeyRegistration";
 import { PasskeyList } from "./PasskeyList";
 

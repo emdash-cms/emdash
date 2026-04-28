@@ -23,8 +23,6 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
 
-import { CaretNext } from "./ArrowIcons.js";
-
 import {
 	analyzeWxr,
 	prepareWxrImport,
@@ -50,6 +48,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 
 // ============================================================================
 // Constants

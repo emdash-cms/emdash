@@ -27,8 +27,6 @@ import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
-import { ArrowPrev } from "./ArrowIcons.js";
-
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -41,6 +39,7 @@ import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";

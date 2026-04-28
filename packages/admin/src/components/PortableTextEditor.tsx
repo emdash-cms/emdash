@@ -77,13 +77,12 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
-
-import { CaretNext } from "./ArrowIcons.js";
 import { createPortal } from "react-dom";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";

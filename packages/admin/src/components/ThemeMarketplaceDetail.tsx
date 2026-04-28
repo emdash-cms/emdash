@@ -19,13 +19,12 @@ import {
 	ShieldCheck,
 	X,
 } from "@phosphor-icons/react";
-
-import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchTheme, generatePreviewUrl } from "../lib/api/theme-marketplace.js";
+import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 
 /** Only allow safe URL protocols for external links */
 function isSafeUrl(url: string): boolean {
@@ -83,7 +82,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 					to={"/themes/marketplace" as "/"}
 					className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 				>
-				<ArrowPrev className="h-4 w-4" />
+					<ArrowPrev className="h-4 w-4" />
 					{t`Back to Themes`}
 				</Link>
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6 text-center">

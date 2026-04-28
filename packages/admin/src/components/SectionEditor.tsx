@@ -6,14 +6,13 @@
 
 import { Button, Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-
-import { ArrowPrev } from "./ArrowIcons.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
 import { slugify } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { PortableTextEditor } from "./PortableTextEditor";
 import { SaveButton } from "./SaveButton";
 

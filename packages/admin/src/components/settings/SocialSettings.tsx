@@ -7,13 +7,12 @@
 import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { FloppyDisk, CheckCircle, WarningCircle } from "@phosphor-icons/react";
-
-import { ArrowPrev } from "../ArrowIcons.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
 
 export function SocialSettings() {
 	const { t } = useLingui();

@@ -33,8 +33,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown } from "@phosphor-icons/react";
-
-import { CaretNext } from "./ArrowIcons.js";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -57,6 +55,7 @@ import {
 	type UpdateWidgetInput,
 } from "../lib/api";
 import { getPluginBlocks } from "../lib/pluginBlocks";
+import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
@@ -724,11 +723,7 @@ function WidgetItem({
 				</button>
 				<button onClick={onToggle} className="flex-1 text-start" aria-expanded={isExpanded}>
 					<div className="flex items-center gap-2">
-						{isExpanded ? (
-							<CaretDown className="h-4 w-4" />
-						) : (
-							<CaretNext className="h-4 w-4" />
-						)}
+						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 						<span className="font-medium">{widget.title || "Untitled Widget"}</span>
 						<span className="text-xs text-kumo-subtle">({widget.type})</span>
 					</div>

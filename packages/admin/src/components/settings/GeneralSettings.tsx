@@ -7,20 +7,13 @@
 
 import { Button, Input, Label } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	FloppyDisk,
-	CheckCircle,
-	WarningCircle,
-	Upload,
-	X,
-} from "@phosphor-icons/react";
+import { FloppyDisk, CheckCircle, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { ArrowPrev } from "../ArrowIcons.js";
-
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 
 export function GeneralSettings() {

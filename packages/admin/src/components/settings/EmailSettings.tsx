@@ -18,12 +18,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { ArrowPrev } from "../ArrowIcons.js";
 import {
 	fetchEmailSettings,
 	sendTestEmail,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
+import { ArrowPrev } from "../ArrowIcons.js";
 import { getMutationError } from "../DialogError.js";
 
 export function EmailSettings() {

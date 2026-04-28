@@ -12,16 +12,7 @@
 
 import { Badge, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	DownloadSimple,
-	GithubLogo,
-	Globe,
-	ShieldCheck,
-	Warning,
-	X,
-} from "@phosphor-icons/react";
-
-import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
+import { DownloadSimple, GithubLogo, Globe, ShieldCheck, Warning, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import DOMPurify from "dompurify";
@@ -35,6 +26,7 @@ import {
 	describeCapability,
 } from "../lib/api/marketplace.js";
 import { SAFE_URL_RE, isSafeUrl, safeIconUrl } from "../lib/url.js";
+import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
 import { AuditBadge } from "./MarketplaceBrowse.js";

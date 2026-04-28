@@ -10,8 +10,6 @@ import {
 	Key,
 	Envelope,
 } from "@phosphor-icons/react";
-
-import { CaretNext } from "./ArrowIcons.js";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -19,6 +17,7 @@ import * as React from "react";
 import { fetchManifest } from "../lib/api";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
+import { CaretNext } from "./ArrowIcons.js";
 
 interface SettingsLinkProps {
 	to: string;

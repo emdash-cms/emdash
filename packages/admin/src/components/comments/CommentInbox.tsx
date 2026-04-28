@@ -8,16 +8,8 @@
 import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	MagnifyingGlass,
-	Check,
-	Trash,
-	Warning,
-	ChatCircle,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass, Check, Trash, Warning, ChatCircle } from "@phosphor-icons/react";
 import * as React from "react";
-
-import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 
 import type {
 	AdminComment,
@@ -26,6 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
 
