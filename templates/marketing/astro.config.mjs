@@ -46,6 +46,13 @@ export default defineConfig({
 				directory: "./uploads",
 				baseUrl: "/_emdash/api/media/file",
 			}),
+			plugins: [
+				{
+					id: "marketing-blocks",
+					version: "0.1.0",
+					entrypoint: "./src/plugins/marketing-blocks/index.ts",
+				},
+			],
 		}),
 	],
 	fonts: [

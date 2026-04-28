@@ -60,8 +60,10 @@
 							"_key": "hero",
 							"headline": "Build products people actually want",
 							"subheadline": "The all-in-one platform for modern teams. Ship faster, collaborate better, and focus on what matters.",
-							"primaryCta": { "label": "Start Free Trial", "url": "/signup" },
-							"secondaryCta": { "label": "Watch Demo", "url": "/demo" }
+							"primaryCtaLabel": "Start Free Trial",
+							"primaryCtaUrl": "/signup",
+							"secondaryCtaLabel": "Watch Demo",
+							"secondaryCtaUrl": "/demo"
 						},
 						{
 							"_type": "marketing.features",
@@ -175,44 +177,27 @@
 									"price": "$0",
 									"period": "/month",
 									"description": "Perfect for trying things out",
-									"features": [
-										"Up to 3 team members",
-										"5 projects",
-										"Basic analytics",
-										"Community support",
-										"1GB storage"
-									],
-									"cta": { "label": "Get Started", "url": "/signup" }
+									"features": "Up to 3 team members\n5 projects\nBasic analytics\nCommunity support\n1GB storage",
+									"ctaLabel": "Get Started",
+									"ctaUrl": "/signup"
 								},
 								{
 									"name": "Pro",
 									"price": "$29",
 									"period": "/user/month",
 									"description": "For growing teams",
-									"features": [
-										"Unlimited team members",
-										"Unlimited projects",
-										"Advanced analytics",
-										"Priority support",
-										"100GB storage",
-										"Custom integrations",
-										"API access"
-									],
-									"cta": { "label": "Start Free Trial", "url": "/signup?plan=pro" },
+									"features": "Unlimited team members\nUnlimited projects\nAdvanced analytics\nPriority support\n100GB storage\nCustom integrations\nAPI access",
+									"ctaLabel": "Start Free Trial",
+									"ctaUrl": "/signup?plan=pro",
 									"highlighted": true
 								},
 								{
 									"name": "Enterprise",
 									"price": "Custom",
 									"description": "For large organizations",
-									"features": [
-										"Everything in Pro",
-										"Dedicated support",
-										"Custom contracts",
-										"SLA guarantee",
-										"Unlimited storage"
-									],
-									"cta": { "label": "Contact Sales", "url": "/contact" }
+									"features": "Everything in Pro\nDedicated support\nCustom contracts\nSLA guarantee\nUnlimited storage",
+									"ctaLabel": "Contact Sales",
+									"ctaUrl": "/contact"
 								}
 							]
 						},
