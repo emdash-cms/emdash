@@ -15,6 +15,7 @@ const BLOCK_TYPES = new Set([
 	"meter",
 	"code",
 	"empty",
+	"accordion",
 ]);
 
 const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
@@ -1125,6 +1126,31 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 						validateElement(value.actions[i], `${path}.actions[${i}]`, errors);
 					}
 				}
+			}
+			break;
+		}
+		case "accordion": {
+			if (typeof value.label !== "string") {
+				errors.push({
+					path: `${path}.label`,
+					message: "Required field 'label' must be a string",
+				});
+			}
+			if (!Array.isArray(value.blocks)) {
+				errors.push({
+					path: `${path}.blocks`,
+					message: "Required field 'blocks' must be an array",
+				});
+			} else {
+				for (let i = 0; i < value.blocks.length; i++) {
+					validateBlock(value.blocks[i], `${path}.blocks[${i}]`, errors);
+				}
+			}
+			if (value.default_open !== undefined && typeof value.default_open !== "boolean") {
+				errors.push({
+					path: `${path}.default_open`,
+					message: "Field 'default_open' must be a boolean if provided",
+				});
 			}
 			break;
 		}

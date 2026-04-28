@@ -3,15 +3,28 @@ interface Props {
 	node: {
 		headline: string;
 		subheadline?: string;
-		primaryCta?: { label: string; url: string };
-		secondaryCta?: { label: string; url: string };
+		// CTAs are flattened to sibling fields because Block Kit has no
+		// object-group element. Empty strings mean "no CTA".
+		primaryCtaLabel?: string;
+		primaryCtaUrl?: string;
+		secondaryCtaLabel?: string;
+		secondaryCtaUrl?: string;
 		image?: { url: string; alt?: string };
 		centered?: boolean;
 	};
 }
 
 const { node } = Astro.props;
-const { headline, subheadline, primaryCta, secondaryCta, image, centered } = node;
+const { headline, subheadline, image, centered } = node;
+
+const primaryCta =
+	node.primaryCtaLabel && node.primaryCtaUrl
+		? { label: node.primaryCtaLabel, url: node.primaryCtaUrl }
+		: undefined;
+const secondaryCta =
+	node.secondaryCtaLabel && node.secondaryCtaUrl
+		? { label: node.secondaryCtaLabel, url: node.secondaryCtaUrl }
+		: undefined;
 ---
 
 <section class:list={["hero", { "hero-centered": centered, "hero-with-image": !!image }]}>
