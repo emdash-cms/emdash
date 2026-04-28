@@ -444,7 +444,7 @@ msgid "Add"
 msgstr "添加"
 
 #. placeholder {0}: field.item_label
-#: packages/admin/src/components/PortableTextEditor.tsx:1308
+#: packages/admin/src/components/PortableTextEditor.tsx:1383
 msgid "Add {0}"
 msgstr "添加 {0}"
 
@@ -493,7 +493,7 @@ msgstr "添加字段"
 msgid "Add First Item"
 msgstr "添加第一個項目"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1308
+#: packages/admin/src/components/PortableTextEditor.tsx:1383
 msgid "Add item"
 msgstr "添加項目"
 
@@ -942,8 +942,10 @@ msgstr "分類 ({0})"
 msgid "Categories will be imported"
 msgstr "分類將被導入"
 
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:166
 #: packages/admin/src/components/ContentEditor.tsx:1575
 #: packages/admin/src/components/FieldEditor.tsx:391
+#: packages/admin/src/components/PortableTextEditor.tsx:1276
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
 msgstr "更改"
@@ -1139,7 +1141,7 @@ msgstr "已連接 {0}"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:1798
+#: packages/admin/src/components/PortableTextEditor.tsx:1873
 #: packages/admin/src/components/SectionEditor.tsx:174
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
@@ -1778,7 +1780,7 @@ msgstr "草稿"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "拖放或點擊瀏覽 (.xml)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1484
+#: packages/admin/src/components/PortableTextEditor.tsx:1559
 msgid "Drag to reorder"
 msgstr "拖動以重新排序"
 
@@ -1909,11 +1911,11 @@ msgid "Email verified!"
 msgstr "郵箱已驗證！"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:1811
+#: packages/admin/src/components/PortableTextEditor.tsx:1886
 msgid "Embed a {0}"
 msgstr "嵌入 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1814
+#: packages/admin/src/components/PortableTextEditor.tsx:1889
 msgid "Embeds"
 msgstr "嵌入"
 
@@ -2356,7 +2358,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "如果存在與 <0>{email}</0> 關聯的帳號，我們已發送登錄鏈接。"
 
 #: packages/admin/src/components/FieldEditor.tsx:200
-#: packages/admin/src/components/PortableTextEditor.tsx:1780
+#: packages/admin/src/components/PortableTextEditor.tsx:1855
 msgid "Image"
 msgstr "圖片"
 
@@ -2496,11 +2498,11 @@ msgstr "插入代碼塊"
 msgid "Insert a horizontal rule"
 msgstr "插入水平分隔線"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1795
+#: packages/admin/src/components/PortableTextEditor.tsx:1870
 msgid "Insert a reusable section"
 msgstr "插入可複用區塊"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1781
+#: packages/admin/src/components/PortableTextEditor.tsx:1856
 msgid "Insert an image"
 msgstr "插入圖片"
 
@@ -2568,7 +2570,7 @@ msgid "Invite User"
 msgstr "邀請用戶"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1470
+#: packages/admin/src/components/PortableTextEditor.tsx:1545
 #: packages/admin/src/components/RepeaterField.tsx:233
 msgid "Item {0}"
 msgstr "項目 {0}"
@@ -2872,7 +2874,7 @@ msgstr "最大長度"
 msgid "Max Value"
 msgstr "最大值"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1784
+#: packages/admin/src/components/PortableTextEditor.tsx:1859
 #: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
@@ -3230,7 +3232,7 @@ msgstr "無字段可比較"
 msgid "No headings in document"
 msgstr "文檔中無標題"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1393
+#: packages/admin/src/components/PortableTextEditor.tsx:1468
 #: packages/admin/src/components/RepeaterField.tsx:159
 msgid "No items yet"
 msgstr "暫無項目"
@@ -3808,8 +3810,10 @@ msgstr "已註冊用戶"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "註冊已取消或超時。請重試。"
 
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:174
 #: packages/admin/src/components/ContentEditor.tsx:1754
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
+#: packages/admin/src/components/PortableTextEditor.tsx:1284
 #: packages/admin/src/components/settings/GeneralSettings.tsx:196
 #: packages/admin/src/components/settings/GeneralSettings.tsx:240
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
@@ -3847,7 +3851,7 @@ msgid "Remove Image?"
 msgstr "移除圖片？"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1509
+#: packages/admin/src/components/PortableTextEditor.tsx:1584
 #: packages/admin/src/components/RepeaterField.tsx:269
 msgid "Remove item {0}"
 msgstr "移除項目 {0}"
@@ -4245,7 +4249,7 @@ msgstr "搜索..."
 msgid "Searchable"
 msgstr "可搜索"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1794
+#: packages/admin/src/components/PortableTextEditor.tsx:1869
 msgid "Section"
 msgstr "區塊"
 
@@ -4336,6 +4340,13 @@ msgstr "安全設置"
 msgid "Select"
 msgstr "選擇"
 
+#. placeholder {0}: element.label
+#. placeholder {0}: field.label
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:198
+#: packages/admin/src/components/PortableTextEditor.tsx:1308
+msgid "Select {0}"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:1607
 msgid "Select {label}"
 msgstr "選擇 {label}"
@@ -4374,6 +4385,11 @@ msgstr "選擇圖片"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Select Logo"
 msgstr "選擇標誌"
+
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:189
+#: packages/admin/src/components/PortableTextEditor.tsx:1299
+msgid "Select media"
+msgstr ""
 
 #: packages/admin/src/components/SeoImageField.tsx:70
 msgid "Select OG image"

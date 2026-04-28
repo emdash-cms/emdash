@@ -444,7 +444,7 @@ msgid "Add"
 msgstr "Adicionar"
 
 #. placeholder {0}: field.item_label
-#: packages/admin/src/components/PortableTextEditor.tsx:1308
+#: packages/admin/src/components/PortableTextEditor.tsx:1383
 msgid "Add {0}"
 msgstr ""
 
@@ -493,7 +493,7 @@ msgstr "Adicionar campos"
 msgid "Add First Item"
 msgstr "Adicionar primeiro item"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1308
+#: packages/admin/src/components/PortableTextEditor.tsx:1383
 msgid "Add item"
 msgstr ""
 
@@ -942,8 +942,10 @@ msgstr "Categorias ({0})"
 msgid "Categories will be imported"
 msgstr "Categorias serão importadas"
 
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:166
 #: packages/admin/src/components/ContentEditor.tsx:1575
 #: packages/admin/src/components/FieldEditor.tsx:391
+#: packages/admin/src/components/PortableTextEditor.tsx:1276
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
 msgstr "Alterar"
@@ -1139,7 +1141,7 @@ msgstr "{0} conectado"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:1798
+#: packages/admin/src/components/PortableTextEditor.tsx:1873
 #: packages/admin/src/components/SectionEditor.tsx:174
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
@@ -1778,7 +1780,7 @@ msgstr "Rascunhos"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Arraste e solte ou clique para navegar (.xml)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1484
+#: packages/admin/src/components/PortableTextEditor.tsx:1559
 msgid "Drag to reorder"
 msgstr ""
 
@@ -1909,11 +1911,11 @@ msgid "Email verified!"
 msgstr "E-mail verificado!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:1811
+#: packages/admin/src/components/PortableTextEditor.tsx:1886
 msgid "Embed a {0}"
 msgstr "Incorporar um {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1814
+#: packages/admin/src/components/PortableTextEditor.tsx:1889
 msgid "Embeds"
 msgstr "Incorporações"
 
@@ -2356,7 +2358,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Se existir uma conta para <0>{email}</0>, enviamos um link de acesso."
 
 #: packages/admin/src/components/FieldEditor.tsx:200
-#: packages/admin/src/components/PortableTextEditor.tsx:1780
+#: packages/admin/src/components/PortableTextEditor.tsx:1855
 msgid "Image"
 msgstr "Imagem"
 
@@ -2496,11 +2498,11 @@ msgstr "Inserir um bloco de código"
 msgid "Insert a horizontal rule"
 msgstr "Inserir uma linha horizontal"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1795
+#: packages/admin/src/components/PortableTextEditor.tsx:1870
 msgid "Insert a reusable section"
 msgstr "Inserir uma seção reutilizável"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1781
+#: packages/admin/src/components/PortableTextEditor.tsx:1856
 msgid "Insert an image"
 msgstr "Inserir uma imagem"
 
@@ -2568,7 +2570,7 @@ msgid "Invite User"
 msgstr "Convidar usuário"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1470
+#: packages/admin/src/components/PortableTextEditor.tsx:1545
 #: packages/admin/src/components/RepeaterField.tsx:233
 msgid "Item {0}"
 msgstr "Item {0}"
@@ -2872,7 +2874,7 @@ msgstr "Comprimento máximo"
 msgid "Max Value"
 msgstr "Valor máximo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1784
+#: packages/admin/src/components/PortableTextEditor.tsx:1859
 #: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
@@ -3230,7 +3232,7 @@ msgstr "Nenhum campo para comparar"
 msgid "No headings in document"
 msgstr "Nenhum cabeçalho no documento"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1393
+#: packages/admin/src/components/PortableTextEditor.tsx:1468
 #: packages/admin/src/components/RepeaterField.tsx:159
 msgid "No items yet"
 msgstr "Nenhum item ainda"
@@ -3808,8 +3810,10 @@ msgstr "Usuário cadastrado"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "O registro foi cancelado ou expirou. Tente novamente."
 
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:174
 #: packages/admin/src/components/ContentEditor.tsx:1754
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
+#: packages/admin/src/components/PortableTextEditor.tsx:1284
 #: packages/admin/src/components/settings/GeneralSettings.tsx:196
 #: packages/admin/src/components/settings/GeneralSettings.tsx:240
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
@@ -3847,7 +3851,7 @@ msgid "Remove Image?"
 msgstr "Remover imagem?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1509
+#: packages/admin/src/components/PortableTextEditor.tsx:1584
 #: packages/admin/src/components/RepeaterField.tsx:269
 msgid "Remove item {0}"
 msgstr "Remover item {0}"
@@ -4245,7 +4249,7 @@ msgstr "Pesquisar..."
 msgid "Searchable"
 msgstr "Pesquisável"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1794
+#: packages/admin/src/components/PortableTextEditor.tsx:1869
 msgid "Section"
 msgstr "Seção"
 
@@ -4336,6 +4340,13 @@ msgstr "Configurações de segurança"
 msgid "Select"
 msgstr "Selecionar"
 
+#. placeholder {0}: element.label
+#. placeholder {0}: field.label
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:198
+#: packages/admin/src/components/PortableTextEditor.tsx:1308
+msgid "Select {0}"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:1607
 msgid "Select {label}"
 msgstr "Selecionar {label}"
@@ -4374,6 +4385,11 @@ msgstr "Selecionar imagem"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Select Logo"
 msgstr "Selecionar logo"
+
+#: packages/admin/src/components/BlockKitFieldWidget.tsx:189
+#: packages/admin/src/components/PortableTextEditor.tsx:1299
+msgid "Select media"
+msgstr ""
 
 #: packages/admin/src/components/SeoImageField.tsx:70
 msgid "Select OG image"
