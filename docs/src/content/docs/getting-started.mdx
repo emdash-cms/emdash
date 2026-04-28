@@ -180,26 +180,25 @@ export const collections = {
 
 ### Environment Variables
 
-For production, set an encryption key now to be ready when plugin
-secret encryption ships in a forthcoming release:
+For production, set an encryption key for plugin secrets:
 
 ```bash
 npx emdash secrets generate
 ```
 
-Add the result to your environment as `EMDASH_ENCRYPTION_KEY`. The key
-is parsed and validated by the current release but is not yet used to
-encrypt anything; the encrypt/decrypt path at the plugin storage layer
-ships in a follow-up. Setting it now means your deployment is ready
-when the feature lands.
+Add the result to your environment as `EMDASH_ENCRYPTION_KEY`. This
+key is used to encrypt plugin secrets at rest. The current release
+validates the key but does not yet use it to encrypt anything; plugin
+secret encryption is rolling out and will start using this value
+automatically when available. Set it now so your deployment is ready.
 
 ```bash
 EMDASH_ENCRYPTION_KEY=emdash_enc_v1_...
 ```
 
-This key never touches the database; only encrypted ciphertext will
-once encryption ships. Back it up somewhere durable — losing it means
-losing every secret encrypted with it.
+The key is never stored in the database — only encrypted ciphertext is.
+Back it up somewhere durable; losing it means losing every secret
+encrypted with it.
 
 The preview HMAC secret and commenter-IP hash salt are auto-generated
 and stored in the database on first use; you don't need to set them.
