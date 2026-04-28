@@ -446,7 +446,7 @@ msgstr "添加"
 #. placeholder {0}: field.item_label
 #: packages/admin/src/components/PortableTextEditor.tsx:1289
 msgid "Add {0}"
-msgstr ""
+msgstr "添加 {0}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:235
 msgid "Add {label}"
@@ -495,7 +495,7 @@ msgstr "添加第一個項目"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1289
 msgid "Add item"
-msgstr ""
+msgstr "添加項目"
 
 #: packages/admin/src/components/RepeaterField.tsx:151
 msgid "Add Item"
@@ -984,7 +984,7 @@ msgstr "正在檢查認證..."
 
 #: packages/admin/src/components/SetupWizard.tsx:317
 msgid "Choose how to sign in"
-msgstr ""
+msgstr "選擇登錄方式"
 
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
@@ -1780,7 +1780,7 @@ msgstr "拖放或點擊瀏覽 (.xml)"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Drag to reorder"
-msgstr ""
+msgstr "拖動以重新排序"
 
 #: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Drop your WordPress export file here"
@@ -1986,7 +1986,7 @@ msgstr "輸入終端中的代碼"
 
 #: packages/admin/src/components/LoginPage.tsx:325
 msgid "Enter your handle to sign in."
-msgstr ""
+msgstr "輸入您的賬號以登錄。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1289
 msgid "Enter your WordPress credentials to import content directly."
@@ -3577,7 +3577,7 @@ msgstr "權限"
 
 #: packages/admin/src/components/SetupWizard.tsx:319
 msgid "Pick any method to create your admin account."
-msgstr ""
+msgstr "選擇任意方式創建您的管理員賬戶。"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:313
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
@@ -4516,7 +4516,7 @@ msgstr "登錄"
 
 #: packages/admin/src/components/SetupWizard.tsx:384
 msgid "Sign In"
-msgstr ""
+msgstr "登錄"
 
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
@@ -4531,7 +4531,7 @@ msgstr "登錄到您的網站"
 #: packages/admin/src/components/LoginPage.tsx:231
 #: packages/admin/src/components/SetupWizard.tsx:293
 msgid "Sign in with {0}"
-msgstr ""
+msgstr "使用 {0} 登錄"
 
 #: packages/admin/src/components/LoginPage.tsx:229
 msgid "Sign in with email"
