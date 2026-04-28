@@ -1201,6 +1201,15 @@ export interface PortableTextBlockConfig {
 	placeholder?: string;
 	/** Block Kit form fields for the editing UI. If declared, replaces the simple URL input. */
 	fields?: PortableTextBlockField[];
+	/**
+	 * Optional. Display category in the slash menu. Defaults to "Embeds".
+	 *
+	 * Plugin authors should pick a meaningful category that reflects what the
+	 * block actually is — e.g. "Sections", "Marketing", "Media", "Embeds",
+	 * "Layout". Blocks with the same category are grouped together in the
+	 * editor's slash menu.
+	 */
+	category?: string;
 }
 
 /**

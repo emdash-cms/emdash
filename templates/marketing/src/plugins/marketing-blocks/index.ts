@@ -48,6 +48,7 @@ const definition: PluginDefinition = {
 			{
 				type: "marketing.hero",
 				label: "Hero",
+				category: "Sections",
 				description: "Big headline section with optional CTAs",
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },
@@ -72,6 +73,7 @@ const definition: PluginDefinition = {
 			{
 				type: "marketing.features",
 				label: "Features",
+				category: "Sections",
 				description: "Grid of feature cards with icons",
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },
@@ -110,6 +112,7 @@ const definition: PluginDefinition = {
 			{
 				type: "marketing.testimonials",
 				label: "Testimonials",
+				category: "Sections",
 				description: "Customer testimonial cards",
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },
@@ -133,6 +136,7 @@ const definition: PluginDefinition = {
 			{
 				type: "marketing.pricing",
 				label: "Pricing",
+				category: "Sections",
 				description: "Pricing plan comparison cards",
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },
@@ -181,6 +185,7 @@ const definition: PluginDefinition = {
 			{
 				type: "marketing.faq",
 				label: "FAQ",
+				category: "Sections",
 				description: "Frequently asked questions",
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },

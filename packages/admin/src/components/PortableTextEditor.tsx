@@ -709,7 +709,12 @@ interface SlashCommandItem {
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
-	category?: MessageDescriptor;
+	/**
+	 * Display category. Built-in commands use `msg`-tagged descriptors;
+	 * plugin-supplied categories arrive as plain strings via the manifest
+	 * and are passed through verbatim when rendered.
+	 */
+	category?: MessageDescriptor | string;
 }
 
 /**
@@ -1797,7 +1802,8 @@ export function PortableTextEditor({
 			},
 		});
 
-		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped)
+		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
+		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
 		for (const block of pluginBlocks) {
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
@@ -1805,7 +1811,7 @@ export function PortableTextEditor({
 				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: msg`Embeds`,
+				category: block.category ?? msg`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);

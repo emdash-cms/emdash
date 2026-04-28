@@ -113,6 +113,7 @@ export interface AdminManifest {
 				description?: string;
 				placeholder?: string;
 				fields?: Element[];
+				category?: string;
 			}>;
 		}
 	>;
