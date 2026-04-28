@@ -1,4 +1,4 @@
-import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, buttonVariants, Dialog, Input, Loader, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -238,7 +238,16 @@ export function ContentList({
 								</tr>
 							</thead>
 							<tbody>
-								{items.length === 0 && !isLoading ? (
+								{isLoading && items.length === 0 ? (
+									<tr>
+										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
@@ -343,7 +352,16 @@ export function ContentList({
 								</tr>
 							</thead>
 							<tbody>
-								{trashedItems.length === 0 && !isTrashedLoading ? (
+								{isTrashedLoading && trashedItems.length === 0 ? (
+									<tr>
+										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`Trash is empty`}
