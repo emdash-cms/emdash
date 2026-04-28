@@ -18,7 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
-import { CaretNext, CaretPrev } from "../ArrowIcons.js"
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
 
