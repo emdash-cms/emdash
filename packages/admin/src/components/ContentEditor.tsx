@@ -13,7 +13,6 @@ import {
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	Check,
 	Eye,
 	Image as ImageIcon,
@@ -27,6 +26,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+
+import { ArrowPrev } from "./ArrowIcons.js";
 
 import type {
 	BylineCreditInput,
@@ -535,7 +536,7 @@ export function ContentEditor({
 							aria-label={t`Back to ${collectionLabel} list`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
-							<ArrowLeft className="h-5 w-5" aria-hidden="true" />
+							<ArrowPrev className="h-5 w-5" aria-hidden="true" />
 						</Link>
 					)}
 					{isDistractionFree && (

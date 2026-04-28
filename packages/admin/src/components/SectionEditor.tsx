@@ -6,7 +6,8 @@
 
 import { Button, Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft } from "@phosphor-icons/react";
+
+import { ArrowPrev } from "./ArrowIcons.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -67,7 +68,7 @@ export function SectionEditor() {
 				<div className="flex items-center gap-4">
 					<Link to="/sections">
 						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
-							<ArrowLeft className="h-5 w-5" />
+							<ArrowPrev className="h-5 w-5" />
 						</Button>
 					</Link>
 					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
@@ -152,7 +153,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				<div className="flex items-center gap-4">
 					<Link to="/sections">
 						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
-							<ArrowLeft className="h-5 w-5" />
+							<ArrowPrev className="h-5 w-5" />
 						</Button>
 					</Link>
 					<div>

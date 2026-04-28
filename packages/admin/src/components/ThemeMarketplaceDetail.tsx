@@ -11,17 +11,16 @@
 import { Badge, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	ArrowSquareOut,
 	Eye,
 	GithubLogo,
 	Globe,
 	Palette,
 	ShieldCheck,
-	CaretLeft,
-	CaretRight,
 	X,
 } from "@phosphor-icons/react";
+
+import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -84,7 +83,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 					to={"/themes/marketplace" as "/"}
 					className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 				>
-					<ArrowLeft className="h-4 w-4" />
+				<ArrowPrev className="h-4 w-4" />
 					{t`Back to Themes`}
 				</Link>
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-6 text-center">
@@ -108,7 +107,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 				to={"/themes/marketplace" as "/"}
 				className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 			>
-				<ArrowLeft className="h-4 w-4" />
+				<ArrowPrev className="h-4 w-4" />
 				{t`Back to Themes`}
 			</Link>
 
@@ -313,14 +312,14 @@ function Lightbox({
 							className="absolute start-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
 							aria-label={t`Previous`}
 						>
-							<CaretLeft className="h-5 w-5" />
+							<CaretPrev className="h-5 w-5" />
 						</button>
 						<button
 							onClick={onNext}
 							className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full bg-kumo-base/80 p-2 shadow hover:bg-kumo-base"
 							aria-label={t`Next`}
 						>
-							<CaretRight className="h-5 w-5" />
+							<CaretNext className="h-5 w-5" />
 						</button>
 					</>
 				)}

@@ -63,7 +63,6 @@ import {
 	Trash,
 	DotsSixVertical,
 	CaretDown,
-	CaretRight,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -78,6 +77,8 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
+
+import { CaretNext } from "./ArrowIcons.js";
 import { createPortal } from "react-dom";
 
 import type { MediaItem } from "../lib/api";
@@ -1470,12 +1471,12 @@ function BlockKitRepeaterItem({
 				</span>
 				<button
 					type="button"
-					className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+					className="flex items-center gap-2 flex-1 min-w-0 text-start cursor-pointer"
 					onClick={onToggleCollapse}
 					aria-expanded={!isCollapsed}
 				>
 					{isCollapsed ? (
-						<CaretRight className="h-4 w-4 text-kumo-subtle shrink-0" />
+						<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
 					) : (
 						<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 					)}

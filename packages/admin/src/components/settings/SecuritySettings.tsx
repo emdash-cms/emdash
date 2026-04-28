@@ -7,7 +7,9 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Shield, Plus, CheckCircle, WarningCircle, ArrowLeft, Info } from "@phosphor-icons/react";
+import { Shield, Plus, CheckCircle, WarningCircle, Info } from "@phosphor-icons/react";
+
+import { ArrowPrev } from "../ArrowIcons.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -102,7 +104,7 @@ export function SecuritySettings() {
 		<div className="flex items-center gap-3">
 			<Link to="/settings">
 				<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-					<ArrowLeft className="h-4 w-4" />
+					<ArrowPrev className="h-4 w-4" />
 				</Button>
 			</Link>
 			<h1 className="text-2xl font-bold">{t`Security Settings`}</h1>

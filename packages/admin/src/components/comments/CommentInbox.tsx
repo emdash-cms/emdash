@@ -13,11 +13,11 @@ import {
 	Check,
 	Trash,
 	Warning,
-	CaretLeft,
-	CaretRight,
 	ChatCircle,
 } from "@phosphor-icons/react";
 import * as React from "react";
+
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 
 import type {
 	AdminComment,
@@ -358,7 +358,7 @@ export function CommentInbox({
 							onClick={() => setPage(page - 1)}
 							aria-label={t`Previous page`}
 						>
-							<CaretLeft className="h-4 w-4" />
+							<CaretPrev className="h-4 w-4" />
 						</Button>
 						<span className="text-sm">
 							{page + 1} / {totalPages}
@@ -377,7 +377,7 @@ export function CommentInbox({
 							}}
 							aria-label={t`Next page`}
 						>
-							<CaretRight className="h-4 w-4" />
+							<CaretNext className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>

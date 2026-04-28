@@ -11,7 +11,6 @@ import {
 	Database,
 	FileText,
 	CaretDown,
-	CaretRight,
 	Image,
 	DownloadSimple,
 	Globe,
@@ -23,6 +22,8 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
+
+import { CaretNext } from "./ArrowIcons.js";
 
 import {
 	analyzeWxr,
@@ -1828,7 +1829,7 @@ function PostTypeRow({
 						{expanded ? (
 							<CaretDown className="h-4 w-4 text-kumo-subtle" />
 						) : (
-							<CaretRight className="h-4 w-4 text-kumo-subtle" />
+							<CaretNext className="h-4 w-4 text-kumo-subtle" />
 						)}
 						<div>
 							<p className="font-medium">{postType.name}</p>

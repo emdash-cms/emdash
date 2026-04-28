@@ -14,13 +14,14 @@ import {
 	WarningCircle,
 	Trash,
 	Pencil,
-	ArrowLeft,
 	Info,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
+
+import { ArrowPrev } from "../ArrowIcons.js";
 
 import {
 	fetchAllowedDomains,
@@ -166,7 +167,7 @@ export function AllowedDomainsSettings() {
 		<div className="flex items-center gap-3">
 			<Link to="/settings">
 				<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-					<ArrowLeft className="h-4 w-4" />
+					<ArrowPrev className="h-4 w-4" />
 				</Button>
 			</Link>
 			<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>

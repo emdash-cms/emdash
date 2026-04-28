@@ -8,7 +8,6 @@
 import { Button, Input, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	CheckCircle,
 	Envelope,
 	PaperPlaneTilt,
@@ -19,6 +18,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { ArrowPrev } from "../ArrowIcons.js";
 import {
 	fetchEmailSettings,
 	sendTestEmail,
@@ -84,7 +84,7 @@ export function EmailSettings() {
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
 						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowPrev className="h-4 w-4" />
 						</Button>
 					</Link>
 					<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
@@ -103,7 +103,7 @@ export function EmailSettings() {
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
 					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 				</Link>
 				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>

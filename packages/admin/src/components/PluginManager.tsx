@@ -15,7 +15,6 @@ import {
 	SquaresFour,
 	WebhooksLogo,
 	CaretDown,
-	CaretRight,
 	ArrowsClockwise,
 	Storefront,
 	Trash,
@@ -23,6 +22,8 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+
+import { CaretNext } from "./ArrowIcons.js";
 import * as React from "react";
 
 import {
@@ -396,7 +397,11 @@ function PluginCard({
 							onClick={() => setExpanded(!expanded)}
 							aria-expanded={expanded}
 						>
-							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
+							{expanded ? (
+								<CaretDown className="h-4 w-4" />
+							) : (
+								<CaretNext className="h-4 w-4" />
+							)}
 							<span className="sr-only">
 								{expanded ? t`Collapse` : t`Expand`} {t`details`}
 							</span>

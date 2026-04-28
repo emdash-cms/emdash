@@ -12,13 +12,14 @@ import {
 	CaretUp,
 	CaretDown,
 	Link as LinkIcon,
-	ArrowLeft,
 	X,
 	File as FileIcon,
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
+
+import { ArrowPrev } from "./ArrowIcons.js";
 
 import {
 	fetchMenu,
@@ -218,7 +219,7 @@ export function MenuEditor() {
 						aria-label={t`Back`}
 						onClick={() => navigate({ to: "/menus" })}
 					>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 					<div>
 						<h1 className="text-3xl font-bold">{menu.label}</h1>

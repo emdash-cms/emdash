@@ -8,7 +8,6 @@
 import { Button, Input, Label } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	FloppyDisk,
 	CheckCircle,
 	WarningCircle,
@@ -18,6 +17,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
+
+import { ArrowPrev } from "../ArrowIcons.js";
 
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
@@ -105,7 +106,7 @@ export function GeneralSettings() {
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
 						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowPrev className="h-4 w-4" />
 						</Button>
 					</Link>
 					<h1 className="text-2xl font-bold">{t`General Settings`}</h1>
@@ -123,7 +124,7 @@ export function GeneralSettings() {
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
 					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 				</Link>
 				<h1 className="text-2xl font-bold">{t`General Settings`}</h1>

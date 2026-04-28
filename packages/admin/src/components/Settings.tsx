@@ -9,8 +9,9 @@ import {
 	GlobeSimple,
 	Key,
 	Envelope,
-	CaretRight,
 } from "@phosphor-icons/react";
+
+import { CaretNext } from "./ArrowIcons.js";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -39,7 +40,7 @@ function SettingsLink({ to, icon, title, description }: SettingsLinkProps) {
 					<div className="text-sm text-kumo-subtle">{description}</div>
 				</div>
 			</div>
-			<CaretRight className="h-5 w-5 text-kumo-subtle" />
+			<CaretNext className="h-5 w-5 text-kumo-subtle" />
 		</Link>
 	);
 }

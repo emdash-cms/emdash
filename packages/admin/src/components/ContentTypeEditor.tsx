@@ -20,7 +20,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	Plus,
 	DotsSixVertical,
 	Pencil,
@@ -30,6 +29,8 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
+
+import { ArrowPrev } from "./ArrowIcons.js";
 
 import type {
 	SchemaCollectionWithFields,
@@ -330,7 +331,7 @@ export function ContentTypeEditor({
 					aria-label="Back to Content Types"
 					className={buttonVariants({ variant: "ghost", shape: "square" })}
 				>
-					<ArrowLeft className="h-5 w-5" />
+					<ArrowPrev className="h-5 w-5" />
 				</Link>
 				<div className="flex-1">
 					<h1 className="text-2xl font-bold">{isNew ? "New Content Type" : collection?.label}</h1>
