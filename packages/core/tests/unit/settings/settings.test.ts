@@ -1,13 +1,19 @@
-import type { Kysely } from "kysely";
+import BetterSqlite3 from "better-sqlite3";
+import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach } from "vitest";
 
+import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import {
 	getPluginSettingWithDb,
 	getPluginSettingsWithDb,
+	getSiteSetting,
+	getSiteSettings,
 	getSiteSettingWithDb,
 	getSiteSettingsWithDb,
+	invalidateSiteSettingsCache,
 	setSiteSettings,
 } from "../../../src/settings/index.js";
 import { setupTestDatabase } from "../../utils/test-db.js";
@@ -215,5 +221,119 @@ describe("Site Settings", () => {
 			const favicon = await getSiteSettingWithDb("favicon", db, null);
 			expect(favicon?.mediaId).toBe("med_456");
 		});
+	});
+});
+
+/**
+ * Build an in-memory db with a query counter wired into Kysely's `log`
+ * hook. Lets the cache tests assert "no DB query was issued" without
+ * mocking out the repository layer (real DB, real SQL, real round-trip).
+ */
+async function setupCountingDb(): Promise<{
+	db: Kysely<Database>;
+	queries: string[];
+	reset: () => void;
+}> {
+	const sqlite = new BetterSqlite3(":memory:");
+	const queries: string[] = [];
+	const db = new Kysely<Database>({
+		dialect: new SqliteDialect({ database: sqlite }),
+		log: (event) => {
+			if (event.level === "query") queries.push(event.query.sql);
+		},
+	});
+	await runMigrations(db);
+	return { db, queries, reset: () => queries.splice(0, queries.length) };
+}
+
+describe("Site Settings caching", () => {
+	beforeEach(() => {
+		invalidateSiteSettingsCache();
+	});
+
+	it("getSiteSetting() does not hit the DB after getSiteSettings() in the same request", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		await setSiteSettings({ title: "Site", seo: { titleSeparator: " — " } }, db);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			reset();
+			const all = await getSiteSettings();
+			expect(all.title).toBe("Site");
+			const optionsQueriesAfterAll = queries.filter((q) => q.includes("options")).length;
+
+			const seo = await getSiteSetting("seo");
+			expect(seo?.titleSeparator).toBe(" — ");
+			const optionsQueriesAfterSeo = queries.filter((q) => q.includes("options")).length;
+
+			expect(optionsQueriesAfterSeo).toBe(optionsQueriesAfterAll);
+		});
+	});
+
+	it("globalThis cache survives across requests within an isolate", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		await setSiteSettings({ title: "Cached Site" }, db);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			const first = await getSiteSettings();
+			expect(first.title).toBe("Cached Site");
+		});
+
+		reset();
+
+		await runWithContext({ editMode: false, db }, async () => {
+			const second = await getSiteSettings();
+			expect(second.title).toBe("Cached Site");
+		});
+
+		const optionsQueries = queries.filter((q) => q.includes("options"));
+		expect(optionsQueries).toEqual([]);
+	});
+
+	it("setSiteSettings() invalidates the globalThis cache", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		await setSiteSettings({ title: "Original" }, db);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			const before = await getSiteSettings();
+			expect(before.title).toBe("Original");
+		});
+
+		await setSiteSettings({ title: "Updated" }, db);
+
+		reset();
+
+		await runWithContext({ editMode: false, db }, async () => {
+			const after = await getSiteSettings();
+			expect(after.title).toBe("Updated");
+		});
+
+		const prefixScans = queries.filter((q) => q.includes("LIKE") && q.includes("options"));
+		expect(prefixScans.length).toBe(1);
+	});
+
+	it("invalidateSiteSettingsCache() drops the cached value", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		await setSiteSettings({ title: "First" }, db);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			await getSiteSettings();
+		});
+
+		await db
+			.updateTable("options")
+			.set({ value: JSON.stringify("Second") })
+			.where("name", "=", "site:title")
+			.execute();
+
+		reset();
+		invalidateSiteSettingsCache();
+
+		await runWithContext({ editMode: false, db }, async () => {
+			const after = await getSiteSettings();
+			expect(after.title).toBe("Second");
+		});
+
+		const prefixScans = queries.filter((q) => q.includes("LIKE") && q.includes("options"));
+		expect(prefixScans.length).toBe(1);
 	});
 });
