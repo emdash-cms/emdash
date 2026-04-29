@@ -120,9 +120,9 @@ export async function verifyRegistrationResponse(
 	// Delete challenge (single-use)
 	await challengeStore.delete(challengeString);
 
-	// Verify origin
-	if (clientData.origin !== config.origin) {
-		throw new Error(`Invalid origin: expected ${config.origin}, got ${clientData.origin}`);
+	// Verify origin against the accepted list
+	if (!config.origins.includes(clientData.origin)) {
+		throw new Error(`Invalid origin: ${clientData.origin} not in [${config.origins.join(", ")}]`);
 	}
 
 	// Parse attestation object

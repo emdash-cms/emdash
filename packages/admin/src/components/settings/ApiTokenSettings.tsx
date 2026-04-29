@@ -8,16 +8,7 @@ import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	Copy,
-	Eye,
-	EyeSlash,
-	Key,
-	Plus,
-	Trash,
-	WarningCircle,
-} from "@phosphor-icons/react";
+import { Copy, Eye, EyeSlash, Key, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -30,6 +21,7 @@ import {
 	type ApiTokenCreateResult,
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
+import { ArrowPrev } from "../ArrowIcons.js";
 import { getMutationError } from "../DialogError.js";
 
 // =============================================================================
@@ -189,7 +181,7 @@ export function ApiTokenSettings() {
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
 					<Button variant="ghost" shape="square" aria-label={t(msg`Back to settings`)}>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 				</Link>
 				<div>

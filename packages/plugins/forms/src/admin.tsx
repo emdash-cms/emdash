@@ -287,12 +287,12 @@ function FormsListPage() {
 					<table className="w-full text-sm">
 						<thead>
 							<tr className="border-b bg-muted/50">
-								<th className="text-left p-3 font-medium">Name</th>
-								<th className="text-left p-3 font-medium">Slug</th>
-								<th className="text-left p-3 font-medium">Status</th>
-								<th className="text-right p-3 font-medium">Submissions</th>
-								<th className="text-left p-3 font-medium">Last Submission</th>
-								<th className="text-right p-3 font-medium">Actions</th>
+								<th className="text-start p-3 font-medium">Name</th>
+								<th className="text-start p-3 font-medium">Slug</th>
+								<th className="text-start p-3 font-medium">Status</th>
+								<th className="text-end p-3 font-medium">Submissions</th>
+								<th className="text-start p-3 font-medium">Last Submission</th>
+								<th className="text-end p-3 font-medium">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -305,7 +305,7 @@ function FormsListPage() {
 											{form.status}
 										</Badge>
 									</td>
-									<td className="p-3 text-right tabular-nums">{form.submissionCount}</td>
+									<td className="p-3 text-end tabular-nums">{form.submissionCount}</td>
 									<td className="p-3 text-muted-foreground">
 										{form.lastSubmissionAt ? formatDate(form.lastSubmissionAt) : "Never"}
 									</td>
@@ -532,7 +532,7 @@ function FormEditor({
 		<div className="space-y-6">
 			<div className="flex items-center gap-3">
 				<Button variant="ghost" shape="square" onClick={onCancel} aria-label="Back">
-					<ArrowLeft className="h-5 w-5" />
+					<ArrowLeft className="h-5 w-5 rtl:-scale-x-100" />
 				</Button>
 				<div>
 					<h1 className="text-3xl font-bold">{form ? "Edit Form" : "New Form"}</h1>
@@ -808,7 +808,7 @@ function OptionsEditor({
 	const removeOption = (index: number) => onChange(options.filter((_, i) => i !== index));
 
 	return (
-		<div className="ml-8 space-y-1">
+		<div className="ms-8 space-y-1">
 			<span className="text-xs text-muted-foreground">Options:</span>
 			{options.map((opt, i) => (
 				<div key={i} className="flex items-center gap-2">
@@ -1054,10 +1054,10 @@ function SubmissionsPage() {
 								<thead>
 									<tr className="border-b bg-muted/50">
 										<th className="w-8 p-3" />
-										<th className="text-left p-3 font-medium">Date</th>
-										<th className="text-left p-3 font-medium">Preview</th>
-										<th className="text-left p-3 font-medium">Status</th>
-										<th className="text-right p-3 font-medium">Actions</th>
+										<th className="text-start p-3 font-medium">Date</th>
+										<th className="text-start p-3 font-medium">Preview</th>
+										<th className="text-start p-3 font-medium">Status</th>
+										<th className="text-end p-3 font-medium">Actions</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -1113,7 +1113,7 @@ function SubmissionsPage() {
 														{sub.status}
 													</Badge>
 												</td>
-												<td className="p-3 text-right">
+												<td className="p-3 text-end">
 													<div className="flex items-center justify-end gap-1">
 														<Button
 															variant="ghost"
@@ -1264,7 +1264,7 @@ function RecentSubmissionsWidget() {
 							<Badge variant={sub.status === "new" ? "success" : "default"}>{sub.status}</Badge>
 							<span className="truncate">{preview || formMap.get(sub.formId) || "Submission"}</span>
 						</div>
-						<span className="text-muted-foreground whitespace-nowrap ml-2">
+						<span className="text-muted-foreground whitespace-nowrap ms-2">
 							{formatDate(sub.createdAt)}
 						</span>
 					</div>

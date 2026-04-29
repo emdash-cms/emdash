@@ -44,6 +44,10 @@ export interface PluginBlockDef {
 	placeholder?: string;
 	/** Block Kit form fields. If declared, replaces the simple URL input. */
 	fields?: Element[];
+	/**
+	 * Optional display category in the slash menu. Defaults to "Embeds" when omitted.
+	 */
+	category?: string;
 }
 
 // =============================================================================

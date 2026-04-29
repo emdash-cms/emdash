@@ -52,6 +52,16 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB", session: "auto" }),
 			storage: r2({ binding: "MEDIA" }),
+			plugins: [
+				{
+					id: "marketing-blocks",
+					version: "0.1.0",
+					// Absolute file:// URL so the virtual emdash/plugins module
+					// can resolve this at build time (relative paths fail because
+					// the virtual module has no on-disk location to anchor them).
+					entrypoint: new URL("./src/plugins/marketing-blocks/index.ts", import.meta.url).href,
+				},
+			],
 		}),
 	],
 	fonts: [

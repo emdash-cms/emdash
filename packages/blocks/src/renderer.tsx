@@ -1,3 +1,4 @@
+import { AccordionBlockComponent } from "./blocks/accordion.js";
 import { ActionsBlockComponent } from "./blocks/actions.js";
 import { BannerBlockComponent } from "./blocks/banner.js";
 import { ChartBlockComponent } from "./blocks/chart.js";
@@ -53,6 +54,8 @@ function renderBlock(
 			return <CodeBlockComponent block={block} />;
 		case "empty":
 			return <EmptyBlockComponent block={block} onAction={onAction} />;
+		case "accordion":
+			return <AccordionBlockComponent block={block} onAction={onAction} />;
 		default: {
 			const _exhaustive: never = block;
 			return null;

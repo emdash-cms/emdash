@@ -88,6 +88,7 @@ export default defineConfig({
 						{ label: "Plugin Settings", slug: "plugins/settings" },
 						{ label: "Admin UI Extensions", slug: "plugins/admin-ui" },
 						{ label: "Block Kit", slug: "plugins/block-kit" },
+						{ label: "Field Kit", slug: "plugins/field-kit" },
 						{ label: "API Routes", slug: "plugins/api-routes" },
 						{ label: "Sandbox & Security", slug: "plugins/sandbox" },
 						{ label: "Publishing Plugins", slug: "plugins/publishing" },

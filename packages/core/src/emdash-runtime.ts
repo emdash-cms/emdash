@@ -1427,6 +1427,7 @@ export class EmDashRuntime {
 					description?: string;
 					placeholder?: string;
 					fields?: Element[];
+					category?: string;
 				}>;
 				fieldWidgets?: Array<{
 					name: string;

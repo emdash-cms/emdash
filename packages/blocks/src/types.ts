@@ -330,6 +330,13 @@ export interface EmptyBlock extends BlockBase {
 	actions?: Element[];
 }
 
+export interface AccordionBlock extends BlockBase {
+	type: "accordion";
+	label: string;
+	blocks: Block[];
+	default_open?: boolean;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -346,7 +353,8 @@ export type Block =
 	| BannerBlock
 	| MeterBlock
 	| CodeBlock
-	| EmptyBlock;
+	| EmptyBlock
+	| AccordionBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 
