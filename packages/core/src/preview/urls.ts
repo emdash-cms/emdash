@@ -20,8 +20,18 @@ export interface GetPreviewUrlOptions {
 	expiresIn?: string | number;
 	/** Base URL of the site. If not provided, returns a relative URL. */
 	baseUrl?: string;
-	/** Custom path pattern. Use {collection} and {id} as placeholders. Default: "/{collection}/{id}" */
+	/**
+	 * Custom path pattern. Supports `{collection}`, `{id}` and `{locale}`
+	 * placeholders. Default: `"/{collection}/{id}"`.
+	 */
 	pathPattern?: string;
+	/**
+	 * Locale segment substituted for the `{locale}` placeholder in `pathPattern`.
+	 * Pass an empty string to omit the locale prefix (e.g. for the default locale
+	 * when `prefixDefaultLocale` is `false`); adjacent slashes left by an empty
+	 * value are collapsed and any trailing slash is trimmed.
+	 */
+	locale?: string;
 }
 
 /**
@@ -65,6 +75,7 @@ export async function getPreviewUrl(options: GetPreviewUrlOptions): Promise<stri
 		expiresIn = "1h",
 		baseUrl,
 		pathPattern = "/{collection}/{id}",
+		locale = "",
 	} = options;
 
 	// Generate the signed token
@@ -74,8 +85,15 @@ export async function getPreviewUrl(options: GetPreviewUrlOptions): Promise<stri
 		secret,
 	});
 
-	// Build the path
-	const path = pathPattern.replace("{collection}", collection).replace("{id}", id);
+	// Build the path. `{locale}` may resolve to an empty string (default locale
+	// without a prefix); collapse the resulting double slashes and trim a
+	// trailing slash so the URL stays clean.
+	let path = pathPattern
+		.replace("{collection}", collection)
+		.replace("{id}", id)
+		.replace("{locale}", locale);
+	path = path.replace(/\/{2,}/g, "/");
+	if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
 
 	// Add token as query parameter
 	const url = new URL(path, baseUrl || "http://placeholder");
