@@ -697,7 +697,7 @@ export class EmDashRuntime {
 				const devConsolePlugin = definePlugin({
 					id: DEV_CONSOLE_EMAIL_PLUGIN_ID,
 					version: "0.0.0",
-					capabilities: ["email:provide"],
+					capabilities: ["hooks.email-transport:register"],
 					hooks: {
 						"email:deliver": {
 							exclusive: true,
@@ -720,7 +720,7 @@ export class EmDashRuntime {
 			const defaultModeratorPlugin = definePlugin({
 				id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 				version: "0.0.0",
-				capabilities: ["read:users"],
+				capabilities: ["users:read"],
 				hooks: {
 					"comment:moderate": {
 						exclusive: true,

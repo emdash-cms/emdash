@@ -21,6 +21,7 @@ import { createGzipDecoder, unpackTar } from "modern-tar";
 import pc from "picocolors";
 
 import { pluginManifestSchema } from "../../plugins/manifest-schema.js";
+import { CAPABILITY_RENAMES, isDeprecatedCapability } from "../../plugins/types.js";
 import {
 	getMarketplaceCredential,
 	saveMarketplaceCredential,
@@ -439,6 +440,29 @@ export const publishCommand = defineCommand({
 			consola.info(`Allowed hosts: ${manifest.allowedHosts.join(", ")}`);
 		}
 		console.log();
+
+		// ── Step 2.5: Hard-fail on deprecated capability names ──
+		//
+		// Refusing to publish manifests that use deprecated capability names
+		// keeps the marketplace clean while the deprecation window is open.
+		// The fix is mechanical and entirely in the author's hands — they
+		// rename, re-bundle, and republish. Better to refuse 5 publishes
+		// than ship 500 deprecated manifests. We check before authentication
+		// so authors don't burn a device-flow login on a doomed publish.
+		const deprecatedCaps = manifest.capabilities.filter(isDeprecatedCapability);
+		if (deprecatedCaps.length > 0) {
+			consola.error(
+				"Plugin declares deprecated capability names. Rename them and re-bundle before publishing:",
+			);
+			for (const cap of deprecatedCaps) {
+				const replacement = CAPABILITY_RENAMES[cap];
+				consola.error(`  ${cap} → ${replacement}`);
+			}
+			consola.error(
+				"See https://emdashcms.com/docs/plugins/capabilities for the full rename table.",
+			);
+			process.exit(1);
+		}
 
 		// ── Step 3: Authenticate ──
 		//
