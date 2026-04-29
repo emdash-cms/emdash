@@ -16,7 +16,11 @@ import { SeoRepository } from "../database/repositories/seo.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
-import { validateExternalUrl, SsrfError, stripCredentialHeaders } from "../import/ssrf.js";
+import {
+	resolveAndValidateExternalUrl,
+	SsrfError,
+	stripCredentialHeaders,
+} from "../import/ssrf.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
@@ -599,9 +603,10 @@ export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
 			let currentInit = init;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
-				// Validate each URL against SSRF rules (private IPs, metadata endpoints)
+				// Validate each URL against SSRF rules (private IPs, metadata
+				// endpoints, wildcard DNS, resolved-IP private ranges).
 				try {
-					validateExternalUrl(currentUrl);
+					await resolveAndValidateExternalUrl(currentUrl);
 				} catch (e) {
 					const msg = e instanceof SsrfError ? e.message : "SSRF validation failed";
 					throw new Error(
@@ -642,14 +647,14 @@ export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
 }
 
 /**
- * Create blocked HTTP access (for plugins without network:fetch capability)
+ * Create blocked HTTP access (for plugins without network:request capability)
  */
 export function createBlockedHttpAccess(pluginId: string): HttpAccess {
 	return {
 		async fetch(): Promise<never> {
 			throw new Error(
-				`Plugin "${pluginId}" does not have the "network:fetch" capability. ` +
-					`Add "network:fetch" to the plugin's capabilities to enable HTTP requests.`,
+				`Plugin "${pluginId}" does not have the "network:request" capability. ` +
+					`Add "network:request" to the plugin's capabilities to enable HTTP requests.`,
 			);
 		},
 	};
@@ -849,6 +854,13 @@ export interface PluginContextFactoryOptions {
 	 * If not provided (or no provider configured), ctx.email will be undefined.
 	 */
 	emailPipeline?: EmailPipeline;
+	/**
+	 * Pre-resolved list of trusted proxy header names (from the runtime
+	 * `EmDashConfig.trustedProxyHeaders` or the env var). Plugin route
+	 * handlers pass this to `extractRequestMeta` so plugins see the same
+	 * client IP the core auth path does.
+	 */
+	trustedProxyHeaders?: string[];
 }
 
 /**
@@ -890,32 +902,35 @@ export class PluginContextFactory {
 		const storage = createStorageAccess(this.db, plugin.id, plugin.storage);
 
 		// Capability-gated: content
+		// Note: capabilities reach this point already normalized to the
+		// canonical names by definePlugin / adaptSandboxEntry. Deprecated
+		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
-		if (capabilities.has("write:content")) {
+		if (capabilities.has("content:write")) {
 			content = createContentAccessWithWrite(this.db);
-		} else if (capabilities.has("read:content")) {
+		} else if (capabilities.has("content:read")) {
 			content = createContentAccess(this.db);
 		}
 
 		// Capability-gated: media
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
-		if (capabilities.has("write:media") && this.getUploadUrl) {
+		if (capabilities.has("media:write") && this.getUploadUrl) {
 			media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
-		} else if (capabilities.has("read:media")) {
+		} else if (capabilities.has("media:read")) {
 			media = createMediaAccess(this.db);
 		}
 
 		// Capability-gated: http
 		let http: HttpAccess | undefined;
-		if (capabilities.has("network:fetch:any")) {
+		if (capabilities.has("network:request:unrestricted")) {
 			http = createUnrestrictedHttpAccess(plugin.id);
-		} else if (capabilities.has("network:fetch")) {
+		} else if (capabilities.has("network:request")) {
 			http = createHttpAccess(plugin.id, plugin.allowedHosts);
 		}
 
 		// Capability-gated: users
 		let users: UserAccess | undefined;
-		if (capabilities.has("read:users")) {
+		if (capabilities.has("users:read")) {
 			users = createUserAccess(this.db);
 		}
 

@@ -11,6 +11,8 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { updateWidgetBody } from "#api/schemas.js";
+import { rowToWidget } from "#widgets/index.js";
+import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
 
@@ -73,10 +75,11 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		const widget = await db
 			.selectFrom("_emdash_widgets")
 			.selectAll()
+			.$castTo<WidgetRow>()
 			.where("id", "=", id)
 			.executeTakeFirstOrThrow();
 
-		return apiSuccess(widget);
+		return apiSuccess(rowToWidget(widget));
 	} catch (error) {
 		return handleError(error, "Failed to update widget", "WIDGET_UPDATE_ERROR");
 	}

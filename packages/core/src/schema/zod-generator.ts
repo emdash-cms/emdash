@@ -53,6 +53,9 @@ export function generateFieldSchema(field: Field): ZodTypeAny {
  */
 function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 	switch (type) {
+		case "url":
+			return z.string().url();
+
 		case "string":
 		case "text":
 		case "slug":
@@ -330,6 +333,7 @@ function fieldTypeToTypeScript(field: Field): string {
 		case "string":
 		case "text":
 		case "slug":
+		case "url":
 		case "datetime":
 			return "string";
 

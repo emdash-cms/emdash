@@ -14,6 +14,7 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import {
 	EmDashValidationError,
+	InvalidCursorError,
 	type ContentItem,
 	type ContentSeo,
 	type ContentSeoInput,
@@ -23,8 +24,25 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+
+/**
+ * Narrow a caught error to one carrying a structured `apiError` discriminant.
+ * Used by transaction callbacks that want to surface a specific error code
+ * through the standard Error throwing path.
+ */
+function hasApiError(error: unknown): error is Error & { apiError: { code: string } } {
+	if (!(error instanceof Error) || !("apiError" in error)) return false;
+	const { apiError } = error;
+	return (
+		typeof apiError === "object" &&
+		apiError !== null &&
+		"code" in apiError &&
+		typeof apiError.code === "string"
+	);
+}
 
 /**
  * Extract a slug source (title or name) from content data.
@@ -267,6 +285,28 @@ export async function handleContentList(
 			},
 		};
 	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			// e.g. invalid orderBy field
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
 		console.error("Content list error:", error);
 		return {
 			success: false,
@@ -453,6 +493,46 @@ export async function handleContentCreate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		// SQLite UNIQUE constraint OR Postgres unique_violation — slug
+		// collisions and any other unique violations land here. Match
+		// specifically on "unique constraint failed" / "duplicate key" so we
+		// don't false-positive on NOT NULL or CHECK violations whose
+		// messages also contain "constraint failed".
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
+			// Detect slug-specific collisions by message fingerprint
+			if (message.includes("slug")) {
+				return {
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: "Unique constraint violation",
+				},
+			};
+		}
 		console.error("Content create error:", error);
 		return {
 			success: false,
@@ -483,6 +563,7 @@ export async function handleContentUpdate(
 		bylines?: ContentBylineInput[];
 		_rev?: string;
 		seo?: ContentSeoInput;
+		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
@@ -542,6 +623,7 @@ export async function handleContentUpdate(
 				slug: body.slug,
 				status: body.status,
 				authorId: body.authorId,
+				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
@@ -602,11 +684,44 @@ export async function handleContentUpdate(
 	} catch (error) {
 		// Handle structured errors thrown from inside the transaction
 		// (rev check failures, not-found)
-		if (error instanceof Error && "apiError" in error) {
-			const { code } = (error as Error & { apiError: { code: string } }).apiError;
+		if (hasApiError(error)) {
 			return {
 				success: false,
-				error: { code, message: error.message },
+				error: { code: error.apiError.code, message: error.message },
+			};
+		}
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
+			if (message.includes("slug")) {
+				return {
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: "Unique constraint violation",
+				},
 			};
 		}
 		console.error("Content update error:", error);
@@ -867,6 +982,12 @@ export async function handleContentListTrashed(
 			},
 		};
 	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		console.error("Content list trashed error:", error);
 		return {
 			success: false,
@@ -972,6 +1093,15 @@ export async function handleContentUnschedule(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unschedule error:", error);
 		return {
 			success: false,
@@ -1010,6 +1140,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content publish error:", error);
 		return {
 			success: false,
@@ -1047,6 +1186,15 @@ export async function handleContentUnpublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unpublish error:", error);
 		return {
 			success: false,

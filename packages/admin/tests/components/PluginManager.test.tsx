@@ -12,11 +12,29 @@ vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
 		...actual,
-		Link: ({ children, to, ...props }: any) => (
-			<a href={to} {...props}>
-				{children}
-			</a>
-		),
+		Link: ({ children, to, params, ...props }: any) => {
+			let href = String(to ?? "");
+			if (params && typeof params === "object") {
+				for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+					const stringified =
+						value == null
+							? ""
+							: typeof value === "string" || typeof value === "number"
+								? String(value)
+								: "";
+					if (key === "_splat") {
+						href = href.replace("$", stringified);
+					} else {
+						href = href.replace(`$${key}`, stringified);
+					}
+				}
+			}
+			return (
+				<a href={href} {...props}>
+					{children}
+				</a>
+			);
+		},
 		useNavigate: () => vi.fn(),
 	};
 });
@@ -163,6 +181,22 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
 		const settingsButtons = screen.getByRole("button", { name: "Settings" }).all();
 		expect(settingsButtons.length).toBe(1);
+	});
+
+	it("settings link points to the plugin root, not a /settings sub-path", async () => {
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
+		const settingsButton = screen.getByRole("button", { name: "Settings" });
+		await expect.element(settingsButton).toBeInTheDocument();
+		const anchor = settingsButton.element().closest("a");
+		expect(anchor).not.toBeNull();
+		// Plugins are not required to expose a `/settings` sub-page; the gear
+		// icon should land on the plugin's primary admin page.
+		expect(anchor!.getAttribute("href")).toMatch(/^\/plugins\/audit-log\/?$/);
 	});
 
 	it("expand/collapse shows plugin details", async () => {

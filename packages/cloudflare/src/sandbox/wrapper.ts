@@ -11,7 +11,7 @@
  *
  */
 
-import type { PluginManifest } from "emdash";
+import { normalizeCapabilities, type PluginManifest } from "emdash";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -33,8 +33,11 @@ export interface WrapperOptions {
 export function generatePluginWrapper(manifest: PluginManifest, options?: WrapperOptions): string {
 	const storageCollections = Object.keys(manifest.storage || {});
 	const site = options?.site ?? { name: "", url: "", locale: "en" };
-	const hasReadUsers = manifest.capabilities.includes("read:users");
-	const hasEmailSend = manifest.capabilities.includes("email:send");
+	// Normalize so manifests that still declare legacy names (`read:users`)
+	// expose the same APIs as canonical names (`users:read`).
+	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
+	const hasReadUsers = capabilities.includes("users:read");
+	const hasEmailSend = capabilities.includes("email:send");
 
 	return `
 // =============================================================================

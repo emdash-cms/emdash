@@ -1,0 +1,44 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-demo-blog",
+	"main": "./src/worker.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"placement": {
+		"mode": "smart"
+	},
+	"routes": [
+		{
+			"pattern": "blog-demo.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-demo-blog",
+			"database_id": "9361329b-a0f6-4c59-a184-74747a705e54",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-demo-media",
+		},
+	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "045dd0600977420992277da020ae2df3",
+		},
+	],
+}

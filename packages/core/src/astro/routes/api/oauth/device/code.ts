@@ -15,6 +15,7 @@ import { handleDeviceCodeRequest } from "#api/handlers/device-flow.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
+import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 
 export const prerender = false;
 
@@ -35,7 +36,7 @@ export const POST: APIRoute = async ({ request, locals, url }) => {
 		if (isParseError(body)) return body;
 
 		// Rate limit: 10 requests per 60 seconds per IP
-		const ip = getClientIp(request);
+		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
 		const rateLimit = await checkRateLimit(emdash.db, ip, "device/code", 10, 60);
 		if (!rateLimit.allowed) {
 			return rateLimitResponse(60);

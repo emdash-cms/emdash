@@ -133,44 +133,40 @@ The admin CSS uses the `--font-emdash` CSS variable. This is set automatically b
 **Optional.** Authentication configuration.
 
 ```js
-auth: {
-  // Self-signup configuration
-  selfSignup: {
-    domains: ["example.com"],
-    defaultRole: 20, // Contributor
-  },
-  
-  // OAuth providers
-  oauth: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    },
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    },
-  },
-  
-  // Session configuration
-  session: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    sliding: true, // Reset expiry on activity
-  },
-  
-  // OR use Cloudflare Access (exclusive mode)
-  cloudflareAccess: {
-    teamDomain: "myteam.cloudflareaccess.com",
-    audience: "your-app-audience-tag",
-    autoProvision: true,
-    defaultRole: 30,
-    syncRoles: false,
-    roleMapping: {
-      "Admins": 50,
-      "Editors": 40,
-    },
-  },
-}
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+emdash({
+	auth: {
+		// Self-signup configuration
+		selfSignup: {
+			domains: ["example.com"],
+			defaultRole: 20, // Contributor
+		},
+
+		// Session configuration
+		session: {
+			maxAge: 30 * 24 * 60 * 60, // 30 days
+			sliding: true, // Reset expiry on activity
+		},
+
+		// OR use Cloudflare Access (exclusive mode)
+		cloudflareAccess: {
+			teamDomain: "myteam.cloudflareaccess.com",
+			audience: "your-app-audience-tag",
+			autoProvision: true,
+			defaultRole: 30,
+			syncRoles: false,
+			roleMapping: {
+				Admins: 50,
+				Editors: 40,
+			},
+		},
+	},
+	// Pluggable login providers (top-level, not nested under `auth`)
+	authProviders: [github(), google(), atproto()],
+});
 ```
 
 #### `auth.selfSignup`
@@ -189,22 +185,27 @@ selfSignup: {
 }
 ```
 
-#### `auth.oauth`
+### `authProviders`
 
-Configure OAuth login providers.
+**Optional.** An array of pluggable login providers (top-level, alongside `auth`). Each entry is the result of calling a provider factory:
 
 ```js
-oauth: {
-  github: {
-    clientId: process.env.GITHUB_CLIENT_ID,
-    clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  },
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  },
-}
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+emdash({
+	authProviders: [github(), google(), atproto()],
+});
 ```
+
+Built-in providers:
+
+- `github()` — reads `EMDASH_OAUTH_GITHUB_CLIENT_ID` / `EMDASH_OAUTH_GITHUB_CLIENT_SECRET` (or unprefixed fallbacks).
+- `google()` — reads `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET`.
+- `atproto()` — Atmosphere/AT Protocol login. No env vars needed. Accepts `{ allowedDIDs, allowedHandles, defaultRole }`. See the [Atmosphere login guide](/guides/atmosphere-auth/).
+
+Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
 
 #### `auth.session`
 
@@ -258,6 +259,39 @@ When `siteUrl` is not set in config, EmDash checks environment variables in orde
 	`siteUrl` replaces `passkeyPublicOrigin` (removed). If you were using `passkeyPublicOrigin`, rename it to `siteUrl` -- it now covers passkeys and all other origin-dependent features.
 </Aside>
 
+#### Multi-origin passkey verification
+
+`siteUrl` defines a single canonical origin. When the same EmDash deployment is reachable under several hostnames that share a registrable parent domain (e.g. `https://example.com` and `https://preview.example.com`), passkey verification rejects assertions whose origin doesn't match `siteUrl` exactly -- even though WebAuthn allows passkeys to be valid across subdomains under the same `rpId`.
+
+Declare additional accepted origins via either `allowedOrigins` in `astro.config.mjs` or the `EMDASH_ALLOWED_ORIGINS` env var. The canonical `siteUrl` remains the source of `rpId`; entries listed here are accepted at verification time. The two sources are merged at runtime, so config can declare the stable origins (versioned, code-reviewed) while env adds environment-specific extras (e.g. ephemeral PR previews).
+
+```js title="astro.config.mjs"
+emdash({
+	siteUrl: "https://example.com",
+	allowedOrigins: ["https://preview.example.com"],
+})
+```
+
+```bash title=".env / wrangler.jsonc / Docker env"
+EMDASH_SITE_URL=https://example.com
+EMDASH_ALLOWED_ORIGINS=https://preview.example.com,https://staging.example.com
+```
+
+##### Validation
+
+EmDash validates these to prevent dead config the browser would never honor:
+
+- Each entry must be a parseable `http:` or `https:` URL with no trailing dot and no empty labels in the hostname.
+- When `allowedOrigins` is non-empty, `siteUrl` must be set (either source) and must not be an IP literal or have a trailing-dot hostname.
+- Each origin must be the same hostname as `siteUrl` or a subdomain of it. (WebAuthn requires `rpId` to be a registrable suffix of every origin.)
+
+When validation fails, you'll see a source-attributed error like `EmDash config error in EMDASH_ALLOWED_ORIGINS: "https://other-site.com" is not a subdomain of siteUrl "https://example.com". Allowed origins must be the same hostname as siteUrl or a subdomain of it.`
+
+Where the error surfaces depends on where the values are declared:
+
+- **At Astro startup**, when both `config.allowedOrigins` and `config.siteUrl` come from `astro.config.mjs` -- typos in code fail the build.
+- **At first passkey verification**, when either value comes from `EMDASH_ALLOWED_ORIGINS` or `EMDASH_SITE_URL` -- env mismatches surface as 500s on the first verify attempt.
+
 #### Reverse proxy setup
 
 Astro only reflects **`X-Forwarded-*`** when the public host is allowed. Configure [**`security.allowedDomains`**](https://docs.astro.build/en/reference/configuration-reference/#securityalloweddomains) for the hostname (and schemes) your users hit. In **`astro dev`**, add matching **`vite.server.allowedHosts`** so Vite accepts the proxy **`Host`** header.
@@ -265,6 +299,8 @@ Astro only reflects **`X-Forwarded-*`** when the public host is allowed. Configu
 Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`siteUrl`** when the reconstructed URL **still** diverges from the browser origin (typical when TLS is terminated in front and the upstream request stays **`http://`**).
 
 With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`siteUrl`** matches the public HTTPS origin.
+
+If your proxy writes a client-IP header, set [**`trustedProxyHeaders`**](#trustedproxyheaders) so EmDash's rate limits can use the real client IP instead of bucketing every request under a shared "unknown" key.
 
 <Aside type="caution">
 	Your reverse proxy should forward a **port-aware** `Host` / `X-Forwarded-Host` when you use non-default ports. If the proxy strips the port, **`rpId`** and Astro’s rebuilt URL can be wrong.
@@ -299,6 +335,61 @@ export default defineConfig({
 	],
 });
 ```
+
+### `trustedProxyHeaders`
+
+**Optional.** Headers to trust for client-IP resolution when running behind a reverse proxy you control. Used by auth rate limits (magic-link, signup, passkey, OAuth device flow) and the public comment endpoint.
+
+On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can bucket by real client IP instead of treating every request as "unknown".
+
+```js
+emdash({
+	database: sqlite({ url: "file:./data.db" }),
+	// nginx / Caddy / Traefik
+	trustedProxyHeaders: ["x-real-ip"],
+});
+```
+
+Headers are tried in order. Values matching `*-forwarded-for` are parsed as comma-separated lists and the first entry is used.
+
+```js
+emdash({
+	// Fly.io, falling back to generic X-Forwarded-For
+	trustedProxyHeaders: ["fly-client-ip", "x-forwarded-for"],
+});
+```
+
+When not set in config, EmDash reads the `EMDASH_TRUSTED_PROXY_HEADERS` env var (comma-separated). An explicit empty array in config overrides the env var.
+
+<Aside type="caution">
+	**Only set this when you control the reverse proxy.** Untrusted clients can set any header
+	they like; trusting forwarded-IP headers from an open network is an IP-spoofing vulnerability
+	that defeats rate limiting. If EmDash is exposed directly to the public internet with no
+	proxy in front, leave this unset — rate limits will fall back to a shared "unknown" bucket
+	(stricter defaults) rather than trust a spoofable header.
+</Aside>
+
+### `maxUploadSize`
+
+**Optional.** Maximum allowed media file upload size in bytes. Applies to both direct multipart uploads and signed-URL uploads. Defaults to `52_428_800` (50 MB).
+
+```js
+emdash({
+	database: sqlite({ url: "file:./data.db" }),
+	storage: local({
+		directory: "./uploads",
+		baseUrl: "/_emdash/api/media/file",
+	}),
+	maxUploadSize: 100 * 1024 * 1024, // 100 MB
+});
+```
+
+| Value | Description |
+| ----- | ----------- |
+| `number` (bytes) | Must be a positive finite integer |
+| omitted | Defaults to 50 MB |
+
+Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
 ## Database Adapters
 
@@ -364,7 +455,7 @@ Cloudflare D1 database. Import from `@emdash-cms/cloudflare`.
 | ---------------- | -------- | -------------------- | --------------------------------------------------- |
 | `binding`        | `string` | —                    | D1 binding name from `wrangler.jsonc`               |
 | `session`        | `string` | `"disabled"`         | Read replication mode: `"disabled"`, `"auto"`, or `"primary-first"` |
-| `bookmarkCookie` | `string` | `"__ec_d1_bookmark"` | Cookie name for session bookmarks                   |
+| `bookmarkCookie` | `string` | `"__em_d1_bookmark"` | Cookie name for session bookmarks                   |
 
 ```js
 // Basic
@@ -495,16 +586,19 @@ EmDash respects these environment variables:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_SITE_URL`      | Public browser-facing origin (falls back to `SITE_URL`) |
-| `EMDASH_DATABASE_URL`   | Override database URL                    |
-| `EMDASH_AUTH_SECRET`    | Secret for passkey authentication        |
-| `EMDASH_PREVIEW_SECRET` | Secret for preview token generation      |
-| `EMDASH_URL`            | Remote EmDash URL for schema sync      |
+| `EMDASH_SITE_URL`         | Public browser-facing origin (falls back to `SITE_URL`) |
+| `EMDASH_ALLOWED_ORIGINS`  | Comma-separated list of additional origins accepted by passkey verification (multi-subdomain deployments). |
+| `EMDASH_DATABASE_URL`     | Override database URL                    |
+| `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. |
+| `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
+| `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
+| `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set; existing installs should keep this to preserve stable commenter-IP hashes across upgrade. |
+| `EMDASH_URL`              | Remote EmDash URL for schema sync         |
 
-Generate an auth secret with:
+Generate an encryption key with:
 
 ```bash
-npx emdash auth secret
+npx emdash secrets generate
 ```
 
 ## package.json Configuration

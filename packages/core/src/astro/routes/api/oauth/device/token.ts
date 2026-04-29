@@ -17,6 +17,7 @@ import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleDeviceTokenExchange } from "#api/handlers/device-flow.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
+import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 
 export const prerender = false;
 
@@ -37,7 +38,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		// Rate limit: 12 requests per 60 seconds per IP
-		const ip = getClientIp(request);
+		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
 		const rateLimit = await checkRateLimit(emdash.db, ip, "device/token", 12, 60);
 		if (!rateLimit.allowed) {
 			return rateLimitResponse(60);

@@ -248,4 +248,18 @@ describe("resolveS3Config", () => {
 			expect(typeof storage.getPublicUrl).toBe("function");
 		});
 	});
+
+	describe("getPublicUrl", () => {
+		it("uses publicUrl when configured", () => {
+			setEnv({ ...FULL_ENV, S3_PUBLIC_URL: "https://cdn.example.com/" });
+			const storage = createStorage({});
+			expect(storage.getPublicUrl("01ABC.jpg")).toBe("https://cdn.example.com/01ABC.jpg");
+		});
+
+		it("falls back to the proxied media endpoint when no publicUrl is configured", () => {
+			setEnv({ ...FULL_ENV, S3_PUBLIC_URL: undefined });
+			const storage = createStorage({});
+			expect(storage.getPublicUrl("01ABC.jpg")).toBe("/_emdash/api/media/file/01ABC.jpg");
+		});
+	});
 });

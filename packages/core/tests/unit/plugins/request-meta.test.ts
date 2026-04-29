@@ -9,12 +9,29 @@
  * - IPv6 support
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { _resetTrustedProxyHeadersCache } from "../../../src/auth/trusted-proxy.js";
 import {
 	extractRequestMeta,
 	sanitizeHeadersForSandbox,
 } from "../../../src/plugins/request-meta.js";
+
+// Keep the env-derived trusted-header cache from leaking between tests
+// (and between this file and others in the same vitest worker).
+const ORIGINAL_TRUSTED_ENV = process.env.EMDASH_TRUSTED_PROXY_HEADERS;
+beforeEach(() => {
+	delete process.env.EMDASH_TRUSTED_PROXY_HEADERS;
+	_resetTrustedProxyHeadersCache();
+});
+afterEach(() => {
+	if (ORIGINAL_TRUSTED_ENV === undefined) {
+		delete process.env.EMDASH_TRUSTED_PROXY_HEADERS;
+	} else {
+		process.env.EMDASH_TRUSTED_PROXY_HEADERS = ORIGINAL_TRUSTED_ENV;
+	}
+	_resetTrustedProxyHeadersCache();
+});
 
 /**
  * Helper to create a Request with optional headers and cf properties.
@@ -481,6 +498,128 @@ describe("extractRequestMeta", () => {
 				referer: null,
 				geo: null,
 			});
+		});
+	});
+
+	// --------------------------------------------------------------------
+	// Trusted proxy headers — operator-declared headers for self-hosted
+	// deployments behind a reverse proxy they control.
+	// --------------------------------------------------------------------
+
+	describe("trusted proxy headers", () => {
+		it("reads the IP from a trusted header on a non-CF deployment", () => {
+			const req = createRequest({
+				headers: { "x-real-ip": "203.0.113.50" },
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBe("203.0.113.50");
+		});
+
+		it("tries trusted headers in order", () => {
+			const req = createRequest({
+				headers: {
+					"x-real-ip": "203.0.113.50",
+					"fly-client-ip": "198.51.100.7",
+				},
+			});
+			const meta = extractRequestMeta(req, {
+				trustedProxyHeaders: ["fly-client-ip", "x-real-ip"],
+			});
+			expect(meta.ip).toBe("198.51.100.7");
+		});
+
+		it("falls through to the next trusted header when the first is missing", () => {
+			const req = createRequest({
+				headers: { "x-real-ip": "203.0.113.50" },
+			});
+			const meta = extractRequestMeta(req, {
+				trustedProxyHeaders: ["fly-client-ip", "x-real-ip"],
+			});
+			expect(meta.ip).toBe("203.0.113.50");
+		});
+
+		it("treats trusted XFF-style headers as comma-separated and takes the first entry", () => {
+			const req = createRequest({
+				headers: {
+					"x-forwarded-for": "203.0.113.50, 10.0.0.1, 10.0.0.2",
+				},
+			});
+			const meta = extractRequestMeta(req, {
+				trustedProxyHeaders: ["x-forwarded-for"],
+			});
+			expect(meta.ip).toBe("203.0.113.50");
+		});
+
+		it("rejects non-IP-shaped values in trusted headers", () => {
+			const req = createRequest({
+				headers: { "x-real-ip": "<script>alert(1)</script>" },
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBeNull();
+		});
+
+		it("matches header names case-insensitively", () => {
+			const req = createRequest({
+				headers: { "X-Real-IP": "203.0.113.50" },
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBe("203.0.113.50");
+		});
+
+		it("does not read from headers that are not on the trusted list", () => {
+			// "x-client-ip" is not declared trusted — must not be used.
+			const req = createRequest({
+				headers: { "x-client-ip": "203.0.113.50" },
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBeNull();
+		});
+
+		it("CF-Connecting-IP wins over trusted headers on Cloudflare", () => {
+			// On CF, cf-connecting-ip is cryptographically trustworthy (CF edge
+			// overwrites any client-supplied value). Operator-declared trusted
+			// headers only apply as a fallback, not an override, so a wrong
+			// entry in the config can't regress CF deployments.
+			const req = createRequest({
+				headers: {
+					"cf-connecting-ip": "1.1.1.1",
+					"x-real-ip": "203.0.113.50",
+				},
+				cf: {},
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBe("1.1.1.1");
+		});
+
+		it("trusted headers are used as fallback when CF headers are absent", () => {
+			const req = createRequest({
+				headers: {
+					"x-real-ip": "203.0.113.50",
+				},
+				cf: {},
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBe("203.0.113.50");
+		});
+
+		it("falls back to the CF path when no trusted header matches", () => {
+			const req = createRequest({
+				headers: { "cf-connecting-ip": "1.1.1.1" },
+				cf: {},
+			});
+			const meta = extractRequestMeta(req, { trustedProxyHeaders: ["x-real-ip"] });
+			expect(meta.ip).toBe("1.1.1.1");
+		});
+
+		it("validates a pre-resolved string[] of trusted headers", () => {
+			// Passing the array form (used by the plugin runtime with a list
+			// pre-resolved from the config) must not trust an invalid header
+			// name — headers.get() would throw a TypeError.
+			const req = createRequest({
+				headers: { "x-real-ip": "203.0.113.50" },
+			});
+			const meta = extractRequestMeta(req, ["bad name", " x-real-ip ", "bad:colon"]);
+			expect(meta.ip).toBe("203.0.113.50");
 		});
 	});
 });

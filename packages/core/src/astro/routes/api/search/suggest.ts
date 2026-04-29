@@ -36,6 +36,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		: undefined;
 
 	try {
+		// Verify FTS indexes are healthy on first use. See search/index.ts.
+		await emdash.ensureSearchHealthy?.();
+
 		const suggestions = await getSuggestions(emdash.db, query.q, {
 			collections,
 			locale: query.locale,

@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
+		"target": "ES2024",
 		"module": "preserve",
 		"moduleResolution": "bundler",
 		"declaration": true,
@@ -14,7 +14,7 @@
 		"verbatimModuleSyntax": true,
 		"outDir": "dist",
 		"rootDir": "src",
-		"lib": ["ES2022", "DOM"]
+		"lib": ["ES2024", "DOM"]
 	},
 	"include": ["src"],
 	"exclude": ["src/middleware.ts"]

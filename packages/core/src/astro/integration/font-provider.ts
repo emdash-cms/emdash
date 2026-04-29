@@ -30,6 +30,7 @@ const ALL_GOOGLE_SUBSETS = [
 	"cyrillic-ext",
 	"devanagari",
 	"ethiopic",
+	"farsi",
 	"georgian",
 	"greek",
 	"greek-ext",
@@ -57,7 +58,7 @@ const ALL_GOOGLE_SUBSETS = [
 ];
 
 /**
- * Known Noto Sans script families on Google Fonts.
+ * Known Noto Sans and Sans script families on Google Fonts.
  * Maps user-friendly script names to Google Fonts family names.
  */
 const NOTO_SCRIPT_FAMILIES: Record<string, string> = {
@@ -69,6 +70,7 @@ const NOTO_SCRIPT_FAMILIES: Record<string, string> = {
 	"chinese-hongkong": "Noto Sans HK",
 	devanagari: "Noto Sans Devanagari",
 	ethiopic: "Noto Sans Ethiopic",
+	farsi: "Vazirmatn",
 	georgian: "Noto Sans Georgian",
 	gujarati: "Noto Sans Gujarati",
 	gurmukhi: "Noto Sans Gurmukhi",

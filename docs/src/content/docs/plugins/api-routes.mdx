@@ -5,11 +5,10 @@ description: Expose REST endpoints from your plugin for admin UI and external in
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Plugins can expose API routes for their admin UI components or external integrations. Routes receive the full plugin context and can access storage, KV, content, and media.
+Plugins can expose API routes for their admin UI components or external integrations. Routes receive the full plugin context and can access storage, KV, content, and media. Both native and sandboxed plugins support API routes.
 
 <Aside type="note">
-	API routes are a **trusted-plugin-only** feature. Sandboxed plugins cannot define custom REST
-	endpoints. Use Block Kit admin pages and hooks instead.
+	Native and sandboxed plugins use slightly different handler signatures for routes. Native-format plugins receive a single `RouteContext` argument. Standard-format plugins (which can run in either mode) receive two arguments: `(routeCtx, pluginCtx)`. See [Native vs. Sandboxed Plugins](/plugins/sandbox/) for details on the two formats.
 </Aside>
 
 ## Defining Routes
@@ -324,14 +323,14 @@ routes: {
 
 ### External API Proxy
 
-Proxy requests to external services (requires `network:fetch` capability):
+Proxy requests to external services (requires `network:request` capability):
 
 ```typescript
 definePlugin({
 	id: "weather",
 	version: "1.0.0",
 
-	capabilities: ["network:fetch"],
+	capabilities: ["network:request"],
 	allowedHosts: ["api.weather.example.com"],
 
 	routes: {

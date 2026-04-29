@@ -129,6 +129,19 @@ describe("OAuth Client CRUD", () => {
 		expect(result.error.code).toBe("VALIDATION_ERROR");
 	});
 
+	it("should reject clients with invalid redirect URIs", async () => {
+		const result = await handleOAuthClientCreate(db, {
+			id: "test-client",
+			name: "Test Client",
+			redirectUris: ["http://example.com/callback"],
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+		expect(result.error.message).toContain("HTTP redirect URIs are only allowed for localhost");
+	});
+
 	it("should list clients", async () => {
 		await handleOAuthClientCreate(db, {
 			id: "client-1",
@@ -201,6 +214,23 @@ describe("OAuth Client CRUD", () => {
 		expect(result.success).toBe(false);
 		if (result.success) return;
 		expect(result.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("should reject update with invalid redirect URIs", async () => {
+		await handleOAuthClientCreate(db, {
+			id: "test-client",
+			name: "Test Client",
+			redirectUris: ["https://myapp.example.com/callback"],
+		});
+
+		const result = await handleOAuthClientUpdate(db, "test-client", {
+			redirectUris: ["myapp://callback"],
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+		expect(result.error.message).toContain("Unsupported redirect URI scheme");
 	});
 
 	it("should delete a client", async () => {

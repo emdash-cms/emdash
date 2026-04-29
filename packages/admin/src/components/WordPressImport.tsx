@@ -11,7 +11,6 @@ import {
 	Database,
 	FileText,
 	CaretDown,
-	CaretRight,
 	Image,
 	DownloadSimple,
 	Globe,
@@ -49,6 +48,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 
 // ============================================================================
 // Constants
@@ -1830,7 +1830,7 @@ function PostTypeRow({
 						{expanded ? (
 							<CaretDown className="h-4 w-4 text-kumo-subtle" />
 						) : (
-							<CaretRight className="h-4 w-4 text-kumo-subtle" />
+							<CaretNext className="h-4 w-4 text-kumo-subtle" />
 						)}
 						<div>
 							<p className="font-medium">{postType.name}</p>
