@@ -493,7 +493,9 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			}
 			const minOk =
 				value.min_items === undefined ||
-				(Number.isInteger(value.min_items) && (value.min_items as number) >= 0);
+				(typeof value.min_items === "number" &&
+					Number.isInteger(value.min_items) &&
+					value.min_items >= 0);
 			if (!minOk) {
 				errors.push({
 					path: `${path}.min_items`,
@@ -502,7 +504,9 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			}
 			const maxOk =
 				value.max_items === undefined ||
-				(Number.isInteger(value.max_items) && (value.max_items as number) >= 0);
+				(typeof value.max_items === "number" &&
+					Number.isInteger(value.max_items) &&
+					value.max_items >= 0);
 			if (!maxOk) {
 				errors.push({
 					path: `${path}.max_items`,
@@ -514,7 +518,9 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 				maxOk &&
 				value.min_items !== undefined &&
 				value.max_items !== undefined &&
-				(value.min_items as number) > (value.max_items as number)
+				typeof value.min_items === "number" &&
+				typeof value.max_items === "number" &&
+				value.min_items > value.max_items
 			) {
 				errors.push({
 					path: `${path}.min_items`,

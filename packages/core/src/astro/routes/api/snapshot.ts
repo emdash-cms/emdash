@@ -7,6 +7,7 @@
  * - Excludes auth/user/session/token tables
  */
 
+import type { User } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -21,8 +22,27 @@ import { resolveSecretsCached } from "#config/secrets.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request, locals, url }) => {
-	const { emdash, user } = locals;
+export const GET: APIRoute = async ({ request, locals, url, session }) => {
+	const { emdash } = locals;
+	// This route is in PUBLIC_API_EXACT (for preview-signature callers with no session),
+	// so auth middleware skips user resolution. Manually resolve the session user here
+	// to support session-authenticated admin users alongside preview-signature auth.
+	let user: User | undefined = (locals as { user?: User }).user;
+	if (!user && session && emdash?.db) {
+		try {
+			const { createKyselyAdapter } = await import("@emdash-cms/auth/adapters/kysely");
+			const sessionUser = await session.get("user");
+			if (sessionUser?.id) {
+				const adapter = createKyselyAdapter(emdash.db);
+				const resolved = await adapter.getUserById(sessionUser.id);
+				if (resolved && !resolved.disabled) {
+					user = resolved;
+				}
+			}
+		} catch {
+			// Session resolution failed, continue to preview-signature check
+		}
+	}
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);

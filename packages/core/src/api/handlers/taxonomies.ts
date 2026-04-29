@@ -271,12 +271,9 @@ export async function handleTermList(
 		const repo = new TaxonomyRepository(db);
 		const terms = await repo.findByName(taxonomyName);
 
-		// Get counts for each term
-		const counts = new Map<string, number>();
-		for (const term of terms) {
-			const count = await repo.countEntriesWithTerm(term.id);
-			counts.set(term.id, count);
-		}
+		// Batch count entries per term in a single query (replaces N+1 pattern)
+		const termIds = terms.map((t) => t.id);
+		const counts = await repo.countEntriesForTerms(termIds);
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,

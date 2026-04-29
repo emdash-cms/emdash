@@ -37,9 +37,8 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 
 	const url = new URL(request.url);
 	const cursor = url.searchParams.get("cursor") || undefined;
-	const limit = url.searchParams.get("limit")
-		? parseInt(url.searchParams.get("limit")!, 10)
-		: undefined;
+	const rawLimit = url.searchParams.get("limit");
+	const limit = rawLimit ? Math.max(1, Math.min(parseInt(rawLimit, 10) || 50, 100)) : undefined;
 	const query = url.searchParams.get("query") || undefined;
 	const mimeType = url.searchParams.get("mimeType") || undefined;
 
@@ -96,6 +95,21 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 		if (!file) {
 			return apiError("NO_FILE", "No file provided", 400);
+		}
+
+		// Basic size validation (default 50MB, configurable via maxUploadSize)
+		const maxSize = emdash.config?.maxUploadSize ?? 50 * 1024 * 1024;
+		if (file.size > maxSize) {
+			return apiError(
+				"FILE_TOO_LARGE",
+				`File exceeds maximum size of ${Math.round(maxSize / 1024 / 1024)}MB`,
+				413,
+			);
+		}
+
+		// Reject files with no content type or obviously non-media types
+		if (file.type && file.type === "application/x-msdownload") {
+			return apiError("INVALID_FILE_TYPE", "File type not allowed", 415);
 		}
 
 		const item = await provider.upload({
