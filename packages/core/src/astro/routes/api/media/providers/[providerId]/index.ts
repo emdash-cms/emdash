@@ -107,11 +107,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			);
 		}
 
-		// Reject files with no content type or obviously non-media types
-		if (file.type && file.type === "application/x-msdownload") {
-			return apiError("INVALID_FILE_TYPE", "File type not allowed", 415);
-		}
-
 		const item = await provider.upload({
 			file,
 			filename: file.name,
