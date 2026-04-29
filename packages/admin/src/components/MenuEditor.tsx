@@ -12,7 +12,6 @@ import {
 	CaretUp,
 	CaretDown,
 	Link as LinkIcon,
-	ArrowLeft,
 	X,
 	File as FileIcon,
 } from "@phosphor-icons/react";
@@ -28,6 +27,7 @@ import {
 	reorderMenuItems,
 	type MenuItem,
 } from "../lib/api";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -218,7 +218,7 @@ export function MenuEditor() {
 						aria-label={t`Back`}
 						onClick={() => navigate({ to: "/menus" })}
 					>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 					<div>
 						<h1 className="text-3xl font-bold">{menu.label}</h1>
@@ -260,7 +260,7 @@ export function MenuEditor() {
 											variant="ghost"
 											shape="square"
 											aria-label={t`Close`}
-											className="absolute right-4 top-4"
+											className="absolute end-4 top-4"
 										>
 											<X className="h-4 w-4" />
 											<span className="sr-only">{t`Close`}</span>
@@ -402,7 +402,7 @@ export function MenuEditor() {
 									variant="ghost"
 									shape="square"
 									aria-label={t`Close`}
-									className="absolute right-4 top-4"
+									className="absolute end-4 top-4"
 								>
 									<X className="h-4 w-4" />
 									<span className="sr-only">{t`Close`}</span>

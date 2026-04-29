@@ -64,7 +64,7 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 								variant="ghost"
 								shape="square"
 								aria-label={t`Close`}
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">{t`Close`}</span>
@@ -76,12 +76,12 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 				{/* Search */}
 				<div className="flex items-center gap-4 py-4 border-b">
 					<div className="relative flex-1">
-						<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+						<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 						<Input
 							placeholder={t`Search sections...`}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-10"
+							className="ps-10"
 							autoFocus
 						/>
 					</div>
@@ -141,7 +141,7 @@ function SectionCard({ section, onSelect }: { section: Section; onSelect: () => 
 			type="button"
 			onClick={onSelect}
 			className={cn(
-				"text-left rounded-lg border bg-kumo-base overflow-hidden transition-colors",
+				"text-start rounded-lg border bg-kumo-base overflow-hidden transition-colors",
 				"hover:border-kumo-brand hover:bg-kumo-tint/50",
 				"focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2",
 			)}

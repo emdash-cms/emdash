@@ -4,7 +4,7 @@
  * Manages available import sources and provides URL probing.
  */
 
-import { validateExternalUrl } from "./ssrf.js";
+import { resolveAndValidateExternalUrl } from "./ssrf.js";
 import type { ImportSource, ProbeResult, SourceProbeResult } from "./types.js";
 
 // Regex pattern for URL normalization
@@ -63,8 +63,9 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
 	// Remove trailing slash for consistency
 	normalizedUrl = normalizedUrl.replace(TRAILING_SLASHES_PATTERN, "");
 
-	// SSRF: reject internal/private network targets
-	validateExternalUrl(normalizedUrl);
+	// SSRF: reject internal/private network targets. DNS resolution
+	// catches hostnames that resolve to private addresses.
+	await resolveAndValidateExternalUrl(normalizedUrl);
 
 	const results: SourceProbeResult[] = [];
 	const urlSources = getUrlSources();

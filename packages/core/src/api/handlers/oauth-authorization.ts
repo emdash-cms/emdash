@@ -20,6 +20,7 @@ import {
 	VALID_SCOPES,
 } from "../../auth/api-tokens.js";
 import type { Database } from "../../database/types.js";
+import { validateRedirectUri } from "../oauth/redirect-uri.js";
 import type { ApiResult } from "../types.js";
 import { lookupOAuthClient, validateClientRedirectUri } from "./oauth-clients.js";
 
@@ -76,38 +77,7 @@ function expiresAt(seconds: number): string {
 	return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
-/**
- * Validate a redirect URI per OAuth 2.1 security requirements.
- * Allows localhost (loopback) over HTTP, and any HTTPS URL.
- */
-export function validateRedirectUri(uri: string): string | null {
-	try {
-		const url = new URL(uri);
-
-		// Reject protocol-relative URLs
-		if (uri.startsWith("//")) {
-			return "Protocol-relative redirect URIs are not allowed";
-		}
-
-		// Allow localhost/loopback over HTTP (for desktop MCP clients)
-		if (url.protocol === "http:") {
-			const host = url.hostname;
-			if (host === "127.0.0.1" || host === "localhost" || host === "[::1]") {
-				return null; // OK
-			}
-			return "HTTP redirect URIs are only allowed for localhost";
-		}
-
-		// Allow HTTPS
-		if (url.protocol === "https:") {
-			return null; // OK
-		}
-
-		return `Unsupported redirect URI scheme: ${url.protocol}`;
-	} catch {
-		return "Invalid redirect URI";
-	}
-}
+export { validateRedirectUri };
 
 /**
  * Validate and normalize scopes. Returns validated scope list.

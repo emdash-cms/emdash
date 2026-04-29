@@ -1114,7 +1114,14 @@ export interface PluginDashboardWidget {
 /**
  * Settings field types (for admin UI generation)
  */
-export type SettingFieldType = "string" | "number" | "boolean" | "select" | "secret";
+export type SettingFieldType =
+	| "string"
+	| "number"
+	| "boolean"
+	| "select"
+	| "secret"
+	| "url"
+	| "email";
 
 export interface BaseSettingField {
 	type: SettingFieldType;
@@ -1150,12 +1157,26 @@ export interface SecretSettingField extends BaseSettingField {
 	type: "secret";
 }
 
+export interface UrlSettingField extends BaseSettingField {
+	type: "url";
+	default?: string;
+	placeholder?: string;
+}
+
+export interface EmailSettingField extends BaseSettingField {
+	type: "email";
+	default?: string;
+	placeholder?: string;
+}
+
 export type SettingField =
 	| StringSettingField
 	| NumberSettingField
 	| BooleanSettingField
 	| SelectSettingField
-	| SecretSettingField;
+	| SecretSettingField
+	| UrlSettingField
+	| EmailSettingField;
 
 /**
  * Block Kit element for block editing fields.
@@ -1180,6 +1201,15 @@ export interface PortableTextBlockConfig {
 	placeholder?: string;
 	/** Block Kit form fields for the editing UI. If declared, replaces the simple URL input. */
 	fields?: PortableTextBlockField[];
+	/**
+	 * Optional. Display category in the slash menu. Defaults to "Embeds".
+	 *
+	 * Plugin authors should pick a meaningful category that reflects what the
+	 * block actually is — e.g. "Sections", "Marketing", "Media", "Embeds",
+	 * "Layout". Blocks with the same category are grouped together in the
+	 * editor's slash menu.
+	 */
+	category?: string;
 }
 
 /**

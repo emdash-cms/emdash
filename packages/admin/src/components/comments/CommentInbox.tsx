@@ -8,15 +8,7 @@
 import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	MagnifyingGlass,
-	Check,
-	Trash,
-	Warning,
-	CaretLeft,
-	CaretRight,
-	ChatCircle,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass, Check, Trash, Warning, ChatCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type {
@@ -26,6 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
 
@@ -163,14 +156,14 @@ export function CommentInbox({
 			<div className="flex items-center gap-3 flex-wrap">
 				{/* Search */}
 				<div className="relative max-w-xs flex-1 min-w-[200px]">
-					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
 						placeholder={t`Search comments...`}
 						aria-label={t`Search comments`}
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
-						className="pl-9"
+						className="ps-9"
 					/>
 				</div>
 
@@ -234,7 +227,7 @@ export function CommentInbox({
 					<span className="text-sm font-medium">
 						{plural(selected.size, { one: "# selected", other: "# selected" })}
 					</span>
-					<div className="flex gap-2 ml-auto">
+					<div className="flex gap-2 ms-auto">
 						{activeStatus !== "approved" && (
 							<Button
 								size="sm"
@@ -290,19 +283,19 @@ export function CommentInbox({
 									aria-label={t`Select all`}
 								/>
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Author`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Comment`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Content`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 								{t`Date`}
 							</th>
-							<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
+							<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 								{t`Actions`}
 							</th>
 						</tr>
@@ -358,7 +351,7 @@ export function CommentInbox({
 							onClick={() => setPage(page - 1)}
 							aria-label={t`Previous page`}
 						>
-							<CaretLeft className="h-4 w-4" />
+							<CaretPrev className="h-4 w-4" />
 						</Button>
 						<span className="text-sm">
 							{page + 1} / {totalPages}
@@ -377,7 +370,7 @@ export function CommentInbox({
 							}}
 							aria-label={t`Next page`}
 						>
-							<CaretRight className="h-4 w-4" />
+							<CaretNext className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>
@@ -464,7 +457,7 @@ function CommentRow({
 				/>
 			</td>
 			<td className="px-4 py-3">
-				<button type="button" onClick={onRowClick} className="text-left">
+				<button type="button" onClick={onRowClick} className="text-start">
 					<div className="font-medium text-sm">{comment.authorName}</div>
 					<div className="text-xs text-kumo-subtle">{comment.authorEmail}</div>
 				</button>
@@ -473,7 +466,7 @@ function CommentRow({
 				<button
 					type="button"
 					onClick={onRowClick}
-					className="text-left text-sm text-kumo-subtle hover:text-kumo-default line-clamp-2"
+					className="text-start text-sm text-kumo-subtle hover:text-kumo-default line-clamp-2"
 				>
 					{excerpt}
 				</button>
@@ -486,7 +479,7 @@ function CommentRow({
 			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">
 				{date.toLocaleDateString()}
 			</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end gap-1">
 					{comment.status !== "approved" && (
 						<Button

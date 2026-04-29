@@ -9,7 +9,10 @@
  * Workers-safe: no Node.js imports.
  */
 
-import type { EmDashConfig } from "../astro/integration/runtime.js";
+/** Minimal config shape — avoids importing the full EmDashConfig type tree. */
+interface SiteUrlConfig {
+	siteUrl?: string;
+}
 
 /**
  * Resolve siteUrl from runtime environment variables.
@@ -68,7 +71,7 @@ function getEnvSiteUrl(): string | undefined {
  * @param config  The EmDash config (from `locals.emdash?.config`)
  * @returns Origin string, e.g. `"https://mysite.example.com"`
  */
-export function getPublicOrigin(url: URL, config?: EmDashConfig): string {
+export function getPublicOrigin(url: URL, config?: SiteUrlConfig): string {
 	return config?.siteUrl || getEnvSiteUrl() || url.origin;
 }
 
@@ -125,6 +128,6 @@ export function getEnvAllowedOrigins(): string[] {
  * @param path  Path to append (must start with `/`)
  * @returns Full URL string, e.g. `"https://mysite.example.com/_emdash/admin/login"`
  */
-export function getPublicUrl(url: URL, config: EmDashConfig | undefined, path: string): string {
+export function getPublicUrl(url: URL, config: SiteUrlConfig | undefined, path: string): string {
 	return `${getPublicOrigin(url, config)}${path}`;
 }

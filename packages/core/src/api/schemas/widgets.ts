@@ -60,16 +60,12 @@ export const widgetAreaSchema = z
 export const widgetSchema = z
 	.object({
 		id: z.string(),
-		area_id: z.string(),
-		type: z.string(),
-		title: z.string().nullable(),
-		content: z.string().nullable(),
-		menu_name: z.string().nullable(),
-		component_id: z.string().nullable(),
-		component_props: z.string().nullable(),
-		sort_order: z.number().int(),
-		created_at: z.string(),
-		updated_at: z.string(),
+		type: widgetType,
+		title: z.string().optional(),
+		content: z.array(z.record(z.string(), z.unknown())).optional(),
+		menuName: z.string().optional(),
+		componentId: z.string().optional(),
+		componentProps: z.record(z.string(), z.unknown()).optional(),
 	})
 	.meta({ id: "Widget" });
 
@@ -78,3 +74,9 @@ export const widgetAreaWithWidgetsSchema = widgetAreaSchema
 		widgets: z.array(widgetSchema),
 	})
 	.meta({ id: "WidgetAreaWithWidgets" });
+
+export const widgetAreaWithWidgetsAndCountSchema = widgetAreaWithWidgetsSchema
+	.extend({
+		widgetCount: z.number().int(),
+	})
+	.meta({ id: "WidgetAreaWithWidgetsAndCount" });

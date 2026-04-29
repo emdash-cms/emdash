@@ -15,7 +15,13 @@ import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { local } from "../storage/adapters.js";
-import { injectCoreRoutes, injectBuiltinAuthRoutes, injectMcpRoute } from "./routes.js";
+import { notoSans } from "./font-provider.js";
+import {
+	injectCoreRoutes,
+	injectBuiltinAuthRoutes,
+	injectAuthProviderRoutes,
+	injectMcpRoute,
+} from "./routes.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import { createViteConfig } from "./vite-config.js";
 
@@ -173,8 +179,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		database: resolvedConfig.database,
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,
+		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
 		siteUrl: resolvedConfig.siteUrl,
+		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
+		maxUploadSize: resolvedConfig.maxUploadSize,
+		admin: resolvedConfig.admin,
 	};
 
 	// Determine auth mode for route injection
@@ -224,8 +234,48 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 						? { allowedDomains: [{ hostname: new URL(resolvedConfig.siteUrl).hostname }] }
 						: {}),
 				};
+
+				// Inject default Noto Sans font for the admin UI.
+				// Uses the Astro Font API so fonts are downloaded at build time
+				// and self-hosted (no runtime CDN requests).
+				//
+				// The admin CSS references var(--font-emdash) with a system font
+				// fallback. Users can add extra script coverage (Arabic, CJK, etc.)
+				// by passing fonts.scripts in the emdash() config. The custom
+				// notoSans provider resolves all script families from Google Fonts
+				// under a single font-family name, so they stack via unicode-range.
+				const fontsConfig = resolvedConfig.fonts;
+				const emdashFonts =
+					fontsConfig === false
+						? []
+						: [
+								{
+									provider: notoSans({
+										scripts: fontsConfig?.scripts,
+									}),
+									name: "Noto Sans",
+									cssVariable: "--font-emdash",
+									weights: ["100 900" as const],
+									styles: ["normal" as const, "italic" as const],
+									subsets: [
+										"latin" as const,
+										"latin-ext" as const,
+										"cyrillic" as const,
+										"cyrillic-ext" as const,
+										"devanagari" as const,
+										"greek" as const,
+										"greek-ext" as const,
+										"vietnamese" as const,
+									],
+									fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
+								},
+							];
+
 				updateConfig({
 					security: securityConfig,
+					// fonts is a valid AstroConfig key but may not be in the
+					// type definition for the minimum supported Astro version
+					...({ fonts: emdashFonts } as Record<string, unknown>),
 					vite: createViteConfig(
 						{
 							serializableConfig,
@@ -240,7 +290,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Inject all core routes
 				injectCoreRoutes(injectRoute);
 
-				// Only inject passkey/oauth/magic-link routes when NOT using external auth
+				// Inject routes from pluggable auth providers (authProviders config)
+				if (resolvedConfig.authProviders?.length) {
+					injectAuthProviderRoutes(injectRoute, resolvedConfig.authProviders);
+				}
+
+				// Inject passkey/oauth/magic-link routes unless transparent external auth is active
 				if (!useExternalAuth) {
 					injectBuiltinAuthRoutes(injectRoute);
 				}

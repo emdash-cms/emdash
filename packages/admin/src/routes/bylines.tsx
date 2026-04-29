@@ -211,7 +211,7 @@ export function BylinesPage() {
 								key={item.id}
 								type="button"
 								onClick={() => setSelectedId(item.id)}
-								className={`w-full rounded border p-3 text-left ${
+								className={`w-full rounded border p-3 text-start ${
 									active ? "border-kumo-brand bg-kumo-brand/10" : "border-kumo-line"
 								}`}
 							>

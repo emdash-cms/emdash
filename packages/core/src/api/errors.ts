@@ -12,7 +12,9 @@ export const ErrorCode = {
 	VALIDATION_ERROR: "VALIDATION_ERROR",
 	INVALID_INPUT: "INVALID_INPUT",
 	INVALID_JSON: "INVALID_JSON",
+	INVALID_CURSOR: "INVALID_CURSOR",
 	CONFLICT: "CONFLICT",
+	SLUG_CONFLICT: "SLUG_CONFLICT",
 	NOT_CONFIGURED: "NOT_CONFIGURED",
 	UNAUTHORIZED: "UNAUTHORIZED",
 	FORBIDDEN: "FORBIDDEN",
@@ -152,6 +154,8 @@ export const ErrorCode = {
 	INVALID_CODE: "INVALID_CODE",
 	EXPIRED_CODE: "EXPIRED_CODE",
 	INSUFFICIENT_ROLE: "INSUFFICIENT_ROLE",
+	INSUFFICIENT_SCOPE: "INSUFFICIENT_SCOPE",
+	INSUFFICIENT_PERMISSIONS: "INSUFFICIENT_PERMISSIONS",
 	TOKEN_EXCHANGE_ERROR: "TOKEN_EXCHANGE_ERROR",
 	TOKEN_REFRESH_ERROR: "TOKEN_REFRESH_ERROR",
 	TOKEN_REVOKE_ERROR: "TOKEN_REVOKE_ERROR",
@@ -335,6 +339,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.VALIDATION_ERROR:
 		case ErrorCode.INVALID_INPUT:
 		case ErrorCode.INVALID_JSON:
+		case ErrorCode.INVALID_CURSOR:
 		case ErrorCode.MISSING_PARAM:
 		case ErrorCode.INVALID_REQUEST:
 		case ErrorCode.NOT_SUPPORTED:
@@ -373,6 +378,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.COMMENT_REJECTED:
 		case ErrorCode.DOMAIN_NOT_ALLOWED:
 		case ErrorCode.INSUFFICIENT_ROLE:
+		case ErrorCode.INSUFFICIENT_SCOPE:
+		case ErrorCode.INSUFFICIENT_PERMISSIONS:
 		case ErrorCode.CAPABILITY_ESCALATION:
 		case ErrorCode.ROUTE_VISIBILITY_ESCALATION:
 		case ErrorCode.AUDIT_FAILED:
@@ -388,6 +395,7 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 409 Conflict
 		case ErrorCode.CONFLICT:
+		case ErrorCode.SLUG_CONFLICT:
 		case ErrorCode.COLLECTION_EXISTS:
 		case ErrorCode.FIELD_EXISTS:
 		case ErrorCode.CREDENTIAL_EXISTS:

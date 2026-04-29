@@ -386,7 +386,7 @@ function SettingsPage() {
 									</div>
 									<p className="text-sm text-muted-foreground mt-0.5 truncate">{cat.description}</p>
 								</div>
-								<div className="flex items-center gap-1 ml-4">
+								<div className="flex items-center gap-1 ms-4">
 									<button
 										onClick={() => setEditingCategory(cat)}
 										className="p-1.5 hover:bg-muted rounded"

@@ -7,12 +7,18 @@
 
 declare module "virtual:emdash/config" {
 	import type { I18nConfig } from "./i18n/config.js";
-	import type { DatabaseDescriptor, StorageDescriptor, AuthDescriptor } from "./index.js";
+	import type {
+		AuthDescriptor,
+		AuthProviderDescriptor,
+		DatabaseDescriptor,
+		StorageDescriptor,
+	} from "./index.js";
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
+		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
 	}
 
@@ -21,7 +27,7 @@ declare module "virtual:emdash/config" {
 }
 
 declare module "virtual:emdash/dialect" {
-	import type { Dialect } from "kysely";
+	import type { Dialect, Kysely } from "kysely";
 
 	import type { DatabaseDialectType } from "./db/adapters.js";
 
@@ -29,15 +35,27 @@ declare module "virtual:emdash/dialect" {
 	export const createDialect: ((config: unknown) => Dialect) | undefined;
 	export const dialectType: DatabaseDialectType | undefined;
 
-	// D1 read replica session helpers (no-ops for non-D1 adapters).
-	// Types use `unknown` because the core package doesn't depend on
-	// @cloudflare/workers-types — the actual D1Database types are resolved
-	// at bundle time in the cloudflare adapter.
-	export const isSessionEnabled: (config: unknown) => boolean;
-	export const getD1Binding: (config: unknown) => unknown;
-	export const getDefaultConstraint: (config: unknown) => string;
-	export const getBookmarkCookieName: (config: unknown) => string;
-	export const createSessionDialect: ((database: unknown) => Dialect) | undefined;
+	/**
+	 * Adapter-owned per-request scoping. Returns null when the configured
+	 * adapter has no per-request semantics (non-D1, or D1 with sessions
+	 * disabled). Otherwise returns a request-scoped Kysely and a commit
+	 * callback to persist per-request state.
+	 */
+	export interface RequestScopedDbOpts {
+		config: unknown;
+		isAuthenticated: boolean;
+		isWrite: boolean;
+		cookies: {
+			get(name: string): { value: string } | undefined;
+			set(name: string, value: string, options: Record<string, unknown>): void;
+		};
+		url: URL;
+	}
+	export interface RequestScopedDb {
+		db: Kysely<unknown>;
+		commit: () => void;
+	}
+	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
 }
 
 declare module "virtual:emdash/storage" {
@@ -89,6 +107,29 @@ declare module "virtual:emdash/sandboxed-plugins" {
 
 declare module "virtual:emdash/block-components" {
 	export const pluginBlockComponents: Record<string, unknown>;
+}
+
+declare module "virtual:emdash/auth-providers" {
+	import type { ComponentType } from "react";
+
+	interface AuthProviderEntry {
+		id: string;
+		label: string;
+		LoginButton?: ComponentType;
+		LoginForm?: ComponentType;
+		SetupStep?: ComponentType<{ onComplete: () => void }>;
+	}
+
+	export const authProviders: Record<string, AuthProviderEntry>;
+}
+
+declare module "virtual:emdash/wait-until" {
+	/**
+	 * Optional host-provided lifetime extender for work deferred past the
+	 * response. Resolves to Cloudflare's `waitUntil` under @astrojs/cloudflare;
+	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
+	 */
+	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
 }
 
 declare module "virtual:emdash/admin-registry" {

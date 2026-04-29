@@ -2,7 +2,6 @@ import { Badge, Button, Dialog, Input, Label, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowRight,
 	MagnifyingGlass,
 	Plus,
 	ArrowsLeftRight,
@@ -28,6 +27,7 @@ import type {
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
 import { cn } from "../lib/utils.js";
+import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -115,7 +115,7 @@ function RedirectFormDialog({
 								variant="ghost"
 								shape="square"
 								aria-label={t`Close`}
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -214,7 +214,7 @@ function NotFoundPanel({
 		<div className="border rounded-lg">
 			<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
 				<div className="flex-1">{t`Path`}</div>
-				<div className="w-16 text-right">{t`Hits`}</div>
+				<div className="w-16 text-end">{t`Hits`}</div>
 				<div className="w-32">{t`Last seen`}</div>
 				<div className="w-8" />
 			</div>
@@ -224,7 +224,7 @@ function NotFoundPanel({
 					className="flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm"
 				>
 					<div className="flex-1 font-mono text-xs truncate">{item.path}</div>
-					<div className="w-16 text-right tabular-nums">{item.count}</div>
+					<div className="w-16 text-end tabular-nums">{item.count}</div>
 					<div className="w-32 text-kumo-subtle text-xs">
 						{(() => {
 							const d = new Date(item.lastSeen);
@@ -351,7 +351,7 @@ export function Redirects() {
 				>
 					{t`Redirects`}
 					{redirectsQuery.data && (
-						<Badge variant="secondary" className="ml-2">
+						<Badge variant="secondary" className="ms-2">
 							{redirectsQuery.data.items.length}
 							{redirectsQuery.data.nextCursor ? "+" : ""}
 						</Badge>
@@ -377,12 +377,12 @@ export function Redirects() {
 					<div className="flex items-center gap-4">
 						<div className="relative flex-1 max-w-md">
 							<MagnifyingGlass
-								className="absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle"
+								className="absolute start-3 top-1/2 -translate-y-1/2 text-kumo-subtle"
 								size={16}
 							/>
 							<Input
 								placeholder={t`Search source or destination...`}
-								className="pl-10"
+								className="ps-10"
 								value={search}
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
 							/>
@@ -448,7 +448,7 @@ export function Redirects() {
 								<div className="w-8 text-center" />
 								<div className="flex-1">{t`Destination`}</div>
 								<div className="w-14 text-center">{t`Code`}</div>
-								<div className="w-16 text-right">{t`Hits`}</div>
+								<div className="w-16 text-end">{t`Hits`}</div>
 								<div className="w-20 text-center">{t`Status`}</div>
 								<div className="w-20" />
 							</div>
@@ -464,7 +464,7 @@ export function Redirects() {
 										{r.source}
 									</div>
 									<div className="w-8 text-center text-kumo-subtle">
-										<ArrowRight size={14} />
+										<ArrowNext size={14} />
 									</div>
 									<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
 										{r.destination}
@@ -472,7 +472,7 @@ export function Redirects() {
 									<div className="w-14 text-center">
 										<Badge variant="secondary">{r.type}</Badge>
 									</div>
-									<div className="w-16 text-right tabular-nums text-kumo-subtle">{r.hits}</div>
+									<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
 									<div className="w-20 text-center">
 										<Switch
 											checked={r.enabled}
@@ -487,7 +487,7 @@ export function Redirects() {
 									</div>
 									<div className="w-20 flex items-center justify-end gap-1">
 										{loopRedirectIds.has(r.id) && (
-											<span title={t`Part of a redirect loop`} className="mr-1 inline-flex">
+											<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
 												<WarningCircle
 													size={14}
 													weight="fill"
@@ -498,7 +498,7 @@ export function Redirects() {
 											</span>
 										)}
 										{r.auto && (
-											<Badge variant="outline" className="mr-1 text-xs">
+											<Badge variant="outline" className="me-1 text-xs">
 												{t`auto`}
 											</Badge>
 										)}

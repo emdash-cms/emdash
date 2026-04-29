@@ -17,10 +17,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Trash, DotsSixVertical, CaretDown, CaretRight } from "@phosphor-icons/react";
+import { Plus, Trash, DotsSixVertical, CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { cn } from "../lib/utils.js";
+import { CaretNext } from "./ArrowIcons.js";
 
 interface RepeaterSubFieldDef {
 	slug: string;
@@ -68,10 +69,24 @@ export function RepeaterField({
 	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
 	const [collapsedItems, setCollapsedItems] = React.useState<Set<string>>(new Set());
 
-	// Sync from external value changes
+	// Sync from external value changes.
+	// Preserve each item's _key by position so round-trips through onChange
+	// (which strips _key) don't remount children on every keystroke.
 	React.useEffect(() => {
 		const incoming = Array.isArray(value) ? value : [];
-		setItems(ensureKeys(incoming));
+		setItems((prev) =>
+			incoming.map((item, i) => {
+				const obj = (typeof item === "object" && item !== null ? item : {}) as Record<
+					string,
+					unknown
+				>;
+				const existingKey = (obj._key as string) || prev[i]?._key;
+				return {
+					...obj,
+					_key: existingKey || `item-${i}-${Date.now()}`,
+				};
+			}),
+		);
 	}, [value]);
 
 	const emitChange = (updated: RepeaterItem[]) => {
@@ -127,7 +142,7 @@ export function RepeaterField({
 				<label htmlFor={id} className="text-sm font-medium">
 					{label}
 					{items.length > 0 && (
-						<span className="ml-2 text-kumo-subtle font-normal">
+						<span className="ms-2 text-kumo-subtle font-normal">
 							{plural(items.length, { one: "(# item)", other: "(# items)" })}
 						</span>
 					)}
@@ -238,7 +253,7 @@ function SortableRepeaterItem({
 					onClick={(e) => e.stopPropagation()}
 				/>
 				{isCollapsed ? (
-					<CaretRight className="h-4 w-4 text-kumo-subtle shrink-0" />
+					<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
 				) : (
 					<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 				)}
@@ -291,6 +306,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 					required={subField.required}
+					dir="auto"
 				/>
 			);
 		case "text":
@@ -301,6 +317,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					onChange={(e) => onChange(e.target.value)}
 					required={subField.required}
 					rows={3}
+					dir="auto"
 				/>
 			);
 		case "number":

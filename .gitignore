@@ -66,4 +66,16 @@ __screenshots__/
 
 # Downloaded test data (fetched on demand in CI)
 examples/wp-theme-unit-test/
-.opencode
+# .opencode is local-only EXCEPT for agents/, which are shared with CI workflows
+# (review.yml, ultrareview.yml, bonk.yml, ultrabonk.yml). Use a contents-style
+# pattern so we can re-include the agents subdirectory.
+.opencode/*
+!.opencode/agents/
+
+# .claude is local-only EXCEPT for the symlinks pointing at AGENTS.md and skills/
+.claude/*
+!.claude/CLAUDE.md
+!.claude/skills
+
+.perf-query-counts
+query-counts-out/

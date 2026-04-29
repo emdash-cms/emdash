@@ -12,17 +12,7 @@
 
 import { Badge, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	DownloadSimple,
-	GithubLogo,
-	Globe,
-	ShieldCheck,
-	Warning,
-	CaretLeft,
-	CaretRight,
-	X,
-} from "@phosphor-icons/react";
+import { DownloadSimple, GithubLogo, Globe, ShieldCheck, Warning, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import DOMPurify from "dompurify";
@@ -36,6 +26,7 @@ import {
 	describeCapability,
 } from "../lib/api/marketplace.js";
 import { SAFE_URL_RE, isSafeUrl, safeIconUrl } from "../lib/url.js";
+import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
 import { AuditBadge } from "./MarketplaceBrowse.js";
@@ -199,7 +190,7 @@ export function MarketplacePluginDetail({
 						</div>
 					) : (
 						<Button onClick={() => setShowConsent(true)}>
-							<DownloadSimple className="mr-2 h-4 w-4" />
+							<DownloadSimple className="me-2 h-4 w-4" />
 							{t`Install`}
 						</Button>
 					)}
@@ -398,7 +389,7 @@ function BackLink() {
 			to="/plugins/marketplace"
 			className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 		>
-			<ArrowLeft className="h-4 w-4" />
+			<ArrowPrev className="h-4 w-4" />
 			{t`Back to marketplace`}
 		</Link>
 	);
@@ -443,7 +434,7 @@ function ScreenshotLightbox({
 		>
 			<button
 				onClick={onClose}
-				className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+				className="absolute end-4 top-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
 				aria-label={t`Close`}
 			>
 				<X className="h-5 w-5" />
@@ -452,10 +443,10 @@ function ScreenshotLightbox({
 			{index > 0 && (
 				<button
 					onClick={() => onNavigate(index - 1)}
-					className="absolute left-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+					className="absolute start-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
 					aria-label={t`Previous screenshot`}
 				>
-					<CaretLeft className="h-5 w-5" />
+					<CaretPrev className="h-5 w-5" />
 				</button>
 			)}
 
@@ -470,15 +461,15 @@ function ScreenshotLightbox({
 			{index < screenshots.length - 1 && (
 				<button
 					onClick={() => onNavigate(index + 1)}
-					className="absolute right-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+					className="absolute end-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
 					aria-label={t`Next screenshot`}
 				>
-					<CaretRight className="h-5 w-5" />
+					<CaretNext className="h-5 w-5" />
 				</button>
 			)}
 
 			{/* Counter */}
-			<div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
+			<div className="absolute bottom-4 start-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
 				{index + 1} / {screenshots.length}
 			</div>
 		</div>

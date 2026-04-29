@@ -1,4 +1,4 @@
-import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, buttonVariants, Dialog, Input, Loader, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -9,8 +9,9 @@ import {
 	ArrowSquareOut,
 	Copy,
 	MagnifyingGlass,
-	CaretLeft,
-	CaretRight,
+	CaretUp,
+	CaretDown,
+	CaretUpDown,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -18,7 +19,15 @@ import * as React from "react";
 import type { ContentItem, TrashedContentItem } from "../lib/api";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+
+/** Sortable content list columns. Maps to the server's order field whitelist. */
+export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
+export interface ContentListSort {
+	field: ContentListSortField;
+	direction: "asc" | "desc";
+}
 
 export interface ContentListProps {
 	collection: string;
@@ -44,6 +53,14 @@ export interface ContentListProps {
 	onLocaleChange?: (locale: string) => void;
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
+	/**
+	 * Controlled sort state. When `onSortChange` is also provided, the column
+	 * headers become sort controls that invoke it. Uncontrolled sort keeps
+	 * the backward-compatible "static headers, server-default ordering"
+	 * behavior for callers that haven't opted in yet.
+	 */
+	sort?: ContentListSort;
+	onSortChange?: (sort: ContentListSort) => void;
 }
 
 type ViewTab = "all" | "trash";
@@ -84,6 +101,8 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
+	sort,
+	onSortChange,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
@@ -136,7 +155,7 @@ export function ContentList({
 					search={{ locale: activeLocale }}
 					className={buttonVariants()}
 				>
-					<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
 					{t`Add New`}
 				</Link>
 			</div>
@@ -144,14 +163,14 @@ export function ContentList({
 			{/* Search */}
 			{items.length > 0 && (
 				<div className="relative max-w-sm">
-					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
 						placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
 						aria-label={t`Search ${collectionLabel.toLowerCase()}`}
 						value={searchQuery}
 						onChange={handleSearchChange}
-						className="pl-9"
+						className="ps-9"
 					/>
 				</div>
 			)}
@@ -186,27 +205,48 @@ export function ContentList({
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Title`}
-									</th>
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Status`}
-									</th>
+									<SortableTh
+										field="title"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Title`}
+									/>
+									<SortableTh
+										field="status"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Status`}
+									/>
 									{i18n && (
-										<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-											{t`Locale`}
-										</th>
+										<SortableTh
+											field="locale"
+											sort={sort}
+											onSortChange={onSortChange}
+											label={t`Locale`}
+										/>
 									)}
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
-										{t`Date`}
-									</th>
-									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
+									<SortableTh
+										field="updatedAt"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Date`}
+									/>
+									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
 								</tr>
 							</thead>
 							<tbody>
-								{items.length === 0 && !isLoading ? (
+								{isLoading && items.length === 0 ? (
+									<tr>
+										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
@@ -265,7 +305,7 @@ export function ContentList({
 									onClick={() => setPage(page - 1)}
 									aria-label={t`Previous page`}
 								>
-									<CaretLeft className="h-4 w-4" aria-hidden="true" />
+									<CaretPrev className="h-4 w-4" aria-hidden="true" />
 								</Button>
 								<span className="text-sm">
 									{page + 1} / {totalPages}
@@ -277,7 +317,7 @@ export function ContentList({
 									onClick={() => setPage(page + 1)}
 									aria-label={t`Next page`}
 								>
-									<CaretRight className="h-4 w-4" aria-hidden="true" />
+									<CaretNext className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</div>
 						</div>
@@ -299,19 +339,28 @@ export function ContentList({
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Title`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-left text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Deleted`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-right text-sm font-medium">
+									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
 								</tr>
 							</thead>
 							<tbody>
-								{trashedItems.length === 0 && !isTrashedLoading ? (
+								{isTrashedLoading && trashedItems.length === 0 ? (
+									<tr>
+										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`Trash is empty`}
@@ -342,6 +391,72 @@ export function ContentList({
 				</>
 			)}
 		</div>
+	);
+}
+
+interface SortableThProps {
+	field: ContentListSortField;
+	sort: ContentListSort | undefined;
+	onSortChange: ((sort: ContentListSort) => void) | undefined;
+	label: string;
+}
+
+/**
+ * Table header that doubles as a sort control when the parent opted in by
+ * passing `onSortChange`. When no callback is provided we fall back to a
+ * plain `<th>` so legacy callers (and screen readers) see exactly the same
+ * markup as before this change.
+ *
+ * The button's accessible name is just the column label — the sort state
+ * is conveyed via `aria-sort` on the <th>, which screen readers announce
+ * automatically. Adding a verbose aria-label would make each header re-read
+ * the sort instruction on every focus, which is noisy.
+ */
+function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
+	const isActive = sort?.field === field;
+	const direction = isActive ? sort?.direction : undefined;
+
+	if (!onSortChange) {
+		return (
+			<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+				{label}
+			</th>
+		);
+	}
+
+	const ariaSort: "ascending" | "descending" | "none" = isActive
+		? direction === "asc"
+			? "ascending"
+			: "descending"
+		: "none";
+
+	const handleClick = () => {
+		// Default to descending for a new column; toggle direction when
+		// clicking the already-active one.
+		if (isActive) {
+			onSortChange({ field, direction: direction === "asc" ? "desc" : "asc" });
+		} else {
+			onSortChange({ field, direction: "desc" });
+		}
+	};
+
+	const Icon = isActive ? (direction === "asc" ? CaretUp : CaretDown) : CaretUpDown;
+
+	return (
+		<th scope="col" aria-sort={ariaSort} className="px-4 py-3 text-start text-sm font-medium">
+			<button
+				type="button"
+				onClick={handleClick}
+				className={cn(
+					"inline-flex items-center gap-1 rounded hover:text-kumo-brand",
+					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
+					isActive ? "text-kumo-fg" : "text-kumo-subtle",
+				)}
+			>
+				<span>{label}</span>
+				<Icon className="h-3 w-3" aria-hidden="true" />
+			</button>
+		</th>
 	);
 }
 
@@ -391,7 +506,7 @@ function ContentListItem({
 				</td>
 			)}
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
 						<a
@@ -479,7 +594,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Button
 						variant="ghost"

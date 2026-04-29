@@ -3,12 +3,12 @@
  *
  * Interactive CLI for creating new EmDash projects
  *
- * Usage: npm create emdash@latest
+ * Usage: npm create emdash@latest [directory]
  */
 
 import { exec } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -17,7 +17,14 @@ import * as p from "@clack/prompts";
 import { downloadTemplate } from "giget";
 import pc from "picocolors";
 
-const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
+import {
+	PROJECT_NAME_PATTERN,
+	isDirNonEmpty,
+	parseTargetArg,
+	sanitizePackageName,
+} from "./utils.js";
+
+const targetArg = parseTargetArg(process.argv);
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -138,34 +145,78 @@ async function main() {
 	console.log(`\n  ${pc.bold(pc.cyan("— E M D A S H —"))}\n`);
 	p.intro("Create a new EmDash project");
 
-	const projectName = await p.text({
-		message: "Project name?",
-		placeholder: "my-site",
-		defaultValue: "my-site",
-		validate: (value) => {
-			if (!value) return "Project name is required";
-			if (!PROJECT_NAME_PATTERN.test(value))
-				return "Project name can only contain lowercase letters, numbers, and hyphens";
-			return undefined;
-		},
-	});
+	const isCurrentDir = targetArg === ".";
+	let projectName: string;
+	let projectDir: string;
 
-	if (p.isCancel(projectName)) {
-		p.cancel("Operation cancelled.");
-		process.exit(0);
-	}
+	if (isCurrentDir) {
+		// "npm create emdash ." — scaffold into the current directory
+		projectDir = process.cwd();
+		projectName = sanitizePackageName(basename(projectDir));
 
-	const projectDir = resolve(process.cwd(), projectName);
+		if (isDirNonEmpty(projectDir)) {
+			const proceed = await p.confirm({
+				message: "Current directory is not empty. Files may be overwritten. Continue?",
+				initialValue: false,
+			});
 
-	if (existsSync(projectDir)) {
-		const overwrite = await p.confirm({
-			message: `Directory ${projectName} already exists. Overwrite?`,
-			initialValue: false,
+			if (p.isCancel(proceed) || !proceed) {
+				p.cancel("Operation cancelled.");
+				process.exit(0);
+			}
+		}
+	} else if (targetArg) {
+		// "npm create emdash my-project" — use the argument as the project name
+		if (!PROJECT_NAME_PATTERN.test(targetArg)) {
+			p.cancel("Project name can only contain lowercase letters, numbers, and hyphens.");
+			process.exit(1);
+		}
+		projectName = targetArg;
+		projectDir = resolve(process.cwd(), projectName);
+
+		if (isDirNonEmpty(projectDir)) {
+			const overwrite = await p.confirm({
+				message: `Directory ${projectName} already exists and is not empty. Files may be overwritten. Continue?`,
+				initialValue: false,
+			});
+
+			if (p.isCancel(overwrite) || !overwrite) {
+				p.cancel("Operation cancelled.");
+				process.exit(0);
+			}
+		}
+	} else {
+		// No argument — interactive prompt
+		const name = await p.text({
+			message: "Project name?",
+			placeholder: "my-site",
+			defaultValue: "my-site",
+			validate: (value) => {
+				if (!value) return "Project name is required";
+				if (!PROJECT_NAME_PATTERN.test(value))
+					return "Project name can only contain lowercase letters, numbers, and hyphens";
+				return undefined;
+			},
 		});
 
-		if (p.isCancel(overwrite) || !overwrite) {
+		if (p.isCancel(name)) {
 			p.cancel("Operation cancelled.");
 			process.exit(0);
+		}
+
+		projectName = name;
+		projectDir = resolve(process.cwd(), projectName);
+
+		if (isDirNonEmpty(projectDir)) {
+			const overwrite = await p.confirm({
+				message: `Directory ${projectName} already exists and is not empty. Files may be overwritten. Continue?`,
+				initialValue: false,
+			});
+
+			if (p.isCancel(overwrite) || !overwrite) {
+				p.cancel("Operation cancelled.");
+				process.exit(0);
+			}
 		}
 	}
 
@@ -263,17 +314,26 @@ async function main() {
 				s.stop("Dependencies installed!");
 			} catch {
 				s.stop("Failed to install dependencies");
-				p.log.warn(`Run ${pc.cyan(`cd ${projectName} && ${installCmd}`)} manually`);
+				p.log.warn(
+					isCurrentDir
+						? `Run ${pc.cyan(installCmd)} manually`
+						: `Run ${pc.cyan(`cd ${projectName} && ${installCmd}`)} manually`,
+				);
 			}
 		}
 
-		const steps = [`cd ${projectName}`];
+		const steps: string[] = [];
+		if (!isCurrentDir) steps.push(`cd ${projectName}`);
 		if (!shouldInstall) steps.push(installCmd);
 		steps.push(runCmd("dev"));
 
 		p.note(steps.join("\n"), "Next steps");
 
-		p.outro(`${pc.green("Done!")} Your EmDash project is ready at ${pc.cyan(projectName)}`);
+		p.outro(
+			isCurrentDir
+				? `${pc.green("Done!")} Your EmDash project is ready in the current directory`
+				: `${pc.green("Done!")} Your EmDash project is ready at ${pc.cyan(projectName)}`,
+		);
 	} catch (error) {
 		s.stop("Failed to create project");
 		p.log.error(error instanceof Error ? error.message : String(error));

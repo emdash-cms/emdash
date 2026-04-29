@@ -63,7 +63,11 @@ export interface AdminManifest {
 					label?: string;
 					required?: boolean;
 					widget?: string;
-					options?: Array<{ value: string; label: string }>;
+					/**
+					 * For `select` / `multiSelect`: the list of enum choices.
+					 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+					 */
+					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 				}
 			>;
@@ -109,6 +113,7 @@ export interface AdminManifest {
 				description?: string;
 				placeholder?: string;
 				fields?: Element[];
+				category?: string;
 			}>;
 		}
 	>;
@@ -146,6 +151,15 @@ export interface AdminManifest {
 	 * in the EmDash integration. Enables marketplace features in the UI.
 	 */
 	marketplace?: string;
+	/**
+	 * Admin branding overrides for white-labeling.
+	 * Set via the `admin` config in `astro.config.mjs`.
+	 */
+	admin?: {
+		logo?: string;
+		siteName?: string;
+		favicon?: string;
+	};
 }
 
 /**
@@ -169,4 +183,21 @@ export async function parseApiResponse<T>(
 export async function fetchManifest(): Promise<AdminManifest> {
 	const response = await apiFetch(`${API_BASE}/manifest`);
 	return parseApiResponse<AdminManifest>(response, "Failed to fetch manifest");
+}
+
+/**
+ * Fetch auth mode (public endpoint — works without authentication).
+ * Used by the login page to determine which login UI to render.
+ */
+export async function fetchAuthMode(): Promise<{
+	authMode: string;
+	signupEnabled?: boolean;
+	providers?: Array<{ id: string; label: string }>;
+}> {
+	const response = await apiFetch(`${API_BASE}/auth/mode`);
+	return parseApiResponse<{
+		authMode: string;
+		signupEnabled?: boolean;
+		providers?: Array<{ id: string; label: string }>;
+	}>(response, "Failed to fetch auth mode");
 }

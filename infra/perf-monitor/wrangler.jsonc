@@ -1,0 +1,61 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-perf-coordinator",
+	"main": "src/index.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"routes": [
+		{
+			"pattern": "perf.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash_perf",
+			"database_id": "84918738-8904-49bb-a306-b58b96edfc08",
+			"migrations_dir": "migrations",
+		},
+	],
+	"services": [
+		{
+			"binding": "PROBE_USE",
+			"service": "emdash-perf-probe-use",
+		},
+		{
+			"binding": "PROBE_EUW",
+			"service": "emdash-perf-probe-euw",
+		},
+		{
+			"binding": "PROBE_APE",
+			"service": "emdash-perf-probe-ape",
+		},
+		{
+			"binding": "PROBE_APS",
+			"service": "emdash-perf-probe-aps",
+		},
+	],
+	"triggers": {
+		"crons": ["*/30 * * * *"],
+	},
+	"assets": {
+		"directory": "public",
+	},
+	"queues": {
+		"consumers": [
+			{
+				"queue": "emdash-perf-deploy-events",
+				"max_batch_size": 10,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "emdash-perf-deploy-events-dlq",
+			},
+		],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

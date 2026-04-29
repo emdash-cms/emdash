@@ -19,15 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	Plus,
-	DotsSixVertical,
-	Pencil,
-	Trash,
-	Database,
-	FileText,
-} from "@phosphor-icons/react";
+import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -39,6 +31,7 @@ import type {
 	UpdateCollectionInput,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldEditor } from "./FieldEditor";
 
@@ -158,7 +151,11 @@ export function ContentTypeEditor({
 	const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? "");
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
-	const [supports, setSupports] = React.useState<string[]>(collection?.supports ?? ["drafts"]);
+	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
+	// so it isn't sent back on save (the API enum rejects it).
+	const [supports, setSupports] = React.useState<string[]>(
+		(collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"),
+	);
 
 	// SEO state
 	const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false);
@@ -195,7 +192,7 @@ export function ContentTypeEditor({
 			description !== (collection.description ?? "") ||
 			urlPattern !== (collection.urlPattern ?? "") ||
 			JSON.stringify([...supports].toSorted()) !==
-				JSON.stringify([...collection.supports].toSorted()) ||
+				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
 			commentsEnabled !== collection.commentsEnabled ||
 			commentsModeration !== collection.commentsModeration ||
@@ -326,7 +323,7 @@ export function ContentTypeEditor({
 					aria-label="Back to Content Types"
 					className={buttonVariants({ variant: "ghost", shape: "square" })}
 				>
-					<ArrowLeft className="h-5 w-5" />
+					<ArrowPrev className="h-5 w-5" />
 				</Link>
 				<div className="flex-1">
 					<h1 className="text-2xl font-bold">{isNew ? "New Content Type" : collection?.label}</h1>
@@ -334,7 +331,7 @@ export function ContentTypeEditor({
 						<p className="text-kumo-subtle text-sm">
 							<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
 							{isFromCode && (
-								<span className="ml-2 text-purple-600 dark:text-purple-400">Defined in code</span>
+								<span className="ms-2 text-purple-600 dark:text-purple-400">Defined in code</span>
 							)}
 						</p>
 					)}
@@ -699,7 +696,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 				<button
 					{...attributes}
 					{...listeners}
-					className="cursor-grab active:cursor-grabbing mr-3"
+					className="cursor-grab active:cursor-grabbing me-3"
 					aria-label={`Drag to reorder ${field.label}`}
 				>
 					<DotsSixVertical className="h-5 w-5 text-kumo-subtle" />

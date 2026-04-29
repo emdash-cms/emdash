@@ -14,6 +14,7 @@ import {
 	LinkSimple,
 	BracketsCurly,
 	Link,
+	GlobeSimple,
 	Rows,
 	Plus,
 	Trash,
@@ -225,6 +226,12 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			icon: Link,
 		},
 		{
+			type: "url",
+			label: t`URL`,
+			description: t`Web address`,
+			icon: GlobeSimple,
+		},
+		{
 			type: "repeater",
 			label: t`Repeater`,
 			description: t`Repeating group of fields`,
@@ -298,7 +305,8 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			selectedType === "string" ||
 			selectedType === "text" ||
 			selectedType === "portableText" ||
-			selectedType === "slug";
+			selectedType === "slug" ||
+			selectedType === "url";
 
 		const input: CreateFieldInput = {
 			slug,
@@ -330,7 +338,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								variant="ghost"
 								shape="square"
 								aria-label={t`Close`}
-								className="absolute right-4 top-4"
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">{t`Close`}</span>
@@ -349,7 +357,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									type="button"
 									onClick={() => handleTypeSelect(ft.type)}
 									className={cn(
-										"flex items-start space-x-3 p-4 rounded-lg border text-left transition-colors hover:border-kumo-brand hover:bg-kumo-tint/50",
+										"flex items-start space-x-3 p-4 rounded-lg border text-start transition-colors hover:border-kumo-brand hover:bg-kumo-tint/50",
 									)}
 								>
 									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kumo-tint">
@@ -377,7 +385,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									<Button
 										variant="ghost"
 										size="sm"
-										className="ml-auto"
+										className="ms-auto"
 										onClick={() => setField("step", "type")}
 									>
 										{t`Change`}
@@ -433,7 +441,8 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 							{(selectedType === "string" ||
 								selectedType === "text" ||
 								selectedType === "portableText" ||
-								selectedType === "slug") && (
+								selectedType === "slug" ||
+								selectedType === "url") && (
 								<label className="flex items-center space-x-2">
 									<input
 										type="checkbox"
@@ -576,6 +585,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 														<option value="boolean">{t`Boolean`}</option>
 														<option value="datetime">{t`Date & Time`}</option>
 														<option value="select">{t`Select`}</option>
+														<option value="url">{t`URL`}</option>
 													</select>
 												</div>
 											</div>

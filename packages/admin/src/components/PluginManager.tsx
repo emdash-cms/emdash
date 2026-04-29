@@ -15,7 +15,6 @@ import {
 	SquaresFour,
 	WebhooksLogo,
 	CaretDown,
-	CaretRight,
 	ArrowsClockwise,
 	Storefront,
 	Trash,
@@ -41,6 +40,7 @@ import {
 } from "../lib/api/marketplace.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -149,7 +149,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							disabled={isCheckingUpdates}
 						>
 							<ArrowsClockwise
-								className={cn("mr-2 h-4 w-4", isCheckingUpdates && "animate-spin")}
+								className={cn("me-2 h-4 w-4", isCheckingUpdates && "animate-spin")}
 							/>
 							{t`Check for updates`}
 						</Button>
@@ -157,7 +157,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 					{hasMarketplace && (
 						<Link to="/plugins/marketplace">
 							<Button variant="ghost">
-								<Storefront className="mr-2 h-4 w-4" />
+								<Storefront className="me-2 h-4 w-4" />
 								{t`Marketplace`}
 							</Button>
 						</Link>
@@ -367,7 +367,7 @@ function PluginCard({
 						{isMarketplace && hasMarketplace && (
 							<Link to="/plugins/marketplace/$pluginId" params={{ pluginId: plugin.id }}>
 								<Button variant="ghost" size="sm">
-									<Storefront className="mr-1.5 h-3.5 w-3.5" />
+									<Storefront className="me-1.5 h-3.5 w-3.5" />
 									{t`View in Marketplace`}
 								</Button>
 							</Link>
@@ -396,7 +396,7 @@ function PluginCard({
 							onClick={() => setExpanded(!expanded)}
 							aria-expanded={expanded}
 						>
-							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
+							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 							<span className="sr-only">
 								{expanded ? t`Collapse` : t`Expand`} {t`details`}
 							</span>
@@ -480,7 +480,7 @@ function PluginCard({
 									onClick={() => setShowUninstallConfirm(true)}
 									disabled={uninstallMutation.isPending}
 								>
-									<Trash className="mr-2 h-4 w-4" />
+									<Trash className="me-2 h-4 w-4" />
 									{t`Uninstall`}
 								</Button>
 							</div>
