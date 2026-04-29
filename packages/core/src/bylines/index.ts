@@ -73,15 +73,11 @@ export async function getBylineBySlug(slug: string): Promise<BylineSummary | nul
  * but the entry has an `authorId`, falls back to the user-linked byline
  * (marked as source: "inferred").
  *
- * @example
- * ```ts
- * import { getEntryBylines } from "emdash";
- *
- * const bylines = await getEntryBylines("posts", post.data.id);
- * for (const credit of bylines) {
- *   console.log(credit.byline.displayName, credit.roleLabel);
- * }
- * ```
+ * Internal: not re-exported from the `emdash` package entry point. Every
+ * entry returned by `getEmDashCollection` / `getEmDashEntry` already has
+ * `data.bylines` populated by `hydrateEntryBylines` (which uses the batch
+ * helper `getBylinesForEntries` directly). Site code should read those
+ * fields rather than calling this function.
  */
 export async function getEntryBylines(
 	collection: string,
