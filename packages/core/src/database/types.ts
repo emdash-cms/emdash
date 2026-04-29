@@ -466,6 +466,15 @@ export interface NotFoundLogTable {
 	referrer: string | null;
 	user_agent: string | null;
 	ip: string | null;
+	hits: number;
+	/**
+	 * Migration 035 adds this as a nullable column (SQLite can't add a
+	 * NOT NULL column with a non-constant default to an existing table).
+	 * The `log404` upsert always writes a value, so new and updated rows
+	 * always have one, but existing rows pre-migration were backfilled
+	 * without a NOT NULL constraint. Typed as nullable to match the schema.
+	 */
+	last_seen_at: string | null;
 	created_at: string;
 }
 

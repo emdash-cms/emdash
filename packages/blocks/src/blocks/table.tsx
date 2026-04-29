@@ -72,7 +72,7 @@ export function TableBlockComponent({
 
 	return (
 		<div className="overflow-x-auto">
-			<table className="w-full text-left text-sm">
+			<table className="w-full text-start text-sm">
 				<thead>
 					<tr className="border-b border-kumo-line">
 						{block.columns.map((col) => (

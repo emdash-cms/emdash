@@ -43,12 +43,15 @@ export class TaxonomyRepository {
 	async create(input: CreateTaxonomyInput): Promise<Taxonomy> {
 		const id = ulid();
 
+		// Empty-string parentId is coerced to null defensively. Higher layers
+		// also normalize this — see handleTermCreate / handleTermUpdate.
+		const parentId = input.parentId === undefined || input.parentId === "" ? null : input.parentId;
 		const row: TaxonomyTable = {
 			id,
 			name: input.name,
 			slug: input.slug,
 			label: input.label,
-			parent_id: input.parentId ?? null,
+			parent_id: parentId,
 			data: input.data ? JSON.stringify(input.data) : null,
 		};
 
@@ -92,11 +95,15 @@ export class TaxonomyRepository {
 	 * Get all terms for a taxonomy (e.g., all categories)
 	 */
 	async findByName(name: string, options: { parentId?: string | null } = {}): Promise<Taxonomy[]> {
+		// `id asc` is a stable tiebreaker for terms that share a label.
+		// Without it the SQL ordering is implementation-defined when labels
+		// match, which breaks keyset pagination over `(label, id)`.
 		let query = this.db
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
-			.orderBy("label", "asc");
+			.orderBy("label", "asc")
+			.orderBy("id", "asc");
 
 		if (options.parentId !== undefined) {
 			if (options.parentId === null) {
@@ -119,6 +126,7 @@ export class TaxonomyRepository {
 			.selectAll()
 			.where("parent_id", "=", parentId)
 			.orderBy("label", "asc")
+			.orderBy("id", "asc")
 			.execute();
 
 		return rows.map((row) => this.rowToTaxonomy(row));
@@ -134,7 +142,10 @@ export class TaxonomyRepository {
 		const updates: Partial<TaxonomyTable> = {};
 		if (input.slug !== undefined) updates.slug = input.slug;
 		if (input.label !== undefined) updates.label = input.label;
-		if (input.parentId !== undefined) updates.parent_id = input.parentId;
+		if (input.parentId !== undefined) {
+			// Defense in depth: empty-string parentId means null (no parent).
+			updates.parent_id = input.parentId === "" ? null : input.parentId;
+		}
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {

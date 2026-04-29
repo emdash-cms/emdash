@@ -196,7 +196,7 @@ describe("ContentTypeEditor", () => {
 			labelSingular: "Article",
 			description: undefined,
 			urlPattern: undefined,
-			supports: ["drafts"], // default
+			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
 	});

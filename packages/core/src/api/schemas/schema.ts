@@ -13,6 +13,7 @@ const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)
 const fieldTypeValues = z.enum([
 	"string",
 	"text",
+	"url",
 	"number",
 	"integer",
 	"boolean",

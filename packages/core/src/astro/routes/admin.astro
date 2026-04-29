@@ -9,6 +9,7 @@ import "@emdash-cms/admin/styles.css";
 // Use package-qualified import so Astro generates a proper module URL
 // (relative imports resolve to absolute paths which break client hydration)
 import AdminWrapper from "emdash/routes/PluginRegistry";
+import { Font } from "astro:assets";
 
 export const prerender = false;
 
@@ -17,6 +18,9 @@ import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/loc
 const resolvedLocale = resolveLocale(Astro.request);
 const resolvedDir = getLocaleDir(resolvedLocale);
 const messages = await loadMessages(resolvedLocale);
+
+const adminConfig = Astro.locals.emdash?.config?.admin;
+const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
 ---
 
 <!doctype html>
@@ -24,13 +28,18 @@ const messages = await loadMessages(resolvedLocale);
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link
-			rel="icon"
-			href="data:image/svg+xml,<svg width='75' height='75' viewBox='0 0 75 75' fill='none' xmlns='http://www.w3.org/2000/svg'> <g clip-path='url(%23clip0_50_99)'> <rect x='3' y='3' width='69' height='69' rx='10.518' stroke='url(%23paint0_linear_50_99)' stroke-width='6'/> <rect x='18' y='34' width='39.3661' height='6.56101' fill='url(%23paint1_linear_50_99)'/> </g> <defs> <linearGradient id='paint0_linear_50_99' x1='-42.9996' y1='124' x2='92.4233' y2='-41.7456' gradientUnits='userSpaceOnUse'> <stop stop-color='%230F006B'/> <stop offset='0.0833333' stop-color='%23281A81'/> <stop offset='0.166667' stop-color='%235D0C83'/> <stop offset='0.25' stop-color='%23911475'/> <stop offset='0.333333' stop-color='%23CE2F55'/> <stop offset='0.416667' stop-color='%23FF6633'/> <stop offset='0.5' stop-color='%23F6821F'/> <stop offset='0.583333' stop-color='%23FBAD41'/> <stop offset='0.666667' stop-color='%23FFCD89'/> <stop offset='0.75' stop-color='%23FFE9CB'/> <stop offset='0.833333' stop-color='%23FFF7EC'/> <stop offset='0.916667' stop-color='%23FFF8EE'/> <stop offset='1' stop-color='white'/> </linearGradient> <linearGradient id='paint1_linear_50_99' x1='91.4992' y1='27.4982' x2='28.1217' y2='54.1775' gradientUnits='userSpaceOnUse'> <stop stop-color='white'/> <stop offset='0.129253' stop-color='%23FFF8EE'/> <stop offset='0.617058' stop-color='%23FBAD41'/> <stop offset='0.848019' stop-color='%23F6821F'/> <stop offset='1' stop-color='%23FF6633'/> </linearGradient> <clipPath id='clip0_50_99'> <rect width='75' height='75' fill='white'/> </clipPath> </defs> </svg>"
-		/>
-		<title>EmDash Admin</title>
+		<Font cssVariable="--font-emdash" />
+		{adminConfig?.favicon ? (
+			<link rel="icon" href={adminConfig.favicon} />
+		) : (
+			<link
+				rel="icon"
+				href="data:image/svg+xml,<svg width='75' height='75' viewBox='0 0 75 75' fill='none' xmlns='http://www.w3.org/2000/svg'> <g clip-path='url(%23clip0_50_99)'> <rect x='3' y='3' width='69' height='69' rx='10.518' stroke='url(%23paint0_linear_50_99)' stroke-width='6'/> <rect x='18' y='34' width='39.3661' height='6.56101' fill='url(%23paint1_linear_50_99)'/> </g> <defs> <linearGradient id='paint0_linear_50_99' x1='-42.9996' y1='124' x2='92.4233' y2='-41.7456' gradientUnits='userSpaceOnUse'> <stop stop-color='%230F006B'/> <stop offset='0.0833333' stop-color='%23281A81'/> <stop offset='0.166667' stop-color='%235D0C83'/> <stop offset='0.25' stop-color='%23911475'/> <stop offset='0.333333' stop-color='%23CE2F55'/> <stop offset='0.416667' stop-color='%23FF6633'/> <stop offset='0.5' stop-color='%23F6821F'/> <stop offset='0.583333' stop-color='%23FBAD41'/> <stop offset='0.666667' stop-color='%23FFCD89'/> <stop offset='0.75' stop-color='%23FFE9CB'/> <stop offset='0.833333' stop-color='%23FFF7EC'/> <stop offset='0.916667' stop-color='%23FFF8EE'/> <stop offset='1' stop-color='white'/> </linearGradient> <linearGradient id='paint1_linear_50_99' x1='91.4992' y1='27.4982' x2='28.1217' y2='54.1775' gradientUnits='userSpaceOnUse'> <stop stop-color='white'/> <stop offset='0.129253' stop-color='%23FFF8EE'/> <stop offset='0.617058' stop-color='%23FBAD41'/> <stop offset='0.848019' stop-color='%23F6821F'/> <stop offset='1' stop-color='%23FF6633'/> </linearGradient> <clipPath id='clip0_50_99'> <rect width='75' height='75' fill='white'/> </clipPath> </defs> </svg>"
+			/>
+		)}
+		<title>{pageTitle}</title>
 	</head>
-	<body>
+	<body class="isolate">
 		<div id="admin-root" class="min-h-screen">
 			<div id="emdash-boot-loader">
 				<style>
@@ -63,10 +72,12 @@ const messages = await loadMessages(resolvedLocale);
 					}
 					#emdash-boot-loader p {
 						margin-top: 1rem;
-						font-family:
+						font-family: var(
+							--font-emdash,
+							ui-sans-serif,
 							system-ui,
-							-apple-system,
-							sans-serif;
+							sans-serif
+						);
 						font-size: 0.875rem;
 						color: light-dark(hsl(215.4 16.3% 46.9%), hsl(215 20.2% 65.1%));
 					}
@@ -78,7 +89,7 @@ const messages = await loadMessages(resolvedLocale);
 				</style>
 				<div class="loader-inner">
 					<div class="spinner"></div>
-					<p>Loading EmDash...</p>
+					<p>{adminConfig?.siteName ? `Loading ${adminConfig.siteName}...` : "Loading EmDash..."}</p>
 				</div>
 			</div>
 			<AdminWrapper client:only="react" locale={resolvedLocale} messages={messages} />

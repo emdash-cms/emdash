@@ -15,7 +15,6 @@ import {
 	SquaresFour,
 	WebhooksLogo,
 	CaretDown,
-	CaretRight,
 	ArrowsClockwise,
 	Storefront,
 	Trash,
@@ -41,6 +40,7 @@ import {
 } from "../lib/api/marketplace.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -396,7 +396,7 @@ function PluginCard({
 							onClick={() => setExpanded(!expanded)}
 							aria-expanded={expanded}
 						>
-							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
+							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 							<span className="sr-only">
 								{expanded ? t`Collapse` : t`Expand`} {t`details`}
 							</span>

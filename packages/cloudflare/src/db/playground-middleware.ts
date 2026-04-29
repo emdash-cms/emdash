@@ -292,12 +292,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		try {
 			await initializePlayground(db, token);
+			console.log(`[playground] Session ${token} initialized`);
 			initializedSessions.add(token);
 			const fullStub = getFullStub(binding, token);
+			console.log(`[playground] Setting TTL alarm for session ${token} (${ttl} seconds)`);
 			await fullStub.setTtlAlarm(ttl);
+			console.log(`[playground] TTL alarm set for session ${token}`);
 			return Response.json({ ok: true });
 		} catch (error) {
 			console.error("Playground initialization failed:", error);
+			if (error instanceof Error) {
+				console.error(error.stack);
+			}
 			return Response.json(
 				{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
 				{ status: 500 },

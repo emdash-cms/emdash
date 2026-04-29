@@ -154,6 +154,7 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 				onChange={(e) => {
 					updateDraft({ title: e.target.value });
 				}}
+				dir="auto"
 			/>
 
 			<div>
@@ -169,6 +170,7 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 						updateDraft({ description: e.target.value });
 					}}
 					rows={3}
+					dir="auto"
 				/>
 			</div>
 

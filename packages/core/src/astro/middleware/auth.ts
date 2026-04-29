@@ -17,6 +17,8 @@ import { ulid } from "ulidx";
 // Import auth provider via virtual module (statically bundled)
 // This avoids dynamic import issues in Cloudflare Workers
 import { authenticate as virtualAuthenticate } from "virtual:emdash/auth";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
@@ -102,6 +104,7 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
 	"/_emdash/api/oauth/token",
+	"/_emdash/api/oauth/register",
 	"/_emdash/api/comments/",
 	"/_emdash/api/media/file/",
 	"/_emdash/.well-known/",
@@ -110,6 +113,7 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
+	"/_emdash/api/auth/mode",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	// Public site search — read-only. The query layer hardcodes status='published'
@@ -118,11 +122,57 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/search",
 ]);
 
+// Build merged public routes at module load from auth provider descriptors.
+// Routes ending with "/" are treated as prefixes; all others are exact matches.
+const { exact: _providerExactRoutes, prefixes: _providerPrefixRoutes } = (() => {
+	const exact = new Set<string>();
+	const prefixes: string[] = [];
+	if (!virtualConfig?.authProviders) return { exact, prefixes };
+	for (const route of virtualConfig.authProviders.flatMap((p) => p.publicRoutes ?? [])) {
+		if (route.endsWith("/")) {
+			prefixes.push(route);
+		} else {
+			exact.add(route);
+		}
+	}
+	return { exact, prefixes };
+})();
+
+/**
+ * OAuth protocol endpoints that are CSRF-exempt by design.
+ *
+ * These are RFC-defined endpoints (RFC 6749 §3.2, RFC 7591 §3, RFC 8628 §3.1/§3.4)
+ * specified to be called cross-origin by external clients (MCP clients, CLIs,
+ * native apps). They authenticate each request on its own merits:
+ *
+ * - /oauth/token: requires PKCE code_verifier, device_code, or refresh_token
+ * - /oauth/register: RFC 7591 dynamic client registration — anonymous by design
+ * - /oauth/device/code: RFC 8628 device flow initiation — anonymous by design
+ * - /oauth/device/token: requires device_code the client already holds
+ *
+ * None of these rely on ambient cookie credentials, so browser-based CSRF
+ * attacks have nothing to exploit. The endpoints themselves advertise
+ * `Access-Control-Allow-Origin: *`. Note: /oauth/device/authorize (the user
+ * consent step) is NOT in this list — it is session-authenticated.
+ */
+const CSRF_EXEMPT_PUBLIC_ROUTES = new Set([
+	"/_emdash/api/oauth/token",
+	"/_emdash/api/oauth/register",
+	"/_emdash/api/oauth/device/code",
+	"/_emdash/api/oauth/device/token",
+]);
+
 function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_EXACT.has(pathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
 	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
 	return false;
+}
+
+function isCsrfExemptPublicRoute(pathname: string): boolean {
+	return CSRF_EXEMPT_PUBLIC_ROUTES.has(pathname);
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -141,7 +191,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// This prevents cross-origin form submissions and fetch requests from malicious sites.
 	if (isPublicApiRoute) {
 		const method = context.request.method.toUpperCase();
-		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+		if (
+			isUnsafeMethod(method) &&
+			!isCsrfExemptPublicRoute(url.pathname) // OAuth protocol endpoints — cross-origin by design
+		) {
 			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;

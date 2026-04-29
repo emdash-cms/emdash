@@ -77,6 +77,13 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
     -webkit-font-smoothing: antialiased;
   }
 
+  @media (max-width: 639px) {
+    #emdash-playground-toolbar {
+      max-width: calc(100vw - 2rem);
+      width: 100%;
+    }
+  }
+
   #emdash-playground-toolbar.ec-pg-hidden {
     display: none;
   }
@@ -92,6 +99,14 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
     box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
     white-space: nowrap;
     user-select: none;
+  }
+
+  @media (max-width: 639px) {
+    .ec-pg-inner {
+      flex-wrap: wrap;
+      justify-content: center;
+      border-radius: .75rem;
+    }
   }
 
   .ec-pg-badge {

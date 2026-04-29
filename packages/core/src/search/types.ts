@@ -58,7 +58,14 @@ export interface SearchResult {
 	locale: string;
 	/** Entry title (if available) */
 	title?: string;
-	/** Highlighted snippet showing match context */
+	/**
+	 * Highlighted snippet showing match context.
+	 *
+	 * Sanitized server-side to be safe for `set:html` / `innerHTML`:
+	 * all HTML metacharacters in the source text are escaped, and
+	 * matched terms are wrapped in literal `<mark>...</mark>` tags
+	 * (the only HTML the snippet is allowed to contain).
+	 */
 	snippet?: string;
 	/** Relevance score (higher = more relevant) */
 	score: number;

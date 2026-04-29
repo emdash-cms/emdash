@@ -9,6 +9,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import { validateRedirectUri } from "../oauth/redirect-uri.js";
 import type { ApiResult } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,16 @@ import type { ApiResult } from "../types.js";
 function parseJsonColumn<T>(value: string): T {
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns unknown, callers provide the expected shape
 	return JSON.parse(value) as T;
+}
+
+function validateRegisteredRedirectUris(redirectUris: string[]): string | null {
+	for (const redirectUri of redirectUris) {
+		const error = validateRedirectUri(redirectUri);
+		if (error) {
+			return `Invalid redirect URI: ${error}`;
+		}
+	}
+	return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +72,17 @@ export async function handleOAuthClientCreate(
 			};
 		}
 
+		const redirectUriError = validateRegisteredRedirectUris(input.redirectUris);
+		if (redirectUriError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: redirectUriError,
+				},
+			};
+		}
+
 		// Check for duplicate client ID
 		const existing = await db
 			.selectFrom("_emdash_oauth_clients")
@@ -83,7 +105,7 @@ export async function handleOAuthClientCreate(
 				id: input.id,
 				name: input.name,
 				redirect_uris: JSON.stringify(input.redirectUris),
-				scopes: input.scopes ? JSON.stringify(input.scopes) : null,
+				scopes: input.scopes && input.scopes.length > 0 ? JSON.stringify(input.scopes) : null,
 			})
 			.execute();
 
@@ -93,7 +115,7 @@ export async function handleOAuthClientCreate(
 				id: input.id,
 				name: input.name,
 				redirectUris: input.redirectUris,
-				scopes: input.scopes ?? null,
+				scopes: input.scopes && input.scopes.length > 0 ? input.scopes : null,
 				createdAt: now,
 				updatedAt: now,
 			},
@@ -222,7 +244,20 @@ export async function handleOAuthClientUpdate(
 			};
 		}
 
-		const updates: Record<string, string> = {
+		if (input.redirectUris !== undefined) {
+			const redirectUriError = validateRegisteredRedirectUris(input.redirectUris);
+			if (redirectUriError) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: redirectUriError,
+					},
+				};
+			}
+		}
+
+		const updates: Record<string, string | null> = {
 			updated_at: new Date().toISOString(),
 		};
 
@@ -233,7 +268,8 @@ export async function handleOAuthClientUpdate(
 			updates.redirect_uris = JSON.stringify(input.redirectUris);
 		}
 		if (input.scopes !== undefined) {
-			updates.scopes = input.scopes ? JSON.stringify(input.scopes) : "";
+			updates.scopes =
+				input.scopes && input.scopes.length > 0 ? JSON.stringify(input.scopes) : null;
 		}
 
 		await db.updateTable("_emdash_oauth_clients").set(updates).where("id", "=", clientId).execute();

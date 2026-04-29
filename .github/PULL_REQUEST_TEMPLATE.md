@@ -25,7 +25,7 @@ Closes #
 - [ ] `pnpm test` passes (or targeted tests for my change)
 - [ ] `pnpm format` has been run
 - [ ] I have added/updated tests for my changes (if applicable)
-- [ ] User-visible strings in the admin UI are [wrapped for translation](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#internationalization-i18n) and `pnpm locale:extract` has been run (if applicable)
+- [ ] User-visible strings in the admin UI are [wrapped for translation](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#internationalization-i18n) (if applicable). Do not include `messages.po` changes except in translation PRs — a workflow extracts catalogs on merge to `main`.
 - [ ] I have added a [changeset](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#changesets) (if this PR changes a published package)
 - [ ] New features link to an approved Discussion: https://github.com/emdash-cms/emdash/discussions/...
 

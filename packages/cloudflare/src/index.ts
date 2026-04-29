@@ -67,7 +67,7 @@ export interface D1Config {
 	 * Cookie name for storing the session bookmark.
 	 * Only used when session is `"auto"` or `"primary-first"`.
 	 *
-	 * @default "__ec_d1_bookmark"
+	 * @default "__em_d1_bookmark"
 	 */
 	bookmarkCookie?: string;
 }
@@ -163,6 +163,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		supportsRequestScope: true,
 	};
 }
 

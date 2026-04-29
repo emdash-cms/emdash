@@ -42,7 +42,7 @@ const SWR_REGEX = /stale-while-revalidate=(\d+)/;
 const INTERNAL_HEADERS = [STORED_AT_HEADER, MAX_AGE_HEADER, SWR_HEADER];
 
 /** Default D1 bookmark cookie name (from @emdash-cms/cloudflare d1 config) */
-const DEFAULT_BOOKMARK_COOKIE = "__ec_d1_bookmark";
+const DEFAULT_BOOKMARK_COOKIE = "__em_d1_bookmark";
 
 export interface CloudflareCacheConfig {
 	/**
@@ -55,7 +55,7 @@ export interface CloudflareCacheConfig {
 	 * D1 bookmark cookie name. Responses whose only Set-Cookie is this
 	 * bookmark will have it stripped before caching. Responses with any
 	 * other Set-Cookie headers will not be cached.
-	 * @default "__ec_d1_bookmark"
+	 * @default "__em_d1_bookmark"
 	 */
 	bookmarkCookie?: string;
 

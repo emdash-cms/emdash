@@ -2,7 +2,6 @@ import { Badge, Button, Dialog, Input, Label, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowRight,
 	MagnifyingGlass,
 	Plus,
 	ArrowsLeftRight,
@@ -28,6 +27,7 @@ import type {
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
 import { cn } from "../lib/utils.js";
+import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -464,7 +464,7 @@ export function Redirects() {
 										{r.source}
 									</div>
 									<div className="w-8 text-center text-kumo-subtle">
-										<ArrowRight size={14} />
+										<ArrowNext size={14} />
 									</div>
 									<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
 										{r.destination}
