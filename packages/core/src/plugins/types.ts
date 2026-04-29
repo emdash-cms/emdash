@@ -128,9 +128,12 @@ export const CAPABILITY_RENAMES: Readonly<
 
 /**
  * Type guard: is this capability one of the deprecated legacy names?
+ *
+ * Uses an own-property check so that prototype keys like "toString" or
+ * "constructor" don't accidentally pass.
  */
 export function isDeprecatedCapability(cap: string): cap is DeprecatedPluginCapability {
-	return cap in CAPABILITY_RENAMES;
+	return Object.hasOwn(CAPABILITY_RENAMES, cap);
 }
 
 /**

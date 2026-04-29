@@ -77,6 +77,20 @@ describe("isDeprecatedCapability", () => {
 		expect(isDeprecatedCapability("")).toBe(false);
 		expect(isDeprecatedCapability("content")).toBe(false);
 	});
+
+	it("does not match Object.prototype keys", () => {
+		// Regression: an `in` check against CAPABILITY_RENAMES would
+		// also match inherited properties. Using `Object.prototype.hasOwnProperty`
+		// (or `Object.hasOwn`) keeps the check scoped to own properties.
+		// Without the guard, `normalizeCapability("toString")` would return
+		// the prototype function reference, breaking the contract that
+		// unknown strings are returned as-is.
+		expect(isDeprecatedCapability("toString")).toBe(false);
+		expect(isDeprecatedCapability("constructor")).toBe(false);
+		expect(isDeprecatedCapability("hasOwnProperty")).toBe(false);
+		expect(isDeprecatedCapability("__proto__")).toBe(false);
+		expect(isDeprecatedCapability("valueOf")).toBe(false);
+	});
 });
 
 describe("normalizeCapability", () => {
@@ -106,6 +120,15 @@ describe("normalizeCapability", () => {
 		// normalizer's job is purely to translate the alias map.
 		expect(normalizeCapability("invalid:capability")).toBe("invalid:capability");
 		expect(normalizeCapability("")).toBe("");
+	});
+
+	it("returns Object.prototype keys as-is (does not return prototype values)", () => {
+		// Regression: with an `in` check, `normalizeCapability("toString")`
+		// would have returned `Object.prototype.toString` (a function).
+		// The own-property guard ensures we always return a string.
+		expect(normalizeCapability("toString")).toBe("toString");
+		expect(normalizeCapability("constructor")).toBe("constructor");
+		expect(normalizeCapability("__proto__")).toBe("__proto__");
 	});
 });
 

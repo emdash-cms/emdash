@@ -459,7 +459,7 @@ export const publishCommand = defineCommand({
 				consola.error(`  ${cap} → ${replacement}`);
 			}
 			consola.error(
-				"See https://emdashcms.com/docs/plugins/capabilities for the full rename table.",
+				"See https://emdashcms.com/docs/plugins/overview#capabilities for the full rename table.",
 			);
 			process.exit(1);
 		}
