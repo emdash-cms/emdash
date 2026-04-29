@@ -6,6 +6,8 @@
 
 import { generatePreviewToken } from "./tokens.js";
 
+const REPEATED_SLASHES = /\/{2,}/g;
+
 /**
  * Options for generating a preview URL
  */
@@ -92,7 +94,7 @@ export async function getPreviewUrl(options: GetPreviewUrlOptions): Promise<stri
 		.replace("{collection}", collection)
 		.replace("{id}", id)
 		.replace("{locale}", locale);
-	path = path.replace(/\/{2,}/g, "/");
+	path = path.replace(REPEATED_SLASHES, "/");
 	if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
 
 	// Add token as query parameter
