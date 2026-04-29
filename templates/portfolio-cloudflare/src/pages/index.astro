@@ -3,20 +3,18 @@ import { getEmDashCollection, getSiteSettings } from "emdash";
 import Base from "../layouts/Base.astro";
 import ProjectCard from "../components/ProjectCard.astro";
 
-const settings = await getSiteSettings();
-const { entries: projects, cacheHint } =
-	await getEmDashCollection("projects");
+// Fetch settings + the 4 featured projects in parallel. Limiting and
+// sorting in the database avoids loading every project just to slice
+// off the first 4 in JS (a full-table read on sites with lots of work).
+const [settings, { entries: featuredProjects, cacheHint }] = await Promise.all([
+	getSiteSettings(),
+	getEmDashCollection("projects", {
+		orderBy: { published_at: "desc" },
+		limit: 4,
+	}),
+]);
 
 Astro.cache.set(cacheHint);
-
-// Get the 4 most recent projects for the homepage
-const featuredProjects = projects
-	.toSorted((a, b) => {
-		const dateA = a.data.publishedAt?.getTime() ?? 0;
-		const dateB = b.data.publishedAt?.getTime() ?? 0;
-		return dateB - dateA;
-	})
-	.slice(0, 4);
 ---
 
 <Base>

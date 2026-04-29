@@ -63,7 +63,11 @@ export interface AdminManifest {
 					label?: string;
 					required?: boolean;
 					widget?: string;
-					options?: Array<{ value: string; label: string }>;
+					/**
+					 * For `select` / `multiSelect`: the list of enum choices.
+					 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+					 */
+					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 				}
 			>;
@@ -109,6 +113,7 @@ export interface AdminManifest {
 				description?: string;
 				placeholder?: string;
 				fields?: Element[];
+				category?: string;
 			}>;
 		}
 	>;

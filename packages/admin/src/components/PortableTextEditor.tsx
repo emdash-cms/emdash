@@ -63,7 +63,6 @@ import {
 	Trash,
 	DotsSixVertical,
 	CaretDown,
-	CaretRight,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -83,6 +82,7 @@ import { createPortal } from "react-dom";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -709,7 +709,12 @@ interface SlashCommandItem {
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
-	category?: MessageDescriptor;
+	/**
+	 * Display category. Built-in commands use `msg`-tagged descriptors;
+	 * plugin-supplied categories arrive as plain strings via the manifest
+	 * and are passed through verbatim when rendered.
+	 */
+	category?: MessageDescriptor | string;
 }
 
 /**
@@ -1073,9 +1078,20 @@ function PluginBlockModal({
 		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
+	// Size the dialog based on field complexity. The default `sm` is right for
+	// simple URL embeds (one field) but cramps Block Kit forms with several
+	// fields or a repeater, which need room for inline sub-field inputs.
+	const dialogSize = (() => {
+		if (!hasFields) return "sm";
+		const fields = block?.fields ?? [];
+		if (fields.some((f) => f.type === "repeater")) return "xl";
+		if (fields.length > 3) return "lg";
+		return "base";
+	})();
+
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size="sm">
+			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 						{isEditing ? "Edit" : "Insert"} {block?.label || ""}
@@ -1112,6 +1128,7 @@ function PluginBlockModal({
 							<Input
 								ref={inputRef}
 								type="url"
+								className="w-full"
 								placeholder={block?.placeholder || "Enter URL..."}
 								value={typeof formValues.id === "string" ? formValues.id : ""}
 								onChange={(e) => handleFieldChange("id", e.target.value)}
@@ -1165,6 +1182,7 @@ function BlockKitField({
 					) : (
 						<Input
 							type="text"
+							className="w-full"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
 							onChange={(e) => onChange(field.action_id, e.target.value)}
@@ -1181,6 +1199,7 @@ function BlockKitField({
 					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 					<Input
 						type="number"
+						className="w-full"
 						min={min}
 						max={max}
 						value={typeof value === "number" ? String(value) : ""}
@@ -1470,12 +1489,12 @@ function BlockKitRepeaterItem({
 				</span>
 				<button
 					type="button"
-					className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+					className="flex items-center gap-2 flex-1 min-w-0 text-start cursor-pointer"
 					onClick={onToggleCollapse}
 					aria-expanded={!isCollapsed}
 				>
 					{isCollapsed ? (
-						<CaretRight className="h-4 w-4 text-kumo-subtle shrink-0" />
+						<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
 					) : (
 						<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 					)}
@@ -1783,7 +1802,8 @@ export function PortableTextEditor({
 			},
 		});
 
-		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped)
+		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
+		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
 		for (const block of pluginBlocks) {
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
@@ -1791,7 +1811,7 @@ export function PortableTextEditor({
 				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: msg`Embeds`,
+				category: block.category ?? msg`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);

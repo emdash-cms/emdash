@@ -72,5 +72,10 @@ examples/wp-theme-unit-test/
 .opencode/*
 !.opencode/agents/
 
+# .claude is local-only EXCEPT for the symlinks pointing at AGENTS.md and skills/
+.claude/*
+!.claude/CLAUDE.md
+!.claude/skills
+
 .perf-query-counts
 query-counts-out/

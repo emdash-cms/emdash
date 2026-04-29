@@ -130,7 +130,7 @@ function readStore(): CredentialStore {
 
 function writeStore(store: CredentialStore): void {
 	const dir = getConfigDir();
-	mkdirSync(dir, { recursive: true });
+	mkdirSync(dir, { recursive: true, mode: 0o700 });
 
 	const path = getCredentialPath();
 	writeFileSync(path, JSON.stringify(store, null, "\t"), {

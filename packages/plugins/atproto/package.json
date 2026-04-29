@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-atproto",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "AT Protocol / standard.site syndication plugin for EmDash CMS",
 	"type": "module",
 	"main": "dist/index.mjs",
@@ -28,7 +28,7 @@
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
-		"emdash": "workspace:>=0.1.0"
+		"emdash": "workspace:>=0.8.0"
 	},
 	"devDependencies": {
 		"tsdown": "catalog:",
@@ -45,5 +45,4 @@
 		"directory": "packages/plugins/atproto"
 	},
 	"dependencies": {}
-
 }

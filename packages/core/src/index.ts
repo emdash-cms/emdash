@@ -262,6 +262,15 @@ export type {
 	SerializedRequest,
 } from "./plugins/index.js";
 
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./plugins/index.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
+
 // Plugin descriptor (for astro.config.mjs)
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
 

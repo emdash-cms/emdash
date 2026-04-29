@@ -325,6 +325,20 @@ export function createViteConfig(
 			alias: [
 				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
+				// `use-sync-external-store/shim` is a React <18 polyfill that ships
+				// only as CJS. It's pulled in transitively by `@tiptap/react`. With
+				// pnpm's virtual store the file lives under .pnpm/, where Vite's
+				// dep scanner can't reach it for pre-bundling — so the browser is
+				// served raw `module.exports` and hydration fails with
+				// `SyntaxError: ... does not provide an export named
+				// 'useSyncExternalStore'`. Redirect both shim entry points to the
+				// main `use-sync-external-store` package, which on React >=18
+				// (our peer-dep floor) delegates to React's built-in hook.
+				{
+					find: "use-sync-external-store/shim/index.js",
+					replacement: "use-sync-external-store",
+				},
+				{ find: "use-sync-external-store/shim", replacement: "use-sync-external-store" },
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.

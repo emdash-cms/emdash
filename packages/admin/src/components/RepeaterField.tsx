@@ -17,10 +17,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Trash, DotsSixVertical, CaretDown, CaretRight } from "@phosphor-icons/react";
+import { Plus, Trash, DotsSixVertical, CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { cn } from "../lib/utils.js";
+import { CaretNext } from "./ArrowIcons.js";
 
 interface RepeaterSubFieldDef {
 	slug: string;
@@ -252,7 +253,7 @@ function SortableRepeaterItem({
 					onClick={(e) => e.stopPropagation()}
 				/>
 				{isCollapsed ? (
-					<CaretRight className="h-4 w-4 text-kumo-subtle shrink-0" />
+					<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
 				) : (
 					<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 				)}

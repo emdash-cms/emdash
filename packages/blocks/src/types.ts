@@ -321,6 +321,22 @@ export interface CodeBlock extends BlockBase {
 	language?: "ts" | "tsx" | "jsonc" | "bash" | "css";
 }
 
+export interface EmptyBlock extends BlockBase {
+	type: "empty";
+	title: string;
+	description?: string;
+	command_line?: string;
+	size?: "sm" | "base" | "lg";
+	actions?: Element[];
+}
+
+export interface AccordionBlock extends BlockBase {
+	type: "accordion";
+	label: string;
+	blocks: Block[];
+	default_open?: boolean;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -336,7 +352,9 @@ export type Block =
 	| ChartBlock
 	| BannerBlock
 	| MeterBlock
-	| CodeBlock;
+	| CodeBlock
+	| EmptyBlock
+	| AccordionBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 

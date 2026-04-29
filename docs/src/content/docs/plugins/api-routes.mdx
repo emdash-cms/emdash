@@ -323,14 +323,14 @@ routes: {
 
 ### External API Proxy
 
-Proxy requests to external services (requires `network:fetch` capability):
+Proxy requests to external services (requires `network:request` capability):
 
 ```typescript
 definePlugin({
 	id: "weather",
 	version: "1.0.0",
 
-	capabilities: ["network:fetch"],
+	capabilities: ["network:request"],
 	allowedHosts: ["api.weather.example.com"],
 
 	routes: {

@@ -12,6 +12,7 @@
 
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 
+import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { local } from "../storage/adapters.js";
 import { notoSans } from "./font-provider.js";
@@ -115,6 +116,22 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			}
 			throw e;
 		}
+	}
+
+	// Validate config.allowedOrigins shape at startup (per-entry rules: parseable,
+	// http(s), no trailing dots, no empty labels). The siteUrl-dependent rules
+	// (Rule A: requires siteUrl; Rule B: must be a subdomain of siteUrl) are
+	// deferred to runtime when config.siteUrl is absent — EMDASH_SITE_URL may
+	// supply it post-build, just like the env-var fallback for siteUrl above.
+	// When config.siteUrl IS present, run the full validator here for fail-fast.
+	if (resolvedConfig.allowedOrigins?.length) {
+		const tagged = resolvedConfig.allowedOrigins.map((origin) => ({
+			origin,
+			source: "config.allowedOrigins" as const,
+		}));
+		resolvedConfig.allowedOrigins = resolvedConfig.siteUrl
+			? validateAllowedOrigins(resolvedConfig.siteUrl, tagged)
+			: validateOriginShape(tagged);
 	}
 
 	// Plugin descriptors from config

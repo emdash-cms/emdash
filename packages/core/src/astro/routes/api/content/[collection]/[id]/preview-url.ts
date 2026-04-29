@@ -22,6 +22,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { parseOptionalBody, isParseError } from "#api/parse.js";
 import { contentPreviewUrlBody } from "#api/schemas.js";
+import { resolveSecretsCached } from "#config/secrets.js";
 import { getPreviewUrl } from "#preview/index.js";
 
 export const prerender = false;
@@ -35,16 +36,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const collection = params.collection!;
 	const id = params.id!;
 
-	// Get the preview secret from environment
-	const previewSecret = import.meta.env.EMDASH_PREVIEW_SECRET || import.meta.env.PREVIEW_SECRET;
-
-	if (!previewSecret) {
-		return apiError(
-			"NOT_CONFIGURED",
-			"Preview not configured. Set EMDASH_PREVIEW_SECRET environment variable.",
-			500,
-		);
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+
+	// Resolve the preview secret. Env override wins; otherwise a stable
+	// site-specific value is read from (or generated into) the options table.
+	// The resolver always returns a usable secret, so this path can no
+	// longer be silently disabled by a missing env var.
+	const { previewSecret } = await resolveSecretsCached(emdash.db);
 
 	// Verify the content exists (optional, but good for UX)
 	if (emdash?.handleContentGet) {

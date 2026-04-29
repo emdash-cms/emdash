@@ -6,12 +6,13 @@
 
 import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, FloppyDisk, CheckCircle, WarningCircle } from "@phosphor-icons/react";
+import { FloppyDisk, CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
 
 export function SocialSettings() {
 	const { t } = useLingui();
@@ -75,7 +76,7 @@ export function SocialSettings() {
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
 						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowPrev className="h-4 w-4" />
 						</Button>
 					</Link>
 					<h1 className="text-2xl font-bold">{t`Social Links`}</h1>
@@ -93,7 +94,7 @@ export function SocialSettings() {
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
 					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 				</Link>
 				<h1 className="text-2xl font-bold">{t`Social Links`}</h1>

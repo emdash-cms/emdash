@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/fixture-perf-site",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"private": true,
 	"type": "module",
 	"description": "Fixture site for query-count perf snapshots. Runs under sqlite+node or d1+cloudflare based on EMDASH_FIXTURE_TARGET.",

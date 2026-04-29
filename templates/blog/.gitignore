@@ -3,3 +3,8 @@ dist
 .astro
 uploads
 data.db
+
+# Environment
+.env
+.env.*
+!.env.example

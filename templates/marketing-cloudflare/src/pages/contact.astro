@@ -6,6 +6,9 @@ import MarketingBlocks from "../components/MarketingBlocks.astro";
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "contact");
 
+// `cache.set` only applies to GET responses; wrap defensively because
+// this route also handles POST submissions where the cache API may
+// reject the call.
 try {
 	Astro.cache.set(cacheHint);
 } catch {}

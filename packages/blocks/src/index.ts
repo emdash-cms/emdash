@@ -51,6 +51,8 @@ export type {
 	CodeBlock,
 	BannerBlock,
 	MeterBlock,
+	EmptyBlock,
+	AccordionBlock,
 	Block,
 	// Interactions
 	BlockAction,

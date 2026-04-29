@@ -1,4 +1,4 @@
-import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, buttonVariants, Dialog, Input, Loader, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -9,8 +9,6 @@ import {
 	ArrowSquareOut,
 	Copy,
 	MagnifyingGlass,
-	CaretLeft,
-	CaretRight,
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
@@ -21,6 +19,7 @@ import * as React from "react";
 import type { ContentItem, TrashedContentItem } from "../lib/api";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
 /** Sortable content list columns. Maps to the server's order field whitelist. */
@@ -238,7 +237,16 @@ export function ContentList({
 								</tr>
 							</thead>
 							<tbody>
-								{items.length === 0 && !isLoading ? (
+								{isLoading && items.length === 0 ? (
+									<tr>
+										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
@@ -297,7 +305,7 @@ export function ContentList({
 									onClick={() => setPage(page - 1)}
 									aria-label={t`Previous page`}
 								>
-									<CaretLeft className="h-4 w-4" aria-hidden="true" />
+									<CaretPrev className="h-4 w-4" aria-hidden="true" />
 								</Button>
 								<span className="text-sm">
 									{page + 1} / {totalPages}
@@ -309,7 +317,7 @@ export function ContentList({
 									onClick={() => setPage(page + 1)}
 									aria-label={t`Next page`}
 								>
-									<CaretRight className="h-4 w-4" aria-hidden="true" />
+									<CaretNext className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</div>
 						</div>
@@ -343,7 +351,16 @@ export function ContentList({
 								</tr>
 							</thead>
 							<tbody>
-								{trashedItems.length === 0 && !isTrashedLoading ? (
+								{isTrashedLoading && trashedItems.length === 0 ? (
+									<tr>
+										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`Trash is empty`}
