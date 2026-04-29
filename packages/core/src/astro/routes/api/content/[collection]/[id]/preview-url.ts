@@ -65,8 +65,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	// Allow a project-wide default `pathPattern` so the admin's "View on site"
 	// link can match the site's actual route shape without each call having
 	// to override the default `/{collection}/{id}`.
-	const defaultPathPattern =
-		import.meta.env.EMDASH_PREVIEW_PATH_PATTERN || "/{collection}/{id}";
+	const defaultPathPattern = import.meta.env.EMDASH_PREVIEW_PATH_PATTERN || "/{collection}/{id}";
 	const pathPattern = body.pathPattern || defaultPathPattern;
 
 	// Resolve the locale segment substituted for `{locale}`: empty when the
