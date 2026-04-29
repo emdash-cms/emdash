@@ -562,10 +562,16 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 	try {
 		const { getBylinesForEntries } = await import("./bylines/index.js");
 
-		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
-		if (ids.length === 0) return;
+		const refs = entries
+			.map((e) => {
+				const data = entryData(e);
+				const id = dataStr(data, "id");
+				return id ? { id, authorId: dataStr(data, "authorId") || null } : null;
+			})
+			.filter((r): r is { id: string; authorId: string | null } => r !== null);
+		if (refs.length === 0) return;
 
-		const bylinesMap = await getBylinesForEntries(type, ids);
+		const bylinesMap = await getBylinesForEntries(type, refs);
 
 		for (const entry of entries) {
 			const data = entryData(entry);
