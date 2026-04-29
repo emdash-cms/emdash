@@ -361,15 +361,10 @@ Bylines are automatically attached to every entry by the query layer:
 ### Standalone query functions
 
 ```typescript
-import { getEntryBylines, getByline, getBylineBySlug, getBylinesForEntries } from "emdash";
+import { getEntryBylines, getByline, getBylineBySlug } from "emdash";
 
 // Bylines for a single entry
 const credits = await getEntryBylines("posts", post.data.id);
-
-// Batch-fetch for a list page (avoids N+1)
-const ids = entries.map((e) => e.data.id);
-const bylinesMap = await getBylinesForEntries("posts", ids);
-// bylinesMap.get(entryId) => ContentBylineCredit[]
 
 // Look up a specific byline
 const byline = await getBylineBySlug("jane-doe");

@@ -111,26 +111,15 @@ export async function getEntryBylines(
 /**
  * Batch-fetch byline credits for multiple content entries in a single query.
  *
- * This is more efficient than calling getEntryBylines for each entry
- * when you need bylines for a list of entries (e.g., a blog index page).
+ * Internal: consumed by `hydrateEntryBylines` in `query.ts` so that every
+ * entry returned from `getEmDashCollection` / `getEmDashEntry` already has
+ * `data.bylines` populated. Site code should rely on that eager hydration
+ * rather than calling this directly -- this function is not re-exported
+ * from the `emdash` package entry point.
  *
  * @param collection - The collection slug (e.g., "posts")
  * @param entryIds - Array of entry IDs
  * @returns Map from entry ID to array of byline credits
- *
- * @example
- * ```ts
- * import { getBylinesForEntries, getEmDashCollection } from "emdash";
- *
- * const { entries } = await getEmDashCollection("posts");
- * const ids = entries.map(e => e.data.id);
- * const bylinesMap = await getBylinesForEntries("posts", ids);
- *
- * for (const entry of entries) {
- *   const bylines = bylinesMap.get(entry.data.id) ?? [];
- *   // render bylines
- * }
- * ```
  */
 export async function getBylinesForEntries(
 	collection: string,
