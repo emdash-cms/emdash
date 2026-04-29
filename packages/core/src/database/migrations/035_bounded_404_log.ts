@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { columnExists } from "../dialect-helpers.js";
+import { columnExists, indexExists } from "../dialect-helpers.js";
 
 /**
  * Migration: Bounded 404 logging
@@ -22,6 +22,11 @@ import { columnExists } from "../dialect-helpers.js";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
 	const hitsExists = await columnExists(db, "_emdash_404_log", "hits");
+	// Gate dedup on the unique index, not on `hits`. A previous attempt may
+	// have added the column and failed before completing dedup; gating on
+	// `hitsExists` would then silently skip dedup on retry and crash the
+	// unique-index step with `UNIQUE constraint failed`.
+	const uniqueIndexExists = await indexExists(db, "idx_404_log_path_unique");
 
 	// 1. Add columns.
 	if (!hitsExists) {
@@ -52,7 +57,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	//    (3.25+, 2018) and Postgres. The previous GROUP BY approach was
 	//    accepted by SQLite but invalid on Postgres because `id` wasn't in
 	//    the GROUP BY or wrapped in an aggregate.
-	if (!hitsExists) {
+	if (!uniqueIndexExists) {
 		await sql`
 			WITH ranked AS (
 				SELECT
