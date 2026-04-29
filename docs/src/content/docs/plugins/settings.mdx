@@ -138,8 +138,33 @@ apiKey: {
 	Secret fields are encrypted at rest using the site's encryption key. They're never exposed in the
 	admin UI after the initial save—only a masked placeholder is shown.
 </Aside>
+### Url
 
-## Accessing Settings
+Single-line text input with URL validation.
+
+```typescript
+website: {
+	type: "url",
+	label: "Website URL",
+	description: "Enter your website address",
+	default: "https://",
+}
+```
+
+### Email
+
+Text input with email format validation.
+
+```typescript
+contactEmail: {
+	type: "email",
+	label: "Contact Email",
+	description: "Support contact address",
+	default: "",
+}
+```
+
+### Accessing Settings
 
 Read settings in hooks and routes via `ctx.kv`:
 

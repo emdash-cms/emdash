@@ -1,26 +1,30 @@
 ---
-import { getEmDashCollection, getEntryTerms } from "emdash";
+import { getEmDashCollection, getTermsForEntries } from "emdash";
 import Base from "../../layouts/Base.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
-const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+// Sort in the database rather than in JS — lets the DB use its index on
+// published_at and avoids a full-table scan on the client.
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+});
 
 Astro.cache.set(cacheHint);
 
-const sortedPosts = posts.toSorted((a, b) => {
-	const dateA = a.data.publishedAt?.getTime() ?? 0;
-	const dateB = b.data.publishedAt?.getTime() ?? 0;
-	return dateB - dateA;
-});
-
-// Fetch tags for each post (bylines are already hydrated by getEmDashCollection)
-const postsWithTags = await Promise.all(
-	sortedPosts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		const bylines = post.data.bylines ?? [];
-		return { post, tags, bylines };
-	})
+// Single batched query for tags across all posts, instead of one
+// getEntryTerms() call per post (which would be N round-trips).
+// Bylines are already hydrated on entry.data.bylines.
+const tagsByEntry = await getTermsForEntries(
+	"posts",
+	posts.map((p) => p.data.id),
+	"tag",
 );
+
+const postsWithTags = posts.map((post) => ({
+	post,
+	tags: tagsByEntry.get(post.data.id) ?? [],
+	bylines: post.data.bylines ?? [],
+}));
 
 const formatDate = (date: Date) =>
 	date.toLocaleDateString("en-US", {
@@ -41,7 +45,7 @@ const formatDate = (date: Date) =>
 		</header>
 
 		{
-			sortedPosts.length === 0 ? (
+			posts.length === 0 ? (
 				<p class="empty">No posts yet.</p>
 			) : (
 				<div class="posts-list">

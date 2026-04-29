@@ -22,7 +22,7 @@ export const roleLevel = z.coerce
 /** Pagination query params — cursor-based */
 export const cursorPaginationQuery = z
 	.object({
-		cursor: z.string().optional().meta({ description: "Opaque cursor for pagination" }),
+		cursor: z.string().max(2048).optional().meta({ description: "Opaque cursor for pagination" }),
 		limit: z.coerce.number().int().min(1).max(100).optional().default(50).meta({
 			description: "Maximum number of items to return (1-100, default 50)",
 		}),

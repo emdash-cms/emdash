@@ -1,13 +1,15 @@
 ---
 title: Authentication
-description: Passkey-first authentication for your EmDash site.
+description: Passkey-first authentication with pluggable providers for GitHub, Google, and the Atmosphere.
 ---
 
 import { Aside, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components";
 
 EmDash uses passkey authentication as its primary login method. Passkeys are phishing-resistant, don't require passwords, and work across devices through your browser or password manager.
 
-For Cloudflare deployments, you can optionally use [Cloudflare Access](#cloudflare-access) as an alternative authentication provider.
+Beyond passkeys, you can add **pluggable login providers** — GitHub, Google, and [the Atmosphere](/guides/atmosphere-auth/) (AT Protocol) ship out of the box, and the same provider interface is open for third-party packages. Any configured provider can be used to create the first admin account, log in, or link to an existing user.
+
+For Cloudflare deployments, [Cloudflare Access](#cloudflare-access) is also available as an exclusive auth method that takes over the entire login flow.
 
 ## How It Works
 
@@ -87,25 +89,131 @@ If you can't use your passkey (e.g., lost device), magic links provide an altern
 	Magic links are single-use and expire after 15 minutes. Request a new link if yours has expired.
 </Aside>
 
-## OAuth Login
+## Login Providers
 
-EmDash supports OAuth login with GitHub and Google when configured. Users can link their accounts after initial passkey setup.
+In addition to passkeys, EmDash supports pluggable login providers that appear on the login page and in the setup wizard. GitHub, Google, and Atmosphere providers ship in the box; third-party packages can register their own using the same interface.
 
-See the [Configuration guide](/reference/configuration#oauth) for setup instructions.
+Providers are additive — passkeys keep working when providers are enabled, and users can link a provider to an existing passkey-only account. The first user can also be created through any configured provider, so a fresh install can skip passkeys entirely if you prefer.
+
+### Configuring providers
+
+Pass providers to the `authProviders` array on the EmDash integration:
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			authProviders: [github(), google(), atproto()],
+		}),
+	],
+});
+```
+
+Order matters for the login page: providers render in the order you list them, with compact button-only providers first and providers that need a custom form (like Atmosphere, which asks for a handle) shown after.
+
+### GitHub
+
+```js
+import { github } from "emdash/auth/providers/github";
+
+emdash({ authProviders: [github()] });
+```
+
+Set credentials via environment variables. EmDash checks the prefixed names first and falls back to the unprefixed ones:
+
+| Variable                                                      | Purpose                |
+| ------------------------------------------------------------- | ---------------------- |
+| `EMDASH_OAUTH_GITHUB_CLIENT_ID` / `GITHUB_CLIENT_ID`          | OAuth app client ID    |
+| `EMDASH_OAUTH_GITHUB_CLIENT_SECRET` / `GITHUB_CLIENT_SECRET`  | OAuth app secret       |
+
+Configure your GitHub OAuth app's callback URL as `https://your-site.example.com/_emdash/api/auth/oauth/github/callback`.
+
+### Google
+
+```js
+import { google } from "emdash/auth/providers/google";
+
+emdash({ authProviders: [google()] });
+```
+
+| Variable                                                      | Purpose                |
+| ------------------------------------------------------------- | ---------------------- |
+| `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_ID`          | OAuth app client ID    |
+| `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET` / `GOOGLE_CLIENT_SECRET`  | OAuth app secret       |
+
+Configure your Google OAuth client's redirect URI as `https://your-site.example.com/_emdash/api/auth/oauth/google/callback`.
+
+### Atmosphere (AT Protocol)
+
+For sites where contributors already have an account on the AT Protocol network — the same identity that powers Bluesky and a growing collection of other apps — install the Atmosphere provider:
+
+```bash
+pnpm add @emdash-cms/auth-atproto
+```
+
+```js
+import { atproto } from "@emdash-cms/auth-atproto";
+
+emdash({
+	authProviders: [
+		atproto({
+			allowedHandles: ["*.example.com"],
+		}),
+	],
+});
+```
+
+No client secret or environment variable is needed. See the [Atmosphere login guide](/guides/atmosphere-auth/) for handle/DID allowlists, role mapping, and the local-development setup that the AT Protocol OAuth profile requires.
+
+### Building your own provider
+
+A provider is just an `AuthProviderDescriptor` — an `id`, a human label, and any combination of admin-side React components, route handlers, public route prefixes, and storage collections. The shape is exported from `emdash`:
+
+```ts
+import type { AuthProviderDescriptor } from "emdash";
+
+export function myProvider(): AuthProviderDescriptor {
+	return {
+		id: "my-provider",
+		label: "My Provider",
+		adminEntry: "my-provider/admin", // exports LoginButton / LoginForm / SetupStep
+		routes: [
+			{ pattern: "/_emdash/api/auth/my-provider/login", entrypoint: "my-provider/routes/login.ts" },
+			{ pattern: "/_emdash/api/auth/my-provider/callback", entrypoint: "my-provider/routes/callback.ts" },
+		],
+		publicRoutes: ["/_emdash/api/auth/my-provider/"],
+		storage: {
+			sessions: {},
+		},
+	};
+}
+```
+
+The Atmosphere package (`@emdash-cms/auth-atproto`) is the most complete real-world reference for a provider that needs a custom login form, OAuth route handlers, and persistent storage.
 
 ## User Roles
 
 EmDash uses role-based access control with five levels:
 
-| Role        | Level | Description                     |
-| ----------- | ----- | ------------------------------- |
-| Subscriber  | 10    | View-only access                |
-| Contributor | 20    | Create content (needs approval) |
-| Author      | 30    | Create/edit/publish own content |
-| Editor      | 40    | Manage all content              |
-| Admin       | 50    | Full access including settings  |
+| Role        | Level | Description                                |
+| ----------- | ----- | ------------------------------------------ |
+| Subscriber  | 10    | Read published content (no draft access)   |
+| Contributor | 20    | Create content (needs approval to publish) |
+| Author      | 30    | Create/edit/publish own content            |
+| Editor      | 40    | Manage all content                         |
+| Admin       | 50    | Full access including settings             |
 
 Each role inherits permissions from all lower levels. The first user is always created as Admin.
+
+### Subscribers and draft content
+
+Subscribers hold the `content:read` permission so member-only published content can be served to authenticated readers. They cannot see drafts, scheduled items, trashed items, revisions, or preview URLs — those are gated on `content:read_drafts`, granted to Contributor and above. The list and get endpoints transparently filter to `status=published` for Subscribers; editor-only views (`/compare`, `/revisions`, `/trash`, `/preview-url`) reject Subscriber requests outright.
 
 ## Inviting Users
 

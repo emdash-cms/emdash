@@ -489,27 +489,26 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", options.where.locale);
 		}
 
-		// Handle cursor pagination
+		// Handle cursor pagination — decodeCursor throws InvalidCursorError
+		// on malformed input; let it propagate so handlers surface a
+		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue, id: cursorId } = decoded;
+			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
-				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
-					);
-				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
-					);
-				}
+			if (safeOrderDirection === "DESC") {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, "<", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+					]),
+				);
+			} else {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, ">", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+					]),
+				);
 			}
 		}
 
@@ -671,27 +670,24 @@ export class ContentRepository {
 			.selectAll()
 			.where("deleted_at" as never, "is not", null);
 
-		// Handle cursor pagination
+		// Handle cursor pagination — decodeCursor throws on invalid input.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue, id: cursorId } = decoded;
+			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
-				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
-					);
-				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
-					);
-				}
+			if (safeOrderDirection === "DESC") {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, "<", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+					]),
+				);
+			} else {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, ">", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+					]),
+				);
 			}
 		}
 
@@ -1018,6 +1014,7 @@ export class ContentRepository {
 			UPDATE ${sql.ref(tableName)}
 			SET live_revision_id = NULL,
 				status = 'draft',
+				published_at = NULL,
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
@@ -1198,7 +1195,10 @@ export class ContentRepository {
 			scheduledAt: "scheduled_at",
 			deletedAt: "deleted_at",
 			title: "title",
+			name: "name",
 			slug: "slug",
+			status: "status",
+			locale: "locale",
 		};
 
 		const mapped = mapping[field];

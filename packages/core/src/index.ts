@@ -13,6 +13,7 @@ export {
 	ContentRepository,
 	MediaRepository,
 	EmDashValidationError,
+	InvalidCursorError,
 } from "./database/repositories/index.js";
 export type {
 	ContentItem,
@@ -261,6 +262,15 @@ export type {
 	SerializedRequest,
 } from "./plugins/index.js";
 
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./plugins/index.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
+
 // Plugin descriptor (for astro.config.mjs)
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
 
@@ -480,11 +490,14 @@ export type {
 	SearchStats,
 } from "./search/index.js";
 
-// Auth types (for platform-specific auth providers)
+// Auth types (for platform-specific auth providers and pluggable login methods)
 export type {
 	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthProviderAdminExports,
 	AuthProviderModule,
 	AuthResult,
+	AuthRouteDescriptor,
 	ExternalAuthConfig,
 } from "./auth/types.js";
 

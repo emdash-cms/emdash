@@ -17,6 +17,8 @@ import { ulid } from "ulidx";
 // Import auth provider via virtual module (statically bundled)
 // This avoids dynamic import issues in Cloudflare Workers
 import { authenticate as virtualAuthenticate } from "virtual:emdash/auth";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
@@ -111,6 +113,7 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
+	"/_emdash/api/auth/mode",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	// Public site search — read-only. The query layer hardcodes status='published'
@@ -118,6 +121,22 @@ const PUBLIC_API_EXACT = new Set([
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
 ]);
+
+// Build merged public routes at module load from auth provider descriptors.
+// Routes ending with "/" are treated as prefixes; all others are exact matches.
+const { exact: _providerExactRoutes, prefixes: _providerPrefixRoutes } = (() => {
+	const exact = new Set<string>();
+	const prefixes: string[] = [];
+	if (!virtualConfig?.authProviders) return { exact, prefixes };
+	for (const route of virtualConfig.authProviders.flatMap((p) => p.publicRoutes ?? [])) {
+		if (route.endsWith("/")) {
+			prefixes.push(route);
+		} else {
+			exact.add(route);
+		}
+	}
+	return { exact, prefixes };
+})();
 
 /**
  * OAuth protocol endpoints that are CSRF-exempt by design.
@@ -146,6 +165,8 @@ const CSRF_EXEMPT_PUBLIC_ROUTES = new Set([
 function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_EXACT.has(pathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
 	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
 	return false;
 }
@@ -702,10 +723,14 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/schema", "WRITE", "schema:write"],
 
 	// Taxonomy, menu, section, widget, revision — all content domain
+	// GET uses content:read (implicit from taxonomies:read / menus:read via role).
+	// WRITE uses the granular scope so tokens with only taxonomies:manage or
+	// menus:manage are not rejected. content:write implicitly grants these via
+	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
-	["/_emdash/api/taxonomies", "WRITE", "content:write"],
+	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
-	["/_emdash/api/menus", "WRITE", "content:write"],
+	["/_emdash/api/menus", "WRITE", "menus:manage"],
 	["/_emdash/api/sections", "GET", "content:read"],
 	["/_emdash/api/sections", "WRITE", "content:write"],
 	["/_emdash/api/widget-areas", "GET", "content:read"],
@@ -717,11 +742,15 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
 
-	// Import, admin, settings, plugins — all require admin scope
+	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
-	["/_emdash/api/settings", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
+
+	// Settings — use granular scopes so tokens with settings:read or
+	// settings:manage are not rejected at the middleware level.
+	["/_emdash/api/settings", "GET", "settings:read"],
+	["/_emdash/api/settings", "WRITE", "settings:manage"],
 
 	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
 	["/_emdash/api/mcp", "*", "content:read"],

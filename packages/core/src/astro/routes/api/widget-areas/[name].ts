@@ -9,6 +9,8 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { rowToWidget } from "#widgets/index.js";
+import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
 
@@ -40,13 +42,14 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		const widgets = await db
 			.selectFrom("_emdash_widgets")
 			.selectAll()
+			.$castTo<WidgetRow>()
 			.where("area_id", "=", area.id)
 			.orderBy("sort_order", "asc")
 			.execute();
 
 		return apiSuccess({
 			...area,
-			widgets,
+			widgets: widgets.map((row) => rowToWidget(row)),
 		});
 	} catch (error) {
 		return handleError(error, "Failed to fetch widget area", "WIDGET_AREA_GET_ERROR");

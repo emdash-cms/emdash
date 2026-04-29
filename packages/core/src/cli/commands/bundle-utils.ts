@@ -30,8 +30,17 @@ export const ICON_SIZE = 256;
 
 // ── Regex patterns (module-scope to avoid re-compilation) ────────────────────
 
-/** Matches require("node:xxx") / require("xxx") / import("node:xxx") in bundled output */
-const NODE_BUILTIN_IMPORT_RE = /(?:import|require)\s*\(?["'](?:node:)?([a-z_]+)["']\)?/g;
+/**
+ * Matches Node.js built-in imports in bundled output:
+ * - require("node:xxx") / require("xxx")
+ * - import("node:xxx") / import("xxx")
+ * - import X from "node:xxx" / import { X } from "node:xxx"
+ * - import * as X from "node:xxx"
+ * - export { X } from "node:xxx"
+ * Captures the base module name (e.g. "fs" from "node:fs/promises").
+ */
+const NODE_BUILTIN_IMPORT_RE =
+	/(?:import|export|require)\s*(?:\(|[^(]*?\bfrom\s+)["'](?:node:)?([a-z_]+)(?:\/[^"']*)?\s*["']\)?/g;
 const LEADING_DOT_SLASH_RE = /^\.\//;
 const DIST_PREFIX_RE = /^dist\//;
 const MJS_EXT_RE = /\.m?js$/;

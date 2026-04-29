@@ -8,15 +8,7 @@
 import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	MagnifyingGlass,
-	Check,
-	Trash,
-	Warning,
-	CaretLeft,
-	CaretRight,
-	ChatCircle,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass, Check, Trash, Warning, ChatCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type {
@@ -26,6 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
 
@@ -358,7 +351,7 @@ export function CommentInbox({
 							onClick={() => setPage(page - 1)}
 							aria-label={t`Previous page`}
 						>
-							<CaretLeft className="h-4 w-4" />
+							<CaretPrev className="h-4 w-4" />
 						</Button>
 						<span className="text-sm">
 							{page + 1} / {totalPages}
@@ -377,7 +370,7 @@ export function CommentInbox({
 							}}
 							aria-label={t`Next page`}
 						>
-							<CaretRight className="h-4 w-4" />
+							<CaretNext className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>

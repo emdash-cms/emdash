@@ -73,13 +73,13 @@ describe("PluginManager", () => {
 			const resolved = manager.register(
 				createTestDefinition({
 					id: "test",
-					capabilities: ["write:content"],
+					capabilities: ["content:write"],
 				}),
 			);
 
-			// write:content should add read:content
-			expect(resolved.capabilities).toContain("write:content");
-			expect(resolved.capabilities).toContain("read:content");
+			// content:write should add content:read
+			expect(resolved.capabilities).toContain("content:write");
+			expect(resolved.capabilities).toContain("content:read");
 		});
 
 		it("throws on duplicate registration", () => {

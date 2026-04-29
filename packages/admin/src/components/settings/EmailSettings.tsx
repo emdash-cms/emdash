@@ -8,7 +8,6 @@
 import { Button, Input, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	CheckCircle,
 	Envelope,
 	PaperPlaneTilt,
@@ -24,6 +23,7 @@ import {
 	sendTestEmail,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
+import { ArrowPrev } from "../ArrowIcons.js";
 import { getMutationError } from "../DialogError.js";
 
 export function EmailSettings() {
@@ -84,7 +84,7 @@ export function EmailSettings() {
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
 						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowPrev className="h-4 w-4" />
 						</Button>
 					</Link>
 					<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
@@ -103,7 +103,7 @@ export function EmailSettings() {
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
 					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 				</Link>
 				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>

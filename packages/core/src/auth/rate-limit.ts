@@ -100,42 +100,70 @@ export function rateLimitResponse(retryAfterSeconds: number): Response {
  *
  * Resolution order:
  * 1. `CF-Connecting-IP` — trusted only when the Cloudflare `cf` object is
- *    present (proving the request traversed Cloudflare's edge, which
- *    strips/overwrites client-supplied values).
- * 2. `X-Forwarded-For` (first entry) — also trusted only on Cloudflare.
- *    Without a trusted reverse proxy the header is trivially spoofable,
- *    so we don't use it for standalone deployments.
- * 3. `null` — no trusted IP available. Callers must handle this gracefully
+ *    present. CF edge overwrites any client-supplied value, so this is the
+ *    cryptographically trustworthy path on Workers. Operator-declared
+ *    trusted headers cannot override it.
+ * 2. `X-Forwarded-For` (first entry) — trusted only when the `cf` object
+ *    is present (CF sets this reliably).
+ * 3. Operator-declared trusted proxy headers (ordered list) — used as a
+ *    fallback for non-CF deployments behind a reverse proxy the operator
+ *    controls. Also applies as a fill-in on CF when the CF headers are
+ *    absent (e.g. internal cron handlers).
+ * 4. `null` — no trusted IP available. Callers must handle this gracefully
  *    (e.g. skip rate limiting).
+ *
+ * Pass `trustedHeaders` from `getTrustedProxyHeaders(emdash.config)` so
+ * self-hosted non-CF deployments can opt into reading a specific header.
  *
  * Aligned with `extractRequestMeta` in `plugins/request-meta.ts`.
  */
-export function getClientIp(request: Request): string | null {
+export function getClientIp(request: Request, trustedHeaders: string[] = []): string | null {
 	const headers = request.headers;
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CF Workers runtime shape
 	const cf = (request as unknown as { cf?: Record<string, unknown> }).cf;
 
-	if (!cf) {
-		// Not on Cloudflare — no trusted source of client IP
-		return null;
-	}
+	// On Cloudflare, prefer the cryptographically trustworthy headers. An
+	// attacker can't spoof these — the CF edge strips/overwrites them.
+	if (cf) {
+		const cfIp = headers.get("cf-connecting-ip")?.trim();
+		if (cfIp && IP_PATTERN.test(cfIp)) {
+			return cfIp;
+		}
 
-	// Trust CF-Connecting-IP when the cf object confirms Cloudflare
-	const cfIp = headers.get("cf-connecting-ip")?.trim();
-	if (cfIp && IP_PATTERN.test(cfIp)) {
-		return cfIp;
-	}
-
-	// Fallback to XFF on Cloudflare (CF sets this reliably)
-	const xff = headers.get("x-forwarded-for");
-	if (xff) {
-		const first = xff.split(",")[0]?.trim();
-		if (first && IP_PATTERN.test(first)) {
-			return first;
+		const xff = headers.get("x-forwarded-for");
+		if (xff) {
+			const first = xff.split(",")[0]?.trim();
+			if (first && IP_PATTERN.test(first)) {
+				return first;
+			}
 		}
 	}
 
+	// Fall through to operator-declared trusted headers. On CF this fills
+	// in when the CF headers are absent; off-CF it's the primary source.
+	for (const name of trustedHeaders) {
+		const value = readIpFromHeader(headers, name);
+		if (value) return value;
+	}
+
 	return null;
+}
+
+/**
+ * Read an IP from an operator-declared trusted header. XFF-style headers
+ * are parsed as comma-separated lists and the first entry is used.
+ */
+function readIpFromHeader(headers: Headers, name: string): string | null {
+	const value = headers.get(name);
+	if (!value) return null;
+	if (name.toLowerCase().endsWith("forwarded-for")) {
+		const first = value.split(",")[0]?.trim();
+		if (!first) return null;
+		return IP_PATTERN.test(first) ? first : null;
+	}
+	const trimmed = value.trim();
+	if (!trimmed) return null;
+	return IP_PATTERN.test(trimmed) ? trimmed : null;
 }
 
 /**

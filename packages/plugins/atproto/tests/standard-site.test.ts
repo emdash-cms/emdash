@@ -79,6 +79,19 @@ describe("buildDocument", () => {
 		expect(doc.path).toBeUndefined();
 	});
 
+	it("reads slug from content.data", () => {
+		const doc = buildDocument({
+			...baseOpts,
+			collection: "posts",
+			content: {
+				title: "Nested Slug",
+				data: { slug: "nested-slug" },
+				published_at: "2025-01-15T12:00:00.000Z",
+			},
+		});
+		expect(doc.path).toBe("/posts/nested-slug");
+	});
+
 	it("includes bskyPostRef when provided", () => {
 		const doc = buildDocument({
 			...baseOpts,

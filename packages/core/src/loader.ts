@@ -318,16 +318,17 @@ function buildOrderByClause(
 /**
  * Build a cursor WHERE condition for keyset pagination.
  * Uses the primary sort field + id as tiebreaker for stable ordering.
+ *
+ * Throws `InvalidCursorError` if the cursor is malformed; callers should
+ * let this propagate so users see a real error rather than silently
+ * falling back to the first page.
  */
 function buildCursorCondition(
 	cursor: string,
 	orderBy: OrderBySpec | undefined,
 	tablePrefix?: string,
-): ReturnType<typeof sql> | null {
-	const decoded = decodeCursor(cursor);
-	if (!decoded) return null;
-
-	const { orderValue, id: cursorId } = decoded;
+): ReturnType<typeof sql> {
+	const { orderValue, id: cursorId } = decodeCursor(cursor);
 	const primary = getPrimarySort(orderBy, tablePrefix);
 	const idField = tablePrefix ? `${tablePrefix}.id` : "id";
 

@@ -7,7 +7,7 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
-import type { AuthDescriptor } from "../../auth/types.js";
+import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
@@ -223,6 +223,24 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
+	 * Pluggable auth providers (login methods on the login page).
+	 *
+	 * Auth providers appear as options alongside passkey on the login page
+	 * and setup wizard. Any provider can be used to create the initial
+	 * admin account. Passkey is built-in; providers listed here are additive.
+	 *
+	 * @example
+	 * ```ts
+	 * import { atproto } from "@emdash-cms/auth-atproto";
+	 *
+	 * emdash({
+	 *   authProviders: [atproto()],
+	 * })
+	 * ```
+	 */
+	authProviders?: AuthProviderDescriptor[];
+
+	/**
 	 * MCP (Model Context Protocol) server endpoint.
 	 *
 	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
@@ -283,6 +301,62 @@ export interface EmDashConfig {
 	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
 	 */
 	siteUrl?: string;
+
+	/**
+	 * Additional origins accepted by passkey verification.
+	 *
+	 * When the same EmDash deployment is reachable under several hostnames sharing
+	 * a registrable parent (e.g. `https://example.com` plus
+	 * `https://preview.example.com`), the canonical `siteUrl` defines the `rpId`
+	 * and the entries here are the *additional* origins from which assertions
+	 * are accepted. Each entry must be the same hostname as `siteUrl` or a
+	 * subdomain of it — WebAuthn requires `rpId` to be a registrable suffix of
+	 * every origin.
+	 *
+	 * Merged at runtime with the `EMDASH_ALLOWED_ORIGINS` env var (comma-separated).
+	 * Validation:
+	 *   - Config-declared entries are shape-checked at Astro startup.
+	 *   - Subdomain relationship to `siteUrl` is checked at startup when
+	 *     `siteUrl` is also config-declared, otherwise at first passkey
+	 *     verification (since `siteUrl` may come from `EMDASH_SITE_URL`).
+	 *
+	 * Mismatches throw with a source-attributed message naming
+	 * `config.allowedOrigins` or `EMDASH_ALLOWED_ORIGINS`.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   siteUrl: "https://example.com",
+	 *   allowedOrigins: ["https://preview.example.com"],
+	 * })
+	 * ```
+	 */
+	allowedOrigins?: string[];
+	/*
+	 * Headers to trust for client IP resolution when running behind a reverse
+	 * proxy. The first header in this list that is present on the request
+	 * wins. Applies to rate limiting for auth endpoints and comment
+	 * submission.
+	 *
+	 * Common values:
+	 * - `x-real-ip` — nginx, Caddy, Traefik
+	 * - `fly-client-ip` — Fly.io
+	 * - `x-forwarded-for` — generic (first entry is used)
+	 *
+	 * Only set this when you **control the reverse proxy**. Untrusted
+	 * clients can set any header they like; trusting headers from an open
+	 * network is an IP-spoofing vulnerability that defeats rate limiting.
+	 *
+	 * On Cloudflare the `cf` object on the request is used automatically —
+	 * you normally don't need to set this. Leave unset (or empty) to
+	 * preserve the default: IP is resolved only when the request came
+	 * through Cloudflare's edge.
+	 *
+	 * Falls back to `EMDASH_TRUSTED_PROXY_HEADERS` env var (comma-separated)
+	 * when this option is not set, so operators can configure at deploy
+	 * time without touching the Astro config.
+	 */
+	trustedProxyHeaders?: string[];
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.

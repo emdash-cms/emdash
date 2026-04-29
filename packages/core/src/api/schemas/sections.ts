@@ -10,8 +10,8 @@ export const sectionsListQuery = z
 	.object({
 		source: sectionSource.optional(),
 		search: z.string().optional(),
-		limit: z.coerce.number().int().min(1).max(100).optional(),
-		cursor: z.string().optional(),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+		cursor: z.string().max(2048).optional(),
 	})
 	.meta({ id: "SectionsListQuery" });
 
@@ -23,7 +23,7 @@ export const createSectionBody = z
 		keywords: z.array(z.string()).optional(),
 		content: z.array(z.record(z.string(), z.unknown())),
 		previewMediaId: z.string().optional(),
-		source: sectionSource.optional(),
+		source: z.enum(["user", "import"]).optional(),
 		themeId: z.string().optional(),
 	})
 	.meta({ id: "CreateSectionBody" });

@@ -348,6 +348,7 @@ export interface EmDashHandlers {
 	// Direct access to storage and database for advanced use cases
 	storage: import("../index.js").Storage | null;
 	db: Kysely<import("../index.js").Database>;
+	getPublicMediaUrl?: (storageKey: string) => string;
 
 	// Hook pipeline for plugin integrations
 	hooks: import("../plugins/hooks.js").HookPipeline;
@@ -380,4 +381,12 @@ export interface EmDashHandlers {
 	collectPageFragments: (
 		page: import("../plugins/types.js").PublicPageContext,
 	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
+
+	/**
+	 * Lazy search index health check. Search routes call this before
+	 * querying so a crash-corrupted index gets repaired on first use
+	 * rather than stalling cold start. Optional because it's only
+	 * meaningful when an FTS5-capable runtime is wired in.
+	 */
+	ensureSearchHealthy?: () => Promise<void>;
 }

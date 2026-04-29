@@ -16,7 +16,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const revisionId = params.revisionId!;
 
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 
 	if (!emdash?.handleRevisionGet) {
