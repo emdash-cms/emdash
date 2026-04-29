@@ -76,6 +76,31 @@ describe("preview URLs", () => {
 			expect(token).not.toMatch(BASE64URL_INVALID_CHARS_REGEX);
 		});
 
+		it("substitutes {locale} placeholder", async () => {
+			const url = await getPreviewUrl({
+				collection: "posts",
+				id: "hello-world",
+				secret: testSecret,
+				pathPattern: "/{locale}/{id}",
+				locale: "pt-br",
+			});
+
+			expect(url).toMatch(/^\/pt-br\/hello-world\?_preview=/);
+		});
+
+		it("collapses empty {locale} segment", async () => {
+			const url = await getPreviewUrl({
+				collection: "posts",
+				id: "hello-world",
+				secret: testSecret,
+				pathPattern: "/{locale}/{id}",
+				locale: "",
+			});
+
+			// Empty locale should not leave a leading double slash.
+			expect(url).toMatch(/^\/hello-world\?_preview=/);
+		});
+
 		it("respects expiresIn option", async () => {
 			const shortUrl = await getPreviewUrl({
 				collection: "posts",

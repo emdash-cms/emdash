@@ -12,7 +12,6 @@ import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
-import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
@@ -109,13 +108,25 @@ export async function getEntryBylines(
 }
 
 /**
+ * An entry reference for batch byline lookups.
+ *
+ * `authorId` is read directly from the row when computing the inferred-byline
+ * fallback — passing it in avoids a redundant `SELECT id, author_id` against
+ * the content table after every list/entry fetch.
+ */
+export interface BylineEntry {
+	id: string;
+	authorId: string | null;
+}
+
+/**
  * Batch-fetch byline credits for multiple content entries in a single query.
  *
  * This is more efficient than calling getEntryBylines for each entry
  * when you need bylines for a list of entries (e.g., a blog index page).
  *
  * @param collection - The collection slug (e.g., "posts")
- * @param entryIds - Array of entry IDs
+ * @param entries - Entry id + authorId pairs (authorId is already on the row)
  * @returns Map from entry ID to array of byline credits
  *
  * @example
@@ -123,8 +134,8 @@ export async function getEntryBylines(
  * import { getBylinesForEntries, getEmDashCollection } from "emdash";
  *
  * const { entries } = await getEmDashCollection("posts");
- * const ids = entries.map(e => e.data.id);
- * const bylinesMap = await getBylinesForEntries("posts", ids);
+ * const refs = entries.map((e) => ({ id: e.data.id, authorId: e.data.authorId ?? null }));
+ * const bylinesMap = await getBylinesForEntries("posts", refs);
  *
  * for (const entry of entries) {
  *   const bylines = bylinesMap.get(entry.data.id) ?? [];
@@ -134,29 +145,28 @@ export async function getEntryBylines(
  */
 export async function getBylinesForEntries(
 	collection: string,
-	entryIds: string[],
+	entries: BylineEntry[],
 ): Promise<Map<string, ContentBylineCredit[]>> {
 	validateIdentifier(collection, "collection");
 	const result = new Map<string, ContentBylineCredit[]>();
 
-	// Initialize all entry IDs with empty arrays
-	for (const id of entryIds) {
+	for (const { id } of entries) {
 		result.set(id, []);
 	}
 
-	if (entryIds.length === 0) {
+	if (entries.length === 0) {
 		return result;
 	}
 
 	const db = await getDb();
 	const repo = new BylineRepository(db);
+	const entryIds = entries.map((e) => e.id);
 
-	// 1. Batch fetch all explicit byline credits. Sites with no bylines
-	// get an empty map back for one query — the previous "has any bylines"
-	// probe traded an extra round-trip on every request to save that one
-	// query on empty sites, which is exactly backwards for the common case.
-	// Pre-migration databases (bylines table missing) fall through to the
-	// `isMissingTableError` catch below and return empty results.
+	// Sites with no bylines get an empty map back for one query — the previous
+	// "has any bylines" probe traded an extra round-trip on every request to
+	// save that one query on empty sites, which is exactly backwards for the
+	// common case. Pre-migration databases (bylines table missing) fall
+	// through to the `isMissingTableError` catch below and return empty.
 	let bylinesMap;
 	try {
 		bylinesMap = await repo.getContentBylinesMany(collection, entryIds);
@@ -165,32 +175,17 @@ export async function getBylinesForEntries(
 		throw error;
 	}
 
-	// 2. Collect entry IDs that need fallback lookup
-	const fallbackEntryIds: string[] = [];
-	const needsFallback: Map<string, string> = new Map(); // entryId -> authorId
-
-	for (const id of entryIds) {
-		if (!bylinesMap.has(id)) {
-			// Need to check author_id for this entry — but we only have the IDs,
-			// so batch-fetch them from the content table
-			fallbackEntryIds.push(id);
+	const needsFallback = new Map<string, string>();
+	for (const { id, authorId } of entries) {
+		if (!bylinesMap.has(id) && authorId) {
+			needsFallback.set(id, authorId);
 		}
 	}
 
-	// Batch-fetch author_ids for entries that need fallback
-	if (fallbackEntryIds.length > 0) {
-		const authorMap = await getAuthorIds(db, collection, fallbackEntryIds);
-		for (const [entryId, authorId] of authorMap) {
-			needsFallback.set(entryId, authorId);
-		}
-	}
-
-	// 3. Batch fetch user-linked bylines for fallback
 	const uniqueAuthorIds = [...new Set(needsFallback.values())];
 	const authorBylineMap = await repo.findByUserIds(uniqueAuthorIds);
 
-	// 4. Assign results
-	for (const id of entryIds) {
+	for (const { id } of entries) {
 		const explicit = bylinesMap.get(id);
 		if (explicit && explicit.length > 0) {
 			result.set(
@@ -205,11 +200,8 @@ export async function getBylinesForEntries(
 			const fallback = authorBylineMap.get(authorId);
 			if (fallback) {
 				result.set(id, [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }]);
-				continue;
 			}
 		}
-
-		// Already initialized with empty array
 	}
 
 	return result;
@@ -234,32 +226,4 @@ async function getAuthorId(
 	`.execute(db);
 
 	return result.rows[0]?.author_id ?? null;
-}
-
-/**
- * Batch-fetch author_ids for multiple content entries.
- * Returns Map<entryId, authorId> (only entries with non-null author_id).
- */
-async function getAuthorIds(
-	db: Awaited<ReturnType<typeof getDb>>,
-	collection: string,
-	entryIds: string[],
-): Promise<Map<string, string>> {
-	validateIdentifier(collection, "collection");
-	const tableName = `ec_${collection}`;
-
-	const map = new Map<string, string>();
-	for (const chunk of chunks(entryIds, SQL_BATCH_SIZE)) {
-		const result = await sql<{ id: string; author_id: string | null }>`
-			SELECT id, author_id FROM ${sql.ref(tableName)}
-			WHERE id IN (${sql.join(chunk.map((id) => sql`${id}`))})
-		`.execute(db);
-
-		for (const row of result.rows) {
-			if (row.author_id) {
-				map.set(row.id, row.author_id);
-			}
-		}
-	}
-	return map;
 }
