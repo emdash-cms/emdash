@@ -22,6 +22,7 @@ vi.mock("../../../src/loader.js", () => ({
 import { onRequest } from "../../../src/astro/middleware/redirect.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
+import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 type MiddlewareContext = Parameters<typeof onRequest>[0];
@@ -55,6 +56,7 @@ describe("redirect middleware — issue #808", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
+		invalidateRedirectCache();
 		db = await setupTestDatabase();
 		const repo = new RedirectRepository(db);
 		await repo.create({ source: "/old", destination: "/new", type: 301 });
@@ -128,6 +130,40 @@ describe("redirect middleware — issue #808", () => {
 		expect(redirect).not.toHaveBeenCalled();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
+	});
+
+	it("warms the redirect cache from one query and reuses it across requests", async () => {
+		const findAllEnabled = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+
+		// First request: cache cold, should issue exactly one query.
+		const first = buildContext({ pathname: "/old" });
+		const next1 = vi.fn(async () => new Response("not found", { status: 404 }));
+		const r1 = await runMiddleware(first.context, next1);
+		expect(r1.status).toBe(301);
+		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+
+		// Second request (exact match): cache warm, no further queries.
+		const second = buildContext({ pathname: "/old" });
+		const next2 = vi.fn(async () => new Response("not found", { status: 404 }));
+		const r2 = await runMiddleware(second.context, next2);
+		expect(r2.status).toBe(301);
+		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+
+		// Third request (pattern match): still warm, no further queries.
+		const third = buildContext({ pathname: "/legacy/hello" });
+		const next3 = vi.fn(async () => new Response("not found", { status: 404 }));
+		const r3 = await runMiddleware(third.context, next3);
+		expect(r3.status).toBe(301);
+		expect(third.redirect).toHaveBeenCalledWith("/posts/hello", 301);
+		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+
+		// Fourth request (no match): still warm, but next() runs and a 404 is logged.
+		const fourth = buildContext({ pathname: "/nope" });
+		const next4 = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(fourth.context, next4);
+		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+
+		findAllEnabled.mockRestore();
 	});
 
 	it("does not intercept /_emdash routes", async () => {
