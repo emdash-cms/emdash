@@ -17,6 +17,7 @@
 import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { getDb } from "../../loader.js";
 import {
 	getCachedPatternRules,
 	matchCachedPatterns,
@@ -46,13 +47,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return next();
 	}
 
-	const { emdash } = context.locals;
-	if (!emdash?.db) {
-		return next();
+	// Public visitors hit the runtime's anonymous fast path, which intentionally
+	// omits `db` from `locals.emdash` to keep the public render boundary minimal
+	// (issue #808). Fall back to `getDb()`, which transparently returns the
+	// per-request scoped db (set in ALS by the runtime middleware) or the
+	// singleton — same path the loader and template helpers use.
+	let db = context.locals.emdash?.db;
+	if (!db) {
+		try {
+			db = await getDb();
+		} catch {
+			return next();
+		}
 	}
 
 	try {
-		const repo = new RedirectRepository(emdash.db);
+		const repo = new RedirectRepository(db);
 
 		// 1. Exact match (fast, indexed)
 		const exact = await repo.findExactMatch(pathname);
