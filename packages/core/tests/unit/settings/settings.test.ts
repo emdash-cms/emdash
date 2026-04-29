@@ -311,6 +311,37 @@ describe("Site Settings caching", () => {
 		expect(prefixScans.length).toBe(1);
 	});
 
+	it("setSiteSettings() invalidates the cache even when the write throws", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		await setSiteSettings({ title: "Original" }, db);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			await getSiteSettings();
+		});
+
+		const original = OptionsRepository.prototype.setMany;
+		OptionsRepository.prototype.setMany = async () => {
+			throw new Error("simulated partial-write failure");
+		};
+
+		try {
+			await expect(setSiteSettings({ title: "Updated" }, db)).rejects.toThrow(
+				"simulated partial-write failure",
+			);
+		} finally {
+			OptionsRepository.prototype.setMany = original;
+		}
+
+		reset();
+
+		await runWithContext({ editMode: false, db }, async () => {
+			await getSiteSettings();
+		});
+
+		const prefixScans = queries.filter((q) => q.includes("LIKE") && q.includes("options"));
+		expect(prefixScans.length).toBe(1);
+	});
+
 	it("invalidateSiteSettingsCache() drops the cached value", async () => {
 		const { db, queries, reset } = await setupCountingDb();
 		await setSiteSettings({ title: "First" }, db);

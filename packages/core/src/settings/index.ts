@@ -280,8 +280,11 @@ export async function setSiteSettings(
 		}
 	}
 
-	await options.setMany(updates);
-	invalidateSiteSettingsCache();
+	try {
+		await options.setMany(updates);
+	} finally {
+		invalidateSiteSettingsCache();
+	}
 }
 
 /**
