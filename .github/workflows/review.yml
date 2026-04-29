@@ -100,7 +100,7 @@ jobs:
 
       - name: Run Bonk
         if: steps.verify-pr.outputs.exists == 'true'
-        uses: ask-bonk/ask-bonk/github@a96a0dc8f935aa38e71b33a473a8076738b53599 # main as of 2026-04-24
+        uses: ask-bonk/ask-bonk/github@a8c6cac8726d0d5ab887bc159aae77e2bfb2cf18 # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}

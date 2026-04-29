@@ -38,9 +38,9 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@oslojs/crypto": "^1.0.1",
-    "@oslojs/encoding": "^1.1.0",
-    "@oslojs/webauthn": "^1.0.0",
+    "@oslojs/crypto": "catalog:",
+    "@oslojs/encoding": "catalog:",
+    "@oslojs/webauthn": "catalog:",
     "ulidx": "^2.4.1",
     "zod": "^4.3.5"
   },

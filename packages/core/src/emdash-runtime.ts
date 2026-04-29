@@ -111,6 +111,7 @@ import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
 } from "./comments/moderator.js";
+import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
@@ -634,6 +635,13 @@ export class EmDashRuntime {
 		// Initialize database (connects, runs migrations if needed)
 		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
 
+		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
+		// surfaces in startup logs instead of as request-time 500s. The key
+		// itself is not yet consumed (a follow-up PR adds plugin-secret
+		// encryption); validating early just guards against silent
+		// misconfiguration.
+		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
+
 		// FTS verify/repair is deferred off the cold-start hot path.
 		// See EmDashRuntime.ensureSearchHealthy().
 
@@ -697,7 +705,7 @@ export class EmDashRuntime {
 				const devConsolePlugin = definePlugin({
 					id: DEV_CONSOLE_EMAIL_PLUGIN_ID,
 					version: "0.0.0",
-					capabilities: ["email:provide"],
+					capabilities: ["hooks.email-transport:register"],
 					hooks: {
 						"email:deliver": {
 							exclusive: true,
@@ -720,7 +728,7 @@ export class EmDashRuntime {
 			const defaultModeratorPlugin = definePlugin({
 				id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 				version: "0.0.0",
-				capabilities: ["read:users"],
+				capabilities: ["users:read"],
 				hooks: {
 					"comment:moderate": {
 						exclusive: true,

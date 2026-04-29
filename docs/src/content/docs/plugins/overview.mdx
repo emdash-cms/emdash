@@ -61,7 +61,7 @@ export default definePlugin({
 	version: "1.0.0",
 
 	// What APIs the plugin needs access to
-	capabilities: ["read:content", "network:fetch"],
+	capabilities: ["content:read", "network:request"],
 
 	// Hosts the plugin can make HTTP requests to
 	allowedHosts: ["api.example.com"],
@@ -106,14 +106,14 @@ Every hook and route handler receives a `PluginContext` object with access to:
 | ------------- | ---------------------------------------------------- | -------------------------------------- |
 | `ctx.storage` | Plugin's document collections                        | Always (if declared)                   |
 | `ctx.kv`      | Key-value store for settings and state               | Always                                 |
-| `ctx.content` | Read/write site content                              | With `read:content` or `write:content` |
-| `ctx.media`   | Read/write media files                               | With `read:media` or `write:media`     |
-| `ctx.http`    | HTTP client for external requests                    | With `network:fetch`                   |
+| `ctx.content` | Read/write site content                              | With `content:read` or `content:write` |
+| `ctx.media`   | Read/write media files                               | With `media:read` or `media:write`     |
+| `ctx.http`    | HTTP client for external requests                    | With `network:request`                 |
 | `ctx.log`     | Structured logger (debug, info, warn, error)         | Always                                 |
 | `ctx.plugin`  | Plugin metadata (id, version)                        | Always                                 |
 | `ctx.site`    | Site info: `name`, `url`, `locale`                   | Always                                 |
 | `ctx.url()`   | Generate absolute URLs from paths                    | Always                                 |
-| `ctx.users`   | Read user info: `get()`, `getByEmail()`, `list()`    | With `read:users`                      |
+| `ctx.users`   | Read user info: `get()`, `getByEmail()`, `list()`    | With `users:read`                      |
 | `ctx.cron`    | Schedule tasks: `schedule()`, `cancel()`, `list()`   | Always                                 |
 | `ctx.email`   | Send email: `send()`                                 | With `email:send` + provider configured |
 
@@ -121,24 +121,49 @@ The context shape is identical across all hooks and routes. Capability-gated pro
 
 ## Capabilities
 
-Capabilities determine what APIs are available in the plugin context:
+Capabilities determine what APIs are available in the plugin context. Capability
+names follow the formula `<resource>[.<sub-resource>]:<verb>[:<qualifier>]` —
+resource first, verb second.
 
-| Capability        | Grants Access To                                                       |
-| ----------------- | ---------------------------------------------------------------------- |
-| `read:content`    | `ctx.content.get()`, `ctx.content.list()`                              |
-| `write:content`   | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` |
-| `read:media`      | `ctx.media.get()`, `ctx.media.list()`                                  |
-| `write:media`     | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` |
-| `network:fetch`   | `ctx.http.fetch()` (restricted to `allowedHosts`)                      |
-| `network:fetch:any` | `ctx.http.fetch()` (unrestricted — for user-configured URLs)         |
-| `read:users`      | `ctx.users.get()`, `ctx.users.getByEmail()`, `ctx.users.list()`       |
-| `email:send`      | `ctx.email.send()` (requires a provider plugin)                        |
-| `email:provide`   | Register `email:deliver` exclusive hook (transport provider)           |
-| `email:intercept` | Register `email:beforeSend` / `email:afterSend` hooks                  |
-| `page:inject`     | Register `page:metadata` / `page:fragments` hooks                      |
+| Capability                          | Grants Access To                                                       |
+| ----------------------------------- | ---------------------------------------------------------------------- |
+| `content:read`                      | `ctx.content.get()`, `ctx.content.list()`                              |
+| `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` |
+| `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                  |
+| `media:write`                       | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` |
+| `network:request`                   | `ctx.http.fetch()` (restricted to `allowedHosts`)                      |
+| `network:request:unrestricted`      | `ctx.http.fetch()` (unrestricted — for user-configured URLs)           |
+| `users:read`                        | `ctx.users.get()`, `ctx.users.getByEmail()`, `ctx.users.list()`        |
+| `email:send`                        | `ctx.email.send()` (requires a provider plugin)                        |
+| `hooks.email-transport:register`    | Register `email:deliver` exclusive hook (transport provider)           |
+| `hooks.email-events:register`       | Register `email:beforeSend` / `email:afterSend` hooks                  |
+| `hooks.page-fragments:register`     | Register `page:fragments` hook (inject scripts/styles into pages)      |
 
 <Aside type="tip">
-	`write:content` implies `read:content`. Same for media. Declare only what you need.
+	`content:write` implies `content:read`. Same for media. Declare only what you
+	need.
+</Aside>
+
+<Aside type="caution" title="Renamed in this minor">
+	The capability names were unified in this minor. Old names are still accepted
+	with `@deprecated` warnings and will be removed in the next minor:
+
+	| Old                  | New                                |
+	| -------------------- | ---------------------------------- |
+	| `read:content`       | `content:read`                     |
+	| `write:content`      | `content:write`                    |
+	| `read:media`         | `media:read`                       |
+	| `write:media`        | `media:write`                      |
+	| `read:users`         | `users:read`                       |
+	| `network:fetch`      | `network:request`                  |
+	| `network:fetch:any`  | `network:request:unrestricted`     |
+	| `email:provide`      | `hooks.email-transport:register`   |
+	| `email:intercept`    | `hooks.email-events:register`      |
+	| `page:inject`        | `hooks.page-fragments:register`    |
+
+	`emdash plugin bundle` and `emdash plugin validate` warn for each
+	deprecated name. `emdash plugin publish` refuses manifests that still use
+	deprecated names — re-bundle after renaming.
 </Aside>
 
 ## Registration

@@ -290,6 +290,32 @@ export class TaxonomyRepository {
 	}
 
 	/**
+	 * Batch count entries for multiple taxonomy term IDs.
+	 * Chunks the query at SQL_BATCH_SIZE to stay below D1's bind-parameter limit.
+	 * Returns a Map from term ID to count.
+	 */
+	async countEntriesForTerms(termIds: string[]): Promise<Map<string, number>> {
+		if (termIds.length === 0) return new Map();
+
+		const { chunks, SQL_BATCH_SIZE } = await import("../../utils/chunks.js");
+
+		const counts = new Map<string, number>();
+		for (const chunk of chunks(termIds, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("content_taxonomies")
+				.select(["taxonomy_id", (eb) => eb.fn.count("entry_id").as("count")])
+				.where("taxonomy_id", "in", chunk)
+				.groupBy("taxonomy_id")
+				.execute();
+
+			for (const row of rows) {
+				counts.set(row.taxonomy_id, Number(row.count || 0));
+			}
+		}
+		return counts;
+	}
+
+	/**
 	 * Convert database row to Taxonomy object
 	 */
 	private rowToTaxonomy(row: TaxonomyTable): Taxonomy {

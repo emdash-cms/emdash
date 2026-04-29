@@ -308,7 +308,9 @@ export async function unscheduleContent(collection: string, id: string): Promise
  * Get a preview URL for content
  *
  * Returns a signed URL that allows viewing draft content.
- * Returns null if preview is not configured (missing EMDASH_PREVIEW_SECRET).
+ * Returns null if the EmDash runtime isn't initialized on the server
+ * (responds with NOT_CONFIGURED). The preview secret itself no longer
+ * needs to be set explicitly — it auto-generates on first use.
  */
 export async function getPreviewUrl(
 	collection: string,

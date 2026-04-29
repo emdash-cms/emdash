@@ -293,7 +293,7 @@ describe("MarketplaceClient", () => {
 			const manifest = {
 				id: "test-seo",
 				version: "1.0.0",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 				allowedHosts: [],
 				storage: {},
 				hooks: [],

@@ -119,14 +119,14 @@ describe("HookPipeline — email:beforeSend", () => {
 
 		const plugin1 = createTestPlugin({
 			id: "plugin-first",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("plugin-first", handler1, { priority: 50 }),
 			},
 		});
 		const plugin2 = createTestPlugin({
 			id: "plugin-second",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("plugin-second", handler2, { priority: 150 }),
 			},
@@ -150,14 +150,14 @@ describe("HookPipeline — email:beforeSend", () => {
 
 		const plugin1 = createTestPlugin({
 			id: "modifier-1",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("modifier-1", handler1, { priority: 50 }),
 			},
 		});
 		const plugin2 = createTestPlugin({
 			id: "modifier-2",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("modifier-2", handler2, { priority: 150 }),
 			},
@@ -181,14 +181,14 @@ describe("HookPipeline — email:beforeSend", () => {
 
 		const plugin1 = createTestPlugin({
 			id: "canceller",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("canceller", handler1, { priority: 50 }),
 			},
 		});
 		const plugin2 = createTestPlugin({
 			id: "after-cancel",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("after-cancel", handler2, { priority: 150 }),
 			},
@@ -211,7 +211,7 @@ describe("HookPipeline — email:beforeSend", () => {
 
 		const plugin = createTestPlugin({
 			id: "source-checker",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("source-checker", handler),
 			},
@@ -256,14 +256,14 @@ describe("HookPipeline — email:afterSend", () => {
 
 		const plugin1 = createTestPlugin({
 			id: "logger-a",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("logger-a", handler1),
 			},
 		});
 		const plugin2 = createTestPlugin({
 			id: "logger-b",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("logger-b", handler2),
 			},
@@ -285,14 +285,14 @@ describe("HookPipeline — email:afterSend", () => {
 
 		const plugin1 = createTestPlugin({
 			id: "broken-logger",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("broken-logger", errorHandler, { priority: 50 }),
 			},
 		});
 		const plugin2 = createTestPlugin({
 			id: "good-logger",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("good-logger", successHandler, { priority: 150 }),
 			},
@@ -343,7 +343,7 @@ describe("EmailPipeline", () => {
 
 		const provider = createTestPlugin({
 			id: "test-provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("test-provider", deliverHandler, { exclusive: true }),
 			},
@@ -385,7 +385,7 @@ describe("EmailPipeline", () => {
 
 		const middlewarePlugin = createTestPlugin({
 			id: "middleware",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("middleware", beforeSendHandler),
 			},
@@ -393,7 +393,7 @@ describe("EmailPipeline", () => {
 
 		const providerPlugin = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -401,7 +401,7 @@ describe("EmailPipeline", () => {
 
 		const loggerPlugin = createTestPlugin({
 			id: "logger",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("logger", afterSendHandler),
 			},
@@ -431,7 +431,7 @@ describe("EmailPipeline", () => {
 
 		const cancellerPlugin = createTestPlugin({
 			id: "canceller",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook(
 					"canceller",
@@ -442,7 +442,7 @@ describe("EmailPipeline", () => {
 
 		const providerPlugin = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -450,7 +450,7 @@ describe("EmailPipeline", () => {
 
 		const loggerPlugin = createTestPlugin({
 			id: "logger",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("logger", afterSendHandler),
 			},
@@ -479,7 +479,7 @@ describe("EmailPipeline", () => {
 
 		const provider = createTestPlugin({
 			id: "broken-provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("broken-provider", deliverHandler, { exclusive: true }),
 			},
@@ -502,14 +502,14 @@ describe("EmailPipeline", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
 		});
 		const logger = createTestPlugin({
 			id: "broken-logger",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:afterSend": createTestHook("broken-logger", afterSendHandler),
 			},
@@ -624,10 +624,10 @@ describe("definePlugin — email capabilities", () => {
 		const plugin = definePlugin({
 			id: "email-provider",
 			version: "1.0.0",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 		});
 
-		expect(plugin.capabilities).toContain("email:provide");
+		expect(plugin.capabilities).toContain("hooks.email-transport:register");
 	});
 
 	it("accepts email:intercept as a valid capability", async () => {
@@ -636,10 +636,10 @@ describe("definePlugin — email capabilities", () => {
 		const plugin = definePlugin({
 			id: "email-interceptor",
 			version: "1.0.0",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 		});
 
-		expect(plugin.capabilities).toContain("email:intercept");
+		expect(plugin.capabilities).toContain("hooks.email-events:register");
 	});
 });
 
@@ -762,7 +762,7 @@ describe("ctx.email gating", () => {
 		const deliverHandler: EmailDeliverHandler = async () => {};
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -788,7 +788,7 @@ describe("ctx.email gating", () => {
 		const deliverHandler: EmailDeliverHandler = async () => {};
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -835,7 +835,7 @@ describe("ctx.email gating", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -887,7 +887,7 @@ describe("Email Pipeline — full integration with PluginManager", () => {
 		manager.register({
 			id: "email-resend",
 			version: "1.0.0",
-			capabilities: ["network:fetch", "email:provide"],
+			capabilities: ["network:request", "hooks.email-transport:register"],
 			allowedHosts: ["api.resend.com"],
 			hooks: {
 				"email:deliver": {
@@ -930,7 +930,7 @@ describe("Dev Console — as pipeline provider", () => {
 	it("sends email through dev console provider end-to-end", async () => {
 		const devProvider = createTestPlugin({
 			id: DEV_CONSOLE_EMAIL_PLUGIN_ID,
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook(DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver, {
 					exclusive: true,
@@ -959,7 +959,7 @@ describe("Dev Console — as pipeline provider", () => {
 	it("beforeSend middleware modifies message before dev console receives it", async () => {
 		const footerMiddleware = createTestPlugin({
 			id: "footer-middleware",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("footer-middleware", (async (
 					event: EmailBeforeSendEvent,
@@ -974,7 +974,7 @@ describe("Dev Console — as pipeline provider", () => {
 
 		const devProvider = createTestPlugin({
 			id: DEV_CONSOLE_EMAIL_PLUGIN_ID,
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook(DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver, {
 					exclusive: true,
@@ -1028,7 +1028,7 @@ describe("EmailPipeline — recursion guard", () => {
 
 		const plugin = createTestPlugin({
 			id: "recursive-plugin",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("recursive-plugin", recursiveHandler, {
 					errorPolicy: "abort",
@@ -1038,7 +1038,7 @@ describe("EmailPipeline — recursion guard", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -1072,7 +1072,7 @@ describe("EmailPipeline — recursion guard", () => {
 
 		const plugin = createTestPlugin({
 			id: "recursive-plugin",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("recursive-plugin", recursiveHandler, {
 					errorPolicy: "abort",
@@ -1082,7 +1082,7 @@ describe("EmailPipeline — recursion guard", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -1129,7 +1129,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const interceptor = createTestPlugin({
 			id: "evil-interceptor",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("evil-interceptor", interceptorHandler),
 			},
@@ -1137,7 +1137,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -1178,7 +1178,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const canceller = createTestPlugin({
 			id: "canceller",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("canceller", cancelHandler),
 			},
@@ -1186,7 +1186,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -1211,7 +1211,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const interceptor = createTestPlugin({
 			id: "interceptor",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("interceptor", handler),
 			},
@@ -1219,7 +1219,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -1245,7 +1245,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const interceptor = createTestPlugin({
 			id: "redirector",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("redirector", redirectHandler),
 			},
@@ -1253,7 +1253,7 @@ describe("EmailPipeline — system email protection", () => {
 
 		const provider = createTestPlugin({
 			id: "provider",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
 			},
@@ -1293,7 +1293,7 @@ describe("EmailPipeline — cancellation audit", () => {
 
 		const plugin = createTestPlugin({
 			id: "filter-plugin",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("filter-plugin", cancelHandler),
 			},

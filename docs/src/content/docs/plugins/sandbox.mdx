@@ -26,7 +26,7 @@ EmDash plugins run in one of two modes: **sandboxed** or **native**. Both use th
 | **Platform** | Cloudflare Workers | All platforms |
 | **Admin UI** | Block Kit (JSON-based) | React components or Block Kit |
 | **PT block types** | Not available | Astro components via `componentsEntry` |
-| **Page fragments** | Not available | Available with `page:inject` capability |
+| **Page fragments** | Not available | Available with `hooks.page-fragments:register` capability |
 
 ## What Both Modes Support
 
@@ -147,7 +147,7 @@ Every `ctx` method is a proxy to the bridge. The bridge validates capabilities, 
 
 1. **Capability enforcement**
 
-   If a plugin declares `capabilities: ["read:content"]`, it can call `ctx.content.get()` and `ctx.content.list()` -- nothing else. Attempting `ctx.content.create()` throws a permission error. The plugin cannot bypass this because it has no direct database access.
+   If a plugin declares `capabilities: ["content:read"]`, it can call `ctx.content.get()` and `ctx.content.list()` -- nothing else. Attempting `ctx.content.create()` throws a permission error. The plugin cannot bypass this because it has no direct database access.
 
 2. **Resource limits**
 
@@ -204,7 +204,7 @@ export default defineConfig({
 
 In native mode:
 
-- **Capabilities are advisory.** A plugin declaring `["read:content"]` can still access anything in the process. The `capabilities` field documents what the plugin *intends* to use, but nothing prevents it from importing modules, calling `fetch()` directly, or reading environment variables.
+- **Capabilities are advisory.** A plugin declaring `["content:read"]` can still access anything in the process. The `capabilities` field documents what the plugin *intends* to use, but nothing prevents it from importing modules, calling `fetch()` directly, or reading environment variables.
 - **No resource limits.** CPU, memory, and network usage are unbounded.
 - **Full process access.** The plugin shares the runtime with your Astro site.
 
@@ -248,7 +248,7 @@ import { definePlugin } from "emdash";
 export default definePlugin({
 	id: "my-plugin",
 	version: "1.0.0",
-	capabilities: ["read:content"],
+	capabilities: ["content:read"],
 	hooks: {
 		"content:afterSave": async (event, ctx) => {
 			ctx.log.info("Content saved", { id: event.content.id });
@@ -322,7 +322,7 @@ export default definePlugin({
 	hooks: {
 		"content:afterSave": async (event, ctx) => {
 			// Native mode: ctx.http is always present (capabilities not enforced)
-			// Sandboxed mode: ctx.http is present because the descriptor declares "network:fetch"
+			// Sandboxed mode: ctx.http is present because the descriptor declares "network:request"
 			await ctx.http.fetch("https://api.analytics.example.com/track", {
 				method: "POST",
 				body: JSON.stringify({ contentId: event.content.id }),

@@ -134,6 +134,7 @@
   "imports": {
     "#api/schemas.js": "./src/api/schemas/index.js",
     "#api/*": "./src/api/*",
+    "#config/*": "./src/config/*",
     "#db/*": "./src/database/*",
     "#auth/*": "./src/auth/*",
     "#schema/*": "./src/schema/*",
@@ -172,6 +173,8 @@
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",
     "@floating-ui/react": "^0.27.16",
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@oslojs/crypto": "catalog:",
+    "@oslojs/encoding": "catalog:",
     "@portabletext/toolkit": "^5.0.1",
     "@tiptap/core": "catalog:",
     "@tiptap/extension-focus": "catalog:",

@@ -35,7 +35,7 @@ function createTestPlugin(overrides: Partial<ResolvedPlugin> = {}): ResolvedPlug
 	return {
 		id: overrides.id ?? "test-plugin",
 		version: "1.0.0",
-		capabilities: ["write:content", "read:content"],
+		capabilities: ["content:write", "content:read"],
 		allowedHosts: [],
 		storage: {},
 		admin: {
@@ -73,7 +73,7 @@ function createTestDefinition(overrides: Partial<PluginDefinition> = {}): Plugin
 	return {
 		id: overrides.id ?? "test-plugin",
 		version: "1.0.0",
-		capabilities: ["write:content", "read:content"],
+		capabilities: ["content:write", "content:read"],
 		...overrides,
 	};
 }
@@ -365,14 +365,14 @@ describe("HookPipeline — getHookProviders", () => {
 	it("returns non-exclusive providers registered for a hook", () => {
 		const plugin1 = createTestPlugin({
 			id: "middleware-a",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("middleware-a", vi.fn()),
 			},
 		});
 		const plugin2 = createTestPlugin({
 			id: "middleware-b",
-			capabilities: ["email:intercept"],
+			capabilities: ["hooks.email-events:register"],
 			hooks: {
 				"email:beforeSend": createTestHook("middleware-b", vi.fn()),
 			},

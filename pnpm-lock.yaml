@@ -42,6 +42,15 @@ catalogs:
     '@lingui/react':
       specifier: ^5.9.4
       version: 5.9.5
+    '@oslojs/crypto':
+      specifier: ^1.0.1
+      version: 1.0.1
+    '@oslojs/encoding':
+      specifier: ^1.1.0
+      version: 1.1.0
+    '@oslojs/webauthn':
+      specifier: ^1.0.0
+      version: 1.0.0
     '@phosphor-icons/react':
       specifier: ^2.1.10
       version: 2.1.10
@@ -820,13 +829,13 @@ importers:
   packages/auth:
     dependencies:
       '@oslojs/crypto':
-        specifier: ^1.0.1
+        specifier: 'catalog:'
         version: 1.0.1
       '@oslojs/encoding':
-        specifier: ^1.1.0
+        specifier: 'catalog:'
         version: 1.1.0
       '@oslojs/webauthn':
-        specifier: ^1.0.0
+        specifier: 'catalog:'
         version: 1.0.0
       kysely:
         specifier: ^0.27.0
@@ -1058,6 +1067,12 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
         version: 1.26.0(zod@4.3.6)
+      '@oslojs/crypto':
+        specifier: 'catalog:'
+        version: 1.0.1
+      '@oslojs/encoding':
+        specifier: 'catalog:'
+        version: 1.1.0
       '@portabletext/toolkit':
         specifier: ^5.0.1
         version: 5.0.1
