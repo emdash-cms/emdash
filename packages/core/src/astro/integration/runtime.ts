@@ -332,6 +332,7 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	allowedOrigins?: string[];
+	/*
 	 * Headers to trust for client IP resolution when running behind a reverse
 	 * proxy. The first header in this list that is present on the request
 	 * wins. Applies to rate limiting for auth endpoints and comment
