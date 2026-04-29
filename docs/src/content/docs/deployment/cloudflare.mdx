@@ -189,9 +189,9 @@ See the [Authentication guide](/guides/authentication#cloudflare-access) for ful
 
 `EMDASH_ENCRYPTION_KEY` is used to encrypt plugin secrets at rest
 (webhook tokens, Turnstile keys, etc.). The current release validates
-and stores the key but does not yet use it — plugin secret encryption
-is rolling out and will start using this value automatically when
-available. Set it now so your deployment is ready.
+the key but does not yet use it — plugin secret encryption is rolling
+out and will start using this value automatically when available. Set
+it now so your deployment is ready.
 
 The key is provided by you and never stored in the database; only
 encrypted ciphertext is. Losing it means losing every secret encrypted

@@ -7,10 +7,10 @@
  *
  * Uses the resolved preview secret: env override (`EMDASH_PREVIEW_SECRET`)
  * wins, otherwise an auto-generated stable per-site value persisted in the
- * options table is used. If the verifying side runs in a separate process
- * (e.g. a remote preview Worker), set `EMDASH_PREVIEW_SECRET` in **both**
- * processes — the auto-generated value is per-deployment and won't match
- * across processes.
+ * options table is used. Processes that share the same database converge on
+ * the same auto-generated value; only set `EMDASH_PREVIEW_SECRET` in both
+ * processes when the verifying side runs without access to the EmDash DB
+ * (e.g. a remote preview Worker).
  */
 
 import type { APIRoute } from "astro";

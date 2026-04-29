@@ -155,10 +155,9 @@ docker compose up -d
 ### Recommended: encryption key
 
 `EMDASH_ENCRYPTION_KEY` is used to encrypt plugin secrets at rest. The
-current release validates and stores the key but does not yet use it —
-plugin secret encryption is rolling out and will start using this
-value automatically when available. Set it now so your deployment is
-ready.
+current release validates the key but does not yet use it — plugin
+secret encryption is rolling out and will start using this value
+automatically when available. Set it now so your deployment is ready.
 
 ```bash
 npx emdash secrets generate  # add the result to your environment

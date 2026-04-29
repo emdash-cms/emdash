@@ -35,9 +35,9 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
 	if (previewSig) {
 		// Resolves env override or DB-stored value. Always non-empty after
 		// resolution, so the signature path is never silently disabled.
-		// Note: if a separate process signs these (e.g. a preview Worker),
-		// it must use the same `EMDASH_PREVIEW_SECRET` env var — the
-		// auto-generated DB value is per-deployment.
+		// Note: a signing process without access to this database (e.g. a
+		// remote preview Worker) must set the same `EMDASH_PREVIEW_SECRET`
+		// env var on both sides.
 		const { previewSecret: secret, previewSecretSource } = await resolveSecretsCached(emdash.db);
 		const parsed = parsePreviewSignatureHeader(previewSig);
 		if (!parsed) {

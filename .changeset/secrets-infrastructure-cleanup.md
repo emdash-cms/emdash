@@ -45,7 +45,9 @@ User-visible side effects on upgrade:
   salt, resetting active comment rate-limit windows once.
 - Installs that did set `EMDASH_AUTH_SECRET` keep the same IP salt via a
   legacy fallback, so existing rate-limit data carries over.
-- If you sign preview URLs from a separate process (e.g. a remote preview
-  Worker) and rely on the env-derived secret, you must continue to set
-  `EMDASH_PREVIEW_SECRET` in **both** processes — the auto-generated DB
-  value is per-deployment.
+- If you sign preview URLs from a separate process without access to the
+  EmDash database (e.g. a remote preview Worker), you must continue to
+  set `EMDASH_PREVIEW_SECRET` in **both** processes. Processes that share
+  the database converge on the same auto-generated value automatically;
+  the env override is only needed when the verifying process can't read
+  the options table.

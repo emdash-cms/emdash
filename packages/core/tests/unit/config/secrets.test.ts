@@ -11,6 +11,7 @@ import {
 	parseEncryptionKeys,
 	resolveSecrets,
 	resolveSecretsCached,
+	validateEncryptionKeyAtStartup,
 } from "../../../src/config/secrets.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
@@ -144,17 +145,9 @@ describe("config/secrets", () => {
 	});
 
 	describe("resolveSecrets", () => {
-		it("env-only path: encryption key parsed, preview/ip use DB", async () => {
-			const key = generateEncryptionKey();
-			const result = await resolveSecrets({
-				db,
-				env: { EMDASH_ENCRYPTION_KEY: key },
-			});
+		it("default path generates and persists IP salt + preview secret", async () => {
+			const result = await resolveSecrets({ db, env: {} });
 
-			expect(result.encryptionKeys).toHaveLength(1);
-			expect(result.encryptionKeys?.[0]?.raw).toBe(key);
-
-			// IP salt and preview secret were generated and persisted.
 			expect(result.ipSaltSource).toBe("db");
 			expect(result.previewSecretSource).toBe("db");
 			expect(result.ipSalt.length).toBeGreaterThan(0);
@@ -163,6 +156,20 @@ describe("config/secrets", () => {
 			const repo = new OptionsRepository(db);
 			expect(await repo.get<string>(IP_SALT_OPTION_KEY)).toBe(result.ipSalt);
 			expect(await repo.get<string>(PREVIEW_SECRET_OPTION_KEY)).toBe(result.previewSecret);
+		});
+
+		it("does not consult EMDASH_ENCRYPTION_KEY (a malformed key cannot break preview/comments)", async () => {
+			// Regression: previously a malformed EMDASH_ENCRYPTION_KEY was
+			// parsed inside resolveSecrets and the throw propagated through
+			// request-context middleware as a 500 to anonymous visitors with
+			// stale `?_preview=` URLs. The key is validated separately at
+			// startup now; resolveSecrets must not gate on it.
+			const result = await resolveSecrets({
+				db,
+				env: { EMDASH_ENCRYPTION_KEY: "not_a_valid_key" },
+			});
+			expect(result.previewSecret.length).toBeGreaterThan(0);
+			expect(result.ipSalt.length).toBeGreaterThan(0);
 		});
 
 		it("env override wins for preview secret and ip salt", async () => {
@@ -215,11 +222,6 @@ describe("config/secrets", () => {
 				},
 			});
 			expect(result.ipSalt).toBe("explicit-salt");
-		});
-
-		it("returns null encryptionKeys when env var unset", async () => {
-			const result = await resolveSecrets({ db, env: {} });
-			expect(result.encryptionKeys).toBeNull();
 		});
 
 		it("idempotent: repeated calls return the same DB-stored values", async () => {
@@ -297,6 +299,58 @@ describe("config/secrets", () => {
 
 			await expect(resolveSecrets({ db, env: {}, _repo: stubRepo })).rejects.toThrow(
 				/SECRET_PERSIST_FAILED|Failed to persist/,
+			);
+		});
+	});
+
+	describe("validateEncryptionKeyAtStartup", () => {
+		it("returns true for an unset key", async () => {
+			expect(await validateEncryptionKeyAtStartup({})).toBe(true);
+		});
+
+		it("returns true for a valid key", async () => {
+			const key = generateEncryptionKey();
+			expect(await validateEncryptionKeyAtStartup({ EMDASH_ENCRYPTION_KEY: key })).toBe(true);
+		});
+
+		it("returns false (and does not throw) for a malformed key, logging an operator-facing message", async () => {
+			const errors: unknown[][] = [];
+			const original = console.error;
+			console.error = (...args: unknown[]) => {
+				errors.push(args);
+			};
+			try {
+				const result = await validateEncryptionKeyAtStartup({
+					EMDASH_ENCRYPTION_KEY: "not_a_valid_key",
+				});
+				expect(result).toBe(false);
+				expect(errors).toHaveLength(1);
+				expect(String(errors[0]?.[0])).toMatch(/EMDASH_ENCRYPTION_KEY is invalid/);
+			} finally {
+				console.error = original;
+			}
+		});
+	});
+
+	describe("fingerprintKey", () => {
+		it("agrees with parseEncryptionKeys on canonical input", async () => {
+			const raw = generateEncryptionKey();
+			const parsed = await parseEncryptionKeys(raw);
+			expect(await fingerprintKey(raw)).toBe(parsed?.[0]?.kid);
+		});
+
+		it("rejects non-canonical base64url (so the CLI can't print kids the runtime would refuse)", async () => {
+			const nonCanonical = `emdash_enc_v1_${"A".repeat(42)}B`;
+			await expect(fingerprintKey(nonCanonical)).rejects.toBeInstanceOf(EmDashSecretsError);
+		});
+
+		it("rejects a malformed prefix", async () => {
+			await expect(fingerprintKey("not_a_key")).rejects.toBeInstanceOf(EmDashSecretsError);
+		});
+
+		it("rejects bodies of the wrong length", async () => {
+			await expect(fingerprintKey("emdash_enc_v1_tooShort")).rejects.toBeInstanceOf(
+				EmDashSecretsError,
 			);
 		});
 	});

@@ -7,7 +7,10 @@
  *   rest. Multi-key (comma-separated) for rotation forward-compat. v1 ships
  *   single-key. Format: `emdash_enc_v1_<43 base64url chars>` representing
  *   32 random bytes. **Operator-provided; never stored in the database.**
- *   Losing the key means losing every secret encrypted with it.
+ *   Losing the key means losing every secret encrypted with it. Validated
+ *   at runtime startup via `validateEncryptionKeyAtStartup` — request-time
+ *   resolution does not depend on it, so a malformed key can't 500 the
+ *   preview/comment hot paths for unrelated visitors.
  * - `EMDASH_IP_SALT` (optional) / DB-stored `emdash:ip_salt` — site-specific
  *   salt for hashing commenter IPs. Generated and persisted on first need
  *   if no env override is set. Replaces the previous hardcoded
@@ -24,6 +27,8 @@
  * Modeled on `resolveS3Config` in `../storage/s3.ts`.
  */
 
+import { sha256 } from "@oslojs/crypto/sha2";
+import { encodeHexLowerCase } from "@oslojs/encoding";
 import type { Kysely } from "kysely";
 
 import { OptionsRepository } from "../database/repositories/options.js";
@@ -59,11 +64,12 @@ const GENERATED_SECRET_BYTES = 32;
 /**
  * A parsed encryption key with its kid (key id) fingerprint.
  *
- * `kid` is the first 8 chars of `sha256(rawKey)` (lowercase hex), used to
- * tag envelopes so the decryptor can pick the right key during rotation.
+ * `kid` is the first 8 chars of the SHA-256 hash of the decoded key bytes
+ * (lowercase hex), used to tag envelopes so the decryptor can pick the right
+ * key during rotation.
  */
 export interface ParsedEncryptionKey {
-	/** 8-char lowercase hex fingerprint derived from the raw key string. */
+	/** 8-char lowercase hex fingerprint derived from the decoded key bytes. */
 	kid: string;
 	/** The 32 raw key bytes, ready for `crypto.subtle.importKey`. */
 	key: Uint8Array;
@@ -73,12 +79,6 @@ export interface ParsedEncryptionKey {
 
 /** Resolved site secrets. */
 export interface ResolvedSecrets {
-	/**
-	 * Parsed encryption keys (first entry is primary for new writes), or
-	 * `null` if `EMDASH_ENCRYPTION_KEY` is unset. Plugin-secret encryption
-	 * is opt-in — operators set the env var to enable it.
-	 */
-	encryptionKeys: ParsedEncryptionKey[] | null;
 	/** HMAC secret for preview URLs. Always non-empty after resolution. */
 	previewSecret: string;
 	/**
@@ -115,6 +115,11 @@ export interface ResolveSecretsOptions {
 
 /** Environment-variable shape consulted by the resolver. */
 export interface SecretsEnv {
+	/**
+	 * Read by `validateEncryptionKeyAtStartup` and (in a follow-up PR) by the
+	 * plugin-secret encryption layer. **Not** consulted by `resolveSecrets`,
+	 * so a malformed value can't 500 the preview/comment hot paths.
+	 */
 	EMDASH_ENCRYPTION_KEY?: string;
 	EMDASH_PREVIEW_SECRET?: string;
 	/** Legacy alias; new docs point at EMDASH_PREVIEW_SECRET. */
@@ -214,7 +219,7 @@ export async function parseEncryptionKeys(
 			);
 		}
 
-		const kid = await fingerprintKeyBytes(key);
+		const kid = fingerprintKeyBytes(key);
 		if (seenKids.has(kid)) {
 			// Duplicate keys are user error (paste mistake during rotation).
 			// We dedupe rather than throw — the rotation flow is forgiving.
@@ -238,24 +243,25 @@ export async function parseEncryptionKeys(
  * The kid is derived from the decoded key **bytes**, not the raw string,
  * so admin endpoints / future rotation flows can match envelope kids
  * against bytes regardless of how the env var was originally spelled.
- * (`parseEncryptionKeys` rejects non-canonical base64url, so the raw
- * string is canonical 1:1 with the bytes anyway — the byte-derivation
- * is the architecturally cleaner choice.)
  *
- * Throws `EmDashSecretsError` for malformed input.
+ * Validates the same shape as `parseEncryptionKeys` — including canonical
+ * base64url — so the CLI can't print a kid for a key the runtime would
+ * later refuse to load.
+ *
+ * Throws `EmDashSecretsError` for malformed or non-canonical input.
  */
 export async function fingerprintKey(raw: string): Promise<string> {
-	if (!raw.startsWith(ENCRYPTION_KEY_PREFIX)) {
+	if (!ENCRYPTION_KEY_PATTERN.test(raw)) {
 		throw new EmDashSecretsError(
-			`Key must start with "${ENCRYPTION_KEY_PREFIX}"`,
+			`Key must match "${ENCRYPTION_KEY_PREFIX}" followed by ${ENCRYPTION_KEY_BODY_LENGTH} base64url chars`,
 			"INVALID_ENCRYPTION_KEY",
 		);
 	}
 	const body = raw.slice(ENCRYPTION_KEY_PREFIX.length);
 	const bytes = decodeBase64urlStrict(body);
-	if (!bytes || bytes.length !== GENERATED_SECRET_BYTES) {
+	if (!bytes || bytes.length !== GENERATED_SECRET_BYTES || encodeBase64url(bytes) !== body) {
 		throw new EmDashSecretsError(
-			`Key body must decode to ${GENERATED_SECRET_BYTES} bytes`,
+			`Key body must decode to ${GENERATED_SECRET_BYTES} canonical base64url bytes`,
 			"INVALID_ENCRYPTION_KEY",
 		);
 	}
@@ -267,16 +273,8 @@ export async function fingerprintKey(raw: string): Promise<string> {
  * for what makes two keys "the same key" — used by both `parseEncryptionKeys`
  * and `fingerprintKey`.
  */
-async function fingerprintKeyBytes(key: Uint8Array): Promise<string> {
-	// `crypto.subtle.digest` requires a `BufferSource` whose underlying
-	// buffer is `ArrayBuffer` (not `SharedArrayBuffer`). `decodeBase64url`
-	// can return a `Uint8Array<ArrayBufferLike>` depending on platform, so
-	// copy into a fresh ArrayBuffer-backed view to satisfy the type.
-	const copy = new Uint8Array(key.byteLength);
-	copy.set(key);
-	const buf = await crypto.subtle.digest("SHA-256", copy);
-	const hex = Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
-	return hex.slice(0, 8);
+function fingerprintKeyBytes(key: Uint8Array): string {
+	return encodeHexLowerCase(sha256(key)).slice(0, 8);
 }
 
 /**
@@ -294,20 +292,21 @@ export function generateEncryptionKey(): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve all site secrets. Reads env vars; for IP salt and preview secret,
+ * Resolve site secrets. Reads env vars; for IP salt and preview secret,
  * falls back to a DB-stored value, generating one atomically on first need.
  *
  * Idempotent. Concurrent callers race on the atomic `setIfAbsent`; whichever
  * wins, all callers converge on the same stored value.
  *
- * The encryption-key path is env-only (operators provision it). A missing
- * env var is not an error here — encryption is opt-in.
+ * Note: `EMDASH_ENCRYPTION_KEY` is **not** consumed here. It's validated
+ * separately at runtime startup (see `validateEncryptionKeyAtStartup`) so a
+ * malformed key can't take down preview-token verification or comment
+ * submission for unrelated visitors. Future plugin-secret encryption code
+ * will read it via its own dedicated helper.
  */
 export async function resolveSecrets(options: ResolveSecretsOptions): Promise<ResolvedSecrets> {
 	const env = options.env ?? readDefaultEnv();
 	const repo = options._repo ?? new OptionsRepository(options.db);
-
-	const encryptionKeys = await parseEncryptionKeys(env.EMDASH_ENCRYPTION_KEY);
 
 	const previewEnvOverride = pickFirstNonEmpty(env.EMDASH_PREVIEW_SECRET, env.PREVIEW_SECRET);
 	const ipSaltEnvOverride = pickFirstNonEmpty(
@@ -326,12 +325,39 @@ export async function resolveSecrets(options: ResolveSecretsOptions): Promise<Re
 	]);
 
 	return {
-		encryptionKeys,
 		previewSecret: previewSecret.value,
 		previewSecretSource: previewSecret.source,
 		ipSalt: ipSalt.value,
 		ipSaltSource: ipSalt.source,
 	};
+}
+
+/**
+ * Validate `EMDASH_ENCRYPTION_KEY` once at runtime startup. Logs an
+ * operator-facing error if the value is malformed but does **not** throw —
+ * the key is currently inert (no consumers), and the follow-up PR that
+ * actually uses it will throw at point of use. This way, deployment
+ * mistakes surface immediately in startup logs without wedging unrelated
+ * request paths in the meantime.
+ *
+ * Returns `true` if the key is unset or valid, `false` if it was malformed.
+ */
+export async function validateEncryptionKeyAtStartup(env?: SecretsEnv): Promise<boolean> {
+	const resolved = env ?? readDefaultEnv();
+	try {
+		await parseEncryptionKeys(resolved.EMDASH_ENCRYPTION_KEY);
+		return true;
+	} catch (error) {
+		if (error instanceof EmDashSecretsError) {
+			console.error(
+				`[emdash] EMDASH_ENCRYPTION_KEY is invalid: ${error.message} ` +
+					"Plugin-secret encryption will fail once it ships. " +
+					"Generate a fresh key with `emdash secrets generate`.",
+			);
+			return false;
+		}
+		throw error;
+	}
 }
 
 /**
