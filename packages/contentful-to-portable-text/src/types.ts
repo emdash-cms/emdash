@@ -1,19 +1,3 @@
-/** Contentful Rich Text document */
-export interface ContentfulDocument {
-	nodeType: "document";
-	content: ContentfulNode[];
-	data: Record<string, unknown>;
-}
-
-export interface ContentfulNode {
-	nodeType: string;
-	content?: ContentfulNode[];
-	value?: string;
-	marks?: Array<{ type: string }>;
-	data: Record<string, unknown>;
-}
-
-/** Resolved includes from a Contentful response */
 export interface ContentfulIncludes {
 	entries: Map<string, ContentfulEntry>;
 	assets: Map<string, ContentfulAsset>;
@@ -35,28 +19,12 @@ export interface ContentfulAsset {
 	contentType?: string;
 }
 
-/** Portable Text block (output) */
-export interface PTBlock {
-	_type: string;
-	_key: string;
-	[key: string]: unknown;
-}
-
-export interface PTSpan {
-	_type: "span";
-	_key: string;
-	text: string;
-	marks: string[];
-}
-
-export interface PTMarkDef {
-	_key: string;
-	_type: string;
-	[key: string]: unknown;
-}
-
-/** Options for the converter */
 export interface ConvertOptions {
-	/** Blog hostname for internal/external link detection */
+	/** Hostname used to distinguish internal vs external links */
 	blogHostname?: string;
+	/**
+	 * Custom resolver for entry-hyperlink hrefs. Defaults to `/${slug}/`.
+	 * Override for non-blog URL structures (e.g. `/products/${slug}`).
+	 */
+	entryHrefResolver?: (entry: ContentfulEntry) => string;
 }

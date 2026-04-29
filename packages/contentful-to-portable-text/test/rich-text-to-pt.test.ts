@@ -5,15 +5,15 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { richTextToPortableText, buildIncludes, resetKeys } from "../src/index.js";
+import { richTextToPortableText, buildIncludes } from "../src/index.js";
+import type { ContentfulIncludes } from "../src/index.js";
+import type { Document, Block, Inline, Text } from "@contentful/rich-text-types";
 import type {
-	ContentfulDocument,
-	ContentfulIncludes,
-	ContentfulNode,
-	PTBlock,
-	PTSpan,
-	PTMarkDef,
-} from "../src/index.js";
+	PortableTextBlock,
+	PortableTextSpan,
+	PortableTextMarkDefinition,
+	ArbitraryTypedObject,
+} from "@portabletext/types";
 import fixture from "./fixtures/contentful-blogpost.json";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
@@ -31,10 +31,10 @@ function buildFixtureIncludes(): ContentfulIncludes {
 
 /** Shorthand to convert a document */
 function convert(
-	doc: ContentfulDocument,
+	doc: Document,
 	includes?: ContentfulIncludes,
 	options?: { blogHostname?: string },
-): PTBlock[] {
+): PortableTextBlock | ArbitraryTypedObject[] {
 	return richTextToPortableText(doc, includes ?? emptyIncludes(), options ?? {});
 }
 
@@ -43,17 +43,17 @@ function emptyIncludes(): ContentfulIncludes {
 }
 
 /** Make a minimal Contentful Rich Text document from content nodes */
-function makeDoc(...nodes: ContentfulNode[]): ContentfulDocument {
+function makeDoc(...nodes: Block | Inline | Text[]): Document {
 	return { nodeType: "document", content: nodes, data: {} };
 }
 
 /** Make a text node */
-function text(value: string, marks: Array<{ type: string }> = []): ContentfulNode {
+function text(value: string, marks: Array<{ type: string }> = []): Block | Inline | Text {
 	return { nodeType: "text", value, marks, data: {} };
 }
 
 /** Make a paragraph node */
-function paragraph(...children: ContentfulNode[]): ContentfulNode {
+function paragraph(...children: Block | Inline | Text[]): Block | Inline | Text {
 	return { nodeType: "paragraph", content: children, data: {} };
 }
 
@@ -73,7 +73,7 @@ describe("Standard blocks", () => {
 			_type: "block",
 			style: "normal",
 		});
-		const children = blocks[0]!.children as PTSpan[];
+		const children = blocks[0]!.children as PortableTextSpan[];
 		expect(children[0]!.text).toBe("Hello world");
 	});
 
@@ -95,17 +95,17 @@ describe("Standard blocks", () => {
 
 	it("heading-2 from fixture → block with style h2", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		const h2 = blocks[0]!;
 		expect(h2).toMatchObject({ _type: "block", style: "h2" });
-		expect((h2.children as PTSpan[])[0]!.text).toBe("Why Migration Matters");
+		expect((h2.children as PortableTextSpan[])[0]!.text).toBe("Why Migration Matters");
 	});
 
 	it("unordered-list with 3+ items → bullet list blocks", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		// Find bullet list items
@@ -121,7 +121,7 @@ describe("Standard blocks", () => {
 		}
 
 		// Verify texts
-		const bulletTexts = bullets.map((b) => ((b.children as PTSpan[])[0] as PTSpan).text);
+		const bulletTexts = bullets.map((b) => ((b.children as PortableTextSpan[])[0] as PortableTextSpan).text);
 		expect(bulletTexts).toEqual(
 			expect.arrayContaining([
 				"Parse the source format",
@@ -133,7 +133,7 @@ describe("Standard blocks", () => {
 
 	it("ordered-list with 3+ items → numbered list blocks", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		const numbered = blocks.filter((b) => b.listItem === "number");
@@ -188,7 +188,7 @@ describe("Standard blocks", () => {
 
 	it("blockquote containing paragraphs → blocks with style blockquote", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		const quotes = blocks.filter((b) => b.style === "blockquote");
@@ -343,42 +343,42 @@ describe("Inline marks", () => {
 	it("bold → marks: ['strong']", () => {
 		const doc = makeDoc(paragraph(text("bold text", [{ type: "bold" }])));
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["strong"]);
 	});
 
 	it("italic → marks: ['em']", () => {
 		const doc = makeDoc(paragraph(text("italic text", [{ type: "italic" }])));
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["em"]);
 	});
 
 	it("code → marks: ['code']", () => {
 		const doc = makeDoc(paragraph(text("code text", [{ type: "code" }])));
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["code"]);
 	});
 
 	it("underline → marks: ['underline']", () => {
 		const doc = makeDoc(paragraph(text("underlined", [{ type: "underline" }])));
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["underline"]);
 	});
 
 	it("superscript → marks: ['sup']", () => {
 		const doc = makeDoc(paragraph(text("sup", [{ type: "superscript" }])));
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["sup"]);
 	});
 
 	it("subscript → marks: ['sub']", () => {
 		const doc = makeDoc(paragraph(text("sub", [{ type: "subscript" }])));
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["sub"]);
 	});
 
@@ -387,19 +387,19 @@ describe("Inline marks", () => {
 			paragraph(text("all marks", [{ type: "bold" }, { type: "italic" }, { type: "code" }])),
 		);
 		const blocks = convert(doc);
-		const span = (blocks[0]!.children as PTSpan[])[0]!;
+		const span = (blocks[0]!.children as PortableTextSpan[])[0]!;
 		expect(span.marks).toEqual(["strong", "em", "code"]);
 	});
 
 	it("italic + bold + code from fixture", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		// Second block is the paragraph with "Building a migration pipeline..."
 		const para = blocks[1]!;
 		expect(para._type).toBe("block");
-		const children = para.children as PTSpan[];
+		const children = para.children as PortableTextSpan[];
 
 		// "every content format" has italic + bold
 		const boldItalic = children.find((c) => c.text === "every content format");
@@ -418,17 +418,17 @@ describe("Inline marks", () => {
 describe("Hyperlinks", () => {
 	it("hyperlink with external URL → markDef with blank: true", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		// Find the paragraph with the "Workers documentation" hyperlink
 		const linkBlock = blocks.find((b) => {
-			const children = b.children as PTSpan[] | undefined;
+			const children = b.children as PortableTextSpan[] | undefined;
 			return children?.some((c) => c.text === "Workers documentation");
 		});
 		expect(linkBlock).toBeDefined();
 
-		const markDefs = linkBlock!.markDefs as PTMarkDef[];
+		const markDefs = linkBlock!.markDefs as PortableTextMarkDefinition[];
 		const linkMark = markDefs.find((m) => m._type === "link");
 		expect(linkMark).toBeDefined();
 		expect(linkMark!.href).toBe("https://developers.cloudflare.com/workers/");
@@ -451,7 +451,7 @@ describe("Hyperlinks", () => {
 			blogHostname: "myblog.com",
 		});
 
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
 		expect(markDefs[0]).toMatchObject({
 			_type: "link",
 			href: "https://myblog.com/post",
@@ -473,7 +473,7 @@ describe("Hyperlinks", () => {
 		});
 		const blocks = convert(doc);
 
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
 		expect(markDefs[0]!.href).toBe("#");
 	});
 
@@ -491,7 +491,7 @@ describe("Hyperlinks", () => {
 		});
 		const blocks = convert(doc);
 
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
 		expect(markDefs[0]!.href).toBe("#");
 	});
 
@@ -516,8 +516,62 @@ describe("Hyperlinks", () => {
 		});
 
 		const blocks = convert(doc, includes);
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
 		expect(markDefs[0]!.href).toBe("/my-post/");
+	});
+
+	it("entryHrefResolver output is sanitized against javascript: injection", () => {
+		const includes = emptyIncludes();
+		includes.entries.set("entry-xss", {
+			id: "entry-xss",
+			contentType: "blogPost",
+			fields: { slug: "xss-post", title: "XSS Post" },
+		});
+
+		const doc = makeDoc({
+			nodeType: "paragraph",
+			data: {},
+			content: [
+				{
+					nodeType: "entry-hyperlink",
+					data: { target: { sys: { id: "entry-xss" } } },
+					content: [text("click me")],
+				},
+			],
+		});
+
+		const blocks = richTextToPortableText(doc, includes, {
+			entryHrefResolver: () => "javascript:alert(1)",
+		});
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
+		expect(markDefs[0]!.href).toBe("#");
+	});
+
+	it("entryHrefResolver customizes entry-hyperlink URL shape", () => {
+		const includes = emptyIncludes();
+		includes.entries.set("product-1", {
+			id: "product-1",
+			contentType: "product",
+			fields: { slug: "widget", handle: "widget-pro" },
+		});
+
+		const doc = makeDoc({
+			nodeType: "paragraph",
+			data: {},
+			content: [
+				{
+					nodeType: "entry-hyperlink",
+					data: { target: { sys: { id: "product-1" } } },
+					content: [text("buy now")],
+				},
+			],
+		});
+
+		const blocks = richTextToPortableText(doc, includes, {
+			entryHrefResolver: (entry) => `/products/${entry.fields.slug as string}/`,
+		});
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
+		expect(markDefs[0]!.href).toBe("/products/widget/");
 	});
 
 	it("asset-hyperlink → resolved to asset URL from includes", () => {
@@ -541,7 +595,7 @@ describe("Hyperlinks", () => {
 		});
 
 		const blocks = convert(doc, includes);
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
 		expect(markDefs[0]!.href).toBe("https://cdn.example.com/file.pdf");
 	});
 
@@ -559,7 +613,7 @@ describe("Hyperlinks", () => {
 		});
 
 		const blocks = convert(doc);
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
 		expect(markDefs[0]!.href).toBe("#");
 	});
 
@@ -577,8 +631,8 @@ describe("Hyperlinks", () => {
 		});
 
 		const blocks = convert(doc);
-		const markDefs = blocks[0]!.markDefs as PTMarkDef[];
-		const children = blocks[0]!.children as PTSpan[];
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
+		const children = blocks[0]!.children as PortableTextSpan[];
 		const linkSpan = children.find((c) => c.text === "link text");
 		expect(linkSpan!.marks).toContain(markDefs[0]!._key);
 	});
@@ -606,7 +660,7 @@ describe("Embedded entries", () => {
 		const blocks = convert(doc, includes);
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0]).toMatchObject({
-			_type: "codeBlock",
+			_type: "code",
 			code: 'console.log("hello")',
 			language: "javascript",
 		});
@@ -653,7 +707,7 @@ describe("Embedded entries", () => {
 
 	it("HTML is preserved verbatim (no sanitization, no escaping)", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		const htmlBlock = blocks.find((b) => b._type === "htmlBlock");
@@ -666,10 +720,10 @@ describe("Embedded entries", () => {
 
 	it("blogImage → imageBlock with asset src, alt, width, height", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post1.fields.content as unknown as ContentfulDocument;
+		const doc = post1.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
-		const imageBlock = blocks.find((b) => b._type === "imageBlock");
+		const imageBlock = blocks.find((b) => b._type === "image");
 		expect(imageBlock).toBeDefined();
 
 		const asset = imageBlock!.asset as {
@@ -830,11 +884,11 @@ describe("Embedded entries", () => {
 describe("Embedded assets (legacy)", () => {
 	it("embedded-asset-block → imageBlock with src, alt, width, height", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post1.fields.content as unknown as ContentfulDocument;
+		const doc = post1.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		// Post 1 has an embedded-asset-block referencing asset-1
-		const imageBlocks = blocks.filter((b) => b._type === "imageBlock");
+		const imageBlocks = blocks.filter((b) => b._type === "image");
 		expect(imageBlocks.length).toBeGreaterThanOrEqual(1);
 
 		// The legacy embedded asset image should have the architecture-diagram asset
@@ -896,7 +950,7 @@ describe("Embedded assets (legacy)", () => {
 describe("Integration", () => {
 	it("full document (post 0) with all block types → valid PT array, no crashes", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		expect(blocks.length).toBeGreaterThan(5);
@@ -909,13 +963,13 @@ describe("Integration", () => {
 
 		// Should have embedded code and html blocks
 		const allTypes = blocks.map((b) => b._type);
-		expect(allTypes).toContain("codeBlock");
+		expect(allTypes).toContain("code");
 		expect(allTypes).toContain("htmlBlock");
 	});
 
 	it("full document (post 1) with embedded entries and assets → valid PT", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post1.fields.content as unknown as ContentfulDocument;
+		const doc = post1.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		expect(blocks.length).toBeGreaterThan(5);
@@ -923,27 +977,183 @@ describe("Integration", () => {
 		const types = new Set(blocks.map((b) => b._type));
 		expect(types.has("block")).toBe(true);
 		expect(types.has("htmlBlock")).toBe(true);
-		expect(types.has("imageBlock")).toBe(true);
+		expect(types.has("image")).toBe(true);
 	});
 
 	it("output is JSON-serializable (round-trips without loss)", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 		const blocks = richTextToPortableText(doc, includes);
 
 		const json = JSON.stringify(blocks);
-		const parsed = JSON.parse(json) as PTBlock[];
+		const parsed = JSON.parse(json) as PortableTextBlock | ArbitraryTypedObject[];
 		expect(parsed).toEqual(blocks);
 	});
 
-	it("resetKeys() produces deterministic output for snapshot testing", () => {
+	it("separate calls produce identical keys (call-scoped counters)", () => {
 		const includes = buildFixtureIncludes();
-		const doc = post0.fields.content as unknown as ContentfulDocument;
+		const doc = post0.fields.content as unknown as Document;
 
 		const blocks1 = richTextToPortableText(doc, includes);
 		const blocks2 = richTextToPortableText(doc, includes);
 
-		// Both runs should produce identical keys since resetKeys() is called internally
 		expect(blocks1.map((b) => b._key)).toEqual(blocks2.map((b) => b._key));
+	});
+});
+
+// ── Edge cases and regression tests ─────────────────────────────────────────
+
+describe("Edge cases", () => {
+	it("blockquote containing a list preserves the list", () => {
+		const doc = makeDoc({
+			nodeType: "blockquote",
+			data: {},
+			content: [
+				paragraph(text("quoted text")),
+				{
+					nodeType: "unordered-list",
+					data: {},
+					content: [
+						{
+							nodeType: "list-item",
+							data: {},
+							content: [paragraph(text("bullet point"))],
+						},
+					],
+				},
+			],
+		});
+
+		const blocks = convert(doc);
+		expect(blocks.length).toBeGreaterThanOrEqual(2);
+		const listBlock = blocks.find((b) => b.listItem === "bullet");
+		expect(listBlock).toBeDefined();
+		expect((listBlock!.children as PortableTextSpan[])[0]!.text).toBe("bullet point");
+	});
+
+	it("list item containing an embedded entry preserves it", () => {
+		const includes = emptyIncludes();
+		includes.entries.set("code-1", {
+			id: "code-1",
+			contentType: "blogCodeBlock",
+			fields: { code: "console.log('hi')", language: "javascript" },
+		});
+
+		const doc = makeDoc({
+			nodeType: "ordered-list",
+			data: {},
+			content: [
+				{
+					nodeType: "list-item",
+					data: {},
+					content: [
+						paragraph(text("step one")),
+						{
+							nodeType: "embedded-entry-block",
+							data: { target: { sys: { id: "code-1" } } },
+							content: [],
+						},
+					],
+				},
+			],
+		});
+
+		const blocks = convert(doc, includes);
+		const codeBlock = blocks.find((b) => b._type === "code");
+		expect(codeBlock).toBeDefined();
+		expect(codeBlock!.code).toBe("console.log('hi')");
+	});
+
+	it("buildIncludes skips entries with missing sys.id", () => {
+		const includes = buildIncludes({
+			Entry: [
+				{ sys: { id: "valid-1", contentType: { sys: { id: "post" } } }, fields: { title: "ok" } },
+				{ sys: {}, fields: { title: "no id" } },
+				{ fields: { title: "no sys" } },
+			],
+			Asset: [
+				{ sys: { id: "asset-1" }, fields: { file: { url: "https://x.com/a.jpg" } } },
+				{ sys: {}, fields: {} },
+			],
+		});
+
+		expect(includes.entries.size).toBe(1);
+		expect(includes.entries.get("valid-1")).toBeDefined();
+		expect(includes.assets.size).toBe(1);
+		expect(includes.assets.get("asset-1")).toBeDefined();
+	});
+
+	it("resource-hyperlink preserves visible text", () => {
+		const doc = makeDoc({
+			nodeType: "paragraph",
+			data: {},
+			content: [
+				{
+					nodeType: "resource-hyperlink",
+					data: { target: { sys: { urn: "crn:contentful:some-resource" } } },
+					content: [text("linked text")],
+				},
+			],
+		});
+
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const blocks = convert(doc);
+		warnSpy.mockRestore();
+
+		const spans = blocks[0]!.children as PortableTextSpan[];
+		const linkedSpan = spans.find((s) => s.text === "linked text");
+		expect(linkedSpan).toBeDefined();
+	});
+
+	it("entryHrefResolver receives entry even without slug field", () => {
+		const includes = emptyIncludes();
+		includes.entries.set("product-1", {
+			id: "product-1",
+			contentType: "product",
+			fields: { handle: "widget-pro" },
+		});
+
+		const doc = makeDoc({
+			nodeType: "paragraph",
+			data: {},
+			content: [
+				{
+					nodeType: "entry-hyperlink",
+					data: { target: { sys: { id: "product-1" } } },
+					content: [text("buy now")],
+				},
+			],
+		});
+
+		const blocks = richTextToPortableText(doc, includes, {
+			entryHrefResolver: (entry) => `/products/${entry.fields.handle as string}/`,
+		});
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
+		expect(markDefs[0]!.href).toBe("/products/widget-pro/");
+	});
+
+	it("entry-hyperlink without slug and no resolver falls back to #", () => {
+		const includes = emptyIncludes();
+		includes.entries.set("no-slug", {
+			id: "no-slug",
+			contentType: "product",
+			fields: { handle: "widget" },
+		});
+
+		const doc = makeDoc({
+			nodeType: "paragraph",
+			data: {},
+			content: [
+				{
+					nodeType: "entry-hyperlink",
+					data: { target: { sys: { id: "no-slug" } } },
+					content: [text("link")],
+				},
+			],
+		});
+
+		const blocks = convert(doc, includes);
+		const markDefs = blocks[0]!.markDefs as PortableTextMarkDefinition[];
+		expect(markDefs[0]!.href).toBe("#");
 	});
 });

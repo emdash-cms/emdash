@@ -1,16 +1,8 @@
-/**
- * blogEmbeddedHtml → PT htmlBlock
- *
- * Contentful fields: { customHtml: string }
- * PT output: { _type: "htmlBlock", html: string }
- *
- * HTML is preserved verbatim — sanitization (if desired) is the renderer's
- * responsibility, not the converter's. The converter's job is lossless
- * transformation.
- */
-import type { ContentfulEntry, PTBlock } from "../types.js";
+import type { ArbitraryTypedObject } from "@portabletext/types";
+import type { ContentfulEntry } from "../types.js";
 
-export function transformEmbeddedHtml(entry: ContentfulEntry, key: string): PTBlock {
+/** HTML is preserved verbatim — sanitization is the renderer's responsibility. */
+export function transformEmbeddedHtml(entry: ContentfulEntry, key: string): ArbitraryTypedObject {
 	return {
 		_type: "htmlBlock",
 		_key: key,

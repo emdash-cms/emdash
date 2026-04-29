@@ -1,20 +1,13 @@
-/** Sanitize a URI to prevent javascript: XSS. */
-export function sanitizeUri(uri: string): string {
-	// Trim and check case-insensitively to catch JaVaScRiPt: etc.
-	const normalized = uri.trim();
-	if (normalized.toLowerCase().startsWith("javascript:")) return "#";
-	return uri;
+/**
+ * URL scheme allowlist matching packages/core/src/utils/url.ts and
+ * gutenberg-to-portable-text/src/url.ts. Rejects javascript:, data:,
+ * vbscript:, protocol-relative URLs, and any other unexpected scheme.
+ */
 const SAFE_URL_SCHEME_RE = /^(https?:|mailto:|tel:|\/(?!\/)|#)/i;
 
-/**
- * Returns the URL unchanged if it uses a safe scheme, otherwise returns "#".
- *
- * Mirrors `sanitizeHref` in `packages/core/src/utils/url.ts` and the sibling
- * gutenberg converter. Allowlist-based so unknown schemes (data:, vbscript:,
- * etc.) are rejected by default, not just `javascript:`.
- */
-export function sanitizeUri(uri: string | undefined | null): string {
+/** Returns the URL unchanged if safe, otherwise "#". */
+export function sanitizeUri(uri: string): string {
 	if (!uri) return "#";
 	const trimmed = uri.trim();
-	return SAFE_URL_SCHEME_RE.test(trimmed) ? uri : "#";
+	return SAFE_URL_SCHEME_RE.test(trimmed) ? trimmed : "#";
 }

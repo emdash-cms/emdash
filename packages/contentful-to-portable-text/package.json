@@ -43,5 +43,9 @@
 		"cms"
 	],
 	"author": "Matt Kane",
-	"license": "MIT"
+	"license": "MIT",
+	"dependencies": {
+		"@contentful/rich-text-types": "^17.2.7",
+		"@portabletext/types": "^4.0.2"
+	}
 }
