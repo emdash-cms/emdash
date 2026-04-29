@@ -3,12 +3,12 @@
  * One test per acceptance criterion from the PR plan.
  */
 
+import type { Document } from "@contentful/rich-text-types";
+import type { PortableTextSpan, PortableTextMarkDefinition } from "@portabletext/types";
 import { describe, it, expect, vi } from "vitest";
 
 import { richTextToPortableText, buildIncludes } from "../src/index.js";
 import type { ContentfulIncludes } from "../src/index.js";
-import type { Document } from "@contentful/rich-text-types";
-import type { PortableTextSpan, PortableTextMarkDefinition } from "@portabletext/types";
 import fixture from "./fixtures/contentful-blogpost.json";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
