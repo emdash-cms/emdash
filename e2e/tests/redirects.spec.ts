@@ -125,6 +125,50 @@ test.describe("Redirects", () => {
 		});
 	});
 
+	test.describe("Anonymous visitors", () => {
+		test("fires admin-defined redirects for logged-out users", async ({
+			page,
+			request,
+			serverInfo,
+		}) => {
+			const { baseUrl, token } = serverInfo;
+			const apiHeaders = {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+				"X-EmDash-Request": "1",
+				Origin: baseUrl,
+			};
+
+			// Create the redirect via the authenticated admin API.
+			const created = await page.request.post(`${baseUrl}/_emdash/api/redirects`, {
+				headers: apiHeaders,
+				data: { source: "/anon-redirect-test", destination: "/", type: 301 },
+			});
+			expect(created.ok(), await created.text()).toBe(true);
+			const id = (await created.json()).data.id;
+
+			try {
+				// Anonymous request via the worker-scoped request fixture (no
+				// browser cookies, no auth header). Pre-fix, the redirect
+				// middleware short-circuited on `!emdash.db` and the catch-all
+				// rendered 404. Post-fix it must emit 301 → /.
+				const res = await request.get(`${baseUrl}/anon-redirect-test`, {
+					maxRedirects: 0,
+				});
+				expect(res.status()).toBe(301);
+				expect(res.headers().location).toBe("/");
+			} finally {
+				await page.request
+					.delete(`${baseUrl}/_emdash/api/redirects/${id}`, {
+						headers: apiHeaders,
+					})
+					.catch(() => {
+						/* best-effort cleanup */
+					});
+			}
+		});
+	});
+
 	test.describe("404 Tracking", () => {
 		test("renders the 404 errors tab", async ({ admin, page }) => {
 			await admin.goto("/redirects");

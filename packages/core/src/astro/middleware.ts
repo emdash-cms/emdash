@@ -308,6 +308,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// getRuntime() is just a null-check. This enables SEO plugins to
 				// contribute meta tags for all visitors, not just logged-in editors.
 				const config = getConfig();
+				// Even on the anonymous fast path we ask the adapter for a per-request
+				// scoped db. For D1 with read replication this routes anonymous reads
+				// to the nearest replica; for other adapters it's a no-op. Hoisted
+				// above the runtime init so locals.emdash.db is populated for the
+				// redirect middleware (which runs before render and reads it directly).
+				const anonScoped = createRequestScopedDb({
+					config: config?.database?.config,
+					isAuthenticated: false,
+					isWrite: request.method !== "GET" && request.method !== "HEAD",
+					cookies,
+					url,
+				});
 				if (config) {
 					// Sub-phase timings are populated only on the cold init. Warm
 					// requests hit the cached runtime and leave this empty.
@@ -321,6 +333,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							db: anonScoped?.db ?? runtime.db,
 						} as EmDashHandlers;
 					} catch {
 						// Non-fatal — EmDashHead will fall back to base SEO contributions
@@ -331,17 +344,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// rt.sandbox, rt.market, rt.hooks, rt.cron).
 					for (const sub of initSubTimings) timings.push(sub);
 				}
-
-				// Even on the anonymous fast path we ask the adapter for a per-request
-				// scoped db. For D1 with read replication this routes anonymous reads
-				// to the nearest replica; for other adapters it's a no-op.
-				const anonScoped = createRequestScopedDb({
-					config: config?.database?.config,
-					isAuthenticated: false,
-					isWrite: request.method !== "GET" && request.method !== "HEAD",
-					cookies,
-					url,
-				});
 				const runAnon = async () => {
 					const t0 = performance.now();
 					const response = await next();
