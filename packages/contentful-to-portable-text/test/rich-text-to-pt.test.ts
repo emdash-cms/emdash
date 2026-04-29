@@ -3,25 +3,18 @@
  * One test per acceptance criterion from the PR plan.
  */
 
-import type { Document, Block, Inline, Text } from "@contentful/rich-text-types";
-import type {
-	PortableTextBlock,
-	PortableTextSpan,
-	PortableTextMarkDefinition,
-	ArbitraryTypedObject,
-} from "@portabletext/types";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { richTextToPortableText, buildIncludes } from "../src/index.js";
 import type { ContentfulIncludes } from "../src/index.js";
+import type { Document } from "@contentful/rich-text-types";
+import type { PortableTextSpan, PortableTextMarkDefinition } from "@portabletext/types";
 import fixture from "./fixtures/contentful-blogpost.json";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
+// Test helpers use `any` for fixture construction — we're testing runtime
+// behavior of the converter, not type-safety of the test inputs.
 
-/**
- * Build includes from fixture. The CDA response puts entries in `items`,
- * not `includes.Entry`, so we merge both.
- */
 function buildFixtureIncludes(): ContentfulIncludes {
 	return buildIncludes({
 		Entry: fixture.items as Array<Record<string, unknown>>,
@@ -29,12 +22,8 @@ function buildFixtureIncludes(): ContentfulIncludes {
 	});
 }
 
-/** Shorthand to convert a document */
-function convert(
-	doc: Document,
-	includes?: ContentfulIncludes,
-	options?: { blogHostname?: string },
-): PortableTextBlock | ArbitraryTypedObject[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convert(doc: Document, includes?: ContentfulIncludes, options?: any): any[] {
 	return richTextToPortableText(doc, includes ?? emptyIncludes(), options ?? {});
 }
 
@@ -42,18 +31,18 @@ function emptyIncludes(): ContentfulIncludes {
 	return { entries: new Map(), assets: new Map() };
 }
 
-/** Make a minimal Contentful Rich Text document from content nodes */
-function makeDoc(...nodes: Block | Inline | Text[]): Document {
-	return { nodeType: "document", content: nodes, data: {} };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeDoc(...nodes: any[]): Document {
+	return { nodeType: "document", content: nodes, data: {} } as Document;
 }
 
-/** Make a text node */
-function text(value: string, marks: Array<{ type: string }> = []): Block | Inline | Text {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function text(value: string, marks: Array<{ type: string }> = []): any {
 	return { nodeType: "text", value, marks, data: {} };
 }
 
-/** Make a paragraph node */
-function paragraph(...children: Block | Inline | Text[]): Block | Inline | Text {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function paragraph(...children: any[]): any {
 	return { nodeType: "paragraph", content: children, data: {} };
 }
 
@@ -715,9 +704,9 @@ describe("Embedded entries", () => {
 		const htmlBlock = blocks.find((b) => b._type === "htmlBlock");
 		expect(htmlBlock).toBeDefined();
 		// The fixture's blogEmbeddedHtml has actual HTML with tags and attributes
-		expect(htmlBlock!.html as string).toContain("<div");
-		expect(htmlBlock!.html as string).toContain("style=");
-		expect(htmlBlock!.html as string).toContain("<strong>");
+		expect((htmlBlock as any).html as string).toContain("<div");
+		expect((htmlBlock as any).html as string).toContain("style=");
+		expect((htmlBlock as any).html as string).toContain("<strong>");
 	});
 
 	it("blogImage → imageBlock with asset src, alt, width, height", () => {
@@ -728,7 +717,7 @@ describe("Embedded entries", () => {
 		const imageBlock = blocks.find((b) => b._type === "image");
 		expect(imageBlock).toBeDefined();
 
-		const asset = imageBlock!.asset as {
+		const asset = (imageBlock as any).asset as {
 			src: string;
 			alt: string;
 			width?: number;
@@ -895,12 +884,12 @@ describe("Embedded assets (legacy)", () => {
 
 		// The legacy embedded asset image should have the architecture-diagram asset
 		const legacyImage = imageBlocks.find((b) => {
-			const asset = b.asset as { src: string };
+			const asset = (b as any).asset as { src: string };
 			return asset.src.includes("architecture-diagram");
 		});
 		expect(legacyImage).toBeDefined();
 
-		const asset = legacyImage!.asset as {
+		const asset = (legacyImage as any).asset as {
 			src: string;
 			alt: string;
 			width: number;
@@ -988,7 +977,7 @@ describe("Integration", () => {
 		const blocks = richTextToPortableText(doc, includes);
 
 		const json = JSON.stringify(blocks);
-		const parsed = JSON.parse(json) as PortableTextBlock | ArbitraryTypedObject[];
+		const parsed = JSON.parse(json);
 		expect(parsed).toEqual(blocks);
 	});
 
