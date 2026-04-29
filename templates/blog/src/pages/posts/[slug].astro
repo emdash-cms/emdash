@@ -3,6 +3,7 @@ import {
 	getEmDashEntry,
 	getEmDashCollection,
 	getEntryTerms,
+	getTermsForEntries,
 	getSeoMeta,
 	decodeSlug,
 	getSiteSettings,
@@ -65,32 +66,38 @@ const seo = getSeoMeta(post, {
 	defaultOgImage: featuredImageUrl,
 });
 
-// Get tags for this post
-// Note: post.id is the slug, post.data.id is the database ULID
-const tags = await getEntryTerms("posts", post.data.id, "tag");
-
 // Bylines are already hydrated by getEmDashEntry
 const bylines = post.data.bylines ?? [];
 
 // Get reading time
 const readingTime = getReadingTime(post.data.content);
 
-// Get other posts for "More posts" section, with their tags
-// Fetch a few extra in case the current post is among them
-const { entries: recentPosts } = await getEmDashCollection("posts", {
-	orderBy: { published_at: "desc" },
-	limit: 4,
-});
+// Fetch this post's tags and the related-posts list in parallel — they're
+// independent queries, so running them concurrently halves the round-trip
+// cost on remote databases.
+// Note: post.id is the slug, post.data.id is the database ULID.
+const [tags, { entries: recentPosts }] = await Promise.all([
+	getEntryTerms("posts", post.data.id, "tag"),
+	// Fetch a few extra in case the current post is among them
+	getEmDashCollection("posts", {
+		orderBy: { published_at: "desc" },
+		limit: 4,
+	}),
+]);
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
 
-// Fetch tags for related posts (bylines are already hydrated by getEmDashCollection)
-const otherPostsWithTags = await Promise.all(
-	otherPosts.map(async (p) => {
-		const postTags = await getEntryTerms("posts", p.data.id, "tag");
-		const postBylines = p.data.bylines ?? [];
-		return { post: p, tags: postTags, bylines: postBylines };
-	})
+// Single batched query for related-posts tags, rather than one
+// getEntryTerms() call per related post.
+const otherTagsByEntry = await getTermsForEntries(
+	"posts",
+	otherPosts.map((p) => p.data.id),
+	"tag",
 );
+const otherPostsWithTags = otherPosts.map((p) => ({
+	post: p,
+	tags: otherTagsByEntry.get(p.data.id) ?? [],
+	bylines: p.data.bylines ?? [],
+}));
 
 const publishDate =
 	post.data.publishedAt?.toLocaleDateString("en-US", {

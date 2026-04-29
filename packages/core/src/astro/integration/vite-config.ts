@@ -7,7 +7,7 @@
 
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { AstroConfig } from "astro";
@@ -32,6 +32,8 @@ import {
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	VIRTUAL_AUTH_ID,
 	RESOLVED_VIRTUAL_AUTH_ID,
+	VIRTUAL_AUTH_PROVIDERS_ID,
+	RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID,
 	VIRTUAL_MEDIA_PROVIDERS_ID,
 	RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID,
 	VIRTUAL_BLOCK_COMPONENTS_ID,
@@ -46,6 +48,7 @@ import {
 	generateDialectModule,
 	generateStorageModule,
 	generateAuthModule,
+	generateAuthProvidersModule,
 	generatePluginsModule,
 	generateAdminRegistryModule,
 	generateSandboxRunnerModule,
@@ -105,23 +108,33 @@ function resolveAdminDist(): string {
 }
 
 /**
- * Resolve path to the admin package source directory.
- * In dev mode, we alias @emdash-cms/admin to the source so Vite processes it
- * directly — giving instant HMR instead of requiring a rebuild + restart.
+ * Check whether child is inside parent without relying on simple prefix checks.
  */
-function resolveAdminSource(): string | undefined {
+function isInside(parent: string, child: string): boolean {
+	const relativePath = relative(parent, child);
+	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
+}
+
+/**
+ * Resolve path to the admin package source directory.
+ * In dev mode inside this repo, we alias @emdash-cms/admin to the source so
+ * Vite processes it directly — giving instant HMR instead of requiring a
+ * rebuild + restart. External apps should use the built package surface.
+ */
+function resolveAdminSource(projectRoot: string): string | undefined {
 	const require = createRequire(import.meta.url);
 	const adminPath = require.resolve("@emdash-cms/admin");
 	// dist/index.js -> go up to package root, then into src/
 	const packageRoot = resolve(dirname(adminPath), "..");
+	const repoRoot = resolve(packageRoot, "..", "..");
 	const srcEntry = resolve(packageRoot, "src", "index.ts");
 
 	try {
-		if (existsSync(srcEntry)) {
+		if (existsSync(srcEntry) && isInside(repoRoot, projectRoot)) {
 			return resolve(packageRoot, "src");
 		}
 	} catch {
-		// Not in monorepo — fall back to dist
+		// Not in local repo — fall back to dist
 	}
 	return undefined;
 }
@@ -169,6 +182,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			if (id === VIRTUAL_AUTH_ID) {
 				return RESOLVED_VIRTUAL_AUTH_ID;
+			}
+			if (id === VIRTUAL_AUTH_PROVIDERS_ID) {
+				return RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID;
 			}
 			if (id === VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID;
@@ -228,6 +244,10 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				}
 				return generateAuthModule(authDescriptor.entrypoint);
 			}
+			// Generate auth providers module (pluggable login methods)
+			if (id === RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID) {
+				return generateAuthProvidersModule(resolvedConfig.authProviders ?? []);
+			}
 			// Generate media providers module
 			if (id === RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return generateMediaProvidersModule(resolvedConfig.mediaProviders ?? []);
@@ -281,12 +301,9 @@ export function createViteConfig(
 	const adminDistPath = resolveAdminDist();
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
+	const projectRoot = fileURLToPath(options.astroConfig.root);
 
-	// In dev mode within the monorepo, alias JS imports to source for instant HMR.
-	// CSS always comes from dist/ (pre-compiled by @tailwindcss/cli) since Tailwind's
-	// Vite plugin has native deps that don't bundle well. Run `pnpm dev` in packages/admin
-	// alongside the demo server to get CSS watch-rebuilds too.
-	const adminSourcePath = isDev ? resolveAdminSource() : undefined;
+	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
 
 	return {
@@ -308,6 +325,20 @@ export function createViteConfig(
 			alias: [
 				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
+				// `use-sync-external-store/shim` is a React <18 polyfill that ships
+				// only as CJS. It's pulled in transitively by `@tiptap/react`. With
+				// pnpm's virtual store the file lives under .pnpm/, where Vite's
+				// dep scanner can't reach it for pre-bundling — so the browser is
+				// served raw `module.exports` and hydration fails with
+				// `SyntaxError: ... does not provide an export named
+				// 'useSyncExternalStore'`. Redirect both shim entry points to the
+				// main `use-sync-external-store` package, which on React >=18
+				// (our peer-dep floor) delegates to React's built-in hook.
+				{
+					find: "use-sync-external-store/shim/index.js",
+					replacement: "use-sync-external-store",
+				},
+				{ find: "use-sync-external-store/shim", replacement: "use-sync-external-store" },
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.

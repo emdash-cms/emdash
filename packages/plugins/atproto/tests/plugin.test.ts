@@ -12,18 +12,23 @@ describe("atprotoPlugin descriptor", () => {
 		expect(descriptor.adminWidgets).toHaveLength(1);
 	});
 
-	it("declares the storage used by the sandbox implementation", () => {
+	it("uses standard format", () => {
 		const descriptor = atprotoPlugin();
-		expect(descriptor.storage).toHaveProperty("records");
-		expect(descriptor.storage!.records!.indexes).toContain("contentId");
-		expect(descriptor.storage!.records!.indexes).toContain("status");
-		expect(descriptor.storage!.records!.indexes).toContain("lastSyncedAt");
+		expect(descriptor.format).toBe("standard");
 	});
 
 	it("declares required capabilities", () => {
 		const descriptor = atprotoPlugin();
 		expect(descriptor.capabilities).toContain("read:content");
 		expect(descriptor.capabilities).toContain("network:fetch:any");
+	});
+
+	it("declares the storage used by the sandbox implementation", () => {
+		const descriptor = atprotoPlugin();
+		expect(descriptor.storage).toHaveProperty("records");
+		expect(descriptor.storage!.records!.indexes).toContain("contentId");
+		expect(descriptor.storage!.records!.indexes).toContain("status");
+		expect(descriptor.storage!.records!.indexes).toContain("lastSyncedAt");
 	});
 
 	it("exposes an admin status page and widget", () => {
