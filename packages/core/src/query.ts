@@ -14,6 +14,7 @@
 
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
+import { CURSOR_RAW_VALUES } from "./loader.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -312,7 +313,8 @@ interface BucketedFilter {
 	requestedLimit: number | undefined;
 }
 
-function bucketFilter(filter: CollectionFilter | undefined): BucketedFilter {
+/** @internal exported for unit tests; not part of the public API. */
+export function bucketFilter(filter: CollectionFilter | undefined): BucketedFilter {
 	const limit = filter?.limit;
 	if (
 		limit === undefined ||
@@ -331,11 +333,13 @@ function bucketFilter(filter: CollectionFilter | undefined): BucketedFilter {
 /**
  * Slice a cached bucketed result down to the originally-requested limit
  * and recompute `nextCursor` from the row that would have been the
- * over-fetch detector for that limit. Returns a shallow-copied result so
- * the cached entries array isn't reused across slice consumers (each gets
- * its own array; the entry objects inside remain shared).
+ * over-fetch detector for that limit. When truncation is needed, returns
+ * a shallow-copied result with a new `entries` array; otherwise returns
+ * the cached result unchanged (including error results and results
+ * already within the requested limit).
  */
-function sliceCollectionResult<D>(
+/** @internal exported for unit tests; not part of the public API. */
+export function sliceCollectionResult<D>(
 	cached: CollectionResult<D>,
 	limit: number,
 	orderBy: OrderBySpec | undefined,
@@ -361,11 +365,18 @@ const ENTRY_DATA_KEY_MAP: Record<string, string> = {
 	primary_byline_id: "primaryBylineId",
 };
 
+// Mirror loader.ts FIELD_NAME_PATTERN. Kept in sync intentionally — diverging
+// would let the encoder accept a field name the loader's getPrimarySort then
+// rejected, producing a cursor that paginates against a different column.
+const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 /**
  * Encode a `nextCursor` from a content entry, mirroring the loader's
  * encoding scheme: `(orderValue, id)` where `orderValue` is the primary
- * sort field's stringified value. System date columns are stored as ISO
- * strings in the DB, so we serialise the Date back to ISO to match.
+ * sort field's stringified value. For date columns, reads the raw DB
+ * string the loader stashed via CURSOR_RAW_VALUES — round-tripping the
+ * parsed Date through `toISOString()` would lose precision for stored
+ * values that aren't already ISO-with-milliseconds.
  */
 function encodeEntryCursor<D>(
 	entry: ContentEntry<D>,
@@ -374,7 +385,27 @@ function encodeEntryCursor<D>(
 	const data = entryData(entry);
 	const id = dataStr(data, "id");
 	if (!id) return undefined;
-	const dbField = orderBy ? (Object.keys(orderBy)[0] ?? "created_at") : "created_at";
+
+	// Match loader.ts getPrimarySort: take the first valid field, default to created_at.
+	let dbField = "created_at";
+	if (orderBy) {
+		for (const field of Object.keys(orderBy)) {
+			if (FIELD_NAME_PATTERN.test(field)) {
+				dbField = field;
+				break;
+			}
+		}
+	}
+
+	// Date columns: prefer the raw stored string captured by the loader so
+	// the cursor matches what a direct loader fetch would emit, regardless
+	// of how the DB stored the timestamp.
+	const rawDateValuesRaw = Reflect.get(data, CURSOR_RAW_VALUES);
+	if (rawDateValuesRaw !== null && typeof rawDateValuesRaw === "object") {
+		const raw = Reflect.get(rawDateValuesRaw, dbField);
+		if (typeof raw === "string") return encodeCursor(raw, id);
+	}
+
 	const dataKey = ENTRY_DATA_KEY_MAP[dbField] ?? dbField;
 	const value = data[dataKey];
 	let orderValue: string;
