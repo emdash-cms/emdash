@@ -13,8 +13,8 @@ import * as React from "react";
 import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
-import { EditorHeader } from "./EditorHeader";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
+import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
 import { SaveButton } from "./SaveButton";
 
