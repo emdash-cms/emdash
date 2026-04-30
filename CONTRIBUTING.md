@@ -222,7 +222,7 @@ We welcome AI-assisted contributions. They are held to the same quality bar as a
 
 - The submitter is responsible for the code's correctness, not the AI tool.
 - AI-generated PRs must pass all CI checks, follow the project's code patterns, and include tests.
-- The PR template has an AI disclosure checkbox — please check it. This isn't punitive; it helps reviewers know to pay extra attention to edge cases that AI tools commonly miss.
+- The PR template has an AI disclosure checkbox — please check it and name the model/tool you used (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6). This isn't punitive; it helps reviewers know to pay extra attention to edge cases that AI tools commonly miss, and tells us which models are producing reliable contributions.
 - Bulk/spray PRs across the repo (e.g., "fix all lint warnings", "add types everywhere") will be closed. If you see a pattern worth fixing, open a Discussion first.
 
 ### What we don't accept
