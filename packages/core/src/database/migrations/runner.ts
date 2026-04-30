@@ -144,15 +144,40 @@ const MIGRATION_RACE_WAIT_MS = 10_000;
 /** Polling interval while waiting for a concurrent migrator. */
 const MIGRATION_RACE_POLL_MS = 100;
 
-/** Read the count of applied migrations, returning null if the table is missing. */
+/**
+ * Pattern used to detect "table does not exist" errors from SQLite-family
+ * drivers. better-sqlite3 reports `no such table: ...`; D1 wraps the same
+ * message as `D1_ERROR: no such table: ...`. We match on the table name to
+ * avoid swallowing unrelated "no such table" errors from queries that touch
+ * other tables (defensive — `getAppliedMigrationCount` only references
+ * `MIGRATION_TABLE`, but downstream callers may grow).
+ */
+const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
+	`no such table:\\s*${MIGRATION_TABLE.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\b`,
+	"i",
+);
+
+/**
+ * Read the count of applied migrations.
+ *
+ * Returns `null` only when the migration table does not exist yet (which is
+ * the normal state on a fresh database before the first migration runs).
+ * Any other error is rethrown so callers — particularly
+ * `waitForConcurrentMigrator` — don't silently mask connection failures,
+ * permission errors, or other unexpected driver problems behind a 10s wait
+ * and a bogus "we're done" verdict.
+ */
 async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
 	try {
 		const result = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
 		`.execute(db);
 		return Number(result.rows[0]?.count ?? 0);
-	} catch {
-		return null;
+	} catch (error) {
+		if (MIGRATION_TABLE_MISSING_PATTERN.test(deepErrorMessage(error))) {
+			return null;
+		}
+		throw error;
 	}
 }
 
