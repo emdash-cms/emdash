@@ -2,10 +2,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
-import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { MIGRATION_COUNT, runMigrations } from "../../../src/database/migrations/runner.js";
 
 /**
  * Reproduces the issue from #762: when two callers run migrations
@@ -54,9 +55,37 @@ describe("Migration race condition (#762)", () => {
 					`Concurrent runMigrations should not throw, but got ${failures.length} failure(s):\n${messages.join("\n")}`,
 				);
 			}
+
+			// And the DB must actually be fully migrated — we don't want a
+			// fix that just swallows errors and leaves the schema half-built.
+			const verifyDb = createDatabase({ url: `file:${dbPath}` });
+			try {
+				const row = await sql<{ count: number }>`
+					SELECT COUNT(*) as count FROM _emdash_migrations
+				`.execute(verifyDb);
+				expect(Number(row.rows[0]?.count)).toBe(MIGRATION_COUNT);
+			} finally {
+				await verifyDb.destroy();
+			}
 		} finally {
 			await dbA.destroy();
 			await dbB.destroy();
+		}
+	});
+
+	it("should still surface unrelated migration errors", async () => {
+		// Exercises the non-race error path so a regression that swallows
+		// real errors is caught. We migrate once, then delete a single row
+		// from `_emdash_migrations` so the migrator tries to re-run that
+		// migration and fails with `table ... already exists` — a non-race
+		// error that must NOT be swallowed.
+		const db = createDatabase({ url: `file:${dbPath}` });
+		try {
+			await runMigrations(db);
+			await sql`DELETE FROM _emdash_migrations WHERE name = '001_initial'`.execute(db);
+			await expect(runMigrations(db)).rejects.toThrow(/Migration failed/i);
+		} finally {
+			await db.destroy();
 		}
 	});
 });

@@ -124,6 +124,75 @@ export async function getMigrationStatus(db: Kysely<Database>): Promise<Migratio
 }
 
 /**
+ * Pattern used to detect the concurrent-migration race. The Kysely
+ * `SqliteAdapter.acquireMigrationLock` is a no-op (inherited by `kysely-d1`
+ * and our `EmDashD1Dialect`), so two isolates running migrations against the
+ * same database can both attempt `INSERT INTO _emdash_migrations` for the
+ * same migration name. The losing insert fails with a UNIQUE constraint
+ * error, which is benign: the other isolate is applying the same schema.
+ *
+ * We match on the table name (not the full error text) because different
+ * SQLite drivers phrase the message differently
+ * (`UNIQUE constraint failed: _emdash_migrations.name` for better-sqlite3,
+ * `D1_ERROR: UNIQUE constraint failed: _emdash_migrations.name: SQLITE_CONSTRAINT`
+ * for D1, etc.).
+ */
+const MIGRATION_RACE_PATTERN = /UNIQUE constraint failed: _emdash_migrations\.name/i;
+
+/** How long to wait for a concurrent migrator to finish before giving up. */
+const MIGRATION_RACE_WAIT_MS = 10_000;
+/** Polling interval while waiting for a concurrent migrator. */
+const MIGRATION_RACE_POLL_MS = 100;
+
+/** Read the count of applied migrations, returning null if the table is missing. */
+async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
+	try {
+		const result = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
+		`.execute(db);
+		return Number(result.rows[0]?.count ?? 0);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Wait for a concurrent migrator to finish applying all migrations.
+ * Resolves to `true` if the migration table reached `MIGRATION_COUNT` rows
+ * within the timeout, `false` otherwise.
+ */
+async function waitForConcurrentMigrator(db: Kysely<Database>): Promise<boolean> {
+	const deadline = Date.now() + MIGRATION_RACE_WAIT_MS;
+	while (Date.now() < deadline) {
+		const count = await getAppliedMigrationCount(db);
+		if (count !== null && count === MIGRATION_COUNT) {
+			return true;
+		}
+		await new Promise((resolve) => setTimeout(resolve, MIGRATION_RACE_POLL_MS));
+	}
+	const finalCount = await getAppliedMigrationCount(db);
+	return finalCount === MIGRATION_COUNT;
+}
+
+/** Extract the deepest error message available from a thrown value. */
+function deepErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		const own = error.message ?? "";
+		if (error.cause) {
+			const causeMsg = deepErrorMessage(error.cause);
+			return own ? `${own}: ${causeMsg}` : causeMsg;
+		}
+		return own;
+	}
+	if (typeof error === "string") return error;
+	try {
+		return JSON.stringify(error);
+	} catch {
+		return String(error);
+	}
+}
+
+/**
  * Run all pending migrations.
  *
  * Includes a fast-path: if the migration table already exists and contains
@@ -132,20 +201,23 @@ export async function getMigrationStatus(db: Kysely<Database>): Promise<Migratio
  * `pragma_table_info` introspection that Kysely runs for every table in the
  * database (twice!) just to check if the migration tables exist.
  * On D1 with ~57 tables, that's ~116 queries saved per init.
+ *
+ * Concurrent-migration safety: the Kysely Migrator's `acquireMigrationLock`
+ * is a no-op for SQLite (and therefore D1), so two callers running this
+ * concurrently against the same database will both try to apply pending
+ * migrations. SQLite serializes the writes, but the loser still surfaces a
+ * `UNIQUE constraint failed: _emdash_migrations.name` error. We treat that
+ * specific error as benign: another caller is already applying the same
+ * schema. We wait for the concurrent migrator to finish, then return
+ * success. This matches the user-observable expectation that running
+ * migrations twice in a row is a no-op.
  */
 export async function runMigrations(db: Kysely<Database>): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
 	// A single cheap query vs the Migrator's full schema introspection.
-	try {
-		const result = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
-		`.execute(db);
-		if (result.rows[0]?.count === MIGRATION_COUNT) {
-			return { applied: [] };
-		}
-	} catch {
-		// Table doesn't exist yet (first run). Fall through to the Migrator
-		// which will create it.
+	const initialCount = await getAppliedMigrationCount(db);
+	if (initialCount === MIGRATION_COUNT) {
+		return { applied: [] };
 	}
 
 	const migrator = new Migrator({
@@ -160,17 +232,23 @@ export async function runMigrations(db: Kysely<Database>): Promise<{ applied: st
 	const applied = results?.filter((r) => r.status === "Success").map((r) => r.migrationName) ?? [];
 
 	if (error) {
-		// Kysely sometimes wraps errors with an empty message. Check cause and
-		// failed migration results for the real error.
-		let msg = error instanceof Error ? error.message : JSON.stringify(error);
-		if (!msg && error instanceof Error && error.cause) {
-			msg = error.cause instanceof Error ? error.cause.message : JSON.stringify(error.cause);
-		}
+		// Walk error.cause to get the underlying driver message — Kysely
+		// often wraps with an empty top-level message.
+		const msg = deepErrorMessage(error);
 		const failedMigration = results?.find((r) => r.status === "Error");
-		if (failedMigration) {
-			msg = `${msg || "unknown error"} (migration: ${failedMigration.migrationName})`;
+
+		// Concurrent-migration race: another caller is applying (or just
+		// applied) the same migration. Wait for it to finish, then verify
+		// the schema is fully migrated and treat as success.
+		if (MIGRATION_RACE_PATTERN.test(msg)) {
+			const settled = await waitForConcurrentMigrator(db);
+			if (settled) {
+				return { applied };
+			}
 		}
-		throw new Error(`Migration failed: ${msg}`);
+
+		const failedSuffix = failedMigration ? ` (migration: ${failedMigration.migrationName})` : "";
+		throw new Error(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
 	}
 
 	return { applied };
