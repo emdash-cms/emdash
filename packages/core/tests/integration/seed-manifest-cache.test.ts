@@ -232,6 +232,96 @@ describe("applySeed manifest cache invalidation (regression for #776)", () => {
 		expect(await options.get<boolean>("emdash:setup_complete")).toBe(true);
 	});
 
+	it("clears the persisted manifest cache even when the seed throws after schema operations commit", async () => {
+		// applySeed is not wrapped in a top-level transaction, so when a
+		// later step (here: a content insert that conflicts under
+		// onConflict: "error") throws, the schema operations from steps
+		// 2-3 stay committed. The persisted manifest cache must still
+		// be invalidated, otherwise admin readers serve a manifest that
+		// no longer matches the live schema (the original #776 symptom).
+		await seedExistingPagesWithBody(db, "text");
+
+		const options = new OptionsRepository(db);
+		await options.set(MANIFEST_CACHE_KEY, {
+			key: "stale-key",
+			manifest: {
+				collections: {
+					pages: {
+						fields: { body: { kind: "richText", label: "Body" } },
+					},
+				},
+			},
+		});
+
+		// Pre-existing content with the same slug we're about to seed --
+		// applySeed will throw at step 4 because onConflict is "error",
+		// AFTER updating the field type at step 2-3.
+		const seed: SeedFile = {
+			version: "1",
+			collections: [
+				{
+					slug: "pages",
+					label: "Pages",
+					labelSingular: "Page",
+					fields: [
+						{ slug: "title", label: "Title", type: "string", required: true },
+						{ slug: "body", label: "Body", type: "json" },
+					],
+				},
+			],
+			content: {
+				pages: [
+					{
+						id: "page-1",
+						slug: "hello",
+						status: "published",
+						data: { title: "Hello", body: { layout: [] } },
+					},
+				],
+			},
+		};
+
+		// First run: create everything cleanly so the page exists.
+		await applySeed(db, seed, { includeContent: true });
+
+		// Re-prime the cache so we can detect a fresh invalidation.
+		await options.set(MANIFEST_CACHE_KEY, {
+			key: "still-stale",
+			manifest: {},
+		});
+
+		// Now re-seed with a different field type AND the same content,
+		// using onConflict: "error" so step 4 throws after step 2-3 has
+		// already updated the schema.
+		const conflictingSeed: SeedFile = {
+			...seed,
+			collections: [
+				{
+					slug: "pages",
+					label: "Pages",
+					labelSingular: "Page",
+					fields: [
+						{ slug: "title", label: "Title", type: "string", required: true },
+						{ slug: "body", label: "Body", type: "text" },
+					],
+				},
+			],
+		};
+
+		await expect(
+			applySeed(db, conflictingSeed, {
+				includeContent: true,
+				onConflict: "error",
+			}),
+		).rejects.toThrow();
+
+		// Even though applySeed threw, the cache must have been cleared
+		// in the finally block -- because the schema is still partially
+		// updated and a stale manifest would mis-render the admin.
+		const cached = await options.get(MANIFEST_CACHE_KEY);
+		expect(cached).toBeNull();
+	});
+
 	it("leaves the persisted manifest cache alone when the seed is purely content (no schema changes)", async () => {
 		await seedExistingPagesWithBody(db, "json");
 

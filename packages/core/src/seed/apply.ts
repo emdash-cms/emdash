@@ -93,6 +93,15 @@ export async function applySeed(
 		media: { created: 0, skipped: 0 },
 	};
 
+	// Whether the seed *attempts* schema-shaped work. Captured up front so
+	// the manifest-cache invalidation in the `finally` below runs even when
+	// a later step (content, media, menus, etc.) throws after schema
+	// operations have already committed -- applySeed is not wrapped in a
+	// top-level transaction, so collection/field/taxonomy writes are
+	// durable independently of later failures.
+	const seedTouchedManifestInputs =
+		(seed.collections?.length ?? 0) > 0 || (seed.taxonomies?.length ?? 0) > 0;
+
 	// Media context for $media resolution
 	const mediaContext: MediaContext = {
 		db,
@@ -114,610 +123,630 @@ export async function applySeed(
 	const seedIdMap = new Map<string, string>(); // seed id -> real entry id
 	const seedBylineIdMap = new Map<string, string>(); // seed byline id -> real byline id
 
-	// 1. Site settings
-	if (seed.settings) {
-		await setSiteSettings(seed.settings, db);
-		result.settings.applied = Object.keys(seed.settings).length;
-	}
+	try {
+		// 1. Site settings
+		if (seed.settings) {
+			await setSiteSettings(seed.settings, db);
+			result.settings.applied = Object.keys(seed.settings).length;
+		}
 
-	// 2-3. Collections and Fields
-	if (seed.collections) {
-		const registry = new SchemaRegistry(db);
+		// 2-3. Collections and Fields
+		if (seed.collections) {
+			const registry = new SchemaRegistry(db);
 
-		for (const collection of seed.collections) {
-			// Check if collection exists
-			const existing = await registry.getCollection(collection.slug);
+			for (const collection of seed.collections) {
+				// Check if collection exists
+				const existing = await registry.getCollection(collection.slug);
 
-			if (existing) {
-				if (onConflict === "error") {
-					throw new Error(`Conflict: collection "${collection.slug}" already exists`);
-				}
-
-				if (onConflict === "update") {
-					await registry.updateCollection(collection.slug, {
-						label: collection.label,
-						labelSingular: collection.labelSingular,
-						description: collection.description,
-						icon: collection.icon,
-						supports: collection.supports || [],
-						urlPattern: collection.urlPattern,
-						commentsEnabled: collection.commentsEnabled,
-					});
-					result.collections.updated++;
-
-					// Update or create fields
-					for (const field of collection.fields) {
-						const existingField = await registry.getField(collection.slug, field.slug);
-						if (existingField) {
-							await registry.updateField(collection.slug, field.slug, {
-								label: field.label,
-								required: field.required || false,
-								unique: field.unique || false,
-								searchable: field.searchable || false,
-								defaultValue: field.defaultValue,
-								validation: field.validation,
-								widget: field.widget,
-								options: field.options,
-							});
-							result.fields.updated++;
-						} else {
-							await registry.createField(collection.slug, {
-								slug: field.slug,
-								label: field.label,
-								type: field.type,
-								required: field.required || false,
-								unique: field.unique || false,
-								searchable: field.searchable || false,
-								defaultValue: field.defaultValue,
-								validation: field.validation,
-								widget: field.widget,
-								options: field.options,
-							});
-							result.fields.created++;
-						}
+				if (existing) {
+					if (onConflict === "error") {
+						throw new Error(`Conflict: collection "${collection.slug}" already exists`);
 					}
+
+					if (onConflict === "update") {
+						await registry.updateCollection(collection.slug, {
+							label: collection.label,
+							labelSingular: collection.labelSingular,
+							description: collection.description,
+							icon: collection.icon,
+							supports: collection.supports || [],
+							urlPattern: collection.urlPattern,
+							commentsEnabled: collection.commentsEnabled,
+						});
+						result.collections.updated++;
+
+						// Update or create fields
+						for (const field of collection.fields) {
+							const existingField = await registry.getField(collection.slug, field.slug);
+							if (existingField) {
+								await registry.updateField(collection.slug, field.slug, {
+									label: field.label,
+									required: field.required || false,
+									unique: field.unique || false,
+									searchable: field.searchable || false,
+									defaultValue: field.defaultValue,
+									validation: field.validation,
+									widget: field.widget,
+									options: field.options,
+								});
+								result.fields.updated++;
+							} else {
+								await registry.createField(collection.slug, {
+									slug: field.slug,
+									label: field.label,
+									type: field.type,
+									required: field.required || false,
+									unique: field.unique || false,
+									searchable: field.searchable || false,
+									defaultValue: field.defaultValue,
+									validation: field.validation,
+									widget: field.widget,
+									options: field.options,
+								});
+								result.fields.created++;
+							}
+						}
+						continue;
+					}
+
+					// skip
+					result.collections.skipped++;
+					result.fields.skipped += collection.fields.length;
 					continue;
 				}
 
-				// skip
-				result.collections.skipped++;
-				result.fields.skipped += collection.fields.length;
-				continue;
-			}
-
-			// Create collection
-			await registry.createCollection({
-				slug: collection.slug,
-				label: collection.label,
-				labelSingular: collection.labelSingular,
-				description: collection.description,
-				icon: collection.icon,
-				supports: collection.supports || [],
-				source: "seed",
-				urlPattern: collection.urlPattern,
-				commentsEnabled: collection.commentsEnabled,
-			});
-			result.collections.created++;
-
-			// Create fields
-			for (const field of collection.fields) {
-				await registry.createField(collection.slug, {
-					slug: field.slug,
-					label: field.label,
-					type: field.type,
-					required: field.required || false,
-					unique: field.unique || false,
-					searchable: field.searchable || false,
-					defaultValue: field.defaultValue,
-					validation: field.validation,
-					widget: field.widget,
-					options: field.options,
+				// Create collection
+				await registry.createCollection({
+					slug: collection.slug,
+					label: collection.label,
+					labelSingular: collection.labelSingular,
+					description: collection.description,
+					icon: collection.icon,
+					supports: collection.supports || [],
+					source: "seed",
+					urlPattern: collection.urlPattern,
+					commentsEnabled: collection.commentsEnabled,
 				});
-				result.fields.created++;
+				result.collections.created++;
+
+				// Create fields
+				for (const field of collection.fields) {
+					await registry.createField(collection.slug, {
+						slug: field.slug,
+						label: field.label,
+						type: field.type,
+						required: field.required || false,
+						unique: field.unique || false,
+						searchable: field.searchable || false,
+						defaultValue: field.defaultValue,
+						validation: field.validation,
+						widget: field.widget,
+						options: field.options,
+					});
+					result.fields.created++;
+				}
 			}
 		}
-	}
 
-	// 4-5. Taxonomies
-	if (seed.taxonomies) {
-		for (const taxonomy of seed.taxonomies) {
-			// Check if taxonomy definition exists
-			const existingDef = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
-				.where("name", "=", taxonomy.name)
-				.executeTakeFirst();
+		// 4-5. Taxonomies
+		if (seed.taxonomies) {
+			for (const taxonomy of seed.taxonomies) {
+				// Check if taxonomy definition exists
+				const existingDef = await db
+					.selectFrom("_emdash_taxonomy_defs")
+					.selectAll()
+					.where("name", "=", taxonomy.name)
+					.executeTakeFirst();
 
-			if (existingDef) {
-				if (onConflict === "error") {
-					throw new Error(`Conflict: taxonomy "${taxonomy.name}" already exists`);
-				}
-				if (onConflict === "update") {
+				if (existingDef) {
+					if (onConflict === "error") {
+						throw new Error(`Conflict: taxonomy "${taxonomy.name}" already exists`);
+					}
+					if (onConflict === "update") {
+						await db
+							.updateTable("_emdash_taxonomy_defs")
+							.set({
+								label: taxonomy.label,
+								label_singular: taxonomy.labelSingular ?? null,
+								hierarchical: taxonomy.hierarchical ? 1 : 0,
+								collections: JSON.stringify(taxonomy.collections),
+							})
+							.where("id", "=", existingDef.id)
+							.execute();
+						// Taxonomy defs don't track an "updated" counter -- just the definition is updated
+					}
+					// skip: do nothing for the definition
+				} else {
+					// Create taxonomy definition
 					await db
-						.updateTable("_emdash_taxonomy_defs")
-						.set({
+						.insertInto("_emdash_taxonomy_defs")
+						.values({
+							id: ulid(),
+							name: taxonomy.name,
 							label: taxonomy.label,
 							label_singular: taxonomy.labelSingular ?? null,
 							hierarchical: taxonomy.hierarchical ? 1 : 0,
 							collections: JSON.stringify(taxonomy.collections),
 						})
-						.where("id", "=", existingDef.id)
 						.execute();
-					// Taxonomy defs don't track an "updated" counter -- just the definition is updated
+					result.taxonomies.created++;
 				}
-				// skip: do nothing for the definition
-			} else {
-				// Create taxonomy definition
-				await db
-					.insertInto("_emdash_taxonomy_defs")
-					.values({
-						id: ulid(),
-						name: taxonomy.name,
-						label: taxonomy.label,
-						label_singular: taxonomy.labelSingular ?? null,
-						hierarchical: taxonomy.hierarchical ? 1 : 0,
-						collections: JSON.stringify(taxonomy.collections),
-					})
-					.execute();
-				result.taxonomies.created++;
-			}
 
-			// Create terms (if provided)
-			if (taxonomy.terms && taxonomy.terms.length > 0) {
-				const termRepo = new TaxonomyRepository(db);
+				// Create terms (if provided)
+				if (taxonomy.terms && taxonomy.terms.length > 0) {
+					const termRepo = new TaxonomyRepository(db);
 
-				// For hierarchical taxonomies, we need to create parents before children
-				if (taxonomy.hierarchical) {
-					await applyHierarchicalTerms(termRepo, taxonomy.name, taxonomy.terms, result, onConflict);
-				} else {
-					// Flat taxonomy - create all terms
-					for (const term of taxonomy.terms) {
-						const existing = await termRepo.findBySlug(taxonomy.name, term.slug);
-						if (existing) {
-							if (onConflict === "error") {
-								throw new Error(
-									`Conflict: taxonomy term "${term.slug}" in "${taxonomy.name}" already exists`,
-								);
-							}
-							if (onConflict === "update") {
-								await termRepo.update(existing.id, {
+					// For hierarchical taxonomies, we need to create parents before children
+					if (taxonomy.hierarchical) {
+						await applyHierarchicalTerms(
+							termRepo,
+							taxonomy.name,
+							taxonomy.terms,
+							result,
+							onConflict,
+						);
+					} else {
+						// Flat taxonomy - create all terms
+						for (const term of taxonomy.terms) {
+							const existing = await termRepo.findBySlug(taxonomy.name, term.slug);
+							if (existing) {
+								if (onConflict === "error") {
+									throw new Error(
+										`Conflict: taxonomy term "${term.slug}" in "${taxonomy.name}" already exists`,
+									);
+								}
+								if (onConflict === "update") {
+									await termRepo.update(existing.id, {
+										label: term.label,
+										data: term.description ? { description: term.description } : {},
+									});
+									result.taxonomies.terms++;
+								}
+								// skip: do nothing
+							} else {
+								await termRepo.create({
+									name: taxonomy.name,
+									slug: term.slug,
 									label: term.label,
-									data: term.description ? { description: term.description } : {},
+									data: term.description ? { description: term.description } : undefined,
 								});
 								result.taxonomies.terms++;
 							}
-							// skip: do nothing
-						} else {
-							await termRepo.create({
-								name: taxonomy.name,
-								slug: term.slug,
-								label: term.label,
-								data: term.description ? { description: term.description } : undefined,
-							});
-							result.taxonomies.terms++;
 						}
 					}
 				}
 			}
 		}
-	}
 
-	// 6. Bylines
-	if (seed.bylines) {
-		const bylineRepo = new BylineRepository(db);
-		for (const byline of seed.bylines) {
-			const existing = await bylineRepo.findBySlug(byline.slug);
-			if (existing) {
-				if (onConflict === "error") {
-					throw new Error(`Conflict: byline "${byline.slug}" already exists`);
-				}
-
-				if (onConflict === "update") {
-					await bylineRepo.update(existing.id, {
-						displayName: byline.displayName,
-						bio: byline.bio ?? null,
-						websiteUrl: byline.websiteUrl ?? null,
-						isGuest: byline.isGuest,
-					});
-					seedBylineIdMap.set(byline.id, existing.id);
-					result.bylines.updated++;
-					continue;
-				}
-
-				// skip
-				seedBylineIdMap.set(byline.id, existing.id);
-				result.bylines.skipped++;
-				continue;
-			}
-
-			const created = await bylineRepo.create({
-				slug: byline.slug,
-				displayName: byline.displayName,
-				bio: byline.bio ?? null,
-				websiteUrl: byline.websiteUrl ?? null,
-				isGuest: byline.isGuest,
-			});
-			seedBylineIdMap.set(byline.id, created.id);
-			result.bylines.created++;
-		}
-	}
-
-	// 7. Content (created before menus so refs can resolve)
-	if (includeContent && seed.content) {
-		const contentRepo = new ContentRepository(db);
-
-		// Create content entries
-		for (const [collectionSlug, entries] of Object.entries(seed.content)) {
-			for (const entry of entries) {
-				// Check if entry exists (by slug + locale for locale-aware lookup)
-				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entry.locale);
-
+		// 6. Bylines
+		if (seed.bylines) {
+			const bylineRepo = new BylineRepository(db);
+			for (const byline of seed.bylines) {
+				const existing = await bylineRepo.findBySlug(byline.slug);
 				if (existing) {
 					if (onConflict === "error") {
-						throw new Error(
-							`Conflict: content "${entry.slug}" in "${collectionSlug}" already exists`,
-						);
+						throw new Error(`Conflict: byline "${byline.slug}" already exists`);
 					}
 
 					if (onConflict === "update") {
-						// Resolve $ref and $media in data
-						const resolvedData = await resolveReferences(
-							entry.data,
-							seedIdMap,
-							mediaContext,
-							result,
-						);
-
-						// Update content + bylines + taxonomies atomically
-						const status = entry.status || "published";
-						await withTransaction(db, async (trx) => {
-							const trxContentRepo = new ContentRepository(trx);
-							const trxBylineRepo = new BylineRepository(trx);
-							const trxRevisionRepo = new RevisionRepository(trx);
-
-							await trxContentRepo.update(collectionSlug, existing.id, {
-								status,
-								data: resolvedData,
-							});
-
-							await applyContentBylines(
-								trxBylineRepo,
-								collectionSlug,
-								existing.id,
-								entry,
-								seedBylineIdMap,
-								true,
-							);
-							await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
-
-							// Seed is declarative — when status is "published", promote to a live
-							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
-							// and `live_revision_id` is populated for downstream queries.
-							//
-							// Create a fresh revision from the updated data and stage it as the
-							// draft so `publish()` picks it up instead of re-syncing stale data
-							// from an existing live revision.
-							if (status === "published") {
-								const draft = await trxRevisionRepo.create({
-									collection: collectionSlug,
-									entryId: existing.id,
-									data: resolvedData,
-								});
-								await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
-								await trxContentRepo.publish(collectionSlug, existing.id);
-							}
+						await bylineRepo.update(existing.id, {
+							displayName: byline.displayName,
+							bio: byline.bio ?? null,
+							websiteUrl: byline.websiteUrl ?? null,
+							isGuest: byline.isGuest,
 						});
-
-						seedIdMap.set(entry.id, existing.id);
-						result.content.updated++;
+						seedBylineIdMap.set(byline.id, existing.id);
+						result.bylines.updated++;
 						continue;
 					}
 
 					// skip
-					result.content.skipped++;
-					seedIdMap.set(entry.id, existing.id);
+					seedBylineIdMap.set(byline.id, existing.id);
+					result.bylines.skipped++;
 					continue;
 				}
 
-				// Resolve $ref and $media in data
-				const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
-
-				// Resolve translationOf: map from seed-local ID to real EmDash ID
-				let translationOf: string | undefined;
-				if (entry.translationOf) {
-					const sourceId = seedIdMap.get(entry.translationOf);
-					if (!sourceId) {
-						console.warn(
-							`content.${collectionSlug}: translationOf "${entry.translationOf}" not found (not yet created or missing). Skipping translation link.`,
-						);
-					} else {
-						translationOf = sourceId;
-					}
-				}
-
-				// Create entry + bylines + taxonomies atomically
-				const status = entry.status || "published";
-				const created = await withTransaction(db, async (trx) => {
-					const trxContentRepo = new ContentRepository(trx);
-					const trxBylineRepo = new BylineRepository(trx);
-
-					const item = await trxContentRepo.create({
-						type: collectionSlug,
-						slug: entry.slug,
-						status,
-						data: resolvedData,
-						locale: entry.locale,
-						translationOf,
-						publishedAt: status === "published" ? new Date().toISOString() : null,
-					});
-
-					await applyContentBylines(trxBylineRepo, collectionSlug, item.id, entry, seedBylineIdMap);
-					await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
-
-					// Seed is declarative — when status is "published", promote to a live
-					// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
-					// and `live_revision_id` is populated for downstream queries.
-					if (status === "published") {
-						await trxContentRepo.publish(collectionSlug, item.id);
-					}
-
-					return item;
+				const created = await bylineRepo.create({
+					slug: byline.slug,
+					displayName: byline.displayName,
+					bio: byline.bio ?? null,
+					websiteUrl: byline.websiteUrl ?? null,
+					isGuest: byline.isGuest,
 				});
-
-				seedIdMap.set(entry.id, created.id);
-				result.content.created++;
+				seedBylineIdMap.set(byline.id, created.id);
+				result.bylines.created++;
 			}
 		}
-	}
 
-	// 8. Menus and Menu Items (after content so refs can resolve)
-	if (seed.menus) {
-		for (const menu of seed.menus) {
-			// Check if menu exists
-			const existingMenu = await db
-				.selectFrom("_emdash_menus")
-				.selectAll()
-				.where("name", "=", menu.name)
-				.executeTakeFirst();
+		// 7. Content (created before menus so refs can resolve)
+		if (includeContent && seed.content) {
+			const contentRepo = new ContentRepository(db);
 
-			let menuId: string;
+			// Create content entries
+			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				for (const entry of entries) {
+					// Check if entry exists (by slug + locale for locale-aware lookup)
+					const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entry.locale);
 
-			if (existingMenu) {
-				menuId = existingMenu.id;
-				// Clear existing items (menus are recreated)
-				await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
-			} else {
-				// Create menu
-				menuId = ulid();
-				await db
-					.insertInto("_emdash_menus")
-					.values({
-						id: menuId,
-						name: menu.name,
-						label: menu.label,
-						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
-					})
-					.execute();
-				result.menus.created++;
-			}
+					if (existing) {
+						if (onConflict === "error") {
+							throw new Error(
+								`Conflict: content "${entry.slug}" in "${collectionSlug}" already exists`,
+							);
+						}
 
-			// Create menu items
-			const itemCount = await applyMenuItems(
-				db,
-				menuId,
-				menu.items,
-				null, // parent_id
-				0, // sort_order
-				seedIdMap,
-			);
-			result.menus.items += itemCount;
-		}
-	}
+						if (onConflict === "update") {
+							// Resolve $ref and $media in data
+							const resolvedData = await resolveReferences(
+								entry.data,
+								seedIdMap,
+								mediaContext,
+								result,
+							);
 
-	// 9. Redirects
-	if (seed.redirects) {
-		const redirectRepo = new RedirectRepository(db);
+							// Update content + bylines + taxonomies atomically
+							const status = entry.status || "published";
+							await withTransaction(db, async (trx) => {
+								const trxContentRepo = new ContentRepository(trx);
+								const trxBylineRepo = new BylineRepository(trx);
+								const trxRevisionRepo = new RevisionRepository(trx);
 
-		for (const redirect of seed.redirects) {
-			const existing = await redirectRepo.findBySource(redirect.source);
-			if (existing) {
-				if (onConflict === "error") {
-					throw new Error(`Conflict: redirect "${redirect.source}" already exists`);
-				}
+								await trxContentRepo.update(collectionSlug, existing.id, {
+									status,
+									data: resolvedData,
+								});
 
-				if (onConflict === "update") {
-					await redirectRepo.update(existing.id, {
-						destination: redirect.destination,
-						type: redirect.type,
-						enabled: redirect.enabled,
-						groupName: redirect.groupName,
+								await applyContentBylines(
+									trxBylineRepo,
+									collectionSlug,
+									existing.id,
+									entry,
+									seedBylineIdMap,
+									true,
+								);
+								await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+
+								// Seed is declarative — when status is "published", promote to a live
+								// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+								// and `live_revision_id` is populated for downstream queries.
+								//
+								// Create a fresh revision from the updated data and stage it as the
+								// draft so `publish()` picks it up instead of re-syncing stale data
+								// from an existing live revision.
+								if (status === "published") {
+									const draft = await trxRevisionRepo.create({
+										collection: collectionSlug,
+										entryId: existing.id,
+										data: resolvedData,
+									});
+									await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
+									await trxContentRepo.publish(collectionSlug, existing.id);
+								}
+							});
+
+							seedIdMap.set(entry.id, existing.id);
+							result.content.updated++;
+							continue;
+						}
+
+						// skip
+						result.content.skipped++;
+						seedIdMap.set(entry.id, existing.id);
+						continue;
+					}
+
+					// Resolve $ref and $media in data
+					const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+
+					// Resolve translationOf: map from seed-local ID to real EmDash ID
+					let translationOf: string | undefined;
+					if (entry.translationOf) {
+						const sourceId = seedIdMap.get(entry.translationOf);
+						if (!sourceId) {
+							console.warn(
+								`content.${collectionSlug}: translationOf "${entry.translationOf}" not found (not yet created or missing). Skipping translation link.`,
+							);
+						} else {
+							translationOf = sourceId;
+						}
+					}
+
+					// Create entry + bylines + taxonomies atomically
+					const status = entry.status || "published";
+					const created = await withTransaction(db, async (trx) => {
+						const trxContentRepo = new ContentRepository(trx);
+						const trxBylineRepo = new BylineRepository(trx);
+
+						const item = await trxContentRepo.create({
+							type: collectionSlug,
+							slug: entry.slug,
+							status,
+							data: resolvedData,
+							locale: entry.locale,
+							translationOf,
+							publishedAt: status === "published" ? new Date().toISOString() : null,
+						});
+
+						await applyContentBylines(
+							trxBylineRepo,
+							collectionSlug,
+							item.id,
+							entry,
+							seedBylineIdMap,
+						);
+						await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+
+						// Seed is declarative — when status is "published", promote to a live
+						// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+						// and `live_revision_id` is populated for downstream queries.
+						if (status === "published") {
+							await trxContentRepo.publish(collectionSlug, item.id);
+						}
+
+						return item;
 					});
-					result.redirects.updated++;
-					continue;
+
+					seedIdMap.set(entry.id, created.id);
+					result.content.created++;
 				}
-
-				// skip
-				result.redirects.skipped++;
-				continue;
-			}
-
-			await redirectRepo.create({
-				source: redirect.source,
-				destination: redirect.destination,
-				type: redirect.type,
-				enabled: redirect.enabled,
-				groupName: redirect.groupName,
-			});
-			result.redirects.created++;
-		}
-	}
-
-	// 10. Widget Areas and Widgets
-	if (seed.widgetAreas) {
-		for (const area of seed.widgetAreas) {
-			// Check if area exists
-			const existingArea = await db
-				.selectFrom("_emdash_widget_areas")
-				.selectAll()
-				.where("name", "=", area.name)
-				.executeTakeFirst();
-
-			let areaId: string;
-
-			if (existingArea) {
-				areaId = existingArea.id;
-				// Clear existing widgets (areas are recreated)
-				await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
-			} else {
-				// Create area
-				areaId = ulid();
-				await db
-					.insertInto("_emdash_widget_areas")
-					.values({
-						id: areaId,
-						name: area.name,
-						label: area.label,
-						description: area.description ?? null,
-					})
-					.execute();
-				result.widgetAreas.created++;
-			}
-
-			// Create widgets
-			for (let i = 0; i < area.widgets.length; i++) {
-				const widget = area.widgets[i];
-				await applyWidget(db, areaId, widget, i);
-				result.widgetAreas.widgets++;
 			}
 		}
-	}
 
-	// 11. Sections
-	if (seed.sections) {
-		for (const section of seed.sections) {
-			// Check if section exists
-			const existing = await db
-				.selectFrom("_emdash_sections")
-				.select("id")
-				.where("slug", "=", section.slug)
-				.executeTakeFirst();
+		// 8. Menus and Menu Items (after content so refs can resolve)
+		if (seed.menus) {
+			for (const menu of seed.menus) {
+				// Check if menu exists
+				const existingMenu = await db
+					.selectFrom("_emdash_menus")
+					.selectAll()
+					.where("name", "=", menu.name)
+					.executeTakeFirst();
 
-			if (existing) {
-				if (onConflict === "error") {
-					throw new Error(`Conflict: section "${section.slug}" already exists`);
-				}
+				let menuId: string;
 
-				if (onConflict === "update") {
+				if (existingMenu) {
+					menuId = existingMenu.id;
+					// Clear existing items (menus are recreated)
+					await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
+				} else {
+					// Create menu
+					menuId = ulid();
 					await db
-						.updateTable("_emdash_sections")
-						.set({
-							title: section.title,
-							description: section.description ?? null,
-							keywords: section.keywords ? JSON.stringify(section.keywords) : null,
-							content: JSON.stringify(section.content),
-							source: section.source || "theme",
+						.insertInto("_emdash_menus")
+						.values({
+							id: menuId,
+							name: menu.name,
+							label: menu.label,
+							created_at: new Date().toISOString(),
 							updated_at: new Date().toISOString(),
 						})
-						.where("id", "=", existing.id)
 						.execute();
-					result.sections.updated++;
+					result.menus.created++;
+				}
+
+				// Create menu items
+				const itemCount = await applyMenuItems(
+					db,
+					menuId,
+					menu.items,
+					null, // parent_id
+					0, // sort_order
+					seedIdMap,
+				);
+				result.menus.items += itemCount;
+			}
+		}
+
+		// 9. Redirects
+		if (seed.redirects) {
+			const redirectRepo = new RedirectRepository(db);
+
+			for (const redirect of seed.redirects) {
+				const existing = await redirectRepo.findBySource(redirect.source);
+				if (existing) {
+					if (onConflict === "error") {
+						throw new Error(`Conflict: redirect "${redirect.source}" already exists`);
+					}
+
+					if (onConflict === "update") {
+						await redirectRepo.update(existing.id, {
+							destination: redirect.destination,
+							type: redirect.type,
+							enabled: redirect.enabled,
+							groupName: redirect.groupName,
+						});
+						result.redirects.updated++;
+						continue;
+					}
+
+					// skip
+					result.redirects.skipped++;
 					continue;
 				}
 
-				// skip
-				result.sections.skipped++;
-				continue;
+				await redirectRepo.create({
+					source: redirect.source,
+					destination: redirect.destination,
+					type: redirect.type,
+					enabled: redirect.enabled,
+					groupName: redirect.groupName,
+				});
+				result.redirects.created++;
 			}
-
-			const id = ulid();
-			const now = new Date().toISOString();
-
-			await db
-				.insertInto("_emdash_sections")
-				.values({
-					id,
-					slug: section.slug,
-					title: section.title,
-					description: section.description ?? null,
-					keywords: section.keywords ? JSON.stringify(section.keywords) : null,
-					content: JSON.stringify(section.content),
-					preview_media_id: null,
-					source: section.source || "theme",
-					theme_id: section.source === "theme" ? section.slug : null,
-					created_at: now,
-					updated_at: now,
-				})
-				.execute();
-
-			result.sections.created++;
 		}
-	}
 
-	// 11. Enable search for collections that have `search` in supports
-	if (seed.collections) {
-		const ftsManager = new FTSManager(db);
+		// 10. Widget Areas and Widgets
+		if (seed.widgetAreas) {
+			for (const area of seed.widgetAreas) {
+				// Check if area exists
+				const existingArea = await db
+					.selectFrom("_emdash_widget_areas")
+					.selectAll()
+					.where("name", "=", area.name)
+					.executeTakeFirst();
 
-		for (const collection of seed.collections) {
-			if (collection.supports?.includes("search")) {
-				// Check if there are searchable fields
-				const searchableFields = await ftsManager.getSearchableFields(collection.slug);
-				if (searchableFields.length > 0) {
-					try {
-						await ftsManager.enableSearch(collection.slug);
-					} catch (err) {
-						// Log but don't fail - search can be enabled manually later
-						console.warn(`Failed to enable search for ${collection.slug}:`, err);
+				let areaId: string;
+
+				if (existingArea) {
+					areaId = existingArea.id;
+					// Clear existing widgets (areas are recreated)
+					await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
+				} else {
+					// Create area
+					areaId = ulid();
+					await db
+						.insertInto("_emdash_widget_areas")
+						.values({
+							id: areaId,
+							name: area.name,
+							label: area.label,
+							description: area.description ?? null,
+						})
+						.execute();
+					result.widgetAreas.created++;
+				}
+
+				// Create widgets
+				for (let i = 0; i < area.widgets.length; i++) {
+					const widget = area.widgets[i];
+					await applyWidget(db, areaId, widget, i);
+					result.widgetAreas.widgets++;
+				}
+			}
+		}
+
+		// 11. Sections
+		if (seed.sections) {
+			for (const section of seed.sections) {
+				// Check if section exists
+				const existing = await db
+					.selectFrom("_emdash_sections")
+					.select("id")
+					.where("slug", "=", section.slug)
+					.executeTakeFirst();
+
+				if (existing) {
+					if (onConflict === "error") {
+						throw new Error(`Conflict: section "${section.slug}" already exists`);
+					}
+
+					if (onConflict === "update") {
+						await db
+							.updateTable("_emdash_sections")
+							.set({
+								title: section.title,
+								description: section.description ?? null,
+								keywords: section.keywords ? JSON.stringify(section.keywords) : null,
+								content: JSON.stringify(section.content),
+								source: section.source || "theme",
+								updated_at: new Date().toISOString(),
+							})
+							.where("id", "=", existing.id)
+							.execute();
+						result.sections.updated++;
+						continue;
+					}
+
+					// skip
+					result.sections.skipped++;
+					continue;
+				}
+
+				const id = ulid();
+				const now = new Date().toISOString();
+
+				await db
+					.insertInto("_emdash_sections")
+					.values({
+						id,
+						slug: section.slug,
+						title: section.title,
+						description: section.description ?? null,
+						keywords: section.keywords ? JSON.stringify(section.keywords) : null,
+						content: JSON.stringify(section.content),
+						preview_media_id: null,
+						source: section.source || "theme",
+						theme_id: section.source === "theme" ? section.slug : null,
+						created_at: now,
+						updated_at: now,
+					})
+					.execute();
+
+				result.sections.created++;
+			}
+		}
+
+		// 11. Enable search for collections that have `search` in supports
+		if (seed.collections) {
+			const ftsManager = new FTSManager(db);
+
+			for (const collection of seed.collections) {
+				if (collection.supports?.includes("search")) {
+					// Check if there are searchable fields
+					const searchableFields = await ftsManager.getSearchableFields(collection.slug);
+					if (searchableFields.length > 0) {
+						try {
+							await ftsManager.enableSearch(collection.slug);
+						} catch (err) {
+							// Log but don't fail - search can be enabled manually later
+							console.warn(`Failed to enable search for ${collection.slug}:`, err);
+						}
 					}
 				}
 			}
 		}
-	}
 
-	// Invalidate caches that may have been affected by seed data.
-	// Seed creates bylines, redirects, and collections, all of which
-	// have module-level caches in the hot path.
-	const { invalidateBylineCache } = await import("../bylines/index.js");
-	const { invalidateRedirectCache } = await import("../redirects/cache.js");
-	const { invalidateUrlPatternCache } = await import("../query.js");
-	invalidateBylineCache();
-	invalidateRedirectCache();
-	invalidateUrlPatternCache();
+		// Invalidate caches that may have been affected by seed data.
+		// Seed creates bylines, redirects, and collections, all of which
+		// have module-level caches in the hot path.
+		const { invalidateBylineCache } = await import("../bylines/index.js");
+		const { invalidateRedirectCache } = await import("../redirects/cache.js");
+		const { invalidateUrlPatternCache } = await import("../query.js");
+		invalidateBylineCache();
+		invalidateRedirectCache();
+		invalidateUrlPatternCache();
 
-	// If the seed touched anything that feeds the admin manifest
-	// (collections, fields, or taxonomy definitions), clear the DB-persisted
-	// manifest cache. The seed CLI runs in a separate process from any
-	// running dev server, so it cannot reach the runtime's in-memory cache --
-	// but on the next cold start the runtime reads `emdash:manifest_cache`
-	// from the options table and serves it without rebuilding. Without this
-	// delete, a stale manifest keeps describing fields with their old
-	// `kind`, which is exactly how a field declared as `type: "json"` ends
-	// up rendering as the markdown editor in the admin (the field's
-	// previously-cached `kind` was `richText`). See issue #776.
-	//
-	// We invalidate when the seed even *attempts* a schema operation rather
-	// than reading SeedApplyResult counters, because:
-	//   - taxonomy-definition updates have no counter,
-	//   - "skip" runs against a stale cache should still self-heal,
-	//   - the only cost of an unnecessary delete is one cold-start rebuild.
-	const seedTouchedManifestInputs =
-		(seed.collections?.length ?? 0) > 0 || (seed.taxonomies?.length ?? 0) > 0;
-
-	if (seedTouchedManifestInputs) {
-		try {
-			const optionsRepo = new OptionsRepository(db);
-			await optionsRepo.delete("emdash:manifest_cache");
-		} catch (error) {
-			// Non-fatal: the options table may not exist yet on a brand-new
-			// database that hasn't run migrations, or the delete may race
-			// with another writer. The next manifest read will rebuild from
-			// the live schema regardless -- the persisted cache is purely an
-			// optimization, not a correctness boundary.
-			console.warn("[emdash] Failed to clear persisted manifest cache after seed:", error);
+		return result;
+	} finally {
+		// If the seed touched anything that feeds the admin manifest
+		// (collections, fields, or taxonomy definitions), clear the DB-
+		// persisted manifest cache. We do this in `finally` so the cache is
+		// invalidated even when a later step (content, media, menus, etc.)
+		// throws after schema operations have already committed -- without
+		// this, a partial-failure run would leave the schema changed but
+		// the persisted manifest stale, which is exactly the symptom from
+		// issue #776 (admin renders fields with their old `kind`).
+		//
+		// The seed CLI runs in a separate process from any running dev
+		// server, so it cannot reach the runtime's in-memory cache -- but
+		// on the next cold start the runtime reads `emdash:manifest_cache`
+		// from the options table and serves it without rebuilding. Without
+		// this delete, a stale manifest keeps describing fields with their
+		// old `kind`, which is exactly how a field declared as `type:
+		// "json"` ends up rendering as the markdown editor in the admin
+		// (the field's previously-cached `kind` was `richText`).
+		//
+		// We invalidate when the seed even *attempts* a schema operation
+		// rather than reading SeedApplyResult counters, because:
+		//   - taxonomy-definition updates have no counter,
+		//   - "skip" runs against a stale cache should still self-heal,
+		//   - the only cost of an unnecessary delete is one cold-start
+		//     rebuild.
+		if (seedTouchedManifestInputs) {
+			try {
+				const optionsRepo = new OptionsRepository(db);
+				await optionsRepo.delete("emdash:manifest_cache");
+			} catch (error) {
+				// Non-fatal: the options table may not exist yet on a
+				// brand-new database that hasn't run migrations, or the
+				// delete may race with another writer. The next manifest
+				// read will rebuild from the live schema regardless -- the
+				// persisted cache is purely an optimization, not a
+				// correctness boundary.
+				console.warn("[emdash] Failed to clear persisted manifest cache after seed:", error);
+			}
 		}
 	}
-
-	return result;
 }
 
 /**
