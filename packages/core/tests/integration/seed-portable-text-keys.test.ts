@@ -182,4 +182,33 @@ describe("applySeed normalizes Portable Text keys (issue #867)", () => {
 		const content = JSON.parse(r.content as string) as Array<Record<string, unknown>>;
 		expect(content[0]!._key).toBe("preserved-key-abc");
 	});
+
+	it("does not generate a key that collides with an explicit key elsewhere in the document", async () => {
+		const seed = seedWithKeylessPortableText();
+		// Pin the second block to the literal value the deterministic
+		// counter would otherwise produce for it (k0 if generated first
+		// in document order). The generator must skip past taken keys
+		// so the first block (which had no explicit key) doesn't end
+		// up sharing a _key with the second.
+		const post = seed.content!.posts![0]!;
+		const blocks = post.data.content as Array<Record<string, unknown>>;
+		blocks[1]!._key = "k0";
+
+		await applySeed(db, seed, { includeContent: true });
+
+		const row = await db
+			// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
+			.selectFrom("ec_posts" as any)
+			.selectAll()
+			.where("slug", "=", "hello-world")
+			.executeTakeFirstOrThrow();
+
+		const r = row as Record<string, unknown>;
+		const content = JSON.parse(r.content as string);
+		const typed = collectTypedNodes(content);
+		const keys = typed.map((n) => n._key as string);
+		expect(new Set(keys).size).toBe(keys.length);
+		// And the explicit key is preserved exactly.
+		expect((content as Array<Record<string, unknown>>)[1]!._key).toBe("k0");
+	});
 });
