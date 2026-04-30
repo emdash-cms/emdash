@@ -155,24 +155,34 @@ export function refreshInterceptor(options: {
 
 		if (!res.ok) return null;
 
-		const data = (await res.json()) as {
+		interface TokenFields {
 			access_token: string;
 			refresh_token?: string;
 			expires_in?: number;
-		};
-		const expiresAt = data.expires_in
-			? new Date(Date.now() + data.expires_in * 1000).toISOString()
+		}
+
+		const json = (await res.json()) as Record<string, unknown>;
+
+		// The token endpoint wraps the response in { data: ... } via apiSuccess.
+		// Handle both wrapped and bare shapes for robustness.
+		const tokenData: TokenFields =
+			json.data && typeof json.data === "object" && "access_token" in json.data
+				? (json.data as TokenFields)
+				: (json as unknown as TokenFields);
+
+		const expiresAt = tokenData.expires_in
+			? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
 			: new Date(Date.now() + 3600_000).toISOString();
 
 		if (options.onTokenRefreshed) {
 			options.onTokenRefreshed(
-				data.access_token,
-				data.refresh_token ?? options.refreshToken,
+				tokenData.access_token,
+				tokenData.refresh_token ?? options.refreshToken,
 				expiresAt,
 			);
 		}
 
-		return data.access_token;
+		return tokenData.access_token;
 	}
 
 	return async (request, next) => {

@@ -115,7 +115,7 @@ function CategoryCheckboxTree({
 		<div>
 			<label
 				className="flex items-center py-1 cursor-pointer hover:bg-kumo-tint/50 rounded px-2"
-				style={{ marginLeft: `${level}rem` }}
+				style={{ marginInlineStart: `${level}rem` }}
 			>
 				<input
 					type="checkbox"
@@ -254,7 +254,7 @@ function TagInput({
 								type="button"
 								onClick={handleCreate}
 								disabled={isCreating}
-								className="w-full text-left px-3 py-2 text-sm hover:bg-kumo-tint text-kumo-accent flex items-center gap-1 border-t"
+								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint text-kumo-accent flex items-center gap-1 border-t"
 							>
 								<Plus className="w-3 h-3" />
 								{isCreating ? "Creating..." : `Create "${trimmedInput}"`}

@@ -16,6 +16,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { setupAdminVerifyBody } from "#api/schemas.js";
+import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allowed-origins.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
@@ -83,7 +84,11 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		const url = new URL(request.url);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
 		const siteUrl = getPublicOrigin(url, emdash?.config);
-		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
+		const allowedOrigins = validateAllowedOrigins(
+			siteUrl,
+			getConfiguredAllowedOrigins(emdash?.config),
+		);
+		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl, allowedOrigins);
 
 		// Verify the registration response
 		const challengeStore = createChallengeStore(emdash.db);

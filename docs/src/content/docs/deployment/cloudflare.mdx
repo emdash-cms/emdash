@@ -185,31 +185,42 @@ See the [Authentication guide](/guides/authentication#cloudflare-access) for ful
 
 ## Environment Variables
 
-EmDash requires certain secrets for authentication and preview functionality.
+### Recommended: encryption key
 
-### Required Secrets
+`EMDASH_ENCRYPTION_KEY` is used to encrypt plugin secrets at rest
+(webhook tokens, Turnstile keys, etc.). The current release validates
+the key but does not yet use it — plugin secret encryption is rolling
+out and will start using this value automatically when available. Set
+it now so your deployment is ready.
 
-| Variable | Purpose |
-| -------- | ------- |
-| `EMDASH_AUTH_SECRET` | Signs session cookies and auth tokens. Required for production. |
-| `EMDASH_PREVIEW_SECRET` | Signs preview URLs for draft content. Required for preview functionality. |
-
-Generate secure secrets:
-
-```bash
-npx emdash auth secret
-```
-
-Set secrets via Wrangler:
+The key is provided by you and never stored in the database; only
+encrypted ciphertext is. Losing it means losing every secret encrypted
+with it.
 
 ```bash
-wrangler secret put EMDASH_AUTH_SECRET
-wrangler secret put EMDASH_PREVIEW_SECRET
+npx emdash secrets generate
+wrangler secret put EMDASH_ENCRYPTION_KEY
 ```
 
 <Aside type="caution">
-Never commit secrets to your repository. Always use `wrangler secret` for production deployments.
+Never commit the encryption key to your repository, and back it up
+somewhere durable (a password manager, KMS, or your team's secret
+store). The plain text value lives only in your environment.
 </Aside>
+
+### Optional: stable-value overrides
+
+EmDash auto-generates the preview HMAC secret and commenter-IP hash
+salt and persists them in the database on first use. The env vars
+below are overrides for cases where you need to pin the value
+yourself — for example, when a preview Worker in a separate process
+needs to share the secret with your main site.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `EMDASH_PREVIEW_SECRET` | Override for the auto-generated preview HMAC secret. |
+| `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
+| `EMDASH_AUTH_SECRET` | Legacy. No longer required. If set, it's used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which wins) so existing installs keep stable commenter-IP hashes across the upgrade. New installs should ignore this. |
 
 Access environment variables in your configuration using `import.meta.env` or the Cloudflare `env` binding.
 

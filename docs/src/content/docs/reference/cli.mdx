@@ -19,7 +19,7 @@ Run commands with `npx emdash` or add scripts to `package.json`. The binary is a
 
 ## Authentication
 
-Commands that talk to a running EmDash instance (everything except `init`, `seed`, `export-seed`, and `auth secret`) resolve authentication in this order:
+Commands that talk to a running EmDash instance (everything except `init`, `seed`, `export-seed`, and `secrets`) resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
@@ -545,15 +545,35 @@ The exported seed file includes:
 - **Widget Areas**: Widget areas and widgets
 - **Content** (if requested): Entries with `$media` references and `$ref:` syntax for portability
 
-### `emdash auth secret`
+### `emdash secrets generate`
 
-Generate a secure authentication secret for your deployment.
+Generate an `EMDASH_ENCRYPTION_KEY` for your deployment. The key is used to
+encrypt plugin secrets at rest.
 
 ```bash
-npx emdash auth secret
+npx emdash secrets generate
 ```
 
-Outputs a random secret suitable for `EMDASH_AUTH_SECRET`.
+Prints the new key to stdout. Pipe it into your secret store, or write it
+straight to a dev file with `--write`:
+
+```bash
+npx emdash secrets generate --write .dev.vars
+npx emdash secrets generate --write .env
+```
+
+`--write` refuses to overwrite an existing entry without `--force`.
+Replacing a key in a deployment with existing encrypted data will leave
+those secrets unreadable, so the protection is intentional.
+
+### `emdash secrets fingerprint <key>`
+
+Print the 8-character fingerprint (kid) of a key without exposing its
+value. Useful in CI for verifying the right key was deployed:
+
+```bash
+npx emdash secrets fingerprint emdash_enc_v1_...
+```
 
 ## Generated Files
 
@@ -596,11 +616,13 @@ Raw schema export for tooling:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_DATABASE_URL`   | Database URL (set automatically by `dev`) |
-| `EMDASH_TOKEN`          | Auth token for remote operations          |
-| `EMDASH_URL`            | Default remote URL for `types` and `dev --types` |
-| `EMDASH_AUTH_SECRET`    | Secret for passkey authentication         |
-| `EMDASH_PREVIEW_SECRET` | Secret for preview token generation       |
+| `EMDASH_DATABASE_URL`     | Database URL (set automatically by `dev`) |
+| `EMDASH_TOKEN`            | Auth token for remote operations          |
+| `EMDASH_URL`              | Default remote URL for `types` and `dev --types` |
+| `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. Generate with `emdash secrets generate`. |
+| `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, EmDash generates and persists one in the options table. |
+| `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, EmDash generates and persists one in the options table. |
+| `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set, so existing installs keep stable commenter-IP hashes across upgrade. New installs should not set this. |
 
 ## Package Scripts
 

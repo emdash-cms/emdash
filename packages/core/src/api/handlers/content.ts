@@ -1093,6 +1093,15 @@ export async function handleContentUnschedule(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unschedule error:", error);
 		return {
 			success: false,
@@ -1131,6 +1140,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content publish error:", error);
 		return {
 			success: false,
@@ -1168,6 +1186,15 @@ export async function handleContentUnpublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unpublish error:", error);
 		return {
 			success: false,

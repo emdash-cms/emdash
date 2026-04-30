@@ -115,6 +115,16 @@ const INCLUDE_IN_DATA: Record<string, string> = {
 /** System date columns that should be converted to Date objects */
 const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "scheduled_at"]);
 
+/**
+ * Hidden, symbol-keyed property on each mapped data record carrying the raw
+ * DB string for every date column. Lets cursor encoders downstream reproduce
+ * the loader's exact `nextCursor` format without round-tripping through
+ * `new Date()`, which loses precision for stored values that aren't already
+ * ISO-with-milliseconds (e.g. `2026-01-01T00:00:00Z` becomes
+ * `2026-01-01T00:00:00.000Z`).
+ */
+export const CURSOR_RAW_VALUES: unique symbol = Symbol("emdash:cursorRawValues");
+
 /** Safely extract a string value from a record, returning fallback if not a string */
 function rowStr(row: Record<string, unknown>, key: string, fallback = ""): string {
 	const val = row[key];
@@ -128,13 +138,19 @@ function rowStr(row: Record<string, unknown>, key: string, fallback = ""): strin
  */
 function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
+	const rawDateValues: Record<string, string> = {};
 
 	for (const [key, value] of Object.entries(row)) {
 		// Include certain system columns (mapped to camelCase where needed)
 		if (key in INCLUDE_IN_DATA) {
 			// Convert date columns from ISO strings to Date objects
 			if (DATE_COLUMNS.has(key)) {
-				data[INCLUDE_IN_DATA[key]] = typeof value === "string" ? new Date(value) : null;
+				if (typeof value === "string") {
+					rawDateValues[key] = value;
+					data[INCLUDE_IN_DATA[key]] = new Date(value);
+				} else {
+					data[INCLUDE_IN_DATA[key]] = null;
+				}
 			} else {
 				data[INCLUDE_IN_DATA[key]] = value;
 			}
@@ -159,6 +175,13 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 			data[key] = value;
 		}
 	}
+
+	Object.defineProperty(data, CURSOR_RAW_VALUES, {
+		value: rawDateValues,
+		enumerable: false,
+		configurable: false,
+		writable: false,
+	});
 
 	return data;
 }

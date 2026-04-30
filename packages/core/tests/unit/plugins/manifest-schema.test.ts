@@ -195,3 +195,167 @@ describe("pluginManifestSchema — storage index field names", () => {
 		expect(result.success).toBe(false);
 	});
 });
+describe("pluginManifestSchema - admin.settingsSchema url/email field types", () => {
+	it("should accept url setting field with label and description", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					website: {
+						type: "url",
+						label: "Website URL",
+						description: "The plugin website",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept url setting field with default and placeholder", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					website: {
+						type: "url",
+						label: "Website URL",
+						description: "The plugin website",
+						default: "https://example.com",
+						placeholder: "https://your-site.com",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			const parsed = result.data;
+			expect(parsed.admin?.settingsSchema?.website).toEqual({
+				type: "url",
+				label: "Website URL",
+				description: "The plugin website",
+				default: "https://example.com",
+				placeholder: "https://your-site.com",
+			});
+		}
+	});
+
+	it("should accept email setting field with label and description", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					supportEmail: {
+						type: "email",
+						label: "Support Email",
+						description: "Email for support",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept email setting field with default and placeholder", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					supportEmail: {
+						type: "email",
+						label: "Support Email",
+						description: "Email for support",
+						default: "support@example.com",
+						placeholder: "your@email.com",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			const parsed = result.data;
+			expect(parsed.admin?.settingsSchema?.supportEmail).toEqual({
+				type: "email",
+				label: "Support Email",
+				description: "Email for support",
+				default: "support@example.com",
+				placeholder: "your@email.com",
+			});
+		}
+	});
+
+	it("should accept both url and email in the same settingsSchema", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					website: {
+						type: "url",
+						label: "Website",
+						default: "https://example.com",
+						placeholder: "https://",
+					},
+					contactEmail: {
+						type: "email",
+						label: "Contact Email",
+						default: "contact@example.com",
+						placeholder: "email@domain.com",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			const parsed = result.data;
+			expect(parsed.admin?.settingsSchema?.website.type).toBe("url");
+			expect(parsed.admin?.settingsSchema?.contactEmail.type).toBe("email");
+			expect(parsed.admin?.settingsSchema?.website.default).toBe("https://example.com");
+			expect(parsed.admin?.settingsSchema?.contactEmail.default).toBe("contact@example.com");
+		}
+	});
+
+	it("should accept url field without optional fields", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					docs: {
+						type: "url",
+						label: "Documentation",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept email field without optional fields", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					notifications: {
+						type: "email",
+						label: "Notification Email",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept number field without optional fields", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			admin: {
+				settingsSchema: {
+					port: {
+						type: "number",
+						label: "Server Port",
+					},
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+});

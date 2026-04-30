@@ -91,7 +91,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		const authMode = getAuthMode(emdash.config);
 		const useExternalAuth = authMode.type === "external";
 
-		// In external auth mode, setup is complete if flag is set (no users required initially)
+		// In external auth mode (not atproto), setup is complete if flag is set (no users required initially)
 		if (useExternalAuth && isComplete) {
 			return apiSuccess({
 				needsSetup: false,
@@ -106,6 +106,8 @@ export const GET: APIRoute = async ({ locals }) => {
 					description: seed.meta?.description || "",
 					collections: seed.collections?.length || 0,
 					hasContent: !!(seed.content && Object.keys(seed.content).length > 0),
+					title: seed.settings?.title,
+					tagline: seed.settings?.tagline,
 				}
 			: null;
 

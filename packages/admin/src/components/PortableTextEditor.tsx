@@ -12,6 +12,23 @@
  */
 
 import { Button, Dialog, Input } from "@cloudflare/kumo";
+import {
+	DndContext,
+	KeyboardSensor,
+	PointerSensor,
+	closestCenter,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	sortableKeyboardCoordinates,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import type { MessageDescriptor } from "@lingui/core";
@@ -42,6 +59,10 @@ import {
 	CodeBlock,
 	Stack,
 	Eye,
+	Plus,
+	Trash,
+	DotsSixVertical,
+	CaretDown,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -61,6 +82,8 @@ import { createPortal } from "react-dom";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
+import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -687,7 +710,12 @@ interface SlashCommandItem {
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
-	category?: MessageDescriptor;
+	/**
+	 * Display category. Built-in commands use `msg`-tagged descriptors;
+	 * plugin-supplied categories arrive as plain strings via the manifest
+	 * and are passed through verbatim when rendered.
+	 */
+	category?: MessageDescriptor | string;
 }
 
 /**
@@ -970,6 +998,33 @@ function SlashCommandMenu({
 	);
 }
 
+function getPluginBlockDefaultValues(fields?: Element[]): Record<string, unknown> {
+	const defaults: Record<string, unknown> = {};
+
+	for (const field of fields ?? []) {
+		const initialValue = "initial_value" in field ? field.initial_value : undefined;
+		if (initialValue !== undefined) {
+			defaults[field.action_id] = initialValue;
+		}
+	}
+
+	return defaults;
+}
+
+function buildPluginBlockFormValues(
+	block: PluginBlockDef | null,
+	initialValues?: Record<string, unknown>,
+): Record<string, unknown> {
+	const defaults = getPluginBlockDefaultValues(block?.fields);
+	return initialValues ? { ...defaults, ...initialValues } : defaults;
+}
+
+function hasPluginBlockFormData(values: Record<string, unknown>): boolean {
+	return Object.values(values).some(
+		(value) => value !== undefined && value !== null && value !== "",
+	);
+}
+
 /**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
@@ -992,11 +1047,7 @@ function PluginBlockModal({
 
 	React.useEffect(() => {
 		if (block) {
-			if (initialValues) {
-				setFormValues({ ...initialValues });
-			} else {
-				setFormValues({});
-			}
+			setFormValues(buildPluginBlockFormValues(block, initialValues));
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
@@ -1025,12 +1076,23 @@ function PluginBlockModal({
 	// For simple URL mode, check if the URL is non-empty
 	// For Block Kit fields, require at least one field to have a value
 	const canSubmit = hasFields
-		? Object.values(formValues).some((v) => v !== undefined && v !== null && v !== "")
+		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
+
+	// Size the dialog based on field complexity. The default `sm` is right for
+	// simple URL embeds (one field) but cramps Block Kit forms with several
+	// fields or a repeater, which need room for inline sub-field inputs.
+	const dialogSize = (() => {
+		if (!hasFields) return "sm";
+		const fields = block?.fields ?? [];
+		if (fields.some((f) => f.type === "repeater")) return "xl";
+		if (fields.length > 3) return "lg";
+		return "base";
+	})();
 
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size="sm">
+			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 						{isEditing ? "Edit" : "Insert"} {block?.label || ""}
@@ -1052,7 +1114,7 @@ function PluginBlockModal({
 					/>
 				</div>
 				<form onSubmit={handleSubmit}>
-					<div className="py-4 space-y-4">
+					<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
 						{hasFields ? (
 							block.fields!.map((field) => (
 								<BlockKitField
@@ -1067,6 +1129,7 @@ function PluginBlockModal({
 							<Input
 								ref={inputRef}
 								type="url"
+								className="w-full"
 								placeholder={block?.placeholder || "Enter URL..."}
 								value={typeof formValues.id === "string" ? formValues.id : ""}
 								onChange={(e) => handleFieldChange("id", e.target.value)}
@@ -1120,6 +1183,7 @@ function BlockKitField({
 					) : (
 						<Input
 							type="text"
+							className="w-full"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
 							onChange={(e) => onChange(field.action_id, e.target.value)}
@@ -1136,6 +1200,7 @@ function BlockKitField({
 					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 					<Input
 						type="number"
+						className="w-full"
 						min={min}
 						max={max}
 						value={typeof value === "number" ? String(value) : ""}
@@ -1162,9 +1227,320 @@ function BlockKitField({
 				</div>
 			);
 		}
+		case "repeater": {
+			return (
+				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
+			);
+		}
+		case "media_picker": {
+			return (
+				<BlockKitMediaPickerField
+					actionId={field.action_id}
+					label={field.label}
+					placeholder={field.placeholder}
+					mimeTypeFilter={field.mime_type_filter}
+					value={value}
+					onChange={onChange}
+				/>
+			);
+		}
 		default:
 			return <div className="text-sm text-kumo-subtle">Unknown field type: {field.type}</div>;
 	}
+}
+
+// ── Repeater support ─────────────────────────────────────────────────────────
+
+type RepeaterItem = Record<string, unknown> & { _key: string };
+
+function ensureKeys(items: unknown[]): RepeaterItem[] {
+	return items.map((item, i) => {
+		const obj = (typeof item === "object" && item !== null ? item : {}) as Record<string, unknown>;
+		return { ...obj, _key: (obj._key as string) || `item-${i}-${Date.now()}` };
+	});
+}
+
+function stripKeys(items: RepeaterItem[]): Record<string, unknown>[] {
+	return items.map(({ _key, ...rest }) => rest);
+}
+
+function BlockKitRepeater({
+	field,
+	pluginId,
+	value,
+	onChange,
+}: {
+	field: Extract<Element, { type: "repeater" }>;
+	pluginId?: string;
+	value: unknown;
+	onChange: (actionId: string, value: unknown) => void;
+}) {
+	const { t } = useLingui();
+	const rawItems = React.useMemo<unknown[]>(() => (Array.isArray(value) ? value : []), [value]);
+
+	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
+	const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	);
+
+	// Track the array we just emitted upstream. When `value` flows back as
+	// the same reference, the resync below is a no-op and we skip the
+	// setState round-trip that would otherwise reseed local state on every
+	// keystroke.
+	const lastEmittedRef = React.useRef<unknown[] | null>(null);
+
+	// Preserve each item's _key by position so round-trips through onChange
+	// (which strips _key) don't remount children and flip them back to
+	// collapsed on every keystroke.
+	React.useEffect(() => {
+		if (lastEmittedRef.current === rawItems) return;
+		setItems((prev) =>
+			rawItems.map((item, i) => {
+				const obj = (typeof item === "object" && item !== null ? item : {}) as Record<
+					string,
+					unknown
+				>;
+				const existingKey = (obj._key as string) || prev[i]?._key;
+				return {
+					...obj,
+					_key: existingKey || `item-${i}-${Date.now()}`,
+				};
+			}),
+		);
+	}, [rawItems]);
+
+	const minItems = field.min_items ?? 0;
+	const maxItems = field.max_items;
+	const canAdd = maxItems === undefined || items.length < maxItems;
+	const canRemove = items.length > minItems;
+	// Only interpolate plugin-provided labels into translations; otherwise
+	// use a self-contained `Add item` string so message extractors and
+	// translators see whole, inflectable phrases.
+	const addButtonLabel = field.item_label ? t`Add ${field.item_label}` : t`Add item`;
+
+	const emit = (next: RepeaterItem[]) => {
+		setItems(next);
+		const stripped = stripKeys(next);
+		lastEmittedRef.current = stripped;
+		onChange(field.action_id, stripped);
+	};
+
+	const handleAdd = () => {
+		if (!canAdd) return;
+		const newItem: RepeaterItem = {
+			_key: `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+		};
+		for (const sf of field.fields) {
+			switch (sf.type) {
+				case "toggle":
+					newItem[sf.action_id] = false;
+					break;
+				case "number_input":
+					newItem[sf.action_id] = undefined;
+					break;
+				default:
+					newItem[sf.action_id] = "";
+			}
+		}
+		setExpanded((prev) => {
+			const next = new Set(prev);
+			next.add(newItem._key);
+			return next;
+		});
+		emit([...items, newItem]);
+	};
+
+	const handleRemove = (key: string) => {
+		if (!canRemove) return;
+		setExpanded((prev) => {
+			if (!prev.has(key)) return prev;
+			const next = new Set(prev);
+			next.delete(key);
+			return next;
+		});
+		emit(items.filter((it) => it._key !== key));
+	};
+
+	const handleItemChange = (key: string, subActionId: string, subValue: unknown) => {
+		emit(items.map((it) => (it._key === key ? { ...it, [subActionId]: subValue } : it)));
+	};
+
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const oldIndex = items.findIndex((it) => it._key === active.id);
+		const newIndex = items.findIndex((it) => it._key === over.id);
+		if (oldIndex === -1 || newIndex === -1) return;
+		emit(arrayMove(items, oldIndex, newIndex));
+	};
+
+	const toggleExpanded = (key: string) => {
+		setExpanded((prev) => {
+			const next = new Set(prev);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			return next;
+		});
+	};
+
+	return (
+		<div className="space-y-2">
+			<div className="flex items-center justify-between">
+				<label className="text-sm font-medium">
+					{field.label}
+					{items.length > 0 && (
+						<span className="ms-2 text-kumo-subtle font-normal">({items.length})</span>
+					)}
+				</label>
+				{canAdd && (
+					<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd} type="button">
+						{addButtonLabel}
+					</Button>
+				)}
+			</div>
+
+			{items.length === 0 ? (
+				<div className="border-2 border-dashed rounded-lg p-6 text-center text-kumo-subtle">
+					<p className="text-sm">{t`No items yet`}</p>
+					{canAdd && (
+						<Button
+							variant="outline"
+							size="sm"
+							className="mt-2"
+							icon={<Plus />}
+							onClick={handleAdd}
+							type="button"
+						>
+							{addButtonLabel}
+						</Button>
+					)}
+				</div>
+			) : (
+				<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+					<SortableContext
+						items={items.map((it) => it._key)}
+						strategy={verticalListSortingStrategy}
+					>
+						<div className="space-y-2">
+							{items.map((item, index) => (
+								<BlockKitRepeaterItem
+									key={item._key}
+									item={item}
+									index={index}
+									fields={field.fields}
+									pluginId={pluginId}
+									isCollapsed={!expanded.has(item._key)}
+									onToggleCollapse={() => toggleExpanded(item._key)}
+									onRemove={canRemove ? () => handleRemove(item._key) : undefined}
+									onChange={(subActionId, v) => handleItemChange(item._key, subActionId, v)}
+								/>
+							))}
+						</div>
+					</SortableContext>
+				</DndContext>
+			)}
+		</div>
+	);
+}
+
+function BlockKitRepeaterItem({
+	item,
+	index,
+	fields,
+	pluginId,
+	isCollapsed,
+	onToggleCollapse,
+	onRemove,
+	onChange,
+}: {
+	item: RepeaterItem;
+	index: number;
+	fields: Extract<Element, { type: "repeater" }>["fields"];
+	pluginId?: string;
+	isCollapsed: boolean;
+	onToggleCollapse: () => void;
+	onRemove?: () => void;
+	onChange: (subActionId: string, value: unknown) => void;
+}) {
+	const { t } = useLingui();
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+		id: item._key,
+	});
+
+	const style = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+	};
+
+	// Summary label: value of the first text_input sub-field, falling back to "Item N".
+	const summaryField = fields.find((f) => f.type === "text_input");
+	const summaryValue =
+		summaryField && typeof item[summaryField.action_id] === "string"
+			? (item[summaryField.action_id] as string)
+			: "";
+	const summaryLabel = summaryValue.trim() || t`Item ${index + 1}`;
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={cn(
+				"border border-kumo-line rounded-lg bg-kumo-base",
+				isDragging && "opacity-50 ring-2 ring-kumo-brand",
+			)}
+		>
+			<div className="flex items-center gap-2 px-3 py-2 border-b border-kumo-line">
+				<span
+					className="inline-flex h-4 w-4 text-kumo-subtle cursor-grab shrink-0"
+					aria-label={t`Drag to reorder`}
+					{...attributes}
+					{...listeners}
+				>
+					<DotsSixVertical className="h-4 w-4" />
+				</span>
+				<button
+					type="button"
+					className="flex items-center gap-2 flex-1 min-w-0 text-start cursor-pointer"
+					onClick={onToggleCollapse}
+					aria-expanded={!isCollapsed}
+				>
+					{isCollapsed ? (
+						<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
+					) : (
+						<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
+					)}
+					<span className="text-sm font-medium flex-1 truncate">{summaryLabel}</span>
+				</button>
+				{onRemove && (
+					<Button
+						variant="ghost"
+						shape="square"
+						type="button"
+						onClick={onRemove}
+						aria-label={t`Remove item ${index + 1}`}
+					>
+						<Trash className="h-3.5 w-3.5 text-kumo-danger" />
+					</Button>
+				)}
+			</div>
+
+			{!isCollapsed && (
+				<div className="p-3 space-y-3">
+					{fields.map((sf) => (
+						<BlockKitField
+							key={sf.action_id}
+							field={sf}
+							pluginId={pluginId}
+							value={item[sf.action_id]}
+							onChange={(actionId, v) => onChange(actionId, v)}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
 }
 
 /**
@@ -1255,6 +1631,10 @@ export type { PluginBlockDef } from "./editor/PluginBlockNode";
 // Exported for unit testing (pure functions, no React dependencies)
 export { prosemirrorToPortableText as _prosemirrorToPortableText };
 export { portableTextToProsemirror as _portableTextToProsemirror };
+export {
+	buildPluginBlockFormValues as _buildPluginBlockFormValues,
+	hasPluginBlockFormData as _hasPluginBlockFormData,
+};
 
 // =============================================================================
 // Editor Footer with Writing Metrics
@@ -1435,7 +1815,8 @@ export function PortableTextEditor({
 			},
 		});
 
-		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped)
+		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
+		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
 		for (const block of pluginBlocks) {
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
@@ -1443,7 +1824,7 @@ export function PortableTextEditor({
 				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: msg`Embeds`,
+				category: block.category ?? msg`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -1547,6 +1928,7 @@ export function PortableTextEditor({
 			attributes: {
 				class:
 					"prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[200px] p-4",
+				dir: "auto",
 			},
 		}),
 		[],

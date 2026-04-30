@@ -19,5 +19,9 @@ npm-debug.log*
 .env
 .env.local
 
+# Wrangler local secrets
+.dev.vars
+.dev.vars.*
+
 # macOS
 .DS_Store

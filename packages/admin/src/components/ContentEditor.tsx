@@ -13,7 +13,6 @@ import {
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	Check,
 	Eye,
 	Image as ImageIcon,
@@ -37,9 +36,11 @@ import type {
 	TranslationSummary,
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
@@ -82,7 +83,11 @@ export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
-	options?: Array<{ value: string; label: string }>;
+	/**
+	 * For `select` / `multiSelect`: the list of enum choices.
+	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+	 */
+	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
 }
@@ -535,7 +540,7 @@ export function ContentEditor({
 							aria-label={t`Back to ${collectionLabel} list`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
-							<ArrowLeft className="h-5 w-5" aria-hidden="true" />
+							<ArrowPrev className="h-5 w-5" aria-hidden="true" />
 						</Link>
 					)}
 					{isDistractionFree && (
@@ -1087,7 +1092,7 @@ function FieldRenderer({
 						label: string;
 						id: string;
 						required?: boolean;
-						options?: Array<{ value: string; label: string }>;
+						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 						minimal?: boolean;
 				  }>
 				| undefined;
@@ -1136,6 +1141,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					dir="auto"
 					className={
 						minimal
 							? "border-0 bg-transparent px-0 text-lg font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -1197,13 +1203,15 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
+					dir="auto"
 					placeholder={t`Enter markdown content...`}
 				/>
 			);
 
 		case "select": {
+			const selectOptions = Array.isArray(field.options) ? field.options : [];
 			const selectItems: Record<string, string> = {};
-			for (const opt of field.options ?? []) {
+			for (const opt of selectOptions) {
 				selectItems[opt.value] = opt.label;
 			}
 			return (
@@ -1214,7 +1222,7 @@ function FieldRenderer({
 					onValueChange={(v) => handleChange(v ?? "")}
 					items={selectItems}
 				>
-					{field.options?.map((opt) => (
+					{selectOptions.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
 							{opt.label}
 						</Select.Option>
@@ -1224,12 +1232,13 @@ function FieldRenderer({
 		}
 
 		case "multiSelect": {
+			const multiSelectOptions = Array.isArray(field.options) ? field.options : [];
 			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
 			return (
 				<fieldset>
 					<Label className={labelClass}>{label}</Label>
 					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-						{field.options?.map((opt) => {
+						{multiSelectOptions.map((opt) => {
 							const isChecked = selected.includes(opt.value);
 							return (
 								<Checkbox
@@ -1256,8 +1265,8 @@ function FieldRenderer({
 					label={label}
 					id={id}
 					type="datetime-local"
-					value={typeof value === "string" ? value : ""}
-					onChange={(e) => handleChange(e.target.value)}
+					value={toDatetimeLocalInputValue(value)}
+					onChange={(e) => handleChange(fromDatetimeLocalInputValue(e.target.value))}
 					required={field.required}
 				/>
 			);
@@ -1341,6 +1350,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					dir="auto"
 				/>
 			);
 	}

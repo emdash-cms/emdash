@@ -35,7 +35,7 @@ function createTestPlugin(overrides: Partial<ResolvedPlugin> = {}): ResolvedPlug
 	return {
 		id: overrides.id ?? "test-plugin",
 		version: "1.0.0",
-		capabilities: ["write:content", "read:content"],
+		capabilities: ["content:write", "content:read"],
 		allowedHosts: [],
 		storage: {},
 		admin: {
@@ -73,7 +73,7 @@ function createTestDefinition(overrides: Partial<PluginDefinition> = {}): Plugin
 	return {
 		id: overrides.id ?? "test-plugin",
 		version: "1.0.0",
-		capabilities: ["write:content", "read:content"],
+		capabilities: ["content:write", "content:read"],
 		...overrides,
 	};
 }
@@ -354,6 +354,66 @@ describe("HookPipeline — exclusive hooks", () => {
 
 		await db.destroy();
 		sqlite.close();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// HookPipeline — non-exclusive provider enumeration
+// ---------------------------------------------------------------------------
+
+describe("HookPipeline — getHookProviders", () => {
+	it("returns non-exclusive providers registered for a hook", () => {
+		const plugin1 = createTestPlugin({
+			id: "middleware-a",
+			capabilities: ["hooks.email-events:register"],
+			hooks: {
+				"email:beforeSend": createTestHook("middleware-a", vi.fn()),
+			},
+		});
+		const plugin2 = createTestPlugin({
+			id: "middleware-b",
+			capabilities: ["hooks.email-events:register"],
+			hooks: {
+				"email:beforeSend": createTestHook("middleware-b", vi.fn()),
+			},
+		});
+
+		const pipeline = new HookPipeline([plugin1, plugin2]);
+
+		const providers = pipeline.getHookProviders("email:beforeSend");
+		expect(providers.map((p) => p.pluginId)).toEqual(
+			expect.arrayContaining(["middleware-a", "middleware-b"]),
+		);
+		expect(providers).toHaveLength(2);
+	});
+
+	it("partitions with getExclusiveHookProviders — excludes exclusive registrations", () => {
+		const exclusivePlugin = createTestPlugin({
+			id: "exclusive-provider",
+			hooks: {
+				"content:beforeSave": createTestHook("exclusive-provider", vi.fn(), { exclusive: true }),
+			},
+		});
+		const nonExclusivePlugin = createTestPlugin({
+			id: "non-exclusive-provider",
+			hooks: {
+				"content:beforeSave": createTestHook("non-exclusive-provider", vi.fn()),
+			},
+		});
+
+		const pipeline = new HookPipeline([exclusivePlugin, nonExclusivePlugin]);
+
+		expect(pipeline.getHookProviders("content:beforeSave").map((p) => p.pluginId)).toEqual([
+			"non-exclusive-provider",
+		]);
+		expect(pipeline.getExclusiveHookProviders("content:beforeSave").map((p) => p.pluginId)).toEqual(
+			["exclusive-provider"],
+		);
+	});
+
+	it("returns empty array for an unregistered hook", () => {
+		const pipeline = new HookPipeline([]);
+		expect(pipeline.getHookProviders("email:beforeSend")).toEqual([]);
 	});
 });
 

@@ -12,10 +12,16 @@
 
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 
+import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { local } from "../storage/adapters.js";
 import { notoSans } from "./font-provider.js";
-import { injectCoreRoutes, injectBuiltinAuthRoutes, injectMcpRoute } from "./routes.js";
+import {
+	injectCoreRoutes,
+	injectBuiltinAuthRoutes,
+	injectAuthProviderRoutes,
+	injectMcpRoute,
+} from "./routes.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import { createViteConfig } from "./vite-config.js";
 
@@ -112,6 +118,22 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		}
 	}
 
+	// Validate config.allowedOrigins shape at startup (per-entry rules: parseable,
+	// http(s), no trailing dots, no empty labels). The siteUrl-dependent rules
+	// (Rule A: requires siteUrl; Rule B: must be a subdomain of siteUrl) are
+	// deferred to runtime when config.siteUrl is absent — EMDASH_SITE_URL may
+	// supply it post-build, just like the env-var fallback for siteUrl above.
+	// When config.siteUrl IS present, run the full validator here for fail-fast.
+	if (resolvedConfig.allowedOrigins?.length) {
+		const tagged = resolvedConfig.allowedOrigins.map((origin) => ({
+			origin,
+			source: "config.allowedOrigins" as const,
+		}));
+		resolvedConfig.allowedOrigins = resolvedConfig.siteUrl
+			? validateAllowedOrigins(resolvedConfig.siteUrl, tagged)
+			: validateOriginShape(tagged);
+	}
+
 	// Plugin descriptors from config
 	const pluginDescriptors = resolvedConfig.plugins ?? [];
 	const sandboxedDescriptors = resolvedConfig.sandboxed ?? [];
@@ -157,6 +179,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		database: resolvedConfig.database,
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,
+		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
@@ -267,7 +290,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Inject all core routes
 				injectCoreRoutes(injectRoute);
 
-				// Only inject passkey/oauth/magic-link routes when NOT using external auth
+				// Inject routes from pluggable auth providers (authProviders config)
+				if (resolvedConfig.authProviders?.length) {
+					injectAuthProviderRoutes(injectRoute, resolvedConfig.authProviders);
+				}
+
+				// Inject passkey/oauth/magic-link routes unless transparent external auth is active
 				if (!useExternalAuth) {
 					injectBuiltinAuthRoutes(injectRoute);
 				}

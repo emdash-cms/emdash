@@ -12,7 +12,6 @@ import type { APIRoute } from "astro";
 import { getAuthMode } from "#auth/mode.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
-import { getStoredConfig } from "../../integration/runtime.js";
 import type { EmDashManifest } from "../../types.js";
 
 export const prerender = false;
@@ -23,9 +22,13 @@ export const GET: APIRoute = async ({ locals }) => {
 	// Determine auth mode from config
 	const authMode = getAuthMode(emdash?.config);
 
-	// Read admin branding from build-time config
-	const storedConfig = getStoredConfig();
-	const adminBranding = storedConfig?.admin;
+	// Read admin branding from the per-request config plumbed through middleware
+	// (same source admin.astro reads from). Reading from a build-time global
+	// here was unreliable -- the virtual config module exports the config but
+	// doesn't assign it to globalThis, so getStoredConfig() always returned
+	// null and the React SPA never received custom logo/siteName/favicon.
+	// See issue #835.
+	const adminBranding = emdash?.config?.admin;
 
 	// Check if self-signup is enabled (any allowed domain with enabled = 1)
 	// Only relevant for passkey auth — external auth providers handle their own signup

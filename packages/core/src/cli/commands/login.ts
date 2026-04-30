@@ -459,7 +459,14 @@ export const whoamiCommand = defineCommand({
 							},
 						);
 						if (refreshRes.ok) {
-							const refreshed = (await refreshRes.json()) as TokenResponse;
+							const json = (await refreshRes.json()) as Record<string, unknown>;
+							// Token endpoint wraps response in { data: ... } via apiSuccess.
+							// Handle both wrapped and bare shapes for robustness.
+							const refreshed = (
+								json.data && typeof json.data === "object" && "access_token" in json.data
+									? json.data
+									: json
+							) as TokenResponse;
 							token = refreshed.access_token;
 							saveCredentials(baseUrl, {
 								...cred,

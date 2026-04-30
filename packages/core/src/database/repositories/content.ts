@@ -1195,7 +1195,10 @@ export class ContentRepository {
 			scheduledAt: "scheduled_at",
 			deletedAt: "deleted_at",
 			title: "title",
+			name: "name",
 			slug: "slug",
+			status: "status",
+			locale: "locale",
 		};
 
 		const mapped = mapping[field];

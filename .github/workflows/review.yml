@@ -1,5 +1,15 @@
 name: Review PR
 
+# /review triggers this workflow. The first word after the trigger picks a
+# model alias from .github/bonk-models.json. Currently registered aliases
+# (see that file for the source of truth):
+#
+#   /review                              -> default model (currently opus)
+#   /review opus                         -> Claude Opus 4.7 (default)
+#   /review kimi                         -> Kimi K2.6 (cheap pass for tiny PRs)
+#
+# Add new aliases by editing .github/bonk-models.json.
+
 on:
   issue_comment:
     types: [created]
@@ -18,8 +28,8 @@ jobs:
       && contains(github.event.comment.body, '/review')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
-    # Per-workflow group key so /review, /ultrareview, /bonk, /ultrabonk all
-    # have independent queues per target.
+    # Per-workflow group key so /review and /bonk have independent queues
+    # per target.
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
       cancel-in-progress: false
@@ -61,6 +71,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Resolve model from comment
+        if: steps.verify-pr.outputs.exists == 'true'
+        id: model
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: node .github/scripts/resolve-bonk-model.mjs
+
       - name: Setup pnpm
         if: steps.verify-pr.outputs.exists == 'true'
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
@@ -98,31 +115,18 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pr-number.outputs.number }}
 
-      - name: Run Bonk
+      - name: Run Review (${{ steps.model.outputs.alias }})
         if: steps.verify-pr.outputs.exists == 'true'
-        uses: ask-bonk/ask-bonk/github@a96a0dc8f935aa38e71b33a473a8076738b53599 # main as of 2026-04-24
+        uses: ask-bonk/ask-bonk/github@a8c6cac8726d0d5ab887bc159aae77e2bfb2cf18 # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
-          # OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
-          #
-          # 1. Register kimi-k2.6 (released 2026-04-20) with the pinned opencode
-          #    version, whose bundled models.dev snapshot predates it and would
-          #    otherwise raise ProviderModelNotFoundError.
-          #
-          # 2. Resolve the two opencode permission defaults that ask interactively
-          #    (`external_directory` and `doom_loop`) so a CI run with no TTY
-          #    can never deadlock waiting for approval. external_directory is
-          #    deny-by-default with /tmp/** and ~/** allowed (scratch files,
-          #    home-dir caches); doom_loop is deny so a stuck loop aborts
-          #    instead of prompting.
-          OPENCODE_CONFIG_CONTENT: |
-            {"permission":{"external_directory":{"*":"deny","/tmp/**":"allow","~/**":"allow"},"doom_loop":"deny"},"provider":{"cloudflare-ai-gateway":{"models":{"workers-ai/@cf/moonshotai/kimi-k2.6":{"id":"workers-ai/@cf/moonshotai/kimi-k2.6","name":"Kimi K2.6","family":"kimi","attachment":true,"reasoning":true,"tool_call":true,"interleaved":{"field":"reasoning_content"},"temperature":true,"release_date":"2026-04-20","modalities":{"input":["text","image"],"output":["text"]},"cost":{"input":0.95,"output":4,"cache_read":0.16},"limit":{"context":256000,"output":256000}}}}}}
+          OPENCODE_CONFIG_CONTENT: ${{ steps.model.outputs.opencode_config }}
         with:
-          model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6"
+          model: ${{ steps.model.outputs.model }}
           mentions: "/review"
-          opencode_version: "1.4.6"
+          opencode_version: "1.4.11"
           permissions: write
           # NO_PUSH scopes the installation token to contents:read so the
           # reviewer cannot push, even if it tries to commit. Write tools

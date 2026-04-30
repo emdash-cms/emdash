@@ -22,9 +22,10 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	const limit = url.searchParams.get("limit");
+	const limitParam = url.searchParams.get("limit");
+	const parsedLimit = limitParam ? parseInt(limitParam, 10) : undefined;
 	const result = await emdash.handleRevisionList(collection, id, {
-		limit: limit ? parseInt(limit, 10) : undefined,
+		limit: parsedLimit ? Math.max(1, Math.min(parsedLimit, 100)) : undefined,
 	});
 
 	return unwrapResult(result);
