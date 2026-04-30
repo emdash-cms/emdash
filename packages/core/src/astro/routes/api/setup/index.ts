@@ -21,6 +21,7 @@ import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
+
 import { getDb } from "../../../../loader.js";
 
 async function shouldRunSetupCoreMigrations(db) {
@@ -34,7 +35,11 @@ async function shouldRunSetupCoreMigrations(db) {
 	}
 
 	try {
-		const miniMigrations = await db.selectFrom("kysely_migration").select("name").limit(1).execute();
+		const miniMigrations = await db
+			.selectFrom("kysely_migration")
+			.select("name")
+			.limit(1)
+			.execute();
 		return miniMigrations.length === 0;
 	} catch {
 		return true;
@@ -42,14 +47,29 @@ async function shouldRunSetupCoreMigrations(db) {
 }
 
 async function ensureSetupCompatibilitySchema(db) {
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS search_config TEXT`.execute(db);
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS has_seo INTEGER NOT NULL DEFAULT 0`.execute(db);
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS url_pattern TEXT`.execute(db);
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_enabled INTEGER DEFAULT 0`.execute(db);
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_moderation TEXT DEFAULT 'first_time'`.execute(db);
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_closed_after_days INTEGER DEFAULT 90`.execute(db);
-	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_auto_approve_users INTEGER DEFAULT 1`.execute(db);
-	await sql`ALTER TABLE _emdash_fields ADD COLUMN IF NOT EXISTS searchable INTEGER DEFAULT 0`.execute(db);
+	// Each ALTER TABLE is wrapped in its own try/catch so a single
+	// missing-table or duplicate-column error doesn't block the rest.
+	// "IF NOT EXISTS" is omitted for SQLite <= 3.34 compatibility.
+	const alter = async (stmt: string) => {
+		try {
+			await sql.raw(stmt).execute(db);
+		} catch {}
+	};
+
+	await alter("ALTER TABLE _emdash_collections ADD COLUMN search_config TEXT");
+	await alter("ALTER TABLE _emdash_collections ADD COLUMN has_seo INTEGER NOT NULL DEFAULT 0");
+	await alter("ALTER TABLE _emdash_collections ADD COLUMN url_pattern TEXT");
+	await alter("ALTER TABLE _emdash_collections ADD COLUMN comments_enabled INTEGER DEFAULT 0");
+	await alter(
+		"ALTER TABLE _emdash_collections ADD COLUMN comments_moderation TEXT DEFAULT 'first_time'",
+	);
+	await alter(
+		"ALTER TABLE _emdash_collections ADD COLUMN comments_closed_after_days INTEGER DEFAULT 90",
+	);
+	await alter(
+		"ALTER TABLE _emdash_collections ADD COLUMN comments_auto_approve_users INTEGER DEFAULT 1",
+	);
+	await alter("ALTER TABLE _emdash_fields ADD COLUMN searchable INTEGER DEFAULT 0");
 }
 
 async function hasExistingSetupCollections(db) {
@@ -64,7 +84,12 @@ async function hasExistingSetupCollections(db) {
 function buildSkippedSeedResult(seed) {
 	return {
 		collections: { created: 0, skipped: seed.collections?.length ?? 0, updated: 0 },
-		fields: { created: 0, skipped: seed.collections?.reduce((count, collection) => count + collection.fields.length, 0) ?? 0, updated: 0 },
+		fields: {
+			created: 0,
+			skipped:
+				seed.collections?.reduce((count, collection) => count + collection.fields.length, 0) ?? 0,
+			updated: 0,
+		},
 		taxonomies: { created: 0, terms: 0 },
 		bylines: { created: 0, skipped: 0, updated: 0 },
 		menus: { created: 0, items: 0 },
@@ -85,7 +110,9 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		const config = emdash?.config ?? virtualConfig;
 		const storage =
 			emdash?.storage ??
-			(config?.storage && virtualCreateStorage ? virtualCreateStorage(config.storage.config) : undefined);
+			(config?.storage && virtualCreateStorage
+				? virtualCreateStorage(config.storage.config)
+				: undefined);
 
 		// Guard: reject if setup has already been completed.
 		// The options table may not exist on first-ever setup (pre-migration),
@@ -135,18 +162,22 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		try {
 			result = (await hasExistingSetupCollections(db))
 				? buildSkippedSeedResult(seed)
-				: await applySeed(db, {
-						...seed,
-						settings: {
-							...seed.settings,
-							title: body.title,
-							tagline: body.tagline,
+				: await applySeed(
+						db,
+						{
+							...seed,
+							settings: {
+								...seed.settings,
+								title: body.title,
+								tagline: body.tagline,
+							},
 						},
-					}, {
-						includeContent: body.includeContent,
-						onConflict: "skip",
-						storage,
-					});
+						{
+							includeContent: body.includeContent,
+							onConflict: "skip",
+							storage,
+						},
+					);
 		} catch (error) {
 			return handleError(error, "Failed to apply seed", "SEED_ERROR");
 		}

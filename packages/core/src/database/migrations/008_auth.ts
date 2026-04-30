@@ -1,24 +1,41 @@
-import type { Kysely } from "kysely";
+import type { ColumnDataType, Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { binaryType, currentTimestamp, currentTimestampValue } from "../dialect-helpers.js";
 import { detectDialect } from "../dialect-helpers.js";
 
 async function tableExists(db: Kysely<unknown>, tableName: string): Promise<boolean> {
+	const dialect = detectDialect(db);
+	if (dialect === "postgres") {
+		try {
+			const result = await sql<{ exists: boolean }>`
+				SELECT EXISTS (
+					SELECT FROM information_schema.tables
+					WHERE table_schema = 'public' AND table_name = ${tableName}
+				) as exists
+			`.execute(db);
+			return result.rows[0]?.exists ?? false;
+		} catch {
+			return false;
+		}
+	}
+	// SQLite: query sqlite_master
 	try {
-		const result = await sql<{ exists: boolean }>`
-			SELECT EXISTS (
-				SELECT FROM information_schema.tables
-				WHERE table_schema = 'public' AND table_name = ${tableName}
-			) as exists
+		const result = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM sqlite_master
+			WHERE type = 'table' AND name = ${tableName}
 		`.execute(db);
-		return result.rows[0]?.exists ?? false;
+		return (result.rows[0]?.count ?? 0) > 0;
 	} catch {
 		return false;
 	}
 }
 
-async function getColumnType(db: Kysely<unknown>, tableName: string, columnName: string): Promise<string | null> {
+async function getColumnType(
+	db: Kysely<unknown>,
+	tableName: string,
+	columnName: string,
+): Promise<string | null> {
 	try {
 		const result = await sql<{ data_type: string }>`
 			SELECT data_type
@@ -31,9 +48,12 @@ async function getColumnType(db: Kysely<unknown>, tableName: string, columnName:
 	}
 }
 
-async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
+async function getForeignKeyColumnType(
+	db: Kysely<unknown>,
+	referencedTable: string,
+	referencedColumn: string,
+): Promise<ColumnDataType> {
 	const colType = await getColumnType(db, referencedTable, referencedColumn);
-	// Map PostgreSQL types to Kysely column builder types
 	if (colType === "uuid") return "uuid";
 	if (colType === "integer" || colType === "bigint" || colType === "smallint") return "integer";
 	return "text";
@@ -58,7 +78,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	const dialect = detectDialect(db);
 
 	// Resolve the FK column type to match users.id (text in SQLite, uuid in PG)
-	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
+	const userIdType =
+		dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
 
 	if (dialect === "postgres") {
 		// Guard: if credentials already exists, migration has been applied.
@@ -76,26 +97,59 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			ADD COLUMN IF NOT EXISTS updated_at TEXT`.execute(db);
 
 		// Convert existing role strings to integers
+		await sql`UPDATE users SET role = 50 WHERE role = 'admin'`.execute(db);
+		await sql`UPDATE users SET role = 40 WHERE role = 'editor'`.execute(db);
+		await sql`UPDATE users SET role = 30 WHERE role = 'author'`.execute(db);
+		await sql`UPDATE users SET role = 20 WHERE role = 'contributor'`.execute(db);
 		await sql`
-			UPDATE users SET role = 50 WHERE role = 'admin'
-		`.execute(db);
-		await sql`
-			UPDATE users SET role = 40 WHERE role = 'editor'
-		`.execute(db);
-		await sql`
-			UPDATE users SET role = 30 WHERE role = 'author'
-		`.execute(db);
-		await sql`
-			UPDATE users SET role = 20 WHERE role = 'contributor'
-		`.execute(db);
-		await sql`
-			UPDATE users SET role = 10 WHERE role = 'subscriber' OR role IS NULL OR CAST(role AS TEXT) = 'subscriber'
+			UPDATE users SET role = 10
+			WHERE role = 'subscriber' OR role IS NULL OR CAST(role AS TEXT) = 'subscriber'
 		`.execute(db);
 
-		// Set default updated_at for existing rows
 		await sql`
 			UPDATE users SET updated_at = ${currentTimestampValue(db)} WHERE updated_at IS NULL
 		`.execute(db);
+	} else {
+		// Guard: if credentials already exists, migration has been applied.
+		if (await tableExists(db, "credentials")) return;
+
+		// SQLite path: drop-and-recreate users table with updated schema.
+		// SQLite can't change column types, so we must recreate the table.
+		await db.schema
+			.createTable("users_new")
+			.addColumn("id", "text", (col) => col.primaryKey())
+			.addColumn("email", "text", (col) => col.notNull().unique())
+			.addColumn("name", "text")
+			.addColumn("avatar_url", "text")
+			.addColumn("role", "integer", (col) => col.notNull().defaultTo(10))
+			.addColumn("email_verified", "integer", (col) => col.notNull().defaultTo(0))
+			.addColumn("data", "text")
+			.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.addColumn("updated_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.execute();
+
+		await sql`
+			INSERT INTO users_new (id, email, name, role, data, created_at, updated_at)
+			SELECT
+				id,
+				email,
+				name,
+				CASE role
+					WHEN 'admin' THEN 50
+					WHEN 'editor' THEN 40
+					WHEN 'author' THEN 30
+					WHEN 'contributor' THEN 20
+					ELSE 10
+				END,
+				data,
+				created_at,
+				${currentTimestampValue(db)}
+			FROM users
+		`.execute(db);
+
+		await db.schema.dropTable("users").execute();
+		await sql`ALTER TABLE users_new RENAME TO users`.execute(db);
+		await db.schema.createIndex("idx_users_email").on("users").column("email").execute();
 	}
 
 	// Credentials, tokens, accounts, domains: create tables (same for SQLite and Postgres)
@@ -117,7 +171,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			)
 			.execute();
 
-		await db.schema.createIndex("idx_credentials_user").on("credentials").column("user_id").execute();
+		await db.schema
+			.createIndex("idx_credentials_user")
+			.on("credentials")
+			.column("user_id")
+			.execute();
 	}
 
 	if (!(await tableExists(db, "auth_tokens"))) {
@@ -139,7 +197,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			)
 			.execute();
 
-		await db.schema.createIndex("idx_auth_tokens_email").on("auth_tokens").column("email").execute();
+		await db.schema
+			.createIndex("idx_auth_tokens_email")
+			.on("auth_tokens")
+			.column("email")
+			.execute();
 	}
 
 	if (!(await tableExists(db, "oauth_accounts"))) {

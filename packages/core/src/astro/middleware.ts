@@ -159,7 +159,11 @@ async function getRuntime(
 	if (runtimeInitializing) {
 		const waitStartedAt = Date.now();
 
-		while (runtimeInitializing && !runtimeInstance) {
+		while (runtimeInitializing) {
+			if (runtimeInstance) {
+				return runtimeInstance;
+			}
+
 			const initAge = runtimeInitializingSince > 0 ? Date.now() - runtimeInitializingSince : 0;
 			const waitAge = Date.now() - waitStartedAt;
 
@@ -170,10 +174,6 @@ async function getRuntime(
 			}
 
 			await new Promise((resolve) => setTimeout(resolve, RUNTIME_INIT_POLL_MS));
-		}
-
-		if (runtimeInstance) {
-			return runtimeInstance;
 		}
 	}
 

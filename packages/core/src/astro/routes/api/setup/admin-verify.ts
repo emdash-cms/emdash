@@ -22,14 +22,11 @@ import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+
 import { getDb } from "../../../../loader.js";
 
 export const POST: APIRoute = async ({ cookies, request, locals }) => {
 	const { emdash } = locals;
-
-	if (!emdash?.db) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	try {
 		const db = emdash?.db ?? (await getDb());
@@ -89,10 +86,7 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		const url = new URL(request.url);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
 		const siteUrl = getPublicOrigin(url, config);
-		const allowedOrigins = validateAllowedOrigins(
-			siteUrl,
-			getConfiguredAllowedOrigins(config),
-		);
+		const allowedOrigins = validateAllowedOrigins(siteUrl, getConfiguredAllowedOrigins(config));
 		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl, allowedOrigins);
 
 		// Verify the registration response

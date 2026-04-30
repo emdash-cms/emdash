@@ -1,21 +1,25 @@
-import type { Kysely } from "kysely";
+import type { ColumnDataType, Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { currentTimestamp, detectDialect } from "../dialect-helpers.js";
 
-async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
-    try {
-        const result = await sql<{ data_type: string }>`
+async function getForeignKeyColumnType(
+	db: Kysely<unknown>,
+	referencedTable: string,
+	referencedColumn: string,
+): Promise<ColumnDataType> {
+	try {
+		const result = await sql<{ data_type: string }>`
             SELECT data_type
             FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = ${referencedTable} AND column_name = ${referencedColumn}
         `.execute(db);
-        const colType = result.rows[0]?.data_type ?? null;
-        if (colType === "uuid") return "uuid";
-        return "text";
-    } catch {
-        return "text";
-    }
+		const colType = result.rows[0]?.data_type ?? null;
+		if (colType === "uuid") return "uuid";
+		return "text";
+	} catch {
+		return "text";
+	}
 }
 
 /**
@@ -28,7 +32,8 @@ async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: str
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	const dialect = detectDialect(db);
-	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
+	const userIdType =
+		dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
 
 	// ── Personal Access Tokens ───────────────────────────────────────
 	await db.schema
@@ -37,7 +42,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("name", "text", (col) => col.notNull())
 		.addColumn("token_hash", "text", (col) => col.notNull().unique())
 		.addColumn("prefix", "text", (col) => col.notNull())
-		.addColumn("user_id", "text", (col) => col.notNull())
+		.addColumn("user_id", userIdType, (col) => col.notNull())
 		.addColumn("scopes", "text", (col) => col.notNull()) // JSON array
 		.addColumn("expires_at", "text") // null = no expiry
 		.addColumn("last_used_at", "text")
@@ -64,7 +69,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.createTable("_emdash_oauth_tokens")
 		.addColumn("token_hash", "text", (col) => col.primaryKey())
 		.addColumn("token_type", "text", (col) => col.notNull()) // 'access' | 'refresh'
-		.addColumn("user_id", "text", (col) => col.notNull())
+		.addColumn("user_id", userIdType, (col) => col.notNull())
 		.addColumn("scopes", "text", (col) => col.notNull()) // JSON array
 		.addColumn("client_type", "text", (col) => col.notNull().defaultTo("cli"))
 		.addColumn("expires_at", "text", (col) => col.notNull())
@@ -93,7 +98,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("device_code", "text", (col) => col.primaryKey())
 		.addColumn("user_code", "text", (col) => col.notNull().unique())
 		.addColumn("scopes", "text", (col) => col.notNull()) // JSON array
-		.addColumn("user_id", "text") // set when user authorizes
+		.addColumn("user_id", userIdType) // set when user authorizes
 		.addColumn("status", "text", (col) => col.notNull().defaultTo("pending"))
 		.addColumn("expires_at", "text", (col) => col.notNull())
 		.addColumn("interval", "integer", (col) => col.notNull().defaultTo(5))

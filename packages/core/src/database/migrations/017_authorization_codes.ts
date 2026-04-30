@@ -1,21 +1,25 @@
-import type { Kysely } from "kysely";
+import type { ColumnDataType, Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { currentTimestamp, detectDialect } from "../dialect-helpers.js";
 
-async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
-    try {
-        const result = await sql<{ data_type: string }>`
+async function getForeignKeyColumnType(
+	db: Kysely<unknown>,
+	referencedTable: string,
+	referencedColumn: string,
+): Promise<ColumnDataType> {
+	try {
+		const result = await sql<{ data_type: string }>`
             SELECT data_type
             FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = ${referencedTable} AND column_name = ${referencedColumn}
         `.execute(db);
-        const colType = result.rows[0]?.data_type ?? null;
-        if (colType === "uuid") return "uuid";
-        return "text";
-    } catch {
-        return "text";
-    }
+		const colType = result.rows[0]?.data_type ?? null;
+		if (colType === "uuid") return "uuid";
+		return "text";
+	} catch {
+		return "text";
+	}
 }
 
 /**
@@ -28,14 +32,15 @@ async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: str
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	const dialect = detectDialect(db);
-	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
+	const userIdType =
+		dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
 
 	await db.schema
 		.createTable("_emdash_authorization_codes")
 		.addColumn("code_hash", "text", (col) => col.primaryKey()) // SHA-256 hash of authorization code
 		.addColumn("client_id", "text", (col) => col.notNull()) // CIMD URL or opaque string
 		.addColumn("redirect_uri", "text", (col) => col.notNull()) // Must match exactly on exchange
-		.addColumn("user_id", "text", (col) => col.notNull())
+		.addColumn("user_id", userIdType, (col) => col.notNull())
 		.addColumn("scopes", "text", (col) => col.notNull()) // JSON array
 		.addColumn("code_challenge", "text", (col) => col.notNull()) // S256 challenge
 		.addColumn("code_challenge_method", "text", (col) => col.notNull().defaultTo("S256"))

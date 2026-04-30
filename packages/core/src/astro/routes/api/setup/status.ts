@@ -11,6 +11,7 @@ export const prerender = false;
 import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
 import { loadUserSeed } from "#seed/load.js";
+
 import { getDb } from "../../../../loader.js";
 
 function withTimeout(promise, timeoutMs = 3000) {
@@ -19,7 +20,10 @@ function withTimeout(promise, timeoutMs = 3000) {
 	return Promise.race([
 		promise.finally(() => clearTimeout(timer)),
 		new Promise((_, reject) => {
-			timer = setTimeout(() => reject(new Error("Timed out waiting for EmDash database initialization")), timeoutMs);
+			timer = setTimeout(
+				() => reject(new Error("Timed out waiting for EmDash database initialization")),
+				timeoutMs,
+			);
 		}),
 	]);
 }

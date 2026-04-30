@@ -1,26 +1,31 @@
-import type { Kysely } from "kysely";
+import type { ColumnDataType, Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { currentTimestamp, detectDialect } from "../dialect-helpers.js";
 
-async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
-    try {
-        const result = await sql<{ data_type: string }>`
+async function getForeignKeyColumnType(
+	db: Kysely<unknown>,
+	referencedTable: string,
+	referencedColumn: string,
+): Promise<ColumnDataType> {
+	try {
+		const result = await sql<{ data_type: string }>`
             SELECT data_type
             FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = ${referencedTable} AND column_name = ${referencedColumn}
         `.execute(db);
-        const colType = result.rows[0]?.data_type ?? null;
-        if (colType === "uuid") return "uuid";
-        return "text";
-    } catch {
-        return "text";
-    }
+		const colType = result.rows[0]?.data_type ?? null;
+		if (colType === "uuid") return "uuid";
+		return "text";
+	} catch {
+		return "text";
+	}
 }
 
 export async function up(db: Kysely<unknown>): Promise<void> {
 	const dialect = detectDialect(db);
-	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
+	const userIdType =
+		dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
 
 	// Create the comments table
 	await db.schema
@@ -34,7 +39,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("author_name", "text", (col) => col.notNull())
 		.addColumn("author_email", "text", (col) => col.notNull())
 		.addColumn("author_url", "text")
-		.addColumn("author_user_id", "text", (col) => col.references("users.id").onDelete("set null"))
+		.addColumn("author_user_id", userIdType, (col) =>
+			col.references("users.id").onDelete("set null"),
+		)
 		.addColumn("body", "text", (col) => col.notNull())
 		.addColumn("status", "text", (col) => col.notNull().defaultTo("pending"))
 		.addColumn("ip_hash", "text")
