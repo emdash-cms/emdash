@@ -15,15 +15,16 @@ import { generateAuthenticationOptions } from "@emdash-cms/auth/passkey";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { passkeyOptionsBody } from "#api/schemas.js";
 import { createChallengeStore, cleanupExpiredChallenges } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
+import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
-	const passkeyPublicOrigin = emdash?.config.passkeyPublicOrigin;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -38,7 +39,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		// Rate limit: 10 requests per 60 seconds per IP
-		const ip = getClientIp(request);
+		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
 		const rateLimit = await checkRateLimit(emdash.db, ip, "passkey/options", 10, 60);
 		if (!rateLimit.allowed) {
 			return rateLimitResponse(60);
@@ -63,7 +64,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const url = new URL(request.url);
 		const options = new OptionsRepository(emdash.db);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
-		const passkeyConfig = getPasskeyConfig(url, siteName, passkeyPublicOrigin);
+		const siteUrl = getPublicOrigin(url, emdash?.config);
+		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
 
 		// Generate authentication options
 		const challengeStore = createChallengeStore(emdash.db);

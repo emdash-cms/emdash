@@ -248,28 +248,32 @@ export class HookPipeline {
 	 * capability will have that hook silently skipped at registration time.
 	 */
 	private static readonly HOOK_REQUIRED_CAPABILITY: ReadonlyMap<string, string> = new Map([
-		// Email
-		["email:beforeSend", "email:intercept"],
-		["email:afterSend", "email:intercept"],
-		["email:deliver", "email:provide"],
-		// Content — beforeSave can mutate content, so requires write:content.
-		// afterSave is read-only notification, so read:content suffices.
-		["content:beforeSave", "write:content"],
-		["content:afterSave", "read:content"],
-		["content:beforeDelete", "read:content"],
-		["content:afterDelete", "read:content"],
-		["content:afterPublish", "read:content"],
-		["content:afterUnpublish", "read:content"],
+		// Email — registering email:beforeSend/afterSend/deliver requires the
+		// matching `hooks.email-*:register` capability. These are distinct
+		// from `email:send` (which gates ctx.email) so that "this plugin
+		// reads/writes email events" is visible separately from "this
+		// plugin can send email".
+		["email:beforeSend", "hooks.email-events:register"],
+		["email:afterSend", "hooks.email-events:register"],
+		["email:deliver", "hooks.email-transport:register"],
+		// Content — beforeSave can mutate content, so requires content:write.
+		// afterSave is read-only notification, so content:read suffices.
+		["content:beforeSave", "content:write"],
+		["content:afterSave", "content:read"],
+		["content:beforeDelete", "content:read"],
+		["content:afterDelete", "content:read"],
+		["content:afterPublish", "content:read"],
+		["content:afterUnpublish", "content:read"],
 		// Media
-		["media:beforeUpload", "write:media"],
-		["media:afterUpload", "read:media"],
+		["media:beforeUpload", "media:write"],
+		["media:afterUpload", "media:read"],
 		// Comments — hooks expose author email, IP hash, user agent
-		["comment:beforeCreate", "read:users"],
-		["comment:moderate", "read:users"],
-		["comment:afterCreate", "read:users"],
-		["comment:afterModerate", "read:users"],
+		["comment:beforeCreate", "users:read"],
+		["comment:moderate", "users:read"],
+		["comment:afterCreate", "users:read"],
+		["comment:afterModerate", "users:read"],
 		// Page fragments — can inject arbitrary scripts into every public page
-		["page:fragments", "page:inject"],
+		["page:fragments", "hooks.page-fragments:register"],
 	]);
 
 	/**
@@ -324,7 +328,11 @@ export class HookPipeline {
 			);
 
 			if (ready.length === 0) {
-				// Circular dependency or missing dependency - just add by priority
+				// Circular dependency or missing dependency - log warning and fall back to priority
+				const pluginIds = remaining.map((h) => h.pluginId).join(", ");
+				console.warn(
+					`[hooks] Hook dependency cycle or missing dependency detected among plugins: ${pluginIds}. Falling back to priority order.`,
+				);
 				remaining.sort((a, b) => a.priority - b.priority);
 				sorted.push(...remaining);
 				break;
@@ -344,12 +352,16 @@ export class HookPipeline {
 	 * Execute a hook with timeout
 	 */
 	private async executeWithTimeout<T>(fn: () => Promise<T>, timeout: number): Promise<T> {
-		return Promise.race([
-			fn(),
-			new Promise<T>((_, reject) =>
-				setTimeout(() => reject(new Error(`Hook timeout after ${timeout}ms`)), timeout),
-			),
-		]);
+		let timer: ReturnType<typeof setTimeout>;
+		const timeoutPromise = new Promise<T>(
+			(_, reject) =>
+				(timer = setTimeout(() => reject(new Error(`Hook timeout after ${timeout}ms`)), timeout)),
+		);
+		try {
+			return await Promise.race([fn(), timeoutPromise]);
+		} finally {
+			clearTimeout(timer!);
+		}
 	}
 
 	// =========================================================================
@@ -561,7 +573,7 @@ export class HookPipeline {
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentDeleteEvent = { id, collection };
+			const event: ContentDeleteEvent = { id, collection, permanent: false };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -597,13 +609,17 @@ export class HookPipeline {
 	/**
 	 * Run content:afterDelete hooks
 	 */
-	async runContentAfterDelete(id: string, collection: string): Promise<HookResult<void>[]> {
+	async runContentAfterDelete(
+		id: string,
+		collection: string,
+		permanent: boolean,
+	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterDelete");
 		const results: HookResult<void>[] = [];
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentDeleteEvent = { id, collection };
+			const event: ContentDeleteEvent = { id, collection, permanent };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -1204,6 +1220,17 @@ export class HookPipeline {
 	getExclusiveHookProviders(hookName: string): Array<{ pluginId: string }> {
 		const hooks = this.hooks.get(hookName as HookNameV2) ?? [];
 		return hooks.filter((h) => h.exclusive).map((h) => ({ pluginId: h.pluginId }));
+	}
+
+	/**
+	 * Get all plugins that registered a non-exclusive handler for a given
+	 * hook (e.g. `email:beforeSend`, `email:afterSend`), preserving priority
+	 * order. Partitions with `getExclusiveHookProviders()`, which returns
+	 * plugins whose registration is marked `exclusive: true`.
+	 */
+	getHookProviders(hookName: string): Array<{ pluginId: string }> {
+		const hooks = this.hooks.get(hookName as HookNameV2) ?? [];
+		return hooks.filter((h) => !h.exclusive).map((h) => ({ pluginId: h.pluginId }));
 	}
 
 	/**

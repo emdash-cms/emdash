@@ -12,6 +12,9 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	DotsSixVertical,
 	Paragraph,
@@ -24,7 +27,6 @@ import {
 	ListNumbers,
 	Copy,
 	Trash,
-	CaretRight,
 	type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
@@ -33,13 +35,14 @@ import { createPortal } from "react-dom";
 
 import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 
 /**
  * Block transform options
  */
 interface BlockTransform {
 	id: string;
-	label: string;
+	label: MessageDescriptor;
 	icon: PhosphorIcon;
 	transform: (editor: Editor) => void;
 }
@@ -47,7 +50,7 @@ interface BlockTransform {
 const blockTransforms: BlockTransform[] = [
 	{
 		id: "paragraph",
-		label: "Paragraph",
+		label: msg`Paragraph`,
 		icon: Paragraph,
 		transform: (editor) => {
 			editor.chain().focus().setNode("paragraph").run();
@@ -55,7 +58,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "heading1",
-		label: "Heading 1",
+		label: msg`Heading 1`,
 		icon: TextHOne,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 1 }).run();
@@ -63,7 +66,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "heading2",
-		label: "Heading 2",
+		label: msg`Heading 2`,
 		icon: TextHTwo,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 2 }).run();
@@ -71,7 +74,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "heading3",
-		label: "Heading 3",
+		label: msg`Heading 3`,
 		icon: TextHThree,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 3 }).run();
@@ -79,7 +82,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "blockquote",
-		label: "Quote",
+		label: msg`Quote`,
 		icon: Quotes,
 		transform: (editor) => {
 			editor.chain().focus().toggleBlockquote().run();
@@ -87,7 +90,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "codeBlock",
-		label: "Code Block",
+		label: msg`Code Block`,
 		icon: Code,
 		transform: (editor) => {
 			editor.chain().focus().toggleCodeBlock().run();
@@ -95,7 +98,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "bulletList",
-		label: "Bullet List",
+		label: msg`Bullet List`,
 		icon: List,
 		transform: (editor) => {
 			editor.chain().focus().toggleBulletList().run();
@@ -103,7 +106,7 @@ const blockTransforms: BlockTransform[] = [
 	},
 	{
 		id: "orderedList",
-		label: "Numbered List",
+		label: msg`Numbered List`,
 		icon: ListNumbers,
 		transform: (editor) => {
 			editor.chain().focus().toggleOrderedList().run();
@@ -125,6 +128,7 @@ interface BlockMenuProps {
  * Block Menu - floating menu for block-level actions
  */
 export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
+	const { t } = useLingui();
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const stableOnClose = useStableCallback(onClose);
@@ -243,10 +247,10 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 				<div className="py-1">
 					<button
 						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={() => setShowTransforms(false)}
 					>
-						<CaretRight className="h-4 w-4 rotate-180" />
+						<CaretPrev className="h-4 w-4" />
 						<span>Back</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
@@ -254,11 +258,11 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						<button
 							key={transform.id}
 							type="button"
-							className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+							className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 							onClick={() => handleTransform(transform)}
 						>
 							<transform.icon className="h-4 w-4 text-kumo-subtle" />
-							<span>{transform.label}</span>
+							<span>{t(transform.label)}</span>
 						</button>
 					))}
 				</div>
@@ -267,18 +271,18 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 				<div className="py-1">
 					<button
 						type="button"
-						className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+						className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={() => setShowTransforms(true)}
 					>
 						<span className="flex items-center gap-2">
 							<Paragraph className="h-4 w-4 text-kumo-subtle" />
 							<span>Turn into</span>
 						</span>
-						<CaretRight className="h-4 w-4 text-kumo-subtle" />
+						<CaretNext className="h-4 w-4 text-kumo-subtle" />
 					</button>
 					<button
 						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left"
+						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={handleDuplicate}
 					>
 						<Copy className="h-4 w-4 text-kumo-subtle" />
@@ -287,7 +291,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					<div className="h-px bg-kumo-line my-1" />
 					<button
 						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-left text-kumo-danger"
+						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start text-kumo-danger"
 						onClick={handleDelete}
 					>
 						<Trash className="h-4 w-4" />

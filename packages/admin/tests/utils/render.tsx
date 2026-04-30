@@ -3,10 +3,6 @@ import { I18nProvider } from "@lingui/react";
 import * as React from "react";
 import { render as baseRender, type ComponentRenderOptions } from "vitest-browser-react";
 
-if (!i18n.locale) {
-	i18n.loadAndActivate({ locale: "en", messages: {} });
-}
-
 type RenderWrapper = ComponentRenderOptions["wrapper"];
 
 const I18nWrapper = (InnerWrapper: RenderWrapper = React.Fragment) => {

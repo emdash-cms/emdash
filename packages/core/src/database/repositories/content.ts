@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
+import { validateIdentifier } from "../validate.js";
 import { RevisionRepository } from "./revision.js";
 import type {
 	CreateContentInput,
@@ -41,6 +42,7 @@ const SYSTEM_COLUMNS = new Set([
  * Get the table name for a collection type
  */
 function getTableName(type: string): string {
+	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
 }
 
@@ -116,6 +118,7 @@ export class ContentRepository {
 			locale,
 			translationOf,
 			publishedAt,
+			createdAt,
 		} = input;
 
 		// Validate required fields
@@ -155,7 +158,7 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			now,
+			createdAt || now,
 			now,
 			publishedAt || null,
 			1,
@@ -167,6 +170,7 @@ export class ContentRepository {
 		if (data && typeof data === "object") {
 			for (const [key, value] of Object.entries(data)) {
 				if (!SYSTEM_COLUMNS.has(key)) {
+					validateIdentifier(key, "content field name");
 					columns.push(key);
 					values.push(serializeValue(value));
 				}
@@ -485,27 +489,26 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", options.where.locale);
 		}
 
-		// Handle cursor pagination
+		// Handle cursor pagination — decodeCursor throws InvalidCursorError
+		// on malformed input; let it propagate so handlers surface a
+		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue, id: cursorId } = decoded;
+			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
-				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
-					);
-				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
-					);
-				}
+			if (safeOrderDirection === "DESC") {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, "<", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+					]),
+				);
+			} else {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, ">", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+					]),
+				);
 			}
 		}
 
@@ -577,6 +580,7 @@ export class ContentRepository {
 		if (input.data !== undefined && typeof input.data === "object") {
 			for (const [key, value] of Object.entries(input.data)) {
 				if (!SYSTEM_COLUMNS.has(key)) {
+					validateIdentifier(key, "content field name");
 					updates[key] = serializeValue(value);
 				}
 			}
@@ -666,27 +670,24 @@ export class ContentRepository {
 			.selectAll()
 			.where("deleted_at" as never, "is not", null);
 
-		// Handle cursor pagination
+		// Handle cursor pagination — decodeCursor throws on invalid input.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue, id: cursorId } = decoded;
+			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
-				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
-					);
-				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
-					);
-				}
+			if (safeOrderDirection === "DESC") {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, "<", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+					]),
+				);
+			} else {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, ">", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+					]),
+				);
 			}
 		}
 
@@ -1013,6 +1014,7 @@ export class ContentRepository {
 			UPDATE ${sql.ref(tableName)}
 			SET live_revision_id = NULL,
 				status = 'draft',
+				published_at = NULL,
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
@@ -1024,6 +1026,45 @@ export class ContentRepository {
 		}
 
 		return updated;
+	}
+
+	/**
+	 * Set the draft revision pointer for a content item.
+	 *
+	 * Used by seed/import paths that stage a new revision's data before
+	 * promoting it to live via `publish()`.
+	 *
+	 * Validates that the content item exists and is not soft-deleted, that
+	 * the revision exists, and that the revision belongs to the same
+	 * collection and entry. Without these checks, a caller could leave the
+	 * content row pointing at a missing or unrelated revision.
+	 */
+	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
+		const tableName = getTableName(type);
+		const now = new Date().toISOString();
+
+		const existing = await this.findById(type, id);
+		if (!existing) {
+			throw new EmDashValidationError("Content item not found");
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		const revision = await revisionRepo.findById(revisionId);
+		if (!revision) {
+			throw new EmDashValidationError("Revision not found");
+		}
+
+		if (revision.collection !== type || revision.entryId !== id) {
+			throw new EmDashValidationError("Revision does not belong to the specified content item");
+		}
+
+		await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET draft_revision_id = ${revisionId},
+				updated_at = ${now}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+		`.execute(this.db);
 	}
 
 	/**
@@ -1078,6 +1119,7 @@ export class ContentRepository {
 		for (const [key, value] of Object.entries(data)) {
 			if (SYSTEM_COLUMNS.has(key)) continue;
 			if (key.startsWith("_")) continue; // revision metadata
+			validateIdentifier(key, "content field name");
 			updates[key] = serializeValue(value);
 		}
 
@@ -1153,7 +1195,10 @@ export class ContentRepository {
 			scheduledAt: "scheduled_at",
 			deletedAt: "deleted_at",
 			title: "title",
+			name: "name",
 			slug: "slug",
+			status: "status",
+			locale: "locale",
 		};
 
 		const mapped = mapping[field];

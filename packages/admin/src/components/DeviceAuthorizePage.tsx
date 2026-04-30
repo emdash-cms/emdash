@@ -12,6 +12,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -146,10 +147,12 @@ export function DeviceAuthorizePage() {
 		setCode(value);
 	}
 
+	const { t } = useLingui();
+
 	if (isLoading) {
 		return (
 			<PageWrapper>
-				<p className="text-kumo-subtle text-sm">Checking authentication...</p>
+				<p className="text-kumo-subtle text-sm">{t`Checking authentication...`}</p>
 			</PageWrapper>
 		);
 	}
@@ -157,7 +160,7 @@ export function DeviceAuthorizePage() {
 	if (!user) {
 		return (
 			<PageWrapper>
-				<p className="text-kumo-subtle text-sm">Redirecting to login...</p>
+				<p className="text-kumo-subtle text-sm">{t`Redirecting to login...`}</p>
 			</PageWrapper>
 		);
 	}
@@ -170,8 +173,8 @@ export function DeviceAuthorizePage() {
 					<div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-kumo-brand/10 mb-4">
 						<TerminalIcon className="w-6 h-6 text-kumo-brand" />
 					</div>
-					<h1 className="text-xl font-semibold tracking-tight">Authorize Device</h1>
-					<p className="text-kumo-subtle text-sm mt-1.5">Enter the code from your terminal</p>
+					<h1 className="text-xl font-semibold tracking-tight">{t`Authorize Device`}</h1>
+					<p className="text-kumo-subtle text-sm mt-1.5">{t`Enter the code from your terminal`}</p>
 				</div>
 
 				{/* Success state */}
@@ -180,19 +183,19 @@ export function DeviceAuthorizePage() {
 						<div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 mb-3">
 							<CheckIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
 						</div>
-						<h2 className="font-medium text-green-900 dark:text-green-100">Device authorized</h2>
+						<h2 className="font-medium text-green-900 dark:text-green-100">{t`Device authorized`}</h2>
 						<p className="text-sm text-green-700 dark:text-green-300 mt-1">
-							You can close this page and return to your terminal.
+							{t`You can close this page and return to your terminal.`}
 						</p>
-						<p className="text-xs text-kumo-subtle mt-3">Signed in as {user.email}</p>
+						<p className="text-xs text-kumo-subtle mt-3">{t`Signed in as ${user.email}`}</p>
 					</div>
 				)}
 
 				{/* Denied state */}
 				{pageState === "denied" && (
 					<div className="rounded-lg border border-kumo-line p-6 text-center">
-						<h2 className="font-medium">Authorization denied</h2>
-						<p className="text-sm text-kumo-subtle mt-1">The device will not be granted access.</p>
+						<h2 className="font-medium">{t`Authorization denied`}</h2>
+						<p className="text-sm text-kumo-subtle mt-1">{t`The device will not be granted access.`}</p>
 						<Button
 							className="mt-4"
 							variant="outline"
@@ -201,7 +204,7 @@ export function DeviceAuthorizePage() {
 								setCode("");
 							}}
 						>
-							Try another code
+							{t`Try another code`}
 						</Button>
 					</div>
 				)}
@@ -217,13 +220,13 @@ export function DeviceAuthorizePage() {
 								</div>
 								<div className="min-w-0">
 									<p className="text-sm font-medium truncate">{user.name || user.email}</p>
-									<p className="text-xs text-kumo-subtle">{ROLE_NAMES[user.role] || "User"}</p>
+									<p className="text-xs text-kumo-subtle">{ROLE_NAMES[user.role] || t`User`}</p>
 								</div>
 							</div>
 
 							{/* Code input */}
 							<label className="block text-sm font-medium mb-2" htmlFor="user-code">
-								Device code
+								{t`Device code`}
 							</label>
 							<Input
 								id="user-code"
@@ -253,7 +256,7 @@ export function DeviceAuthorizePage() {
 										pageState === "submitting"
 									}
 								>
-									{pageState === "submitting" ? "Authorizing..." : "Authorize"}
+									{pageState === "submitting" ? t`Authorizing...` : t`Authorize`}
 								</Button>
 								<Button
 									type="button"
@@ -264,15 +267,15 @@ export function DeviceAuthorizePage() {
 										pageState === "submitting"
 									}
 								>
-									Deny
+									{t`Deny`}
 								</Button>
 							</div>
 						</div>
 
 						<p className="text-xs text-kumo-subtle text-center mt-4">
-							This will grant CLI access with your permissions.
+							{t`This will grant CLI access with your permissions.`}
 							<br />
-							Only authorize codes you recognize.
+							{t`Only authorize codes you recognize.`}
 						</p>
 					</form>
 				)}

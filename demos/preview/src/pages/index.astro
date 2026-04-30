@@ -1,51 +1,66 @@
 ---
-import { getEmDashCollection, getEntryTerms } from "emdash";
+import {
+	getEmDashCollection,
+	getTermsForEntries,
+	getSiteSettings,
+} from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 import PostCard from "../components/PostCard.astro";
 import { getReadingTime } from "../utils/reading-time";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
 
-const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+// Limit to what we render (1 featured + 6 grid). The DB does the slicing
+// instead of fetching every post and discarding the tail in JS.
+const POSTS_PER_PAGE = 7;
+
+const [{ entries: posts, cacheHint }, settings] = await Promise.all([
+	getEmDashCollection("posts", {
+		orderBy: { published_at: "desc" },
+		limit: POSTS_PER_PAGE + 1, // +1 to detect "view all" need
+	}),
+	getSiteSettings(),
+]);
+const { siteTitle, siteTagline } = resolveBlogSiteIdentity(settings);
 
 Astro.cache.set(cacheHint);
 
-const sortedPosts = posts.toSorted((a, b) => {
-	const dateA = a.data.publishedAt?.getTime() ?? 0;
-	const dateB = b.data.publishedAt?.getTime() ?? 0;
-	return dateB - dateA;
-});
+// Trim the lookahead post used to detect overflow
+const visiblePosts = posts.slice(0, POSTS_PER_PAGE);
+const hasMorePosts = posts.length > POSTS_PER_PAGE;
 
 // Find the first post with a featured image for the hero
-const featuredPost = sortedPosts.find((p) => p.data.featured_image);
-const featuredIndex = featuredPost ? sortedPosts.indexOf(featuredPost) : -1;
+const featuredPost = visiblePosts.find((p) => p.data.featured_image);
+const featuredIndex = featuredPost ? visiblePosts.indexOf(featuredPost) : -1;
 
 // Get remaining posts (exclude featured if found, limit to 6 for grid)
-const gridPosts = sortedPosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
+const gridPosts = visiblePosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
 
-// Total posts shown = featured (if any) + grid posts
-const totalShown = (featuredPost ? 1 : 0) + gridPosts.length;
-const hasMorePosts = sortedPosts.length > totalShown;
+// Single batched query for tags across the featured post + grid posts.
+// Avoids the N+1 pattern of calling getEntryTerms() per entry.
+// Bylines are already hydrated on entry.data.bylines by getEmDashCollection.
+const tagEntryIds = [
+	...(featuredPost ? [featuredPost.data.id] : []),
+	...gridPosts.map((p) => p.data.id),
+];
+const tagsByEntry = await getTermsForEntries("posts", tagEntryIds, "tag");
 
-// Fetch tags for featured post (bylines are already hydrated by getEmDashCollection)
-let featuredTags: Array<{ slug: string; label: string }> = [];
+const featuredTags = featuredPost
+	? (tagsByEntry.get(featuredPost.data.id) ?? []).map((t) => ({
+			slug: t.slug,
+			label: t.label,
+		}))
+	: [];
 const featuredBylines = featuredPost?.data.bylines ?? [];
-if (featuredPost) {
-	const tags = await getEntryTerms("posts", featuredPost.data.id, "tag");
-	featuredTags = tags.map((t) => ({ slug: t.slug, label: t.label }));
-}
 
-// Fetch tags for grid posts (bylines are already hydrated by getEmDashCollection)
-const gridPostsWithTags = await Promise.all(
-	gridPosts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		const bylines = post.data.bylines ?? [];
-		return {
-			post,
-			tags: tags.map((t) => ({ slug: t.slug, label: t.label })),
-			bylines,
-		};
-	})
-);
+const gridPostsWithTags = gridPosts.map((post) => ({
+	post,
+	tags: (tagsByEntry.get(post.data.id) ?? []).map((t) => ({
+		slug: t.slug,
+		label: t.label,
+	})),
+	bylines: post.data.bylines ?? [],
+}));
 
 // Format date helper
 function formatDate(date: Date | null | undefined) {
@@ -58,7 +73,7 @@ function formatDate(date: Date | null | undefined) {
 }
 ---
 
-<Base title="My Blog" description="Welcome to my blog">
+<Base title={siteTitle} description={siteTagline}>
 	{
 		posts.length === 0 ? (
 			<section class="empty-state">

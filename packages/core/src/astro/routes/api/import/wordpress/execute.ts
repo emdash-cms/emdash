@@ -13,6 +13,7 @@ import {
 	ContentRepository,
 	importReusableBlocksAsSections,
 	type WxrPost,
+	parseWxrDate,
 } from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
@@ -236,6 +237,12 @@ async function importContent(
 				bylineCache,
 			);
 
+			// Preserve original WordPress dates using the shared WXR date parser.
+			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
+			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
+			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
+			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
 				data,
@@ -244,6 +251,8 @@ async function importContent(
 				authorId,
 				bylines: bylineId ? [{ bylineId }] : undefined,
 				locale,
+				createdAt,
+				publishedAt,
 			});
 
 			if (createResult.success) {
@@ -262,7 +271,7 @@ async function importContent(
 			console.error(`Import error for "${post.title || "Untitled"}":`, error);
 			result.errors.push({
 				title: post.title || "Untitled",
-				error: "Failed to import item",
+				error: error instanceof Error && error.message ? error.message : "Failed to import item",
 			});
 		}
 	}

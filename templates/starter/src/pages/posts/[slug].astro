@@ -1,10 +1,10 @@
 ---
-import { getEmDashEntry, getEntryTerms, getSeoMeta, getSiteSettings } from "emdash";
+import { getEmDashEntry, getEntryTerms, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
 import { Image, PortableText, WidgetArea } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import { resolveStarterSiteIdentity } from "../../utils/site-identity";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
 	return Astro.redirect("/404");
@@ -33,6 +33,7 @@ const categories = await getEntryTerms("posts", post.data.id, "category");
 
 <Base
 	title={seo.title}
+	pageTitle={seo.ogTitle}
 	description={seo.description}
 	canonical={seo.canonical}
 	image={seo.ogImage}

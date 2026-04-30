@@ -15,6 +15,7 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"build": "pnpm run --filter {./packages/**} build",
+		"postbuild": "node scripts/relink-bins-if-needed.mjs",
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
 		"format:astro": "prettier --write .",
@@ -24,7 +25,11 @@
 		"lint:fix": "oxlint --type-aware --fix",
 		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
 		"new": "create-emdash",
-		"screenshots": "node scripts/screenshot-all-templates.mjs"
+		"screenshots": "node scripts/screenshot-all-templates.mjs",
+		"query-counts": "node scripts/query-counts.mjs",
+		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
+		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"
 	},
 	"keywords": [],
 	"author": "Matt Kane",
@@ -34,6 +39,7 @@
 		"@changesets/changelog-github": "^0.5.2",
 		"@changesets/cli": "^2.29.8",
 		"@e18e/eslint-plugin": "^0.2.0",
+		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
 		"@playwright/test": "^1.58.0",
 		"@types/node": "catalog:",
 		"@typescript/native-preview": "^7.0.0-dev",

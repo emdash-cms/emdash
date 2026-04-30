@@ -1,0 +1,243 @@
+---
+title: Field Kit
+description: Composable field widgets for json fields, configured through seed options.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+EmDash's `json` field type stores arbitrary structured data, but the default editor is a single-line text input where you have to type raw JSON by hand. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` — no React required from site builders.
+
+<Aside type="tip">
+Field Kit widgets store **clean JSON**: removing the plugin leaves valid data in the database. No shape mutation, no new columns, no migration.
+</Aside>
+
+## Installation
+
+```bash
+npm i @emdash-cms/plugin-field-kit
+```
+
+Register the plugin in `astro.config.mjs`:
+
+```typescript
+import { defineConfig } from "astro/config";
+import emdash from "emdash";
+import { fieldKitPlugin } from "@emdash-cms/plugin-field-kit";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			plugins: [fieldKitPlugin()],
+		}),
+	],
+});
+```
+
+Then attach a widget to any `json` field by setting `widget` to `field-kit:<name>`:
+
+```json
+{
+	"slug": "ingredients",
+	"type": "json",
+	"widget": "field-kit:list",
+	"options": { "fields": [...] }
+}
+```
+
+## Widgets
+
+| Widget | Use for | Stored value |
+|--------|---------|--------------|
+| `object-form` | Inline form for flat JSON objects | `{ key: value, ... }` |
+| `list` | Ordered array editor with add / remove / reorder | `[{ ... }, ...]` |
+| `grid` | Rows × columns matrix | `{ rowKey: { colKey: value } }` |
+| `tags` | Free-form chip/tag input | `["tag1", "tag2"]` |
+
+If a widget is missing its required `options` (e.g. `fields` for `object-form`/`list`, or `rows`/`columns` for `grid`), the editor renders an inline "Widget misconfigured" warning instead of a broken input — useful while iterating on seed schemas.
+
+### object-form
+
+Renders a group of typed sub-fields that store as a single JSON object. Good for fixed-shape structured data like nutrition facts or contact info.
+
+```json
+{
+	"slug": "nutrition",
+	"type": "json",
+	"widget": "field-kit:object-form",
+	"options": {
+		"collapsed": false,
+		"fields": [
+			{ "key": "calories", "label": "Calories", "type": "number", "suffix": "kcal" },
+			{ "key": "protein", "label": "Protein", "type": "number", "suffix": "g" },
+			{ "key": "fat", "label": "Fat", "type": "number", "suffix": "g" },
+			{ "key": "carbs", "label": "Carbs", "type": "number", "suffix": "g" }
+		]
+	}
+}
+```
+
+Stored value: `{ "calories": 250, "protein": 12.5, "fat": 8, "carbs": 30 }`.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `fields` | `SubFieldDef[]` | _(required)_ | Sub-field definitions — see [Sub-fields](#sub-fields). |
+| `collapsed` | `boolean` | `false` | Render the group collapsed by default. |
+| `helpText` | `string` | — | Help text shown below the widget. |
+
+### list
+
+An ordered array editor with add, remove, and reorder controls. Each row is a JSON object whose shape is defined by `fields`. The row header shows a summary rendered from a Mustache-style template.
+
+```json
+{
+	"slug": "ingredients",
+	"type": "json",
+	"widget": "field-kit:list",
+	"options": {
+		"itemLabel": "Ingredient",
+		"min": 1,
+		"max": 50,
+		"sortable": true,
+		"summary": "{{name}} — {{amount}}",
+		"fields": [
+			{ "key": "name", "label": "Name", "type": "text", "required": true },
+			{ "key": "amount", "label": "Amount", "type": "text" },
+			{ "key": "optional", "label": "Optional", "type": "boolean" }
+		]
+	}
+}
+```
+
+Stored value:
+
+```json
+[
+	{ "name": "Flour", "amount": "500g", "optional": false },
+	{ "name": "Butter", "amount": "200g", "optional": false }
+]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `fields` | `SubFieldDef[]` | _(required)_ | Sub-field definitions for each row. |
+| `itemLabel` | `string` | `"Item"` | Singular label for a row (used in the "Add" button and fallback row titles). |
+| `min` | `number` | — | Minimum number of items. Below this, the remove button hides. |
+| `max` | `number` | — | Maximum number of items. At this count, the add button hides. |
+| `sortable` | `boolean` | `true` | Show up/down reorder buttons. |
+| `summary` | `string` | — | Mustache template rendered as the collapsed-row title. See [Summary templates](#summary-templates). |
+| `helpText` | `string` | — | Help text shown below the widget. |
+
+### grid
+
+A two-dimensional matrix of rows × columns. Each cell can be a toggle, text input, number input, or select. Useful for matrices like seasonal availability, price tables, or feature comparisons.
+
+```json
+{
+	"slug": "availability",
+	"type": "json",
+	"widget": "field-kit:grid",
+	"options": {
+		"cell": "toggle",
+		"rows": [
+			{ "key": "berries", "label": "Berries" },
+			{ "key": "stoneFruit", "label": "Stone fruit" },
+			{ "key": "citrus", "label": "Citrus" }
+		],
+		"columns": [
+			{ "key": "spring", "label": "Spring" },
+			{ "key": "summer", "label": "Summer" },
+			{ "key": "autumn", "label": "Autumn" },
+			{ "key": "winter", "label": "Winter" }
+		]
+	}
+}
+```
+
+Stored value:
+
+```json
+{
+	"berries": { "spring": false, "summer": true, "autumn": false, "winter": false },
+	"stoneFruit": { "spring": false, "summer": true, "autumn": true, "winter": false },
+	"citrus": { "spring": false, "summer": false, "autumn": true, "winter": true }
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `rows` | `GridAxisDef[]` | _(required)_ | Row definitions: `{ key, label, image? }`. |
+| `columns` | `GridAxisDef[]` | _(required)_ | Column definitions: `{ key, label, image? }`. |
+| `cell` | `"toggle"` \| `"text"` \| `"number"` \| `"select"` | `"toggle"` | Cell input type, applied uniformly to every cell. |
+| `cellOptions` | `string[]` \| `Array<{ label, value }>` | `[]` | Required when `cell` is `"select"`. |
+| `helpText` | `string` | — | Help text shown below the widget. |
+
+### tags
+
+A chip-style input for arrays of strings. Supports a fixed `suggestions` list, free-form custom values (toggleable), case transforms, and an optional `max`.
+
+```json
+{
+	"slug": "keywords",
+	"type": "json",
+	"widget": "field-kit:tags",
+	"options": {
+		"placeholder": "Add a keyword…",
+		"max": 10,
+		"transform": "lowercase",
+		"allowCustom": true,
+		"suggestions": ["vegan", "vegetarian", "gluten-free", "dairy-free", "nut-free"]
+	}
+}
+```
+
+Stored value: `["vegan", "gluten-free"]`.
+
+Press <kbd>Enter</kbd> or `,` to commit a tag. <kbd>Backspace</kbd> on an empty input removes the last tag. Duplicate tags are silently ignored.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `placeholder` | `string` | `"Add..."` | Input placeholder shown when no tags are present. |
+| `max` | `number` | — | Maximum number of tags. The input hides at the limit. |
+| `suggestions` | `string[]` | `[]` | Autocomplete suggestions surfaced via a `<datalist>`. |
+| `allowCustom` | `boolean` | `true` | When `false`, only values from `suggestions` can be added. |
+| `transform` | `"none"` \| `"lowercase"` \| `"uppercase"` \| `"trim"` | `"none"` | Normalize tags as they're added. |
+| `helpText` | `string` | — | Help text shown below the widget. |
+
+## Sub-fields
+
+`object-form` and `list` accept an `options.fields` array of typed sub-field definitions. Each entry has a `key` (the JSON object key it writes to), a `label`, a `type`, and type-specific extras.
+
+| Sub-field type | Renders as | Notable extras |
+|----------------|------------|----------------|
+| `text` | Single-line input | `placeholder` |
+| `textarea` | Multi-line input | `rows` (default `3`), `placeholder` |
+| `number` | Numeric input | `min`, `max`, `step`, `prefix`, `suffix`, `placeholder` |
+| `boolean` | Toggle switch | — |
+| `select` | Dropdown | `options: string[] \| Array<{ label, value }>`, `placeholder` |
+| `date` | Date input | — |
+| `color` | Native color picker paired with a hex text input | — |
+| `url` | URL input (HTML5 `type="url"`) | `placeholder` |
+
+Common props on every sub-field: `required`, `helpText`, `defaultValue`.
+
+## Summary templates
+
+The `list` widget renders each collapsed row using a Mustache-style template in `options.summary`. `{{key}}` is replaced with the row's value for that key (coerced to a string). Falsy values fall back to `"{itemLabel} {n}"`.
+
+```
+"summary": "{{name}} — {{amount}}"
+```
+
+Renders rows like `Flour — 500g`. The template is plain string substitution — no HTML, no nested expressions.
+
+## Data durability
+
+Field Kit widgets store plain JSON in the field's existing column. There are no plugin-specific tables, no foreign keys, no schema mutation. If you remove `@emdash-cms/plugin-field-kit` from your config, the data stays valid — only the editing UI changes back to the default `json` text input.
+
+This applies even when you change the widget shape: unknown keys on stored objects are preserved on the next write, so you can evolve a schema without losing data captured under an older field set.
+
+## See also
+
+- [Plugin Overview](/plugins/overview/) — how EmDash plugins work.
+- [Creating Plugins](/plugins/creating-plugins/) — write your own field widgets if Field Kit doesn't fit.
+- [Discussion #571](https://github.com/emdash-cms/emdash/discussions/571) — the proposal that led to this plugin.

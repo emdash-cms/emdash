@@ -12,8 +12,10 @@
 
 import { defineMiddleware } from "astro:middleware";
 
+import { resolveSecretsCached } from "#config/secrets.js";
+
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
-import { runWithContext } from "../../request-context.js";
+import { getRequestContext, runWithContext } from "../../request-context.js";
 import { renderToolbar } from "../../visual-editing/toolbar.js";
 
 /**
@@ -49,11 +51,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Playground mode: the playground middleware (from @emdash-cms/cloudflare) stashes
 	// the per-session DO database on locals.__playgroundDb. We set it via ALS here
 	// (same module instance as the loader) so getDb() picks it up correctly.
+	//
+	// `dbIsIsolated: true` tells schema-derived caches (manifest, taxonomy defs,
+	// byline/term existence probes) to bypass module-scope memoization — each
+	// playground session is its own database with its own schema, so a cached
+	// value from another session would be wrong.
 	const playgroundDb = context.locals.__playgroundDb;
 	if (playgroundDb) {
 		// Check if playground user has toggled edit mode on
 		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode: hasEditCookie, db: playgroundDb }, () => next());
+		return runWithContext({ editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true }, () =>
+			next(),
+		);
 	}
 
 	// Fast path: check for CMS signals before doing any work
@@ -72,17 +81,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Astro context includes currentLocale when i18n is configured
 	const locale = (context as { currentLocale?: string }).currentLocale;
 
-	// Verify preview token if present
+	// Verify preview token if present.
+	// The preview secret is resolved via `resolveSecretsCached`: env wins,
+	// otherwise a DB-stored value is read (or generated on first need).
+	// `emdash.db` is set by the runtime middleware which runs first; the
+	// only path where it's missing is a runtime-init failure.
 	let preview: { collection: string; id: string } | undefined;
 	if (hasPreviewToken) {
-		const secret = import.meta.env.EMDASH_PREVIEW_SECRET || import.meta.env.PREVIEW_SECRET || "";
-
-		if (secret) {
-			const result = await verifyPreviewToken({ url, secret });
+		const db = context.locals.emdash?.db;
+		if (db) {
+			const { previewSecret } = await resolveSecretsCached(db);
+			const result = await verifyPreviewToken({ url, secret: previewSecret });
 			if (result.valid) {
 				const { collection, id } = parseContentId(result.payload.cid);
 				preview = { collection, id };
 			}
+		} else {
+			console.warn(
+				"[emdash] Preview token present but EmDash runtime not initialized; preview disabled.",
+			);
 		}
 	}
 
@@ -90,7 +107,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const needsContext = hasEditCookie || hasPreviewToken;
 
 	if (needsContext) {
-		return runWithContext({ editMode, preview, locale }, async () => {
+		// Merge with any outer ALS context (e.g. the per-request D1 session db
+		// set by the runtime middleware). `storage.run()` replaces the store
+		// wholesale, so without the spread the outer `db` would be lost and
+		// loaders would fall back to the singleton non-session dialect.
+		const parent = getRequestContext();
+		return runWithContext({ ...parent, editMode, preview, locale }, async () => {
 			let response = await next();
 
 			// Preview responses must not be cached -- draft content could leak past token expiry.

@@ -20,20 +20,151 @@ import type { FieldType } from "../schema/types.js";
 // =============================================================================
 
 /**
- * Plugin capabilities determine what APIs are available in context
+ * Plugin capabilities determine what APIs are available in context.
+ *
+ * Capabilities follow the formula `<resource>[.<sub-resource>]:<verb>[:<qualifier>]`
+ * — resource first, verb second, matching RBAC. The `unrestricted` qualifier
+ * (used by `network:request:unrestricted`) is intentionally verbose so that
+ * granting it stands out in manifest review.
+ *
+ * Hook-registration capabilities (`hooks.<family>:register`) are a distinct
+ * audit category from data-access capabilities — they gate which hooks a
+ * plugin is allowed to register, not which context APIs it gets.
+ *
+ * @see CAPABILITY_RENAMES for the legacy → current mapping, and
+ *      `normalizeCapability()` for the runtime alias layer.
  */
 export type PluginCapability =
-	| "network:fetch" // ctx.http is available (host-restricted via allowedHosts)
-	| "network:fetch:any" // ctx.http is available (unrestricted outbound — use for user-configured URLs)
-	| "read:content" // ctx.content.get/list available
-	| "write:content" // ctx.content.create/update/delete available
-	| "read:media" // ctx.media.get/list available
-	| "write:media" // ctx.media.getUploadUrl/delete available
-	| "read:users" // ctx.users is available
+	// ── Network ─────────────────────────────────────────────────
+	| "network:request" // ctx.http is available (host-restricted via allowedHosts)
+	| "network:request:unrestricted" // ctx.http is available (unrestricted outbound — use for user-configured URLs)
+	// ── Content ─────────────────────────────────────────────────
+	| "content:read" // ctx.content.get/list available
+	| "content:write" // ctx.content.create/update/delete available
+	// ── Media ───────────────────────────────────────────────────
+	| "media:read" // ctx.media.get/list available
+	| "media:write" // ctx.media.getUploadUrl/delete available
+	// ── Users ───────────────────────────────────────────────────
+	| "users:read" // ctx.users is available
+	// ── Email ───────────────────────────────────────────────────
 	| "email:send" // ctx.email is available (when a provider is configured)
-	| "email:provide" // can register email:deliver exclusive hook (transport provider)
-	| "email:intercept" // can register email:beforeSend / email:afterSend hooks
-	| "page:inject"; // can register page:fragments hook (inject scripts/styles into pages)
+	// ── Hook registration ───────────────────────────────────────
+	| "hooks.email-transport:register" // can register email:deliver exclusive hook (transport provider)
+	| "hooks.email-events:register" // can register email:beforeSend / email:afterSend hooks
+	| "hooks.page-fragments:register" // can register page:fragments hook (inject scripts/styles into pages)
+	// ── Deprecated (legacy aliases) ─────────────────────────────
+	// Kept in the union for one minor with @deprecated tags so existing
+	// plugins typecheck during migration. Normalized to current names at
+	// definition time via normalizeCapability(). Will be removed in the
+	// following minor.
+	/** @deprecated Use `network:request` instead. */
+	| "network:fetch"
+	/** @deprecated Use `network:request:unrestricted` instead. */
+	| "network:fetch:any"
+	/** @deprecated Use `content:read` instead. */
+	| "read:content"
+	/** @deprecated Use `content:write` instead. */
+	| "write:content"
+	/** @deprecated Use `media:read` instead. */
+	| "read:media"
+	/** @deprecated Use `media:write` instead. */
+	| "write:media"
+	/** @deprecated Use `users:read` instead. */
+	| "read:users"
+	/** @deprecated Use `hooks.email-transport:register` instead. */
+	| "email:provide"
+	/** @deprecated Use `hooks.email-events:register` instead. */
+	| "email:intercept"
+	/** @deprecated Use `hooks.page-fragments:register` instead. */
+	| "page:inject";
+
+/**
+ * Deprecated capability names that map to current names.
+ *
+ * These are accepted at every external boundary (manifest parse, definePlugin,
+ * adaptSandboxEntry) and silently normalized to the new names before reaching
+ * the runtime. The runtime never sees deprecated names.
+ *
+ * Authors are warned at `bundle` / `validate`, and hard-failed at `publish`.
+ */
+export type DeprecatedPluginCapability =
+	| "network:fetch"
+	| "network:fetch:any"
+	| "read:content"
+	| "write:content"
+	| "read:media"
+	| "write:media"
+	| "read:users"
+	| "email:provide"
+	| "email:intercept"
+	| "page:inject";
+
+/**
+ * Current (non-deprecated) capability names.
+ */
+export type CurrentPluginCapability = Exclude<PluginCapability, DeprecatedPluginCapability>;
+
+/**
+ * Mapping from deprecated capability names to their current replacements.
+ *
+ * Used by `normalizeCapability()` and the marketplace `diffCapabilities`
+ * helper to compare manifests across the rename without flagging spurious
+ * "capability changed" prompts on upgrade.
+ */
+export const CAPABILITY_RENAMES: Readonly<
+	Record<DeprecatedPluginCapability, CurrentPluginCapability>
+> = Object.freeze({
+	"network:fetch": "network:request",
+	"network:fetch:any": "network:request:unrestricted",
+	"read:content": "content:read",
+	"write:content": "content:write",
+	"read:media": "media:read",
+	"write:media": "media:write",
+	"read:users": "users:read",
+	"email:provide": "hooks.email-transport:register",
+	"email:intercept": "hooks.email-events:register",
+	"page:inject": "hooks.page-fragments:register",
+});
+
+/**
+ * Type guard: is this capability one of the deprecated legacy names?
+ *
+ * Uses an own-property check so that prototype keys like "toString" or
+ * "constructor" don't accidentally pass.
+ */
+export function isDeprecatedCapability(cap: string): cap is DeprecatedPluginCapability {
+	return Object.hasOwn(CAPABILITY_RENAMES, cap);
+}
+
+/**
+ * Normalize a capability string — deprecated names map to current names,
+ * current names pass through unchanged. Unknown strings are returned as-is
+ * so that downstream validators can produce a precise error.
+ */
+export function normalizeCapability(cap: string): string {
+	if (isDeprecatedCapability(cap)) {
+		return CAPABILITY_RENAMES[cap];
+	}
+	return cap;
+}
+
+/**
+ * Normalize an array of capabilities. Deduplicates by normalized name so
+ * that a plugin declaring both `read:content` and `content:read` ends up
+ * with a single `content:read` entry.
+ */
+export function normalizeCapabilities(caps: readonly string[]): string[] {
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const cap of caps) {
+		const normalized = normalizeCapability(cap);
+		if (!seen.has(normalized)) {
+			seen.add(normalized);
+			out.push(normalized);
+		}
+	}
+	return out;
+}
 
 // =============================================================================
 // Storage Types
@@ -162,14 +293,58 @@ export interface KVAccess {
 }
 
 /**
+ * SEO metadata for a content item, as stored in the core SEO panel.
+ *
+ * Only present on items in collections with `has_seo = 1`. For collections
+ * without SEO enabled, `ContentItem.seo` is `undefined`.
+ */
+export interface ContentItemSeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
+/**
+ * SEO input accepted by content write operations.
+ *
+ * All fields are optional — only fields that are present overwrite existing
+ * values. An empty object is treated as a no-op.
+ */
+export interface ContentItemSeoInput {
+	title?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	noIndex?: boolean;
+}
+
+/**
  * Content item returned from content API
  */
 export interface ContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
+	locale: string | null;
 	data: Record<string, unknown>;
+	/**
+	 * SEO metadata, populated when the collection has SEO enabled
+	 * (`has_seo = 1`). `undefined` for non-SEO collections.
+	 */
+	seo?: ContentItemSeo;
 	createdAt: string;
 	updatedAt: string;
+	publishedAt: string | null;
+}
+
+export interface ContentListWhere {
+	/** Exact match on `status` (e.g. `"published"`, `"draft"`). */
+	status?: string;
+	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
+	locale?: string;
 }
 
 /**
@@ -179,7 +354,20 @@ export interface ContentListOptions {
 	limit?: number;
 	cursor?: string;
 	orderBy?: Record<string, "asc" | "desc">;
+	where?: ContentListWhere;
 }
+
+/**
+ * Input accepted by `content.create` / `content.update`.
+ *
+ * Most entries are field slugs mapped to their values. The reserved `seo`
+ * key is extracted and routed to the core SEO panel (the `_emdash_seo`
+ * table), matching the shape accepted by the REST API. Passing `seo` for a
+ * collection that does not have SEO enabled throws a validation error.
+ */
+export type ContentWriteInput = Record<string, unknown> & {
+	seo?: ContentItemSeoInput;
+};
 
 /**
  * Content access interface - capability-gated
@@ -190,8 +378,8 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update?(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
 }
 
@@ -199,8 +387,8 @@ export interface ContentAccess {
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }
 
@@ -657,6 +845,8 @@ export interface ContentHookEvent {
 export interface ContentDeleteEvent {
 	id: string;
 	collection: string;
+	/** `true` when the content is permanently deleted (not just trashed). */
+	permanent: boolean;
 }
 
 /**
@@ -748,6 +938,17 @@ export type UninstallHandler = (event: UninstallEvent, ctx: PluginContext) => Pr
 export type PagePlacement = "head" | "body:start" | "body:end";
 
 /**
+ * A single breadcrumb trail item. Used by `PublicPageContext.breadcrumbs`
+ * so themes can publish breadcrumb trails that SEO plugins consume.
+ */
+export interface BreadcrumbItem {
+	/** Display name for this crumb (e.g. "Home", "Blog", "My Post"). */
+	name: string;
+	/** Absolute or root-relative URL for this crumb. */
+	url: string;
+}
+
+/**
  * Describes the page being rendered. Passed to page hooks so plugins
  * can decide what to contribute without fetching content themselves.
  */
@@ -757,7 +958,10 @@ export interface PublicPageContext {
 	locale: string | null;
 	kind: "content" | "custom";
 	pageType: string;
+	/** Full document title for the rendered page */
 	title: string | null;
+	/** Page-only title for OG/Twitter/JSON-LD headline output */
+	pageTitle?: string | null;
 	description: string | null;
 	canonical: string | null;
 	image: string | null;
@@ -781,6 +985,23 @@ export interface PublicPageContext {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/**
+	 * Optional breadcrumb trail for this page, root first. When set,
+	 * SEO plugins should use this verbatim rather than deriving a trail
+	 * from `path`. Themes typically populate this at the point they
+	 * build the context (e.g. from a content hierarchy walk, taxonomy
+	 * lookup, or per-`pageType` routing logic).
+	 *
+	 * Semantics for consumers:
+	 *   - `undefined` — theme has no opinion; consumer falls back to
+	 *     its own derivation.
+	 *   - `[]` — this page has no breadcrumbs (e.g. homepage); consumer
+	 *     should skip `BreadcrumbList` emission entirely.
+	 *   - Non-empty array — used verbatim for `BreadcrumbList` output.
+	 */
+	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 // ── page:metadata ───────────────────────────────────────────────
@@ -800,6 +1021,7 @@ export type PageMetadataLinkRel =
 	| "alternate"
 	| "author"
 	| "license"
+	| "nlweb"
 	| "site.standard.document";
 
 export type PageMetadataContribution =
@@ -1023,7 +1245,14 @@ export interface PluginDashboardWidget {
 /**
  * Settings field types (for admin UI generation)
  */
-export type SettingFieldType = "string" | "number" | "boolean" | "select" | "secret";
+export type SettingFieldType =
+	| "string"
+	| "number"
+	| "boolean"
+	| "select"
+	| "secret"
+	| "url"
+	| "email";
 
 export interface BaseSettingField {
 	type: SettingFieldType;
@@ -1059,12 +1288,26 @@ export interface SecretSettingField extends BaseSettingField {
 	type: "secret";
 }
 
+export interface UrlSettingField extends BaseSettingField {
+	type: "url";
+	default?: string;
+	placeholder?: string;
+}
+
+export interface EmailSettingField extends BaseSettingField {
+	type: "email";
+	default?: string;
+	placeholder?: string;
+}
+
 export type SettingField =
 	| StringSettingField
 	| NumberSettingField
 	| BooleanSettingField
 	| SelectSettingField
-	| SecretSettingField;
+	| SecretSettingField
+	| UrlSettingField
+	| EmailSettingField;
 
 /**
  * Block Kit element for block editing fields.
@@ -1089,6 +1332,15 @@ export interface PortableTextBlockConfig {
 	placeholder?: string;
 	/** Block Kit form fields for the editing UI. If declared, replaces the simple URL input. */
 	fields?: PortableTextBlockField[];
+	/**
+	 * Optional. Display category in the slash menu. Defaults to "Embeds".
+	 *
+	 * Plugin authors should pick a meaningful category that reflects what the
+	 * block actually is — e.g. "Sections", "Marketing", "Media", "Embeds",
+	 * "Layout". Blocks with the same category are grouped together in the
+	 * editor's slash menu.
+	 */
+	category?: string;
 }
 
 /**

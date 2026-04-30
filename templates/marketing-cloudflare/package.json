@@ -16,7 +16,9 @@
 		"@astrojs/cloudflare": "catalog:",
 		"@astrojs/react": "catalog:",
 		"@emdash-cms/cloudflare": "workspace:*",
+		"@iconify-json/ph": "catalog:",
 		"astro": "catalog:",
+		"astro-iconset": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",
 		"react-dom": "catalog:"
@@ -25,5 +27,11 @@
 		"@astrojs/check": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
 		"wrangler": "catalog:"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild",
+			"workerd"
+		]
 	}
 }

@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { listTablesLike } from "../dialect-helpers.js";
+import { withTransaction } from "../transaction.js";
 import type { BylineTable, Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import {
@@ -122,14 +123,12 @@ export class BylineRepository {
 
 		if (options?.cursor) {
 			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				query = query.where((eb) =>
-					eb.or([
-						eb("created_at", "<", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await query.execute();
@@ -197,7 +196,7 @@ export class BylineRepository {
 		const existing = await this.findById(id);
 		if (!existing) return false;
 
-		await this.db.transaction().execute(async (trx) => {
+		await withTransaction(this.db, async (trx) => {
 			await trx.deleteFrom("_emdash_content_bylines").where("byline_id", "=", id).execute();
 
 			await trx.deleteFrom("_emdash_bylines").where("id", "=", id).execute();

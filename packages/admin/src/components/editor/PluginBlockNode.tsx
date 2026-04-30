@@ -44,6 +44,10 @@ export interface PluginBlockDef {
 	placeholder?: string;
 	/** Block Kit form fields. If declared, replaces the simple URL input. */
 	fields?: Element[];
+	/**
+	 * Optional display category in the slash menu. Defaults to "Embeds" when omitted.
+	 */
+	category?: string;
 }
 
 // =============================================================================
@@ -254,7 +258,7 @@ function PluginBlockNodeView({
 				{/* Drag handle - appears in left gutter */}
 				<div
 					className={cn(
-						"absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
+						"absolute -start-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
 						selected && "opacity-100",
 					)}
 					data-drag-handle

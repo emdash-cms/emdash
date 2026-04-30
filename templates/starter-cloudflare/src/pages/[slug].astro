@@ -1,10 +1,10 @@
 ---
-import { getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
+import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
 	return Astro.redirect("/404");
@@ -28,6 +28,7 @@ const seo = getSeoMeta(page, {
 
 <Base
 	title={seo.title}
+	pageTitle={seo.ogTitle}
 	description={seo.description}
 	canonical={seo.canonical}
 	content={{ collection: "pages", id: page.data.id, slug }}

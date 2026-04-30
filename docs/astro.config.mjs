@@ -68,6 +68,7 @@ export default defineConfig({
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
 						{ label: "Authentication", slug: "guides/authentication" },
+						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
@@ -87,6 +88,7 @@ export default defineConfig({
 						{ label: "Plugin Settings", slug: "plugins/settings" },
 						{ label: "Admin UI Extensions", slug: "plugins/admin-ui" },
 						{ label: "Block Kit", slug: "plugins/block-kit" },
+						{ label: "Field Kit", slug: "plugins/field-kit" },
 						{ label: "API Routes", slug: "plugins/api-routes" },
 						{ label: "Sandbox & Security", slug: "plugins/sandbox" },
 						{ label: "Publishing Plugins", slug: "plugins/publishing" },
@@ -96,7 +98,10 @@ export default defineConfig({
 				{
 					label: "Contributing",
 					collapsed: true,
-					items: [{ label: "Contributor Guide", slug: "contributing" }],
+					items: [
+						{ label: "Contributor Guide", slug: "contributing" },
+						{ label: "Translating EmDash", slug: "contributing/translating" },
+					],
 				},
 
 				{

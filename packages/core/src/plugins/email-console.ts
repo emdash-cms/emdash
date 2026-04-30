@@ -24,8 +24,22 @@ export interface StoredEmail {
 	sentAt: string;
 }
 
-/** In-memory store for dev emails */
-const storedEmails: StoredEmail[] = [];
+/**
+ * In-memory store for dev emails.
+ * Uses globalThis so the same array is shared across Vite SSR module
+ * instances (the runtime and the route handler may load separate copies
+ * of this module, but globalThis is always the same object).
+ */
+const GLOBAL_KEY = Symbol.for("emdash:dev-emails");
+const g = globalThis as Record<symbol, unknown>;
+const storedEmails: StoredEmail[] = (() => {
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	const existing = g[GLOBAL_KEY] as StoredEmail[] | undefined;
+	if (existing) return existing;
+	const fresh: StoredEmail[] = [];
+	g[GLOBAL_KEY] = fresh;
+	return fresh;
+})();
 
 /**
  * Get all stored dev emails (most recent first).

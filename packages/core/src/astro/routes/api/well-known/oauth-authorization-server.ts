@@ -1,20 +1,23 @@
 /**
- * GET /_emdash/.well-known/oauth-authorization-server
+ * GET /.well-known/oauth-authorization-server/_emdash
  *
- * RFC 8414 Authorization Server Metadata. Tells MCP clients which
- * endpoints to use for OAuth authorization, token exchange, etc.
+ * RFC 8414 Authorization Server Metadata. The path follows the RFC 8414
+ * convention: the issuer's pathname (/_emdash) is appended after
+ * /.well-known/oauth-authorization-server, so MCP clients can discover
+ * it automatically from the authorization_servers URL.
  *
  * Public, unauthenticated.
  */
 
 import type { APIRoute } from "astro";
 
+import { getPublicOrigin } from "#api/public-url.js";
 import { VALID_SCOPES } from "#auth/api-tokens.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url }) => {
-	const origin = url.origin;
+export const GET: APIRoute = async ({ url, locals }) => {
+	const origin = getPublicOrigin(url, locals.emdash?.config);
 	const issuer = `${origin}/_emdash`;
 
 	return Response.json(
@@ -30,8 +33,8 @@ export const GET: APIRoute = async ({ url }) => {
 				"urn:ietf:params:oauth:grant-type:device_code",
 			],
 			code_challenge_methods_supported: ["S256"],
+			registration_endpoint: `${origin}/_emdash/api/oauth/register`,
 			token_endpoint_auth_methods_supported: ["none"],
-			client_id_metadata_document_supported: true,
 			device_authorization_endpoint: `${origin}/_emdash/api/oauth/device/code`,
 		},
 		{

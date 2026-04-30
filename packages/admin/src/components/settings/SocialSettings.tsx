@@ -5,14 +5,17 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
-import { ArrowLeft, FloppyDisk, CheckCircle, WarningCircle } from "@phosphor-icons/react";
+import { useLingui } from "@lingui/react/macro";
+import { FloppyDisk, CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
 
 export function SocialSettings() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 
 	const { data: settings, isLoading } = useQuery({
@@ -42,12 +45,12 @@ export function SocialSettings() {
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
-			setSaveStatus({ type: "success", message: "Social links saved" });
+			setSaveStatus({ type: "success", message: t`Social links saved` });
 		},
 		onError: (error) => {
 			setSaveStatus({
 				type: "error",
-				message: error instanceof Error ? error.message : "Failed to save settings",
+				message: error instanceof Error ? error.message : t`Failed to save settings`,
 			});
 		},
 	});
@@ -72,14 +75,14 @@ export function SocialSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label="Back to settings">
-							<ArrowLeft className="h-4 w-4" />
+						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
+							<ArrowPrev className="h-4 w-4" />
 						</Button>
 					</Link>
-					<h1 className="text-2xl font-bold">Social Links</h1>
+					<h1 className="text-2xl font-bold">{t`Social Links`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">Loading settings...</p>
+					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
 				</div>
 			</div>
 		);
@@ -90,11 +93,11 @@ export function SocialSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label="Back to settings">
-						<ArrowLeft className="h-4 w-4" />
+					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 				</Link>
-				<h1 className="text-2xl font-bold">Social Links</h1>
+				<h1 className="text-2xl font-bold">{t`Social Links`}</h1>
 			</div>
 
 			{/* Status banner */}
@@ -117,47 +120,46 @@ export function SocialSettings() {
 
 			<form onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-lg border bg-kumo-base p-6">
-					<h2 className="mb-4 text-lg font-semibold">Social Profiles</h2>
+					<h2 className="mb-4 text-lg font-semibold">{t`Social Profiles`}</h2>
 					<p className="text-sm text-kumo-subtle mb-6">
-						Add your social media profiles. These are available to your site's theme and can be
-						displayed in headers, footers, or author bios.
+						{t`Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios.`}
 					</p>
 					<div className="space-y-4">
 						<Input
-							label="Twitter"
+							label={t`Twitter`}
 							value={formData.social?.twitter || ""}
 							onChange={(e) => handleSocialChange("twitter", e.target.value)}
-							description="Your Twitter/X handle (e.g., @username)"
+							description={t`Your Twitter/X handle (e.g., @username)`}
 						/>
 						<Input
-							label="GitHub"
+							label={t`GitHub`}
 							value={formData.social?.github || ""}
 							onChange={(e) => handleSocialChange("github", e.target.value)}
-							description="Your GitHub username"
+							description={t`Your GitHub username`}
 						/>
 						<Input
-							label="Facebook"
+							label={t`Facebook`}
 							value={formData.social?.facebook || ""}
 							onChange={(e) => handleSocialChange("facebook", e.target.value)}
-							description="Your Facebook page or profile username"
+							description={t`Your Facebook page or profile username`}
 						/>
 						<Input
-							label="Instagram"
+							label={t`Instagram`}
 							value={formData.social?.instagram || ""}
 							onChange={(e) => handleSocialChange("instagram", e.target.value)}
-							description="Your Instagram username"
+							description={t`Your Instagram username`}
 						/>
 						<Input
-							label="LinkedIn"
+							label={t`LinkedIn`}
 							value={formData.social?.linkedin || ""}
 							onChange={(e) => handleSocialChange("linkedin", e.target.value)}
-							description="Your LinkedIn profile username"
+							description={t`Your LinkedIn profile username`}
 						/>
 						<Input
-							label="YouTube"
+							label={t`YouTube`}
 							value={formData.social?.youtube || ""}
 							onChange={(e) => handleSocialChange("youtube", e.target.value)}
-							description="Your YouTube channel ID or handle"
+							description={t`Your YouTube channel ID or handle`}
 						/>
 					</div>
 				</div>
@@ -165,7 +167,7 @@ export function SocialSettings() {
 				{/* Save Button */}
 				<div className="flex justify-end">
 					<Button type="submit" disabled={saveMutation.isPending} icon={<FloppyDisk />}>
-						{saveMutation.isPending ? "Saving..." : "Save Social Links"}
+						{saveMutation.isPending ? t`Saving...` : t`Save Social Links`}
 					</Button>
 				</div>
 			</form>

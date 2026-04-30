@@ -7,6 +7,7 @@ import { ulid } from "ulidx";
 
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database } from "../../database/types.js";
+import { invalidateTermCache } from "../../taxonomies/index.js";
 import type { ApiResult } from "../types.js";
 
 /** Taxonomy name validation pattern: lowercase alphanumeric + underscores, starts with letter */
@@ -121,16 +122,27 @@ export async function handleTaxonomyList(
 	db: Kysely<Database>,
 ): Promise<ApiResult<TaxonomyListResponse>> {
 	try {
-		const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
+		const [rows, collectionRows] = await Promise.all([
+			db.selectFrom("_emdash_taxonomy_defs").selectAll().execute(),
+			db.selectFrom("_emdash_collections").select("slug").execute(),
+		]);
 
-		const taxonomies: TaxonomyDef[] = rows.map((row) => ({
-			id: row.id,
-			name: row.name,
-			label: row.label,
-			labelSingular: row.label_singular ?? undefined,
-			hierarchical: row.hierarchical === 1,
-			collections: row.collections ? JSON.parse(row.collections) : [],
-		}));
+		// Filter orphan collection references on read so the response stays
+		// consistent with `schema_list_collections`. Storage is untouched —
+		// re-creating the collection re-links automatically.
+		const realCollections = new Set(collectionRows.map((r) => r.slug));
+
+		const taxonomies: TaxonomyDef[] = rows.map((row) => {
+			const stored: string[] = row.collections ? JSON.parse(row.collections) : [];
+			return {
+				id: row.id,
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular ?? undefined,
+				hierarchical: row.hierarchical === 1,
+				collections: stored.filter((slug) => realCollections.has(slug)),
+			};
+		});
 
 		return { success: true, data: { taxonomies } };
 	} catch {
@@ -259,12 +271,9 @@ export async function handleTermList(
 		const repo = new TaxonomyRepository(db);
 		const terms = await repo.findByName(taxonomyName);
 
-		// Get counts for each term
-		const counts = new Map<string, number>();
-		for (const term of terms) {
-			const count = await repo.countEntriesWithTerm(term.id);
-			counts.set(term.id, count);
-		}
+		// Batch count entries per term in a single query (replaces N+1 pattern)
+		const termIds = terms.map((t) => t.id);
+		const counts = await repo.countEntriesForTerms(termIds);
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,
@@ -290,6 +299,84 @@ export async function handleTermList(
 }
 
 /**
+ * Validate a parent term reference for create/update.
+ *
+ * Returns `null` on success or a structured error message that callers
+ * wrap in their own ApiResult.
+ *
+ *   - `parentId === undefined` -> no-op (no parent change requested).
+ *   - `parentId === null` -> caller intends to detach; no-op here.
+ *   - parent must exist (FK exists -> term row not soft-deleted).
+ *   - parent must live in the same taxonomy.
+ *   - if `termId` is provided (update path), reject `parentId === termId`
+ *     (self-parent) and walk up the parent chain to detect cycles.
+ */
+async function validateParentTerm(
+	repo: TaxonomyRepository,
+	taxonomyName: string,
+	termId: string | undefined,
+	parentId: string | null | undefined,
+): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
+	if (parentId === undefined || parentId === null) return null;
+
+	if (termId !== undefined && parentId === termId) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: "A term cannot be its own parent",
+		};
+	}
+
+	const parent = await repo.findById(parentId);
+	if (!parent) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: `Parent term '${parentId}' not found`,
+		};
+	}
+	if (parent.name !== taxonomyName) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: `Parent term '${parentId}' belongs to taxonomy '${parent.name}', not '${taxonomyName}'`,
+		};
+	}
+
+	// Walk up the parent chain. Two checks fold into one walk:
+	//   - Cycle detection (only on update — a non-existent term-being-
+	//     created can't be its own ancestor): if the walk revisits termId
+	//     the proposed parent makes the term a descendant of itself.
+	//   - Depth bound: refuse to extend a chain past MAX_DEPTH ancestors.
+	//     Runs on both create and update so a malicious or buggy caller
+	//     can't grow the tree without limit.
+	//
+	// The depth-exceeded error fires only when we hit the limit AND there
+	// was still chain to walk — a legitimate chain of exactly MAX_DEPTH
+	// ancestors exits with `cursor === null` and is accepted.
+	const MAX_DEPTH = 100;
+	let cursor: string | null = parent.parentId;
+	let steps = 0;
+	while (cursor !== null && steps < MAX_DEPTH) {
+		if (termId !== undefined && cursor === termId) {
+			return {
+				code: "VALIDATION_ERROR",
+				message: "Cycle detected: cannot make a descendant the parent",
+			};
+		}
+		const next = await repo.findById(cursor);
+		if (!next) break;
+		cursor = next.parentId;
+		steps++;
+	}
+	if (cursor !== null && steps >= MAX_DEPTH) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: "Parent chain exceeds maximum depth",
+		};
+	}
+
+	return null;
+}
+
+/**
  * Create a new term in a taxonomy
  */
 export async function handleTermCreate(
@@ -303,6 +390,10 @@ export async function handleTermCreate(
 
 		const repo = new TaxonomyRepository(db);
 
+		// Coerce empty-string parentId to undefined (treat as "no parent").
+		const parentId =
+			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+
 		// Check for slug conflict
 		const existing = await repo.findBySlug(taxonomyName, input.slug);
 		if (existing) {
@@ -315,13 +406,24 @@ export async function handleTermCreate(
 			};
 		}
 
+		// Validate parentId: must exist AND belong to the same taxonomy.
+		// (Cycle check is N/A on create — the term doesn't exist yet.)
+		const parentError = await validateParentTerm(repo, taxonomyName, undefined, parentId);
+		if (parentError) {
+			return { success: false, error: parentError };
+		}
+
 		const term = await repo.create({
 			name: taxonomyName,
 			slug: input.slug,
 			label: input.label,
-			parentId: input.parentId ?? undefined,
+			parentId: parentId ?? undefined,
 			data: input.description ? { description: input.description } : undefined,
 		});
+
+		// New term means `hasAnyTermAssignments` may flip from false->true next
+		// time an entry is tagged. Clear the cache so the next read re-probes.
+		invalidateTermCache();
 
 		return {
 			success: true,
@@ -421,26 +523,42 @@ export async function handleTermUpdate(
 			};
 		}
 
+		// Coerce empty-string slug/parentId to undefined (treat as "no change").
+		// `null` parentId is a valid request meaning "detach from parent".
+		const newSlug = input.slug === "" || input.slug === undefined ? undefined : input.slug;
+		const newParentId =
+			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+
 		// Check if new slug conflicts
-		if (input.slug && input.slug !== termSlug) {
-			const existing = await repo.findBySlug(taxonomyName, input.slug);
+		if (newSlug !== undefined && newSlug !== termSlug) {
+			const existing = await repo.findBySlug(taxonomyName, newSlug);
 			if (existing && existing.id !== term.id) {
 				return {
 					success: false,
 					error: {
 						code: "CONFLICT",
-						message: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
+						message: `Term with slug '${newSlug}' already exists in taxonomy '${taxonomyName}'`,
 					},
 				};
 			}
 		}
 
+		// Validate parentId: existence, same-taxonomy, no self-parent, no cycle.
+		const parentError = await validateParentTerm(repo, taxonomyName, term.id, newParentId);
+		if (parentError) {
+			return { success: false, error: parentError };
+		}
+
 		const updated = await repo.update(term.id, {
-			slug: input.slug,
+			slug: newSlug,
 			label: input.label,
-			parentId: input.parentId,
+			parentId: newParentId,
 			data: input.description !== undefined ? { description: input.description } : undefined,
 		});
+
+		// Term label/slug changes are reflected in hydrated entry.data.terms —
+		// invalidate so the next read doesn't short-circuit on a stale probe.
+		invalidateTermCache();
 
 		if (!updated) {
 			return {
@@ -512,6 +630,10 @@ export async function handleTermDelete(
 				error: { code: "TERM_DELETE_ERROR", message: "Failed to delete term" },
 			};
 		}
+
+		// Deleting a term cascades to content_taxonomies; invalidate so
+		// hydration no longer sees the stale assignments.
+		invalidateTermCache();
 
 		return { success: true, data: { deleted: true } };
 	} catch {

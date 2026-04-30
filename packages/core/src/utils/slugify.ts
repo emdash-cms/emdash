@@ -12,6 +12,17 @@ const TRAILING_HYPHEN_PATTERN = /-$/;
  * Handles unicode by normalizing to NFD and stripping diacritics,
  * so "café" becomes "cafe", "naïve" becomes "naive", etc.
  */
+/**
+ * Decode a URI-encoded slug parameter.
+ *
+ * Browsers percent-encode non-ASCII characters in URLs, so a slug like
+ * "మేష-రాసి" arrives as "%e0%b0%ae%e0%b1%87%e0%b0%b7-%e0%b0%b0%e0%b0%be%e0%b0%b8%e0%b0%bf".
+ * Call this on `Astro.params.slug` before using it in database lookups.
+ */
+export function decodeSlug(raw: string | undefined): string | undefined {
+	return raw ? decodeURIComponent(raw) : undefined;
+}
+
 export function slugify(text: string, maxLength: number = 80): string {
 	return (
 		text

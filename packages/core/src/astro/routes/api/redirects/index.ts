@@ -8,16 +8,19 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, unwrapResult } from "#api/error.js";
+import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleRedirectCreate, handleRedirectList } from "#api/handlers/redirects.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createRedirectBody, redirectsListQuery } from "#api/schemas.js";
+import { invalidateRedirectCache } from "#redirects/cache.js";
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
-	const db = emdash.db;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
+	const db = emdash!.db;
 
 	const denied = requirePerm(user, "redirects:read");
 	if (denied) return denied;
@@ -35,7 +38,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
-	const db = emdash.db;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
+	const db = emdash!.db;
 
 	const denied = requirePerm(user, "redirects:manage");
 	if (denied) return denied;
@@ -45,6 +50,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleRedirectCreate(db, body);
+		invalidateRedirectCache();
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create redirect", "REDIRECT_CREATE_ERROR");

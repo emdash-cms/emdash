@@ -1,3 +1,4 @@
+import { Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Gear,
@@ -8,16 +9,15 @@ import {
 	GlobeSimple,
 	Key,
 	Envelope,
-	CaretRight,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchManifest } from "../lib/api";
-import { cn } from "../lib/utils.js";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
+import { CaretNext } from "./ArrowIcons.js";
 
 interface SettingsLinkProps {
 	to: string;
@@ -39,7 +39,7 @@ function SettingsLink({ to, icon, title, description }: SettingsLinkProps) {
 					<div className="text-sm text-kumo-subtle">{description}</div>
 				</div>
 			</div>
-			<CaretRight className="h-5 w-5 text-kumo-subtle" />
+			<CaretNext className="h-5 w-5 text-kumo-subtle" />
 		</Link>
 	);
 }
@@ -130,22 +130,13 @@ export function Settings() {
 								<div className="text-sm text-kumo-subtle">{t`Choose your preferred admin language`}</div>
 							</div>
 						</div>
-						<div className="flex gap-1">
-							{SUPPORTED_LOCALES.map((l) => (
-								<button
-									key={l.code}
-									onClick={() => setLocale(l.code)}
-									className={cn(
-										"rounded-md px-3 py-1.5 text-sm transition-colors",
-										l.code === locale
-											? "bg-kumo-brand/10 text-kumo-brand font-medium"
-											: "hover:bg-kumo-tint",
-									)}
-								>
-									{l.label}
-								</button>
-							))}
-						</div>
+						<Select
+							aria-label={t`Language`}
+							className="w-45"
+							value={locale}
+							onValueChange={(v) => v && setLocale(v)}
+							items={Object.fromEntries(SUPPORTED_LOCALES.map((l) => [l.code, l.label]))}
+						/>
 					</div>
 				</div>
 			)}

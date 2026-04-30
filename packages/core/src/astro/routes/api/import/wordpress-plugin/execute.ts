@@ -15,7 +15,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { getSource } from "#import/index.js";
-import { validateExternalUrl, SsrfError } from "#import/ssrf.js";
+import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
 import { resolveImportByline } from "#import/utils.js";
 import type { FieldType } from "#schema/types.js";
@@ -49,9 +49,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, wpPluginExecuteBody);
 		if (isParseError(body)) return body;
 
-		// SSRF: reject internal/private network targets
+		// SSRF: reject internal/private network targets. Uses DNS resolution
+		// to catch hostnames that resolve to private addresses.
 		try {
-			validateExternalUrl(body.url);
+			await resolveAndValidateExternalUrl(body.url);
 		} catch (e) {
 			const msg = e instanceof SsrfError ? e.message : "Invalid URL";
 			return apiError("SSRF_BLOCKED", msg, 400);
@@ -286,6 +287,14 @@ async function importContent(
 				}
 			}
 
+			// Preserve original dates from the source
+			const itemDateTime = item.date?.getTime();
+			const createdAt =
+				itemDateTime !== undefined && !Number.isNaN(itemDateTime)
+					? item.date.toISOString()
+					: undefined;
+			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
 				data,
@@ -295,6 +304,8 @@ async function importContent(
 				bylines: bylineId ? [{ bylineId }] : undefined,
 				locale: item.locale,
 				translationOf,
+				createdAt,
+				publishedAt,
 			});
 
 			if (createResult.success) {
@@ -322,7 +333,7 @@ async function importContent(
 			console.error(`Import error for "${item.title || "Untitled"}":`, error);
 			result.errors.push({
 				title: item.title || "Untitled",
-				error: "Failed to import item",
+				error: error instanceof Error && error.message ? error.message : "Failed to import item",
 			});
 		}
 	}

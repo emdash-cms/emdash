@@ -14,6 +14,7 @@ import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
+import { validateIdentifier, validateJsonFieldName } from "./validate.js";
 
 export type { DatabaseDialectType };
 
@@ -90,6 +91,56 @@ export async function tableExists(db: Kysely<any>, tableName: string): Promise<b
 }
 
 /**
+ * Check if an index exists in the database.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export async function indexExists(db: Kysely<any>, indexName: string): Promise<boolean> {
+	if (isPostgres(db)) {
+		const result = await sql<{ exists: boolean }>`
+			SELECT EXISTS(
+				SELECT 1 FROM pg_indexes
+				WHERE schemaname = current_schema() AND indexname = ${indexName}
+			) as exists
+		`.execute(db);
+		return result.rows[0]?.exists === true;
+	}
+
+	const result = await sql<{ name: string }>`
+		SELECT name FROM sqlite_master
+		WHERE type = 'index' AND name = ${indexName}
+	`.execute(db);
+	return result.rows.length > 0;
+}
+
+/**
+ * Check if a column exists in the database.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export async function columnExists(
+	db: Kysely<any>,
+	tableName: string,
+	columnName: string,
+): Promise<boolean> {
+	if (isPostgres(db)) {
+		const result = await sql<{ exists: boolean }>`
+			SELECT EXISTS(
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = current_schema()
+					AND table_name = ${tableName}
+					AND column_name = ${columnName}
+			) as exists
+		`.execute(db);
+		return result.rows[0]?.exists === true;
+	}
+
+	const result = await sql<{ name: string }>`
+		SELECT name FROM pragma_table_info(${tableName})
+		WHERE name = ${columnName}
+	`.execute(db);
+	return result.rows.length > 0;
+}
+
+/**
  * List tables matching a LIKE pattern.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
@@ -131,6 +182,8 @@ export function binaryType(db: Kysely<any>): ColumnDataType {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function jsonExtractExpr(db: Kysely<any>, column: string, path: string): string {
+	validateIdentifier(column, "JSON column name");
+	validateJsonFieldName(path, "JSON path");
 	if (isPostgres(db)) {
 		return `${column}->>'${path}'`;
 	}

@@ -76,6 +76,12 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4617,
 		startupTimeoutMs: 120_000,
 	},
+	{
+		name: "templates/starter-cloudflare",
+		dir: resolve(WORKSPACE_ROOT, "templates/starter-cloudflare"),
+		port: 4618,
+		startupTimeoutMs: 120_000,
+	},
 ];
 
 async function waitForServer(url: string, timeoutMs: number): Promise<void> {
@@ -162,13 +168,72 @@ describe("Site build verification", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Helpers — shared server lifecycle for runtime tests
+// ---------------------------------------------------------------------------
+
+interface BootedServer {
+	baseUrl: string;
+	process: ReturnType<typeof spawn>;
+	output: string;
+}
+
+async function bootSite(site: SiteCase): Promise<BootedServer> {
+	await ensureBuilt();
+
+	// Remove stale database files so each run starts fresh.
+	for (const file of ["data.db", "data.db-wal", "data.db-shm"]) {
+		rmSync(join(site.dir, file), { force: true });
+	}
+
+	const baseUrl = `http://localhost:${site.port}`;
+	const serverProcess = spawn("pnpm", ["exec", "astro", "dev", "--port", String(site.port)], {
+		cwd: site.dir,
+		env: {
+			...process.env,
+			CI: "true",
+		},
+		stdio: "pipe",
+	});
+
+	let output = "";
+	serverProcess.stdout?.on("data", (data: Buffer) => {
+		output += data.toString();
+	});
+	serverProcess.stderr?.on("data", (data: Buffer) => {
+		output += data.toString();
+	});
+
+	const waitPath = site.waitPath ?? "/_emdash/admin/";
+	await waitForServer(`${baseUrl}${waitPath}`, site.startupTimeoutMs);
+
+	return {
+		baseUrl,
+		process: serverProcess,
+		get output() {
+			return output;
+		},
+	};
+}
+
+function killServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
+	serverProcess.kill("SIGTERM");
+	return new Promise((done) => {
+		setTimeout(() => {
+			if (!serverProcess.killed) {
+				serverProcess.kill("SIGKILL");
+			}
+			setTimeout(done, 500);
+		}, 1200);
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Runtime verification — boots each site with `astro dev` and checks that
 // admin + frontend respond.
 // ---------------------------------------------------------------------------
 
 describe.sequential("Site runtime verification", () => {
 	for (const site of SITE_MATRIX) {
-		const waitPath = site.waitPath ?? "/_emdash/admin/";
 		const setupPath = site.setupPath ?? "/_emdash/api/setup/dev-bypass?redirect=/";
 		const frontendPath = site.frontendPath ?? "/";
 		const frontendStatuses = site.frontendStatuses ?? [200, 302, 307, 308];
@@ -178,44 +243,18 @@ describe.sequential("Site runtime verification", () => {
 			`${site.name} boots and serves admin + frontend`,
 			{ timeout: site.startupTimeoutMs + 120_000 },
 			async () => {
-				await ensureBuilt();
-
-				// Remove stale database files so each run starts fresh.
-				// SQLite demos use data.db; WAL/SHM sidecars may also exist.
-				for (const file of ["data.db", "data.db-wal", "data.db-shm"]) {
-					rmSync(join(site.dir, file), { force: true });
-				}
-
-				const baseUrl = `http://localhost:${site.port}`;
-				const serverProcess = spawn("pnpm", ["exec", "astro", "dev", "--port", String(site.port)], {
-					cwd: site.dir,
-					env: {
-						...process.env,
-						CI: "true",
-					},
-					stdio: "pipe",
-				});
-
-				let output = "";
-				serverProcess.stdout?.on("data", (data: Buffer) => {
-					output += data.toString();
-				});
-				serverProcess.stderr?.on("data", (data: Buffer) => {
-					output += data.toString();
-				});
+				const server = await bootSite(site);
 
 				try {
-					await waitForServer(`${baseUrl}${waitPath}`, site.startupTimeoutMs);
-
 					if (setupPath) {
-						const setupRes = await fetchWithRetry(`${baseUrl}${setupPath}`);
+						const setupRes = await fetchWithRetry(`${server.baseUrl}${setupPath}`);
 						expect(setupRes.status).toBeLessThan(500);
 					}
 
-					const adminRes = await fetchWithRetry(`${baseUrl}/_emdash/admin/`);
+					const adminRes = await fetchWithRetry(`${server.baseUrl}/_emdash/admin/`);
 					expect(adminRes.status).toBeLessThan(500);
 
-					const frontendRes = await fetchWithRetry(`${baseUrl}${frontendPath}`);
+					const frontendRes = await fetchWithRetry(`${server.baseUrl}${frontendPath}`);
 					expect(frontendStatuses).toContain(frontendRes.status);
 
 					const body = await frontendRes.text();
@@ -225,18 +264,167 @@ describe.sequential("Site runtime verification", () => {
 				} catch (error) {
 					throw new Error(
 						`${site.name} smoke failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
-							output.slice(-3000),
+							server.output.slice(-3000),
 						{ cause: error },
 					);
 				} finally {
-					serverProcess.kill("SIGTERM");
-					await new Promise((resolveSleep) => setTimeout(resolveSleep, 1200));
-					if (!serverProcess.killed) {
-						serverProcess.kill("SIGKILL");
-						await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
-					}
+					await killServer(server.process);
 				}
 			},
 		);
 	}
 });
+
+// ---------------------------------------------------------------------------
+// MCP endpoint verification — boots one Node and one Cloudflare site, gets a
+// bearer token, and verifies the MCP server responds to tools/list.
+// ---------------------------------------------------------------------------
+
+const MCP_SITES: SiteCase[] = SITE_MATRIX.filter(
+	(s) => s.name === "templates/blog" || s.name === "templates/starter-cloudflare",
+);
+
+describe.sequential("MCP endpoint verification", () => {
+	for (const site of MCP_SITES) {
+		it(
+			`${site.name} MCP tools/list responds with tools`,
+			{ timeout: site.startupTimeoutMs + 120_000 },
+			async () => {
+				const server = await bootSite(site);
+
+				try {
+					// Run dev-bypass with ?token=1 to get a bearer token
+					const setupRes = await fetchWithRetry(
+						`${server.baseUrl}/_emdash/api/setup/dev-bypass?token=1`,
+					);
+					expect(setupRes.status).toBeLessThan(500);
+
+					const setupBody = (await setupRes.json()) as {
+						data?: { token?: string };
+					};
+					const token = setupBody.data?.token;
+					expect(token).toBeTruthy();
+
+					// Send MCP initialize
+					const initRes = await fetch(`${server.baseUrl}/_emdash/api/mcp`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Accept: "application/json, text/event-stream",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							jsonrpc: "2.0",
+							method: "initialize",
+							params: {
+								protocolVersion: "2025-03-26",
+								capabilities: {},
+								clientInfo: { name: "smoke-test", version: "1.0" },
+							},
+							id: 1,
+						}),
+					});
+					expect(initRes.status).toBe(200);
+
+					// Parse SSE response to extract JSON
+					const initText = await initRes.text();
+					const initData = parseSSE(initText);
+					expect(initData).toHaveProperty("result.serverInfo.name", "emdash");
+
+					// Send initialized notification + tools/list in one request
+					// (stateless mode — each request is independent, so we send
+					// the full sequence: notifications/initialized then tools/list)
+					const listRes = await fetch(`${server.baseUrl}/_emdash/api/mcp`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Accept: "application/json, text/event-stream",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify([
+							{
+								jsonrpc: "2.0",
+								method: "notifications/initialized",
+							},
+							{
+								jsonrpc: "2.0",
+								method: "tools/list",
+								params: {},
+								id: 2,
+							},
+						]),
+					});
+					expect(listRes.status).toBe(200);
+
+					const listText = await listRes.text();
+					const listData = parseSSE(listText);
+					expect(listData).toHaveProperty("result.tools");
+					const tools = (listData as { result: { tools: unknown[] } }).result.tools;
+					expect(tools.length).toBeGreaterThan(0);
+
+					// Verify some expected tools exist
+					const toolNames = tools.map((t: unknown) => (t as { name: string }).name);
+					expect(toolNames).toContain("content_list");
+					expect(toolNames).toContain("schema_list_collections");
+
+					// Send 14 concurrent tools/list calls and verify all succeed —
+					// guards against an auth-middleware race observed in production
+					// where parallel requests on the same authenticated session
+					// occasionally returned spurious 401s. The InMemoryTransport
+					// integration test cannot reach this code path; only a live
+					// HTTP server exercises the auth middleware that's racy.
+					const concurrentResponses = await Promise.all(
+						Array.from({ length: 14 }, (_, i) =>
+							fetch(`${server.baseUrl}/_emdash/api/mcp`, {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+									Accept: "application/json, text/event-stream",
+									Authorization: `Bearer ${token}`,
+								},
+								body: JSON.stringify([
+									{ jsonrpc: "2.0", method: "notifications/initialized" },
+									{
+										jsonrpc: "2.0",
+										method: "tools/list",
+										params: {},
+										id: 100 + i,
+									},
+								]),
+							}),
+						),
+					);
+
+					const statusCodes = concurrentResponses.map((r) => r.status);
+					const failedStatuses = statusCodes.filter((s) => s !== 200);
+					expect(
+						failedStatuses,
+						`expected all 14 concurrent calls to return 200; got: ${statusCodes.join(",")}`,
+					).toEqual([]);
+				} catch (error) {
+					throw new Error(
+						`${site.name} MCP smoke failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+							server.output.slice(-3000),
+						{ cause: error },
+					);
+				} finally {
+					await killServer(server.process);
+				}
+			},
+		);
+	}
+});
+
+/**
+ * Parse the first JSON-RPC message from an SSE text response.
+ * MCP stateless mode returns `event: message\ndata: {...}\n\n`.
+ */
+function parseSSE(text: string): unknown {
+	for (const line of text.split("\n")) {
+		if (line.startsWith("data: ")) {
+			return JSON.parse(line.slice(6));
+		}
+	}
+	// Fall back to parsing as plain JSON (non-SSE response)
+	return JSON.parse(text);
+}

@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
+
+import { render } from "../utils/render.tsx";
 
 // Mock API
+let mockSeedInfo: any = null;
+
 vi.mock("../../src/lib/api/client", async () => {
 	const actual = await vi.importActual("../../src/lib/api/client");
 	return {
@@ -11,9 +14,18 @@ vi.mock("../../src/lib/api/client", async () => {
 		apiFetch: vi.fn().mockImplementation((url: string) => {
 			if (url.includes("/setup/status")) {
 				return Promise.resolve(
-					new Response(JSON.stringify({ data: { needsSetup: true, authMode: "passkey" } }), {
-						status: 200,
-					}),
+					new Response(
+						JSON.stringify({
+							data: {
+								needsSetup: true,
+								authMode: "passkey",
+								...(mockSeedInfo ? { seedInfo: mockSeedInfo } : {}),
+							},
+						}),
+						{
+							status: 200,
+						},
+					),
 				);
 			}
 			if (url.includes("/setup/admin")) {
@@ -50,6 +62,7 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 describe("SetupWizard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockSeedInfo = null;
 	});
 
 	it("shows site setup step first with title input", async () => {
@@ -133,6 +146,99 @@ describe("SetupWizard", () => {
 		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
 		// Step indicator labels - use exact matching via role
 		await expect.element(screen.getByText("Account")).toBeInTheDocument();
-		await expect.element(screen.getByText("Passkey")).toBeInTheDocument();
+		await expect.element(screen.getByText("Sign In")).toBeInTheDocument();
+	});
+
+	it("prefills title and tagline from seedInfo", async () => {
+		mockSeedInfo = {
+			name: "Blog Template",
+			description: "A blog template",
+			collections: 2,
+			hasContent: true,
+			title: "My Awesome Blog",
+			tagline: "Thoughts and tutorials",
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+
+		const titleInput = screen.getByPlaceholder("My Awesome Blog");
+		const taglineInput = screen.getByPlaceholder("Thoughts, tutorials, and more");
+
+		await vi.waitFor(() => {
+			expect((titleInput.element() as HTMLInputElement).value).toBe("My Awesome Blog");
+		});
+		await vi.waitFor(() => {
+			expect((taglineInput.element() as HTMLInputElement).value).toBe("Thoughts and tutorials");
+		});
+	});
+
+	it("uses empty string for title and tagline when not in seedInfo", async () => {
+		mockSeedInfo = {
+			name: "Blank Template",
+			description: "A blank template",
+			collections: 0,
+			hasContent: false,
+			// title and tagline not provided
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+
+		const titleInput = screen.getByPlaceholder("My Awesome Blog");
+		const taglineInput = screen.getByPlaceholder("Thoughts, tutorials, and more");
+
+		await vi.waitFor(() => {
+			expect((titleInput.element() as HTMLInputElement).value).toBe("");
+		});
+		await vi.waitFor(() => {
+			expect((taglineInput.element() as HTMLInputElement).value).toBe("");
+		});
+	});
+
+	it("prefilled title can be edited and submitted", async () => {
+		mockSeedInfo = {
+			name: "Blog Template",
+			description: "A blog template",
+			collections: 2,
+			hasContent: true,
+			title: "My Awesome Blog",
+			tagline: "Thoughts and tutorials",
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+
+		const titleInput = screen.getByPlaceholder("My Awesome Blog");
+		await vi.waitFor(() => {
+			expect((titleInput.element() as HTMLInputElement).value).toBe("My Awesome Blog");
+		});
+
+		// Edit the title
+		await titleInput.fill("My Custom Blog");
+		await vi.waitFor(() => {
+			expect((screen.getByPlaceholder("My Awesome Blog").element() as HTMLInputElement).value).toBe(
+				"My Custom Blog",
+			);
+		});
+
+		// Should be able to advance with the edited value
+		await screen.getByText("Continue →").click();
+		await expect.element(screen.getByText("Create your account")).toBeInTheDocument();
 	});
 });

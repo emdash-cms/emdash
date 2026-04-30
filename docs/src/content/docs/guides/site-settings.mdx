@@ -184,16 +184,17 @@ const {
   image,
 } = Astro.props;
 
-const pageTitle = title
+const documentTitle = title
   ? `${title} | ${settings.title}`
   : settings.title;
+const ogTitle = title ?? settings.title;
 ---
 
-<title>{pageTitle}</title>
+<title>{documentTitle}</title>
 {description && <meta name="description" content={description} />}
 
 <!-- Open Graph -->
-<meta property="og:title" content={pageTitle} />
+<meta property="og:title" content={ogTitle} />
 {description && <meta property="og:description" content={description} />}
 {image && <meta property="og:image" content={image} />}
 {settings.url && <meta property="og:url" content={settings.url + Astro.url.pathname} />}

@@ -11,11 +11,59 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { peekRequestCache, requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
 import type { SiteSettings, SiteSettingKey, MediaReference } from "./types.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
+
+/**
+ * Worker-isolate cache for the resolved `site:*` settings.
+ *
+ * Site settings (title, logo, SEO defaults) change rarely but are read on
+ * every public request. Caching across the isolate's lifetime drops the
+ * `options WHERE name LIKE 'site:%'` prefix scan from once-per-request to
+ * once-per-isolate. Cross-isolate staleness is bounded by isolate lifetime
+ * (workerd typically recycles within minutes); acceptable for chrome.
+ *
+ * Stored on globalThis with a Symbol.for key so Vite SSR chunk duplication
+ * doesn't produce two independent caches (same pattern as request-context.ts).
+ *
+ * Invalidation: every `site:*` write bumps `version`. Reads compare the
+ * cached promise's version against the current version and refetch on
+ * mismatch. Caching the promise (not the resolved value) lets concurrent
+ * cold-isolate readers share the in-flight query.
+ */
+interface SiteSettingsHolder {
+	version: number;
+	cached: Promise<Partial<SiteSettings>> | null;
+	cachedVersion: number;
+}
+
+const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings");
+const g = globalThis as Record<symbol, unknown>;
+const holder: SiteSettingsHolder =
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	(g[SITE_SETTINGS_CACHE_KEY] as SiteSettingsHolder | undefined) ??
+	(() => {
+		const h: SiteSettingsHolder = { version: 0, cached: null, cachedVersion: -1 };
+		g[SITE_SETTINGS_CACHE_KEY] = h;
+		return h;
+	})();
+
+/**
+ * Bump the isolate-wide site-settings cache version, forcing the next
+ * `getSiteSettings()` to re-query the database.
+ *
+ * Called from every `site:*` write path. Other isolates still serve their
+ * own cached copy until they expire — staleness bounded by isolate lifetime.
+ */
+export function invalidateSiteSettingsCache(): void {
+	holder.version++;
+	holder.cached = null;
+	holder.cachedVersion = -1;
+}
 
 /**
  * Type guard for MediaReference values
@@ -75,8 +123,24 @@ async function resolveMediaReference(
 export async function getSiteSetting<K extends SiteSettingKey>(
 	key: K,
 ): Promise<SiteSettings[K] | undefined> {
-	const db = await getDb();
-	return getSiteSettingWithDb(key, db);
+	// If `getSiteSettings()` has already been called in this request,
+	// read from that (request-cached) batch rather than firing a second
+	// options-table query. Common layout: a Base template pulls the
+	// whole settings object up-front, then `EmDashHead` or a plugin
+	// asks for one key — no reason the singular call should round-trip
+	// again.
+	const primed = peekRequestCache<Partial<SiteSettings>>("siteSettings");
+	if (primed) {
+		const settings = await primed;
+		return settings[key];
+	}
+
+	// Otherwise cache per-key. Templates that pull several settings
+	// independently still share the in-flight query for each one.
+	return requestCached(`siteSetting:${key}`, async () => {
+		const db = await getDb();
+		return getSiteSettingWithDb(key, db);
+	});
 }
 
 /**
@@ -124,9 +188,26 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
  * console.log(settings.logo?.url); // "/_emdash/api/media/file/abc123"
  * ```
  */
-export async function getSiteSettings(): Promise<Partial<SiteSettings>> {
-	const db = await getDb();
-	return getSiteSettingsWithDb(db);
+export function getSiteSettings(): Promise<Partial<SiteSettings>> {
+	return requestCached("siteSettings", () => {
+		const versionAtCall = holder.version;
+		if (holder.cached && holder.cachedVersion === versionAtCall) {
+			return holder.cached;
+		}
+		const fetchPromise = (async () => {
+			const db = await getDb();
+			return getSiteSettingsWithDb(db);
+		})().catch((error) => {
+			if (holder.cached === fetchPromise) {
+				holder.cached = null;
+				holder.cachedVersion = -1;
+			}
+			throw error;
+		});
+		holder.cached = fetchPromise;
+		holder.cachedVersion = versionAtCall;
+		return fetchPromise;
+	});
 }
 
 /**
@@ -199,7 +280,11 @@ export async function setSiteSettings(
 		}
 	}
 
-	await options.setMany(updates);
+	try {
+		await options.setMany(updates);
+	} finally {
+		invalidateSiteSettingsCache();
+	}
 }
 
 /**

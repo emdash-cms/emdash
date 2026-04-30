@@ -1,9 +1,9 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
 const HAS_MORE_ITEMS_PATTERN = /21\+ items/;
@@ -454,6 +454,69 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Post 20")).toBeInTheDocument();
 			// Post 0 should not be visible
 			expect(screen.getByText("Post 0").query()).toBeNull();
+		});
+	});
+
+	describe("sortable headers", () => {
+		it("calls onSortChange when a header is clicked", async () => {
+			const onSortChange = vi.fn();
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "updatedAt", direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Title" }).click();
+
+			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "desc" });
+		});
+
+		it("toggles direction when clicking the active column", async () => {
+			const onSortChange = vi.fn();
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "title", direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Title" }).click();
+
+			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "asc" });
+		});
+
+		it("exposes sort state via aria-sort on the active header", async () => {
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "title", direction: "asc" }}
+					onSortChange={vi.fn()}
+				/>,
+			);
+
+			const titleHeader = screen.getByRole("columnheader", { name: "Title" });
+			const statusHeader = screen.getByRole("columnheader", { name: "Status" });
+			await expect.element(titleHeader).toHaveAttribute("aria-sort", "ascending");
+			// Inactive columns explicitly advertise "none" so the header still
+			// announces as sortable.
+			await expect.element(statusHeader).toHaveAttribute("aria-sort", "none");
+		});
+
+		it("falls back to static headers when onSortChange is not provided", async () => {
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+
+			// The header must not render as a button — it's just a label.
+			expect(screen.getByRole("button", { name: "Title" }).query()).toBeNull();
 		});
 	});
 });

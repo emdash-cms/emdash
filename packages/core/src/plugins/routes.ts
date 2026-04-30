@@ -50,10 +50,12 @@ export interface InvokeRouteOptions {
 export class PluginRouteHandler {
 	private contextFactory: PluginContextFactory;
 	private plugin: ResolvedPlugin;
+	private trustedProxyHeaders: string[];
 
 	constructor(plugin: ResolvedPlugin, factoryOptions: PluginContextFactoryOptions) {
 		this.plugin = plugin;
 		this.contextFactory = new PluginContextFactory(factoryOptions);
+		this.trustedProxyHeaders = factoryOptions.trustedProxyHeaders ?? [];
 	}
 
 	/**
@@ -99,7 +101,7 @@ export class PluginRouteHandler {
 			...baseContext,
 			input: validatedInput,
 			request: options.request,
-			requestMeta: extractRequestMeta(options.request),
+			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 		};
 
 		// Execute handler
@@ -124,13 +126,13 @@ export class PluginRouteHandler {
 				};
 			}
 
-			// Unknown error
-			const message = error instanceof Error ? error.message : String(error);
+			// Unknown error -- log internally, return generic message
+			console.error(`[plugin:${this.plugin.id}] Route handler failed:`, error);
 			return {
 				success: false,
 				error: {
 					code: "INTERNAL_ERROR",
-					message: `Route handler failed: ${message}`,
+					message: "An internal error occurred",
 				},
 				status: 500,
 			};

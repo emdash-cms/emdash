@@ -13,6 +13,7 @@ export {
 	type FindManyResult,
 	type AdminManifest,
 	fetchManifest,
+	fetchAuthMode,
 } from "./client.js";
 
 // Content CRUD and revisions
@@ -114,6 +115,7 @@ export {
 	type CreateAllowedDomainInput,
 	type UpdateAllowedDomainInput,
 	type SignupVerifyResult,
+	type InviteVerifyResult,
 	fetchUsers,
 	fetchUser,
 	updateUser,
@@ -121,6 +123,7 @@ export {
 	disableUser,
 	enableUser,
 	inviteUser,
+	validateInviteToken,
 	fetchPasskeys,
 	renamePasskey,
 	deletePasskey,
@@ -257,6 +260,7 @@ export {
 	type ApiTokenInfo,
 	type ApiTokenCreateResult,
 	type CreateApiTokenInput,
+	type ApiTokenScopeValue,
 	API_TOKEN_SCOPES,
 	fetchApiTokens,
 	createApiToken,

@@ -10,6 +10,7 @@ export const prerender = false;
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { setupBody } from "#api/schemas.js";
 import { getAuthMode } from "#auth/mode.js";
 import { runMigrations } from "#db/migrations/runner.js";
@@ -18,7 +19,7 @@ import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, url, locals }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
@@ -80,7 +81,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// 5. Store setup state
 		// In external auth mode, mark setup complete immediately (first user to login becomes admin)
-		// In passkey mode, setup_complete is set after admin user is created
+		// Otherwise, setup_complete is set after admin user is created (passkey or auth provider)
 		const authMode = getAuthMode(emdash.config);
 		const useExternalAuth = authMode.type === "external";
 
@@ -88,9 +89,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			const options = new OptionsRepository(emdash.db);
 
 			// Store the canonical site URL from the setup request.
-			// This is trusted because setup runs on the real domain.
-			const siteUrl = new URL(request.url).origin;
-			await options.set("emdash:site_url", siteUrl);
+			// Write-once at the DB level so concurrent setup POSTs can't both
+			// observe an empty value and race to write. A spoofed Host header
+			// on a later call during the wizard window must not be able to
+			// replace the first value.
+			const siteUrl = getPublicOrigin(url, emdash.config);
+			await options.setIfAbsent("emdash:site_url", siteUrl);
 
 			if (useExternalAuth) {
 				// External auth mode: mark setup complete now
@@ -101,7 +105,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 					await options.set("emdash:site_tagline", body.tagline);
 				}
 			} else {
-				// Passkey mode: store state for next step (admin creation)
+				// Passkey/provider mode: store state for next step (admin creation)
 				await options.set("emdash:setup_state", {
 					step: "site_complete",
 					title: body.title,

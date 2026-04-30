@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { render } from "../utils/render.js";
+import { render } from "../utils/render.tsx";
 
 // Mock router
 vi.mock("@tanstack/react-router", async () => {
@@ -18,20 +18,16 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
-// Mock API — keep a reference so tests can override fetchManifest
-const mockFetchManifest = vi.fn().mockResolvedValue({
+// Mock API — keep a reference so tests can override fetchAuthMode
+const mockFetchAuthMode = vi.fn().mockResolvedValue({
 	authMode: "passkey",
-	collections: {},
-	plugins: {},
-	version: "1",
-	hash: "",
 });
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
 	return {
 		...actual,
-		fetchManifest: (...args: unknown[]) => mockFetchManifest(...args),
+		fetchAuthMode: (...args: unknown[]) => mockFetchAuthMode(...args),
 		apiFetch: vi
 			.fn()
 			.mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 })),
@@ -132,12 +128,8 @@ describe("LoginPage", () => {
 	});
 
 	it("shows sign up link when signup is enabled", async () => {
-		mockFetchManifest.mockResolvedValueOnce({
+		mockFetchAuthMode.mockResolvedValueOnce({
 			authMode: "passkey",
-			collections: {},
-			plugins: {},
-			version: "1",
-			hash: "",
 			signupEnabled: true,
 		});
 

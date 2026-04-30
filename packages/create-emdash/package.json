@@ -1,6 +1,6 @@
 {
   "name": "create-emdash",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "description": "Create a new EmDash CMS project",
   "type": "module",
   "bin": "./dist/index.mjs",
@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
+    "test": "vitest run",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
@@ -20,7 +21,8 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "keywords": [
     "create",

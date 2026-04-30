@@ -5,6 +5,7 @@
  */
 
 import { Loader, Toast } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,11 +22,12 @@ import * as React from "react";
 
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
-import { ContentList } from "./components/ContentList";
+import { ContentList, type ContentListSort } from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
 import { MarketplacePluginDetail } from "./components/MarketplacePluginDetail";
@@ -33,7 +35,6 @@ import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
-import type { PluginBlockDef } from "./components/PortableTextEditor";
 import { Redirects } from "./components/Redirects";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
@@ -93,12 +94,13 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
-	type AdminManifest,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
 	type BylineCreditInput,
 	type ContentSeoInput,
+	type ContentItem,
+	type Revision,
 } from "./lib/api";
 import {
 	fetchComments,
@@ -109,6 +111,7 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { usePluginPage } from "./lib/plugin-context";
+import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
 import { UsersPage } from "./routes/users";
@@ -116,6 +119,46 @@ import { UsersPage } from "./routes/users";
 // Router context type
 interface RouterContext {
 	queryClient: QueryClient;
+}
+
+function patchAutosaveQueries(
+	queryClient: QueryClient,
+	params: {
+		collection: string;
+		id: string;
+		savedItem: ContentItem;
+		payload: {
+			data?: Record<string, unknown>;
+			slug?: string;
+		};
+	},
+) {
+	const { collection, id, savedItem, payload } = params;
+	const draftRevisionId = savedItem.draftRevisionId;
+
+	if (draftRevisionId) {
+		queryClient.setQueryData<Revision>(["revision", draftRevisionId], (existing) => {
+			const nextData: Record<string, unknown> = {
+				...existing?.data,
+				...payload.data,
+			};
+
+			if (payload.slug !== undefined) {
+				nextData._slug = payload.slug;
+			}
+
+			return {
+				id: draftRevisionId,
+				collection,
+				entryId: id,
+				data: nextData,
+				authorId: existing?.authorId ?? savedItem.authorId,
+				createdAt: existing?.createdAt ?? savedItem.updatedAt,
+			};
+		});
+	}
+
+	queryClient.setQueryData<ContentItem>(["content", collection, id], savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -149,6 +192,16 @@ const signupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/signup",
 	component: SignupPage,
+});
+
+// Invite accept route (standalone, no Shell)
+const inviteAcceptRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/invite/accept",
+	component: InviteAcceptPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		token: typeof search.token === "string" ? search.token : undefined,
+	}),
 });
 
 // Device authorization route (standalone, no Shell)
@@ -242,14 +295,23 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
+	// Controlled sort state — passed to the list, and included in the query
+	// key so changing direction invalidates the current cursor chain.
+	const [sort, setSort] = React.useState<ContentListSort>({
+		field: "updatedAt",
+		direction: "desc",
+	});
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale }],
+			queryKey: ["content", collection, { locale: activeLocale, sort }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam,
 					limit: 100,
+					orderBy: sort.field,
+					order: sort.direction,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -320,6 +382,10 @@ function ContentListPage() {
 		},
 	});
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -343,10 +409,6 @@ function ContentListPage() {
 		});
 	};
 
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
-
 	return (
 		<ContentList
 			collection={collection}
@@ -366,21 +428,10 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			sort={sort}
+			onSortChange={setSort}
 		/>
 	);
-}
-
-/** Extract plugin block definitions from the manifest for Portable Text editor */
-function getPluginBlocks(manifest: AdminManifest): PluginBlockDef[] {
-	const blocks: PluginBlockDef[] = [];
-	for (const [pluginId, plugin] of Object.entries(manifest.plugins)) {
-		if (plugin.portableTextBlocks) {
-			for (const block of plugin.portableTextBlocks) {
-				blocks.push({ ...block, pluginId });
-			}
-		}
-	}
-	return blocks;
 }
 
 // Content new route
@@ -658,16 +709,19 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 		}) => updateContent(collection, id, { ...data, skipRevision: true }),
-		onSuccess: () => {
+		onSuccess: (savedItem, variables) => {
+			patchAutosaveQueries(queryClient, {
+				collection,
+				id,
+				savedItem,
+				payload: {
+					data: variables.data,
+					slug: variables.slug,
+				},
+			});
 			setLastAutosaveAt(new Date());
-			// Invalidate content and draft revision so stale cached data
-			// doesn't overwrite the form via the sync effect
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
-			if (rawItem?.draftRevisionId) {
-				void queryClient.invalidateQueries({
-					queryKey: ["revision", rawItem.draftRevisionId],
-				});
-			}
+			// Keep the cache fresh without refetching older server state back into the form
+			// while the user is still typing.
 		},
 		onError: (err) => {
 			toastManager.add({
@@ -1429,6 +1483,8 @@ const contentTypesEditRoute = createRoute({
 function ContentTypesEditPage() {
 	const { slug } = useParams({ from: "/_admin/content-types/$slug" });
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
+	const { t } = useLingui();
 
 	const {
 		data: collection,
@@ -1468,6 +1524,13 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (mutationError) => {
+			toastManager.add({
+				title: t`Failed to save`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				type: "error",
+			});
 		},
 	});
 
@@ -1605,6 +1668,7 @@ const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
 	signupRoute,
+	inviteAcceptRoute,
 	deviceRoute,
 	adminRoutes,
 ]);

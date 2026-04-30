@@ -34,7 +34,9 @@
 	--color-kumo-brand: #2271b1;
 	--color-kumo-brand-hover: #135e96;
 	--text-color-kumo-brand: #2271b1;
+}
 
+[data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
 	--color-kumo-base: #ffffff;
 	--color-kumo-elevated: #f0f0f1;
@@ -72,6 +74,30 @@
 	--text-color-kumo-warning: #dba617;
 }
 
+/**
+ * Admin font stack
+ *
+ * --font-emdash is set by the Astro Font API (Noto Sans by default).
+ * To add extra script coverage (Arabic, CJK, etc.), configure EmDash with
+ * emdash({ fonts: { scripts: [...] } }) rather than adding another font entry
+ * that targets --font-emdash. If you need to supply your own font entry and
+ * CSS variable instead, disable EmDash-managed fonts first with fonts: false.
+ *
+ * Override Tailwind's --font-sans so all font-sans utilities use it.
+ */
+@theme {
+	--font-sans: var(
+		--font-emdash,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
+}
+
 /* Base styles */
 * {
 	border-color: var(--color-kumo-line);
@@ -79,6 +105,12 @@
 
 body {
 	background-color: var(--color-kumo-elevated);
+	color: var(--text-color-kumo-default);
+}
+
+/* Fix text selection contrast */
+::selection {
+	background-color: var(--color-kumo-interact);
 	color: var(--text-color-kumo-default);
 }
 

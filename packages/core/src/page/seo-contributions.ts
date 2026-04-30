@@ -10,6 +10,7 @@
  */
 
 import type { PageMetadataContribution, PublicPageContext } from "../plugins/types.js";
+import type { SeoSettings } from "../settings/types.js";
 import { buildBlogPostingJsonLd, buildWebSiteJsonLd } from "./jsonld.js";
 
 /**
@@ -20,7 +21,7 @@ export function generateBaseSeoContributions(page: PublicPageContext): PageMetad
 	const contributions: PageMetadataContribution[] = [];
 
 	const description = page.description;
-	const ogTitle = page.seo?.ogTitle || page.title;
+	const ogTitle = page.seo?.ogTitle ?? page.pageTitle ?? page.title;
 	const ogDescription = page.seo?.ogDescription || description;
 	const ogImage = page.seo?.ogImage || page.image;
 	const robots = page.seo?.robots;
@@ -130,6 +131,41 @@ export function generateBaseSeoContributions(page: PublicPageContext): PageMetad
 		if (webSite) {
 			contributions.push({ kind: "jsonld", id: "primary", graph: webSite });
 		}
+	}
+
+	return contributions;
+}
+
+/**
+ * Generate site-level SEO metadata contributions from SiteSettings.seo.
+ *
+ * These tags apply to every page (search engine ownership verification),
+ * so they're sourced from site settings rather than per-page context.
+ * Returns an empty array when no relevant settings are configured.
+ */
+export function generateSiteSeoContributions(
+	seoSettings: SeoSettings | undefined,
+): PageMetadataContribution[] {
+	const contributions: PageMetadataContribution[] = [];
+
+	if (!seoSettings) {
+		return contributions;
+	}
+
+	if (seoSettings.googleVerification) {
+		contributions.push({
+			kind: "meta",
+			name: "google-site-verification",
+			content: seoSettings.googleVerification,
+		});
+	}
+
+	if (seoSettings.bingVerification) {
+		contributions.push({
+			kind: "meta",
+			name: "msvalidate.01",
+			content: seoSettings.bingVerification,
+		});
 	}
 
 	return contributions;

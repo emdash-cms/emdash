@@ -13,6 +13,7 @@ export {
 	ContentRepository,
 	MediaRepository,
 	EmDashValidationError,
+	InvalidCursorError,
 } from "./database/repositories/index.js";
 export type {
 	ContentItem,
@@ -102,6 +103,7 @@ export type {
 export { ulid } from "ulidx";
 export { computeContentHash, hashString } from "./utils/hash.js";
 export { sanitizeHref, isSafeHref } from "./utils/url.js";
+export { decodeSlug } from "./utils/slugify.js";
 
 // Live Collections query functions (loader is in emdash/runtime)
 export {
@@ -128,6 +130,10 @@ export type {
 // Request context (ALS-based ambient state for query functions)
 export { getRequestContext, runWithContext } from "./request-context.js";
 export type { EmDashRequestContext } from "./request-context.js";
+
+// Defer work past the response (waitUntil on workerd, fire-and-forget on Node)
+export { after } from "./after.js";
+export type { WaitUntilFn } from "./after.js";
 
 // i18n configuration (from Astro config)
 export { getI18nConfig, isI18nEnabled, getFallbackChain } from "./i18n/config.js";
@@ -212,6 +218,8 @@ export type {
 	ResolvedHook,
 	ResolvedPluginHooks,
 	ContentHookEvent,
+	ContentDeleteEvent,
+	ContentPublishStateChangeEvent,
 	MediaUploadEvent,
 	HookResult,
 	PluginRoute,
@@ -254,6 +262,15 @@ export type {
 	SerializedRequest,
 } from "./plugins/index.js";
 
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./plugins/index.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
+
 // Plugin descriptor (for astro.config.mjs)
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
 
@@ -290,6 +307,7 @@ export {
 	probeUrl,
 	clearSources,
 	wxrSource,
+	parseWxrDate,
 	wordpressRestSource,
 	importReusableBlocksAsSections,
 } from "./import/index.js";
@@ -358,6 +376,7 @@ export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
 export type {
 	PagePlacement,
 	PublicPageContext,
+	BreadcrumbItem,
 	PageMetadataEvent,
 	PageMetadataContribution,
 	PageMetadataHandler,
@@ -395,7 +414,9 @@ export {
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
+	getAllTermsForEntries,
 	getEntriesByTerm,
+	invalidateTermCache,
 } from "./taxonomies/index.js";
 export type {
 	TaxonomyDef,
@@ -469,11 +490,14 @@ export type {
 	SearchStats,
 } from "./search/index.js";
 
-// Auth types (for platform-specific auth providers)
+// Auth types (for platform-specific auth providers and pluggable login methods)
 export type {
 	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthProviderAdminExports,
 	AuthProviderModule,
 	AuthResult,
+	AuthRouteDescriptor,
 	ExternalAuthConfig,
 } from "./auth/types.js";
 

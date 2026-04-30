@@ -87,6 +87,10 @@ const refreshSchema = z.object({
 // Handler
 // ---------------------------------------------------------------------------
 
+export const OPTIONS: APIRoute = () => {
+	return new Response(null, { status: 204, headers: OAUTH_PREFLIGHT_HEADERS });
+};
+
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
 
@@ -166,6 +170,17 @@ const OAUTH_TOKEN_HEADERS: HeadersInit = {
 	"Content-Type": "application/json",
 	"Cache-Control": "no-store",
 	Pragma: "no-cache",
+	// OAuth 2.1 token endpoint is called cross-origin by external clients. Caller
+	// must present PKCE code_verifier / device_code / refresh_token on each request,
+	// so there is no ambient credential for CSRF to exploit.
+	"Access-Control-Allow-Origin": "*",
+};
+
+const OAUTH_PREFLIGHT_HEADERS: HeadersInit = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Methods": "POST, OPTIONS",
+	"Access-Control-Allow-Headers": "Content-Type",
+	"Access-Control-Max-Age": "86400",
 };
 
 function oauthSuccess(data: unknown): Response {

@@ -1,4 +1,6 @@
 import { Button, Input, Loader } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Upload, Image, SquaresFour, List, MagnifyingGlass, Check, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -34,6 +36,7 @@ export function MediaLibrary({
 	onDelete,
 	onItemUpdated,
 }: MediaLibraryProps) {
+	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [selectedItem, setSelectedItem] = React.useState<MediaItem | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -134,17 +137,17 @@ export function MediaLibrary({
 				if (failed === 0) {
 					setUploadState({
 						status: "success",
-						message: total === 1 ? "File uploaded" : `${total} files uploaded`,
+						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
 					});
 				} else if (uploaded === 0) {
 					setUploadState({
 						status: "error",
-						message: total === 1 ? "Upload failed" : `All ${total} uploads failed`,
+						message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
 					});
 				} else {
 					setUploadState({
 						status: "error",
-						message: `${uploaded} uploaded, ${failed} failed`,
+						message: t`${uploaded} uploaded, ${failed} failed`,
 					});
 				}
 			} else if (activeProviderInfo?.capabilities.upload) {
@@ -170,17 +173,17 @@ export function MediaLibrary({
 				if (failed === 0) {
 					setUploadState({
 						status: "success",
-						message: total === 1 ? "File uploaded" : `${total} files uploaded`,
+						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
 					});
 				} else if (uploaded === 0) {
 					setUploadState({
 						status: "error",
-						message: total === 1 ? "Upload failed" : `All ${total} uploads failed`,
+						message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
 					});
 				} else {
 					setUploadState({
 						status: "error",
-						message: `${uploaded} uploaded, ${failed} failed`,
+						message: t`${uploaded} uploaded, ${failed} failed`,
 					});
 				}
 
@@ -220,13 +223,13 @@ export function MediaLibrary({
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">Media Library</h1>
-				<div className="flex rounded-md border" role="group" aria-label="View mode">
+				<h1 className="text-2xl font-bold">{t`Media Library`}</h1>
+				<div className="flex rounded-md border" role="group" aria-label={t`View mode`}>
 					<Button
 						variant={viewMode === "grid" ? "secondary" : "ghost"}
 						shape="square"
 						onClick={() => setViewMode("grid")}
-						aria-label="Grid view"
+						aria-label={t`Grid view`}
 						aria-pressed={viewMode === "grid"}
 					>
 						<SquaresFour className="h-4 w-4" aria-hidden="true" />
@@ -235,7 +238,7 @@ export function MediaLibrary({
 						variant={viewMode === "list" ? "secondary" : "ghost"}
 						shape="square"
 						onClick={() => setViewMode("list")}
-						aria-label="List view"
+						aria-label={t`List view`}
 						aria-pressed={viewMode === "list"}
 					>
 						<List className="h-4 w-4" aria-hidden="true" />
@@ -282,11 +285,9 @@ export function MediaLibrary({
 						<div className="flex items-center gap-2 text-sm text-kumo-subtle">
 							<Loader size="sm" />
 							<span>
-								Uploading
-								{uploadState.progress &&
-									uploadState.progress.total > 1 &&
-									` ${uploadState.progress.current}/${uploadState.progress.total}`}
-								...
+								{uploadState.progress && uploadState.progress.total > 1
+									? t`Uploading ${uploadState.progress.current}/${uploadState.progress.total}...`
+									: t`Uploading...`}
 							</span>
 						</div>
 					)}
@@ -310,7 +311,7 @@ export function MediaLibrary({
 								disabled={uploadState.status === "uploading"}
 								icon={uploadState.status === "uploading" ? <Loader size="sm" /> : <Upload />}
 							>
-								Upload to {activeProviderInfo?.name || "Library"}
+								{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
 							</Button>
 							<input
 								ref={fileInputRef}
@@ -319,7 +320,7 @@ export function MediaLibrary({
 								accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
 								className="sr-only"
 								onChange={handleFileSelect}
-								aria-label="Upload files"
+								aria-label={t`Upload files`}
 							/>
 						</>
 					)}
@@ -329,13 +330,13 @@ export function MediaLibrary({
 			{/* Search (for providers that support it) */}
 			{canSearch && (
 				<div className="relative max-w-sm">
-					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
 						type="search"
-						placeholder="Search..."
+						placeholder={t`Search...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9"
+						className="ps-9"
 					/>
 				</div>
 			)}
@@ -348,24 +349,24 @@ export function MediaLibrary({
 			) : activeProvider === "local" && currentItems.length === 0 ? (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Image className="mx-auto h-12 w-12 text-kumo-subtle" aria-hidden="true" />
-					<h2 className="mt-4 text-lg font-medium">No media yet</h2>
+					<h2 className="mt-4 text-lg font-medium">{t`No media yet`}</h2>
 					<p className="mt-2 text-sm text-kumo-subtle">
-						Upload images, videos, and documents to get started.
+						{t`Upload images, videos, and documents to get started.`}
 					</p>
 					<Button className="mt-4" onClick={() => fileInputRef.current?.click()} icon={<Upload />}>
-						Upload Files
+						{t`Upload Files`}
 					</Button>
 				</div>
 			) : activeProvider !== "local" && currentProviderItems.length === 0 ? (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Image className="mx-auto h-12 w-12 text-kumo-subtle" aria-hidden="true" />
-					<h2 className="mt-4 text-lg font-medium">No media found</h2>
+					<h2 className="mt-4 text-lg font-medium">{t`No media found`}</h2>
 					<p className="mt-2 text-sm text-kumo-subtle">
 						{canSearch && searchQuery
-							? "Try a different search term"
+							? t`Try a different search term`
 							: canUpload
-								? "Upload media to get started"
-								: "No media available from this provider"}
+								? t`Upload media to get started`
+								: t`No media available from this provider`}
 					</p>
 				</div>
 			) : viewMode === "grid" ? (
@@ -411,11 +412,11 @@ export function MediaLibrary({
 					<table className="w-full">
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
-								<th className="px-4 py-3 text-left text-sm font-medium">Preview</th>
-								<th className="px-4 py-3 text-left text-sm font-medium">Filename</th>
-								<th className="px-4 py-3 text-left text-sm font-medium">Type</th>
-								<th className="px-4 py-3 text-left text-sm font-medium">Size</th>
-								<th className="px-4 py-3 text-right text-sm font-medium">Actions</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Preview`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Filename`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Type`}</th>
+								<th className="px-4 py-3 text-start text-sm font-medium">{t`Size`}</th>
+								<th className="px-4 py-3 text-end text-sm font-medium">{t`Actions`}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -492,7 +493,7 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-left transition-all max-w-[200px]",
+				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
 				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
 			)}
 		>
@@ -542,7 +543,7 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-left transition-all max-w-[200px]",
+				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
 				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
 			)}
 		>
@@ -577,6 +578,7 @@ interface MediaListItemProps {
 }
 
 function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
+	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 
 	return (
@@ -605,9 +607,9 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 			<td className="px-4 py-3 font-medium">{item.filename}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{formatFileSize(item.size)}</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">
-					{item.alt ? "Alt text set" : "No alt text"}
+					{item.alt ? t`Alt text set` : t`No alt text`}
 				</span>
 			</td>
 		</tr>
@@ -623,6 +625,7 @@ interface ProviderListItemProps {
 }
 
 function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: ProviderListItemProps) {
+	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -661,9 +664,9 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			<td className="px-4 py-3 text-sm text-kumo-subtle">
 				{item.size ? formatFileSize(item.size) : "—"}
 			</td>
-			<td className="px-4 py-3 text-right">
+			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">
-					{item.alt ? "Alt text set" : "No alt text"}
+					{item.alt ? t`Alt text set` : t`No alt text`}
 				</span>
 			</td>
 		</tr>

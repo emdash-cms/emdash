@@ -1,10 +1,10 @@
 ---
-import { getEmDashEntry, getEmDashCollection } from "emdash";
+import { getEmDashEntry, getEmDashCollection, decodeSlug } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
 	return Astro.redirect("/404");
@@ -16,15 +16,16 @@ if (!project) {
 	return Astro.redirect("/404");
 }
 
-try {
-	Astro.cache.set(cacheHint);
-} catch {}
+Astro.cache.set(cacheHint);
 
-// Get related projects (same category or just other projects)
-const { entries: allProjects } = await getEmDashCollection("projects");
-const otherProjects = allProjects
-	.filter((p) => p.id !== project.id)
-	.slice(0, 2);
+// Related projects: order by date in the DB and request a small lookahead
+// so we can drop the current entry without re-querying. Avoids loading
+// every project just to slice off two.
+const { entries: relatedProjects } = await getEmDashCollection("projects", {
+	orderBy: { published_at: "desc" },
+	limit: 3,
+});
+const otherProjects = relatedProjects.filter((p) => p.id !== project.id).slice(0, 2);
 
 // Parse gallery if present
 const gallery = project.data.gallery as

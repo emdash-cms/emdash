@@ -27,15 +27,22 @@ export const contentListQuery = cursorPaginationQuery
 	})
 	.meta({ id: "ContentListQuery" });
 
+/** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
+const contentDateOverride = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.nullish();
+
 export const contentCreateBody = z
 	.object({
 		data: z.record(z.string(), z.unknown()),
 		slug: z.string().nullish(),
-		status: z.string().optional(),
+		status: z.enum(["draft"]).optional(),
 		bylines: z.array(contentBylineInputSchema).optional(),
 		locale: localeCode.optional(),
 		translationOf: z.string().optional(),
 		seo: contentSeoInput.optional(),
+		publishedAt: contentDateOverride,
+		createdAt: contentDateOverride,
 	})
 	.meta({ id: "ContentCreateBody" });
 
@@ -43,7 +50,7 @@ export const contentUpdateBody = z
 	.object({
 		data: z.record(z.string(), z.unknown()).optional(),
 		slug: z.string().nullish(),
-		status: z.string().optional(),
+		status: z.enum(["draft"]).optional(),
 		authorId: z.string().nullish(),
 		bylines: z.array(contentBylineInputSchema).optional(),
 		_rev: z
@@ -52,6 +59,7 @@ export const contentUpdateBody = z
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 		skipRevision: z.boolean().optional(),
 		seo: contentSeoInput.optional(),
+		publishedAt: contentDateOverride,
 	})
 	.meta({ id: "ContentUpdateBody" });
 

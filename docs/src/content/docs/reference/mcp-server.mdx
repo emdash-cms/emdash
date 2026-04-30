@@ -31,25 +31,38 @@ Tokens are scoped to limit what operations a client can perform. Scopes are requ
 
 | Scope | Grants access to |
 | --- | --- |
-| `content:read` | List, get, compare, and search content. List taxonomy terms and menus. |
-| `content:write` | Create, update, delete, publish, unpublish, schedule, duplicate, and restore content. Create taxonomy terms. |
+| `content:read` | List, get, compare, and search content. List taxonomies, taxonomy terms, and menus. |
+| `content:write` | Create, update, delete, publish, unpublish, schedule, unschedule, duplicate, and restore content. Implicitly grants `taxonomies:manage` and `menus:manage` for backwards compatibility with tokens issued before those scopes existed. |
 | `media:read` | List and get media items. |
-| `media:write` | Update and delete media metadata. |
+| `media:write` | Register (create), update, and delete media metadata. |
 | `schema:read` | List collections and get collection schemas. |
 | `schema:write` | Create and delete collections and fields. |
+| `taxonomies:manage` | Create, update, and delete taxonomy terms. |
+| `menus:manage` | Create, update, and delete navigation menus and their items. |
+| `settings:read` | Read site-wide settings. |
+| `settings:manage` | Update site-wide settings. |
 | `admin` | Full access to all operations. |
 
 The `admin` scope grants access to everything. Session-based auth (no token) also has full access based on the user's role.
 
+`content:write` implicitly grants `taxonomies:manage` and `menus:manage` so personal access tokens issued before those scopes were split out continue to work without re-issue. New tokens should request the granular scopes.
+
 ### Role Requirements
 
-In addition to scopes, some tools require a minimum RBAC role:
+In addition to scopes, some tools require a minimum RBAC role. Both must be satisfied -- a token with the right scope still fails if the calling user's role is too low.
 
 | Operation | Minimum role |
 | --- | --- |
-| Content operations | No minimum (scopes control access) |
+| Content read | Subscriber (10) for published items; Contributor (20) for drafts, scheduled, trash, and revisions |
+| Content create / edit own / delete own | Author (30) |
+| Content publish | Author (30) for own items; Editor (40) to act on others' items |
 | Schema read | Editor (40) |
 | Schema write | Admin (50) |
+| Taxonomies manage | Editor (40) |
+| Menus manage | Editor (40) |
+| Settings read | Editor (40) |
+| Settings manage | Admin (50) |
+| Media upload (`media_create`) | Author (30) |
 
 See the [Authentication guide](/guides/authentication#user-roles) for role definitions.
 
@@ -65,7 +78,7 @@ Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) forma
 
 ## Tools
 
-The server exposes 33 tools across seven domains. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
+The server exposes 43 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
 
 ### Content Tools
 
@@ -195,6 +208,17 @@ Schedule a content item for future publication. It will be automatically publish
 | `collection` | `string` | Yes | Collection slug |
 | `id` | `string` | Yes | Content item ID or slug |
 | `scheduledAt` | `string` | Yes | ISO 8601 datetime (e.g. `2026-06-01T09:00:00Z`) |
+
+**Scope:** `content:write`
+
+#### `content_unschedule`
+
+Cancel a previously scheduled publication. The item keeps its current status; only the `scheduledAt` timestamp is cleared. Idempotent -- calling on an item that isn't scheduled is a no-op.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `collection` | `string` | Yes | Collection slug |
+| `id` | `string` | Yes | Content item ID or slug |
 
 **Scope:** `content:write`
 
@@ -353,6 +377,28 @@ List uploaded media files with optional MIME type filtering and pagination.
 
 **Scope:** `media:read` | **Read-only:** Yes
 
+#### `media_create`
+
+Register a media file that has already been uploaded to storage. The caller is responsible for placing the file at `storageKey` (typically using a signed upload URL from the admin UI or a separate API). This tool persists the metadata record so the file is discoverable via `media_list` / `media_get` and can be referenced by content.
+
+<Aside>
+	The MCP transport is not appropriate for binary uploads. Use the signed-upload flow to put the bytes in storage, then call `media_create` to register the record.
+</Aside>
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filename` | `string` | Yes | Original filename (e.g. `logo.png`) |
+| `mimeType` | `string` | Yes | MIME type (e.g. `image/png`) |
+| `storageKey` | `string` | Yes | Storage path/key the file was uploaded to |
+| `size` | `integer` | No | File size in bytes |
+| `width` | `integer` | No | Image width in pixels |
+| `height` | `integer` | No | Image height in pixels |
+| `contentHash` | `string` | No | Hash of the file contents (for dedupe) |
+| `blurhash` | `string` | No | Blurhash for image placeholders |
+| `dominantColor` | `string` | No | Hex color string for the image's dominant color |
+
+**Scope:** `media:write` | **Minimum role:** Author
+
 #### `media_get`
 
 Get details of a single media file by ID. Returns metadata including filename, MIME type, size, dimensions, alt text, and URL.
@@ -426,7 +472,7 @@ List terms in a taxonomy with pagination.
 
 #### `taxonomy_create_term`
 
-Create a new term in a taxonomy. For hierarchical taxonomies, specify a `parentId` to create a child term.
+Create a new term in a taxonomy. For hierarchical taxonomies, specify a `parentId` to create a child term. The parent's ancestor chain must not exceed 100 levels.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -436,7 +482,33 @@ Create a new term in a taxonomy. For hierarchical taxonomies, specify a `parentI
 | `parentId` | `string` | No | Parent term ID (for hierarchical taxonomies) |
 | `description` | `string` | No | Description of the term |
 
-**Scope:** `content:write`
+**Scope:** `taxonomies:manage` | **Minimum role:** Editor
+
+#### `taxonomy_update_term`
+
+Update an existing term in a taxonomy. Any field can be omitted to leave it unchanged. Renaming a slug must not collide with another term in the same taxonomy. Set `parentId` to `null` to detach from a parent. The new parent must exist, belong to the same taxonomy, and not introduce a cycle.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `taxonomy` | `string` | Yes | Taxonomy name |
+| `termSlug` | `string` | Yes | Current slug of the term to update |
+| `slug` | `string` | No | New slug (must be unique in the taxonomy) |
+| `label` | `string` | No | New display name |
+| `parentId` | `string \| null` | No | New parent term ID; `null` to detach |
+| `description` | `string` | No | New description |
+
+**Scope:** `taxonomies:manage` | **Minimum role:** Editor
+
+#### `taxonomy_delete_term`
+
+Permanently delete a term from a taxonomy. Any content tagged with the term loses the association. Cannot delete a term that has children -- delete children first.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `taxonomy` | `string` | Yes | Taxonomy name |
+| `termSlug` | `string` | Yes | Slug of the term to delete |
+
+**Scope:** `taxonomies:manage` | **Minimum role:** Editor | **Destructive:** Yes
 
 ### Menu Tools
 
@@ -457,6 +529,65 @@ Get a menu by name including all its items in order. Items have a label, URL, ty
 | `name` | `string` | Yes | Menu name (e.g. `main`, `footer`) |
 
 **Scope:** `content:read` | **Read-only:** Yes
+
+#### `menu_create`
+
+Create a new navigation menu. The `name` is the stable identifier used by site templates; `label` is the human-readable name shown in the admin. Add items afterwards with `menu_set_items`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Stable identifier (`/^[a-z][a-z0-9_]*$/`) |
+| `label` | `string` | Yes | Display name for the admin |
+
+**Scope:** `menus:manage` | **Minimum role:** Editor
+
+#### `menu_update`
+
+Update a menu's label. The `name` (stable identifier) cannot be changed.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Menu name to update |
+| `label` | `string` | Yes | New display label |
+
+**Scope:** `menus:manage` | **Minimum role:** Editor
+
+#### `menu_delete`
+
+Delete a menu and all its items. Cannot be undone.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Menu name to delete |
+
+**Scope:** `menus:manage` | **Minimum role:** Editor | **Destructive:** Yes
+
+#### `menu_set_items`
+
+Replace the entire item list of a menu in one call. Atomic: existing items are deleted and the new list is inserted in the order provided. Use this rather than per-item add/remove operations so the resulting order and parent links are unambiguous.
+
+Items are positioned by array index. Nesting is expressed via `parentIndex` -- an item with `parentIndex: 0` is nested under the item at index `0`. The parent must appear earlier in the list. Items without `parentIndex` are top-level.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Menu name to update |
+| `items` | `MenuItem[]` | Yes | Ordered list of menu items (see below) |
+
+Each `MenuItem` has:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `label` | `string` | Yes | Item display text |
+| `type` | `string` | Yes | One of `custom`, `page`, `post`, `taxonomy`, `collection` |
+| `customUrl` | `string` | No | URL for `type: "custom"` items (ignored otherwise) |
+| `referenceCollection` | `string` | No | Target collection slug for content references |
+| `referenceId` | `string` | No | Target content / term ID for references |
+| `titleAttr` | `string` | No | HTML `title` attribute |
+| `target` | `string` | No | HTML `target` attribute (e.g. `_blank`) |
+| `cssClasses` | `string` | No | Space-separated CSS classes |
+| `parentIndex` | `integer` | No | Array index of the parent item. Omit for top-level items. |
+
+**Scope:** `menus:manage` | **Minimum role:** Editor
 
 ### Revision Tools
 
@@ -482,6 +613,49 @@ Restore a content item to a previous revision. Replaces the current draft with t
 
 **Scope:** `content:write`
 
+### Settings Tools
+
+Site-wide settings -- title, tagline, logo, favicon, canonical URL, default page size, date and time formatting, social handles, and SEO defaults.
+
+#### `settings_get`
+
+Get all site-wide settings. Media references (`logo`, `favicon`, `seo.defaultOgImage`) include resolved URLs alongside the underlying `mediaId`. Unset values are omitted from the response.
+
+**No parameters.**
+
+**Scope:** `settings:read` | **Minimum role:** Editor | **Read-only:** Yes
+
+#### `settings_update`
+
+Update one or more site-wide settings. Partial update: only the fields provided are changed; omitted fields are left as-is. Returns the full settings object after the update.
+
+To set a media reference (`logo`, `favicon`, `seo.defaultOgImage`), pass an object with `mediaId` (and optional `alt`). The media item must already exist -- use `media_create` first.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `title` | `string` | No | Site title |
+| `tagline` | `string` | No | Short description shown alongside the title |
+| `logo` | `MediaRef` | No | Logo media reference (`{ mediaId, alt? }`) |
+| `favicon` | `MediaRef` | No | Favicon media reference |
+| `url` | `string` | No | Canonical site URL (http or https). Empty string clears it. |
+| `postsPerPage` | `integer` | No | Default page size for content listings (1-100) |
+| `dateFormat` | `string` | No | Date format token string |
+| `timezone` | `string` | No | IANA timezone identifier |
+| `social` | `object` | No | Social handles -- `twitter`, `github`, `facebook`, `instagram`, `linkedin`, `youtube` |
+| `seo` | `object` | No | SEO defaults (see below) |
+
+The `seo` object accepts:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `titleSeparator` | `string` | Separator between page title and site title (e.g. `" \| "` for a vertical bar) |
+| `defaultOgImage` | `MediaRef` | Default Open Graph image when content has none |
+| `robotsTxt` | `string` | Custom `robots.txt` body. Omit to use the EmDash default. |
+| `googleVerification` | `string` | Google Search Console verification token |
+| `bingVerification` | `string` | Bing Webmaster Tools verification token |
+
+**Scope:** `settings:manage` | **Minimum role:** Admin
+
 ## OAuth Discovery
 
 MCP clients that support OAuth 2.1 can automatically discover how to authenticate. The server publishes two metadata documents:
@@ -500,6 +674,8 @@ GET /.well-known/oauth-protected-resource
     "content:read", "content:write",
     "media:read", "media:write",
     "schema:read", "schema:write",
+    "taxonomies:manage", "menus:manage",
+    "settings:read", "settings:manage",
     "admin"
   ],
   "bearer_methods_supported": ["header"]
@@ -509,7 +685,7 @@ GET /.well-known/oauth-protected-resource
 ### Authorization Server Metadata
 
 ```http
-GET /_emdash/.well-known/oauth-authorization-server
+GET /.well-known/oauth-authorization-server/_emdash
 ```
 
 ```json

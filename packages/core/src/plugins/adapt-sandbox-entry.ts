@@ -12,6 +12,7 @@
 
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
+import { normalizeCapabilities } from "./types.js";
 import type {
 	StandardPluginDefinition,
 	StandardHookEntry,
@@ -147,7 +148,10 @@ export function adaptSandboxEntry(
 	}
 
 	// Build capabilities from descriptor.
-	// Validate against the known set (same as defineNativePlugin).
+	// Validate against the known set (same as defineNativePlugin). Both
+	// current and deprecated names are accepted; deprecated names are
+	// silently normalized to current names below so the runtime only ever
+	// sees the canonical form.
 	const rawCapabilities = descriptor.capabilities ?? [];
 	for (const cap of rawCapabilities) {
 		if (!VALID_CAPABILITIES_SET.has(cap)) {
@@ -157,20 +161,28 @@ export function adaptSandboxEntry(
 			);
 		}
 	}
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- validated against VALID_CAPABILITIES_SET above; descriptor uses string[] for flexibility
-	const capabilities = [...rawCapabilities] as PluginCapability[];
+
+	// Silent normalization: rewrite deprecated names to current names.
+	// Safe assertion — `normalizeCapabilities` only emits validated input
+	// plus current names from the rename map, all of which are in the union.
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- validated above; normalizeCapabilities only returns capabilities from the union
+	const capabilities = normalizeCapabilities(rawCapabilities) as PluginCapability[];
 	const allowedHosts = descriptor.allowedHosts ?? [];
 
 	// Capability implications: broader capabilities imply narrower ones
-	// (mirrors the normalization in define-plugin.ts for native format)
-	if (capabilities.includes("write:content") && !capabilities.includes("read:content")) {
-		capabilities.push("read:content");
+	// (mirrors the normalization in define-plugin.ts for native format).
+	// Operates on canonical names only.
+	if (capabilities.includes("content:write") && !capabilities.includes("content:read")) {
+		capabilities.push("content:read");
 	}
-	if (capabilities.includes("write:media") && !capabilities.includes("read:media")) {
-		capabilities.push("read:media");
+	if (capabilities.includes("media:write") && !capabilities.includes("media:read")) {
+		capabilities.push("media:read");
 	}
-	if (capabilities.includes("network:fetch:any") && !capabilities.includes("network:fetch")) {
-		capabilities.push("network:fetch");
+	if (
+		capabilities.includes("network:request:unrestricted") &&
+		!capabilities.includes("network:request")
+	) {
+		capabilities.push("network:request");
 	}
 
 	// Build storage config from descriptor.

@@ -189,7 +189,10 @@ describe("Byline query functions", () => {
 			]);
 			// post3 has no bylines
 
-			const result = await getBylinesForEntries("post", [post1.id, post2.id, post3.id]);
+			const result = await getBylinesForEntries(
+				"post",
+				[post1, post2, post3].map((p) => ({ id: p.id, authorId: p.authorId })),
+			);
 
 			expect(result.get(post1.id)).toHaveLength(1);
 			expect(result.get(post1.id)?.[0]?.byline.displayName).toBe("Author One");
@@ -224,7 +227,7 @@ describe("Byline query functions", () => {
 				authorId: user.id,
 			});
 
-			const result = await getBylinesForEntries("post", [post.id]);
+			const result = await getBylinesForEntries("post", [{ id: post.id, authorId: post.authorId }]);
 
 			expect(result.get(post.id)).toHaveLength(1);
 			expect(result.get(post.id)?.[0]?.source).toBe("inferred");
@@ -247,7 +250,7 @@ describe("Byline query functions", () => {
 				{ bylineId: explicitByline.id },
 			]);
 
-			const inferredPostIds: string[] = [];
+			const inferredPosts: { id: string; authorId: string | null }[] = [];
 			for (let i = 0; i < SQL_BATCH_SIZE + 2; i++) {
 				const user = await userRepo.create({
 					email: `large-batch-${i}@example.com`,
@@ -267,7 +270,7 @@ describe("Byline query functions", () => {
 					data: { title: `Large Batch Post ${i}` },
 					authorId: user.id,
 				});
-				inferredPostIds.push(post.id);
+				inferredPosts.push({ id: post.id, authorId: post.authorId });
 			}
 
 			const explicitPost2 = await contentRepo.create({
@@ -279,10 +282,15 @@ describe("Byline query functions", () => {
 				{ bylineId: explicitByline.id },
 			]);
 
-			const entryIds = [explicitPost1.id, ...inferredPostIds, explicitPost2.id];
-			const result = await getBylinesForEntries("post", entryIds);
+			const inferredPostIds = inferredPosts.map((p) => p.id);
+			const entries = [
+				{ id: explicitPost1.id, authorId: explicitPost1.authorId },
+				...inferredPosts,
+				{ id: explicitPost2.id, authorId: explicitPost2.authorId },
+			];
+			const result = await getBylinesForEntries("post", entries);
 
-			expect(result.size).toBe(entryIds.length);
+			expect(result.size).toBe(entries.length);
 			expect(result.get(explicitPost1.id)?.[0]?.source).toBe("explicit");
 			expect(result.get(explicitPost1.id)?.[0]?.byline.displayName).toBe("Large Batch Explicit");
 			expect(result.get(explicitPost2.id)?.[0]?.source).toBe("explicit");

@@ -121,6 +121,7 @@ export type {
 	ResolvedPluginHooks,
 	ContentHookEvent,
 	ContentDeleteEvent,
+	ContentPublishStateChangeEvent,
 	MediaUploadEvent,
 	MediaAfterUploadEvent,
 	LifecycleEvent,
@@ -191,3 +192,12 @@ export type {
 	StandardRouteEntry,
 } from "./types.js";
 export { isStandardPluginDefinition } from "./types.js";
+
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./types.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./types.js";

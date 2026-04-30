@@ -18,6 +18,7 @@ import type { Storage } from "../storage/types.js";
 import type { PluginContextFactoryOptions } from "./context.js";
 import { setCronTasksEnabled } from "./cron.js";
 import { definePlugin } from "./define-plugin.js";
+import type { EmailPipeline } from "./email.js";
 import {
 	HookPipeline,
 	type HookResult,
@@ -61,6 +62,11 @@ export interface PluginManagerOptions {
 		filename: string,
 		contentType: string,
 	) => Promise<{ uploadUrl: string; mediaId: string }>;
+	/**
+	 * Pre-resolved list of trusted proxy header names for client-IP
+	 * resolution in plugin route handlers. Thread through from the runtime.
+	 */
+	trustedProxyHeaders?: string[];
 }
 
 /**
@@ -80,7 +86,19 @@ export class PluginManager {
 			db: options.db,
 			storage: options.storage,
 			getUploadUrl: options.getUploadUrl,
+			trustedProxyHeaders: options.trustedProxyHeaders,
 		};
+	}
+
+	/**
+	 * Set the email pipeline used when creating plugin contexts.
+	 * Reinitializes routes/hooks if already initialized so ctx.email is available immediately.
+	 */
+	setEmailPipeline(pipeline: EmailPipeline): void {
+		this.factoryOptions.emailPipeline = pipeline;
+		if (this.initialized) {
+			this.reinitialize();
+		}
 	}
 
 	// =========================================================================
@@ -321,9 +339,13 @@ export class PluginManager {
 	/**
 	 * Run content:afterDelete hooks across all active plugins
 	 */
-	async runContentAfterDelete(id: string, collection: string): Promise<HookResult<void>[]> {
+	async runContentAfterDelete(
+		id: string,
+		collection: string,
+		permanent: boolean,
+	): Promise<HookResult<void>[]> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentAfterDelete(id, collection);
+		return this.hookPipeline!.runContentAfterDelete(id, collection, permanent);
 	}
 
 	/**

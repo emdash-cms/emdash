@@ -7,6 +7,7 @@
 
 import {
 	S3Client,
+	type S3ClientConfig,
 	PutObjectCommand,
 	GetObjectCommand,
 	DeleteObjectCommand,
@@ -15,6 +16,7 @@ import {
 	type ListObjectsV2Response,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { z } from "zod";
 
 import type {
 	Storage,
@@ -27,6 +29,87 @@ import type {
 	SignedUploadOptions,
 } from "./types.js";
 import { EmDashStorageError } from "./types.js";
+
+const ENV_KEYS = {
+	endpoint: "S3_ENDPOINT",
+	bucket: "S3_BUCKET",
+	accessKeyId: "S3_ACCESS_KEY_ID",
+	secretAccessKey: "S3_SECRET_ACCESS_KEY",
+	region: "S3_REGION",
+	publicUrl: "S3_PUBLIC_URL",
+} as const satisfies Record<keyof S3StorageConfig, string>;
+
+function fail(msg: string): never {
+	throw new EmDashStorageError(msg, "MISSING_S3_CONFIG");
+}
+
+const s3ConfigSchema = z.object({
+	endpoint: z.url({ protocol: /^https?$/, error: "is not a valid http/https URL" }).optional(),
+	bucket: z.string().optional(),
+	accessKeyId: z.string().optional(),
+	secretAccessKey: z.string().optional(),
+	region: z.string().optional(),
+	publicUrl: z.string().optional(),
+});
+
+function isConfigKey(key: unknown): key is keyof S3StorageConfig {
+	return typeof key === "string" && key in ENV_KEYS;
+}
+
+/**
+ * Build the merged config: for each field, use the explicit value if present,
+ * otherwise fall back to the corresponding S3_* env var.  Validate once on the
+ * final merged result so a malformed env var never breaks the build when the
+ * caller provides that field explicitly.
+ */
+export function resolveS3Config(partial: Record<string, unknown>): S3StorageConfig {
+	const raw: Record<string, unknown> = {};
+	for (const [field, envKey] of Object.entries(ENV_KEYS)) {
+		const explicit = partial[field];
+		if (explicit !== undefined && explicit !== "") {
+			raw[field] = explicit;
+			continue;
+		}
+		const envVal = typeof process !== "undefined" && process.env ? process.env[envKey] : undefined;
+		if (envVal !== undefined && envVal !== "") {
+			raw[field] = envVal;
+		}
+	}
+
+	const result = s3ConfigSchema.safeParse(raw);
+	if (!result.success) {
+		const issue = result.error.issues[0];
+		const pathKey = issue?.path[0];
+		if (!issue || !isConfigKey(pathKey)) fail("S3 config validation failed");
+		const fromExplicit = partial[pathKey] !== undefined && partial[pathKey] !== "";
+		const label = fromExplicit ? `s3({ ${pathKey} })` : ENV_KEYS[pathKey];
+		fail(`${label} ${issue.message}`);
+	}
+	const merged = result.data;
+
+	const endpoint = merged.endpoint;
+	const bucket = merged.bucket;
+	if (!endpoint || !bucket) {
+		const missing: string[] = [];
+		if (!endpoint) missing.push(`endpoint: set ${ENV_KEYS.endpoint} or pass endpoint to s3({...})`);
+		if (!bucket) missing.push(`bucket: set ${ENV_KEYS.bucket} or pass bucket to s3({...})`);
+		fail(`missing required S3 config: ${missing.join("; ")}`);
+	}
+	const accessKeyId = merged.accessKeyId;
+	const secretAccessKey = merged.secretAccessKey;
+	if (accessKeyId && !secretAccessKey) {
+		fail(
+			`S3 credentials incomplete: accessKeyId is set but secretAccessKey is missing (set ${ENV_KEYS.secretAccessKey} or pass secretAccessKey to s3({...}))`,
+		);
+	}
+	if (secretAccessKey && !accessKeyId) {
+		fail(
+			`S3 credentials incomplete: secretAccessKey is set but accessKeyId is missing (set ${ENV_KEYS.accessKeyId} or pass accessKeyId to s3({...}))`,
+		);
+	}
+
+	return { ...merged, endpoint, bucket };
+}
 
 const TRAILING_SLASH_PATTERN = /\/$/;
 
@@ -49,16 +132,25 @@ export class S3Storage implements Storage {
 		this.publicUrl = config.publicUrl;
 		this.endpoint = config.endpoint;
 
-		this.client = new S3Client({
+		// S3ClientConfig types `credentials` as required, but the SDK accepts
+		// omitted credentials at runtime (falls back to the provider chain).
+		/* eslint-disable typescript-eslint(no-unsafe-type-assertion) -- upstream @aws-sdk/client-s3 overstates required fields */
+		const clientConfig = {
 			endpoint: config.endpoint,
 			region: config.region || "auto",
-			credentials: {
-				accessKeyId: config.accessKeyId,
-				secretAccessKey: config.secretAccessKey,
-			},
 			// Required for R2 and some S3-compatible services
 			forcePathStyle: true,
-		});
+			...(config.accessKeyId && config.secretAccessKey
+				? {
+						credentials: {
+							accessKeyId: config.accessKeyId,
+							secretAccessKey: config.secretAccessKey,
+						},
+					}
+				: {}),
+		} as S3ClientConfig;
+		/* eslint-enable typescript-eslint(no-unsafe-type-assertion) */
+		this.client = new S3Client(clientConfig);
 	}
 
 	async upload(options: {
@@ -231,33 +323,16 @@ export class S3Storage implements Storage {
 		if (this.publicUrl) {
 			return `${this.publicUrl.replace(TRAILING_SLASH_PATTERN, "")}/${key}`;
 		}
-		// Default to endpoint + bucket + key
-		return `${this.endpoint.replace(TRAILING_SLASH_PATTERN, "")}/${this.bucket}/${key}`;
+		// No public URL configured; defer to the /_emdash/api/media/file route.
+		return `/_emdash/api/media/file/${key}`;
 	}
 }
 
 /**
  * Create S3 storage adapter
- * This is the factory function called at runtime
+ * This is the factory function called at runtime.
+ * Config fields are merged with S3_* env vars; env vars fill in any missing fields.
  */
 export function createStorage(config: Record<string, unknown>): Storage {
-	const { endpoint, bucket, accessKeyId, secretAccessKey, region, publicUrl } = config;
-	if (
-		typeof endpoint !== "string" ||
-		typeof bucket !== "string" ||
-		typeof accessKeyId !== "string" ||
-		typeof secretAccessKey !== "string"
-	) {
-		throw new Error(
-			"S3Storage requires 'endpoint', 'bucket', 'accessKeyId', and 'secretAccessKey' string config values",
-		);
-	}
-	return new S3Storage({
-		endpoint,
-		bucket,
-		accessKeyId,
-		secretAccessKey,
-		region: typeof region === "string" ? region : undefined,
-		publicUrl: typeof publicUrl === "string" ? publicUrl : undefined,
-	});
+	return new S3Storage(resolveS3Config(config));
 }

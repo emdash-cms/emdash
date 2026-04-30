@@ -17,9 +17,12 @@ import { ulid } from "ulidx";
 // Import auth provider via virtual module (statically bundled)
 // This avoids dynamic import issues in Cloudflare Workers
 import { authenticate as virtualAuthenticate } from "virtual:emdash/auth";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
+import { getPublicOrigin } from "../../api/public-url.js";
 
 /** Cache headers for middleware error responses (matches API_CACHE_HEADERS in api/error.ts) */
 const MW_CACHE_HEADERS = {
@@ -30,6 +33,7 @@ import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import type { EmDashHandlers, EmDashManifest } from "../types.js";
+import { buildEmDashCsp } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -49,34 +53,37 @@ declare global {
 
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
+const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
 
-/**
- * Strict Content-Security-Policy for /_emdash routes (admin + API).
- *
- * Applied via middleware header rather than Astro's built-in CSP because
- * Astro's auto-hashing defeats 'unsafe-inline' (CSP3 ignores 'unsafe-inline'
- * when hashes are present), which would break user-facing pages.
- */
-function buildEmDashCsp(marketplaceUrl?: string): string {
-	const imgSources = ["'self'", "data:", "blob:"];
-	if (marketplaceUrl) {
-		try {
-			imgSources.push(new URL(marketplaceUrl).origin);
-		} catch {
-			// ignore invalid marketplace URL
-		}
-	}
-	return [
-		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
-		"style-src 'self' 'unsafe-inline'",
-		"connect-src 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'none'",
-		`img-src ${imgSources.join(" ")}`,
-		"object-src 'none'",
-		"base-uri 'self'",
-	].join("; ");
+function isUnsafeMethod(method: string): boolean {
+	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function csrfRejectedResponse(): Response {
+	return new Response(
+		JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
+		{
+			status: 403,
+			headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
+		},
+	);
+}
+
+function mcpUnauthorizedResponse(
+	url: URL,
+	config?: Parameters<typeof getPublicOrigin>[1],
+): Response {
+	const origin = getPublicOrigin(url, config);
+	return Response.json(
+		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
+		{
+			status: 401,
+			headers: {
+				"WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+				...MW_CACHE_HEADERS,
+			},
+		},
+	);
 }
 
 /**
@@ -92,12 +99,12 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/dev-bypass",
 	"/_emdash/api/auth/signup/",
 	"/_emdash/api/auth/magic-link/",
-	"/_emdash/api/auth/invite/accept",
-	"/_emdash/api/auth/invite/complete",
+	"/_emdash/api/auth/invite/",
 	"/_emdash/api/auth/oauth/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
 	"/_emdash/api/oauth/token",
+	"/_emdash/api/oauth/register",
 	"/_emdash/api/comments/",
 	"/_emdash/api/media/file/",
 	"/_emdash/.well-known/",
@@ -106,15 +113,66 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
+	"/_emdash/api/auth/mode",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
+	// Public site search — read-only. The query layer hardcodes status='published'
+	// so unauthenticated callers only see published content. Admin endpoints
+	// (/enable, /rebuild, /stats) remain private because they're not in this set.
+	"/_emdash/api/search",
+]);
+
+// Build merged public routes at module load from auth provider descriptors.
+// Routes ending with "/" are treated as prefixes; all others are exact matches.
+const { exact: _providerExactRoutes, prefixes: _providerPrefixRoutes } = (() => {
+	const exact = new Set<string>();
+	const prefixes: string[] = [];
+	if (!virtualConfig?.authProviders) return { exact, prefixes };
+	for (const route of virtualConfig.authProviders.flatMap((p) => p.publicRoutes ?? [])) {
+		if (route.endsWith("/")) {
+			prefixes.push(route);
+		} else {
+			exact.add(route);
+		}
+	}
+	return { exact, prefixes };
+})();
+
+/**
+ * OAuth protocol endpoints that are CSRF-exempt by design.
+ *
+ * These are RFC-defined endpoints (RFC 6749 §3.2, RFC 7591 §3, RFC 8628 §3.1/§3.4)
+ * specified to be called cross-origin by external clients (MCP clients, CLIs,
+ * native apps). They authenticate each request on its own merits:
+ *
+ * - /oauth/token: requires PKCE code_verifier, device_code, or refresh_token
+ * - /oauth/register: RFC 7591 dynamic client registration — anonymous by design
+ * - /oauth/device/code: RFC 8628 device flow initiation — anonymous by design
+ * - /oauth/device/token: requires device_code the client already holds
+ *
+ * None of these rely on ambient cookie credentials, so browser-based CSRF
+ * attacks have nothing to exploit. The endpoints themselves advertise
+ * `Access-Control-Allow-Origin: *`. Note: /oauth/device/authorize (the user
+ * consent step) is NOT in this list — it is session-authenticated.
+ */
+const CSRF_EXEMPT_PUBLIC_ROUTES = new Set([
+	"/_emdash/api/oauth/token",
+	"/_emdash/api/oauth/register",
+	"/_emdash/api/oauth/device/code",
+	"/_emdash/api/oauth/device/token",
 ]);
 
 function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_EXACT.has(pathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
 	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
 	return false;
+}
+
+function isCsrfExemptPublicRoute(pathname: string): boolean {
+	return CSRF_EXEMPT_PUBLIC_ROUTES.has(pathname);
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -133,8 +191,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// This prevents cross-origin form submissions and fetch requests from malicious sites.
 	if (isPublicApiRoute) {
 		const method = context.request.method.toUpperCase();
-		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-			const csrfError = checkPublicCsrf(context.request, url);
+		if (
+			isUnsafeMethod(method) &&
+			!isCsrfExemptPublicRoute(url.pathname) // OAuth protocol endpoints — cross-origin by design
+		) {
+			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
+			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
 		return next();
@@ -148,7 +210,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (isPluginRoute) {
 		const method = context.request.method.toUpperCase();
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-			const csrfError = checkPublicCsrf(context.request, url);
+			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
+			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
 		return handlePluginRouteAuth(context, next);
@@ -192,8 +255,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		};
 		// Add WWW-Authenticate header on MCP endpoint 401s to trigger OAuth discovery
 		if (url.pathname === "/_emdash/api/mcp") {
+			const origin = getPublicOrigin(url, context.locals.emdash?.config);
 			headers["WWW-Authenticate"] =
-				`Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`;
+				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
 		}
 		return new Response(
 			JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
@@ -203,31 +267,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	const isTokenAuth = bearerResult === "authenticated";
 
+	// MCP discovery/tooling is bearer-only. Session/external auth should never
+	// be consulted for this endpoint, and unauthenticated requests must return
+	// the OAuth discovery-style 401 response.
+	const method = context.request.method.toUpperCase();
+	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
+	if (isMcpEndpoint && !isTokenAuth) {
+		return mcpUnauthorizedResponse(url, context.locals.emdash?.config);
+	}
+
 	// CSRF protection: require X-EmDash-Request header on state-changing requests.
 	// Skip for token-authenticated requests (tokens aren't ambient credentials).
 	// Browsers block cross-origin custom headers, so this prevents CSRF without tokens.
 	// OAuth authorize consent is exempt: it's a standard HTML form POST that can't
 	// include custom headers. The consent flow is protected by session + single-use codes.
-	const method = context.request.method.toUpperCase();
 	const isOAuthConsent = url.pathname.startsWith("/_emdash/oauth/authorize");
 	if (
 		isApiRoute &&
 		!isTokenAuth &&
 		!isOAuthConsent &&
-		method !== "GET" &&
-		method !== "HEAD" &&
-		method !== "OPTIONS" &&
+		isUnsafeMethod(method) &&
 		!isPublicApiRoute
 	) {
 		const csrfHeader = context.request.headers.get("X-EmDash-Request");
 		if (csrfHeader !== "1") {
-			return new Response(
-				JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-				{
-					status: 403,
-					headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-				},
-			);
+			return csrfRejectedResponse();
 		}
 	}
 
@@ -239,8 +303,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		const response = await next();
 		if (!import.meta.env.DEV) {
-			const marketplaceUrl = context.locals.emdash?.config.marketplace;
-			response.headers.set("Content-Security-Policy", buildEmDashCsp(marketplaceUrl));
+			response.headers.set("Content-Security-Policy", buildEmDashCsp());
 		}
 		return response;
 	}
@@ -249,8 +312,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// Set strict CSP on all /_emdash responses (prod only)
 	if (!import.meta.env.DEV) {
-		const marketplaceUrl = context.locals.emdash?.config.marketplace;
-		response.headers.set("Content-Security-Policy", buildEmDashCsp(marketplaceUrl));
+		response.headers.set("Content-Security-Policy", buildEmDashCsp());
 	}
 
 	return response;
@@ -267,7 +329,9 @@ async function handleEmDashAuth(
 	const { url, locals } = context;
 	const { emdash } = locals;
 
-	const isLoginRoute = url.pathname.startsWith("/_emdash/admin/login");
+	const isPublicAdminRoute =
+		url.pathname.startsWith("/_emdash/admin/login") ||
+		url.pathname.startsWith("/_emdash/admin/invite/accept");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
 	if (!emdash?.db) {
@@ -281,7 +345,7 @@ async function handleEmDashAuth(
 	if (authMode.type === "external") {
 		// In dev mode, fall back to passkey auth since external JWT won't be present
 		if (import.meta.env.DEV) {
-			if (isLoginRoute) {
+			if (isPublicAdminRoute) {
 				return next();
 			}
 
@@ -293,7 +357,7 @@ async function handleEmDashAuth(
 	}
 
 	// Passkey authentication (default)
-	if (isLoginRoute) {
+	if (isPublicAdminRoute) {
 		return next();
 	}
 
@@ -584,20 +648,13 @@ async function handlePasskeyAuth(
 		const sessionUser = await session?.get("user");
 
 		if (!sessionUser?.id) {
-			// Not authenticated
 			if (isApiRoute) {
-				const headers: Record<string, string> = { ...MW_CACHE_HEADERS };
-				// Add WWW-Authenticate on MCP endpoint 401s to trigger OAuth discovery
-				if (url.pathname === "/_emdash/api/mcp") {
-					headers["WWW-Authenticate"] =
-						`Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource"`;
-				}
 				return Response.json(
 					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-					{ status: 401, headers },
+					{ status: 401, headers: MW_CACHE_HEADERS },
 				);
 			}
-			const loginUrl = new URL("/_emdash/admin/login", url.origin);
+			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("redirect", url.pathname);
 			return context.redirect(loginUrl.toString());
 		}
@@ -615,7 +672,8 @@ async function handlePasskeyAuth(
 					{ status: 401, headers: MW_CACHE_HEADERS },
 				);
 			}
-			return context.redirect("/_emdash/admin/login");
+			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
+			return context.redirect(loginUrl.toString());
 		}
 
 		// Check if user is disabled
@@ -624,7 +682,7 @@ async function handlePasskeyAuth(
 			if (isApiRoute) {
 				return apiError("ACCOUNT_DISABLED", "Account disabled", 403);
 			}
-			const loginUrl = new URL("/_emdash/admin/login", url.origin);
+			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("error", "account_disabled");
 			return context.redirect(loginUrl.toString());
 		}
@@ -665,10 +723,14 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/schema", "WRITE", "schema:write"],
 
 	// Taxonomy, menu, section, widget, revision — all content domain
+	// GET uses content:read (implicit from taxonomies:read / menus:read via role).
+	// WRITE uses the granular scope so tokens with only taxonomies:manage or
+	// menus:manage are not rejected. content:write implicitly grants these via
+	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
-	["/_emdash/api/taxonomies", "WRITE", "content:write"],
+	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
-	["/_emdash/api/menus", "WRITE", "content:write"],
+	["/_emdash/api/menus", "WRITE", "menus:manage"],
 	["/_emdash/api/sections", "GET", "content:read"],
 	["/_emdash/api/sections", "WRITE", "content:write"],
 	["/_emdash/api/widget-areas", "GET", "content:read"],
@@ -680,11 +742,15 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
 
-	// Import, admin, settings, plugins — all require admin scope
+	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
-	["/_emdash/api/settings", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
+
+	// Settings — use granular scopes so tokens with settings:read or
+	// settings:manage are not rejected at the middleware level.
+	["/_emdash/api/settings", "GET", "settings:read"],
+	["/_emdash/api/settings", "WRITE", "settings:manage"],
 
 	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
 	["/_emdash/api/mcp", "*", "content:read"],

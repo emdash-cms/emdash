@@ -84,7 +84,12 @@ export {
 } from "./schema.js";
 
 // SEO handlers
-export { handleSitemapData, type SitemapContentEntry, type SitemapDataResponse } from "./seo.js";
+export {
+	handleSitemapData,
+	type SitemapCollectionData,
+	type SitemapContentEntry,
+	type SitemapDataResponse,
+} from "./seo.js";
 
 // Plugin handlers
 export {
@@ -108,11 +113,13 @@ export {
 	handleMenuItemUpdate,
 	handleMenuItemDelete,
 	handleMenuItemReorder,
+	handleMenuSetItems,
 	type MenuListItem,
 	type MenuWithItems,
 	type CreateMenuItemInput,
 	type UpdateMenuItemInput,
 	type ReorderItem,
+	type MenuSetItemsInput,
 } from "./menus.js";
 
 // Section handlers

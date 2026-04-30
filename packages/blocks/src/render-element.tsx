@@ -44,6 +44,18 @@ export function renderElement(
 			);
 		case "combobox":
 			return <ComboboxElementComponent element={element} onAction={onAction} onChange={onChange} />;
+		case "repeater":
+			// Admin-authoring only. The runtime block renderer never returns a
+			// DOM node for `repeater` — values are persisted on the parent
+			// block and consumed by the plugin's own runtime component.
+			if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
+				console.warn(
+					"[blocks] renderElement: 'repeater' is an admin-authoring element and renders nothing at runtime",
+				);
+			}
+			return null;
+		case "media_picker":
+			return null;
 		default: {
 			const _exhaustive: never = element;
 			return null;

@@ -179,7 +179,7 @@ describe("generatePluginsModule() standard format", () => {
 				version: "2.0.0",
 				entrypoint: "@my/standard-plugin",
 				format: "standard",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 			},
 		];
 
@@ -232,7 +232,7 @@ describe("generatePluginsModule() standard format", () => {
 				version: "1.0.0",
 				entrypoint: "@my/plugin",
 				format: "standard",
-				capabilities: ["read:content", "network:fetch"],
+				capabilities: ["content:read", "network:request"],
 				allowedHosts: ["api.example.com"],
 				storage: { events: { indexes: ["timestamp"] } },
 				adminPages: [{ path: "/settings", label: "Settings" }],
@@ -244,7 +244,7 @@ describe("generatePluginsModule() standard format", () => {
 		// The descriptor metadata should be serialized into the adapter call
 		expect(code).toContain('"id":"my-plugin"');
 		expect(code).toContain('"version":"1.0.0"');
-		expect(code).toContain('"capabilities":["read:content","network:fetch"]');
+		expect(code).toContain('"capabilities":["content:read","network:request"]');
 		expect(code).toContain('"allowedHosts":["api.example.com"]');
 		expect(code).toContain('"storage":{"events":{"indexes":["timestamp"]}}');
 	});

@@ -39,6 +39,7 @@ export class FTSManager {
 	 * Uses _emdash_ prefix to clearly mark as internal/system table
 	 */
 	getFtsTableName(collectionSlug: string): string {
+		validateIdentifier(collectionSlug, "collection slug");
 		return `_emdash_fts_${collectionSlug}`;
 	}
 
@@ -46,6 +47,7 @@ export class FTSManager {
 	 * Get the content table name for a collection
 	 */
 	getContentTableName(collectionSlug: string): string {
+		validateIdentifier(collectionSlug, "collection slug");
 		return `ec_${collectionSlug}`;
 	}
 
@@ -98,19 +100,25 @@ export class FTSManager {
 	}
 
 	/**
-	 * Create triggers to keep FTS table in sync with content table
+	 * Create triggers to keep FTS table in sync with content table.
+	 *
+	 * The insert and update triggers only add rows to the FTS index when
+	 * `deleted_at IS NULL`. This keeps soft-deleted content out of the
+	 * search index and ensures the FTS row count matches the non-deleted
+	 * content count (which `verifyAndRepairIndex` relies on).
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
+		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
 		const fieldList = searchableFields.join(", ");
 		const newFieldList = searchableFields.map((f) => `NEW.${f}`).join(", ");
-
-		// Insert trigger
+		// Insert trigger - only index non-deleted content
 		await sql
 			.raw(`
 			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_insert" 
 			AFTER INSERT ON "${contentTable}" 
+			WHEN NEW.deleted_at IS NULL
 			BEGIN
 				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
 				VALUES (NEW.rowid, NEW.id, NEW.locale, ${newFieldList});
@@ -118,7 +126,9 @@ export class FTSManager {
 		`)
 			.execute(this.db);
 
-		// Update trigger - delete old, insert new
+		// Update trigger - always remove the old FTS row, only re-insert
+		// if the row is not soft-deleted. This handles both content edits
+		// and soft-delete operations (UPDATE SET deleted_at = ...).
 		await sql
 			.raw(`
 			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update" 
@@ -126,7 +136,8 @@ export class FTSManager {
 			BEGIN
 				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-				VALUES (NEW.rowid, NEW.id, NEW.locale, ${newFieldList});
+				SELECT NEW.rowid, NEW.id, NEW.locale, ${newFieldList}
+				WHERE NEW.deleted_at IS NULL;
 			END
 		`)
 			.execute(this.db);
@@ -147,6 +158,7 @@ export class FTSManager {
 	 * Drop triggers for a collection
 	 */
 	private async dropTriggers(collectionSlug: string): Promise<void> {
+		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
 		await sql.raw(`DROP TRIGGER IF EXISTS "${ftsTable}_insert"`).execute(this.db);
@@ -287,9 +299,12 @@ export class FTSManager {
 	}
 
 	/**
-	 * Enable search for a collection
+	 * Enable search for a collection.
 	 *
-	 * Creates the FTS table and triggers, and populates from existing content.
+	 * Uses rebuildIndex to ensure a clean state -- drop any existing FTS
+	 * table/triggers, recreate them, and populate from content. This avoids
+	 * duplicate rows when triggers have already populated the index (e.g.
+	 * during seeding where content is inserted before search is enabled).
 	 */
 	async enableSearch(
 		collectionSlug: string,
@@ -308,11 +323,8 @@ export class FTSManager {
 			);
 		}
 
-		// Create FTS table
-		await this.createFtsTable(collectionSlug, searchableFields, options?.weights);
-
-		// Populate from existing content
-		await this.populateFromContent(collectionSlug, searchableFields);
+		// Rebuild from scratch to ensure clean state (no duplicate rows)
+		await this.rebuildIndex(collectionSlug, searchableFields, options?.weights);
 
 		// Update search config
 		await this.setSearchConfig(collectionSlug, {
@@ -329,7 +341,8 @@ export class FTSManager {
 	async disableSearch(collectionSlug: string): Promise<void> {
 		if (!isSqlite(this.db)) return;
 		await this.dropFtsTable(collectionSlug);
-		await this.setSearchConfig(collectionSlug, { enabled: false });
+		const existing = await this.getSearchConfig(collectionSlug);
+		await this.setSearchConfig(collectionSlug, { enabled: false, weights: existing?.weights });
 	}
 
 	/**
@@ -341,6 +354,7 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return null;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
+		const ftsDocsizeTable = `${ftsTable}_docsize`;
 
 		// Check if table exists
 		if (!(await this.ftsTableExists(collectionSlug))) {
@@ -349,7 +363,7 @@ export class FTSManager {
 
 		// Count indexed rows
 		const result = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM "${sql.raw(ftsTable)}"
+			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
 
 		return {
@@ -368,10 +382,19 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
+		const ftsDocsizeTable = `${ftsTable}_docsize`;
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fields = await this.getSearchableFields(collectionSlug);
+		const config = await this.getSearchConfig(collectionSlug);
 
 		if (!(await this.ftsTableExists(collectionSlug))) {
-			return false;
+			if (!config?.enabled || fields.length === 0) {
+				return false;
+			}
+
+			console.warn(`FTS index for "${collectionSlug}" is missing. Rebuilding.`);
+			await this.rebuildIndex(collectionSlug, fields, config.weights);
+			return true;
 		}
 
 		// Check 1: Row count mismatch
@@ -380,8 +403,12 @@ export class FTSManager {
 			WHERE deleted_at IS NULL
 		`.execute(this.db);
 
+		// For external-content FTS tables, COUNT(*) on the virtual table is
+		// answered from the backing content table, including soft-deleted rows.
+		// The docsize shadow table tracks the rows actually present in the
+		// full-text index, which is what we need for repair decisions.
 		const ftsCount = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM "${sql.raw(ftsTable)}"
+			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
 
 		const contentRows = contentCount.rows[0]?.count ?? 0;
@@ -391,8 +418,6 @@ export class FTSManager {
 			console.warn(
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
 			);
-			const fields = await this.getSearchableFields(collectionSlug);
-			const config = await this.getSearchConfig(collectionSlug);
 			if (fields.length > 0) {
 				await this.rebuildIndex(collectionSlug, fields, config?.weights);
 			}

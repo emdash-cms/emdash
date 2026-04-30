@@ -233,14 +233,14 @@ Email hooks require specific capabilities. Without the required capability, hook
 
 ### `email:beforeSend`
 
-**Requires:** `email:intercept` capability.
+**Requires:** `hooks.email-events:register` capability.
 
 Runs before email delivery. Return modified message, or `false` to cancel delivery. Handlers are chained — each receives the output of the previous one.
 
 ```typescript
 definePlugin({
 	id: "email-footer",
-	capabilities: ["email:intercept"],
+	capabilities: ["hooks.email-events:register"],
 	hooks: {
 		"email:beforeSend": async (event, ctx) => {
 			return { ...event.message, text: event.message.text + "\n\n-- Sent via EmDash" };
@@ -254,14 +254,14 @@ Returns: `EmailMessage | false`
 
 ### `email:deliver`
 
-**Requires:** `email:provide` capability. **Exclusive hook** — exactly one provider is active.
+**Requires:** `hooks.email-transport:register` capability. **Exclusive hook** — exactly one provider is active.
 
 Implements email transport (e.g. Resend, SMTP, SES). Selected by the admin in Settings > Email.
 
 ```typescript
 definePlugin({
 	id: "emdash-resend",
-	capabilities: ["email:provide", "network:fetch"],
+	capabilities: ["hooks.email-transport:register", "network:request"],
 	allowedHosts: ["api.resend.com"],
 	hooks: {
 		"email:deliver": {
@@ -284,14 +284,14 @@ Returns: `void`
 
 ### `email:afterSend`
 
-**Requires:** `email:intercept` capability.
+**Requires:** `hooks.email-events:register` capability.
 
 Runs after successful delivery. Fire-and-forget — errors are logged but don't propagate.
 
 ```typescript
 definePlugin({
 	id: "email-logger",
-	capabilities: ["email:intercept"],
+	capabilities: ["hooks.email-events:register"],
 	hooks: {
 		"email:afterSend": async (event, ctx) => {
 			ctx.log.info(`Email sent to ${event.message.to}`, { source: event.source });
@@ -350,7 +350,7 @@ Returns structured contributions that core validates, dedupes (first-wins), and 
 			graph: {
 				"@context": "https://schema.org",
 				"@type": "BlogPosting",
-				headline: event.page.title,
+				headline: event.page.pageTitle ?? event.page.title,
 				description: event.page.description,
 			},
 		},
@@ -418,23 +418,23 @@ Use `"continue"` for non-critical operations (analytics, notifications, external
 
 ## Quick Reference
 
-| Hook                     | Trigger              | Capability Required | Return                       |
-| ------------------------ | -------------------- | ------------------- | ---------------------------- |
-| `plugin:install`         | First install        | —                   | `void`                       |
-| `plugin:activate`        | Plugin enabled       | —                   | `void`                       |
-| `plugin:deactivate`      | Plugin disabled      | —                   | `void`                       |
-| `plugin:uninstall`       | Plugin removed       | —                   | `void`                       |
-| `content:beforeSave`     | Before save          | —                   | Modified content or `void`   |
-| `content:afterSave`      | After save           | —                   | `void`                       |
-| `content:beforeDelete`   | Before delete        | —                   | `false` to cancel            |
-| `content:afterDelete`    | After delete         | —                   | `void`                       |
-| `content:afterPublish`   | After publish        | —                   | `void`                       |
-| `content:afterUnpublish` | After unpublish      | —                   | `void`                       |
-| `media:beforeUpload`     | Before upload        | —                   | Modified file info or `void` |
-| `media:afterUpload`      | After upload         | —                   | `void`                       |
-| `email:beforeSend`       | Before email send    | `email:intercept`   | Modified message or `false`  |
-| `email:deliver`          | Email delivery       | `email:provide`     | `void` (exclusive)           |
-| `email:afterSend`        | After email send     | `email:intercept`   | `void`                       |
-| `cron`                   | Scheduled task fires | —                   | `void`                       |
-| `page:metadata`          | Page render          | —                   | Metadata contributions       |
-| `page:fragments`         | Page render          | — (trusted only)    | Fragment contributions       |
+| Hook                     | Trigger              | Capability Required              | Return                       |
+| ------------------------ | -------------------- | -------------------------------- | ---------------------------- |
+| `plugin:install`         | First install        | —                                | `void`                       |
+| `plugin:activate`        | Plugin enabled       | —                                | `void`                       |
+| `plugin:deactivate`      | Plugin disabled      | —                                | `void`                       |
+| `plugin:uninstall`       | Plugin removed       | —                                | `void`                       |
+| `content:beforeSave`     | Before save          | —                                | Modified content or `void`   |
+| `content:afterSave`      | After save           | —                                | `void`                       |
+| `content:beforeDelete`   | Before delete        | —                                | `false` to cancel            |
+| `content:afterDelete`    | After delete         | —                                | `void`                       |
+| `content:afterPublish`   | After publish        | —                                | `void`                       |
+| `content:afterUnpublish` | After unpublish      | —                                | `void`                       |
+| `media:beforeUpload`     | Before upload        | —                                | Modified file info or `void` |
+| `media:afterUpload`      | After upload         | —                                | `void`                       |
+| `email:beforeSend`       | Before email send    | `hooks.email-events:register`    | Modified message or `false`  |
+| `email:deliver`          | Email delivery       | `hooks.email-transport:register` | `void` (exclusive)           |
+| `email:afterSend`        | After email send     | `hooks.email-events:register`    | `void`                       |
+| `cron`                   | Scheduled task fires | —                                | `void`                       |
+| `page:metadata`          | Page render          | —                                | Metadata contributions       |
+| `page:fragments`         | Page render          | — (trusted only)                 | Fragment contributions       |

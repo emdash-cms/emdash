@@ -18,7 +18,9 @@
 	"dependencies": {
 		"@astrojs/node": "catalog:",
 		"@astrojs/react": "catalog:",
+		"@iconify-json/ph": "catalog:",
 		"astro": "catalog:",
+		"astro-iconset": "catalog:",
 		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",
@@ -26,5 +28,11 @@
 	},
 	"devDependencies": {
 		"@astrojs/check": "catalog:"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"better-sqlite3",
+			"esbuild"
+		]
 	}
 }
