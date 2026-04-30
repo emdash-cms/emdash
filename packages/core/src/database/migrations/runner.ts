@@ -157,15 +157,24 @@ const MIGRATION_RACE_WAIT_MS = 10_000;
 const MIGRATION_RACE_POLL_MS = 100;
 
 /**
- * Pattern used to detect "table does not exist" errors from SQLite-family
- * drivers. better-sqlite3 reports `no such table: ...`; D1 wraps the same
- * message as `D1_ERROR: no such table: ...`. We match on the table name to
- * avoid swallowing unrelated "no such table" errors from queries that touch
- * other tables (defensive — `getAppliedMigrationCount` only references
- * `MIGRATION_TABLE`, but downstream callers may grow).
+ * Pattern used to detect "table does not exist" errors across the dialects
+ * EmDash supports. The phrasing differs by driver:
+ *
+ *   - better-sqlite3: `no such table: _emdash_migrations`
+ *   - D1:             `D1_ERROR: no such table: _emdash_migrations: SQLITE_ERROR`
+ *   - PostgreSQL:     `relation "_emdash_migrations" does not exist`
+ *                     (also occasionally `table "_emdash_migrations" does not exist`)
+ *
+ * We deliberately match on the migration table name (rather than using the
+ * generic `isMissingTableError` helper) so an unexpected missing-table error
+ * naming a different table — implausible today since
+ * `getAppliedMigrationCount` only references `MIGRATION_TABLE`, but cheap
+ * insurance against future edits — is not silently swallowed. The pattern is
+ * built from `MIGRATION_TABLE` so a rename cannot drift.
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
-	`no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b`,
+	`(?:no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b` +
+		`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
 	"i",
 );
 
