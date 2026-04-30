@@ -142,8 +142,6 @@ jobs:
 
             Follow your agent instructions for investigation, severity calibration, and posting. Post a single review with line-anchored comments via the gh CLI; the summary will be posted as a separate workflow comment.
 
-            ${{ steps.model.outputs.alias == 'opus' && 'You were selected via /review opus -- the human escalated to a frontier reasoning model because they suspect there is something subtle. Spend extra effort on cross-file consequences and sibling-implementation asymmetries.' || '' }}
-
             <pr_number>${{ steps.pr-number.outputs.number }}</pr_number>
             <pr_description>
             ${{ steps.pr-details.outputs.body }}
