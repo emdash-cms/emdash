@@ -2,6 +2,42 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { binaryType, currentTimestamp, currentTimestampValue } from "../dialect-helpers.js";
+import { detectDialect } from "../dialect-helpers.js";
+
+async function tableExists(db: Kysely<unknown>, tableName: string): Promise<boolean> {
+	try {
+		const result = await sql<{ exists: boolean }>`
+			SELECT EXISTS (
+				SELECT FROM information_schema.tables
+				WHERE table_schema = 'public' AND table_name = ${tableName}
+			) as exists
+		`.execute(db);
+		return result.rows[0]?.exists ?? false;
+	} catch {
+		return false;
+	}
+}
+
+async function getColumnType(db: Kysely<unknown>, tableName: string, columnName: string): Promise<string | null> {
+	try {
+		const result = await sql<{ data_type: string }>`
+			SELECT data_type
+			FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = ${tableName} AND column_name = ${columnName}
+		`.execute(db);
+		return result.rows[0]?.data_type ?? null;
+	} catch {
+		return null;
+	}
+}
+
+async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
+	const colType = await getColumnType(db, referencedTable, referencedColumn);
+	// Map PostgreSQL types to Kysely column builder types
+	if (colType === "uuid") return "uuid";
+	if (colType === "integer" || colType === "bigint" || colType === "smallint") return "integer";
+	return "text";
+}
 
 /**
  * Auth migration - passkey-first authentication
@@ -14,181 +50,152 @@ import { binaryType, currentTimestamp, currentTimestampValue } from "../dialect-
  * - Creates auth_tokens table (magic links, invites)
  * - Creates oauth_accounts table (external provider links)
  * - Creates allowed_domains table (self-signup)
+ *
+ * PostgreSQL-safe: uses ALTER TABLE instead of drop-and-recreate
+ * to preserve foreign key constraints from other tables referencing users.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
-	// SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
-	// Create new users table with updated schema
-	await db.schema
-		.createTable("users_new")
-		.addColumn("id", "text", (col) => col.primaryKey())
-		.addColumn("email", "text", (col) => col.notNull().unique())
-		.addColumn("name", "text")
-		.addColumn("avatar_url", "text")
-		.addColumn("role", "integer", (col) => col.notNull().defaultTo(10)) // SUBSCRIBER
-		.addColumn("email_verified", "integer", (col) => col.notNull().defaultTo(0))
-		.addColumn("data", "text")
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.addColumn("updated_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.execute();
+	const dialect = detectDialect(db);
 
-	// Migrate existing data (map old role strings to new integer levels)
-	await sql`
-		INSERT INTO users_new (id, email, name, role, data, created_at, updated_at)
-		SELECT
-			id,
-			email,
-			name,
-			CASE role
-				WHEN 'admin' THEN 50
-				WHEN 'editor' THEN 40
-				WHEN 'author' THEN 30
-				WHEN 'contributor' THEN 20
-				ELSE 10
-			END,
-			data,
-			created_at,
-			${currentTimestampValue(db)}
-		FROM users
-	`.execute(db);
+	// Resolve the FK column type to match users.id (text in SQLite, uuid in PG)
+	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
 
-	// Drop old table and rename new one
-	await db.schema.dropTable("users").execute();
-	await sql`ALTER TABLE users_new RENAME TO users`.execute(db);
+	if (dialect === "postgres") {
+		// Guard: if credentials already exists, migration has been applied.
+		if (await tableExists(db, "credentials")) return;
 
-	// Recreate index
-	await db.schema.createIndex("idx_users_email").on("users").column("email").execute();
+		// PostgreSQL path: use ALTER TABLE, safe for foreign key deps
+		await sql`ALTER TABLE users
+			DROP COLUMN IF EXISTS password_hash,
+			DROP COLUMN IF EXISTS avatar_id`.execute(db);
 
-	// Passkey credentials
-	await db.schema
-		.createTable("credentials")
-		.addColumn("id", "text", (col) => col.primaryKey()) // Base64url credential ID
-		.addColumn("user_id", "text", (col) => col.notNull())
-		.addColumn("public_key", binaryType(db), (col) => col.notNull()) // COSE public key
-		.addColumn("counter", "integer", (col) => col.notNull().defaultTo(0))
-		.addColumn("device_type", "text", (col) => col.notNull()) // 'singleDevice' | 'multiDevice'
-		.addColumn("backed_up", "integer", (col) => col.notNull().defaultTo(0))
-		.addColumn("transports", "text") // JSON array
-		.addColumn("name", "text") // User-friendly name
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.addColumn("last_used_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.addForeignKeyConstraint("credentials_user_fk", ["user_id"], "users", ["id"], (cb) =>
-			cb.onDelete("cascade"),
-		)
-		.execute();
+		await sql`ALTER TABLE users
+			ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+			ADD COLUMN IF NOT EXISTS role INTEGER NOT NULL DEFAULT 10,
+			ADD COLUMN IF NOT EXISTS email_verified INTEGER NOT NULL DEFAULT 0,
+			ADD COLUMN IF NOT EXISTS updated_at TEXT`.execute(db);
 
-	await db.schema.createIndex("idx_credentials_user").on("credentials").column("user_id").execute();
+		// Convert existing role strings to integers
+		await sql`
+			UPDATE users SET role = 50 WHERE role = 'admin'
+		`.execute(db);
+		await sql`
+			UPDATE users SET role = 40 WHERE role = 'editor'
+		`.execute(db);
+		await sql`
+			UPDATE users SET role = 30 WHERE role = 'author'
+		`.execute(db);
+		await sql`
+			UPDATE users SET role = 20 WHERE role = 'contributor'
+		`.execute(db);
+		await sql`
+			UPDATE users SET role = 10 WHERE role = 'subscriber' OR role IS NULL OR CAST(role AS TEXT) = 'subscriber'
+		`.execute(db);
 
-	// Auth tokens (magic links, email verification, invites, recovery)
-	await db.schema
-		.createTable("auth_tokens")
-		.addColumn("hash", "text", (col) => col.primaryKey()) // SHA-256 hash of token
-		.addColumn("user_id", "text")
-		.addColumn("email", "text") // For pre-user tokens
-		.addColumn("type", "text", (col) => col.notNull()) // 'magic_link' | 'email_verify' | 'invite' | 'recovery'
-		.addColumn("role", "integer") // For invites
-		.addColumn("invited_by", "text")
-		.addColumn("expires_at", "text", (col) => col.notNull())
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.addForeignKeyConstraint("auth_tokens_user_fk", ["user_id"], "users", ["id"], (cb) =>
-			cb.onDelete("cascade"),
-		)
-		.addForeignKeyConstraint("auth_tokens_invited_by_fk", ["invited_by"], "users", ["id"], (cb) =>
-			cb.onDelete("set null"),
-		)
-		.execute();
+		// Set default updated_at for existing rows
+		await sql`
+			UPDATE users SET updated_at = ${currentTimestampValue(db)} WHERE updated_at IS NULL
+		`.execute(db);
+	}
 
-	await db.schema.createIndex("idx_auth_tokens_email").on("auth_tokens").column("email").execute();
+	// Credentials, tokens, accounts, domains: create tables (same for SQLite and Postgres)
+	if (!(await tableExists(db, "credentials"))) {
+		await db.schema
+			.createTable("credentials")
+			.addColumn("id", "text", (col) => col.primaryKey())
+			.addColumn("user_id", userIdType, (col) => col.notNull())
+			.addColumn("public_key", binaryType(db), (col) => col.notNull())
+			.addColumn("counter", "integer", (col) => col.notNull().defaultTo(0))
+			.addColumn("device_type", "text", (col) => col.notNull())
+			.addColumn("backed_up", "integer", (col) => col.notNull().defaultTo(0))
+			.addColumn("transports", "text")
+			.addColumn("name", "text")
+			.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.addColumn("last_used_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.addForeignKeyConstraint("credentials_user_fk", ["user_id"], "users", ["id"], (cb) =>
+				cb.onDelete("cascade"),
+			)
+			.execute();
 
-	// OAuth accounts (external provider links)
-	await db.schema
-		.createTable("oauth_accounts")
-		.addColumn("provider", "text", (col) => col.notNull())
-		.addColumn("provider_account_id", "text", (col) => col.notNull())
-		.addColumn("user_id", "text", (col) => col.notNull())
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.addPrimaryKeyConstraint("oauth_accounts_pk", ["provider", "provider_account_id"])
-		.addForeignKeyConstraint("oauth_accounts_user_fk", ["user_id"], "users", ["id"], (cb) =>
-			cb.onDelete("cascade"),
-		)
-		.execute();
+		await db.schema.createIndex("idx_credentials_user").on("credentials").column("user_id").execute();
+	}
 
-	await db.schema
-		.createIndex("idx_oauth_accounts_user")
-		.on("oauth_accounts")
-		.column("user_id")
-		.execute();
+	if (!(await tableExists(db, "auth_tokens"))) {
+		await db.schema
+			.createTable("auth_tokens")
+			.addColumn("hash", "text", (col) => col.primaryKey())
+			.addColumn("user_id", userIdType)
+			.addColumn("email", "text")
+			.addColumn("type", "text", (col) => col.notNull())
+			.addColumn("role", "integer")
+			.addColumn("invited_by", userIdType)
+			.addColumn("expires_at", "text", (col) => col.notNull())
+			.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.addForeignKeyConstraint("auth_tokens_user_fk", ["user_id"], "users", ["id"], (cb) =>
+				cb.onDelete("cascade"),
+			)
+			.addForeignKeyConstraint("auth_tokens_invited_by_fk", ["invited_by"], "users", ["id"], (cb) =>
+				cb.onDelete("set null"),
+			)
+			.execute();
 
-	// Allowed domains for self-signup
-	await db.schema
-		.createTable("allowed_domains")
-		.addColumn("domain", "text", (col) => col.primaryKey())
-		.addColumn("default_role", "integer", (col) => col.notNull().defaultTo(20)) // CONTRIBUTOR
-		.addColumn("enabled", "integer", (col) => col.notNull().defaultTo(1))
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.execute();
+		await db.schema.createIndex("idx_auth_tokens_email").on("auth_tokens").column("email").execute();
+	}
 
-	// WebAuthn challenges (ephemeral, with TTL)
-	await db.schema
-		.createTable("auth_challenges")
-		.addColumn("challenge", "text", (col) => col.primaryKey()) // Base64url challenge
-		.addColumn("type", "text", (col) => col.notNull()) // 'registration' | 'authentication'
-		.addColumn("user_id", "text") // For registration, the user being registered
-		.addColumn("data", "text") // JSON for additional context
-		.addColumn("expires_at", "text", (col) => col.notNull())
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.execute();
+	if (!(await tableExists(db, "oauth_accounts"))) {
+		await db.schema
+			.createTable("oauth_accounts")
+			.addColumn("provider", "text", (col) => col.notNull())
+			.addColumn("provider_account_id", "text", (col) => col.notNull())
+			.addColumn("user_id", userIdType, (col) => col.notNull())
+			.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.addPrimaryKeyConstraint("oauth_accounts_pk", ["provider", "provider_account_id"])
+			.addForeignKeyConstraint("oauth_accounts_user_fk", ["user_id"], "users", ["id"], (cb) =>
+				cb.onDelete("cascade"),
+			)
+			.execute();
 
-	// Index for efficient cleanup of expired challenges
-	await db.schema
-		.createIndex("idx_auth_challenges_expires")
-		.on("auth_challenges")
-		.column("expires_at")
-		.execute();
+		await db.schema
+			.createIndex("idx_oauth_accounts_user")
+			.on("oauth_accounts")
+			.column("user_id")
+			.execute();
+	}
+
+	if (!(await tableExists(db, "allowed_domains"))) {
+		await db.schema
+			.createTable("allowed_domains")
+			.addColumn("domain", "text", (col) => col.primaryKey())
+			.addColumn("default_role", "integer", (col) => col.notNull().defaultTo(20))
+			.addColumn("enabled", "integer", (col) => col.notNull().defaultTo(1))
+			.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.execute();
+	}
+
+	if (!(await tableExists(db, "auth_challenges"))) {
+		await db.schema
+			.createTable("auth_challenges")
+			.addColumn("challenge", "text", (col) => col.primaryKey())
+			.addColumn("type", "text", (col) => col.notNull())
+			.addColumn("user_id", "text")
+			.addColumn("data", "text")
+			.addColumn("expires_at", "text", (col) => col.notNull())
+			.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
+			.execute();
+
+		await db.schema
+			.createIndex("idx_auth_challenges_expires")
+			.on("auth_challenges")
+			.column("expires_at")
+			.execute();
+	}
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
 	// Drop new tables
-	await db.schema.dropTable("auth_challenges").execute();
-	await db.schema.dropTable("allowed_domains").execute();
-	await db.schema.dropTable("oauth_accounts").execute();
-	await db.schema.dropTable("auth_tokens").execute();
-	await db.schema.dropTable("credentials").execute();
-
-	// Recreate old users table with password_hash
-	await db.schema
-		.createTable("users_old")
-		.addColumn("id", "text", (col) => col.primaryKey())
-		.addColumn("email", "text", (col) => col.notNull().unique())
-		.addColumn("password_hash", "text", (col) => col.notNull())
-		.addColumn("name", "text")
-		.addColumn("role", "text", (col) => col.defaultTo("subscriber"))
-		.addColumn("avatar_id", "text")
-		.addColumn("data", "text")
-		.addColumn("created_at", "text", (col) => col.defaultTo(currentTimestamp(db)))
-		.execute();
-
-	// Migrate data back (users will have empty password_hash)
-	await sql`
-		INSERT INTO users_old (id, email, password_hash, name, role, data, created_at)
-		SELECT
-			id,
-			email,
-			'', -- No way to restore password
-			name,
-			CASE role
-				WHEN 50 THEN 'admin'
-				WHEN 40 THEN 'editor'
-				WHEN 30 THEN 'author'
-				WHEN 20 THEN 'contributor'
-				ELSE 'subscriber'
-			END,
-			data,
-			created_at
-		FROM users
-	`.execute(db);
-
-	await db.schema.dropTable("users").execute();
-	await sql`ALTER TABLE users_old RENAME TO users`.execute(db);
-
-	await db.schema.createIndex("idx_users_email").on("users").column("email").execute();
+	await db.schema.dropTable("auth_challenges").ifExists().execute();
+	await db.schema.dropTable("allowed_domains").ifExists().execute();
+	await db.schema.dropTable("oauth_accounts").ifExists().execute();
+	await db.schema.dropTable("auth_tokens").ifExists().execute();
+	await db.schema.dropTable("credentials").ifExists().execute();
 }

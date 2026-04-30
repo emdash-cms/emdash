@@ -1,7 +1,22 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { currentTimestamp } from "../dialect-helpers.js";
+import { currentTimestamp, detectDialect } from "../dialect-helpers.js";
+
+async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
+    try {
+        const result = await sql<{ data_type: string }>`
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = ${referencedTable} AND column_name = ${referencedColumn}
+        `.execute(db);
+        const colType = result.rows[0]?.data_type ?? null;
+        if (colType === "uuid") return "uuid";
+        return "text";
+    } catch {
+        return "text";
+    }
+}
 
 /**
  * Authorization codes for OAuth 2.1 Authorization Code + PKCE flow.
@@ -12,6 +27,9 @@ import { currentTimestamp } from "../dialect-helpers.js";
  * Also adds client_id tracking to oauth_tokens for per-client revocation.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
+	const dialect = detectDialect(db);
+	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
+
 	await db.schema
 		.createTable("_emdash_authorization_codes")
 		.addColumn("code_hash", "text", (col) => col.primaryKey()) // SHA-256 hash of authorization code

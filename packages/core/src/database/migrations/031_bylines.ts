@@ -1,9 +1,27 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { currentTimestamp, listTablesLike } from "../dialect-helpers.js";
+import { currentTimestamp, detectDialect, listTablesLike } from "../dialect-helpers.js";
+
+async function getForeignKeyColumnType(db: Kysely<unknown>, referencedTable: string, referencedColumn: string): Promise<string> {
+    try {
+        const result = await sql<{ data_type: string }>`
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = ${referencedTable} AND column_name = ${referencedColumn}
+        `.execute(db);
+        const colType = result.rows[0]?.data_type ?? null;
+        if (colType === "uuid") return "uuid";
+        return "text";
+    } catch {
+        return "text";
+    }
+}
 
 export async function up(db: Kysely<unknown>): Promise<void> {
+	const dialect = detectDialect(db);
+	const userIdType = dialect === "postgres" ? await getForeignKeyColumnType(db, "users", "id") : "text";
+
 	await db.schema
 		.createTable("_emdash_bylines")
 		.addColumn("id", "text", (col) => col.primaryKey())

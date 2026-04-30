@@ -54,6 +54,11 @@ import type { EmDashHandlers } from "./types.js";
 let runtimeInstance: EmDashRuntime | null = null;
 // Whether initialization is in progress (prevents concurrent init attempts)
 let runtimeInitializing = false;
+// Epoch ms when the current initialization attempt started.
+let runtimeInitializingSince = 0;
+
+const RUNTIME_INIT_WAIT_MS = 3000;
+const RUNTIME_INIT_POLL_MS = 50;
 
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
@@ -149,14 +154,31 @@ async function getRuntime(
 
 	// If another request is already initializing, wait and retry.
 	// We don't share the promise across requests because workerd flags
-	// cross-request promise resolution (causes warnings + potential hangs).
+	// cross-request promise resolution. Instead, poll briefly and give up on
+	// stale init attempts so requests fail fast rather than hanging forever.
 	if (runtimeInitializing) {
-		// Poll until the initializing request finishes
-		await new Promise((resolve) => setTimeout(resolve, 50));
-		return getRuntime(config, initTimings);
+		const waitStartedAt = Date.now();
+
+		while (runtimeInitializing && !runtimeInstance) {
+			const initAge = runtimeInitializingSince > 0 ? Date.now() - runtimeInitializingSince : 0;
+			const waitAge = Date.now() - waitStartedAt;
+
+			if (initAge > RUNTIME_INIT_WAIT_MS || waitAge > RUNTIME_INIT_WAIT_MS) {
+				runtimeInitializing = false;
+				runtimeInitializingSince = 0;
+				break;
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, RUNTIME_INIT_POLL_MS));
+		}
+
+		if (runtimeInstance) {
+			return runtimeInstance;
+		}
 	}
 
 	runtimeInitializing = true;
+	runtimeInitializingSince = Date.now();
 	try {
 		const deps = buildDependencies(config);
 		const runtime = await EmDashRuntime.create(deps, initTimings);
@@ -164,6 +186,7 @@ async function getRuntime(
 		return runtime;
 	} finally {
 		runtimeInitializing = false;
+		runtimeInitializingSince = 0;
 	}
 }
 
@@ -255,8 +278,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
+		const isSetupShellRoute = url.pathname.startsWith("/_emdash/admin/setup");
+		const isSetupApiRoute = url.pathname.startsWith("/_emdash/api/setup");
+		const isPublicEdgeHealthRoute = url.pathname === "/api/v1/health";
 		const isPublicRuntimeRoute =
 			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || SITEMAP_COLLECTION_RE.test(url.pathname);
+
+		if (isSetupShellRoute || isSetupApiRoute || isPublicEdgeHealthRoute) {
+			const response = await next();
+			return finalizeResponse(response);
+		}
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing

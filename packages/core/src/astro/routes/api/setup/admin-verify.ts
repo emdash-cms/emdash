@@ -5,6 +5,7 @@
  */
 
 import type { APIRoute } from "astro";
+import virtualConfig from "virtual:emdash/config";
 
 export const prerender = false;
 
@@ -21,6 +22,7 @@ import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+import { getDb } from "../../../../loader.js";
 
 export const POST: APIRoute = async ({ cookies, request, locals }) => {
 	const { emdash } = locals;
@@ -30,8 +32,11 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 	}
 
 	try {
+		const db = emdash?.db ?? (await getDb());
+		const config = emdash?.config ?? virtualConfig;
+
 		// Check if setup is already complete
-		const options = new OptionsRepository(emdash.db);
+		const options = new OptionsRepository(db);
 		const setupComplete = await options.get("emdash:setup_complete");
 
 		if (setupComplete === true || setupComplete === "true") {
@@ -39,7 +44,7 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		}
 
 		// Check if any users exist
-		const adapter = createKyselyAdapter(emdash.db);
+		const adapter = createKyselyAdapter(db);
 		const userCount = await adapter.countUsers();
 
 		if (userCount > 0) {
@@ -83,15 +88,15 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		// Get passkey config
 		const url = new URL(request.url);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
-		const siteUrl = getPublicOrigin(url, emdash?.config);
+		const siteUrl = getPublicOrigin(url, config);
 		const allowedOrigins = validateAllowedOrigins(
 			siteUrl,
-			getConfiguredAllowedOrigins(emdash?.config),
+			getConfiguredAllowedOrigins(config),
 		);
 		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl, allowedOrigins);
 
 		// Verify the registration response
-		const challengeStore = createChallengeStore(emdash.db);
+		const challengeStore = createChallengeStore(db);
 
 		const verified = await verifyRegistrationResponse(
 			passkeyConfig,

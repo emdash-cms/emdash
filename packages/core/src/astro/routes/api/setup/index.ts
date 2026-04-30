@@ -5,6 +5,9 @@
  */
 
 import type { APIRoute } from "astro";
+import { sql } from "kysely";
+import virtualConfig from "virtual:emdash/config";
+import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
 export const prerender = false;
 
@@ -18,20 +21,77 @@ import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
+import { getDb } from "../../../../loader.js";
+
+async function shouldRunSetupCoreMigrations(db) {
+	try {
+		const applied = await db.selectFrom("_emdash_migrations").select("name").limit(1).execute();
+		if (applied.length > 0) {
+			return false;
+		}
+	} catch {
+		// Missing EmDash ledger can still be valid on Mini-owned schemas.
+	}
+
+	try {
+		const miniMigrations = await db.selectFrom("kysely_migration").select("name").limit(1).execute();
+		return miniMigrations.length === 0;
+	} catch {
+		return true;
+	}
+}
+
+async function ensureSetupCompatibilitySchema(db) {
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS search_config TEXT`.execute(db);
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS has_seo INTEGER NOT NULL DEFAULT 0`.execute(db);
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS url_pattern TEXT`.execute(db);
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_enabled INTEGER DEFAULT 0`.execute(db);
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_moderation TEXT DEFAULT 'first_time'`.execute(db);
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_closed_after_days INTEGER DEFAULT 90`.execute(db);
+	await sql`ALTER TABLE _emdash_collections ADD COLUMN IF NOT EXISTS comments_auto_approve_users INTEGER DEFAULT 1`.execute(db);
+	await sql`ALTER TABLE _emdash_fields ADD COLUMN IF NOT EXISTS searchable INTEGER DEFAULT 0`.execute(db);
+}
+
+async function hasExistingSetupCollections(db) {
+	try {
+		const result = await sql`SELECT COUNT(*)::int AS count FROM _emdash_collections`.execute(db);
+		return Number(result.rows[0]?.count ?? 0) > 0;
+	} catch {
+		return false;
+	}
+}
+
+function buildSkippedSeedResult(seed) {
+	return {
+		collections: { created: 0, skipped: seed.collections?.length ?? 0, updated: 0 },
+		fields: { created: 0, skipped: seed.collections?.reduce((count, collection) => count + collection.fields.length, 0) ?? 0, updated: 0 },
+		taxonomies: { created: 0, terms: 0 },
+		bylines: { created: 0, skipped: 0, updated: 0 },
+		menus: { created: 0, items: 0 },
+		redirects: { created: 0, skipped: 0, updated: 0 },
+		widgetAreas: { created: 0, widgets: 0 },
+		sections: { created: 0, skipped: 0, updated: 0 },
+		settings: { applied: 0 },
+		content: { created: 0, skipped: 0, updated: 0 },
+		media: { created: 0, skipped: 0 },
+	};
+}
 
 export const POST: APIRoute = async ({ request, url, locals }) => {
 	const { emdash } = locals;
 
-	if (!emdash?.db) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
-
 	try {
+		const db = emdash?.db ?? (await getDb());
+		const config = emdash?.config ?? virtualConfig;
+		const storage =
+			emdash?.storage ??
+			(config?.storage && virtualCreateStorage ? virtualCreateStorage(config.storage.config) : undefined);
+
 		// Guard: reject if setup has already been completed.
 		// The options table may not exist on first-ever setup (pre-migration),
 		// so a query failure means setup hasn't run yet — allow it to proceed.
 		try {
-			const options = new OptionsRepository(emdash.db);
+			const options = new OptionsRepository(db);
 			const setupComplete = await options.get("emdash:setup_complete");
 
 			if (setupComplete === true || setupComplete === "true") {
@@ -47,7 +107,10 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 
 		// 1. Run core migrations
 		try {
-			await runMigrations(emdash.db);
+			if (await shouldRunSetupCoreMigrations(db)) {
+				await runMigrations(db);
+			}
+			await ensureSetupCompatibilitySchema(db);
 		} catch (error) {
 			return handleError(error, "Failed to run database migrations", "MIGRATION_ERROR");
 		}
@@ -70,11 +133,20 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 
 		let result;
 		try {
-			result = await applySeed(emdash.db, seed, {
-				includeContent: body.includeContent,
-				onConflict: "skip",
-				storage: emdash.storage ?? undefined,
-			});
+			result = (await hasExistingSetupCollections(db))
+				? buildSkippedSeedResult(seed)
+				: await applySeed(db, {
+						...seed,
+						settings: {
+							...seed.settings,
+							title: body.title,
+							tagline: body.tagline,
+						},
+					}, {
+						includeContent: body.includeContent,
+						onConflict: "skip",
+						storage,
+					});
 		} catch (error) {
 			return handleError(error, "Failed to apply seed", "SEED_ERROR");
 		}
@@ -82,18 +154,18 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		// 5. Store setup state
 		// In external auth mode, mark setup complete immediately (first user to login becomes admin)
 		// Otherwise, setup_complete is set after admin user is created (passkey or auth provider)
-		const authMode = getAuthMode(emdash.config);
+		const authMode = getAuthMode(config);
 		const useExternalAuth = authMode.type === "external";
 
 		try {
-			const options = new OptionsRepository(emdash.db);
+			const options = new OptionsRepository(db);
 
 			// Store the canonical site URL from the setup request.
 			// Write-once at the DB level so concurrent setup POSTs can't both
 			// observe an empty value and race to write. A spoofed Host header
 			// on a later call during the wizard window must not be able to
 			// replace the first value.
-			const siteUrl = getPublicOrigin(url, emdash.config);
+			const siteUrl = getPublicOrigin(url, config);
 			await options.setIfAbsent("emdash:site_url", siteUrl);
 
 			if (useExternalAuth) {

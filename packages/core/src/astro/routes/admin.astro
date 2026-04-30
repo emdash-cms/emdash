@@ -13,9 +13,10 @@ import { Font } from "astro:assets";
 
 export const prerender = false;
 
-import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
+import { DEFAULT_LOCALE, resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
 
-const resolvedLocale = resolveLocale(Astro.request);
+const isSetupRoute = new URL(Astro.request.url).pathname === "/_emdash/admin/setup";
+const resolvedLocale = isSetupRoute ? DEFAULT_LOCALE : resolveLocale(Astro.request);
 const resolvedDir = getLocaleDir(resolvedLocale);
 const messages = await loadMessages(resolvedLocale);
 
