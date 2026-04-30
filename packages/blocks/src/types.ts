@@ -135,6 +135,21 @@ export interface RepeaterElement {
 	initial_value?: Array<Record<string, unknown>>;
 }
 
+/**
+ * Picks an item from the media library (or uploads a new one). The stored value
+ * is the selected asset's URL string, so this element is value-compatible with a
+ * plain `text_input` — existing content continues to work after swapping.
+ */
+export interface MediaPickerElement {
+	type: "media_picker";
+	action_id: string;
+	label: string;
+	/** Mime-type prefix filter (e.g. "image/"). Defaults to "image/". */
+	mime_type_filter?: string;
+	initial_value?: string;
+	placeholder?: string;
+}
+
 export type Element =
 	| ButtonElement
 	| TextInputElement
@@ -146,7 +161,8 @@ export type Element =
 	| DateInputElement
 	| ComboboxElement
 	| RadioElement
-	| RepeaterElement;
+	| RepeaterElement
+	| MediaPickerElement;
 
 // ── Form Fields (elements + optional condition) ──────────────────────────────
 

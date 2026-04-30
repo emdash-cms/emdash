@@ -35,12 +35,6 @@ const SITE_MATRIX: SiteCase[] = [
 
 	// Templates
 	{
-		name: "templates/blank",
-		dir: resolve(WORKSPACE_ROOT, "templates/blank"),
-		port: 4611,
-		startupTimeoutMs: 60_000,
-	},
-	{
 		name: "templates/blog",
 		dir: resolve(WORKSPACE_ROOT, "templates/blog"),
 		port: 4612,

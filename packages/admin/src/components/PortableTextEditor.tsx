@@ -83,6 +83,7 @@ import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
+import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -1229,6 +1230,18 @@ function BlockKitField({
 		case "repeater": {
 			return (
 				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
+			);
+		}
+		case "media_picker": {
+			return (
+				<BlockKitMediaPickerField
+					actionId={field.action_id}
+					label={field.label}
+					placeholder={field.placeholder}
+					mimeTypeFilter={field.mime_type_filter}
+					value={value}
+					onChange={onChange}
+				/>
 			);
 		}
 		default:

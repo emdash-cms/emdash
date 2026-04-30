@@ -70,11 +70,6 @@ const NODE_TEMPLATES = {
 		description: "A portfolio site with projects and case studies",
 		dir: "portfolio",
 	},
-	blank: {
-		name: "Blank",
-		description: "A minimal starter with no content or styling",
-		dir: "blank",
-	},
 } as const satisfies Record<string, TemplateConfig>;
 
 const CLOUDFLARE_TEMPLATES = {

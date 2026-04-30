@@ -158,6 +158,52 @@ describe("validateBlocks", () => {
 			]);
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
+
+		it("media_picker (minimal)", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [{ type: "media_picker", action_id: "hero", label: "Hero" }],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("media_picker (with options)", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							mime_type_filter: "image/",
+							initial_value: "/_emdash/api/media/file/abc.png",
+							placeholder: "Pick a hero image",
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("media_picker (specific subtype)", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "logo",
+							label: "Logo",
+							mime_type_filter: "image/svg+xml",
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
 	});
 
 	// ── Invalid blocks ───────────────────────────────────────────────────────
@@ -622,6 +668,103 @@ describe("validateBlocks", () => {
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].fields[0].condition");
 			expect(result.errors[0]!.message).toContain("either 'eq' or 'neq'");
+		});
+
+		it("media_picker mime_type_filter must be a string", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{ type: "media_picker", action_id: "hero", label: "Hero", mime_type_filter: 42 },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+			expect(result.errors[0]!.message).toContain("must be a string");
+		});
+
+		it("media_picker mime_type_filter rejects missing slash", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{ type: "media_picker", action_id: "hero", label: "Hero", mime_type_filter: "image" },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+			expect(result.errors[0]!.message).toContain("image MIME type or prefix");
+		});
+
+		it("media_picker mime_type_filter rejects non-image type", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{ type: "media_picker", action_id: "v", label: "Video", mime_type_filter: "video/" },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+		});
+
+		it("media_picker mime_type_filter rejects wildcard", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							mime_type_filter: "image/*",
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+		});
+
+		it("media_picker initial_value must be a string", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							initial_value: 42,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].initial_value");
+			expect(result.errors[0]!.message).toContain("must be a string");
+		});
+
+		it("media_picker placeholder must be a string", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							placeholder: false,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].placeholder");
+			expect(result.errors[0]!.message).toContain("must be a string");
 		});
 	});
 
