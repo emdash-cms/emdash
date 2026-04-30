@@ -201,7 +201,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 									setSlugTouched(true);
 								}}
 								placeholder="section-slug"
-								pattern="[a-z0-9-]+"
+								pattern="[a-z0-9\-]+"
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
 								{t`Used to identify this section. Lowercase letters, numbers, and hyphens only.`}

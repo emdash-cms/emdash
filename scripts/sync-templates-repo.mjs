@@ -39,7 +39,6 @@ const TEMPLATES_DIR = join(ROOT, "templates");
 const REPO = "emdash-cms/templates";
 
 const TEMPLATES = [
-	"blank",
 	"blog",
 	"blog-cloudflare",
 	"marketing",

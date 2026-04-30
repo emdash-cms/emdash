@@ -92,6 +92,95 @@ describe("Zod Generator", () => {
 			expect(() => schema.parse("yes")).toThrow();
 		});
 
+		it("should coerce stored 0/1 booleans to real booleans", () => {
+			// Boolean fields map to `INTEGER` columns (`FIELD_TYPE_TO_COLUMN`
+			// in `schema/types.ts`) and `serializeValue` in
+			// `database/repositories/content.ts` writes booleans as 0/1.
+			// `deserializeValue` never converts them back, so a GET → POST
+			// round-trip on a boolean field fails validation (`z.boolean()`
+			// rejects numbers) unless this schema accepts the integer shape.
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "active",
+				label: "Active",
+				type: "boolean",
+				columnType: "INTEGER",
+				required: true,
+				unique: false,
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(schema.parse(0)).toBe(false);
+			expect(schema.parse(1)).toBe(true);
+			// Other numbers must still fail — only the integer 0/1 shape is accepted.
+			expect(() => schema.parse(2)).toThrow();
+			expect(() => schema.parse(-1)).toThrow();
+			// Strings still fail.
+			expect(() => schema.parse("0")).toThrow();
+			expect(() => schema.parse("true")).toThrow();
+			// BigInt from drivers that return 64-bit ints is unsupported (no
+			// known driver currently does this for boolean columns); rejecting
+			// is safer than a silent coercion that could hide a real bug.
+			expect(() => schema.parse(BigInt(0))).toThrow();
+		});
+
+		it("should preserve `.default(false)` chaining through the boolean preprocess", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "active",
+				label: "Active",
+				type: "boolean",
+				columnType: "INTEGER",
+				required: false,
+				unique: false,
+				sortOrder: 0,
+				defaultValue: false,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			// default applies when the value is undefined.
+			expect(schema.parse(undefined)).toBe(false);
+			// Stored integer shape still coerces.
+			expect(schema.parse(1)).toBe(true);
+		});
+
+		it("should accept stored 0/1 booleans in partial-mode validation", () => {
+			// `validateContentData` in `api/handlers/validation.ts` calls
+			// `schema.partial()` for updates. Confirm that partial mode keeps
+			// the preprocess intact for the boolean field.
+			const collection: CollectionWithFields = {
+				id: "c1",
+				slug: "posts",
+				labelPlural: "Posts",
+				labelSingular: "Post",
+				updatedAt: new Date().toISOString(),
+				fields: [
+					{
+						id: "f1",
+						collectionId: "c1",
+						slug: "active",
+						label: "Active",
+						type: "boolean",
+						columnType: "INTEGER",
+						required: true,
+						unique: false,
+						sortOrder: 0,
+						createdAt: new Date().toISOString(),
+					},
+				],
+			};
+
+			const schema = generateZodSchema(collection).partial();
+			expect(schema.parse({ active: 0 })).toEqual({ active: false });
+			expect(schema.parse({ active: 1 })).toEqual({ active: true });
+			expect(schema.parse({})).toEqual({});
+		});
+
 		it("should generate url schema", () => {
 			const field: Field = {
 				id: "f1",

@@ -24,6 +24,7 @@ export type {
 	RadioElement,
 	RepeaterElement,
 	RepeaterSubField,
+	MediaPickerElement,
 	Element,
 	// Form
 	FieldCondition,

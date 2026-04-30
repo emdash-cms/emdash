@@ -24,6 +24,7 @@ import type {
 	FormField,
 	HeaderBlock,
 	ImageBlock,
+	MediaPickerElement,
 	MeterBlock,
 	NumberInputElement,
 	SecretInputElement,
@@ -352,6 +353,25 @@ function repeater(
 	};
 }
 
+function mediaPicker(
+	actionId: string,
+	label: string,
+	opts?: {
+		mimeTypeFilter?: string;
+		initialValue?: string;
+		placeholder?: string;
+	},
+): MediaPickerElement {
+	return {
+		type: "media_picker",
+		action_id: actionId,
+		label,
+		...(opts?.mimeTypeFilter !== undefined && { mime_type_filter: opts.mimeTypeFilter }),
+		...(opts?.initialValue !== undefined && { initial_value: opts.initialValue }),
+		...(opts?.placeholder !== undefined && { placeholder: opts.placeholder }),
+	};
+}
+
 function timeseriesChart(opts: {
 	blockId?: string;
 	series: ChartSeries[];
@@ -493,4 +513,5 @@ export const elements = {
 	dateInput,
 	radio,
 	repeater,
+	mediaPicker,
 };

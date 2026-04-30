@@ -20,6 +20,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Plus, Trash, DotsSixVertical, CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { cn } from "../lib/utils.js";
 import { CaretNext } from "./ArrowIcons.js";
 
@@ -348,8 +349,8 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				<Input
 					label={subField.label}
 					type="datetime-local"
-					value={typeof value === "string" ? value : ""}
-					onChange={(e) => onChange(e.target.value)}
+					value={toDatetimeLocalInputValue(value)}
+					onChange={(e) => onChange(fromDatetimeLocalInputValue(e.target.value))}
 					required={subField.required}
 				/>
 			);
