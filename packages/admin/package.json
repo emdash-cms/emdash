@@ -61,8 +61,6 @@
     "clsx": "^2.1.1",
     "dompurify": "^3.3.2",
     "marked": "^17.0.3",
-    "react": "catalog:",
-    "react-dom": "catalog:",
     "react-hotkeys-hook": "^5.2.4",
     "tailwind-merge": "^3.3.0"
   },

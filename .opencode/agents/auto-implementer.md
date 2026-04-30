@@ -106,6 +106,16 @@ Things that are easy to miss without grounding in this codebase:
 
 When the bug or feature touches one of these areas, mention the relevant rule in your PR body so the reviewer can confirm you didn't trip it.
 
+## Branch management
+
+**Never create new branches.** The workflow checks out the correct branch before invoking you. When triggered on an existing PR, you are already on that PR's branch. When triggered on an issue, you are on `main` and the workflow handles branch creation and pushing after you finish.
+
+Your job is to commit to whatever branch you're already on. If you create a new branch, your commits won't be pushed to the PR and your work will be lost. This has happened before and wasted a full run.
+
+- Do not run `git checkout -b`, `git switch -c`, or any branch-creation command.
+- Do not run `git push` yourself. The workflow handles pushing.
+- Commit to the current branch. That's it.
+
 ## Implementation protocol
 
 Two reminders that apply specifically to CI work:
