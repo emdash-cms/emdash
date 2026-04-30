@@ -32,11 +32,11 @@ const style = node?.style || "line";
 	}
 	.emdash-break-line {
 		border: none;
-		border-top: 1px solid #e0e0e0;
+		border-top: 1px solid var(--emdash-break-color, #e0e0e0);
 	}
 	.emdash-break-dots {
 		text-align: center;
-		color: #999;
+		color: var(--emdash-break-dots-color, #999);
 		letter-spacing: 0.5em;
 	}
 	.emdash-break-space {
