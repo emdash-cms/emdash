@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/components/ContentEditor.tsx:958
+#: packages/admin/src/components/ContentEditor.tsx:959
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 msgid " (default)"
 msgstr "（デフォルト）"
@@ -54,7 +54,7 @@ msgstr "（開発ポートを使用）。"
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
 #: packages/admin/src/components/ContentTypeList.tsx:69
-#: packages/admin/src/components/RepeaterField.tsx:146
+#: packages/admin/src/components/RepeaterField.tsx:147
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {（#件）} other {（#件）}}"
 
@@ -435,7 +435,7 @@ msgstr "操作"
 msgid "Active"
 msgstr "有効"
 
-#: packages/admin/src/components/ContentEditor.tsx:1715
+#: packages/admin/src/components/ContentEditor.tsx:1716
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -489,7 +489,7 @@ msgstr "フィールドを追加"
 msgid "Add fields"
 msgstr "フィールドを追加"
 
-#: packages/admin/src/components/RepeaterField.tsx:168
+#: packages/admin/src/components/RepeaterField.tsx:169
 msgid "Add First Item"
 msgstr "最初のアイテムを追加"
 
@@ -497,7 +497,7 @@ msgstr "最初のアイテムを追加"
 msgid "Add item"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:152
+#: packages/admin/src/components/RepeaterField.tsx:153
 msgid "Add Item"
 msgstr "アイテムを追加"
 
@@ -770,7 +770,7 @@ msgstr "利用可能なプロバイダー"
 msgid "Back"
 msgstr "戻る"
 
-#: packages/admin/src/components/ContentEditor.tsx:539
+#: packages/admin/src/components/ContentEditor.tsx:540
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel}一覧に戻る"
 
@@ -849,7 +849,7 @@ msgstr "テーマを参照して、自分のコンテンツでプレビューで
 msgid "Bullet List"
 msgstr "箇条書きリスト"
 
-#: packages/admin/src/components/ContentEditor.tsx:924
+#: packages/admin/src/components/ContentEditor.tsx:925
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "署名"
@@ -872,11 +872,11 @@ msgstr "コンテンツを閲覧可能"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:632
-#: packages/admin/src/components/ContentEditor.tsx:838
-#: packages/admin/src/components/ContentEditor.tsx:890
-#: packages/admin/src/components/ContentEditor.tsx:1818
-#: packages/admin/src/components/ContentEditor.tsx:1871
+#: packages/admin/src/components/ContentEditor.tsx:633
+#: packages/admin/src/components/ContentEditor.tsx:839
+#: packages/admin/src/components/ContentEditor.tsx:891
+#: packages/admin/src/components/ContentEditor.tsx:1819
+#: packages/admin/src/components/ContentEditor.tsx:1872
 #: packages/admin/src/components/ContentList.tsx:560
 #: packages/admin/src/components/ContentList.tsx:631
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -943,7 +943,7 @@ msgid "Categories will be imported"
 msgstr "カテゴリがインポートされます"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:68
-#: packages/admin/src/components/ContentEditor.tsx:1575
+#: packages/admin/src/components/ContentEditor.tsx:1576
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -1257,7 +1257,7 @@ msgstr "WordPressを検出できませんでした"
 msgid "Count"
 msgstr "件数"
 
-#: packages/admin/src/components/ContentEditor.tsx:1842
+#: packages/admin/src/components/ContentEditor.tsx:1843
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1286,7 +1286,7 @@ msgstr "アカウントを作成"
 msgid "Create an account"
 msgstr "アカウントを作成"
 
-#: packages/admin/src/components/ContentEditor.tsx:1790
+#: packages/admin/src/components/ContentEditor.tsx:1791
 msgid "Create byline"
 msgstr "署名を作成"
 
@@ -1401,7 +1401,7 @@ msgid "Created At"
 msgstr "作成日時"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:858
+#: packages/admin/src/components/ContentEditor.tsx:859
 msgid "Created: {0}"
 msgstr "作成日: {0}"
 
@@ -1409,7 +1409,7 @@ msgstr "作成日: {0}"
 msgid "Creating collections and fields..."
 msgstr "コレクションとフィールドを作成中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1842
+#: packages/admin/src/components/ContentEditor.tsx:1843
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1418,7 +1418,7 @@ msgstr "コレクションとフィールドを作成中..."
 msgid "Creating..."
 msgstr "作成中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:961
+#: packages/admin/src/components/ContentEditor.tsx:962
 msgid "current"
 msgstr "現在"
 
@@ -1679,12 +1679,12 @@ msgstr "無効"
 msgid "Disabled:"
 msgstr "無効:"
 
-#: packages/admin/src/components/ContentEditor.tsx:617
-#: packages/admin/src/components/ContentEditor.tsx:639
+#: packages/admin/src/components/ContentEditor.tsx:618
+#: packages/admin/src/components/ContentEditor.tsx:640
 msgid "Discard changes"
 msgstr "変更を破棄"
 
-#: packages/admin/src/components/ContentEditor.tsx:623
+#: packages/admin/src/components/ContentEditor.tsx:624
 msgid "Discard draft changes?"
 msgstr "下書きの変更を破棄しますか？"
 
@@ -1697,8 +1697,8 @@ msgstr "閉じる"
 msgid "Display a navigation menu"
 msgstr "ナビゲーションメニューを表示"
 
-#: packages/admin/src/components/ContentEditor.tsx:1793
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:1794
+#: packages/admin/src/components/ContentEditor.tsx:1856
 msgid "Display name"
 msgstr "表示名"
 
@@ -1716,7 +1716,7 @@ msgstr "表示サイズ"
 msgid "Displayed below the image as a visible caption."
 msgstr "画像の下にキャプションとして表示されます。"
 
-#: packages/admin/src/components/ContentEditor.tsx:593
+#: packages/admin/src/components/ContentEditor.tsx:594
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "集中モード (⌘⇧\\)"
 
@@ -1749,7 +1749,7 @@ msgstr "アカウントをお持ちでないですか？ <0>新規登録</0>"
 msgid "Done"
 msgstr "完了"
 
-#: packages/admin/src/components/ContentEditor.tsx:1736
+#: packages/admin/src/components/ContentEditor.tsx:1737
 msgid "Down"
 msgstr "下へ"
 
@@ -1761,7 +1761,7 @@ msgstr "ダウンロード中"
 msgid "draft"
 msgstr "下書き"
 
-#: packages/admin/src/components/ContentEditor.tsx:789
+#: packages/admin/src/components/ContentEditor.tsx:790
 #: packages/admin/src/components/ContentPickerModal.tsx:217
 msgid "Draft"
 msgstr "下書き"
@@ -1799,8 +1799,8 @@ msgstr "例: CI/CDパイプライン"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "例: MacBook Pro、iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:970
-#: packages/admin/src/components/ContentEditor.tsx:1745
+#: packages/admin/src/components/ContentEditor.tsx:971
+#: packages/admin/src/components/ContentEditor.tsx:1746
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1817,7 +1817,7 @@ msgstr "編集"
 msgid "Edit {0}"
 msgstr "{0}を編集"
 
-#: packages/admin/src/components/ContentEditor.tsx:556
+#: packages/admin/src/components/ContentEditor.tsx:557
 msgid "Edit {collectionLabel}"
 msgstr "{collectionLabel}を編集"
 
@@ -1825,7 +1825,7 @@ msgstr "{collectionLabel}を編集"
 msgid "Edit {title}"
 msgstr "{title}を編集"
 
-#: packages/admin/src/components/ContentEditor.tsx:1852
+#: packages/admin/src/components/ContentEditor.tsx:1853
 msgid "Edit byline"
 msgstr "署名を編集"
 
@@ -1948,7 +1948,7 @@ msgid "Enabled"
 msgstr "有効"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1184
+#: packages/admin/src/components/ContentEditor.tsx:1185
 msgid "Enter {0}..."
 msgstr "{0}を入力..."
 
@@ -1957,7 +1957,7 @@ msgstr "{0}を入力..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "URL（https://…）または相対パス（/…）を入力"
 
-#: packages/admin/src/components/ContentEditor.tsx:1402
+#: packages/admin/src/components/ContentEditor.tsx:1403
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "有効なURL（例: https://example.com）を入力"
 
@@ -1965,7 +1965,7 @@ msgstr "有効なURL（例: https://example.com）を入力"
 msgid "Enter credentials manually"
 msgstr "認証情報を手動で入力"
 
-#: packages/admin/src/components/ContentEditor.tsx:592
+#: packages/admin/src/components/ContentEditor.tsx:593
 msgid "Enter distraction-free mode"
 msgstr "集中モードに入る"
 
@@ -1973,7 +1973,7 @@ msgstr "集中モードに入る"
 msgid "Enter email"
 msgstr "メールアドレスを入力"
 
-#: packages/admin/src/components/ContentEditor.tsx:1206
+#: packages/admin/src/components/ContentEditor.tsx:1207
 msgid "Enter markdown content..."
 msgstr "マークダウンを入力..."
 
@@ -2011,7 +2011,7 @@ msgstr "セクションの保存エラー"
 msgid "Exists"
 msgstr "既存"
 
-#: packages/admin/src/components/ContentEditor.tsx:550
+#: packages/admin/src/components/ContentEditor.tsx:551
 msgid "Exit distraction-free mode"
 msgstr "集中モードを終了"
 
@@ -2060,7 +2060,7 @@ msgstr "セキュリティ監査に不合格"
 msgid "Failed to add domain"
 msgstr "ドメインの追加に失敗しました"
 
-#: packages/admin/src/components/ContentEditor.tsx:1836
+#: packages/admin/src/components/ContentEditor.tsx:1837
 msgid "Failed to create byline"
 msgstr "署名の作成に失敗しました"
 
@@ -2158,7 +2158,7 @@ msgstr "テストメールの送信に失敗しました"
 msgid "Failed to update {0}"
 msgstr "{0}の更新に失敗しました"
 
-#: packages/admin/src/components/ContentEditor.tsx:1886
+#: packages/admin/src/components/ContentEditor.tsx:1887
 msgid "Failed to update byline"
 msgstr "署名の更新に失敗しました"
 
@@ -2552,7 +2552,7 @@ msgstr "インストール中..."
 msgid "Integer"
 msgstr "整数"
 
-#: packages/admin/src/components/ContentEditor.tsx:1471
+#: packages/admin/src/components/ContentEditor.tsx:1472
 msgid "Invalid JSON"
 msgstr "無効なJSON"
 
@@ -2570,7 +2570,7 @@ msgstr "ユーザーを招待"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1483
-#: packages/admin/src/components/RepeaterField.tsx:233
+#: packages/admin/src/components/RepeaterField.tsx:234
 msgid "Item {0}"
 msgstr "アイテム {0}"
 
@@ -2696,7 +2696,7 @@ msgstr "リンク"
 msgid "List view"
 msgstr "リスト表示"
 
-#: packages/admin/src/components/ContentEditor.tsx:672
+#: packages/admin/src/components/ContentEditor.tsx:673
 msgid "Live View"
 msgstr "ライブビュー"
 
@@ -3021,13 +3021,13 @@ msgstr "{title}をゴミ箱に移動"
 msgid "Move down"
 msgstr "下に移動"
 
-#: packages/admin/src/components/ContentEditor.tsx:875
-#: packages/admin/src/components/ContentEditor.tsx:897
+#: packages/admin/src/components/ContentEditor.tsx:876
+#: packages/admin/src/components/ContentEditor.tsx:898
 #: packages/admin/src/components/ContentList.tsx:567
 msgid "Move to Trash"
 msgstr "ゴミ箱に移動"
 
-#: packages/admin/src/components/ContentEditor.tsx:881
+#: packages/admin/src/components/ContentEditor.tsx:882
 #: packages/admin/src/components/ContentList.tsx:552
 msgid "Move to Trash?"
 msgstr "ゴミ箱に移動しますか？"
@@ -3086,7 +3086,7 @@ msgstr "新規"
 msgid "New {0}"
 msgstr "新しい{0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:556
+#: packages/admin/src/components/ContentEditor.tsx:557
 msgid "New {collectionLabel}"
 msgstr "新しい{collectionLabel}"
 
@@ -3171,7 +3171,7 @@ msgstr "APIトークンはまだありません。作成して使い始めまし
 msgid "No approved comments yet."
 msgstr "承認済みのコメントはまだありません。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1777
+#: packages/admin/src/components/ContentEditor.tsx:1778
 msgid "No bylines selected."
 msgstr "署名が選択されていません。"
 
@@ -3232,7 +3232,7 @@ msgid "No headings in document"
 msgstr "ドキュメントに見出しがありません"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1406
-#: packages/admin/src/components/RepeaterField.tsx:159
+#: packages/admin/src/components/RepeaterField.tsx:160
 msgid "No items yet"
 msgstr "アイテムはまだありません"
 
@@ -3460,7 +3460,7 @@ msgstr "アウトライン"
 msgid "Overrides the page title in search engine results"
 msgstr "検索エンジンの結果でページタイトルを上書き"
 
-#: packages/admin/src/components/ContentEditor.tsx:912
+#: packages/admin/src/components/ContentEditor.tsx:913
 msgid "Ownership"
 msgstr "所有者"
 
@@ -3562,7 +3562,7 @@ msgstr "保留中"
 msgid "Pending"
 msgstr "保留中"
 
-#: packages/admin/src/components/ContentEditor.tsx:787
+#: packages/admin/src/components/ContentEditor.tsx:788
 msgid "Pending changes"
 msgstr "未保存の変更"
 
@@ -3665,7 +3665,7 @@ msgstr "WordPressからのファイルダウンロードを準備中..."
 msgid "Preparing..."
 msgstr "準備中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:606
+#: packages/admin/src/components/ContentEditor.tsx:607
 #: packages/admin/src/components/ContentTypeEditor.tsx:72
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
@@ -3675,7 +3675,7 @@ msgstr "プレビュー"
 msgid "Preview content before publishing"
 msgstr "公開前にコンテンツをプレビュー"
 
-#: packages/admin/src/components/ContentEditor.tsx:606
+#: packages/admin/src/components/ContentEditor.tsx:607
 msgid "Preview draft"
 msgstr "下書きをプレビュー"
 
@@ -3700,12 +3700,12 @@ msgstr "メインナビゲーション"
 msgid "Provider:"
 msgstr "プロバイダー:"
 
-#: packages/admin/src/components/ContentEditor.tsx:661
-#: packages/admin/src/components/ContentEditor.tsx:768
+#: packages/admin/src/components/ContentEditor.tsx:662
+#: packages/admin/src/components/ContentEditor.tsx:769
 msgid "Publish"
 msgstr "公開"
 
-#: packages/admin/src/components/ContentEditor.tsx:651
+#: packages/admin/src/components/ContentEditor.tsx:652
 msgid "Publish changes"
 msgstr "変更を公開"
 
@@ -3713,7 +3713,7 @@ msgstr "変更を公開"
 msgid "published"
 msgstr "公開済み"
 
-#: packages/admin/src/components/ContentEditor.tsx:783
+#: packages/admin/src/components/ContentEditor.tsx:784
 #: packages/admin/src/components/ContentPickerModal.tsx:214
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
@@ -3728,7 +3728,7 @@ msgstr "公開日: {0}"
 msgid "Published At"
 msgstr "公開日時"
 
-#: packages/admin/src/components/ContentEditor.tsx:1785
+#: packages/admin/src/components/ContentEditor.tsx:1786
 msgid "Quick create byline"
 msgstr "署名をクイック作成"
 
@@ -3810,7 +3810,7 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "登録がキャンセルされたかタイムアウトしました。もう一度お試しください。"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
-#: packages/admin/src/components/ContentEditor.tsx:1754
+#: packages/admin/src/components/ContentEditor.tsx:1755
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/settings/GeneralSettings.tsx:196
 #: packages/admin/src/components/settings/GeneralSettings.tsx:240
@@ -3834,7 +3834,7 @@ msgstr "ドメインを削除"
 msgid "Remove Domain?"
 msgstr "ドメインを削除しますか？"
 
-#: packages/admin/src/components/ContentEditor.tsx:1583
+#: packages/admin/src/components/ContentEditor.tsx:1584
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "画像を削除"
@@ -3850,7 +3850,7 @@ msgstr "画像を削除しますか？"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1522
-#: packages/admin/src/components/RepeaterField.tsx:269
+#: packages/admin/src/components/RepeaterField.tsx:270
 msgid "Remove item {0}"
 msgstr "アイテム{0}を削除"
 
@@ -4037,7 +4037,7 @@ msgstr "ロール"
 msgid "Role {role}"
 msgstr "ロール: {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1759
+#: packages/admin/src/components/ContentEditor.tsx:1760
 msgid "Role label"
 msgstr "ロールラベル"
 
@@ -4048,7 +4048,7 @@ msgstr "ロールラベル"
 msgid "Same window"
 msgstr "同じウィンドウ"
 
-#: packages/admin/src/components/ContentEditor.tsx:1892
+#: packages/admin/src/components/ContentEditor.tsx:1893
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -4082,13 +4082,13 @@ msgstr "設定を保存"
 msgid "Save Social Links"
 msgstr "ソーシャルリンクを保存"
 
-#: packages/admin/src/components/ContentEditor.tsx:581
+#: packages/admin/src/components/ContentEditor.tsx:582
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "保存済み"
 
-#: packages/admin/src/components/ContentEditor.tsx:576
-#: packages/admin/src/components/ContentEditor.tsx:1892
+#: packages/admin/src/components/ContentEditor.tsx:577
+#: packages/admin/src/components/ContentEditor.tsx:1893
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
@@ -4102,15 +4102,15 @@ msgstr "保存済み"
 msgid "Saving..."
 msgstr "保存中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:827
+#: packages/admin/src/components/ContentEditor.tsx:828
 msgid "Schedule"
 msgstr "予約公開"
 
-#: packages/admin/src/components/ContentEditor.tsx:813
+#: packages/admin/src/components/ContentEditor.tsx:814
 msgid "Schedule for"
 msgstr "公開予約日時"
 
-#: packages/admin/src/components/ContentEditor.tsx:850
+#: packages/admin/src/components/ContentEditor.tsx:851
 msgid "Schedule for later"
 msgstr "後で公開予約"
 
@@ -4118,12 +4118,12 @@ msgstr "後で公開予約"
 msgid "scheduled"
 msgstr "予約済み"
 
-#: packages/admin/src/components/ContentEditor.tsx:790
+#: packages/admin/src/components/ContentEditor.tsx:791
 msgid "Scheduled"
 msgstr "予約済み"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:800
+#: packages/admin/src/components/ContentEditor.tsx:801
 msgid "Scheduled for: {0}"
 msgstr "公開予約: {0}"
 
@@ -4339,7 +4339,7 @@ msgid "Select"
 msgstr "選択"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:100
-#: packages/admin/src/components/ContentEditor.tsx:1607
+#: packages/admin/src/components/ContentEditor.tsx:1608
 msgid "Select {label}"
 msgstr "{label}を選択"
 
@@ -4347,7 +4347,7 @@ msgstr "{label}を選択"
 msgid "Select all"
 msgstr "すべて選択"
 
-#: packages/admin/src/components/ContentEditor.tsx:1698
+#: packages/admin/src/components/ContentEditor.tsx:1699
 msgid "Select byline..."
 msgstr "署名を選択..."
 
@@ -4365,7 +4365,7 @@ msgstr "コンテンツを選択"
 msgid "Select Favicon"
 msgstr "ファビコンを選択"
 
-#: packages/admin/src/components/ContentEditor.tsx:1598
+#: packages/admin/src/components/ContentEditor.tsx:1599
 msgid "Select image"
 msgstr "画像を選択"
 
@@ -4394,7 +4394,7 @@ msgstr "OG画像を選択"
 msgid "Select which content types to import."
 msgstr "インポートするコンテンツタイプを選択してください。"
 
-#: packages/admin/src/components/RepeaterField.tsx:366
+#: packages/admin/src/components/RepeaterField.tsx:367
 msgid "Select..."
 msgstr "選択..."
 
@@ -4444,7 +4444,7 @@ msgstr "テストメールを送信"
 msgid "Sending..."
 msgstr "送信中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1002
+#: packages/admin/src/components/ContentEditor.tsx:1003
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
@@ -4617,9 +4617,9 @@ msgstr "メディアインポートをスキップ"
 msgid "Skipped"
 msgstr "スキップ済み"
 
-#: packages/admin/src/components/ContentEditor.tsx:771
-#: packages/admin/src/components/ContentEditor.tsx:1801
-#: packages/admin/src/components/ContentEditor.tsx:1863
+#: packages/admin/src/components/ContentEditor.tsx:772
+#: packages/admin/src/components/ContentEditor.tsx:1802
+#: packages/admin/src/components/ContentEditor.tsx:1864
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
@@ -4700,7 +4700,7 @@ msgstr "スパム"
 msgid "Start Import"
 msgstr "インポートを開始"
 
-#: packages/admin/src/components/ContentEditor.tsx:777
+#: packages/admin/src/components/ContentEditor.tsx:778
 #: packages/admin/src/components/ContentList.tsx:218
 #: packages/admin/src/components/ContentTypeEditor.tsx:108
 #: packages/admin/src/components/Redirects.tsx:452
@@ -4863,7 +4863,7 @@ msgstr "テーマ: {label}"
 msgid "Themes"
 msgstr "テーマ"
 
-#: packages/admin/src/components/ContentEditor.tsx:1611
+#: packages/admin/src/components/ContentEditor.tsx:1612
 msgid "This field is required"
 msgstr "この項目は必須です"
 
@@ -4907,7 +4907,7 @@ msgstr "このセクションは別のシステムからインポートされま
 msgid "This will grant CLI access with your permissions."
 msgstr "これにより、あなたの権限でCLIアクセスが許可されます。"
 
-#: packages/admin/src/components/ContentEditor.tsx:884
+#: packages/admin/src/components/ContentEditor.tsx:885
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "アイテムをゴミ箱に移動します。後でゴミ箱から復元できます。"
 
@@ -4929,7 +4929,7 @@ msgstr "このコメントを完全に削除します。この操作は取り消
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "プラグインとそのバンドルがサイトから削除されます。"
 
-#: packages/admin/src/components/ContentEditor.tsx:626
+#: packages/admin/src/components/ContentEditor.tsx:627
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "公開済みバージョンに戻ります。下書きの変更は失われます。"
 
@@ -4995,11 +4995,11 @@ msgstr "ツール → エクスポート"
 msgid "Track content history"
 msgstr "コンテンツの変更履歴を追跡"
 
-#: packages/admin/src/components/ContentEditor.tsx:980
+#: packages/admin/src/components/ContentEditor.tsx:981
 msgid "Translate"
 msgstr "翻訳"
 
-#: packages/admin/src/components/ContentEditor.tsx:938
+#: packages/admin/src/components/ContentEditor.tsx:939
 msgid "Translations"
 msgstr "翻訳"
 
@@ -5078,8 +5078,8 @@ msgstr "タイプの不一致 ({0})"
 msgid "Unable to reach marketplace"
 msgstr "マーケットプレイスに接続できません"
 
-#: packages/admin/src/components/ContentEditor.tsx:1906
-#: packages/admin/src/components/ContentEditor.tsx:1921
+#: packages/admin/src/components/ContentEditor.tsx:1907
+#: packages/admin/src/components/ContentEditor.tsx:1922
 msgid "Unassigned"
 msgstr "未割り当て"
 
@@ -5129,7 +5129,7 @@ msgstr "アスペクト比を解除"
 msgid "Unnamed passkey"
 msgstr "無名のパスキー"
 
-#: packages/admin/src/components/ContentEditor.tsx:655
+#: packages/admin/src/components/ContentEditor.tsx:656
 msgid "Unpublish"
 msgstr "非公開にする"
 
@@ -5137,7 +5137,7 @@ msgstr "非公開にする"
 msgid "Unregistered Content Tables Found"
 msgstr "未登録のコンテンツテーブルが見つかりました"
 
-#: packages/admin/src/components/ContentEditor.tsx:802
+#: packages/admin/src/components/ContentEditor.tsx:803
 msgid "Unschedule"
 msgstr "予約を解除"
 
@@ -5145,7 +5145,7 @@ msgstr "予約を解除"
 msgid "Untitled"
 msgstr "無題"
 
-#: packages/admin/src/components/ContentEditor.tsx:1733
+#: packages/admin/src/components/ContentEditor.tsx:1734
 msgid "Up"
 msgstr "上へ"
 
@@ -5185,7 +5185,7 @@ msgid "Updated At"
 msgstr "更新日時"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:859
+#: packages/admin/src/components/ContentEditor.tsx:860
 msgid "Updated: {0}"
 msgstr "更新日: {0}"
 
@@ -5307,7 +5307,7 @@ msgstr "登録済みのパスキーで安全にサインインできます。"
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "識別子として使用されます。半角小文字、数字、アンダースコアのみ。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1283
+#: packages/admin/src/components/ContentEditor.tsx:1284
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "一覧ページや記事の上部に表示されるメインビジュアルとして使用されます"
 
