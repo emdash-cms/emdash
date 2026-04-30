@@ -11,10 +11,12 @@ on:
 
 permissions:
   # actions:read is needed for listWorkflowRunArtifacts /
-  # downloadArtifact. contents:read is a safety default; the commit-back
+  # downloadArtifact. pull-requests:read is needed for pulls.get in the
+  # Resolve PR step. contents:read is a safety default; the commit-back
   # step uses the app token, not GITHUB_TOKEN.
   actions: read
   contents: read
+  pull-requests: read
 
 jobs:
   apply:
@@ -47,7 +49,12 @@ jobs:
               artifact_id: artifact.id,
               archive_format: 'zip',
             });
-            const outDir = path.join(process.env.GITHUB_WORKSPACE, 'artifact');
+            // Stage the artifact under RUNNER_TEMP, not GITHUB_WORKSPACE.
+            // GITHUB_WORKSPACE is wiped by the later actions/checkout step
+            // (clean: true is the default), which would delete our payload
+            // before the Apply step can copy it into scripts/. RUNNER_TEMP
+            // sits outside the workspace and survives checkout.
+            const outDir = path.join(process.env.RUNNER_TEMP, 'qc-artifact');
             fs.mkdirSync(outDir, { recursive: true });
             fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
             core.setOutput('found', 'true');
@@ -56,7 +63,7 @@ jobs:
       - name: Unpack artifact
         if: steps.download.outputs.found == 'true'
         run: |
-          cd artifact
+          cd "$RUNNER_TEMP/qc-artifact"
           unzip -o artifact.zip
           ls -la
 
@@ -67,29 +74,43 @@ jobs:
         with:
           script: |
             const fs = require('node:fs');
-            const prNumber = Number(fs.readFileSync('artifact/pr-number', 'utf8').trim());
+            const path = require('node:path');
+            const prNumber = Number(
+              fs.readFileSync(
+                path.join(process.env.RUNNER_TEMP, 'qc-artifact', 'pr-number'),
+                'utf8',
+              ).trim(),
+            );
             if (!Number.isInteger(prNumber) || prNumber <= 0) {
               core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
               return;
             }
-            // Cross-check: look up the PR from the workflow_run's head SHA
-            // to make sure the artifact wasn't tampered with to point at a
-            // different PR.
+            // Cross-check: fetch the PR directly and verify its head SHA
+            // matches the workflow_run's head SHA. This is more robust
+            // than listPullRequestsAssociatedWithCommit, which doesn't
+            // reliably surface fork PRs from the base repo's API view
+            // and was rejecting valid fork artifacts as "not associated".
             const headSha = context.payload.workflow_run.head_sha;
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: headSha,
-            });
-            const match = prs.find((p) => p.number === prNumber);
-            if (!match) {
+            let pr;
+            try {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+              pr = data;
+            } catch (err) {
+              core.setFailed(`Failed to fetch PR #${prNumber}: ${err.message}`);
+              return;
+            }
+            if (pr.head.sha !== headSha) {
               core.setFailed(
-                `PR #${prNumber} from artifact is not associated with commit ${headSha}`,
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has likely moved on; the next PR event will trigger a fresh measure+apply.`,
               );
               return;
             }
-            core.setOutput('number', String(match.number));
-            core.setOutput('ref', match.head.ref);
+            core.setOutput('number', String(pr.number));
+            core.setOutput('ref', pr.head.ref);
             // Use the workflow_run's head_sha — the commit that was
             // actually measured — rather than the PR's current head.
             // If the branch has moved on since, we want to push onto
@@ -97,9 +118,9 @@ jobs:
             // forward) rather than apply stale snapshots to a newer
             // tree.
             core.setOutput('sha', headSha);
-            core.setOutput('full_name', match.head.repo.full_name);
-            const isFork = match.head.repo.fork
-              || match.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+            core.setOutput('full_name', pr.head.repo.full_name);
+            const isFork = pr.head.repo.fork
+              || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput('is_fork', isFork.toString());
 
       - name: Generate app token
@@ -133,8 +154,8 @@ jobs:
         if: steps.download.outputs.found == 'true'
         id: apply
         run: |
-          cp "$GITHUB_WORKSPACE/artifact/query-counts.snapshot.sqlite.json" scripts/
-          cp "$GITHUB_WORKSPACE/artifact/query-counts.snapshot.d1.json" scripts/
+          cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.sqlite.json" scripts/
+          cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.d1.json" scripts/
           git add scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json
           if git diff --staged --quiet; then
             echo "no_diff=true" >> "$GITHUB_OUTPUT"

@@ -5,14 +5,14 @@
  * testable without standing up a real WorkerEntrypoint.
  *
  * Responsibilities:
- *  - Enforce the `network:fetch` / `network:fetch:any` capability.
+ *  - Enforce the `network:request` / `network:request:unrestricted` capability.
  *  - Enforce the allowedHosts list, including on every redirect hop. The
  *    native `fetch` follows 3xx responses automatically; without manual
  *    redirect handling an allowed host that 302s to a disallowed host
  *    would bypass the allowlist.
  *  - Strip credential headers (Authorization, Cookie, Proxy-Authorization)
  *    on cross-origin redirects so tokens don't leak to attacker hosts.
- *  - For `network:fetch:any`, apply a minimal SSRF check on every hop so
+ *  - For `network:request:unrestricted`, apply a minimal SSRF check on every hop so
  *    plugins can't be tricked into reaching cloud-metadata endpoints or
  *    literal private IPs even without an explicit allowlist.
  */
@@ -209,10 +209,10 @@ export async function sandboxHttpFetch(
 	const { capabilities, allowedHosts } = options;
 	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
 
-	const hasUnrestricted = capabilities.includes("network:fetch:any");
-	const hasFetch = capabilities.includes("network:fetch") || hasUnrestricted;
+	const hasUnrestricted = capabilities.includes("network:request:unrestricted");
+	const hasFetch = capabilities.includes("network:request") || hasUnrestricted;
 	if (!hasFetch) {
-		throw new Error("Missing capability: network:fetch");
+		throw new Error("Missing capability: network:request");
 	}
 
 	if (!hasUnrestricted && allowedHosts.length === 0) {

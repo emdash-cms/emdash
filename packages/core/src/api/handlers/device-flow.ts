@@ -135,6 +135,11 @@ export async function handleDeviceCodeRequest(
 	verificationUri: string,
 ): Promise<ApiResult<DeviceCodeResponse>> {
 	try {
+		// Note: client_id is accepted but not validated against _emdash_oauth_clients
+		// because the CLI uses a well-known built-in client ID ("emdash-cli") that
+		// isn't stored in the DB. Full client_id validation + scope clamping for the
+		// device flow is tracked as a follow-up.
+
 		// Parse and validate scopes
 		const requestedScopes = input.scope ? input.scope.split(" ").filter(Boolean) : [];
 		const scopes = normalizeScopes(requestedScopes);

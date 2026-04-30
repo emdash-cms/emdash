@@ -100,7 +100,7 @@ import {
 } from "emdash";
 
 // Bylines (standalone queries -- usually not needed since entries have bylines attached)
-import { getEntryBylines, getBylinesForEntries, getByline, getBylineBySlug } from "emdash";
+import { getByline, getBylineBySlug } from "emdash";
 
 // UI components
 import {

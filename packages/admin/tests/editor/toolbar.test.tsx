@@ -123,6 +123,19 @@ async function focusAndSelectAll(screen: Awaited<ReturnType<typeof render>>) {
 	await userEvent.keyboard(`${mod}{a}${modUp}`);
 }
 
+/**
+ * Returns a locator scoped to the editor toolbar.
+ *
+ * The bubble menu (which appears when text is selected) renders buttons with
+ * the same accessible names as some toolbar buttons (Bold, Italic, Underline,
+ * Strikethrough). An unscoped `getByRole("button", { name: "Bold" })` after
+ * selecting text races with the bubble menu and produces a strict-mode
+ * violation in CI. Scoping to the toolbar via its aria-label avoids the race.
+ */
+function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: string) {
+	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
+}
+
 // =============================================================================
 // 1. Toolbar Presence and Structure
 // =============================================================================
@@ -205,7 +218,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Bold" });
+		const btn = getToolbarButton(screen, "Bold");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -218,7 +231,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Italic" });
+		const btn = getToolbarButton(screen, "Italic");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -231,7 +244,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Underline" });
+		const btn = getToolbarButton(screen, "Underline");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -244,7 +257,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Strikethrough" });
+		const btn = getToolbarButton(screen, "Strikethrough");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -257,7 +270,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Inline Code" });
+		const btn = getToolbarButton(screen, "Inline Code");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -357,7 +370,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = screen.getByRole("button", { name: "Bold" });
+		const btn = getToolbarButton(screen, "Bold");
 
 		// First click: on
 		btn.element().click();
@@ -452,9 +465,9 @@ describe("Undo/Redo", () => {
 		await focusAndSelectAll(screen);
 
 		// Make a change - toggle bold
-		screen.getByRole("button", { name: "Bold" }).element().click();
+		getToolbarButton(screen, "Bold").element().click();
 
-		const undo = screen.getByRole("button", { name: "Undo" });
+		const undo = getToolbarButton(screen, "Undo");
 		await vi.waitFor(
 			() => {
 				expect(undo.element().disabled).toBe(false);
@@ -468,10 +481,10 @@ describe("Undo/Redo", () => {
 		await focusAndSelectAll(screen);
 
 		// Make a change
-		screen.getByRole("button", { name: "Bold" }).element().click();
+		getToolbarButton(screen, "Bold").element().click();
 
-		const undo = screen.getByRole("button", { name: "Undo" });
-		const redo = screen.getByRole("button", { name: "Redo" });
+		const undo = getToolbarButton(screen, "Undo");
+		const redo = getToolbarButton(screen, "Redo");
 
 		// Wait for undo to be enabled, then click it
 		await vi.waitFor(
@@ -495,10 +508,10 @@ describe("Undo/Redo", () => {
 		await focusAndSelectAll(screen);
 
 		// Make a change
-		screen.getByRole("button", { name: "Bold" }).element().click();
+		getToolbarButton(screen, "Bold").element().click();
 
-		const undo = screen.getByRole("button", { name: "Undo" });
-		const redo = screen.getByRole("button", { name: "Redo" });
+		const undo = getToolbarButton(screen, "Undo");
+		const redo = getToolbarButton(screen, "Redo");
 
 		// Undo
 		await vi.waitFor(
