@@ -274,6 +274,21 @@ export const seedCommand = defineCommand({
 			if (result.media.created > 0 || result.media.skipped > 0) {
 				consola.info(`Media: ${result.media.created} created, ${result.media.skipped} skipped`);
 			}
+
+			// If schema changed and a dev server is already running, its
+			// in-memory manifest cache is stale until the next restart.
+			// applySeed clears the DB-persisted cache so a fresh process
+			// picks up the new schema, but it can't reach a live process.
+			// See #776.
+			const schemaChanged =
+				result.collections.created > 0 ||
+				result.collections.updated > 0 ||
+				result.fields.created > 0 ||
+				result.fields.updated > 0 ||
+				result.taxonomies.created > 0;
+			if (schemaChanged) {
+				consola.info("Schema changed -- restart your dev server to pick up the new manifest");
+			}
 		} catch (error) {
 			consola.error("Seed failed:", error instanceof Error ? error.message : error);
 			await db.destroy();

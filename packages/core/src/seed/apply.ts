@@ -13,6 +13,7 @@ import { ulid } from "ulidx";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
+import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
@@ -682,6 +683,39 @@ export async function applySeed(
 	invalidateBylineCache();
 	invalidateRedirectCache();
 	invalidateUrlPatternCache();
+
+	// If the seed touched anything that feeds the admin manifest
+	// (collections, fields, or taxonomy definitions), clear the DB-persisted
+	// manifest cache. The seed CLI runs in a separate process from any
+	// running dev server, so it cannot reach the runtime's in-memory cache --
+	// but on the next cold start the runtime reads `emdash:manifest_cache`
+	// from the options table and serves it without rebuilding. Without this
+	// delete, a stale manifest keeps describing fields with their old
+	// `kind`, which is exactly how a field declared as `type: "json"` ends
+	// up rendering as the markdown editor in the admin (the field's
+	// previously-cached `kind` was `richText`). See issue #776.
+	//
+	// We invalidate when the seed even *attempts* a schema operation rather
+	// than reading SeedApplyResult counters, because:
+	//   - taxonomy-definition updates have no counter,
+	//   - "skip" runs against a stale cache should still self-heal,
+	//   - the only cost of an unnecessary delete is one cold-start rebuild.
+	const seedTouchedManifestInputs =
+		(seed.collections?.length ?? 0) > 0 || (seed.taxonomies?.length ?? 0) > 0;
+
+	if (seedTouchedManifestInputs) {
+		try {
+			const optionsRepo = new OptionsRepository(db);
+			await optionsRepo.delete("emdash:manifest_cache");
+		} catch (error) {
+			// Non-fatal: the options table may not exist yet on a brand-new
+			// database that hasn't run migrations, or the delete may race
+			// with another writer. The next manifest read will rebuild from
+			// the live schema regardless -- the persisted cache is purely an
+			// optimization, not a correctness boundary.
+			console.warn("[emdash] Failed to clear persisted manifest cache after seed:", error);
+		}
+	}
 
 	return result;
 }
