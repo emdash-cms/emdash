@@ -18,8 +18,11 @@
  *   the last interactive control on the page (DOM order matches logical order).
  *
  * RTL:
- *   Uses logical Tailwind classes (`start-*`, `end-*`, `ms-*`, `me-*`). No
- *   physical left/right utilities.
+ *   Avoids physical left/right Tailwind utilities. The component itself uses
+ *   only symmetric horizontal utilities (`-mx-*`, `px-*`), which are
+ *   direction-agnostic. Callers passing directional content into the
+ *   `leading` / `actions` slots should use logical classes (`ms-*`, `me-*`,
+ *   `start-*`, `end-*`) for any side-specific spacing or positioning.
  */
 
 import * as React from "react";
