@@ -1,15 +1,16 @@
 name: Bonk
 
 # /bonk and @ask-bonk both trigger this workflow. The first word after the
-# trigger picks a model alias from .github/bonk-models.json:
+# trigger picks a model alias from .github/bonk-models.json. Currently
+# registered aliases (see that file for the source of truth):
 #
-#   /bonk fix the lint error             -> default model (gpt)
-#   /bonk opus refactor the auth layer   -> Claude Opus 4.7
-#   /bonk gemini look at this whole pkg  -> Gemini 3.1 Pro
-#   /bonk kimi tweak this comment        -> Kimi K2.6
+#   /bonk <task>                         -> default model (currently opus)
+#   /bonk opus <task>                    -> Claude Opus 4.7 (default)
+#   /bonk kimi <task>                    -> Kimi K2.6 (cheap pass for tiny tasks)
 #   @ask-bonk opus how would you do X?   -> Claude Opus 4.7
 #
-# To replace the previous /ultrabonk: use /bonk opus.
+# Add new aliases by editing .github/bonk-models.json -- the resolver script
+# only registers the selected alias in OPENCODE_CONFIG_CONTENT at runtime.
 
 on:
   issue_comment:
@@ -73,6 +74,58 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve trigger context
+        id: trigger
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          # issue_comment fires on both issues and PRs. github.event.issue.pull_request
+          # is non-null when the issue is actually a PR.
+          IS_PR_COMMENT: ${{ github.event.issue.pull_request != null }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Decide trigger_kind ("issue" or "pr") and target_number.
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            if [[ "$IS_PR_COMMENT" == "true" ]]; then
+              KIND=pr
+              NUM="$ISSUE_NUMBER"   # issue.number is the PR number for PR comments
+            else
+              KIND=issue
+              NUM="$ISSUE_NUMBER"
+            fi
+          else
+            KIND=pr
+            NUM="$PR_NUMBER"
+          fi
+
+          # Fetch title/body (heredoc-quoted to prevent newlines in titles or
+          # bodies from corrupting $GITHUB_OUTPUT or smuggling step outputs).
+          if [[ "$KIND" == "pr" ]]; then
+              gh api "/repos/${GITHUB_REPOSITORY}/pulls/${NUM}" > /tmp/target.json
+              SHA="$(jq -r .head.sha /tmp/target.json)"
+              BASE="$(jq -r .base.sha /tmp/target.json)"
+          else
+              gh api "/repos/${GITHUB_REPOSITORY}/issues/${NUM}" > /tmp/target.json
+              SHA=""
+              BASE=""
+          fi
+
+          {
+            echo "kind=${KIND}"
+            echo "number=${NUM}"
+            echo "head_sha=${SHA}"
+            echo "base_sha=${BASE}"
+            echo 'title<<TARGET_TITLE_EOF'
+            jq -r '.title // ""' /tmp/target.json
+            echo TARGET_TITLE_EOF
+            echo 'body<<TARGET_BODY_EOF'
+            jq -r '.body // ""' /tmp/target.json
+            echo TARGET_BODY_EOF
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run Bonk (${{ steps.model.outputs.alias }})
         uses: ask-bonk/ask-bonk/github@a8c6cac8726d0d5ab887bc159aae77e2bfb2cf18 # main as of 2026-04-24
         env:
@@ -85,16 +138,22 @@ jobs:
           mentions: "/bonk,@ask-bonk"
           opencode_version: "1.4.11"
           permissions: write
-          # Custom prompt so the model knows its response will become a PR body
-          # when an auto-PR is opened (issue → branch → PR flow). Without this,
-          # opencode uses the model's free-form response as the PR body verbatim
-          # and the pr-compliance CI check closes PRs missing the template.
-          # See .github/PULL_REQUEST_TEMPLATE.md.
+          # Custom agent defined in .opencode/agents/auto-implementer.md.
+          # Holds the investigation/reproduction protocol, scope discipline,
+          # and PR body conventions so this workflow stays small.
+          agent: auto-implementer
           prompt: |
+            A maintainer has invoked /bonk on the emdash-cms/emdash repository. Follow your agent instructions for mode classification, investigation, reproduction, and posting.
+
+            <trigger_kind>${{ steps.trigger.outputs.kind }}</trigger_kind>
+            <target_number>${{ steps.trigger.outputs.number }}</target_number>
+            <target_title>${{ steps.trigger.outputs.title }}</target_title>
+            <target_body>
+            ${{ steps.trigger.outputs.body }}
+            </target_body>
+            <head_sha>${{ steps.trigger.outputs.head_sha }}</head_sha>
+            <base_sha>${{ steps.trigger.outputs.base_sha }}</base_sha>
+
+            The maintainer's request:
+
             ${{ github.event.comment.body || github.event.review.body }}
-
-            ---
-
-            If your work results in code changes that get pushed to a new branch (the workflow will commit, push, and open a pull request automatically), structure your final response so it can be used as the pull request body. The repo's pr-compliance check will close PRs that don't follow the template. Read `.github/PULL_REQUEST_TEMPLATE.md` and use that exact structure, filling in the checkboxes that apply and leaving the rest unchecked. Tick the AI-generated code disclosure box.
-
-            If your work doesn't result in code changes (you're answering a question, leaving feedback, or the change happens on an existing PR branch), respond normally -- your response will be posted as a comment, not a PR.

@@ -1,14 +1,14 @@
 name: Review PR
 
 # /review triggers this workflow. The first word after the trigger picks a
-# model alias from .github/bonk-models.json:
+# model alias from .github/bonk-models.json. Currently registered aliases
+# (see that file for the source of truth):
 #
-#   /review                              -> default model (gpt)
-#   /review opus                         -> Claude Opus 4.7 (deep dive on
-#                                           high-risk PRs; replaces /ultrareview)
-#   /review gemini                       -> Gemini 3.1 Pro (wide-context PRs,
-#                                           multimodal, cross-family 2nd opinion)
+#   /review                              -> default model (currently opus)
+#   /review opus                         -> Claude Opus 4.7 (default)
 #   /review kimi                         -> Kimi K2.6 (cheap pass for tiny PRs)
+#
+# Add new aliases by editing .github/bonk-models.json.
 
 on:
   issue_comment:

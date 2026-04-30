@@ -177,7 +177,7 @@ npx emdash schema add-field posts featured --type boolean --required
 npx emdash schema remove-field posts featured
 ```
 
-Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `image`, `reference`, `portableText`, `json`.
+Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `image`, `file`, `reference`, `portableText`, `json`, `slug`, `url`. See `FIELD_TYPE_TO_COLUMN` in `packages/core/src/schema/types.ts` for the authoritative list.
 
 ### Media
 

@@ -46,10 +46,9 @@ const model = `cloudflare-ai-gateway/${entry.id}`;
 
 // OPENCODE_CONFIG_CONTENT bundles two unrelated overrides:
 //
-// 1. Register the selected model with the pinned opencode version (1.4.6,
-//    published 2026-04-15). Without this, opencode raises
-//    ProviderModelNotFoundError on any model whose release_date is after
-//    its bundled models.dev snapshot.
+// 1. Register the selected model with the pinned opencode version. Without
+//    this, opencode raises ProviderModelNotFoundError on any model whose
+//    release_date is after its bundled models.dev snapshot.
 //
 // 2. Resolve the two opencode permission defaults that ask interactively
 //    (`external_directory` and `doom_loop`) so a CI run with no TTY can
