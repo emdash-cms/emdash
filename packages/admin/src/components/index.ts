@@ -17,6 +17,9 @@ export { PortableTextEditor, type PortableTextEditorProps } from "./PortableText
 // Buttons
 export { SaveButton, type SaveButtonProps } from "./SaveButton";
 
+// Layout primitives shared by editor pages
+export { EditorHeader, type EditorHeaderProps } from "./EditorHeader";
+
 // Auth components
 export * from "./auth";
 export { LoginPage } from "./LoginPage";

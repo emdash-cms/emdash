@@ -68,7 +68,15 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 			return z.number().int();
 
 		case "boolean":
-			return z.boolean();
+			// Boolean fields map to `INTEGER` columns (`FIELD_TYPE_TO_COLUMN`
+			// in `schema/types.ts`) and `serializeValue` in
+			// `database/repositories/content.ts` writes booleans as 0/1.
+			// `deserializeValue` never converts them back, so reads return
+			// numbers. Coerce the stored 0/1 shape here so a GET → POST
+			// round-trip on a boolean field passes validation. Other inputs
+			// (strings, other numbers) fall through to `z.boolean()` and
+			// produce its standard rejection.
+			return z.preprocess((v) => (v === 0 || v === 1 ? Boolean(v) : v), z.boolean());
 
 		case "datetime":
 			return z.string().datetime().or(z.string().date());

@@ -126,7 +126,7 @@ export function MenuList() {
 									name="name"
 									required
 									placeholder="primary"
-									pattern="[a-z0-9-]+"
+									pattern="[a-z0-9\-]+"
 									title={t`Only lowercase letters, numbers, and hyphens`}
 								/>
 								<p className="text-sm text-kumo-subtle mt-1">

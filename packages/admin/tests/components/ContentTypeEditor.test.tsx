@@ -404,11 +404,87 @@ describe("ContentTypeEditor", () => {
 			<ContentTypeEditor {...defaultProps()} collection={collection} isSaving />,
 		);
 
-		// The button text should show "Saving..." — but button is disabled because no changes
-		// We need changes for the button to render enabled with saving text
-		// Actually the button shows "Saving..." text regardless, it's just also disabled
-		const saveButton = screen.getByRole("button", { name: SAVING_BUTTON_REGEX });
-		await expect.element(saveButton).toBeInTheDocument();
+		// Both the sticky-header SaveButton and the in-form "Save Changes"
+		// button render their saving label when isSaving is true; we render
+		// two save buttons by design (top-right sticky for sighted/pointer
+		// users + bottom-of-form for keyboard / screen-reader users following
+		// DOM order). Assert at least one matches.
+		await expect
+			.element(screen.getByRole("button", { name: SAVING_BUTTON_REGEX }).first())
+			.toBeInTheDocument();
+	});
+
+	// ---- Sticky-header save (issue #233) ----
+
+	it("renders a sticky-header save button when editing existing collection", async () => {
+		const collection = makeCollection();
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		// The sticky save button uses the SaveButton component, which renders
+		// "Saved" when there are no unsaved changes. The bottom-of-form button
+		// renders "Save Changes". Both should be present so users have a
+		// visible save action regardless of where they are on the page.
+		// Use exact: true so "Save Changes" doesn't shadow the sticky "Saved"
+		// match (Playwright role-name matching is partial by default).
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX }))
+			.toBeInTheDocument();
+	});
+
+	it("sticky-header save flips to enabled 'Save' when fields change", async () => {
+		const collection = makeCollection({ label: "Posts" });
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		// Initially clean -> "Saved" disabled
+		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+
+		// Make a change -> sticky button should now read "Save" and be enabled.
+		// exact:true so it doesn't also match "Save Changes".
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+	});
+
+	it("sticky-header save submits the form (calls onSave)", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ label: "Posts" });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ label: "Articles" }));
+	});
+
+	it("does not render sticky-header save for code-source collections", async () => {
+		const collection = makeCollection({ source: "code" });
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		// Neither sticky variant should appear (and the bottom Save Changes
+		// button is also hidden for code-source collections).
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
+	});
+
+	it("does not render sticky-header save when creating a new collection", async () => {
+		const screen = await render(<ContentTypeEditor {...defaultProps()} isNew />);
+
+		// On the new flow only the bottom 'Create Content Type' button is
+		// expected. No SaveButton ('Save'/'Saved') should render at the top.
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
 	});
 
 	// ---- URL Pattern field ----
