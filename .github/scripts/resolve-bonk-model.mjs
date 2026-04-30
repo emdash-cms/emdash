@@ -18,8 +18,8 @@
 // runtime to keep the env var small.
 
 import { appendFileSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const registryPath = resolve(here, "..", "bonk-models.json");
