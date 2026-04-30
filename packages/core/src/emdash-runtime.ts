@@ -1572,17 +1572,28 @@ export class EmDashRuntime {
 		this._cachedManifest = null;
 		this._manifestPromise = null;
 		invalidateUrlPatternCache();
-		// Delete DB-persisted cache so the next cold start rebuilds.
-		// Fire-and-forget: in-memory is already cleared for this worker,
-		// DB delete is best-effort for the next cold start.
-		try {
-			const options = new OptionsRepository(this.db);
-			options.delete("emdash:manifest_cache").catch((error) => {
-				console.error("Failed to delete persisted manifest cache", error);
-			});
-		} catch (error) {
-			console.error("Failed to initialize manifest cache invalidation", error);
-		}
+		// Delete the DB-persisted cache so the next cold-starting isolate
+		// rebuilds from `_emdash_collections` instead of adopting a
+		// pre-mutation snapshot. The `_manifestCacheKey` check in
+		// `getManifest()` doesn't include schema content (commit + plugin
+		// versions + i18n only), so collection adds/removes/renames don't
+		// change the key — stale rows will pass the check.
+		//
+		// On Cloudflare Workers, work that's not registered with the host's
+		// lifetime extender is cancelled the moment the response is sent.
+		// `after()` hands the promise to `ctx.waitUntil` under workerd (and
+		// fire-and-forgets on Node, which keeps running anyway). Without it,
+		// every Cloudflare-based deploy would leave the row stale until
+		// something else wiped it. (Issue #873.)
+		const db = this.db;
+		after(async () => {
+			try {
+				const options = new OptionsRepository(db);
+				await options.delete("emdash:manifest_cache");
+			} catch (error) {
+				console.error("[emdash] Failed to delete persisted manifest cache:", error);
+			}
+		});
 	}
 
 	/**
