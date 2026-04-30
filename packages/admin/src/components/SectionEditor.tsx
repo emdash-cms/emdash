@@ -14,7 +14,8 @@ import { fetchSection, updateSection, type Section, type UpdateSectionInput } fr
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { EditorHeader } from "./EditorHeader";
-import { PortableTextEditor } from "./PortableTextEditor";
+import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
+import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
 import { SaveButton } from "./SaveButton";
 
 export function SectionEditor() {
@@ -131,6 +132,21 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 	);
 	const isDirty = currentData !== lastSavedData;
 
+	// Block sidebar state populated when a node view (e.g. ImageNode) requests
+	// sidebar space.
+	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
+
+	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+		setBlockSidebarPanel(panel);
+	}, []);
+
+	const handleBlockSidebarClose = React.useCallback(() => {
+		setBlockSidebarPanel((prev) => {
+			prev?.onClose();
+			return null;
+		});
+	}, []);
+
 	const handleSave = () => {
 		const keywordsArray = keywords
 			.split(",")
@@ -176,76 +192,98 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
 							onChange={(value) => setContent(value as unknown[])}
+							onBlockSidebarOpen={handleBlockSidebarOpen}
+							onBlockSidebarClose={handleBlockSidebarClose}
 						/>
 					</div>
 				</div>
 
 				{/* Sidebar */}
 				<div className="col-span-4 space-y-6">
-					{/* Metadata */}
-					<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-						<h2 className="text-lg font-semibold">{t`Section Details`}</h2>
-
-						<Input
-							label={t`Title`}
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-							placeholder={t`Section title`}
+					{blockSidebarPanel?.type === "image" ? (
+						<ImageDetailPanel
+							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+							onUpdate={(attrs) =>
+								blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
+							}
+							onReplace={(attrs) =>
+								blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+							}
+							onDelete={() => {
+								blockSidebarPanel.onDelete();
+								setBlockSidebarPanel(null);
+							}}
+							onClose={handleBlockSidebarClose}
+							inline
 						/>
+					) : (
+						<>
+							{/* Metadata */}
+							<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
+								<h2 className="text-lg font-semibold">{t`Section Details`}</h2>
 
-						<div>
-							<Input
-								label={t`Slug`}
-								value={sectionSlug}
-								onChange={(e) => {
-									setSectionSlug(e.target.value);
-									setSlugTouched(true);
-								}}
-								placeholder="section-slug"
-								pattern="[a-z0-9\-]+"
-							/>
-							<p className="text-xs text-kumo-subtle mt-1">
-								{t`Used to identify this section. Lowercase letters, numbers, and hyphens only.`}
-							</p>
-						</div>
+								<Input
+									label={t`Title`}
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+									placeholder={t`Section title`}
+								/>
 
-						<InputArea
-							label={t`Description`}
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							placeholder={t`Describe what this section is for...`}
-							rows={3}
-						/>
+								<div>
+									<Input
+										label={t`Slug`}
+										value={sectionSlug}
+										onChange={(e) => {
+											setSectionSlug(e.target.value);
+											setSlugTouched(true);
+										}}
+										placeholder="section-slug"
+										pattern="[a-z0-9\-]+"
+									/>
+									<p className="text-xs text-kumo-subtle mt-1">
+										{t`Used to identify this section. Lowercase letters, numbers, and hyphens only.`}
+									</p>
+								</div>
 
-						<div>
-							<Input
-								label={t`Keywords`}
-								value={keywords}
-								onChange={(e) => setKeywords(e.target.value)}
-								placeholder="hero, banner, cta"
-							/>
-							<p className="text-xs text-kumo-subtle mt-1">{t`Comma-separated keywords for search.`}</p>
-						</div>
-					</div>
+								<InputArea
+									label={t`Description`}
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+									placeholder={t`Describe what this section is for...`}
+									rows={3}
+								/>
 
-					{/* Source info */}
-					<div className="rounded-lg border bg-kumo-base p-6">
-						<h2 className="text-lg font-semibold mb-2">{t`Source`}</h2>
-						<p className="text-sm text-kumo-subtle">
-							{section.source === "theme" && (
-								<>
-									{t`This section is provided by the theme. Editing will create a custom copy that overrides the theme version.`}
-								</>
-							)}
-							{section.source === "user" && <>{t`This is a custom section.`}</>}
-							{section.source === "import" && (
-								<>{t`This section was imported from another system.`}</>
-							)}
-						</p>
-						{section.themeId && (
-							<p className="text-xs text-kumo-subtle mt-2">{t`Theme ID: ${section.themeId}`}</p>
-						)}
-					</div>
+								<div>
+									<Input
+										label={t`Keywords`}
+										value={keywords}
+										onChange={(e) => setKeywords(e.target.value)}
+										placeholder="hero, banner, cta"
+									/>
+									<p className="text-xs text-kumo-subtle mt-1">{t`Comma-separated keywords for search.`}</p>
+								</div>
+							</div>
+
+							{/* Source info */}
+							<div className="rounded-lg border bg-kumo-base p-6">
+								<h2 className="text-lg font-semibold mb-2">{t`Source`}</h2>
+								<p className="text-sm text-kumo-subtle">
+									{section.source === "theme" && (
+										<>
+											{t`This section is provided by the theme. Editing will create a custom copy that overrides the theme version.`}
+										</>
+									)}
+									{section.source === "user" && <>{t`This is a custom section.`}</>}
+									{section.source === "import" && (
+										<>{t`This section was imported from another system.`}</>
+									)}
+								</p>
+								{section.themeId && (
+									<p className="text-xs text-kumo-subtle mt-2">{t`Theme ID: ${section.themeId}`}</p>
+								)}
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 		</div>
