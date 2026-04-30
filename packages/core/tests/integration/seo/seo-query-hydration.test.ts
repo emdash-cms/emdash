@@ -11,9 +11,13 @@ import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../ut
 
 // query.ts dynamically imports `astro:content`. Mock it so we can hand the
 // query layer a controlled raw entry shape and assert that `hydrateEntrySeo`
-// runs against the real SeoRepository + DB.
-const mockGetLiveEntry = vi.fn();
-const mockGetLiveCollection = vi.fn();
+// runs against the real SeoRepository + DB. `vi.mock` factories are hoisted
+// above normal `const` declarations, so use `vi.hoisted` to keep the mock fns
+// available both inside the factory and in the test bodies below.
+const { mockGetLiveEntry, mockGetLiveCollection } = vi.hoisted(() => ({
+	mockGetLiveEntry: vi.fn(),
+	mockGetLiveCollection: vi.fn(),
+}));
 
 vi.mock("astro:content", () => ({
 	getLiveEntry: mockGetLiveEntry,
