@@ -13,6 +13,7 @@
  *
  */
 
+import { normalizeCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -20,6 +21,7 @@ import type {
 	ResolvedPluginHooks,
 	ResolvedHook,
 	HookConfig,
+	PluginCapability,
 	PluginStorageConfig,
 	StandardPluginDefinition,
 } from "./types.js";
@@ -65,7 +67,7 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
  * export default definePlugin({
  *   id: "my-plugin",
  *   version: "1.0.0",
- *   capabilities: ["read:content"],
+ *   capabilities: ["content:read"],
  *   hooks: {
  *     "content:beforeSave": async (event, ctx) => {
  *       ctx.log.info("Saving content", { collection: event.collection });
@@ -143,8 +145,24 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		throw new Error(`Invalid plugin version "${version}". Must be semver format (e.g., "1.0.0").`);
 	}
 
-	// Validate capabilities
-	const validCapabilities = new Set([
+	// Validate capabilities. Both current names and deprecated aliases are
+	// accepted; aliases are silently rewritten to current names below so the
+	// runtime only ever sees the canonical form. Authors are warned at
+	// bundle/validate and hard-failed at publish.
+	const validCapabilities = new Set<string>([
+		// Current names
+		"network:request",
+		"network:request:unrestricted",
+		"content:read",
+		"content:write",
+		"media:read",
+		"media:write",
+		"users:read",
+		"email:send",
+		"hooks.email-transport:register",
+		"hooks.email-events:register",
+		"hooks.page-fragments:register",
+		// Deprecated aliases
 		"network:fetch",
 		"network:fetch:any",
 		"read:content",
@@ -152,7 +170,6 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"read:media",
 		"write:media",
 		"read:users",
-		"email:send",
 		"email:provide",
 		"email:intercept",
 		"page:inject",
@@ -163,16 +180,27 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		}
 	}
 
-	// Capability implications: broader capabilities imply narrower ones
-	const normalizedCapabilities = [...capabilities];
-	if (capabilities.includes("write:content") && !capabilities.includes("read:content")) {
-		normalizedCapabilities.push("read:content");
+	// Silent normalization: rewrite deprecated names to current names. Done
+	// before the implication pass so implications work on canonical names.
+	// `as PluginCapability[]` is safe because `normalizeCapabilities` only
+	// returns strings from the validated input plus current names from the
+	// rename map, all of which are in the union.
+	const canonical = normalizeCapabilities(capabilities) as PluginCapability[];
+
+	// Capability implications: broader capabilities imply narrower ones.
+	// Operates on canonical names only.
+	const normalizedCapabilities: PluginCapability[] = [...canonical];
+	if (canonical.includes("content:write") && !canonical.includes("content:read")) {
+		normalizedCapabilities.push("content:read");
 	}
-	if (capabilities.includes("write:media") && !capabilities.includes("read:media")) {
-		normalizedCapabilities.push("read:media");
+	if (canonical.includes("media:write") && !canonical.includes("media:read")) {
+		normalizedCapabilities.push("media:read");
 	}
-	if (capabilities.includes("network:fetch:any") && !capabilities.includes("network:fetch")) {
-		normalizedCapabilities.push("network:fetch");
+	if (
+		canonical.includes("network:request:unrestricted") &&
+		!canonical.includes("network:request")
+	) {
+		normalizedCapabilities.push("network:request");
 	}
 
 	// Normalize hooks

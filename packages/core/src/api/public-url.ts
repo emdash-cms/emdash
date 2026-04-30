@@ -9,7 +9,10 @@
  * Workers-safe: no Node.js imports.
  */
 
-import type { EmDashConfig } from "../astro/integration/runtime.js";
+/** Minimal config shape — avoids importing the full EmDashConfig type tree. */
+interface SiteUrlConfig {
+	siteUrl?: string;
+}
 
 /**
  * Resolve siteUrl from runtime environment variables.
@@ -26,9 +29,10 @@ import type { EmDashConfig } from "../astro/integration/runtime.js";
  */
 let _envSiteUrl: string | undefined | null = null;
 
-/** @internal Reset cached env value — test-only. */
-export function _resetEnvSiteUrlCache(): void {
+/** @internal Reset cached env values — test-only. */
+export function _resetEnvCache(): void {
 	_envSiteUrl = null;
+	_envAllowedOrigins = null;
 }
 
 function getEnvSiteUrl(): string | undefined {
@@ -67,8 +71,53 @@ function getEnvSiteUrl(): string | undefined {
  * @param config  The EmDash config (from `locals.emdash?.config`)
  * @returns Origin string, e.g. `"https://mysite.example.com"`
  */
-export function getPublicOrigin(url: URL, config?: EmDashConfig): string {
+export function getPublicOrigin(url: URL, config?: SiteUrlConfig): string {
 	return config?.siteUrl || getEnvSiteUrl() || url.origin;
+}
+
+/**
+ * Resolve additional accepted passkey origins from runtime environment.
+ *
+ * Reads `EMDASH_ALLOWED_ORIGINS` (comma-separated list of origins) for
+ * multi-origin deployments where the same RP is reachable under several
+ * hostnames sharing the registrable parent domain (e.g. apex + preview).
+ *
+ * Each entry is parsed via `new URL()` and reduced to its `origin`. Unlike
+ * `getEnvSiteUrl` (which silently falls back to `url.origin` on bad input),
+ * this throws on any unparseable or non-http(s) entry — `EMDASH_ALLOWED_ORIGINS`
+ * is an allowlist for passkey verification, so silently dropping a typo would
+ * surface as "I can't authenticate on this origin" with no diagnostic. Fail
+ * loud at first read.
+ *
+ * Uses `process.env` (Vite leaves it untouched at runtime). Result is cached
+ * on success.
+ */
+let _envAllowedOrigins: string[] | null = null;
+
+export function getEnvAllowedOrigins(): string[] {
+	if (_envAllowedOrigins !== null) return _envAllowedOrigins;
+	const raw = typeof process !== "undefined" ? process.env?.EMDASH_ALLOWED_ORIGINS || "" : "";
+	const parsed: string[] = [];
+	for (const entry of raw.split(",")) {
+		const trimmed = entry.trim();
+		if (!trimmed) continue;
+		let u: URL;
+		try {
+			u = new URL(trimmed);
+		} catch (e) {
+			throw new Error(`EmDash config error in EMDASH_ALLOWED_ORIGINS: invalid URL: "${trimmed}"`, {
+				cause: e,
+			});
+		}
+		if (u.protocol !== "http:" && u.protocol !== "https:") {
+			throw new Error(
+				`EmDash config error in EMDASH_ALLOWED_ORIGINS: origin must be http or https: "${trimmed}" (got ${u.protocol})`,
+			);
+		}
+		parsed.push(u.origin);
+	}
+	_envAllowedOrigins = parsed;
+	return parsed;
 }
 
 /**
@@ -79,6 +128,6 @@ export function getPublicOrigin(url: URL, config?: EmDashConfig): string {
  * @param path  Path to append (must start with `/`)
  * @returns Full URL string, e.g. `"https://mysite.example.com/_emdash/admin/login"`
  */
-export function getPublicUrl(url: URL, config: EmDashConfig | undefined, path: string): string {
+export function getPublicUrl(url: URL, config: SiteUrlConfig | undefined, path: string): string {
 	return `${getPublicOrigin(url, config)}${path}`;
 }

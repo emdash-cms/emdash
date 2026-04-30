@@ -19,15 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	Plus,
-	DotsSixVertical,
-	Pencil,
-	Trash,
-	Database,
-	FileText,
-} from "@phosphor-icons/react";
+import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -39,6 +31,7 @@ import type {
 	UpdateCollectionInput,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldEditor } from "./FieldEditor";
 
@@ -161,7 +154,7 @@ export function ContentTypeEditor({
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
-		(collection?.supports ?? ["drafts"]).filter((s) => s !== "seo"),
+		(collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"),
 	);
 
 	// SEO state
@@ -330,7 +323,7 @@ export function ContentTypeEditor({
 					aria-label="Back to Content Types"
 					className={buttonVariants({ variant: "ghost", shape: "square" })}
 				>
-					<ArrowLeft className="h-5 w-5" />
+					<ArrowPrev className="h-5 w-5" />
 				</Link>
 				<div className="flex-1">
 					<h1 className="text-2xl font-bold">{isNew ? "New Content Type" : collection?.label}</h1>

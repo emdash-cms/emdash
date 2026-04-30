@@ -5,9 +5,7 @@ import MarketingBlocks from "../components/MarketingBlocks.astro";
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "home");
 
-try {
-	Astro.cache.set(cacheHint);
-} catch {}
+Astro.cache.set(cacheHint);
 
 const pageTitle = page?.data.title;
 const pageContent = page?.data.content;

@@ -359,8 +359,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		updatedAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:content")) {
-			throw new Error("Missing capability: read:content");
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
 		}
 		// Validate collection name to prevent SQL injection
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
@@ -396,8 +396,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		hasMore: boolean;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:content")) {
-			throw new Error("Missing capability: read:content");
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
 		}
 		// Validate collection name to prevent SQL injection
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
@@ -449,8 +449,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		updatedAt: string;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:content")) {
-			throw new Error("Missing capability: write:content");
+		if (!capabilities.includes("content:write")) {
+			throw new Error("Missing capability: content:write");
 		}
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
@@ -521,8 +521,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		updatedAt: string;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:content")) {
-			throw new Error("Missing capability: write:content");
+		if (!capabilities.includes("content:write")) {
+			throw new Error("Missing capability: content:write");
 		}
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
@@ -579,8 +579,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async contentDelete(collection: string, id: string): Promise<boolean> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:content")) {
-			throw new Error("Missing capability: write:content");
+		if (!capabilities.includes("content:write")) {
+			throw new Error("Missing capability: content:write");
 		}
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
@@ -609,8 +609,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		createdAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:media")) {
-			throw new Error("Missing capability: read:media");
+		if (!capabilities.includes("media:read")) {
+			throw new Error("Missing capability: media:read");
 		}
 		const result = await this.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<{
 			id: string;
@@ -644,8 +644,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		hasMore: boolean;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:media")) {
-			throw new Error("Missing capability: read:media");
+		if (!capabilities.includes("media:read")) {
+			throw new Error("Missing capability: media:read");
 		}
 		const limit = Math.min(opts.limit ?? 50, 100);
 		// Only return ready items (matching core's MediaRepository.findMany default)
@@ -711,8 +711,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		bytes: ArrayBuffer,
 	): Promise<{ mediaId: string; storageKey: string; url: string }> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:media")) {
-			throw new Error("Missing capability: write:media");
+		if (!capabilities.includes("media:write")) {
+			throw new Error("Missing capability: media:write");
 		}
 
 		if (!this.env.MEDIA) {
@@ -771,8 +771,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async mediaDelete(id: string): Promise<boolean> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:media")) {
-			throw new Error("Missing capability: write:media");
+		if (!capabilities.includes("media:write")) {
+			throw new Error("Missing capability: media:write");
 		}
 
 		// Look up the storage key before deleting
@@ -815,7 +815,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	// =========================================================================
-	// User Operations - capability-gated (read:users)
+	// User Operations - capability-gated (users:read)
 	// =========================================================================
 
 	async userGet(id: string): Promise<{
@@ -826,8 +826,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		createdAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:users")) {
-			throw new Error("Missing capability: read:users");
+		if (!capabilities.includes("users:read")) {
+			throw new Error("Missing capability: users:read");
 		}
 		const result = await this.env.DB.prepare(
 			"SELECT id, email, name, role, created_at FROM users WHERE id = ?",
@@ -858,8 +858,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		createdAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:users")) {
-			throw new Error("Missing capability: read:users");
+		if (!capabilities.includes("users:read")) {
+			throw new Error("Missing capability: users:read");
 		}
 		const result = await this.env.DB.prepare(
 			"SELECT id, email, name, role, created_at FROM users WHERE email = ?",
@@ -893,8 +893,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		nextCursor?: string;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:users")) {
-			throw new Error("Missing capability: read:users");
+		if (!capabilities.includes("users:read")) {
+			throw new Error("Missing capability: users:read");
 		}
 		const limit = Math.max(1, Math.min(opts?.limit ?? 50, 100));
 		let sql = "SELECT id, email, name, role, created_at FROM users";

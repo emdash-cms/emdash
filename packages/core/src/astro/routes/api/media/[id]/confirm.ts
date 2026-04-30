@@ -10,7 +10,7 @@
 import type { APIRoute } from "astro";
 import { MediaRepository } from "emdash";
 
-import { requirePerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { mediaConfirmBody } from "#api/schemas.js";
@@ -61,6 +61,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (existing.status !== "pending") {
 			return apiError("INVALID_STATE", `Media item is not pending: ${existing.status}`, 400);
 		}
+
+		// Only the uploader or a user with media:edit_any can confirm/fail a pending upload
+		const ownerDenied = requireOwnerPerm(
+			user,
+			existing.authorId ?? "",
+			"media:edit_own",
+			"media:edit_any",
+		);
+		if (ownerDenied) return ownerDenied;
 
 		// Optionally verify the file exists in storage
 		if (emdash.storage) {

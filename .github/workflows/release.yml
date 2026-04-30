@@ -53,14 +53,8 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Block accidental major releases
-        if: ${{ !inputs.publish-only }}
-        run: |
-          if pnpm changeset status 2>&1 | grep -q "Packages to be bumped at major"; then
-            echo "::error::Major version bump detected. This is blocked while in 0.x pre-release."
-            pnpm changeset status 2>&1
-            exit 1
-          fi
+      - name: Block 1.x releases (we are in 0.x)
+        run: node .github/scripts/check-no-major.mjs
 
       - name: Create Release Pull Request or Publish
         if: ${{ !inputs.publish-only }}

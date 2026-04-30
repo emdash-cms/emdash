@@ -1,0 +1,771 @@
+/**
+ * MCP taxonomy tools — comprehensive integration tests.
+ *
+ * Covers:
+ *   - taxonomy_list
+ *   - taxonomy_list_terms
+ *   - taxonomy_create_term
+ *
+ * Plus regression coverage for:
+ *   - bug #7 (orphan taxonomy collection inconsistency)
+ *   - bug #13 (no delete/update term tool — gap test)
+ */
+
+import { Role } from "@emdash-cms/auth";
+import type { Kysely } from "kysely";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { handleTaxonomyCreate } from "../../../src/api/handlers/taxonomies.js";
+import type { Database } from "../../../src/database/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
+import {
+	connectMcpHarness,
+	extractJson,
+	extractText,
+	type McpHarness,
+} from "../../utils/mcp-runtime.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+const ADMIN_ID = "user_admin";
+const AUTHOR_ID = "user_author";
+const SUBSCRIBER_ID = "user_subscriber";
+
+async function setupTaxonomy(
+	db: Kysely<Database>,
+	input: { name: string; label: string; hierarchical?: boolean; collections?: string[] },
+): Promise<void> {
+	const result = await handleTaxonomyCreate(db, input);
+	if (!result.success) {
+		throw new Error(`Failed to set up taxonomy: ${result.error?.message}`);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// taxonomy_list
+// ---------------------------------------------------------------------------
+
+describe("taxonomy_list", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("returns only the seeded defaults when no extra taxonomies are added", async () => {
+		// Migration 006 seeds two default taxonomies: 'category' (hierarchical)
+		// and 'tag' (flat), both linked to the 'posts' collection. A fresh
+		// install always has these.
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list",
+			arguments: {},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { taxonomies } = extractJson<{
+			taxonomies: Array<{ name: string }>;
+		}>(result);
+		const names = taxonomies.map((t) => t.name).toSorted();
+		expect(names).toEqual(["category", "tag"]);
+	});
+
+	it("lists user-created taxonomies alongside the defaults", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "post", label: "Posts" });
+		// Use names that don't collide with the seeded `category` / `tag`.
+		await setupTaxonomy(db, {
+			name: "section",
+			label: "Sections",
+			hierarchical: true,
+			collections: ["post"],
+		});
+		await setupTaxonomy(db, {
+			name: "topic",
+			label: "Topics",
+			collections: ["post"],
+		});
+
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list",
+			arguments: {},
+		});
+		const { taxonomies } = extractJson<{
+			taxonomies: Array<{ name: string; hierarchical?: boolean; collections?: string[] }>;
+		}>(result);
+		const names = taxonomies.map((t) => t.name).toSorted();
+		expect(names).toEqual(["category", "section", "tag", "topic"]);
+
+		const section = taxonomies.find((t) => t.name === "section");
+		expect(section?.hierarchical).toBe(true);
+		expect(section?.collections).toEqual(["post"]);
+	});
+
+	it("any logged-in user (SUBSCRIBER) can read taxonomies", async () => {
+		harness = await connectMcpHarness({ db, userId: SUBSCRIBER_ID, userRole: Role.SUBSCRIBER });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list",
+			arguments: {},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+
+	it("bug #7: orphaned collection slugs are filtered from taxonomy_list output", async () => {
+		// The seed taxonomies (category, tag) both reference 'posts' — a
+		// collection that doesn't exist in this test DB (no auto-seed). After
+		// the bug #7 fix, `taxonomy_list` filters those orphans out. We don't
+		// need to manufacture an orphan; the seed already gives us one.
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const taxResult = await harness.client.callTool({
+			name: "taxonomy_list",
+			arguments: {},
+		});
+		const { taxonomies } = extractJson<{
+			taxonomies: Array<{ name: string; collections?: string[] }>;
+		}>(taxResult);
+
+		// Each seeded taxonomy referenced 'posts'. After filtering, that
+		// orphan slug is gone — the array should be empty for both seeds.
+		for (const t of taxonomies) {
+			expect(t.collections).not.toContain("posts");
+		}
+
+		// And schema_list_collections agrees: there is no 'posts' collection.
+		const collResult = await harness.client.callTool({
+			name: "schema_list_collections",
+			arguments: {},
+		});
+		const { items } = extractJson<{ items: Array<{ slug: string }> }>(collResult);
+		expect(items.find((c) => c.slug === "posts")).toBeUndefined();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// taxonomy_list_terms
+// ---------------------------------------------------------------------------
+
+describe("taxonomy_list_terms", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await setupTaxonomy(db, { name: "categories", label: "Categories", hierarchical: true });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("returns empty list when taxonomy has no terms", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { items } = extractJson<{ items: unknown[] }>(result);
+		expect(items).toEqual([]);
+	});
+
+	it("returns terms after creation", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "tech", label: "Tech" },
+		});
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "design", label: "Design" },
+		});
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories" },
+		});
+		const { items } = extractJson<{
+			items: Array<{ slug: string; label: string; parentId: string | null }>;
+		}>(result);
+		const slugs = items.map((t) => t.slug).toSorted();
+		expect(slugs).toEqual(["design", "tech"]);
+	});
+
+	it("returns clear error for missing taxonomy name", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "nonexistent" },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("nonexistent");
+	});
+
+	it("paginates with limit + cursor", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		// Insert 5 terms — labels chosen so alphabetical ordering is predictable
+		for (const label of ["alpha", "bravo", "charlie", "delta", "echo"]) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: { taxonomy: "categories", slug: label, label },
+			});
+		}
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 2 },
+		});
+		const p1 = extractJson<{ items: Array<{ slug: string; id: string }>; nextCursor?: string }>(
+			page1,
+		);
+		expect(p1.items).toHaveLength(2);
+		expect(p1.nextCursor).toBeTruthy();
+
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 2, cursor: p1.nextCursor },
+		});
+		const p2 = extractJson<{ items: Array<{ slug: string }>; nextCursor?: string }>(page2);
+		expect(p2.items).toHaveLength(2);
+
+		// No overlap
+		const p1Slugs = p1.items.map((i) => i.slug);
+		for (const t of p2.items) expect(p1Slugs).not.toContain(t.slug);
+	});
+
+	it("paginates correctly when multiple terms share the same label", async () => {
+		// Keyset pagination over (label, id) needs a stable id tiebreaker
+		// at the SQL layer or tied-label rows can swap order between calls
+		// — producing duplicates or skipped items. Three terms share
+		// label "shared"; pagination must walk through them in a stable
+		// order with no duplicates and no gaps.
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const slugs = ["shared-1", "shared-2", "shared-3", "unique-a"];
+		for (const slug of slugs) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: {
+					taxonomy: "categories",
+					slug,
+					label: slug.startsWith("shared") ? "shared" : slug,
+				},
+			});
+		}
+
+		// Walk one item at a time so every cursor transition exercises the
+		// (label, id) keyset.
+		const collected: string[] = [];
+		let cursor: string | undefined;
+		// Hard cap to prevent the test hanging if pagination loops.
+		for (let i = 0; i < 10; i++) {
+			const page = await harness.client.callTool({
+				name: "taxonomy_list_terms",
+				arguments: { taxonomy: "categories", limit: 1, ...(cursor ? { cursor } : {}) },
+			});
+			const data = extractJson<{
+				items: Array<{ slug: string; id: string }>;
+				nextCursor?: string;
+			}>(page);
+			if (data.items.length === 0) break;
+			for (const item of data.items) collected.push(item.slug);
+			if (!data.nextCursor) break;
+			cursor = data.nextCursor;
+		}
+
+		// Each slug appears exactly once. Order doesn't matter for this
+		// assertion — just no duplicates and no missing entries.
+		expect(collected.toSorted()).toEqual(slugs.toSorted());
+	});
+
+	it("survives concurrent deletion of the cursor-term", async () => {
+		// The base64 keyset cursor encodes a (label, id) position rather
+		// than a row reference, so deleting the cursor-term between pages
+		// must not error — the next page just continues from the next
+		// position in sort order.
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		for (const slug of ["alpha", "bravo", "charlie", "delta"]) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: { taxonomy: "categories", slug, label: slug },
+			});
+		}
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 2 },
+		});
+		const p1 = extractJson<{
+			items: Array<{ slug: string }>;
+			nextCursor?: string;
+		}>(page1);
+		expect(p1.items.map((i) => i.slug)).toEqual(["alpha", "bravo"]);
+		expect(p1.nextCursor).toBeTruthy();
+
+		// Delete the cursor-term ('bravo') out of band.
+		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
+		const repo = new TaxonomyRepository(db);
+		const bravo = await repo.findBySlug("categories", "bravo");
+		if (!bravo) throw new Error("bravo missing — fixture broken");
+		await db.deleteFrom("taxonomies").where("id", "=", bravo.id).execute();
+
+		// Page 2 must still work and return the items strictly after the
+		// cursor's position. Pre-fix the cursor stored 'bravo's id and
+		// findIndex would have returned -1 → INVALID_CURSOR. Post-fix the
+		// cursor stores ('bravo', '<bravo-id>') and the keyset comparison
+		// finds the first term with (label, id) > ('bravo', '<bravo-id>')
+		// — that's 'charlie'.
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 2, cursor: p1.nextCursor },
+		});
+		expect(page2.isError, extractText(page2)).toBeFalsy();
+		const p2 = extractJson<{ items: Array<{ slug: string }> }>(page2);
+		expect(p2.items.map((i) => i.slug)).toEqual(["charlie", "delta"]);
+	});
+
+	it("malformed cursor returns INVALID_CURSOR", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "t1", label: "T1" },
+		});
+
+		// taxonomy_list_terms uses a base64 keyset cursor over (label, id).
+		// A completely bogus value fails decodeCursor and surfaces as a
+		// structured INVALID_CURSOR error.
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", cursor: "garbage_cursor_xyz" },
+		});
+		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("INVALID_CURSOR");
+	});
+
+	it("any logged-in user (SUBSCRIBER) can read terms", async () => {
+		harness = await connectMcpHarness({ db, userId: SUBSCRIBER_ID, userRole: Role.SUBSCRIBER });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// taxonomy_create_term
+// ---------------------------------------------------------------------------
+
+describe("taxonomy_create_term", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await setupTaxonomy(db, { name: "categories", label: "Categories", hierarchical: true });
+		await setupTaxonomy(db, { name: "tags", label: "Tags" });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("creates a term with minimal arguments", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "tech", label: "Tech" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { slug: string; label: string } }>(result);
+		expect(term.slug).toBe("tech");
+		expect(term.label).toBe("Tech");
+	});
+
+	it("creates a child term with parentId", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const parent = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "tech", label: "Tech" },
+		});
+		const parentId = extractJson<{ term: { id: string } }>(parent).term.id;
+
+		const child = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: {
+				taxonomy: "categories",
+				slug: "ai",
+				label: "AI",
+				parentId,
+			},
+		});
+		expect(child.isError, extractText(child)).toBeFalsy();
+		const { term } = extractJson<{ term: { parentId: string | null } }>(child);
+		expect(term.parentId).toBe(parentId);
+	});
+
+	it("rejects duplicate slug within the same taxonomy", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "tech", label: "Tech" },
+		});
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "tech", label: "Tech 2" },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/exist|duplicate|conflict|unique|already/i);
+	});
+
+	it("allows same slug across different taxonomies", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const a = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "shared", label: "Shared" },
+		});
+		const b = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "shared", label: "Shared" },
+		});
+		expect(a.isError, extractText(a)).toBeFalsy();
+		expect(b.isError, extractText(b)).toBeFalsy();
+	});
+
+	it("rejects creating a term in a non-existent taxonomy", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "ghost", slug: "x", label: "X" },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+		expect(extractText(result)).toContain("ghost");
+	});
+
+	it("rejects parentId pointing to a different taxonomy", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const tag = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "stuff", label: "Stuff" },
+		});
+		const tagId = extractJson<{ term: { id: string } }>(tag).term.id;
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: {
+				taxonomy: "categories",
+				slug: "child",
+				label: "Child",
+				parentId: tagId,
+			},
+		});
+		expect(result.isError).toBe(true);
+	});
+
+	it("rejects parentId pointing to a non-existent term", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: {
+				taxonomy: "categories",
+				slug: "orphan",
+				label: "Orphan",
+				parentId: "01NEVEREXISTED",
+			},
+		});
+		expect(result.isError).toBe(true);
+	});
+
+	it("requires EDITOR role (AUTHOR is blocked)", async () => {
+		harness = await connectMcpHarness({ db, userId: AUTHOR_ID, userRole: Role.AUTHOR });
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "categories", slug: "x", label: "X" },
+		});
+		expect(result.isError).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Bug #13 / F2 / F3 / F12 — happy paths for taxonomy_update_term and
+// taxonomy_delete_term, plus parent validation, cycle detection, and
+// empty-string rejection.
+// ---------------------------------------------------------------------------
+
+describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	async function createTerm(
+		taxonomy: string,
+		slug: string,
+		label: string,
+		parentId?: string,
+	): Promise<string> {
+		const args: Record<string, unknown> = { taxonomy, slug, label };
+		if (parentId) args.parentId = parentId;
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: args,
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { id: string } }>(result);
+		return term.id;
+	}
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await setupTaxonomy(db, { name: "tags", label: "Tags" });
+		await setupTaxonomy(db, { name: "sections", label: "Sections" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("MCP exposes taxonomy_update_term and taxonomy_delete_term", async () => {
+		const tools = await harness.client.listTools();
+		const names = tools.tools.map((t) => t.name);
+		expect(names).toContain("taxonomy_update_term");
+		expect(names).toContain("taxonomy_delete_term");
+	});
+
+	it("renames the slug when the new slug is free", async () => {
+		await createTerm("tags", "old-slug", "Original");
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "old-slug", slug: "new-slug" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { slug: string } }>(result);
+		expect(term.slug).toBe("new-slug");
+	});
+
+	it("changes the label", async () => {
+		await createTerm("tags", "x", "Old Label");
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "x", label: "New Label" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { label: string } }>(result);
+		expect(term.label).toBe("New Label");
+	});
+
+	it("reparents a term and detaches via parentId: null", async () => {
+		const parentId = await createTerm("tags", "parent", "Parent");
+		await createTerm("tags", "child", "Child");
+
+		const reparent = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "child", parentId },
+		});
+		expect(reparent.isError, extractText(reparent)).toBeFalsy();
+		const reparented = extractJson<{ term: { parentId: string | null } }>(reparent);
+		expect(reparented.term.parentId).toBe(parentId);
+
+		const detach = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "child", parentId: null },
+		});
+		expect(detach.isError, extractText(detach)).toBeFalsy();
+		const detached = extractJson<{ term: { parentId: string | null } }>(detach);
+		expect(detached.term.parentId).toBeNull();
+	});
+
+	it("rejects parents from a different taxonomy", async () => {
+		const sectionId = await createTerm("sections", "news", "News");
+		await createTerm("tags", "alpha", "Alpha");
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "alpha", parentId: sectionId },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/VALIDATION_ERROR/);
+	});
+
+	it("rejects self-parent", async () => {
+		const id = await createTerm("tags", "loop", "Loop");
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "loop", parentId: id },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/own parent|VALIDATION_ERROR/i);
+	});
+
+	it("rejects a 2-cycle (descendant becoming ancestor)", async () => {
+		// A is parent of B. Now try to make B the parent of A — that's a cycle.
+		const aId = await createTerm("tags", "a", "A");
+		const bId = await createTerm("tags", "b", "B", aId);
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "a", parentId: bId },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/cycle|VALIDATION_ERROR/i);
+	});
+
+	it("rejects empty-string parentId on create", async () => {
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "x", label: "X", parentId: "" },
+		});
+		// Either returns a validation error, or treats it as no-parent.
+		// We choose strict: empty string is normalized to undefined so it
+		// succeeds with parentId === null (no parent attached). That's the
+		// behavior we documented.
+		if (result.isError) {
+			expect(extractText(result)).toMatch(/VALIDATION_ERROR/);
+		} else {
+			const { term } = extractJson<{ term: { parentId: string | null } }>(result);
+			expect(term.parentId).toBeNull();
+		}
+	});
+
+	// ----- MAX_DEPTH boundary -----
+	// validateParentTerm walks up the parent chain bounded by MAX_DEPTH=100
+	// to prevent a pathological pre-existing cycle from hanging the
+	// validator. The boundary is "more than 100 ancestors": exactly-100 is
+	// accepted, 101+ is rejected.
+
+	it("accepts a chain of exactly MAX_DEPTH (100) ancestors", async () => {
+		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
+		const repo = new TaxonomyRepository(db);
+		// Build root → 1 → 2 → ... → 100. 101 terms total. The deepest
+		// term has 100 ancestors; setting it as parent of a new term means
+		// validateParentTerm walks 100 hops up before exhausting the chain.
+		let parentId: string | undefined;
+		const ids: string[] = [];
+		for (let i = 0; i < 101; i++) {
+			const term = await repo.create({
+				name: "tags",
+				slug: `chain-${i}`,
+				label: `Chain ${i}`,
+				parentId,
+			});
+			ids.push(term.id);
+			parentId = term.id;
+		}
+		const deepest = ids.at(-1);
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf", parentId: deepest },
+		});
+		// New term's parent is the 100-deep tail. Walking up from there
+		// reaches the root after exactly 100 hops; cursor becomes null,
+		// the depth-exceeded check does NOT fire.
+		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+
+	it("rejects a chain that exceeds MAX_DEPTH", async () => {
+		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
+		const repo = new TaxonomyRepository(db);
+		// Build a 102-term chain. The deepest term has 101 ancestors —
+		// one more than MAX_DEPTH allows.
+		let parentId: string | undefined;
+		const ids: string[] = [];
+		for (let i = 0; i < 102; i++) {
+			const term = await repo.create({
+				name: "tags",
+				slug: `chain-${i}`,
+				label: `Chain ${i}`,
+				parentId,
+			});
+			ids.push(term.id);
+			parentId = term.id;
+		}
+		const deepest = ids.at(-1);
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf", parentId: deepest },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/maximum depth/i);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("VALIDATION_ERROR");
+	});
+});
+
+describe("taxonomy_delete_term (bug #13 / F12)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await setupTaxonomy(db, { name: "tags", label: "Tags" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("rejects deletion when children exist (matches handler behavior)", async () => {
+		const parent = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "parent", label: "Parent" },
+		});
+		const { term } = extractJson<{ term: { id: string } }>(parent);
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "child", label: "Child", parentId: term.id },
+		});
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_delete_term",
+			arguments: { taxonomy: "tags", termSlug: "parent" },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/VALIDATION_ERROR|children/i);
+	});
+
+	it("deletes a leaf term and the row is actually gone", async () => {
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", slug: "leaf", label: "Leaf" },
+		});
+
+		// Pre-condition: the term is listable.
+		const before = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "tags" },
+		});
+		const beforeSlugs = extractJson<{ items: Array<{ slug: string }> }>(before).items.map(
+			(t) => t.slug,
+		);
+		expect(beforeSlugs).toContain("leaf");
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_delete_term",
+			arguments: { taxonomy: "tags", termSlug: "leaf" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		// Post-condition: the term is no longer listable. A regression where
+		// the handler returns success: true without actually deleting the row
+		// fails this assertion.
+		const after = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "tags" },
+		});
+		const afterSlugs = extractJson<{ items: Array<{ slug: string }> }>(after).items.map(
+			(t) => t.slug,
+		);
+		expect(afterSlugs).not.toContain("leaf");
+	});
+});

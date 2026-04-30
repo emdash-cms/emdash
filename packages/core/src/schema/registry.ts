@@ -161,11 +161,18 @@ export class SchemaRegistry {
 
 		const id = ulid();
 
+		// Default `supports` to drafts + revisions when the caller didn't
+		// specify it. Explicit empty array (`[]`) is preserved as an opt-out
+		// — only `undefined` triggers the default. This is the canonical
+		// default for new collections; the MCP and admin UI layers used to
+		// duplicate this default but now defer to the registry.
+		const supports = input.supports ?? ["drafts", "revisions"];
+
 		// Insert collection record and create content table in a transaction
 		// so a failure in table creation doesn't leave an orphaned row.
 		// Uses withTransaction for D1 compatibility (no transaction support).
 		// Derive hasSeo from supports array if not explicitly set
-		const hasSeo = input.hasSeo ?? input.supports?.includes("seo") ?? false;
+		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
 
 		await withTransaction(this.db, async (trx) => {
 			await trx
@@ -177,7 +184,7 @@ export class SchemaRegistry {
 					label_singular: input.labelSingular ?? null,
 					description: input.description ?? null,
 					icon: input.icon ?? null,
-					supports: input.supports ? JSON.stringify(input.supports) : null,
+					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,

@@ -3,7 +3,7 @@
 
 /// <reference types="emdash/locals" />
 
-import type { ContentBylineCredit, PortableTextBlock } from "emdash";
+import type { PortableTextBlock } from "emdash";
 
 export interface Page {
   id: string;
@@ -14,7 +14,6 @@ export interface Page {
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
 }
 
 export interface Post {
@@ -28,7 +27,6 @@ export interface Post {
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
 }
 
 declare module "emdash" {

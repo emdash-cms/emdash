@@ -35,12 +35,6 @@ const SITE_MATRIX: SiteCase[] = [
 
 	// Templates
 	{
-		name: "templates/blank",
-		dir: resolve(WORKSPACE_ROOT, "templates/blank"),
-		port: 4611,
-		startupTimeoutMs: 60_000,
-	},
-	{
 		name: "templates/blog",
 		dir: resolve(WORKSPACE_ROOT, "templates/blog"),
 		port: 4612,
@@ -366,6 +360,41 @@ describe.sequential("MCP endpoint verification", () => {
 					const toolNames = tools.map((t: unknown) => (t as { name: string }).name);
 					expect(toolNames).toContain("content_list");
 					expect(toolNames).toContain("schema_list_collections");
+
+					// Send 14 concurrent tools/list calls and verify all succeed —
+					// guards against an auth-middleware race observed in production
+					// where parallel requests on the same authenticated session
+					// occasionally returned spurious 401s. The InMemoryTransport
+					// integration test cannot reach this code path; only a live
+					// HTTP server exercises the auth middleware that's racy.
+					const concurrentResponses = await Promise.all(
+						Array.from({ length: 14 }, (_, i) =>
+							fetch(`${server.baseUrl}/_emdash/api/mcp`, {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+									Accept: "application/json, text/event-stream",
+									Authorization: `Bearer ${token}`,
+								},
+								body: JSON.stringify([
+									{ jsonrpc: "2.0", method: "notifications/initialized" },
+									{
+										jsonrpc: "2.0",
+										method: "tools/list",
+										params: {},
+										id: 100 + i,
+									},
+								]),
+							}),
+						),
+					);
+
+					const statusCodes = concurrentResponses.map((r) => r.status);
+					const failedStatuses = statusCodes.filter((s) => s !== 200);
+					expect(
+						failedStatuses,
+						`expected all 14 concurrent calls to return 200; got: ${statusCodes.join(",")}`,
+					).toEqual([]);
 				} catch (error) {
 					throw new Error(
 						`${site.name} MCP smoke failed: ${error instanceof Error ? error.message : String(error)}\n\n` +

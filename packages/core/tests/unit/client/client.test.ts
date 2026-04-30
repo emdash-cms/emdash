@@ -638,4 +638,73 @@ describe("EmDashClient", () => {
 			expect(Array.isArray(capturedData!.body)).toBe(true);
 		});
 	});
+
+	// -----------------------------------------------------------------------
+	// Taxonomy & menu envelope bugs
+	// -----------------------------------------------------------------------
+
+	describe("taxonomies()", () => {
+		it("returns taxonomy array from { taxonomies } envelope", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies",
+					handler: () =>
+						jsonResponse({
+							taxonomies: [
+								{
+									id: "t1",
+									name: "categories",
+									label: "Categories",
+									hierarchical: true,
+									collections: ["posts"],
+								},
+							],
+						}),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.taxonomies();
+			expect(Array.isArray(result)).toBe(true);
+			expect(result.length).toBe(1);
+			expect(result[0]!.name).toBe("categories");
+		});
+	});
+
+	describe("menus()", () => {
+		it("returns menu array from bare-array envelope", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/menus",
+					handler: () =>
+						jsonResponse([
+							{
+								id: "m1",
+								name: "primary",
+								label: "Primary",
+								itemCount: 3,
+							},
+						]),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.menus();
+			expect(Array.isArray(result)).toBe(true);
+			expect(result.length).toBe(1);
+			expect(result[0]!.name).toBe("primary");
+		});
+	});
 });

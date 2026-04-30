@@ -9,6 +9,7 @@
 import { definePlugin } from "emdash";
 import type { PluginContext } from "emdash";
 
+import { getAdminPageTarget, type AdminInteraction } from "./admin-routing.js";
 import {
 	ensureSession,
 	createRecord,
@@ -17,6 +18,7 @@ import {
 	rkeyFromUri,
 	uploadBlob,
 	requireHttp,
+	normalizePdsHost,
 } from "./atproto.js";
 import { buildBskyPost } from "./bluesky.js";
 import { buildPublication, buildDocument } from "./standard-site.js";
@@ -39,10 +41,14 @@ interface SyndicationRecord {
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+const DEFAULT_SYNDICATED_COLLECTIONS = ["posts"];
+
 async function isCollectionAllowed(ctx: PluginContext, collection: string): Promise<boolean> {
 	const setting = await ctx.kv.get<string>("settings:collections");
-	if (!setting || setting.trim() === "") return true;
-	const allowed = setting.split(",").map((s) => s.trim().toLowerCase());
+	const configured = setting?.trim();
+	const allowed = configured
+		? configured.split(",").map((s: string) => s.trim().toLowerCase())
+		: DEFAULT_SYNDICATED_COLLECTIONS;
 	return allowed.includes(collection.toLowerCase());
 }
 
@@ -51,9 +57,12 @@ async function syndicateContent(
 	collection: string,
 	contentId: string,
 	content: Record<string, unknown>,
+	options: { allowCreate?: boolean } = {},
 ): Promise<void> {
 	const storageKey = `${collection}:${contentId}`;
 	const existing = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
+
+	if (!existing?.atUri && options.allowCreate === false) return;
 
 	if (existing && existing.status === "synced") {
 		const syncOnUpdate = (await ctx.kv.get<boolean>("settings:syncOnUpdate")) ?? true;
@@ -97,14 +106,51 @@ async function syndicateContent(
 
 	if (existing && existing.atUri) {
 		const rkey = rkeyFromUri(existing.atUri);
+		bskyPostRef =
+			existing.bskyPostUri && existing.bskyPostCid
+				? { uri: existing.bskyPostUri, cid: existing.bskyPostCid }
+				: undefined;
+
+		const enableCrosspost = (await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ?? true;
+		if (enableCrosspost && existing.bskyPostUri) {
+			try {
+				const template =
+					(await ctx.kv.get<string>("settings:crosspostTemplate")) || "{title}\n\n{url}";
+				const langsStr = (await ctx.kv.get<string>("settings:langs")) || "en";
+				const langs = langsStr
+					.split(",")
+					.map((s: string) => s.trim())
+					.filter(Boolean)
+					.slice(0, 3);
+				const post = buildBskyPost({
+					template,
+					collection,
+					content,
+					siteUrl,
+					thumbBlob: coverImageBlob,
+					langs,
+				});
+				const postResult = await putRecord(
+					ctx,
+					pdsHost,
+					accessJwt,
+					did,
+					"app.bsky.feed.post",
+					rkeyFromUri(existing.bskyPostUri),
+					post,
+				);
+				bskyPostRef = { uri: postResult.uri, cid: postResult.cid };
+			} catch (error) {
+				ctx.log.warn("Failed to update Bluesky cross-post, document still synced", error);
+			}
+		}
+
 		const doc = buildDocument({
 			publicationUri,
+			collection,
 			content,
 			coverImageBlob,
-			bskyPostRef:
-				existing.bskyPostUri && existing.bskyPostCid
-					? { uri: existing.bskyPostUri, cid: existing.bskyPostCid }
-					: undefined,
+			bskyPostRef,
 		});
 
 		const result = await putRecord(
@@ -122,8 +168,8 @@ async function syndicateContent(
 			contentId: existing.contentId,
 			atUri: result.uri,
 			atCid: result.cid,
-			bskyPostUri: existing.bskyPostUri,
-			bskyPostCid: existing.bskyPostCid,
+			bskyPostUri: bskyPostRef?.uri,
+			bskyPostCid: bskyPostRef?.cid,
 			publishedAt: existing.publishedAt,
 			lastSyncedAt: new Date().toISOString(),
 			status: "synced",
@@ -132,7 +178,7 @@ async function syndicateContent(
 
 		ctx.log.info(`Updated AT Protocol document for ${collection}/${contentId}`);
 	} else {
-		const doc = buildDocument({ publicationUri, content, coverImageBlob });
+		const doc = buildDocument({ publicationUri, collection, content, coverImageBlob });
 		const result = await createRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", doc);
 
 		const enableCrosspost = (await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ?? true;
@@ -143,11 +189,12 @@ async function syndicateContent(
 				const langsStr = (await ctx.kv.get<string>("settings:langs")) || "en";
 				const langs = langsStr
 					.split(",")
-					.map((s) => s.trim())
+					.map((s: string) => s.trim())
 					.filter(Boolean)
 					.slice(0, 3);
 				const post = buildBskyPost({
 					template,
+					collection,
 					content,
 					siteUrl,
 					thumbBlob: coverImageBlob,
@@ -165,7 +212,13 @@ async function syndicateContent(
 				bskyPostRef = { uri: postResult.uri, cid: postResult.cid };
 
 				const rkey = rkeyFromUri(result.uri);
-				const updatedDoc = buildDocument({ publicationUri, content, coverImageBlob, bskyPostRef });
+				const updatedDoc = buildDocument({
+					publicationUri,
+					collection,
+					content,
+					coverImageBlob,
+					bskyPostRef,
+				});
 				await putRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey, updatedDoc);
 
 				ctx.log.info(`Cross-posted ${collection}/${contentId} to Bluesky`);
@@ -190,6 +243,88 @@ async function syndicateContent(
 	}
 }
 
+async function syncPublication(ctx: PluginContext) {
+	const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
+	const siteName = await ctx.kv.get<string>("settings:siteName");
+	if (!siteUrl || !siteName)
+		return {
+			success: false,
+			error: "Site URL and name are required",
+		};
+
+	const { accessJwt, did, pdsHost } = await ensureSession(ctx);
+	const publication = buildPublication(siteUrl, siteName);
+	const existingUri = await ctx.kv.get<string>("state:publicationUri");
+
+	let result;
+	if (existingUri) {
+		const rkey = rkeyFromUri(existingUri);
+		result = await putRecord(
+			ctx,
+			pdsHost,
+			accessJwt,
+			did,
+			"site.standard.publication",
+			rkey,
+			publication,
+		);
+	} else {
+		result = await createRecord(
+			ctx,
+			pdsHost,
+			accessJwt,
+			did,
+			"site.standard.publication",
+			publication,
+		);
+	}
+
+	await ctx.kv.set("state:publicationUri", result.uri);
+	await ctx.kv.set("state:publicationCid", result.cid);
+	return {
+		success: true,
+		uri: result.uri,
+		cid: result.cid,
+	};
+}
+
+async function syndicatePublishedContent(
+	event: { content: Record<string, unknown>; collection: string },
+	ctx: PluginContext,
+	options: { allowCreate?: boolean } = {},
+) {
+	const { content, collection } = event;
+	const contentId = typeof content.id === "string" ? content.id : String(content.id);
+	const status = content.status as string | undefined;
+
+	if (status !== "published") return;
+	if (!(await isCollectionAllowed(ctx, collection))) return;
+
+	try {
+		await syndicateContent(ctx, collection, contentId, content, options);
+	} catch (error) {
+		ctx.log.error(`Failed to syndicate ${collection}/${contentId}`, error);
+
+		const storageKey = `${collection}:${contentId}`;
+		const existing = await ctx.storage.records!.get(storageKey);
+		const record = (existing as SyndicationRecord | null) || {
+			collection,
+			contentId,
+			atUri: "",
+			atCid: "",
+			publishedAt: new Date().toISOString(),
+		};
+
+		await ctx.storage.records!.put(storageKey, {
+			...record,
+			status: "error",
+			lastSyncedAt: new Date().toISOString(),
+			errorMessage: error instanceof Error ? error.message : String(error),
+			retryCount: ((record as SyndicationRecord).retryCount || 0) + 1,
+		});
+	}
+}
+
 // ── Plugin definition ───────────────────────────────────────────
 
 export default definePlugin({
@@ -203,36 +338,16 @@ export default definePlugin({
 				event: { content: Record<string, unknown>; collection: string; isNew: boolean },
 				ctx: PluginContext,
 			) => {
-				const { content, collection } = event;
-				const contentId = typeof content.id === "string" ? content.id : String(content.id);
-				const status = content.status as string | undefined;
+				await syndicatePublishedContent(event, ctx, { allowCreate: false });
+			},
+		},
 
-				if (status !== "published") return;
-				if (!(await isCollectionAllowed(ctx, collection))) return;
-
-				try {
-					await syndicateContent(ctx, collection, contentId, content);
-				} catch (error) {
-					ctx.log.error(`Failed to syndicate ${collection}/${contentId}`, error);
-
-					const storageKey = `${collection}:${contentId}`;
-					const existing = await ctx.storage.records!.get(storageKey);
-					const record = (existing as SyndicationRecord | null) || {
-						collection,
-						contentId,
-						atUri: "",
-						atCid: "",
-						publishedAt: new Date().toISOString(),
-					};
-
-					await ctx.storage.records!.put(storageKey, {
-						...record,
-						status: "error",
-						lastSyncedAt: new Date().toISOString(),
-						errorMessage: error instanceof Error ? error.message : String(error),
-						retryCount: ((record as SyndicationRecord).retryCount || 0) + 1,
-					});
-				}
+		"content:afterPublish": {
+			handler: async (
+				event: { content: Record<string, unknown>; collection: string },
+				ctx: PluginContext,
+			) => {
+				await syndicatePublishedContent(event, ctx, { allowCreate: true });
 			},
 		},
 
@@ -270,6 +385,7 @@ export default definePlugin({
 		) => {
 			const pageContent = event.page.content;
 			if (!pageContent) return null;
+			if (!(await isCollectionAllowed(ctx, pageContent.collection))) return null;
 
 			const storageKey = `${pageContent.collection}:${pageContent.id}`;
 			const record = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
@@ -345,48 +461,7 @@ export default definePlugin({
 		"sync-publication": {
 			handler: async (_routeCtx: unknown, ctx: PluginContext) => {
 				try {
-					const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
-					const siteName = await ctx.kv.get<string>("settings:siteName");
-					if (!siteUrl || !siteName)
-						return {
-							success: false,
-							error: "Site URL and name are required",
-						};
-
-					const { accessJwt, did, pdsHost } = await ensureSession(ctx);
-					const publication = buildPublication(siteUrl, siteName);
-					const existingUri = await ctx.kv.get<string>("state:publicationUri");
-
-					let result;
-					if (existingUri) {
-						const rkey = rkeyFromUri(existingUri);
-						result = await putRecord(
-							ctx,
-							pdsHost,
-							accessJwt,
-							did,
-							"site.standard.publication",
-							rkey,
-							publication,
-						);
-					} else {
-						result = await createRecord(
-							ctx,
-							pdsHost,
-							accessJwt,
-							did,
-							"site.standard.publication",
-							publication,
-						);
-					}
-
-					await ctx.kv.set("state:publicationUri", result.uri);
-					await ctx.kv.set("state:publicationCid", result.cid);
-					return {
-						success: true,
-						uri: result.uri,
-						cid: result.cid,
-					};
+					return await syncPublication(ctx);
 				} catch (error) {
 					return {
 						success: false,
@@ -431,24 +506,20 @@ export default definePlugin({
 
 		admin: {
 			handler: async (routeCtx: any, ctx: PluginContext) => {
-				const interaction = routeCtx.input as {
-					type: string;
-					page?: string;
-					action_id?: string;
-					values?: Record<string, unknown>;
-				};
+				const interaction = routeCtx.input as AdminInteraction | undefined;
+				const interactionType = interaction?.type ?? "page_load";
+				const pageTarget = getAdminPageTarget(interaction);
 
-				if (interaction.type === "page_load" && interaction.page === "widget:sync-status") {
-					return buildSyncWidget(ctx);
-				}
-				if (interaction.type === "page_load" && interaction.page === "/status") {
-					return buildStatusPage(ctx);
-				}
-				if (interaction.type === "form_submit" && interaction.action_id === "save_settings") {
+				if (pageTarget === "sync-widget") return buildSyncWidget(ctx);
+				if (pageTarget === "status") return buildStatusPage(ctx);
+				if (interactionType === "form_submit" && interaction?.action_id === "save_settings") {
 					return saveSettings(ctx, interaction.values ?? {});
 				}
-				if (interaction.type === "block_action" && interaction.action_id === "test_connection") {
+				if (interactionType === "block_action" && interaction?.action_id === "test_connection") {
 					return testConnection(ctx);
+				}
+				if (interactionType === "block_action" && interaction?.action_id === "sync_publication") {
+					return syncPublicationAdmin(ctx);
 				}
 				return { blocks: [] };
 			},
@@ -498,7 +569,11 @@ async function buildStatusPage(ctx: PluginContext) {
 		const appPassword = await ctx.kv.get<string>("settings:appPassword");
 		const pdsHost = await ctx.kv.get<string>("settings:pdsHost");
 		const siteUrl = await ctx.kv.get<string>("settings:siteUrl");
-		const enableCrosspost = await ctx.kv.get<boolean>("settings:enableCrosspost");
+		const siteName = await ctx.kv.get<string>("settings:siteName");
+		const collections = await ctx.kv.get<string>("settings:collections");
+		const enableBskyCrosspost =
+			(await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ??
+			(await ctx.kv.get<boolean>("settings:enableCrosspost"));
 		const did = await ctx.kv.get<string>("state:did");
 		const pubUri = await ctx.kv.get<string>("state:publicationUri");
 
@@ -514,14 +589,16 @@ async function buildStatusPage(ctx: PluginContext) {
 		if (did) {
 			blocks.push({
 				type: "banner",
-				style: "success",
-				text: `Connected as ${handle} (${did})`,
+				title: "Connected",
+				description: `Connected as ${handle} (${did})`,
 			});
 		} else if (handle) {
 			blocks.push({
 				type: "banner",
-				style: "warning",
-				text: "Handle configured but not yet connected. Save settings and test the connection.",
+				variant: "alert",
+				title: "Not connected",
+				description:
+					"Handle configured but not yet connected. Save settings and test the connection.",
 			});
 		}
 
@@ -540,7 +617,7 @@ async function buildStatusPage(ctx: PluginContext) {
 					type: "text_input",
 					action_id: "pdsHost",
 					label: "PDS Host",
-					initial_value: pdsHost ?? "https://bsky.social",
+					initial_value: pdsHost ?? "bsky.social",
 				},
 				{
 					type: "text_input",
@@ -549,10 +626,22 @@ async function buildStatusPage(ctx: PluginContext) {
 					initial_value: siteUrl ?? "",
 				},
 				{
+					type: "text_input",
+					action_id: "siteName",
+					label: "Site Name",
+					initial_value: siteName ?? "",
+				},
+				{
+					type: "text_input",
+					action_id: "collections",
+					label: "Collections to syndicate",
+					initial_value: collections ?? DEFAULT_SYNDICATED_COLLECTIONS.join(","),
+				},
+				{
 					type: "toggle",
-					action_id: "enableCrosspost",
+					action_id: "enableBskyCrosspost",
 					label: "Cross-post to Bluesky",
-					initial_value: enableCrosspost ?? false,
+					initial_value: enableBskyCrosspost ?? true,
 				},
 			],
 			submit: { label: "Save Settings", action_id: "save_settings" },
@@ -563,9 +652,15 @@ async function buildStatusPage(ctx: PluginContext) {
 			elements: [
 				{
 					type: "button",
-					text: "Test Connection",
+					label: "Test Connection",
 					action_id: "test_connection",
 					style: handle && appPassword ? "primary" : undefined,
+				},
+				{
+					type: "button",
+					label: pubUri ? "Update Publication" : "Sync Publication",
+					action_id: "sync_publication",
+					style: did && siteUrl && siteName ? "primary" : undefined,
 				},
 			],
 		});
@@ -592,7 +687,7 @@ async function buildStatusPage(ctx: PluginContext) {
 							{ key: "status", label: "Status", format: "badge" },
 							{ key: "lastSyncedAt", label: "Synced", format: "relative_time" },
 						],
-						rows: items.map((r) => ({
+						rows: items.map((r: SyndicationRecord & { id: string }) => ({
 							collection: r.collection,
 							contentId: r.contentId,
 							status: r.status,
@@ -625,7 +720,7 @@ async function buildStatusPage(ctx: PluginContext) {
 		return { blocks };
 	} catch (error) {
 		ctx.log.error("Failed to build status page", error);
-		return { blocks: [{ type: "banner", style: "error", text: "Failed to load settings" }] };
+		return { blocks: [{ type: "banner", variant: "error", title: "Failed to load settings" }] };
 	}
 }
 
@@ -634,17 +729,23 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 		if (typeof values.handle === "string") await ctx.kv.set("settings:handle", values.handle);
 		if (typeof values.appPassword === "string" && values.appPassword)
 			await ctx.kv.set("settings:appPassword", values.appPassword);
-		if (typeof values.pdsHost === "string") await ctx.kv.set("settings:pdsHost", values.pdsHost);
+		if (typeof values.pdsHost === "string")
+			await ctx.kv.set("settings:pdsHost", normalizePdsHost(values.pdsHost));
 		if (typeof values.siteUrl === "string") await ctx.kv.set("settings:siteUrl", values.siteUrl);
+		if (typeof values.siteName === "string") await ctx.kv.set("settings:siteName", values.siteName);
+		if (typeof values.collections === "string")
+			await ctx.kv.set("settings:collections", values.collections);
+		if (typeof values.enableBskyCrosspost === "boolean")
+			await ctx.kv.set("settings:enableBskyCrosspost", values.enableBskyCrosspost);
 		if (typeof values.enableCrosspost === "boolean")
-			await ctx.kv.set("settings:enableCrosspost", values.enableCrosspost);
+			await ctx.kv.set("settings:enableBskyCrosspost", values.enableCrosspost);
 
 		const page = await buildStatusPage(ctx);
 		return { ...page, toast: { message: "Settings saved", type: "success" } };
 	} catch (error) {
 		ctx.log.error("Failed to save settings", error);
 		return {
-			blocks: [{ type: "banner", style: "error", text: "Failed to save settings" }],
+			blocks: [{ type: "banner", variant: "error", title: "Failed to save settings" }],
 			toast: { message: "Failed to save settings", type: "error" },
 		};
 	}
@@ -664,6 +765,30 @@ async function testConnection(ctx: PluginContext) {
 			...page,
 			toast: {
 				message: `Connection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+				type: "error",
+			},
+		};
+	}
+}
+
+async function syncPublicationAdmin(ctx: PluginContext) {
+	try {
+		const result = await syncPublication(ctx);
+		const page = await buildStatusPage(ctx);
+		return {
+			...page,
+			toast: result.success
+				? { message: "Publication synced", type: "success" }
+				: { message: result.error ?? "Failed to sync publication", type: "error" },
+		};
+	} catch (error) {
+		const page = await buildStatusPage(ctx);
+		return {
+			...page,
+			toast: {
+				message: `Publication sync failed: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
 				type: "error",
 			},
 		};
