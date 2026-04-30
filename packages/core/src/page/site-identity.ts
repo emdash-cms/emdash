@@ -2,20 +2,26 @@
  * Site identity head injection.
  *
  * Emits first-party `<head>` tags sourced from the user-configured Site
- * Identity (favicon, etc.). These are rendered alongside, but separate
- * from, the plugin contribution pipeline (`page/metadata.ts`) because:
+ * Identity. These are rendered alongside, but separate from, the plugin
+ * contribution pipeline (`page/metadata.ts`) because:
  *
  * - Site identity is first-party, not plugin-supplied. The contribution
  *   pipeline's `isSafeHref` allowlist rejects same-origin paths like
  *   `/_emdash/api/media/file/...` (which is correct for sandboxed plugin
  *   contributions, but blocks our own favicon URLs).
- * - The data shape is fixed and small (favicon today, apple-touch-icon
- *   and theme-color later). Routing it through a generic deduper buys
- *   nothing.
+ * - The data shape is fixed and small. Routing it through a generic
+ *   deduper buys nothing.
  *
- * Templates that already emit their own `<link rel="icon">` continue to
- * work; browsers tolerate the duplicate. A follow-up cleanup can remove
- * the per-template line once this has shipped.
+ * Currently emits only `<link rel="icon">`. Other site-identity tags
+ * (`apple-touch-icon`, `theme-color`, `application-name`) need their own
+ * configurable fields in `SiteSettings` before they ship; emitting them
+ * automatically from the favicon would produce broken icons on iOS for
+ * SVG favicons or blurry home-screen icons when the favicon is a small
+ * PNG. Tracked separately.
+ *
+ * Templates that previously emitted their own `<link rel="icon">` are
+ * getting their lines dropped in the same change that introduced this
+ * helper.
  */
 
 import type { MediaReference } from "../settings/types.js";
