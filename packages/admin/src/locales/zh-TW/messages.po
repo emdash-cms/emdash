@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/components/ContentEditor.tsx:959
+#: packages/admin/src/components/ContentEditor.tsx:966
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 msgid " (default)"
 msgstr "（預設）"
@@ -398,7 +398,7 @@ msgstr "7 天"
 msgid "90 days"
 msgstr "90 天"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "您網站的簡短描述"
 
@@ -435,7 +435,7 @@ msgstr "操作"
 msgid "Active"
 msgstr "活躍"
 
-#: packages/admin/src/components/ContentEditor.tsx:1716
+#: packages/admin/src/components/ContentEditor.tsx:1723
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -534,7 +534,7 @@ msgstr "添加子字段"
 msgid "Add tags..."
 msgstr "添加標籤..."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:125
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "添加您的社交媒體資料。這些可供您網站的主題使用，並可以顯示在頁眉、頁腳或作者簡介中。"
 
@@ -770,9 +770,13 @@ msgstr "可用提供商"
 msgid "Back"
 msgstr "返回"
 
-#: packages/admin/src/components/ContentEditor.tsx:540
+#: packages/admin/src/components/ContentEditor.tsx:547
 msgid "Back to {collectionLabel} list"
 msgstr "返回到 {collectionLabel} 列表"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:329
+msgid "Back to Content Types"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
@@ -786,8 +790,8 @@ msgstr "返回登錄"
 msgid "Back to marketplace"
 msgstr "返回市場"
 
-#: packages/admin/src/components/SectionEditor.tsx:69
-#: packages/admin/src/components/SectionEditor.tsx:154
+#: packages/admin/src/components/SectionEditor.tsx:70
+#: packages/admin/src/components/SectionEditor.tsx:156
 msgid "Back to sections"
 msgstr "返回區塊列表"
 
@@ -795,13 +799,13 @@ msgstr "返回區塊列表"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:101
-#: packages/admin/src/components/settings/GeneralSettings.tsx:119
+#: packages/admin/src/components/settings/GeneralSettings.tsx:102
+#: packages/admin/src/components/settings/GeneralSettings.tsx:124
 #: packages/admin/src/components/settings/SecuritySettings.tsx:105
-#: packages/admin/src/components/settings/SeoSettings.tsx:78
-#: packages/admin/src/components/settings/SeoSettings.tsx:96
-#: packages/admin/src/components/settings/SocialSettings.tsx:78
-#: packages/admin/src/components/settings/SocialSettings.tsx:96
+#: packages/admin/src/components/settings/SeoSettings.tsx:79
+#: packages/admin/src/components/settings/SeoSettings.tsx:98
+#: packages/admin/src/components/settings/SocialSettings.tsx:79
+#: packages/admin/src/components/settings/SocialSettings.tsx:98
 msgid "Back to settings"
 msgstr "返回設置"
 
@@ -814,7 +818,7 @@ msgstr "返回主題列表"
 msgid "Before send:"
 msgstr "發送前："
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:141
+#: packages/admin/src/components/settings/SeoSettings.tsx:155
 msgid "Bing Verification"
 msgstr "Bing 驗證"
 
@@ -849,7 +853,7 @@ msgstr "瀏覽主題並使用您自己的內容預覽。"
 msgid "Bullet List"
 msgstr "無序列表"
 
-#: packages/admin/src/components/ContentEditor.tsx:925
+#: packages/admin/src/components/ContentEditor.tsx:932
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "署名"
@@ -872,11 +876,11 @@ msgstr "可以查看內容"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:633
-#: packages/admin/src/components/ContentEditor.tsx:839
-#: packages/admin/src/components/ContentEditor.tsx:891
-#: packages/admin/src/components/ContentEditor.tsx:1819
-#: packages/admin/src/components/ContentEditor.tsx:1872
+#: packages/admin/src/components/ContentEditor.tsx:640
+#: packages/admin/src/components/ContentEditor.tsx:846
+#: packages/admin/src/components/ContentEditor.tsx:898
+#: packages/admin/src/components/ContentEditor.tsx:1826
+#: packages/admin/src/components/ContentEditor.tsx:1879
 #: packages/admin/src/components/ContentList.tsx:560
 #: packages/admin/src/components/ContentList.tsx:631
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -943,21 +947,21 @@ msgid "Categories will be imported"
 msgstr "分類將被導入"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:68
-#: packages/admin/src/components/ContentEditor.tsx:1576
+#: packages/admin/src/components/ContentEditor.tsx:1583
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
 msgstr "更改"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:231
+#: packages/admin/src/components/settings/GeneralSettings.tsx:248
 msgid "Change Favicon"
 msgstr "更改網站圖標"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:187
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 msgid "Change Logo"
 msgstr "更改標誌"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:132
+#: packages/admin/src/components/settings/SeoSettings.tsx:146
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "頁面標題和網站名稱之間的分隔符（例如，\"My Post | My Site\"）"
 
@@ -1088,7 +1092,7 @@ msgstr "合集"
 msgid "Collections created:"
 msgstr "已創建的合集："
 
-#: packages/admin/src/components/SectionEditor.tsx:226
+#: packages/admin/src/components/SectionEditor.tsx:227
 msgid "Comma-separated keywords for search."
 msgstr "逗號分隔的搜索關鍵詞。"
 
@@ -1141,7 +1145,7 @@ msgstr "已連接 {0}"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1811
-#: packages/admin/src/components/SectionEditor.tsx:174
+#: packages/admin/src/components/SectionEditor.tsx:175
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "內容"
@@ -1257,7 +1261,7 @@ msgstr "無法檢測到 WordPress"
 msgid "Count"
 msgstr "數量"
 
-#: packages/admin/src/components/ContentEditor.tsx:1843
+#: packages/admin/src/components/ContentEditor.tsx:1850
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1286,7 +1290,7 @@ msgstr "創建帳戶"
 msgid "Create an account"
 msgstr "創建帳戶"
 
-#: packages/admin/src/components/ContentEditor.tsx:1791
+#: packages/admin/src/components/ContentEditor.tsx:1798
 msgid "Create byline"
 msgstr "創建署名"
 
@@ -1396,12 +1400,12 @@ msgstr "已創建"
 msgid "Created {0}"
 msgstr "創建於 {0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:114
+#: packages/admin/src/components/ContentTypeEditor.tsx:116
 msgid "Created At"
 msgstr "創建時間"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:859
+#: packages/admin/src/components/ContentEditor.tsx:866
 msgid "Created: {0}"
 msgstr "創建於：{0}"
 
@@ -1409,7 +1413,7 @@ msgstr "創建於：{0}"
 msgid "Creating collections and fields..."
 msgstr "正在創建合集和字段..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1843
+#: packages/admin/src/components/ContentEditor.tsx:1850
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1418,7 +1422,7 @@ msgstr "正在創建合集和字段..."
 msgid "Creating..."
 msgstr "創建中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:962
+#: packages/admin/src/components/ContentEditor.tsx:969
 msgid "current"
 msgstr "當前"
 
@@ -1430,11 +1434,11 @@ msgstr "當前版本"
 msgid "Custom"
 msgstr "自定義"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:151
+#: packages/admin/src/components/settings/SeoSettings.tsx:165
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "自定義 robots.txt 內容。留空則使用默認值。"
 
-#: packages/admin/src/components/SectionEditor.tsx:161
+#: packages/admin/src/components/SectionEditor.tsx:165
 msgid "Custom Section"
 msgstr "自定義區塊"
 
@@ -1468,7 +1472,7 @@ msgstr "日期和時間"
 msgid "Date and time picker"
 msgstr "日期和時間選擇器"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:273
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "Date Format"
 msgstr "日期格式"
 
@@ -1492,6 +1496,10 @@ msgstr "定義新的分類以對內容進行分類"
 #: packages/admin/src/components/ContentTypeList.tsx:40
 msgid "Define the structure of your content"
 msgstr "定義您的內容結構"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:354
+msgid "Defined in code"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
@@ -1608,11 +1616,11 @@ msgstr "拒絕"
 msgid "Describe this image for accessibility"
 msgstr "描述此圖片以供無障礙訪問"
 
-#: packages/admin/src/components/SectionEditor.tsx:215
+#: packages/admin/src/components/SectionEditor.tsx:216
 msgid "Describe what this section is for..."
 msgstr "描述此區塊的用途..."
 
-#: packages/admin/src/components/SectionEditor.tsx:212
+#: packages/admin/src/components/SectionEditor.tsx:213
 #: packages/admin/src/components/Sections.tsx:198
 msgid "Description"
 msgstr "描述"
@@ -1679,12 +1687,12 @@ msgstr "已禁用"
 msgid "Disabled:"
 msgstr "已禁用："
 
-#: packages/admin/src/components/ContentEditor.tsx:618
-#: packages/admin/src/components/ContentEditor.tsx:640
+#: packages/admin/src/components/ContentEditor.tsx:625
+#: packages/admin/src/components/ContentEditor.tsx:647
 msgid "Discard changes"
 msgstr "放棄更改"
 
-#: packages/admin/src/components/ContentEditor.tsx:624
+#: packages/admin/src/components/ContentEditor.tsx:631
 msgid "Discard draft changes?"
 msgstr "放棄草稿更改？"
 
@@ -1697,8 +1705,8 @@ msgstr "關閉"
 msgid "Display a navigation menu"
 msgstr "顯示導航菜單"
 
-#: packages/admin/src/components/ContentEditor.tsx:1794
-#: packages/admin/src/components/ContentEditor.tsx:1856
+#: packages/admin/src/components/ContentEditor.tsx:1801
+#: packages/admin/src/components/ContentEditor.tsx:1863
 msgid "Display name"
 msgstr "顯示名稱"
 
@@ -1716,7 +1724,7 @@ msgstr "顯示尺寸"
 msgid "Displayed below the image as a visible caption."
 msgstr "顯示在圖片下方作爲可見說明。"
 
-#: packages/admin/src/components/ContentEditor.tsx:594
+#: packages/admin/src/components/ContentEditor.tsx:601
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "無干擾模式（⌘⇧\\）"
 
@@ -1749,7 +1757,7 @@ msgstr "還沒有帳號？<0>立即註冊</0>"
 msgid "Done"
 msgstr "完成"
 
-#: packages/admin/src/components/ContentEditor.tsx:1737
+#: packages/admin/src/components/ContentEditor.tsx:1744
 msgid "Down"
 msgstr "下移"
 
@@ -1761,16 +1769,16 @@ msgstr "下載中"
 msgid "draft"
 msgstr "草稿"
 
-#: packages/admin/src/components/ContentEditor.tsx:790
+#: packages/admin/src/components/ContentEditor.tsx:797
 #: packages/admin/src/components/ContentPickerModal.tsx:217
 msgid "Draft"
 msgstr "草稿"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:110
+#: packages/admin/src/components/ContentTypeEditor.tsx:112
 msgid "draft, published, or archived"
 msgstr "草稿、已發佈或已歸檔"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:62
+#: packages/admin/src/components/ContentTypeEditor.tsx:64
 #: packages/admin/src/components/Dashboard.tsx:188
 msgid "Drafts"
 msgstr "草稿"
@@ -1799,8 +1807,8 @@ msgstr "例如：CI/CD 流水線"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "例如：MacBook Pro、iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:971
-#: packages/admin/src/components/ContentEditor.tsx:1746
+#: packages/admin/src/components/ContentEditor.tsx:978
+#: packages/admin/src/components/ContentEditor.tsx:1753
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1817,7 +1825,7 @@ msgstr "編輯"
 msgid "Edit {0}"
 msgstr "編輯 {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:557
+#: packages/admin/src/components/ContentEditor.tsx:564
 msgid "Edit {collectionLabel}"
 msgstr "編輯 {collectionLabel}"
 
@@ -1825,7 +1833,7 @@ msgstr "編輯 {collectionLabel}"
 msgid "Edit {title}"
 msgstr "編輯 {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1853
+#: packages/admin/src/components/ContentEditor.tsx:1860
 msgid "Edit byline"
 msgstr "編輯署名"
 
@@ -1930,7 +1938,7 @@ msgstr "檢測到 EmDash 導出器插件！您可以直接導入。"
 msgid "Enable"
 msgstr "啓用"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:78
+#: packages/admin/src/components/ContentTypeEditor.tsx:80
 msgid "Enable full-text search on this collection"
 msgstr "在此合集上啓用全文搜索"
 
@@ -1948,7 +1956,7 @@ msgid "Enabled"
 msgstr "已啓用"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1185
+#: packages/admin/src/components/ContentEditor.tsx:1192
 msgid "Enter {0}..."
 msgstr "輸入 {0}..."
 
@@ -1957,7 +1965,7 @@ msgstr "輸入 {0}..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "輸入 URL (https://…) 或相對路徑 (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1403
+#: packages/admin/src/components/ContentEditor.tsx:1410
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "輸入有效的 URL（例如 https://example.com）"
 
@@ -1965,7 +1973,7 @@ msgstr "輸入有效的 URL（例如 https://example.com）"
 msgid "Enter credentials manually"
 msgstr "手動輸入憑據"
 
-#: packages/admin/src/components/ContentEditor.tsx:593
+#: packages/admin/src/components/ContentEditor.tsx:600
 msgid "Enter distraction-free mode"
 msgstr "進入無干擾模式"
 
@@ -1973,7 +1981,7 @@ msgstr "進入無干擾模式"
 msgid "Enter email"
 msgstr "輸入郵箱"
 
-#: packages/admin/src/components/ContentEditor.tsx:1207
+#: packages/admin/src/components/ContentEditor.tsx:1214
 msgid "Enter markdown content..."
 msgstr "輸入 Markdown 內容..."
 
@@ -2003,7 +2011,7 @@ msgstr "輸入您的 WordPress 站點 URL"
 msgid "Error"
 msgstr "錯誤"
 
-#: packages/admin/src/components/SectionEditor.tsx:49
+#: packages/admin/src/components/SectionEditor.tsx:50
 msgid "Error saving section"
 msgstr "保存區塊時出錯"
 
@@ -2011,7 +2019,7 @@ msgstr "保存區塊時出錯"
 msgid "Exists"
 msgstr "已存在"
 
-#: packages/admin/src/components/ContentEditor.tsx:551
+#: packages/admin/src/components/ContentEditor.tsx:558
 msgid "Exit distraction-free mode"
 msgstr "退出無干擾模式"
 
@@ -2040,7 +2048,7 @@ msgstr "從 WordPress 手動導出"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "從 WordPress 導出您的內容，以導入所有內容（包括草稿）。"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:141
+#: packages/admin/src/components/settings/SocialSettings.tsx:155
 msgid "Facebook"
 msgstr "Facebook"
 
@@ -2060,7 +2068,7 @@ msgstr "安全審計失敗"
 msgid "Failed to add domain"
 msgstr "添加域名失敗"
 
-#: packages/admin/src/components/ContentEditor.tsx:1837
+#: packages/admin/src/components/ContentEditor.tsx:1844
 msgid "Failed to create byline"
 msgstr "創建署名失敗"
 
@@ -2138,9 +2146,9 @@ msgstr "重命名通行密鑰失敗"
 msgid "Failed to save"
 msgstr "儲存失敗"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:58
-#: packages/admin/src/components/settings/SeoSettings.tsx:53
-#: packages/admin/src/components/settings/SocialSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:59
+#: packages/admin/src/components/settings/SeoSettings.tsx:54
+#: packages/admin/src/components/settings/SocialSettings.tsx:54
 msgid "Failed to save settings"
 msgstr "保存設置失敗"
 
@@ -2158,7 +2166,7 @@ msgstr "發送測試郵件失敗"
 msgid "Failed to update {0}"
 msgstr "更新 {0} 失敗"
 
-#: packages/admin/src/components/ContentEditor.tsx:1887
+#: packages/admin/src/components/ContentEditor.tsx:1894
 msgid "Failed to update byline"
 msgstr "更新署名失敗"
 
@@ -2166,8 +2174,8 @@ msgstr "更新署名失敗"
 msgid "Failed to update domain"
 msgstr "更新域名失敗"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
-#: packages/admin/src/components/settings/GeneralSettings.tsx:220
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
+#: packages/admin/src/components/settings/GeneralSettings.tsx:237
 msgid "Favicon"
 msgstr "網站圖標"
 
@@ -2253,8 +2261,8 @@ msgstr "完全管理員訪問權限"
 msgid "General"
 msgstr "常規"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:123
+#: packages/admin/src/components/settings/GeneralSettings.tsx:106
+#: packages/admin/src/components/settings/GeneralSettings.tsx:140
 msgid "General Settings"
 msgstr "常規設置"
 
@@ -2262,7 +2270,7 @@ msgstr "常規設置"
 msgid "Get Started"
 msgstr "開始使用"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:135
+#: packages/admin/src/components/settings/SocialSettings.tsx:149
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -2274,7 +2282,7 @@ msgstr "爲此通行密鑰命名以便日後識別。"
 msgid "Go to Dashboard"
 msgstr "前往儀表板"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:135
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 msgid "Google Verification"
 msgstr "Google 驗證"
 
@@ -2348,7 +2356,7 @@ msgstr "https://example.com 或 /about"
 msgid "Icon blurred due to image audit"
 msgstr "由於圖像審計，圖標已模糊"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:96
+#: packages/admin/src/components/ContentTypeEditor.tsx:98
 msgid "ID"
 msgstr "ID"
 
@@ -2513,7 +2521,7 @@ msgstr "從 URL 插入"
 msgid "Insert Section"
 msgstr "插入區塊"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
+#: packages/admin/src/components/settings/SocialSettings.tsx:161
 msgid "Instagram"
 msgstr "Instagram"
 
@@ -2552,7 +2560,7 @@ msgstr "正在安裝..."
 msgid "Integer"
 msgstr "整數"
 
-#: packages/admin/src/components/ContentEditor.tsx:1472
+#: packages/admin/src/components/ContentEditor.tsx:1479
 msgid "Invalid JSON"
 msgstr "無效的 JSON"
 
@@ -2596,7 +2604,7 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
-#: packages/admin/src/components/SectionEditor.tsx:221
+#: packages/admin/src/components/SectionEditor.tsx:222
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:193
 msgid "Keywords"
 msgstr "關鍵詞"
@@ -2684,7 +2692,7 @@ msgstr "鏈接到另一個內容項"
 msgid "Linked Accounts ({0})"
 msgstr "已關聯帳戶 ({0})"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:153
+#: packages/admin/src/components/settings/SocialSettings.tsx:167
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
@@ -2696,7 +2704,7 @@ msgstr "鏈接"
 msgid "List view"
 msgstr "列表視圖"
 
-#: packages/admin/src/components/ContentEditor.tsx:673
+#: packages/admin/src/components/ContentEditor.tsx:680
 msgid "Live View"
 msgstr "實時預覽"
 
@@ -2744,9 +2752,9 @@ msgstr "正在加載重定向..."
 msgid "Loading sections..."
 msgstr "正在加載區塊..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:108
-#: packages/admin/src/components/settings/SeoSettings.tsx:85
-#: packages/admin/src/components/settings/SocialSettings.tsx:85
+#: packages/admin/src/components/settings/GeneralSettings.tsx:109
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SocialSettings.tsx:86
 msgid "Loading settings..."
 msgstr "正在加載設置..."
 
@@ -2790,8 +2798,8 @@ msgstr "鎖定寬高比"
 msgid "Log out"
 msgstr "退出登錄"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:171
-#: packages/admin/src/components/settings/GeneralSettings.tsx:176
+#: packages/admin/src/components/settings/GeneralSettings.tsx:188
+#: packages/admin/src/components/settings/GeneralSettings.tsx:193
 msgid "Logo"
 msgstr "標誌"
 
@@ -2973,11 +2981,11 @@ msgstr "菜單管理"
 msgid "Meta Description"
 msgstr "Meta 描述"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
+#: packages/admin/src/components/settings/SeoSettings.tsx:158
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Bing 網站管理員工具驗證的元標籤內容"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:138
+#: packages/admin/src/components/settings/SeoSettings.tsx:152
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Search Console 驗證的元標籤內容"
 
@@ -3021,13 +3029,13 @@ msgstr "將 {title} 移至回收站"
 msgid "Move down"
 msgstr "下移"
 
-#: packages/admin/src/components/ContentEditor.tsx:876
-#: packages/admin/src/components/ContentEditor.tsx:898
+#: packages/admin/src/components/ContentEditor.tsx:883
+#: packages/admin/src/components/ContentEditor.tsx:905
 #: packages/admin/src/components/ContentList.tsx:567
 msgid "Move to Trash"
 msgstr "移至回收站"
 
-#: packages/admin/src/components/ContentEditor.tsx:882
+#: packages/admin/src/components/ContentEditor.tsx:889
 #: packages/admin/src/components/ContentList.tsx:552
 msgid "Move to Trash?"
 msgstr "移至回收站？"
@@ -3086,7 +3094,7 @@ msgstr "新"
 msgid "New {0}"
 msgstr "新{0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:557
+#: packages/admin/src/components/ContentEditor.tsx:564
 msgid "New {collectionLabel}"
 msgstr "新建 {collectionLabel}"
 
@@ -3094,6 +3102,7 @@ msgstr "新建 {collectionLabel}"
 msgid "New collection"
 msgstr "新合集"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:348
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "新內容類型"
@@ -3171,7 +3180,7 @@ msgstr "暫無 API 令牌。創建一個以開始使用。"
 msgid "No approved comments yet."
 msgstr "暫無已審覈評論。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1778
+#: packages/admin/src/components/ContentEditor.tsx:1785
 msgid "No bylines selected."
 msgstr "未選擇任何署名。"
 
@@ -3356,7 +3365,7 @@ msgstr "無（頂級）"
 msgid "Number"
 msgstr "數字"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:270
+#: packages/admin/src/components/settings/GeneralSettings.tsx:287
 msgid "Number of posts to show per page on list views"
 msgstr "列表視圖每頁顯示的文章數量"
 
@@ -3460,7 +3469,7 @@ msgstr "大綱"
 msgid "Overrides the page title in search engine results"
 msgstr "覆蓋搜索引擎結果中的頁面標題"
 
-#: packages/admin/src/components/ContentEditor.tsx:913
+#: packages/admin/src/components/ContentEditor.tsx:920
 msgid "Ownership"
 msgstr "所有權"
 
@@ -3562,7 +3571,7 @@ msgstr "待處理"
 msgid "Pending"
 msgstr "待處理"
 
-#: packages/admin/src/components/ContentEditor.tsx:788
+#: packages/admin/src/components/ContentEditor.tsx:795
 msgid "Pending changes"
 msgstr "待處理的更改"
 
@@ -3648,7 +3657,7 @@ msgstr "如果此頁面是從另一個 URL 複製的，則引導搜索引擎到�
 msgid "Posts"
 msgstr "文章"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "Posts Per Page"
 msgstr "每頁文章數"
 
@@ -3665,17 +3674,17 @@ msgstr "正在準備從 WordPress 下載文件..."
 msgid "Preparing..."
 msgstr "正在準備..."
 
-#: packages/admin/src/components/ContentEditor.tsx:607
-#: packages/admin/src/components/ContentTypeEditor.tsx:72
+#: packages/admin/src/components/ContentEditor.tsx:614
+#: packages/admin/src/components/ContentTypeEditor.tsx:74
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
 msgstr "預覽"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:73
+#: packages/admin/src/components/ContentTypeEditor.tsx:75
 msgid "Preview content before publishing"
 msgstr "發佈前預覽內容"
 
-#: packages/admin/src/components/ContentEditor.tsx:607
+#: packages/admin/src/components/ContentEditor.tsx:614
 msgid "Preview draft"
 msgstr "預覽草稿"
 
@@ -3700,12 +3709,12 @@ msgstr "主導航"
 msgid "Provider:"
 msgstr "提供商："
 
-#: packages/admin/src/components/ContentEditor.tsx:662
-#: packages/admin/src/components/ContentEditor.tsx:769
+#: packages/admin/src/components/ContentEditor.tsx:669
+#: packages/admin/src/components/ContentEditor.tsx:776
 msgid "Publish"
 msgstr "發佈"
 
-#: packages/admin/src/components/ContentEditor.tsx:652
+#: packages/admin/src/components/ContentEditor.tsx:659
 msgid "Publish changes"
 msgstr "發佈更改"
 
@@ -3713,7 +3722,7 @@ msgstr "發佈更改"
 msgid "published"
 msgstr "已發佈"
 
-#: packages/admin/src/components/ContentEditor.tsx:784
+#: packages/admin/src/components/ContentEditor.tsx:791
 #: packages/admin/src/components/ContentPickerModal.tsx:214
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
@@ -3724,11 +3733,11 @@ msgstr "已發佈"
 msgid "Published {0}"
 msgstr "發佈於 {0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:126
+#: packages/admin/src/components/ContentTypeEditor.tsx:128
 msgid "Published At"
 msgstr "發佈時間"
 
-#: packages/admin/src/components/ContentEditor.tsx:1786
+#: packages/admin/src/components/ContentEditor.tsx:1793
 msgid "Quick create byline"
 msgstr "快速創建署名"
 
@@ -3753,7 +3762,7 @@ msgstr "讀取媒體文件"
 msgid "Read site settings"
 msgstr "讀取網站設置"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Reading"
 msgstr "閱讀"
 
@@ -3810,10 +3819,10 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "註冊已取消或超時。請重試。"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
-#: packages/admin/src/components/ContentEditor.tsx:1755
+#: packages/admin/src/components/ContentEditor.tsx:1762
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
-#: packages/admin/src/components/settings/GeneralSettings.tsx:196
-#: packages/admin/src/components/settings/GeneralSettings.tsx:240
+#: packages/admin/src/components/settings/GeneralSettings.tsx:213
+#: packages/admin/src/components/settings/GeneralSettings.tsx:257
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
 #: packages/admin/src/components/settings/PasskeyItem.tsx:209
 msgid "Remove"
@@ -3834,7 +3843,7 @@ msgstr "移除域名"
 msgid "Remove Domain?"
 msgstr "移除域名？"
 
-#: packages/admin/src/components/ContentEditor.tsx:1584
+#: packages/admin/src/components/ContentEditor.tsx:1591
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "移除圖片"
@@ -3993,7 +4002,7 @@ msgstr "查看新權限"
 msgid "Revision restored"
 msgstr "修訂版本已恢復"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:67
+#: packages/admin/src/components/ContentTypeEditor.tsx:69
 #: packages/admin/src/components/RevisionHistory.tsx:161
 msgid "Revisions"
 msgstr "修訂版本"
@@ -4037,7 +4046,7 @@ msgstr "角色"
 msgid "Role {role}"
 msgstr "角色 {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1760
+#: packages/admin/src/components/ContentEditor.tsx:1767
 msgid "Role label"
 msgstr "角色標籤"
 
@@ -4048,7 +4057,7 @@ msgstr "角色標籤"
 msgid "Same window"
 msgstr "同一視窗"
 
-#: packages/admin/src/components/ContentEditor.tsx:1893
+#: packages/admin/src/components/ContentEditor.tsx:1900
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -4062,7 +4071,7 @@ msgstr "保存"
 msgid "Save Changes"
 msgstr "保存更改"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:63
+#: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "Save content as draft before publishing"
 msgstr "發佈前將內容保存爲草稿"
 
@@ -4070,47 +4079,53 @@ msgstr "發佈前將內容保存爲草稿"
 msgid "Save name"
 msgstr "保存名稱"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
+#: packages/admin/src/components/settings/SeoSettings.tsx:110
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Save SEO Settings"
 msgstr "保存 SEO 設置"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Save Settings"
 msgstr "保存設置"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
+#: packages/admin/src/components/settings/SocialSettings.tsx:110
+#: packages/admin/src/components/settings/SocialSettings.tsx:184
 msgid "Save Social Links"
 msgstr "保存社交鏈接"
 
-#: packages/admin/src/components/ContentEditor.tsx:582
+#: packages/admin/src/components/ContentEditor.tsx:589
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "已保存"
 
-#: packages/admin/src/components/ContentEditor.tsx:577
-#: packages/admin/src/components/ContentEditor.tsx:1893
+#: packages/admin/src/components/ContentEditor.tsx:584
+#: packages/admin/src/components/ContentEditor.tsx:1900
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/SaveButton.tsx:42
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/components/settings/SeoSettings.tsx:110
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
+#: packages/admin/src/components/settings/SocialSettings.tsx:110
+#: packages/admin/src/components/settings/SocialSettings.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:308
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Saving..."
 msgstr "保存中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:828
+#: packages/admin/src/components/ContentEditor.tsx:835
 msgid "Schedule"
 msgstr "定時發佈"
 
-#: packages/admin/src/components/ContentEditor.tsx:814
+#: packages/admin/src/components/ContentEditor.tsx:821
 msgid "Schedule for"
 msgstr "定時發佈於"
 
-#: packages/admin/src/components/ContentEditor.tsx:851
+#: packages/admin/src/components/ContentEditor.tsx:858
 msgid "Schedule for later"
 msgstr "稍後定時發佈"
 
@@ -4118,12 +4133,12 @@ msgstr "稍後定時發佈"
 msgid "scheduled"
 msgstr "已定時"
 
-#: packages/admin/src/components/ContentEditor.tsx:791
+#: packages/admin/src/components/ContentEditor.tsx:798
 msgid "Scheduled"
 msgstr "已定時"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:801
+#: packages/admin/src/components/ContentEditor.tsx:808
 msgid "Scheduled for: {0}"
 msgstr "計劃發佈於：{0}"
 
@@ -4179,7 +4194,7 @@ msgstr "截圖查看器"
 msgid "Screenshots"
 msgstr "截圖"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:77
+#: packages/admin/src/components/ContentTypeEditor.tsx:79
 msgid "Search"
 msgstr "搜索"
 
@@ -4205,7 +4220,7 @@ msgstr "搜索評論..."
 msgid "Search content..."
 msgstr "搜索內容..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:125
+#: packages/admin/src/components/settings/SeoSettings.tsx:139
 msgid "Search Engine Optimization"
 msgstr "搜索引擎優化"
 
@@ -4251,7 +4266,7 @@ msgstr "可搜索"
 msgid "Section"
 msgstr "區塊"
 
-#: packages/admin/src/components/SectionEditor.tsx:77
+#: packages/admin/src/components/SectionEditor.tsx:78
 msgid "Section \"{slug}\" could not be found."
 msgstr "未找到區塊 \"{slug}\"。"
 
@@ -4263,19 +4278,19 @@ msgstr "區塊已創建"
 msgid "Section deleted"
 msgstr "區塊已刪除"
 
-#: packages/admin/src/components/SectionEditor.tsx:186
+#: packages/admin/src/components/SectionEditor.tsx:187
 msgid "Section Details"
 msgstr "區塊詳情"
 
-#: packages/admin/src/components/SectionEditor.tsx:73
+#: packages/admin/src/components/SectionEditor.tsx:74
 msgid "Section Not Found"
 msgstr "未找到區塊"
 
-#: packages/admin/src/components/SectionEditor.tsx:41
+#: packages/admin/src/components/SectionEditor.tsx:42
 msgid "Section saved"
 msgstr "區塊已保存"
 
-#: packages/admin/src/components/SectionEditor.tsx:192
+#: packages/admin/src/components/SectionEditor.tsx:193
 msgid "Section title"
 msgstr "區塊標題"
 
@@ -4339,7 +4354,7 @@ msgid "Select"
 msgstr "選擇"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:100
-#: packages/admin/src/components/ContentEditor.tsx:1608
+#: packages/admin/src/components/ContentEditor.tsx:1615
 msgid "Select {label}"
 msgstr "選擇 {label}"
 
@@ -4347,7 +4362,7 @@ msgstr "選擇 {label}"
 msgid "Select all"
 msgstr "全選"
 
-#: packages/admin/src/components/ContentEditor.tsx:1699
+#: packages/admin/src/components/ContentEditor.tsx:1706
 msgid "Select byline..."
 msgstr "選擇署名..."
 
@@ -4360,12 +4375,12 @@ msgstr "選擇 {0} 的評論"
 msgid "Select Content"
 msgstr "選擇內容"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:308
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:325
 msgid "Select Favicon"
 msgstr "選擇網站圖標"
 
-#: packages/admin/src/components/ContentEditor.tsx:1599
+#: packages/admin/src/components/ContentEditor.tsx:1606
 msgid "Select image"
 msgstr "選擇圖片"
 
@@ -4373,8 +4388,8 @@ msgstr "選擇圖片"
 msgid "Select Image"
 msgstr "選擇圖片"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:208
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:318
 msgid "Select Logo"
 msgstr "選擇標誌"
 
@@ -4444,13 +4459,13 @@ msgstr "發送測試郵件"
 msgid "Sending..."
 msgstr "發送中..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1003
+#: packages/admin/src/components/ContentEditor.tsx:1010
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:100
+#: packages/admin/src/components/settings/SeoSettings.tsx:83
+#: packages/admin/src/components/settings/SeoSettings.tsx:114
 msgid "SEO Settings"
 msgstr "SEO 設置"
 
@@ -4458,7 +4473,7 @@ msgstr "SEO 設置"
 msgid "SEO settings (Yoast)"
 msgstr "SEO 設置（Yoast）"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:48
+#: packages/admin/src/components/settings/SeoSettings.tsx:49
 msgid "SEO settings saved"
 msgstr "SEO 設置已保存"
 
@@ -4497,7 +4512,7 @@ msgstr "設置管理"
 msgid "Settings Read"
 msgstr "設置讀取"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:54
 msgid "Settings saved successfully"
 msgstr "設置保存成功"
 
@@ -4572,7 +4587,7 @@ msgstr "單行文本輸入"
 msgid "Site"
 msgstr "站點"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:164
 msgid "Site Identity"
 msgstr "站點標識"
 
@@ -4584,7 +4599,7 @@ msgstr "網站標識、徽標、網站圖標和閱讀偏好"
 msgid "Site Settings"
 msgstr "站點設置"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:150
+#: packages/admin/src/components/settings/GeneralSettings.tsx:167
 #: packages/admin/src/components/SetupWizard.tsx:145
 msgid "Site Title"
 msgstr "站點標題"
@@ -4597,7 +4612,7 @@ msgstr "站點標題和副標題"
 msgid "Site title is required"
 msgstr "站點標題爲必填項"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:179
 msgid "Site URL"
 msgstr "站點 URL"
 
@@ -4617,14 +4632,14 @@ msgstr "跳過媒體導入"
 msgid "Skipped"
 msgstr "已跳過"
 
-#: packages/admin/src/components/ContentEditor.tsx:772
-#: packages/admin/src/components/ContentEditor.tsx:1802
-#: packages/admin/src/components/ContentEditor.tsx:1864
-#: packages/admin/src/components/ContentTypeEditor.tsx:102
+#: packages/admin/src/components/ContentEditor.tsx:779
+#: packages/admin/src/components/ContentEditor.tsx:1809
+#: packages/admin/src/components/ContentEditor.tsx:1871
+#: packages/admin/src/components/ContentTypeEditor.tsx:104
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:197
+#: packages/admin/src/components/SectionEditor.tsx:198
 #: packages/admin/src/components/Sections.tsx:182
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Slug"
@@ -4639,12 +4654,12 @@ msgid "Small section heading"
 msgstr "小章節標題"
 
 #: packages/admin/src/components/Settings.tsx:75
-#: packages/admin/src/components/settings/SocialSettings.tsx:82
-#: packages/admin/src/components/settings/SocialSettings.tsx:100
+#: packages/admin/src/components/settings/SocialSettings.tsx:83
+#: packages/admin/src/components/settings/SocialSettings.tsx:114
 msgid "Social Links"
 msgstr "社交鏈接"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:48
+#: packages/admin/src/components/settings/SocialSettings.tsx:49
 msgid "Social links saved"
 msgstr "社交鏈接已保存"
 
@@ -4652,7 +4667,7 @@ msgstr "社交鏈接已保存"
 msgid "Social media profile links"
 msgstr "社交媒體個人資料鏈接"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:123
+#: packages/admin/src/components/settings/SocialSettings.tsx:137
 msgid "Social Profiles"
 msgstr "社交資料"
 
@@ -4678,7 +4693,7 @@ msgstr "排序主題"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:434
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:232
+#: packages/admin/src/components/SectionEditor.tsx:233
 msgid "Source"
 msgstr "來源"
 
@@ -4700,9 +4715,9 @@ msgstr "垃圾"
 msgid "Start Import"
 msgstr "開始導入"
 
-#: packages/admin/src/components/ContentEditor.tsx:778
+#: packages/admin/src/components/ContentEditor.tsx:785
 #: packages/admin/src/components/ContentList.tsx:218
-#: packages/admin/src/components/ContentTypeEditor.tsx:108
+#: packages/admin/src/components/ContentTypeEditor.tsx:110
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
 msgstr "狀態"
@@ -4736,7 +4751,7 @@ msgstr "已同步通行密鑰"
 msgid "System ({resolvedLabel})"
 msgstr "跟隨系統（{resolvedLabel}）"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:156
+#: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:156
 msgid "Tagline"
 msgstr "副標題"
@@ -4821,11 +4836,11 @@ msgstr "市場爲空。請稍後查看新插件。"
 msgid "The menu has been deleted."
 msgstr "菜單已刪除。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:153
+#: packages/admin/src/components/settings/GeneralSettings.tsx:170
 msgid "The name of your site, used in the header and metadata"
 msgstr "您站點的名稱，用於頁眉和元數據"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:166
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "您站點的公共 URL（用於規範鏈接和站點地圖）"
 
@@ -4838,7 +4853,7 @@ msgid "Theme"
 msgstr "主題"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:245
+#: packages/admin/src/components/SectionEditor.tsx:246
 msgid "Theme ID: {0}"
 msgstr "主題 ID：{0}"
 
@@ -4846,7 +4861,7 @@ msgstr "主題 ID：{0}"
 msgid "Theme not found"
 msgstr "未找到主題"
 
-#: packages/admin/src/components/SectionEditor.tsx:161
+#: packages/admin/src/components/SectionEditor.tsx:165
 msgid "Theme Section"
 msgstr "主題區塊"
 
@@ -4863,11 +4878,11 @@ msgstr "主題：{label}"
 msgid "Themes"
 msgstr "主題"
 
-#: packages/admin/src/components/ContentEditor.tsx:1612
+#: packages/admin/src/components/ContentEditor.tsx:1619
 msgid "This field is required"
 msgstr "此字段爲必填項"
 
-#: packages/admin/src/components/SectionEditor.tsx:239
+#: packages/admin/src/components/SectionEditor.tsx:240
 msgid "This is a custom section."
 msgstr "這是自定義區塊。"
 
@@ -4895,11 +4910,11 @@ msgstr "此插件不需要特殊權限。"
 msgid "This redirect rule will be permanently removed."
 msgstr "此重定向規則將被永久移除。"
 
-#: packages/admin/src/components/SectionEditor.tsx:236
+#: packages/admin/src/components/SectionEditor.tsx:237
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "此區塊由主題提供。編輯將創建一個自定義副本以覆蓋主題版本。"
 
-#: packages/admin/src/components/SectionEditor.tsx:241
+#: packages/admin/src/components/SectionEditor.tsx:242
 msgid "This section was imported from another system."
 msgstr "此區塊是從另一個系統導入的。"
 
@@ -4907,7 +4922,7 @@ msgstr "此區塊是從另一個系統導入的。"
 msgid "This will grant CLI access with your permissions."
 msgstr "這將授予 CLI 訪問權限以及您的權限。"
 
-#: packages/admin/src/components/ContentEditor.tsx:885
+#: packages/admin/src/components/ContentEditor.tsx:892
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "這將把項目移至回收站。您可以稍後從回收站恢復它。"
 
@@ -4929,7 +4944,7 @@ msgstr "這將永久刪除此評論。此操作無法撤銷。"
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "這將從您的站點移除插件及其包。"
 
-#: packages/admin/src/components/ContentEditor.tsx:627
+#: packages/admin/src/components/ContentEditor.tsx:634
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "這將恢復到已發佈的版本。您的草稿更改將會丟失。"
 
@@ -4937,17 +4952,17 @@ msgstr "這將恢復到已發佈的版本。您的草稿更改將會丟失。"
 msgid "Thoughts, tutorials, and more"
 msgstr "想法、教程等"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:279
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
 msgid "Timezone"
 msgstr "時區"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:282
+#: packages/admin/src/components/settings/GeneralSettings.tsx:299
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "用於顯示日期的時區（例如：America/New_York）"
 
 #: packages/admin/src/components/ContentList.tsx:212
 #: packages/admin/src/components/ContentList.tsx:343
-#: packages/admin/src/components/SectionEditor.tsx:189
+#: packages/admin/src/components/SectionEditor.tsx:190
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
 msgstr "標題"
@@ -4957,7 +4972,7 @@ msgstr "標題"
 msgid "Title (Tooltip)"
 msgstr "標題（工具提示）"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:143
 msgid "Title Separator"
 msgstr "標題分隔符"
 
@@ -4991,15 +5006,15 @@ msgstr "令牌名稱"
 msgid "Tools → Export"
 msgstr "工具 → 導出"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:68
+#: packages/admin/src/components/ContentTypeEditor.tsx:70
 msgid "Track content history"
 msgstr "跟蹤內容歷史"
 
-#: packages/admin/src/components/ContentEditor.tsx:981
+#: packages/admin/src/components/ContentEditor.tsx:988
 msgid "Translate"
 msgstr "翻譯"
 
-#: packages/admin/src/components/ContentEditor.tsx:939
+#: packages/admin/src/components/ContentEditor.tsx:946
 msgid "Translations"
 msgstr "翻譯"
 
@@ -5059,7 +5074,7 @@ msgstr "嘗試其他 URL"
 msgid "Try with my data"
 msgstr "使用我的數據嘗試"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:129
+#: packages/admin/src/components/settings/SocialSettings.tsx:143
 msgid "Twitter"
 msgstr "Twitter"
 
@@ -5078,8 +5093,8 @@ msgstr "類型不匹配 ({0})"
 msgid "Unable to reach marketplace"
 msgstr "無法訪問市場"
 
-#: packages/admin/src/components/ContentEditor.tsx:1907
-#: packages/admin/src/components/ContentEditor.tsx:1922
+#: packages/admin/src/components/ContentEditor.tsx:1914
+#: packages/admin/src/components/ContentEditor.tsx:1929
 msgid "Unassigned"
 msgstr "未分配"
 
@@ -5105,7 +5120,7 @@ msgstr "卸載中..."
 msgid "Unique"
 msgstr "唯一"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:98
+#: packages/admin/src/components/ContentTypeEditor.tsx:100
 msgid "Unique identifier (ULID)"
 msgstr "唯一標識符 (ULID)"
 
@@ -5129,7 +5144,7 @@ msgstr "解鎖寬高比"
 msgid "Unnamed passkey"
 msgstr "未命名通行密鑰"
 
-#: packages/admin/src/components/ContentEditor.tsx:656
+#: packages/admin/src/components/ContentEditor.tsx:663
 msgid "Unpublish"
 msgstr "取消發佈"
 
@@ -5137,7 +5152,7 @@ msgstr "取消發佈"
 msgid "Unregistered Content Tables Found"
 msgstr "發現未註冊的內容表"
 
-#: packages/admin/src/components/ContentEditor.tsx:803
+#: packages/admin/src/components/ContentEditor.tsx:810
 msgid "Unschedule"
 msgstr "取消定時發佈"
 
@@ -5145,7 +5160,7 @@ msgstr "取消定時發佈"
 msgid "Untitled"
 msgstr "無標題"
 
-#: packages/admin/src/components/ContentEditor.tsx:1734
+#: packages/admin/src/components/ContentEditor.tsx:1741
 msgid "Up"
 msgstr "上移"
 
@@ -5180,12 +5195,12 @@ msgstr "更新此重定向規則。"
 msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:120
+#: packages/admin/src/components/ContentTypeEditor.tsx:122
 msgid "Updated At"
 msgstr "更新時間"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:860
+#: packages/admin/src/components/ContentEditor.tsx:867
 msgid "Updated: {0}"
 msgstr "更新於：{0}"
 
@@ -5282,7 +5297,7 @@ msgstr "上傳中..."
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:104
+#: packages/admin/src/components/ContentTypeEditor.tsx:106
 #: packages/admin/src/components/FieldEditor.tsx:225
 msgid "URL-friendly identifier"
 msgstr "URL 友好的標識符"
@@ -5307,7 +5322,7 @@ msgstr "使用您註冊的通行密鑰安全登錄。"
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作標識符。僅限小寫字母、數字和下劃線。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1284
+#: packages/admin/src/components/ContentEditor.tsx:1291
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "用於在列表頁和文章頂部作爲主要視覺展示"
 
@@ -5315,7 +5330,7 @@ msgstr "用於在列表頁和文章頂部作爲主要視覺展示"
 msgid "Used by screen readers and when image fails to load"
 msgstr "供屏幕閱讀器使用，並在圖片加載失敗時顯示"
 
-#: packages/admin/src/components/SectionEditor.tsx:207
+#: packages/admin/src/components/SectionEditor.tsx:208
 #: packages/admin/src/components/Sections.tsx:194
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "用於標識此區塊。僅限小寫字母、數字和連字符。"
@@ -5454,15 +5469,15 @@ msgstr "導入時會發生什麼："
 msgid "What will happen when you import"
 msgstr "導入時會發生什麼"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:116
+#: packages/admin/src/components/ContentTypeEditor.tsx:118
 msgid "When the entry was created"
 msgstr "條目創建時間"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:122
+#: packages/admin/src/components/ContentTypeEditor.tsx:124
 msgid "When the entry was last modified"
 msgstr "條目最後修改時間"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:128
+#: packages/admin/src/components/ContentTypeEditor.tsx:130
 msgid "When the entry was published"
 msgstr "條目發佈時間"
 
@@ -5585,19 +5600,19 @@ msgstr "您的設備不支持所需的安全功能。"
 msgid "Your Email"
 msgstr "您的郵箱"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:144
+#: packages/admin/src/components/settings/SocialSettings.tsx:158
 msgid "Your Facebook page or profile username"
 msgstr "您的 Facebook 頁面或個人資料用戶名"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:138
+#: packages/admin/src/components/settings/SocialSettings.tsx:152
 msgid "Your GitHub username"
 msgstr "您的 GitHub 用戶名"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:150
+#: packages/admin/src/components/settings/SocialSettings.tsx:164
 msgid "Your Instagram username"
 msgstr "您的 Instagram 用戶名"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:156
+#: packages/admin/src/components/settings/SocialSettings.tsx:170
 msgid "Your LinkedIn profile username"
 msgstr "您的 LinkedIn 個人資料用戶名"
 
@@ -5613,7 +5628,7 @@ msgstr "您的姓名（可選）"
 msgid "Your Role"
 msgstr "您的角色"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:132
+#: packages/admin/src/components/settings/SocialSettings.tsx:146
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "您的 Twitter/X 用戶名（例如：@username）"
 
@@ -5622,10 +5637,10 @@ msgstr "您的 Twitter/X 用戶名（例如：@username）"
 msgid "Your WordPress export contains {0} media files."
 msgstr "您的 WordPress 導出包含 {0} 個媒體文件。"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:162
+#: packages/admin/src/components/settings/SocialSettings.tsx:176
 msgid "Your YouTube channel ID or handle"
 msgstr "您的 YouTube 頻道 ID 或用戶名"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:159
+#: packages/admin/src/components/settings/SocialSettings.tsx:173
 msgid "YouTube"
 msgstr "YouTube"

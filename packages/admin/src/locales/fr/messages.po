@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/components/ContentEditor.tsx:959
+#: packages/admin/src/components/ContentEditor.tsx:966
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 msgid " (default)"
 msgstr " (par défaut)"
@@ -398,7 +398,7 @@ msgstr "7 jours"
 msgid "90 days"
 msgstr "90 jours"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "Une brève description de votre site"
 
@@ -435,7 +435,7 @@ msgstr "Actions"
 msgid "Active"
 msgstr "Actif"
 
-#: packages/admin/src/components/ContentEditor.tsx:1716
+#: packages/admin/src/components/ContentEditor.tsx:1723
 #: packages/admin/src/components/MenuEditor.tsx:297
 #: packages/admin/src/components/TaxonomyManager.tsx:214
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -534,7 +534,7 @@ msgstr "Ajouter un sous-champ"
 msgid "Add tags..."
 msgstr "Ajouter des étiquettes..."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:125
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "Ajoutez vos profils de réseaux sociaux. Ceux-ci sont disponibles pour le thème de votre site et peuvent être affichés dans les en-têtes, les pieds de page ou les biographies des auteurs."
 
@@ -770,9 +770,13 @@ msgstr "Fournisseurs disponibles"
 msgid "Back"
 msgstr "Retour"
 
-#: packages/admin/src/components/ContentEditor.tsx:540
+#: packages/admin/src/components/ContentEditor.tsx:547
 msgid "Back to {collectionLabel} list"
 msgstr "Retour à la liste {collectionLabel}"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:329
+msgid "Back to Content Types"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
@@ -786,8 +790,8 @@ msgstr "Retour à la page de connexion"
 msgid "Back to marketplace"
 msgstr "Retour à la place de marché"
 
-#: packages/admin/src/components/SectionEditor.tsx:69
-#: packages/admin/src/components/SectionEditor.tsx:154
+#: packages/admin/src/components/SectionEditor.tsx:70
+#: packages/admin/src/components/SectionEditor.tsx:156
 msgid "Back to sections"
 msgstr "Retour aux sections"
 
@@ -795,13 +799,13 @@ msgstr "Retour aux sections"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:101
-#: packages/admin/src/components/settings/GeneralSettings.tsx:119
+#: packages/admin/src/components/settings/GeneralSettings.tsx:102
+#: packages/admin/src/components/settings/GeneralSettings.tsx:124
 #: packages/admin/src/components/settings/SecuritySettings.tsx:105
-#: packages/admin/src/components/settings/SeoSettings.tsx:78
-#: packages/admin/src/components/settings/SeoSettings.tsx:96
-#: packages/admin/src/components/settings/SocialSettings.tsx:78
-#: packages/admin/src/components/settings/SocialSettings.tsx:96
+#: packages/admin/src/components/settings/SeoSettings.tsx:79
+#: packages/admin/src/components/settings/SeoSettings.tsx:98
+#: packages/admin/src/components/settings/SocialSettings.tsx:79
+#: packages/admin/src/components/settings/SocialSettings.tsx:98
 msgid "Back to settings"
 msgstr "Retour aux paramètres"
 
@@ -814,7 +818,7 @@ msgstr "Retour aux thèmes"
 msgid "Before send:"
 msgstr "Avant l'envoi :"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:141
+#: packages/admin/src/components/settings/SeoSettings.tsx:155
 msgid "Bing Verification"
 msgstr "Vérification Bing"
 
@@ -849,7 +853,7 @@ msgstr "Parcourez les thèmes et prévisualisez-les avec votre propre contenu."
 msgid "Bullet List"
 msgstr "Liste à puces"
 
-#: packages/admin/src/components/ContentEditor.tsx:925
+#: packages/admin/src/components/ContentEditor.tsx:932
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "Auteurs"
@@ -872,11 +876,11 @@ msgstr "Peut consulter le contenu"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:633
-#: packages/admin/src/components/ContentEditor.tsx:839
-#: packages/admin/src/components/ContentEditor.tsx:891
-#: packages/admin/src/components/ContentEditor.tsx:1819
-#: packages/admin/src/components/ContentEditor.tsx:1872
+#: packages/admin/src/components/ContentEditor.tsx:640
+#: packages/admin/src/components/ContentEditor.tsx:846
+#: packages/admin/src/components/ContentEditor.tsx:898
+#: packages/admin/src/components/ContentEditor.tsx:1826
+#: packages/admin/src/components/ContentEditor.tsx:1879
 #: packages/admin/src/components/ContentList.tsx:560
 #: packages/admin/src/components/ContentList.tsx:631
 #: packages/admin/src/components/ContentPickerModal.tsx:253
@@ -943,21 +947,21 @@ msgid "Categories will be imported"
 msgstr "Les catégories seront importées"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:68
-#: packages/admin/src/components/ContentEditor.tsx:1576
+#: packages/admin/src/components/ContentEditor.tsx:1583
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
 msgstr "Modifier"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:231
+#: packages/admin/src/components/settings/GeneralSettings.tsx:248
 msgid "Change Favicon"
 msgstr "Modifier le favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:187
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 msgid "Change Logo"
 msgstr "Modifier le logo"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:132
+#: packages/admin/src/components/settings/SeoSettings.tsx:146
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Caractère entre le titre de la page et le nom du site (p. ex. « Mon article | Mon site »)"
 
@@ -1088,7 +1092,7 @@ msgstr "Collections"
 msgid "Collections created:"
 msgstr "Collections créées :"
 
-#: packages/admin/src/components/SectionEditor.tsx:226
+#: packages/admin/src/components/SectionEditor.tsx:227
 msgid "Comma-separated keywords for search."
 msgstr "Mots-clés séparés par des virgules pour la recherche."
 
@@ -1141,7 +1145,7 @@ msgstr "Connecté {0}"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1811
-#: packages/admin/src/components/SectionEditor.tsx:174
+#: packages/admin/src/components/SectionEditor.tsx:175
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "Contenu"
@@ -1257,7 +1261,7 @@ msgstr "Impossible de détecter WordPress"
 msgid "Count"
 msgstr "Nombre"
 
-#: packages/admin/src/components/ContentEditor.tsx:1843
+#: packages/admin/src/components/ContentEditor.tsx:1850
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
@@ -1286,7 +1290,7 @@ msgstr "Créer un compte"
 msgid "Create an account"
 msgstr "Créer un compte"
 
-#: packages/admin/src/components/ContentEditor.tsx:1791
+#: packages/admin/src/components/ContentEditor.tsx:1798
 msgid "Create byline"
 msgstr "Créer un auteur"
 
@@ -1396,12 +1400,12 @@ msgstr "Créé"
 msgid "Created {0}"
 msgstr "Créé le {0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:114
+#: packages/admin/src/components/ContentTypeEditor.tsx:116
 msgid "Created At"
 msgstr "Créé le"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:859
+#: packages/admin/src/components/ContentEditor.tsx:866
 msgid "Created: {0}"
 msgstr "Créé : {0}"
 
@@ -1409,7 +1413,7 @@ msgstr "Créé : {0}"
 msgid "Creating collections and fields..."
 msgstr "En cours de création de collections et de champs..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1843
+#: packages/admin/src/components/ContentEditor.tsx:1850
 #: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
@@ -1418,7 +1422,7 @@ msgstr "En cours de création de collections et de champs..."
 msgid "Creating..."
 msgstr "Création en cours..."
 
-#: packages/admin/src/components/ContentEditor.tsx:962
+#: packages/admin/src/components/ContentEditor.tsx:969
 msgid "current"
 msgstr "actuel"
 
@@ -1430,11 +1434,11 @@ msgstr "Actuel"
 msgid "Custom"
 msgstr "Personnalisé"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:151
+#: packages/admin/src/components/settings/SeoSettings.tsx:165
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Contenu robots.txt personnalisé. Laissez vide pour utiliser la valeur par défaut."
 
-#: packages/admin/src/components/SectionEditor.tsx:161
+#: packages/admin/src/components/SectionEditor.tsx:165
 msgid "Custom Section"
 msgstr "Section personnalisée"
 
@@ -1468,7 +1472,7 @@ msgstr "Date et heure"
 msgid "Date and time picker"
 msgstr "Sélecteur de date et d'heure"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:273
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "Date Format"
 msgstr "Format des dates"
 
@@ -1492,6 +1496,10 @@ msgstr "Définir une nouvelle taxonomie pour classer le contenu"
 #: packages/admin/src/components/ContentTypeList.tsx:40
 msgid "Define the structure of your content"
 msgstr "Définir la structure de votre contenu"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:354
+msgid "Defined in code"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
@@ -1608,11 +1616,11 @@ msgstr "Refuser"
 msgid "Describe this image for accessibility"
 msgstr "Décrivez cette image pour l'accessibilité"
 
-#: packages/admin/src/components/SectionEditor.tsx:215
+#: packages/admin/src/components/SectionEditor.tsx:216
 msgid "Describe what this section is for..."
 msgstr "Décrivez à quoi sert cette section..."
 
-#: packages/admin/src/components/SectionEditor.tsx:212
+#: packages/admin/src/components/SectionEditor.tsx:213
 #: packages/admin/src/components/Sections.tsx:198
 msgid "Description"
 msgstr "Description"
@@ -1679,12 +1687,12 @@ msgstr "Désactivé"
 msgid "Disabled:"
 msgstr "Désactivé :"
 
-#: packages/admin/src/components/ContentEditor.tsx:618
-#: packages/admin/src/components/ContentEditor.tsx:640
+#: packages/admin/src/components/ContentEditor.tsx:625
+#: packages/admin/src/components/ContentEditor.tsx:647
 msgid "Discard changes"
 msgstr "Ignorer les modifications"
 
-#: packages/admin/src/components/ContentEditor.tsx:624
+#: packages/admin/src/components/ContentEditor.tsx:631
 msgid "Discard draft changes?"
 msgstr "Supprimer les brouillons de modifications ?"
 
@@ -1697,8 +1705,8 @@ msgstr "Fermer"
 msgid "Display a navigation menu"
 msgstr "Afficher un menu de navigation"
 
-#: packages/admin/src/components/ContentEditor.tsx:1794
-#: packages/admin/src/components/ContentEditor.tsx:1856
+#: packages/admin/src/components/ContentEditor.tsx:1801
+#: packages/admin/src/components/ContentEditor.tsx:1863
 msgid "Display name"
 msgstr "Nom affiché"
 
@@ -1716,7 +1724,7 @@ msgstr "Taille d'affichage"
 msgid "Displayed below the image as a visible caption."
 msgstr "Affiché sous l’image sous forme de légende visible."
 
-#: packages/admin/src/components/ContentEditor.tsx:594
+#: packages/admin/src/components/ContentEditor.tsx:601
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Mode sans distraction (⌘⇧\\)"
 
@@ -1749,7 +1757,7 @@ msgstr "Pas encore de compte ? <0>S'inscrire</0>"
 msgid "Done"
 msgstr "Fait"
 
-#: packages/admin/src/components/ContentEditor.tsx:1737
+#: packages/admin/src/components/ContentEditor.tsx:1744
 msgid "Down"
 msgstr "Vers le bas"
 
@@ -1761,16 +1769,16 @@ msgstr "Téléchargement"
 msgid "draft"
 msgstr "brouillon"
 
-#: packages/admin/src/components/ContentEditor.tsx:790
+#: packages/admin/src/components/ContentEditor.tsx:797
 #: packages/admin/src/components/ContentPickerModal.tsx:217
 msgid "Draft"
 msgstr "Brouillon"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:110
+#: packages/admin/src/components/ContentTypeEditor.tsx:112
 msgid "draft, published, or archived"
 msgstr "brouillon, publié ou archivé"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:62
+#: packages/admin/src/components/ContentTypeEditor.tsx:64
 #: packages/admin/src/components/Dashboard.tsx:188
 msgid "Drafts"
 msgstr "Brouillons"
@@ -1799,8 +1807,8 @@ msgstr "p. ex. : pipeline CI/CD"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "p. ex. : MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:971
-#: packages/admin/src/components/ContentEditor.tsx:1746
+#: packages/admin/src/components/ContentEditor.tsx:978
+#: packages/admin/src/components/ContentEditor.tsx:1753
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Sections.tsx:390
@@ -1817,7 +1825,7 @@ msgstr "Modifier"
 msgid "Edit {0}"
 msgstr "Modifier {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:557
+#: packages/admin/src/components/ContentEditor.tsx:564
 msgid "Edit {collectionLabel}"
 msgstr "Modifier {collectionLabel}"
 
@@ -1825,7 +1833,7 @@ msgstr "Modifier {collectionLabel}"
 msgid "Edit {title}"
 msgstr "Modifier {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1853
+#: packages/admin/src/components/ContentEditor.tsx:1860
 msgid "Edit byline"
 msgstr "Modifier l'auteur"
 
@@ -1930,7 +1938,7 @@ msgstr "Module d'extension EmDash Exporter détecté ! Vous pouvez importer dir
 msgid "Enable"
 msgstr "Activer"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:78
+#: packages/admin/src/components/ContentTypeEditor.tsx:80
 msgid "Enable full-text search on this collection"
 msgstr "Permettre la recherche dans le contenu de cette collection"
 
@@ -1948,7 +1956,7 @@ msgid "Enabled"
 msgstr "Activé"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1185
+#: packages/admin/src/components/ContentEditor.tsx:1192
 msgid "Enter {0}..."
 msgstr "Saisissez {0}..."
 
@@ -1957,7 +1965,7 @@ msgstr "Saisissez {0}..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Saisissez une URL (https://…) ou un chemin relatif (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1403
+#: packages/admin/src/components/ContentEditor.tsx:1410
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr ""
 
@@ -1965,7 +1973,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Saisir les informations d'identification manuellement"
 
-#: packages/admin/src/components/ContentEditor.tsx:593
+#: packages/admin/src/components/ContentEditor.tsx:600
 msgid "Enter distraction-free mode"
 msgstr "Passez en mode sans distraction"
 
@@ -1973,7 +1981,7 @@ msgstr "Passez en mode sans distraction"
 msgid "Enter email"
 msgstr "Saisissez l'adresse mail"
 
-#: packages/admin/src/components/ContentEditor.tsx:1207
+#: packages/admin/src/components/ContentEditor.tsx:1214
 msgid "Enter markdown content..."
 msgstr "Saisissez du contenu Markdown..."
 
@@ -2003,7 +2011,7 @@ msgstr "Saisir l'URL de votre site WordPress"
 msgid "Error"
 msgstr "Erreur"
 
-#: packages/admin/src/components/SectionEditor.tsx:49
+#: packages/admin/src/components/SectionEditor.tsx:50
 msgid "Error saving section"
 msgstr "Erreur lors de l'enregistrement de la section"
 
@@ -2011,7 +2019,7 @@ msgstr "Erreur lors de l'enregistrement de la section"
 msgid "Exists"
 msgstr "Existe"
 
-#: packages/admin/src/components/ContentEditor.tsx:551
+#: packages/admin/src/components/ContentEditor.tsx:558
 msgid "Exit distraction-free mode"
 msgstr "Quitter le mode sans distraction"
 
@@ -2040,7 +2048,7 @@ msgstr "Exporter manuellement depuis WordPress"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Exportez votre contenu depuis WordPress pour tout importer, y compris les brouillons."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:141
+#: packages/admin/src/components/settings/SocialSettings.tsx:155
 msgid "Facebook"
 msgstr "Facebook"
 
@@ -2060,7 +2068,7 @@ msgstr "Échec de l'audit de sécurité"
 msgid "Failed to add domain"
 msgstr "Échec de l'ajout du domaine"
 
-#: packages/admin/src/components/ContentEditor.tsx:1837
+#: packages/admin/src/components/ContentEditor.tsx:1844
 msgid "Failed to create byline"
 msgstr "Échec de la création de l'auteur"
 
@@ -2138,9 +2146,9 @@ msgstr "Échec du renommage de la clé d'accès"
 msgid "Failed to save"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:58
-#: packages/admin/src/components/settings/SeoSettings.tsx:53
-#: packages/admin/src/components/settings/SocialSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:59
+#: packages/admin/src/components/settings/SeoSettings.tsx:54
+#: packages/admin/src/components/settings/SocialSettings.tsx:54
 msgid "Failed to save settings"
 msgstr "Échec de l'enregistrement des paramètres"
 
@@ -2158,7 +2166,7 @@ msgstr "Échec de l'envoi de l'e-mail de test"
 msgid "Failed to update {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1887
+#: packages/admin/src/components/ContentEditor.tsx:1894
 msgid "Failed to update byline"
 msgstr "Échec de la mise à jour de l'auteur"
 
@@ -2166,8 +2174,8 @@ msgstr "Échec de la mise à jour de l'auteur"
 msgid "Failed to update domain"
 msgstr "Échec de la mise à jour du domaine"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
-#: packages/admin/src/components/settings/GeneralSettings.tsx:220
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
+#: packages/admin/src/components/settings/GeneralSettings.tsx:237
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -2253,8 +2261,8 @@ msgstr "Accès administrateur complet"
 msgid "General"
 msgstr "Général"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:123
+#: packages/admin/src/components/settings/GeneralSettings.tsx:106
+#: packages/admin/src/components/settings/GeneralSettings.tsx:140
 msgid "General Settings"
 msgstr "Paramètres généraux"
 
@@ -2262,7 +2270,7 @@ msgstr "Paramètres généraux"
 msgid "Get Started"
 msgstr "Commencer"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:135
+#: packages/admin/src/components/settings/SocialSettings.tsx:149
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -2274,7 +2282,7 @@ msgstr "Donnez un nom à cette clé d'accès pour vous aider à l'identifier plu
 msgid "Go to Dashboard"
 msgstr "Aller au tableau de bord"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:135
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 msgid "Google Verification"
 msgstr "Vérification Google"
 
@@ -2348,7 +2356,7 @@ msgstr "https://example.com ou /about"
 msgid "Icon blurred due to image audit"
 msgstr "Icône floutée en raison de l'audit d'image"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:96
+#: packages/admin/src/components/ContentTypeEditor.tsx:98
 msgid "ID"
 msgstr "ID"
 
@@ -2513,7 +2521,7 @@ msgstr "Insérer à partir de l'URL"
 msgid "Insert Section"
 msgstr "Insérer une section"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
+#: packages/admin/src/components/settings/SocialSettings.tsx:161
 msgid "Instagram"
 msgstr "Instagram"
 
@@ -2552,7 +2560,7 @@ msgstr "En cours d'installation..."
 msgid "Integer"
 msgstr "Entier"
 
-#: packages/admin/src/components/ContentEditor.tsx:1472
+#: packages/admin/src/components/ContentEditor.tsx:1479
 msgid "Invalid JSON"
 msgstr "JSON invalide"
 
@@ -2596,7 +2604,7 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
-#: packages/admin/src/components/SectionEditor.tsx:221
+#: packages/admin/src/components/SectionEditor.tsx:222
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:193
 msgid "Keywords"
 msgstr "Mots-clés"
@@ -2684,7 +2692,7 @@ msgstr "Lien vers un autre élément de contenu"
 msgid "Linked Accounts ({0})"
 msgstr "Comptes associés ({0})"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:153
+#: packages/admin/src/components/settings/SocialSettings.tsx:167
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
@@ -2696,7 +2704,7 @@ msgstr "Liens"
 msgid "List view"
 msgstr "Vue en liste"
 
-#: packages/admin/src/components/ContentEditor.tsx:673
+#: packages/admin/src/components/ContentEditor.tsx:680
 msgid "Live View"
 msgstr "Affichage en direct"
 
@@ -2744,9 +2752,9 @@ msgstr "En cours de chargement des redirections..."
 msgid "Loading sections..."
 msgstr "En cours de chargement des rubriques..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:108
-#: packages/admin/src/components/settings/SeoSettings.tsx:85
-#: packages/admin/src/components/settings/SocialSettings.tsx:85
+#: packages/admin/src/components/settings/GeneralSettings.tsx:109
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SocialSettings.tsx:86
 msgid "Loading settings..."
 msgstr "En cours de chargement des paramètres..."
 
@@ -2790,8 +2798,8 @@ msgstr "Verrouiller le rapport hauteur/largeur"
 msgid "Log out"
 msgstr "Se déconnecter"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:171
-#: packages/admin/src/components/settings/GeneralSettings.tsx:176
+#: packages/admin/src/components/settings/GeneralSettings.tsx:188
+#: packages/admin/src/components/settings/GeneralSettings.tsx:193
 msgid "Logo"
 msgstr "Logo"
 
@@ -2973,11 +2981,11 @@ msgstr ""
 msgid "Meta Description"
 msgstr "Méta description"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
+#: packages/admin/src/components/settings/SeoSettings.tsx:158
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Contenu des balises méta pour la vérification avec les outils pour les webmasters de Bing"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:138
+#: packages/admin/src/components/settings/SeoSettings.tsx:152
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Contenu des balises méta pour la vérification avec la console de recherche de Google"
 
@@ -3021,13 +3029,13 @@ msgstr "Déplacer {title} vers la corbeille"
 msgid "Move down"
 msgstr "Descendre"
 
-#: packages/admin/src/components/ContentEditor.tsx:876
-#: packages/admin/src/components/ContentEditor.tsx:898
+#: packages/admin/src/components/ContentEditor.tsx:883
+#: packages/admin/src/components/ContentEditor.tsx:905
 #: packages/admin/src/components/ContentList.tsx:567
 msgid "Move to Trash"
 msgstr "Déplacer vers la corbeille"
 
-#: packages/admin/src/components/ContentEditor.tsx:882
+#: packages/admin/src/components/ContentEditor.tsx:889
 #: packages/admin/src/components/ContentList.tsx:552
 msgid "Move to Trash?"
 msgstr "Placer dans la corbeille ?"
@@ -3086,7 +3094,7 @@ msgstr "NOUVEAU"
 msgid "New {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:557
+#: packages/admin/src/components/ContentEditor.tsx:564
 msgid "New {collectionLabel}"
 msgstr "Nouveau {collectionLabel}"
 
@@ -3094,6 +3102,7 @@ msgstr "Nouveau {collectionLabel}"
 msgid "New collection"
 msgstr "Nouvelle collection"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:348
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "Nouveau type de contenu"
@@ -3171,7 +3180,7 @@ msgstr "Aucun jeton d'API pour l'instant. Créez-en un pour commencer."
 msgid "No approved comments yet."
 msgstr "Aucun commentaire approuvé pour l'instant."
 
-#: packages/admin/src/components/ContentEditor.tsx:1778
+#: packages/admin/src/components/ContentEditor.tsx:1785
 msgid "No bylines selected."
 msgstr "Aucun auteur sélectionnée."
 
@@ -3356,7 +3365,7 @@ msgstr "Aucun (niveau supérieur)"
 msgid "Number"
 msgstr "Nombre"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:270
+#: packages/admin/src/components/settings/GeneralSettings.tsx:287
 msgid "Number of posts to show per page on list views"
 msgstr "Nombre d'articles à afficher par page dans les vues de liste"
 
@@ -3460,7 +3469,7 @@ msgstr "Plan"
 msgid "Overrides the page title in search engine results"
 msgstr "Remplace le titre de la page dans les résultats des moteurs de recherche"
 
-#: packages/admin/src/components/ContentEditor.tsx:913
+#: packages/admin/src/components/ContentEditor.tsx:920
 msgid "Ownership"
 msgstr "Propriété"
 
@@ -3562,7 +3571,7 @@ msgstr "en attente"
 msgid "Pending"
 msgstr "En attente"
 
-#: packages/admin/src/components/ContentEditor.tsx:788
+#: packages/admin/src/components/ContentEditor.tsx:795
 msgid "Pending changes"
 msgstr "Modifications en attente"
 
@@ -3648,7 +3657,7 @@ msgstr "Dirige les moteurs de recherche vers la version originale de cette page,
 msgid "Posts"
 msgstr "Articles"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "Posts Per Page"
 msgstr "Articles par page"
 
@@ -3665,17 +3674,17 @@ msgstr "En cours de préparation du téléchargement de fichiers depuis WordPres
 msgid "Preparing..."
 msgstr "En cours de préparation..."
 
-#: packages/admin/src/components/ContentEditor.tsx:607
-#: packages/admin/src/components/ContentTypeEditor.tsx:72
+#: packages/admin/src/components/ContentEditor.tsx:614
+#: packages/admin/src/components/ContentTypeEditor.tsx:74
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
 msgstr "Aperçu"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:73
+#: packages/admin/src/components/ContentTypeEditor.tsx:75
 msgid "Preview content before publishing"
 msgstr "Prévisualiser le contenu avant publication"
 
-#: packages/admin/src/components/ContentEditor.tsx:607
+#: packages/admin/src/components/ContentEditor.tsx:614
 msgid "Preview draft"
 msgstr "Aperçu du brouillon"
 
@@ -3700,12 +3709,12 @@ msgstr "Navigation principale"
 msgid "Provider:"
 msgstr "Fournisseur :"
 
-#: packages/admin/src/components/ContentEditor.tsx:662
-#: packages/admin/src/components/ContentEditor.tsx:769
+#: packages/admin/src/components/ContentEditor.tsx:669
+#: packages/admin/src/components/ContentEditor.tsx:776
 msgid "Publish"
 msgstr "Publier"
 
-#: packages/admin/src/components/ContentEditor.tsx:652
+#: packages/admin/src/components/ContentEditor.tsx:659
 msgid "Publish changes"
 msgstr "Publier les modifications"
 
@@ -3713,7 +3722,7 @@ msgstr "Publier les modifications"
 msgid "published"
 msgstr "publié"
 
-#: packages/admin/src/components/ContentEditor.tsx:784
+#: packages/admin/src/components/ContentEditor.tsx:791
 #: packages/admin/src/components/ContentPickerModal.tsx:214
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
@@ -3724,11 +3733,11 @@ msgstr "Publié"
 msgid "Published {0}"
 msgstr "Publié {0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:126
+#: packages/admin/src/components/ContentTypeEditor.tsx:128
 msgid "Published At"
 msgstr "Publié le"
 
-#: packages/admin/src/components/ContentEditor.tsx:1786
+#: packages/admin/src/components/ContentEditor.tsx:1793
 msgid "Quick create byline"
 msgstr "Création rapide d'un auteur"
 
@@ -3753,7 +3762,7 @@ msgstr "Lire les fichiers multimédias"
 msgid "Read site settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Reading"
 msgstr "Lecture"
 
@@ -3810,10 +3819,10 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "L'inscription a été annulée ou a expiré. Veuillez réessayer."
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
-#: packages/admin/src/components/ContentEditor.tsx:1755
+#: packages/admin/src/components/ContentEditor.tsx:1762
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
-#: packages/admin/src/components/settings/GeneralSettings.tsx:196
-#: packages/admin/src/components/settings/GeneralSettings.tsx:240
+#: packages/admin/src/components/settings/GeneralSettings.tsx:213
+#: packages/admin/src/components/settings/GeneralSettings.tsx:257
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
 #: packages/admin/src/components/settings/PasskeyItem.tsx:209
 msgid "Remove"
@@ -3834,7 +3843,7 @@ msgstr "Supprimer le domaine"
 msgid "Remove Domain?"
 msgstr "Supprimer le domaine ?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1584
+#: packages/admin/src/components/ContentEditor.tsx:1591
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "Supprimer l'image"
@@ -3993,7 +4002,7 @@ msgstr "Examiner les nouvelles autorisations"
 msgid "Revision restored"
 msgstr "Révision restaurée"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:67
+#: packages/admin/src/components/ContentTypeEditor.tsx:69
 #: packages/admin/src/components/RevisionHistory.tsx:161
 msgid "Revisions"
 msgstr "Révisions"
@@ -4037,7 +4046,7 @@ msgstr "Rôle"
 msgid "Role {role}"
 msgstr "Rôle {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1760
+#: packages/admin/src/components/ContentEditor.tsx:1767
 msgid "Role label"
 msgstr "Libellé du rôle"
 
@@ -4048,7 +4057,7 @@ msgstr "Libellé du rôle"
 msgid "Same window"
 msgstr "Même fenêtre"
 
-#: packages/admin/src/components/ContentEditor.tsx:1893
+#: packages/admin/src/components/ContentEditor.tsx:1900
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -4062,7 +4071,7 @@ msgstr "Enregistrer"
 msgid "Save Changes"
 msgstr "Enregistrer les modifications"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:63
+#: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "Save content as draft before publishing"
 msgstr "Enregistrer le contenu en brouillon avant publication"
 
@@ -4070,47 +4079,53 @@ msgstr "Enregistrer le contenu en brouillon avant publication"
 msgid "Save name"
 msgstr "Enregistrer le nom"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
+#: packages/admin/src/components/settings/SeoSettings.tsx:110
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Save SEO Settings"
 msgstr "Enregistrer les paramètres SEO"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Save Settings"
 msgstr "Enregistrer les paramètres"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
+#: packages/admin/src/components/settings/SocialSettings.tsx:110
+#: packages/admin/src/components/settings/SocialSettings.tsx:184
 msgid "Save Social Links"
 msgstr "Enregistrer les liens sociaux"
 
-#: packages/admin/src/components/ContentEditor.tsx:582
+#: packages/admin/src/components/ContentEditor.tsx:589
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "Enregistré"
 
-#: packages/admin/src/components/ContentEditor.tsx:577
-#: packages/admin/src/components/ContentEditor.tsx:1893
+#: packages/admin/src/components/ContentEditor.tsx:584
+#: packages/admin/src/components/ContentEditor.tsx:1900
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:442
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/SaveButton.tsx:42
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/components/settings/SeoSettings.tsx:110
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
+#: packages/admin/src/components/settings/SocialSettings.tsx:110
+#: packages/admin/src/components/settings/SocialSettings.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:308
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Saving..."
 msgstr "En cours d'enregistrement..."
 
-#: packages/admin/src/components/ContentEditor.tsx:828
+#: packages/admin/src/components/ContentEditor.tsx:835
 msgid "Schedule"
 msgstr "Programmer"
 
-#: packages/admin/src/components/ContentEditor.tsx:814
+#: packages/admin/src/components/ContentEditor.tsx:821
 msgid "Schedule for"
 msgstr "Programmer pour le"
 
-#: packages/admin/src/components/ContentEditor.tsx:851
+#: packages/admin/src/components/ContentEditor.tsx:858
 msgid "Schedule for later"
 msgstr "Programmer pour plus tard"
 
@@ -4118,12 +4133,12 @@ msgstr "Programmer pour plus tard"
 msgid "scheduled"
 msgstr "programmé"
 
-#: packages/admin/src/components/ContentEditor.tsx:791
+#: packages/admin/src/components/ContentEditor.tsx:798
 msgid "Scheduled"
 msgstr "Programmé"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:801
+#: packages/admin/src/components/ContentEditor.tsx:808
 msgid "Scheduled for: {0}"
 msgstr "Programmé pour le : {0}"
 
@@ -4179,7 +4194,7 @@ msgstr "Visionneuse de capture d'écran"
 msgid "Screenshots"
 msgstr "Captures d'écran"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:77
+#: packages/admin/src/components/ContentTypeEditor.tsx:79
 msgid "Search"
 msgstr "Recherche"
 
@@ -4205,7 +4220,7 @@ msgstr "Rechercher des commentaires..."
 msgid "Search content..."
 msgstr "Rechercher du contenu..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:125
+#: packages/admin/src/components/settings/SeoSettings.tsx:139
 msgid "Search Engine Optimization"
 msgstr "Optimisation des moteurs de recherche"
 
@@ -4251,7 +4266,7 @@ msgstr "Interrogeable"
 msgid "Section"
 msgstr "Section"
 
-#: packages/admin/src/components/SectionEditor.tsx:77
+#: packages/admin/src/components/SectionEditor.tsx:78
 msgid "Section \"{slug}\" could not be found."
 msgstr "La section « {slug} » est introuvable."
 
@@ -4263,19 +4278,19 @@ msgstr "Section créée"
 msgid "Section deleted"
 msgstr "Section supprimée"
 
-#: packages/admin/src/components/SectionEditor.tsx:186
+#: packages/admin/src/components/SectionEditor.tsx:187
 msgid "Section Details"
 msgstr "Détails de la section"
 
-#: packages/admin/src/components/SectionEditor.tsx:73
+#: packages/admin/src/components/SectionEditor.tsx:74
 msgid "Section Not Found"
 msgstr "Section introuvable"
 
-#: packages/admin/src/components/SectionEditor.tsx:41
+#: packages/admin/src/components/SectionEditor.tsx:42
 msgid "Section saved"
 msgstr "Section enregistrée"
 
-#: packages/admin/src/components/SectionEditor.tsx:192
+#: packages/admin/src/components/SectionEditor.tsx:193
 msgid "Section title"
 msgstr "Titre de la section"
 
@@ -4339,7 +4354,7 @@ msgid "Select"
 msgstr "Sélectionner"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:100
-#: packages/admin/src/components/ContentEditor.tsx:1608
+#: packages/admin/src/components/ContentEditor.tsx:1615
 msgid "Select {label}"
 msgstr "Sélectionner {label}"
 
@@ -4347,7 +4362,7 @@ msgstr "Sélectionner {label}"
 msgid "Select all"
 msgstr "Tout sélectionner"
 
-#: packages/admin/src/components/ContentEditor.tsx:1699
+#: packages/admin/src/components/ContentEditor.tsx:1706
 msgid "Select byline..."
 msgstr "Sélectionner l'auteur..."
 
@@ -4360,12 +4375,12 @@ msgstr "Sélectionner le commentaire par {0}"
 msgid "Select Content"
 msgstr "Sélectionner le contenu"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:308
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:325
 msgid "Select Favicon"
 msgstr "Sélectionner la favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1599
+#: packages/admin/src/components/ContentEditor.tsx:1606
 msgid "Select image"
 msgstr "Sélectionner une image"
 
@@ -4373,8 +4388,8 @@ msgstr "Sélectionner une image"
 msgid "Select Image"
 msgstr "Sélectionner une image"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:208
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:318
 msgid "Select Logo"
 msgstr "Sélectionner le logo"
 
@@ -4444,13 +4459,13 @@ msgstr "Envoyer un e-mail de test"
 msgid "Sending..."
 msgstr "Envoi en cours..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1003
+#: packages/admin/src/components/ContentEditor.tsx:1010
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:100
+#: packages/admin/src/components/settings/SeoSettings.tsx:83
+#: packages/admin/src/components/settings/SeoSettings.tsx:114
 msgid "SEO Settings"
 msgstr "Paramètres SEO"
 
@@ -4458,7 +4473,7 @@ msgstr "Paramètres SEO"
 msgid "SEO settings (Yoast)"
 msgstr "Paramètres SEO (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:48
+#: packages/admin/src/components/settings/SeoSettings.tsx:49
 msgid "SEO settings saved"
 msgstr "Paramètres SEO enregistrés"
 
@@ -4497,7 +4512,7 @@ msgstr ""
 msgid "Settings Read"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:54
 msgid "Settings saved successfully"
 msgstr "Paramètres enregistrés avec succès"
 
@@ -4572,7 +4587,7 @@ msgstr "Champ de texte sur une seule ligne"
 msgid "Site"
 msgstr "Site"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:164
 msgid "Site Identity"
 msgstr "Identité du site"
 
@@ -4584,7 +4599,7 @@ msgstr "Identité du site, logo, favicon et préférences de lecture"
 msgid "Site Settings"
 msgstr "Paramètres du site"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:150
+#: packages/admin/src/components/settings/GeneralSettings.tsx:167
 #: packages/admin/src/components/SetupWizard.tsx:145
 msgid "Site Title"
 msgstr "Titre du site"
@@ -4597,7 +4612,7 @@ msgstr "Titre et slogan du site"
 msgid "Site title is required"
 msgstr "Le titre du site est obligatoire"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:179
 msgid "Site URL"
 msgstr "URL du site"
 
@@ -4617,14 +4632,14 @@ msgstr "Ignorer l'importation de fichiers multimédias"
 msgid "Skipped"
 msgstr "Ignoré"
 
-#: packages/admin/src/components/ContentEditor.tsx:772
-#: packages/admin/src/components/ContentEditor.tsx:1802
-#: packages/admin/src/components/ContentEditor.tsx:1864
-#: packages/admin/src/components/ContentTypeEditor.tsx:102
+#: packages/admin/src/components/ContentEditor.tsx:779
+#: packages/admin/src/components/ContentEditor.tsx:1809
+#: packages/admin/src/components/ContentEditor.tsx:1871
+#: packages/admin/src/components/ContentTypeEditor.tsx:104
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:197
+#: packages/admin/src/components/SectionEditor.tsx:198
 #: packages/admin/src/components/Sections.tsx:182
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Slug"
@@ -4639,12 +4654,12 @@ msgid "Small section heading"
 msgstr "Petit titre"
 
 #: packages/admin/src/components/Settings.tsx:75
-#: packages/admin/src/components/settings/SocialSettings.tsx:82
-#: packages/admin/src/components/settings/SocialSettings.tsx:100
+#: packages/admin/src/components/settings/SocialSettings.tsx:83
+#: packages/admin/src/components/settings/SocialSettings.tsx:114
 msgid "Social Links"
 msgstr "Liens sociaux"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:48
+#: packages/admin/src/components/settings/SocialSettings.tsx:49
 msgid "Social links saved"
 msgstr "Liens sociaux enregistrés"
 
@@ -4652,7 +4667,7 @@ msgstr "Liens sociaux enregistrés"
 msgid "Social media profile links"
 msgstr "Liens vers les profils de réseaux sociaux"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:123
+#: packages/admin/src/components/settings/SocialSettings.tsx:137
 msgid "Social Profiles"
 msgstr "Profils sociaux"
 
@@ -4678,7 +4693,7 @@ msgstr "Trier les thèmes"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:434
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:232
+#: packages/admin/src/components/SectionEditor.tsx:233
 msgid "Source"
 msgstr "Source"
 
@@ -4700,9 +4715,9 @@ msgstr "Indésirable"
 msgid "Start Import"
 msgstr "Démarrer l'importation"
 
-#: packages/admin/src/components/ContentEditor.tsx:778
+#: packages/admin/src/components/ContentEditor.tsx:785
 #: packages/admin/src/components/ContentList.tsx:218
-#: packages/admin/src/components/ContentTypeEditor.tsx:108
+#: packages/admin/src/components/ContentTypeEditor.tsx:110
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
 msgstr "Statut"
@@ -4736,7 +4751,7 @@ msgstr "Mot de passe synchronisé"
 msgid "System ({resolvedLabel})"
 msgstr "Système ({resolvedLabel})"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:156
+#: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:156
 msgid "Tagline"
 msgstr "Slogan"
@@ -4821,11 +4836,11 @@ msgstr "La place de marché est vide. Revenez plus tard pour de nouveaux modules
 msgid "The menu has been deleted."
 msgstr "Le menu a été supprimé."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:153
+#: packages/admin/src/components/settings/GeneralSettings.tsx:170
 msgid "The name of your site, used in the header and metadata"
 msgstr "Le nom de votre site, utilisé dans l'en-tête et les métadonnées"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:166
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "L'URL publique de votre site (utilisée pour les liens canoniques et les plans de site)"
 
@@ -4838,7 +4853,7 @@ msgid "Theme"
 msgstr "Thème"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:245
+#: packages/admin/src/components/SectionEditor.tsx:246
 msgid "Theme ID: {0}"
 msgstr "ID du thème : {0}"
 
@@ -4846,7 +4861,7 @@ msgstr "ID du thème : {0}"
 msgid "Theme not found"
 msgstr "Thème introuvable"
 
-#: packages/admin/src/components/SectionEditor.tsx:161
+#: packages/admin/src/components/SectionEditor.tsx:165
 msgid "Theme Section"
 msgstr "Section du thème"
 
@@ -4863,11 +4878,11 @@ msgstr "Thème : {label}"
 msgid "Themes"
 msgstr "Thèmes"
 
-#: packages/admin/src/components/ContentEditor.tsx:1612
+#: packages/admin/src/components/ContentEditor.tsx:1619
 msgid "This field is required"
 msgstr "Ce champ est obligatoire"
 
-#: packages/admin/src/components/SectionEditor.tsx:239
+#: packages/admin/src/components/SectionEditor.tsx:240
 msgid "This is a custom section."
 msgstr "Ceci est une section personnalisée."
 
@@ -4895,11 +4910,11 @@ msgstr "Ce module d'extension ne nécessite aucune autorisation particulière."
 msgid "This redirect rule will be permanently removed."
 msgstr "Cette règle de redirection sera définitivement supprimée."
 
-#: packages/admin/src/components/SectionEditor.tsx:236
+#: packages/admin/src/components/SectionEditor.tsx:237
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "Cette section est fournie par le thème. La modification créera une copie personnalisée qui remplacera la version du thème."
 
-#: packages/admin/src/components/SectionEditor.tsx:241
+#: packages/admin/src/components/SectionEditor.tsx:242
 msgid "This section was imported from another system."
 msgstr "Cette section a été importée d'un autre système."
 
@@ -4907,7 +4922,7 @@ msgstr "Cette section a été importée d'un autre système."
 msgid "This will grant CLI access with your permissions."
 msgstr "Cela accordera l'accès à la CLI avec vos autorisations."
 
-#: packages/admin/src/components/ContentEditor.tsx:885
+#: packages/admin/src/components/ContentEditor.tsx:892
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Cela déplacera l'élément vers la corbeille. Vous pourrez le restaurer plus tard depuis la corbeille."
 
@@ -4929,7 +4944,7 @@ msgstr "Cela supprimera définitivement ce commentaire. Cette action ne peut pas
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Cela supprimera le module d'extension et son paquet de votre site."
 
-#: packages/admin/src/components/ContentEditor.tsx:627
+#: packages/admin/src/components/ContentEditor.tsx:634
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Cela rétablira la version publiée. Vos modifications en cours seront perdues."
 
@@ -4937,17 +4952,17 @@ msgstr "Cela rétablira la version publiée. Vos modifications en cours seront p
 msgid "Thoughts, tutorials, and more"
 msgstr "Réflexions, tutoriels et bien plus encore"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:279
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
 msgid "Timezone"
 msgstr "Fuseau horaire"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:282
+#: packages/admin/src/components/settings/GeneralSettings.tsx:299
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Fuseau horaire pour l'affichage des dates (p. ex. Amérique/New_York)"
 
 #: packages/admin/src/components/ContentList.tsx:212
 #: packages/admin/src/components/ContentList.tsx:343
-#: packages/admin/src/components/SectionEditor.tsx:189
+#: packages/admin/src/components/SectionEditor.tsx:190
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
 msgstr "Titre"
@@ -4957,7 +4972,7 @@ msgstr "Titre"
 msgid "Title (Tooltip)"
 msgstr "Titre (info-bulle)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:143
 msgid "Title Separator"
 msgstr "Séparateur de titre"
 
@@ -4991,15 +5006,15 @@ msgstr "Nom du jeton"
 msgid "Tools → Export"
 msgstr "Outils → Exporter"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:68
+#: packages/admin/src/components/ContentTypeEditor.tsx:70
 msgid "Track content history"
 msgstr "Suivre l'historique du contenu"
 
-#: packages/admin/src/components/ContentEditor.tsx:981
+#: packages/admin/src/components/ContentEditor.tsx:988
 msgid "Translate"
 msgstr "Traduire"
 
-#: packages/admin/src/components/ContentEditor.tsx:939
+#: packages/admin/src/components/ContentEditor.tsx:946
 msgid "Translations"
 msgstr "Traductions"
 
@@ -5059,7 +5074,7 @@ msgstr "Essayez une autre URL"
 msgid "Try with my data"
 msgstr "Essayez avec mes données"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:129
+#: packages/admin/src/components/settings/SocialSettings.tsx:143
 msgid "Twitter"
 msgstr "Twitter"
 
@@ -5078,8 +5093,8 @@ msgstr "Incompatibilité de type ({0})"
 msgid "Unable to reach marketplace"
 msgstr "Impossible d'accéder à la place de marché"
 
-#: packages/admin/src/components/ContentEditor.tsx:1907
-#: packages/admin/src/components/ContentEditor.tsx:1922
+#: packages/admin/src/components/ContentEditor.tsx:1914
+#: packages/admin/src/components/ContentEditor.tsx:1929
 msgid "Unassigned"
 msgstr "Non attribué"
 
@@ -5105,7 +5120,7 @@ msgstr "En cours de désinstallation..."
 msgid "Unique"
 msgstr "Unique"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:98
+#: packages/admin/src/components/ContentTypeEditor.tsx:100
 msgid "Unique identifier (ULID)"
 msgstr "Identifiant unique (ULID)"
 
@@ -5129,7 +5144,7 @@ msgstr "Déverrouiller le rapport hauteur/largeur"
 msgid "Unnamed passkey"
 msgstr "Clé d'accès sans nom"
 
-#: packages/admin/src/components/ContentEditor.tsx:656
+#: packages/admin/src/components/ContentEditor.tsx:663
 msgid "Unpublish"
 msgstr "Annuler la publication"
 
@@ -5137,7 +5152,7 @@ msgstr "Annuler la publication"
 msgid "Unregistered Content Tables Found"
 msgstr "Tables de contenu non enregistrées trouvées"
 
-#: packages/admin/src/components/ContentEditor.tsx:803
+#: packages/admin/src/components/ContentEditor.tsx:810
 msgid "Unschedule"
 msgstr "Déprogrammer"
 
@@ -5145,7 +5160,7 @@ msgstr "Déprogrammer"
 msgid "Untitled"
 msgstr "Sans titre"
 
-#: packages/admin/src/components/ContentEditor.tsx:1734
+#: packages/admin/src/components/ContentEditor.tsx:1741
 msgid "Up"
 msgstr "En haut"
 
@@ -5180,12 +5195,12 @@ msgstr "Mettez à jour cette règle de redirection."
 msgid "Update to v{0}"
 msgstr "Mise à jour vers v{0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:120
+#: packages/admin/src/components/ContentTypeEditor.tsx:122
 msgid "Updated At"
 msgstr "Modifié le"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:860
+#: packages/admin/src/components/ContentEditor.tsx:867
 msgid "Updated: {0}"
 msgstr "Mise à jour : {0}"
 
@@ -5282,7 +5297,7 @@ msgstr "En cours de téléversement..."
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:104
+#: packages/admin/src/components/ContentTypeEditor.tsx:106
 #: packages/admin/src/components/FieldEditor.tsx:225
 msgid "URL-friendly identifier"
 msgstr "Identifiant adapté aux URL"
@@ -5307,7 +5322,7 @@ msgstr "Utilisez votre clé d'accès enregistrée pour vous connecter en toute s
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Utilisé comme identifiant. Lettres minuscules, chiffres et traits de soulignement uniquement."
 
-#: packages/admin/src/components/ContentEditor.tsx:1284
+#: packages/admin/src/components/ContentEditor.tsx:1291
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Utilisé comme visuel principal de cet article sur les pages contenant des listes et en haut de l'article"
 
@@ -5315,7 +5330,7 @@ msgstr "Utilisé comme visuel principal de cet article sur les pages contenant d
 msgid "Used by screen readers and when image fails to load"
 msgstr "Utilisé par les lecteurs d'écran et lorsque l'image ne se charge pas"
 
-#: packages/admin/src/components/SectionEditor.tsx:207
+#: packages/admin/src/components/SectionEditor.tsx:208
 #: packages/admin/src/components/Sections.tsx:194
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "Utilisé pour identifier cette section. Lettres minuscules, chiffres et traits d'union uniquement."
@@ -5454,15 +5469,15 @@ msgstr "Ce qu'il se passe lorsque vous importez :"
 msgid "What will happen when you import"
 msgstr "Ce qu'il se passera lorsque vous importerez"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:116
+#: packages/admin/src/components/ContentTypeEditor.tsx:118
 msgid "When the entry was created"
 msgstr "Date de création de l'entrée"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:122
+#: packages/admin/src/components/ContentTypeEditor.tsx:124
 msgid "When the entry was last modified"
 msgstr "Date de dernière modification de l'entrée"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:128
+#: packages/admin/src/components/ContentTypeEditor.tsx:130
 msgid "When the entry was published"
 msgstr "Date de publication de l'entrée"
 
@@ -5585,19 +5600,19 @@ msgstr "Votre appareil ne prend pas en charge les fonctionnalités de sécurité
 msgid "Your Email"
 msgstr "Votre e-mail"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:144
+#: packages/admin/src/components/settings/SocialSettings.tsx:158
 msgid "Your Facebook page or profile username"
 msgstr "Le nom d'utilisateur de votre page Facebook ou de votre profil"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:138
+#: packages/admin/src/components/settings/SocialSettings.tsx:152
 msgid "Your GitHub username"
 msgstr "Le nom d'utilisateur de votre compte GitHub"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:150
+#: packages/admin/src/components/settings/SocialSettings.tsx:164
 msgid "Your Instagram username"
 msgstr "Le nom d'utilisateur de votre compte Instagram"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:156
+#: packages/admin/src/components/settings/SocialSettings.tsx:170
 msgid "Your LinkedIn profile username"
 msgstr "Le nom d'utilisateur de votre compte LinkedIn"
 
@@ -5613,7 +5628,7 @@ msgstr "Votre nom (facultatif)"
 msgid "Your Role"
 msgstr "Votre rôle"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:132
+#: packages/admin/src/components/settings/SocialSettings.tsx:146
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Votre identifiant Twitter/X (p. ex. @username)"
 
@@ -5622,10 +5637,10 @@ msgstr "Votre identifiant Twitter/X (p. ex. @username)"
 msgid "Your WordPress export contains {0} media files."
 msgstr "Votre exportation WordPress contient {0} fichiers multimédias."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:162
+#: packages/admin/src/components/settings/SocialSettings.tsx:176
 msgid "Your YouTube channel ID or handle"
 msgstr "Votre identifiant ou l'identifiant de votre chaîne YouTube"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:159
+#: packages/admin/src/components/settings/SocialSettings.tsx:173
 msgid "YouTube"
 msgstr "YouTube"

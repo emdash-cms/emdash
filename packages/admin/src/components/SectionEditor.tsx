@@ -13,6 +13,7 @@ import * as React from "react";
 import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
+import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor } from "./PortableTextEditor";
 import { SaveButton } from "./SaveButton";
 
@@ -147,24 +148,24 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
+			{/* Sticky header — keeps the Save action visible while scrolling
+			    long PortableText content. */}
+			<EditorHeader
+				leading={
 					<Link to="/sections">
 						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
 							<ArrowPrev className="h-5 w-5" />
 						</Button>
 					</Link>
-					<div>
-						<h1 className="text-2xl font-bold">{section.title}</h1>
-						<p className="text-sm text-kumo-subtle">
-							{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
-							{section.slug}
-						</p>
-					</div>
-				</div>
-				<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
-			</div>
+				}
+				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
+			>
+				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
+				<p className="text-sm text-kumo-subtle">
+					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
+					{section.slug}
+				</p>
+			</EditorHeader>
 
 			<div className="grid grid-cols-12 gap-6">
 				{/* Main content */}
