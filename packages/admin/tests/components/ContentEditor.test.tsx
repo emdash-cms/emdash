@@ -262,6 +262,65 @@ describe("ContentEditor", () => {
 			await expect.element(all[2]!).toBeChecked();
 		});
 
+		it("renders datetime fields as datetime-local inputs", async () => {
+			const screen = await renderEditor({
+				fields: { recall_date: { kind: "datetime", label: "Recall date" } },
+			});
+			const input = screen.getByLabelText("Recall date");
+			await expect.element(input).toHaveAttribute("type", "datetime-local");
+		});
+
+		it("displays a stored ISO datetime in the datetime-local input", async () => {
+			// The validator stores datetimes as full ISO 8601 with "Z" + millis,
+			// but <input type="datetime-local"> only accepts "YYYY-MM-DDTHH:mm".
+			// Without conversion the browser silently renders an empty input.
+			const item = makeItem({
+				data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" },
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date" },
+				},
+			});
+			const input = screen.getByLabelText("Recall date");
+			await expect.element(input).toHaveValue("2026-02-26T09:30");
+		});
+
+		it("saves datetime fields back as full ISO 8601 with Z and milliseconds", async () => {
+			// datetime-local emits "YYYY-MM-DDTHH:mm" which the field's
+			// `z.string().datetime().or(z.string().date())` schema rejects.
+			// The widget must round-trip the value back to a validator-accepted shape.
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: true,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date" },
+				},
+			});
+
+			const titleInput = screen.getByLabelText("Title");
+			await titleInput.fill("Recall");
+
+			const dtInput = screen.getByLabelText("Recall date");
+			await dtInput.fill("2026-02-26T09:30");
+
+			const saveBtn = screen.getByRole("button", { name: "Save" });
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						recall_date: "2026-02-26T09:30:00.000Z",
+					}),
+				}),
+			);
+		});
+
 		it("renders json fields as a textarea", async () => {
 			const screen = await renderEditor({
 				fields: { metadata: { kind: "json", label: "Metadata" } },
