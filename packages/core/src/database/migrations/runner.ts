@@ -123,6 +123,14 @@ export async function getMigrationStatus(db: Kysely<Database>): Promise<Migratio
 	return { applied, pending };
 }
 
+/** Pattern for escaping special regex characters. Matches the shared helper in `database/repositories/content.ts`. */
+const REGEX_ESCAPE_PATTERN = /[.*+?^${}()|[\]\\]/g;
+
+/** Escape special regex characters so a string can be embedded literally in `new RegExp()`. */
+function escapeRegExp(value: string): string {
+	return value.replace(REGEX_ESCAPE_PATTERN, "\\$&");
+}
+
 /**
  * Pattern used to detect the concurrent-migration race. The Kysely
  * `SqliteAdapter.acquireMigrationLock` is a no-op (inherited by `kysely-d1`
@@ -135,9 +143,13 @@ export async function getMigrationStatus(db: Kysely<Database>): Promise<Migratio
  * SQLite drivers phrase the message differently
  * (`UNIQUE constraint failed: _emdash_migrations.name` for better-sqlite3,
  * `D1_ERROR: UNIQUE constraint failed: _emdash_migrations.name: SQLITE_CONSTRAINT`
- * for D1, etc.).
+ * for D1, etc.). The pattern is built from `MIGRATION_TABLE` so a rename
+ * cannot silently disable race detection.
  */
-const MIGRATION_RACE_PATTERN = /UNIQUE constraint failed: _emdash_migrations\.name/i;
+const MIGRATION_RACE_PATTERN = new RegExp(
+	`UNIQUE constraint failed: ${escapeRegExp(MIGRATION_TABLE)}\\.name`,
+	"i",
+);
 
 /** How long to wait for a concurrent migrator to finish before giving up. */
 const MIGRATION_RACE_WAIT_MS = 10_000;
@@ -153,7 +165,7 @@ const MIGRATION_RACE_POLL_MS = 100;
  * `MIGRATION_TABLE`, but downstream callers may grow).
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
-	`no such table:\\s*${MIGRATION_TABLE.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\b`,
+	`no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b`,
 	"i",
 );
 
@@ -183,20 +195,25 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
 
 /**
  * Wait for a concurrent migrator to finish applying all migrations.
- * Resolves to `true` if the migration table reached `MIGRATION_COUNT` rows
- * within the timeout, `false` otherwise.
+ *
+ * Resolves to `true` once the migration table contains at least
+ * `MIGRATION_COUNT` rows (i.e. every migration this build knows about has
+ * been recorded), `false` if the deadline elapses first. We use `>=` rather
+ * than `===` so that an old isolate observing a database that has already
+ * been migrated by a newer build still treats the wait as settled instead
+ * of timing out.
  */
 async function waitForConcurrentMigrator(db: Kysely<Database>): Promise<boolean> {
 	const deadline = Date.now() + MIGRATION_RACE_WAIT_MS;
 	while (Date.now() < deadline) {
 		const count = await getAppliedMigrationCount(db);
-		if (count !== null && count === MIGRATION_COUNT) {
+		if (count !== null && count >= MIGRATION_COUNT) {
 			return true;
 		}
 		await new Promise((resolve) => setTimeout(resolve, MIGRATION_RACE_POLL_MS));
 	}
 	const finalCount = await getAppliedMigrationCount(db);
-	return finalCount === MIGRATION_COUNT;
+	return finalCount !== null && finalCount >= MIGRATION_COUNT;
 }
 
 /** Extract the deepest error message available from a thrown value. */
@@ -221,11 +238,11 @@ function deepErrorMessage(error: unknown): string {
  * Run all pending migrations.
  *
  * Includes a fast-path: if the migration table already exists and contains
- * exactly MIGRATION_COUNT rows, all migrations have been applied and we can
- * skip the Kysely Migrator entirely. This avoids the expensive
- * `pragma_table_info` introspection that Kysely runs for every table in the
- * database (twice!) just to check if the migration tables exist.
- * On D1 with ~57 tables, that's ~116 queries saved per init.
+ * at least MIGRATION_COUNT rows, all migrations this build knows about have
+ * been applied and we can skip the Kysely Migrator entirely. This avoids
+ * the expensive `pragma_table_info` introspection that Kysely runs for
+ * every table in the database (twice!) just to check if the migration
+ * tables exist. On D1 with ~57 tables, that's ~116 queries saved per init.
  *
  * Concurrent-migration safety: the Kysely Migrator's `acquireMigrationLock`
  * is a no-op for SQLite (and therefore D1), so two callers running this
@@ -240,8 +257,12 @@ function deepErrorMessage(error: unknown): string {
 export async function runMigrations(db: Kysely<Database>): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
 	// A single cheap query vs the Migrator's full schema introspection.
+	// We use `>=` rather than `===` so a database with extra rows from a
+	// newer build (e.g. mid-deploy old isolate, or downgrade) still skips
+	// the migrator instead of falling through to the race-recovery path
+	// unnecessarily.
 	const initialCount = await getAppliedMigrationCount(db);
-	if (initialCount === MIGRATION_COUNT) {
+	if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
 		return { applied: [] };
 	}
 

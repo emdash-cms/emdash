@@ -73,6 +73,34 @@ describe("Migration race condition (#762)", () => {
 		}
 	});
 
+	it("should fast-path when the migration table has more rows than this build knows about", async () => {
+		// Simulates an old isolate observing a database that's already been
+		// migrated by a newer build (one extra migration recorded). The
+		// fast-path must treat this as "fully migrated" rather than falling
+		// through to the Kysely Migrator and risking the race-recovery path.
+		const db = createDatabase({ url: `file:${dbPath}` });
+		try {
+			await runMigrations(db);
+			// Insert a phantom future migration row to simulate a newer build.
+			await sql`
+				INSERT INTO _emdash_migrations (name, timestamp)
+				VALUES ('999_future_build', ${new Date().toISOString()})
+			`.execute(db);
+
+			// Should be a no-op via the fast-path — no errors, no extra work.
+			const result = await runMigrations(db);
+			expect(result.applied).toEqual([]);
+
+			// Row count is still MIGRATION_COUNT + 1 (we didn't truncate).
+			const row = await sql<{ count: number }>`
+				SELECT COUNT(*) as count FROM _emdash_migrations
+			`.execute(db);
+			expect(Number(row.rows[0]?.count)).toBe(MIGRATION_COUNT + 1);
+		} finally {
+			await db.destroy();
+		}
+	});
+
 	it("should still surface unrelated migration errors", async () => {
 		// Exercises the non-race error path so a regression that swallows
 		// real errors is caught. We migrate once, then delete a single row
