@@ -51,6 +51,7 @@ export type PasskeyAuthenticationErrorCode =
 	| "user_presence_not_verified"
 	| "invalid_signature_counter"
 	| "invalid_signature"
+	| "unsupported_algorithm"
 	| "user_not_found";
 
 export class PasskeyAuthenticationError extends Error {

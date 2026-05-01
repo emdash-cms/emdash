@@ -20,6 +20,7 @@ import {
 } from "@oslojs/webauthn";
 
 import { generateToken } from "../tokens.js";
+import { PasskeyAuthenticationError } from "./authenticate.js";
 import type { Credential, NewCredential, AuthAdapter, User, DeviceType } from "../types.js";
 import type {
 	RegistrationOptions,
