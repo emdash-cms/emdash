@@ -228,6 +228,15 @@ export interface EmDashHandlers {
 			slug?: string;
 			status?: string;
 			authorId?: string | null;
+			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			seo?: {
+				title?: string | null;
+				description?: string | null;
+				image?: string | null;
+				canonical?: string | null;
+				noIndex?: boolean;
+			};
+			publishedAt?: string | null;
 			_rev?: string;
 		},
 	) => Promise<HandlerResponse>;
@@ -255,7 +264,11 @@ export interface EmDashHandlers {
 	) => Promise<HandlerResponse>;
 
 	// Publishing & Scheduling handlers
-	handleContentPublish: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentPublish: (
+		collection: string,
+		id: string,
+		options?: { publishedAt?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (collection: string, id: string) => Promise<HandlerResponse>;
 

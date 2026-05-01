@@ -917,8 +917,14 @@ export class ContentRepository {
 	 * Syncs the draft revision's data into the content table columns so the
 	 * content table always reflects the published version.
 	 * If no draft revision exists, creates one from current data and publishes it.
+	 *
+	 * `publishedAt` (optional) overrides the publication timestamp. If omitted,
+	 * the existing `published_at` is preserved (idempotent re-publish keeps the
+	 * original date) and falls back to the current time on first publish. Pass
+	 * an explicit value to backdate a publish (e.g. when migrating content from
+	 * another CMS).
 	 */
-	async publish(type: string, id: string): Promise<ContentItem> {
+	async publish(type: string, id: string, publishedAt?: string): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -956,17 +962,35 @@ export class ContentRepository {
 			}
 		}
 
-		await sql`
-			UPDATE ${sql.ref(tableName)}
-			SET live_revision_id = ${revisionToPublish},
-				draft_revision_id = NULL,
-				status = 'published',
-				scheduled_at = NULL,
-				published_at = COALESCE(published_at, ${now}),
-				updated_at = ${now}
-			WHERE id = ${id}
-			AND deleted_at IS NULL
-		`.execute(this.db);
+		if (publishedAt !== undefined) {
+			// Caller supplied an explicit timestamp, so we overwrite published_at
+			// directly (used to backdate a publish, e.g. for content migrations).
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = ${revisionToPublish},
+					draft_revision_id = NULL,
+					status = 'published',
+					scheduled_at = NULL,
+					published_at = ${publishedAt},
+					updated_at = ${now}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+			`.execute(this.db);
+		} else {
+			// No timestamp supplied — preserve existing published_at on
+			// idempotent re-publish, fall back to `now` on first publish.
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = ${revisionToPublish},
+					draft_revision_id = NULL,
+					status = 'published',
+					scheduled_at = NULL,
+					published_at = COALESCE(published_at, ${now}),
+					updated_at = ${now}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+			`.execute(this.db);
+		}
 
 		const updated = await this.findById(type, id);
 		if (!updated) {

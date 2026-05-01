@@ -72,6 +72,15 @@ export const contentScheduleBody = z
 	})
 	.meta({ id: "ContentScheduleBody" });
 
+export const contentPublishBody = z
+	.object({
+		publishedAt: contentDateOverride.meta({
+			description:
+				"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
+		}),
+	})
+	.meta({ id: "ContentPublishBody" });
+
 export const contentPreviewUrlBody = z
 	.object({
 		expiresIn: z.union([z.string(), z.number()]).optional(),

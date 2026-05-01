@@ -1799,6 +1799,14 @@ export class EmDashRuntime {
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			seo?: {
+				title?: string | null;
+				description?: string | null;
+				image?: string | null;
+				canonical?: string | null;
+				noIndex?: boolean;
+			};
+			publishedAt?: string | null;
 			/** Skip revision creation (used by autosave) */
 			skipRevision?: boolean;
 			_rev?: string;
@@ -2025,8 +2033,12 @@ export class EmDashRuntime {
 	// Publishing & Scheduling Handlers
 	// =========================================================================
 
-	async handleContentPublish(collection: string, id: string) {
-		const result = await handleContentPublish(this.db, collection, id);
+	async handleContentPublish(
+		collection: string,
+		id: string,
+		options: { publishedAt?: string } = {},
+	) {
+		const result = await handleContentPublish(this.db, collection, id, options);
 
 		// Run afterPublish hooks (fire-and-forget)
 		if (result.success && result.data) {
