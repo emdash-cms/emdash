@@ -125,10 +125,53 @@ const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "sched
  */
 export const CURSOR_RAW_VALUES: unique symbol = Symbol("emdash:cursorRawValues");
 
+const LOCAL_MEDIA_FILE_PREFIX = "/_emdash/api/media/file/";
+const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+\-.]*:/;
+
 /** Safely extract a string value from a record, returning fallback if not a string */
 function rowStr(row: Record<string, unknown>, key: string, fallback = ""): string {
 	const val = row[key];
 	return typeof val === "string" ? val : fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isBareMediaKey(src: string): boolean {
+	return !src.startsWith("/") && !URL_SCHEME_PATTERN.test(src);
+}
+
+function normalizeLocalMediaValue(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map(normalizeLocalMediaValue);
+	}
+
+	if (!isRecord(value)) {
+		return value;
+	}
+
+	const normalized: Record<string, unknown> = {};
+	for (const [key, child] of Object.entries(value)) {
+		normalized[key] = normalizeLocalMediaValue(child);
+	}
+
+	if (normalized.provider === "local" && typeof normalized.src === "string" && normalized.src.length > 0) {
+		const src = normalized.src;
+		if (src.startsWith(LOCAL_MEDIA_FILE_PREFIX)) {
+			const id = src.slice(LOCAL_MEDIA_FILE_PREFIX.length);
+			if (!normalized.id && id) {
+				normalized.id = id;
+			}
+		} else if (isBareMediaKey(src)) {
+			if (!normalized.id) {
+				normalized.id = src;
+			}
+			normalized.src = `${LOCAL_MEDIA_FILE_PREFIX}${src}`;
+		}
+	}
+
+	return normalized;
 }
 
 /**
@@ -164,12 +207,7 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 			try {
 				// Only parse if it looks like JSON (starts with { or [)
 				if (value.startsWith("{") || value.startsWith("[")) {
-					const parsed = JSON.parse(value);
-					if (parsed?.provider === "local" && parsed?.src) {
-						parsed.id = parsed.id || parsed.src;
-						parsed.src = `/_emdash/api/media/file/${parsed.src}`;
-					}
-					data[key] = parsed;
+					data[key] = normalizeLocalMediaValue(JSON.parse(value));
 				} else {
 					data[key] = value;
 				}
@@ -199,7 +237,7 @@ function mapRevisionData(data: Record<string, unknown>): Record<string, unknown>
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(data)) {
 		if (key.startsWith("_")) continue; // revision metadata
-		result[key] = value;
+		result[key] = normalizeLocalMediaValue(value);
 	}
 	return result;
 }
