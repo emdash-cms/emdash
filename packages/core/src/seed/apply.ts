@@ -35,7 +35,6 @@ import type {
 } from "./types.js";
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
-import { normalizePortableTextKeys } from "./normalize-portable-text.js";
 import { validateSeed } from "./validate.js";
 
 /** Pattern to remove file extensions */
@@ -360,12 +359,12 @@ export async function applySeed(
 					}
 
 					if (onConflict === "update") {
-						// Resolve $ref and $media in data, then inject _key on any
-						// PT-shaped node that's missing one. Keyless seed data is
-						// the most common cause of autosave validation failures
-						// once a user opens the entry in the admin (#867).
-						const resolvedData = normalizePortableTextKeys(
-							await resolveReferences(entry.data, seedIdMap, mediaContext, result),
+						// Resolve $ref and $media in data
+						const resolvedData = await resolveReferences(
+							entry.data,
+							seedIdMap,
+							mediaContext,
+							result,
 						);
 
 						// Update content + bylines + taxonomies atomically
@@ -419,12 +418,8 @@ export async function applySeed(
 					continue;
 				}
 
-				// Resolve $ref and $media in data, then inject _key on any
-				// PT-shaped node that's missing one. See the matching call
-				// in the on-conflict update branch above.
-				const resolvedData = normalizePortableTextKeys(
-					await resolveReferences(entry.data, seedIdMap, mediaContext, result),
-				);
+				// Resolve $ref and $media in data
+				const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
 
 				// Resolve translationOf: map from seed-local ID to real EmDash ID
 				let translationOf: string | undefined;
@@ -600,10 +595,6 @@ export async function applySeed(
 	// 11. Sections
 	if (seed.sections) {
 		for (const section of seed.sections) {
-			// Sections are reusable PT blobs; normalize keys once up-front so
-			// both insert and update branches store schema-valid content (#867).
-			const normalizedSectionContent = normalizePortableTextKeys(section.content);
-
 			// Check if section exists
 			const existing = await db
 				.selectFrom("_emdash_sections")
@@ -623,7 +614,7 @@ export async function applySeed(
 							title: section.title,
 							description: section.description ?? null,
 							keywords: section.keywords ? JSON.stringify(section.keywords) : null,
-							content: JSON.stringify(normalizedSectionContent),
+							content: JSON.stringify(section.content),
 							source: section.source || "theme",
 							updated_at: new Date().toISOString(),
 						})
@@ -649,7 +640,7 @@ export async function applySeed(
 					title: section.title,
 					description: section.description ?? null,
 					keywords: section.keywords ? JSON.stringify(section.keywords) : null,
-					content: JSON.stringify(normalizedSectionContent),
+					content: JSON.stringify(section.content),
 					preview_media_id: null,
 					source: section.source || "theme",
 					theme_id: section.source === "theme" ? section.slug : null,
@@ -936,9 +927,9 @@ async function applyWidget(
 			sort_order: sortOrder,
 			type: widget.type,
 			title: widget.title ?? null,
-			// Normalize PT keys (#867). `widget.content` is Portable Text for
-			// content-type widgets; for other widget kinds it's null.
-			content: widget.content ? JSON.stringify(normalizePortableTextKeys(widget.content)) : null,
+			// `widget.content` is Portable Text for content-type widgets;
+			// for other widget kinds it's null.
+			content: widget.content ? JSON.stringify(widget.content) : null,
 			menu_name: widget.menuName ?? null,
 			component_id: widget.componentId ?? null,
 			component_props: widget.props ? JSON.stringify(widget.props) : null,

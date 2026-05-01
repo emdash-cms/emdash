@@ -1,21 +1,25 @@
 /**
- * Regression for issue #867: seed data containing Portable Text blocks
- * without `_key` properties caused autosave validation errors after the
- * site was bootstrapped.
+ * Regression guard for issue #867 (and the related portfolio
+ * `featured_image` shape bug surfaced during review).
  *
- * Several first-party templates (blog, portfolio, starter) ship seed
- * content where each PT block omits `_key`. The Zod schema generated for
- * `portableText` fields requires `_key: z.string()` on every block, so
- * any update to a content entry whose body still held the un-keyed seed
- * data was rejected with `VALIDATION_ERROR: content.0._key: Invalid
- * input: expected string, received undefined; ...` -- making the entry
- * effectively unsavable in the admin UI.
+ * The bug: PR #777 wired the existing `generateZodSchema()` into the
+ * runtime content-update path, so autosave now validates the body the
+ * admin re-sends on every keystroke. Several first-party templates ship
+ * seed content that didn't satisfy that schema (PT blocks missing
+ * `_key`, portfolio's `featured_image` as bare URL strings instead of
+ * media objects). The result: any user who scaffolded those templates
+ * couldn't save edits to seeded entries.
  *
- * `applySeed()` must inject a stable `_key` for every PT-shaped object
- * (anything carrying a `_type`) before persisting so the values that
- * land in the database are valid against the same schema the API uses
- * to validate updates.
+ * This test does the smallest end-to-end thing that would have caught
+ * both regressions: for every shipped template seed, apply it to a
+ * fresh DB and re-validate every stored entry against the same
+ * validator the autosave endpoint uses (`validateContentData` with
+ * `partial: true`). If a template ever ships malformed seed data
+ * again, this fails before release.
  */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -26,74 +30,41 @@ import { applySeed } from "../../src/seed/apply.js";
 import type { SeedFile } from "../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../utils/test-db.js";
 
+// `tests/integration/` -> repo root is four levels up.
+const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../..");
+
+const TEMPLATE_SEEDS = [
+	"templates/blog/seed/seed.json",
+	"templates/blog-cloudflare/seed/seed.json",
+	"templates/portfolio/seed/seed.json",
+	"templates/portfolio-cloudflare/seed/seed.json",
+	"templates/starter/seed/seed.json",
+	"templates/starter-cloudflare/seed/seed.json",
+	"templates/marketing/seed/seed.json",
+	"templates/marketing-cloudflare/seed/seed.json",
+] as const;
+
+function loadSeed(rel: string): SeedFile {
+	const abs = resolve(WORKSPACE_ROOT, rel);
+	return JSON.parse(readFileSync(abs, "utf8")) as SeedFile;
+}
+
 /**
- * Recursively collect every object in `value` that carries a `_type`
- * field. We use this to assert that every PT-shaped object ends up with
- * a `_key` after seeding.
+ * Walk a seed and return every collection slug that has at least one
+ * entry, so the test can iterate dynamic `ec_*` tables without
+ * hard-coding them. Returns slugs in seed order to keep failures
+ * predictable.
  */
-function collectTypedNodes(value: unknown, out: Array<Record<string, unknown>> = []) {
-	if (Array.isArray(value)) {
-		for (const item of value) collectTypedNodes(item, out);
-		return out;
-	}
-	if (value !== null && typeof value === "object") {
-		const obj = value as Record<string, unknown>;
-		if (typeof obj._type === "string") out.push(obj);
-		for (const v of Object.values(obj)) collectTypedNodes(v, out);
+function collectionsWithContent(seed: SeedFile): string[] {
+	if (!seed.content) return [];
+	const out: string[] = [];
+	for (const [slug, entries] of Object.entries(seed.content)) {
+		if (Array.isArray(entries) && entries.length > 0) out.push(slug);
 	}
 	return out;
 }
 
-function seedWithKeylessPortableText(): SeedFile {
-	return {
-		version: "1",
-		collections: [
-			{
-				slug: "posts",
-				label: "Posts",
-				labelSingular: "Post",
-				fields: [
-					{ slug: "title", label: "Title", type: "string" },
-					{ slug: "content", label: "Content", type: "portableText" },
-				],
-			},
-		],
-		content: {
-			posts: [
-				{
-					id: "post-1",
-					slug: "hello-world",
-					status: "published",
-					data: {
-						title: "Hello World",
-						// Mirrors templates/portfolio/seed/seed.json exactly: no
-						// `_key` on blocks, spans, or markDefs.
-						content: [
-							{
-								_type: "block",
-								style: "normal",
-								children: [{ _type: "span", text: "First paragraph." }],
-							},
-							{
-								_type: "block",
-								style: "h2",
-								children: [{ _type: "span", text: "A heading" }],
-							},
-							{
-								_type: "block",
-								style: "normal",
-								markDefs: [{ _type: "link", href: "https://example.com" }],
-								children: [{ _type: "span", text: "Linked text", marks: ["m1"] }],
-							},
-						],
-					},
-				},
-			],
-		},
-	};
-}
-
-describe("applySeed normalizes Portable Text keys (issue #867)", () => {
+describe("shipped template seeds survive the autosave validator (issue #867)", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
@@ -104,111 +75,86 @@ describe("applySeed normalizes Portable Text keys (issue #867)", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("injects _key on every PT-typed node when seeding content", async () => {
-		await applySeed(db, seedWithKeylessPortableText(), { includeContent: true });
+	for (const rel of TEMPLATE_SEEDS) {
+		it(`${rel}: every seeded entry round-trips through validateContentData`, async () => {
+			const seed = loadSeed(rel);
 
-		const row = await db
-			// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
-			.selectFrom("ec_posts" as any)
-			.selectAll()
-			.where("slug", "=", "hello-world")
-			.executeTakeFirstOrThrow();
+			// `includeContent: true` is what `create-emdash` setup uses.
+			// `skipMediaDownload: true` keeps the test offline -- we don't
+			// care about the actual bytes here, only the validator-relevant
+			// shape of stored entries.
+			await applySeed(db, seed, {
+				includeContent: true,
+				skipMediaDownload: true,
+			});
 
-		const r = row as Record<string, unknown>;
-		const content = JSON.parse(r.content as string);
-		const typed = collectTypedNodes(content);
+			const slugs = collectionsWithContent(seed);
+			if (slugs.length === 0) {
+				// Marketing has no content entries -- nothing to validate,
+				// but exercising applySeed itself is still useful coverage.
+				return;
+			}
 
-		// Sanity: there should be blocks, spans, and a markDef.
-		expect(typed.length).toBeGreaterThan(0);
+			for (const slug of slugs) {
+				const tableName = `ec_${slug}`;
+				const rows = await db
+					// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
+					.selectFrom(tableName as any)
+					.selectAll()
+					.where("deleted_at", "is", null)
+					// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
+					.execute();
 
-		for (const node of typed) {
-			expect(node._key, `missing _key on ${JSON.stringify(node)}`).toEqual(expect.any(String));
-			expect((node._key as string).length).toBeGreaterThan(0);
-		}
+				expect(rows.length, `expected at least one row in ${tableName}`).toBeGreaterThan(0);
 
-		// Keys must be unique within a single content entry so the editor
-		// can use them as React keys / stable references.
-		const keys = typed.map((n) => n._key as string);
-		expect(new Set(keys).size).toBe(keys.length);
-	});
+				for (const row of rows as Array<Record<string, unknown>>) {
+					// Reconstruct the data shape the admin holds in memory:
+					// system columns + the user's field columns. We strip
+					// the obvious system columns so they don't get flagged
+					// as "unknown field" by the validator.
+					const data: Record<string, unknown> = {};
+					for (const [k, v] of Object.entries(row)) {
+						if (
+							k === "id" ||
+							k === "slug" ||
+							k === "status" ||
+							k === "author_id" ||
+							k === "primary_byline_id" ||
+							k === "created_at" ||
+							k === "updated_at" ||
+							k === "published_at" ||
+							k === "scheduled_at" ||
+							k === "deleted_at" ||
+							k === "version" ||
+							k === "live_revision_id" ||
+							k === "draft_revision_id" ||
+							k === "locale" ||
+							k === "translation_group"
+						) {
+							continue;
+						}
+						// JSON-shaped columns come back as strings; parse so
+						// the validator sees the structure it expects.
+						if (typeof v === "string" && (v.startsWith("[") || v.startsWith("{"))) {
+							try {
+								data[k] = JSON.parse(v);
+								continue;
+							} catch {
+								// Fall through -- treat as plain string.
+							}
+						}
+						data[k] = v;
+					}
 
-	it("seeded content survives the same validator the autosave endpoint uses", async () => {
-		// This is the actual bug shape: the admin UI re-sends the data
-		// it loaded from the server on autosave. If the server stored
-		// keyless blocks, that round-trip fails.
-		await applySeed(db, seedWithKeylessPortableText(), { includeContent: true });
-
-		const row = await db
-			// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
-			.selectFrom("ec_posts" as any)
-			.selectAll()
-			.where("slug", "=", "hello-world")
-			.executeTakeFirstOrThrow();
-
-		const r = row as Record<string, unknown>;
-		const storedContent = JSON.parse(r.content as string);
-
-		// Simulate what the admin UI sends back unchanged on autosave
-		// when the user edits a *different* field (e.g. featured image).
-		const result = await validateContentData(
-			db,
-			"posts",
-			{ title: "Hello World", content: storedContent },
-			{ partial: true },
-		);
-
-		expect(result).toEqual({ ok: true });
-	});
-
-	it("preserves explicit _key values when the seed already provides them", async () => {
-		const seed = seedWithKeylessPortableText();
-		// Mutate one block to carry a caller-supplied key. The
-		// normalization must be idempotent: existing keys are kept,
-		// only missing ones are filled in.
-		const post = seed.content!.posts![0]!;
-		const blocks = post.data.content as Array<Record<string, unknown>>;
-		blocks[0]!._key = "preserved-key-abc";
-
-		await applySeed(db, seed, { includeContent: true });
-
-		const row = await db
-			// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
-			.selectFrom("ec_posts" as any)
-			.selectAll()
-			.where("slug", "=", "hello-world")
-			.executeTakeFirstOrThrow();
-
-		const r = row as Record<string, unknown>;
-		const content = JSON.parse(r.content as string) as Array<Record<string, unknown>>;
-		expect(content[0]!._key).toBe("preserved-key-abc");
-	});
-
-	it("does not generate a key that collides with an explicit key elsewhere in the document", async () => {
-		const seed = seedWithKeylessPortableText();
-		// Pin the second block to the literal value the deterministic
-		// counter would otherwise produce for it (k0 if generated first
-		// in document order). The generator must skip past taken keys
-		// so the first block (which had no explicit key) doesn't end
-		// up sharing a _key with the second.
-		const post = seed.content!.posts![0]!;
-		const blocks = post.data.content as Array<Record<string, unknown>>;
-		blocks[1]!._key = "k0";
-
-		await applySeed(db, seed, { includeContent: true });
-
-		const row = await db
-			// biome-ignore lint/suspicious/noExplicitAny: dynamic content table
-			.selectFrom("ec_posts" as any)
-			.selectAll()
-			.where("slug", "=", "hello-world")
-			.executeTakeFirstOrThrow();
-
-		const r = row as Record<string, unknown>;
-		const content = JSON.parse(r.content as string);
-		const typed = collectTypedNodes(content);
-		const keys = typed.map((n) => n._key as string);
-		expect(new Set(keys).size).toBe(keys.length);
-		// And the explicit key is preserved exactly.
-		expect((content as Array<Record<string, unknown>>)[1]!._key).toBe("k0");
-	});
+					const result = await validateContentData(db, slug, data, { partial: true });
+					if (!("ok" in result) || !result.ok) {
+						const message = result.ok ? "(unexpected)" : result.error.message;
+						throw new Error(
+							`${rel}: row in ${tableName} (slug=${row.slug as string}) failed validation: ${message}`,
+						);
+					}
+				}
+			}
+		});
+	}
 });
