@@ -3,4 +3,4 @@
 "@emdash-cms/cloudflare": patch
 ---
 
-Fixes the visual editing toolbar's edit-mode toggle so it actually flips state on click. The toggle handler wrapped a same-URL `location.replace(location.href)` in `document.startViewTransition`. View transitions are a same-document SPA primitive — wrapping a cross-document navigation in one races the document unload, and the same-URL replace can be served from cache or the bfcache without re-running the server, so the freshly-set `emdash-edit-mode` cookie never round-trips. The toggle now calls `location.reload()` directly, which always revalidates and renders edit-mode state correctly.
+Switches the visual editing and playground toolbar's edit-mode toggle from `document.startViewTransition(() => location.replace(location.href))` to a direct `location.reload()`. `location.reload()` is the correct primitive for "re-run the server with the new cookie": it always revalidates with the server, never serves from cache, and avoids wrapping a cross-document navigation in a same-document view-transition primitive. Related: #878.
