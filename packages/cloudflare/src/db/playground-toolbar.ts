@@ -314,7 +314,12 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
   // Update every 30s -- no seconds shown so no need for frequent updates
   var interval = setInterval(updateStatus, 30000);
 
-  // Edit mode toggle -- sets cookie and reloads
+  // Edit mode toggle -- sets cookie and reloads.
+  // Use location.reload() rather than location.replace(location.href): the
+  // latter can be served from cache or the bfcache without re-running the
+  // server, so the new cookie value never round-trips. Skipping the same-
+  // document view-transition wrapper avoids a race against the document
+  // unload that can cancel the navigation in some browsers. See #878.
   editToggle.addEventListener("change", function() {
     if (editToggle.checked) {
       document.cookie = "emdash-edit-mode=true;path=/;samesite=lax";
@@ -323,11 +328,7 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
       document.cookie = "emdash-edit-mode=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT";
       toolbar.setAttribute("data-edit-mode", "false");
     }
-    if (document.startViewTransition) {
-      document.startViewTransition(function() { location.replace(location.href); });
-    } else {
-      location.replace(location.href);
-    }
+    location.reload();
   });
 
   resetBtn.addEventListener("click", function() {

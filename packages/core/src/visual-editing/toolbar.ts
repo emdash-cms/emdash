@@ -665,11 +665,17 @@ export function renderToolbar(config: ToolbarConfig): string {
       document.cookie = "emdash-edit-mode=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT";
     }
 
-    if (document.startViewTransition) {
-      document.startViewTransition(function() { location.replace(location.href); });
-    } else {
-      location.replace(location.href);
-    }
+    // Use location.reload() — it always revalidates with the server, so the
+    // request carries the freshly-set cookie and the response reflects the
+    // new edit-mode state. location.replace(location.href) is a same-URL
+    // navigation that browsers may satisfy from cache (or the bfcache),
+    // returning the previous page without re-running the server. We also
+    // do not wrap the navigation in a same-document view transition:
+    // those are an SPA primitive and the spec leaves behaviour undefined
+    // when the document unloads mid-transition, which can race the
+    // unload and leave the navigation cancelled in some browsers.
+    // See #878.
+    location.reload();
   });
 
   // --- Inline editing ---
