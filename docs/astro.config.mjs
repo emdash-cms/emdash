@@ -5,6 +5,7 @@ import { defineConfig } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
+	site: "https://docs.emdashcms.com",
 	integrations: [
 		starlight({
 			title: "EmDash",
@@ -32,6 +33,7 @@ export default defineConfig({
 						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
+						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
 					],
 				},
 				{
