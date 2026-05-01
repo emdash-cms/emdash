@@ -9,11 +9,30 @@ import {
 import type { ContentItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
-// Mock child components that have complex dependencies
+// Mock child components that have complex dependencies.
+// The mock simulates the real editor's behaviour of freezing initial content on mount:
+// it captures `value` once via useState initializer and never re-reads it.
+// This is what makes the translation-switch bug observable in tests — the displayed
+// content stays stale unless the component is forced to remount via a fresh `key`.
+let portableTextMountCount = 0;
 vi.mock("../../src/components/PortableTextEditor", () => ({
-	PortableTextEditor: ({ placeholder }: any) => (
-		<div data-testid="portable-text-editor">{placeholder}</div>
-	),
+	PortableTextEditor: ({ value, placeholder }: any) => {
+		// Mirror the real component: capture initial value once, never update.
+		const [initialValue] = React.useState(() => value);
+		React.useEffect(() => {
+			portableTextMountCount++;
+		}, []);
+		const text = Array.isArray(initialValue)
+			? initialValue
+					.map((b: any) => b?.children?.map((c: any) => c?.text ?? "").join("") ?? "")
+					.join("\n")
+			: "";
+		return (
+			<div data-testid="portable-text-editor" data-content={text}>
+				{placeholder}
+			</div>
+		);
+	},
 }));
 
 vi.mock("../../src/components/RevisionHistory", () => ({
@@ -88,6 +107,7 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 describe("ContentEditor", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		portableTextMountCount = 0;
 	});
 
 	describe("slug generation", () => {
@@ -616,6 +636,85 @@ describe("ContentEditor", () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item, collectionLabel: "Post" });
 			await expect.element(screen.getByText("Edit Post")).toBeInTheDocument();
+		});
+	});
+
+	// ---------------------------------------------------------------------------
+	// Bug: translation switch leaves stale content in PortableTextEditor.
+	//
+	// When navigating between translations of the same content (e.g. /en post ->
+	// /fr post), TanStack Router keeps ContentEditor mounted and only the `item`
+	// prop changes. The PortableTextEditor (TipTap) freezes its content via
+	// useMemo([], ...) on mount and has no effect to reconcile incoming `value`
+	// changes, so it keeps showing the previous locale's body.
+	//
+	// Worse: any subsequent edit fires onUpdate with the stale content, silently
+	// overwriting the new translation's body in formData.
+	//
+	// Fix: key <FieldRenderer> by `${name}:${item?.id ?? "new"}` so all field
+	// editors remount cleanly when the underlying content item changes.
+	// ---------------------------------------------------------------------------
+	describe("translation / item switch", () => {
+		function buildPtItem(id: string, text: string): ContentItem {
+			return makeItem({
+				id,
+				slug: id,
+				data: {
+					title: text,
+					body: [
+						{
+							_type: "block",
+							_key: `block-${id}`,
+							style: "normal",
+							children: [{ _type: "span", _key: `span-${id}`, text, marks: [] }],
+							markDefs: [],
+						},
+					],
+				},
+			});
+		}
+
+		const ptFields: Record<string, FieldDescriptor> = {
+			title: { kind: "string", label: "Title", required: true },
+			body: { kind: "portableText", label: "Body" },
+		};
+
+		it("remounts the portable text editor when item.id changes (translation switch)", async () => {
+			const itemEn = buildPtItem("post-en", "English body");
+			const itemFr = buildPtItem("post-fr", "French body");
+
+			// Use a wrapper so we can swap items without unmounting ContentEditor.
+			function Switcher({ item }: { item: ContentItem }) {
+				return (
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						fields={ptFields}
+						isNew={false}
+						item={item}
+						onSave={vi.fn()}
+					/>
+				);
+			}
+
+			const screen = await render(<Switcher item={itemEn} />);
+
+			// Initial mount: editor shows the English body.
+			const editor = screen.getByTestId("portable-text-editor");
+			await expect.element(editor).toHaveAttribute("data-content", "English body");
+			expect(portableTextMountCount).toBe(1);
+
+			// Simulate translation switch by rerendering with a different item id.
+			// The fix (keying FieldRenderer by item.id) must force a fresh mount
+			// so the editor reads the new locale's body.
+			await screen.rerender(<Switcher item={itemFr} />);
+
+			const editorAfter = screen.getByTestId("portable-text-editor");
+			await expect.element(editorAfter).toHaveAttribute("data-content", "French body");
+
+			// A new mount means the FieldRenderer was keyed by id and remounted.
+			// Without the fix, mountCount stays at 1 and content stays stale.
+			expect(portableTextMountCount).toBeGreaterThanOrEqual(2);
 		});
 	});
 });
