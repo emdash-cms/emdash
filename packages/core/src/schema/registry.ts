@@ -145,9 +145,15 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * List every collection together with its fields in two queries (one for
-	 * collections, one for the fields of every returned collection), instead
-	 * of the N+1 pattern of `listCollections` + per-collection `listFields`.
+	 * List every collection together with its fields in O(1) query shapes
+	 * — one for collections, then one batched query for the fields of every
+	 * returned collection — instead of the N+1 pattern of `listCollections`
+	 * + per-collection `listFields`. The fields query is chunked at
+	 * `SQL_BATCH_SIZE` to stay under D1's bound-parameter limit, so on
+	 * sites with more than `SQL_BATCH_SIZE` collections the field fetch
+	 * becomes `ceil(collectionCount / SQL_BATCH_SIZE)` queries — still
+	 * a constant factor, not N+1. Typical sites have well under
+	 * `SQL_BATCH_SIZE` collections, so this is two queries in practice.
 	 *
 	 * Used by the manifest build, which previously paid N+1 round-trips on
 	 * every admin request. Each round-trip costs ~80–150ms against the D1
@@ -165,7 +171,9 @@ export class SchemaRegistry {
 
 		const fieldsByCollection = new Map<string, Field[]>();
 		// Chunk to stay under D1's bound-parameter limit. Typical sites have
-		// well under SQL_BATCH_SIZE collections, so this is a single query.
+		// well under SQL_BATCH_SIZE collections, so this is a single query
+		// in practice; on larger sites it becomes a small constant number
+		// of queries, never N+1.
 		for (const idChunk of chunks(
 			collectionRows.map((c) => c.id),
 			SQL_BATCH_SIZE,

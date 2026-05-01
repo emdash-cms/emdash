@@ -967,19 +967,24 @@ export class EmDashRuntime {
 			const dialect = deps.createDialect(dbConfig.config);
 			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-			const { applied } = await runMigrations(db);
+			await runMigrations(db);
 
-			// Best-effort cleanup of the persisted manifest cache row written by
-			// older versions. Always rebuilds from live DB now, so the row is
-			// dead weight; deleting it lets the options table shrink without
-			// requiring a migration.
-			if (applied.length > 0) {
-				try {
-					const options = new OptionsRepository(db);
+			// Best-effort cleanup of the persisted manifest cache row written
+			// by older versions. Always rebuilds from live DB now, so the row
+			// is dead weight; deleting it lets the options table shrink
+			// without requiring a migration. Gated on a one-shot
+			// `emdash:manifest_cache_cleaned` flag so the delete only runs
+			// once per install rather than on every isolate cold boot.
+			try {
+				const options = new OptionsRepository(db);
+				const alreadyCleaned = await options.get("emdash:manifest_cache_cleaned");
+				if (!alreadyCleaned) {
 					await options.delete("emdash:manifest_cache");
-				} catch {
-					// Non-fatal
+					await options.set("emdash:manifest_cache_cleaned", true);
 				}
+			} catch {
+				// Non-fatal — options table may not exist yet on a brand-new
+				// install (migrations create it). Will retry next boot.
 			}
 
 			// Auto-seed schema if no collections exist and setup hasn't run.
@@ -1266,9 +1271,11 @@ export class EmDashRuntime {
 	/**
 	 * Build the manifest from the database.
 	 *
-	 * Two queries flat (one for collections, one for the fields of every
-	 * collection) via `listCollectionsWithFields()`, regardless of how
-	 * many collections the site has.
+	 * Constant query shapes via `listCollectionsWithFields()` — one query
+	 * for collections, one batched query for fields (chunked at
+	 * `SQL_BATCH_SIZE` collection IDs to stay under D1's bound-parameter
+	 * limit). Typical sites stay well under the chunk threshold, so this
+	 * is two queries in practice; never N+1.
 	 */
 	private async _buildManifest(): Promise<EmDashManifest> {
 		// Build collections from database.
