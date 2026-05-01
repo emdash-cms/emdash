@@ -1195,7 +1195,7 @@ export function createMcpServer(): McpServer {
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
 				});
-				ec.invalidateManifest();
+				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_CREATE_ERROR");
@@ -1227,7 +1227,7 @@ export function createMcpServer(): McpServer {
 				const { SchemaRegistry } = await import("../schema/index.js");
 				const registry = new SchemaRegistry(ec.db);
 				await registry.deleteCollection(args.slug, { force: args.force });
-				ec.invalidateManifest();
+				ec.invalidateUrlPatternCache();
 				return jsonResult({ deleted: args.slug });
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_DELETE_ERROR");
@@ -1331,7 +1331,6 @@ export function createMcpServer(): McpServer {
 					searchable: args.searchable,
 					translatable: args.translatable,
 				});
-				ec.invalidateManifest();
 				return jsonResult(field);
 			} catch (error) {
 				return respondHandlerError(error, "FIELD_CREATE_ERROR");
@@ -1360,7 +1359,6 @@ export function createMcpServer(): McpServer {
 				const { SchemaRegistry } = await import("../schema/index.js");
 				const registry = new SchemaRegistry(ec.db);
 				await registry.deleteField(args.collection, args.fieldSlug);
-				ec.invalidateManifest();
 				return jsonResult({ deleted: args.fieldSlug, collection: args.collection });
 			} catch (error) {
 				return respondHandlerError(error, "FIELD_DELETE_ERROR");

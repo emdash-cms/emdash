@@ -17,7 +17,12 @@ import type { EmDashManifest } from "../../types.js";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
-	const { emdashManifest, emdash } = locals;
+	const { emdash } = locals;
+
+	// Manifest is built fresh from the live database per admin request.
+	// `requestCached` inside `getManifest` dedupes if multiple consumers
+	// share the request.
+	const emdashManifest = emdash ? await emdash.getManifest() : null;
 
 	// Determine auth mode from config
 	const authMode = getAuthMode(emdash?.config);

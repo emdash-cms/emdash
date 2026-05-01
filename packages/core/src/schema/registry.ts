@@ -8,6 +8,7 @@ import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { FTSManager } from "../search/fts-manager.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import {
 	type Collection,
 	type CollectionSource,
@@ -141,6 +142,53 @@ export class SchemaRegistry {
 		const fields = await this.listFields(collection.id);
 
 		return { ...collection, fields };
+	}
+
+	/**
+	 * List every collection together with its fields in two queries (one for
+	 * collections, one for the fields of every returned collection), instead
+	 * of the N+1 pattern of `listCollections` + per-collection `listFields`.
+	 *
+	 * Used by the manifest build, which previously paid N+1 round-trips on
+	 * every admin request. Each round-trip costs ~80–150ms against the D1
+	 * primary on a busy link, so a 10-collection site spent ~1 s rebuilding
+	 * a manifest that is now built fresh per admin request (no cache).
+	 */
+	async listCollectionsWithFields(): Promise<CollectionWithFields[]> {
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections")
+			.selectAll()
+			.orderBy("slug", "asc")
+			.execute();
+
+		if (collectionRows.length === 0) return [];
+
+		const fieldsByCollection = new Map<string, Field[]>();
+		// Chunk to stay under D1's bound-parameter limit. Typical sites have
+		// well under SQL_BATCH_SIZE collections, so this is a single query.
+		for (const idChunk of chunks(
+			collectionRows.map((c) => c.id),
+			SQL_BATCH_SIZE,
+		)) {
+			const fieldRows = await this.db
+				.selectFrom("_emdash_fields")
+				.where("collection_id", "in", idChunk)
+				.selectAll()
+				.orderBy("collection_id", "asc")
+				.orderBy("sort_order", "asc")
+				.orderBy("created_at", "asc")
+				.execute();
+			for (const row of fieldRows) {
+				const list = fieldsByCollection.get(row.collection_id) ?? [];
+				list.push(this.mapFieldRow(row));
+				fieldsByCollection.set(row.collection_id, list);
+			}
+		}
+
+		return collectionRows.map((c) => ({
+			...this.mapCollectionRow(c),
+			fields: fieldsByCollection.get(c.id) ?? [],
+		}));
 	}
 
 	/**

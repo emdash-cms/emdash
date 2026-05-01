@@ -362,8 +362,15 @@ export interface EmDashHandlers {
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;
 
-	// Manifest invalidation (call after schema changes)
-	invalidateManifest: () => void;
+	// Build the admin manifest from the live database. Only used by admin
+	// routes; logged-out requests don't need it. Per-request, deduplicated
+	// by `requestCached`.
+	getManifest: () => Promise<EmDashManifest>;
+
+	// Clear the cached URL patterns used by `resolveEmDashPath`. Call after
+	// any schema mutation that creates/updates/deletes a collection's
+	// `urlPattern` so public routing picks up the change immediately.
+	invalidateUrlPatternCache: () => void;
 
 	// Sandbox runner (for marketplace plugin install/update)
 	getSandboxRunner: () => import("../plugins/sandbox/types.js").SandboxRunner | null;
