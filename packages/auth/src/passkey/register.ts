@@ -6,6 +6,7 @@
  */
 
 import { ECDSAPublicKey, p256 } from "@oslojs/crypto/ecdsa";
+import { RSAPublicKey } from "@oslojs/crypto/rsa";
 import { encodeBase64urlNoPadding, decodeBase64urlIgnorePadding } from "@oslojs/encoding";
 import {
 	parseAttestationObject,
@@ -159,7 +160,7 @@ export async function verifyRegistrationResponse(
 	let encodedPublicKey: Uint8Array;
 
 	if (algorithm === coseAlgorithmES256) {
-		// Verify it's EC2 key type
+		// Verify EC2 key type for ES256
 		if (credential.publicKey.type() !== COSEKeyType.EC2) {
 			throw new Error("Expected EC2 key type for ES256");
 		}
@@ -174,8 +175,13 @@ export async function verifyRegistrationResponse(
 			cosePublicKey.y,
 		).encodeSEC1Uncompressed();
 	} else if (algorithm === coseAlgorithmRS256) {
-		// RSA is less common for passkeys, skip for now
-		throw new Error("RS256 not yet supported - please use ES256");
+		// Verify RSA key type for RS256
+		if (credential.publicKey.type() !== COSEKeyType.RSA) {
+			throw new Error("Expected RSA key type for RS256");
+		}
+		const cosePublicKey = credential.publicKey.rsa();
+		// Encode as PKIX format for storage
+		encodedPublicKey = new RSAPublicKey(cosePublicKey.n, cosePublicKey.e).encodePKIX();
 	} else {
 		throw new Error(`Unsupported algorithm: ${algorithm}`);
 	}
@@ -189,6 +195,7 @@ export async function verifyRegistrationResponse(
 	return {
 		credentialId: response.id,
 		publicKey: encodedPublicKey,
+		algorithm,
 		counter: authenticatorData.signatureCounter,
 		deviceType,
 		backedUp,
@@ -221,6 +228,7 @@ export async function registerPasskey(
 		id: verified.credentialId,
 		userId,
 		publicKey: verified.publicKey,
+		algorithm: verified.algorithm,
 		counter: verified.counter,
 		deviceType: verified.deviceType,
 		backedUp: verified.backedUp,

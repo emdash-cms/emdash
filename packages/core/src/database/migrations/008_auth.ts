@@ -64,6 +64,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("id", "text", (col) => col.primaryKey()) // Base64url credential ID
 		.addColumn("user_id", "text", (col) => col.notNull())
 		.addColumn("public_key", binaryType(db), (col) => col.notNull()) // COSE public key
+		.addColumn("algorithm", "integer", (col) => col.notNull().defaultTo(-7)) // COSE algorithm (default ES256)
 		.addColumn("counter", "integer", (col) => col.notNull().defaultTo(0))
 		.addColumn("device_type", "text", (col) => col.notNull()) // 'singleDevice' | 'multiDevice'
 		.addColumn("backed_up", "integer", (col) => col.notNull().defaultTo(0))

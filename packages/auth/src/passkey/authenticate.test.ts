@@ -1,6 +1,6 @@
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 
-import { createAssertionSignatureMessage } from "@oslojs/webauthn";
+import { createAssertionSignatureMessage, coseAlgorithmES256 } from "@oslojs/webauthn";
 import { describe, it, expect, vi } from "vitest";
 
 import type { AuthAdapter, Credential } from "../types.js";
@@ -11,6 +11,7 @@ const credential: Credential = {
 	id: "registered-credential",
 	userId: "user_1",
 	publicKey: new Uint8Array(),
+	algorithm: coseAlgorithmES256,
 	counter: 0,
 	deviceType: "singleDevice",
 	backedUp: false,
