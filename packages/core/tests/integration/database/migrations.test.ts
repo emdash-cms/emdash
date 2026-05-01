@@ -113,7 +113,11 @@ describe("Database Migrations (Integration)", () => {
 
 		await db
 			.deleteFrom("_emdash_migrations")
-			.where("name", "in", ["034_published_at_index", "035_bounded_404_log", "036_credential_algorithm"])
+			.where("name", "in", [
+				"034_published_at_index",
+				"035_bounded_404_log",
+				"036_credential_algorithm",
+			])
 			.execute();
 
 		const { applied } = await runMigrations(db);
