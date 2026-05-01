@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateSeedModule,
 } from "../../../../src/astro/integration/virtual-modules.js";
 
 describe("generateConfigModule", () => {
@@ -59,5 +64,85 @@ describe("generateDialectModule", () => {
 			supportsRequestScope: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
+	});
+});
+
+describe("generateSeedModule", () => {
+	let projectRoot: string;
+	let warnSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		projectRoot = mkdtempSync(join(tmpdir(), "emdash-seed-test-"));
+		warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		rmSync(projectRoot, { recursive: true, force: true });
+		warnSpy.mockRestore();
+	});
+
+	const sampleSeed = (name: string) => ({
+		version: "1",
+		meta: { name },
+		collections: [],
+	});
+
+	it("prefers .emdash/seed.json over package.json#emdash.seed and seed/seed.json", () => {
+		mkdirSync(join(projectRoot, ".emdash"));
+		writeFileSync(
+			join(projectRoot, ".emdash", "seed.json"),
+			JSON.stringify(sampleSeed("dot-emdash")),
+		);
+
+		writeFileSync(
+			join(projectRoot, "package.json"),
+			JSON.stringify({ name: "x", emdash: { seed: "custom-seed.json" } }),
+		);
+		writeFileSync(join(projectRoot, "custom-seed.json"), JSON.stringify(sampleSeed("pkg-pointer")));
+
+		mkdirSync(join(projectRoot, "seed"));
+		writeFileSync(
+			join(projectRoot, "seed", "seed.json"),
+			JSON.stringify(sampleSeed("conventional")),
+		);
+
+		const out = generateSeedModule(projectRoot);
+		expect(out).toContain(`"name":"dot-emdash"`);
+		expect(out).toContain("export const seed = userSeed;");
+	});
+
+	it("uses package.json#emdash.seed when .emdash/seed.json is absent", () => {
+		writeFileSync(
+			join(projectRoot, "package.json"),
+			JSON.stringify({ name: "x", emdash: { seed: "seed/seed.json" } }),
+		);
+		mkdirSync(join(projectRoot, "seed"));
+		writeFileSync(join(projectRoot, "seed", "seed.json"), JSON.stringify(sampleSeed("via-pkg")));
+
+		const out = generateSeedModule(projectRoot);
+		expect(out).toContain(`"name":"via-pkg"`);
+	});
+
+	it("falls back to seed/seed.json when no pointer is configured", () => {
+		writeFileSync(join(projectRoot, "package.json"), JSON.stringify({ name: "x" }));
+		mkdirSync(join(projectRoot, "seed"));
+		writeFileSync(
+			join(projectRoot, "seed", "seed.json"),
+			JSON.stringify(sampleSeed("conventional-fallback")),
+		);
+
+		const out = generateSeedModule(projectRoot);
+		expect(out).toContain(`"name":"conventional-fallback"`);
+		expect(out).toContain("export const seed = userSeed;");
+	});
+
+	it("falls through to the default seed and warns when no user seed is found", () => {
+		writeFileSync(join(projectRoot, "package.json"), JSON.stringify({ name: "x" }));
+
+		const out = generateSeedModule(projectRoot);
+		expect(out).toContain("export const userSeed = null;");
+		expect(out).toContain("export const seed = ");
+		expect(warnSpy).toHaveBeenCalledTimes(1);
+		expect(warnSpy.mock.calls[0]?.[0]).toMatch(/No user seed found/);
 	});
 });

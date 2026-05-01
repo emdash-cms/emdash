@@ -401,6 +401,11 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
  * Reads the user's seed file at build time (in Node context) and embeds it,
  * so the runtime doesn't need filesystem access (required for workerd).
  *
+ * Search order:
+ *   1. `.emdash/seed.json`
+ *   2. `package.json` → `emdash.seed` reference
+ *   3. `seed/seed.json` (conventional template path)
+ *
  * Exports `userSeed` (user's seed or null) and `seed` (user's seed or default).
  */
 export function generateSeedModule(projectRoot: string): string {
@@ -434,11 +439,26 @@ export function generateSeedModule(projectRoot: string): string {
 		}
 	}
 
+	// Try conventional seed/seed.json fallback
+	if (!userSeedJson) {
+		try {
+			const seedPath = resolve(projectRoot, "seed", "seed.json");
+			const content = readFileSync(seedPath, "utf-8");
+			JSON.parse(content); // validate
+			userSeedJson = content;
+		} catch {
+			// Not found
+		}
+	}
+
 	if (userSeedJson) {
 		return [`export const userSeed = ${userSeedJson};`, `export const seed = userSeed;`].join("\n");
 	}
 
 	// No user seed — inline the default
+	console.warn(
+		"[emdash] No user seed found at .emdash/seed.json, package.json#emdash.seed, or seed/seed.json. Falling back to the built-in default seed; the setup wizard will not offer demo content for this site.",
+	);
 	return [
 		`export const userSeed = null;`,
 		`export const seed = ${JSON.stringify(defaultSeed)};`,
