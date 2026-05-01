@@ -127,14 +127,14 @@ const isLoggedIn = !!Astro.locals.user;
 							))
 						}
 					</div>
-					{
-						isLoggedIn && (
-							<a href="/_emdash/admin" class="nav-admin">
-								Admin
-							</a>
-						)
-					}
 				</div>
+				{
+					isLoggedIn && (
+						<a href="/_emdash/admin" class="nav-admin">
+							Admin
+						</a>
+					)
+				}
 			</nav>
 		</header>
 
@@ -620,6 +620,7 @@ const isLoggedIn = !!Astro.locals.user;
 				display: flex;
 				align-items: center;
 				gap: var(--spacing-6);
+				margin-inline-start: auto;
 			}
 
 			.nav-links {
@@ -928,37 +929,43 @@ const isLoggedIn = !!Astro.locals.user;
 				}
 
 				.nav {
-					flex-direction: row;
-					flex-wrap: wrap;
-					justify-content: space-between;
+					display: grid;
+					grid-template-columns: minmax(0, 1fr) auto;
 					align-items: center;
 					height: auto;
-					gap: var(--spacing-2);
+					column-gap: var(--spacing-3);
+					row-gap: var(--spacing-2);
 					padding: var(--spacing-3) var(--spacing-4);
 				}
 
 				.site-title {
+					grid-column: 1;
+					grid-row: 1;
 					font-size: var(--font-size-base);
+					min-width: 0;
 				}
 
 				.nav-right {
-					display: contents;
+					grid-column: 1 / -1;
+					grid-row: 2;
+					display: grid;
+					row-gap: var(--spacing-2);
 				}
 
 				.site-search {
-					order: 0;
-					max-width: 140px;
+					grid-column: 1;
+					width: 100%;
+					max-width: none;
 				}
 
 				:global(.site-search-input) {
-					width: 140px !important;
+					width: 100% !important;
 					padding: var(--spacing-1) var(--spacing-2) !important;
 					font-size: var(--font-size-sm) !important;
 				}
 
 				.nav-links {
-					order: 1;
-					width: 100%;
+					grid-column: 1;
 					display: flex;
 					column-gap: var(--spacing-3);
 					row-gap: var(--spacing-1);
@@ -967,11 +974,12 @@ const isLoggedIn = !!Astro.locals.user;
 				}
 
 				.nav-admin {
-					order: 2;
-					position: absolute;
-					right: var(--spacing-4);
-					top: var(--spacing-3);
+					grid-column: 2;
+					grid-row: 1;
+					justify-self: end;
 					font-size: var(--font-size-xs);
+					margin-inline-start: 0;
+					white-space: nowrap;
 				}
 
 				.footer-grid {
