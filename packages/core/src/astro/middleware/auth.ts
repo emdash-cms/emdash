@@ -32,7 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
-import type { EmDashHandlers, EmDashManifest } from "../types.js";
+import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp } from "./csp.js";
 
 declare global {
@@ -42,7 +42,6 @@ declare global {
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
 			emdash?: EmDashHandlers;
-			emdashManifest?: EmDashManifest;
 		}
 		interface SessionData {
 			user: { id: string };

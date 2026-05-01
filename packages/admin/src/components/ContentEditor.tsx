@@ -274,6 +274,39 @@ export function ContentEditor({
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
 
+	// Synchronously reset form state when the underlying item changes (e.g. a
+	// translation switch where TanStack Router keeps ContentEditor mounted but
+	// swaps `item` for a different id). The post-render useEffect below also
+	// syncs item -> formData, but it runs *after* the first render with the new
+	// item, leaving children (notably PortableTextEditor, which freezes its
+	// initial content on mount) one render behind. This is the React-recommended
+	// "store info from previous renders" idiom -- see
+	// https://react.dev/reference/react/useState#storing-information-from-previous-renders
+	//
+	// We also reset lastSavedData here (not just in the post-render effect) so
+	// that isDirty stays false through the switch -- otherwise SaveButton would
+	// briefly flip from "Saved" -> "Save" -> "Saved" within a single tick.
+	const [previousItemId, setPreviousItemId] = React.useState<string | null>(item?.id ?? null);
+	if (item && item.id !== previousItemId) {
+		setPreviousItemId(item.id);
+		setFormData(item.data);
+		setSlug(item.slug || "");
+		setSlugTouched(!!item.slug);
+		setStatus(item.status);
+		const nextBylines =
+			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
+			[];
+		setInternalBylines(nextBylines);
+		setLastSavedData(
+			serializeEditorState({
+				data: item.data,
+				slug: item.slug || "",
+				bylines: nextBylines,
+			}),
+		);
+		pendingAutosaveStateRef.current = null;
+	}
+
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
@@ -702,9 +735,16 @@ export function ContentEditor({
 					>
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => {
+								// Key by item id so all field editors remount cleanly when the
+								// underlying content item changes (e.g. switching translations).
+								// PortableTextEditor in particular freezes its initial content on
+								// mount; without this key, navigating between translations leaves
+								// the previous locale's body in the editor and silently overwrites
+								// the new translation on the next edit.
+								const fieldKey = `${name}:${item?.id ?? "new"}`;
 								const fieldEl = (
 									<FieldRenderer
-										key={name}
+										key={fieldKey}
 										name={name}
 										field={field}
 										value={formData[name]}
@@ -733,7 +773,10 @@ export function ContentEditor({
 									onSeoChange
 								) {
 									return (
-										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
+										<div
+											key={`${fieldKey}-with-seo`}
+											className="grid grid-cols-1 gap-6 md:grid-cols-2"
+										>
 											<div>{fieldEl}</div>
 											<div>
 												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
@@ -1043,8 +1086,9 @@ interface FieldRendererProps {
 	field: FieldDescriptor;
 	value: unknown;
 	onChange: (name: string, value: unknown) => void;
-	/** Callback when a portableText editor is ready */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback when a portableText editor is ready.
+	 * Called with the editor on mount, and with `null` on unmount. */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */

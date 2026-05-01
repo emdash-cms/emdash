@@ -1707,8 +1707,10 @@ export interface PortableTextEditorProps {
 	focusMode?: FocusMode;
 	/** Callback when focus mode changes */
 	onFocusModeChange?: (mode: FocusMode) => void;
-	/** Callback to receive the editor instance for external integrations */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback to receive the editor instance for external integrations.
+	 * Called with the editor on mount, and with `null` on unmount so consumers
+	 * can clear stale references (e.g. before the next instance mounts). */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, border, footer (distraction-free mode) */
 	minimal?: boolean;
 	/** Callback when a block node requests sidebar space (e.g. image settings) */
@@ -1952,11 +1954,17 @@ export function PortableTextEditor({
 		},
 	});
 
-	// Notify when editor is ready
+	// Notify when editor is ready, and on unmount so consumers can clear the
+	// reference before TipTap destroys the instance (e.g. when keying by item.id
+	// to switch translations).
 	React.useEffect(() => {
 		if (editor && onEditorReady) {
 			onEditorReady(editor);
+			return () => {
+				onEditorReady(null);
+			};
 		}
+		return undefined;
 	}, [editor, onEditorReady]);
 
 	// Register plugin blocks into editor storage so the node view can look up metadata

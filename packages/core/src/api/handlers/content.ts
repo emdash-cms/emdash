@@ -1124,12 +1124,13 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { publishedAt?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId);
+			return repo.publish(collection, resolvedId, options.publishedAt);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);

@@ -893,7 +893,7 @@ importers:
         specifier: '>=5'
         version: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.9.0
         version: link:../core
       kysely:
         specifier: ^0.27.6
@@ -1053,6 +1053,31 @@ importers:
         specifier: 'catalog:'
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/contentful-to-portable-text:
+    dependencies:
+      '@contentful/rich-text-types':
+        specifier: ^17.2.7
+        version: 17.2.7
+      '@portabletext/types':
+        specifier: ^4.0.2
+        version: 4.0.2
+    devDependencies:
+      '@arethetypeswrong/cli':
+        specifier: 'catalog:'
+        version: 0.18.2
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.17
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260213.1)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@5.9.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/core:
     dependencies:
       '@astrojs/react':
@@ -1065,7 +1090,7 @@ importers:
         specifier: workspace:*
         version: link:../auth
       '@emdash-cms/auth-atproto':
-        specifier: workspace:>=0.2.0
+        specifier: workspace:>=0.2.1
         version: link:../auth-atproto
       '@emdash-cms/gutenberg-to-portable-text':
         specifier: workspace:*
@@ -1334,7 +1359,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1356,7 +1381,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1378,7 +1403,7 @@ importers:
   packages/plugins/audit-log:
     dependencies:
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -1391,7 +1416,7 @@ importers:
   packages/plugins/color:
     dependencies:
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1413,7 +1438,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
 
   packages/plugins/field-kit:
@@ -1425,7 +1450,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
     devDependencies:
       '@testing-library/react':
@@ -1465,7 +1490,7 @@ importers:
         specifier: '>=6.0.0-beta.0'
         version: 6.0.0-beta.20(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -2537,6 +2562,10 @@ packages:
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
+
+  '@contentful/rich-text-types@17.2.7':
+    resolution: {integrity: sha512-aIdozk8vk5gsYcallOrwEiL6+GSlMXZorDOmiVELfpbVaXMJPJPlf2CBw3LUzviAqCw0UPQcKHHCwG7SdY7u5w==}
+    engines: {node: '>=20.0.0'}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -3938,6 +3967,10 @@ packages:
 
   '@portabletext/types@4.0.1':
     resolution: {integrity: sha512-L8PZjVjmdKpW+82c1oNqGMqCOtQD2xORqJfr6Is7X5XXbz38eLYY79IM/1ok+Esf/iGOPtEYORdcf0ETmsWYew==}
+    engines: {node: '>=20.19 <22 || >=22.12'}
+
+  '@portabletext/types@4.0.2':
+    resolution: {integrity: sha512-djfIGU9n6DRrunlvj2nIDAp17URo/nA4jSXGvf+Gupx8NLLy9fmJBZ3GL8yhqn9lSVc+cKCharjOa3aOBnWbRw==}
     engines: {node: '>=20.19 <22 || >=22.12'}
 
   '@publint/pack@0.1.4':
@@ -10696,6 +10729,8 @@ snapshots:
   '@colors/colors@1.5.0':
     optional: true
 
+  '@contentful/rich-text-types@17.2.7': {}
+
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
@@ -11855,6 +11890,8 @@ snapshots:
   '@portabletext/types@2.0.15': {}
 
   '@portabletext/types@4.0.1': {}
+
+  '@portabletext/types@4.0.2': {}
 
   '@publint/pack@0.1.4': {}
 
