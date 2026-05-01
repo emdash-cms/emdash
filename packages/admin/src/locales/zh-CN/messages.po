@@ -776,7 +776,7 @@ msgstr "返回到 {collectionLabel} 列表"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:329
 msgid "Back to Content Types"
-msgstr ""
+msgstr "返回内容类型"
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
@@ -1499,7 +1499,7 @@ msgstr "定义您的内容结构"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:354
 msgid "Defined in code"
-msgstr ""
+msgstr "代码定义"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
@@ -4395,7 +4395,7 @@ msgstr "选择标志"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:91
 msgid "Select media"
-msgstr ""
+msgstr "选择媒体"
 
 #: packages/admin/src/components/SeoImageField.tsx:70
 msgid "Select OG image"
