@@ -45,9 +45,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
 	}
 
-	const emdashManifest = await emdash.getManifest();
-
 	try {
+		const emdashManifest = await emdash.getManifest();
+
 		const body = await parseBody(request, wpPluginExecuteBody);
 		if (isParseError(body)) return body;
 

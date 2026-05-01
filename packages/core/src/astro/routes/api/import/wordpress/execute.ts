@@ -69,9 +69,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
 	}
 
-	const emdashManifest = await emdash.getManifest();
-
 	try {
+		const emdashManifest = await emdash.getManifest();
+
 		const formData = await request.formData();
 		const fileEntry = formData.get("file");
 		const file = fileEntry instanceof File ? fileEntry : null;
