@@ -222,7 +222,10 @@ export async function verifyAuthenticationResponse(
 			signature,
 		);
 	} else {
-		throw new PasskeyAuthenticationError("unsupported_algorithm", "Unsupported credential algorithm");
+		throw new PasskeyAuthenticationError(
+			"unsupported_algorithm",
+			"Unsupported credential algorithm",
+		);
 	}
 
 	if (!signatureValid) {

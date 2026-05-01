@@ -183,7 +183,10 @@ export async function verifyRegistrationResponse(
 		// Encode as PKIX format for storage
 		encodedPublicKey = new RSAPublicKey(cosePublicKey.n, cosePublicKey.e).encodePKIX();
 	} else {
-		throw new PasskeyAuthenticationError("unsupported_algorithm", "Unsupported credential algorithm");
+		throw new PasskeyAuthenticationError(
+			"unsupported_algorithm",
+			"Unsupported credential algorithm",
+		);
 	}
 
 	// Determine device type and backup status
