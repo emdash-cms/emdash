@@ -605,7 +605,7 @@ function rowToCredential(row: Selectable<CredentialTable>): Credential {
 		id: row.id,
 		userId: row.user_id,
 		publicKey: row.public_key,
-		algorithm: row.algorithm ?? -7, // Default to ES256 (-7) for backward compatibility with legacy rows
+		algorithm: row.algorithm ?? -7, // Default to ES256 (-7) for compatibility with credentials created without an explicit algorithm
 		counter: row.counter,
 		deviceType: toDeviceType(row.device_type),
 		backedUp: row.backed_up === 1,

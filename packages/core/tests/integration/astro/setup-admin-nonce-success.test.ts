@@ -28,6 +28,7 @@ vi.mock("@emdash-cms/auth/passkey", async (importOriginal) => {
 		verifyRegistrationResponse: vi.fn(async () => ({
 			credentialId: "fake-credential-id",
 			publicKey: new Uint8Array([1, 2, 3, 4]),
+			algorithm: -7,
 			counter: 0,
 			deviceType: "singleDevice" as const,
 			backedUp: false,

@@ -155,7 +155,7 @@ export async function verifyRegistrationResponse(
 	const { credential } = authenticatorData;
 
 	// Verify algorithm is supported and encode public key
-	// Currently only supporting ES256 (ECDSA with P-256)
+	// Supports ES256 (ECDSA P-256, stored as SEC1) and RS256 (RSA, stored as PKIX)
 	const algorithm = credential.publicKey.algorithm();
 	let encodedPublicKey: Uint8Array;
 
@@ -183,7 +183,7 @@ export async function verifyRegistrationResponse(
 		// Encode as PKIX format for storage
 		encodedPublicKey = new RSAPublicKey(cosePublicKey.n, cosePublicKey.e).encodePKIX();
 	} else {
-		throw new Error(`Unsupported algorithm: ${algorithm}`);
+		throw new PasskeyAuthenticationError("unsupported_algorithm", "Unsupported credential algorithm");
 	}
 
 	// Determine device type and backup status
