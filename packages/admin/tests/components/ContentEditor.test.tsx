@@ -14,14 +14,35 @@ import { render } from "../utils/render.tsx";
 // it captures `value` once via useState initializer and never re-reads it.
 // This is what makes the translation-switch bug observable in tests — the displayed
 // content stays stale unless the component is forced to remount via a fresh `key`.
+//
+// It also mirrors the real component's onEditorReady contract: called with a stub
+// editor on mount and with `null` on unmount, so consumers can clear stale refs
+// before the next instance mounts.
 let portableTextMountCount = 0;
+type EditorReadyCall = { mockId: number | null };
+let onEditorReadyCalls: EditorReadyCall[] = [];
 vi.mock("../../src/components/PortableTextEditor", () => ({
-	PortableTextEditor: ({ value, placeholder }: any) => {
+	PortableTextEditor: ({ value, placeholder, onEditorReady }: any) => {
 		// Mirror the real component: capture initial value once, never update.
 		const [initialValue] = React.useState(() => value);
+		const mountIdRef = React.useRef<number>(0);
 		React.useEffect(() => {
 			portableTextMountCount++;
+			mountIdRef.current = portableTextMountCount;
 		}, []);
+		React.useEffect(() => {
+			if (onEditorReady) {
+				const id = mountIdRef.current || portableTextMountCount + 1;
+				const stubEditor = { __mockId: id } as unknown;
+				onEditorReadyCalls.push({ mockId: id });
+				onEditorReady(stubEditor);
+				return () => {
+					onEditorReadyCalls.push({ mockId: null });
+					onEditorReady(null);
+				};
+			}
+			return undefined;
+		}, [onEditorReady]);
 		const text = Array.isArray(initialValue)
 			? initialValue
 					.map((b: any) => b?.children?.map((c: any) => c?.text ?? "").join("") ?? "")
@@ -108,6 +129,7 @@ describe("ContentEditor", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		portableTextMountCount = 0;
+		onEditorReadyCalls = [];
 	});
 
 	describe("slug generation", () => {
@@ -715,6 +737,102 @@ describe("ContentEditor", () => {
 			// A new mount means the FieldRenderer was keyed by id and remounted.
 			// Without the fix, mountCount stays at 1 and content stays stale.
 			expect(portableTextMountCount).toBeGreaterThanOrEqual(2);
+		});
+
+		it("wires onEditorReady through for the 'content' field so DocumentOutline tracks remounts", async () => {
+			// ContentEditor only wires `onEditorReady` to its `setPortableTextEditor`
+			// slot when the field name is exactly "content" (see ContentEditor.tsx,
+			// where the conditional onEditorReady prop is set). On a translation
+			// switch, the FieldRenderer is keyed by item.id so the editor remounts;
+			// the corresponding cleanup call flows through, clearing the stale ref
+			// in the parent before the new instance mounts.
+			//
+			// The actual cleanup behaviour of PortableTextEditor (calling
+			// onEditorReady(null) on unmount) is exercised against the real
+			// component in tests/editor/PortableTextEditor.test.tsx — this test
+			// only verifies that ContentEditor wires the callback in the first place.
+			const ptFieldsForContent: Record<string, FieldDescriptor> = {
+				title: { kind: "string", label: "Title", required: true },
+				// "content" is the magic field name that wires onEditorReady through
+				// to ContentEditor's setPortableTextEditor (see ContentEditor.tsx).
+				content: { kind: "portableText", label: "Body" },
+			};
+
+			const itemEn = makeItem({
+				id: "post-en",
+				slug: "post-en",
+				data: {
+					title: "EN",
+					content: [
+						{
+							_type: "block",
+							_key: "block-en",
+							style: "normal",
+							children: [{ _type: "span", _key: "span-en", text: "English", marks: [] }],
+							markDefs: [],
+						},
+					],
+				},
+			});
+			const itemFr = makeItem({
+				id: "post-fr",
+				slug: "post-fr",
+				data: {
+					title: "FR",
+					content: [
+						{
+							_type: "block",
+							_key: "block-fr",
+							style: "normal",
+							children: [{ _type: "span", _key: "span-fr", text: "French", marks: [] }],
+							markDefs: [],
+						},
+					],
+				},
+			});
+
+			function Switcher({ item }: { item: ContentItem }) {
+				return (
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						fields={ptFieldsForContent}
+						isNew={false}
+						item={item}
+						onSave={vi.fn()}
+					/>
+				);
+			}
+
+			const screen = await render(<Switcher item={itemEn} />);
+			await expect
+				.element(screen.getByTestId("portable-text-editor"))
+				.toHaveAttribute("data-content", "English");
+
+			// Initial mount fired exactly one onEditorReady call with a non-null editor.
+			expect(onEditorReadyCalls).toHaveLength(1);
+			expect(onEditorReadyCalls[0]?.mockId).not.toBeNull();
+
+			await screen.rerender(<Switcher item={itemFr} />);
+			await expect
+				.element(screen.getByTestId("portable-text-editor"))
+				.toHaveAttribute("data-content", "French");
+
+			// After the switch we expect the call sequence:
+			//   1. mount (en) -> non-null
+			//   2. cleanup (en) -> null   <-- the M1 fix
+			//   3. mount (fr) -> non-null
+			// Without the cleanup in PortableTextEditor's onEditorReady effect,
+			// step 2 is missing and the stale en-editor reference lingers in
+			// ContentEditor's state during the remount window.
+			const nullCallIndex = onEditorReadyCalls.findIndex((c) => c.mockId === null);
+			expect(nullCallIndex).toBeGreaterThan(-1);
+
+			// The null call must come before the final mount (otherwise the slot
+			// would end up null after a fresh editor was reported ready).
+			const lastCall = onEditorReadyCalls.at(-1);
+			expect(lastCall?.mockId).not.toBeNull();
+			expect(nullCallIndex).toBeLessThan(onEditorReadyCalls.length - 1);
 		});
 	});
 });

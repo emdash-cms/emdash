@@ -1086,8 +1086,9 @@ interface FieldRendererProps {
 	field: FieldDescriptor;
 	value: unknown;
 	onChange: (name: string, value: unknown) => void;
-	/** Callback when a portableText editor is ready */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback when a portableText editor is ready.
+	 * Called with the editor on mount, and with `null` on unmount. */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
