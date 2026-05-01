@@ -156,7 +156,11 @@ function normalizeLocalMediaValue(value: unknown): unknown {
 		normalized[key] = normalizeLocalMediaValue(child);
 	}
 
-	if (normalized.provider === "local" && typeof normalized.src === "string" && normalized.src.length > 0) {
+	if (
+		normalized.provider === "local" &&
+		typeof normalized.src === "string" &&
+		normalized.src.length > 0
+	) {
 		const src = normalized.src;
 		if (src.startsWith(LOCAL_MEDIA_FILE_PREFIX)) {
 			const id = src.slice(LOCAL_MEDIA_FILE_PREFIX.length);
