@@ -176,7 +176,7 @@ const MIGRATION_RACE_POLL_MS = 100;
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
 	`(?:no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b` +
-	`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
+		`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
 	"i",
 );
 
