@@ -143,7 +143,7 @@ msgstr "{0, plural, other {# pengguna}}"
 #. placeholder {2}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:295
 msgid "{0, plural, one {#{1} item} other {#{2} items}}"
-msgstr "{0, plural, other {{#}{2} item}}"
+msgstr "{0, plural, one {#{1} item} other {#{2} item}}"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1133
