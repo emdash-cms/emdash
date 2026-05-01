@@ -21,7 +21,11 @@ function buildMcpServer(env: Env): McpServer {
 			description:
 				"Search the EmDash CMS documentation. Returns relevant chunks with source URLs and similarity scores.",
 			inputSchema: {
-				query: z.string().min(1).describe("Natural-language query against the EmDash docs."),
+				query: z
+					.string()
+					.min(1)
+					.max(1000)
+					.describe("Natural-language query against the EmDash docs."),
 				max_results: z
 					.number()
 					.int()
