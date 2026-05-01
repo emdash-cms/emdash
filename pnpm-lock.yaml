@@ -208,7 +208,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.1.7(@types/node@24.10.13)(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.1.7(@types/node@24.10.13)(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.31.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tsx@4.21.0)(yaml@2.8.2)
@@ -454,7 +454,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: ^13.1.7
-        version: 13.1.7(@types/node@24.10.13)(astro@6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(workerd@1.20260401.1)(wrangler@4.80.0)(yaml@2.8.2)
+        version: 13.1.7(@types/node@24.10.13)(astro@6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(wrangler@4.80.0)(yaml@2.8.2)
       '@astrojs/starlight':
         specifier: ^0.38.2
         version: 0.38.2(astro@6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
@@ -821,7 +821,7 @@ importers:
         version: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
       vitest-browser-react:
         specifier: ^2.0.5
         version: 2.0.5(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18)
@@ -867,7 +867,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/auth-atproto:
     dependencies:
@@ -884,7 +884,7 @@ importers:
         specifier: '>=5'
         version: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.9.0
         version: link:../core
       kysely:
         specifier: ^0.27.6
@@ -904,7 +904,7 @@ importers:
         version: 19.2.14
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/blocks:
     dependencies:
@@ -959,7 +959,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/blocks/playground:
     dependencies:
@@ -1042,7 +1042,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/contentful-to-portable-text:
     dependencies:
@@ -1067,7 +1067,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/core:
     dependencies:
@@ -1081,7 +1081,7 @@ importers:
         specifier: workspace:*
         version: link:../auth
       '@emdash-cms/auth-atproto':
-        specifier: workspace:>=0.2.0
+        specifier: workspace:>=0.2.1
         version: link:../auth-atproto
       '@emdash-cms/gutenberg-to-portable-text':
         specifier: workspace:*
@@ -1280,7 +1280,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/gutenberg-to-portable-text:
     dependencies:
@@ -1305,7 +1305,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/marketplace:
     dependencies:
@@ -1336,7 +1336,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
       wrangler:
         specifier: 'catalog:'
         version: 4.80.0(@cloudflare/workers-types@4.20260305.1)
@@ -1350,7 +1350,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1364,7 +1364,7 @@ importers:
         version: 19.2.14
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/plugins/api-test:
     dependencies:
@@ -1372,7 +1372,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1389,12 +1389,12 @@ importers:
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260213.1)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@5.9.3)
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/plugins/audit-log:
     dependencies:
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -1407,7 +1407,7 @@ importers:
   packages/plugins/color:
     dependencies:
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1429,7 +1429,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
 
   packages/plugins/field-kit:
@@ -1441,7 +1441,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
     devDependencies:
       '@testing-library/react':
@@ -1467,7 +1467,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/plugins/forms:
     dependencies:
@@ -1481,7 +1481,7 @@ importers:
         specifier: '>=6.0.0-beta.0'
         version: 6.0.0-beta.20(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:>=0.1.0
+        specifier: workspace:>=0.9.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1555,7 +1555,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
     optionalDependencies:
       '@x402/svm':
         specifier: ^2.8.0
@@ -9414,6 +9414,32 @@ snapshots:
       - prettier
       - prettier-plugin-astro
 
+  '@astrojs/cloudflare@13.1.7(@types/node@24.10.13)(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)':
+    dependencies:
+      '@astrojs/internal-helpers': 0.8.0
+      '@astrojs/underscore-redirects': 1.0.3
+      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))
+      astro: 6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2)
+      piccolore: 0.1.3
+      tinyglobby: 0.2.15
+      vite: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      wrangler: 4.80.0(@cloudflare/workers-types@4.20260305.1)
+    transitivePeerDependencies:
+      - '@types/node'
+      - bufferutil
+      - jiti
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - utf-8-validate
+      - workerd
+      - yaml
+
   '@astrojs/cloudflare@13.1.7(@types/node@24.10.13)(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)':
     dependencies:
       '@astrojs/internal-helpers': 0.8.0
@@ -9440,11 +9466,11 @@ snapshots:
       - workerd
       - yaml
 
-  '@astrojs/cloudflare@13.1.7(@types/node@24.10.13)(astro@6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(workerd@1.20260401.1)(wrangler@4.80.0)(yaml@2.8.2)':
+  '@astrojs/cloudflare@13.1.7(@types/node@24.10.13)(astro@6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(wrangler@4.80.0)(yaml@2.8.2)':
     dependencies:
       '@astrojs/internal-helpers': 0.8.0
       '@astrojs/underscore-redirects': 1.0.3
-      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0)
+      '@cloudflare/vite-plugin': 1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(wrangler@4.80.0)
       astro: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       piccolore: 0.1.3
       tinyglobby: 0.2.15
@@ -10330,7 +10356,7 @@ snapshots:
       - utf-8-validate
       - workerd
 
-  '@cloudflare/vite-plugin@1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0)':
+  '@cloudflare/vite-plugin@1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260401.1)(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))':
     dependencies:
       '@cloudflare/unenv-preset': 2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260401.1)
       miniflare: 4.20260301.1
@@ -10344,6 +10370,19 @@ snapshots:
       - workerd
 
   '@cloudflare/vite-plugin@1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(wrangler@4.80.0(@cloudflare/workers-types@4.20260305.1))':
+    dependencies:
+      '@cloudflare/unenv-preset': 2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260301.1)
+      miniflare: 4.20260301.1
+      unenv: 2.0.0-rc.24
+      vite: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      wrangler: 4.80.0(@cloudflare/workers-types@4.20260305.1)
+      ws: 8.18.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - workerd
+
+  '@cloudflare/vite-plugin@1.26.1(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(wrangler@4.80.0)':
     dependencies:
       '@cloudflare/unenv-preset': 2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260301.1)
       miniflare: 4.20260301.1
@@ -13027,7 +13066,7 @@ snapshots:
       '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       playwright: 1.58.2
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -13061,7 +13100,7 @@ snapshots:
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
       ws: 8.19.0
     transitivePeerDependencies:
       - bufferutil
@@ -17657,7 +17696,7 @@ snapshots:
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      vitest: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(@vitest/ui@4.0.17)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
     optionalDependencies:
       '@types/react': 19.2.14
       '@types/react-dom': 19.2.3(@types/react@19.2.14)
@@ -17688,6 +17727,45 @@ snapshots:
       '@types/node': 24.10.13
       '@vitest/browser-playwright': 4.0.18(playwright@1.58.2)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.18)
       '@vitest/ui': 4.0.17(vitest@4.0.18)
+      jsdom: 26.1.0
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
+
+  vitest@4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2):
+    dependencies:
+      '@vitest/expect': 4.0.18
+      '@vitest/mocker': 4.0.18(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
+      '@vitest/pretty-format': 4.0.18
+      '@vitest/runner': 4.0.18
+      '@vitest/snapshot': 4.0.18
+      '@vitest/spy': 4.0.18
+      '@vitest/utils': 4.0.18
+      es-module-lexer: 1.7.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.3
+      std-env: 3.10.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.2
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.0.3
+      vite: 6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 24.10.13
+      '@vitest/browser-playwright': 4.0.18(playwright@1.58.2)(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.18)
       jsdom: 26.1.0
     transitivePeerDependencies:
       - jiti
