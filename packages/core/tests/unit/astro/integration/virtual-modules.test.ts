@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	generateConfigModule,
@@ -69,16 +69,13 @@ describe("generateDialectModule", () => {
 
 describe("generateSeedModule", () => {
 	let projectRoot: string;
-	let warnSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		projectRoot = mkdtempSync(join(tmpdir(), "emdash-seed-test-"));
-		warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 	});
 
 	afterEach(() => {
 		rmSync(projectRoot, { recursive: true, force: true });
-		warnSpy.mockRestore();
 	});
 
 	const sampleSeed = (name: string) => ({
@@ -136,13 +133,11 @@ describe("generateSeedModule", () => {
 		expect(out).toContain("export const seed = userSeed;");
 	});
 
-	it("falls through to the default seed and warns when no user seed is found", () => {
+	it("falls through to the default seed when no user seed is found", () => {
 		writeFileSync(join(projectRoot, "package.json"), JSON.stringify({ name: "x" }));
 
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain("export const userSeed = null;");
 		expect(out).toContain("export const seed = ");
-		expect(warnSpy).toHaveBeenCalledTimes(1);
-		expect(warnSpy.mock.calls[0]?.[0]).toMatch(/No user seed found/);
 	});
 });

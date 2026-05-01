@@ -156,8 +156,13 @@ export interface VitePluginOptions {
 export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
+	let viteCommand: "build" | "serve" | undefined;
+
 	return {
 		name: "emdash-virtual-modules",
+		configResolved(config) {
+			viteCommand = config.command;
+		},
 		resolveId(id: string) {
 			if (id === VIRTUAL_CONFIG_ID) {
 				return RESOLVED_VIRTUAL_CONFIG_ID;
@@ -259,7 +264,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate seed module — embeds user seed or default at build time
 			if (id === RESOLVED_VIRTUAL_SEED_ID) {
 				const projectRoot = fileURLToPath(astroConfig.root);
-				return generateSeedModule(projectRoot);
+				return generateSeedModule(projectRoot, viteCommand === "serve");
 			}
 			// Generate wait-until module — re-exports cloudflare:workers'
 			// waitUntil under the Cloudflare adapter, undefined otherwise.

@@ -407,8 +407,14 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
  *   3. `seed/seed.json` (conventional template path)
  *
  * Exports `userSeed` (user's seed or null) and `seed` (user's seed or default).
+ *
+ * When no user seed is found, falls back to the built-in default seed and
+ * (if `warnOnFallback` is true) logs a warning so misconfiguration is visible
+ * during `astro dev`. Build/preview/sync stay silent so sites that
+ * intentionally use the default seed (e.g. the blank template) don't
+ * generate noisy logs.
  */
-export function generateSeedModule(projectRoot: string): string {
+export function generateSeedModule(projectRoot: string, warnOnFallback = false): string {
 	let userSeedJson: string | null = null;
 
 	// Try .emdash/seed.json
@@ -455,10 +461,14 @@ export function generateSeedModule(projectRoot: string): string {
 		return [`export const userSeed = ${userSeedJson};`, `export const seed = userSeed;`].join("\n");
 	}
 
-	// No user seed — inline the default
-	console.warn(
-		"[emdash] No user seed found at .emdash/seed.json, package.json#emdash.seed, or seed/seed.json. Falling back to the built-in default seed; the setup wizard will not offer demo content for this site.",
-	);
+	// No user seed — inline the default. Caller (the Vite plugin) gates this
+	// to dev-only so production builds stay quiet for sites that intentionally
+	// rely on the default seed.
+	if (warnOnFallback) {
+		console.warn(
+			"[emdash] No user seed found at .emdash/seed.json, package.json#emdash.seed, or seed/seed.json. Falling back to the built-in default seed; the setup wizard will not offer demo content for this site.",
+		);
+	}
 	return [
 		`export const userSeed = null;`,
 		`export const seed = ${JSON.stringify(defaultSeed)};`,
