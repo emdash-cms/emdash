@@ -298,6 +298,55 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 	return { ...item };
 }
 
+function stableStringify(value: unknown): string {
+	return JSON.stringify(toStableJson(value));
+}
+
+function toStableJson(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map((item) => (item === undefined ? null : toStableJson(item)));
+	}
+
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value)
+				.filter(([, child]) => child !== undefined)
+				.toSorted(([a], [b]) => a.localeCompare(b))
+				.map(([key, child]) => [key, toStableJson(child)]),
+		);
+	}
+
+	return value;
+}
+
+function manifestFingerprint(plugin: ResolvedPlugin): Record<string, unknown> {
+	return {
+		id: plugin.id,
+		version: plugin.version,
+		capabilities: [...plugin.capabilities].toSorted(),
+		allowedHosts: [...plugin.allowedHosts].toSorted(),
+		storageKeys: Object.keys(plugin.storage).toSorted(),
+		admin: {
+			pages: plugin.admin.pages,
+			widgets: plugin.admin.widgets,
+			portableTextBlocks: plugin.admin.portableTextBlocks,
+			fieldWidgets: plugin.admin.fieldWidgets,
+		},
+	};
+}
+
+export async function buildManifestCacheKey(deps: RuntimeDependencies): Promise<string> {
+	return hashString(
+		[
+			COMMIT,
+			...deps.plugins.map((p) => stableStringify(manifestFingerprint(p))).toSorted(),
+			...deps.sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`).toSorted(),
+			virtualConfig?.i18n?.defaultLocale ?? "",
+			(virtualConfig?.i18n?.locales ?? []).toSorted().join(","),
+		].join("|"),
+	);
+}
+
 // Module-level caches (persist across requests within worker)
 const dbCache = new Map<string, Kysely<Database>>();
 let dbInitPromise: Promise<Kysely<Database>> | null = null;
@@ -877,15 +926,7 @@ export class EmDashRuntime {
 		// DB-driven changes (collections, fields, plugin toggle) go through
 		// invalidateManifest(). Sorted for stability across nondeterministic
 		// plugin ordering.
-		const manifestCacheKey = await hashString(
-			[
-				COMMIT,
-				...deps.plugins.map((p) => JSON.stringify({ ...p, options: undefined })).toSorted(),
-				...deps.sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`).toSorted(),
-				virtualConfig?.i18n?.defaultLocale ?? "",
-				(virtualConfig?.i18n?.locales ?? []).toSorted().join(","),
-			].join("|"),
-		);
+		const manifestCacheKey = await buildManifestCacheKey(deps);
 
 		return new EmDashRuntime({
 			db,
