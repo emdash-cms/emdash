@@ -790,8 +790,8 @@ msgstr "返回登录"
 msgid "Back to marketplace"
 msgstr "返回市场"
 
-#: packages/admin/src/components/SectionEditor.tsx:70
-#: packages/admin/src/components/SectionEditor.tsx:156
+#: packages/admin/src/components/SectionEditor.tsx:71
+#: packages/admin/src/components/SectionEditor.tsx:172
 msgid "Back to sections"
 msgstr "返回区块列表"
 
@@ -1092,7 +1092,7 @@ msgstr "合集"
 msgid "Collections created:"
 msgstr "已创建的合集："
 
-#: packages/admin/src/components/SectionEditor.tsx:227
+#: packages/admin/src/components/SectionEditor.tsx:263
 msgid "Comma-separated keywords for search."
 msgstr "逗号分隔的搜索关键词。"
 
@@ -1145,7 +1145,7 @@ msgstr "已连接 {0}"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1811
-#: packages/admin/src/components/SectionEditor.tsx:175
+#: packages/admin/src/components/SectionEditor.tsx:191
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "内容"
@@ -1438,7 +1438,7 @@ msgstr "自定义"
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "自定义 robots.txt 内容。留空则使用默认值。"
 
-#: packages/admin/src/components/SectionEditor.tsx:165
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Custom Section"
 msgstr "自定义区块"
 
@@ -1616,11 +1616,11 @@ msgstr "拒绝"
 msgid "Describe this image for accessibility"
 msgstr "描述此图片以供无障碍访问"
 
-#: packages/admin/src/components/SectionEditor.tsx:216
+#: packages/admin/src/components/SectionEditor.tsx:252
 msgid "Describe what this section is for..."
 msgstr "描述此区块的用途..."
 
-#: packages/admin/src/components/SectionEditor.tsx:213
+#: packages/admin/src/components/SectionEditor.tsx:249
 #: packages/admin/src/components/Sections.tsx:198
 msgid "Description"
 msgstr "描述"
@@ -2011,7 +2011,7 @@ msgstr "输入您的 WordPress 站点 URL"
 msgid "Error"
 msgstr "错误"
 
-#: packages/admin/src/components/SectionEditor.tsx:50
+#: packages/admin/src/components/SectionEditor.tsx:51
 msgid "Error saving section"
 msgstr "保存区块时出错"
 
@@ -2604,7 +2604,7 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
-#: packages/admin/src/components/SectionEditor.tsx:222
+#: packages/admin/src/components/SectionEditor.tsx:258
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:193
 msgid "Keywords"
 msgstr "关键词"
@@ -4266,7 +4266,7 @@ msgstr "可搜索"
 msgid "Section"
 msgstr "区块"
 
-#: packages/admin/src/components/SectionEditor.tsx:78
+#: packages/admin/src/components/SectionEditor.tsx:79
 msgid "Section \"{slug}\" could not be found."
 msgstr "未找到区块 \"{slug}\"。"
 
@@ -4278,19 +4278,19 @@ msgstr "区块已创建"
 msgid "Section deleted"
 msgstr "区块已删除"
 
-#: packages/admin/src/components/SectionEditor.tsx:187
+#: packages/admin/src/components/SectionEditor.tsx:223
 msgid "Section Details"
 msgstr "区块详情"
 
-#: packages/admin/src/components/SectionEditor.tsx:74
+#: packages/admin/src/components/SectionEditor.tsx:75
 msgid "Section Not Found"
 msgstr "未找到区块"
 
-#: packages/admin/src/components/SectionEditor.tsx:42
+#: packages/admin/src/components/SectionEditor.tsx:43
 msgid "Section saved"
 msgstr "区块已保存"
 
-#: packages/admin/src/components/SectionEditor.tsx:193
+#: packages/admin/src/components/SectionEditor.tsx:229
 msgid "Section title"
 msgstr "区块标题"
 
@@ -4639,7 +4639,7 @@ msgstr "已跳过"
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:198
+#: packages/admin/src/components/SectionEditor.tsx:234
 #: packages/admin/src/components/Sections.tsx:182
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Slug"
@@ -4693,7 +4693,7 @@ msgstr "排序主题"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:434
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:233
+#: packages/admin/src/components/SectionEditor.tsx:269
 msgid "Source"
 msgstr "来源"
 
@@ -4853,7 +4853,7 @@ msgid "Theme"
 msgstr "主题"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:246
+#: packages/admin/src/components/SectionEditor.tsx:282
 msgid "Theme ID: {0}"
 msgstr "主题 ID：{0}"
 
@@ -4861,7 +4861,7 @@ msgstr "主题 ID：{0}"
 msgid "Theme not found"
 msgstr "未找到主题"
 
-#: packages/admin/src/components/SectionEditor.tsx:165
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Theme Section"
 msgstr "主题区块"
 
@@ -4882,7 +4882,7 @@ msgstr "主题"
 msgid "This field is required"
 msgstr "此字段为必填项"
 
-#: packages/admin/src/components/SectionEditor.tsx:240
+#: packages/admin/src/components/SectionEditor.tsx:276
 msgid "This is a custom section."
 msgstr "这是自定义区块。"
 
@@ -4910,11 +4910,11 @@ msgstr "此插件不需要特殊权限。"
 msgid "This redirect rule will be permanently removed."
 msgstr "此重定向规则将被永久移除。"
 
-#: packages/admin/src/components/SectionEditor.tsx:237
+#: packages/admin/src/components/SectionEditor.tsx:273
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "此区块由主题提供。编辑将创建一个自定义副本以覆盖主题版本。"
 
-#: packages/admin/src/components/SectionEditor.tsx:242
+#: packages/admin/src/components/SectionEditor.tsx:278
 msgid "This section was imported from another system."
 msgstr "此区块是从另一个系统导入的。"
 
@@ -4962,7 +4962,7 @@ msgstr "用于显示日期的时区（例如：America/New_York）"
 
 #: packages/admin/src/components/ContentList.tsx:212
 #: packages/admin/src/components/ContentList.tsx:343
-#: packages/admin/src/components/SectionEditor.tsx:190
+#: packages/admin/src/components/SectionEditor.tsx:226
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
 msgstr "标题"
@@ -5330,7 +5330,7 @@ msgstr "用于在列表页和文章顶部作为主要视觉展示"
 msgid "Used by screen readers and when image fails to load"
 msgstr "供屏幕阅读器使用，并在图片加载失败时显示"
 
-#: packages/admin/src/components/SectionEditor.tsx:208
+#: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:194
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "用于标识此区块。仅限小写字母、数字和连字符。"

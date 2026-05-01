@@ -792,8 +792,8 @@ msgstr "بازگشت به ورود"
 msgid "Back to marketplace"
 msgstr "بازگشت به فروشگاه"
 
-#: packages/admin/src/components/SectionEditor.tsx:70
-#: packages/admin/src/components/SectionEditor.tsx:156
+#: packages/admin/src/components/SectionEditor.tsx:71
+#: packages/admin/src/components/SectionEditor.tsx:172
 msgid "Back to sections"
 msgstr "بازگشت به بخش‌ها"
 
@@ -1094,7 +1094,7 @@ msgstr "مجموعه‌ها"
 msgid "Collections created:"
 msgstr "مجموعه‌های ساخته‌شده:"
 
-#: packages/admin/src/components/SectionEditor.tsx:227
+#: packages/admin/src/components/SectionEditor.tsx:263
 msgid "Comma-separated keywords for search."
 msgstr "کلمات کلیدی جداشده با کاما برای جستجو."
 
@@ -1147,7 +1147,7 @@ msgstr "متصل شده در {0}"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1811
-#: packages/admin/src/components/SectionEditor.tsx:175
+#: packages/admin/src/components/SectionEditor.tsx:191
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "محتوا"
@@ -1440,7 +1440,7 @@ msgstr "سفارشی"
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "محتوای سفارشی robots.txt. برای استفاده از پیش‌فرض خالی بگذارید."
 
-#: packages/admin/src/components/SectionEditor.tsx:165
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Custom Section"
 msgstr "بخش سفارشی"
 
@@ -1618,11 +1618,11 @@ msgstr "رد"
 msgid "Describe this image for accessibility"
 msgstr "این تصویر را برای دسترسی‌پذیری توصیف کنید"
 
-#: packages/admin/src/components/SectionEditor.tsx:216
+#: packages/admin/src/components/SectionEditor.tsx:252
 msgid "Describe what this section is for..."
 msgstr "توضیح دهید این بخش برای چیست..."
 
-#: packages/admin/src/components/SectionEditor.tsx:213
+#: packages/admin/src/components/SectionEditor.tsx:249
 #: packages/admin/src/components/Sections.tsx:198
 msgid "Description"
 msgstr "توضیحات"
@@ -2013,7 +2013,7 @@ msgstr "آدرس وبسایت (URL) وردپرس خود را وارد کنید"
 msgid "Error"
 msgstr "خطا"
 
-#: packages/admin/src/components/SectionEditor.tsx:50
+#: packages/admin/src/components/SectionEditor.tsx:51
 msgid "Error saving section"
 msgstr "خطا در ذخیره بخش"
 
@@ -2606,7 +2606,7 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
-#: packages/admin/src/components/SectionEditor.tsx:222
+#: packages/admin/src/components/SectionEditor.tsx:258
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:193
 msgid "Keywords"
 msgstr "کلمات کلیدی"
@@ -4268,7 +4268,7 @@ msgstr "قابل جستجو"
 msgid "Section"
 msgstr "بخش"
 
-#: packages/admin/src/components/SectionEditor.tsx:78
+#: packages/admin/src/components/SectionEditor.tsx:79
 msgid "Section \"{slug}\" could not be found."
 msgstr "بخش «{slug}» یافت نشد."
 
@@ -4280,19 +4280,19 @@ msgstr "بخش ساخته شد"
 msgid "Section deleted"
 msgstr "بخش حذف شد"
 
-#: packages/admin/src/components/SectionEditor.tsx:187
+#: packages/admin/src/components/SectionEditor.tsx:223
 msgid "Section Details"
 msgstr "جزئیات بخش"
 
-#: packages/admin/src/components/SectionEditor.tsx:74
+#: packages/admin/src/components/SectionEditor.tsx:75
 msgid "Section Not Found"
 msgstr "بخش یافت نشد"
 
-#: packages/admin/src/components/SectionEditor.tsx:42
+#: packages/admin/src/components/SectionEditor.tsx:43
 msgid "Section saved"
 msgstr "بخش ذخیره شد"
 
-#: packages/admin/src/components/SectionEditor.tsx:193
+#: packages/admin/src/components/SectionEditor.tsx:229
 msgid "Section title"
 msgstr "عنوان بخش"
 
@@ -4641,7 +4641,7 @@ msgstr "رد شده"
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:198
+#: packages/admin/src/components/SectionEditor.tsx:234
 #: packages/admin/src/components/Sections.tsx:182
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Slug"
@@ -4695,7 +4695,7 @@ msgstr "مرتب‌سازی قالب‌ها"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:434
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:233
+#: packages/admin/src/components/SectionEditor.tsx:269
 msgid "Source"
 msgstr "منبع"
 
@@ -4855,7 +4855,7 @@ msgid "Theme"
 msgstr "پوسته"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:246
+#: packages/admin/src/components/SectionEditor.tsx:282
 msgid "Theme ID: {0}"
 msgstr "شناسه قالب: {0}"
 
@@ -4863,7 +4863,7 @@ msgstr "شناسه قالب: {0}"
 msgid "Theme not found"
 msgstr "قالب یافت نشد"
 
-#: packages/admin/src/components/SectionEditor.tsx:165
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Theme Section"
 msgstr "بخش قالب"
 
@@ -4884,7 +4884,7 @@ msgstr "پوسته‌ها"
 msgid "This field is required"
 msgstr "این فیلد الزامی است"
 
-#: packages/admin/src/components/SectionEditor.tsx:240
+#: packages/admin/src/components/SectionEditor.tsx:276
 msgid "This is a custom section."
 msgstr "این یک بخش سفارشی است."
 
@@ -4912,11 +4912,11 @@ msgstr "این افزونه نیاز به مجوز خاصی ندارد."
 msgid "This redirect rule will be permanently removed."
 msgstr "این قانون    تغییر مسیر برای همیشه حذف خواهد شد."
 
-#: packages/admin/src/components/SectionEditor.tsx:237
+#: packages/admin/src/components/SectionEditor.tsx:273
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "این بخش توسط قالب ارائه شده. ویرایش یک کپی سفارشی می‌سازد که نسخه قالب را بازنویسی می‌کند."
 
-#: packages/admin/src/components/SectionEditor.tsx:242
+#: packages/admin/src/components/SectionEditor.tsx:278
 msgid "This section was imported from another system."
 msgstr "این بخش از سیستم دیگری درون‌ریزی شده است."
 
@@ -4964,7 +4964,7 @@ msgstr "منطقه زمانی برای نمایش تاریخ‌ها (مثلاً 
 
 #: packages/admin/src/components/ContentList.tsx:212
 #: packages/admin/src/components/ContentList.tsx:343
-#: packages/admin/src/components/SectionEditor.tsx:190
+#: packages/admin/src/components/SectionEditor.tsx:226
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
 msgstr "عنوان"
@@ -5332,7 +5332,7 @@ msgstr "به‌عنوان تصویر اصلی این نوشته در صفحات 
 msgid "Used by screen readers and when image fails to load"
 msgstr "توسط صفحه‌خوان‌ها و هنگام عدم بارگذاری تصویر استفاده می‌شود"
 
-#: packages/admin/src/components/SectionEditor.tsx:208
+#: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:194
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "برای شناسایی این بخش استفاده می‌شود. فقط حروف کوچک، اعداد و خط تیره."

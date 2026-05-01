@@ -790,8 +790,8 @@ msgstr "ログインに戻る"
 msgid "Back to marketplace"
 msgstr "マーケットプレイスに戻る"
 
-#: packages/admin/src/components/SectionEditor.tsx:70
-#: packages/admin/src/components/SectionEditor.tsx:156
+#: packages/admin/src/components/SectionEditor.tsx:71
+#: packages/admin/src/components/SectionEditor.tsx:172
 msgid "Back to sections"
 msgstr "セクションに戻る"
 
@@ -1092,7 +1092,7 @@ msgstr "コレクション"
 msgid "Collections created:"
 msgstr "作成されたコレクション:"
 
-#: packages/admin/src/components/SectionEditor.tsx:227
+#: packages/admin/src/components/SectionEditor.tsx:263
 msgid "Comma-separated keywords for search."
 msgstr "検索用のカンマ区切りキーワード。"
 
@@ -1145,7 +1145,7 @@ msgstr "{0}に接続済み"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1811
-#: packages/admin/src/components/SectionEditor.tsx:175
+#: packages/admin/src/components/SectionEditor.tsx:191
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "コンテンツ"
@@ -1438,7 +1438,7 @@ msgstr "カスタム"
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "カスタムrobots.txtの内容。デフォルトを使用する場合は空のままにしてください。"
 
-#: packages/admin/src/components/SectionEditor.tsx:165
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Custom Section"
 msgstr "カスタムセクション"
 
@@ -1616,11 +1616,11 @@ msgstr "拒否"
 msgid "Describe this image for accessibility"
 msgstr "アクセシビリティのためにこの画像を説明"
 
-#: packages/admin/src/components/SectionEditor.tsx:216
+#: packages/admin/src/components/SectionEditor.tsx:252
 msgid "Describe what this section is for..."
 msgstr "このセクションの用途を説明..."
 
-#: packages/admin/src/components/SectionEditor.tsx:213
+#: packages/admin/src/components/SectionEditor.tsx:249
 #: packages/admin/src/components/Sections.tsx:198
 msgid "Description"
 msgstr "説明"
@@ -2011,7 +2011,7 @@ msgstr "WordPressサイトのURLを入力"
 msgid "Error"
 msgstr "エラー"
 
-#: packages/admin/src/components/SectionEditor.tsx:50
+#: packages/admin/src/components/SectionEditor.tsx:51
 msgid "Error saving section"
 msgstr "セクションの保存エラー"
 
@@ -2604,7 +2604,7 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
-#: packages/admin/src/components/SectionEditor.tsx:222
+#: packages/admin/src/components/SectionEditor.tsx:258
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:193
 msgid "Keywords"
 msgstr "キーワード"
@@ -4266,7 +4266,7 @@ msgstr "検索可能"
 msgid "Section"
 msgstr "セクション"
 
-#: packages/admin/src/components/SectionEditor.tsx:78
+#: packages/admin/src/components/SectionEditor.tsx:79
 msgid "Section \"{slug}\" could not be found."
 msgstr "セクション\"{slug}\"が見つかりませんでした。"
 
@@ -4278,19 +4278,19 @@ msgstr "セクションを作成しました"
 msgid "Section deleted"
 msgstr "セクションを削除しました"
 
-#: packages/admin/src/components/SectionEditor.tsx:187
+#: packages/admin/src/components/SectionEditor.tsx:223
 msgid "Section Details"
 msgstr "セクション詳細"
 
-#: packages/admin/src/components/SectionEditor.tsx:74
+#: packages/admin/src/components/SectionEditor.tsx:75
 msgid "Section Not Found"
 msgstr "セクションが見つかりません"
 
-#: packages/admin/src/components/SectionEditor.tsx:42
+#: packages/admin/src/components/SectionEditor.tsx:43
 msgid "Section saved"
 msgstr "セクションを保存しました"
 
-#: packages/admin/src/components/SectionEditor.tsx:193
+#: packages/admin/src/components/SectionEditor.tsx:229
 msgid "Section title"
 msgstr "セクションタイトル"
 
@@ -4639,7 +4639,7 @@ msgstr "スキップ済み"
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:198
+#: packages/admin/src/components/SectionEditor.tsx:234
 #: packages/admin/src/components/Sections.tsx:182
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Slug"
@@ -4693,7 +4693,7 @@ msgstr "テーマを並べ替え"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:434
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:233
+#: packages/admin/src/components/SectionEditor.tsx:269
 msgid "Source"
 msgstr "ソース"
 
@@ -4853,7 +4853,7 @@ msgid "Theme"
 msgstr "テーマ"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:246
+#: packages/admin/src/components/SectionEditor.tsx:282
 msgid "Theme ID: {0}"
 msgstr "テーマID: {0}"
 
@@ -4861,7 +4861,7 @@ msgstr "テーマID: {0}"
 msgid "Theme not found"
 msgstr "テーマが見つかりません"
 
-#: packages/admin/src/components/SectionEditor.tsx:165
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Theme Section"
 msgstr "テーマセクション"
 
@@ -4882,7 +4882,7 @@ msgstr "テーマ"
 msgid "This field is required"
 msgstr "この項目は必須です"
 
-#: packages/admin/src/components/SectionEditor.tsx:240
+#: packages/admin/src/components/SectionEditor.tsx:276
 msgid "This is a custom section."
 msgstr "これはカスタムセクションです。"
 
@@ -4910,11 +4910,11 @@ msgstr "このプラグインに特別な権限は不要です。"
 msgid "This redirect rule will be permanently removed."
 msgstr "このリダイレクトルールは完全に削除されます。"
 
-#: packages/admin/src/components/SectionEditor.tsx:237
+#: packages/admin/src/components/SectionEditor.tsx:273
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "このセクションはテーマから提供されています。編集するとテーマバージョンを上書きするカスタムコピーが作成されます。"
 
-#: packages/admin/src/components/SectionEditor.tsx:242
+#: packages/admin/src/components/SectionEditor.tsx:278
 msgid "This section was imported from another system."
 msgstr "このセクションは別のシステムからインポートされました。"
 
@@ -4962,7 +4962,7 @@ msgstr "日付表示のタイムゾーン（例: Asia/Tokyo）"
 
 #: packages/admin/src/components/ContentList.tsx:212
 #: packages/admin/src/components/ContentList.tsx:343
-#: packages/admin/src/components/SectionEditor.tsx:190
+#: packages/admin/src/components/SectionEditor.tsx:226
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
 msgstr "タイトル"
@@ -5330,7 +5330,7 @@ msgstr "一覧ページや記事の上部に表示されるメインビジュア
 msgid "Used by screen readers and when image fails to load"
 msgstr "スクリーンリーダーおよび画像読み込み失敗時に使用"
 
-#: packages/admin/src/components/SectionEditor.tsx:208
+#: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:194
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "このセクションの識別に使用されます。半角小文字、数字、ハイフンのみ。"
