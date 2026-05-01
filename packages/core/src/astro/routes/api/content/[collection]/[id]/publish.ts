@@ -58,9 +58,13 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const denied = requireOwnerPerm(user, authorId, "content:publish_own", "content:publish_any");
 	if (denied) return denied;
 
+	// Schema narrows `publishedAt` to `string | undefined`; null is rejected
+	// at the schema layer (publish has no semantic meaning for "clear").
+	const publishedAt = body?.publishedAt;
+
 	// Backdating overwrites historical record — gate behind publish_any
 	// regardless of ownership.
-	if (body?.publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
+	if (publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
 		return apiError(
 			"FORBIDDEN",
 			"Setting publishedAt requires content:publish_any permission",
@@ -71,7 +75,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 
 	const result = await emdash.handleContentPublish(collection, resolvedId, {
-		publishedAt: body?.publishedAt ?? undefined,
+		publishedAt,
 	});
 
 	if (!result.success) return unwrapResult(result);
