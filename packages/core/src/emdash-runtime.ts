@@ -969,23 +969,13 @@ export class EmDashRuntime {
 
 			await runMigrations(db);
 
-			// Best-effort cleanup of the persisted manifest cache row written
-			// by older versions. Always rebuilds from live DB now, so the row
-			// is dead weight; deleting it lets the options table shrink
-			// without requiring a migration. Gated on a one-shot
-			// `emdash:manifest_cache_cleaned` flag so the delete only runs
-			// once per install rather than on every isolate cold boot.
-			try {
-				const options = new OptionsRepository(db);
-				const alreadyCleaned = await options.get("emdash:manifest_cache_cleaned");
-				if (!alreadyCleaned) {
-					await options.delete("emdash:manifest_cache");
-					await options.set("emdash:manifest_cache_cleaned", true);
-				}
-			} catch {
-				// Non-fatal — options table may not exist yet on a brand-new
-				// install (migrations create it). Will retry next boot.
-			}
+			// Note: legacy installs may carry a stray `emdash:manifest_cache`
+			// row in the options table from versions that persisted a JSON
+			// manifest. The runtime no longer reads or writes it. We do not
+			// proactively delete it: the row is a few hundred bytes of dead
+			// weight and is never on the read path, whereas a one-shot
+			// cleanup-flag check costs an extra `options.get()` on every
+			// isolate cold boot forever. Cheaper to leave it.
 
 			// Auto-seed schema if no collections exist and setup hasn't run.
 			// This covers first-load on sites that skip the setup wizard.
