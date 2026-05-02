@@ -1,10 +1,9 @@
-import { type Kysely, sql } from "kysely";
+import { type Kysely } from "kysely";
+
+import { columnExists } from "../dialect-helpers.js";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
-	const tableInfo = await sql<{ name: string }>`PRAGMA table_info(credentials)`.execute(db);
-	const columnExists = tableInfo.rows.some((col) => col.name === "algorithm");
-
-	if (!columnExists) {
+	if (!(await columnExists(db, "credentials", "algorithm"))) {
 		await db.schema
 			.alterTable("credentials")
 			.addColumn("algorithm", "integer", (col) => col.notNull().defaultTo(-7))
