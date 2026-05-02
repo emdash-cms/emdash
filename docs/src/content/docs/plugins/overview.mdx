@@ -1,224 +1,78 @@
 ---
-title: Plugin System Overview
-description: Extend EmDash with plugins that add hooks, storage, settings, and admin UI.
+title: Plugins
+description: Extend EmDash with hooks, storage, settings, admin pages, and API routes.
 ---
 
-import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-EmDash's plugin system lets you extend the CMS without modifying core code. Plugins can hook into content lifecycle events, store their own data, expose settings to administrators, and add custom UI to the admin panel.
+Plugins extend EmDash without modifying core code. They can react to content lifecycle events, store their own data, expose settings to administrators, add pages to the admin panel, and serve API routes.
 
-## Design Philosophy
-
-EmDash plugins come in two flavors: **sandboxed** and **native**. Sandboxed plugins run in isolated V8 workers and can be installed from the marketplace with one click. Native plugins run in-process and are configured in code.
-
-**Prefer sandboxed plugins.** They can be installed, updated, and removed from the admin UI without touching code or redeploying. Only use native plugins when you need features that require build-time integration (React admin pages, Portable Text rendering components, or page fragment injection).
-
-**Key principles:**
-
-- **Sandbox-first** — Design for the sandbox; use native mode only when you need to
-- **Declarative** — Hooks, storage, and routes are declared at definition time, not registered dynamically
-- **Type-safe** — Full TypeScript support with typed context objects
-- **Capability-based** — Plugins declare what they need; the sandbox enforces it
-
-<Aside type="note">
-	EmDash plugins are not Astro integrations. They're passed to the EmDash integration in your
-	Astro config. A plugin that needs both can ship as an Astro integration that also registers
-	EmDash hooks.
-</Aside>
-
-## What Plugins Can Do
+## What plugins can do
 
 <CardGrid>
-	<Card title="Hook into events" icon="rocket">
-		Run code before or after content saves, media uploads, and plugin lifecycle events.
+	<Card title="React to events" icon="rocket">
+		Run code on content saves, media uploads, comment moderation, scheduled tasks, and plugin lifecycle events.
 	</Card>
 	<Card title="Store data" icon="document">
-		Persist plugin-specific data in indexed collections without writing database migrations.
-	</Card>
-	<Card title="Expose settings" icon="setting">
-		Declare a settings schema and get an auto-generated admin UI for configuration.
+		Persist plugin-specific records in indexed collections, plus a per-plugin key-value store for settings and state.
 	</Card>
 	<Card title="Add admin pages" icon="laptop">
-		Create custom admin pages and dashboard widgets with React components.
+		Contribute pages and dashboard widgets to the admin panel, with auto-generated settings forms.
 	</Card>
-	<Card title="Create API routes" icon="external">
-		Expose endpoints for your plugin's admin UI or external integrations.
+	<Card title="Serve API routes">
+		Expose endpoints under `/_emdash/api/plugins/<id>/<route>` for the admin UI or external integrations.
 	</Card>
-	<Card title="Make HTTP requests" icon="external">
-		Call external APIs with declared host restrictions for security.
+	<Card title="Call external APIs">
+		Make HTTP requests with declared host allowlists.
+	</Card>
+	<Card title="Send email">
+		Send transactional email through whichever provider is configured.
 	</Card>
 </CardGrid>
 
-## Plugin Architecture
+## Two kinds of plugins
 
-Every plugin is created with `definePlugin()`:
+EmDash plugins come in two flavours:
 
-```typescript
-import { definePlugin } from "emdash";
+- **Sandboxed plugins** run in an isolated runtime managed by a configurable sandbox runner. They can be installed from the marketplace with one click, are subject to capability and resource enforcement, and can't reach anything they didn't explicitly declare. This is the recommended choice for most plugins.
+- **Native plugins** run in the same process as your Astro site. They have full access to the runtime, can ship React admin pages and Portable Text rendering components, and inject HTML into public pages — but can't be published to the marketplace and require a code change plus a deploy to install.
 
-export default definePlugin({
-	id: "my-plugin",
-	version: "1.0.0",
+If you're installing a plugin someone else built, you almost always want sandboxed. If you're building one yourself, see [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/).
 
-	// What APIs the plugin needs access to
-	capabilities: ["content:read", "network:request"],
+## For site operators
 
-	// Hosts the plugin can make HTTP requests to
-	allowedHosts: ["api.example.com"],
+If you want to install or configure plugins on your site:
 
-	// Persistent storage collections
-	storage: {
-		entries: {
-			indexes: ["userId", "createdAt"],
-		},
-	},
+<LinkCard
+	title="Installing plugins"
+	href="/plugins/installing/"
+	description="Install from the marketplace, enable, configure settings."
+/>
 
-	// Event handlers
-	hooks: {
-		"content:afterSave": async (event, ctx) => {
-			ctx.log.info("Content saved", { id: event.content.id });
-		},
-	},
+## For plugin authors
 
-	// REST API endpoints
-	routes: {
-		status: {
-			handler: async (ctx) => ({ ok: true }),
-		},
-	},
-
-	// Admin UI configuration
-	admin: {
-		settingsSchema: {
-			apiKey: { type: "secret", label: "API Key" },
-		},
-		pages: [{ path: "/dashboard", label: "Dashboard" }],
-		widgets: [{ id: "status", size: "half" }],
-	},
-});
-```
-
-## Plugin Context
-
-Every hook and route handler receives a `PluginContext` object with access to:
-
-| Property      | Description                                          | Availability                           |
-| ------------- | ---------------------------------------------------- | -------------------------------------- |
-| `ctx.storage` | Plugin's document collections                        | Always (if declared)                   |
-| `ctx.kv`      | Key-value store for settings and state               | Always                                 |
-| `ctx.content` | Read/write site content                              | With `content:read` or `content:write` |
-| `ctx.media`   | Read/write media files                               | With `media:read` or `media:write`     |
-| `ctx.http`    | HTTP client for external requests                    | With `network:request`                 |
-| `ctx.log`     | Structured logger (debug, info, warn, error)         | Always                                 |
-| `ctx.plugin`  | Plugin metadata (id, version)                        | Always                                 |
-| `ctx.site`    | Site info: `name`, `url`, `locale`                   | Always                                 |
-| `ctx.url()`   | Generate absolute URLs from paths                    | Always                                 |
-| `ctx.users`   | Read user info: `get()`, `getByEmail()`, `list()`    | With `users:read`                      |
-| `ctx.cron`    | Schedule tasks: `schedule()`, `cancel()`, `list()`   | Always                                 |
-| `ctx.email`   | Send email: `send()`                                 | With `email:send` + provider configured |
-
-The context shape is identical across all hooks and routes. Capability-gated properties are only present when the plugin declares the required capability.
-
-## Capabilities
-
-Capabilities determine what APIs are available in the plugin context. Capability
-names follow the formula `<resource>[.<sub-resource>]:<verb>[:<qualifier>]` —
-resource first, verb second.
-
-| Capability                          | Grants Access To                                                       |
-| ----------------------------------- | ---------------------------------------------------------------------- |
-| `content:read`                      | `ctx.content.get()`, `ctx.content.list()`                              |
-| `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` |
-| `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                  |
-| `media:write`                       | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` |
-| `network:request`                   | `ctx.http.fetch()` (restricted to `allowedHosts`)                      |
-| `network:request:unrestricted`      | `ctx.http.fetch()` (unrestricted — for user-configured URLs)           |
-| `users:read`                        | `ctx.users.get()`, `ctx.users.getByEmail()`, `ctx.users.list()`        |
-| `email:send`                        | `ctx.email.send()` (requires a provider plugin)                        |
-| `hooks.email-transport:register`    | Register `email:deliver` exclusive hook (transport provider)           |
-| `hooks.email-events:register`       | Register `email:beforeSend` / `email:afterSend` hooks                  |
-| `hooks.page-fragments:register`     | Register `page:fragments` hook (inject scripts/styles into pages)      |
-
-<Aside type="tip">
-	`content:write` implies `content:read`. Same for media. Declare only what you
-	need.
-</Aside>
-
-<Aside type="caution" title="Renamed in this minor">
-	The capability names were unified in this minor. Old names are still accepted
-	with `@deprecated` warnings and will be removed in the next minor:
-
-	| Old                  | New                                |
-	| -------------------- | ---------------------------------- |
-	| `read:content`       | `content:read`                     |
-	| `write:content`      | `content:write`                    |
-	| `read:media`         | `media:read`                       |
-	| `write:media`        | `media:write`                      |
-	| `read:users`         | `users:read`                       |
-	| `network:fetch`      | `network:request`                  |
-	| `network:fetch:any`  | `network:request:unrestricted`     |
-	| `email:provide`      | `hooks.email-transport:register`   |
-	| `email:intercept`    | `hooks.email-events:register`      |
-	| `page:inject`        | `hooks.page-fragments:register`    |
-
-	`emdash plugin bundle` and `emdash plugin validate` warn for each
-	deprecated name. `emdash plugin publish` refuses manifests that still use
-	deprecated names — re-bundle after renaming.
-</Aside>
-
-## Registration
-
-Register plugins in your Astro configuration:
-
-```typescript title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import { emdash } from "emdash/astro";
-import seoPlugin from "@emdash-cms/plugin-seo";
-import auditLogPlugin from "@emdash-cms/plugin-audit-log";
-
-export default defineConfig({
-	integrations: [
-		emdash({
-			plugins: [seoPlugin({ generateSitemap: true }), auditLogPlugin({ retentionDays: 90 })],
-		}),
-	],
-});
-```
-
-Plugins are resolved at build time. Order matters for hooks with the same priority—earlier plugins in the array run first.
-
-## Execution Modes
-
-EmDash supports two plugin execution modes:
-
-| Mode          | Description                                | Platform        |
-| ------------- | ------------------------------------------ | --------------- |
-| **Sandboxed** | Isolated V8 workers with enforced limits   | Cloudflare only |
-| **Native**    | In-process with full access                | Any             |
-
-In sandboxed mode, capabilities are enforced at the runtime level -- plugins can only access what they declare. In native mode, capabilities are advisory and plugins have full process access.
-
-<Aside type="note">
-	Sandboxed execution requires Cloudflare Workers with Dynamic Worker Loader. Other platforms use
-	native mode only. See [Native vs. Sandboxed Plugins](/plugins/sandbox/) for a full comparison.
-</Aside>
-
-## Next Steps
+If you want to build a plugin:
 
 <CardGrid>
-	<Card title="Create a Plugin" icon="add-document">
-		[Build your first plugin](/plugins/creating-plugins/) with storage, hooks, and admin UI.
-	</Card>
-	<Card title="Available Hooks" icon="rocket">
-		[Browse all hooks](/plugins/hooks/) for content, media, and plugin lifecycle.
-	</Card>
-	<Card title="Plugin Storage" icon="document">
-		[Learn about storage](/plugins/storage/) and how to query plugin data.
-	</Card>
-	<Card title="Admin UI" icon="laptop">
-		[Add admin pages](/plugins/admin-ui/) and dashboard widgets.
-	</Card>
-	<Card title="Native vs. Sandboxed" icon="warning">
-		[Compare execution modes](/plugins/sandbox/) and choose the right one for your plugin.
-	</Card>
+	<LinkCard
+		title="Choosing a plugin format"
+		href="/plugins/creating-plugins/choosing-a-format/"
+		description="Sandboxed vs native — start here."
+	/>
+	<LinkCard
+		title="Your first sandboxed plugin"
+		href="/plugins/creating-plugins/your-first-plugin/"
+		description="Build, register, and run a hello-world sandboxed plugin."
+	/>
+	<LinkCard
+		title="Creating native plugins"
+		href="/plugins/creating-native-plugins/when-to-go-native/"
+		description="When you need React admin, PT components, or page fragments."
+	/>
 </CardGrid>
+
+<Aside type="note">
+	EmDash plugins are not Astro integrations. They're passed to the EmDash integration in your Astro
+	config. A plugin that needs both can ship as an Astro integration that also registers EmDash
+	hooks.
+</Aside>

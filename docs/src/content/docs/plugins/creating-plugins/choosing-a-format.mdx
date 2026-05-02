@@ -1,0 +1,89 @@
+---
+title: Choosing a plugin format
+description: Pick between sandboxed and native plugins before you start writing code.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+EmDash plugins ship in one of two formats: **sandboxed** or **native**. The choice affects how the plugin is installed, what enforcement it gets at runtime, and which features are available.
+
+**Default to sandboxed.** Sandboxed plugins can be published to the marketplace and installed from the admin UI with one click. Native plugins require a code change, an `npm install`, and a redeploy on every site that wants them. Sandboxed is what end users want.
+
+Choose native only when you need a feature the sandbox can't provide.
+
+## At a glance
+
+|                                     | Sandboxed                                          | Native                                |
+| ----------------------------------- | -------------------------------------------------- | ------------------------------------- |
+| `format` field on descriptor        | `"standard"`                                       | `"native"`                            |
+| Install method                      | One-click from the admin marketplace               | `npm install` + edit `astro.config`   |
+| Runs in                             | An isolated runtime provided by a sandbox runner   | Same process as your Astro site       |
+| Capabilities                        | Enforced by the sandbox bridge                     | Enforced in-process by the same bridge |
+| Resource limits                     | Enforced by the runner — typically CPU, subrequests, wall-time, memory | None                  |
+| Network access                      | `ctx.http` only, restricted to `allowedHosts`      | `ctx.http` only, restricted to `allowedHosts` |
+| Direct `fetch()` / `process.env`    | Blocked by the runner                              | Possible (plugin code shares the runtime) |
+| Distribution                        | `.tar.gz` bundle on the marketplace                | npm package                           |
+| Admin UI                            | Block Kit (JSON-described) routes                  | React components, or Block Kit        |
+| Settings UI                         | Block Kit page + KV reads                          | `admin.settingsSchema` (auto-form) or Block Kit |
+| Portable Text rendering components  | Not available                                      | `componentsEntry` provides Astro components |
+| Page metadata contributions         | `page:metadata` hook — meta/property tags, allowlisted `<link>` rels, JSON-LD | `page:metadata` hook (same surface) |
+| Page fragment injection             | Not available — meta/JSON-LD only via `page:metadata` | `page:fragments` hook — inline scripts, external scripts, raw HTML |
+| Constructor options                 | None — read settings from KV at runtime            | `options` on the descriptor           |
+
+## What you give up by going native
+
+Native plugins look like a more powerful version of the same thing, and they are — but the cost is steep:
+
+- **No marketplace.** Every site has to install your npm package, edit `astro.config.mjs`, and redeploy.
+- **No isolation.** A bug in your plugin can crash the host process or burn its CPU budget. An unhandled rejection in a hook can take the surrounding request down with it.
+- **Trust burden on the user.** Native plugins have the same access as the host site. End users can't audit them through capability declarations alone.
+
+If your plugin can do its job in the sandbox, it should.
+
+## When to go native
+
+There are three reasons to choose native, and they're all about features that need build-time integration with the host site:
+
+1. **Custom React admin pages or widgets.** Sandboxed plugins describe their admin UI with Block Kit — a JSON schema that the admin renders on the plugin's behalf. If you need full React (custom hooks, third-party components, complex state), you need native.
+2. **Astro components for rendering Portable Text blocks on the public site.** A plugin can declare a custom block type with `format: "standard"`, but the Astro components that render it on the public site have to be loaded at build time from npm. Only native plugins can provide a `componentsEntry`.
+3. **Injecting raw HTML, scripts, or stylesheets into public pages.** The `page:fragments` hook ships first-party code to visitors' browsers — outside any sandbox boundary. It's restricted to native plugins. Sandboxed plugins can still contribute to public pages through the `page:metadata` hook, which covers a lot of real use cases:
+
+   - `meta` tags (`name` + `content`) — SEO descriptions, robots directives, Twitter cards
+   - `property` tags — OpenGraph and other property-based meta
+   - `link` tags with a security-locked rel allowlist (`canonical`, `alternate`, `author`, `license`, `nlweb`, `site.standard.document`) — `stylesheet`, `prefetch`, and similar resource-loading rels are deliberately not allowed
+   - JSON-LD graphs
+
+   If your "page injection" need is structured data or SEO metadata, stay sandboxed and use `page:metadata`. If you actually need to ship JavaScript or HTML into the visitor's browser, that's the case for going native.
+
+If you're not sure, go sandboxed. You can always migrate to native later — but the reverse is harder, because native-only features have no sandbox equivalent.
+
+<Aside type="note" title="Same hooks, same context">
+	Sandboxed and native plugins use the same hook names, the same `PluginContext` API, and the same
+	storage and KV helpers. The format choice changes how the plugin is packaged and what extra
+	features are available — not the day-to-day code you write inside hooks and routes.
+</Aside>
+
+## Sandbox runners and platform support
+
+The sandbox itself is pluggable. EmDash exposes a `sandboxRunner` config option and the runner decides how plugin code is isolated — there's nothing Cloudflare-specific in the plugin format itself.
+
+The runner most sites use today is `sandbox()` from `@emdash-cms/cloudflare`, which uses Cloudflare Workers' [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/) to spawn a fresh isolate per plugin invocation. Runners for other platforms are in development.
+
+If no runner is configured, or if the configured runner reports as unavailable on the current platform, plugins listed under `sandboxed: []` are skipped at startup with a debug-level log.
+
+If you want a standard-format plugin to run on a platform without a sandbox runner, move it from `sandboxed: []` into the `plugins: []` array — it'll execute in-process. Capability declarations are still honoured (the same `PluginContext` factory gates `ctx.content`, `ctx.http`, and friends), but there is no isolation boundary, no resource limits, and a buggy or malicious plugin can call `fetch()` directly, read environment variables, or block the event loop. Without a sandbox runner active, treat every plugin as a native plugin for trust purposes.
+
+## Next
+
+<CardGrid>
+	<LinkCard
+		title="Your first sandboxed plugin"
+		href="/plugins/creating-plugins/your-first-plugin/"
+		description="Build, register, and run a hello-world sandboxed plugin."
+	/>
+	<LinkCard
+		title="When to go native"
+		href="/plugins/creating-native-plugins/when-to-go-native/"
+		description="The three native-only features, in detail."
+	/>
+</CardGrid>

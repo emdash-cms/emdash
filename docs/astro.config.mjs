@@ -84,17 +84,35 @@ export default defineConfig({
 					label: "Plugins",
 					items: [
 						{ label: "Plugin Overview", slug: "plugins/overview" },
-						{ label: "Creating Plugins", slug: "plugins/creating-plugins" },
-						{ label: "Plugin Hooks", slug: "plugins/hooks" },
-						{ label: "Plugin Storage", slug: "plugins/storage" },
-						{ label: "Plugin Settings", slug: "plugins/settings" },
-						{ label: "Admin UI Extensions", slug: "plugins/admin-ui" },
+						{ label: "Installing Plugins", slug: "plugins/installing" },
+					],
+				},
+				{
+					label: "Creating Sandboxed Plugins",
+					items: [
+						{
+							label: "Choosing a Plugin Format",
+							slug: "plugins/creating-plugins/choosing-a-format",
+						},
+						{
+							label: "Your First Plugin",
+							slug: "plugins/creating-plugins/your-first-plugin",
+						},
+						{ label: "Hooks", slug: "plugins/hooks" },
+						{ label: "API Routes", slug: "plugins/api-routes" },
+						{ label: "Storage", slug: "plugins/storage" },
+						{ label: "Settings", slug: "plugins/settings" },
 						{ label: "Block Kit", slug: "plugins/block-kit" },
 						{ label: "Field Kit", slug: "plugins/field-kit" },
-						{ label: "API Routes", slug: "plugins/api-routes" },
 						{ label: "Sandbox & Security", slug: "plugins/sandbox" },
 						{ label: "Publishing Plugins", slug: "plugins/publishing" },
-						{ label: "Installing Plugins", slug: "plugins/installing" },
+					],
+				},
+				{
+					label: "Creating Native Plugins",
+					items: [
+						{ label: "Creating Native Plugins", slug: "plugins/creating-plugins" },
+						{ label: "Admin UI Extensions", slug: "plugins/admin-ui" },
 					],
 				},
 				{
