@@ -195,6 +195,8 @@ This proposal builds on the [AT Protocol](https://atproto.com/guides/overview) (
 
 - **[AppView](https://atproto.com/guides/overview)** — In atproto vocabulary: a service that subscribes to the firehose, indexes records it cares about, and serves an API for clients. Think of it like a specialised search engine and API for a particular type of atproto data. Unlike most other atproto services, an AppView is not generic; it is custom-built for a particular service where it implements the business logic of that app. Bluesky runs one AppView, as do third-party services such as [Leaflet](https://leaflet.pub/) or [Streamplace](https://stream.place/). This RFC uses the more general term **aggregator** for the equivalent role in the registry, both because that's FAIR's term for the same role and because it doesn't require atproto familiarity to read. The reference EmDash aggregator is implemented as an atproto AppView.
 
+- **[XRPC](https://atproto.com/specs/xrpc)** — atproto's HTTP+JSON RPC layer. Mechanically just plain HTTPS GET/POST with JSON request/response bodies, served at `/xrpc/{nsid}` paths. Endpoints are described by Lexicons (the same schema language used for records), so clients in every atproto SDK can be generated from those Lexicons. From a non-atproto client's perspective it's indistinguishable from a regular JSON REST API; from an atproto client's perspective the schemas, error envelope, and service-discovery conventions are uniform across every service in the network.
+
 - **[Labeller](https://atproto.com/specs/label)** — A service that publishes signed labels about records or accounts (e.g. "verified", "spam", "nsfw"). Labels are a lightweight moderation primitive that can be consumed by aggregators and clients.
 
 ## Plugin Types
@@ -505,10 +507,10 @@ sequenceDiagram
     participant Mirror as Aggregator Mirror / CDN
 
     User->>Admin: Browse / search plugins
-    Admin->>Aggregator: GET /v1/packages?q=gallery
+    Admin->>Aggregator: GET /xrpc/com.emdashcms.aggregator.searchPackages?q=gallery
     Aggregator-->>Admin: Search results
     User->>Admin: Click "Install"
-    Admin->>Aggregator: GET /v1/resolve/example.dev/gallery-plugin
+    Admin->>Aggregator: GET /xrpc/com.emdashcms.aggregator.resolvePackage?handle=example.dev&slug=gallery-plugin
     Aggregator-->>Admin: Package + release record + mirror URLs
     Admin->>PDS: Fetch package + release records by AT URI<br/>(verify MST signature)
     PDS-->>Admin: Signed records (ground truth)
@@ -686,22 +688,28 @@ Directory-based packaging, upload flows, hosted artifact publishing, and dedicat
 
 The core indexing service. Subscribes to a relay firehose, filters for `pm.fair.package.*` records (or the `com.emdashcms.package.*` fallback), indexes into a database, auto-mirrors release artifacts (subject to [Mirror policy](#mirror-policy)), and serves a public read API. The reference deployment splits the API service and the artifact mirror across two Cloudflare Workers on separate domains, following the same pattern Bluesky uses for `api.bsky.app` vs. `video.bsky.app` / `cdn.bsky.app`. The API stays low-bandwidth and cookieless; the artifact mirror carries the egress. The aggregator software is open source and can be self-hosted by anyone. We expect EmDash hosting platforms may run their own aggregator instances, both for resilience and to have more control over mirroring policies.
 
-API surface:
+**API surface.** The aggregator exposes its read API as [XRPC](https://atproto.com/specs/xrpc) — atproto's HTTP+JSON RPC layer — with endpoints defined as Lexicons under `com.emdashcms.aggregator.*` (or `pm.fair.aggregator.*` if FAIR adopts the namespace). XRPC is not exotic: it's plain HTTPS GET/POST with JSON bodies, served from `/xrpc/{nsid}` paths. Choosing it here means we describe the entire registry — records and APIs — in one Lexicon-defined schema system, atproto SDKs in any language pick up our APIs by codegen, and the aggregator participates in the same service-discovery conventions as every other atproto service. Non-atproto clients can hit the endpoints with `fetch` or `curl` directly; nothing about XRPC requires an atproto-aware client for read traffic.
 
-| Endpoint                                      | Description                                                                              |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET /v1/packages`                            | List/search packages. Supports `?q=` for search and pagination.                          |
-| `GET /v1/packages/:did/:slug`                 | Get a specific package by canonical package identity.                                    |
-| `GET /v1/packages/:did/:slug/releases`        | List releases for the package identified by `did/slug`.                                  |
-| `GET /v1/packages/:did/:slug/releases/latest` | Get the latest release for the package, wrapped in an envelope with current mirror URLs. |
-| `GET /v1/resolve/:handle/:slug`               | Resolve `handle/slug` to its canonical `did/slug` identity and return the package.       |
+| Lexicon (NSID)                              | Description                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `com.emdashcms.aggregator.searchPackages`   | List/search packages. Query parameters include `q`, `limit`, `cursor` (atproto pagination convention). |
+| `com.emdashcms.aggregator.getPackage`       | Get a specific package by canonical `did` and `slug`.                                                  |
+| `com.emdashcms.aggregator.listReleases`     | List releases for the package identified by `did` and `slug`.                                          |
+| `com.emdashcms.aggregator.getLatestRelease` | Get the latest release for a package, wrapped in an envelope with current mirror URLs.                 |
+| `com.emdashcms.aggregator.resolvePackage`   | Resolve `handle` and `slug` to canonical `did/slug` identity and return the package.                   |
 
-All release-returning endpoints return the envelope described in [Artifact mirroring](#artifact-mirroring): the signed release record plus a `mirrors` array of URLs the aggregator is currently serving the artifact from. The specific mirror URL scheme is an implementation detail of each aggregator and is not part of the protocol.
+A request looks like:
+
+```
+GET /xrpc/com.emdashcms.aggregator.searchPackages?q=gallery&limit=20
+```
+
+returning JSON of the shape `{ packages: [...], cursor }`. All release-returning endpoints return the envelope described in [Artifact mirroring](#artifact-mirroring): the signed release record plus a `mirrors` array of URLs the aggregator is currently serving the artifact from. The specific mirror URL scheme is an implementation detail of each aggregator and is not part of the protocol.
 
 **Aggregator selection.** EmDash sites choose which aggregator they use via a three-layer precedence chain:
 
 1. **Default**, baked into EmDash. Points at the official aggregator we operate. Works out of the box, no configuration needed.
-2. **`astro.config.mjs`**, via a `plugins.registryaggregator` (or similar) option on the `emdash()` integration. Suitable for enterprise/air-gapped deployments where the aggregator choice is part of the site's build configuration.
+2. **`astro.config.mjs`**, via a `plugins.registryAggregator` (or similar) option on the `emdash()` integration. Suitable for enterprise/air-gapped deployments where the aggregator choice is part of the site's build configuration.
 3. **Admin UI setting**, for runtime override without a redeploy. Stored per-site; takes precedence over the config value.
 
 Precedence is admin-UI > astro.config > default. The config and admin settings accept a base URL; EmDash constructs API paths relative to it.
@@ -783,21 +791,24 @@ Commands:
 
 **Client library (npm package)**
 
-A TypeScript library wrapping the lexicon operations for third-party integrations:
+A TypeScript library wrapping the Lexicon operations for third-party integrations. The discovery half wraps an XRPC agent pointed at the configured aggregator; the publishing half wraps a PDS-bound atproto agent.
 
 ```ts
 import { RegistryClient } from "@emdash/plugin-registry";
 
 const client = new RegistryClient({
-	appView: "https://registry.emdashcms.com",
+	aggregator: "https://registry.emdashcms.com",
 });
 
-// Discovery (reads from aggregator)
-const results = await client.search("gallery");
-const pkg = await client.getPackage("example.dev", "gallery-plugin");
+// Discovery (XRPC calls to aggregator)
+const results = await client.searchPackages({ q: "gallery" });
+const pkg = await client.getPackage({ did: "did:plc:abc...", slug: "gallery-plugin" });
 
 // Release responses are enveloped: the signed record plus aggregator-advertised mirror URLs.
-const { release, mirrors } = await client.getLatestRelease("example.dev", "gallery-plugin");
+const { release, mirrors } = await client.getLatestRelease({
+	handle: "example.dev",
+	slug: "gallery-plugin",
+});
 // mirrors[] is the ordered list of aggregator mirror URLs; the client tries these before the
 // artifact's declared url, and verifies the downloaded bytes against the artifact's
 // checksum at each step.
