@@ -367,23 +367,68 @@ Vendors SHOULD specify at least one of `url` or `email` per contact. Clients SHO
 
 ### `pm.fair.package.release`
 
-The atproto-record form of FAIR's [Release Document](https://github.com/fairpm/fair-protocol/blob/main/specification.md#release-document). The record key is the version string, so a release's AT URI is e.g. `at://did:plc:abc123/pm.fair.package.release/1.2.0`. FAIR specifies version immutability: a release at a given version cannot be modified or replaced once published.
+The atproto-record form of FAIR's [Release Document](https://github.com/fairpm/fair-protocol/blob/main/specification.md#release-document). The record key encodes both the parent package's slug and the version, separated by `:` (see [Release rkey format](#release-rkey-format) below) — so a release's AT URI looks like `at://did:plc:abc123/pm.fair.package.release/gallery-plugin:1.2.0`. FAIR specifies version immutability: a release at a given version cannot be modified or replaced once published.
 
 **Schema** (matches FAIR Release Document):
 
-| Property     | Type   | Required                     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------ | ------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `version`    | string | yes                          | Version, conforming to FAIR's version syntax (semver-compatible). MUST match the record's rkey. atproto [Record Keys](https://atproto.com/specs/record-key) restrict allowed characters; semver characters not permitted in an rkey (notably `+` for build metadata) MUST be percent-encoded in the rkey, with the unencoded form recorded in `version`. The CLI handles this transparently and aggregators MUST verify both forms are consistent. |
-| `artifacts`  | object | yes                          | Map of artifact type to artifact object (or list of artifact objects). MUST have at least one entry. See [Artifacts](#artifacts).                                                                                                                                                                                                                                                                                                                  |
-| `provides`   | object | no                           | Capabilities the package provides. Map of capability type to string or list of strings.                                                                                                                                                                                                                                                                                                                                                            |
-| `requires`   | object | no                           | Dependencies. Map of `env:*` keys (extension-defined environment requirements) or package DIDs to version constraint strings. EmDash uses `env:emdash` and `env:astro`.                                                                                                                                                                                                                                                                            |
-| `suggests`   | object | no                           | Optional packages that may be installed alongside. Same shape as `requires`.                                                                                                                                                                                                                                                                                                                                                                       |
-| `auth`       | object | no                           | Authentication requirements (FAIR's commercial / private packages). Out of scope for v1 EmDash use, but the field is reserved.                                                                                                                                                                                                                                                                                                                     |
-| `sbom`       | Sbom   | no                           | Software bill of materials reference. See [SBOM](#sbom).                                                                                                                                                                                                                                                                                                                                                                                           |
-| `repo`       | string | no                           | AT URI or HTTPS URL of the source repository for this release (atproto lexicon `format: "uri"`). Equivalent to FAIR's `https://fair.pm/rel/repo` HAL relation.                                                                                                                                                                                                                                                                                     |
-| `extensions` | object | no (yes for `emdash-plugin`) | Open-union container for extension data, keyed by NSID. Each value is an embedded record carrying its own `$type` discriminator. Releases of type `emdash-plugin` MUST include a `com.emdashcms.package.releaseExtension` entry here. See [EmDash extension](#emdash-extension).                                                                                                                                                                   |
+| Property     | Type   | Required                     | Description                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------ | ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package`    | string | yes                          | Slug of the parent package profile. MUST match the rkey of an existing `pm.fair.package.profile` record in the same repository. The publisher DID is implicit from the record's location; combined with `package`, the parent profile's AT URI is `at://<publisher-did>/pm.fair.package.profile/<package>`. Aggregators MUST reject release records whose `package` field does not resolve to a profile in the same repository. |
+| `version`    | string | yes                          | Version, conforming to a subset of [semver 2.0](https://semver.org) (build metadata `+...` is disallowed because atproto record keys can't represent it). MUST equal the post-`:` portion of the rkey byte-for-byte. See [Release rkey format](#release-rkey-format) below for the formal grammar.                                                                                                                              |
+| `artifacts`  | object | yes                          | Map of artifact type to artifact object (or list of artifact objects). MUST have at least one entry. See [Artifacts](#artifacts).                                                                                                                                                                                                                                                                                               |
+| `provides`   | object | no                           | Capabilities the package provides. Map of capability type to string or list of strings.                                                                                                                                                                                                                                                                                                                                         |
+| `requires`   | object | no                           | Dependencies. Map of `env:*` keys (extension-defined environment requirements) or package DIDs to version constraint strings. EmDash uses `env:emdash` and `env:astro`.                                                                                                                                                                                                                                                         |
+| `suggests`   | object | no                           | Optional packages that may be installed alongside. Same shape as `requires`.                                                                                                                                                                                                                                                                                                                                                    |
+| `auth`       | object | no                           | Authentication requirements (FAIR's commercial / private packages). Out of scope for v1 EmDash use, but the field is reserved.                                                                                                                                                                                                                                                                                                  |
+| `sbom`       | Sbom   | no                           | Software bill of materials reference. See [SBOM](#sbom).                                                                                                                                                                                                                                                                                                                                                                        |
+| `repo`       | string | no                           | AT URI or HTTPS URL of the source repository for this release (atproto lexicon `format: "uri"`). Equivalent to FAIR's `https://fair.pm/rel/repo` HAL relation.                                                                                                                                                                                                                                                                  |
+| `extensions` | object | no (yes for `emdash-plugin`) | Open-union container for extension data, keyed by NSID. Each value is an embedded record carrying its own `$type` discriminator. Releases of type `emdash-plugin` MUST include a `com.emdashcms.package.releaseExtension` entry here. See [EmDash extension](#emdash-extension).                                                                                                                                                |
 
-The release record references its parent package implicitly: the record's location (`at://<publisher-did>/pm.fair.package.release/<version>`) gives the publisher DID, and clients pair a release with its package by listing the `pm.fair.package.profile` collection in the same repository. Releases do not carry a separate parent-package reference field — the package profile and its releases are co-located in the publisher's repo by construction. (When serving these through FAIR HTTP, an aggregator synthesises the `https://fair.pm/rel/package` HAL relationship pointing at the corresponding profile document.)
+#### Release rkey format
+
+A single publisher DID may host multiple package profiles. The release record's location must therefore identify both the package and the version. The rkey encodes both, with the package slug and version separated by a colon (`:`):
+
+```
+at://<publisher-did>/pm.fair.package.release/<package>:<version>
+```
+
+For example: `at://did:plc:abc123/pm.fair.package.release/gallery-plugin:1.2.0`.
+
+Both halves of the rkey are subject to validation rules:
+
+- The portion before `:` MUST equal `package` and follow the same grammar as `slug` on the package profile.
+- The portion after `:` MUST equal `version`, byte-for-byte. The version string MUST therefore be composed only of characters allowed in atproto record keys: ASCII letters (`a-zA-Z`), digits (`0-9`), `.`, `-`, `_`, and `~`. Note that `:` is not permitted inside the version because it is the separator. Percent-encoding is **not** allowed (atproto record keys reserve but do not currently support `%`).
+
+Aggregators MUST verify that:
+
+1. The rkey contains exactly one `:` separator.
+2. The pre-`:` portion equals `record.package`.
+3. The post-`:` portion equals `record.version`.
+4. A `pm.fair.package.profile` record with rkey equal to `record.package` exists in the same repository.
+
+A release whose `package` field does not resolve to a profile in the same repository, or whose rkey does not match the expected `<package>:<version>` shape, MUST be rejected at ingest by aggregators and at install time by clients.
+
+##### Restrictions on `version`
+
+EmDash registry versions are a strict subset of [semver 2.0](https://semver.org). The following semver constructs are disallowed because they cannot be represented in an atproto record key:
+
+- **Build metadata** (`+build.1`). Semver build metadata is informational and does not affect precedence; we drop support for it. Authors who want to track build identifiers MUST use a different mechanism (e.g. an artifact-level `id` field, or fields outside the registry record).
+
+Prerelease tags (`-rc.1`, `-alpha`, etc.) are supported because their characters (`-`, `.`, alphanumerics) are all rkey-safe. Standard semver precedence rules apply for ordering.
+
+Formally, the version grammar is:
+
+```
+version    := core ( "-" prerelease )?
+core       := digits "." digits "." digits
+prerelease := identifier ( "." identifier )*
+identifier := [a-zA-Z0-9-]+        ; cannot be all-numeric with leading zeros, per semver
+digits     := "0" | [1-9] [0-9]*
+```
+
+This is semver minus the build-metadata segment. Aggregators and clients MUST reject release records whose `version` does not match this grammar.
+
+The release record's parent package is therefore explicit (via the `package` field, validated against the rkey and against the existence of the corresponding profile) rather than implicit. When serving these through FAIR HTTP, an aggregator synthesises the `https://fair.pm/rel/package` HAL relationship from `record.package` plus the implicit publisher DID.
 
 #### Artifacts
 
@@ -442,6 +487,7 @@ EmDash defines a secondary Lexicon, `com.emdashcms.package.releaseExtension`, wh
 ```json
 {
 	"$type": "pm.fair.package.release",
+	"package": "gallery-plugin",
 	"version": "1.0.0",
 	"extensions": {
 		"com.emdashcms.package.releaseExtension": {
@@ -478,8 +524,8 @@ Capability vocabulary is owned by the EmDash runtime spec and may evolve indepen
 
 **Latest release selection:**
 
-- The latest release is the highest semver `version` for a package.
-- Per FAIR's version-immutability rule (FAIR PR #77), if two records claim the same version, the record with the earliest creation time wins; later records MUST be ignored by aggregators and rejected by install clients.
+- The latest release for a package is the release record in the same repository with `record.package` equal to the target package's slug, having the highest semver `version` (compared using full semver precedence rules, not lexicographic ordering).
+- Per FAIR's version-immutability rule (FAIR PR #77), if two release records share the same `(package, version)` pair, the record with the earliest creation time wins; later records MUST be ignored by aggregators and rejected by install clients. Aggregators SHOULD log duplicate-version attempts for audit and metrics.
 - Deletion semantics follow proposed [FAIR PR #80](https://github.com/fairpm/fair-protocol/pull/80): deleted release records are tombstoned, MUST NOT appear in latest-release selection, and SHOULD NOT trigger uninstall on already-installed clients.
 
 Yanked / deprecated states for releases or packages are not first-class fields in this RFC — they are handled via the labeller layer (see [Relationship to FAIR](#relationship-to-fair) and the trust/moderation follow-on RFC). A `security:yanked` or `deprecated` label on a release or package's AT URI signals client UI behaviour without changing the registry's protocol shape.
@@ -535,8 +581,9 @@ The PDS-direct fetch is the trust anchor for installation — the aggregator is 
 2. Form the canonical package identity: `<did>/gallery-plugin`.
 3. Construct the AT URI: `at://<did>/pm.fair.package.profile/gallery-plugin`.
 4. Fetch the package record from the author's PDS.
-5. Fetch the latest release record by highest semver version (excluding any tombstoned via deletion or labelled `security:yanked`).
-6. Fetch the `package` artifact (see [Artifact retrieval](#artifact-retrieval)) using its `url`. Verify the artifact's `checksum` against the downloaded bytes. Verify the bundle manifest matches `release.emdash.capabilities` and `release.emdash.allowedHosts`. Install to the sandbox.
+5. Determine the latest release for this package. The aggregator's `listReleases` endpoint returns releases scoped to `(did, package)` and is the recommended path. If the aggregator is unavailable, the client falls back to the publisher's PDS: it pages through the `pm.fair.package.release` collection via `com.atproto.repo.listRecords` and filters locally to records whose rkey starts with `<package>:`. (atproto's `listRecords` does not support a server-side rkey prefix filter, so the PDS-direct path is a full collection scan; this is acceptable for occasional use but is the reason the aggregator path is preferred.) Pick the highest semver version (excluding any tombstoned via deletion or labelled `security:yanked`).
+6. Fetch the selected release record from the author's PDS by its full AT URI (`at://<did>/pm.fair.package.release/<package>:<version>`) to obtain the verified, signed copy. Verify the release record matches what the aggregator returned in step 5.
+7. Fetch the `package` artifact (see [Artifact retrieval](#artifact-retrieval)) using its `url`. Verify the artifact's `checksum` against the downloaded bytes. Verify the bundle manifest matches `release.emdash.capabilities` and `release.emdash.allowedHosts`. Install to the sandbox.
 
 ### Metadata resolution
 
@@ -828,7 +875,10 @@ await client.createPackage(agent, {
 });
 
 // Releases follow FAIR's Release Document shape, with EmDash extension data.
+// `package` references the parent profile by slug; the resulting release is
+// stored at at://<did>/pm.fair.package.release/gallery-plugin:1.0.0.
 await client.createRelease(agent, {
+	package: "gallery-plugin",
 	version: "1.0.0",
 	artifacts: {
 		package: {
@@ -983,7 +1033,8 @@ The "Verified Publisher" badge is scoped to **sandboxed plugins published in the
 
 - **Tampered artifacts:** Serve a bundle archive whose bytes do not match the artifact's multibase checksum; verify the client rejects it, no matter which source (author URL, aggregator mirror, local mirror) served it.
 - **Mirror as arbitrary-file dump:** Publish a release record whose artifact `checksum` points at an unrelated binary; verify the aggregator refuses to mirror it.
-- **Duplicate-version override:** Publish a second release record with the same `version` as an existing release; verify the aggregator ignores the later record, install clients refuse it, and the earlier record remains canonical.
+- **Duplicate-version override:** Publish a second release record with the same `(package, version)` pair as an existing release; verify the aggregator ignores the later record, install clients refuse it, and the earlier record remains canonical.
+- **Cross-package release confusion:** Publish a release whose `package` field references a profile that doesn't exist in the same repository; verify the aggregator rejects it at ingest. Publish a release whose rkey doesn't match `<package>:<version>`; verify the aggregator rejects it at ingest.
 - **Ingestion spam:** Publish records faster than the aggregator's per-DID rate limit; verify excess records are dropped at ingest and the aggregator stays responsive.
 - **Capability inflation:** Publish a release whose `release.emdash.capabilities` list claims fewer permissions than the bundle's `manifest.json` actually requests. Verify the EmDash client rejects the install at manifest-consistency check time.
 - **Forged records:** Attempt to create records claiming to be from a different DID; verify the aggregator and client reject them (via MST signature failure).
