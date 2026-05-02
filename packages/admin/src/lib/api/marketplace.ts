@@ -206,23 +206,41 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Human-readable labels for plugin capabilities */
+/**
+ * Human-readable labels for plugin capabilities.
+ *
+ * Canonical names are the keys; legacy names alias to the same labels so
+ * old manifests still render meaningful copy until they're republished.
+ */
 export const CAPABILITY_LABELS: Record<string, string> = {
+	// Canonical
+	"content:read": "Read your content",
+	"content:write": "Create, update, and delete content",
+	"media:read": "Access your media library",
+	"media:write": "Upload and manage media",
+	"users:read": "Read user accounts",
+	"network:request": "Make network requests",
+	"network:request:unrestricted": "Make network requests to any host (unrestricted)",
+	// Legacy aliases (still emitted by older installed manifests)
 	"read:content": "Read your content",
 	"write:content": "Create, update, and delete content",
 	"read:media": "Access your media library",
 	"write:media": "Upload and manage media",
+	"read:users": "Read user accounts",
 	"network:fetch": "Make network requests",
 	"network:fetch:any": "Make network requests to any host (unrestricted)",
 };
 
+/** Capability names that grant scoped network access (legacy + canonical). */
+const NETWORK_REQUEST_CAPABILITIES = new Set(["network:request", "network:fetch"]);
+
 /**
  * Get a human-readable description for a capability.
- * For network:fetch, appends the allowed hosts if provided.
+ * For scoped network capabilities, appends the allowed hosts if provided.
  */
 export function describeCapability(capability: string, allowedHosts?: string[]): string {
 	const base = CAPABILITY_LABELS[capability] ?? capability;
-	if (capability === "network:fetch" && allowedHosts && allowedHosts.length > 0) {
+	if (NETWORK_REQUEST_CAPABILITIES.has(capability) && allowedHosts && allowedHosts.length > 0) {
 		return `${base} to: ${allowedHosts.join(", ")}`;
 	}
 	return base;

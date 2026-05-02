@@ -927,6 +927,8 @@ async function applyWidget(
 			sort_order: sortOrder,
 			type: widget.type,
 			title: widget.title ?? null,
+			// `widget.content` is Portable Text for content-type widgets;
+			// for other widget kinds it's null.
 			content: widget.content ? JSON.stringify(widget.content) : null,
 			menu_name: widget.menuName ?? null,
 			component_id: widget.componentId ?? null,

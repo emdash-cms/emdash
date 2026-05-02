@@ -1,7 +1,7 @@
 name: PR Compliance
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, edited, synchronize]
 
@@ -12,7 +12,14 @@ permissions:
 jobs:
   check-pr:
     name: Validate PR
-    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' && github.actor != 'emdashbot[bot]'
+    # Filter on the PR author, not github.actor: actor becomes a maintainer on
+    # synchronize/edited events triggered by pushes or merges into a bot branch,
+    # which lets bot PRs slip past an actor-based check.
+    if: >-
+      github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'renovate[bot]'
+      && github.event.pull_request.user.login != 'emdashbot[bot]'
+      && github.event.pull_request.user.login != 'ask-bonk[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

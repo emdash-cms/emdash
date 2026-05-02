@@ -1,0 +1,161 @@
+---
+title: EmDash Docs MCP
+description: Connect your AI coding assistant to the EmDash documentation so it can answer questions and find the right pattern from real docs.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+The EmDash documentation site exposes a [Model Context Protocol](https://modelcontextprotocol.io) server at `https://docs.emdashcms.com/mcp`. Connect your coding assistant to it and the assistant can search the docs as you work, instead of guessing from training data that may be out of date.
+
+This is **separate from your site's MCP server** (covered in the [AI Tools guide](/guides/ai-tools)). The docs MCP only knows about EmDash's documentation -- it cannot read or modify your content. Most developers want both: the docs MCP to look things up, and the site MCP to manage content.
+
+## What it does
+
+The docs MCP exposes a single tool:
+
+| Tool          | Purpose                                                                                       |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| `search_docs` | Search the EmDash documentation. Returns relevant chunks with source URLs and match scores. |
+
+Behind the scenes it uses [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/) over an index built from `docs.emdashcms.com`. The crawler keeps the index in sync with the published site, so answers reflect the docs you're reading.
+
+## Connect it
+
+The endpoint is:
+
+```
+https://docs.emdashcms.com/mcp
+```
+
+No authentication, no API key. It's public and read-only.
+
+### Auto-discovery in EmDash templates
+
+If you started your project from an EmDash template (`npm create emdash`), three config files are already in place and will be picked up automatically:
+
+| File                | Used by      |
+| ------------------- | ------------ |
+| `.mcp.json`         | Claude Code  |
+| `.cursor/mcp.json`  | Cursor       |
+| `.vscode/mcp.json`  | VS Code      |
+
+Just open the project and accept the workspace-trust prompt your tool shows on first run. Nothing else to do.
+
+### Manual setup
+
+If you're not using a template, or you use a different tool, add it once with the snippet for your client:
+
+<Tabs>
+<TabItem label="Claude Code">
+
+Add the server with the Claude Code CLI:
+
+```bash
+claude mcp add --transport http emdash-docs https://docs.emdashcms.com/mcp
+```
+
+Or commit a `.mcp.json` at your project root:
+
+```json
+{
+  "mcpServers": {
+    "emdash-docs": {
+      "type": "http",
+      "url": "https://docs.emdashcms.com/mcp"
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem label="OpenCode">
+
+Add to your `opencode.jsonc`:
+
+```jsonc
+{
+  "mcp": {
+    "emdash-docs": {
+      "type": "remote",
+      "url": "https://docs.emdashcms.com/mcp"
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Cursor">
+
+Commit `.cursor/mcp.json` at your project root, or add it via **Cursor Settings -> MCP -> Add new MCP server**:
+
+```json
+{
+  "mcpServers": {
+    "emdash-docs": {
+      "type": "http",
+      "url": "https://docs.emdashcms.com/mcp"
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem label="VS Code">
+
+Add to `.vscode/mcp.json` in your project (or your user settings):
+
+```json
+{
+  "servers": {
+    "emdash-docs": {
+      "type": "http",
+      "url": "https://docs.emdashcms.com/mcp"
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Claude Desktop">
+
+Claude Desktop only supports stdio MCP servers natively, so use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge. Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "emdash-docs": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://docs.emdashcms.com/mcp"]
+    }
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## When to use it
+
+- You're building an EmDash site and want your AI assistant to look up the correct API, hook name, or config option from current docs rather than half-remembered training data.
+- You're writing a plugin and want to find which hooks fire in what order.
+- You're porting a WordPress theme and want examples of seed file patterns.
+- You're stuck on an error and want to search release notes and concepts.
+
+## Recommend it in your AGENTS.md
+
+If your project uses `AGENTS.md` (or `CLAUDE.md`, `.cursorrules`, etc.) to instruct AI tools, point them at the docs MCP so they prefer real documentation over assumptions:
+
+```markdown title="AGENTS.md"
+## Documentation
+
+Look up EmDash documentation via the `emdash-docs` MCP server when you need to
+verify an API, hook, config option, or pattern. Prefer the docs MCP over
+assumptions from training data -- the docs reflect the current published
+behaviour.
+```
+
+The EmDash starter templates ship with this snippet pre-included.
+
+<Aside title="Privacy">
+	The docs MCP is hosted by the EmDash project. Queries are sent to `docs.emdashcms.com` and processed by Cloudflare AI Search. Don't include private code, secrets, or user data in queries -- the tool is designed for documentation lookup, not code analysis.
+</Aside>

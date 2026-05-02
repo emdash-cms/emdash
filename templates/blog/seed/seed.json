@@ -6,12 +6,10 @@
 		"description": "A blog with posts and pages",
 		"author": "EmDash"
 	},
-
 	"settings": {
 		"title": "My Blog",
 		"tagline": "Thoughts on building for the web"
 	},
-
 	"collections": [
 		{
 			"slug": "posts",
@@ -67,7 +65,6 @@
 			]
 		}
 	],
-
 	"taxonomies": [
 		{
 			"name": "category",
@@ -76,9 +73,18 @@
 			"hierarchical": true,
 			"collections": ["posts"],
 			"terms": [
-				{ "slug": "development", "label": "Development" },
-				{ "slug": "design", "label": "Design" },
-				{ "slug": "notes", "label": "Notes" }
+				{
+					"slug": "development",
+					"label": "Development"
+				},
+				{
+					"slug": "design",
+					"label": "Design"
+				},
+				{
+					"slug": "notes",
+					"label": "Notes"
+				}
 			]
 		},
 		{
@@ -88,14 +94,25 @@
 			"hierarchical": false,
 			"collections": ["posts"],
 			"terms": [
-				{ "slug": "webdev", "label": "Web Development" },
-				{ "slug": "opinion", "label": "Opinion" },
-				{ "slug": "tools", "label": "Tools" },
-				{ "slug": "creativity", "label": "Creativity" }
+				{
+					"slug": "webdev",
+					"label": "Web Development"
+				},
+				{
+					"slug": "opinion",
+					"label": "Opinion"
+				},
+				{
+					"slug": "tools",
+					"label": "Tools"
+				},
+				{
+					"slug": "creativity",
+					"label": "Creativity"
+				}
 			]
 		}
 	],
-
 	"bylines": [
 		{
 			"id": "byline-editorial",
@@ -109,19 +126,29 @@
 			"isGuest": true
 		}
 	],
-
 	"menus": [
 		{
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "custom", "label": "About", "url": "/pages/about" },
-				{ "type": "custom", "label": "Posts", "url": "/posts" }
+				{
+					"type": "custom",
+					"label": "Home",
+					"url": "/"
+				},
+				{
+					"type": "custom",
+					"label": "About",
+					"url": "/pages/about"
+				},
+				{
+					"type": "custom",
+					"label": "Posts",
+					"url": "/posts"
+				}
 			]
 		}
 	],
-
 	"widgetAreas": [
 		{
 			"name": "sidebar",
@@ -178,16 +205,17 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "A blog about software, design, and the occasional stray thought."
+									"text": "A blog about software, design, and the occasional stray thought.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						}
 					]
 				}
 			]
 		}
 	],
-
 	"sections": [
 		{
 			"slug": "newsletter-signup",
@@ -199,7 +227,14 @@
 				{
 					"_type": "block",
 					"style": "h3",
-					"children": [{ "_type": "span", "text": "Stay in the loop" }]
+					"children": [
+						{
+							"_type": "span",
+							"text": "Stay in the loop",
+							"_key": "k1"
+						}
+					],
+					"_key": "k0"
 				},
 				{
 					"_type": "block",
@@ -207,9 +242,11 @@
 					"children": [
 						{
 							"_type": "span",
-							"text": "Get notified when new posts are published. No spam, unsubscribe anytime."
+							"text": "Get notified when new posts are published. No spam, unsubscribe anytime.",
+							"_key": "k3"
 						}
-					]
+					],
+					"_key": "k2"
 				}
 			]
 		},
@@ -226,14 +263,15 @@
 					"children": [
 						{
 							"_type": "span",
-							"text": "A software developer who writes about building things on the web. Based somewhere with good coffee and reliable internet."
+							"text": "A software developer who writes about building things on the web. Based somewhere with good coffee and reliable internet.",
+							"_key": "k1"
 						}
-					]
+					],
+					"_key": "k0"
 				}
 			]
 		}
 	],
-
 	"content": {
 		"pages": [
 			{
@@ -249,9 +287,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "A place for writing about software, design, and the occasional stray thought. No posting schedule, no newsletter funnel. Just things I wanted to write down."
+									"text": "A place for writing about software, design, and the occasional stray thought. No posting schedule, no newsletter funnel. Just things I wanted to write down.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -259,9 +299,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Built with Astro and EmDash. The source is open if you want to see how it works."
+									"text": "Built with Astro and EmDash. The source is open if you want to see how it works.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						}
 					]
 				}
@@ -289,9 +331,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Every few years the industry collectively decides that everything we've been doing is wrong and there's a better way. New frameworks, new paradigms, new build tools. The churn is relentless, and if you're not careful, you spend more time migrating than building."
+									"text": "Every few years the industry collectively decides that everything we've been doing is wrong and there's a better way. New frameworks, new paradigms, new build tools. The churn is relentless, and if you're not careful, you spend more time migrating than building.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -299,14 +343,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "I've been writing software long enough to have seen several of these cycles. jQuery to Backbone to Angular to React to whatever comes next. Each transition felt urgent at the time. Looking back, the things that actually mattered were rarely about the framework."
+									"text": "I've been writing software long enough to have seen several of these cycles. jQuery to Backbone to Angular to React to whatever comes next. Each transition felt urgent at the time. Looking back, the things that actually mattered were rarely about the framework.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "What survives" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "What survives",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -314,9 +367,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Clean data models survive. Clear boundaries between systems survive. Good naming survives. The decision to keep things simple when you could have made them clever - that definitely survives."
+									"text": "Clean data models survive. Clear boundaries between systems survive. Good naming survives. The decision to keep things simple when you could have made them clever - that definitely survives.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -324,9 +379,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "What doesn't survive is code that was written to impress, abstractions built for problems that never materialized, and architectures designed around a framework's opinions rather than the domain's reality."
+									"text": "What doesn't survive is code that was written to impress, abstractions built for problems that never materialized, and architectures designed around a framework's opinions rather than the domain's reality.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						},
 						{
 							"_type": "block",
@@ -334,15 +391,22 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The best code I've written is boring. It reads like prose, does one thing well, and doesn't require a PhD in category theory to understand. The worst code I've written was technically impressive at the time."
+									"text": "The best code I've written is boring. It reads like prose, does one thing well, and doesn't require a PhD in category theory to understand. The worst code I've written was technically impressive at the time.",
+									"_key": "k11"
 								}
-							]
+							],
+							"_key": "k10"
 						}
 					]
 				},
 				"bylines": [
-					{ "byline": "byline-editorial" },
-					{ "byline": "byline-guest", "roleLabel": "Guest essay" }
+					{
+						"byline": "byline-editorial"
+					},
+					{
+						"byline": "byline-guest",
+						"roleLabel": "Guest essay"
+					}
 				],
 				"taxonomies": {
 					"category": ["development"],
@@ -370,9 +434,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "There's a certain irony in the fact that the web started static, went dynamic, and is now swinging back toward static again. But the static sites of today aren't the hand-coded HTML pages of 1998. They're generated, optimized, and deployed to edge networks that serve them in milliseconds."
+									"text": "There's a certain irony in the fact that the web started static, went dynamic, and is now swinging back toward static again. But the static sites of today aren't the hand-coded HTML pages of 1998. They're generated, optimized, and deployed to edge networks that serve them in milliseconds.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -380,14 +446,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The pitch for server-rendered everything was compelling: dynamic content, personalization, real-time data. But most sites don't need most of that most of the time. A blog post doesn't need to be rendered on every request. A product page doesn't change every second."
+									"text": "The pitch for server-rendered everything was compelling: dynamic content, personalization, real-time data. But most sites don't need most of that most of the time. A blog post doesn't need to be rendered on every request. A product page doesn't change every second.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The performance argument" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The performance argument",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -395,9 +470,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "A static file served from a CDN is as fast as the web gets. No cold starts, no database queries, no server-side rendering overhead. The Time to First Byte is essentially the network latency to your nearest edge node. You can't beat physics."
+									"text": "A static file served from a CDN is as fast as the web gets. No cold starts, no database queries, no server-side rendering overhead. The Time to First Byte is essentially the network latency to your nearest edge node. You can't beat physics.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -405,13 +482,19 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "And when you do need dynamic behavior, you can add it surgically. An island of interactivity in a sea of static HTML. The best of both worlds, without paying the cost of either at all times."
+									"text": "And when you do need dynamic behavior, you can add it surgically. An island of interactivity in a sea of static HTML. The best of both worlds, without paying the cost of either at all times.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
-				"bylines": [{ "byline": "byline-editorial" }],
+				"bylines": [
+					{
+						"byline": "byline-editorial"
+					}
+				],
 				"taxonomies": {
 					"category": ["development"],
 					"tag": ["webdev", "opinion"]
@@ -438,9 +521,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "I started writing about things I was learning not because I had anything original to say, but because I kept forgetting what I'd figured out. The blog posts were notes to my future self, published publicly more out of laziness than courage."
+									"text": "I started writing about things I was learning not because I had anything original to say, but because I kept forgetting what I'd figured out. The blog posts were notes to my future self, published publicly more out of laziness than courage.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -448,14 +533,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "What I didn't expect was how much the writing itself would accelerate the learning. There's a particular kind of clarity that comes from trying to explain something to someone else. The gaps in your understanding, which you can happily ignore when the knowledge lives only in your head, become painfully obvious when you try to put it into sentences."
+									"text": "What I didn't expect was how much the writing itself would accelerate the learning. There's a particular kind of clarity that comes from trying to explain something to someone else. The gaps in your understanding, which you can happily ignore when the knowledge lives only in your head, become painfully obvious when you try to put it into sentences.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The fear of being wrong" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The fear of being wrong",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -463,9 +557,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The biggest barrier isn't time or writing skill. It's the fear of publishing something that turns out to be wrong. But here's the thing: being wrong publicly is one of the most efficient ways to learn. Someone will correct you, often kindly, and you'll remember that correction forever."
+									"text": "The biggest barrier isn't time or writing skill. It's the fear of publishing something that turns out to be wrong. But here's the thing: being wrong publicly is one of the most efficient ways to learn. Someone will correct you, often kindly, and you'll remember that correction forever.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -473,9 +569,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The posts that helped me most weren't written by experts. They were written by people one step ahead of me on the same path, in language that hadn't yet been polished into abstraction. There's a place for that kind of writing, and it's more valuable than most people realize."
+									"text": "The posts that helped me most weren't written by experts. They were written by people one step ahead of me on the same path, in language that hadn't yet been polished into abstraction. There's a place for that kind of writing, and it's more valuable than most people realize.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
@@ -505,9 +603,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "There's a class of software that doesn't get enough appreciation. Not the frameworks or the platforms or the IDEs, but the small, sharp tools that solve one problem so well you stop thinking about them. They become invisible, which is the highest compliment you can pay a tool."
+									"text": "There's a class of software that doesn't get enough appreciation. Not the frameworks or the platforms or the IDEs, but the small, sharp tools that solve one problem so well you stop thinking about them. They become invisible, which is the highest compliment you can pay a tool.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -515,14 +615,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "I'm talking about things like ripgrep, which searches code so fast it changed how I think about searching. Or jq, which makes JSON feel like a first-class data format in the terminal. Or curl, which has been quietly powering the internet's plumbing for decades."
+									"text": "I'm talking about things like ripgrep, which searches code so fast it changed how I think about searching. Or jq, which makes JSON feel like a first-class data format in the terminal. Or curl, which has been quietly powering the internet's plumbing for decades.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The Unix philosophy, revisited" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The Unix philosophy, revisited",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -530,9 +639,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Do one thing well. The advice is old enough to be a cliche, but the best modern tools still follow it. They don't try to be platforms. They don't have plugin ecosystems or configuration languages or startup wizards. They do their job and they compose with other tools that do theirs."
+									"text": "Do one thing well. The advice is old enough to be a cliche, but the best modern tools still follow it. They don't try to be platforms. They don't have plugin ecosystems or configuration languages or startup wizards. They do their job and they compose with other tools that do theirs.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -540,9 +651,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The temptation is always to add more. One more feature, one more option, one more integration. But every addition is a decision someone has to make, a path through the code that has to be maintained, a thing that can break. The best tools resist this. They stay small, and in staying small, they stay reliable."
+									"text": "The temptation is always to add more. One more feature, one more option, one more integration. But every addition is a decision someone has to make, a path through the code that has to be maintained, a thing that can break. The best tools resist this. They stay small, and in staying small, they stay reliable.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
@@ -572,9 +685,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Give a designer a blank canvas and unlimited time, and they'll often produce something mediocre. Give them a tight brief, a small screen, and a deadline, and they'll surprise you. This isn't a paradox - it's how creativity actually works."
+									"text": "Give a designer a blank canvas and unlimited time, and they'll often produce something mediocre. Give them a tight brief, a small screen, and a deadline, and they'll surprise you. This isn't a paradox - it's how creativity actually works.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -582,14 +697,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Constraints force decisions. When you can't use more than two typefaces, you have to choose carefully. When the page has to load in under a second, every element earns its place. When the interface has to work on a 320px screen, you discover what's truly essential."
+									"text": "Constraints force decisions. When you can't use more than two typefaces, you have to choose carefully. When the page has to load in under a second, every element earns its place. When the interface has to work on a 320px screen, you discover what's truly essential.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Embracing the box" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Embracing the box",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -597,9 +721,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The web itself is a constraint. HTML flows in one direction. CSS has a box model. Browsers have viewport sizes and font rendering quirks. You can fight these constraints or you can work with them, and the results are dramatically different."
+									"text": "The web itself is a constraint. HTML flows in one direction. CSS has a box model. Browsers have viewport sizes and font rendering quirks. You can fight these constraints or you can work with them, and the results are dramatically different.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -607,9 +733,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The designs I admire most don't look like they were forced through a framework. They look like they grew naturally from the medium, respecting its grain rather than working against it. That only happens when you treat constraints as creative partners rather than enemies."
+									"text": "The designs I admire most don't look like they were forced through a framework. They look like they grew naturally from the medium, respecting its grain rather than working against it. That only happens when you treat constraints as creative partners rather than enemies.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
@@ -639,9 +767,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Saturday morning. Coffee's made, the house is quiet, and I've got an idea that's been nagging at me all week. Not a good idea, necessarily - just a persistent one. A small tool that does a thing I keep doing manually. How hard could it be?"
+									"text": "Saturday morning. Coffee's made, the house is quiet, and I've got an idea that's been nagging at me all week. Not a good idea, necessarily - just a persistent one. A small tool that does a thing I keep doing manually. How hard could it be?",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -649,14 +779,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "This is the best kind of programming. No requirements document, no sprint planning, no pull request reviews. Just a text editor and a problem. The freedom to make terrible architectural decisions, rewrite everything twice, and follow tangents that turn out to be dead ends."
+									"text": "This is the best kind of programming. No requirements document, no sprint planning, no pull request reviews. Just a text editor and a problem. The freedom to make terrible architectural decisions, rewrite everything twice, and follow tangents that turn out to be dead ends.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Why side projects matter" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Why side projects matter",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -664,9 +803,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Side projects are where you learn things your day job would never teach you. Not because the problems are harder, but because you're free to take risks. Try a language you've never used. Build something without a framework. Deploy to a platform you've only read about. The stakes are zero, which makes the learning maximum."
+									"text": "Side projects are where you learn things your day job would never teach you. Not because the problems are harder, but because you're free to take risks. Try a language you've never used. Build something without a framework. Deploy to a platform you've only read about. The stakes are zero, which makes the learning maximum.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -674,9 +815,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "By Sunday evening, the thing sort of works. It's rough, the error handling is nonexistent, and the README is a single sentence. But it solves the problem I set out to solve, and I learned three things I didn't know on Friday. Not a bad weekend."
+									"text": "By Sunday evening, the thing sort of works. It's rough, the error handling is nonexistent, and the README is a single sentence. But it solves the problem I set out to solve, and I learned three things I didn't know on Friday. Not a bad weekend.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
@@ -706,9 +849,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Every piece of software starts simple. A few files, a clear purpose, a small surface area. Then features get added, edge cases get handled, and before long you're looking at something that requires a diagram to understand. This isn't inevitable, but it takes discipline to prevent."
+									"text": "Every piece of software starts simple. A few files, a clear purpose, a small surface area. Then features get added, edge cases get handled, and before long you're looking at something that requires a diagram to understand. This isn't inevitable, but it takes discipline to prevent.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -716,14 +861,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The hard part of simplicity isn't the initial design. It's the ongoing resistance to complication. Every feature request, every bug fix, every refactor is an opportunity to add complexity. Saying no is the most important design skill, and the least celebrated."
+									"text": "The hard part of simplicity isn't the initial design. It's the ongoing resistance to complication. Every feature request, every bug fix, every refactor is an opportunity to add complexity. Saying no is the most important design skill, and the least celebrated.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Removing as a feature" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Removing as a feature",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -731,9 +885,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The best version of a product often has fewer features than the previous one. Not because features were missing, but because someone had the courage to remove things that weren't earning their keep. Every feature has a cost - in maintenance, in cognitive load, in the weight of the interface."
+									"text": "The best version of a product often has fewer features than the previous one. Not because features were missing, but because someone had the courage to remove things that weren't earning their keep. Every feature has a cost - in maintenance, in cognitive load, in the weight of the interface.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -741,9 +897,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Simplicity is a practice, not a destination. You never arrive at simple. You just keep asking: is this necessary? Could this be clearer? Is there a way to solve this problem by removing something instead of adding something? The answer is yes more often than you'd expect."
+									"text": "Simplicity is a practice, not a destination. You never arrive at simple. You just keep asking: is this necessary? Could this be clearer? Is there a way to solve this problem by removing something instead of adding something? The answer is yes more often than you'd expect.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
@@ -766,9 +924,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "This is a draft post that won't appear in the public listing."
+									"text": "This is a draft post that won't appear in the public listing.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						}
 					]
 				}

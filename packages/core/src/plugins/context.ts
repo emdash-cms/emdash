@@ -647,14 +647,14 @@ export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
 }
 
 /**
- * Create blocked HTTP access (for plugins without network:fetch capability)
+ * Create blocked HTTP access (for plugins without network:request capability)
  */
 export function createBlockedHttpAccess(pluginId: string): HttpAccess {
 	return {
 		async fetch(): Promise<never> {
 			throw new Error(
-				`Plugin "${pluginId}" does not have the "network:fetch" capability. ` +
-					`Add "network:fetch" to the plugin's capabilities to enable HTTP requests.`,
+				`Plugin "${pluginId}" does not have the "network:request" capability. ` +
+					`Add "network:request" to the plugin's capabilities to enable HTTP requests.`,
 			);
 		},
 	};
@@ -902,32 +902,35 @@ export class PluginContextFactory {
 		const storage = createStorageAccess(this.db, plugin.id, plugin.storage);
 
 		// Capability-gated: content
+		// Note: capabilities reach this point already normalized to the
+		// canonical names by definePlugin / adaptSandboxEntry. Deprecated
+		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
-		if (capabilities.has("write:content")) {
+		if (capabilities.has("content:write")) {
 			content = createContentAccessWithWrite(this.db);
-		} else if (capabilities.has("read:content")) {
+		} else if (capabilities.has("content:read")) {
 			content = createContentAccess(this.db);
 		}
 
 		// Capability-gated: media
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
-		if (capabilities.has("write:media") && this.getUploadUrl) {
+		if (capabilities.has("media:write") && this.getUploadUrl) {
 			media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
-		} else if (capabilities.has("read:media")) {
+		} else if (capabilities.has("media:read")) {
 			media = createMediaAccess(this.db);
 		}
 
 		// Capability-gated: http
 		let http: HttpAccess | undefined;
-		if (capabilities.has("network:fetch:any")) {
+		if (capabilities.has("network:request:unrestricted")) {
 			http = createUnrestrictedHttpAccess(plugin.id);
-		} else if (capabilities.has("network:fetch")) {
+		} else if (capabilities.has("network:request")) {
 			http = createHttpAccess(plugin.id, plugin.allowedHosts);
 		}
 
 		// Capability-gated: users
 		let users: UserAccess | undefined;
-		if (capabilities.has("read:users")) {
+		if (capabilities.has("users:read")) {
 			users = createUserAccess(this.db);
 		}
 

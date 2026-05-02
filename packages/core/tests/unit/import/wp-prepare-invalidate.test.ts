@@ -1,9 +1,11 @@
 /**
- * Regression test for #747: WordPress importer must invalidate the manifest
- * cache after creating new collections/fields. Without this the execute
- * endpoint reads a stale DB-persisted manifest and reports
- * `Collection "<slug>" does not exist` for every item destined for a freshly
- * created collection.
+ * Regression test for #747: WordPress importer must clear the URL pattern
+ * cache after creating new collections so that public routing immediately
+ * resolves the new patterns. The original symptom of #747 (the execute
+ * step reading a stale DB-persisted manifest) is no longer possible —
+ * the manifest is built fresh per admin request and never cached — but
+ * the URL pattern cache is still per-isolate, and prepare->execute
+ * happens in two separate requests that may or may not share an isolate.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -38,14 +40,14 @@ function buildContext(emdash: any, user = { id: "test-user", role: 50 }) {
 }
 
 describe("POST /api/import/wordpress/prepare", () => {
-	it("invalidates the manifest cache after creating a new collection (regression for #747)", async () => {
+	it("invalidates the URL pattern cache after creating a new collection (regression for #747)", async () => {
 		const db = await setupTestDatabase();
-		const invalidateManifest = vi.fn();
+		const invalidateUrlPatternCache = vi.fn();
 
 		const emdash = {
 			db,
 			handleContentCreate: vi.fn(),
-			invalidateManifest,
+			invalidateUrlPatternCache,
 		};
 
 		const ctx = buildContext(emdash);
@@ -53,10 +55,10 @@ describe("POST /api/import/wordpress/prepare", () => {
 		const response = await POST(ctx as any);
 
 		expect(response.status).toBe(200);
-		expect(invalidateManifest).toHaveBeenCalledTimes(1);
+		expect(invalidateUrlPatternCache).toHaveBeenCalledTimes(1);
 	});
 
-	it("does not invalidate the manifest when prepareImport makes no schema changes", async () => {
+	it("does not invalidate the URL pattern cache when prepareImport makes no schema changes", async () => {
 		const db = await setupTestDatabase();
 		// Pre-create the collection so prepare finds nothing new to do.
 		const { SchemaRegistry } = await import("../../../src/schema/registry.js");
@@ -72,11 +74,11 @@ describe("POST /api/import/wordpress/prepare", () => {
 			type: "string",
 		});
 
-		const invalidateManifest = vi.fn();
+		const invalidateUrlPatternCache = vi.fn();
 		const emdash = {
 			db,
 			handleContentCreate: vi.fn(),
-			invalidateManifest,
+			invalidateUrlPatternCache,
 		};
 
 		const ctx = buildContext(emdash);
@@ -84,6 +86,6 @@ describe("POST /api/import/wordpress/prepare", () => {
 		const response = await POST(ctx as any);
 
 		expect(response.status).toBe(200);
-		expect(invalidateManifest).not.toHaveBeenCalled();
+		expect(invalidateUrlPatternCache).not.toHaveBeenCalled();
 	});
 });

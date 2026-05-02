@@ -303,6 +303,36 @@ export interface EmDashConfig {
 	siteUrl?: string;
 
 	/**
+	 * Additional origins accepted by passkey verification.
+	 *
+	 * When the same EmDash deployment is reachable under several hostnames sharing
+	 * a registrable parent (e.g. `https://example.com` plus
+	 * `https://preview.example.com`), the canonical `siteUrl` defines the `rpId`
+	 * and the entries here are the *additional* origins from which assertions
+	 * are accepted. Each entry must be the same hostname as `siteUrl` or a
+	 * subdomain of it — WebAuthn requires `rpId` to be a registrable suffix of
+	 * every origin.
+	 *
+	 * Merged at runtime with the `EMDASH_ALLOWED_ORIGINS` env var (comma-separated).
+	 * Validation:
+	 *   - Config-declared entries are shape-checked at Astro startup.
+	 *   - Subdomain relationship to `siteUrl` is checked at startup when
+	 *     `siteUrl` is also config-declared, otherwise at first passkey
+	 *     verification (since `siteUrl` may come from `EMDASH_SITE_URL`).
+	 *
+	 * Mismatches throw with a source-attributed message naming
+	 * `config.allowedOrigins` or `EMDASH_ALLOWED_ORIGINS`.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   siteUrl: "https://example.com",
+	 *   allowedOrigins: ["https://preview.example.com"],
+	 * })
+	 * ```
+	 */
+	allowedOrigins?: string[];
+	/*
 	 * Headers to trust for client IP resolution when running behind a reverse
 	 * proxy. The first header in this list that is present on the request
 	 * wins. Applies to rate limiting for auth endpoints and comment

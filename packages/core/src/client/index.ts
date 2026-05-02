@@ -723,8 +723,8 @@ export class EmDashClient {
 
 	/** List taxonomies */
 	async taxonomies(): Promise<Taxonomy[]> {
-		const data = await this.request<{ items: Taxonomy[] }>("GET", "/taxonomies");
-		return data.items;
+		const data = await this.request<{ taxonomies: Taxonomy[] }>("GET", "/taxonomies");
+		return data.taxonomies;
 	}
 
 	/** List terms in a taxonomy */
@@ -757,8 +757,8 @@ export class EmDashClient {
 
 	/** List menus */
 	async menus(): Promise<Menu[]> {
-		const data = await this.request<{ items: Menu[] }>("GET", "/menus");
-		return data.items;
+		// Handler returns a bare array, not { items: [...] }
+		return this.request<Menu[]>("GET", "/menus");
 	}
 
 	/** Get a menu with its items */

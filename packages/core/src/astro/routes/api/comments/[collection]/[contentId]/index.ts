@@ -14,6 +14,7 @@ import { createCommentBody } from "#api/schemas.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { sendCommentNotification } from "#comments/notifications.js";
 import { createComment, type CommentHookRunner } from "#comments/service.js";
+import { resolveSecretsCached } from "#config/secrets.js";
 import { CommentRepository } from "#db/repositories/comment.js";
 import { validateIdentifier } from "#db/validate.js";
 import { extractRequestMeta } from "#plugins/request-meta.js";
@@ -140,8 +141,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 		// Anti-spam: Rate limiting
 		const meta = extractRequestMeta(request, emdash.config);
-		const ipSalt =
-			import.meta.env.EMDASH_AUTH_SECRET || import.meta.env.AUTH_SECRET || "emdash-ip-salt";
+		const { ipSalt } = await resolveSecretsCached(emdash.db);
 		let ipHash: string;
 		if (meta.ip) {
 			ipHash = await hashIp(meta.ip, ipSalt);

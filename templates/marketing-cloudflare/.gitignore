@@ -18,8 +18,13 @@ uploads/
 .env.*
 !.env.example
 
+# Wrangler local secrets
+.dev.vars
+.dev.vars.*
+
 # IDE
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
 *.swp
 *.swo

@@ -128,6 +128,78 @@ describe("astro middleware prerendered routes", () => {
 	});
 });
 
+describe("astro middleware anonymous session reads", () => {
+	beforeEach(() => {
+		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+	});
+
+	it("does not read the Astro session when no astro-session cookie is present", async () => {
+		// Regression test for #733: on Cloudflare Workers the Astro session
+		// backend is KV, so calling session.get() on every anonymous public
+		// request produces a flood of KV read misses. The middleware must
+		// skip the session lookup entirely when no astro-session cookie is set.
+		const cookies = {
+			get: vi.fn((name: string) => {
+				if (name === "astro-session") return undefined;
+				return undefined;
+			}),
+			set: vi.fn(),
+		};
+		const sessionGet = vi.fn(async () => null);
+		const astroSession = { get: sessionGet };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/"),
+			url: new URL("https://example.com/"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		const response = await onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+
+		expect(response.status).toBe(200);
+		expect(sessionGet).not.toHaveBeenCalled();
+	});
+
+	it("reads the Astro session when an astro-session cookie is present", async () => {
+		const cookies = {
+			get: vi.fn((name: string) => {
+				if (name === "astro-session") return { value: "abc123" };
+				return undefined;
+			}),
+			set: vi.fn(),
+		};
+		const sessionGet = vi.fn(async () => null);
+		const astroSession = { get: sessionGet };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/", {
+				headers: { cookie: "astro-session=abc123" },
+			}),
+			url: new URL("https://example.com/"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		const response = await onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+
+		expect(response.status).toBe(200);
+		expect(sessionGet).toHaveBeenCalledWith("user");
+	});
+});
+
 describe("astro middleware request-scoped db", () => {
 	beforeEach(() => {
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);

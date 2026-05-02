@@ -35,9 +35,16 @@ export function generateFieldSchema(field: Field): ZodTypeAny {
 		schema = applyValidation(schema, field);
 	}
 
-	// Apply required/optional
+	// Apply required/optional. Non-required fields use `.nullish()` rather
+	// than `.optional()` because the underlying SQLite columns are nullable
+	// (see `SchemaRegistry.addFieldColumn` -- non-required fields are added
+	// without `NOT NULL`). The admin re-sends what it loaded from the
+	// server on autosave, so any field that's actually `null` in the DB
+	// must round-trip cleanly through the validator. `.optional()` only
+	// accepts `undefined`; `.nullish()` accepts both `undefined` and
+	// `null`. (#867 — autosave failures on seeded entries.)
 	if (!field.required) {
-		schema = schema.optional();
+		schema = schema.nullish();
 	}
 
 	// Apply default value
@@ -68,7 +75,15 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 			return z.number().int();
 
 		case "boolean":
-			return z.boolean();
+			// Boolean fields map to `INTEGER` columns (`FIELD_TYPE_TO_COLUMN`
+			// in `schema/types.ts`) and `serializeValue` in
+			// `database/repositories/content.ts` writes booleans as 0/1.
+			// `deserializeValue` never converts them back, so reads return
+			// numbers. Coerce the stored 0/1 shape here so a GET → POST
+			// round-trip on a boolean field passes validation. Other inputs
+			// (strings, other numbers) fall through to `z.boolean()` and
+			// produce its standard rejection.
+			return z.preprocess((v) => (v === 0 || v === 1 ? Boolean(v) : v), z.boolean());
 
 		case "datetime":
 			return z.string().datetime().or(z.string().date());
@@ -92,12 +107,19 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 		}
 
 		case "portableText":
-			// Portable Text is an array of blocks
+			// Portable Text is an array of blocks. We require `_type` because
+			// renderers dispatch on it, but `_key` is intentionally optional:
+			// it's a UI-layer concern that the editor regenerates on every
+			// change (see `PortableTextEditor`), and the rest of this schema
+			// uses `.passthrough()` for everything below the top level. Making
+			// `_key` strictly required here was an accidentally tight invariant
+			// that rejected any seed/import data not authored against the
+			// editor (#867 — autosave failures on seeded template content).
 			return z.array(
 				z
 					.object({
 						_type: z.string(),
-						_key: z.string(),
+						_key: z.string().optional(),
 					})
 					.passthrough(),
 			);

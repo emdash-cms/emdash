@@ -6,12 +6,10 @@
 		"description": "A conversion-focused marketing site with landing pages",
 		"author": "EmDash"
 	},
-
 	"settings": {
 		"title": "Acme",
 		"tagline": "Build products people actually want"
 	},
-
 	"collections": [
 		{
 			"slug": "pages",
@@ -33,19 +31,29 @@
 			]
 		}
 	],
-
 	"menus": [
 		{
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
-				{ "type": "custom", "label": "Features", "url": "/#features" },
-				{ "type": "custom", "label": "Pricing", "url": "/pricing" },
-				{ "type": "custom", "label": "Contact", "url": "/contact" }
+				{
+					"type": "custom",
+					"label": "Features",
+					"url": "/#features"
+				},
+				{
+					"type": "custom",
+					"label": "Pricing",
+					"url": "/pricing"
+				},
+				{
+					"type": "custom",
+					"label": "Contact",
+					"url": "/contact"
+				}
 			]
 		}
 	],
-
 	"content": {
 		"pages": [
 			{

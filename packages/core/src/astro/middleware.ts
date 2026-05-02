@@ -46,6 +46,7 @@ import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
+import { invalidateUrlPatternCache } from "../query.js";
 import { getRequestContext, runWithContext } from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import type { EmDashHandlers } from "./types.js";
@@ -271,8 +272,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Read the Astro session user once up-front. Both the anonymous fast path
 		// and the full doInit path need this, and the session store is network-backed
 		// (KV / Durable Object) so we want to avoid re-fetching on the hot path.
-		// Skipped entirely for prerendered requests — they have no session.
-		const sessionUser = context.isPrerendered ? null : await context.session?.get("user");
+		// Skipped entirely for:
+		//   - prerendered requests (no session at build time)
+		//   - requests without an `astro-session` cookie (no session to look up)
+		// The cookie check matters on Cloudflare Workers, where Astro's session
+		// backend is KV: calling session.get() on every anonymous public request
+		// turns normal traffic into a flood of KV read misses. See #733.
+		const hasSessionCookie = cookies.get("astro-session") !== undefined;
+		const sessionUser =
+			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -394,13 +402,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Runtime init runs migrations, so the DB is guaranteed set up
 				setupVerified = true;
 
-				// Get manifest (cached after first call)
-				t0 = performance.now();
-				const manifest = await runtime.getManifest();
-				timings.push({ name: "manifest", dur: performance.now() - t0, desc: "Manifest" });
+				// The manifest is no longer pre-loaded here. It's admin-only
+				// content that public/anonymous requests never read, and
+				// loading it on every request put logged-out hot paths on
+				// the same staleness budget as admin operations. Admin
+				// routes call `emdash.getManifest()` directly.
 
 				// Attach to locals for route handlers
-				locals.emdashManifest = manifest;
 				locals.emdash = {
 					// Content handlers
 					handleContentList: runtime.handleContentList.bind(runtime),
@@ -469,8 +477,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Configuration (for checking database type, auth mode, etc.)
 					config,
 
-					// Manifest invalidation (call after schema changes)
-					invalidateManifest: runtime.invalidateManifest.bind(runtime),
+					// Lazy manifest accessor — admin-only consumers call this on
+					// demand. `requestCached` inside `getManifest` dedupes within
+					// a single request.
+					getManifest: runtime.getManifest.bind(runtime),
+
+					// Clear the URL pattern cache after schema mutations that
+					// affect collection URL patterns.
+					invalidateUrlPatternCache,
 
 					// Sandbox runner (for marketplace plugin install/update)
 					getSandboxRunner: runtime.getSandboxRunner.bind(runtime),

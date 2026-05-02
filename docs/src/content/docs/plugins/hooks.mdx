@@ -265,7 +265,7 @@ Runs after content is successfully deleted.
 ### `content:afterPublish`
 
 Runs after content is published (promoted from draft to live). Use for side effects like cache invalidation, notifications, or syncing to external systems.
-Requires `read:content` capability.
+Requires `content:read` capability.
 
 ```typescript
 "content:afterPublish": async (event, ctx) => {
@@ -297,7 +297,7 @@ Requires `read:content` capability.
 ### `content:afterUnpublish`
 
 Runs after content is unpublished (reverted from live to draft). Use for side effects like cache invalidation or notifying external systems.
-Requires `read:content` capability.
+Requires `content:read` capability.
 
 ```typescript
 "content:afterUnpublish": async (event, ctx) => {

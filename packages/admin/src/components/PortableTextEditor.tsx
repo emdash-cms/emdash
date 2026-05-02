@@ -83,6 +83,7 @@ import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
+import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -1231,6 +1232,18 @@ function BlockKitField({
 				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
 			);
 		}
+		case "media_picker": {
+			return (
+				<BlockKitMediaPickerField
+					actionId={field.action_id}
+					label={field.label}
+					placeholder={field.placeholder}
+					mimeTypeFilter={field.mime_type_filter}
+					value={value}
+					onChange={onChange}
+				/>
+			);
+		}
 		default:
 			return <div className="text-sm text-kumo-subtle">Unknown field type: {field.type}</div>;
 	}
@@ -1694,8 +1707,10 @@ export interface PortableTextEditorProps {
 	focusMode?: FocusMode;
 	/** Callback when focus mode changes */
 	onFocusModeChange?: (mode: FocusMode) => void;
-	/** Callback to receive the editor instance for external integrations */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback to receive the editor instance for external integrations.
+	 * Called with the editor on mount, and with `null` on unmount so consumers
+	 * can clear stale references (e.g. before the next instance mounts). */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, border, footer (distraction-free mode) */
 	minimal?: boolean;
 	/** Callback when a block node requests sidebar space (e.g. image settings) */
@@ -1939,11 +1954,17 @@ export function PortableTextEditor({
 		},
 	});
 
-	// Notify when editor is ready
+	// Notify when editor is ready, and on unmount so consumers can clear the
+	// reference before TipTap destroys the instance (e.g. when keying by item.id
+	// to switch translations).
 	React.useEffect(() => {
 		if (editor && onEditorReady) {
 			onEditorReady(editor);
+			return () => {
+				onEditorReady(null);
+			};
 		}
+		return undefined;
 	}, [editor, onEditorReady]);
 
 	// Register plugin blocks into editor storage so the node view can look up metadata

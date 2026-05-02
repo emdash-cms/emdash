@@ -1093,6 +1093,15 @@ export async function handleContentUnschedule(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unschedule error:", error);
 		return {
 			success: false,
@@ -1115,12 +1124,13 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { publishedAt?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId);
+			return repo.publish(collection, resolvedId, options.publishedAt);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1131,6 +1141,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content publish error:", error);
 		return {
 			success: false,
@@ -1168,6 +1187,15 @@ export async function handleContentUnpublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unpublish error:", error);
 		return {
 			success: false,

@@ -312,4 +312,41 @@ describe("CLI Integration", () => {
 			expect(result.role).toBe("admin");
 		});
 	});
+
+	// -----------------------------------------------------------------------
+	// Taxonomy commands
+	// -----------------------------------------------------------------------
+
+	describe("taxonomy", () => {
+		it("taxonomy list returns valid JSON array", async () => {
+			const result = await cliJson<{ name: string }[]>("taxonomy", "list");
+			expect(Array.isArray(result)).toBe(true);
+			expect(result.length).toBeGreaterThanOrEqual(1);
+			const names = result.map((t) => t.name);
+			expect(names).toContain("categories");
+		});
+
+		it("taxonomy terms returns terms for a taxonomy", async () => {
+			const result = await cliJson<{ terms: { slug: string }[] }>(
+				"taxonomy",
+				"terms",
+				"categories",
+			);
+			expect(result.terms).toBeDefined();
+			expect(Array.isArray(result.terms)).toBe(true);
+			const slugs = result.terms.map((t) => t.slug);
+			expect(slugs).toContain("news");
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// Menu commands
+	// -----------------------------------------------------------------------
+
+	describe("menu", () => {
+		it("menu list returns valid JSON array", async () => {
+			const result = await cliJson<unknown[]>("menu", "list");
+			expect(Array.isArray(result)).toBe(true);
+		});
+	});
 });

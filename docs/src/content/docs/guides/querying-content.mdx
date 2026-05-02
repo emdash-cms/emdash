@@ -231,8 +231,10 @@ if (!entry) {
 ```
 
 <Aside>
-	Set `EMDASH_PREVIEW_SECRET` in your environment variables. The admin generates preview URLs
-	that include an HMAC-signed `_preview` token.
+	Preview works out of the box — EmDash auto-generates a per-site preview secret on first
+	use. Set `EMDASH_PREVIEW_SECRET` in your environment if you need to share the secret across
+	multiple processes (e.g. a separate preview Worker). The admin generates preview URLs that
+	include an HMAC-signed `_preview` token either way.
 </Aside>
 
 ## Visual Editing

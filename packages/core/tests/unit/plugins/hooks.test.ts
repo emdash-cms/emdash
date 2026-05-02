@@ -66,7 +66,7 @@ describe("HookPipeline", () => {
 		it("registers hooks from plugins", () => {
 			const plugin = createTestPlugin({
 				id: "test",
-				capabilities: ["write:content", "read:content"],
+				capabilities: ["content:write", "content:read"],
 				hooks: {
 					"content:beforeSave": createTestHook("test", vi.fn()),
 					"content:afterSave": createTestHook("test", vi.fn()),
@@ -83,7 +83,7 @@ describe("HookPipeline", () => {
 		it("tracks registered hook names", () => {
 			const plugin = createTestPlugin({
 				id: "test",
-				capabilities: ["write:content", "read:media"],
+				capabilities: ["content:write", "media:read"],
 				hooks: {
 					"content:beforeSave": createTestHook("test", vi.fn()),
 					"media:afterUpload": createTestHook("test", vi.fn()),
@@ -107,7 +107,7 @@ describe("HookPipeline", () => {
 
 			const plugin1 = createTestPlugin({
 				id: "plugin-1",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-1", handler1, {
 						priority: 200,
@@ -117,7 +117,7 @@ describe("HookPipeline", () => {
 
 			const plugin2 = createTestPlugin({
 				id: "plugin-2",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-2", handler2, {
 						priority: 50,
@@ -127,7 +127,7 @@ describe("HookPipeline", () => {
 
 			const plugin3 = createTestPlugin({
 				id: "plugin-3",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-3", handler3, {
 						priority: 100,
@@ -147,7 +147,7 @@ describe("HookPipeline", () => {
 
 			const plugin1 = createTestPlugin({
 				id: "plugin-1",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-1", handler1, {
 						priority: 50, // Lower priority but...
@@ -158,7 +158,7 @@ describe("HookPipeline", () => {
 
 			const plugin2 = createTestPlugin({
 				id: "plugin-2",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-2", handler2, {
 						priority: 100, // Higher priority
@@ -183,7 +183,7 @@ describe("HookPipeline", () => {
 
 			const plugin = createTestPlugin({
 				id: "test",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("test", handler),
 				},
@@ -210,7 +210,7 @@ describe("HookPipeline", () => {
 
 			const plugin1 = createTestPlugin({
 				id: "plugin-1",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-1", handler1, {
 						priority: 1,
@@ -220,7 +220,7 @@ describe("HookPipeline", () => {
 
 			const plugin2 = createTestPlugin({
 				id: "plugin-2",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("plugin-2", handler2, {
 						priority: 2,
@@ -239,7 +239,7 @@ describe("HookPipeline", () => {
 
 			const plugin = createTestPlugin({
 				id: "test",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 				hooks: {
 					"content:beforeDelete": createTestHook("test", handler),
 				},
@@ -314,7 +314,7 @@ describe("HookPipeline", () => {
 
 			const plugin = createTestPlugin({
 				id: "test",
-				capabilities: ["write:media"],
+				capabilities: ["media:write"],
 				hooks: {
 					"media:beforeUpload": createTestHook("test", handler),
 				},
@@ -329,7 +329,7 @@ describe("HookPipeline", () => {
 
 			const plugin = createTestPlugin({
 				id: "test",
-				capabilities: ["read:media"],
+				capabilities: ["media:read"],
 				hooks: {
 					"media:afterUpload": createTestHook("test", handler),
 				},
@@ -354,7 +354,7 @@ describe("HookPipeline", () => {
 	// =========================================================================
 
 	describe("capability enforcement — content hooks", () => {
-		it("skips content:beforeSave without write:content capability", () => {
+		it("skips content:beforeSave without content:write capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -367,10 +367,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:beforeSave")).toBe(false);
 		});
 
-		it("skips content:beforeSave with only read:content (requires write:content)", () => {
+		it("skips content:beforeSave with only content:read (requires content:write)", () => {
 			const plugin = createTestPlugin({
 				id: "read-only",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 				hooks: {
 					"content:beforeSave": createTestHook("read-only", vi.fn()),
 				},
@@ -380,10 +380,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:beforeSave")).toBe(false);
 		});
 
-		it("registers content:beforeSave with write:content capability", () => {
+		it("registers content:beforeSave with content:write capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				hooks: {
 					"content:beforeSave": createTestHook("has-cap", vi.fn()),
 				},
@@ -393,7 +393,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:beforeSave")).toBe(true);
 		});
 
-		it("skips content:afterSave without read:content capability", () => {
+		it("skips content:afterSave without content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -406,10 +406,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterSave")).toBe(false);
 		});
 
-		it("registers content:afterSave with read:content capability (read-only notification)", () => {
+		it("registers content:afterSave with content:read capability (read-only notification)", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 				hooks: {
 					"content:afterSave": createTestHook("has-cap", vi.fn()),
 				},
@@ -419,7 +419,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterSave")).toBe(true);
 		});
 
-		it("skips content:beforeDelete without read:content capability", () => {
+		it("skips content:beforeDelete without content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -432,7 +432,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:beforeDelete")).toBe(false);
 		});
 
-		it("skips content:afterDelete without read:content capability", () => {
+		it("skips content:afterDelete without content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -445,10 +445,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterDelete")).toBe(false);
 		});
 
-		it("registers all content hooks with write:content + read:content", () => {
+		it("registers all content hooks with content:write + content:read", () => {
 			const plugin = createTestPlugin({
 				id: "writer",
-				capabilities: ["write:content", "read:content"],
+				capabilities: ["content:write", "content:read"],
 				hooks: {
 					"content:beforeSave": createTestHook("writer", vi.fn()),
 					"content:afterSave": createTestHook("writer", vi.fn()),
@@ -468,7 +468,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(true);
 		});
 
-		it("skips content:afterPublish without read:content capability", () => {
+		it("skips content:afterPublish without content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -481,10 +481,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterPublish")).toBe(false);
 		});
 
-		it("registers content:afterPublish with read:content capability", () => {
+		it("registers content:afterPublish with content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 				hooks: {
 					"content:afterPublish": createTestHook("has-cap", vi.fn()),
 				},
@@ -494,7 +494,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterPublish")).toBe(true);
 		});
 
-		it("skips content:afterUnpublish without read:content capability", () => {
+		it("skips content:afterUnpublish without content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -507,10 +507,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(false);
 		});
 
-		it("registers content:afterUnpublish with read:content capability", () => {
+		it("registers content:afterUnpublish with content:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 				hooks: {
 					"content:afterUnpublish": createTestHook("has-cap", vi.fn()),
 				},
@@ -522,7 +522,7 @@ describe("HookPipeline", () => {
 	});
 
 	describe("capability enforcement — media hooks", () => {
-		it("skips media:beforeUpload without write:media capability", () => {
+		it("skips media:beforeUpload without media:write capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -535,10 +535,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("media:beforeUpload")).toBe(false);
 		});
 
-		it("registers media:beforeUpload with write:media capability", () => {
+		it("registers media:beforeUpload with media:write capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["write:media"],
+				capabilities: ["media:write"],
 				hooks: {
 					"media:beforeUpload": createTestHook("has-cap", vi.fn()),
 				},
@@ -548,7 +548,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("media:beforeUpload")).toBe(true);
 		});
 
-		it("skips media:afterUpload without read:media capability", () => {
+		it("skips media:afterUpload without media:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -561,10 +561,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("media:afterUpload")).toBe(false);
 		});
 
-		it("registers media:afterUpload with read:media capability", () => {
+		it("registers media:afterUpload with media:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["read:media"],
+				capabilities: ["media:read"],
 				hooks: {
 					"media:afterUpload": createTestHook("has-cap", vi.fn()),
 				},
@@ -576,7 +576,7 @@ describe("HookPipeline", () => {
 	});
 
 	describe("capability enforcement — comment hooks", () => {
-		it("skips comment:beforeCreate without read:users capability", () => {
+		it("skips comment:beforeCreate without users:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -589,10 +589,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("comment:beforeCreate")).toBe(false);
 		});
 
-		it("registers comment:beforeCreate with read:users capability", () => {
+		it("registers comment:beforeCreate with users:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["read:users"],
+				capabilities: ["users:read"],
 				hooks: {
 					"comment:beforeCreate": createTestHook("has-cap", vi.fn()),
 				},
@@ -602,7 +602,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("comment:beforeCreate")).toBe(true);
 		});
 
-		it("skips comment:moderate without read:users capability", () => {
+		it("skips comment:moderate without users:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -615,7 +615,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("comment:moderate")).toBe(false);
 		});
 
-		it("skips comment:afterCreate without read:users capability", () => {
+		it("skips comment:afterCreate without users:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -628,7 +628,7 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("comment:afterCreate")).toBe(false);
 		});
 
-		it("skips comment:afterModerate without read:users capability", () => {
+		it("skips comment:afterModerate without users:read capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -643,7 +643,7 @@ describe("HookPipeline", () => {
 	});
 
 	describe("capability enforcement — page:fragments", () => {
-		it("skips page:fragments without page:inject capability", () => {
+		it("skips page:fragments without hooks.page-fragments:register capability", () => {
 			const plugin = createTestPlugin({
 				id: "no-cap",
 				capabilities: [],
@@ -656,10 +656,10 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("page:fragments")).toBe(false);
 		});
 
-		it("registers page:fragments with page:inject capability", () => {
+		it("registers page:fragments with hooks.page-fragments:register capability", () => {
 			const plugin = createTestPlugin({
 				id: "has-cap",
-				capabilities: ["page:inject"],
+				capabilities: ["hooks.page-fragments:register"],
 				hooks: {
 					"page:fragments": createTestHook("has-cap", vi.fn()),
 				},

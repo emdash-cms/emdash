@@ -6,12 +6,10 @@
 		"description": "A portfolio for showcasing creative work",
 		"author": "EmDash"
 	},
-
 	"settings": {
 		"title": "Studio",
 		"tagline": "Design & Development"
 	},
-
 	"collections": [
 		{
 			"slug": "projects",
@@ -88,7 +86,6 @@
 			]
 		}
 	],
-
 	"taxonomies": [
 		{
 			"name": "category",
@@ -97,10 +94,22 @@
 			"hierarchical": false,
 			"collections": ["projects"],
 			"terms": [
-				{ "slug": "branding", "label": "Branding" },
-				{ "slug": "web", "label": "Web Design" },
-				{ "slug": "print", "label": "Print" },
-				{ "slug": "photography", "label": "Photography" }
+				{
+					"slug": "branding",
+					"label": "Branding"
+				},
+				{
+					"slug": "web",
+					"label": "Web Design"
+				},
+				{
+					"slug": "print",
+					"label": "Print"
+				},
+				{
+					"slug": "photography",
+					"label": "Photography"
+				}
 			]
 		},
 		{
@@ -110,28 +119,55 @@
 			"hierarchical": false,
 			"collections": ["projects"],
 			"terms": [
-				{ "slug": "identity", "label": "Identity" },
-				{ "slug": "ui-ux", "label": "UI/UX" },
-				{ "slug": "development", "label": "Development" },
-				{ "slug": "art-direction", "label": "Art Direction" },
-				{ "slug": "packaging", "label": "Packaging" },
-				{ "slug": "ecommerce", "label": "E-commerce" },
-				{ "slug": "editorial", "label": "Editorial" }
+				{
+					"slug": "identity",
+					"label": "Identity"
+				},
+				{
+					"slug": "ui-ux",
+					"label": "UI/UX"
+				},
+				{
+					"slug": "development",
+					"label": "Development"
+				},
+				{
+					"slug": "art-direction",
+					"label": "Art Direction"
+				},
+				{
+					"slug": "packaging",
+					"label": "Packaging"
+				},
+				{
+					"slug": "ecommerce",
+					"label": "E-commerce"
+				},
+				{
+					"slug": "editorial",
+					"label": "Editorial"
+				}
 			]
 		}
 	],
-
 	"menus": [
 		{
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
-				{ "type": "custom", "label": "Work", "url": "/work" },
-				{ "type": "custom", "label": "Contact", "url": "/contact" }
+				{
+					"type": "custom",
+					"label": "Work",
+					"url": "/work"
+				},
+				{
+					"type": "custom",
+					"label": "Contact",
+					"url": "/contact"
+				}
 			]
 		}
 	],
-
 	"content": {
 		"pages": [
 			{
@@ -147,9 +183,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We are a small design studio focused on creating meaningful work for thoughtful clients. Founded in 2020, we've had the privilege of working with brands across technology, culture, and the arts."
+									"text": "We are a small design studio focused on creating meaningful work for thoughtful clients. Founded in 2020, we've had the privilege of working with brands across technology, culture, and the arts.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
@@ -157,14 +195,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Our approach is simple: listen carefully, think deeply, and craft with intention. We believe that good design is invisible — it gets out of the way and lets the work speak for itself."
+									"text": "Our approach is simple: listen carefully, think deeply, and craft with intention. We believe that good design is invisible — it gets out of the way and lets the work speak for itself.",
+									"_key": "k3"
 								}
-							]
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "What we do" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we do",
+									"_key": "k5"
+								}
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
@@ -172,9 +219,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We specialize in brand identity, web design, and art direction. Whether you need a complete visual identity or a single website, we bring the same level of care and attention to every project."
+									"text": "We specialize in brand identity, web design, and art direction. Whether you need a complete visual identity or a single website, we bring the same level of care and attention to every project.",
+									"_key": "k7"
 								}
-							]
+							],
+							"_key": "k6"
 						}
 					]
 				}
@@ -190,7 +239,13 @@
 					"client": "Meridian Collective",
 					"year": "2024",
 					"summary": "A complete brand identity for a creative collective bringing together artists and technologists.",
-					"featured_image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&h=900&fit=crop",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&h=900&fit=crop",
+							"alt": "Meridian cover image",
+							"filename": "photo-1558618666-fcd25c85cd64.jpg"
+						}
+					},
 					"content": [
 						{
 							"_type": "block",
@@ -198,14 +253,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Meridian Collective needed a visual identity that could bridge the gap between traditional art and emerging technology. The challenge was to create something that felt timeless yet forward-looking."
+									"text": "Meridian Collective needed a visual identity that could bridge the gap between traditional art and emerging technology. The challenge was to create something that felt timeless yet forward-looking.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The approach" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The approach",
+									"_key": "k3"
+								}
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
@@ -213,14 +277,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We developed a wordmark that combines classical typography with subtle geometric forms. The color palette draws from both digital interfaces and natural materials, creating a bridge between worlds."
+									"text": "We developed a wordmark that combines classical typography with subtle geometric forms. The color palette draws from both digital interfaces and natural materials, creating a bridge between worlds.",
+									"_key": "k5"
 								}
-							]
+							],
+							"_key": "k4"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The result" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The result",
+									"_key": "k7"
+								}
+							],
+							"_key": "k6"
 						},
 						{
 							"_type": "block",
@@ -228,9 +301,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The new identity has been applied across print and digital touchpoints, from business cards to a fully responsive website. Meridian has received positive feedback from both artists and technologists alike."
+									"text": "The new identity has been applied across print and digital touchpoints, from business cards to a fully responsive website. Meridian has received positive feedback from both artists and technologists alike.",
+									"_key": "k9"
 								}
-							]
+							],
+							"_key": "k8"
 						}
 					]
 				},
@@ -248,7 +323,13 @@
 					"client": "Volta Energy",
 					"year": "2024",
 					"summary": "Website design for a renewable energy startup making clean power accessible to everyone.",
-					"featured_image": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=900&fit=crop",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=900&fit=crop",
+							"alt": "Volta cover image",
+							"filename": "photo-1497366216548-37526070297c.jpg"
+						}
+					},
 					"url": "https://volta.example.com",
 					"content": [
 						{
@@ -257,14 +338,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Volta is on a mission to make renewable energy accessible to everyone. They needed a website that could explain complex technology simply while inspiring trust in potential customers."
+									"text": "Volta is on a mission to make renewable energy accessible to everyone. They needed a website that could explain complex technology simply while inspiring trust in potential customers.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Design principles" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Design principles",
+									"_key": "k3"
+								}
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
@@ -272,9 +362,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We focused on clarity and warmth. The design uses generous whitespace and a vibrant green accent that evokes growth and sustainability without feeling clichéd."
+									"text": "We focused on clarity and warmth. The design uses generous whitespace and a vibrant green accent that evokes growth and sustainability without feeling clichéd.",
+									"_key": "k5"
 								}
-							]
+							],
+							"_key": "k4"
 						}
 					]
 				},
@@ -292,7 +384,13 @@
 					"client": "City Museum",
 					"year": "2023",
 					"summary": "Exhibition catalog and print materials for a retrospective on modernist architecture.",
-					"featured_image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=900&fit=crop",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=900&fit=crop",
+							"alt": "The Archive cover image",
+							"filename": "photo-1507003211169-0a1dd7228f2d.jpg"
+						}
+					},
 					"content": [
 						{
 							"_type": "block",
@@ -300,14 +398,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The Archive was a major exhibition at the City Museum, showcasing 50 years of modernist architecture through photographs, drawings, and models. We designed the complete print identity."
+									"text": "The Archive was a major exhibition at the City Museum, showcasing 50 years of modernist architecture through photographs, drawings, and models. We designed the complete print identity.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The catalog" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The catalog",
+									"_key": "k3"
+								}
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
@@ -315,9 +422,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The 240-page catalog uses a strict grid system inspired by the work being exhibited. Full-bleed photography alternates with dense text spreads, creating a rhythm that echoes the exhibition layout."
+									"text": "The 240-page catalog uses a strict grid system inspired by the work being exhibited. Full-bleed photography alternates with dense text spreads, creating a rhythm that echoes the exhibition layout.",
+									"_key": "k5"
 								}
-							]
+							],
+							"_key": "k4"
 						}
 					]
 				},
@@ -335,7 +444,13 @@
 					"client": "Personal Project",
 					"year": "2023",
 					"summary": "A photographic study of the Pacific coastline, exploring the intersection of land, sea, and sky.",
-					"featured_image": "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=1200&h=900&fit=crop",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=1200&h=900&fit=crop",
+							"alt": "Coastal cover image",
+							"filename": "photo-1505142468610-359e7d316be0.jpg"
+						}
+					},
 					"content": [
 						{
 							"_type": "block",
@@ -343,14 +458,23 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Coastal began as a weekend project and grew into a year-long exploration of the Pacific shoreline. Shot entirely on medium format film, the series captures the quiet drama of the coast."
+									"text": "Coastal began as a weekend project and grew into a year-long exploration of the Pacific shoreline. Shot entirely on medium format film, the series captures the quiet drama of the coast.",
+									"_key": "k1"
 								}
-							]
+							],
+							"_key": "k0"
 						},
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Process" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Process",
+									"_key": "k3"
+								}
+							],
+							"_key": "k2"
 						},
 						{
 							"_type": "block",
@@ -358,9 +482,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Each image was made at dawn or dusk, when the light is softest and the beaches are empty. The slow process of shooting film encourages patience and intentionality — qualities that show in the final work."
+									"text": "Each image was made at dawn or dusk, when the light is softest and the beaches are empty. The slow process of shooting film encourages patience and intentionality — qualities that show in the final work.",
+									"_key": "k5"
 								}
-							]
+							],
+							"_key": "k4"
 						}
 					]
 				},

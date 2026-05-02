@@ -14,6 +14,7 @@ import { ImageBlockComponent } from "./blocks/image.js";
 import { MeterBlockComponent } from "./blocks/meter.js";
 import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
+import { TabBlockComponent } from "./blocks/tab.js";
 import { TableBlockComponent } from "./blocks/table.js";
 import type { Block, BlockInteraction } from "./types.js";
 
@@ -52,6 +53,8 @@ function renderBlock(
 			return <BannerBlockComponent block={block} />;
 		case "code":
 			return <CodeBlockComponent block={block} />;
+		case "tab":
+			return <TabBlockComponent block={block} onAction={onAction} />;
 		case "empty":
 			return <EmptyBlockComponent block={block} onAction={onAction} />;
 		case "accordion":

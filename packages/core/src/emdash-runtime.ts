@@ -39,7 +39,6 @@ import type {
 	PageMetadataContribution,
 	PageFragmentContribution,
 } from "./plugins/types.js";
-import { invalidateUrlPatternCache } from "./query.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { COMMIT, VERSION } from "./version.js";
@@ -111,6 +110,7 @@ import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
 } from "./comments/moderator.js";
+import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
@@ -161,6 +161,7 @@ import { NodeCronScheduler } from "./plugins/scheduler/node.js";
 import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
+import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { FTSManager } from "./search/fts-manager.js";
 
@@ -287,7 +288,6 @@ export interface EmDashRuntimeParts {
 	};
 	runtimeDeps: RuntimeDependencies;
 	pipelineRef: { current: HookPipeline };
-	manifestCacheKey: string;
 }
 
 /**
@@ -342,10 +342,6 @@ export class EmDashRuntime {
 	private cronScheduler: CronScheduler | null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
-
-	private _cachedManifest: EmDashManifest | null = null;
-	private _manifestPromise: Promise<EmDashManifest> | null = null;
-	private readonly _manifestCacheKey: string;
 
 	/**
 	 * Set to true after FTS indexes have been verified for this worker
@@ -410,7 +406,6 @@ export class EmDashRuntime {
 		this.pipelineFactoryOptions = parts.pipelineFactoryOptions;
 		this.runtimeDeps = parts.runtimeDeps;
 		this.pipelineRef = parts.pipelineRef;
-		this._manifestCacheKey = parts.manifestCacheKey;
 	}
 
 	/**
@@ -460,7 +455,6 @@ export class EmDashRuntime {
 			this.enabledPlugins.delete(pluginId);
 			await this.rebuildHookPipeline();
 		}
-		this.invalidateManifest();
 	}
 
 	/**
@@ -634,6 +628,13 @@ export class EmDashRuntime {
 		// Initialize database (connects, runs migrations if needed)
 		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
 
+		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
+		// surfaces in startup logs instead of as request-time 500s. The key
+		// itself is not yet consumed (a follow-up PR adds plugin-secret
+		// encryption); validating early just guards against silent
+		// misconfiguration.
+		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
+
 		// FTS verify/repair is deferred off the cold-start hot path.
 		// See EmDashRuntime.ensureSearchHealthy().
 
@@ -697,7 +698,7 @@ export class EmDashRuntime {
 				const devConsolePlugin = definePlugin({
 					id: DEV_CONSOLE_EMAIL_PLUGIN_ID,
 					version: "0.0.0",
-					capabilities: ["email:provide"],
+					capabilities: ["hooks.email-transport:register"],
 					hooks: {
 						"email:deliver": {
 							exclusive: true,
@@ -720,7 +721,7 @@ export class EmDashRuntime {
 			const defaultModeratorPlugin = definePlugin({
 				id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 				version: "0.0.0",
-				capabilities: ["read:users"],
+				capabilities: ["users:read"],
 				hooks: {
 					"comment:moderate": {
 						exclusive: true,
@@ -871,22 +872,6 @@ export class EmDashRuntime {
 			}
 		});
 
-		// SHA of emdash commit + user config that affects the manifest.
-		// COMMIT captures emdash code changes; plugin IDs/versions and i18n
-		// capture user astro.config changes (e.g. upgrading a plugin package).
-		// DB-driven changes (collections, fields, plugin toggle) go through
-		// invalidateManifest(). Sorted for stability across nondeterministic
-		// plugin ordering.
-		const manifestCacheKey = await hashString(
-			[
-				COMMIT,
-				...deps.plugins.map((p) => `${p.id}@${p.version ?? ""}`).toSorted(),
-				...deps.sandboxedPluginEntries.map((e) => `${e.id}@${e.version}`).toSorted(),
-				virtualConfig?.i18n?.defaultLocale ?? "",
-				(virtualConfig?.i18n?.locales ?? []).toSorted().join(","),
-			].join("|"),
-		);
-
 		return new EmDashRuntime({
 			db,
 			storage,
@@ -906,7 +891,6 @@ export class EmDashRuntime {
 			pipelineFactoryOptions,
 			runtimeDeps: deps,
 			pipelineRef,
-			manifestCacheKey,
 		});
 	}
 
@@ -983,18 +967,15 @@ export class EmDashRuntime {
 			const dialect = deps.createDialect(dbConfig.config);
 			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-			const { applied } = await runMigrations(db);
+			await runMigrations(db);
 
-			// If migrations were applied, the schema changed — clear the
-			// DB-persisted manifest cache so getManifest() rebuilds it.
-			if (applied.length > 0) {
-				try {
-					const options = new OptionsRepository(db);
-					await options.delete("emdash:manifest_cache");
-				} catch {
-					// Non-fatal
-				}
-			}
+			// Note: legacy installs may carry a stray `emdash:manifest_cache`
+			// row in the options table from versions that persisted a JSON
+			// manifest. The runtime no longer reads or writes it. We do not
+			// proactively delete it: the row is a few hundred bytes of dead
+			// weight and is never on the read path, whereas a one-shot
+			// cleanup-flag check costs an extra `options.get()` on every
+			// isolate cold boot forever. Cheaper to leave it.
 
 			// Auto-seed schema if no collections exist and setup hasn't run.
 			// This covers first-load on sites that skip the setup wizard.
@@ -1256,80 +1237,35 @@ export class EmDashRuntime {
 	// =========================================================================
 
 	/**
-	 * Get the manifest, using an in-memory cache with a DB-persisted
-	 * fallback for cold starts. Avoids N+1 schema registry queries
-	 * on every request.
+	 * Build the admin manifest from the live database.
 	 *
-	 * Cache is invalidated by invalidateManifest(), called from schema
-	 * API routes, MCP server, plugin toggle, and taxonomy def changes.
+	 * Used by the admin UI (sidebar collections, content editor field
+	 * dispatch, manifest endpoint) and by WordPress import — it's never
+	 * read on a public request, so this isn't on any anonymous hot path.
+	 *
+	 * No cross-request cache. The previous worker-isolate cache produced
+	 * a class of cross-isolate staleness bugs (#776, #873, #876, #877)
+	 * because Cloudflare Workers keeps multiple warm isolates per region
+	 * and there's no fan-out primitive to invalidate them in step. The
+	 * cache existed to amortize an N+1 schema query pattern; now that
+	 * `listCollectionsWithFields()` does the same work in two queries,
+	 * the rebuild is fast enough to pay on every admin request.
+	 *
+	 * Within a single request, `requestCached` deduplicates concurrent
+	 * callers (the manifest endpoint and an admin SSR template, say).
 	 */
-	async getManifest(): Promise<EmDashManifest> {
-		// When the DB is overridden by an isolated instance (playground /
-		// DO-preview sessions), bypass the module-scoped manifest cache —
-		// its schema may diverge from the configured DB. Plain D1 Sessions
-		// routing does NOT set `dbIsIsolated`, so the cache still applies.
-		if (getRequestContext()?.dbIsIsolated) {
-			return this._buildManifest();
-		}
-
-		if (this._cachedManifest) return this._cachedManifest;
-
-		// DB-persisted cache (1 query instead of N+1 rebuild on cold start).
-		// Keyed by SHA of commit + config to bust on deploys. DB-driven
-		// changes (collections, fields, plugins, taxonomies) go through
-		// invalidateManifest().
-		try {
-			const options = new OptionsRepository(this.db);
-			const cached = await options.get<{ key: string; manifest: EmDashManifest }>(
-				"emdash:manifest_cache",
-			);
-			if (cached && cached.key === this._manifestCacheKey && cached.manifest) {
-				this._cachedManifest = cached.manifest;
-				return cached.manifest;
-			}
-		} catch {
-			// Options table may not exist yet
-		}
-
-		// Full rebuild, then persist. Track which promise is current so
-		// an invalidation during the build can't be overwritten.
-		if (!this._manifestPromise) {
-			let manifestPromise: Promise<EmDashManifest>;
-			const isCurrentLoad = () => this._manifestPromise === manifestPromise;
-			manifestPromise = this._loadManifest(isCurrentLoad);
-			this._manifestPromise = manifestPromise;
-		}
-		return this._manifestPromise;
-	}
-
-	private async _loadManifest(isCurrentLoad: () => boolean): Promise<EmDashManifest> {
-		try {
-			const manifest = await this._buildManifest();
-
-			if (isCurrentLoad()) {
-				this._cachedManifest = manifest;
-
-				try {
-					const options = new OptionsRepository(this.db);
-					await options.set("emdash:manifest_cache", {
-						key: this._manifestCacheKey,
-						manifest,
-					});
-				} catch {
-					// Non-fatal — will just rebuild next time
-				}
-			}
-
-			return manifest;
-		} finally {
-			if (isCurrentLoad()) {
-				this._manifestPromise = null;
-			}
-		}
+	getManifest(): Promise<EmDashManifest> {
+		return requestCached("emdash:manifest", () => this._buildManifest());
 	}
 
 	/**
-	 * Build the manifest from database (N+1 collection queries).
+	 * Build the manifest from the database.
+	 *
+	 * Constant query shapes via `listCollectionsWithFields()` — one query
+	 * for collections, one batched query for fields (chunked at
+	 * `SQL_BATCH_SIZE` collection IDs to stay under D1's bound-parameter
+	 * limit). Typical sites stay well under the chunk threshold, so this
+	 * is two queries in practice; never N+1.
 	 */
 	private async _buildManifest(): Promise<EmDashManifest> {
 		// Build collections from database.
@@ -1338,9 +1274,8 @@ export class EmDashRuntime {
 		const manifestCollections: Record<string, ManifestCollection> = {};
 		try {
 			const registry = new SchemaRegistry(this.db);
-			const dbCollections = await registry.listCollections();
+			const dbCollections = await registry.listCollectionsWithFields();
 			for (const collection of dbCollections) {
-				const collectionWithFields = await registry.getCollectionWithFields(collection.slug);
 				const fields: Record<
 					string,
 					{
@@ -1355,34 +1290,32 @@ export class EmDashRuntime {
 					}
 				> = {};
 
-				if (collectionWithFields?.fields) {
-					for (const field of collectionWithFields.fields) {
-						const entry: (typeof fields)[string] = {
-							kind: FIELD_TYPE_TO_KIND[field.type] ?? "string",
-							label: field.label,
-							required: field.required,
-						};
-						if (field.widget) entry.widget = field.widget;
-						// Plugin field widgets read their per-field config from `field.options`,
-						// which the seed schema types as `Record<string, unknown>`. Pass it
-						// through to the manifest so plugin widgets in the admin SPA receive it.
-						if (field.options) {
-							entry.options = field.options;
-						}
-						// Legacy: select/multiSelect enum options live on `field.validation.options`.
-						// Wins over `field.options` to preserve existing behavior for enum widgets.
-						if (field.validation?.options) {
-							entry.options = field.validation.options.map((v) => ({
-								value: v,
-								label: v.charAt(0).toUpperCase() + v.slice(1),
-							}));
-						}
-						// Include full validation for repeater fields (subFields, minItems, maxItems)
-						if (field.type === "repeater" && field.validation) {
-							(entry as Record<string, unknown>).validation = field.validation;
-						}
-						fields[field.slug] = entry;
+				for (const field of collection.fields) {
+					const entry: (typeof fields)[string] = {
+						kind: FIELD_TYPE_TO_KIND[field.type] ?? "string",
+						label: field.label,
+						required: field.required,
+					};
+					if (field.widget) entry.widget = field.widget;
+					// Plugin field widgets read their per-field config from `field.options`,
+					// which the seed schema types as `Record<string, unknown>`. Pass it
+					// through to the manifest so plugin widgets in the admin SPA receive it.
+					if (field.options) {
+						entry.options = field.options;
 					}
+					// Legacy: select/multiSelect enum options live on `field.validation.options`.
+					// Wins over `field.options` to preserve existing behavior for enum widgets.
+					if (field.validation?.options) {
+						entry.options = field.validation.options.map((v) => ({
+							value: v,
+							label: v.charAt(0).toUpperCase() + v.slice(1),
+						}));
+					}
+					// Include full validation for repeater fields (subFields, minItems, maxItems)
+					if (field.type === "repeater" && field.validation) {
+						(entry as Record<string, unknown>).validation = field.validation;
+					}
+					fields[field.slug] = entry;
 				}
 
 				manifestCollections[collection.slug] = {
@@ -1554,27 +1487,6 @@ export class EmDashRuntime {
 			i18n,
 			marketplace: !!this.config.marketplace,
 		};
-	}
-
-	/**
-	 * Invalidate cached data derived from the manifest/schema.
-	 * Called when collections, fields, plugins, or taxonomy defs change.
-	 */
-	invalidateManifest(): void {
-		this._cachedManifest = null;
-		this._manifestPromise = null;
-		invalidateUrlPatternCache();
-		// Delete DB-persisted cache so the next cold start rebuilds.
-		// Fire-and-forget: in-memory is already cleared for this worker,
-		// DB delete is best-effort for the next cold start.
-		try {
-			const options = new OptionsRepository(this.db);
-			options.delete("emdash:manifest_cache").catch((error) => {
-				console.error("Failed to delete persisted manifest cache", error);
-			});
-		} catch (error) {
-			console.error("Failed to initialize manifest cache invalidation", error);
-		}
 	}
 
 	/**
@@ -1780,6 +1692,14 @@ export class EmDashRuntime {
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			seo?: {
+				title?: string | null;
+				description?: string | null;
+				image?: string | null;
+				canonical?: string | null;
+				noIndex?: boolean;
+			};
+			publishedAt?: string | null;
 			/** Skip revision creation (used by autosave) */
 			skipRevision?: boolean;
 			_rev?: string;
@@ -2006,8 +1926,12 @@ export class EmDashRuntime {
 	// Publishing & Scheduling Handlers
 	// =========================================================================
 
-	async handleContentPublish(collection: string, id: string) {
-		const result = await handleContentPublish(this.db, collection, id);
+	async handleContentPublish(
+		collection: string,
+		id: string,
+		options: { publishedAt?: string } = {},
+	) {
+		const result = await handleContentPublish(this.db, collection, id, options);
 
 		// Run afterPublish hooks (fire-and-forget)
 		if (result.success && result.data) {

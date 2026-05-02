@@ -58,7 +58,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 
 	return {
 		db: {} as EmDashHandlers["db"],
-		invalidateManifest: vi.fn(),
+		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
 			success: true,
 			data: { item: contentItem, _rev: "rev1" },

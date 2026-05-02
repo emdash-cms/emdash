@@ -302,7 +302,7 @@ import { definePlugin } from "emdash";
 export default definePlugin({
 	id: "analytics",
 	version: "1.0.0",
-	capabilities: ["read:content"],
+	capabilities: ["content:read"],
 
 	hooks: {
 		"content:afterSave": async (event, ctx) => {

@@ -51,14 +51,14 @@ Before installation, you'll see a dialog listing what the plugin needs access to
 
 | Capability | What it means |
 | ---------- | ------------- |
-| `read:content` | Read your content |
-| `write:content` | Create, update, and delete content |
-| `read:media` | Access your media library |
-| `write:media` | Upload and manage media |
-| `network:fetch` | Make network requests to specific hosts |
+| `content:read` | Read your content |
+| `content:write` | Create, update, and delete content |
+| `media:read` | Access your media library |
+| `media:write` | Upload and manage media |
+| `network:request` | Make network requests to specific hosts |
 
 <Aside type="caution">
-  Only install plugins from authors you trust. The capability system limits what a sandboxed plugin can access, but a plugin with `write:content` can modify any content on your site.
+  Only install plugins from authors you trust. The capability system limits what a sandboxed plugin can access, but a plugin with `content:write` can modify any content on your site.
 </Aside>
 
 ### Security Audit

@@ -24,6 +24,7 @@ import { EmDashRuntime } from "../../src/emdash-runtime.js";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
+import { invalidateUrlPatternCache } from "../../src/query.js";
 
 // ---------------------------------------------------------------------------
 // Auth-injecting transport
@@ -151,7 +152,6 @@ export function createTestRuntime(
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef,
-		manifestCacheKey: "test",
 	});
 }
 
@@ -203,7 +203,8 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		email: runtime.email,
 		configuredPlugins: runtime.configuredPlugins,
 		config: runtime.config,
-		invalidateManifest: runtime.invalidateManifest.bind(runtime),
+		getManifest: runtime.getManifest.bind(runtime),
+		invalidateUrlPatternCache,
 
 		// Fields the MCP server doesn't currently call. Stub so the type
 		// checks; if a tool ever reaches for one, the test will throw a

@@ -1,9 +1,12 @@
 /**
  * create-emdash
  *
- * Interactive CLI for creating new EmDash projects
+ * CLI for creating new EmDash projects.
  *
- * Usage: npm create emdash@latest [directory]
+ * Defaults to an interactive flow. Pass flags (or --yes) to run
+ * non-interactively — see `--help` or {@link HELP_TEXT} for the full set.
+ *
+ * Usage: npm create emdash@latest [name] [options]
  */
 
 import { exec } from "node:child_process";
@@ -18,28 +21,24 @@ import { downloadTemplate } from "giget";
 import pc from "picocolors";
 
 import {
+	FlagError,
+	HELP_TEXT,
+	type PackageManager,
+	type ParsedFlags,
+	type Platform,
+	type TemplateKey,
+	parseFlags,
+	validateProjectName,
+	wantsHelp,
+} from "./flags.js";
+import {
 	PROJECT_NAME_PATTERN,
 	isDirNonEmpty,
-	parseTargetArg,
 	sanitizePackageName,
+	writeEncryptionKey,
 } from "./utils.js";
 
-const targetArg = parseTargetArg(process.argv);
-
 const GITHUB_REPO = "emdash-cms/templates";
-
-type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
-
-/** Detect which package manager invoked us, or fall back to npm */
-function detectPackageManager(): PackageManager {
-	const agent = process.env.npm_config_user_agent ?? "";
-	if (agent.startsWith("pnpm")) return "pnpm";
-	if (agent.startsWith("yarn")) return "yarn";
-	if (agent.startsWith("bun")) return "bun";
-	return "npm";
-}
-
-type Platform = "node" | "cloudflare";
 
 interface TemplateConfig {
 	name: string;
@@ -69,12 +68,7 @@ const NODE_TEMPLATES = {
 		description: "A portfolio site with projects and case studies",
 		dir: "portfolio",
 	},
-	blank: {
-		name: "Blank",
-		description: "A minimal starter with no content or styling",
-		dir: "blank",
-	},
-} as const satisfies Record<string, TemplateConfig>;
+} as const satisfies Record<TemplateKey, TemplateConfig>;
 
 const CLOUDFLARE_TEMPLATES = {
 	blog: {
@@ -97,10 +91,22 @@ const CLOUDFLARE_TEMPLATES = {
 		description: "A portfolio site with projects and case studies",
 		dir: "portfolio-cloudflare",
 	},
-} as const satisfies Record<string, TemplateConfig>;
+} as const satisfies Record<TemplateKey, TemplateConfig>;
 
-type NodeTemplate = keyof typeof NODE_TEMPLATES;
-type CloudflareTemplate = keyof typeof CLOUDFLARE_TEMPLATES;
+/** Defaults applied under `--yes` when the user omits a flag. */
+const DEFAULT_PLATFORM: Platform = "cloudflare";
+const DEFAULT_TEMPLATE: TemplateKey = "blog";
+/** Used by `--yes` when the user omits the project name positional. */
+const DEFAULT_PROJECT_NAME = "my-site";
+
+/** Detect which package manager invoked us, or fall back to npm */
+function detectPackageManager(): PackageManager {
+	const agent = process.env.npm_config_user_agent ?? "";
+	if (agent.startsWith("pnpm")) return "pnpm";
+	if (agent.startsWith("yarn")) return "yarn";
+	if (agent.startsWith("bun")) return "bun";
+	return "npm";
+}
 
 /** Build select options from a config object, preserving literal key types */
 function selectOptions<K extends string>(
@@ -114,83 +120,104 @@ function selectOptions<K extends string>(
 	}));
 }
 
-async function selectTemplate(platform: Platform): Promise<TemplateConfig> {
-	if (platform === "node") {
-		const key = await p.select<NodeTemplate>({
-			message: "Which template?",
-			options: selectOptions(NODE_TEMPLATES),
-			initialValue: "blog",
-		});
-		if (p.isCancel(key)) {
-			p.cancel("Operation cancelled.");
-			process.exit(0);
-		}
-		return NODE_TEMPLATES[key];
+const NEWLINE_PATTERN = /\r?\n/;
+
+/**
+ * Make sure `fileName` is excluded by `.gitignore`. Templates' gitignores
+ * already cover `.env*` but not `.dev.vars`; rather than relying on every
+ * template being current, the scaffolder defensively appends a stanza if
+ * no existing line matches.
+ */
+function ensureGitignored(projectDir: string, fileName: string): void {
+	const target = resolve(projectDir, ".gitignore");
+	const existing = existsSync(target) ? readFileSync(target, "utf-8") : "";
+	const lines = existing.split(NEWLINE_PATTERN);
+	if (lines.some((line) => line.trim() === fileName)) {
+		return;
 	}
-	const key = await p.select<CloudflareTemplate>({
+	const sep = existing.length === 0 ? "" : existing.endsWith("\n") ? "" : "\n";
+	const next = `${existing}${sep}${fileName}\n`;
+	writeFileSync(target, next);
+}
+
+function getTemplateConfig(platform: Platform, key: TemplateKey): TemplateConfig {
+	return platform === "node" ? NODE_TEMPLATES[key] : CLOUDFLARE_TEMPLATES[key];
+}
+
+async function selectTemplate(platform: Platform): Promise<TemplateKey> {
+	const map = platform === "node" ? NODE_TEMPLATES : CLOUDFLARE_TEMPLATES;
+	const key = await p.select<TemplateKey>({
 		message: "Which template?",
-		options: selectOptions(CLOUDFLARE_TEMPLATES),
+		options: selectOptions(map),
 		initialValue: "blog",
 	});
 	if (p.isCancel(key)) {
 		p.cancel("Operation cancelled.");
 		process.exit(0);
 	}
-	return CLOUDFLARE_TEMPLATES[key];
+	return key;
 }
 
-async function main() {
-	console.clear();
-
-	console.log(`\n  ${pc.bold(pc.cyan("— E M D A S H —"))}\n`);
-	p.intro("Create a new EmDash project");
-
-	const isCurrentDir = targetArg === ".";
-	let projectName: string;
-	let projectDir: string;
-
-	if (isCurrentDir) {
-		// "npm create emdash ." — scaffold into the current directory
-		projectDir = process.cwd();
-		projectName = sanitizePackageName(basename(projectDir));
-
-		if (isDirNonEmpty(projectDir)) {
-			const proceed = await p.confirm({
-				message: "Current directory is not empty. Files may be overwritten. Continue?",
-				initialValue: false,
-			});
-
-			if (p.isCancel(proceed) || !proceed) {
-				p.cancel("Operation cancelled.");
-				process.exit(0);
-			}
-		}
-	} else if (targetArg) {
-		// "npm create emdash my-project" — use the argument as the project name
-		if (!PROJECT_NAME_PATTERN.test(targetArg)) {
-			p.cancel("Project name can only contain lowercase letters, numbers, and hyphens.");
+/**
+ * Resolve the project name + directory. Honours flags first, then falls back
+ * to the interactive prompt.
+ *
+ * Returns `null` if the user declined to overwrite a non-empty target.
+ */
+async function resolveProjectLocation(
+	flags: ParsedFlags,
+): Promise<{ projectName: string; projectDir: string; isCurrentDir: boolean } | null> {
+	// Validate the positional once, here, so the error message matches the
+	// prompt path and parseFlags stays purely structural. parseFlags already
+	// captured the raw value; this is the only place that enforces the
+	// pattern across both flag and prompt entry points.
+	if (flags.name !== undefined) {
+		const error = validateProjectName(flags.name);
+		if (error) {
+			p.cancel(`${error}.`);
 			process.exit(1);
 		}
-		projectName = targetArg;
-		projectDir = resolve(process.cwd(), projectName);
+	}
 
+	const target = flags.name;
+	const isCurrentDir = target === ".";
+
+	if (isCurrentDir) {
+		const projectDir = process.cwd();
+		const projectName = sanitizePackageName(basename(projectDir));
 		if (isDirNonEmpty(projectDir)) {
-			const overwrite = await p.confirm({
-				message: `Directory ${projectName} already exists and is not empty. Files may be overwritten. Continue?`,
-				initialValue: false,
-			});
-
-			if (p.isCancel(overwrite) || !overwrite) {
-				p.cancel("Operation cancelled.");
-				process.exit(0);
+			// Under --yes we refuse to clobber unless --force is also set.
+			// Silently overwriting source files in the user's cwd is the
+			// kind of default we should never ship.
+			if (flags.yes && !flags.force) {
+				p.cancel("Current directory is not empty. Re-run with --force to allow overwriting.");
+				process.exit(1);
 			}
+			if (!flags.yes) {
+				const proceed = await p.confirm({
+					message: "Current directory is not empty. Files may be overwritten. Continue?",
+					initialValue: false,
+				});
+				if (p.isCancel(proceed) || !proceed) return null;
+			}
+			// flags.yes && flags.force: proceed silently.
 		}
+		return { projectName, projectDir, isCurrentDir: true };
+	}
+
+	let projectName: string;
+	if (target !== undefined) {
+		projectName = target;
+	} else if (flags.yes) {
+		// --yes with no positional: fall back to the documented default
+		// rather than silently dropping into the (broken-in-non-TTY) prompt.
+		// This is the contract documented in flags.ts and HELP_TEXT.
+		projectName = DEFAULT_PROJECT_NAME;
 	} else {
-		// No argument — interactive prompt
 		const name = await p.text({
 			message: "Project name?",
-			placeholder: "my-site",
-			defaultValue: "my-site",
+			placeholder: DEFAULT_PROJECT_NAME,
+			defaultValue: DEFAULT_PROJECT_NAME,
 			validate: (value) => {
 				if (!value) return "Project name is required";
 				if (!PROJECT_NAME_PATTERN.test(value))
@@ -198,56 +225,58 @@ async function main() {
 				return undefined;
 			},
 		});
-
-		if (p.isCancel(name)) {
-			p.cancel("Operation cancelled.");
-			process.exit(0);
-		}
-
+		if (p.isCancel(name)) return null;
 		projectName = name;
-		projectDir = resolve(process.cwd(), projectName);
+	}
 
-		if (isDirNonEmpty(projectDir)) {
+	const projectDir = resolve(process.cwd(), projectName);
+	if (isDirNonEmpty(projectDir)) {
+		if (flags.yes && !flags.force) {
+			p.cancel(
+				`Directory ${projectName} already exists and is not empty. Re-run with --force to allow overwriting.`,
+			);
+			process.exit(1);
+		}
+		if (!flags.yes) {
 			const overwrite = await p.confirm({
 				message: `Directory ${projectName} already exists and is not empty. Files may be overwritten. Continue?`,
 				initialValue: false,
 			});
-
-			if (p.isCancel(overwrite) || !overwrite) {
-				p.cancel("Operation cancelled.");
-				process.exit(0);
-			}
+			if (p.isCancel(overwrite) || !overwrite) return null;
 		}
+		// flags.yes && flags.force: proceed silently.
 	}
+	return { projectName, projectDir, isCurrentDir: false };
+}
 
-	// Step 1: pick platform
+async function resolvePlatform(flags: ParsedFlags): Promise<Platform> {
+	if (flags.platform !== undefined) return flags.platform;
+	if (flags.yes) return DEFAULT_PLATFORM;
 	const platform = await p.select<Platform>({
 		message: "Where will you deploy?",
 		options: [
-			{
-				value: "cloudflare",
-				label: "Cloudflare Workers",
-				hint: "D1 + R2",
-			},
-			{
-				value: "node",
-				label: "Node.js",
-				hint: "SQLite + local file storage",
-			},
+			{ value: "cloudflare", label: "Cloudflare Workers", hint: "D1 + R2" },
+			{ value: "node", label: "Node.js", hint: "SQLite + local file storage" },
 		],
 		initialValue: "cloudflare",
 	});
-
 	if (p.isCancel(platform)) {
 		p.cancel("Operation cancelled.");
 		process.exit(0);
 	}
+	return platform;
+}
 
-	// Step 2: pick template
-	const templateConfig = await selectTemplate(platform);
+async function resolveTemplate(flags: ParsedFlags, platform: Platform): Promise<TemplateKey> {
+	if (flags.template !== undefined) return flags.template;
+	if (flags.yes) return DEFAULT_TEMPLATE;
+	return selectTemplate(platform);
+}
 
-	// Step 3: pick package manager
-	const detectedPm = detectPackageManager();
+async function resolvePackageManager(flags: ParsedFlags): Promise<PackageManager> {
+	if (flags.packageManager !== undefined) return flags.packageManager;
+	const detected = detectPackageManager();
+	if (flags.yes) return detected;
 	const pm = await p.select<PackageManager>({
 		message: "Which package manager?",
 		options: [
@@ -256,24 +285,67 @@ async function main() {
 			{ value: "yarn", label: "yarn" },
 			{ value: "bun", label: "bun" },
 		],
-		initialValue: detectedPm,
+		initialValue: detected,
 	});
-
 	if (p.isCancel(pm)) {
 		p.cancel("Operation cancelled.");
 		process.exit(0);
 	}
+	return pm;
+}
 
-	// Step 4: install dependencies?
+async function resolveShouldInstall(flags: ParsedFlags): Promise<boolean> {
+	if (flags.install !== undefined) return flags.install;
+	if (flags.yes) return true;
 	const shouldInstall = await p.confirm({
 		message: "Install dependencies?",
 		initialValue: true,
 	});
-
 	if (p.isCancel(shouldInstall)) {
 		p.cancel("Operation cancelled.");
 		process.exit(0);
 	}
+	return shouldInstall;
+}
+
+async function main() {
+	// Short-circuit --help before strict parsing so a user typing
+	// `npm create emdash@latest --help --template nope` gets the help they
+	// asked for, not the parse error for the bad template.
+	if (wantsHelp(process.argv)) {
+		console.log(HELP_TEXT);
+		process.exit(0);
+	}
+
+	let flags: ParsedFlags;
+	try {
+		flags = parseFlags(process.argv);
+	} catch (error) {
+		// FlagError carries a friendly message; parseArgs's own errors do too
+		// (e.g. "Unknown option '--templat'"). Either way, surface and exit.
+		const message =
+			error instanceof FlagError || error instanceof Error ? error.message : String(error);
+		console.error(`\n${pc.red("Error:")} ${message}\n`);
+		console.error(HELP_TEXT);
+		process.exit(1);
+	}
+
+	console.clear();
+	console.log(`\n  ${pc.bold(pc.cyan("— E M D A S H —"))}\n`);
+	p.intro("Create a new EmDash project");
+
+	const location = await resolveProjectLocation(flags);
+	if (location === null) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+	const { projectName, projectDir, isCurrentDir } = location;
+
+	const platform = await resolvePlatform(flags);
+	const templateKey = await resolveTemplate(flags, platform);
+	const templateConfig = getTemplateConfig(platform, templateKey);
+	const pm = await resolvePackageManager(flags);
+	const shouldInstall = await resolveShouldInstall(flags);
 
 	const installCmd = `${pm} install`;
 	const runCmd = (script: string) => (pm === "npm" ? `npm run ${script}` : `${pm} ${script}`);
@@ -305,7 +377,23 @@ async function main() {
 			writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 		}
 
+		// Scaffold a fresh EMDASH_ENCRYPTION_KEY into the local-secrets file
+		// (Workers: .dev.vars, Node: .env). Idempotent — won't overwrite an
+		// existing entry if the user re-runs scaffolding into a non-empty
+		// directory. We also defensively ensure the file is gitignored.
+		const secretsFile = platform === "cloudflare" ? ".dev.vars" : ".env";
+		const keyResult = writeEncryptionKey(projectDir, secretsFile);
+		ensureGitignored(projectDir, secretsFile);
+
 		s.stop("Project created!");
+
+		if (keyResult === "skipped") {
+			p.log.info(
+				`Existing ${pc.cyan("EMDASH_ENCRYPTION_KEY")} found in ${pc.cyan(secretsFile)}; leaving it alone.`,
+			);
+		} else {
+			p.log.info(`Wrote ${pc.cyan("EMDASH_ENCRYPTION_KEY")} to ${pc.cyan(secretsFile)}.`);
+		}
 
 		if (shouldInstall) {
 			s.start(`Installing dependencies with ${pc.cyan(pm)}...`);
