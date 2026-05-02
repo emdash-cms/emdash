@@ -1,6 +1,11 @@
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 
-import { createAssertionSignatureMessage, coseAlgorithmES256 } from "@oslojs/webauthn";
+import {
+	createAssertionSignatureMessage,
+	coseAlgorithmES256,
+	coseAlgorithmRS256,
+} from "@oslojs/webauthn";
+
 import { describe, it, expect, vi } from "vitest";
 
 import type { AuthAdapter, Credential } from "../types.js";
@@ -80,6 +85,61 @@ function createValidAssertion(opts: { rpId?: string; origin?: string } = {}) {
 	return {
 		credential: {
 			...credential,
+			publicKey: new Uint8Array(publicKeyBytes),
+		},
+		response: {
+			id: credential.id,
+			rawId: credential.id,
+			type: "public-key" as const,
+			response: {
+				clientDataJSON: base64url(clientDataJSON),
+				authenticatorData: base64url(authenticatorData),
+				signature: base64url(signatureBytes),
+			},
+		},
+		challengeStore: {
+			set: vi.fn(async () => undefined),
+			get: vi.fn(async () => ({ type: "authentication" as const, expiresAt: Date.now() + 60_000 })),
+			delete: vi.fn(async () => undefined),
+		} satisfies ChallengeStore,
+	};
+}
+
+function createValidRS256Assertion(opts: { rpId?: string; origin?: string } = {}) {
+	const rpId = opts.rpId ?? config.rpId;
+	const origin = opts.origin ?? config.origins[0];
+	if (!origin) throw new Error("origin must be defined for createValidRS256Assertion");
+
+	// Generate RSA key pair
+	const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+		modulusLength: 2048,
+	});
+
+	// Export public key in PKIX (SPKI) format - this is what we store for RSA
+	const publicKeyBytes = publicKey.export({ type: "spki", format: "der" });
+
+	const challenge = base64url(Buffer.from("test-challenge"));
+	const clientDataJSON = Buffer.from(
+		JSON.stringify({
+			type: "webauthn.get",
+			challenge,
+			origin,
+		}),
+	);
+
+	const rpIdHash = createHash("sha256").update(rpId).digest();
+	const signatureCounter = Buffer.alloc(4);
+	signatureCounter.writeUInt32BE(1);
+	const authenticatorData = Buffer.concat([rpIdHash, Buffer.from([0x01]), signatureCounter]);
+	const signatureMessage = createAssertionSignatureMessage(authenticatorData, clientDataJSON);
+
+	// RSA signatures in WebAuthn use RSASSA-PKCS1-v1_5 + SHA-256
+	const signatureBytes = sign("sha256", signatureMessage, privateKey);
+
+	return {
+		credential: {
+			...credential,
+			algorithm: coseAlgorithmRS256,
 			publicKey: new Uint8Array(publicKeyBytes),
 		},
 		response: {
@@ -210,5 +270,40 @@ describe("authenticateWithPasskey", () => {
 			challengeStore,
 		);
 		expect(user).toMatchObject({ id: "user_1" });
+	});
+
+	it("accepts an RS256 (RSA) assertion with a PKIX-encoded public key", async () => {
+		const { credential: rsaCredential, response, challengeStore } = createValidRS256Assertion();
+		const adapter = {
+			getCredentialById: vi.fn(async () => rsaCredential),
+			updateCredentialCounter: vi.fn(async () => undefined),
+			getUserById: vi.fn(async () => ({ id: "user_1" })),
+		} as unknown as AuthAdapter;
+
+		const user = await authenticateWithPasskey(config, adapter, response, challengeStore);
+		expect(user).toMatchObject({ id: "user_1" });
+	});
+
+	it("throws a typed error for an unsupported algorithm", async () => {
+		const { credential: validCredential, response, challengeStore } = createValidAssertion();
+		const adapter = {
+			getCredentialById: vi.fn(async () => ({
+				...validCredential,
+				algorithm: 0, // Unsupported algorithm ID
+			})),
+			updateCredentialCounter: vi.fn(async () => undefined),
+			getUserById: vi.fn(async () => ({ id: "user_1" })),
+		} as unknown as AuthAdapter;
+
+		try {
+			await authenticateWithPasskey(config, adapter, response, challengeStore);
+			expect.fail("Expected algorithm rejection");
+		} catch (error) {
+			expect(error).toBeInstanceOf(PasskeyAuthenticationError);
+			expect(error).toMatchObject({
+				code: "unsupported_algorithm",
+				message: "Unsupported credential algorithm: 0",
+			});
+		}
 	});
 });

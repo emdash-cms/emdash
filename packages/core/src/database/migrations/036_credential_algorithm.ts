@@ -12,5 +12,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-	await db.schema.alterTable("credentials").dropColumn("algorithm").execute();
+	if (await columnExists(db, "credentials", "algorithm")) {
+		await db.schema.alterTable("credentials").dropColumn("algorithm").execute();
+	}
 }

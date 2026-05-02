@@ -225,7 +225,7 @@ export async function verifyAuthenticationResponse(
 	} else {
 		throw new PasskeyAuthenticationError(
 			"unsupported_algorithm",
-			"Unsupported credential algorithm",
+			`Unsupported credential algorithm: ${credential.algorithm}`,
 		);
 	}
 

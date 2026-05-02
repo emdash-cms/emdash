@@ -21,7 +21,7 @@ import {
 
 import { generateToken } from "../tokens.js";
 import type { Credential, NewCredential, AuthAdapter, User, DeviceType } from "../types.js";
-import { PasskeyAuthenticationError } from "./authenticate.js";
+
 import type {
 	RegistrationOptions,
 	RegistrationResponse,
@@ -184,10 +184,7 @@ export async function verifyRegistrationResponse(
 		// Encode as PKIX format for storage
 		encodedPublicKey = new RSAPublicKey(cosePublicKey.n, cosePublicKey.e).encodePKIX();
 	} else {
-		throw new PasskeyAuthenticationError(
-			"unsupported_algorithm",
-			"Unsupported credential algorithm",
-		);
+		throw new Error(`Unsupported credential algorithm: ${algorithm}`);
 	}
 
 	// Determine device type and backup status
