@@ -128,6 +128,29 @@ describe("Revision Handlers", () => {
 			expect(result.data?.item.data.title).toBe("Test Revision");
 		});
 
+		it("stores and returns createdAt as explicit UTC ISO timestamp for new revisions", async () => {
+			const content = await contentRepo.create(createPostFixture());
+			const revision = await revisionRepo.create({
+				collection: "post",
+				entryId: content.id,
+				data: { title: "Timestamp test" },
+			});
+
+			const stored = await db
+				.selectFrom("revisions")
+				.select("created_at")
+				.where("id", "=", revision.id)
+				.executeTakeFirstOrThrow();
+
+			const result = await handleRevisionGet(db, revision.id);
+
+			expect(result.success).toBe(true);
+			expect(stored.created_at).toMatch(/T/);
+			expect(stored.created_at).toMatch(/Z$/);
+			expect(result.data?.item.createdAt).toMatch(/Z$/);
+			expect(new Date(result.data!.item.createdAt).toISOString()).toBe(result.data!.item.createdAt);
+		});
+
 		it("should return NOT_FOUND for non-existent revision", async () => {
 			const result = await handleRevisionGet(db, "nonexistent-id");
 

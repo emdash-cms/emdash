@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 import { monotonicFactory } from "ulidx";
 
-import type { Database, RevisionTable } from "../types.js";
+import type { Database } from "../types.js";
 
 const monotonic = monotonicFactory();
 
@@ -36,12 +36,13 @@ export class RevisionRepository {
 	async create(input: CreateRevisionInput): Promise<Revision> {
 		const id = monotonic();
 
-		const row: Omit<RevisionTable, "created_at"> = {
+		const row = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
 			data: JSON.stringify(input.data),
 			author_id: input.authorId ?? null,
+			created_at: new Date().toISOString(),
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
