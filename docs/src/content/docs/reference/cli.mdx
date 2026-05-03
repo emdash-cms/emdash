@@ -19,7 +19,7 @@ Run commands with `npx emdash` or add scripts to `package.json`. The binary is a
 
 ## Authentication
 
-Commands that talk to a running EmDash instance (everything except `export-seed` and `secrets`, which work on local files) resolve authentication in this order:
+Commands that talk to a running EmDash instance resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
