@@ -1,8 +1,9 @@
-import { encodeBase64urlNoPadding } from "@oslojs/encoding";
-import { describe, expect, it, vi } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
-import { parseAttestationObject, coseAlgorithmRS256, COSEKeyType } from "@oslojs/webauthn";
+
 import { decodePKIXRSAPublicKey } from "@oslojs/crypto/rsa";
+import { encodeBase64urlNoPadding } from "@oslojs/encoding";
+import { parseAttestationObject, coseAlgorithmRS256, COSEKeyType } from "@oslojs/webauthn";
+import { describe, expect, it, vi } from "vitest";
 
 import { verifyRegistrationResponse } from "./register.js";
 import type { ChallengeStore, PasskeyConfig } from "./types.js";
