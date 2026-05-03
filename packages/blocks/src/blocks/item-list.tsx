@@ -64,7 +64,9 @@ export function ItemListBlockComponent({
 							{item.actions && item.actions.length > 0 && (
 								<div className={cn("flex flex-wrap gap-2", compact ? "mt-2" : "mt-3")}>
 									{item.actions.map((action, actionIndex) => (
-										<div key={action.action_id ?? actionIndex}>{renderElement(action, onAction)}</div>
+										<div key={action.action_id ?? actionIndex}>
+											{renderElement(action, onAction)}
+										</div>
 									))}
 								</div>
 							)}
