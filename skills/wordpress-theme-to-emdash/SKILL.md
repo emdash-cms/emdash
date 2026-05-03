@@ -63,12 +63,11 @@ Port WordPress themes to EmDash in six phases. **Read the phase file before star
 
 ### Phase 5: Seed
 
-- [ ] Seed file created with demo images
-- [ ] Validates: `emdash seed --validate`
+- [ ] Seed file created with demo images at `.emdash/seed.json` (or wired up via `package.json#emdash.seed`)
 
 ### Phase 6: Verify
 
-- [ ] Seed applied
+- [ ] Dev server applied seed cleanly on first request (no validation errors in logs)
 - [ ] Output screenshots captured
 - [ ] Visual comparison done
 - [ ] Build succeeds: `pnpm build`

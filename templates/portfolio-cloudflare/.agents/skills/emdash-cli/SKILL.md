@@ -70,22 +70,18 @@ npx emdash login --url https://example.com -H "X-API-Key: secret123"
 
 ### Database Setup
 
-```bash
-# Initialize database with migrations
-npx emdash init
+Migrations and seed application happen automatically inside the runtime — there's no separate init/seed step. Just start the dev server (or deploy) and the first request runs pending migrations and applies the bundled seed if the database is empty.
 
-# Start dev server (runs migrations, starts Astro)
+```bash
+# Start dev server (runs migrations, applies seed on empty DB, starts Astro)
 npx emdash dev
 
 # Start dev server and generate types from remote
 npx emdash dev --types
 
-# Apply a seed file
-npx emdash seed .emdash/seed.json
-
-# Export database as seed
-npx emdash export-seed > seed.json
-npx emdash export-seed --with-content > seed.json
+# Export an existing database as a seed file
+npx emdash export-seed > .emdash/seed.json
+npx emdash export-seed --with-content > .emdash/seed.json
 ```
 
 ### Type Generation
@@ -177,7 +173,7 @@ npx emdash schema add-field posts featured --type boolean --required
 npx emdash schema remove-field posts featured
 ```
 
-Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `image`, `reference`, `portableText`, `json`.
+Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `image`, `file`, `reference`, `portableText`, `json`, `slug`, `url`. See `FIELD_TYPE_TO_COLUMN` in `packages/core/src/schema/types.ts` for the authoritative list.
 
 ### Media
 
