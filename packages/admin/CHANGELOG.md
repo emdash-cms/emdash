@@ -1,5 +1,12 @@
 # @emdash-cms/admin
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [[`5eb4318`](https://github.com/emdash-cms/emdash/commit/5eb431876cbfb69a961735fbb6ab09c9de937f28)]:
+  - @emdash-cms/blocks@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
