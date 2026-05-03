@@ -1,6 +1,6 @@
 # Schema and Seed Files
 
-The seed file (`seed/seed.json`) defines the site's entire schema and optional demo content. It's applied on first run or via `npx emdash seed seed/seed.json`.
+The seed file (`seed/seed.json`) defines the site's entire schema and optional demo content. It's inlined into the build and applied automatically on the first request when the database is empty and the setup wizard hasn't been completed.
 
 ## Seed File Structure
 
@@ -440,25 +440,18 @@ Set `"status": "draft"` to create unpublished content:
 }
 ```
 
-## Validation
+## Applying Seeds
 
-```bash
-npx emdash seed seed/seed.json --validate
-```
+The seed at `.emdash/seed.json`, `package.json#emdash.seed`, or `seed/seed.json` is inlined into the build and applied on the first request when the database is empty and the setup wizard hasn't been completed. Existing data is never overwritten.
 
-Catches:
+Validation runs at apply time. Common errors caught:
 
 - Image fields with raw URLs (should use `$media`)
 - Reference fields with raw IDs (should use `$ref:id`)
 - PortableText not an array or missing `_type`
 - Type mismatches (string vs number, etc.)
 
-## Applying Seeds
-
-```bash
-npx emdash seed seed/seed.json              # Apply with content
-npx emdash seed seed/seed.json --no-content  # Schema only (no sample content)
-```
+If the seed is invalid, the first request fails and the error is logged. Restart the dev server after fixing it.
 
 ## Exporting Seeds
 

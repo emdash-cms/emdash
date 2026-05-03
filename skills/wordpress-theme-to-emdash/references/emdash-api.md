@@ -380,37 +380,16 @@ import { PortableText } from "emdash/ui";
 
 ## CLI Commands
 
-### Seed Validation
+### Apply Seed
 
-Validate seed files before applying:
+The seed is inlined into the build and applied automatically on the first request when the database is empty and the setup wizard hasn't been completed. Validation runs at apply time — errors surface in the dev server logs. To re-seed during iteration, delete `data.db` and restart the dev server.
 
-```bash
-# Validate default seed file (.emdash/seed.json)
-emdash seed --validate
-
-# Validate a specific file
-emdash seed path/to/seed.json --validate
-```
-
-Catches common mistakes:
+Common validation errors caught:
 
 - Image fields with raw URLs (should use `$media`)
 - Reference fields with raw IDs (should use `$ref:id`)
 - PortableText not an array or missing `_type`
 - Type mismatches (string vs number, etc.)
-
-### Apply Seed
-
-```bash
-# Apply seed with content
-emdash seed
-
-# Apply seed without sample content
-emdash seed --no-content
-
-# Specify database path
-emdash seed --database ./my-data.db
-```
 
 ### Export Seed
 

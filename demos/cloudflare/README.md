@@ -6,33 +6,15 @@ Uses Astro 6 + `@astrojs/cloudflare` v13 which runs the real `workerd` runtime i
 
 ## Setup
 
-1. Create a D1 database:
-
-```bash
-pnpm db:create
-```
-
-2. Copy the database ID from the output and update `wrangler.jsonc`:
-
-```jsonc
-"d1_databases": [
-  {
-    "binding": "DB",
-    "database_name": "emdash-demo",
-    "database_id": "YOUR_DATABASE_ID_HERE"
-  }
-]
-```
-
-3. Start the dev server:
+1. Start the dev server:
 
 ```bash
 pnpm dev
 ```
 
-EmDash runs migrations automatically on first request — no manual migration step needed.
+EmDash runs migrations automatically on first request — no manual migration or DB-create step needed. Wrangler provisions the D1 database on first deploy.
 
-4. Open http://localhost:4321/\_emdash/admin
+2. Open http://localhost:4321/\_emdash/admin
 
 ## Preview
 
