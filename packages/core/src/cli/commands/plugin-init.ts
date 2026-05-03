@@ -119,10 +119,20 @@ async function resolveFormat(
 ): Promise<PluginFormat | null> {
 	if (formatArg) {
 		const normalized = formatArg.toLowerCase();
-		if (normalized === "native") return "native";
-		if (normalized === "sandboxed" || normalized === "standard") return "standard";
-		consola.error(`Invalid --format "${formatArg}". Use "sandboxed" or "native".`);
-		process.exit(1);
+		let parsed: PluginFormat;
+		if (normalized === "native") {
+			parsed = "native";
+		} else if (normalized === "sandboxed" || normalized === "standard") {
+			parsed = "standard";
+		} else {
+			consola.error(`Invalid --format "${formatArg}". Use "sandboxed" or "native".`);
+			process.exit(1);
+		}
+		if (nativeFlag && parsed !== "native") {
+			consola.error(`Conflicting flags: --native and --format=${formatArg}. Pass only one.`);
+			process.exit(1);
+		}
+		return parsed;
 	}
 	if (nativeFlag) return "native";
 
@@ -244,7 +254,7 @@ export function ${fnName}Plugin(): PluginDescriptor {
 \t\tformat: "standard",
 \t\tentrypoint: "${pluginName}/sandbox",
 
-\t\tcapabilities: [],
+\t\tcapabilities: ["content:read"],
 \t\tstorage: {
 \t\t\tevents: { indexes: ["timestamp"] },
 \t\t},
@@ -285,7 +295,10 @@ export default definePlugin({
 \troutes: {
 \t\trecent: {
 \t\t\thandler: async (_routeCtx, ctx: PluginContext) => {
-\t\t\t\tconst result = await ctx.storage.events.query({ limit: 10 });
+\t\t\t\tconst result = await ctx.storage.events.query({
+\t\t\t\t\torderBy: { timestamp: "desc" },
+\t\t\t\t\tlimit: 10,
+\t\t\t\t});
 \t\t\t\treturn { events: result.items };
 \t\t\t},
 \t\t},
@@ -353,7 +366,7 @@ export interface ${typeName}Options {
 \tenabled?: boolean;
 }
 
-export function ${fnName}Plugin(options: ${typeName}Options = {}): PluginDescriptor {
+export function ${fnName}Plugin(options: ${typeName}Options = {}): PluginDescriptor<${typeName}Options> {
 \treturn {
 \t\tid: "${slug}",
 \t\tversion: "0.1.0",
@@ -368,6 +381,7 @@ export function createPlugin(options: ${typeName}Options = {}) {
 \t\tid: "${slug}",
 \t\tversion: "0.1.0",
 
+\t\tcapabilities: ["content:read"],
 \t\tstorage: {
 \t\t\tevents: { indexes: ["createdAt"] },
 \t\t},
@@ -386,7 +400,10 @@ export function createPlugin(options: ${typeName}Options = {}) {
 \t\troutes: {
 \t\t\trecent: {
 \t\t\t\thandler: async (ctx) => {
-\t\t\t\t\tconst result = await ctx.storage.events.query({ limit: 10 });
+\t\t\t\t\tconst result = await ctx.storage.events.query({
+\t\t\t\t\t\torderBy: { createdAt: "desc" },
+\t\t\t\t\t\tlimit: 10,
+\t\t\t\t\t});
 \t\t\t\t\treturn { events: result.items };
 \t\t\t\t},
 \t\t\t},
