@@ -42,7 +42,7 @@ export function CardGridBlockComponent({
 				return (
 					<article
 						key={`${card.title}-${i}`}
-						className="overflow-hidden rounded-md border border-kumo-line bg-kumo-surface"
+						className="flex flex-col overflow-hidden rounded-md border border-kumo-line bg-kumo-surface"
 					>
 						{previewSrc && (
 							<img
@@ -53,7 +53,7 @@ export function CardGridBlockComponent({
 								loading="lazy"
 							/>
 						)}
-						<div className="flex h-full flex-col gap-3 p-4">
+						<div className="flex flex-1 flex-col gap-3 p-4">
 							<div className="flex items-start justify-between gap-3">
 								<div className="min-w-0">
 									<h3 className="text-sm font-semibold text-kumo-default">{card.title}</h3>
