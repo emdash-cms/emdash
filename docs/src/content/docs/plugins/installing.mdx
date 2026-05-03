@@ -132,7 +132,7 @@ Native plugins:
 | --- | --- | --- |
 | **Install method** | One-click in admin UI | Code change + `npm install` + deploy |
 | **Execution** | Sandbox runtime via the configured runner | In-process (or sandboxed if listed under `sandboxed: []` and a runner is available) |
-| **Capabilities** | Enforced by the sandbox bridge | Enforced by the sandbox bridge in both modes |
+| **Capabilities** | Enforced by the sandbox bridge — `ctx.*` gating plus runtime isolation | `ctx.*` gating only (in-process plugins can bypass via direct `fetch()`, env, imports) |
 | **Node.js APIs** | Not available | Full access (in-process only) |
 | **React admin pages** | No (Block Kit instead) | Yes (native plugins) |
 | **PT rendering components** | No | Yes (native plugins) |

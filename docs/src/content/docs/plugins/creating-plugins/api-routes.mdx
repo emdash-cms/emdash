@@ -58,12 +58,16 @@ Standard-format route handlers take **two arguments**: `(routeCtx, ctx)`.
 
 Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can include slashes for nested paths.
 
-| Plugin id           | Route name      | URL                                                         |
-| ------------------- | --------------- | ----------------------------------------------------------- |
-| `forms`             | `status`        | `/_emdash/api/plugins/forms/status`                         |
-| `forms`             | `submissions`   | `/_emdash/api/plugins/forms/submissions`                    |
-| `seo`               | `settings/save` | `/_emdash/api/plugins/seo/settings/save`                    |
-| `@my-org/plugin-x`  | `recent`        | `/_emdash/api/plugins/@my-org/plugin-x/recent`              |
+| Plugin id     | Route name      | URL                                            |
+| ------------- | --------------- | ---------------------------------------------- |
+| `forms`       | `status`        | `/_emdash/api/plugins/forms/status`            |
+| `forms`       | `submissions`   | `/_emdash/api/plugins/forms/submissions`       |
+| `seo`         | `settings/save` | `/_emdash/api/plugins/seo/settings/save`       |
+| `analytics`   | `events/recent` | `/_emdash/api/plugins/analytics/events/recent` |
+
+<Aside type="caution">
+	Plugin ids must be URL-safe slugs — `[a-z0-9-]+`. The `pluginId` segment in the route is a single Astro path segment, so an id containing `/` (such as a scoped npm package name) won't route. Pair an unscoped id with a scoped npm package name in `entrypoint`, the way first-party plugins do (`id: "field-kit"`, `entrypoint: "@emdash-cms/plugin-field-kit"`).
+</Aside>
 
 ## Authentication and CSRF
 
