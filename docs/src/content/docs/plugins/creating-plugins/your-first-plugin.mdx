@@ -115,7 +115,7 @@ A few details that matter:
 
 - **`format: "standard"` is required.** Without it, EmDash treats the package as a native plugin and looks for a different shape. The `format` field defaults to `"native"`.
 - **`entrypoint` is a module specifier**, not a file path. Use the same string you'd pass to `import` — usually `"<package-name>/sandbox"`. The package name can be scoped (`@my-org/plugin-hello`); the plugin `id` cannot.
-- **`id` is a URL-safe slug, not the npm package name.** Plugin routes mount at `/_emdash/api/plugins/<id>/...` as a single path segment, so `id` must match `^[a-z0-9-]+$` (or the legacy `@scope/name` form for plugins published before the slug-only convention was enforced). Real plugins typically pair an unscoped `id` like `plugin-hello` with a scoped npm package name in `entrypoint`.
+- **`id` is a URL-safe slug, not the npm package name.** It must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used both as a single path segment in plugin route URLs (`/_emdash/api/plugins/<id>/...`) and as part of generated SQL identifiers for plugin storage indexes, so `@`, `/`, leading digits, and uppercase letters all fail at runtime. Pair an unscoped `id` like `plugin-hello` with a scoped npm package name in `entrypoint`.
 - **Capabilities, allowedHosts, and storage live on the descriptor.** The sandbox entry does not declare them — it can only use what the descriptor permits.
 - **Don't put runtime logic here.** No top-level `await`, no module-level `fetch`, no reading files. The descriptor is metadata.
 

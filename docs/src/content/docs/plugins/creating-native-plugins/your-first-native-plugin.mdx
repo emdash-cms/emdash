@@ -70,7 +70,7 @@ export interface AnalyticsOptions {
 
 export function analyticsPlugin(options: AnalyticsOptions = {}): PluginDescriptor {
 	return {
-		id: "@my-org/plugin-analytics",
+		id: "analytics",
 		version: "0.1.0",
 		format: "native",
 		entrypoint: "@my-org/plugin-analytics",
@@ -85,7 +85,7 @@ export function createPlugin(options: AnalyticsOptions = {}) {
 	const maxEvents = options.maxEvents ?? 100;
 
 	return definePlugin({
-		id: "@my-org/plugin-analytics",
+		id: "analytics",
 		version: "0.1.0",
 
 		capabilities: ["network:request"],
@@ -149,23 +149,23 @@ A few details worth knowing:
 
 ## Plugin id rules
 
-The `id` field must follow these rules:
-
-- Lowercase alphanumeric characters and hyphens only.
-- Either simple (`my-plugin`) or scoped (`@my-org/my-plugin`).
-- Unique across all installed plugins.
+The `id` field must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used as a single path segment in plugin route URLs and as part of generated SQL identifiers for plugin storage indexes, so anything outside that pattern fails at runtime.
 
 ```typescript
 // Valid
 "seo";
 "audit-log";
-"@emdash-cms/plugin-forms";
+"audit_log";
+"plugin-forms";
 
 // Invalid
-"MyPlugin";    // no uppercase
-"my_plugin";   // no underscores
-"my.plugin";   // no dots
+"@my-org/plugin-forms";  // scoped form not allowed at runtime
+"MyPlugin";              // no uppercase
+"42-plugin";             // can't start with a digit
+"my.plugin";             // no dots
 ```
+
+Pair an unscoped `id` with a scoped npm package name in `entrypoint` — the package name and the plugin id are separate concerns.
 
 ## Version format
 
