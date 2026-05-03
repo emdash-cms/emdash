@@ -140,21 +140,22 @@ async function fetchRecentItems(
 
 	const collectionsWithTitle = new Set(titleFields.map((r) => r.collection_slug));
 
-	// Build a UNION ALL query across all content tables.
-	// Each branch is wrapped in SELECT * FROM (...) so the inner
-	// ORDER BY + LIMIT is valid SQLite (bare ORDER BY inside UNION
-	// branches is a syntax error in SQLite).
-	const subQueries = collections.map((col) => {
-		validateIdentifier(col.slug);
-		const table = `ec_${col.slug}`;
-		const hasTitle = collectionsWithTitle.has(col.slug);
+	// Issue one query per collection in parallel, then merge in JS.
+	// A single UNION ALL across N collections trips D1's
+	// SQLITE_LIMIT_COMPOUND_SELECT cap when N is large enough (#895);
+	// per-collection queries side-step that. Each query fetches at most
+	// 10 rows, so the merge handles at most N * 10 rows before slicing.
+	const perCollection = await Promise.all(
+		collections.map(async (col) => {
+			validateIdentifier(col.slug);
+			const table = `ec_${col.slug}`;
+			const hasTitle = collectionsWithTitle.has(col.slug);
 
-		// Use title column if it exists, otherwise fall back to slug → id.
-		// All output uses snake_case to avoid SQLite quoting issues on D1.
-		const titleExpr = hasTitle ? sql`COALESCE(title, slug, id)` : sql`COALESCE(slug, id)`;
+			// Use title column if it exists, otherwise fall back to slug, id.
+			// All output uses snake_case to avoid SQLite quoting issues on D1.
+			const titleExpr = hasTitle ? sql`COALESCE(title, slug, id)` : sql`COALESCE(slug, id)`;
 
-		return sql<RecentItemRow>`
-			SELECT * FROM (
+			const result = await sql<RecentItemRow>`
 				SELECT
 					id,
 					${sql.lit(col.slug)} AS collection,
@@ -168,27 +169,19 @@ async function fetchRecentItems(
 				WHERE deleted_at IS NULL
 				ORDER BY updated_at DESC
 				LIMIT 10
-			)
-		`;
-	});
+			`.execute(db);
+			return result.rows;
+		}),
+	);
 
-	// Combine with UNION ALL
-	// eslint-disable-next-line typescript-eslint(no-unnecessary-type-assertion) -- noUncheckedIndexedAccess
-	let combined = subQueries[0]!;
-	for (let i = 1; i < subQueries.length; i++) {
-		// eslint-disable-next-line typescript-eslint(no-unnecessary-type-assertion) -- noUncheckedIndexedAccess
-		combined = sql<RecentItemRow>`${combined} UNION ALL ${subQueries[i]!}`;
-	}
+	// Merge across collections, sort by updated_at desc, take top 10.
+	const merged = perCollection
+		.flat()
+		.toSorted((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
+		.slice(0, 10);
 
-	// Final sort + limit across all branches
-	const result = await sql<RecentItemRow>`
-		SELECT * FROM (${combined})
-		ORDER BY updated_at DESC
-		LIMIT 10
-	`.execute(db);
-
-	// Map snake_case DB rows → camelCase API shape
-	return result.rows.map((row) => ({
+	// Map snake_case DB rows to camelCase API shape
+	return merged.map((row) => ({
 		id: row.id,
 		collection: row.collection,
 		collectionLabel: row.collection_label,

@@ -214,6 +214,54 @@ describe("Dashboard Handlers", () => {
 			expect(postStats!.total).toBe(1);
 		});
 
+		it("merges recent items across many title-bearing collections (#895)", async () => {
+			// Regression for #895: with enough title-bearing collections, the
+			// previous chained UNION ALL query exceeded D1's compound-SELECT cap
+			// and returned a 500. The per-collection fan-out path must merge,
+			// sort, and slice to 10 across all collections regardless of count.
+			db = await setupTestDatabase();
+			const registry = new SchemaRegistry(db);
+			const contentRepo = new ContentRepository(db);
+
+			const collectionCount = 12;
+			const slugs: string[] = [];
+			for (let i = 0; i < collectionCount; i++) {
+				const slug = `coll_${String(i).padStart(2, "0")}`;
+				slugs.push(slug);
+				await registry.createCollection({
+					slug,
+					label: `Collection ${i}`,
+					labelSingular: `Item ${i}`,
+				});
+				await registry.createField(slug, { slug: "title", label: "Title", type: "string" });
+			}
+
+			// One entry per collection, with monotonically increasing updated_at
+			// so we can deterministically assert ordering.
+			for (let i = 0; i < collectionCount; i++) {
+				await contentRepo.create({
+					type: slugs[i]!,
+					slug: `entry-${String(i).padStart(2, "0")}`,
+					data: { title: `Title ${i}` },
+					status: "draft",
+				});
+				await new Promise((r) => setTimeout(r, 5));
+			}
+
+			const result = await handleDashboardStats(db);
+
+			expect(result.success).toBe(true);
+			const { recentItems } = result.data!;
+
+			// Capped at 10 even when 12 collections each have an entry
+			expect(recentItems).toHaveLength(10);
+
+			// Newest 10 are the last 10 created, in reverse-creation order.
+			const expected = slugs.slice(-10).toReversed();
+			expect(recentItems.map((i) => i.collection)).toEqual(expected);
+			expect(recentItems[0]!.title).toBe(`Title ${collectionCount - 1}`);
+		});
+
 		it("returns camelCase keys in recent items", async () => {
 			db = await setupTestDatabaseWithCollections();
 			const contentRepo = new ContentRepository(db);
