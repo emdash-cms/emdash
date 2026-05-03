@@ -66,7 +66,7 @@ Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can
 | `analytics`   | `events/recent` | `/_emdash/api/plugins/analytics/events/recent` |
 
 <Aside type="caution">
-	Plugin ids must be URL-safe slugs — `[a-z0-9-]+`. The `pluginId` segment in the route is a single Astro path segment, so an id containing `/` (such as a scoped npm package name) won't route. Pair an unscoped id with a scoped npm package name in `entrypoint`, the way first-party plugins do (`id: "field-kit"`, `entrypoint: "@emdash-cms/plugin-field-kit"`).
+	Plugin ids must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The `pluginId` segment in the route is a single Astro path segment, so anything outside that pattern (scoped names, leading digits, dots, slashes) won't route, and storage-index provisioning rejects it too. Pair an unscoped id with a scoped npm package name in `entrypoint`, the way first-party plugins do (`id: "field-kit"`, `entrypoint: "@emdash-cms/plugin-field-kit"`).
 </Aside>
 
 ## Authentication and CSRF
