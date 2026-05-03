@@ -31,12 +31,7 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
-import {
-	PROJECT_NAME_PATTERN,
-	isDirNonEmpty,
-	sanitizePackageName,
-	writeEncryptionKey,
-} from "./utils.js";
+import { isDirNonEmpty, sanitizePackageName, writeEncryptionKey } from "./utils.js";
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -179,10 +174,30 @@ async function resolveProjectLocation(
 		}
 	}
 
-	const target = flags.name;
-	const isCurrentDir = target === ".";
+	let target = flags.name;
 
-	if (isCurrentDir) {
+	if (target === undefined) {
+		if (flags.yes) {
+			// --yes with no positional: fall back to the documented default
+			// rather than silently dropping into the (broken-in-non-TTY) prompt.
+			// This is the contract documented in flags.ts and HELP_TEXT.
+			target = DEFAULT_PROJECT_NAME;
+		} else {
+			const name = await p.text({
+				message: 'Project name? (use "." for current directory)',
+				placeholder: DEFAULT_PROJECT_NAME,
+				defaultValue: DEFAULT_PROJECT_NAME,
+				validate: (value) => {
+					if (!value) return "Project name is required";
+					return validateProjectName(value);
+				},
+			});
+			if (p.isCancel(name)) return null;
+			target = name;
+		}
+	}
+
+	if (target === ".") {
 		const projectDir = process.cwd();
 		const projectName = sanitizePackageName(basename(projectDir));
 		if (isDirNonEmpty(projectDir)) {
@@ -205,30 +220,7 @@ async function resolveProjectLocation(
 		return { projectName, projectDir, isCurrentDir: true };
 	}
 
-	let projectName: string;
-	if (target !== undefined) {
-		projectName = target;
-	} else if (flags.yes) {
-		// --yes with no positional: fall back to the documented default
-		// rather than silently dropping into the (broken-in-non-TTY) prompt.
-		// This is the contract documented in flags.ts and HELP_TEXT.
-		projectName = DEFAULT_PROJECT_NAME;
-	} else {
-		const name = await p.text({
-			message: "Project name?",
-			placeholder: DEFAULT_PROJECT_NAME,
-			defaultValue: DEFAULT_PROJECT_NAME,
-			validate: (value) => {
-				if (!value) return "Project name is required";
-				if (!PROJECT_NAME_PATTERN.test(value))
-					return "Project name can only contain lowercase letters, numbers, and hyphens";
-				return undefined;
-			},
-		});
-		if (p.isCancel(name)) return null;
-		projectName = name;
-	}
-
+	const projectName = target;
 	const projectDir = resolve(process.cwd(), projectName);
 	if (isDirNonEmpty(projectDir)) {
 		if (flags.yes && !flags.force) {
