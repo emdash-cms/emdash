@@ -72,7 +72,8 @@ export interface UserTable {
 export interface CredentialTable {
 	id: string; // Base64url credential ID
 	user_id: string;
-	public_key: Uint8Array; // COSE public key
+	public_key: Uint8Array; // SEC1 or PKIX encoded public key
+	algorithm: number;
 	counter: number;
 	device_type: string; // 'singleDevice' | 'multiDevice'
 	backed_up: number; // 0 or 1
