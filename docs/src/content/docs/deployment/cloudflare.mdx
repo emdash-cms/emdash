@@ -79,32 +79,11 @@ export default defineConfig({
 });
 ```
 
-<Aside type="caution">
-	D1 migrations must be run via Wrangler CLI before deployment. DDL statements are not allowed at
-	runtime.
-</Aside>
+## First Boot
 
-## Run Migrations
+EmDash runs migrations and seeds the default schema automatically on the first request after deployment. There are no manual `wrangler d1 execute` or `wrangler d1 migrations apply` steps to run.
 
-Generate and apply the database schema.
-
-### 1. Export the schema SQL
-
-```bash
-npx emdash init --database ./data.db
-```
-
-### 2. Apply migrations to D1
-
-```bash
-wrangler d1 migrations apply emdash-db
-```
-
-If you don't have migration files, apply the core schema directly:
-
-```bash
-wrangler d1 execute emdash-db --file=./node_modules/emdash/migrations/0001_core.sql
-```
+If your project includes a seed file (`.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json`), it is inlined into the bundle at build time and applied on first boot when the database has no collections yet.
 
 ## Deploy
 
@@ -272,7 +251,7 @@ Check that the R2 bucket is correctly bound:
 
 ### Migration errors
 
-D1 migrations run via Wrangler, not at runtime. If you see schema errors:
+Migrations run automatically on first request. If you see schema errors:
 
-1. Check that migrations were applied: `wrangler d1 migrations list emdash-db`
-2. Re-apply if needed: `wrangler d1 migrations apply emdash-db`
+1. Tail the Worker logs (`wrangler tail`) and reproduce the error to capture the underlying message.
+2. If you suspect a partially-applied migration on a fresh database, drop and recreate it: `wrangler d1 delete emdash-db && wrangler d1 create emdash-db` — then redeploy. **Only do this if the database has no production data.**

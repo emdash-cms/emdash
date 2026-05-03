@@ -41,23 +41,17 @@ export default defineConfig({
 
 1. Build the project:
 
-```bash
-npm run build
-```
-
-2. Initialize the database:
-
    ```bash
-   npx emdash init --database ./data/emdash.db
+   npm run build
    ```
 
-3. Start the server:
+2. Start the server:
 
    ```bash
    node ./dist/server/entry.mjs
    ```
 
-The server runs on `http://localhost:4321` by default.
+The server runs on `http://localhost:4321` by default. Migrations and the default seed are applied automatically on the first request — there is no separate init step to run.
 
 ## Production Storage
 
@@ -111,8 +105,6 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/seed ./seed
-COPY --from=builder /app/astro.config.mjs ./
 
 RUN mkdir -p data
 
@@ -120,8 +112,10 @@ ENV HOST=0.0.0.0
 ENV PORT=4321
 
 EXPOSE 4321
-CMD ["sh", "-c", "npx emdash init && node ./dist/server/entry.mjs"]
+CMD ["node", "./dist/server/entry.mjs"]
 ```
+
+The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations and the seed are applied on the first request.
 
 Build and run:
 

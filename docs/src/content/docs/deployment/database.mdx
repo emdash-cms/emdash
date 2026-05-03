@@ -66,9 +66,9 @@ export default defineConfig({
   </TabItem>
 </Tabs>
 
-<Aside type="caution">
-	D1 does not allow DDL statements at runtime. Run migrations via Wrangler CLI before deployment:
-	```bash wrangler d1 migrations apply emdash-db ```
+<Aside>
+	EmDash runs migrations on D1 automatically on the first request after deployment. There is no
+	`wrangler d1 migrations apply` step to run.
 </Aside>
 
 ### Create a D1 Database
@@ -271,30 +271,17 @@ database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
 
 ## Migrations
 
-EmDash handles migrations automatically for SQLite, libSQL, and PostgreSQL. For D1, run migrations via Wrangler.
+EmDash runs migrations automatically on the first request, for every supported dialect (D1, SQLite, libSQL, PostgreSQL). Migrations are bundled with the `emdash` package and embedded into your build. There is nothing to run by hand before deployment.
 
-### Check Migration Status
+If the database is empty (no collections) and the setup wizard has not been completed, EmDash also auto-applies your seed file on first boot. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used.
 
-```bash
-npx emdash init --database ./data.db
-```
-
-This command:
-
-1. Creates the database file if needed
-2. Runs any pending migrations
-3. Reports the current migration status
-
-### Migration Files
-
-Migrations are bundled with EmDash. To run them manually:
+If you want to run migrations explicitly during local development (for example to fail fast in CI before starting the server), use the CLI:
 
 ```bash
-# SQLite/libSQL - migrations run automatically
-
-# D1 - run via wrangler
-wrangler d1 migrations apply DB
+npx emdash init
 ```
+
+This creates the SQLite file at `./data.db`, runs migrations, and exits. It is not required for production deployments.
 
 ## Environment-Based Configuration
 
