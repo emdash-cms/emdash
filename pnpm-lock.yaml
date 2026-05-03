@@ -1226,7 +1226,7 @@ importers:
         specifier: workspace:*
         version: link:../blocks
       '@types/better-sqlite3':
-        specifier: 'catalog:'
+        specifier: ^7.6.12
         version: 7.6.13
       '@types/pg':
         specifier: ^8.16.0
@@ -1558,7 +1558,7 @@ importers:
         version: 7.6.13
       better-sqlite3:
         specifier: 'catalog:'
-        version: 11.10.0
+        version: 12.8.0
       kysely:
         specifier: ^0.27.0
         version: 0.27.6
@@ -1570,7 +1570,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.0.18(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
     optionalDependencies:
       miniflare:
         specifier: ^4.20250408.0
@@ -2005,7 +2005,7 @@ packages:
       wrangler: ^4.61.1
 
   '@astrojs/cloudflare@https://pkg.pr.new/@astrojs/cloudflare@94d342d':
-    resolution: {tarball: https://pkg.pr.new/@astrojs/cloudflare@94d342d}
+    resolution: {integrity: sha512-Bt+G512Dr1SqYdsza6HOLP2azfHg0m5UE0s6SBGX77g+ThFV95Nai5boyM8HO3jVpqwVPPh+5ycMptjrtzv7Yg==, tarball: https://pkg.pr.new/@astrojs/cloudflare@94d342d}
     version: 13.1.10
     peerDependencies:
       astro: ^6.0.0
@@ -2107,7 +2107,7 @@ packages:
     engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0}
 
   '@astrojs/telemetry@https://pkg.pr.new/withastro/astro/@astrojs/telemetry@94d342d':
-    resolution: {tarball: https://pkg.pr.new/withastro/astro/@astrojs/telemetry@94d342d}
+    resolution: {integrity: sha512-xfarx9l9HW3YpytsM2OpnD3aADtxueYWk6xg81PmVRLxfszskZzoaPVvZwfmqnpIxjBP1tOF1RLVaS10TwnNLQ==, tarball: https://pkg.pr.new/withastro/astro/@astrojs/telemetry@94d342d}
     version: 3.3.0
     engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0}
 
@@ -5776,7 +5776,7 @@ packages:
     hasBin: true
 
   astro@https://pkg.pr.new/astro@94d342d:
-    resolution: {tarball: https://pkg.pr.new/astro@94d342d}
+    resolution: {integrity: sha512-1XlhRGRCQP4L5KPZUgSRCKOD28aKiGYQ8TBAxBIJvFV/HUuct3eHvc7sY/krhhCAju81JMlvbWU+1XVzltgZTQ==, tarball: https://pkg.pr.new/astro@94d342d}
     version: 6.1.7
     engines: {node: '>=22.12.0', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true

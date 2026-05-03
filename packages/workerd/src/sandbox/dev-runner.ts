@@ -23,6 +23,8 @@ import type {
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
+
+const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
 
 import { createBridgeHandler } from "./bridge-handler.js";
@@ -61,6 +63,10 @@ export class MiniflareDevRunner implements SandboxRunner {
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
 		this.devInvokeToken = randomBytes(32).toString("hex");
+	}
+
+	get wallTimeMs(): number {
+		return this.options.limits?.wallTimeMs ?? DEFAULT_WALL_TIME_MS;
 	}
 
 	/** Get the per-startup invoke token (sent on hook/route requests to plugins) */
@@ -228,20 +234,22 @@ class MiniflareDevPlugin implements SandboxedPlugin {
 		if (!this.runner.isHealthy()) {
 			throw new Error(`Dev sandbox unavailable for ${this.id}`);
 		}
-		const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-			},
-			body: JSON.stringify({ event }),
+		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
+			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+				},
+				body: JSON.stringify({ event }),
+			});
+			if (!res.ok) {
+				const text = await res.text();
+				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
+			}
+			const result = (await res.json()) as { value: unknown };
+			return result.value;
 		});
-		if (!res.ok) {
-			const text = await res.text();
-			throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
-		}
-		const result = (await res.json()) as { value: unknown };
-		return result.value;
 	}
 
 	async invokeRoute(
@@ -252,19 +260,42 @@ class MiniflareDevPlugin implements SandboxedPlugin {
 		if (!this.runner.isHealthy()) {
 			throw new Error(`Dev sandbox unavailable for ${this.id}`);
 		}
-		const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/route/${routeName}`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-			},
-			body: JSON.stringify({ input, request }),
+		return this.withWallTimeLimit(`route:${routeName}`, async () => {
+			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/route/${routeName}`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+				},
+				body: JSON.stringify({ input, request }),
+			});
+			if (!res.ok) {
+				const text = await res.text();
+				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
+			}
+			return res.json();
 		});
-		if (!res.ok) {
-			const text = await res.text();
-			throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
+	}
+
+	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+		const wallTimeMs = this.runner.wallTimeMs;
+		let timer: ReturnType<typeof setTimeout> | undefined;
+
+		const timeout = new Promise<never>((_, reject) => {
+			timer = setTimeout(() => {
+				reject(
+					new Error(
+						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
+					),
+				);
+			}, wallTimeMs);
+		});
+
+		try {
+			return await Promise.race([fn(), timeout]);
+		} finally {
+			if (timer !== undefined) clearTimeout(timer);
 		}
-		return res.json();
 	}
 
 	async terminate(): Promise<void> {

@@ -17,7 +17,7 @@ export class SandboxNotAvailableError extends Error {
 		super(
 			"Plugin sandboxing is not available. " +
 				"Configure a sandbox runner: use @emdash-cms/cloudflare/sandbox on Cloudflare, " +
-				"or @emdash-cms/workerd/sandbox on Node.js (requires workerd). " +
+				"or @emdash-cms/sandbox-workerd/sandbox on Node.js (requires workerd). " +
 				"Without sandboxing, use trusted plugins (from config) instead.",
 		);
 		this.name = "SandboxNotAvailableError";

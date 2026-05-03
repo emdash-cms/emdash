@@ -19,16 +19,20 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createBridgeHandler } from "./bridge-handler.js";
 import type { WorkerdSandboxRunner } from "./runner.js";
 
+export interface BackingServiceHandler {
+	handler: (req: IncomingMessage, res: ServerResponse) => void;
+	removePlugin: (pluginId: string) => void;
+}
+
 /**
  * Create an HTTP request handler for the backing service.
  */
-export function createBackingServiceHandler(
-	runner: WorkerdSandboxRunner,
-): (req: IncomingMessage, res: ServerResponse) => void {
-	// Cache bridge handlers per plugin token to avoid re-creation
+export function createBackingServiceHandler(runner: WorkerdSandboxRunner): BackingServiceHandler {
+	// Cache bridge handlers per pluginId to avoid re-creation
 	const handlerCache = new Map<string, (request: Request) => Promise<Response>>();
+	const tokenToPluginId = new Map<string, string>();
 
-	return async (req, res) => {
+	const handler = async (req: IncomingMessage, res: ServerResponse) => {
 		try {
 			// Parse auth token from Authorization header
 			const authHeader = req.headers.authorization;
@@ -47,9 +51,10 @@ export function createBackingServiceHandler(
 			}
 
 			// Get or create bridge handler for this plugin
-			let handler = handlerCache.get(token);
-			if (!handler) {
-				handler = createBridgeHandler({
+			const cacheKey = claims.pluginId;
+			let bridgeHandler = handlerCache.get(cacheKey);
+			if (!bridgeHandler) {
+				bridgeHandler = createBridgeHandler({
 					pluginId: claims.pluginId,
 					version: claims.version,
 					capabilities: claims.capabilities,
@@ -62,7 +67,8 @@ export function createBackingServiceHandler(
 					emailSend: () => runner.emailSend,
 					storage: runner.mediaStorage,
 				});
-				handlerCache.set(token, handler);
+				handlerCache.set(cacheKey, bridgeHandler);
+				tokenToPluginId.set(token, cacheKey);
 			}
 
 			// Convert Node request to web Request
@@ -75,22 +81,47 @@ export function createBackingServiceHandler(
 			});
 
 			// Dispatch through the shared bridge handler
-			const webResponse = await handler(webRequest);
+			const webResponse = await bridgeHandler(webRequest);
 			const responseBody = await webResponse.text();
 
 			res.writeHead(webResponse.status, { "Content-Type": "application/json" });
 			res.end(responseBody);
 		} catch (error) {
+			const statusCode =
+				error instanceof Error && "statusCode" in error
+					? (error as Error & { statusCode: number }).statusCode
+					: 500;
 			const message = error instanceof Error ? error.message : "Internal error";
-			res.writeHead(500, { "Content-Type": "application/json" });
+			res.writeHead(statusCode, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: message }));
 		}
 	};
+
+	return {
+		handler,
+		removePlugin(pluginId: string) {
+			handlerCache.delete(pluginId);
+			for (const [token, id] of tokenToPluginId) {
+				if (id === pluginId) {
+					tokenToPluginId.delete(token);
+				}
+			}
+		},
+	};
 }
+
+const MAX_BRIDGE_BODY_BYTES = 10 * 1024 * 1024;
 
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
 	const chunks: Buffer[] = [];
+	let totalBytes = 0;
 	for await (const chunk of req) {
+		totalBytes += (chunk as Buffer).length;
+		if (totalBytes > MAX_BRIDGE_BODY_BYTES) {
+			const err = new Error("Request body too large");
+			(err as Error & { statusCode: number }).statusCode = 413;
+			throw err;
+		}
 		chunks.push(chunk as Buffer);
 	}
 	const raw = Buffer.concat(chunks).toString();

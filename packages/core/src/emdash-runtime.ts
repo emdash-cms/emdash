@@ -689,6 +689,22 @@ export class EmDashRuntime {
 				if (!desired.has(pluginId)) toRemove.push(pluginId);
 			}
 			for (const pluginId of toRemove) {
+				// Fire plugin:deactivate hook before removal
+				const resolved = this.allPipelinePlugins.find((p) => p.id === pluginId);
+				if (resolved) {
+					try {
+						const deactivateHook = resolved.hooks?.["plugin:deactivate"];
+						if (deactivateHook) {
+							const handler =
+								typeof deactivateHook === "function" ? deactivateHook : deactivateHook.handler;
+							if (typeof handler === "function") {
+								await handler({ pluginId }, {} as never);
+							}
+						}
+					} catch (err) {
+						console.warn(`[emdash] plugin:deactivate hook failed for ${pluginId}:`, err);
+					}
+				}
 				marketplaceManifestCache.delete(pluginId);
 				sandboxedRouteMetaCache.delete(pluginId);
 				// Remove from pipeline lists too (mutate in place since the
@@ -917,7 +933,19 @@ export class EmDashRuntime {
 
 		// sandbox: false escape hatch - load sandboxed plugin entries in-process
 		// as trusted plugins (no isolation) so they participate in the hook pipeline.
+		// Block this on Cloudflare Workers where dynamic import(dataUrl) is not
+		// available and running untrusted code in-process is a security risk.
 		if (deps.sandboxBypassed && deps.sandboxedPluginEntries.length > 0) {
+			const isCfWorkers =
+				typeof navigator !== "undefined" &&
+				typeof navigator.userAgent === "string" &&
+				navigator.userAgent.includes("Cloudflare-Workers");
+			if (isCfWorkers) {
+				throw new Error(
+					"sandbox: false is not supported in Cloudflare Workers. " +
+						"Remove the sandbox: false option or use the Cloudflare sandbox runner.",
+				);
+			}
 			console.info(
 				"EmDash: Sandbox disabled (sandbox: false). " +
 					"Sandboxed plugins will run in-process without isolation.",
@@ -1349,7 +1377,7 @@ export class EmDashRuntime {
 		}
 
 		// Check if sandboxing is enabled
-		if (!deps.sandboxEnabled || deps.sandboxedPluginEntries.length === 0) {
+		if (!deps.sandboxEnabled) {
 			return sandboxedPluginCache;
 		}
 
@@ -1375,20 +1403,26 @@ export class EmDashRuntime {
 			return sandboxedPluginCache;
 		}
 
-		// sandbox: false escape hatch is handled separately (before pipeline
-		// creation) via loadBypassedPlugins. If we somehow reach here with the
-		// flag set, just return — the plugins are already in the trusted pipeline.
-		if (deps.sandboxBypassed) {
-			return sandboxedPluginCache;
-		}
-
-		// Check if the runner is actually available (has required bindings)
+		// Check if the runner is actually available (has required bindings).
+		// Warn regardless of whether there are plugins to load, so operators
+		// see the issue even if no marketplace plugins are installed yet.
 		if (!sandboxRunner.isAvailable()) {
 			console.warn(
 				"EmDash: Plugin sandbox is configured but not available on this platform. " +
 					"Sandboxed plugins will not be loaded. " +
-					"If using @emdash-cms/workerd/sandbox, ensure workerd is installed.",
+					"If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.",
 			);
+			return sandboxedPluginCache;
+		}
+
+		if (deps.sandboxedPluginEntries.length === 0) {
+			return sandboxedPluginCache;
+		}
+
+		// sandbox: false escape hatch is handled separately (before pipeline
+		// creation) via loadBypassedPlugins. If we somehow reach here with the
+		// flag set, just return — the plugins are already in the trusted pipeline.
+		if (deps.sandboxBypassed) {
 			return sandboxedPluginCache;
 		}
 

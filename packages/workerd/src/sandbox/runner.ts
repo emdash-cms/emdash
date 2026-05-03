@@ -20,7 +20,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { writeFile, mkdir, rm } from "node:fs/promises";
+import { writeFile, mkdir, rm, unlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { createRequire } from "node:module";
@@ -40,11 +40,36 @@ import type { PluginManifest } from "emdash";
 import { SandboxUnavailableError } from "emdash";
 
 import { createBackingServiceHandler } from "./backing-service.js";
+import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
+
+// Unix socket support is wired but disabled until workerd capnp external
+// address format is validated. Enabling: `process.platform !== "win32"`.
+const USE_UNIX_SOCKET = false;
+
+const activeRunners = new Set<WorkerdSandboxRunner>();
+let sigHandlerRegistered = false;
+
+function registerSigHandler(runner: WorkerdSandboxRunner): void {
+	activeRunners.add(runner);
+	if (!sigHandlerRegistered) {
+		sigHandlerRegistered = true;
+		process.on("SIGTERM", () => {
+			for (const r of activeRunners) {
+				r["shuttingDown"] = true;
+				void r.terminateAll();
+			}
+		});
+	}
+}
+
+function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
+	activeRunners.delete(runner);
+}
 
 /**
  * Default resource limits for sandboxed plugins.
@@ -106,6 +131,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Backing service HTTP server (runs in Node) */
 	private backingServer: Server | null = null;
 	private backingPort = 0;
+	private backingService: BackingServiceHandler | null = null;
+	private backingSocketPath: string | null = null;
+	private eagerStartTimer: ReturnType<typeof setTimeout> | null = null;
 
 	/** workerd child process */
 	private workerdProcess: ChildProcess | null = null;
@@ -156,9 +184,6 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private intentionalStop = false;
 
-	/** SIGTERM handler for clean shutdown */
-	private sigHandler: (() => void) | null = null;
-
 	constructor(options: SandboxOptions) {
 		this.options = options;
 		this.limits = resolveLimits(options.limits);
@@ -183,11 +208,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		}
 
 		// Forward SIGTERM to workerd child for clean shutdown
-		this.sigHandler = () => {
-			this.shuttingDown = true;
-			void this.terminateAll();
-		};
-		process.on("SIGTERM", this.sigHandler);
+		registerSigHandler(this);
 	}
 
 	/**
@@ -217,7 +238,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			// workerdMain = .../node_modules/workerd/lib/main.js
 			// binary = .../node_modules/workerd/bin/workerd
 			const pkgDir = join(workerdMain, "..", "..");
-			return join(pkgDir, "bin", "workerd");
+			const binName = process.platform === "win32" ? "workerd.exe" : "workerd";
+			return join(pkgDir, "bin", binName);
 		} catch {
 			// Fallback: try workerd on PATH
 			return "workerd";
@@ -300,6 +322,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// The runtime loads plugins sequentially, so we batch by deferring
 		// the actual workerd spawn until the first hook/route invocation.
 		this.needsRestart = true;
+		this.scheduleEagerStart();
 
 		return new WorkerdSandboxedPlugin(pluginId, manifest, port, this.limits, this);
 	}
@@ -314,10 +337,26 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	unloadPlugin(pluginId: string): void {
 		if (this.plugins.delete(pluginId)) {
-			// Mark for restart so the next load() or invocation regenerates
-			// the capnp config without this plugin's port/listener.
-			this.needsRestart = true;
+			this.backingService?.removePlugin(pluginId);
+			if (this.plugins.size === 0) {
+				void this.stopWorkerd();
+			} else {
+				this.needsRestart = true;
+				this.scheduleEagerStart();
+			}
 		}
+	}
+
+	/**
+	 * Schedule eager workerd start with a short debounce.
+	 * Batches rapid load/unload sequences into a single restart.
+	 */
+	private scheduleEagerStart(): void {
+		if (this.eagerStartTimer) clearTimeout(this.eagerStartTimer);
+		this.eagerStartTimer = setTimeout(() => {
+			this.eagerStartTimer = null;
+			void this.ensureRunning();
+		}, 50);
 	}
 
 	/**
@@ -329,10 +368,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			clearTimeout(this.restartTimer);
 			this.restartTimer = null;
 		}
-		if (this.sigHandler) {
-			process.removeListener("SIGTERM", this.sigHandler);
-			this.sigHandler = null;
+		if (this.eagerStartTimer) {
+			clearTimeout(this.eagerStartTimer);
+			this.eagerStartTimer = null;
 		}
+		unregisterSigHandler(this);
 		this.plugins.clear();
 		await this.stopWorkerd();
 		await this.stopBackingServer();
@@ -466,7 +506,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			const safeId = pluginId.replace(SAFE_ID_RE, "_");
 			const wrapperCode = generatePluginWrapper(plugin.manifest, {
 				site: this.siteInfo,
-				backingServiceUrl: `http://127.0.0.1:${this.backingPort}`,
+				backingServiceUrl: this.backingServiceUrl,
 				authToken: plugin.token,
 				invokeToken: this.invokeToken,
 			});
@@ -480,7 +520,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// Only wallTimeMs is enforced (via Promise.race in invokeHook/invokeRoute).
 		const capnpConfig = generateCapnpConfig({
 			plugins: this.plugins,
-			backingServiceUrl: `http://127.0.0.1:${this.backingPort}`,
+			backingServiceAddress: this.backingServiceAddress,
 			configDir: this.configDir,
 		});
 
@@ -544,19 +584,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 					this.healthy = true;
 					return;
 				}
-				// Send the invoke token: the wrapper rejects every request
-				// without it. We hit /__health which the wrapper doesn't define
-				// (so we expect 404 from a healthy worker), but we still need
-				// to get past the auth check first or we'd see 401.
-				const res = await fetch(`http://127.0.0.1:${firstPlugin.port}/__health`, {
+				const res = await fetch(`http://127.0.0.1:${firstPlugin.port}/__ready`, {
 					signal: AbortSignal.timeout(1000),
 					headers: { Authorization: `Bearer ${this.invokeToken}` },
 				});
-				// Any response from the worker (404 from unknown route, or
-				// any 2xx) means workerd is up and serving requests. 401
-				// would mean the worker is up but rejecting our auth, which
-				// shouldn't happen since we're sending the right token.
-				if (res.status === 404 || res.ok) {
+				if (res.ok) {
 					return;
 				}
 			} catch {
@@ -612,20 +644,48 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Start the backing service HTTP server.
 	 */
 	private async startBackingServer(): Promise<void> {
-		const handler = createBackingServiceHandler(this);
+		this.backingService = createBackingServiceHandler(this);
 
 		return new Promise((resolve, reject) => {
-			this.backingServer = createServer(handler);
-			// Bind to localhost only (not 0.0.0.0)
-			this.backingServer.listen(0, "127.0.0.1", () => {
-				const addr = this.backingServer!.address();
-				if (addr && typeof addr === "object") {
-					this.backingPort = addr.port;
-				}
-				resolve();
-			});
+			this.backingServer = createServer(this.backingService!.handler);
+
+			if (USE_UNIX_SOCKET) {
+				const socketPath = join(tmpdir(), `emdash-sandbox-${process.pid}-${Date.now()}.sock`);
+				this.backingSocketPath = socketPath;
+				this.backingServer.listen(socketPath, () => {
+					resolve();
+				});
+			} else {
+				// Windows fallback: TCP on localhost
+				this.backingServer.listen(0, "127.0.0.1", () => {
+					const addr = this.backingServer!.address();
+					if (addr && typeof addr === "object") {
+						this.backingPort = addr.port;
+					}
+					resolve();
+				});
+			}
+
 			this.backingServer.on("error", reject);
 		});
+	}
+
+	/** Address string for capnp config */
+	get backingServiceAddress(): string {
+		if (USE_UNIX_SOCKET && this.backingSocketPath) {
+			return `unix:${this.backingSocketPath}`;
+		}
+		return `127.0.0.1:${this.backingPort}`;
+	}
+
+	/** URL for wrapper code to use as BACKING_URL.
+	 * With globalOutbound the hostname is just a label — all outbound
+	 * fetch() calls route through the external service regardless. */
+	get backingServiceUrl(): string {
+		if (USE_UNIX_SOCKET && this.backingSocketPath) {
+			return "http://emdash-backing";
+		}
+		return `http://127.0.0.1:${this.backingPort}`;
 	}
 
 	/**
@@ -633,8 +693,15 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private async stopBackingServer(): Promise<void> {
 		if (!this.backingServer) return;
-		return new Promise((resolve) => {
-			this.backingServer!.close(() => resolve());
+		const socketPath = this.backingSocketPath;
+		return new Promise<void>((resolve) => {
+			this.backingServer!.close(() => {
+				if (socketPath) {
+					unlink(socketPath).catch(() => {});
+					this.backingSocketPath = null;
+				}
+				resolve();
+			});
 			this.backingServer = null;
 		});
 	}
@@ -815,7 +882,7 @@ class WorkerdSandboxedPlugin implements SandboxedPlugin {
  * Operators who want the dev runner explicitly should set NODE_ENV=development.
  */
 export const createSandboxRunner: SandboxRunnerFactory = (options) => {
-	const isDev = process.env.NODE_ENV === "development";
+	const isDev = process.env.EMDASH_SANDBOX_DEV === "1" || process.env.NODE_ENV === "development";
 
 	if (isDev) {
 		// MiniflareDevRunner is statically imported (no miniflare dependency

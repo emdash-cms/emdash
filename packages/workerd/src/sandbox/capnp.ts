@@ -22,7 +22,7 @@ interface LoadedPlugin {
 
 interface CapnpOptions {
 	plugins: Map<string, LoadedPlugin>;
-	backingServiceUrl: string;
+	backingServiceAddress: string;
 	configDir: string;
 }
 
@@ -44,11 +44,7 @@ interface CapnpOptions {
  * For true CPU/memory isolation, deploy on Cloudflare Workers.
  */
 export function generateCapnpConfig(options: CapnpOptions): string {
-	const { plugins, backingServiceUrl } = options;
-
-	// Parse backing service URL for external server config
-	const backingUrl = new URL(backingServiceUrl);
-	const backingAddress = `${backingUrl.hostname}:${backingUrl.port}`;
+	const { plugins, backingServiceAddress } = options;
 
 	const lines: string[] = [
 		`# Auto-generated workerd configuration for EmDash plugin sandbox`,
@@ -60,7 +56,7 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 		`const config :Workerd.Config = (`,
 		`  services = [`,
 		// External service: the Node backing service
-		`    (name = "emdash-backing", external = (address = "${backingAddress}")),`,
+		`    (name = "emdash-backing", external = (address = "${backingServiceAddress}")),`,
 	];
 
 	// Add a service + socket for each plugin

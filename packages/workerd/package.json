@@ -1,5 +1,5 @@
 {
-	"name": "@emdash-cms/workerd",
+	"name": "@emdash-cms/sandbox-workerd",
 	"version": "0.0.1",
 	"description": "workerd-based plugin sandbox for EmDash on Node.js",
 	"type": "module",

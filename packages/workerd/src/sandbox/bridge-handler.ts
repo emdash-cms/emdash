@@ -143,6 +143,23 @@ async function dispatch(
 		case "content/delete":
 			requireCapability(opts, "write:content");
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
+		case "content/createMany":
+			requireCapability(opts, "write:content");
+			return contentCreateMany(
+				db,
+				requireString(body, "collection"),
+				body.items as Array<Record<string, unknown>>,
+			);
+		case "content/updateMany":
+			requireCapability(opts, "write:content");
+			return contentUpdateMany(
+				db,
+				requireString(body, "collection"),
+				body.items as Array<{ id: string; data: Record<string, unknown> }>,
+			);
+		case "content/deleteMany":
+			requireCapability(opts, "write:content");
+			return contentDeleteMany(db, requireString(body, "collection"), body.ids as string[]);
 
 		// ── Media ───────────────────────────────────────────────────────
 		case "media/get":
@@ -157,7 +174,8 @@ async function dispatch(
 				db,
 				requireString(body, "filename"),
 				requireString(body, "contentType"),
-				body.bytes as number[],
+				body.bytes as string | number[],
+				body.encoding as string | undefined,
 				opts.storage,
 			);
 		case "media/delete":
@@ -568,7 +586,7 @@ async function contentUpdate(
 	let query = db
 		.updateTable(`ec_${collection}` as keyof Database)
 		.set({ updated_at: now } as never)
-		.set(sql`version = version + 1` as never)
+		.set({ version: sql`version + 1` } as never)
 		.where("id", "=", id)
 		.where("deleted_at", "is", null);
 
@@ -623,6 +641,72 @@ async function contentDelete(
 		.executeTakeFirst();
 
 	return BigInt(result.numUpdatedRows) > 0n;
+}
+
+// ── Batch Content Operations ─────────────────────────────────────────────
+
+const MAX_BATCH_SIZE = 100;
+
+async function contentCreateMany(
+	db: Kysely<Database>,
+	collection: string,
+	items: Array<Record<string, unknown>>,
+): Promise<
+	Array<{
+		id: string;
+		type: string;
+		data: Record<string, unknown>;
+		createdAt: string;
+		updatedAt: string;
+	}>
+> {
+	if (items.length > MAX_BATCH_SIZE) {
+		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
+	}
+	const results = [];
+	for (const data of items) {
+		results.push(await contentCreate(db, collection, data));
+	}
+	return results;
+}
+
+async function contentUpdateMany(
+	db: Kysely<Database>,
+	collection: string,
+	items: Array<{ id: string; data: Record<string, unknown> }>,
+): Promise<
+	Array<{
+		id: string;
+		type: string;
+		data: Record<string, unknown>;
+		createdAt: string;
+		updatedAt: string;
+	}>
+> {
+	if (items.length > MAX_BATCH_SIZE) {
+		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
+	}
+	const results = [];
+	for (const item of items) {
+		results.push(await contentUpdate(db, collection, item.id, item.data));
+	}
+	return results;
+}
+
+async function contentDeleteMany(
+	db: Kysely<Database>,
+	collection: string,
+	ids: string[],
+): Promise<number> {
+	if (ids.length > MAX_BATCH_SIZE) {
+		throw new Error(`Batch size ${ids.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
+	}
+	let count = 0;
+	for (const id of ids) {
+		const deleted = await contentDelete(db, collection, id);
+		if (deleted) count++;
+	}
+	return count;
 }
 
 // ── Media Operations ─────────────────────────────────────────────────────
@@ -718,7 +802,8 @@ async function mediaUpload(
 	db: Kysely<Database>,
 	filename: string,
 	contentType: string,
-	bytes: number[],
+	bytes: string | number[],
+	encoding: string | undefined,
 	storage?: BridgeStorage | null,
 ): Promise<{ mediaId: string; storageKey: string; url: string }> {
 	if (!storage) {
@@ -742,7 +827,14 @@ async function mediaUpload(
 	const ext = FILE_EXT_RE.test(rawExt) ? rawExt : "";
 	const storageKey = `${mediaId}${ext}`;
 	const now = new Date().toISOString();
-	const byteArray = new Uint8Array(bytes);
+	let byteArray: Uint8Array;
+	if (encoding === "base64" && typeof bytes === "string") {
+		const binary = atob(bytes);
+		byteArray = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) byteArray[i] = binary.charCodeAt(i);
+	} else {
+		byteArray = new Uint8Array(bytes as number[]);
+	}
 
 	// Write bytes to storage first, then create DB record.
 	// If DB insert fails, delete the storage object so we don't leak files.
@@ -1062,7 +1154,7 @@ async function storageQuery(
 	const result = await repo.query({
 		where: queryOpts.where as never,
 		orderBy: queryOpts.orderBy as Record<string, "asc" | "desc"> | undefined,
-		limit: typeof queryOpts.limit === "number" ? queryOpts.limit : undefined,
+		limit: typeof queryOpts.limit === "number" ? Math.min(queryOpts.limit, 100) : undefined,
 		cursor: typeof queryOpts.cursor === "string" ? queryOpts.cursor : undefined,
 	});
 	return {
