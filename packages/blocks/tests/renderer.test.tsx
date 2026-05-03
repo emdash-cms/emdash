@@ -533,6 +533,56 @@ describe("BlockRenderer", () => {
 		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
 	});
 
+	it("timeline block renders items with timestamps and descriptions", () => {
+		renderBlocks([
+			{
+				type: "timeline",
+				items: [
+					{
+						title: "Import started",
+						timestamp: "2026-05-03 10:00",
+						description: "Queued 25 records.",
+						status: "success",
+					},
+					{ title: "Import warning", timestamp: "2026-05-03 10:02", status: "warning" },
+				],
+			},
+		]);
+
+		expect(screen.getByText("Import started")).toBeTruthy();
+		expect(screen.getByText("2026-05-03 10:00")).toBeTruthy();
+		expect(screen.getByText("Queued 25 records.")).toBeTruthy();
+		expect(screen.getByText("Import warning")).toBeTruthy();
+	});
+
+	it("timeline block renders empty_text when items are empty", () => {
+		renderBlocks([{ type: "timeline", items: [], empty_text: "No history yet" }]);
+		expect(screen.getByText("No history yet")).toBeTruthy();
+	});
+
+	it("timeline block renders nested action buttons", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "timeline",
+					items: [
+						{
+							title: "Deploy failed",
+							timestamp: "2026-05-03 10:10",
+							status: "error",
+							actions: [{ type: "button", action_id: "retry", label: "Retry" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		fireEvent.click(screen.getByText("Retry"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "retry" });
+	});
+
 	it("columns block renders blocks in columns", () => {
 		renderBlocks([
 			{
