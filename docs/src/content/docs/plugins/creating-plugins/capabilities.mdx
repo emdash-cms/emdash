@@ -16,7 +16,7 @@ Capabilities live on the descriptor (the file imported by `astro.config.mjs`), a
 ```typescript title="src/index.ts"
 export function helloPlugin(): PluginDescriptor {
 	return {
-		id: "@my-org/plugin-hello",
+		id: "plugin-hello",
 		version: "0.1.0",
 		format: "standard",
 		entrypoint: "@my-org/plugin-hello/sandbox",
