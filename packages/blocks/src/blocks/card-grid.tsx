@@ -29,7 +29,11 @@ export function CardGridBlockComponent({
 					className="overflow-hidden rounded-md border border-kumo-line bg-kumo-surface"
 				>
 					{card.image_url && (
-						<img src={card.image_url} alt={card.image_alt ?? ""} className="h-32 w-full object-cover" />
+						<img
+							src={card.image_url}
+							alt={card.image_alt ?? ""}
+							className="h-32 w-full object-cover"
+						/>
 					)}
 					<div className="flex h-full flex-col gap-3 p-4">
 						<div className="flex items-start justify-between gap-3">
