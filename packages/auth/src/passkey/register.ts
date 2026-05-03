@@ -21,7 +21,6 @@ import {
 
 import { generateToken } from "../tokens.js";
 import type { Credential, NewCredential, AuthAdapter, User, DeviceType } from "../types.js";
-
 import type {
 	RegistrationOptions,
 	RegistrationResponse,

@@ -5,7 +5,6 @@ import {
 	coseAlgorithmES256,
 	coseAlgorithmRS256,
 } from "@oslojs/webauthn";
-
 import { describe, it, expect, vi } from "vitest";
 
 import type { AuthAdapter, Credential } from "../types.js";
