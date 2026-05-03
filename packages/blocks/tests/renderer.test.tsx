@@ -446,6 +446,68 @@ describe("BlockRenderer", () => {
 		expect(img.src).toBe("https://example.com/photo.jpg");
 	});
 
+	it("media_grid block renders media cards and nested actions", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "media_grid",
+					columns: 4,
+					items: [
+						{
+							url: "https://example.com/photo.jpg",
+							alt: "A product screenshot",
+							title: "Product screenshot",
+							description: "Shows the dashboard.",
+							badge: "Featured",
+							actions: [{ type: "button", action_id: "view", label: "View" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		const img = screen.getByAltText("A product screenshot") as HTMLImageElement;
+		expect(img.src).toBe("https://example.com/photo.jpg");
+		expect(screen.getByText("Product screenshot")).toBeTruthy();
+		expect(screen.getByText("Shows the dashboard.")).toBeTruthy();
+		expect(screen.getByTestId("badge").textContent).toBe("Featured");
+
+		fireEvent.click(screen.getByText("View"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "view" });
+	});
+
+	it("media_grid block shows empty_text when items are empty", () => {
+		renderBlocks([{ type: "media_grid", items: [], empty_text: "No media yet" }]);
+		expect(screen.getByText("No media yet")).toBeTruthy();
+	});
+
+	it("media_grid block previews root-relative URLs", () => {
+		renderBlocks([{ type: "media_grid", items: [{ url: "/uploads/photo.jpg", alt: "Upload" }] }]);
+		const img = screen.getByAltText("Upload") as HTMLImageElement;
+		expect(img.getAttribute("src")).toBe("/uploads/photo.jpg");
+	});
+
+	it("media_grid block does not use unsafe URLs as img src", () => {
+		const unsafeUrls = [
+			"//example.com/image.jpg",
+			"javascript:alert(1)",
+			"data:image/svg+xml,<svg></svg>",
+			"ftp://example.com/image.jpg",
+		];
+
+		const { container } = renderBlocks([
+			{
+				type: "media_grid",
+				items: unsafeUrls.map((url, i) => ({ url, alt: `Unsafe ${i}` })),
+			},
+		]);
+
+		expect(container.querySelectorAll("img").length).toBe(0);
+		expect(screen.getAllByText("Preview unavailable").length).toBe(unsafeUrls.length);
+	});
+
 	it("context block renders small muted text", () => {
 		renderBlocks([{ type: "context", text: "Updated just now" }]);
 		const el = screen.getByText("Updated just now");

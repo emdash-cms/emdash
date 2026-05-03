@@ -201,6 +201,15 @@ export interface StatItem {
 	trend?: "up" | "down" | "neutral";
 }
 
+export interface MediaGridItem {
+	url: string;
+	alt: string;
+	title?: string;
+	description?: string;
+	badge?: string;
+	actions?: ButtonElement[];
+}
+
 /** A single data series for a timeseries chart. */
 export interface ChartSeries {
 	/** Display name shown in tooltips and legends */
@@ -364,6 +373,13 @@ export interface AccordionBlock extends BlockBase {
 	default_open?: boolean;
 }
 
+export interface MediaGridBlock extends BlockBase {
+	type: "media_grid";
+	items: MediaGridItem[];
+	columns?: 2 | 3 | 4;
+	empty_text?: string;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -382,7 +398,8 @@ export type Block =
 	| CodeBlock
 	| TabBlock
 	| EmptyBlock
-	| AccordionBlock;
+	| AccordionBlock
+	| MediaGridBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 
