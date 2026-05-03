@@ -36,7 +36,7 @@ export class RevisionRepository {
 	async create(input: CreateRevisionInput): Promise<Revision> {
 		const id = monotonic();
 
-		const row = {
+		const row: RevisionTable = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
