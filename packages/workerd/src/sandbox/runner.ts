@@ -45,6 +45,7 @@ import { generateCapnpConfig } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
+/** Replace non-alphanumeric chars for safe file/worker names */
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
 
 // Unix socket support is wired but disabled until workerd capnp external

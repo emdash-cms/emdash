@@ -61,7 +61,8 @@ async function setupTables(db: Kysely<any>) {
 		.execute();
 }
 
-/** Minimal plugin code that echoes back hook/route calls */
+/** Minimal plugin code that echoes back hook/route calls.
+ * Route handlers receive { input, request, requestMeta } as first arg. */
 const ECHO_PLUGIN = `
 export default {
 	hooks: {
@@ -74,14 +75,14 @@ export default {
 	},
 	routes: {
 		"echo": {
-			handler: async (input, ctx) => {
+			handler: async (routeCtx, ctx) => {
 				const kvValue = await ctx.kv.get("last-hook");
-				return { input, kvValue };
+				return { input: routeCtx.input, kvValue };
 			}
 		},
 		"kv-test": {
-			handler: async (input, ctx) => {
-				await ctx.kv.set("test-key", input.value);
+			handler: async (routeCtx, ctx) => {
+				await ctx.kv.set("test-key", routeCtx.input.value);
 				const result = await ctx.kv.get("test-key");
 				return { stored: result };
 			}

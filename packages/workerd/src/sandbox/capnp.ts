@@ -11,7 +11,20 @@
 
 import type { PluginManifest } from "emdash";
 
-const SAFE_ID_RE = /[^a-z0-9_-]/gi;
+/** For string values in capnp config (service/socket names) */
+const SAFE_NAME_RE = /[^a-z0-9_-]/gi;
+const NON_ALNUM_RE = /[^a-z0-9]+/i;
+
+/** Convert a plugin ID to a camelCase capnp identifier.
+ * capnp requires camelCase for const declarations (no underscores or hyphens). */
+function toCapnpId(pluginId: string): string {
+	const parts = pluginId.split(NON_ALNUM_RE).filter(Boolean);
+	return parts
+		.map((p, i) =>
+			i === 0 ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase(),
+		)
+		.join("");
+}
 
 interface LoadedPlugin {
 	manifest: PluginManifest;
@@ -63,11 +76,12 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 	const socketEntries: string[] = [];
 
 	for (const [pluginId, plugin] of plugins) {
-		const safeId = pluginId.replace(SAFE_ID_RE, "_");
+		const constId = toCapnpId(pluginId);
+		const safeName = pluginId.replace(SAFE_NAME_RE, "_");
 
-		lines.push(`    (name = "plugin-${safeId}", worker = .plugin_${safeId}),`);
+		lines.push(`    (name = "plugin-${safeName}", worker = .plugin${constId}),`);
 		socketEntries.push(
-			`    (name = "socket-${safeId}", address = "127.0.0.1:${plugin.port}", service = "plugin-${safeId}"),`,
+			`    (name = "socket-${safeName}", address = "127.0.0.1:${plugin.port}", service = "plugin-${safeName}"),`,
 		);
 	}
 
@@ -84,11 +98,12 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 
 	// Worker definitions for each plugin
 	for (const [pluginId] of plugins) {
-		const safeId = pluginId.replace(SAFE_ID_RE, "_");
-		const wrapperFile = `${safeId}-wrapper.js`;
-		const pluginFile = `${safeId}-plugin.js`;
+		const constId = toCapnpId(pluginId);
+		const safeName = pluginId.replace(SAFE_NAME_RE, "_");
+		const wrapperFile = `${safeName}-wrapper.js`;
+		const pluginFile = `${safeName}-plugin.js`;
 
-		lines.push(`const plugin_${safeId} :Workerd.Worker = (`);
+		lines.push(`const plugin${constId} :Workerd.Worker = (`);
 		lines.push(`  modules = [`);
 		lines.push(`    (name = "worker.js", esModule = embed "${wrapperFile}"),`);
 		lines.push(`    (name = "sandbox-plugin.js", esModule = embed "${pluginFile}"),`);
