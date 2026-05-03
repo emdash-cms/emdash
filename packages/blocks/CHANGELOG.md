@@ -1,5 +1,11 @@
 # @emdash-cms/blocks
 
+## 0.10.0
+
+### Minor Changes
+
+- [#717](https://github.com/emdash-cms/emdash/pull/717) [`5eb4318`](https://github.com/emdash-cms/emdash/commit/5eb431876cbfb69a961735fbb6ab09c9de937f28) Thanks [@lsngmin](https://github.com/lsngmin)! - Add Tab block to Block Kit for tabbed panel layouts
+
 ## 0.9.0
 
 ### Minor Changes
