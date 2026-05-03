@@ -1,0 +1,340 @@
+---
+title: Your first native plugin
+description: Build a native EmDash plugin with the descriptor + createPlugin pattern.
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+This guide walks through building a native plugin from scratch. Native plugins run in the same process as your Astro site — no sandbox boundary, full access to the runtime, and access to features the sandbox can't provide (React admin pages, Portable Text components, page fragments).
+
+If you haven't decided yet whether you want a native plugin instead of a sandboxed one, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first. The native path is for the cases where the sandbox genuinely can't do what you need.
+
+## Two pieces, in one or two files
+
+Like sandboxed plugins, native plugins ship two pieces:
+
+1. **A descriptor factory** — returns a `PluginDescriptor` with `format: "native"` plus admin-related entrypoints. Imported by `astro.config.mjs` at build time.
+2. **A `createPlugin(options)` function** — the runtime side. Returns a `definePlugin({ id, version, capabilities, hooks, routes, admin })` result.
+
+Unlike sandboxed plugins, both pieces can live in the same file because they don't run in different environments — the whole plugin runs in-process. The package's `"."` export points at a file that exports both the descriptor factory and a `createPlugin` (or `default`) function:
+
+```
+my-native-plugin/
+├── src/
+│   ├── index.ts          # Descriptor factory + createPlugin
+│   ├── admin.tsx         # React admin components (optional)
+│   └── astro/            # Astro components for PT block rendering (optional)
+│       └── index.ts
+├── package.json
+└── tsconfig.json
+```
+
+## Set up the package
+
+```json title="package.json"
+{
+	"name": "@my-org/plugin-analytics",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./admin": {
+			"types": "./dist/admin.d.ts",
+			"import": "./dist/admin.js"
+		}
+	},
+	"files": ["dist"],
+	"peerDependencies": {
+		"emdash": "*",
+		"react": "^18.0.0"
+	}
+}
+```
+
+Keep `emdash` and `react` as peer dependencies so the host site provides the actual versions and you don't ship duplicates.
+
+## Write the descriptor and runtime
+
+```typescript title="src/index.ts"
+import { definePlugin } from "emdash";
+import type { PluginDescriptor } from "emdash";
+
+export interface AnalyticsOptions {
+	enabled?: boolean;
+	maxEvents?: number;
+}
+
+export function analyticsPlugin(options: AnalyticsOptions = {}): PluginDescriptor {
+	return {
+		id: "analytics",
+		version: "0.1.0",
+		format: "native",
+		entrypoint: "@my-org/plugin-analytics",
+		options,
+		adminEntry: "@my-org/plugin-analytics/admin",
+		adminPages: [{ path: "/dashboard", label: "Dashboard", icon: "chart" }],
+		adminWidgets: [{ id: "events-today", title: "Events Today", size: "third" }],
+	};
+}
+
+export function createPlugin(options: AnalyticsOptions = {}) {
+	const maxEvents = options.maxEvents ?? 100;
+
+	return definePlugin({
+		id: "analytics",
+		version: "0.1.0",
+
+		capabilities: ["network:request"],
+		allowedHosts: ["api.analytics.example.com"],
+
+		storage: {
+			events: { indexes: ["type", "createdAt"] },
+		},
+
+		admin: {
+			entry: "@my-org/plugin-analytics/admin",
+			settingsSchema: {
+				trackingId: { type: "string", label: "Tracking ID" },
+				enabled: { type: "boolean", label: "Enabled", default: options.enabled ?? true },
+			},
+			pages: [{ path: "/dashboard", label: "Dashboard", icon: "chart" }],
+			widgets: [{ id: "events-today", title: "Events Today", size: "third" }],
+		},
+
+		hooks: {
+			"plugin:install": async (_event, ctx) => {
+				ctx.log.info("Analytics plugin installed", { maxEvents });
+			},
+
+			"content:afterSave": async (event, ctx) => {
+				const enabled = await ctx.kv.get<boolean>("settings:enabled");
+				if (enabled === false) return;
+
+				await ctx.storage.events.put(`evt_${Date.now()}`, {
+					type: "content:save",
+					contentId: event.content.id,
+					createdAt: new Date().toISOString(),
+				});
+			},
+		},
+
+		routes: {
+			stats: {
+				handler: async (ctx) => {
+					const today = new Date().toISOString().split("T")[0];
+					const count = await ctx.storage.events.count({
+						createdAt: { gte: today },
+					});
+					return { today: count };
+				},
+			},
+		},
+	});
+}
+
+export default createPlugin;
+```
+
+A few details worth knowing:
+
+- **`format: "native"` is required.** The default would otherwise be `"native"` too — but being explicit on every descriptor makes it easy to spot which format you're working with.
+- **`entrypoint` is the package's main export.** EmDash imports it at runtime and calls the default export to construct the resolved plugin.
+- **`options` flow descriptor → `createPlugin`.** Anything the user passes when registering the plugin (`analyticsPlugin({ enabled: false })`) is preserved on the descriptor and forwarded to `createPlugin`. Sandboxed plugins don't have this surface — they read settings from KV instead.
+- **`id`, `version`, and `capabilities` appear twice.** Once on the descriptor, once on `definePlugin()`. They should match. The descriptor's copy is what `astro.config.mjs` sees at build time; the `definePlugin()` copy is what runs at request time.
+- **Native route handlers take a single argument** — `(ctx: RouteContext)` where `ctx.input`, `ctx.request`, and `ctx.requestMeta` are merged with the regular `PluginContext` properties. This is the opposite of standard format's two-argument shape. See [API routes](/plugins/creating-plugins/api-routes/) for the full surface (everything else is identical).
+
+## Plugin id rules
+
+The `id` field must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used as a single path segment in plugin route URLs and as part of generated SQL identifiers for plugin storage indexes, so anything outside that pattern fails at runtime.
+
+```typescript
+// Valid
+"seo";
+"audit-log";
+"audit_log";
+"plugin-forms";
+
+// Invalid
+"@my-org/plugin-forms";  // scoped form not allowed at runtime
+"MyPlugin";              // no uppercase
+"42-plugin";             // can't start with a digit
+"my.plugin";             // no dots
+```
+
+Pair an unscoped `id` with a scoped npm package name in `entrypoint` — the package name and the plugin id are separate concerns.
+
+## Version format
+
+Use semantic versioning:
+
+```typescript
+version: "1.0.0";       // valid
+version: "1.2.3-beta";  // valid (prerelease)
+version: "1.0";         // invalid (missing patch)
+```
+
+## Register the plugin
+
+In your site's `astro.config.mjs`, import the descriptor factory and pass it into the `plugins: []` array — native plugins always run in-process, never in `sandboxed: []`:
+
+```typescript title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+import { analyticsPlugin } from "@my-org/plugin-analytics";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			plugins: [
+				analyticsPlugin({ enabled: true, maxEvents: 500 }),
+			],
+		}),
+	],
+});
+```
+
+## Settings UI
+
+Native plugins can use `admin.settingsSchema` for an auto-generated settings form, which is the simplest path:
+
+```typescript
+admin: {
+	settingsSchema: {
+		apiKey: { type: "secret", label: "API Key" },
+		enabled: { type: "boolean", label: "Enabled", default: true },
+		maxItems: { type: "number", label: "Max items", min: 1, max: 1000, default: 100 },
+	},
+},
+```
+
+Field types: `string`, `number`, `boolean`, `select`, `secret`, `url`, `email`. Each accepts `label`, `description`, `default`, plus type-specific extras like `min`/`max`/`options`. Settings are persisted to the same per-plugin KV store sandboxed plugins use — read them with `ctx.kv.get<T>("settings:<key>")` from anywhere.
+
+For richer settings UI than `settingsSchema` provides, ship custom React pages — see [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/).
+
+## Complete example: audit log plugin
+
+```typescript title="src/index.ts"
+import { definePlugin } from "emdash";
+import type { PluginDescriptor } from "emdash";
+
+interface AuditEntry {
+	timestamp: string;
+	action: "create" | "update" | "delete";
+	collection: string;
+	resourceId: string;
+	userId?: string;
+}
+
+export function auditLogPlugin(): PluginDescriptor {
+	return {
+		id: "audit-log",
+		version: "0.1.0",
+		format: "native",
+		entrypoint: "@emdash-cms/plugin-audit-log",
+	};
+}
+
+export function createPlugin() {
+	return definePlugin({
+		id: "audit-log",
+		version: "0.1.0",
+
+		storage: {
+			entries: {
+				indexes: [
+					"timestamp",
+					"action",
+					"collection",
+					["collection", "timestamp"],
+					["action", "timestamp"],
+				],
+			},
+		},
+
+		admin: {
+			settingsSchema: {
+				retentionDays: {
+					type: "number",
+					label: "Retention (days)",
+					description: "Days to keep entries. 0 = forever.",
+					default: 90,
+					min: 0,
+					max: 365,
+				},
+			},
+			pages: [{ path: "/history", label: "Audit History", icon: "history" }],
+			widgets: [{ id: "recent-activity", title: "Recent Activity", size: "half" }],
+		},
+
+		hooks: {
+			"content:afterSave": {
+				priority: 200,
+				handler: async (event, ctx) => {
+					const entry: AuditEntry = {
+						timestamp: new Date().toISOString(),
+						action: event.isNew ? "create" : "update",
+						collection: event.collection,
+						resourceId: event.content.id as string,
+					};
+					await ctx.storage.entries.put(`${Date.now()}-${event.content.id}`, entry);
+				},
+			},
+
+			"content:afterDelete": {
+				priority: 200,
+				handler: async (event, ctx) => {
+					await ctx.storage.entries.put(`${Date.now()}-${event.id}`, {
+						timestamp: new Date().toISOString(),
+						action: "delete",
+						collection: event.collection,
+						resourceId: event.id,
+					});
+				},
+			},
+		},
+
+		routes: {
+			recent: {
+				handler: async (ctx) => {
+					const result = await ctx.storage.entries.query({
+						orderBy: { timestamp: "desc" },
+						limit: 10,
+					});
+					return {
+						entries: result.items.map((item) => ({
+							id: item.id,
+							...(item.data as AuditEntry),
+						})),
+					};
+				},
+			},
+		},
+	});
+}
+
+export default createPlugin;
+```
+
+## Testing
+
+Test a native plugin by creating a minimal Astro site with the plugin registered:
+
+<Steps>
+1. Create a test site with EmDash installed.
+2. Register your plugin in `astro.config.mjs`, importing it directly from your local source path.
+3. Run the dev server and trigger hooks by creating, updating, or deleting content.
+4. Check the console for `ctx.log` output and verify storage via API routes.
+</Steps>
+
+For unit tests, mock the `PluginContext` interface and call hook handlers directly.
+
+## What's next
+
+- [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) — ship custom React UI for the admin panel.
+- [Portable Text rendering components](/plugins/creating-native-plugins/portable-text-components/) — provide Astro components that render plugin-defined block types.
+- [Page fragments](/plugins/creating-native-plugins/page-fragments/) — inject scripts, stylesheets, or HTML into public pages.
+- [Distributing native plugins](/plugins/creating-native-plugins/distributing/) — npm packaging and versioning.

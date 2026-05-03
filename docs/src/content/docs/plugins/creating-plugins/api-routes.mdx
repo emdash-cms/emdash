@@ -1,0 +1,375 @@
+---
+title: API Routes
+description: Expose REST endpoints from your sandboxed plugin for the admin UI and external integrations.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Plugins can expose API routes for their admin UI and external integrations. Routes are mounted under `/_emdash/api/plugins/<plugin-id>/<route-name>` and run inside the sandbox runtime with the same `PluginContext` that hooks receive.
+
+This page covers sandboxed (standard-format) plugins. The API surface for native plugins is the same; the only difference is the handler signature — see the note in [Native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) for details.
+
+## Defining routes
+
+Declare routes in `definePlugin()` from your `sandbox-entry.ts`:
+
+```typescript title="src/sandbox-entry.ts"
+import { definePlugin } from "emdash";
+import type { PluginContext } from "emdash";
+import { z } from "astro/zod";
+
+export default definePlugin({
+	routes: {
+		status: {
+			handler: async (_routeCtx, ctx: PluginContext) => {
+				return { ok: true, plugin: ctx.plugin.id };
+			},
+		},
+
+		submissions: {
+			input: z.object({
+				formId: z.string().optional(),
+				limit: z.number().default(50),
+				cursor: z.string().optional(),
+			}),
+			handler: async (routeCtx, ctx: PluginContext) => {
+				const { formId, limit, cursor } = routeCtx.input;
+
+				const result = await ctx.storage.submissions.query({
+					where: formId ? { formId } : undefined,
+					orderBy: { createdAt: "desc" },
+					limit,
+					cursor,
+				});
+
+				return result;
+			},
+		},
+	},
+});
+```
+
+Standard-format route handlers take **two arguments**: `(routeCtx, ctx)`.
+
+- `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`.
+- `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.kv`, `ctx.content`, `ctx.http`, `ctx.log`, etc.
+
+## Route URLs
+
+Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can include slashes for nested paths.
+
+| Plugin id     | Route name      | URL                                            |
+| ------------- | --------------- | ---------------------------------------------- |
+| `forms`       | `status`        | `/_emdash/api/plugins/forms/status`            |
+| `forms`       | `submissions`   | `/_emdash/api/plugins/forms/submissions`       |
+| `seo`         | `settings/save` | `/_emdash/api/plugins/seo/settings/save`       |
+| `analytics`   | `events/recent` | `/_emdash/api/plugins/analytics/events/recent` |
+
+<Aside type="caution">
+	Plugin ids must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The `pluginId` segment in the route is a single Astro path segment, so anything outside that pattern (scoped names, leading digits, dots, slashes) won't route, and storage-index provisioning rejects it too. Pair an unscoped id with a scoped npm package name in `entrypoint`, the way first-party plugins do (`id: "field-kit"`, `entrypoint: "@emdash-cms/plugin-field-kit"`).
+</Aside>
+
+## Authentication and CSRF
+
+**Plugin routes are authenticated by default.** The dispatcher requires a session (or a token with the `admin` scope) before it'll call your handler:
+
+- Read methods (`GET`, `HEAD`, `OPTIONS`) require the `plugins:read` permission.
+- Write methods (`POST`, `PUT`, `PATCH`, `DELETE`) require `plugins:manage`.
+- State-changing methods on private routes also require the `X-EmDash-Request: 1` CSRF header (the admin UI's `usePluginAPI()` hook sends it automatically; cookie-authed external callers need to set it themselves; token-authed requests are exempt).
+
+To opt a route out of auth and CSRF, mark it `public: true`:
+
+```typescript
+routes: {
+	track: {
+		public: true,
+		input: z.object({ event: z.string() }),
+		handler: async (routeCtx, ctx) => {
+			ctx.log.info("Tracked", { event: routeCtx.input.event });
+			return { ok: true };
+		},
+	},
+},
+```
+
+<Aside type="caution">
+	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
+</Aside>
+
+## Input validation
+
+`input` accepts a Zod schema. The dispatcher parses the request body (POST/PUT/PATCH) or query string (GET/DELETE), validates it, and passes the typed result to your handler as `routeCtx.input`. Invalid input returns a 400 before your handler runs.
+
+```typescript
+routes: {
+	create: {
+		input: z.object({
+			title: z.string().min(1).max(200),
+			email: z.string().email(),
+			priority: z.enum(["low", "medium", "high"]).default("medium"),
+			tags: z.array(z.string()).optional(),
+		}),
+		handler: async (routeCtx, ctx) => {
+			const { title, email, priority, tags } = routeCtx.input;
+
+			await ctx.storage.items.put(`item_${Date.now()}`, {
+				title,
+				email,
+				priority,
+				tags: tags ?? [],
+				createdAt: new Date().toISOString(),
+			});
+
+			return { success: true };
+		},
+	},
+},
+```
+
+## Return values
+
+Return any JSON-serialisable value. The dispatcher wraps it in EmDash's standard envelope (`{ success: true, data: <your value> }`) and serves it as `application/json`.
+
+```typescript
+return { id: "abc", count: 42 };  // wrapped to { success: true, data: { id, count } }
+return [1, 2, 3];                 // wrapped to { success: true, data: [1, 2, 3] }
+```
+
+## Errors
+
+Throw to return an error response. Anything that isn't a known plugin error returns a generic message — internal exceptions are masked rather than leaking stack traces or database errors:
+
+```typescript
+handler: async (routeCtx, ctx) => {
+	const item = await ctx.storage.items.get(routeCtx.input.id);
+	if (!item) {
+		throw new Error("Item not found");
+	}
+	return item;
+},
+```
+
+For a specific status code, throw a `Response`:
+
+```typescript
+handler: async (routeCtx, ctx) => {
+	const item = await ctx.storage.items.get(routeCtx.input.id);
+	if (!item) {
+		throw new Response(JSON.stringify({ error: "Not found" }), {
+			status: 404,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+	return item;
+},
+```
+
+## HTTP methods
+
+Routes respond to all methods. Branch on `routeCtx.request.method` if you need per-method behaviour:
+
+```typescript
+routes: {
+	item: {
+		input: z.object({ id: z.string() }),
+		handler: async (routeCtx, ctx) => {
+			const { id } = routeCtx.input;
+
+			switch (routeCtx.request.method) {
+				case "GET":
+					return await ctx.storage.items.get(id);
+				case "DELETE":
+					await ctx.storage.items.delete(id);
+					return { deleted: true };
+				default:
+					throw new Response("Method not allowed", { status: 405 });
+			}
+		},
+	},
+},
+```
+
+## Accessing the request
+
+The full `Request` object is available as `routeCtx.request` for headers, raw body access, and URL parsing. `routeCtx.requestMeta` carries IP, user agent, and geo data normalised across platforms.
+
+```typescript
+handler: async (routeCtx, ctx) => {
+	const { request, requestMeta } = routeCtx;
+
+	const auth = request.headers.get("Authorization");
+	const url = new URL(request.url);
+	const page = url.searchParams.get("page");
+
+	ctx.log.info("Request", { ip: requestMeta.ip, ua: requestMeta.userAgent });
+
+	if (request.method !== "POST") {
+		throw new Response("POST required", { status: 405 });
+	}
+},
+```
+
+## Common patterns
+
+### Settings via KV
+
+Sandboxed plugins read and write settings through the KV store, conventionally under a `settings:` prefix. The auto-generated `settingsSchema` form is native-only — for sandboxed plugins, expose the read/write through routes and render the form in [Block Kit](/plugins/creating-plugins/block-kit/).
+
+```typescript
+routes: {
+	settings: {
+		handler: async (_routeCtx, ctx) => {
+			const settings = await ctx.kv.list("settings:");
+			const result: Record<string, unknown> = {};
+			for (const entry of settings) {
+				result[entry.key.replace("settings:", "")] = entry.value;
+			}
+			return result;
+		},
+	},
+
+	"settings/save": {
+		input: z.object({
+			enabled: z.boolean().optional(),
+			apiKey: z.string().optional(),
+			maxItems: z.number().optional(),
+		}),
+		handler: async (routeCtx, ctx) => {
+			for (const [key, value] of Object.entries(routeCtx.input)) {
+				if (value !== undefined) {
+					await ctx.kv.set(`settings:${key}`, value);
+				}
+			}
+			return { success: true };
+		},
+	},
+},
+```
+
+### Paginated list
+
+Return cursor-based pagination from a storage query — the response shape matches what the rest of EmDash uses:
+
+```typescript
+routes: {
+	list: {
+		input: z.object({
+			limit: z.number().min(1).max(100).default(50),
+			cursor: z.string().optional(),
+			status: z.string().optional(),
+		}),
+		handler: async (routeCtx, ctx) => {
+			const { limit, cursor, status } = routeCtx.input;
+
+			const result = await ctx.storage.items.query({
+				where: status ? { status } : undefined,
+				orderBy: { createdAt: "desc" },
+				limit,
+				cursor,
+			});
+
+			return {
+				items: result.items.map((item) => ({ id: item.id, ...item.data })),
+				cursor: result.cursor,
+				hasMore: result.hasMore,
+			};
+		},
+	},
+},
+```
+
+### External API proxy
+
+Proxy a request to an external service through `ctx.http` (requires `network:request` capability and an entry in `allowedHosts`):
+
+```typescript
+routes: {
+	forecast: {
+		input: z.object({ city: z.string() }),
+		handler: async (routeCtx, ctx) => {
+			if (!ctx.http) throw new Error("Network capability not granted");
+
+			const apiKey = await ctx.kv.get<string>("settings:apiKey");
+			if (!apiKey) throw new Error("API key not configured");
+
+			const response = await ctx.http.fetch(
+				`https://api.weather.example.com/forecast?city=${routeCtx.input.city}`,
+				{ headers: { "X-API-Key": apiKey } },
+			);
+
+			if (!response.ok) {
+				throw new Error(`Weather API error: ${response.status}`);
+			}
+			return response.json();
+		},
+	},
+},
+```
+
+## Calling routes from the admin UI
+
+Use `usePluginAPI()` from the admin package — it adds the `X-EmDash-Request` CSRF header and the plugin id prefix automatically:
+
+```typescript
+import { usePluginAPI } from "@emdash-cms/admin";
+
+function SettingsPage() {
+	const api = usePluginAPI();
+
+	const handleSave = async (settings) => {
+		await api.post("settings/save", settings);
+	};
+
+	const loadSettings = async () => {
+		return api.get("settings");
+	};
+}
+```
+
+## Calling routes externally
+
+Public routes are callable directly:
+
+```bash
+curl -X POST https://your-site.com/_emdash/api/plugins/forms/track \
+  -H "Content-Type: application/json" \
+  -d '{"event": "pageview"}'
+```
+
+Private routes need session credentials or an API token with the `admin` scope:
+
+```bash
+curl -X POST https://your-site.com/_emdash/api/plugins/forms/create \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Hello", "email": "user@example.com"}'
+```
+
+## Route context reference
+
+```typescript
+// What standard-format handlers receive as their two arguments
+
+interface StandardRouteContext<TInput = unknown> {
+	input: TInput;
+	request: Request;
+	requestMeta: { ip: string | null; userAgent: string | null; geo?: GeoData };
+}
+
+interface PluginContext {
+	plugin: { id: string; version: string };
+	storage: PluginStorage;
+	kv: KVAccess;
+	log: LogAccess;
+	site: SiteInfo;
+	url(path: string): string;
+	cron?: CronAccess;
+	content?: ContentAccess;       // when content:read or content:write declared
+	media?: MediaAccess;           // when media:read or media:write declared
+	http?: HttpAccess;             // when network:request declared
+	users?: UserAccess;            // when users:read declared
+	email?: EmailAccess;           // when email:send declared and provider configured
+}
+```
+
+Native plugins receive a single `RouteContext` argument that combines the two — see [Creating native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) if you're going that route.

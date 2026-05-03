@@ -19,7 +19,7 @@ Run commands with `npx emdash` or add scripts to `package.json`. The binary is a
 
 ## Authentication
 
-Commands that talk to a running EmDash instance (everything except `init`, `seed`, `export-seed`, and `secrets`) resolve authentication in this order:
+Commands that talk to a running EmDash instance resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
@@ -43,35 +43,6 @@ These flags are available on all remote commands:
 When stdout is a TTY, the CLI pretty-prints results with consola. When piped or when `--json` is set, it outputs raw JSON to stdout — suitable for `jq` or other tools.
 
 ## Commands
-
-### `emdash init`
-
-Initialize the database with core schema and optional template data.
-
-```bash
-npx emdash init [options]
-```
-
-#### Options
-
-| Option       | Alias | Description            | Default           |
-| ------------ | ----- | ---------------------- | ----------------- |
-| `--database` | `-d`  | Database file path     | `./data.db`       |
-| `--cwd`      |       | Working directory      | Current directory  |
-| `--force`    | `-f`  | Re-run schema and seed | `false`           |
-
-#### Behavior
-
-1. Reads `emdash` config from `package.json`
-2. Creates the database file if needed
-3. Runs core migrations (creates system tables)
-4. Runs template `schema.sql` if configured
-5. Runs template `seed.sql` if configured
-
-<Aside>
-	If the database already contains collections, `init` skips schema and seed unless `--force` is
-	used.
-</Aside>
 
 ### `emdash dev`
 
@@ -482,41 +453,6 @@ npx emdash menu get primary
 
 Returns the menu with all its items.
 
-### `emdash seed`
-
-Apply a seed file to the database. This command works directly on a local SQLite file (no running server needed).
-
-```bash
-npx emdash seed [path] [options]
-```
-
-#### Arguments
-
-| Argument | Description       | Default               |
-| -------- | ----------------- | --------------------- |
-| `path`   | Path to seed file | `.emdash/seed.json` |
-
-#### Options
-
-| Option             | Alias | Description                             | Default                     |
-| ------------------ | ----- | --------------------------------------- | --------------------------- |
-| `--database`       | `-d`  | Database file path                      | `./data.db`                 |
-| `--cwd`            |       | Working directory                       | Current directory           |
-| `--validate`       |       | Validate only, don't apply              | `false`                     |
-| `--no-content`     |       | Skip sample content                     | `false`                     |
-| `--on-conflict`    |       | Conflict handling: skip, update, error  | `skip`                      |
-| `--uploads-dir`    |       | Directory for media uploads             | `.emdash/uploads`         |
-| `--media-base-url` |       | Base URL for media files                | `/_emdash/api/media/file` |
-| `--base-url`       |       | Site base URL (for absolute media URLs) |                             |
-
-#### Seed File Resolution
-
-The command looks for seed files in this order:
-
-1. Positional argument (if provided)
-2. `.emdash/seed.json` (convention)
-3. Path from `package.json` `emdash.seed` field
-
 ### `emdash export-seed`
 
 Export database schema and content as a seed file. Works directly on a local SQLite file.
@@ -630,11 +566,9 @@ Raw schema export for tooling:
 {
 	"scripts": {
 		"dev": "emdash dev",
-		"init": "emdash init",
 		"types": "emdash types",
-		"seed": "emdash seed",
 		"export-seed": "emdash export-seed",
-		"db:reset": "rm -f data.db && emdash init"
+		"db:reset": "rm -f data.db"
 	}
 }
 ```

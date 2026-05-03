@@ -13,25 +13,9 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 - Wrangler CLI installed (`npm install -g wrangler`)
 - Authenticated with Cloudflare (`wrangler login`)
 
-## Create Resources
+## Configure Bindings
 
-### 1. Create a D1 database
-
-```bash
-wrangler d1 create emdash-db
-```
-
-Note the `database_id` from the output.
-
-### 2. Create an R2 bucket
-
-```bash
-wrangler r2 bucket create emdash-media
-```
-
-### 3. Create wrangler.jsonc
-
-Create `wrangler.jsonc` in your project root:
+Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler provisions both resources on the first deploy if they don't already exist.
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -44,7 +28,6 @@ Create `wrangler.jsonc` in your project root:
 		{
 			"binding": "DB",
 			"database_name": "emdash-db",
-			"database_id": "your-database-id",
 		},
 	],
 
@@ -79,32 +62,11 @@ export default defineConfig({
 });
 ```
 
-<Aside type="caution">
-	D1 migrations must be run via Wrangler CLI before deployment. DDL statements are not allowed at
-	runtime.
-</Aside>
+## First Boot
 
-## Run Migrations
+Database migrations run automatically on the first request after deployment, and on every subsequent boot if there's anything new to apply.
 
-Generate and apply the database schema.
-
-### 1. Export the schema SQL
-
-```bash
-npx emdash init --database ./data.db
-```
-
-### 2. Apply migrations to D1
-
-```bash
-wrangler d1 migrations apply emdash-db
-```
-
-If you don't have migration files, apply the core schema directly:
-
-```bash
-wrangler d1 execute emdash-db --file=./node_modules/emdash/migrations/0001_core.sql
-```
+If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
 ## Deploy
 
@@ -242,7 +204,6 @@ Add an environment section to `wrangler.jsonc`:
 				{
 					"binding": "DB",
 					"database_name": "emdash-db-preview",
-					"database_id": "your-preview-db-id",
 				},
 			],
 		},
@@ -272,7 +233,4 @@ Check that the R2 bucket is correctly bound:
 
 ### Migration errors
 
-D1 migrations run via Wrangler, not at runtime. If you see schema errors:
-
-1. Check that migrations were applied: `wrangler d1 migrations list emdash-db`
-2. Re-apply if needed: `wrangler d1 migrations apply emdash-db`
+If you see schema errors, tail the Worker logs (`wrangler tail`) and reproduce the error to capture the underlying message — then file an issue with that output.

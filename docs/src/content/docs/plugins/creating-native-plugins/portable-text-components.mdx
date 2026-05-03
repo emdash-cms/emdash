@@ -1,0 +1,100 @@
+---
+title: Portable Text rendering components
+description: Provide Astro components that render plugin-defined Portable Text block types on the public site.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Plugins can add custom block types to the Portable Text editor — YouTube embeds, code snippets, image galleries, anything that isn't covered by the default block set. Sandboxed plugins can declare the editing UI for these blocks (using Block Kit fields), but the Astro components that **render** them on the public site have to be loaded at build time from npm. That's the part that requires a native plugin.
+
+If your plugin only needs editing-side fields and someone else is providing the rendering components (or the site is providing them locally), you can stay sandboxed. If the plugin should ship the rendering components too, you need to be native.
+
+## Declaring block types
+
+Both sandboxed and native plugins can declare block types. Native plugins do it inside `definePlugin()` under `admin.portableTextBlocks`:
+
+```typescript title="src/index.ts"
+admin: {
+	portableTextBlocks: [
+		{
+			type: "youtube",
+			label: "YouTube Video",
+			icon: "video",                       // video, code, link, link-external
+			placeholder: "Paste YouTube URL...",
+			fields: [                            // Block Kit fields for the editing UI
+				{ type: "text_input", action_id: "id", label: "YouTube URL" },
+				{ type: "text_input", action_id: "title", label: "Title" },
+				{ type: "text_input", action_id: "poster", label: "Poster Image URL" },
+			],
+		},
+	],
+},
+```
+
+Each block type defines:
+
+- **`type`** — block type name (used in Portable Text `_type`).
+- **`label`** — display name in the editor's slash command menu.
+- **`icon`** — `video`, `code`, `link`, or `link-external`. Falls back to a generic cube.
+- **`placeholder`** — input placeholder text.
+- **`fields`** — Block Kit form fields for editing. If omitted, a simple URL input is shown.
+
+## Rendering on the public site
+
+To render block types on the public site, export Astro components from a `componentsEntry`. The export name is **required** to be `blockComponents`:
+
+```typescript title="src/astro/index.ts"
+import YouTube from "./YouTube.astro";
+import CodePen from "./CodePen.astro";
+
+export const blockComponents = {
+	youtube: YouTube,
+	codepen: CodePen,
+};
+```
+
+Set `componentsEntry` on the descriptor:
+
+```typescript title="src/index.ts"
+export function myPlugin(): PluginDescriptor {
+	return {
+		id: "embeds",
+		version: "1.0.0",
+		format: "native",
+		entrypoint: "@my-org/embeds",
+		componentsEntry: "@my-org/embeds/astro",
+	};
+}
+```
+
+EmDash merges plugin block components into `<PortableText>` automatically — site authors don't need to import anything. User-provided components (declared in the site's `components` prop on `<PortableText>`) take precedence over plugin defaults.
+
+## Package exports
+
+Add the `./astro` export to `package.json`:
+
+```json title="package.json"
+{
+	"exports": {
+		".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+		"./admin": { "types": "./dist/admin.d.ts", "import": "./dist/admin.js" },
+		"./astro": { "types": "./dist/astro/index.d.ts", "import": "./dist/astro/index.js" }
+	}
+}
+```
+
+The `./astro` export is server-side (Astro SSR), the `./admin` export is browser-side (React), and the `"."` export is the descriptor + `createPlugin`. Keep them in separate files because they bundle for different environments.
+
+<Aside type="tip">
+	The bundled `@emdash-cms/plugin-embeds` plugin is a complete example of this pattern — YouTube, Vimeo, Tweet, Bluesky, Mastodon, Gist, and Link Preview block types with both admin editing fields and site-side Astro rendering components.
+</Aside>
+
+## Sandbox-friendly variants
+
+If you want a plugin to be sandboxed but still ship a default rendering experience, the usual pattern is:
+
+1. Ship the sandboxed plugin (editing fields only) on the marketplace.
+2. Ship a separate companion native package on npm that provides the Astro rendering components.
+3. Document both: end users install the sandboxed plugin from the marketplace and `npm install` the companion package for rendering.
+
+This trades one-step install for keeping the editor side sandboxed. Most plugin authors prefer to just go native when block rendering is involved — but the option exists.

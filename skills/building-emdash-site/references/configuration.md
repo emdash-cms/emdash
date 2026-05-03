@@ -97,7 +97,6 @@ Requires a `wrangler.jsonc` with D1 and R2 bindings:
 		{
 			"binding": "DB",
 			"database_name": "my-site",
-			"database_id": "", // from `wrangler d1 create my-site`
 		},
 	],
 	"r2_buckets": [

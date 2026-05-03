@@ -1,0 +1,223 @@
+---
+title: Your first sandboxed plugin
+description: Build, register, and run a hello-world sandboxed plugin.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+This guide walks through building a minimal sandboxed plugin from scratch — a plugin that logs every content save and exposes a single API route. By the end you'll have a plugin that runs in an isolated runtime via the configured sandbox runner. The same plugin code can also run in-process if the site operator chooses to move it from `sandboxed: []` into `plugins: []` — for example on platforms without a sandbox runner available.
+
+If you haven't decided yet whether you want a sandboxed or native plugin, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first.
+
+## Two files
+
+Every sandboxed plugin ships two pieces:
+
+1. **A descriptor** — a small object describing the plugin (id, version, capabilities, storage, where to find the runtime entry). Imported by `astro.config.mjs` at build time.
+2. **A sandbox entry** — the runtime code: hooks, routes, storage access. Loaded into the sandbox runtime at request time.
+
+The two files live in the same package and run in completely different environments. The descriptor never sees the runtime context; the entry never sees `astro.config.mjs`.
+
+```
+my-plugin/
+├── src/
+│   ├── index.ts          # Descriptor — runs in Vite at build time
+│   └── sandbox-entry.ts  # Hooks, routes, storage — runs in the sandbox runtime
+├── package.json
+└── tsconfig.json
+```
+
+## Set up the package
+
+<Steps>
+
+1. Create a new directory and initialise it as a TypeScript ES module package.
+
+   ```json title="package.json"
+   {
+   	"name": "@my-org/plugin-hello",
+   	"version": "0.1.0",
+   	"type": "module",
+   	"main": "dist/index.mjs",
+   	"exports": {
+   		".": {
+   			"import": "./dist/index.mjs",
+   			"types": "./dist/index.d.mts"
+   		},
+   		"./sandbox": "./dist/sandbox-entry.mjs"
+   	},
+   	"files": ["dist"],
+   	"scripts": {
+   		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean"
+   	},
+   	"peerDependencies": {
+   		"emdash": "*"
+   	},
+   	"devDependencies": {
+   		"emdash": "*",
+   		"tsdown": "^0.6.0",
+   		"typescript": "^5.5.0"
+   	}
+   }
+   ```
+
+   The `"./sandbox"` export is what the descriptor's `entrypoint` will point at. The bundler builds both files into `dist/`.
+
+2. Add a `tsconfig.json`:
+
+   ```json title="tsconfig.json"
+   {
+   	"compilerOptions": {
+   		"target": "ES2022",
+   		"module": "preserve",
+   		"moduleResolution": "bundler",
+   		"strict": true,
+   		"esModuleInterop": true,
+   		"declaration": true,
+   		"outDir": "./dist",
+   		"rootDir": "./src"
+   	},
+   	"include": ["src/**/*"],
+   	"exclude": ["node_modules", "dist"]
+   }
+   ```
+
+</Steps>
+
+<Aside type="tip">
+	If you're starting from scratch, `emdash plugin init my-plugin` scaffolds this layout for you and
+	asks whether you want the standard (sandboxed) or native template.
+</Aside>
+
+## Write the descriptor
+
+The descriptor is a factory function that returns a `PluginDescriptor`. It runs in Vite at build time, which means it must be side-effect-free and can't use any runtime APIs (`fetch`, the database, environment variables — none of those exist yet).
+
+```typescript title="src/index.ts"
+import type { PluginDescriptor } from "emdash";
+
+export function helloPlugin(): PluginDescriptor {
+	return {
+		id: "plugin-hello",
+		version: "0.1.0",
+		format: "standard",
+		entrypoint: "@my-org/plugin-hello/sandbox",
+
+		capabilities: [],
+		storage: {
+			events: { indexes: ["timestamp"] },
+		},
+	};
+}
+```
+
+A few details that matter:
+
+- **`format: "standard"` is required.** Without it, EmDash treats the package as a native plugin and looks for a different shape. The `format` field defaults to `"native"`.
+- **`entrypoint` is a module specifier**, not a file path. Use the same string you'd pass to `import` — usually `"<package-name>/sandbox"`. The package name can be scoped (`@my-org/plugin-hello`); the plugin `id` cannot.
+- **`id` is a URL-safe slug, not the npm package name.** It must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used both as a single path segment in plugin route URLs (`/_emdash/api/plugins/<id>/...`) and as part of generated SQL identifiers for plugin storage indexes, so `@`, `/`, leading digits, and uppercase letters all fail at runtime. Pair an unscoped `id` like `plugin-hello` with a scoped npm package name in `entrypoint`.
+- **Capabilities, allowedHosts, and storage live on the descriptor.** The sandbox entry does not declare them — it can only use what the descriptor permits.
+- **Don't put runtime logic here.** No top-level `await`, no module-level `fetch`, no reading files. The descriptor is metadata.
+
+## Write the sandbox entry
+
+The runtime side. This file is loaded inside the sandbox runtime at request time, with no access to anything except what `ctx` provides.
+
+```typescript title="src/sandbox-entry.ts"
+import { definePlugin } from "emdash";
+import type { PluginContext } from "emdash";
+
+interface ContentSaveEvent {
+	collection: string;
+	content: { id: string };
+	isNew: boolean;
+}
+
+export default definePlugin({
+	hooks: {
+		"content:afterSave": {
+			handler: async (event: ContentSaveEvent, ctx: PluginContext) => {
+				ctx.log.info("Content saved", {
+					collection: event.collection,
+					id: event.content.id,
+				});
+
+				await ctx.storage.events.put(`save-${Date.now()}`, {
+					timestamp: new Date().toISOString(),
+					collection: event.collection,
+					contentId: event.content.id,
+				});
+			},
+		},
+	},
+
+	routes: {
+		recent: {
+			handler: async (_routeCtx, ctx: PluginContext) => {
+				const result = await ctx.storage.events.query({ limit: 10 });
+				return { events: result.items };
+			},
+		},
+	},
+});
+```
+
+Things worth knowing:
+
+- **`definePlugin()` in the sandbox entry takes only `{ hooks, routes }`.** No `id`, no `version`, no `capabilities` — those come from the descriptor. EmDash throws at build time if you try to pass them here.
+- **Hook handlers take `(event, ctx)`.** The event shape depends on the hook name; see the [Hooks reference](/plugins/creating-plugins/hooks/).
+- **Route handlers take `(routeCtx, ctx)`** — two arguments. `routeCtx` has `{ input, request, requestMeta }`; `ctx` is the same `PluginContext` you get in hooks. Routes are reachable at `/_emdash/api/plugins/<plugin-id>/<route-name>`.
+- **`ctx.storage.events` works because `events` was declared on the descriptor.** Accessing an undeclared collection throws.
+- **`ctx.kv` is always available** — a per-plugin key-value store with `get`, `set`, `delete`, and `list(prefix)`.
+
+## Register the plugin
+
+In your site's `astro.config.mjs`, import the descriptor factory and pass it into the EmDash integration. Sandboxed plugins go in `sandboxed: []`; in-process plugins go in `plugins: []`. A standard-format plugin works in both — start with `sandboxed`.
+
+```typescript title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+import { sandbox } from "@emdash-cms/cloudflare";
+import { helloPlugin } from "@my-org/plugin-hello";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			sandboxed: [helloPlugin()],
+			sandboxRunner: sandbox(),
+		}),
+	],
+});
+```
+
+`sandboxRunner` is the pluggable piece. The example above uses `sandbox()` from `@emdash-cms/cloudflare`, which is the sandbox runner most sites use today. Runners for other platforms are in development. If no runner is configured (or the configured runner reports as unavailable on the current platform), `sandboxed: []` plugins are skipped at startup — to run the same plugin in-process, move it from `sandboxed: []` into `plugins: []`.
+
+<Aside type="caution" title="Cloudflare runner needs Worker Loader">
+	The `@emdash-cms/cloudflare` sandbox runner uses Cloudflare Workers' Dynamic Worker Loader, which means your `wrangler.jsonc` needs a `worker_loaders` binding:
+
+	```jsonc title="wrangler.jsonc"
+	{
+		"worker_loaders": [{ "binding": "LOADER" }]
+	}
+	```
+
+	Without it the runner reports as unavailable at startup and sandboxed plugins are skipped. Other sandbox runners have their own platform requirements. See [Sandboxed vs Native](/plugins/creating-plugins/choosing-a-format/) for the platform matrix.
+</Aside>
+
+## Build and run
+
+From the plugin directory:
+
+```sh
+pnpm build
+```
+
+In the site directory, link or install the plugin (`pnpm add @my-org/plugin-hello` or a workspace link), then start the dev server. You should see `[hello] Content saved …` in the logs the next time you save a piece of content in the admin, and `GET /_emdash/api/plugins/plugin-hello/recent` should return the last ten save events.
+
+## What to read next
+
+- [Hooks](/plugins/creating-plugins/hooks/) — the full set of events you can react to
+- [API routes](/plugins/creating-plugins/api-routes/) — input validation, public routes, error handling
+- [Storage and KV](/plugins/creating-plugins/storage/) — query options, indexes, batch operations
+- [Capabilities and security](/plugins/creating-plugins/capabilities/) — content access, network requests, host allowlists
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) — when you're ready to ship to the marketplace

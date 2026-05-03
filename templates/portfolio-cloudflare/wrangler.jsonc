@@ -8,8 +8,6 @@
 		{
 			"binding": "DB",
 			"database_name": "my-portfolio-site",
-			// Run `wrangler d1 create my-portfolio-site` and paste the real ID here for deploy
-			"database_id": "local",
 		},
 	],
 	"r2_buckets": [
