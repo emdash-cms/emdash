@@ -16,6 +16,7 @@ const BLOCK_TYPES = new Set([
 	"code",
 	"empty",
 	"accordion",
+	"card_grid",
 ]);
 
 const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
@@ -44,6 +45,7 @@ const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
+const CARD_GRID_COLUMNS = new Set([1, 2, 3]);
 
 /**
  * RFC 6838-style image MIME type or image-prefix.
@@ -610,6 +612,17 @@ function validateFormField(value: unknown, path: string, errors: ValidationError
 			});
 		}
 	}
+}
+
+function validateButtonAction(value: unknown, path: string, errors: ValidationError[]): void {
+	if (isRecord(value) && value.type !== "button") {
+		errors.push({
+			path: `${path}.type`,
+			message: "Action must be a button element",
+		});
+		return;
+	}
+	validateElement(value, path, errors);
 }
 
 const CHART_TYPES = new Set(["timeseries", "custom"]);
@@ -1193,6 +1206,61 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				errors.push({
 					path: `${path}.default_open`,
 					message: "Field 'default_open' must be a boolean if provided",
+				});
+			}
+			break;
+		}
+		case "card_grid": {
+			if (!Array.isArray(value.cards)) {
+				errors.push({
+					path: `${path}.cards`,
+					message: "Required field 'cards' must be an array",
+				});
+			} else {
+				for (let i = 0; i < value.cards.length; i++) {
+					const card = value.cards[i] as unknown;
+					if (!isRecord(card)) {
+						errors.push({ path: `${path}.cards[${i}]`, message: "Card must be an object" });
+						continue;
+					}
+					if (typeof card.title !== "string") {
+						errors.push({
+							path: `${path}.cards[${i}].title`,
+							message: "Required field 'title' must be a string",
+						});
+					}
+					for (const key of ["description", "image_url", "image_alt", "badge", "meta"]) {
+						if (card[key] !== undefined && typeof card[key] !== "string") {
+							errors.push({
+								path: `${path}.cards[${i}].${key}`,
+								message: `Field '${key}' must be a string if provided`,
+							});
+						}
+					}
+					if (card.actions !== undefined) {
+						if (!Array.isArray(card.actions)) {
+							errors.push({
+								path: `${path}.cards[${i}].actions`,
+								message: "Field 'actions' must be an array if provided",
+							});
+						} else {
+							for (let j = 0; j < card.actions.length; j++) {
+								validateButtonAction(card.actions[j], `${path}.cards[${i}].actions[${j}]`, errors);
+							}
+						}
+					}
+				}
+			}
+			if (value.columns !== undefined && !CARD_GRID_COLUMNS.has(value.columns as number)) {
+				errors.push({
+					path: `${path}.columns`,
+					message: "Field 'columns' must be one of: 1, 2, 3",
+				});
+			}
+			if (value.empty_text !== undefined && typeof value.empty_text !== "string") {
+				errors.push({
+					path: `${path}.empty_text`,
+					message: "Field 'empty_text' must be a string if provided",
 				});
 			}
 			break;

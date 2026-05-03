@@ -533,6 +533,47 @@ describe("BlockRenderer", () => {
 		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
 	});
 
+	it("card_grid block renders cards with metadata, images, badges, and actions", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "card_grid",
+					columns: 2,
+					cards: [
+						{
+							title: "Stripe",
+							description: "Sync payment events.",
+							image_url: "https://example.com/stripe.png",
+							image_alt: "Stripe logo",
+							badge: "Connected",
+							meta: "Payments",
+							actions: [{ type: "button", action_id: "configure", label: "Configure" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		expect(screen.getByText("Stripe")).toBeTruthy();
+		expect(screen.getByText("Sync payment events.")).toBeTruthy();
+		expect(screen.getByText("Payments")).toBeTruthy();
+		expect(screen.getByText("Connected")).toBeTruthy();
+		expect(screen.getByAltText("Stripe logo")).toBeTruthy();
+
+		fireEvent.click(screen.getByText("Configure"));
+		expect(onAction).toHaveBeenCalledWith({
+			type: "block_action",
+			action_id: "configure",
+		});
+	});
+
+	it("card_grid block renders empty_text for empty card arrays", () => {
+		renderBlocks([{ type: "card_grid", cards: [], empty_text: "No integrations found" }]);
+		expect(screen.getByText("No integrations found")).toBeTruthy();
+	});
+
 	it("columns block renders blocks in columns", () => {
 		renderBlocks([
 			{
