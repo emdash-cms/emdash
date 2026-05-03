@@ -30,6 +30,27 @@ To install marketplace plugins, your site needs:
    });
    ```
 
+   On **Cloudflare Workers**, sandboxing uses the Dynamic Worker Loader API (no additional setup needed). On **Node.js**, install the workerd sandbox runner:
+
+   ```bash
+   npm install @emdash-cms/sandbox-workerd
+   ```
+
+   Then pass the runner explicitly:
+
+   ```typescript title="astro.config.mjs"
+   emdash({
+     marketplace: "https://marketplace.emdashcms.com",
+     sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
+   })
+   ```
+
+   In development, install `miniflare` as a dev dependency for faster sandbox startup:
+
+   ```bash
+   npm install -D miniflare
+   ```
+
 2. **Admin access** — Only administrators can install or remove plugins.
 
 ### Browse and Install

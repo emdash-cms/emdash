@@ -100,7 +100,7 @@ When a sandbox runner is active, the runtime enforces:
 
 4. **No host bindings.** Sandboxed plugins don't see environment variables, the filesystem, or any platform bindings — even if your host worker has them. The plugin runtime is a clean isolate with only the bridge and the declared capabilities.
 
-5. **Resource limits.** The runner can enforce CPU, subrequest, wall-clock, and memory limits per invocation. The exact limits depend on which runner you're using; the Cloudflare runner uses the platform's Worker Loader limits (50ms CPU per invocation, 10 subrequests, 30 second wall-clock, ~128MB memory). Hooks that exceed the runner's limits are aborted; the EmDash hook timeout (`timeout` in the hook config) enforces a stricter ceiling on top of that.
+5. **Resource limits.** The runner can enforce CPU, subrequest, wall-clock, and memory limits per invocation. The exact limits depend on which runner you're using; the Cloudflare runner uses the platform's Worker Loader limits (50ms CPU per invocation, 10 subrequests, 30 second wall-clock, ~128MB memory). The Node.js workerd runner (`@emdash-cms/sandbox-workerd`) enforces wall-clock time via `Promise.race`; CPU and memory limits are Cloudflare platform features and are not enforced by standalone workerd. Hooks that exceed the runner's limits are aborted; the EmDash hook timeout (`timeout` in the hook config) enforces a stricter ceiling on top of that.
 
 </Steps>
 
