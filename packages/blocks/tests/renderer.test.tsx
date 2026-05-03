@@ -574,6 +574,16 @@ describe("BlockRenderer", () => {
 		expect(screen.getByText("No integrations found")).toBeTruthy();
 	});
 
+	it("card_grid block does not render unsafe image URLs", () => {
+		const { container } = renderBlocks([
+			{
+				type: "card_grid",
+				cards: [{ title: "Unsafe", image_url: "data:image/svg+xml;base64,PHN2Zy8+" }],
+			},
+		]);
+		expect(container.querySelector("img")).toBeNull();
+	});
+
 	it("columns block renders blocks in columns", () => {
 		renderBlocks([
 			{
