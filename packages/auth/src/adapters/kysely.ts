@@ -54,6 +54,7 @@ interface CredentialTable {
 	id: string;
 	user_id: string;
 	public_key: Uint8Array;
+	algorithm: number;
 	counter: number;
 	device_type: string;
 	backed_up: number;
@@ -361,6 +362,7 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				id: credential.id,
 				user_id: credential.userId,
 				public_key: credential.publicKey,
+				algorithm: credential.algorithm,
 				counter: credential.counter,
 				device_type: credential.deviceType,
 				backed_up: credential.backedUp ? 1 : 0,
@@ -376,6 +378,7 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				id: credential.id,
 				userId: credential.userId,
 				publicKey: credential.publicKey,
+				algorithm: credential.algorithm,
 				counter: credential.counter,
 				deviceType: credential.deviceType,
 				backedUp: credential.backedUp,
@@ -602,6 +605,7 @@ function rowToCredential(row: Selectable<CredentialTable>): Credential {
 		id: row.id,
 		userId: row.user_id,
 		publicKey: row.public_key,
+		algorithm: row.algorithm,
 		counter: row.counter,
 		deviceType: toDeviceType(row.device_type),
 		backedUp: row.backed_up === 1,
@@ -669,6 +673,7 @@ CREATE TABLE IF NOT EXISTS credentials (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   public_key BLOB NOT NULL,
+  algorithm INTEGER NOT NULL DEFAULT -7,
   counter INTEGER NOT NULL DEFAULT 0,
   device_type TEXT NOT NULL,
   backed_up INTEGER NOT NULL DEFAULT 0,

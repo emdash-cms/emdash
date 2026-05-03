@@ -53,6 +53,7 @@ export interface RegistrationResponse {
 export interface VerifiedRegistration {
 	credentialId: string;
 	publicKey: Uint8Array;
+	algorithm: number;
 	counter: number;
 	deviceType: DeviceType;
 	backedUp: boolean;

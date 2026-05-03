@@ -107,19 +107,24 @@ describe("Database Migrations (Integration)", () => {
 		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 
-	it("should re-run migrations 034 and 035 when schema changes were partially applied", async () => {
+	it("should re-run migrations 034, 035, and 036 when schema changes were partially applied", async () => {
 		await db.destroy();
 		db = await setupTestDatabaseWithCollections();
 
 		await db
 			.deleteFrom("_emdash_migrations")
-			.where("name", "in", ["034_published_at_index", "035_bounded_404_log"])
+			.where("name", "in", [
+				"034_published_at_index",
+				"035_bounded_404_log",
+				"036_credential_algorithm",
+			])
 			.execute();
 
 		const { applied } = await runMigrations(db);
 
 		expect(applied).toContain("034_published_at_index");
 		expect(applied).toContain("035_bounded_404_log");
+		expect(applied).toContain("036_credential_algorithm");
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 		expect(migrations).toHaveLength(MIGRATION_COUNT);

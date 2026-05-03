@@ -11,6 +11,11 @@ import {
 	decodeSEC1PublicKey,
 	decodePKIXECDSASignature,
 } from "@oslojs/crypto/ecdsa";
+import {
+	decodePKIXRSAPublicKey,
+	verifyRSASSAPKCS1v15Signature,
+	sha256ObjectIdentifier,
+} from "@oslojs/crypto/rsa";
 import { sha256 } from "@oslojs/crypto/sha2";
 import { encodeBase64urlNoPadding, decodeBase64urlIgnorePadding } from "@oslojs/encoding";
 import {
@@ -18,6 +23,8 @@ import {
 	parseClientDataJSON,
 	ClientDataType,
 	createAssertionSignatureMessage,
+	coseAlgorithmES256,
+	coseAlgorithmRS256,
 } from "@oslojs/webauthn";
 
 import { generateToken } from "../tokens.js";
@@ -44,6 +51,7 @@ export type PasskeyAuthenticationErrorCode =
 	| "user_presence_not_verified"
 	| "invalid_signature_counter"
 	| "invalid_signature"
+	| "unsupported_algorithm"
 	| "user_not_found";
 
 export class PasskeyAuthenticationError extends Error {
@@ -196,12 +204,30 @@ export async function verifyAuthenticationResponse(
 			? credential.publicKey
 			: new Uint8Array(credential.publicKey);
 
-	// Decode the stored SEC1-encoded public key and verify signature
-	// The signature from WebAuthn is DER-encoded (PKIX format)
-	const ecdsaPublicKey = decodeSEC1PublicKey(p256, publicKeyBytes);
-	const ecdsaSignature = decodeAssertionSignature(signature);
+	// Verify signature based on the stored algorithm
+	let signatureValid = false;
 	const hash = sha256(signatureMessage);
-	const signatureValid = verifyECDSASignature(ecdsaPublicKey, hash, ecdsaSignature);
+
+	if (credential.algorithm === coseAlgorithmES256) {
+		// Verify ECDSA signature
+		const ecdsaPublicKey = decodeSEC1PublicKey(p256, publicKeyBytes);
+		const ecdsaSignature = decodeAssertionSignature(signature);
+		signatureValid = verifyECDSASignature(ecdsaPublicKey, hash, ecdsaSignature);
+	} else if (credential.algorithm === coseAlgorithmRS256) {
+		// Verify RSA signature
+		const rsaPublicKey = decodePKIXRSAPublicKey(publicKeyBytes);
+		signatureValid = verifyRSASSAPKCS1v15Signature(
+			rsaPublicKey,
+			sha256ObjectIdentifier,
+			hash,
+			signature,
+		);
+	} else {
+		throw new PasskeyAuthenticationError(
+			"unsupported_algorithm",
+			`Unsupported credential algorithm: ${credential.algorithm}`,
+		);
+	}
 
 	if (!signatureValid) {
 		throw new PasskeyAuthenticationError("invalid_signature", "Invalid signature");

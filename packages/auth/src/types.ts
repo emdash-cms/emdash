@@ -111,7 +111,8 @@ export type DeviceType = "singleDevice" | "multiDevice";
 export interface Credential {
 	id: string; // Base64url credential ID
 	userId: string;
-	publicKey: Uint8Array; // COSE public key
+	publicKey: Uint8Array; // Encoded public key (SEC1 for ECDSA, PKIX for RSA)
+	algorithm: number; // COSE algorithm identifier (e.g., -7 for ES256, -257 for RS256)
 	counter: number;
 	deviceType: DeviceType;
 	backedUp: boolean;
@@ -125,6 +126,7 @@ export interface NewCredential {
 	id: string;
 	userId: string;
 	publicKey: Uint8Array;
+	algorithm: number;
 	counter: number;
 	deviceType: DeviceType;
 	backedUp: boolean;
