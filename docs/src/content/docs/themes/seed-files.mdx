@@ -659,6 +659,9 @@ Validation checks:
 The seed file at `.emdash/seed.json`, `package.json#emdash.seed`, or `seed/seed.json` is inlined into the build and applied on the first request when the database is empty. To export an existing site's schema (and optionally its content) as a seed file:
 
 ```bash
+# `mkdir -p` because .emdash/ may not exist yet on a fresh project
+mkdir -p .emdash
+
 # Export the current schema as a seed file
 npx emdash export-seed > .emdash/seed.json
 
