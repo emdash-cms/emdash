@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 import { monotonicFactory } from "ulidx";
 
-import type { Database } from "../types.js";
+import type { Database, RevisionTable } from "../types.js";
 
 const monotonic = monotonicFactory();
 
