@@ -1,0 +1,161 @@
+---
+title: Block Kit
+description: Declarative UI blocks for sandboxed plugin admin pages and widgets.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+EmDash's Block Kit lets sandboxed plugins describe their admin UI as JSON. The host renders the blocks — no plugin-supplied JavaScript ever runs in the browser.
+
+<Aside>
+	Native plugins can ship their own React components for admin pages. Block Kit is the admin UI system for sandboxed plugins, where shipping React would break sandbox isolation.
+</Aside>
+
+<Aside type="tip">
+	Block Kit elements are also used for [Portable Text block editing fields](/plugins/creating-native-plugins/portable-text-components/). When a plugin declares `fields` on a block type, the editor renders a Block Kit form for editing block data (URL, title, parameters, etc.).
+</Aside>
+
+## How it works
+
+1. The user navigates to a plugin's admin page.
+2. The admin sends a `page_load` interaction to the plugin's admin route.
+3. The plugin returns a `BlockResponse` containing an array of blocks.
+4. The admin renders the blocks using the `BlockRenderer` component.
+5. When the user interacts (clicks a button, submits a form), the admin sends the interaction back to the plugin.
+6. The plugin returns new blocks, and the cycle repeats.
+
+```typescript
+import { definePlugin } from "emdash";
+import type { PluginContext } from "emdash";
+
+interface BlockInteraction {
+	type: "page_load" | "block_action" | "form_submit";
+	page?: string;
+	action_id?: string;
+	values?: Record<string, unknown>;
+}
+
+export default definePlugin({
+	routes: {
+		admin: {
+			handler: async (routeCtx, ctx: PluginContext) => {
+				const interaction = routeCtx.input as BlockInteraction;
+
+				if (interaction.type === "page_load") {
+					return {
+						blocks: [
+							{ type: "header", text: "My Plugin Settings" },
+							{
+								type: "form",
+								block_id: "settings",
+								fields: [
+									{ type: "text_input", action_id: "api_url", label: "API URL" },
+									{ type: "toggle", action_id: "enabled", label: "Enabled", initial_value: true },
+								],
+								submit: { label: "Save", action_id: "save" },
+							},
+						],
+					};
+				}
+
+				if (interaction.type === "form_submit" && interaction.action_id === "save") {
+					await ctx.kv.set("settings", interaction.values);
+					return {
+						blocks: [/* ... updated blocks ... */],
+						toast: { message: "Settings saved", type: "success" },
+					};
+				}
+
+				return { blocks: [] };
+			},
+		},
+	},
+});
+```
+
+The standard-format route handler takes two arguments: `routeCtx` (with `input`, `request`, `requestMeta`) and `ctx` (the `PluginContext`).
+
+## Block types
+
+| Type        | Description                                                                             |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `header`    | Large bold heading                                                                      |
+| `section`   | Text with optional accessory element                                                    |
+| `divider`   | Horizontal rule                                                                         |
+| `fields`    | Two-column label/value grid                                                             |
+| `table`     | Data table with formatting, sorting, pagination                                         |
+| `actions`   | Horizontal row of buttons and controls                                                  |
+| `stats`     | Dashboard metric cards with trend indicators                                            |
+| `form`      | Input fields with conditional visibility and submit                                     |
+| `image`     | Block-level image with caption                                                          |
+| `context`   | Small muted help text                                                                   |
+| `columns`   | 2–3 column layout with nested blocks                                                    |
+| `empty`     | Empty-state placeholder with icon, title, description, optional command line, and action buttons |
+| `accordion` | Collapsible section wrapping nested blocks                                              |
+
+## Element types
+
+| Type            | Description                                  |
+| --------------- | -------------------------------------------- |
+| `button`        | Action button with optional confirmation dialog |
+| `text_input`    | Single-line or multiline text input          |
+| `number_input`  | Numeric input with min/max                   |
+| `select`        | Dropdown select                              |
+| `toggle`        | On/off switch                                |
+| `secret_input`  | Masked input for API keys and tokens         |
+
+## Builder helpers
+
+The `@emdash-cms/blocks` package exports builder helpers for cleaner code:
+
+```typescript
+import { blocks, elements } from "@emdash-cms/blocks";
+
+const { header, form, section, stats } = blocks;
+const { textInput, toggle, select, button } = elements;
+
+return {
+	blocks: [
+		header("SEO Settings"),
+		form({
+			blockId: "settings",
+			fields: [
+				textInput("site_title", "Site Title", { initialValue: "My Site" }),
+				toggle("generate_sitemap", "Generate Sitemap", { initialValue: true }),
+				select("robots", "Default Robots", [
+					{ label: "Index, Follow", value: "index,follow" },
+					{ label: "No Index", value: "noindex,follow" },
+				]),
+			],
+			submit: { label: "Save", actionId: "save" },
+		}),
+	],
+};
+```
+
+## Conditional fields
+
+Form fields can be conditionally shown based on other field values:
+
+```json
+{
+	"type": "toggle",
+	"action_id": "auth_enabled",
+	"label": "Enable Authentication"
+}
+```
+
+```json
+{
+	"type": "secret_input",
+	"action_id": "api_key",
+	"label": "API Key",
+	"condition": { "field": "auth_enabled", "eq": true }
+}
+```
+
+The `api_key` field only appears when `auth_enabled` is toggled on. Conditions are evaluated client-side with no round-trip.
+
+## Try it
+
+Use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) to interactively build and test block layouts.

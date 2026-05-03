@@ -1,0 +1,184 @@
+---
+title: Bundling and publishing
+description: Bundle your sandboxed plugin and publish it to the EmDash marketplace.
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Once your sandboxed plugin works, you can publish it to the EmDash marketplace so other sites can install it from the admin dashboard with one click. The publishing flow is sandboxed-only — native plugins distribute via npm and aren't bundled into marketplace tarballs.
+
+## Prerequisites
+
+Before publishing, make sure your plugin:
+
+- Has a `package.json` with both a `"."` export (the descriptor) and a `"./sandbox"` export (the runtime entry).
+- Uses `format: "standard"` on the descriptor.
+- Has a unique `id` and a valid semver `version`.
+- Declares its `capabilities` and `allowedHosts` accurately on the descriptor.
+
+## Bundle format
+
+Published plugins are distributed as `.tar.gz` tarballs containing:
+
+| File             | Required | Description                                                        |
+| ---------------- | -------- | ------------------------------------------------------------------ |
+| `manifest.json`  | Yes      | Plugin metadata extracted from the descriptor and sandbox entry    |
+| `backend.js`     | Yes      | Bundled sandbox code (self-contained ES module)                    |
+| `admin.js`       | No       | Bundled admin UI code (only if Block Kit interactions ship JS)     |
+| `README.md`      | No       | Plugin documentation                                               |
+| `icon.png`       | No       | Plugin icon (256×256 PNG)                                          |
+| `screenshots/`   | No       | Up to 5 screenshots (PNG/JPEG, max 1920×1080)                      |
+
+`manifest.json` is generated automatically. It contains the plugin id, version, capabilities, allowed hosts, hook names, route names, and admin configuration — but no executable code.
+
+## Building a bundle
+
+```bash
+cd packages/plugins/my-plugin
+emdash plugin bundle
+```
+
+This will:
+
+<Steps>
+1. Read your `package.json` to find entrypoints.
+2. Build the descriptor entry to extract id, version, capabilities, and admin config.
+3. Bundle `backend.js` from the `"./sandbox"` export — minified, tree-shaken, fully self-contained.
+4. Bundle `admin.js` if a `"./admin"` export exists.
+5. Collect assets (README, icon, screenshots).
+6. Validate the bundle (size limits, no Node.js built-ins in `backend.js`, capability checks).
+7. Write `{id}-{version}.tar.gz` to `dist/`.
+</Steps>
+
+### Entrypoint resolution
+
+The bundle command finds your code through `package.json` exports:
+
+```json title="package.json"
+{
+	"exports": {
+		".": { "import": "./dist/index.mjs" },
+		"./sandbox": { "import": "./dist/sandbox-entry.mjs" },
+		"./admin": { "import": "./dist/admin.mjs" }
+	}
+}
+```
+
+| Export        | Purpose                                                    | Built as                              |
+| ------------- | ---------------------------------------------------------- | ------------------------------------- |
+| `"."`         | Descriptor — used to extract the manifest                  | Externals: `emdash`, `@emdash-cms/*`  |
+| `"./sandbox"` | Runtime code (`hooks`, `routes`) executed in the sandbox   | Fully self-contained (no externals)   |
+| `"./admin"`   | Admin UI components (only if you ship them)                | Fully self-contained                  |
+
+If `"./sandbox"` is missing, the command looks for `src/sandbox-entry.ts` as a fallback. The bundler maps dist paths back to source automatically — if your `"."` export points to `./dist/index.mjs`, it will find and build `src/index.ts`.
+
+### Options
+
+```bash
+emdash plugin bundle [--dir <path>] [--outDir <path>]
+```
+
+| Flag             | Default           | Description                       |
+| ---------------- | ----------------- | --------------------------------- |
+| `--dir`          | Current directory | Plugin source directory           |
+| `--outDir`, `-o` | `dist`            | Output directory for the tarball  |
+
+### Validation
+
+The bundle command checks:
+
+- **Size limit** — total bundle must be under 5 MB.
+- **No Node.js built-ins in `backend.js`** — sandbox code can't import `fs`, `path`, `child_process`, etc. Replace them with Web APIs or move the logic to a native plugin.
+- **Capability allowlist** — declared capabilities must be in the known set (typos fail).
+- **Deprecated capability names** trigger warnings here and a hard fail at publish time.
+- **`network:request` without `allowedHosts`** triggers a warning (consider `network:request:unrestricted` if hosts are operator-configured at runtime, or list the hosts explicitly).
+- **Icon dimensions** — `icon.png` should be 256×256 (warns if wrong; still includes it).
+- **Screenshot limits** — max 5 screenshots, max 1920×1080.
+
+## Publishing
+
+```bash
+emdash plugin publish
+```
+
+This finds the most recent `.tar.gz` in `dist/` and uploads it. To be explicit about the tarball or to build before publishing:
+
+```bash
+# Explicit tarball path
+emdash plugin publish --tarball dist/my-plugin-1.0.0.tar.gz
+
+# Build first, then publish
+emdash plugin publish --build
+```
+
+### Authentication
+
+The first time you publish, the CLI authenticates you via GitHub:
+
+<Steps>
+1. The CLI opens GitHub's device authorization page in your browser.
+2. You enter the code displayed in your terminal.
+3. GitHub issues an access token.
+4. The CLI exchanges it for a marketplace JWT (stored in `~/.config/emdash/auth.json`).
+</Steps>
+
+The token lasts 30 days. After it expires you'll be prompted to re-authenticate on the next publish.
+
+You can manage authentication separately:
+
+```bash
+emdash plugin login    # log in without publishing
+emdash plugin logout   # clear stored token
+```
+
+### First-time registration
+
+If your plugin id isn't yet known to the marketplace, `emdash plugin publish` registers it automatically before uploading the first version.
+
+### Version requirements
+
+Each published version must have a higher semver than the last. You can't overwrite or republish an existing version — bump the version in both `package.json` and the descriptor before publishing again.
+
+### Security audit
+
+Every published version goes through an automated security audit. The audit scans `backend.js` and `admin.js` for:
+
+- Data exfiltration patterns
+- Credential harvesting via settings
+- Obfuscated code
+- Resource abuse (crypto mining, etc.)
+- Suspicious network activity
+
+The audit produces a verdict of **pass**, **warn**, or **fail**, displayed on the plugin's marketplace listing. Depending on the marketplace's enforcement level, a **fail** verdict may block publication entirely.
+
+### Options
+
+```bash
+emdash plugin publish [--tarball <path>] [--build] [--dir <path>] [--registry <url>]
+```
+
+| Flag         | Default                                | Description                                     |
+| ------------ | -------------------------------------- | ----------------------------------------------- |
+| `--tarball`  | Latest `.tar.gz` in `dist/`            | Explicit tarball path                           |
+| `--build`    | `false`                                | Run `emdash plugin bundle` before publishing    |
+| `--dir`      | Current directory                      | Plugin directory (used with `--build`)          |
+| `--registry` | `https://marketplace.emdashcms.com`    | Marketplace URL                                 |
+
+## Complete workflow
+
+Typical publish cycle:
+
+```bash
+# 1. Make your changes
+# 2. Bump the version in src/index.ts and package.json
+# 3. Bundle and publish
+emdash plugin publish --build
+```
+
+If you want to inspect the bundle first:
+
+```bash
+emdash plugin bundle
+tar tzf dist/my-plugin-1.1.0.tar.gz
+emdash plugin publish
+```

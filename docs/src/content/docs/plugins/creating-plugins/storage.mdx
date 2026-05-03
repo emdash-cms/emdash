@@ -1,0 +1,320 @@
+---
+title: Storage
+description: Persist plugin data in document collections with indexed queries.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Sandboxed plugins can store their own data in document collections. You declare collections and indexes on the plugin descriptor, and EmDash creates the schema automatically — no migrations to write.
+
+This page covers sandboxed (standard-format) plugins. The collection API is identical for native plugins; the only difference is that native plugins declare `storage` directly inside `definePlugin()` rather than on a separate descriptor.
+
+## Declaring storage on the descriptor
+
+For sandboxed plugins, `storage` lives on the descriptor — the file imported by `astro.config.mjs`, not the sandbox entry. Storage declarations need to be visible at build time so the sandbox bridge knows which collections the plugin is allowed to touch.
+
+```typescript title="src/index.ts"
+import type { PluginDescriptor } from "emdash";
+
+export function formsPlugin(): PluginDescriptor {
+	return {
+		id: "@my-org/plugin-forms",
+		version: "1.0.0",
+		format: "standard",
+		entrypoint: "@my-org/plugin-forms/sandbox",
+
+		storage: {
+			submissions: {
+				indexes: [
+					"formId",
+					"status",
+					"createdAt",
+					["formId", "createdAt"],
+					["status", "createdAt"],
+				],
+			},
+			forms: {
+				indexes: ["slug"],
+			},
+		},
+	};
+}
+```
+
+Each key in `storage` is a collection name. The `indexes` array lists fields that can be queried efficiently — single-field indexes as strings, composite indexes as arrays of strings.
+
+<Aside type="note">
+	Storage is scoped to the plugin id. A `submissions` collection in the `forms` plugin is completely separate from `submissions` in another plugin — the plugin can only see its own data.
+</Aside>
+
+## Using storage in the sandbox entry
+
+Inside the sandbox entry, access collections via `ctx.storage`. The shape mirrors what was declared on the descriptor:
+
+```typescript title="src/sandbox-entry.ts"
+import { definePlugin } from "emdash";
+import type { PluginContext } from "emdash";
+
+export default definePlugin({
+	hooks: {
+		"content:afterSave": async (event, ctx: PluginContext) => {
+			const { submissions } = ctx.storage;
+
+			await submissions.put("sub_123", {
+				formId: "contact",
+				email: "user@example.com",
+				status: "pending",
+				createdAt: new Date().toISOString(),
+			});
+
+			const item = await submissions.get("sub_123");
+			ctx.log.info("Stored submission", { id: item?.formId });
+		},
+	},
+});
+```
+
+Accessing a collection that wasn't declared on the descriptor throws — the bridge enforces this at the runtime level.
+
+## Collection API
+
+```typescript
+interface StorageCollection<T = unknown> {
+	// Basic CRUD
+	get(id: string): Promise<T | null>;
+	put(id: string, data: T): Promise<void>;
+	delete(id: string): Promise<boolean>;
+	exists(id: string): Promise<boolean>;
+
+	// Batch operations
+	getMany(ids: string[]): Promise<Map<string, T>>;
+	putMany(items: Array<{ id: string; data: T }>): Promise<void>;
+	deleteMany(ids: string[]): Promise<number>;
+
+	// Query (indexed fields only)
+	query(options?: QueryOptions): Promise<PaginatedResult<{ id: string; data: T }>>;
+	count(where?: WhereClause): Promise<number>;
+}
+```
+
+## Querying
+
+`query()` returns paginated results filtered by indexed fields:
+
+```typescript
+const result = await ctx.storage.submissions.query({
+	where: {
+		formId: "contact",
+		status: "pending",
+	},
+	orderBy: { createdAt: "desc" },
+	limit: 20,
+});
+
+// result.items   — Array<{ id, data }>
+// result.cursor  — pagination cursor (if more results exist)
+// result.hasMore — boolean
+```
+
+### Query options
+
+```typescript
+interface QueryOptions {
+	where?: WhereClause;
+	orderBy?: Record<string, "asc" | "desc">;
+	limit?: number;     // default 50, max 1000
+	cursor?: string;    // for pagination
+}
+```
+
+### Where clause operators
+
+Filter by indexed fields using these operators:
+
+<Tabs>
+<TabItem label="Exact match">
+```typescript
+where: {
+	status: "pending",     // exact string match
+	count: 5,              // exact number match
+	archived: false,       // exact boolean match
+}
+```
+</TabItem>
+<TabItem label="Range">
+```typescript
+where: {
+	createdAt: { gte: "2024-01-01" },
+	score: { gt: 50, lte: 100 },
+}
+// Available: gt, gte, lt, lte
+```
+</TabItem>
+<TabItem label="In list">
+```typescript
+where: {
+	status: { in: ["pending", "approved"] },
+}
+```
+</TabItem>
+<TabItem label="Starts with">
+```typescript
+where: {
+	slug: { startsWith: "blog-" },
+}
+```
+</TabItem>
+</Tabs>
+
+### Ordering
+
+```typescript
+orderBy: { createdAt: "desc" }   // newest first
+orderBy: { score: "asc" }        // lowest first
+```
+
+<Aside type="caution">
+	You can only query and order by indexed fields. Queries on non-indexed fields throw a validation error — this prevents accidental full-table scans.
+</Aside>
+
+## Pagination
+
+Drain a cursor to walk all matching items:
+
+```typescript
+async function getAllSubmissions(ctx: PluginContext) {
+	const all: Array<{ id: string; data: unknown }> = [];
+	let cursor: string | undefined;
+
+	do {
+		const result = await ctx.storage.submissions.query({
+			orderBy: { createdAt: "desc" },
+			limit: 100,
+			cursor,
+		});
+		all.push(...result.items);
+		cursor = result.cursor;
+	} while (cursor);
+
+	return all;
+}
+```
+
+## Counting
+
+```typescript
+const total = await ctx.storage.submissions.count();
+
+const pending = await ctx.storage.submissions.count({
+	status: "pending",
+});
+```
+
+## Batch operations
+
+```typescript
+const items = await ctx.storage.submissions.getMany(["sub_1", "sub_2", "sub_3"]);
+// Returns Map<string, T>
+
+await ctx.storage.submissions.putMany([
+	{ id: "sub_1", data: { formId: "contact", status: "new" } },
+	{ id: "sub_2", data: { formId: "contact", status: "new" } },
+]);
+
+const deletedCount = await ctx.storage.submissions.deleteMany(["sub_1", "sub_2"]);
+```
+
+## Index design
+
+Choose indexes based on actual query patterns:
+
+| Query pattern                            | Index needed                         |
+| ---------------------------------------- | ------------------------------------ |
+| Filter by `formId`                       | `"formId"`                           |
+| Filter by `formId`, order by `createdAt` | `["formId", "createdAt"]`            |
+| Order by `createdAt` only                | `"createdAt"`                        |
+| Filter by `status` and `formId`          | `"status"` and `"formId"` (separate) |
+
+Composite indexes support queries that filter on the first field and optionally order by the second:
+
+```typescript
+// With index ["formId", "createdAt"]:
+query({ where: { formId: "contact" }, orderBy: { createdAt: "desc" } });  // uses index
+query({ where: { formId: "contact" } });                                  // uses index (filter only)
+query({ where: { createdAt: { gte: "2024-01-01" } } });                   // does NOT use this composite — filter starts at the wrong field
+```
+
+## Type safety
+
+Cast collection access for IntelliSense on item shapes:
+
+```typescript
+import type { StorageCollection, PluginContext } from "emdash";
+
+interface Submission {
+	formId: string;
+	email: string;
+	data: Record<string, unknown>;
+	status: "pending" | "approved" | "spam";
+	createdAt: string;
+}
+
+export default definePlugin({
+	hooks: {
+		"content:afterSave": async (event, ctx: PluginContext) => {
+			const submissions = ctx.storage.submissions as StorageCollection<Submission>;
+
+			await submissions.put(`sub_${Date.now()}`, {
+				formId: "contact",
+				email: "user@example.com",
+				data: { message: "Hello" },
+				status: "pending",
+				createdAt: new Date().toISOString(),
+			});
+		},
+	},
+});
+```
+
+## Storage vs content vs KV
+
+Pick the right mechanism for each kind of data:
+
+| Use case                                           | Storage                               |
+| -------------------------------------------------- | ------------------------------------- |
+| Plugin operational data (logs, submissions, cache) | `ctx.storage`                         |
+| User-configurable settings                         | `ctx.kv` with `settings:` prefix      |
+| Internal plugin state                              | `ctx.kv` with `state:` prefix         |
+| Content editable in the admin UI                   | Site collections (not plugin storage) |
+
+If site editors need to view or edit the data in the admin UI through the regular content editor, create a site collection instead.
+
+## Implementation details
+
+Plugin storage uses a single namespaced table:
+
+```sql
+CREATE TABLE _plugin_storage (
+	plugin_id TEXT NOT NULL,
+	collection TEXT NOT NULL,
+	id TEXT NOT NULL,
+	data JSON NOT NULL,
+	created_at TEXT,
+	updated_at TEXT,
+	PRIMARY KEY (plugin_id, collection, id)
+);
+```
+
+EmDash creates expression indexes for declared fields:
+
+```sql
+CREATE INDEX idx_forms_submissions_formId
+	ON _plugin_storage(json_extract(data, '$.formId'))
+	WHERE plugin_id = 'forms' AND collection = 'submissions';
+```
+
+This design gives you no migrations, portability across SQLite/libSQL/D1, plugin-level isolation, and parameterised queries on every path.
+
+## Adding indexes
+
+When you add an index in a plugin update, EmDash creates it automatically on next startup. Adding an index is safe and requires no data migration. When you remove an index, EmDash drops it — and queries on that field start failing with a validation error, which is the intended signal.

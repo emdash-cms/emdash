@@ -1,0 +1,183 @@
+---
+title: Page fragments
+description: Inject scripts, stylesheets, or HTML into rendered public pages — native plugins only.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+The `page:fragments` hook lets a plugin contribute raw HTML, scripts, or stylesheets to public pages. It's the right tool for analytics tags, third-party widgets, custom CSS, and anything else that needs to ship JavaScript or markup directly into the visitor's browser.
+
+It's restricted to native plugins because its output runs as first-party code in the browser, outside any sandbox boundary. If you only need to contribute structured metadata — meta tags, OpenGraph, JSON-LD, allowlisted `<link>` rels — use `page:metadata` instead, which is available to both sandboxed and native plugins. See [Hooks: page:metadata](/plugins/creating-plugins/hooks/#pagemetadata).
+
+## Capability
+
+`page:fragments` requires the `hooks.page-fragments:register` capability:
+
+```typescript title="src/index.ts"
+return definePlugin({
+	id: "analytics-gtm",
+	version: "1.0.0",
+	capabilities: ["hooks.page-fragments:register"],
+	// ...
+});
+```
+
+The capability must also appear on the descriptor.
+
+## Where fragments render
+
+Templates opt into receiving fragments by including the relevant components from `emdash/ui`:
+
+- `<EmDashHead />` — renders fragments with `placement: "head"` plus all `page:metadata` contributions.
+- `<EmDashBodyStart />` — renders fragments with `placement: "body:start"`.
+- `<EmDashBodyEnd />` — renders fragments with `placement: "body:end"`.
+
+Templates that omit one of these components silently ignore fragments targeting that placement — your plugin doesn't break, the fragments just don't appear. Document your placement requirement in the plugin's README.
+
+## Contribution kinds
+
+Three kinds of contributions:
+
+```typescript
+type PageFragmentContribution =
+	| {
+			kind: "external-script";
+			placement: PagePlacement;
+			src: string;
+			async?: boolean;
+			defer?: boolean;
+			attributes?: Record<string, string>;
+			key?: string;
+	  }
+	| {
+			kind: "inline-script";
+			placement: PagePlacement;
+			code: string;
+			attributes?: Record<string, string>;
+			key?: string;
+	  }
+	| {
+			kind: "html";
+			placement: PagePlacement;
+			html: string;
+			key?: string;
+	  };
+```
+
+`PagePlacement` is `"head" | "body:start" | "body:end"`.
+
+## Examples
+
+### External script
+
+Inject a third-party tag manager:
+
+```typescript
+"page:fragments": async (event, ctx) => {
+	const containerId = await ctx.kv.get<string>("settings:gtmContainerId");
+	if (!containerId) return null;
+
+	return {
+		kind: "external-script",
+		placement: "head",
+		src: `https://www.googletagmanager.com/gtm.js?id=${containerId}`,
+		async: true,
+	};
+},
+```
+
+### Inline script
+
+Run a small piece of JavaScript at the top of `<body>`:
+
+```typescript
+"page:fragments": async (event, ctx) => {
+	if (event.page.kind !== "content") return null;
+	return {
+		kind: "inline-script",
+		placement: "body:start",
+		code: `window.contentId = ${JSON.stringify(event.page.content?.id)};`,
+	};
+},
+```
+
+<Aside type="caution">
+	Inline script content is inserted verbatim. Treat any value you interpolate as untrusted output and use `JSON.stringify()` (or equivalent) to escape it. Never concatenate raw user input into inline JS.
+</Aside>
+
+### HTML fragment
+
+Append a noscript fallback at the end of `<body>`:
+
+```typescript
+"page:fragments": async (event, ctx) => {
+	const containerId = await ctx.kv.get<string>("settings:gtmContainerId");
+	if (!containerId) return null;
+
+	return {
+		kind: "html",
+		placement: "body:end",
+		html: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`,
+	};
+},
+```
+
+### Multiple fragments
+
+Return an array to contribute multiple fragments from a single hook:
+
+```typescript
+"page:fragments": async (event, ctx) => {
+	const id = await ctx.kv.get<string>("settings:gtmContainerId");
+	if (!id) return null;
+
+	return [
+		{
+			kind: "external-script",
+			placement: "head",
+			src: `https://www.googletagmanager.com/gtm.js?id=${id}`,
+			async: true,
+		},
+		{
+			kind: "html",
+			placement: "body:end",
+			html: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${id}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`,
+		},
+	];
+},
+```
+
+## Page event
+
+The `page:fragments` hook receives the same event shape as `page:metadata`:
+
+```typescript
+{
+	page: {
+		url: string;
+		path: string;
+		locale: string | null;
+		kind: "content" | "custom";
+		pageType: string;
+		title: string | null;
+		pageTitle?: string | null;
+		description: string | null;
+		canonical: string | null;
+		image: string | null;
+		content?: { collection: string; id: string; slug: string | null };
+	}
+}
+```
+
+Use `event.page.kind` and `event.page.pageType` to decide whether to contribute on a given page — for example, skipping analytics on admin previews or only injecting JSON-LD on blog posts.
+
+## When to use `page:metadata` instead
+
+If what you actually need is:
+
+- A meta description, robots directive, or Twitter card → `page:metadata` with `kind: "meta"`.
+- An OpenGraph property → `page:metadata` with `kind: "property"`.
+- A canonical or alternate `<link>` → `page:metadata` with `kind: "link"`.
+- A JSON-LD graph → `page:metadata` with `kind: "jsonld"`.
+
+`page:metadata` works in sandboxed plugins, gets validation and deduplication for free, and avoids the trust burden of shipping raw HTML to visitors. Reach for `page:fragments` only when you genuinely need to ship JavaScript or HTML.

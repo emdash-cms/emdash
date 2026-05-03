@@ -85,6 +85,7 @@ export default defineConfig({
 					items: [
 						{ label: "Plugin Overview", slug: "plugins/overview" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
+						{ label: "Field Kit", slug: "plugins/field-kit" },
 					],
 				},
 				{
@@ -98,21 +99,44 @@ export default defineConfig({
 							label: "Your First Plugin",
 							slug: "plugins/creating-plugins/your-first-plugin",
 						},
-						{ label: "Hooks", slug: "plugins/hooks" },
-						{ label: "API Routes", slug: "plugins/api-routes" },
-						{ label: "Storage", slug: "plugins/storage" },
-						{ label: "Settings", slug: "plugins/settings" },
-						{ label: "Block Kit", slug: "plugins/block-kit" },
-						{ label: "Field Kit", slug: "plugins/field-kit" },
-						{ label: "Sandbox & Security", slug: "plugins/sandbox" },
-						{ label: "Publishing Plugins", slug: "plugins/publishing" },
+						{ label: "Hooks", slug: "plugins/creating-plugins/hooks" },
+						{ label: "API Routes", slug: "plugins/creating-plugins/api-routes" },
+						{ label: "Storage", slug: "plugins/creating-plugins/storage" },
+						{ label: "Settings", slug: "plugins/creating-plugins/settings" },
+						{ label: "Block Kit", slug: "plugins/creating-plugins/block-kit" },
+						{
+							label: "Capabilities & Security",
+							slug: "plugins/creating-plugins/capabilities",
+						},
+						{
+							label: "Bundling & Publishing",
+							slug: "plugins/creating-plugins/publishing",
+						},
 					],
 				},
 				{
 					label: "Creating Native Plugins",
 					items: [
-						{ label: "Creating Native Plugins", slug: "plugins/creating-plugins" },
-						{ label: "Admin UI Extensions", slug: "plugins/admin-ui" },
+						{
+							label: "Your First Native Plugin",
+							slug: "plugins/creating-native-plugins/your-first-native-plugin",
+						},
+						{
+							label: "React Admin Pages & Widgets",
+							slug: "plugins/creating-native-plugins/react-admin",
+						},
+						{
+							label: "Portable Text Components",
+							slug: "plugins/creating-native-plugins/portable-text-components",
+						},
+						{
+							label: "Page Fragments",
+							slug: "plugins/creating-native-plugins/page-fragments",
+						},
+						{
+							label: "Distributing Native Plugins",
+							slug: "plugins/creating-native-plugins/distributing",
+						},
 					],
 				},
 				{

@@ -5,7 +5,7 @@ description: Install plugins from the EmDash Marketplace or add them from code.
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash plugins can be installed in two ways: from the marketplace via the admin dashboard, or added directly in your Astro configuration. Marketplace plugins run in an isolated sandbox; config-based plugins run in-process.
+EmDash plugins can be installed in two ways: from the marketplace via the admin dashboard, or added directly in your Astro configuration. Marketplace plugins always run sandboxed; config-based plugins run sandboxed or in-process depending on which array they're declared in (`sandboxed: []` vs `plugins: []`).
 
 ## From the Marketplace
 
@@ -15,7 +15,7 @@ The admin dashboard includes a marketplace browser where you can search, install
 
 To install marketplace plugins, your site needs:
 
-1. **Sandbox runner configured** — Marketplace plugins run in isolated V8 workers, which requires the sandbox runtime:
+1. **Sandbox runner configured** — Marketplace plugins run in an isolated runtime, which requires the sandbox runner:
 
    ```typescript title="astro.config.mjs"
    import { emdash } from "emdash/astro";
@@ -128,13 +128,13 @@ Native plugins:
 
 ## Marketplace vs. Config: When to Use Which
 
-| | Marketplace (sandboxed) | Config (native) |
+| | Marketplace (sandboxed) | Config (native or in-process sandboxed) |
 | --- | --- | --- |
 | **Install method** | One-click in admin UI | Code change + `npm install` + deploy |
-| **Execution** | Isolated V8 isolate | In-process |
-| **Capabilities** | Enforced at runtime | Advisory only |
-| **Node.js APIs** | Not available | Full access |
-| **React admin pages** | No (Block Kit instead) | Yes |
-| **PT rendering components** | No | Yes |
+| **Execution** | Sandbox runtime via the configured runner | In-process (or sandboxed if listed under `sandboxed: []` and a runner is available) |
+| **Capabilities** | Enforced by the sandbox bridge | Enforced by the sandbox bridge in both modes |
+| **Node.js APIs** | Not available | Full access (in-process only) |
+| **React admin pages** | No (Block Kit instead) | Yes (native plugins) |
+| **PT rendering components** | No | Yes (native plugins) |
 | **Updates** | One-click in admin | Version bump + deploy |
 | **Best for** | Most plugins | Plugins needing build-time integration |
