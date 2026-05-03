@@ -80,6 +80,9 @@ npx emdash dev
 npx emdash dev --types
 
 # Export an existing database as a seed file
+# (the runtime auto-discovers .emdash/seed.json on first boot;
+# `mkdir -p` because the directory may not exist yet)
+mkdir -p .emdash
 npx emdash export-seed > .emdash/seed.json
 npx emdash export-seed --with-content > .emdash/seed.json
 ```

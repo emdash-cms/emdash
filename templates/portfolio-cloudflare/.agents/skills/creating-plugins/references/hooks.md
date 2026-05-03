@@ -424,12 +424,12 @@ Use `"continue"` for non-critical operations (analytics, notifications, external
 | `plugin:activate`        | Plugin enabled       | —                                | `void`                       |
 | `plugin:deactivate`      | Plugin disabled      | —                                | `void`                       |
 | `plugin:uninstall`       | Plugin removed       | —                                | `void`                       |
-| `content:beforeSave`     | Before save          | —                                | Modified content or `void`   |
-| `content:afterSave`      | After save           | —                                | `void`                       |
-| `content:beforeDelete`   | Before delete        | —                                | `false` to cancel            |
-| `content:afterDelete`    | After delete         | —                                | `void`                       |
-| `content:afterPublish`   | After publish        | —                                | `void`                       |
-| `content:afterUnpublish` | After unpublish      | —                                | `void`                       |
+| `content:beforeSave`     | Before save          | `content:write`                  | Modified content or `void`   |
+| `content:afterSave`      | After save           | `content:read`                   | `void`                       |
+| `content:beforeDelete`   | Before delete        | `content:read`                   | `false` to cancel            |
+| `content:afterDelete`    | After delete         | `content:read`                   | `void`                       |
+| `content:afterPublish`   | After publish        | `content:read`                   | `void`                       |
+| `content:afterUnpublish` | After unpublish      | `content:read`                   | `void`                       |
 | `media:beforeUpload`     | Before upload        | —                                | Modified file info or `void` |
 | `media:afterUpload`      | After upload         | —                                | `void`                       |
 | `email:beforeSend`       | Before email send    | `hooks.email-events:register`    | Modified message or `false`  |
