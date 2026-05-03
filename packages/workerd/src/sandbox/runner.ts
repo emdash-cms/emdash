@@ -48,9 +48,9 @@ import { generatePluginWrapper } from "./wrapper.js";
 /** Replace non-alphanumeric chars for safe file/worker names */
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
 
-// Unix socket support is wired but disabled until workerd capnp external
-// address format is validated. Enabling: `process.platform !== "win32"`.
-const USE_UNIX_SOCKET = false;
+/** Use Unix domain sockets for the backing service (lower latency than TCP).
+ * Falls back to TCP on Windows where Unix sockets are not available. */
+const USE_UNIX_SOCKET = process.platform !== "win32";
 
 const activeRunners = new Set<WorkerdSandboxRunner>();
 let sigHandlerRegistered = false;
