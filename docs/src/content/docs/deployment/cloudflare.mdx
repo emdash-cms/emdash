@@ -13,25 +13,9 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 - Wrangler CLI installed (`npm install -g wrangler`)
 - Authenticated with Cloudflare (`wrangler login`)
 
-## Create Resources
+## Configure Bindings
 
-### 1. Create a D1 database
-
-```bash
-wrangler d1 create emdash-db
-```
-
-Note the `database_id` from the output.
-
-### 2. Create an R2 bucket
-
-```bash
-wrangler r2 bucket create emdash-media
-```
-
-### 3. Create wrangler.jsonc
-
-Create `wrangler.jsonc` in your project root:
+Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler provisions both resources on the first deploy if they don't already exist.
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -44,7 +28,6 @@ Create `wrangler.jsonc` in your project root:
 		{
 			"binding": "DB",
 			"database_name": "emdash-db",
-			"database_id": "your-database-id",
 		},
 	],
 
@@ -81,9 +64,9 @@ export default defineConfig({
 
 ## First Boot
 
-EmDash runs migrations and seeds the default schema automatically on the first request after deployment. There are no manual `wrangler d1 execute` or `wrangler d1 migrations apply` steps to run.
+Database migrations run automatically on the first request after deployment, and on every subsequent boot if there's anything new to apply.
 
-If your project includes a seed file (`.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json`), it is inlined into the bundle at build time and applied on first boot when the database has no collections yet.
+If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
 ## Deploy
 
@@ -251,7 +234,4 @@ Check that the R2 bucket is correctly bound:
 
 ### Migration errors
 
-Migrations run automatically on first request. If you see schema errors:
-
-1. Tail the Worker logs (`wrangler tail`) and reproduce the error to capture the underlying message.
-2. If you suspect a partially-applied migration on a fresh database, drop and recreate it: `wrangler d1 delete emdash-db && wrangler d1 create emdash-db` — then redeploy. **Only do this if the database has no production data.**
+If you see schema errors, tail the Worker logs (`wrangler tail`) and reproduce the error to capture the underlying message — then file an issue with that output.

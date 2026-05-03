@@ -51,7 +51,7 @@ export default defineConfig({
    node ./dist/server/entry.mjs
    ```
 
-The server runs on `http://localhost:4321` by default. Migrations and the default seed are applied automatically on the first request — there is no separate init step to run.
+The server runs on `http://localhost:4321` by default. Migrations are applied on the first request. If the database is empty and setup hasn't been completed, your seed file (or the built-in default if you don't have one) is also applied on that first request.
 
 ## Production Storage
 
@@ -115,7 +115,7 @@ EXPOSE 4321
 CMD ["node", "./dist/server/entry.mjs"]
 ```
 
-The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations and the seed are applied on the first request.
+The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations run on the first request after a deploy; the seed applies only when the database has no collections and setup hasn't been completed — existing data is never overwritten.
 
 Build and run:
 

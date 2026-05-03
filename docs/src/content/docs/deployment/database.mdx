@@ -67,15 +67,9 @@ export default defineConfig({
 </Tabs>
 
 <Aside>
-	EmDash runs migrations on D1 automatically on the first request after deployment. There is no
-	`wrangler d1 migrations apply` step to run.
+	EmDash runs migrations on D1 automatically on the first request after deployment. Wrangler
+	provisions the D1 database itself on first deploy if it doesn't already exist.
 </Aside>
-
-### Create a D1 Database
-
-```bash
-wrangler d1 create emdash-db
-```
 
 ### Read Replicas
 
@@ -271,17 +265,9 @@ database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
 
 ## Migrations
 
-EmDash runs migrations automatically on the first request, for every supported dialect (D1, SQLite, libSQL, PostgreSQL). Migrations are bundled with the `emdash` package and embedded into your build. There is nothing to run by hand before deployment.
+EmDash runs migrations automatically on the first request, for every supported dialect (D1, SQLite, libSQL, PostgreSQL). Migrations are bundled with the `emdash` package and embedded into your build.
 
-If the database is empty (no collections) and the setup wizard has not been completed, EmDash also auto-applies your seed file on first boot. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used.
-
-If you want to run migrations explicitly during local development (for example to fail fast in CI before starting the server), use the CLI:
-
-```bash
-npx emdash init
-```
-
-This creates the SQLite file at `./data.db`, runs migrations, and exits. It is not required for production deployments.
+If the database is empty (no collections) and the setup wizard has not been completed, EmDash also applies a seed file on first boot. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used. Subsequent boots against an existing database leave its content alone.
 
 ## Environment-Based Configuration
 
