@@ -83,6 +83,9 @@ export interface WxrAnalysis {
 	site: {
 		title: string;
 		url: string;
+		tagline?: string;
+		/** Slug of the page that WordPress serves at the site root, if detected */
+		homePageSlug?: string;
 	};
 	postTypes: PostTypeAnalysis[];
 	attachments: {
@@ -146,6 +149,10 @@ export interface ImportConfig {
 	skipExisting: boolean;
 	/** Author mappings (WP author login -> EmDash user ID) */
 	authorMappings?: Record<string, string | null>;
+	/** Import navigation menus from nav_menu_item posts. Default: true. */
+	importMenus?: boolean;
+	/** Import site title, tagline and URL from the channel header. Default: true. */
+	importSiteSettings?: boolean;
 }
 
 export interface ImportResult {
@@ -154,6 +161,16 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
+	/** Navigation menu import summary (when importMenus is enabled) */
+	menus?: {
+		created: number;
+		items: number;
+		replaced: number;
+	};
+	/** Site settings keys written (when importSiteSettings is enabled) */
+	siteSettings?: {
+		applied: string[];
+	};
 }
 
 /**

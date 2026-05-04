@@ -59,26 +59,70 @@ export const defaultTransformers: Record<string, BlockTransformer> = {
 	"core-embed/spotify": embed.embed,
 };
 
-/**
- * Fallback transformer for unknown blocks
- * Stores the original HTML for manual review
- */
+const IMAGE_URL_PATTERN = /\.(jpe?g|png|gif|webp|avif|svg)(?:\?|#|$)/i;
+
+function collectImageUrlsFromAttrs(
+	attrs: Record<string, unknown>,
+): Array<{ url: string; alt?: string }> {
+	const images: Array<{ url: string; alt?: string }> = [];
+	const seen = new Set<string>();
+
+	const visit = (value: unknown, carriedAlt?: string): void => {
+		if (typeof value === "string") {
+			if (IMAGE_URL_PATTERN.test(value) && !seen.has(value)) {
+				seen.add(value);
+				images.push({ url: value, alt: carriedAlt });
+			}
+			return;
+		}
+		if (Array.isArray(value)) {
+			for (const item of value) visit(item);
+			return;
+		}
+		if (value && typeof value === "object") {
+			const obj = value as Record<string, unknown>;
+			const alt = typeof obj.alt === "string" ? obj.alt : undefined;
+			for (const [key, child] of Object.entries(obj)) {
+				if (key === "alt") continue;
+				visit(child, alt);
+			}
+		}
+	};
+
+	visit(attrs);
+	return images;
+}
+
 export const fallbackTransformer: BlockTransformer = (
 	block,
 	_options,
 	context,
 ): PortableTextBlock[] => {
-	// Skip completely empty blocks
-	if (!block.innerHTML.trim() && block.innerBlocks.length === 0) {
+	// Custom theme blocks often wrap content around image URLs in their attrs
+	// (hero sections, marquees, sliders). Keep the imagery so nothing is lost.
+	const imageBlocks: PortableTextBlock[] = collectImageUrlsFromAttrs(block.attrs).map((img) => ({
+		_type: "image",
+		_key: context.generateKey(),
+		asset: {
+			_type: "reference",
+			_ref: img.url,
+			url: img.url,
+		},
+		alt: img.alt,
+	}));
+
+	if (imageBlocks.length === 0 && !block.innerHTML.trim() && block.innerBlocks.length === 0) {
 		return [];
 	}
 
-	// If it has inner blocks, try to transform those
 	if (block.innerBlocks.length > 0) {
-		return context.transformBlocks(block.innerBlocks);
+		return [...imageBlocks, ...context.transformBlocks(block.innerBlocks)];
 	}
 
-	// Store as HTML fallback
+	if (imageBlocks.length > 0) {
+		return imageBlocks;
+	}
+
 	return [
 		{
 			_type: "htmlBlock",
