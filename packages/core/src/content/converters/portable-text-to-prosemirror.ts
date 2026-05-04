@@ -131,7 +131,7 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
  * Convert text block to ProseMirror paragraph or heading
  */
 function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null {
-	const { style = "normal", children, markDefs = [] } = block;
+	const { style = "normal", children, markDefs = [], textAlign } = block;
 
 	// Convert children to ProseMirror nodes
 	const content = convertSpans(children, markDefs);
@@ -147,7 +147,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: { level },
+				attrs: { level, ...(textAlign ? { textAlign } : {}) },
 				content: content.length > 0 ? content : undefined,
 			};
 		}
@@ -158,6 +158,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 				content: [
 					{
 						type: "paragraph",
+						attrs: textAlign ? { textAlign } : undefined,
 						content: content.length > 0 ? content : undefined,
 					},
 				],
@@ -167,6 +168,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 		default:
 			return {
 				type: "paragraph",
+				attrs: textAlign ? { textAlign } : undefined,
 				content: content.length > 0 ? content : undefined,
 			};
 	}

@@ -1,0 +1,40 @@
+---
+/**
+ * Portable Text block-style renderer
+ *
+ * Renders paragraph, heading, and blockquote blocks with text-align applied
+ * when the block carries a `textAlign` attribute. Used for every standard
+ * block style so alignment persists uniformly across tags.
+ */
+import type { BlockProps } from "astro-portabletext/types";
+
+type Props = BlockProps;
+
+const { node, index, isInline, ...attrs } = Astro.props;
+const style = node.style;
+const textAlign = (node as { textAlign?: string }).textAlign;
+
+const Tag =
+	style === "h1"
+		? "h1"
+		: style === "h2"
+			? "h2"
+			: style === "h3"
+				? "h3"
+				: style === "h4"
+					? "h4"
+					: style === "h5"
+						? "h5"
+						: style === "h6"
+							? "h6"
+							: style === "blockquote"
+								? "blockquote"
+								: "p";
+
+const inlineStyle =
+	textAlign === "center" || textAlign === "right" || textAlign === "justify"
+		? `text-align: ${textAlign};`
+		: undefined;
+---
+
+<Tag {...attrs} style={inlineStyle}><slot /></Tag>
