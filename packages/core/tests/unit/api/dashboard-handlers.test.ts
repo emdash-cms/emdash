@@ -138,7 +138,9 @@ describe("Dashboard Handlers", () => {
 
 			expect(result.success).toBe(true);
 			expect(result.data!.recentItems).toHaveLength(10);
-			expect(result.data!.recentItems.every((item) => item.collection.startsWith("section_"))).toBe(true);
+			expect(result.data!.recentItems.every((item) => item.collection.startsWith("section_"))).toBe(
+				true,
+			);
 		});
 
 		it("recent items use title field when available", async () => {
