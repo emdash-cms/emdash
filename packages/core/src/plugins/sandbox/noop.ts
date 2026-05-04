@@ -15,9 +15,10 @@ import type { SandboxRunner, SandboxedPlugin, SandboxOptions } from "./types.js"
 export class SandboxNotAvailableError extends Error {
 	constructor() {
 		super(
-			"Plugin sandboxing is not available on this platform. " +
-				"Sandboxed plugins require Cloudflare Workers with Worker Loader. " +
-				"Use trusted plugins (from config) instead, or deploy to Cloudflare.",
+			"Plugin sandboxing is not available. " +
+				"Configure a sandbox runner: use @emdash-cms/cloudflare/sandbox on Cloudflare, " +
+				"or @emdash-cms/sandbox-workerd/sandbox on Node.js (requires workerd). " +
+				"Without sandboxing, use trusted plugins (from config) instead.",
 		);
 		this.name = "SandboxNotAvailableError";
 	}
@@ -37,6 +38,13 @@ export class NoopSandboxRunner implements SandboxRunner {
 	 * Always returns false - sandboxing is not available.
 	 */
 	isAvailable(): boolean {
+		return false;
+	}
+
+	/**
+	 * Always returns false - no sandbox runtime to be healthy.
+	 */
+	isHealthy(): boolean {
 		return false;
 	}
 

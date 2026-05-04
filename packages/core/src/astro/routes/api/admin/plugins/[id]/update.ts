@@ -48,6 +48,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			version: body.version,
 			confirmCapabilityChanges: body.confirmCapabilityChanges,
 			confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
+			sandboxBypassed: emdash.isSandboxBypassed(),
 		},
 	);
 

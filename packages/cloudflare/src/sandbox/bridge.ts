@@ -7,9 +7,12 @@
  *
  */
 
+import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { SandboxEmailSendCallback } from "emdash";
-import { ulid } from "emdash";
+import { ulid, PluginStorageRepository } from "emdash";
+import { Kysely } from "kysely";
+import { D1Dialect } from "kysely-d1";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
 
@@ -127,6 +130,11 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	/** Per-collection storage config (matches manifest.storage entries) */
+	storageConfig?: Record<
+		string,
+		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+	>;
 }
 
 /**
@@ -141,6 +149,28 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	/**
+	 * Construct a PluginStorageRepository for the requested collection.
+	 * Uses the indexes from the plugin's storage config (if provided) so
+	 * query/count operations support WHERE/ORDER BY/cursor pagination
+	 * matching in-process and workerd sandbox plugins.
+	 */
+	private getStorageRepo(collection: string): PluginStorageRepository {
+		const { pluginId, storageConfig } = this.ctx.props;
+		const config = storageConfig?.[collection];
+		// Merge unique indexes into the indexes list since both are queryable
+		const allIndexes: Array<string | string[]> = [
+			...(config?.indexes ?? []),
+			...(config?.uniqueIndexes ?? []),
+		];
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- D1 is the kysely-d1 dialect database type
+		const db = new Kysely<unknown>({
+			dialect: new D1Dialect({ database: this.env.DB as D1Database }),
+		});
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely<unknown> is compatible with PluginStorageRepository's expected db
+		return new PluginStorageRepository(db as never, pluginId, collection, allIndexes);
+	}
+
 	// =========================================================================
 	// KV Operations - scoped to plugin namespace
 	// =========================================================================
@@ -242,45 +272,45 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async storageQuery(
 		collection: string,
-		opts: { limit?: number; cursor?: string } = {},
+		opts: {
+			limit?: number;
+			cursor?: string;
+			where?: Record<string, unknown>;
+			orderBy?: Record<string, "asc" | "desc">;
+		} = {},
 	): Promise<{
 		items: Array<{ id: string; data: unknown }>;
 		hasMore: boolean;
 		cursor?: string;
 	}> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		const limit = Math.min(opts.limit ?? 50, 1000);
-		const results = await this.env.DB.prepare(
-			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? LIMIT ?",
-		)
-			.bind(pluginId, collection, limit + 1)
-			.all<{ id: string; data: string }>();
-
-		const items = (results.results ?? []).slice(0, limit).map((row) => ({
-			id: row.id,
-			data: JSON.parse(row.data),
-		}));
+		// Delegate to PluginStorageRepository for proper WHERE/ORDER BY/cursor support
+		const repo = this.getStorageRepo(collection);
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+		const result = await repo.query({
+			where: opts.where as never,
+			orderBy: opts.orderBy,
+			limit: opts.limit,
+			cursor: opts.cursor,
+		});
 		return {
-			items,
-			hasMore: (results.results ?? []).length > limit,
-			cursor: items.length > 0 ? items.at(-1)!.id : undefined,
+			items: result.items,
+			hasMore: result.hasMore,
+			cursor: result.cursor,
 		};
 	}
 
-	async storageCount(collection: string): Promise<number> {
-		const { pluginId, storageCollections } = this.ctx.props;
+	async storageCount(collection: string, where?: Record<string, unknown>): Promise<number> {
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		const result = await this.env.DB.prepare(
-			"SELECT COUNT(*) as count FROM _plugin_storage WHERE plugin_id = ? AND collection = ?",
-		)
-			.bind(pluginId, collection)
-			.first<{ count: number }>();
-		return result?.count ?? 0;
+		const repo = this.getStorageRepo(collection);
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+		return repo.count(where as never);
 	}
 
 	async storageGetMany(collection: string, ids: string[]): Promise<Map<string, unknown>> {

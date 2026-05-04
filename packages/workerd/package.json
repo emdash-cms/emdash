@@ -1,0 +1,61 @@
+{
+	"name": "@emdash-cms/sandbox-workerd",
+	"version": "0.0.1",
+	"description": "workerd-based plugin sandbox for EmDash on Node.js",
+	"type": "module",
+	"main": "dist/index.mjs",
+	"files": [
+		"dist",
+		"src"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		},
+		"./sandbox": {
+			"types": "./dist/sandbox/index.d.mts",
+			"default": "./dist/sandbox/index.mjs"
+		}
+	},
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"emdash": "workspace:*",
+		"ulidx": "^2.4.1"
+	},
+	"peerDependencies": {
+		"kysely": ">=0.27.0",
+		"workerd": ">=1.0.0"
+	},
+	"optionalDependencies": {
+		"miniflare": "^4.20250408.0"
+	},
+	"devDependencies": {
+		"@types/better-sqlite3": "catalog:",
+		"better-sqlite3": "catalog:",
+		"kysely": "^0.27.0",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/workerd"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash",
+	"keywords": [
+		"emdash",
+		"workerd",
+		"sandbox",
+		"plugins",
+		"isolation",
+		"v8-isolate"
+	],
+	"author": "Benjamin Price",
+	"license": "MIT"
+}

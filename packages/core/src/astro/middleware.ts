@@ -20,11 +20,8 @@ import type { RequestScopedDbOpts } from "virtual:emdash/dialect";
 import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-providers";
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
-import {
-	createSandboxRunner as virtualCreateSandboxRunner,
-	sandboxEnabled as virtualSandboxEnabled,
-	// @ts-ignore - virtual module
-} from "virtual:emdash/sandbox-runner";
+// @ts-ignore - virtual module
+import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
 // @ts-ignore - virtual module
@@ -119,12 +116,26 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		sandboxEnabled: virtualSandboxEnabled as boolean,
+		sandboxEnabled: (virtualSandboxRunnerModule as Record<string, unknown>)
+			.sandboxEnabled as boolean,
+		sandboxBypassed:
+			((virtualSandboxRunnerModule as Record<string, unknown>).sandboxBypassed as boolean) ?? false,
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		createSandboxRunner: virtualCreateSandboxRunner as
-			| ((opts: { db: Kysely<Database> }) => SandboxRunner)
+		createSandboxRunner: (virtualSandboxRunnerModule as Record<string, unknown>)
+			.createSandboxRunner as
+			| ((opts: {
+					db: Kysely<Database>;
+					mediaStorage?: {
+						upload(options: {
+							key: string;
+							body: Uint8Array;
+							contentType: string;
+						}): Promise<unknown>;
+						delete(key: string): Promise<unknown>;
+					};
+			  }) => SandboxRunner)
 			| null,
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		mediaProviderEntries: (virtualMediaProviders as MediaProviderEntry[]) || [],

@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
+		"declaration": true,
+		"outDir": "dist"
+	},
+	"include": ["src"]
+}
