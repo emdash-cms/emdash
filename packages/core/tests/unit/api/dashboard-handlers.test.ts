@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import type { Kysely, KyselyPlugin } from "kysely";
 import { describe, it, expect, afterEach } from "vitest";
 
 import { handleDashboardStats } from "../../../src/api/handlers/dashboard.js";
@@ -11,6 +11,19 @@ import {
 	setupTestDatabaseWithCollections,
 	teardownTestDatabase,
 } from "../../utils/test-db.js";
+
+const rejectCompoundSelectPlugin = {
+	transformQuery(args) {
+		if (JSON.stringify(args.node).includes(" UNION ALL ")) {
+			throw new Error("D1_ERROR: too many terms in compound SELECT: SQLITE_ERROR");
+		}
+
+		return args.node;
+	},
+	async transformResult(args) {
+		return args.result;
+	},
+} satisfies KyselyPlugin;
 
 describe("Dashboard Handlers", () => {
 	describe("handleDashboardStats", () => {
@@ -93,6 +106,39 @@ describe("Dashboard Handlers", () => {
 			expect(recentItems[1]!.collection).toBe("post");
 			expect(recentItems[1]!.collectionLabel).toBe("Posts");
 			expect(recentItems[1]!.slug).toBe("post-1");
+		});
+
+		it("does not use a compound recent-items query that exceeds D1 limits", async () => {
+			db = await setupTestDatabase();
+			const registry = new SchemaRegistry(db);
+			const contentRepo = new ContentRepository(db);
+
+			for (let i = 0; i < 12; i++) {
+				const slug = `section_${String(i).padStart(2, "0")}`;
+				await registry.createCollection({
+					slug,
+					label: `Section ${i}`,
+					labelSingular: "Section",
+				});
+				await registry.createField(slug, {
+					slug: "title",
+					label: "Title",
+					type: "string",
+				});
+				await contentRepo.create({
+					type: slug,
+					slug: `item-${i}`,
+					data: { title: `Item ${i}` },
+					status: "draft",
+				});
+			}
+
+			const d1LikeDb = db.withPlugin(rejectCompoundSelectPlugin);
+			const result = await handleDashboardStats(d1LikeDb);
+
+			expect(result.success).toBe(true);
+			expect(result.data!.recentItems).toHaveLength(10);
+			expect(result.data!.recentItems.every((item) => item.collection.startsWith("section_"))).toBe(true);
 		});
 
 		it("recent items use title field when available", async () => {
