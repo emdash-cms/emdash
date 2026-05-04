@@ -441,6 +441,110 @@ describe("ContentEditor", () => {
 			await expect.element(link2).toHaveAttribute("href", "/_emdash/api/media/file/file-fallback");
 		});
 
+		it("does not render data: or javascript: URLs from external providers as links", async () => {
+			// A hostile external provider plugin could return src: "javascript:..." or
+			// "data:..."; the file field must not surface either as a clickable <a href>.
+			// Filename should still display as plain text so the user can see what's set.
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "evil-1",
+						provider: "evil",
+						src: "javascript:alert(1)",
+						filename: "ok.txt",
+						mimeType: "text/plain",
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			// Filename renders…
+			await expect.element(screen.getByText("ok.txt")).toBeInTheDocument();
+			// …but never as a link with the hostile href.
+			const fieldRoot = document.getElementById("field-attachment");
+			expect(fieldRoot).not.toBeNull();
+			expect(fieldRoot!.querySelector('a[href^="javascript:"]')).toBeNull();
+			expect(fieldRoot!.querySelector('a[href^="data:"]')).toBeNull();
+		});
+
+		it("encodes path-unsafe characters in storageKey when building the local URL", async () => {
+			// Server-generated storage keys are flat ULIDs today, but the schema
+			// now allows clients to write any `meta.storageKey` string via the
+			// content API. `?` or `#` would otherwise escape the path.
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "x",
+						provider: "local",
+						filename: "notes.txt",
+						mimeType: "text/plain",
+						meta: { storageKey: "abc?evil#frag" },
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+			const link = screen.getByRole("link", { name: "notes.txt" });
+			await expect
+				.element(link)
+				.toHaveAttribute("href", "/_emdash/api/media/file/abc%3Fevil%23frag");
+		});
+
+		it("Remove button clears the file field value", async () => {
+			const onSave = vi.fn();
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "file-1",
+						filename: "report.pdf",
+						mimeType: "application/pdf",
+						size: 1024,
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			await screen.getByRole("button", { name: "Remove Attachment" }).click();
+			// The Select empty-state button replaces the filled state.
+			await expect
+				.element(screen.getByRole("button", { name: "Select Attachment" }))
+				.toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Save" }).click();
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({ attachment: null }),
+				}),
+			);
+		});
+
 		it("renders datetime fields as datetime-local inputs", async () => {
 			const screen = await renderEditor({
 				fields: { recall_date: { kind: "datetime", label: "Recall date" } },

@@ -1734,10 +1734,14 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
 		const localSrc =
 			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+		// Storage keys come from server-controlled paths today, but the Zod schema
+		// now lets clients write arbitrary `meta.storageKey` strings via the content
+		// API. Encode before interpolating so attacker-shaped values can't escape
+		// the path with `?` or `#`.
 		const localUrl = isLocal
 			? storageKey
-				? `/_emdash/api/media/file/${storageKey}`
-				: (localSrc ?? `/_emdash/api/media/file/${value.id}`)
+				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
+				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
 			: undefined;
 		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
 		return {
