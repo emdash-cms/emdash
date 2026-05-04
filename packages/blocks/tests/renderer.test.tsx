@@ -533,6 +533,56 @@ describe("BlockRenderer", () => {
 		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
 	});
 
+	it("item_list block renders rich list items and forwards actions", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "item_list",
+					density: "compact",
+					items: [
+						{
+							title: "Import queue",
+							description: "12 posts waiting for review.",
+							meta: "Updated 2m ago",
+							badge: "Active",
+							icon: "IQ",
+							actions: [{ type: "button", action_id: "open_queue", label: "Open" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		expect(screen.getByText("Import queue")).toBeTruthy();
+		expect(screen.getByText("12 posts waiting for review.")).toBeTruthy();
+		expect(screen.getByText("Updated 2m ago")).toBeTruthy();
+		expect(screen.getByText("Active")).toBeTruthy();
+		expect(screen.getByText("IQ")).toBeTruthy();
+
+		fireEvent.click(screen.getByText("Open"));
+		expect(onAction).toHaveBeenCalledWith({
+			type: "block_action",
+			action_id: "open_queue",
+		});
+	});
+
+	it("item_list block does not render unsafe avatar URLs", () => {
+		const { container } = renderBlocks([
+			{
+				type: "item_list",
+				items: [{ title: "Unsafe", avatar_url: "javascript:alert(1)" }],
+			},
+		]);
+		expect(container.querySelector("img")).toBeNull();
+	});
+
+	it("item_list block renders empty_text for empty item arrays", () => {
+		renderBlocks([{ type: "item_list", items: [], empty_text: "No results found" }]);
+		expect(screen.getByText("No results found")).toBeTruthy();
+	});
+
 	it("columns block renders blocks in columns", () => {
 		renderBlocks([
 			{
