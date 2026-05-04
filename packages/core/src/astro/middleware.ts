@@ -499,6 +499,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Sandbox runner (for marketplace plugin install/update)
 					getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
+					isSandboxBypassed: runtime.isSandboxBypassed.bind(runtime),
 
 					// Sync marketplace plugin states (after install/update/uninstall)
 					syncMarketplacePlugins: runtime.syncMarketplacePlugins.bind(runtime),
