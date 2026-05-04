@@ -20,15 +20,33 @@ export function apiFetch(input: string | URL | Request, init?: RequestInit): Pro
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
  * `{ error: { code, message } }`.
+ *
+ * For validation errors with details.issues, formats them into a readable message.
  */
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
 	let message: string | undefined;
 	if (typeof body === "object" && body !== null && "error" in body) {
 		const { error } = body;
-		if (typeof error === "object" && error !== null && "message" in error) {
-			const { message: msg } = error;
-			if (typeof msg === "string") message = msg;
+		if (typeof error === "object" && error !== null) {
+			const errorObj = error as {
+				message?: string;
+				details?: { issues?: Array<{ path: string; message: string }> };
+			};
+
+			// Check if this is a validation error with detailed issues
+			if (
+				errorObj.details?.issues &&
+				Array.isArray(errorObj.details.issues) &&
+				errorObj.details.issues.length > 0
+			) {
+				const issues = errorObj.details.issues
+					.map((issue) => `${issue.path}: ${issue.message}`)
+					.join("; ");
+				message = issues;
+			} else if (errorObj.message) {
+				message = errorObj.message;
+			}
 		}
 	}
 	throw new Error(message || `${fallback}: ${res.statusText}`);
