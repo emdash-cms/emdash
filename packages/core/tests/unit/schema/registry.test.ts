@@ -301,6 +301,18 @@ describe("SchemaRegistry", () => {
 					type: "datetime",
 				}),
 			).rejects.toThrow(SchemaError);
+
+			// `seo` is reserved because `getEmDashEntry`/`getEmDashCollection`
+			// hydrate `entry.data.seo` from the `_emdash_seo` table; allowing a
+			// user-defined field with the same slug would let it be silently
+			// overwritten at query time.
+			await expect(
+				registry.createField("posts", {
+					slug: "seo",
+					label: "SEO",
+					type: "json",
+				}),
+			).rejects.toThrow(SchemaError);
 		});
 
 		it("should map field types to correct column types", async () => {
