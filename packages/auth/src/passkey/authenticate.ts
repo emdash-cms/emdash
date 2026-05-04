@@ -155,11 +155,11 @@ export async function verifyAuthenticationResponse(
 	// Delete challenge (single-use)
 	await challengeStore.delete(challengeString);
 
-	// Verify origin
-	if (clientData.origin !== config.origin) {
+	// Verify origin against the accepted list
+	if (!config.origins.includes(clientData.origin)) {
 		throw new PasskeyAuthenticationError(
 			"invalid_origin",
-			`Invalid origin: expected ${config.origin}, got ${clientData.origin}`,
+			`Invalid origin: ${clientData.origin} not in [${config.origins.join(", ")}]`,
 		);
 	}
 

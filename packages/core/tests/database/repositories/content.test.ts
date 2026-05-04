@@ -427,6 +427,35 @@ describe("ContentRepository", () => {
 			expect(result.items).toEqual([]);
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		describe("orderBy", () => {
+			// Regression guard for "table headers aren't sort controls": the
+			// admin now sends orderBy={field,direction} — the repo must accept
+			// the columns the UI wants to expose, not just dates.
+			it("accepts status as an order field", async () => {
+				const result = await repo.findMany("post", {
+					orderBy: { field: "status", direction: "asc" },
+				});
+
+				// alphabetical asc places 'draft' before 'published'
+				expect(result.items[0]!.status).toBe("draft");
+			});
+
+			it("accepts locale as an order field", async () => {
+				await repo.findMany("post", {
+					orderBy: { field: "locale", direction: "desc" },
+				});
+				// no throw = pass
+			});
+
+			it("rejects unknown fields to block column enumeration", async () => {
+				await expect(
+					repo.findMany("post", {
+						orderBy: { field: "password", direction: "asc" },
+					}),
+				).rejects.toThrow(EmDashValidationError);
+			});
+		});
 	});
 
 	describe("update", () => {

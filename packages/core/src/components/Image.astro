@@ -7,6 +7,7 @@
  */
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
+import { buildRenderMediaUrl } from "../media/url.js";
 // Standard responsive breakpoints
 const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
@@ -122,10 +123,14 @@ if (providerId && providerId !== "local") {
 	}
 }
 
-// Fallback for local provider — prefer stored URL (includes storage key with extension),
-// fall back to _ref (bare ULID, works if media file endpoint supports ID lookup)
+// Fallback for local provider. `asset.url` carries the storage key with
+// extension when present; `asset._ref` is a bare ULID that only the internal
+// `/file/{id}` route can resolve. `buildRenderMediaUrl` picks the right shape.
 if (!src) {
-	src = asset.url || `/_emdash/api/media/file/${asset._ref}`;
+	src = buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, {
+		url: asset.url,
+		id: asset._ref,
+	});
 }
 
 // Build placeholder background style
@@ -171,7 +176,7 @@ const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseSty
 	}
 	.emdash-image figcaption {
 		font-size: 0.875rem;
-		color: #666;
+		color: var(--emdash-caption-color, var(--color-muted, #666));
 		margin-top: 0.5rem;
 		text-align: center;
 	}

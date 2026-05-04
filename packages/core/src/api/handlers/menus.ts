@@ -42,26 +42,33 @@ export interface MenuWithItems extends MenuRow {
  */
 export async function handleMenuList(db: Kysely<Database>): Promise<ApiResult<MenuListItem[]>> {
 	try {
-		const menus = await db
-			.selectFrom("_emdash_menus")
-			.select(["id", "name", "label", "created_at", "updated_at"])
-			.orderBy("name", "asc")
+		// Single query: LEFT JOIN + GROUP BY for the per-menu item count.
+		// Avoids the N+1 of one count query per menu.
+		const rows = await db
+			.selectFrom("_emdash_menus as m")
+			.leftJoin("_emdash_menu_items as i", "i.menu_id", "m.id")
+			.select(({ fn }) => [
+				"m.id",
+				"m.name",
+				"m.label",
+				"m.created_at",
+				"m.updated_at",
+				fn.count<number>("i.id").as("itemCount"),
+			])
+			.groupBy(["m.id", "m.name", "m.label", "m.created_at", "m.updated_at"])
+			.orderBy("m.name", "asc")
 			.execute();
 
-		const menusWithCounts = await Promise.all(
-			menus.map(async (menu) => {
-				const { count } = await db
-					.selectFrom("_emdash_menu_items")
-					.select(({ fn }) => fn.countAll<number>().as("count"))
-					.where("menu_id", "=", menu.id)
-					.executeTakeFirstOrThrow();
-
-				return {
-					...menu,
-					itemCount: count,
-				};
-			}),
-		);
+		// SQLite returns count as `number`, but some dialects (Postgres)
+		// return `string` from a count() aggregate. Normalize to number.
+		const menusWithCounts: MenuListItem[] = rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			label: row.label,
+			created_at: row.created_at,
+			updated_at: row.updated_at,
+			itemCount: typeof row.itemCount === "string" ? Number(row.itemCount) : row.itemCount,
+		}));
 
 		return { success: true, data: menusWithCounts };
 	} catch {
@@ -135,7 +142,7 @@ export async function handleMenuGet(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
+				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
 
@@ -173,7 +180,7 @@ export async function handleMenuUpdate(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
+				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
 
@@ -217,10 +224,14 @@ export async function handleMenuDelete(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
+				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
 
+		// D1 has FOREIGN KEYS off by default, so the migration's `ON DELETE
+		// CASCADE` won't fire there. Delete items explicitly first — this is
+		// idempotent on SQLite/Postgres where the cascade also fires.
+		await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
 		await db.deleteFrom("_emdash_menus").where("id", "=", menu.id).execute();
 
 		return { success: true, data: { deleted: true } };
@@ -441,6 +452,134 @@ export interface ReorderItem {
 	id: string;
 	parentId: string | null;
 	sortOrder: number;
+}
+
+// ---------------------------------------------------------------------------
+// Atomic-replace menu items (used by the MCP `menu_set_items` tool)
+// ---------------------------------------------------------------------------
+
+export interface MenuSetItemsInput {
+	label: string;
+	type: "custom" | "page" | "post" | "taxonomy" | "collection";
+	customUrl?: string;
+	referenceCollection?: string;
+	referenceId?: string;
+	titleAttr?: string;
+	target?: string;
+	cssClasses?: string;
+	/**
+	 * Index of the parent item in this same array. Must be strictly less
+	 * than the current item's index so the insert order resolves parents
+	 * before children. `undefined` makes the item top-level.
+	 */
+	parentIndex?: number;
+}
+
+/**
+ * Replace the entire set of items for a menu in one atomic transaction.
+ *
+ * Existing items are deleted and the new list is inserted in the order
+ * provided. `parentIndex` references resolve to actual parent IDs as the
+ * insert proceeds.
+ */
+export async function handleMenuSetItems(
+	db: Kysely<Database>,
+	menuName: string,
+	items: MenuSetItemsInput[],
+): Promise<ApiResult<{ name: string; itemCount: number }>> {
+	// Validate parentIndex references — must be strictly earlier so
+	// the array can be inserted in order with parents resolved first.
+	// Negative indices are out of range; only Zod's `.nonnegative()` at
+	// the MCP boundary catches them today, so guard explicitly here for
+	// any caller that bypasses Zod (REST routes, direct handler use).
+	for (let i = 0; i < items.length; i++) {
+		const item = items[i];
+		if (item?.parentIndex !== undefined) {
+			if (item.parentIndex < 0 || item.parentIndex >= i) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `item[${i}].parentIndex (${item.parentIndex}) must reference an earlier item`,
+					},
+				};
+			}
+		}
+	}
+
+	try {
+		// Sentinel for "menu not found" thrown from inside the transaction
+		// so the rollback fires before we return the structured error.
+		const notFoundSentinel = Symbol("menu-not-found");
+
+		try {
+			await withTransaction(db, async (trx) => {
+				// Existence check INSIDE the transaction so a concurrent
+				// menu_delete between lookup and write can't leave orphan
+				// items on D1 (FKs disabled by default).
+				const menu = await trx
+					.selectFrom("_emdash_menus")
+					.select("id")
+					.where("name", "=", menuName)
+					.executeTakeFirst();
+
+				if (!menu) {
+					throw notFoundSentinel;
+				}
+
+				await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
+
+				const insertedIds: string[] = [];
+				for (let i = 0; i < items.length; i++) {
+					const item = items[i];
+					if (!item) continue;
+					const id = ulid();
+					const parentId =
+						item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
+					await trx
+						.insertInto("_emdash_menu_items")
+						.values({
+							id,
+							menu_id: menu.id,
+							parent_id: parentId,
+							sort_order: i,
+							type: item.type,
+							reference_collection: item.referenceCollection ?? null,
+							reference_id: item.referenceId ?? null,
+							custom_url: item.customUrl ?? null,
+							label: item.label,
+							title_attr: item.titleAttr ?? null,
+							target: item.target ?? null,
+							css_classes: item.cssClasses ?? null,
+						})
+						.execute();
+					insertedIds.push(id);
+				}
+
+				await trx
+					.updateTable("_emdash_menus")
+					.set({ updated_at: new Date().toISOString() })
+					.where("id", "=", menu.id)
+					.execute();
+			});
+		} catch (error) {
+			if (error === notFoundSentinel) {
+				return {
+					success: false,
+					error: { code: "NOT_FOUND", message: `Menu '${menuName}' not found` },
+				};
+			}
+			throw error;
+		}
+
+		return { success: true, data: { name: menuName, itemCount: items.length } };
+	} catch (error) {
+		console.error("[emdash] handleMenuSetItems failed:", error);
+		return {
+			success: false,
+			error: { code: "MENU_SET_ITEMS_ERROR", message: "Failed to set menu items" },
+		};
+	}
 }
 
 /**

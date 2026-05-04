@@ -122,6 +122,7 @@ import {
 	reorderWidgetsBody,
 	updateWidgetBody,
 	widgetAreaSchema,
+	widgetAreaWithWidgetsAndCountSchema,
 	widgetAreaWithWidgetsSchema,
 	widgetSchema,
 } from "../schemas/widgets.js";
@@ -1581,7 +1582,9 @@ const widgetPaths = {
 					description: "Widget area list",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ items: z.array(widgetAreaSchema) })),
+							schema: successEnvelope(
+								z.object({ items: z.array(widgetAreaWithWidgetsAndCountSchema) }),
+							),
 						},
 					},
 				},

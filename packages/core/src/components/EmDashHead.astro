@@ -20,8 +20,9 @@ import {
 	generateBaseSeoContributions,
 	generateSiteSeoContributions,
 } from "../page/seo-contributions.js";
+import { renderSiteIdentity } from "../page/site-identity.js";
 import { getPageRuntime } from "../page/index.js";
-import { getSiteSetting } from "../settings/index.js";
+import { getSiteSettings } from "../settings/index.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -34,29 +35,32 @@ const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
 const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(page);
 
 let metadataHtml = "";
+let siteIdentityHtml = "";
 let fragmentsHtml = "";
 
 if (runtime) {
-	// Run independent async loads in parallel: site SEO settings (for
-	// search engine verification meta tags) and plugin page-metadata
-	// contributions. Plugin contributions come BEFORE site/base in the
-	// array, so resolvePageMetadata's first-wins dedup lets plugins
-	// override defaults.
+	// Run independent async loads in parallel: site settings (SEO meta
+	// tags + favicon) and plugin page-metadata contributions. Plugin
+	// contributions come BEFORE site/base in the contribution array,
+	// so resolvePageMetadata's first-wins dedup lets plugins override
+	// defaults.
 	//
-	// `getSiteSetting("seo")` is request-cached and — crucially — reads
-	// from `getSiteSettings()`'s cached batch when a parent template has
-	// already called it. So this is either a single-key query or free,
-	// not a second round-trip.
-	const [seoSettings, pluginContributions, fragments] = await Promise.all([
-		getSiteSetting("seo"),
+	// `getSiteSettings()` is request-cached and worker-cached, so when
+	// a parent template has already called it (the standard pattern in
+	// `Base.astro`), this is free. Otherwise it's a single batched
+	// query that supersedes any per-key fetch this component would
+	// otherwise have done.
+	const [siteSettings, pluginContributions, fragments] = await Promise.all([
+		getSiteSettings(),
 		runtime.collectPageMetadata(page),
 		runtime.collectPageFragments(page),
 	]);
 
-	const siteContributions = generateSiteSeoContributions(seoSettings);
+	const siteContributions = generateSiteSeoContributions(siteSettings.seo);
 	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
 	const resolved = resolvePageMetadata(allContributions);
 	metadataHtml = renderPageMetadata(resolved);
+	siteIdentityHtml = renderSiteIdentity({ favicon: siteSettings.favicon });
 	fragmentsHtml = renderFragments(fragments, "head");
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO
@@ -66,4 +70,5 @@ if (runtime) {
 ---
 
 <Fragment set:html={metadataHtml} />
+<Fragment set:html={siteIdentityHtml} />
 <Fragment set:html={fragmentsHtml} />

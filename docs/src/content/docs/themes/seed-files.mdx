@@ -70,7 +70,7 @@ Site-wide configuration values:
 }
 ```
 
-Settings are applied to the `options` table with the `site:` prefix. The Setup Wizard lets users override `title` and `tagline`.
+Settings are applied to the `options` table with the `site:` prefix. The Setup Wizard will prefill `title` and `tagline` from the seed file (if provided), allowing users to override them during initial setup.
 
 ## Collections
 
@@ -656,21 +656,17 @@ Validation checks:
 
 ## CLI Commands
 
+The seed file at `.emdash/seed.json`, `package.json#emdash.seed`, or `seed/seed.json` is inlined into the build and applied on the first request when the database is empty. To export an existing site's schema (and optionally its content) as a seed file:
+
 ```bash
-# Apply seed file
-npx emdash seed .emdash/seed.json
+# `mkdir -p` because .emdash/ may not exist yet on a fresh project
+mkdir -p .emdash
 
-# Apply without sample content
-npx emdash seed .emdash/seed.json --no-content
-
-# Validate only
-npx emdash seed .emdash/seed.json --validate
-
-# Export current schema as seed
-npx emdash export-seed > seed.json
+# Export the current schema as a seed file
+npx emdash export-seed > .emdash/seed.json
 
 # Export with content
-npx emdash export-seed --with-content > seed.json
+npx emdash export-seed --with-content > .emdash/seed.json
 ```
 
 ## Next Steps

@@ -13,7 +13,6 @@ import {
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	Check,
 	Eye,
 	Image as ImageIcon,
@@ -38,10 +37,12 @@ import type {
 	TranslationSummary,
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
@@ -84,7 +85,11 @@ export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
-	options?: Array<{ value: string; label: string }>;
+	/**
+	 * For `select` / `multiSelect`: the list of enum choices.
+	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+	 */
+	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
 }
@@ -270,6 +275,39 @@ export function ContentEditor({
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
+
+	// Synchronously reset form state when the underlying item changes (e.g. a
+	// translation switch where TanStack Router keeps ContentEditor mounted but
+	// swaps `item` for a different id). The post-render useEffect below also
+	// syncs item -> formData, but it runs *after* the first render with the new
+	// item, leaving children (notably PortableTextEditor, which freezes its
+	// initial content on mount) one render behind. This is the React-recommended
+	// "store info from previous renders" idiom -- see
+	// https://react.dev/reference/react/useState#storing-information-from-previous-renders
+	//
+	// We also reset lastSavedData here (not just in the post-render effect) so
+	// that isDirty stays false through the switch -- otherwise SaveButton would
+	// briefly flip from "Saved" -> "Save" -> "Saved" within a single tick.
+	const [previousItemId, setPreviousItemId] = React.useState<string | null>(item?.id ?? null);
+	if (item && item.id !== previousItemId) {
+		setPreviousItemId(item.id);
+		setFormData(item.data);
+		setSlug(item.slug || "");
+		setSlugTouched(!!item.slug);
+		setStatus(item.status);
+		const nextBylines =
+			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
+			[];
+		setInternalBylines(nextBylines);
+		setLastSavedData(
+			serializeEditorState({
+				data: item.data,
+				slug: item.slug || "",
+				bylines: nextBylines,
+			}),
+		);
+		pendingAutosaveStateRef.current = null;
+	}
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
@@ -520,10 +558,17 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto",
 			)}
 		>
-			{/* Header - show on hover in distraction-free mode */}
+			{/* Header - sticky to keep Save / Publish in view while users scroll
+			    long forms. Becomes a hover-revealed overlay in distraction-free
+			    mode. Negative margins cancel <main>'s p-6 so the header bg
+			    spans edge-to-edge of the scroll container.
+			    See packages/admin/src/components/EditorHeader.tsx for the
+			    standalone sticky-header pattern used by other editor pages. */}
 			<div
 				className={cn(
 					"flex flex-wrap items-center justify-between gap-y-2",
+					!isDistractionFree &&
+						"sticky top-0 z-30 -mx-6 -mt-6 px-6 pt-6 pb-3 mb-3 border-b border-kumo-line bg-kumo-base/95 supports-[backdrop-filter]:bg-kumo-base/80 backdrop-blur",
 					isDistractionFree &&
 						"opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10",
 				)}
@@ -537,7 +582,7 @@ export function ContentEditor({
 							aria-label={t`Back to ${collectionLabel} list`}
 							className={buttonVariants({ variant: "ghost", shape: "square" })}
 						>
-							<ArrowLeft className="h-5 w-5" aria-hidden="true" />
+							<ArrowPrev className="h-5 w-5" aria-hidden="true" />
 						</Link>
 					)}
 					{isDistractionFree && (
@@ -692,9 +737,16 @@ export function ContentEditor({
 					>
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => {
+								// Key by item id so all field editors remount cleanly when the
+								// underlying content item changes (e.g. switching translations).
+								// PortableTextEditor in particular freezes its initial content on
+								// mount; without this key, navigating between translations leaves
+								// the previous locale's body in the editor and silently overwrites
+								// the new translation on the next edit.
+								const fieldKey = `${name}:${item?.id ?? "new"}`;
 								const fieldEl = (
 									<FieldRenderer
-										key={name}
+										key={fieldKey}
 										name={name}
 										field={field}
 										value={formData[name]}
@@ -723,7 +775,10 @@ export function ContentEditor({
 									onSeoChange
 								) {
 									return (
-										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
+										<div
+											key={`${fieldKey}-with-seo`}
+											className="grid grid-cols-1 gap-6 md:grid-cols-2"
+										>
 											<div>{fieldEl}</div>
 											<div>
 												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
@@ -1033,8 +1088,9 @@ interface FieldRendererProps {
 	field: FieldDescriptor;
 	value: unknown;
 	onChange: (name: string, value: unknown) => void;
-	/** Callback when a portableText editor is ready */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback when a portableText editor is ready.
+	 * Called with the editor on mount, and with `null` on unmount. */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
@@ -1089,7 +1145,7 @@ function FieldRenderer({
 						label: string;
 						id: string;
 						required?: boolean;
-						options?: Array<{ value: string; label: string }>;
+						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 						minimal?: boolean;
 				  }>
 				| undefined;
@@ -1138,6 +1194,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					dir="auto"
 					className={
 						minimal
 							? "border-0 bg-transparent px-0 text-lg font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -1199,13 +1256,15 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
+					dir="auto"
 					placeholder={t`Enter markdown content...`}
 				/>
 			);
 
 		case "select": {
+			const selectOptions = Array.isArray(field.options) ? field.options : [];
 			const selectItems: Record<string, string> = {};
-			for (const opt of field.options ?? []) {
+			for (const opt of selectOptions) {
 				selectItems[opt.value] = opt.label;
 			}
 			return (
@@ -1216,7 +1275,7 @@ function FieldRenderer({
 					onValueChange={(v) => handleChange(v ?? "")}
 					items={selectItems}
 				>
-					{field.options?.map((opt) => (
+					{selectOptions.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
 							{opt.label}
 						</Select.Option>
@@ -1226,12 +1285,13 @@ function FieldRenderer({
 		}
 
 		case "multiSelect": {
+			const multiSelectOptions = Array.isArray(field.options) ? field.options : [];
 			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
 			return (
 				<fieldset>
 					<Label className={labelClass}>{label}</Label>
 					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-						{field.options?.map((opt) => {
+						{multiSelectOptions.map((opt) => {
 							const isChecked = selected.includes(opt.value);
 							return (
 								<Checkbox
@@ -1258,8 +1318,8 @@ function FieldRenderer({
 					label={label}
 					id={id}
 					type="datetime-local"
-					value={typeof value === "string" ? value : ""}
-					onChange={(e) => handleChange(e.target.value)}
+					value={toDatetimeLocalInputValue(value)}
+					onChange={(e) => handleChange(fromDatetimeLocalInputValue(e.target.value))}
 					required={field.required}
 				/>
 			);
@@ -1361,6 +1421,7 @@ function FieldRenderer({
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					dir="auto"
 				/>
 			);
 	}

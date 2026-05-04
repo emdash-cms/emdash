@@ -97,17 +97,10 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 
 		it("should leave slug null when no title or name is present", async () => {
+			// `data: {}` — no title, no name. Slug source isn't there, so the
+			// auto-generator has nothing to work with.
 			const result = await handleContentCreate(db, "post", {
-				data: { content: [{ _type: "block", children: [{ _type: "span", text: "hi" }] }] },
-			});
-
-			expect(result.success).toBe(true);
-			expect(result.data?.item.slug).toBeNull();
-		});
-
-		it("should leave slug null when title is not a string", async () => {
-			const result = await handleContentCreate(db, "post", {
-				data: { title: 42 },
+				data: {},
 			});
 
 			expect(result.success).toBe(true);

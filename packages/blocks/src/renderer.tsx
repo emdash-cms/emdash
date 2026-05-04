@@ -1,3 +1,4 @@
+import { AccordionBlockComponent } from "./blocks/accordion.js";
 import { ActionsBlockComponent } from "./blocks/actions.js";
 import { BannerBlockComponent } from "./blocks/banner.js";
 import { ChartBlockComponent } from "./blocks/chart.js";
@@ -5,6 +6,7 @@ import { CodeBlockComponent } from "./blocks/code.js";
 import { ColumnsBlockComponent } from "./blocks/columns.js";
 import { ContextBlockComponent } from "./blocks/context.js";
 import { DividerBlockComponent } from "./blocks/divider.js";
+import { EmptyBlockComponent } from "./blocks/empty.js";
 import { FieldsBlockComponent } from "./blocks/fields.js";
 import { FormBlockComponent } from "./blocks/form.js";
 import { HeaderBlockComponent } from "./blocks/header.js";
@@ -12,6 +14,7 @@ import { ImageBlockComponent } from "./blocks/image.js";
 import { MeterBlockComponent } from "./blocks/meter.js";
 import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
+import { TabBlockComponent } from "./blocks/tab.js";
 import { TableBlockComponent } from "./blocks/table.js";
 import type { Block, BlockInteraction } from "./types.js";
 
@@ -50,6 +53,12 @@ function renderBlock(
 			return <BannerBlockComponent block={block} />;
 		case "code":
 			return <CodeBlockComponent block={block} />;
+		case "tab":
+			return <TabBlockComponent block={block} onAction={onAction} />;
+		case "empty":
+			return <EmptyBlockComponent block={block} onAction={onAction} />;
+		case "accordion":
+			return <AccordionBlockComponent block={block} onAction={onAction} />;
 		default: {
 			const _exhaustive: never = block;
 			return null;

@@ -125,7 +125,7 @@ export function getWidgetComponents(): WidgetComponentDef[] {
 /**
  * Convert a widget row to the API type
  */
-function rowToWidget(row: WidgetRow): Widget {
+export function rowToWidget(row: WidgetRow): Widget {
 	const widget: Widget = {
 		id: row.id,
 		type: row.type,

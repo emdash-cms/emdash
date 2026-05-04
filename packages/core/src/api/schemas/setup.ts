@@ -35,3 +35,11 @@ export const setupAdminBody = z.object({
 export const setupAdminVerifyBody = z.object({
 	credential: registrationCredential,
 });
+
+export const atprotoLoginBody = z.object({
+	handle: z.string().trim().min(1),
+});
+
+export const setupAtprotoAdminBody = z.object({
+	handle: z.string().trim().min(1),
+});

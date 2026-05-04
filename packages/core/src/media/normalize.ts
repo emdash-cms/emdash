@@ -11,7 +11,7 @@
 
 import type { MediaProvider, MediaProviderItem, MediaValue } from "./types.js";
 
-const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
+export const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
 const URL_PATTERN = /^https?:\/\//;
 
 /**

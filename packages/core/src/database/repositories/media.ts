@@ -202,20 +202,17 @@ export class MediaRepository {
 			.orderBy("id", "desc")
 			.limit(limit + 1);
 
-		// Handle cursor-based pagination
+		// Handle cursor-based pagination — throws on invalid cursor.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue: createdAt, id: cursorId } = decoded;
+			const { orderValue: createdAt, id: cursorId } = decodeCursor(options.cursor);
 
-				// Keyset pagination: get items where (created_at, id) < cursor
-				query = query.where((eb) =>
-					eb.or([
-						eb("created_at", "<", createdAt),
-						eb.and([eb("created_at", "=", createdAt), eb("id", "<", cursorId)]),
-					]),
-				);
-			}
+			// Keyset pagination: get items where (created_at, id) < cursor
+			query = query.where((eb) =>
+				eb.or([
+					eb("created_at", "<", createdAt),
+					eb.and([eb("created_at", "=", createdAt), eb("id", "<", cursorId)]),
+				]),
+			);
 		}
 
 		if (options.mimeType) {

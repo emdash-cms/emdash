@@ -40,8 +40,10 @@ test.describe("Social Settings", () => {
 			await expect(page.locator(`label:has-text("${label}")`)).toBeVisible({ timeout: 5000 });
 		}
 
-		// Save button should exist
-		await expect(page.locator("button", { hasText: "Save Social Links" })).toBeVisible();
+		// Save button should exist. Two are rendered (sticky header + bottom-of-form,
+		// both submit the same form via `form="social-settings-form"`); use .first()
+		// to avoid Playwright strict-mode locator violations.
+		await expect(page.locator("button", { hasText: "Save Social Links" }).first()).toBeVisible();
 	});
 
 	test("saves a social link and persists across reload", async ({ admin, page }) => {
@@ -64,8 +66,9 @@ test.describe("Social Settings", () => {
 			{ timeout: 15000 },
 		);
 
-		// Click save
-		await page.locator("button", { hasText: "Save Social Links" }).click();
+		// Click save. Two buttons match (sticky header + bottom-of-form); either
+		// submits the same form, so use .first() for strict-mode compatibility.
+		await page.locator("button", { hasText: "Save Social Links" }).first().click();
 		await saveResponse;
 
 		// Success banner should appear
@@ -114,8 +117,10 @@ test.describe("SEO Settings", () => {
 			await expect(page.locator(`label:has-text("${label}")`)).toBeVisible({ timeout: 5000 });
 		}
 
-		// Save button
-		await expect(page.locator("button", { hasText: "Save SEO Settings" })).toBeVisible();
+		// Save button. Two are rendered (sticky header + bottom-of-form, both submit
+		// the same form via `form="seo-settings-form"`); use .first() to avoid
+		// Playwright strict-mode locator violations.
+		await expect(page.locator("button", { hasText: "Save SEO Settings" }).first()).toBeVisible();
 	});
 
 	test("saves SEO settings and persists across reload", async ({ admin, page }) => {
@@ -141,8 +146,9 @@ test.describe("SEO Settings", () => {
 			{ timeout: 15000 },
 		);
 
-		// Click save
-		await page.locator("button", { hasText: "Save SEO Settings" }).click();
+		// Click save. Two buttons match (sticky header + bottom-of-form); either
+		// submits the same form, so use .first() for strict-mode compatibility.
+		await page.locator("button", { hasText: "Save SEO Settings" }).first().click();
 		await saveResponse;
 
 		// Success banner

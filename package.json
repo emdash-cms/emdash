@@ -53,6 +53,9 @@
 		"typescript": "6.0.0-beta"
 	},
 	"packageManager": "pnpm@10.28.0",
+	"engines": {
+		"node": ">=22"
+	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"better-sqlite3",

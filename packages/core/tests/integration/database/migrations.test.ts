@@ -8,6 +8,7 @@ import {
 	MIGRATION_COUNT,
 } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
+import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("Database Migrations (Integration)", () => {
 	let db: Kysely<Database>;
@@ -103,6 +104,24 @@ describe("Database Migrations (Integration)", () => {
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
 		// Should still only have the same number of migration records
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
+	});
+
+	it("should re-run migrations 034 and 035 when schema changes were partially applied", async () => {
+		await db.destroy();
+		db = await setupTestDatabaseWithCollections();
+
+		await db
+			.deleteFrom("_emdash_migrations")
+			.where("name", "in", ["034_published_at_index", "035_bounded_404_log"])
+			.execute();
+
+		const { applied } = await runMigrations(db);
+
+		expect(applied).toContain("034_published_at_index");
+		expect(applied).toContain("035_bounded_404_log");
+
+		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 

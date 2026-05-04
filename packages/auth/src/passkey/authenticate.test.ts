@@ -23,7 +23,7 @@ const credential: Credential = {
 const config = {
 	rpName: "Test Site",
 	rpId: "localhost",
-	origin: "http://localhost:4321",
+	origins: ["http://localhost:4321"],
 };
 
 function createAdapter(): AuthAdapter {
@@ -46,7 +46,10 @@ function base64url(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString("base64url");
 }
 
-function createValidAssertion() {
+function createValidAssertion(opts: { rpId?: string; origin?: string } = {}) {
+	const rpId = opts.rpId ?? config.rpId;
+	const origin = opts.origin ?? config.origins[0];
+	if (!origin) throw new Error("origin must be defined for createValidAssertion");
 	const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
 	const jwk = publicKey.export({ format: "jwk" });
 	if (typeof jwk.x !== "string" || typeof jwk.y !== "string") {
@@ -63,10 +66,10 @@ function createValidAssertion() {
 		JSON.stringify({
 			type: "webauthn.get",
 			challenge,
-			origin: config.origin,
+			origin,
 		}),
 	);
-	const rpIdHash = createHash("sha256").update(config.rpId).digest();
+	const rpIdHash = createHash("sha256").update(rpId).digest();
 	const signatureCounter = Buffer.alloc(4);
 	signatureCounter.writeUInt32BE(1);
 	const authenticatorData = Buffer.concat([rpIdHash, Buffer.from([0x01]), signatureCounter]);
@@ -136,5 +139,75 @@ describe("authenticateWithPasskey", () => {
 			expect(error).toBeInstanceOf(PasskeyAuthenticationError);
 			expect(error).toMatchObject({ code: "user_not_found" });
 		}
+	});
+
+	it("rejects an origin that is not in the accepted list", async () => {
+		// Single-origin config; assertion arrives from a different subdomain.
+		const singleOriginConfig = {
+			rpName: "Test Site",
+			rpId: "example.com",
+			origins: ["https://example.com"],
+		};
+		const {
+			credential: validCredential,
+			response,
+			challengeStore,
+		} = createValidAssertion({
+			rpId: "example.com",
+			origin: "https://preview.example.com",
+		});
+		const adapter = {
+			getCredentialById: vi.fn(async () => validCredential),
+			updateCredentialCounter: vi.fn(async () => undefined),
+			getUserById: vi.fn(async () => ({ id: "user_1" })),
+		} as unknown as AuthAdapter;
+
+		try {
+			await authenticateWithPasskey(singleOriginConfig, adapter, response, challengeStore);
+			expect.fail("Expected origin rejection");
+		} catch (error) {
+			expect(error).toBeInstanceOf(PasskeyAuthenticationError);
+			expect(error).toMatchObject({ code: "invalid_origin" });
+			expect((error as PasskeyAuthenticationError).message).toContain(
+				"https://preview.example.com",
+			);
+		}
+	});
+
+	it("accepts an assertion from a subdomain when its origin is listed under a shared rpId", async () => {
+		// Reproduces emdash-cms/emdash#393 follow-up: apex + preview share rpId,
+		// passkey was bound to the apex but the user is hitting preview.
+		const multiOriginConfig = {
+			rpName: "Test Site",
+			rpId: "example.com",
+			origins: ["https://example.com", "https://preview.example.com"],
+		};
+		const {
+			credential: validCredential,
+			response,
+			challengeStore,
+		} = createValidAssertion({
+			rpId: "example.com",
+			origin: "https://preview.example.com",
+		});
+		const adapter = {
+			getCredentialById: vi.fn(async () => validCredential),
+			updateCredentialCounter: vi.fn(async () => undefined),
+			getUserById: vi.fn(async () => ({
+				id: "user_1",
+				email: "u@example.com",
+				name: null,
+				role: "admin",
+			})),
+		} as unknown as AuthAdapter;
+
+		// Should not throw — origin is in the accepted list.
+		const user = await authenticateWithPasskey(
+			multiOriginConfig,
+			adapter,
+			response,
+			challengeStore,
+		);
+		expect(user).toMatchObject({ id: "user_1" });
 	});
 });

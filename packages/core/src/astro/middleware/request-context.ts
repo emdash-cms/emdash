@@ -12,6 +12,8 @@
 
 import { defineMiddleware } from "astro:middleware";
 
+import { resolveSecretsCached } from "#config/secrets.js";
+
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
 import { renderToolbar } from "../../visual-editing/toolbar.js";
@@ -79,17 +81,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Astro context includes currentLocale when i18n is configured
 	const locale = (context as { currentLocale?: string }).currentLocale;
 
-	// Verify preview token if present
+	// Verify preview token if present.
+	// The preview secret is resolved via `resolveSecretsCached`: env wins,
+	// otherwise a DB-stored value is read (or generated on first need).
+	// `emdash.db` is set by the runtime middleware which runs first; the
+	// only path where it's missing is a runtime-init failure.
 	let preview: { collection: string; id: string } | undefined;
 	if (hasPreviewToken) {
-		const secret = import.meta.env.EMDASH_PREVIEW_SECRET || import.meta.env.PREVIEW_SECRET || "";
-
-		if (secret) {
-			const result = await verifyPreviewToken({ url, secret });
+		const db = context.locals.emdash?.db;
+		if (db) {
+			const { previewSecret } = await resolveSecretsCached(db);
+			const result = await verifyPreviewToken({ url, secret: previewSecret });
 			if (result.valid) {
 				const { collection, id } = parseContentId(result.payload.cid);
 				preview = { collection, id };
 			}
+		} else {
+			console.warn(
+				"[emdash] Preview token present but EmDash runtime not initialized; preview disabled.",
+			);
 		}
 	}
 

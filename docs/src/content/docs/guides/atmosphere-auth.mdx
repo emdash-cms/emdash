@@ -1,0 +1,155 @@
+---
+title: Atmosphere Login
+description: Sign in to EmDash with an Atmosphere account — the open-network identity behind Bluesky and the wider AT Protocol ecosystem.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+The `@emdash-cms/auth-atproto` package adds an [**Atmosphere account**](https://atmosphereaccount.com) login option to EmDash. An Atmosphere account is a portable, user-owned identity used across [Bluesky](https://bsky.app) and other apps in the AT Protocol network. Users sign in with their handle (e.g. `alice.bsky.social`) and authenticate at their own provider — EmDash never sees a password.
+
+This is a good fit when:
+
+- Your contributors already have an Atmosphere account.
+- You want to gate an org-controlled domain (`*.yourcompany.com`) without managing OAuth apps or invites.
+- You're building something that's part of the wider Atmosphere and want consistent identity with the rest of your stack.
+
+## Install
+
+```bash
+pnpm add @emdash-cms/auth-atproto
+```
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			authProviders: [atproto()],
+			server: {
+				host: "127.0.0.1", // required for local dev — see "Local development" below
+			},
+		}),
+	],
+});
+```
+
+That's enough to put **Sign in with Atmosphere** on the login page and the setup wizard. With no allowlist configured, the first user becomes Admin and self-signup is closed for everyone after that — see [allowlists](#allowlists) to open it up.
+
+No environment variables, client secret, or OAuth-app registration is required. The provider is a public OAuth client and serves its own metadata document at `/.well-known/atproto-client-metadata.json`.
+
+## Configuration
+
+```js
+atproto({
+	allowedDIDs: ["did:plc:abc123..."],
+	allowedHandles: ["*.example.com", "alice.bsky.social"],
+	defaultRole: 30, // Author
+});
+```
+
+| Option           | Type       | Default                   | Description                                                                  |
+| ---------------- | ---------- | ------------------------- | ---------------------------------------------------------------------------- |
+| `allowedDIDs`    | `string[]` | none (allow all on first) | DID allowlist. DIDs are permanent and can't be spoofed.                      |
+| `allowedHandles` | `string[]` | none (allow all on first) | Handle allowlist. Supports wildcards (`*.example.com`).                      |
+| `defaultRole`    | `number`   | `10` (Subscriber)         | Role assigned to allowed users after the first. First user is always Admin. |
+
+The full role ladder is documented in the main [authentication guide](/guides/authentication/#user-roles).
+
+### Allowlists
+
+If neither `allowedDIDs` nor `allowedHandles` is set, only the **first user** can sign up — anyone else attempting to log in will be rejected with `signup_not_allowed`. Existing users can always sign back in regardless of the allowlist (so removing yourself from the list won't lock you out, but won't let new people in either).
+
+When at least one allowlist is configured, a user is admitted if **either** list matches:
+
+- **DID match.** The user's DID is in `allowedDIDs`. DIDs are cryptographic identifiers that can't be moved or impersonated, so this is the strictest form of gating.
+- **Handle match.** The user's handle matches an entry in `allowedHandles`, exactly or via a leading-wildcard pattern (`*.example.com` matches `alice.example.com` and `bob.team.example.com`).
+
+Handle allowlists are safe even though handles are mutable. Before admitting a user via a handle match, EmDash independently resolves the handle's DNS/HTTP record and verifies that it points at the same DID the provider claims. A misbehaving provider can't simply assert it owns `you@yourcompany.com`.
+
+<Aside>
+	Use `allowedDIDs` for individuals and `allowedHandles` with a wildcard for org-level access. The
+	two are additive — list specific external DIDs alongside a wildcard for staff handles.
+</Aside>
+
+### Default role
+
+Allowed users land on the role you set in `defaultRole`. Only the first user — the one who completes setup — is forced to Admin. There's no group/role mapping for Atmosphere accounts; if you need finer-grained roles, change the user's role from **Settings → Users** after they've logged in once.
+
+## First-user setup
+
+When you start a fresh site with the Atmosphere provider configured, the setup wizard offers it as an option for creating the initial admin account.
+
+<Steps>
+
+1. Visit `/_emdash/admin`. The setup wizard takes you through site title, tagline, and admin email.
+
+2. On the "Create admin account" step, choose **Atmosphere** and enter your handle (e.g. `alice.bsky.social`).
+
+3. You'll be redirected to your account's authorization page, where you sign in however your provider supports — password, passkey, or whatever else.
+
+4. After approval you're sent back to EmDash, the admin user is created with role 50 (Admin), and the email you entered in step 1 is stored against your account.
+
+</Steps>
+
+The same flow runs for every subsequent login — handle in, redirect to your provider, redirect back, you're signed in.
+
+## Local development
+
+The AT Protocol OAuth profile requires loopback redirect URIs to use an **IP literal** (`127.0.0.1` or `[::1]`), not `localhost`. EmDash transparently rewrites `://localhost` to `://127.0.0.1` when generating the redirect URI, but that means your dev session needs to start on `127.0.0.1` too — otherwise the session cookie set on `localhost` won't be visible after the redirect lands you on `127.0.0.1`.
+
+Astro's dev server is Vite's dev server, and Vite binds to `localhost` by default. Tell it to listen on the loopback IP as well:
+
+```js title="astro.config.mjs"
+export default defineConfig({
+	server: {
+		host: "127.0.0.1",
+	},
+	// ...
+});
+```
+
+Then open `http://127.0.0.1:4321/_emdash/admin` for the whole flow.
+
+<Aside type="caution">
+	If you stay on `http://localhost:4321`, the round-trip to your provider succeeds but you arrive
+	back on `127.0.0.1` with no session cookie and bounce back to the login page. This is a
+	dev-server-binding issue, not a bug in the auth flow.
+</Aside>
+
+## Production
+
+There's nothing extra to configure for production. The provider serves its own client metadata at:
+
+```
+https://your-site.example.com/.well-known/atproto-client-metadata.json
+```
+
+Authorization servers fetch this URL during the login dance to verify the client's redirect URI. Make sure your deployment's site URL is reachable on the public internet over HTTPS — internal-only deployments behind a VPN won't be able to complete a login because the user's authorization server can't fetch the metadata document.
+
+If you run EmDash behind a TLS-terminating reverse proxy, set [`siteUrl`](/reference/configuration#siteurl) so EmDash builds the right redirect URI. Without it, requests look like `http://internal-host:4321` and the metadata won't match what the auth server sees.
+
+## Troubleshooting
+
+### "Account is not in the allowlist"
+
+The handle or DID you signed in with isn't in `allowedDIDs` / `allowedHandles`. Check the wildcard pattern (it must start with `*.`) and remember the handle match is verified against DNS/HTTP — if the handle's DID record doesn't currently resolve to the same DID the provider returned, the match is rejected.
+
+### "Self-signup is not allowed"
+
+You hit the callback successfully but no allowlist is configured and you aren't the first user. Either add yourself to `allowedDIDs`/`allowedHandles`, or have an existing admin invite you so the user already exists when you log in.
+
+### Login redirects to the login page with no error
+
+This is almost always the loopback-cookie issue described in [Local development](#local-development). Open the admin at `http://127.0.0.1:4321` (after setting `server.host: "127.0.0.1"`) and try again.
+
+### Handle resolution fails for a self-hosted handle
+
+The provider verifies handles by racing DNS-over-HTTPS (Cloudflare's DoH endpoint) and an HTTP `/.well-known/atproto-did` lookup. Self-hosted handles need at least one of:
+
+- A `_atproto.<handle>` DNS TXT record containing `did=<your-did>`, or
+- An `https://<handle>/.well-known/atproto-did` file containing the DID.
+
+If both methods fail, the handle match is rejected even when the underlying account is valid. DIDs in `allowedDIDs` aren't affected — they're matched directly.

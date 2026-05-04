@@ -18,13 +18,23 @@ Preview is **implicit**. Your template code doesn't need to handle tokens or pas
 
 ## Setting Up Preview
 
-Add a preview secret to your environment:
+Preview works out of the box — EmDash auto-generates a per-site preview
+secret on first use and stores it in the database. No env vars required
+for the common case.
+
+Set `EMDASH_PREVIEW_SECRET` in your environment only if you need to:
+
+- Share the secret across multiple processes (e.g. a separate preview
+  Worker that signs URLs and sends them to your main site for verification)
+- Pin the secret to a value you control for compliance/audit reasons
+- Migrate to a known value when restoring from a backup
 
 ```bash title=".env"
+# Optional: override the auto-generated secret
 EMDASH_PREVIEW_SECRET="your-random-secret-key-here"
 ```
 
-Generate a secure random string. This secret signs and verifies preview tokens.
+If set, the env value wins over the DB-stored value.
 
 That's it. Your existing templates work with preview automatically:
 
@@ -62,7 +72,8 @@ The `isPreview` flag is `true` when draft content is being served via a valid pr
 
 ## Generating Preview URLs
 
-Use `getPreviewUrl()` to create preview links:
+Use `getPreviewUrl()` to create preview links. The function takes the
+secret as an explicit argument:
 
 ```ts
 import { getPreviewUrl } from "emdash";
@@ -75,6 +86,13 @@ const previewUrl = await getPreviewUrl({
 });
 // Returns: /posts/my-draft-post?_preview=eyJjaWQ...
 ```
+
+When `EMDASH_PREVIEW_SECRET` isn't set, EmDash auto-generates and stores
+a per-site secret in the database for token verification. The
+`getPreviewUrl()` template helper still requires you to pass the secret
+explicitly — pin your env var if you call it from page templates. Most
+sites use the admin UI's "Generate preview link" button instead, which
+goes through the API and uses the resolved secret automatically.
 
 With a base URL for absolute links:
 
@@ -99,6 +117,38 @@ const blogUrl = await getPreviewUrl({
 });
 // Returns: /blog/my-draft-post?_preview=eyJjaWQ...
 ```
+
+### Locale-aware paths
+
+`pathPattern` also supports a `{locale}` placeholder. Pass an empty `locale`
+when the entry is in the default locale and `prefixDefaultLocale` is `false`;
+adjacent slashes left by the empty value are collapsed automatically.
+
+```ts
+await getPreviewUrl({
+	collection: "posts",
+	id: "hello",
+	secret,
+	pathPattern: "/{locale}/{id}",
+	locale: "pt-br",
+});
+// Returns: /pt-br/hello?_preview=...
+
+await getPreviewUrl({
+	collection: "posts",
+	id: "hello",
+	secret,
+	pathPattern: "/{locale}/{id}",
+	locale: "", // default locale, no prefix
+});
+// Returns: /hello?_preview=...
+```
+
+The admin's "View on site" link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`,
+which reads the entry's locale, looks up the site's i18n config and supplies
+the `locale` automatically. To change the default pattern used by that
+endpoint, set `EMDASH_PREVIEW_PATH_PATTERN` (e.g. `/{locale}/{id}`) — request
+bodies still win when they include their own `pathPattern`.
 
 ## Token Expiration
 
@@ -298,7 +348,8 @@ Generate a preview URL with a signed token.
 - `secret` — Signing secret (string)
 - `expiresIn` — Token validity duration (default: `"1h"`)
 - `baseUrl` — Optional base URL for absolute links
-- `pathPattern` — URL pattern with `{collection}` and `{id}` placeholders (default: `"/{collection}/{id}"`)
+- `pathPattern` — URL pattern with `{collection}`, `{id}` and `{locale}` placeholders (default: `"/{collection}/{id}"`)
+- `locale` — Value substituted for `{locale}`. Empty string omits the locale segment (slashes are collapsed).
 
 **Returns:** `Promise<string>`
 

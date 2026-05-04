@@ -125,7 +125,12 @@ export function canActOnOwn(
 	anyPermission: Permission,
 ): boolean {
 	if (!user) return false;
-	if (user.id === ownerId) {
+	// Defense in depth: an empty-string ownerId means "no recorded owner"
+	// (e.g. seed-imported content with `authorId: null` extracted to ""),
+	// not "owned by an unauthenticated user". If both the user.id and the
+	// ownerId are "", treating them as a match would accidentally grant
+	// edit-own — fall through to the any-permission check instead.
+	if (ownerId !== "" && user.id === ownerId) {
 		return hasPermission(user, ownPermission);
 	}
 	return hasPermission(user, anyPermission);
@@ -179,6 +184,10 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
 	"media:write": Role.CONTRIBUTOR,
 	"schema:read": Role.EDITOR,
 	"schema:write": Role.ADMIN,
+	"taxonomies:manage": Role.EDITOR,
+	"menus:manage": Role.EDITOR,
+	"settings:read": Role.EDITOR,
+	"settings:manage": Role.ADMIN,
 	admin: Role.ADMIN,
 };
 

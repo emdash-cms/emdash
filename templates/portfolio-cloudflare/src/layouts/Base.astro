@@ -19,7 +19,6 @@ const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription = settings?.tagline || "Design & Development";
 const siteLogo = (settings?.logo as any)?.url ? settings.logo as
 	{ mediaId: string; alt?: string; url: string } : null;
-const siteFavicon = (settings?.favicon as any)?.url ?? null;
 
 const menu = await getMenu("primary");
 
@@ -43,7 +42,6 @@ const pageCtx = createPublicPageContext({
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
-		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
 		<Font cssVariable="--font-serif" preload />
 		<link

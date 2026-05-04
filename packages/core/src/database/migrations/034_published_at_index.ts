@@ -10,7 +10,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		const table = { name: tableName };
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${table.name}_deleted_published_id`)}
+			CREATE INDEX IF NOT EXISTS ${sql.ref(`idx_${table.name}_deleted_published_id`)}
 			ON ${sql.ref(table.name)} (deleted_at, published_at DESC, id DESC)
 		`.execute(db);
 	}

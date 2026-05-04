@@ -20,6 +20,7 @@ import { resolve, join, extname, basename } from "node:path";
 import { defineCommand } from "citty";
 import consola from "consola";
 
+import { CAPABILITY_RENAMES, isDeprecatedCapability } from "../../plugins/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import {
 	fileExists,
@@ -38,7 +39,7 @@ import {
 	ICON_SIZE,
 } from "./bundle-utils.js";
 
-const TS_EXT_RE = /\.tsx?$/;
+const TS_EXT_RE = /\.(tsx?|[mc]?js)$/;
 const SLASH_RE = /\//g;
 const LEADING_AT_RE = /^@/;
 const emdash_SCOPE_RE = /^@emdash-cms\//;
@@ -163,6 +164,8 @@ export const bundleCommand = defineCommand({
 		const tmpDir = join(pluginDir, ".emdash-bundle-tmp");
 
 		try {
+			// Clean up any stale temp directory from a previous failed run
+			await rm(tmpDir, { recursive: true, force: true });
 			await mkdir(tmpDir, { recursive: true });
 
 			// Build main entry to extract manifest.
@@ -522,18 +525,37 @@ export const bundleCommand = defineCommand({
 				}
 			}
 
-			// Check capabilities warnings
-			if (manifest.capabilities.includes("network:fetch:any")) {
+			// Check capabilities warnings — use canonical names. Deprecated
+			// names are accepted (and warned about separately below) so we
+			// also check the legacy aliases here for the duration of the
+			// deprecation window.
+			const declaresUnrestricted =
+				manifest.capabilities.includes("network:request:unrestricted") ||
+				manifest.capabilities.includes("network:fetch:any");
+			const declaresHostRestricted =
+				manifest.capabilities.includes("network:request") ||
+				manifest.capabilities.includes("network:fetch");
+			if (declaresUnrestricted) {
 				consola.warn(
-					"Plugin declares unrestricted network access (network:fetch:any) — it can make requests to any host",
+					"Plugin declares unrestricted network access (network:request:unrestricted) — it can make requests to any host",
 				);
-			} else if (
-				manifest.capabilities.includes("network:fetch") &&
-				manifest.allowedHosts.length === 0
-			) {
+			} else if (declaresHostRestricted && manifest.allowedHosts.length === 0) {
 				consola.warn(
-					"Plugin declares network:fetch capability but no allowedHosts — all fetch requests will be blocked",
+					"Plugin declares network:request capability but no allowedHosts — all requests will be blocked",
 				);
+			}
+
+			// Warn for each deprecated capability used. The warning points
+			// to the new name so the fix is mechanical. We continue (not
+			// error) here — the hard fail lives in `publish` so authors
+			// can still build and test locally.
+			const deprecatedCaps = manifest.capabilities.filter(isDeprecatedCapability);
+			if (deprecatedCaps.length > 0) {
+				consola.warn("Plugin uses deprecated capability names. Rename them before publishing:");
+				for (const cap of deprecatedCaps) {
+					const replacement = CAPABILITY_RENAMES[cap];
+					consola.warn(`  ${cap} → ${replacement}`);
+				}
 			}
 
 			// Check for features that won't work in sandboxed mode

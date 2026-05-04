@@ -27,7 +27,6 @@ import {
 	ListNumbers,
 	Copy,
 	Trash,
-	CaretRight,
 	type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
@@ -36,6 +35,7 @@ import { createPortal } from "react-dom";
 
 import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 
 /**
  * Block transform options
@@ -250,7 +250,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
 						onClick={() => setShowTransforms(false)}
 					>
-						<CaretRight className="h-4 w-4 rotate-180" />
+						<CaretPrev className="h-4 w-4" />
 						<span>Back</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
@@ -278,7 +278,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 							<Paragraph className="h-4 w-4 text-kumo-subtle" />
 							<span>Turn into</span>
 						</span>
-						<CaretRight className="h-4 w-4 text-kumo-subtle" />
+						<CaretNext className="h-4 w-4 text-kumo-subtle" />
 					</button>
 					<button
 						type="button"

@@ -27,4 +27,4 @@ export { RedirectRepository } from "./redirect.js";
 export { BylineRepository } from "./byline.js";
 export type { CreateBylineInput, UpdateBylineInput, ContentBylineInput } from "./byline.js";
 export type * from "./types.js";
-export { EmDashValidationError, encodeCursor, decodeCursor } from "./types.js";
+export { EmDashValidationError, InvalidCursorError, encodeCursor, decodeCursor } from "./types.js";

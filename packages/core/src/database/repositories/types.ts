@@ -1,5 +1,15 @@
 import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
 
+/**
+ * Hard cap on cursor length. Cursors we issue are short JSON-in-base64
+ * blobs; a real cursor is well under 200 chars. This guards against
+ * malicious callers passing megabyte-sized strings to force the base64
+ * decoder to allocate (decodeBase64 is O(N) in input size). The MCP and
+ * REST schemas also clamp at 2048 — this 4096 cap is a defense-in-depth
+ * floor inside the repository helpers.
+ */
+const MAX_CURSOR_LENGTH = 4096;
+
 export interface CreateContentInput {
 	type: string;
 	slug?: string | null;
@@ -87,17 +97,45 @@ export function encodeCursor(orderValue: string, id: string): string {
 	return encodeBase64(JSON.stringify({ orderValue, id }));
 }
 
-/** Decode a cursor to order value + id. Returns null if invalid. */
-export function decodeCursor(cursor: string): { orderValue: string; id: string } | null {
-	try {
-		const parsed = JSON.parse(decodeBase64(cursor));
-		if (typeof parsed.orderValue === "string" && typeof parsed.id === "string") {
-			return parsed;
-		}
-		return null;
-	} catch {
-		return null;
+/**
+ * Thrown when a pagination cursor cannot be decoded.
+ *
+ * Repository callers should let this propagate; handler catch blocks
+ * map it to a structured `INVALID_CURSOR` error so client pagination
+ * bugs surface immediately rather than silently re-fetching the first
+ * page.
+ */
+export class InvalidCursorError extends Error {
+	constructor(cursor: string) {
+		const display = cursor.length > 50 ? `${cursor.slice(0, 47)}...` : cursor;
+		super(`Invalid pagination cursor: ${display}`);
+		this.name = "InvalidCursorError";
 	}
+}
+
+/**
+ * Decode a cursor to order value + id.
+ *
+ * Throws `InvalidCursorError` if the cursor is empty, not valid base64,
+ * not valid JSON, or doesn't contain string `orderValue` and `id` fields.
+ */
+export function decodeCursor(cursor: string): { orderValue: string; id: string } {
+	if (!cursor) throw new InvalidCursorError(cursor);
+	if (cursor.length > MAX_CURSOR_LENGTH) throw new InvalidCursorError(cursor);
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(decodeBase64(cursor));
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+	if (parsed === null || typeof parsed !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+	const candidate = parsed as { orderValue?: unknown; id?: unknown };
+	if (typeof candidate.orderValue !== "string" || typeof candidate.id !== "string") {
+		throw new InvalidCursorError(cursor);
+	}
+	return { orderValue: candidate.orderValue, id: candidate.id };
 }
 
 export interface ContentItem {
@@ -121,6 +159,17 @@ export interface ContentItem {
 	translationGroup: string | null;
 	/** SEO metadata — only populated for collections with `has_seo` enabled */
 	seo?: ContentSeo;
+	/**
+	 * For collections that support `revisions`: when a draft revision exists,
+	 * `data` reflects the unsaved draft and `liveData` carries the currently-
+	 * published values. When no draft exists, `liveData` is undefined.
+	 *
+	 * Hydrated by `EmDashRuntime.hydrateDraftData()` — repositories themselves
+	 * never set this field; it's purely a runtime-overlay concept that gives
+	 * agents a clear picture of "draft vs. live" without re-fetching the
+	 * revision history.
+	 */
+	liveData?: Record<string, unknown>;
 }
 
 export class EmDashValidationError extends Error {

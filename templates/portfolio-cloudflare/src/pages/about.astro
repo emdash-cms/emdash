@@ -5,9 +5,7 @@ import Base from "../layouts/Base.astro";
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "about");
 
-try {
-	Astro.cache.set(cacheHint);
-} catch {}
+Astro.cache.set(cacheHint);
 ---
 
 <Base title="About" description="Learn more about who we are and what we do.">

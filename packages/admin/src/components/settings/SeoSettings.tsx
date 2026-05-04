@@ -6,18 +6,14 @@
 
 import { Button, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	FloppyDisk,
-	CheckCircle,
-	WarningCircle,
-	MagnifyingGlass,
-} from "@phosphor-icons/react";
+import { FloppyDisk, CheckCircle, WarningCircle, MagnifyingGlass } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
+import { ArrowPrev } from "../ArrowIcons.js";
+import { EditorHeader } from "../EditorHeader";
 
 export function SeoSettings() {
 	const { t } = useLingui();
@@ -81,7 +77,7 @@ export function SeoSettings() {
 				<div className="flex items-center gap-3">
 					<Link to="/settings">
 						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowPrev className="h-4 w-4" />
 						</Button>
 					</Link>
 					<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
@@ -95,15 +91,28 @@ export function SeoSettings() {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowLeft className="h-4 w-4" />
+			{/* Sticky header — see GeneralSettings for the same pattern. */}
+			<EditorHeader
+				leading={
+					<Link to="/settings">
+						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
+							<ArrowPrev className="h-4 w-4" />
+						</Button>
+					</Link>
+				}
+				actions={
+					<Button
+						type="submit"
+						form="seo-settings-form"
+						disabled={saveMutation.isPending}
+						icon={<FloppyDisk />}
+					>
+						{saveMutation.isPending ? t`Saving...` : t`Save SEO Settings`}
 					</Button>
-				</Link>
-				<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
-			</div>
+				}
+			>
+				<h1 className="text-2xl font-bold truncate">{t`SEO Settings`}</h1>
+			</EditorHeader>
 
 			{/* Status banner */}
 			{saveStatus && (
@@ -123,7 +132,7 @@ export function SeoSettings() {
 				</div>
 			)}
 
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form id="seo-settings-form" onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-center gap-2 mb-4">
 						<MagnifyingGlass className="h-5 w-5 text-kumo-subtle" />

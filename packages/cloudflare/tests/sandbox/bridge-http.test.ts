@@ -9,7 +9,7 @@
  *   - Credential headers (Authorization, Cookie, Proxy-Authorization) must
  *     be stripped on cross-origin hops so they don't leak to attacker
  *     destinations.
- *   - With `network:fetch:any` (no allowlist), requests targeting literal
+ *   - With `network:request:unrestricted` (no allowlist), requests targeting literal
  *     private IPs or known internal hostnames must still be rejected.
  */
 
@@ -46,28 +46,28 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("sandboxHttpFetch — capability enforcement", () => {
-	it("rejects when neither network:fetch nor network:fetch:any is held", async () => {
+	it("rejects when neither network:request nor network:request:unrestricted is held", async () => {
 		await expect(
 			sandboxHttpFetch("https://a.example.com/", undefined, {
 				capabilities: [],
 				allowedHosts: ["a.example.com"],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
-		).rejects.toThrow(/network:fetch/);
+		).rejects.toThrow(/network:request/);
 	});
 
-	it("allows when network:fetch is held and host is on the list", async () => {
+	it("allows when network:request is held and host is on the list", async () => {
 		const res = await sandboxHttpFetch("https://a.example.com/", undefined, {
-			capabilities: ["network:fetch"],
+			capabilities: ["network:request"],
 			allowedHosts: ["a.example.com"],
 			fetchImpl: mockFetchSequence([okResponse()]),
 		});
 		expect(res.status).toBe(200);
 	});
 
-	it("allows when network:fetch:any is held and skips the allowlist for public hosts", async () => {
+	it("allows when network:request:unrestricted is held and skips the allowlist for public hosts", async () => {
 		const res = await sandboxHttpFetch("https://a.example.com/", undefined, {
-			capabilities: ["network:fetch:any"],
+			capabilities: ["network:request:unrestricted"],
 			allowedHosts: [],
 			fetchImpl: mockFetchSequence([okResponse()]),
 		});
@@ -83,7 +83,7 @@ describe("sandboxHttpFetch — redirect allowlist enforcement", () => {
 	it("rejects a redirect to a host not on the allowlist", async () => {
 		await expect(
 			sandboxHttpFetch("https://a.example.com/", undefined, {
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["a.example.com"],
 				fetchImpl: mockFetchSequence([redirectResponse("https://evil.example.com/"), okResponse()]),
 			}),
@@ -92,7 +92,7 @@ describe("sandboxHttpFetch — redirect allowlist enforcement", () => {
 
 	it("follows a redirect to a host that IS on the allowlist", async () => {
 		const res = await sandboxHttpFetch("https://a.example.com/", undefined, {
-			capabilities: ["network:fetch"],
+			capabilities: ["network:request"],
 			allowedHosts: ["a.example.com", "b.example.com"],
 			fetchImpl: mockFetchSequence([
 				redirectResponse("https://b.example.com/next"),
@@ -117,7 +117,7 @@ describe("sandboxHttpFetch — redirect allowlist enforcement", () => {
 
 		await expect(
 			sandboxHttpFetch("https://a.example.com/", undefined, {
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["a.example.com"],
 				fetchImpl,
 			}),
@@ -142,7 +142,7 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 				headers: { Authorization: "Bearer secret-token" },
 			},
 			{
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["a.example.com"],
 				fetchImpl,
 			},
@@ -167,7 +167,7 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 				headers: { Authorization: "Bearer secret-token" },
 			},
 			{
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["a.example.com", "b.example.com"],
 				fetchImpl,
 			},
@@ -195,7 +195,7 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 				},
 			},
 			{
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["a.example.com", "b.example.com"],
 				fetchImpl,
 			},
@@ -211,14 +211,14 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 });
 
 // ---------------------------------------------------------------------------
-// SSRF defence for network:fetch:any
+// SSRF defence for network:request:unrestricted
 // ---------------------------------------------------------------------------
 
-describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
+describe("sandboxHttpFetch — SSRF defence with network:request:unrestricted", () => {
 	it("rejects literal loopback IPv4", async () => {
 		await expect(
 			sandboxHttpFetch("http://127.0.0.1/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -234,7 +234,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 		]) {
 			await expect(
 				sandboxHttpFetch(url, undefined, {
-					capabilities: ["network:fetch:any"],
+					capabilities: ["network:request:unrestricted"],
 					allowedHosts: [],
 					fetchImpl: mockFetchSequence([okResponse()]),
 				}),
@@ -246,7 +246,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 		for (const url of ["http://localhost/", "http://metadata.google.internal/"]) {
 			await expect(
 				sandboxHttpFetch(url, undefined, {
-					capabilities: ["network:fetch:any"],
+					capabilities: ["network:request:unrestricted"],
 					allowedHosts: [],
 					fetchImpl: mockFetchSequence([okResponse()]),
 				}),
@@ -257,7 +257,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 	it("rejects IPv6 loopback", async () => {
 		await expect(
 			sandboxHttpFetch("http://[::1]/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -268,7 +268,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 		// Public host redirects to a private IP — must be blocked.
 		await expect(
 			sandboxHttpFetch("https://public.example.com/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([
 					redirectResponse("http://169.254.169.254/latest/meta-data/"),
@@ -287,7 +287,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 	it("rejects IPv4-mapped IPv6 loopback in hex form", async () => {
 		await expect(
 			sandboxHttpFetch("http://[::ffff:7f00:1]/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -297,7 +297,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 	it("rejects IPv4-mapped IPv6 metadata address in hex form", async () => {
 		await expect(
 			sandboxHttpFetch("http://[::ffff:a9fe:a9fe]/latest/meta-data/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -312,7 +312,7 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 		]) {
 			await expect(
 				sandboxHttpFetch(url, undefined, {
-					capabilities: ["network:fetch:any"],
+					capabilities: ["network:request:unrestricted"],
 					allowedHosts: [],
 					fetchImpl: mockFetchSequence([okResponse()]),
 				}),
@@ -326,14 +326,14 @@ describe("sandboxHttpFetch — SSRF defence with network:fetch:any", () => {
 // ---------------------------------------------------------------------------
 
 describe('sandboxHttpFetch — SSRF defence with allowedHosts=["*"]', () => {
-	// A plugin with { capabilities: ["network:fetch"], allowedHosts: ["*"] }
+	// A plugin with { capabilities: ["network:request"], allowedHosts: ["*"] }
 	// gets full egress with zero SSRF protection unless we apply the literal
 	// check on the restricted path too. The allowlist describes scope, not
 	// safety.
 	it("rejects literal private IPv4 even with allowedHosts=['*']", async () => {
 		await expect(
 			sandboxHttpFetch("http://127.0.0.1/", undefined, {
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["*"],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -343,7 +343,7 @@ describe('sandboxHttpFetch — SSRF defence with allowedHosts=["*"]', () => {
 	it("rejects cloud-metadata IP even with allowedHosts=['*']", async () => {
 		await expect(
 			sandboxHttpFetch("http://169.254.169.254/", undefined, {
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["*"],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -353,7 +353,7 @@ describe('sandboxHttpFetch — SSRF defence with allowedHosts=["*"]', () => {
 	it("rejects localhost even with allowedHosts=['*']", async () => {
 		await expect(
 			sandboxHttpFetch("http://localhost/", undefined, {
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["*"],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -362,7 +362,7 @@ describe('sandboxHttpFetch — SSRF defence with allowedHosts=["*"]', () => {
 
 	it("still allows public hosts with allowedHosts=['*']", async () => {
 		const res = await sandboxHttpFetch("https://api.example.com/", undefined, {
-			capabilities: ["network:fetch"],
+			capabilities: ["network:request"],
 			allowedHosts: ["*"],
 			fetchImpl: mockFetchSequence([okResponse()]),
 		});
@@ -378,7 +378,7 @@ describe("sandboxHttpFetch — scheme enforcement", () => {
 	it("rejects file: scheme", async () => {
 		await expect(
 			sandboxHttpFetch("file:///etc/passwd", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -388,7 +388,7 @@ describe("sandboxHttpFetch — scheme enforcement", () => {
 	it("rejects data: scheme", async () => {
 		await expect(
 			sandboxHttpFetch("data:text/plain,secret", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -398,7 +398,7 @@ describe("sandboxHttpFetch — scheme enforcement", () => {
 	it("rejects ftp: scheme", async () => {
 		await expect(
 			sandboxHttpFetch("ftp://example.com/file", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -408,7 +408,7 @@ describe("sandboxHttpFetch — scheme enforcement", () => {
 	it("accepts http: and https:", async () => {
 		for (const url of ["http://a.example.com/", "https://a.example.com/"]) {
 			const res = await sandboxHttpFetch(url, undefined, {
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["a.example.com"],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			});
@@ -424,7 +424,7 @@ describe("sandboxHttpFetch — scheme enforcement", () => {
 describe("sandboxHttpFetch — allowlist normalisation", () => {
 	it("matches when the manifest uses mixed case", async () => {
 		const res = await sandboxHttpFetch("https://api.example.com/", undefined, {
-			capabilities: ["network:fetch"],
+			capabilities: ["network:request"],
 			allowedHosts: ["API.Example.COM"],
 			fetchImpl: mockFetchSequence([okResponse()]),
 		});
@@ -433,7 +433,7 @@ describe("sandboxHttpFetch — allowlist normalisation", () => {
 
 	it("matches when the request uses a trailing dot FQDN", async () => {
 		const res = await sandboxHttpFetch("https://api.example.com./", undefined, {
-			capabilities: ["network:fetch"],
+			capabilities: ["network:request"],
 			allowedHosts: ["api.example.com"],
 			fetchImpl: mockFetchSequence([okResponse()]),
 		});
@@ -442,7 +442,7 @@ describe("sandboxHttpFetch — allowlist normalisation", () => {
 
 	it("matches wildcard patterns case-insensitively", async () => {
 		const res = await sandboxHttpFetch("https://api.example.com/", undefined, {
-			capabilities: ["network:fetch"],
+			capabilities: ["network:request"],
 			allowedHosts: ["*.Example.COM"],
 			fetchImpl: mockFetchSequence([okResponse()]),
 		});
@@ -460,7 +460,7 @@ describe("sandboxHttpFetch — *.localhost", () => {
 	it("rejects app.localhost", async () => {
 		await expect(
 			sandboxHttpFetch("http://app.localhost/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),
@@ -470,7 +470,7 @@ describe("sandboxHttpFetch — *.localhost", () => {
 	it("rejects nested *.localhost subdomains", async () => {
 		await expect(
 			sandboxHttpFetch("http://admin.app.localhost/", undefined, {
-				capabilities: ["network:fetch:any"],
+				capabilities: ["network:request:unrestricted"],
 				allowedHosts: [],
 				fetchImpl: mockFetchSequence([okResponse()]),
 			}),

@@ -47,6 +47,18 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 		if (status !== "published") {
 			return apiError("NOT_FOUND", `Content item not found: ${id}`, 404);
 		}
+
+		// Strip draft hydration data from response for users without read_drafts.
+		// handleContentGet overlays draft revision data onto item.data and exposes
+		// the published values in item.liveData. Without this, subscribers see
+		// unpublished edits in the data field.
+		if (item) {
+			if (item.liveData && typeof item.liveData === "object") {
+				item.data = item.liveData;
+			}
+			delete item.liveData;
+			delete item.draftRevisionId;
+		}
 	}
 
 	return unwrapResult(result);

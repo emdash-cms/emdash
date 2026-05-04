@@ -46,6 +46,26 @@ describe("SchemaRegistry", () => {
 			expect(collection.id).toBeDefined();
 		});
 
+		it("F14: defaults supports to ['drafts', 'revisions'] when undefined", async () => {
+			const collection = await registry.createCollection({
+				slug: "default_supports",
+				label: "Default Supports",
+				// supports omitted entirely
+			});
+
+			expect(collection.supports.toSorted()).toEqual(["drafts", "revisions"].toSorted());
+		});
+
+		it("F14: preserves explicit empty supports array (opt-out)", async () => {
+			const collection = await registry.createCollection({
+				slug: "no_supports",
+				label: "No Supports",
+				supports: [],
+			});
+
+			expect(collection.supports).toEqual([]);
+		});
+
 		it("should create the content table when creating a collection", async () => {
 			await registry.createCollection({
 				slug: "articles",

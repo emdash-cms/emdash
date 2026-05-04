@@ -2,6 +2,8 @@ import { Input, Switch } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
 import * as React from "react";
 
+import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+
 interface BlockKitFieldWidgetProps {
 	label: string;
 	elements: Element[];
@@ -113,6 +115,17 @@ function BlockKitFieldElement({
 				</div>
 			);
 		}
+		case "media_picker":
+			return (
+				<BlockKitMediaPickerField
+					actionId={element.action_id}
+					label={element.label}
+					placeholder={element.placeholder}
+					mimeTypeFilter={element.mime_type_filter}
+					value={value}
+					onChange={onChange}
+				/>
+			);
 		default:
 			return (
 				<div className="text-sm text-kumo-subtle">

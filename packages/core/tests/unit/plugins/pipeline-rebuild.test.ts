@@ -85,7 +85,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const pluginA = createTestPlugin({
 			id: "plugin-a",
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			hooks: {
 				"content:beforeSave": createTestHook("plugin-a", handlerA),
 			},
@@ -93,7 +93,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const pluginB = createTestPlugin({
 			id: "plugin-b",
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			hooks: {
 				"content:beforeSave": createTestHook("plugin-b", handlerB),
 			},
@@ -140,7 +140,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const pluginA = createTestPlugin({
 			id: "plugin-a",
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			hooks: {
 				"content:beforeSave": createTestHook("plugin-a", handlerA),
 			},
@@ -148,7 +148,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const pluginB = createTestPlugin({
 			id: "plugin-b",
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			hooks: {
 				"content:beforeSave": createTestHook("plugin-b", handlerB),
 			},
@@ -179,7 +179,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const pluginA = createTestPlugin({
 			id: "provider-a",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider-a", handlerA, { exclusive: true }),
 			},
@@ -187,7 +187,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const pluginB = createTestPlugin({
 			id: "provider-b",
-			capabilities: ["email:provide"],
+			capabilities: ["hooks.email-transport:register"],
 			hooks: {
 				"email:deliver": createTestHook("provider-b", handlerB, { exclusive: true }),
 			},
@@ -227,7 +227,7 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 
 		const plugin = createTestPlugin({
 			id: "only-plugin",
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			hooks: {
 				"content:beforeSave": createTestHook("only-plugin", handler),
 			},

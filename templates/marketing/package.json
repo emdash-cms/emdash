@@ -11,14 +11,14 @@
 		"build": "astro build",
 		"preview": "astro preview",
 		"start": "node ./dist/server/entry.mjs",
-		"bootstrap": "emdash init && emdash seed",
-		"seed": "emdash seed",
 		"typecheck": "astro check"
 	},
 	"dependencies": {
 		"@astrojs/node": "catalog:",
 		"@astrojs/react": "catalog:",
+		"@iconify-json/ph": "catalog:",
 		"astro": "catalog:",
+		"astro-iconset": "catalog:",
 		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",

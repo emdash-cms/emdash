@@ -9,11 +9,12 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown, CaretRight, List } from "@phosphor-icons/react";
+import { CaretDown, List } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { CaretNext } from "../ArrowIcons.js";
 
 function getIndentClass(level: number) {
 	switch (level) {
@@ -179,7 +180,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 					<List className="h-4 w-4" />
 					<span className="font-semibold">{t`Outline`}</span>
 				</span>
-				{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
+				{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 			</Button>
 
 			{isExpanded && (

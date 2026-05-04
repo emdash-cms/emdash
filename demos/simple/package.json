@@ -11,13 +11,13 @@
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
-    "bootstrap": "emdash init && emdash seed",
-    "seed": "emdash seed",
     "typecheck": "astro check"
   },
   "dependencies": {
     "@astrojs/node": "catalog:",
     "@astrojs/react": "catalog:",
+    "@emdash-cms/auth-atproto": "workspace:*",
+    "@emdash-cms/plugin-atproto": "workspace:*",
     "@emdash-cms/plugin-audit-log": "workspace:*",
     "@emdash-cms/plugin-color": "workspace:*",
     "astro": "catalog:",

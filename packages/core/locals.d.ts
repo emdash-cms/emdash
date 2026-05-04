@@ -7,7 +7,7 @@
 
 import type { User } from "@emdash-cms/auth";
 
-import type { EmDashHandlers, EmDashManifest } from "./dist/types.d.mts";
+import type { EmDashHandlers } from "./dist/types.d.mts";
 
 declare global {
 	namespace App {
@@ -16,11 +16,6 @@ declare global {
 			 * EmDash API handlers - available on /_emdash/* routes
 			 */
 			emdash: EmDashHandlers;
-
-			/**
-			 * EmDash manifest - the serialized admin configuration
-			 */
-			emdashManifest: EmDashManifest;
 
 			/**
 			 * Authenticated user - set by auth middleware when a valid session exists

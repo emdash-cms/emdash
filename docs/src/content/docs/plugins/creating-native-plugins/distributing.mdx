@@ -1,0 +1,137 @@
+---
+title: Distributing native plugins
+description: Package and ship a native plugin via npm.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Native plugins distribute via npm, not the marketplace. There's no bundler, no manifest, no security audit step — just a regular npm package that exports a descriptor factory plus `createPlugin`. Site operators install it with `npm install` and register it in `astro.config.mjs`.
+
+## Package layout
+
+A typical native plugin package:
+
+```
+@my-org/plugin-analytics/
+├── src/
+│   ├── index.ts          # Descriptor + createPlugin
+│   ├── admin.tsx         # React admin components (optional)
+│   └── astro/            # Astro components for PT block rendering (optional)
+│       └── index.ts
+├── dist/                 # build output
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+## package.json
+
+```json title="package.json"
+{
+	"name": "@my-org/plugin-analytics",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./admin": {
+			"types": "./dist/admin.d.ts",
+			"import": "./dist/admin.js"
+		},
+		"./astro": {
+			"types": "./dist/astro/index.d.ts",
+			"import": "./dist/astro/index.js"
+		}
+	},
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsdown src/index.ts src/admin.tsx --format esm --dts --clean",
+		"prepublishOnly": "pnpm build"
+	},
+	"peerDependencies": {
+		"emdash": "*",
+		"react": "^18.0.0"
+	}
+}
+```
+
+| Export      | Required if you use…                          | Built for |
+| ----------- | --------------------------------------------- | --------- |
+| `"."`       | Always                                        | Server    |
+| `"./admin"` | React admin pages or widgets                  | Browser   |
+| `"./astro"` | Portable Text rendering components            | Server (SSR) |
+
+Skip the `./admin` and `./astro` exports if your plugin doesn't need them.
+
+<Aside type="tip">
+	Keep `emdash` and `react` as peer dependencies, not regular dependencies. The host site provides the actual versions; bundling your own copy causes version conflicts and duplicate React copies in the admin UI.
+</Aside>
+
+## Build configuration
+
+Native plugins ship as ES modules. Most authors use `tsdown` (or `tsup`) with TypeScript. Externalise `react`, `emdash`, and `@emdash-cms/admin` so they aren't bundled into your output:
+
+```typescript title="tsdown.config.ts"
+export default {
+	entry: {
+		index: "src/index.ts",
+		admin: "src/admin.tsx",
+	},
+	format: "esm",
+	dts: true,
+	external: ["react", "react-dom", "emdash", "@emdash-cms/admin"],
+};
+```
+
+If you ship Astro components for Portable Text rendering, those don't need bundling — Astro consumes the `.astro` source files directly. List the `astro/` directory under `files` so they're included in the npm tarball.
+
+## Versioning
+
+Use semantic versioning. Bumping a major version is a signal to operators that they may need to make changes when upgrading. The shape of `definePlugin()` and the plugin context API are stable, but if you change your plugin's hook behaviour, capability requirements, or settings schema in a way that affects existing installs, that's a breaking change.
+
+Capabilities are part of the plugin's surface contract. Adding one in a non-major release means existing operators upgrade and silently grant a new capability — that's fine for a sandboxed plugin where the consent dialog re-prompts, but native plugins don't have a consent flow. Treat capability additions as a major version bump for native plugins, or document them very prominently in release notes.
+
+## README and documentation
+
+A good plugin README covers:
+
+- What the plugin does, in one sentence.
+- How to install it (`npm install ...` and the `astro.config.mjs` snippet with the import).
+- What capabilities it declares and what it uses them for.
+- Any required Astro template changes (e.g. `<EmDashHead />` for `page:metadata`, `<EmDashBodyEnd />` for `page:fragments`).
+- Settings and what each one controls.
+- Migration notes between major versions.
+
+## Publishing to npm
+
+```bash
+npm version patch     # or minor/major
+npm publish --access public
+```
+
+For scoped packages, `--access public` is required on the first publish (npm defaults scoped packages to private).
+
+## Local development against a host site
+
+When iterating on a plugin, link it into a test site rather than republishing on every change:
+
+```bash
+# In the plugin package
+pnpm build --watch
+
+# In the test site
+pnpm add file:../plugins/my-plugin
+# or with workspaces:
+pnpm add @my-org/plugin-analytics --workspace
+```
+
+Then register the plugin in the test site's `astro.config.mjs` and run the dev server. Hook handlers run on the next request after `pnpm build` finishes.
+
+## Marketplace? No.
+
+Native plugins can't be published to the EmDash marketplace. The marketplace is sandboxed-only: every published plugin runs through `emdash plugin bundle` (which validates that the backend code is self-contained, doesn't import Node.js built-ins, and stays under size limits), gets a security audit, and runs in the sandbox runtime when installed.
+
+If you want the marketplace's distribution surface but your plugin currently uses native-only features, ask whether you actually need them — a lot of plugins can drop `page:fragments` or convert from `settingsSchema` to a Block Kit settings page and become sandboxable. See [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) for the trade-offs.

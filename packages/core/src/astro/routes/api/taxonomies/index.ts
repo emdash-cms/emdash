@@ -52,7 +52,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleTaxonomyCreate(emdash.db, body);
-		if (result.success) emdash.invalidateManifest();
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create taxonomy", "TAXONOMY_CREATE_ERROR");

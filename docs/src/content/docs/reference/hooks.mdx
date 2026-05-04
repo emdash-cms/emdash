@@ -333,7 +333,7 @@ Email hooks form a pipeline: `email:beforeSend` → `email:deliver` → `email:a
 
 ### `email:beforeSend`
 
-**Capability:** `email:intercept`
+**Capability:** `hooks.email-events:register`
 
 Middleware hook that runs before delivery. Transform messages or cancel delivery.
 
@@ -368,7 +368,7 @@ interface EmailBeforeSendEvent {
 
 ### `email:deliver`
 
-**Capability:** `email:provide` | **Exclusive:** Yes
+**Capability:** `hooks.email-transport:register` | **Exclusive:** Yes
 
 The transport provider. Only one plugin can deliver emails. Responsible for actually sending the message via an email service.
 
@@ -385,7 +385,7 @@ hooks: {
 
 ### `email:afterSend`
 
-**Capability:** `email:intercept`
+**Capability:** `hooks.email-events:register`
 
 Fire-and-forget hook after successful delivery. Errors are logged but do not propagate.
 
@@ -406,7 +406,7 @@ Comment hooks form a pipeline: `comment:beforeCreate` → `comment:moderate` →
 
 ### `comment:beforeCreate`
 
-**Capability:** `read:users`
+**Capability:** `users:read`
 
 Middleware hook before a comment is stored. Enrich, validate, or reject comments.
 
@@ -448,7 +448,7 @@ interface CommentBeforeCreateEvent {
 
 ### `comment:moderate`
 
-**Capability:** `read:users` | **Exclusive:** Yes
+**Capability:** `users:read` | **Exclusive:** Yes
 
 Decide whether a comment is approved, pending, or spam. Only one moderation provider is active.
 
@@ -491,7 +491,7 @@ interface CommentModerateEvent {
 
 ### `comment:afterCreate`
 
-**Capability:** `read:users`
+**Capability:** `users:read`
 
 Fire-and-forget hook after a comment is stored. Use for notifications.
 
@@ -511,7 +511,7 @@ hooks: {
 
 ### `comment:afterModerate`
 
-**Capability:** `read:users`
+**Capability:** `users:read`
 
 Fire-and-forget hook when an admin manually changes a comment's status.
 
@@ -532,7 +532,7 @@ Page hooks run when rendering public pages. They allow plugins to inject metadat
 
 ### `page:metadata`
 
-**Capability:** `page:inject`
+**Capability:** None required
 
 Contribute meta tags, Open Graph properties, JSON-LD structured data, or link tags to the page head.
 
@@ -562,7 +562,7 @@ The `key` field deduplicates contributions — only the last contribution with a
 
 ### `page:fragments`
 
-**Capability:** `page:inject`
+**Capability:** `hooks.page-fragments:register`
 
 Inject scripts or HTML into pages. Only available to native plugins.
 

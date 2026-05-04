@@ -44,11 +44,13 @@ export const POST: APIRoute = async ({ params, locals, cache }) => {
 	const denied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
 	if (denied) return denied;
 
-	const result = await emdash.handleContentDiscardDraft(collection, id);
+	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
+
+	const result = await emdash.handleContentDiscardDraft(collection, resolvedId);
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, id] });
+	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
 
 	return unwrapResult(result);
 };

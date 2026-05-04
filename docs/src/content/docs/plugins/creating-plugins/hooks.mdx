@@ -1,0 +1,394 @@
+---
+title: Hooks
+description: Run code in response to content, media, lifecycle, and page-render events.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Hooks let plugins run code in response to events. All hooks receive an event object and the plugin context, and they're declared at plugin definition time — there's no dynamic registration at runtime.
+
+This page covers sandboxed (standard-format) plugins. Hooks work identically in native plugins; the only difference is that native plugins can also register `page:fragments`, which sandboxed plugins can't.
+
+## Hook signature
+
+Every hook handler takes two arguments:
+
+```typescript
+async (event: EventType, ctx: PluginContext) => ReturnType;
+```
+
+- `event` — data about what just happened (content being saved, media uploaded, lifecycle transition, etc.)
+- `ctx` — the [`PluginContext`](/plugins/creating-plugins/your-first-plugin/) with storage, KV, logging, and capability-gated APIs
+
+## Hook configuration
+
+A hook can be declared as a bare handler or wrapped in a config object:
+
+<Tabs>
+<TabItem label="Simple">
+```typescript
+hooks: {
+	"content:afterSave": async (event, ctx) => {
+		ctx.log.info("Content saved");
+	},
+},
+```
+</TabItem>
+<TabItem label="Full config">
+```typescript
+hooks: {
+	"content:afterSave": {
+		priority: 100,
+		timeout: 5000,
+		dependencies: ["audit-log"],
+		errorPolicy: "continue",
+		handler: async (event, ctx) => {
+			ctx.log.info("Content saved");
+		},
+	},
+},
+```
+</TabItem>
+</Tabs>
+
+### Configuration options
+
+| Option         | Type                    | Default   | Description                                                                                  |
+| -------------- | ----------------------- | --------- | -------------------------------------------------------------------------------------------- |
+| `priority`     | `number`                | `100`     | Execution order. Lower numbers run first.                                                    |
+| `timeout`      | `number`                | `5000`    | Maximum execution time in milliseconds.                                                      |
+| `dependencies` | `string[]`              | `[]`      | Plugin ids that must run before this hook.                                                   |
+| `errorPolicy`  | `"abort" \| "continue"` | `"abort"` | Whether to stop the pipeline on error.                                                       |
+| `exclusive`    | `boolean`               | `false`   | Only one plugin can be the active provider. Used for `email:deliver` and `comment:moderate`. |
+| `handler`      | `function`              | —         | The hook handler function. Required.                                                         |
+
+<Aside type="tip">
+	Use `errorPolicy: "continue"` for non-critical hooks like notifications. Use `"abort"` (the default) when the hook's result is essential to the operation succeeding.
+</Aside>
+
+## Lifecycle hooks
+
+Run during plugin installation, activation, deactivation, and removal.
+
+### `plugin:install`
+
+Runs once when the plugin is first added to a site.
+
+```typescript
+"plugin:install": async (_event, ctx) => {
+	ctx.log.info("Installing plugin...");
+	await ctx.kv.set("settings:enabled", true);
+	await ctx.storage.items.put("default", { name: "Default Item" });
+},
+```
+
+**Event:** `{}` — **Returns:** `Promise<void>`
+
+### `plugin:activate`
+
+Runs when the plugin is enabled (after install or when re-enabled).
+
+```typescript
+"plugin:activate": async (_event, ctx) => {
+	ctx.log.info("Plugin activated");
+},
+```
+
+**Event:** `{}` — **Returns:** `Promise<void>`
+
+### `plugin:deactivate`
+
+Runs when the plugin is disabled (but not removed).
+
+```typescript
+"plugin:deactivate": async (_event, ctx) => {
+	ctx.log.info("Plugin deactivated");
+},
+```
+
+**Event:** `{}` — **Returns:** `Promise<void>`
+
+### `plugin:uninstall`
+
+Runs when the plugin is removed from a site.
+
+```typescript
+"plugin:uninstall": async (event, ctx) => {
+	ctx.log.info("Uninstalling plugin...");
+	if (event.deleteData) {
+		const result = await ctx.storage.items.query({ limit: 1000 });
+		await ctx.storage.items.deleteMany(result.items.map((i) => i.id));
+	}
+},
+```
+
+**Event:** `{ deleteData: boolean }` — **Returns:** `Promise<void>`
+
+<Aside type="caution">
+	Be conservative in `plugin:uninstall`. Default to preserving data — users may reinstall. Only delete when `event.deleteData` is `true`.
+</Aside>
+
+## Content hooks
+
+Run during create, update, and delete operations on site content.
+
+### `content:beforeSave`
+
+Runs before content is saved. Return modified content, or `void` to leave it unchanged. Throw to cancel.
+
+```typescript
+"content:beforeSave": async (event, ctx) => {
+	const { content, collection } = event;
+
+	if (collection === "posts" && !content.title) {
+		throw new Error("Posts require a title");
+	}
+
+	if (typeof content.slug === "string") {
+		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
+	}
+
+	return content;
+},
+```
+
+**Event:** `{ content, collection, isNew }` — **Returns:** modified content or `void`.
+
+### `content:afterSave`
+
+Runs after content is successfully saved. Use for side effects like notifications, logging, or external syncs.
+
+```typescript
+"content:afterSave": async (event, ctx) => {
+	ctx.log.info(`${event.isNew ? "Created" : "Updated"} ${event.collection}/${event.content.id}`);
+
+	if (ctx.http) {
+		await ctx.http.fetch("https://api.example.com/webhook", {
+			method: "POST",
+			body: JSON.stringify({ event: "content:save", id: event.content.id }),
+		});
+	}
+},
+```
+
+**Event:** `{ content, collection, isNew }` — **Returns:** `Promise<void>`
+
+### `content:beforeDelete`
+
+Runs before content is deleted. Return `false` to cancel; `true` or `void` allows it.
+
+```typescript
+"content:beforeDelete": async (event, ctx) => {
+	if (event.collection === "pages" && event.id === "home") {
+		ctx.log.warn("Cannot delete home page");
+		return false;
+	}
+	return true;
+},
+```
+
+**Event:** `{ id, collection }` — **Returns:** `boolean | void`
+
+### `content:afterDelete`
+
+Runs after content is successfully deleted.
+
+```typescript
+"content:afterDelete": async (event, ctx) => {
+	await ctx.storage.cache.delete(`${event.collection}:${event.id}`);
+},
+```
+
+**Event:** `{ id, collection }` — **Returns:** `Promise<void>`
+
+### `content:afterPublish`
+
+Runs after content is promoted from draft to live. Requires `content:read` capability.
+
+**Event:** `{ content, collection }` — **Returns:** `Promise<void>`
+
+### `content:afterUnpublish`
+
+Runs after content is reverted from live to draft. Requires `content:read` capability.
+
+**Event:** `{ content, collection }` — **Returns:** `Promise<void>`
+
+## Media hooks
+
+### `media:beforeUpload`
+
+Runs before a file is uploaded. Return modified file metadata or throw to cancel.
+
+```typescript
+"media:beforeUpload": async (event, ctx) => {
+	if (!event.file.type.startsWith("image/")) {
+		throw new Error("Only images are allowed");
+	}
+	if (event.file.size > 10 * 1024 * 1024) {
+		throw new Error("File too large");
+	}
+	return { ...event.file, name: `${Date.now()}-${event.file.name}` };
+},
+```
+
+**Event:** `{ file: { name, type, size } }` — **Returns:** modified file or `void`
+
+### `media:afterUpload`
+
+Runs after a file is successfully uploaded.
+
+**Event:** `{ media: { id, filename, mimeType, size, url, createdAt } }` — **Returns:** `Promise<void>`
+
+## Public-page hooks
+
+These let plugins contribute to rendered public pages. Templates opt in by including the `<EmDashHead>`, `<EmDashBodyStart>`, and `<EmDashBodyEnd>` components from `emdash/ui`.
+
+### `page:metadata`
+
+Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, allowlisted `<link>` rels, and JSON-LD. **Available to both sandboxed and native plugins.** Core validates, deduplicates, and renders the contributions; plugins return structured data, never raw HTML.
+
+```typescript
+"page:metadata": async (event, ctx) => {
+	if (event.page.kind !== "content") return null;
+
+	return {
+		kind: "jsonld",
+		id: `schema:${event.page.content?.collection}:${event.page.content?.id}`,
+		graph: {
+			"@context": "https://schema.org",
+			"@type": "BlogPosting",
+			headline: event.page.pageTitle ?? event.page.title,
+			description: event.page.description,
+		},
+	};
+},
+```
+
+**Event:**
+
+```typescript
+{
+	page: {
+		url: string;
+		path: string;
+		locale: string | null;
+		kind: "content" | "custom";
+		pageType: string;
+		title: string | null;
+		pageTitle?: string | null;
+		description: string | null;
+		canonical: string | null;
+		image: string | null;
+		content?: { collection: string; id: string; slug: string | null };
+	}
+}
+```
+
+**Returns:** `PageMetadataContribution | PageMetadataContribution[] | null`
+
+**Contribution kinds:**
+
+| Kind       | Renders                                            | Dedupe key                                            |
+| ---------- | -------------------------------------------------- | ----------------------------------------------------- |
+| `meta`     | `<meta name="..." content="...">`                  | `key` or `name`                                       |
+| `property` | `<meta property="..." content="...">`              | `key` or `property`                                   |
+| `link`     | `<link rel="canonical\|alternate" href="...">`     | canonical: singleton; alternate: `key` or `hreflang`  |
+| `jsonld`   | `<script type="application/ld+json">`              | `id` (if present)                                     |
+
+First contribution wins for any dedupe key. Link `rel` is restricted to a security-locked allowlist (`canonical`, `alternate`, `author`, `license`, `nlweb`, `site.standard.document`); `href` must be HTTP or HTTPS.
+
+### `page:fragments`
+
+Contributes raw HTML, scripts, or stylesheets to page insertion points. **Native plugins only.**
+
+Sandboxed plugins can't use this hook because its output runs as first-party code in the visitor's browser, outside any sandbox boundary. For sandbox-safe page contributions, use `page:metadata`. See [Native plugins: page fragments](/plugins/creating-native-plugins/page-fragments/) if you need this surface.
+
+## Hook execution order
+
+Hooks run in this order:
+
+1. Hooks with lower `priority` values run first.
+2. For equal priorities, hooks run in plugin registration order.
+3. Hooks with `dependencies` wait for those plugins to complete.
+
+```typescript
+// Plugin A
+"content:afterSave": { priority: 50, handler: async () => {} }
+
+// Plugin B
+"content:afterSave": { priority: 100, handler: async () => {} }
+
+// Plugin C
+"content:afterSave": {
+	priority: 200,
+	dependencies: ["plugin-a"],   // waits for A even if its priority would normally be later
+	handler: async () => {},
+}
+```
+
+## Error handling
+
+When a hook throws or times out:
+
+- **`errorPolicy: "abort"`** — the entire pipeline stops and the originating operation may fail.
+- **`errorPolicy: "continue"`** — the error is logged and remaining hooks still run.
+
+```typescript
+"content:afterSave": {
+	timeout: 5000,
+	errorPolicy: "continue",
+	handler: async (event, ctx) => {
+		await ctx.http!.fetch("https://unreliable-api.com/notify");
+	},
+},
+```
+
+<Aside type="tip">
+	`errorPolicy: "continue"` is right for analytics, notifications, and external syncs — the originating save still succeeds even if your hook fails.
+</Aside>
+
+## Timeouts
+
+Hooks default to 5000ms. Bump the timeout for slower work:
+
+```typescript
+"content:afterSave": {
+	timeout: 30000,
+	handler: async (event, ctx) => {
+		// Long-running operation
+	},
+},
+```
+
+<Aside type="caution">
+	The configured `timeout` is enforced at the EmDash runner level. The sandbox runner may also enforce its own resource limits (CPU, subrequests, wall-clock) that can terminate a hook before its `timeout` fires. See [Capabilities and security](/plugins/creating-plugins/capabilities/).
+</Aside>
+
+## Hook reference
+
+| Hook                     | Trigger                       | Return                               | Exclusive |
+| ------------------------ | ----------------------------- | ------------------------------------ | --------- |
+| `plugin:install`         | First plugin installation     | `void`                               | No        |
+| `plugin:activate`        | Plugin enabled                | `void`                               | No        |
+| `plugin:deactivate`      | Plugin disabled               | `void`                               | No        |
+| `plugin:uninstall`       | Plugin removed                | `void`                               | No        |
+| `content:beforeSave`     | Before content save           | Modified content or `void`           | No        |
+| `content:afterSave`      | After content save            | `void`                               | No        |
+| `content:beforeDelete`   | Before content delete         | `false` to cancel, else allow        | No        |
+| `content:afterDelete`    | After content delete          | `void`                               | No        |
+| `content:afterPublish`   | After content publish         | `void`                               | No        |
+| `content:afterUnpublish` | After content unpublish       | `void`                               | No        |
+| `media:beforeUpload`     | Before file upload            | Modified file info or `void`         | No        |
+| `media:afterUpload`      | After file upload             | `void`                               | No        |
+| `cron`                   | Scheduled task fires          | `void`                               | No        |
+| `email:beforeSend`       | Before email delivery         | Modified message, `false`, or `void` | No        |
+| `email:deliver`          | Deliver email via transport   | `void`                               | Yes       |
+| `email:afterSend`        | After email delivery          | `void`                               | No        |
+| `comment:beforeCreate`   | Before comment stored         | Modified event, `false`, or `void`   | No        |
+| `comment:moderate`       | Decide comment status         | `{ status, reason? }`                | Yes       |
+| `comment:afterCreate`    | After comment stored          | `void`                               | No        |
+| `comment:afterModerate`  | Admin changes comment status  | `void`                               | No        |
+| `page:metadata`          | Page render                   | Contributions or `null`              | No        |
+| `page:fragments`         | Page render (native only)     | Contributions or `null`              | No        |
+
+See the [Hook Reference](/reference/hooks/) for complete event types and handler signatures.

@@ -4,41 +4,38 @@ export const prerender = false;
 import {
 	getEmDashCollection,
 	getTaxonomyTerms,
-	getEntryTerms,
+	getTermsForEntries,
 } from "emdash";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
 
-const { entries: projects, cacheHint } =
-	await getEmDashCollection("projects");
-const tags = await getTaxonomyTerms("tag");
-
-// Get filter from query param
+// Get filter from query param. When set, push the filter down to the
+// database via `where` instead of loading every project and filtering
+// in JS — that pattern scales O(projects × terms-per-project) and
+// blows up the moment you have more than a couple of dozen entries.
 const activeTag = Astro.url.searchParams.get("tag");
 
-// Get tags for each project and filter if needed
-const projectsWithTags = await Promise.all(
-	projects.map(async (project) => {
-		const projectTags = await getEntryTerms("projects", project.data.id, "tag");
-		return { project, projectTags };
-	})
-);
-
-// Filter projects if a tag is selected
-const filteredProjects = activeTag
-	? projectsWithTags.filter(({ projectTags }) =>
-			projectTags.some((t) => t.slug === activeTag)
-		)
-	: projectsWithTags;
-
-// Sort by published date
-const sortedProjects = filteredProjects.toSorted((a, b) => {
-	const dateA = a.project.data.publishedAt?.getTime() ?? 0;
-	const dateB = b.project.data.publishedAt?.getTime() ?? 0;
-	return dateB - dateA;
-});
+const [{ entries: sortedProjects, cacheHint }, tags] = await Promise.all([
+	getEmDashCollection("projects", {
+		orderBy: { published_at: "desc" },
+		...(activeTag ? { where: { tag: activeTag } } : {}),
+	}),
+	getTaxonomyTerms("tag"),
+]);
 
 Astro.cache.set(cacheHint);
+
+// Single batched JOIN for the tag pills shown on each card, instead of
+// one getEntryTerms() round-trip per card.
+const tagsByEntry = await getTermsForEntries(
+	"projects",
+	sortedProjects.map((p) => p.data.id),
+	"tag",
+);
+const projectsWithTags = sortedProjects.map((project) => ({
+	project,
+	projectTags: tagsByEntry.get(project.data.id) ?? [],
+}));
 ---
 
 <Base
@@ -75,10 +72,10 @@ Astro.cache.set(cacheHint);
 	</section>
 
 	{
-		sortedProjects.length > 0 ? (
+		projectsWithTags.length > 0 ? (
 			<section class="projects">
 				<div class="projects-grid">
-					{sortedProjects.map(({ project, projectTags }) => (
+					{projectsWithTags.map(({ project, projectTags }) => (
 						<ProjectCard
 							title={project.data.title ?? "Untitled"}
 							summary={project.data.summary}

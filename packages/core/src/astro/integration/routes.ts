@@ -46,6 +46,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/manifest.ts"),
 	});
 
+	// Auth mode endpoint (public — used by the login page to pick the right UI)
+	injectRoute({
+		pattern: "/_emdash/api/auth/mode",
+		entrypoint: resolveRoute("api/auth/mode.ts"),
+	});
+
 	injectRoute({
 		pattern: "/_emdash/api/dashboard",
 		entrypoint: resolveRoute("api/dashboard.ts"),
@@ -745,6 +751,28 @@ export function injectMcpRoute(injectRoute: InjectRoute): void {
 		pattern: "/_emdash/api/mcp",
 		entrypoint: resolveRoute("api/mcp.ts"),
 	});
+}
+
+/**
+ * Injects routes from pluggable auth providers.
+ *
+ * Each provider declares the routes it needs in its `AuthProviderDescriptor.routes` array.
+ * Routes are injected at build time so Vite can bundle them.
+ */
+export function injectAuthProviderRoutes(
+	injectRoute: InjectRoute,
+	providers: Array<{ routes?: Array<{ pattern: string; entrypoint: string }> }>,
+): void {
+	for (const provider of providers) {
+		if (provider.routes) {
+			for (const route of provider.routes) {
+				injectRoute({
+					pattern: route.pattern,
+					entrypoint: route.entrypoint,
+				});
+			}
+		}
+	}
 }
 
 /**

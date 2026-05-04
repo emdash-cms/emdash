@@ -5,7 +5,7 @@
  */
 
 import { getDb } from "../loader.js";
-import { requestCached, setRequestCacheEntry } from "../request-cache.js";
+import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
@@ -45,8 +45,18 @@ export async function getTaxonomyDefs(): Promise<TaxonomyDef[]> {
 
 /**
  * Get a single taxonomy definition by name
+ *
+ * If `getTaxonomyDefs()` has already loaded the full list in this request
+ * (which happens during entry-term hydration on every page that renders a
+ * collection), find the matching def in memory rather than running a
+ * second `WHERE name=?` query against `_emdash_taxonomy_defs`.
  */
 export async function getTaxonomyDef(name: string): Promise<TaxonomyDef | null> {
+	const allDefs = peekRequestCache<TaxonomyDef[]>("taxonomy-defs:all");
+	if (allDefs) {
+		return (await allDefs).find((d) => d.name === name) ?? null;
+	}
+
 	return requestCached(`taxonomy-def:${name}`, async () => {
 		const db = await getDb();
 

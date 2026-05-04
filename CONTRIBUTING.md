@@ -190,13 +190,9 @@ function MyComponent() {
 }
 ```
 
-After adding or changing translatable strings, run extraction to update the PO catalogs:
+**Don't include `messages.po` changes in feature or bugfix PRs.** A workflow runs `pnpm locale:extract` on merge to `main` and commits the catalog updates automatically. Including extracted PO changes in a non-translation PR creates churn and merge conflicts, since the line-number references in the catalogs shift on every edit. If you ran extraction locally and ended up with `.po` changes, revert them before opening the PR.
 
-```bash
-pnpm run locale:extract
-```
-
-This updates `packages/admin/src/locales/*/messages.po` with any new or changed strings. Commit the updated PO files alongside your code changes.
+Translation PRs are the exception — see [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).
 
 ### What to wrap
 
@@ -226,7 +222,7 @@ We welcome AI-assisted contributions. They are held to the same quality bar as a
 
 - The submitter is responsible for the code's correctness, not the AI tool.
 - AI-generated PRs must pass all CI checks, follow the project's code patterns, and include tests.
-- The PR template has an AI disclosure checkbox — please check it. This isn't punitive; it helps reviewers know to pay extra attention to edge cases that AI tools commonly miss.
+- The PR template has an AI disclosure checkbox — please check it and name the model/tool you used (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6). This isn't punitive; it helps reviewers pay extra attention to edge cases that AI tools commonly miss, and lets them run the review pass with a different model family — different families have different blind spots.
 - Bulk/spray PRs across the repo (e.g., "fix all lint warnings", "add types everywhere") will be closed. If you see a pattern worth fixing, open a Discussion first.
 
 ### What we don't accept

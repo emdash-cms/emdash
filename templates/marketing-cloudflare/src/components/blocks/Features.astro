@@ -1,4 +1,6 @@
 ---
+import { Icon } from "astro-iconset/components";
+
 interface Props {
 	node: {
 		_key?: string;
@@ -15,20 +17,19 @@ interface Props {
 const { node } = Astro.props;
 const { _key, headline, subheadline, features } = node;
 
-// Map feature icon names to Phosphor icon names
 const iconMap: Record<string, string> = {
-	zap: "lightning",
-	shield: "shield-check",
-	users: "users-three",
-	chart: "chart-bar",
-	code: "code",
-	globe: "globe",
-	heart: "heart",
-	star: "star",
-	check: "check-circle",
-	lock: "lock",
-	clock: "clock",
-	cloud: "cloud",
+	zap: "ph:lightning",
+	shield: "ph:shield-check",
+	users: "ph:users-three",
+	chart: "ph:chart-bar",
+	code: "ph:code",
+	globe: "ph:globe",
+	heart: "ph:heart",
+	star: "ph:star",
+	check: "ph:check-circle",
+	lock: "ph:lock",
+	clock: "ph:clock",
+	cloud: "ph:cloud",
 };
 ---
 
@@ -44,7 +45,7 @@ const iconMap: Record<string, string> = {
 			{features.map((feature) => (
 				<div class="feature-card">
 					<div class="feature-icon">
-						<i class={`ph ph-${iconMap[feature.icon] || "sparkle"}`} aria-hidden="true"></i>
+						<Icon name={iconMap[feature.icon] || "ph:sparkle"} aria-hidden="true" />
 					</div>
 					<h3 class="feature-title">{feature.title}</h3>
 					<p class="feature-description">{feature.description}</p>

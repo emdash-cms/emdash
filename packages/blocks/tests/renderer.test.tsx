@@ -108,6 +108,29 @@ vi.mock("@cloudflare/kumo", () => ({
 			<code>{code}</code>
 		</pre>
 	),
+	Empty: ({ title, description, commandLine, size, contents, icon }: any) => (
+		<div data-testid="empty" data-size={size ?? "base"}>
+			{icon}
+			<strong>{title}</strong>
+			{description && <p>{description}</p>}
+			{commandLine && <pre data-testid="empty-command">{commandLine}</pre>}
+			{contents}
+		</div>
+	),
+	Tabs: ({ tabs, value, onValueChange }: any) => (
+		<div role="tablist">
+			{tabs.map((tab: any) => (
+				<button
+					key={tab.value}
+					role="tab"
+					aria-selected={value === tab.value}
+					onClick={() => onValueChange?.(tab.value)}
+				>
+					{tab.label}
+				</button>
+			))}
+		</div>
+	),
 	Checkbox: {
 		Group: ({ children, legend }: any) => (
 			<fieldset data-testid="checkbox-group">
@@ -136,6 +159,14 @@ vi.mock("@cloudflare/kumo", () => ({
 			</label>
 		),
 	},
+	Collapsible: ({ children, label, open, onOpenChange }: any) => (
+		<div data-testid="collapsible" data-open={open ? "true" : "false"}>
+			<button type="button" onClick={() => onOpenChange?.(!open)}>
+				{label}
+			</button>
+			{open && <div data-testid="collapsible-content">{children}</div>}
+		</div>
+	),
 	Combobox: Object.assign(
 		({ children, label }: any) => (
 			<div data-testid="combobox">
@@ -191,6 +222,7 @@ vi.mock("@phosphor-icons/react", () => ({
 	Info: () => <span data-testid="icon-info" />,
 	Warning: () => <span data-testid="icon-warning" />,
 	WarningCircle: () => <span data-testid="icon-warning-circle" />,
+	Package: () => <span data-testid="icon-package" />,
 }));
 
 afterEach(cleanup);
@@ -421,6 +453,86 @@ describe("BlockRenderer", () => {
 		expect(el.className).toContain("text-sm");
 	});
 
+	it("empty block renders title and default icon", () => {
+		renderBlocks([{ type: "empty", title: "No items" }]);
+		expect(screen.getByText("No items")).toBeTruthy();
+		expect(screen.getByTestId("icon-package")).toBeTruthy();
+		expect(screen.getByTestId("empty").getAttribute("data-size")).toBe("base");
+	});
+
+	it("empty block renders description, command line, size, and action buttons", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "empty",
+					title: "No webhooks yet",
+					description: "Create your first webhook.",
+					command_line: "emdash webhooks create",
+					size: "lg",
+					actions: [
+						{ type: "button", action_id: "create", label: "Create webhook", style: "primary" },
+					],
+				},
+			],
+			onAction,
+		);
+
+		expect(screen.getByText("Create your first webhook.")).toBeTruthy();
+		expect(screen.getByTestId("empty-command").textContent).toBe("emdash webhooks create");
+		expect(screen.getByTestId("empty").getAttribute("data-size")).toBe("lg");
+
+		fireEvent.click(screen.getByText("Create webhook"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "create" });
+	});
+
+	it("empty block omits contents when actions array is empty", () => {
+		const { container } = renderBlocks([{ type: "empty", title: "X", actions: [] }]);
+		expect(container.querySelectorAll("button").length).toBe(0);
+	});
+
+	it("accordion block renders label closed by default and reveals nested blocks on open", () => {
+		const { container } = renderBlocks([
+			{
+				type: "accordion",
+				label: "Advanced",
+				blocks: [{ type: "header", text: "Hidden heading" }],
+			},
+		]);
+
+		expect(screen.getByText("Advanced")).toBeTruthy();
+		expect(container.querySelector('[data-testid="collapsible"]')?.getAttribute("data-open")).toBe(
+			"false",
+		);
+		expect(screen.queryByText("Hidden heading")).toBeNull();
+
+		fireEvent.click(screen.getByText("Advanced"));
+		expect(screen.getByText("Hidden heading")).toBeTruthy();
+	});
+
+	it("accordion block respects default_open and forwards onAction from nested blocks", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "accordion",
+					label: "Tools",
+					default_open: true,
+					blocks: [
+						{
+							type: "actions",
+							elements: [{ type: "button", action_id: "ping", label: "Ping" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		fireEvent.click(screen.getByText("Ping"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
+	});
+
 	it("columns block renders blocks in columns", () => {
 		renderBlocks([
 			{
@@ -430,6 +542,52 @@ describe("BlockRenderer", () => {
 		]);
 		expect(screen.getByText("Left")).toBeTruthy();
 		expect(screen.getByText("Right")).toBeTruthy();
+	});
+
+	it("tab block renders panel labels and shows first panel by default", () => {
+		renderBlocks([
+			{
+				type: "tab",
+				panels: [
+					{ label: "General", blocks: [{ type: "header", text: "General Settings" }] },
+					{ label: "Advanced", blocks: [{ type: "header", text: "Advanced Settings" }] },
+				],
+			},
+		]);
+		expect(screen.getByText("General")).toBeTruthy();
+		expect(screen.getByText("Advanced")).toBeTruthy();
+		expect(screen.getByText("General Settings")).toBeTruthy();
+		expect(screen.queryByText("Advanced Settings")).toBeNull();
+	});
+
+	it("tab block switches panel on tab click", () => {
+		renderBlocks([
+			{
+				type: "tab",
+				panels: [
+					{ label: "General", blocks: [{ type: "header", text: "General Settings" }] },
+					{ label: "Advanced", blocks: [{ type: "header", text: "Advanced Settings" }] },
+				],
+			},
+		]);
+		fireEvent.click(screen.getByText("Advanced"));
+		expect(screen.queryByText("General Settings")).toBeNull();
+		expect(screen.getByText("Advanced Settings")).toBeTruthy();
+	});
+
+	it("tab block respects default_tab", () => {
+		renderBlocks([
+			{
+				type: "tab",
+				default_tab: 1,
+				panels: [
+					{ label: "General", blocks: [{ type: "header", text: "General Settings" }] },
+					{ label: "Advanced", blocks: [{ type: "header", text: "Advanced Settings" }] },
+				],
+			},
+		]);
+		expect(screen.queryByText("General Settings")).toBeNull();
+		expect(screen.getByText("Advanced Settings")).toBeTruthy();
 	});
 
 	it("button click fires onAction with block_action", () => {

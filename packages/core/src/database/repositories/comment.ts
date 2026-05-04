@@ -143,14 +143,12 @@ export class CommentRepository {
 		// Cursor pagination (ascending by created_at)
 		if (options.cursor) {
 			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				query = query.where((eb: ExpressionBuilder<Database, "_emdash_comments">) =>
-					eb.or([
-						eb("created_at", ">", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", ">", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb: ExpressionBuilder<Database, "_emdash_comments">) =>
+				eb.or([
+					eb("created_at", ">", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", ">", decoded.id)]),
+				]),
+			);
 		}
 
 		query = query
@@ -202,14 +200,12 @@ export class CommentRepository {
 		// Cursor pagination (descending by created_at)
 		if (options.cursor) {
 			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				query = query.where((eb: ExpressionBuilder<Database, "_emdash_comments">) =>
-					eb.or([
-						eb("created_at", "<", decoded.orderValue),
-						eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			query = query.where((eb: ExpressionBuilder<Database, "_emdash_comments">) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		query = query

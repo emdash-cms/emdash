@@ -2,24 +2,19 @@
 
 Seed content, run the dev server, compare screenshots, and iterate until pages match.
 
-## 6.1 Apply the Seed
+## 6.1 Start Dev Server
 
-```bash
-# Validate first
-emdash seed --validate
-
-# Apply seed with content
-emdash seed
-```
-
-## 6.2 Start Dev Server
+The seed is applied on the first request when the database is empty. If you've already run the dev server against an existing database, delete `data.db` first so the seed reapplies.
 
 Kill any existing server first:
 
 ```bash
 lsof -ti:4321 | xargs kill -9 2>/dev/null || true
+rm -f data.db   # only if you need a clean slate
 pnpm dev
 ```
+
+Watch the logs for any seed validation errors and fix them before continuing.
 
 ## 6.3 Screenshot Each Page Type
 

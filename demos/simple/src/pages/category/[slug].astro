@@ -1,5 +1,10 @@
 ---
-import { getTerm, getEmDashCollection, getEntryTerms, decodeSlug } from "emdash";
+import {
+	getTerm,
+	getEmDashCollection,
+	getTermsForEntries,
+	decodeSlug,
+} from "emdash";
 import Base from "../../layouts/Base.astro";
 import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
@@ -11,18 +16,25 @@ if (!term) {
 	return Astro.redirect("/404");
 }
 
-const { entries: posts } = await getEmDashCollection("posts", {
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	where: { category: term.slug },
 	orderBy: { published_at: "desc" },
 });
 
-// Fetch tags for display on each post card
-const filteredPosts = await Promise.all(
-	posts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		return { post, tags };
-	})
+Astro.cache.set(cacheHint);
+
+// Single batched query for tags on every post in this category, rather
+// than calling getEntryTerms() per post (which would be one round-trip
+// per post).
+const tagsByEntry = await getTermsForEntries(
+	"posts",
+	posts.map((p) => p.data.id),
+	"tag",
 );
+const filteredPosts = posts.map((post) => ({
+	post,
+	tags: tagsByEntry.get(post.data.id) ?? [],
+}));
 ---
 
 <Base title={`${term.label} posts`} description={`All posts in ${term.label}`}>

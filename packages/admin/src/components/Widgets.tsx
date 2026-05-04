@@ -32,7 +32,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
+import { Plus, DotsSixVertical, Trash, CaretDown } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -55,9 +55,15 @@ import {
 	type UpdateWidgetInput,
 } from "../lib/api";
 import { getPluginBlocks } from "../lib/pluginBlocks";
+import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { PortableTextEditor, type PluginBlockDef } from "./PortableTextEditor";
+import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
+import {
+	PortableTextEditor,
+	type BlockSidebarPanel,
+	type PluginBlockDef,
+} from "./PortableTextEditor";
 
 /** Palette item types that can be dragged into areas */
 interface PaletteItemData {
@@ -108,8 +114,24 @@ export function Widgets() {
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
 	const [expandedWidgets, setExpandedWidgets] = React.useState<Set<string>>(new Set());
+	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
 	// Track palette drag source across the full drag lifecycle (including drop animation)
 	const draggingFromPaletteRef = React.useRef(false);
+
+	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+		setBlockSidebarPanel((prev) => {
+			// Close any existing panel before opening a new one so only one is ever active
+			prev?.onClose();
+			return panel;
+		});
+	}, []);
+
+	const handleBlockSidebarClose = React.useCallback(() => {
+		setBlockSidebarPanel((prev) => {
+			prev?.onClose();
+			return null;
+		});
+	}, []);
 
 	const { data: areas = [], isLoading } = useQuery({
 		queryKey: ["widget-areas"],
@@ -344,7 +366,7 @@ export function Widgets() {
 									name="name"
 									required
 									placeholder="sidebar"
-									pattern="[a-z0-9-]+"
+									pattern="[a-z0-9\-]+"
 								/>
 								<Input label="Label" name="label" required placeholder="Main Sidebar" />
 								<Input
@@ -421,6 +443,8 @@ export function Widgets() {
 									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
 									components={components}
 									pluginBlocks={pluginBlocks}
+									onBlockSidebarOpen={handleBlockSidebarOpen}
+									onBlockSidebarClose={handleBlockSidebarClose}
 								/>
 							))
 						)}
@@ -445,6 +469,25 @@ export function Widgets() {
 					</div>
 				) : null}
 			</DragOverlay>
+
+			{/* A single block-sidebar panel for the whole page — ensures only one is ever
+			    open at a time, preventing stacked fixed overlays and duplicated window listeners. */}
+			{blockSidebarPanel?.type === "image" && (
+				<ImageDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+					onUpdate={(attrs) =>
+						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
+					}
+					onReplace={(attrs) =>
+						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+					}
+					onDelete={() => {
+						blockSidebarPanel.onDelete();
+						setBlockSidebarPanel(null);
+					}}
+					onClose={handleBlockSidebarClose}
+				/>
+			)}
 		</DndContext>
 	);
 }
@@ -492,6 +535,8 @@ function WidgetAreaPanel({
 	isDraggingPalette,
 	components,
 	pluginBlocks,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	area: WidgetArea;
 	expandedWidgets: Set<string>;
@@ -499,6 +544,8 @@ function WidgetAreaPanel({
 	isDraggingPalette: boolean;
 	components: WidgetComponent[];
 	pluginBlocks: PluginBlockDef[];
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -554,6 +601,8 @@ function WidgetAreaPanel({
 								onToggle={() => onToggleWidget(widget.id)}
 								components={components}
 								pluginBlocks={pluginBlocks}
+								onBlockSidebarOpen={onBlockSidebarOpen}
+								onBlockSidebarClose={onBlockSidebarClose}
 							/>
 						))}
 					</SortableContext>
@@ -600,6 +649,8 @@ function WidgetItem({
 	onToggle,
 	components,
 	pluginBlocks,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	widget: Widget;
 	areaName: string;
@@ -607,6 +658,8 @@ function WidgetItem({
 	onToggle: () => void;
 	components: WidgetComponent[];
 	pluginBlocks: PluginBlockDef[];
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -670,7 +723,7 @@ function WidgetItem({
 				</button>
 				<button onClick={onToggle} className="flex-1 text-start" aria-expanded={isExpanded}>
 					<div className="flex items-center gap-2">
-						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
+						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 						<span className="font-medium">{widget.title || "Untitled Widget"}</span>
 						<span className="text-xs text-kumo-subtle">({widget.type})</span>
 					</div>
@@ -692,6 +745,8 @@ function WidgetItem({
 					pluginBlocks={pluginBlocks}
 					onSave={(input) => updateMutation.mutate(input)}
 					isSaving={updateMutation.isPending}
+					onBlockSidebarOpen={onBlockSidebarOpen}
+					onBlockSidebarClose={onBlockSidebarClose}
 				/>
 			)}
 		</div>
@@ -705,12 +760,16 @@ function WidgetEditor({
 	pluginBlocks,
 	onSave,
 	isSaving,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	widget: Widget;
 	components: WidgetComponent[];
 	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateWidgetInput) => void;
 	isSaving: boolean;
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
 	const [title, setTitle] = React.useState(widget.title ?? "");
 	const [content, setContent] = React.useState<unknown[]>(
@@ -761,6 +820,8 @@ function WidgetEditor({
 						minimal
 						placeholder="Write widget content..."
 						pluginBlocks={pluginBlocks}
+						onBlockSidebarOpen={onBlockSidebarOpen}
+						onBlockSidebarClose={onBlockSidebarClose}
 					/>
 				</div>
 			)}

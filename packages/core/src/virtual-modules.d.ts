@@ -7,12 +7,18 @@
 
 declare module "virtual:emdash/config" {
 	import type { I18nConfig } from "./i18n/config.js";
-	import type { DatabaseDescriptor, StorageDescriptor, AuthDescriptor } from "./index.js";
+	import type {
+		AuthDescriptor,
+		AuthProviderDescriptor,
+		DatabaseDescriptor,
+		StorageDescriptor,
+	} from "./index.js";
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
+		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
 	}
 
@@ -101,6 +107,20 @@ declare module "virtual:emdash/sandboxed-plugins" {
 
 declare module "virtual:emdash/block-components" {
 	export const pluginBlockComponents: Record<string, unknown>;
+}
+
+declare module "virtual:emdash/auth-providers" {
+	import type { ComponentType } from "react";
+
+	interface AuthProviderEntry {
+		id: string;
+		label: string;
+		LoginButton?: ComponentType;
+		LoginForm?: ComponentType;
+		SetupStep?: ComponentType<{ onComplete: () => void }>;
+	}
+
+	export const authProviders: Record<string, AuthProviderEntry>;
 }
 
 declare module "virtual:emdash/wait-until" {

@@ -398,13 +398,13 @@ export function createPlugin() {
 
 Plugins must declare required capabilities for security sandboxing:
 
-| Capability      | Provides                      | Use Case            |
-| --------------- | ----------------------------- | ------------------- |
-| `network:fetch` | `ctx.http.fetch()`            | External API calls  |
-| `read:content`  | `ctx.content.get()`, `list()` | Reading CMS content |
-| `write:content` | `ctx.content.create()`, etc.  | Modifying content   |
-| `read:media`    | `ctx.media.get()`, `list()`   | Reading media       |
-| `write:media`   | `ctx.media.getUploadUrl()`    | Uploading media     |
+| Capability        | Provides                      | Use Case            |
+| ----------------- | ----------------------------- | ------------------- |
+| `network:request` | `ctx.http.fetch()`            | External API calls  |
+| `content:read`    | `ctx.content.get()`, `list()` | Reading CMS content |
+| `content:write`   | `ctx.content.create()`, etc.  | Modifying content   |
+| `media:read`      | `ctx.media.get()`, `list()`   | Reading media       |
+| `media:write`     | `ctx.media.getUploadUrl()`    | Uploading media     |
 
 ## Common Gotchas
 
@@ -418,7 +418,7 @@ Plugins must declare required capabilities for security sandboxing:
 
 ## Next Steps
 
-- [Hooks Reference](/plugins/hooks/) — All hooks with signatures
-- [Storage API](/plugins/storage/) — Collections and queries
-- [Settings](/plugins/settings/) — Settings schema and KV store
-- [Admin UI](/plugins/admin-ui/) — Building admin pages
+- [Hooks](/plugins/creating-plugins/hooks/) — All hooks with signatures
+- [Storage](/plugins/creating-plugins/storage/) — Collections and queries
+- [Settings](/plugins/creating-plugins/settings/) — KV-backed settings via Block Kit
+- [React Admin Pages & Widgets](/plugins/creating-native-plugins/react-admin/) — Building admin pages (native plugins)

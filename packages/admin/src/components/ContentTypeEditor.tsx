@@ -19,15 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	Plus,
-	DotsSixVertical,
-	Pencil,
-	Trash,
-	Database,
-	FileText,
-} from "@phosphor-icons/react";
+import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -39,8 +31,11 @@ import type {
 	UpdateCollectionInput,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { EditorHeader } from "./EditorHeader";
 import { FieldEditor } from "./FieldEditor";
+import { SaveButton } from "./SaveButton";
 
 // Regex patterns for slug generation
 const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
@@ -161,7 +156,7 @@ export function ContentTypeEditor({
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
-		(collection?.supports ?? ["drafts"]).filter((s) => s !== "seo"),
+		(collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"),
 	);
 
 	// SEO state
@@ -323,27 +318,44 @@ export function ContentTypeEditor({
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center space-x-4">
-				<Link
-					to="/content-types"
-					aria-label="Back to Content Types"
-					className={buttonVariants({ variant: "ghost", shape: "square" })}
-				>
-					<ArrowLeft className="h-5 w-5" />
-				</Link>
-				<div className="flex-1">
-					<h1 className="text-2xl font-bold">{isNew ? "New Content Type" : collection?.label}</h1>
-					{!isNew && (
-						<p className="text-kumo-subtle text-sm">
-							<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
-							{isFromCode && (
-								<span className="ms-2 text-purple-600 dark:text-purple-400">Defined in code</span>
-							)}
-						</p>
-					)}
-				</div>
-			</div>
+			{/* Sticky header keeps the primary save action in view while users
+			    scroll through the settings + fields panels. The bottom-of-form
+			    save button is preserved below for keyboard / screen-reader users
+			    so DOM order still ends with a submit control. */}
+			<EditorHeader
+				leading={
+					<Link
+						to="/content-types"
+						aria-label={t`Back to Content Types`}
+						className={buttonVariants({ variant: "ghost", shape: "square" })}
+					>
+						<ArrowPrev className="h-5 w-5" />
+					</Link>
+				}
+				actions={
+					!isFromCode && !isNew ? (
+						<SaveButton
+							type="submit"
+							form="content-type-editor-form"
+							isDirty={!!hasChanges}
+							isSaving={!!isSaving}
+							disabled={!urlPatternValid}
+						/>
+					) : null
+				}
+			>
+				<h1 className="text-2xl font-bold truncate">
+					{isNew ? t`New Content Type` : collection?.label}
+				</h1>
+				{!isNew && (
+					<p className="text-kumo-subtle text-sm">
+						<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
+						{isFromCode && (
+							<span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span>
+						)}
+					</p>
+				)}
+			</EditorHeader>
 
 			{isFromCode && (
 				<div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4">
@@ -360,7 +372,7 @@ export function ContentTypeEditor({
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Settings form */}
 				<div className="lg:col-span-1">
-					<form onSubmit={handleSubmit} className="space-y-4">
+					<form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4">
 						<div className="rounded-lg border p-4 space-y-4">
 							<h2 className="font-semibold">Settings</h2>
 

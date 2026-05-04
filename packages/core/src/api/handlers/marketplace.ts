@@ -24,6 +24,7 @@ import {
 } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import { normalizeCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -95,11 +96,17 @@ function diffCapabilities(
 	oldCaps: string[],
 	newCaps: string[],
 ): { added: string[]; removed: string[] } {
-	const oldSet = new Set(oldCaps);
-	const newSet = new Set(newCaps);
+	// Normalize both sides before diffing so that an installed v1 manifest
+	// declaring `read:content` and an upgrade v2 manifest declaring
+	// `content:read` produces an empty diff — users should not see a
+	// spurious "capability changed" prompt for a pure rename.
+	const oldNorm = normalizeCapabilities(oldCaps);
+	const newNorm = normalizeCapabilities(newCaps);
+	const oldSet = new Set(oldNorm);
+	const newSet = new Set(newNorm);
 	return {
-		added: newCaps.filter((c) => !oldSet.has(c)),
-		removed: oldCaps.filter((c) => !newSet.has(c)),
+		added: newNorm.filter((c) => !oldSet.has(c)),
+		removed: oldNorm.filter((c) => !newSet.has(c)),
 	};
 }
 
