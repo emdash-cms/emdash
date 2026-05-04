@@ -219,6 +219,9 @@ vi.mock("@phosphor-icons/react", () => ({
 	ArrowUp: () => <span data-testid="arrow-up" />,
 	ArrowDown: () => <span data-testid="arrow-down" />,
 	Minus: () => <span data-testid="minus" />,
+	Circle: () => <span data-testid="icon-circle" />,
+	CheckCircle: () => <span data-testid="icon-check-circle" />,
+	XCircle: () => <span data-testid="icon-x-circle" />,
 	Info: () => <span data-testid="icon-info" />,
 	Warning: () => <span data-testid="icon-warning" />,
 	WarningCircle: () => <span data-testid="icon-warning-circle" />,
@@ -531,6 +534,46 @@ describe("BlockRenderer", () => {
 
 		fireEvent.click(screen.getByText("Ping"));
 		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
+	});
+
+	it("checklist block renders items, statuses, and item action", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "checklist",
+					title: "Setup checklist",
+					description: "Finish these tasks before launch.",
+					items: [
+						{ label: "Create admin", status: "complete" },
+						{
+							label: "Configure storage",
+							status: "warning",
+							description: "R2 credentials are missing.",
+							action: { type: "button", action_id: "open_storage", label: "Configure" },
+						},
+						{ label: "Publish", status: "pending" },
+						{ label: "DNS", status: "error" },
+					],
+				},
+			],
+			onAction,
+		);
+
+		expect(screen.getByText("Setup checklist")).toBeTruthy();
+		expect(screen.getByText("Finish these tasks before launch.")).toBeTruthy();
+		expect(screen.getByText("Create admin")).toBeTruthy();
+		expect(screen.getByText("R2 credentials are missing.")).toBeTruthy();
+		expect(screen.getByTestId("icon-check-circle")).toBeTruthy();
+		expect(screen.getByTestId("icon-warning-circle")).toBeTruthy();
+		expect(screen.getByTestId("icon-circle")).toBeTruthy();
+		expect(screen.getByTestId("icon-x-circle")).toBeTruthy();
+
+		fireEvent.click(screen.getByText("Configure"));
+		expect(onAction).toHaveBeenCalledWith({
+			type: "block_action",
+			action_id: "open_storage",
+		});
 	});
 
 	it("columns block renders blocks in columns", () => {
