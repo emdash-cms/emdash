@@ -33,6 +33,16 @@ import { generatePluginWrapper } from "./wrapper.js";
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
 
 /**
+ * Stub for the "emdash" module that sandbox-entry plugins import to get
+ * `definePlugin`. The marketplace bundler inlines this via an alias, but
+ * statically-loaded sandboxed plugins (from `sandboxed: [...]`) embed
+ * their `dist/sandbox-entry.mjs` as-is, which still has the bare import.
+ * Providing the module here keeps that path working without rebuilding
+ * every plugin. Mirrors `EMDASH_SHIM` in @emdash-cms/cloudflare.
+ */
+const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
+
+/**
  * Miniflare-based sandbox runner for development.
  */
 export class MiniflareDevRunner implements SandboxRunner {
@@ -180,6 +190,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				modules: [
 					{ type: "ESModule" as const, path: "worker.js", contents: wrapperCode },
 					{ type: "ESModule" as const, path: "sandbox-plugin.js", contents: code },
+					{ type: "ESModule" as const, path: "emdash", contents: EMDASH_SHIM },
 				],
 				outboundService: async (request: Request) => {
 					const url = new URL(request.url);

@@ -37,6 +37,8 @@ interface CapnpOptions {
 	plugins: Map<string, LoadedPlugin>;
 	backingServiceAddress: string;
 	configDir: string;
+	/** Filename (relative to configDir) of the shared "emdash" shim module. */
+	emdashShimFile: string;
 }
 
 /**
@@ -57,7 +59,7 @@ interface CapnpOptions {
  * For true CPU/memory isolation, deploy on Cloudflare Workers.
  */
 export function generateCapnpConfig(options: CapnpOptions): string {
-	const { plugins, backingServiceAddress } = options;
+	const { plugins, backingServiceAddress, emdashShimFile } = options;
 
 	const lines: string[] = [
 		`# Auto-generated workerd configuration for EmDash plugin sandbox`,
@@ -107,6 +109,7 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 		lines.push(`  modules = [`);
 		lines.push(`    (name = "worker.js", esModule = embed "${wrapperFile}"),`);
 		lines.push(`    (name = "sandbox-plugin.js", esModule = embed "${pluginFile}"),`);
+		lines.push(`    (name = "emdash", esModule = embed "${emdashShimFile}"),`);
 		lines.push(`  ],`);
 		lines.push(`  compatibilityDate = "2025-01-01",`);
 		lines.push(`  compatibilityFlags = ["nodejs_compat"],`);

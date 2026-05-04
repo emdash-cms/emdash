@@ -48,6 +48,17 @@ import { generatePluginWrapper } from "./wrapper.js";
 /** Replace non-alphanumeric chars for safe file/worker names */
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
 
+/**
+ * Stub for the "emdash" module that sandbox-entry plugins import to get
+ * `definePlugin`. The marketplace bundler inlines this via an alias, but
+ * statically-loaded sandboxed plugins (from `sandboxed: [...]`) embed
+ * their `dist/sandbox-entry.mjs` as-is, which still has the bare import.
+ * Providing the module here keeps that path working without rebuilding
+ * every plugin. Mirrors `EMDASH_SHIM` in @emdash-cms/cloudflare.
+ */
+const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
+const EMDASH_SHIM_FILE = "emdash-shim.js";
+
 /** Use Unix domain sockets for the backing service (lower latency than TCP).
  * Falls back to TCP on Windows where Unix sockets are not available. */
 const USE_UNIX_SOCKET = process.platform !== "win32";
@@ -502,6 +513,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			await mkdir(this.configDir, { recursive: true });
 		}
 
+		// Write the shared emdash shim once -- every plugin worker references
+		// it as a module so `import { definePlugin } from "emdash"` resolves.
+		await writeFile(join(this.configDir, EMDASH_SHIM_FILE), EMDASH_SHIM);
+
 		// Write plugin code files to disk (workerd needs file paths)
 		for (const [pluginId, plugin] of this.plugins) {
 			const safeId = pluginId.replace(SAFE_ID_RE, "_");
@@ -523,6 +538,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			plugins: this.plugins,
 			backingServiceAddress: this.backingServiceAddress,
 			configDir: this.configDir,
+			emdashShimFile: EMDASH_SHIM_FILE,
 		});
 
 		const configPath = join(this.configDir, "workerd.capnp");
