@@ -1061,6 +1061,48 @@ describe("SEO", () => {
 			expect(result.success).toBe(true);
 			expect(result.data!.collections).toEqual([]);
 		});
+
+		it("should include locale on each entry (defaults to 'en')", async () => {
+			await repo.create({
+				type: "post",
+				slug: "english-post",
+				data: { title: "English" },
+				status: "published",
+			});
+
+			const result = await handleSitemapData(db);
+
+			expect(result.success).toBe(true);
+			const entry = result.data!.collections[0]!.entries[0]!;
+			expect(entry.locale).toBe("en");
+		});
+
+		it("should return locale for each translated row of a collection", async () => {
+			const en = await repo.create({
+				type: "post",
+				slug: "about",
+				data: { title: "About" },
+				status: "published",
+				locale: "en",
+			});
+
+			await repo.create({
+				type: "post",
+				slug: "a-propos",
+				data: { title: "À propos" },
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+
+			const result = await handleSitemapData(db, "post");
+
+			expect(result.success).toBe(true);
+			const entries = result.data!.collections[0]!.entries;
+			const bySlug = new Map(entries.map((e) => [e.slug, e.locale]));
+			expect(bySlug.get("about")).toBe("en");
+			expect(bySlug.get("a-propos")).toBe("fr");
+		});
 	});
 
 	describe("has_seo opt-in per collection", () => {

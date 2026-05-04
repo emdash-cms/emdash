@@ -18,6 +18,8 @@ export interface SitemapContentEntry {
 	slug: string | null;
 	/** ISO date of last modification */
 	updatedAt: string;
+	/** Row locale (e.g. "en", "fr"). Always set — i18n migration backfills to "en". */
+	locale: string;
 }
 
 /** Per-collection sitemap data with entries and URL pattern */
@@ -93,8 +95,9 @@ export async function handleSitemapData(
 					slug: string | null;
 					id: string;
 					updated_at: string;
+					locale: string | null;
 				}>`
-					SELECT c.slug, c.id, c.updated_at
+					SELECT c.slug, c.id, c.updated_at, c.locale
 					FROM ${sql.ref(tableName)} c
 					LEFT JOIN _emdash_seo s
 						ON s.collection = ${col.slug}
@@ -114,6 +117,7 @@ export async function handleSitemapData(
 						id: row.id,
 						slug: row.slug,
 						updatedAt: row.updated_at,
+						locale: row.locale ?? "",
 					});
 				}
 
