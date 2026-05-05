@@ -167,6 +167,7 @@ describe("applySeed", () => {
 			expect(row).not.toBeNull();
 			expect(row?.label).toBe("Topics");
 			expect(row?.hierarchical).toBe(1);
+			expect(row?.translation_group).toBe(row?.id);
 		});
 
 		it("should create flat taxonomy terms", async () => {
@@ -304,6 +305,16 @@ describe("applySeed", () => {
 
 			expect(menu).not.toBeNull();
 			expect(menu?.label).toBe("Main Navigation");
+			expect(menu?.translation_group).toBe(menu?.id);
+
+			const items = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("menu_id", "=", menu?.id ?? "")
+				.execute();
+			for (const item of items) {
+				expect(item.translation_group, `item ${item.label}`).toBe(item.id);
+			}
 		});
 
 		it("should create nested menu items", async () => {
