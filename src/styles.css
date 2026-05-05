@@ -12,7 +12,7 @@
   --site-accent: #ca5f3a;
   --site-text-light: #f2f1ee;
 
-  --admin-shell-bg: #ffffff;
+  --admin-shell-bg: #eceef2;
   --admin-chrome-bg: rgba(255, 255, 255, 0.96);
   --admin-panel-bg: #ffffff;
   --admin-panel-border: #d9e1ed;
@@ -34,7 +34,7 @@
   }
 
   body {
-    @apply m-0 bg-[var(--site-bg-dark)] font-sans text-[var(--site-text-light)] antialiased;
+    @apply m-0 bg-[var(--admin-shell-bg)] font-sans text-[var(--site-text-light)] antialiased;
   }
 
   a {
@@ -104,20 +104,20 @@
   }
 
   .admin-panel {
-    @apply rounded-lg border p-4;
+    @apply rounded-2xl border p-4;
     background: var(--admin-panel-bg);
     border-color: var(--admin-panel-border);
   }
 
   .admin-pill {
-    @apply inline-flex min-h-10 items-center rounded-full border px-4 py-2 text-sm;
+    @apply inline-flex min-h-10 items-center rounded-xl border px-4 py-2 text-sm font-medium;
     border-color: var(--admin-btn-border);
     background: var(--admin-btn-bg);
     color: var(--admin-btn-text);
   }
 
   .admin-pill-ghost {
-    @apply inline-flex min-h-10 items-center rounded-full border px-4 py-2 text-sm;
+    @apply inline-flex min-h-10 items-center rounded-xl border px-4 py-2 text-sm font-medium;
     background: transparent;
     border-color: var(--admin-panel-border);
     color: var(--admin-text-soft);
@@ -126,7 +126,7 @@
   .admin-input,
   .admin-textarea,
   .admin-select {
-    @apply w-full rounded-lg border px-3 py-2;
+    @apply w-full rounded-xl border px-3 py-2;
     border-color: var(--admin-field-border);
     background: var(--admin-field-bg);
     color: var(--admin-field-text);
@@ -147,5 +147,33 @@
   .admin-list-item.active {
     border-color: #8ea8d9;
     background: var(--admin-active-bg);
+  }
+
+  .admin-sidebar {
+    @apply flex h-screen flex-col;
+    border-color: var(--admin-panel-border);
+  }
+
+  .admin-side-label {
+    @apply mb-2 mt-6 px-2 text-[11px] font-semibold uppercase tracking-[0.08em];
+    color: var(--admin-text-soft);
+  }
+
+  .admin-side-link {
+    @apply flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-[16px] font-medium transition;
+    color: #2b3a53;
+  }
+
+  .admin-side-link:hover {
+    background: #eceffa;
+  }
+
+  .admin-side-link.active {
+    background: #e5e8f8;
+  }
+
+  .admin-side-icon {
+    @apply h-[18px] w-[18px] shrink-0 opacity-80;
+    stroke-width: 2.2;
   }
 }

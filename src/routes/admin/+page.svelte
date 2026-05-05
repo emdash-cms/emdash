@@ -1,11 +1,24 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import type { CmsData } from '$lib/cms-schema';
-  import GuideIcon from '$lib/icons/GuideIcon.svelte';
-  import SupportIcon from '$lib/icons/SupportIcon.svelte';
-  import OpenSiteIcon from '$lib/icons/OpenSiteIcon.svelte';
+  import {
+    LayoutDashboard,
+    FileText,
+    Megaphone,
+    Clock3,
+    Image,
+    UserCircle2,
+    File,
+    Palette,
+    Menu,
+    Search,
+    User,
+    CircleHelp,
+    Headset,
+    ExternalLink
+  } from 'lucide-svelte';
 
-  type AdminView = 'profile' | 'pages' | 'posts' | 'promotions' | 'appearance';
+  type AdminView = 'profile' | 'pages' | 'posts' | 'promotions' | 'appearance' | 'menu';
 
   let draft = $state<CmsData | null>(null);
   let savedSnapshot = $state('');
@@ -199,6 +212,7 @@
     if (view === 'pages') return 'Pages';
     if (view === 'posts') return 'Posts';
     if (view === 'promotions') return 'Promotions';
+    if (view === 'menu') return 'Menu';
     return 'Appearance';
   });
 
@@ -207,6 +221,7 @@
     if (view === 'pages') return 'Manage evergreen content like About, Contact, and service pages.';
     if (view === 'posts') return 'Publish updates, news, announcements, events, and sermons.';
     if (view === 'promotions') return 'Control optional sitewide banners and campaign dates.';
+    if (view === 'menu') return 'Manage your menu items and categories.';
     return 'Adjust reusable brand tokens before developer handoff.';
   });
 
@@ -215,9 +230,22 @@
     return snapshot(draft) !== savedSnapshot;
   });
 
-  const primaryTabBase =
-    'border-b-2 border-transparent bg-transparent px-0.5 py-2 text-sm font-medium transition text-[var(--admin-text-soft)]';
-  const primaryTabActive = 'border-[var(--admin-text-strong)] text-[var(--admin-text-strong)]';
+  const sidebarItemBase = 'admin-side-link';
+  const sidebarItemActive = 'active';
+  const newActionLabel = $derived.by(() => {
+    if (view === 'posts') return '+ New Post';
+    if (view === 'promotions') return '+ New Promotion';
+    if (view === 'pages') return '+ New Page';
+    if (view === 'menu') return '+ New Item';
+    if (view === 'profile') return '+ New Day';
+    return '+ New Setting';
+  });
+
+  function onNewAction(): void {
+    if (view === 'posts' || view === 'promotions') return addPost();
+    if (view === 'pages') return addPage();
+    if (view === 'profile') return addHoursRow();
+  }
 </script>
 
 <svelte:head>
@@ -227,7 +255,7 @@
 {#if !draft}
   <div class="content-wrap text-[var(--site-text-light)]"><p>Loading admin...</p></div>
 {:else}
-  <div class="admin-theme p-4 md:p-8" class:is-dark={darkMode}>
+  <div class="admin-theme" class:is-dark={darkMode}>
       {#if showToast}
         <aside class="pointer-events-none fixed right-4 top-4 z-[70] sm:right-6 sm:top-6" role="status" aria-live="polite">
           <div
@@ -240,126 +268,72 @@
         </aside>
       {/if}
 
-      <div class="admin-sticky">
-        <header class="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
-          <div
-            class="relative inline-flex h-10.5 w-[176px] items-center rounded-full bg-neutral-700 dark:bg-neutral-400 border p-1"
-            style={`border-color: var(--admin-panel-border);`}
-            role="group"
-            aria-label="Theme mode"
-          >
-            <span
-              class={`pointer-events-none absolute top-1 h-8 w-[84px] rounded-full transition-transform duration-300 ease-out ${
-                darkMode
-                  ? 'translate-x-[84px] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]'
-                  : 'translate-x-0 bg-[linear-gradient(180deg,#2ad6ff,#1282ff)] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]'
-              }`}
-            ></span>
-            <button
-              class={`relative z-10 inline-flex h-8 w-[84px] items-center justify-center gap-1.5 rounded-full px-2 text-sm font-medium transition ${
-                !darkMode ? 'text-white' : 'text-white/75'
-              }`}
-              aria-pressed={!darkMode}
-              onclick={() => (darkMode = false)}
-            >
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <circle cx="12" cy="12" r="4"></circle>
-                <path d="M12 2v2"></path>
-                <path d="M12 20v2"></path>
-                <path d="m4.93 4.93 1.41 1.41"></path>
-                <path d="m17.66 17.66 1.41 1.41"></path>
-                <path d="M2 12h2"></path>
-                <path d="M20 12h2"></path>
-                <path d="m6.34 17.66-1.41 1.41"></path>
-                <path d="m19.07 4.93-1.41 1.41"></path>
-              </svg>
-              <span>Light</span>
-            </button>
-            <button
-              class={`relative z-10 inline-flex h-8 w-[84px] items-center justify-center gap-1.5 rounded-full px-2 text-sm font-medium transition ${
-                darkMode ? 'text-[#0b1423]' : 'text-white/75'
-              }`}
-              aria-pressed={darkMode}
-              onclick={() => (darkMode = true)}
-            >
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M21 12.8A8.8 8.8 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
-              </svg>
-              <span>Dark</span>
+      <div class="grid h-screen w-full gap-0 lg:grid-cols-[230px_1fr]">
+        <aside class="admin-sidebar">
+          <div class="border-none px-5 pb-4 pt-6" style={`border-color: var(--admin-panel-border);`}>
+            <p class="m-0 text-[24px] leading-[1.05] font-semibold text-[var(--admin-text-strong)]">{draft.site.title}</p>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <p class="admin-side-label">General</p>
+            <nav class="grid gap-1">
+              <button class={`${sidebarItemBase} ${view === 'profile' ? sidebarItemActive : ''}`} onclick={() => (view = 'profile')}><LayoutDashboard class="admin-side-icon" />Dashboard</button>
+              <button class={`${sidebarItemBase} ${view === 'posts' ? sidebarItemActive : ''}`} onclick={() => (view = 'posts')}><FileText class="admin-side-icon" />Posts</button>
+              <button class={`${sidebarItemBase} ${view === 'promotions' ? sidebarItemActive : ''}`} onclick={() => (view = 'promotions')}><Megaphone class="admin-side-icon" />Promotions</button>
+              <button class={sidebarItemBase}><Clock3 class="admin-side-icon" />Hours</button>
+              <button class={sidebarItemBase}><Image class="admin-side-icon" />Photos</button>
+            </nav>
+            <p class="admin-side-label">Site</p>
+            <nav class="grid gap-1">
+              <button class={`${sidebarItemBase} ${view === 'profile' ? sidebarItemActive : ''}`} onclick={() => (view = 'profile')}><UserCircle2 class="admin-side-icon" />Site Profile</button>
+              <button class={`${sidebarItemBase} ${view === 'pages' ? sidebarItemActive : ''}`} onclick={() => (view = 'pages')}><File class="admin-side-icon" />Pages</button>
+              <button class={`${sidebarItemBase} ${view === 'appearance' ? sidebarItemActive : ''}`} onclick={() => (view = 'appearance')}><Palette class="admin-side-icon" />Appearance</button>
+              <button class={`${sidebarItemBase} ${view === 'menu' ? sidebarItemActive : ''}`} onclick={() => (view = 'menu')}><Menu class="admin-side-icon" />Menu</button>
+              <button class={sidebarItemBase}><Search class="admin-side-icon" />Settings & SEO</button>
+            </nav>
+            <p class="admin-side-label">Workspace</p>
+            <nav class="grid gap-1">
+              <button class={sidebarItemBase}><User class="admin-side-icon" />Account</button>
+              <button class={sidebarItemBase}><CircleHelp class="admin-side-icon" />Guide</button>
+              <button class={sidebarItemBase}><Headset class="admin-side-icon" />Support</button>
+              <a class={`${sidebarItemBase} no-underline`} href="/" target="_blank" rel="noreferrer"><ExternalLink class="admin-side-icon" />Open site</a>
+            </nav>
+          </div>
+          <div class="px-4 pb-4">
+            <button class="w-full rounded-2xl border p-3 text-left" style={`border-color: var(--admin-panel-border); background: #f0f2f6;`}>
+              <p class="m-0 text-sm font-semibold text-[var(--admin-text-strong)]">Your Symballo Account</p>
+
+              <p class="m-0 mt-1 text-sm text-[var(--admin-text-strong)]">Account Settings</p>
             </button>
           </div>
+        </aside>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <button class="admin-pill-ghost">
-              <GuideIcon className="h-4 w-4 shrink-0" />
-              <span class="ml-1.5">Guide</span>
-            </button>
-            <button class="admin-pill-ghost">
-              <SupportIcon className="h-4 w-4 shrink-0" />
-              <span class="ml-1.5">Support</span>
-            </button>
-            <a
-              class="admin-pill-ghost text-sm no-underline"
-              href="/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <OpenSiteIcon className="h-4 w-4 shrink-0" />
-              <span class="ml-1.5">Open site</span>
-            </a>
-          </div>
-        </header>
+        <section class="admin-panel m-3 flex min-w-0 flex-col overflow-hidden p-0">
+          <header class="flex items-center justify-between border-b px-5 py-3" style={`border-color: var(--admin-panel-border);`}>
+            <p class="m-0 text-[18px] font-medium leading-none text-[var(--admin-text-strong)]">{currentSectionName}</p>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs" style={`border-color: var(--admin-panel-border);`}>🔔</span>
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs" style={`border-color: var(--admin-panel-border);`}>👤</span>
+            </div>
+          </header>
 
-        <header class="grid items-end gap-4 px-1 py-6 lg:grid-cols-[minmax(300px,1fr)_minmax(280px,0.95fr)]">
-          <h1 class="m-0 text-[clamp(2.55rem,4.7vw,4.9rem)] font-medium leading-[0.94] tracking-[-0.02em] text-[var(--admin-text-strong)]">
-            {currentSectionName}
-          </h1>
-          <p
-            class="m-0 justify-self-start text-right text-[clamp(1.9rem,2.2vw,3.15rem)] font-light leading-[0.92] tracking-[-0.02em] text-[var(--admin-text-soft)] opacity-55 lg:justify-self-end"
-          >
-            {currentSectionBlurb}
-          </p>
-        </header>
-
-        <div class="flex flex-wrap items-end justify-between gap-3 border-b pb-0.5" style={`border-color: var(--admin-panel-border);`}>
-          <nav class="flex flex-wrap items-center gap-3">
-            <button
-              class={`${primaryTabBase} ${view === 'profile' ? primaryTabActive : ''}`}
-              onclick={() => (view = 'profile')}
-            >
-              Site Profile
-            </button>
-            <button class={`${primaryTabBase} ${view === 'pages' ? primaryTabActive : ''}`} onclick={() => (view = 'pages')}>
-              Pages
-            </button>
-            <button class={`${primaryTabBase} ${view === 'posts' ? primaryTabActive : ''}`} onclick={() => (view = 'posts')}>
-              Posts
-            </button>
-            <button class={`${primaryTabBase} ${view === 'promotions' ? primaryTabActive : ''}`} onclick={() => (view = 'promotions')}>
-              Promotions
-            </button>
-            <button class={`${primaryTabBase} ${view === 'appearance' ? primaryTabActive : ''}`} onclick={() => (view = 'appearance')}>
-              Appearance
-            </button>
-          </nav>
-          <button
-            class={hasUnsavedChanges ? 'admin-pill' : 'admin-pill-ghost opacity-70'}
-            onclick={saveContent}
-            disabled={!hasUnsavedChanges || saving}
-          >
-            {saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Saved'}
-          </button>
-        </div>
-      </div>
-
-      <header class="grid items-center gap-4 pt-1">
-        <div class="flex items-center gap-3">
-
-          <div>
-            <h2 class="m-0 text-3xl font-semibold text-[var(--admin-text-strong)]">{currentEntityMeta}</h2>
-          </div>
-        </div>
-      </header>
+          <div class="min-h-0 flex-1 overflow-auto px-5 py-4">
+            <header class="mb-4 flex flex-wrap items-start justify-between gap-3 border-none pb-4" style={`border-color: var(--admin-panel-border);`}>
+              <div>
+                <p class="mt-1 text-[18px] text-[var(--admin-text-soft)]">{currentSectionBlurb}</p>
+                <p class="mt-1 text-sm text-[var(--admin-text-soft)]">{currentEntityMeta}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="admin-pill-ghost">View Guide</button>
+                <button class="admin-pill" onclick={onNewAction}>{newActionLabel}</button>
+                <button
+                  class={hasUnsavedChanges ? 'admin-pill' : 'admin-pill-ghost opacity-70'}
+                  onclick={saveContent}
+                  disabled={!hasUnsavedChanges || saving}
+                >
+                  {saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Saved'}
+                </button>
+              </div>
+            </header>
 
       <div class="flex flex-wrap items-center gap-2">
         {#if view === 'posts' || view === 'promotions'}
@@ -654,5 +628,52 @@
         </section>
       {/if}
 
+      {#if view === 'menu'}
+        <section class="admin-panel grid gap-4 lg:grid-cols-[250px_1fr]">
+          <div class="border-b pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4" style={`border-color: var(--admin-panel-border);`}>
+            <h2 class="m-0 text-2xl text-[var(--admin-text-strong)]">Categories</h2>
+            <ul class="m-0 mt-3 grid list-none gap-2 p-0">
+              <li class="admin-list-item active"><span>Appetizers</span></li>
+              <li class="admin-list-item"><span>Salads</span></li>
+              <li class="admin-list-item"><span>Entrees</span></li>
+              <li class="admin-list-item"><span>Sides</span></li>
+              <li class="admin-list-item"><span>Desserts</span></li>
+              <li class="admin-list-item"><span>Beverages</span></li>
+            </ul>
+          </div>
+          <div class="grid gap-3">
+            <h3 class="m-0 text-xl text-[var(--admin-text-strong)]">Items in Appetizers</h3>
+            <div class="overflow-hidden rounded-lg border" style={`border-color: var(--admin-panel-border);`}>
+              <table class="w-full text-sm">
+                <thead style={`background: var(--admin-field-bg); color: var(--admin-text-soft);`}>
+                  <tr>
+                    <th class="px-3 py-2 text-left font-medium">Item</th>
+                    <th class="px-3 py-2 text-left font-medium">Description</th>
+                    <th class="px-3 py-2 text-left font-medium">Price</th>
+                    <th class="px-3 py-2 text-left font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-t" style={`border-color: var(--admin-panel-border);`}>
+                    <td class="px-3 py-2">Bruschetta</td>
+                    <td class="px-3 py-2">Tomato, basil, garlic, balsamic glaze</td>
+                    <td class="px-3 py-2">$8.99</td>
+                    <td class="px-3 py-2">Active</td>
+                  </tr>
+                  <tr class="border-t" style={`border-color: var(--admin-panel-border);`}>
+                    <td class="px-3 py-2">Calamari</td>
+                    <td class="px-3 py-2">Crispy fried calamari with marinara</td>
+                    <td class="px-3 py-2">$11.99</td>
+                    <td class="px-3 py-2">Active</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      {/if}
+          </div>
+        </section>
+      </div>
   </div>
 {/if}
