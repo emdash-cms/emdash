@@ -537,7 +537,7 @@ EmDash defines a secondary Lexicon, `com.emdashcms.package.releaseExtension`, wh
 }
 ```
 
-The release-level extension carries a single object, `declaredAccess`, describing every kind of access the plugin needs. Inside, each access category (`content`, `media`, `storage`, `network`, `email`, …) carries a map of named operations (`read`, `write`, `request`, `send`, …). Each operation's value is a constraint object describing the limits placed on the access. Two shorthand rules apply:
+The release-level extension carries a single object, `declaredAccess`, describing every kind of access the plugin needs. Inside, each access category (`content`, `media`, `network`, `email`, …) carries a map of named operations (`read`, `write`, `request`, `send`, …). Each operation's value is a constraint object describing the limits placed on the access. Two shorthand rules apply:
 
 - An operation value of `true` is sugar for `{}`. Both mean "grant the operation with no constraints applied."
 - An operation that is omitted means "no access for this operation."
@@ -553,6 +553,8 @@ For the package type `emdash-plugin`, every operation declared in `declaredAcces
 
 The sandbox recognises the access categories and operations listed below. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields under `declaredAccess`. Within a known category, an unrecognised _operation_ key is also a hard reject. Constraint keys, in contrast, are part of an open vocabulary — see [Constraints](#constraints).
 
+The set is deliberately narrow — it covers what existing first-party EmDash plugins actually use. Categories that would make sense to add later but aren't normatively defined here include reading user records, declaring that the plugin _provides_ a host-pluggable hook (email transport, page fragment, etc.), and finer-grained scopes within `content`. Adding any of these is a purely additive lexicon change: a new optional field on `declaredAccess` (or a new operation inside an existing category) can be defined in a follow-on RFC without invalidating any existing record. We're shipping narrow on purpose, because the lexicon evolution rules let us expand cheaply but don't let us contract.
+
 **`content`** — access to site content (posts, pages, custom collections).
 
 | Operation | Description                                                                         |
@@ -566,13 +568,6 @@ The sandbox recognises the access categories and operations listed below. Catego
 | --------- | ----------------------------------------------------------- |
 | `read`    | Plugin may read media metadata and fetch media bytes.       |
 | `write`   | Plugin may upload, modify, or delete media. Implies `read`. |
-
-**`storage`** — access to plugin-private key/value storage (scoped to the plugin's installation; never shared across plugins).
-
-| Operation | Description                                          |
-| --------- | ---------------------------------------------------- |
-| `read`    | Plugin may read its own storage.                     |
-| `write`   | Plugin may write to its own storage. Implies `read`. |
 
 **`network`** — outbound HTTP requests.
 
@@ -596,7 +591,7 @@ The sandbox recognises the access categories and operations listed below. Catego
 
 Each operation's value is a constraint object (with `true` as sugar for the empty object). The keys of that object form an open vocabulary — clients that recognise a key enforce it; clients that don't surface it to the user but do not enforce it.
 
-This is the forward-compatibility mechanism. We expect to need rate limits on `network.request` and `email.send`, recipient allow-lists on `email.send`, write-quota limits on `storage.write`, and other quantitative constraints in due course. Defining them now would commit the lexicon to a specific shape before we've written the runtime code that enforces them. Leaving the constraint object open lets publishers declare such constraints whenever they're ready, and lets future runtime versions enforce them, without requiring a new release-extension lexicon.
+This is the forward-compatibility mechanism. We expect to need rate limits on `network.request` and `email.send`, recipient allow-lists on `email.send`, and other quantitative constraints in due course. Defining them now would commit the lexicon to a specific shape before we've written the runtime code that enforces them. Leaving the constraint object open lets publishers declare such constraints whenever they're ready, and lets future runtime versions enforce them, without requiring a new release-extension lexicon.
 
 The contract for constraint keys:
 
@@ -1111,16 +1106,14 @@ The host platform's own underlying limits (Workers CPU and memory ceilings, netw
 
 #### What's enforced and what's advisory
 
-| Category and operation | What's enforced                                                                                                            | What's advisory                                                                                                                                               |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `content.read`         | Whether the operation is granted at all.                                                                                   | Any constraint keys (none normatively defined here).                                                                                                          |
-| `content.write`        | Whether the operation is granted at all. Implies `read`.                                                                   | Any constraint keys.                                                                                                                                          |
-| `media.read`           | Whether the operation is granted at all.                                                                                   | Any constraint keys.                                                                                                                                          |
-| `media.write`          | Whether the operation is granted at all. Implies `read`.                                                                   | Any constraint keys.                                                                                                                                          |
-| `storage.read`         | Whether the operation is granted at all. Storage is plugin-private — the sandbox isolates each plugin's store from others. | Any constraint keys.                                                                                                                                          |
-| `storage.write`        | Whether the operation is granted at all. Implies `read`.                                                                   | Any constraint keys (notably write quotas, deferred to a follow-on RFC).                                                                                      |
-| `network.request`      | Whether the operation is granted at all, and the `allowedHosts` constraint when present.                                   | Any other constraint keys (notably rate limits, deferred).                                                                                                    |
-| `email.send`           | Whether the operation is granted at all.                                                                                   | All constraint keys (rate limits, recipient allow-lists, etc., deferred). Plugins that declare email send get unconstrained send within host platform limits. |
+| Category and operation | What's enforced                                                                          | What's advisory                                                                                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content.read`         | Whether the operation is granted at all.                                                 | Any constraint keys (none normatively defined here).                                                                                                                              |
+| `content.write`        | Whether the operation is granted at all. Implies `read`.                                 | Any constraint keys.                                                                                                                                                              |
+| `media.read`           | Whether the operation is granted at all.                                                 | Any constraint keys.                                                                                                                                                              |
+| `media.write`          | Whether the operation is granted at all. Implies `read`.                                 | Any constraint keys.                                                                                                                                                              |
+| `network.request`      | Whether the operation is granted at all, and the `allowedHosts` constraint when present. | Any other constraint keys (notably rate limits, reserved for a follow-on RFC).                                                                                                    |
+| `email.send`           | Whether the operation is granted at all.                                                 | All constraint keys (rate limits, recipient allow-lists, etc., reserved for a follow-on RFC). Plugins that declare email send get unconstrained send within host platform limits. |
 
 Constraints listed as advisory today are exactly the constraints follow-on RFCs are expected to normatively specify and the runtime to start enforcing. Publishers can declare them now; future runtime versions will pick up enforcement.
 
