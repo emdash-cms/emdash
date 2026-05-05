@@ -783,7 +783,7 @@ function WidgetEditor({
 
 	const { data: menus = [] } = useQuery({
 		queryKey: ["menus"],
-		queryFn: fetchMenus,
+		queryFn: () => fetchMenus(),
 		enabled: widget.type === "menu",
 	});
 

@@ -24,7 +24,7 @@ import {
 	ArrowsOutSimple,
 	ArrowSquareOut,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -77,6 +77,7 @@ import { SaveButton } from "./SaveButton";
 import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
@@ -226,6 +227,7 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
+	const navigate = useNavigate();
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -988,55 +990,19 @@ export function ContentEditor({
 							{/* Translations sidebar - shown when i18n is enabled */}
 							{i18n && item && !isNew && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Translations`}</h3>
-									<div className="space-y-2">
-										{i18n.locales.map((locale) => {
-											const translation = translations?.find((tr) => tr.locale === locale);
-											const isCurrent = locale === item.locale;
-											return (
-												<div
-													key={locale}
-													className={cn(
-														"flex items-center justify-between rounded-md px-3 py-2 text-sm",
-														isCurrent
-															? "bg-kumo-brand/10 font-medium"
-															: translation
-																? "hover:bg-kumo-tint/50"
-																: "text-kumo-subtle",
-													)}
-												>
-													<div className="flex items-center gap-2">
-														<span className="text-xs font-semibold uppercase">{locale}</span>
-														{locale === i18n.defaultLocale && (
-															<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
-														)}
-														{isCurrent && (
-															<span className="text-[10px] text-kumo-brand">{t`current`}</span>
-														)}
-													</div>
-													{translation && !isCurrent ? (
-														<Link
-															to="/content/$collection/$id"
-															params={{ collection, id: translation.id }}
-															className="text-xs text-kumo-brand hover:underline"
-														>
-															{t`Edit`}
-														</Link>
-													) : !translation && onTranslate ? (
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-auto px-2 py-1 text-xs"
-															onClick={() => onTranslate(locale)}
-														>
-															{t`Translate`}
-														</Button>
-													) : null}
-												</div>
-											);
-										})}
-									</div>
+									<TranslationsPanel
+										locales={i18n.locales}
+										defaultLocale={i18n.defaultLocale}
+										currentLocale={item.locale ?? undefined}
+										translations={translations ?? []}
+										onOpen={(tr) =>
+											navigate({
+												to: "/content/$collection/$id",
+												params: { collection, id: tr.id },
+											})
+										}
+										onCreate={onTranslate}
+									/>
 								</div>
 							)}
 

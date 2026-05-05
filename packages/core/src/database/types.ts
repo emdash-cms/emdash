@@ -20,12 +20,14 @@ export interface TaxonomyTable {
 	label: string;
 	parent_id: string | null;
 	data: string | null; // JSON
+	locale: Generated<string>; // e.g. 'en', 'es', 'fr'
+	translation_group: string | null; // shared across translations of the same term
 }
 
 export interface ContentTaxonomyTable {
 	collection: string; // e.g., 'posts'
 	entry_id: string; // ID in the ec_* table
-	taxonomy_id: string;
+	taxonomy_id: string; // stores taxonomies.translation_group (locale-agnostic)
 }
 
 export interface TaxonomyDefTable {
@@ -36,6 +38,8 @@ export interface TaxonomyDefTable {
 	hierarchical: number; // 0 or 1 (SQLite boolean)
 	collections: string | null; // JSON array
 	created_at: Generated<string>;
+	locale: Generated<string>;
+	translation_group: string | null;
 }
 
 export interface MediaTable {
@@ -292,6 +296,8 @@ export interface MenuTable {
 	label: string;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	locale: Generated<string>;
+	translation_group: string | null;
 }
 
 export interface MenuItemTable {
@@ -301,13 +307,15 @@ export interface MenuItemTable {
 	sort_order: number;
 	type: string;
 	reference_collection: string | null;
-	reference_id: string | null;
+	reference_id: string | null; // stores translation_group of referenced content/term
 	custom_url: string | null;
 	label: string;
 	title_attr: string | null;
 	target: string | null;
 	css_classes: string | null;
 	created_at: Generated<string>;
+	locale: Generated<string>;
+	translation_group: string | null;
 }
 
 // Widget Areas
