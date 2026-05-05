@@ -504,7 +504,7 @@ export class AdminPage {
 	async clickEditTranslation(locale: string): Promise<void> {
 		const sidebar = this.page.locator("div:has(> h3:text-is('Translations'))");
 		const localeRow = sidebar.locator(`div:has(> div > span.uppercase:text-is("${locale}"))`);
-		await localeRow.getByRole("link", { name: "Edit" }).click();
+		await localeRow.getByRole("button", { name: "Edit" }).click();
 	}
 
 	/**
@@ -526,7 +526,7 @@ export class AdminPage {
 		const sidebar = this.page.locator("div:has(> h3:text-is('Translations'))");
 		const localeRow = sidebar.locator(`div:has(> div > span.uppercase:text-is("${locale}"))`);
 		return localeRow
-			.getByRole("link", { name: "Edit" })
+			.getByRole("button", { name: "Edit" })
 			.isVisible({ timeout: 3000 })
 			.catch(() => false);
 	}
