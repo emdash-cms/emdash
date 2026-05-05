@@ -276,6 +276,30 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			expect(item.rows[0]?.reference_id).toBe("term-1");
 		});
 
+		it("leaves items with reference_collection NULL untouched (runtime fallback handles them)", async () => {
+			await sql`INSERT INTO _emdash_collections (slug) VALUES ('posts')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, locale, translation_group) VALUES ('post-1', 'en', 'group-1')`.execute(
+				db,
+			);
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('m1', 'main', 'Main')`.execute(
+				db,
+			);
+			// Legacy item: type='post' with reference_collection NULL. We can't
+			// migrate without guessing the collection slug, so the value is left
+			// as the original row id — runtime fallback resolves it directly.
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, type, label, reference_collection, reference_id)
+				VALUES ('mi-legacy', 'm1', 'post', 'Post', NULL, 'post-1')
+			`.execute(db);
+
+			await up(db);
+
+			const item = await sql<{ reference_id: string }>`
+				SELECT reference_id FROM _emdash_menu_items WHERE id = 'mi-legacy'
+			`.execute(db);
+			expect(item.rows[0]?.reference_id).toBe("post-1");
+		});
+
 		it("leaves menu items with non-resolving references untouched", async () => {
 			await sql`INSERT INTO _emdash_collections (slug) VALUES ('posts')`.execute(db);
 			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('m1', 'main', 'Main')`.execute(

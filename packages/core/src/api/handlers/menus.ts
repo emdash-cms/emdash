@@ -171,8 +171,9 @@ export async function handleMenuCreate(
 				.execute();
 
 			// Clone items from the source menu (same reference_ids — they are
-			// translation_groups, which are locale-agnostic). The items' own
-			// locale/translation_group get fresh values tied to the new menu.
+			// translation_groups, which are locale-agnostic). Each clone
+			// inherits the source item's translation_group so a nav entry
+			// identifies as the same logical item across menu translations.
 			if (sourceMenu) {
 				const sourceItems = await trx
 					.selectFrom("_emdash_menu_items")

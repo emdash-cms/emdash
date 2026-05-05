@@ -209,6 +209,8 @@ async function rebuildContentTaxonomies(db: Kysely<unknown>): Promise<void> {
 }
 
 async function remapMenuItemRefs(db: Kysely<unknown>): Promise<void> {
+	// Items with `reference_collection IS NULL` are left untouched — the
+	// runtime fallback in `menus/index.ts` resolves them by id.
 	const collections = await sql<{ slug: string }>`SELECT slug FROM _emdash_collections`.execute(db);
 	for (const { slug } of collections.rows) {
 		validateIdentifier(slug, "collection slug");
