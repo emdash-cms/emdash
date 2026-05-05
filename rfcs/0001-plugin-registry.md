@@ -23,9 +23,9 @@ Under this architecture:
 - EmDash aggregators subscribe to the atproto firehose to index these records and provide fast search APIs.
 - EmDash CMS installations verify plugin integrity via cryptographic signatures natively provided by atproto.
 
-This v1 registry is exclusively for **sandboxed plugins** — those running in isolated Worker sandboxes with declared capability manifests.
+This registry is exclusively for **sandboxed plugins** — those running in isolated Worker sandboxes with declared capability manifests.
 
-Because the sandbox provides safety assurance, the registry's primary goal is to prove _provenance_: authors retain full ownership of their distribution without relying on a centralized authority. Native plugins (npm-distributed) remain out of scope for v1.
+Because the sandbox provides safety assurance, the registry's primary goal is to prove _provenance_: authors retain full ownership of their distribution without relying on a centralized authority. Native plugins (npm-distributed) remain out of scope for this RFC.
 
 # Example
 
@@ -92,13 +92,13 @@ Crucially, because EmDash has no installed base of FAIR-published packages, publ
 # Non-Goals
 
 - **Replacing atproto infrastructure.** We do not build or run a PDS, relay, or DID directory. We use existing atproto infrastructure.
-- **Supporting non-atproto FAIR transports.** EmDash publishers do not publish to FAIR HTTP repositories. The atproto transport is the only publishing surface EmDash uses. FAIR aggregators that subscribe to the atproto firehose index EmDash records natively (a firehose-aware FAIR aggregator and an atproto AppView are the same thing under different names); aggregators that only support HTTP-polling will not see EmDash plugins, which is fine for v1. We do not specify or build a bridge between the two transports.
+- **Supporting non-atproto FAIR transports.** EmDash publishers do not publish to FAIR HTTP repositories. The atproto transport is the only publishing surface EmDash uses. FAIR aggregators that subscribe to the atproto firehose index EmDash records natively (a firehose-aware FAIR aggregator and an atproto AppView are the same thing under different names); aggregators that only support HTTP-polling will not see EmDash plugins, which is fine for now. We do not specify or build a bridge between the two transports.
 - **Forking FAIR.** Where this RFC adopts FAIR's protocol shape (record fields, trust model, labeller architecture, extension mechanism), it does so as-specified, with contributions back where the shape needs to extend (notably the lexicon definitions for an atproto transport and the Publisher-Trust-without-per-package-DID mode). EmDash's design does not require FAIR to accept these contributions; see [Relationship to FAIR](#relationship-to-fair).
 - **Mandating a specific artifact host.** Authors choose where to host their bundle artifacts. The aggregator may mirror artifacts it indexes, as FAIR's protocol already permits.
-- **Trust and moderation primitives in v1.** Reviews, reports, and the specific labellers EmDash trusts by default are planned but specified in a follow-on RFC. The protocol substrate (FAIR's labeller architecture, atproto-compatible signed labels via Ozone) is established here only by reference.
-- **Supporting private/authenticated packages in v1.** Paid and private plugins are a future extension. FAIR has draft support for commercial packages and authentication; we follow that work rather than reinvent it.
-- **Inter-plugin dependency resolution in v1.** FAIR's `requires`/`suggests` mechanism handles host-version constraints (`env:emdash`, `env:astro`); per-plugin peer declarations are deferred to a follow-on RFC.
-- **Native plugins.** The v1 registry covers sandboxed plugins exclusively. Native plugins (npm-distributed Astro integrations with full platform access) continue to be installed via `npm install` and configured in `astro.config.mjs`. They are not indexed by the aggregator, not surfaced in the admin UI's install flow, and have no records in this registry.
+- **Trust and moderation primitives.** Reviews, reports, and the specific labellers EmDash trusts by default are planned but specified in a follow-on RFC. The protocol substrate (FAIR's labeller architecture, atproto-compatible signed labels via Ozone) is established here only by reference.
+- **Supporting private/authenticated packages.** Paid and private plugins are a future extension. FAIR has draft support for commercial packages and authentication; we follow that work rather than reinvent it.
+- **Inter-plugin dependency resolution.** FAIR's `requires`/`suggests` mechanism handles host-version constraints (`env:emdash`, `env:astro`); per-plugin peer declarations are deferred to a follow-on RFC.
+- **Native plugins.** This registry covers sandboxed plugins exclusively. Native plugins (npm-distributed Astro integrations with full platform access) continue to be installed via `npm install` and configured in `astro.config.mjs`. They are not indexed by the aggregator, not surfaced in the admin UI's install flow, and have no records in this registry.
 
   This RFC does not specify how native plugins are discovered or how they integrate with the trust layer; see [Future support for native plugins](#future-support-for-native-plugins) for what a follow-on RFC would address and why we've deferred it.
 
@@ -131,7 +131,7 @@ A separate question is whether FAIR formalises AT URIs as permitted `id` values 
 
 # Future support for native plugins
 
-Native plugins (npm-distributed Astro integrations that run in the host process with full platform access) are an important part of EmDash's ecosystem, but are explicitly out of scope for this v1 registry.
+Native plugins (npm-distributed Astro integrations that run in the host process with full platform access) are an important part of EmDash's ecosystem, but are explicitly out of scope for this registry.
 
 They are deferred because their trust and distribution models differ sharply from sandboxed plugins:
 
@@ -201,7 +201,7 @@ This proposal builds on the [AT Protocol](https://atproto.com/guides/overview) (
 
 ## Plugin Types
 
-EmDash supports both _sandboxed_ and _native_ plugins. **The v1 registry covers sandboxed plugins exclusively;** native plugins continue to be installed via npm and are out of scope for this RFC. See [Future support for native plugins](#future-support-for-native-plugins) for the rationale.
+EmDash supports both _sandboxed_ and _native_ plugins. **This registry covers sandboxed plugins exclusively;** native plugins continue to be installed via npm and are out of scope for this RFC. See [Future support for native plugins](#future-support-for-native-plugins) for the rationale.
 
 ### Sandboxed plugins
 
@@ -382,7 +382,7 @@ The atproto-record form of FAIR's [Release Document](https://github.com/fairpm/f
 | `provides`   | object | no                           | Capabilities the package provides. Map of capability type to string or list of strings.                                                                                                                                                                                                                                                                                                                                         |
 | `requires`   | object | no                           | Dependencies. Map of `env:*` keys (extension-defined environment requirements) or package DIDs to version constraint strings. EmDash uses `env:emdash` and `env:astro`.                                                                                                                                                                                                                                                         |
 | `suggests`   | object | no                           | Optional packages that may be installed alongside. Same shape as `requires`.                                                                                                                                                                                                                                                                                                                                                    |
-| `auth`       | object | no                           | Authentication requirements (FAIR's commercial / private packages). Out of scope for v1 EmDash use, but the field is reserved.                                                                                                                                                                                                                                                                                                  |
+| `auth`       | object | no                           | Authentication requirements (FAIR's commercial / private packages). Out of scope for this RFC, but the field is reserved.                                                                                                                                                                                                                                                                                                       |
 | `sbom`       | Sbom   | no                           | Software bill of materials reference. See [SBOM](#sbom).                                                                                                                                                                                                                                                                                                                                                                        |
 | `repo`       | string | no                           | AT URI or HTTPS URL of the source repository for this release (atproto lexicon `format: "uri"`). Equivalent to FAIR's `https://fair.pm/rel/repo` HAL relation.                                                                                                                                                                                                                                                                  |
 | `extensions` | object | no (yes for `emdash-plugin`) | Open-union container for extension data, keyed by NSID. Each value is an embedded record carrying its own `$type` discriminator. Releases of type `emdash-plugin` MUST include a `com.emdashcms.package.releaseExtension` entry here. See [EmDash extension](#emdash-extension).                                                                                                                                                |
@@ -519,9 +519,9 @@ This shape serves two purposes:
 1. **Forward-compatibility is additive.** New access categories — filesystem, subprocesses, environment variables, and the like — slot in as new optional fields under `declaredAccess` once they have well-defined runtime semantics. Existing records remain valid because the new fields are absent. Likewise, new operations can be added inside an existing category, and new constraint keys can be added inside an existing operation's constraint object.
 2. **The constraint object is open.** Known constraint keys (defined in this RFC or by a future RFC) are enforced by clients that recognise them; unknown constraint keys are surfaced verbatim in install-consent UI but not enforced. See [Constraints](#constraints) below.
 
-For the v1 package type `emdash-plugin`, every operation declared in `declaredAccess` is enforced by the sandbox runtime: a plugin that tries to do something outside what it declared is denied at runtime, and any constraints whose keys are recognised by the runtime are applied. Future package types (e.g. a native plugin type added by a follow-on RFC) may reuse the same `declaredAccess` shape with a different enforcement contract; that's a problem for the RFC that introduces the new type, not for this one.
+For the package type `emdash-plugin`, every operation declared in `declaredAccess` is enforced by the sandbox runtime: a plugin that tries to do something outside what it declared is denied at runtime, and any constraints whose keys are recognised by the runtime are applied. Future package types (e.g. a native plugin type added by a follow-on RFC) may reuse the same `declaredAccess` shape with a different enforcement contract; that's a problem for the RFC that introduces the new type, not for this one.
 
-The v1 sandbox recognises the access categories and operations listed below. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields under `declaredAccess`. Within a known category, an unrecognised _operation_ key is also a hard reject. Constraint keys, in contrast, are part of an open vocabulary — see [Constraints](#constraints).
+The sandbox recognises the access categories and operations listed below. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields under `declaredAccess`. Within a known category, an unrecognised _operation_ key is also a hard reject. Constraint keys, in contrast, are part of an open vocabulary — see [Constraints](#constraints).
 
 **`content`** — access to site content (posts, pages, custom collections).
 
@@ -571,12 +571,12 @@ This is the forward-compatibility mechanism. We expect to need rate limits on `n
 The contract for constraint keys:
 
 - A publisher MAY include any constraint keys they want under any operation. The registry stores them verbatim.
-- A v1 client encountering an unrecognised constraint key MUST surface it to the admin in the install-consent UI as "additional constraint declared by the plugin: `<key>: <value>`" and MUST NOT silently ignore it.
-- A v1 client MUST NOT enforce constraints whose semantics it does not understand. A constraint declared in the lexicon but not yet implemented by the runtime is advisory only at that runtime version.
+- A client encountering an unrecognised constraint key MUST surface it to the admin in the install-consent UI as "additional constraint declared by the plugin: `<key>: <value>`" and MUST NOT silently ignore it.
+- A client MUST NOT enforce constraints whose semantics it does not understand. A constraint declared in the lexicon but not yet implemented by the runtime is advisory only at that runtime version.
 - A future runtime version that defines semantics for a particular constraint key gains an obligation to enforce it; older runtimes continue to treat it as advisory. This is the standard atproto evolution model — newer schemas mean newer behaviour, older clients fall back gracefully.
 - Follow-on RFCs MAY normatively define specific constraint key/value shapes (e.g. `{ "rateLimit": { "perHour": 100 } }` under `email.send`). Once normatively defined, all clients implementing that RFC version MUST enforce them.
 
-The only normative constraint key in v1 is `allowedHosts` under `network.request`, defined above. Everything else is advisory until a follow-on RFC normatively specifies it.
+The only normative constraint key defined here is `allowedHosts` under `network.request`, defined above. Everything else is advisory until a follow-on RFC normatively specifies it.
 
 **Path shorthand.** For brevity in the rules below and elsewhere in this document, `release.emdash.<field>` is shorthand for `release.extensions["com.emdashcms.package.releaseExtension"].<field>`. So `release.emdash.declaredAccess.network.request.allowedHosts` is the path to a plugin's outbound host allow-list.
 
@@ -588,7 +588,7 @@ The only normative constraint key in v1 is `allowedHosts` under `network.request
 - A release whose package type is `emdash-plugin` MUST include `release.emdash.declaredAccess` with at least one operation populated across any category. A plugin that declares no access at all is not considered well-formed (it would have nothing to do).
 - The `package` artifact's bytes MUST hash to the artifact's `checksum`.
 - The bundle manifest's `declaredAccess` MUST be deep-equal to `release.emdash.declaredAccess` after canonicalisation (per the rule above). Checked at publish time by the CLI and at install time by the client.
-- Clients MUST reject any release whose `declaredAccess` contains a top-level field not enumerated in the v1 vocabulary above (unrecognised access category) or an unrecognised operation inside a known category. Lexicon evolution adds new fields over time; the client's own runtime version determines which are recognised.
+- Clients MUST reject any release whose `declaredAccess` contains a top-level field not enumerated in the vocabulary above (unrecognised access category) or an unrecognised operation inside a known category. Lexicon evolution adds new fields over time; the client's own runtime version determines which are recognised.
 - Unrecognised constraint _keys_ inside a known operation's constraint object MUST NOT cause rejection — they're surfaced to the user per the [Constraints](#constraints) contract.
 
 **Latest release selection:**
@@ -599,13 +599,13 @@ The only normative constraint key in v1 is `allowedHosts` under `network.request
 
 Yanked / deprecated states for releases or packages are not first-class fields in this RFC — they are handled via the labeller layer (see [Relationship to FAIR](#relationship-to-fair) and the trust/moderation follow-on RFC). A `security:yanked` or `deprecated` label on a release or package's AT URI signals client UI behaviour without changing the registry's protocol shape.
 
-Inter-plugin dependencies are expressed via FAIR's `requires` map with package DIDs as keys. Reviews, reports and trust-layer records are intentionally out of scope for v1.
+Inter-plugin dependencies are expressed via FAIR's `requires` map with package DIDs as keys. Reviews, reports and trust-layer records are intentionally out of scope.
 
 ### Lexicon evolution
 
 atproto lexicons are immutable contracts once published. EmDash strictly adheres to the official [atproto Lexicon Style Guide](https://atproto.com/guides/lexicon-style-guide#lexicon-evolution) for evolution. Because FAIR has officially adopted identical schema evolution rules (additive, optional fields only; no narrowing or renaming), the registry inherits forward-compatibility for free.
 
-If a genuinely incompatible shape is needed, a new lexicon must be published under a new NSID. The old NSID is retained for historical records. To avoid namespace churn, v1 fields lean towards optional—we only require fields whose absence would render the record meaningless.
+If a genuinely incompatible shape is needed, a new lexicon must be published under a new NSID. The old NSID is retained for historical records. To avoid namespace churn, initial fields lean towards optional—we only require fields whose absence would render the record meaningless.
 
 For follow-on features that require rapid iteration (e.g., reviews or reports), developers may use an experimental marker in the NSID (e.g. `com.emdashcms.experimental.review`). However, the core registry records (`pm.fair.package.profile`, `pm.fair.package.release`, and `com.emdashcms.package.releaseExtension`) are stable.
 
@@ -750,7 +750,7 @@ Update discovery is driven by the admin UI. When an admin logs into the dashboar
 
 #### Label conventions
 
-The v1 registry uses a small, fixed set of labels from the EmDash takedown labeller and any labellers a site operator additionally subscribes to. The protocol value space is atproto's standard label format; the conventional label values consumed by EmDash clients are:
+The registry uses a small, fixed set of labels from the EmDash takedown labeller and any labellers a site operator additionally subscribes to. The protocol value space is atproto's standard label format; the conventional label values consumed by EmDash clients are:
 
 | Label             | Applied to                | Client behaviour                                                                                                                 |
 | ----------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -758,7 +758,7 @@ The v1 registry uses a small, fixed set of labels from the EmDash takedown label
 | `deprecated`      | package AT URI            | Show deprecation badge in directory; allow new installs but encourage alternatives.                                              |
 | `verified`        | publisher DID             | Used in conjunction with `com.emdashcms.publisher.verification` records (see [Publisher Verification](#publisher-verification)). |
 
-A follow-on trust/moderation RFC will expand this vocabulary; v1 establishes only the subset above.
+A follow-on trust/moderation RFC will expand this vocabulary; This RFC establishes only the subset above.
 
 ## The Publish Flow
 
@@ -773,7 +773,7 @@ The runtime validates `manifest.json` against its existing schema and ignores th
 
 ### Publish flow
 
-In v1, publishing is URL-based:
+Publishing is URL-based:
 
 ```bash
 $ emdash plugin publish --url https://github.com/example/gallery/releases/download/v1.0.0/gallery-plugin-1.0.0.tar.gz
@@ -783,11 +783,11 @@ $ emdash plugin publish --url https://github.com/example/gallery/releases/downlo
 2. Reads `manifest.json` from the bundle. Extracts the runtime-relevant fields (`capabilities`, `allowedHosts`) for the release's `emdash` extension, and the package-level fields (`name`, `slug`, `description`, `authors`, `license`, `security`, etc.) for the package profile.
 3. On first publish for a `slug`, creates the `pm.fair.package.profile` record. Always creates the `pm.fair.package.release` record with a `package` artifact carrying the URL and checksum, and the `emdash` extension carrying the `declaredAccess` block lifted from the manifest.
 
-This requires the author to host the bundle somewhere (commonly a GitHub release) before running `publish`. A `--file <path>` flag that publishes a local tarball — uploading it to a default hosted artifact location and recording the resulting URL — is intended follow-on work that pairs with the hosted-artifact RFC. v1 does not include it; first-publish DX in v1 is "build → upload → publish", roughly three commands rather than `npm publish`'s one.
+This requires the author to host the bundle somewhere (commonly a GitHub release) before running `publish`. A `--file <path>` flag that publishes a local tarball — uploading it to a default hosted artifact location and recording the resulting URL — is intended follow-on work that pairs with the hosted-artifact RFC. This RFC does not include it; first-publish DX is "build → upload → publish", roughly three commands rather than `npm publish`'s one.
 
 ### Multi-Author Packages
 
-A package is always published under a single Publisher DID. For teams and organizations, collaborative publishing is handled via a shared organizational DID — the team creates one atproto account for the org, and individual members publish through it. v1 supports two paths to this:
+A package is always published under a single Publisher DID. For teams and organizations, collaborative publishing is handled via a shared organizational DID — the team creates one atproto account for the org, and individual members publish through it. There are two paths to this:
 
 1. **Interactive:** team members `emdash plugin login` to the org account via OAuth on their own machines, with the granular scopes described in [Authentication](#authentication). Suitable for small teams where one or two people handle releases.
 2. **CI/CD:** the org generates an app password for the publish use case and stores it in the CI secrets store. The CI job sets `EMDASH_PLUGIN_IDENTIFIER` and `EMDASH_PLUGIN_APP_PASSWORD` and runs `emdash plugin publish` non-interactively. See [Authentication](#authentication) for why credentials go through env vars and not flags, and why CI uses app passwords rather than OAuth.
@@ -874,7 +874,7 @@ Interactive publishing (a developer running `emdash plugin publish` on their own
 
 The CLI's client metadata document declares these scopes, the user reviews them in the PDS auth flow, and the issued tokens are scoped accordingly. A leaked CLI token grants only the ability to publish/edit plugin records under the user's account — not their posts, blobs, identity, or account settings. As permission sets become broadly deployed, the CLI will switch to requesting `include:com.emdashcms.publishing` (a Lexicon-published bundle covering both repo permissions in one user-facing description), but the underlying granular scopes remain the contract.
 
-Granular scopes are deployed on bsky.social and rolling out to the self-hosted PDS distribution as of late 2025; PDSes that have not yet shipped granular-scope support fall back to atproto's "transitional" coarse scopes for the same operations. The CLI accepts both in v1.
+Granular scopes are deployed on bsky.social and rolling out to the self-hosted PDS distribution as of late 2025; PDSes that have not yet shipped granular-scope support fall back to atproto's "transitional" coarse scopes for the same operations. The CLI accepts both.
 
 **Non-interactive publishing (CI/CD)** uses app passwords. Bluesky's own OAuth client guide states plainly: "OAuth is not currently recommended as an auth solution for 'headless' clients, such as command-line tools or bots." OAuth confidential clients exist but require a server component with `private_key_jwt` — a CLI invoked from a CI runner doesn't fit that shape. App passwords are formally deprecated in atproto but kept supported precisely because the headless story isn't done.
 
@@ -978,11 +978,11 @@ await client.createRelease(agent, {
 });
 ```
 
-GitHub Actions, hosted upload services, artifact caches and labellers are planned follow-on work. They are deliberately omitted from the v1 protocol and implementation plan so the initial system can focus on publishing, discovery and installation.
+GitHub Actions, hosted upload services, artifact caches and labellers are planned follow-on work. They are deliberately omitted from the initial protocol and implementation plan so the initial system can focus on publishing, discovery and installation.
 
 ### What we do NOT build
 
-- **A PDS.** Authors use any existing PDS — Bluesky's hosted service, a self-hosted instance, or any other compliant PDS. We may in future host a PDS to allow easy signup for authors, but this is not a v1 deliverable and is not required for the system to function.
+- **A PDS.** Authors use any existing PDS — Bluesky's hosted service, a self-hosted instance, or any other compliant PDS. We may in future host a PDS to allow easy signup for authors, but this is not in scope for this RFC and is not required for the system to function.
 - **A relay.** We subscribe to existing relay infrastructure.
 - **A sync / firehose-filtering layer.** The reference deployment plans to use [Tap](https://docs.bsky.app/blog/introducing-tap) to subscribe to a relay, verify MST integrity and signatures, and deliver filtered registry-record events to the aggregator; alternatives (direct relay subscription, Jetstream) are equally viable. See [Upstream sync](#upstream-sync) for the trade-offs.
 - **A custom signing system.** atproto's repo-level MST signing covers every record in the author's repo as a side-effect of normal publishing, so releases don't need a separate per-artifact signing step.
@@ -1009,7 +1009,7 @@ The web directory reference implementation is an Astro site that reads from the 
 
 ### Hosting a directory
 
-A third party that wants to offer their own plugin directory has two core options in v1:
+A third party that wants to offer their own plugin directory has two core options:
 
 ```mermaid
 graph LR
@@ -1056,11 +1056,43 @@ The bundle is downloaded, hashed, and compared against the record before any ins
 
 atproto handles key rotation at the DID level. If an author's key is compromised, they rotate it via the [PLC directory](https://plc.directory/) (or did:web update). Existing records remain valid (they were signed by the old key at the time), but new records must use the new key. This is handled transparently by the PDS.
 
-### Capability declarations and trust
+### Access declarations, sandbox enforcement, and trust
 
-Capability declarations on each release are the trust signal the admin UI surfaces. Because capabilities live on each release (not the package), they are always authoritative for the version being installed: the admin UI can show "This plugin requests read:content, email:send, and outbound access to images.example.com" and the user can make an informed decision knowing the sandbox enforces those boundaries at runtime.
+The `declaredAccess` block on each release is both the trust signal the admin UI surfaces and the configuration the sandbox enforces. Because the block lives on each release (not the package profile), it is always authoritative for the version being installed: the admin UI shows the user exactly what this version of the plugin will be able to do, and the sandbox enforces exactly those boundaries.
 
 Releases with no `emdash` extension data are not installable by EmDash. A FAIR-shaped record without EmDash extension fields might still be valid in some other ecosystem, but the EmDash admin UI treats it as non-installable.
+
+#### Sandbox enforcement
+
+For the package type `emdash-plugin`, the EmDash runtime enforces `declaredAccess` at the boundaries of the sandbox. The enforcement model:
+
+- **Operations not declared are denied.** A plugin whose `declaredAccess.email` is empty (or absent) cannot send mail. The runtime exposes `email.send` only to plugins that declared it; other plugins do not receive a working API surface for that operation. Calls fall through to "this operation is not available to this plugin" rather than reaching any host code.
+- **Operations declared with no constraints (`true` or `{}`) are granted unconditionally**, subject to the host platform's own underlying limits (request/CPU caps, abuse rate limits, etc.) which apply to all sandboxed code regardless of plugin declarations.
+- **Operations declared with normatively-defined constraints are granted under those constraints.** This RFC normatively defines exactly one constraint key — `allowedHosts` under `network.request`. A plugin declaring `network: { request: { allowedHosts: ["images.example.com"] } }` may make outbound HTTP requests to `images.example.com` only; requests to any other host fail at the sandbox boundary, with the plugin receiving an error.
+- **Operations declared with constraint keys the runtime does not recognise are granted as if the unrecognised constraints were absent**, but the constraints are surfaced to the admin at install time per the [Constraints](#constraints) contract. A plugin declaring `email: { send: { rateLimit: { perHour: 10 } } }` against a runtime that doesn't yet enforce `rateLimit` is allowed to send mail, the host platform's own underlying limits apply, the rate-limit constraint is shown to the admin in the install-consent UI, and a future runtime version that adds `rateLimit` enforcement will start applying it without the publisher needing to re-publish.
+
+Enforcement happens at runtime, not at the API surface. The runtime intercepts every operation that maps to a `declaredAccess` category before any host-platform side effect can occur. There is no path for plugin code to escape the declared boundaries within the sandbox; if a future change to the runtime were to introduce one, that would be a sandbox vulnerability addressed via the takedown labeller and a runtime patch, not a registry-spec issue.
+
+The host platform's own underlying limits (Workers CPU and memory ceilings, network request caps per invocation, etc.) apply on top of `declaredAccess` enforcement and are out of scope for this RFC. They protect the host from runaway plugins regardless of what was declared.
+
+#### What's enforced and what's advisory
+
+| Category and operation | What's enforced                                                                                                            | What's advisory                                                                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content.read`         | Whether the operation is granted at all.                                                                                   | Any constraint keys (none normatively defined here).                                                                                                          |
+| `content.write`        | Whether the operation is granted at all. Implies `read`.                                                                   | Any constraint keys.                                                                                                                                          |
+| `media.read`           | Whether the operation is granted at all.                                                                                   | Any constraint keys.                                                                                                                                          |
+| `media.write`          | Whether the operation is granted at all. Implies `read`.                                                                   | Any constraint keys.                                                                                                                                          |
+| `storage.read`         | Whether the operation is granted at all. Storage is plugin-private — the sandbox isolates each plugin's store from others. | Any constraint keys.                                                                                                                                          |
+| `storage.write`        | Whether the operation is granted at all. Implies `read`.                                                                   | Any constraint keys (notably write quotas, deferred to a follow-on RFC).                                                                                      |
+| `network.request`      | Whether the operation is granted at all, and the `allowedHosts` constraint when present.                                   | Any other constraint keys (notably rate limits, deferred).                                                                                                    |
+| `email.send`           | Whether the operation is granted at all.                                                                                   | All constraint keys (rate limits, recipient allow-lists, etc., deferred). Plugins that declare email send get unconstrained send within host platform limits. |
+
+Constraints listed as advisory today are exactly the constraints follow-on RFCs are expected to normatively specify and the runtime to start enforcing. Publishers can declare them now; future runtime versions will pick up enforcement.
+
+#### Why this shape
+
+Some operations are fine as binary grants — `content.read` either applies or it doesn't, and there isn't an obvious quantitative constraint to put on it. Others benefit from finer control: outbound HTTP requests can be scoped to specific hosts, and operations like email sending may want rate limits or recipient allow-lists when those become well-defined. Modelling every operation as `operation: <constraints object>` (with `true` as sugar when there are no constraints) gives both shapes a single home. The vocabulary of constraint keys is open, so publishers can declare structured limits even before the runtime enforces them — and once a follow-on RFC normatively defines a constraint and the runtime starts enforcing it, records that pre-declared the limit become enforced without re-publication.
 
 ### Publisher Verification
 
@@ -1074,7 +1106,7 @@ The "Verified Publisher" badge is scoped to **sandboxed plugins published in the
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Compromised author account              | Key rotation via DID. Existing records remain attributable to the compromised identity, and clients can verify provenance directly from the repo history.                                                                                                                                                                                                                                                                                                                                             |
 | Stolen CI app password                  | An attacker who exfiltrates an org's CI app password can publish arbitrary releases under that org's identity, including under a verified-publisher badge. Mitigations: dedicated org accounts (no individual exposure), regular rotation, env-var-only credentials (not on command lines), and the takedown-labeller path for rapid response once detected. The follow-on hosted-publishing RFC introduces signed publish receipts to make unauthorised publishes detectable on the aggregator side. |
-| Malicious package                       | Out of scope for the v1 protocol. Initial mitigation is integrity verification, capability-consent UX, and directory-level curation. Dedicated reporting and labelling are planned in later RFCs.                                                                                                                                                                                                                                                                                                     |
+| Malicious package                       | Out of scope for this RFC. Initial mitigation is integrity verification, capability-consent UX, and directory-level curation. Dedicated reporting and labelling are planned in later RFCs.                                                                                                                                                                                                                                                                                                            |
 | Aggregator compromise                   | Installs verify package and release records against the author's repo before trusting metadata. Integrity hashes are checked client-side.                                                                                                                                                                                                                                                                                                                                                             |
 | Falsified labels in aggregator envelope | The aggregator relays labels but is not the source of truth for them. Clients verify label signatures against the issuing labeller's DID rather than trusting the aggregator's relayed copy. A compromised aggregator can withhold labels (failing open) but cannot forge `security:yanked` or `verified` claims that wouldn't validate against a labeller's signing key.                                                                                                                             |
 | Permission set Lexicon hijacking        | The CLI's planned `include:com.emdashcms.publishing` permission set is published under EmDash's own NSID, so an attacker would need to compromise EmDash's publishing identity to alter it. Operators of high-assurance PDSes can additionally configure Lexicon override repositories (per the [auth-scopes proposal](https://github.com/bluesky-social/proposals/tree/main/0011-auth-scopes)) to pin known-good versions of the permission set.                                                     |
@@ -1111,8 +1143,8 @@ The "Verified Publisher" badge is scoped to **sandboxed plugins published in the
 - **Cross-package release confusion:** Publish a release whose `package` field references a profile that doesn't exist in the same repository; verify the aggregator rejects it at ingest. Publish a release whose rkey doesn't match `<package>:<version>`; verify the aggregator rejects it at ingest.
 - **Ingestion spam:** Publish records faster than the aggregator's per-DID rate limit; verify excess records are dropped at ingest and the aggregator stays responsive.
 - **Access inflation:** Publish a release whose `release.emdash.declaredAccess` claims fewer permissions than the bundle's `manifest.json` actually requests at runtime. Verify the EmDash client rejects the install at manifest-consistency check time.
-- **Unknown-constraint smuggling:** Publish a release whose declared operation includes an unrecognised constraint key (e.g. `network: { request: { rateLimit: { perHour: 10 } } }` against a v1 client that doesn't yet enforce rate limits). Verify the client surfaces the constraint in the install-consent UI rather than silently accepting or silently rejecting it; verify the v1 sandbox does not enforce the constraint.
-- **Unknown access category or operation:** Publish a release whose `declaredAccess` includes a top-level category, or an operation inside a known category, not in the v1 vocabulary. Verify the client rejects the install (in contrast to unknown constraints, which are advisory).
+- **Unknown-constraint smuggling:** Publish a release whose declared operation includes an unrecognised constraint key (e.g. `network: { request: { rateLimit: { perHour: 10 } } }` against a client that does not yet enforce rate limits). Verify the client surfaces the constraint in the install-consent UI rather than silently accepting or silently rejecting it; verify the sandbox does not enforce the constraint.
+- **Unknown access category or operation:** Publish a release whose `declaredAccess` includes a top-level category, or an operation inside a known category, not in the vocabulary defined here. Verify the client rejects the install (in contrast to unknown constraints, which are advisory).
 - **Sugar / canonicalisation skew:** Publish a release with `content: { read: true }` and a manifest with `content: { read: {} }` (or vice versa). Verify the deep-equal check passes after canonicalisation.
 - **Forged records:** Attempt to create records claiming to be from a different DID; verify the aggregator and client reject them (via MST signature failure).
 
@@ -1124,13 +1156,13 @@ The "Verified Publisher" badge is scoped to **sandboxed plugins published in the
 
 - **Artifact hosting is author-declared, partially mirrored.** The canonical URL list in a release record is the author's choice, which may rot over time. The default aggregator auto-mirrors releases under OSI-approved redistributable licenses so installs remain possible after author URLs die (see [Mirror policy](#mirror-policy)); proprietary or unauth-required artifacts are indexed metadata-only, so URL rot for those bundles breaks installs. Third-party aggregators are not obligated to mirror anything. Fully hosted publishing flows (upload services, CI-driven mirror pinning) are planned follow-on work.
 
-- **Lexicon immutability.** Atproto lexicons are immutable contracts once published. v1 field choices are effectively permanent for the NSIDs in this RFC. We address this by adopting atproto's native evolution rules (see [Lexicon evolution](#lexicon-evolution)) and leaning towards optional fields in v1, but the initial schema design still needs to be close to right.
+- **Lexicon immutability.** Atproto lexicons are immutable contracts once published. Field choices are effectively permanent for the NSIDs in this RFC. We address this by adopting atproto's native evolution rules (see [Lexicon evolution](#lexicon-evolution)) and leaning towards optional fields, but the initial schema design still needs to be close to right.
 
-- **New concept for most plugin authors.** Most CMS plugin developers are not familiar with atproto, DIDs, or decentralised protocols. The tooling must abstract this so the publish experience approaches the simplicity of `npm publish`. The first-publish flow in v1 doesn't reach that bar yet — see the next bullet.
+- **New concept for most plugin authors.** Most CMS plugin developers are not familiar with atproto, DIDs, or decentralised protocols. The tooling must abstract this so the publish experience approaches the simplicity of `npm publish`. The first-publish flow does not reach that bar yet — see the next bullet.
 
-- **First-publish DX is rougher than `npm publish`.** v1 requires authors to host their bundle (typically as a GitHub release) before running `emdash plugin publish --url`. A `--file` flag that uploads a local tarball is deferred to the hosted-artifact RFC. Until that lands, the publish loop is "build → upload → publish" rather than a single command.
+- **First-publish DX is rougher than `npm publish`.** This RFC requires authors to host their bundle (typically as a GitHub release) before running `emdash plugin publish --url`. A `--file` flag that uploads a local tarball is deferred to the hosted-artifact RFC. Until that lands, the publish loop is "build → upload → publish" rather than a single command.
 
-- **CI/CD auth uses unscoped app passwords.** Interactive OAuth uses granular scopes (the CLI requests only `repo:pm.fair.package.*`), so a leaked CLI token grants only plugin-publishing access. CI is different — atproto explicitly does not recommend OAuth for headless clients today, and confidential-client OAuth doesn't fit the CI-runner shape. v1 ships with app-password support for CI publishing because the alternative — no CI publishing — would push every release through manual local commands, which is worse. App passwords are full-account credentials with no scoping; the mitigation is operational (dedicated org accounts, rotation, env-var-only credentials) and the path migrates to scoped app passwords or a real headless-OAuth profile as soon as either ships upstream. See [Authentication](#authentication).
+- **CI/CD auth uses unscoped app passwords.** Interactive OAuth uses granular scopes (the CLI requests only `repo:pm.fair.package.*`), so a leaked CLI token grants only plugin-publishing access. CI is different — atproto explicitly does not recommend OAuth for headless clients today, and confidential-client OAuth doesn't fit the CI-runner shape. This RFC ships with app-password support for CI publishing because the alternative — no CI publishing — would push every release through manual local commands, which is worse. App passwords are full-account credentials with no scoping; the mitigation is operational (dedicated org accounts, rotation, env-var-only credentials) and the path migrates to scoped app passwords or a real headless-OAuth profile as soon as either ships upstream. See [Authentication](#authentication).
 
 - **Sparse day-one search.** At launch the aggregator has no quality signals — no install counts, no ratings, no labellers. Discovery ranking is metadata-only (recency, keyword match, name match) and the directory will feel empty before authors publish. Mitigation: EmDash's own first-party sandboxed plugins publish through the registry first, so the directory ships with real, useful content on day one. Better ranking lands when the follow-on trust/labeller RFCs add install counts, reviews and verification signals.
 
@@ -1162,11 +1194,11 @@ Publish packages as ActivityPub objects. Directories are ActivityPub servers tha
 
 **Why not:** ActivityPub's data model isn't well suited for structured, queryable records. There's no equivalent of the firehose for efficient indexing. Identity is server-bound, not portable. The protocol is designed for social messaging, not structured data distribution.
 
-## Include native plugins in v1
+## Include native plugins in this RFC
 
 Specify the registry shape to also handle native (npm-distributed) plugins from day one — synthesise records for them, surface them in the same directory, build the cross-runtime install UX.
 
-**Why not:** Discussed in detail in [Future support for native plugins](#future-support-for-native-plugins). Briefly: the trust model differs sharply, the distribution shape doesn't fit cleanly until FAIR's package-manager-source pattern stabilises, and the registry's value is highest where install is automated. Including native plugins in v1 forces design compromises in three places we'd rather get right separately.
+**Why not:** Discussed in detail in [Future support for native plugins](#future-support-for-native-plugins). Briefly: the trust model differs sharply, the distribution shape doesn't fit cleanly until FAIR's package-manager-source pattern stabilises, and the registry's value is highest where install is automated. Including native plugins in this RFC forces design compromises in three places we'd rather get right separately.
 
 # Adoption Strategy
 
@@ -1213,12 +1245,12 @@ The work has a clear dependency chain — lexicons block both the CLI and the ag
 
 **Parallel work** (can land any time before Phase 1 ships):
 
-- **Publisher verification lexicon** (`com.emdashcms.publisher.verification`). Define the schema, publish it, set up the EmDash signing identity. Used by step 5's admin UI to render the verified-publisher badge for first-party plugins on day one. If this slips, the badge is hidden in v1 and added in a point release without further protocol changes.
+- **Publisher verification lexicon** (`com.emdashcms.publisher.verification`). Define the schema, publish it, set up the EmDash signing identity. Used by step 5's admin UI to render the verified-publisher badge for first-party plugins on day one. If this slips, the badge is hidden initially and added in a point release without further protocol changes.
 - **Takedown labeller.** Stand up the EmDash-operated labeller and the aggregator's label-relay path. Required for the takedown story but not the install story.
 
 Milestone: "I can publish a sandboxed plugin from the CLI and someone else can install it from the admin UI, with provenance verified against the publisher's PDS."
 
-### Success criteria for v1
+### Success criteria
 
 - Every existing first-party EmDash sandboxed plugin is published through the new registry and installs cleanly via the admin UI on a fresh EmDash site.
 - The marketplace migration runs successfully on existing installs and rewrites stored identities to AT URIs without re-downloading bundles.
@@ -1228,7 +1260,7 @@ Milestone: "I can publish a sandboxed plugin from the CLI and someone else can i
 
 ### Day-one plugin set
 
-The v1 release republishes EmDash's existing first-party sandboxed plugins through the new registry. The exact list is determined by what's shipping in the release that includes the registry, but the migration test plan covers each one end-to-end: republish through the new flow, verify the aggregator indexes the record, verify a fresh install on a clean site works, verify the marketplace migration rewrites the existing-install identity to the new AT URI.
+The release republishes EmDash's existing first-party sandboxed plugins through the new registry. The exact list is determined by what's shipping in the release that includes the registry, but the migration test plan covers each one end-to-end: republish through the new flow, verify the aggregator indexes the record, verify a fresh install on a clean site works, verify the marketplace migration rewrites the existing-install identity to the new AT URI.
 
 ## Planned follow-on RFCs
 
