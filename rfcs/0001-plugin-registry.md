@@ -118,8 +118,26 @@ EmDash plugins are structured as FAIR packages with a `com.emdashcms.*` extensio
 
 - **Transport and Discovery:** EmDash does not use FAIR's HTTP repository API. Records are distributed via the atproto firehose and indexed by aggregators.
 - **Record Structure:** FAIR embeds all releases inside a single Metadata Document. To optimize for the firehose, EmDash separates these into discrete `package.profile` and `package.release` records co-located in the publisher's repository; clients enumerate releases by listing the release collection on the PDS rather than following a HAL link.
-- **Signing:** EmDash relies entirely on atproto's repo-level Merkle Search Tree (MST) signatures. It does not require or use the separate per-artifact `signature` field defined in FAIR Core.
-- **Package Identity:** FAIR typically requires a unique DID for every package. EmDash uses a "Publisher-Trust" model where the AT URI (e.g., `at://<publisher-did>/.../<slug>`) serves as the unique package identifier, eliminating the need for per-package DIDs.
+- **Signing:** EmDash relies entirely on atproto's repo-level Merkle Search Tree (MST) signatures. It does not require or use the separate per-artifact `signature` field defined in FAIR Core. See [Trust model trade-offs](#trust-model-trade-offs) below.
+- **Package Identity:** FAIR typically requires a unique DID for every package. EmDash uses a "Publisher-Trust" model where the AT URI (e.g., `at://<publisher-did>/.../<slug>`) serves as the unique package identifier, eliminating the need for per-package DIDs. See [Trust model trade-offs](#trust-model-trade-offs) below.
+
+### Trust model trade-offs
+
+FAIR's per-package DID model and EmDash's publisher-trust model both work; each gives up something the other gets for free. We've chosen the publisher-trust path deliberately, but the trade-offs are worth being explicit about so future readers understand which properties they're getting and which they aren't.
+
+What FAIR's per-package DID model gives, and EmDash gives up:
+
+- **Package transferability across publishers.** A FAIR package's identity travels with the package, so an OSS project handover or a commercial sale can move a package from one publisher to another without breaking its identity for downstream consumers. EmDash packages are identified by the publisher's DID plus a slug; transferring a package between publishers means publishing under a new identity, with whatever migration story that entails. For our scale this is acceptable — most plugins stay with their original author — but it's a real cost relative to the FAIR shape.
+- **Per-package signing scope.** A FAIR publisher who maintains many packages can use distinct signing keys per package, which narrows the blast radius if any one key is compromised. EmDash uses a single per-publisher `#atproto` repo signing key (controlled by the PDS) for all of that publisher's packages — compromise of that key affects every package they publish, simultaneously. We accept this on the same grounds as npm and other publisher-keyed registries: realistic mitigation runs through labellers, takedowns, and key rotation rather than per-package isolation.
+- **Per-asset / offline artifact verification.** FAIR's per-artifact signature field lets a cached artifact be verified against the publisher's signing key without any further network access. EmDash's MST commit signing covers the artifact's checksum transitively but only with online access to traverse the proof path. Practical scenarios where this matters are narrow: at install time the client always has network (it's fetching the artifact); air-gapped deployments use a local mirror that did its verification at ingest time; an installed plugin doesn't re-verify its bytes on every execution. We don't currently have a workflow that needs offline artifact verification, so we haven't added a per-artifact signature path. If one materialises, atproto's existing repo proof primitives (an MST inclusion proof captured at ingest time) would let us add it without changing the publisher-side keys or the on-PDS record shape.
+
+What EmDash's publisher-trust model gives, and FAIR's model doesn't easily provide:
+
+- **One identity per author.** Publishers don't manage a DID per package, a key per package, or a per-package registration step. Publishing is "write a record to your repo," same workflow as any other atproto record.
+- **Built-in identity portability.** A publisher migrating between PDSes keeps their DID and all their package identities. FAIR has equivalent portability via DID, but EmDash gets it as a property of using atproto natively.
+- **Free integration with the broader atproto trust ecosystem.** Verification, takedowns, and labels use the same primitives as Bluesky and other atproto applications. Publisher reputation can be cross-referenced against other atproto activity if a labeller or AppView wants to.
+
+Both models converge on labellers as the primary mechanism for operational trust signals (verification, deprecation, takedowns). The structural difference is where the cryptographic root of package identity sits — at the package or at the publisher — and what falls out of that choice for transferability, key scope, and verifiability.
 
 ### Lexicon Namespaces
 
