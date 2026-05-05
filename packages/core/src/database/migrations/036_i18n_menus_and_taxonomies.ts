@@ -13,19 +13,26 @@ import { validateIdentifier } from "../validate.js";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
 	if (isSqlite(db)) {
-		await rebuildMenus(db);
-		await addItemColumns(db);
-		await rebuildTaxonomies(db);
-		await rebuildTaxonomyDefs(db);
-		await rebuildContentTaxonomies(db);
-	} else {
-		await pgWiden(db, "_emdash_menus", ["name"], ["name", "locale"]);
-		await pgWiden(db, "_emdash_menu_items", null, null);
-		await pgWiden(db, "taxonomies", ["name", "slug"], ["name", "slug", "locale"]);
-		await pgWiden(db, "_emdash_taxonomy_defs", ["name"], ["name", "locale"]);
-		await pgRemapContentTaxonomies(db);
+		// FKs off: rebuilding `taxonomies` would CASCADE-wipe `content_taxonomies`.
+		await sql.raw(`PRAGMA foreign_keys = OFF`).execute(db);
+		try {
+			await rebuildMenus(db);
+			await addItemColumns(db);
+			await rebuildTaxonomies(db);
+			await rebuildTaxonomyDefs(db);
+			await rebuildContentTaxonomies(db);
+			await remapMenuItemRefs(db);
+		} finally {
+			await sql.raw(`PRAGMA foreign_keys = ON`).execute(db);
+		}
+		return;
 	}
 
+	await pgWiden(db, "_emdash_menus", ["name"], ["name", "locale"]);
+	await pgWiden(db, "_emdash_menu_items", null, null);
+	await pgWiden(db, "taxonomies", ["name", "slug"], ["name", "slug", "locale"]);
+	await pgWiden(db, "_emdash_taxonomy_defs", ["name"], ["name", "locale"]);
+	await pgRemapContentTaxonomies(db);
 	await remapMenuItemRefs(db);
 }
 
@@ -313,41 +320,139 @@ async function assertSingleLocale(db: Kysely<unknown>): Promise<void> {
 export async function down(db: Kysely<unknown>): Promise<void> {
 	await assertSingleLocale(db);
 
+	const widenedTables = [
+		"_emdash_menus",
+		"_emdash_menu_items",
+		"taxonomies",
+		"_emdash_taxonomy_defs",
+	];
+
 	if (isSqlite(db)) {
-		await sql.raw(`DROP TABLE IF EXISTS "content_taxonomies_new"`).execute(db);
-		await db.schema
-			.createTable("content_taxonomies_new")
-			.addColumn("collection", "text", (c) => c.notNull())
-			.addColumn("entry_id", "text", (c) => c.notNull())
-			.addColumn("taxonomy_id", "text", (c) => c.notNull())
-			.addPrimaryKeyConstraint("content_taxonomies_pk", ["collection", "entry_id", "taxonomy_id"])
-			.addForeignKeyConstraint(
-				"content_taxonomies_taxonomy_fk",
-				["taxonomy_id"],
-				"taxonomies",
-				["id"],
-				(cb) => cb.onDelete("cascade"),
-			)
-			.execute();
+		// FKs off — same reason as up().
+		await sql.raw(`PRAGMA foreign_keys = OFF`).execute(db);
+		try {
+			// Indexes first: a locale index blocks DROP COLUMN on _emdash_menu_items.
+			for (const t of widenedTables) {
+				await sql.raw(`DROP INDEX IF EXISTS idx_${t}_locale`).execute(db);
+				await sql.raw(`DROP INDEX IF EXISTS idx_${t}_translation_group`).execute(db);
+			}
 
-		await sql`
-			INSERT OR IGNORE INTO content_taxonomies_new (collection, entry_id, taxonomy_id)
-			SELECT ct.collection, ct.entry_id, COALESCE(
-				(SELECT t.id FROM taxonomies t WHERE t.translation_group = ct.taxonomy_id AND t.locale = 'en'),
-				(SELECT t.id FROM taxonomies t WHERE t.translation_group = ct.taxonomy_id ORDER BY t.locale LIMIT 1),
-				ct.taxonomy_id
-			)
-			FROM content_taxonomies ct
-		`.execute(db);
-
-		await db.schema.dropTable("content_taxonomies").execute();
-		await sql`ALTER TABLE content_taxonomies_new RENAME TO content_taxonomies`.execute(db);
+			await rebuildContentTaxonomiesDown(db);
+			await rebuildMenusDown(db);
+			await rebuildMenuItemsDown(db);
+			await rebuildTaxonomiesDown(db);
+			await rebuildTaxonomyDefsDown(db);
+		} finally {
+			await sql.raw(`PRAGMA foreign_keys = ON`).execute(db);
+		}
+		return;
 	}
 
-	for (const t of ["_emdash_menus", "_emdash_menu_items", "taxonomies", "_emdash_taxonomy_defs"]) {
+	for (const t of widenedTables) {
 		await sql.raw(`DROP INDEX IF EXISTS idx_${t}_locale`).execute(db);
 		await sql.raw(`DROP INDEX IF EXISTS idx_${t}_translation_group`).execute(db);
 		await sql.raw(`ALTER TABLE "${t}" DROP COLUMN IF EXISTS locale`).execute(db);
 		await sql.raw(`ALTER TABLE "${t}" DROP COLUMN IF EXISTS translation_group`).execute(db);
 	}
+}
+
+async function rebuildContentTaxonomiesDown(db: Kysely<unknown>): Promise<void> {
+	await sql.raw(`DROP TABLE IF EXISTS "content_taxonomies_new"`).execute(db);
+	await db.schema
+		.createTable("content_taxonomies_new")
+		.addColumn("collection", "text", (c) => c.notNull())
+		.addColumn("entry_id", "text", (c) => c.notNull())
+		.addColumn("taxonomy_id", "text", (c) => c.notNull())
+		.addPrimaryKeyConstraint("content_taxonomies_pk", ["collection", "entry_id", "taxonomy_id"])
+		.addForeignKeyConstraint(
+			"content_taxonomies_taxonomy_fk",
+			["taxonomy_id"],
+			"taxonomies",
+			["id"],
+			(cb) => cb.onDelete("cascade"),
+		)
+		.execute();
+
+	// Map translation_group back to a row id (assertSingleLocale guarantees a 1:1 match).
+	await sql`
+		INSERT OR IGNORE INTO content_taxonomies_new (collection, entry_id, taxonomy_id)
+		SELECT ct.collection, ct.entry_id, COALESCE(
+			(SELECT t.id FROM taxonomies t WHERE t.translation_group = ct.taxonomy_id AND t.locale = 'en'),
+			ct.taxonomy_id
+		)
+		FROM content_taxonomies ct
+	`.execute(db);
+
+	await db.schema.dropTable("content_taxonomies").execute();
+	await sql`ALTER TABLE content_taxonomies_new RENAME TO content_taxonomies`.execute(db);
+}
+
+async function rebuildMenusDown(db: Kysely<unknown>): Promise<void> {
+	await sql.raw(`DROP TABLE IF EXISTS "_emdash_menus_old"`).execute(db);
+	await db.schema
+		.createTable("_emdash_menus_old")
+		.addColumn("id", "text", (c) => c.primaryKey())
+		.addColumn("name", "text", (c) => c.notNull().unique())
+		.addColumn("label", "text", (c) => c.notNull())
+		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+		.addColumn("updated_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+		.execute();
+	await sql`
+		INSERT INTO _emdash_menus_old (id, name, label, created_at, updated_at)
+		SELECT id, name, label, created_at, updated_at FROM _emdash_menus
+	`.execute(db);
+	await db.schema.dropTable("_emdash_menus").execute();
+	await sql`ALTER TABLE _emdash_menus_old RENAME TO _emdash_menus`.execute(db);
+}
+
+async function rebuildMenuItemsDown(db: Kysely<unknown>): Promise<void> {
+	// No UNIQUE on (locale,…) here, so DROP COLUMN is enough.
+	await sql.raw(`ALTER TABLE _emdash_menu_items DROP COLUMN locale`).execute(db);
+	await sql.raw(`ALTER TABLE _emdash_menu_items DROP COLUMN translation_group`).execute(db);
+}
+
+async function rebuildTaxonomiesDown(db: Kysely<unknown>): Promise<void> {
+	await sql.raw(`DROP TABLE IF EXISTS "taxonomies_old"`).execute(db);
+	await db.schema
+		.createTable("taxonomies_old")
+		.addColumn("id", "text", (c) => c.primaryKey())
+		.addColumn("name", "text", (c) => c.notNull())
+		.addColumn("slug", "text", (c) => c.notNull())
+		.addColumn("label", "text", (c) => c.notNull())
+		.addColumn("parent_id", "text")
+		.addColumn("data", "text")
+		.addUniqueConstraint("taxonomies_name_slug_unique", ["name", "slug"])
+		.addForeignKeyConstraint("taxonomies_parent_fk", ["parent_id"], "taxonomies_old", ["id"], (cb) =>
+			cb.onDelete("set null"),
+		)
+		.execute();
+	await sql`
+		INSERT INTO taxonomies_old (id, name, slug, label, parent_id, data)
+		SELECT id, name, slug, label, parent_id, data FROM taxonomies
+	`.execute(db);
+	await db.schema.dropTable("taxonomies").execute();
+	await sql`ALTER TABLE taxonomies_old RENAME TO taxonomies`.execute(db);
+	await db.schema.createIndex("idx_taxonomies_name").on("taxonomies").column("name").execute();
+}
+
+async function rebuildTaxonomyDefsDown(db: Kysely<unknown>): Promise<void> {
+	await sql.raw(`DROP TABLE IF EXISTS "_emdash_taxonomy_defs_old"`).execute(db);
+	await db.schema
+		.createTable("_emdash_taxonomy_defs_old")
+		.addColumn("id", "text", (c) => c.primaryKey())
+		.addColumn("name", "text", (c) => c.notNull().unique())
+		.addColumn("label", "text", (c) => c.notNull())
+		.addColumn("label_singular", "text")
+		.addColumn("hierarchical", "integer", (c) => c.defaultTo(0))
+		.addColumn("collections", "text")
+		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+		.execute();
+	await sql`
+		INSERT INTO _emdash_taxonomy_defs_old
+			(id, name, label, label_singular, hierarchical, collections, created_at)
+		SELECT id, name, label, label_singular, hierarchical, collections, created_at
+		FROM _emdash_taxonomy_defs
+	`.execute(db);
+	await db.schema.dropTable("_emdash_taxonomy_defs").execute();
+	await sql`ALTER TABLE _emdash_taxonomy_defs_old RENAME TO _emdash_taxonomy_defs`.execute(db);
 }

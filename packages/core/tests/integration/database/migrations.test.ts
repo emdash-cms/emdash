@@ -107,19 +107,22 @@ describe("Database Migrations (Integration)", () => {
 		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 
-	it("should re-run migrations 034 and 035 when schema changes were partially applied", async () => {
+	it("should re-run trailing migrations when schema changes were partially applied", async () => {
 		await db.destroy();
 		db = await setupTestDatabaseWithCollections();
 
-		await db
-			.deleteFrom("_emdash_migrations")
-			.where("name", "in", ["034_published_at_index", "035_bounded_404_log"])
-			.execute();
+		// Kysely only re-runs trailing entries; include the latest migration.
+		const trailing = [
+			"034_published_at_index",
+			"035_bounded_404_log",
+			"036_i18n_menus_and_taxonomies",
+		];
+
+		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
 
 		const { applied } = await runMigrations(db);
 
-		expect(applied).toContain("034_published_at_index");
-		expect(applied).toContain("035_bounded_404_log");
+		for (const name of trailing) expect(applied).toContain(name);
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 		expect(migrations).toHaveLength(MIGRATION_COUNT);
