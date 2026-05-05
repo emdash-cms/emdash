@@ -247,15 +247,17 @@ export async function applySeed(
 				// skip: do nothing for the definition
 			} else {
 				// Create taxonomy definition
+				const defId = ulid();
 				await db
 					.insertInto("_emdash_taxonomy_defs")
 					.values({
-						id: ulid(),
+						id: defId,
 						name: taxonomy.name,
 						label: taxonomy.label,
 						label_singular: taxonomy.labelSingular ?? null,
 						hierarchical: taxonomy.hierarchical ? 1 : 0,
 						collections: JSON.stringify(taxonomy.collections),
+						translation_group: defId,
 					})
 					.execute();
 				result.taxonomies.created++;
@@ -496,6 +498,7 @@ export async function applySeed(
 						label: menu.label,
 						created_at: new Date().toISOString(),
 						updated_at: new Date().toISOString(),
+						translation_group: menuId,
 					})
 					.execute();
 				result.menus.created++;
@@ -894,6 +897,7 @@ async function applyMenuItems(
 				target: item.target ?? null,
 				css_classes: item.cssClasses ?? null,
 				created_at: new Date().toISOString(),
+				translation_group: itemId,
 			})
 			.execute();
 
