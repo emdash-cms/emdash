@@ -7,25 +7,32 @@
 }
 
 :root {
+  --brand-primary: #4f3dfe;
+  --brand-secondary: #16272f;
   --site-bg-dark: #111111;
   --site-paper: #ece7dd;
-  --site-accent: #ca5f3a;
+  --site-accent: var(--brand-primary);
   --site-text-light: #f2f1ee;
 
-  --admin-shell-bg: #eceef2;
-  --admin-chrome-bg: rgba(255, 255, 255, 0.96);
+  --admin-shell-bg: color-mix(in oklab, var(--brand-secondary) 7%, white);
+  --admin-chrome-bg: color-mix(in oklab, white 96%, transparent);
   --admin-panel-bg: #ffffff;
-  --admin-panel-border: #d9e1ed;
-  --admin-text-strong: #121f32;
-  --admin-text-soft: #75839a;
-  --admin-btn-bg: #24344d;
-  --admin-btn-border: #24344d;
+  --admin-panel-border: color-mix(in oklab, var(--brand-secondary) 15%, white);
+  --admin-text-strong: var(--brand-secondary);
+  --admin-text-soft: color-mix(in oklab, var(--brand-secondary) 52%, white);
+  --admin-btn-bg: var(--brand-secondary);
+  --admin-btn-border: var(--brand-secondary);
   --admin-btn-text: #ffffff;
   --admin-active-bg: #ffffff;
-  --admin-active-border: #bfcde2;
+  --admin-active-border: color-mix(in oklab, var(--brand-primary) 72%, var(--brand-secondary));
   --admin-field-bg: #ffffff;
-  --admin-field-border: #d1dced;
-  --admin-field-text: #1d2d46;
+  --admin-field-border: color-mix(in oklab, var(--brand-secondary) 18%, white);
+  --admin-field-border-strong: color-mix(in oklab, var(--brand-secondary) 25%, white);
+  --admin-field-text: color-mix(in oklab, var(--brand-secondary) 92%, black);
+  --admin-row-bg: color-mix(in oklab, var(--brand-secondary) 4%, white);
+  --admin-nav-text: color-mix(in oklab, var(--brand-secondary) 88%, white);
+  --admin-nav-bg-hover: color-mix(in oklab, var(--brand-primary) 16%, white);
+  --admin-nav-bg-active: color-mix(in oklab, var(--brand-primary) 28%, white);
 }
 
 @layer base {
@@ -58,8 +65,9 @@
   }
 
   .site-button-ghost {
-    @apply inline-flex items-center border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#fff7f1] no-underline;
-    border-color: rgb(244 167 137 / 0.7);
+    @apply inline-flex items-center border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] no-underline;
+    color: color-mix(in oklab, var(--brand-primary) 20%, white);
+    border-color: color-mix(in oklab, var(--brand-primary) 62%, transparent);
   }
 
   .site-button-cta {
@@ -67,7 +75,8 @@
   }
 
   .site-button-outline {
-    @apply inline-flex items-center border border-[var(--site-accent)] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#111] no-underline;
+    @apply inline-flex items-center border border-[var(--site-accent)] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] no-underline;
+    color: var(--brand-secondary);
   }
 
   .admin-theme {
@@ -75,20 +84,25 @@
   }
 
   .admin-theme.is-dark {
-    --admin-shell-bg: #000000;
-    --admin-chrome-bg: rgba(0, 0, 0, 0.96);
-    --admin-panel-bg: #000000;
-    --admin-panel-border: #1d2a3d;
-    --admin-text-strong: #f5f8ff;
-    --admin-text-soft: #8794aa;
-    --admin-btn-bg: #1e2b3d;
-    --admin-btn-border: #2a3a53;
+    --admin-shell-bg: color-mix(in oklab, var(--brand-secondary) 86%, black);
+    --admin-chrome-bg: color-mix(in oklab, black 96%, transparent);
+    --admin-panel-bg: color-mix(in oklab, var(--brand-secondary) 82%, black);
+    --admin-panel-border: color-mix(in oklab, var(--brand-secondary) 52%, white);
+    --admin-text-strong: color-mix(in oklab, var(--brand-secondary) 12%, white);
+    --admin-text-soft: color-mix(in oklab, var(--brand-secondary) 42%, white);
+    --admin-btn-bg: var(--brand-secondary);
+    --admin-btn-border: var(--brand-secondary);
     --admin-btn-text: #ffffff;
-    --admin-active-bg: #000000;
-    --admin-active-border: #2d415f;
-    --admin-field-bg: #000000;
-    --admin-field-border: #26364f;
-    --admin-field-text: #f2f6ff;
+    --admin-active-bg: color-mix(in oklab, var(--brand-secondary) 80%, black);
+    --admin-active-border: color-mix(in oklab, var(--brand-primary) 48%, var(--brand-secondary));
+    --admin-field-bg: color-mix(in oklab, var(--brand-secondary) 80%, black);
+    --admin-field-border: color-mix(in oklab, var(--brand-secondary) 48%, white);
+    --admin-field-border-strong: color-mix(in oklab, var(--brand-secondary) 56%, white);
+    --admin-field-text: color-mix(in oklab, var(--brand-secondary) 10%, white);
+    --admin-row-bg: color-mix(in oklab, var(--brand-secondary) 76%, black);
+    --admin-nav-text: color-mix(in oklab, var(--brand-secondary) 10%, white);
+    --admin-nav-bg-hover: color-mix(in oklab, var(--brand-primary) 22%, var(--brand-secondary));
+    --admin-nav-bg-active: color-mix(in oklab, var(--brand-primary) 34%, var(--brand-secondary));
   }
 
   .admin-shell {
@@ -97,7 +111,7 @@
   }
 
   .admin-sticky {
-    @apply sticky top-0 z-20 border-b pb-3;
+    @apply sticky top-0 z-20 border-b-transparent pb-3;
     border-color: var(--admin-panel-border);
     background: var(--admin-chrome-bg);
     backdrop-filter: blur(16px);
@@ -106,7 +120,9 @@
   .admin-panel {
     @apply rounded-2xl border p-4;
     background: var(--admin-panel-bg);
-    border-color: var(--admin-panel-border);
+    /*border-color: var(--admin-panel-border);*/
+    border-color: transparent;
+    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02);
   }
 
   .admin-pill {
@@ -127,9 +143,10 @@
   .admin-textarea,
   .admin-select {
     @apply w-full rounded-xl border px-3 py-2;
-    border-color: var(--admin-field-border);
+    border-color: var(--admin-field-border-strong);
     background: var(--admin-field-bg);
     color: var(--admin-field-text);
+    box-shadow: inset 0 1px 1px color-mix(in oklab, var(--brand-secondary) 18%, transparent);
   }
 
   .admin-label {
@@ -145,8 +162,25 @@
   }
 
   .admin-list-item.active {
-    border-color: #8ea8d9;
+    border-color: var(--admin-active-border);
     background: var(--admin-active-bg);
+  }
+
+  .admin-row {
+    background: var(--admin-row-bg);
+  }
+
+  .admin-icon-danger {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition;
+    border-color: #d9a9ad;
+    color: #b37075;
+    background: #fff;
+  }
+
+  .admin-icon-danger:hover {
+    border-color: #c67a80;
+    color: #a33f47;
+    background: #fff5f6;
   }
 
   .admin-sidebar {
@@ -161,15 +195,16 @@
 
   .admin-side-link {
     @apply flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-[16px] font-medium transition;
-    color: #2b3a53;
+    color: var(--admin-nav-text);
   }
 
   .admin-side-link:hover {
-    background: #eceffa;
+    background: var(--admin-nav-bg-hover);
   }
 
   .admin-side-link.active {
-    background: #e5e8f8;
+    background: var(--admin-nav-bg-active);
+    color: var(--brand-secondary);
   }
 
   .admin-side-icon {
