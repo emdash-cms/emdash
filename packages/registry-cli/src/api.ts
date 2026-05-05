@@ -20,6 +20,17 @@ export {
 	bundlePlugin,
 } from "./bundle/api.js";
 
+export {
+	type ProfileBootstrap,
+	type PublishErrorCode,
+	type PublishLogger,
+	type PublishOptions,
+	type PublishResult,
+	PublishError,
+	publishRelease,
+	sanitiseSlug,
+} from "./publish/api.js";
+
 // Re-export the manifest contract types so consumers don't need a separate
 // `@emdash-cms/plugin-types` dep just to type their input/output. They're
 // authored upstream; this is a convenience surface, not a copy.

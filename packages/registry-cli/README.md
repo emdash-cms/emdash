@@ -1,48 +1,54 @@
 # @emdash-cms/registry-cli
 
-CLI for the experimental EmDash plugin registry. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.
+CLI for the experimental EmDash plugin registry.
 
-> EXPERIMENTAL: targets `com.emdashcms.experimental.*` and the experimental aggregator. NSIDs and shapes will change while RFC 0001 is in flight; pin to an exact version.
+> EXPERIMENTAL: there is no aggregator deployed yet, so `search` / `info` / discoverable `publish` don't have a server to talk to. `bundle`, `login`, `whoami`, and putting records in your own atproto repo all work today. NSIDs and shapes will change while RFC 0001 is in flight. Pin to an exact version.
 
 ## Installation
 
-Run via npx (no install needed):
-
 ```sh
-npx @emdash-cms/registry-cli search gallery
+npx @emdash-cms/registry-cli bundle
 ```
 
 Or install globally:
 
 ```sh
 npm install -g @emdash-cms/registry-cli
-emdash-registry search gallery
+emdash-registry bundle
 ```
 
 ## Commands
 
 ```text
-emdash-registry login <handle-or-did>      Interactive atproto OAuth login
-emdash-registry logout [--did <did>]       Revoke the active session
-emdash-registry whoami                     Show stored sessions
-emdash-registry search <query>             Free-text search
-emdash-registry info <handle> <slug>       Show package details
-emdash-registry info <at-uri>              Show package details by AT URI
-emdash-registry publish                    NOT YET IMPLEMENTED
+emdash-registry login <handle-or-did>          Interactive atproto OAuth login
+emdash-registry logout [--did <did>]           Revoke the active session
+emdash-registry whoami                         Show stored sessions
+emdash-registry search <query>                 Free-text search
+emdash-registry info <handle-or-did> <slug>    Show package details
+emdash-registry bundle                         Bundle a plugin source dir into a tarball
+emdash-registry publish --url <url>            Publish a release that points at a hosted tarball
 ```
 
-All commands accept `--json` for machine-readable output. Discovery commands accept `--aggregator <url>` to point at a different aggregator (or set `EMDASH_REGISTRY_URL`).
+All commands accept `--json`. Discovery commands accept `--aggregator <url>` (or `EMDASH_REGISTRY_URL`).
 
-## Why a separate CLI
+## Publishing
 
-The publishing flow needs atproto OAuth, a loopback HTTP server, and Node-only dependencies. Most EmDash users (site owners, content editors) never publish a plugin, so we keep this surface out of the core CMS install.
+Three steps. The CLI does not host artifacts — you do, anywhere public.
 
-Plugin authors install this CLI; site runtime stays atproto-free.
+```sh
+emdash-registry bundle
+# upload dist/<id>-<version>.tar.gz somewhere public
+emdash-registry publish --url https://example.com/foo-1.0.0.tar.gz
+```
 
-## Stability
+On first publish, pass `--license` and `--security-email` (or `--security-url`) to bootstrap the package profile.
 
-While `0.x`:
+## Programmatic API
 
-- The `publish` subcommand is a stub. Use `emdash plugin publish` (legacy marketplace flow) until the registry-aware publish lands in a follow-up.
-- The default aggregator host is provisional and will be retired at phase 1 cutover.
-- Credential and OAuth state files are written under `~/.emdash/`; the schema is versioned and may evolve.
+```ts
+import { bundlePlugin } from "@emdash-cms/registry-cli";
+
+const result = await bundlePlugin({ dir: "./my-plugin" });
+```
+
+For discovery and credentials, import from `@emdash-cms/registry-client`.

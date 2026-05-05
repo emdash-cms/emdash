@@ -1,80 +1,41 @@
 /**
- * `emdash-registry publish --tarball <path> --url <url>`
+ * `emdash-registry publish --url <url>`
  *
- * Publish a release of a sandboxed plugin to the registry.
+ * Thin citty wrapper around `publishRelease` from `../publish/api.js`.
  *
- * Phase 1 flow:
+ * Responsibilities here are limited to:
+ *   - parsing args and reading filesystem credentials,
+ *   - fetching the tarball at `--url` so the API has bytes to work with,
+ *   - extracting the manifest from those bytes,
+ *   - opening an authenticated `PublishingClient` from the OAuth session,
+ *   - rendering the API's structured output through consola,
+ *   - exiting non-zero on `PublishError`.
  *
- *   1. Read the tarball at `--tarball <path>` and compute its sha2-256
- *      multibase-multihash. (For now the tarball is required as input;
- *      bundling on the fly is a follow-up that wires this command into the
- *      `bundle` subcommand.)
- *   2. Extract `manifest.json` from the tarball to read `id` and `version`.
- *   3. Resume the active publisher session (errors if not logged in).
- *   4. If no `package.profile` record exists for the slug, bootstrap one
- *      from manifest data + flag-supplied identity fields. Otherwise leave
- *      the existing profile alone.
- *   5. `putRecord` a `package.release` record at rkey `<slug>:<version>`
- *      pointing `artifacts.package` at `--url` with the computed checksum.
- *
- * The author is responsible for hosting the tarball at `--url` (GitHub
- * release asset, R2, S3, the author's own server -- per the RFC). The
- * aggregator may mirror it; the publisher is the source of truth.
- *
- * Hard-failed conditions:
- *   - Manifest declares deprecated capabilities. Bundle warns; publish
- *     refuses, per the deprecation policy.
- *   - `--url` is not reachable, or the body's checksum doesn't match the
- *     computed local checksum. Belt-and-braces: the aggregator will check
- *     this too, but a fail-fast at publish time gives a clearer error.
+ * Everything else (FAIR's immutability rule, profile bootstrap validation,
+ * deprecated-capability hard-fail, AT URI construction) lives in the API so
+ * tests can run it against a mock PDS.
  */
 
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { ClientResponseError } from "@atcute/client";
 import {
 	FileCredentialStore,
 	PublishingClient,
-	type PublisherSession,
 } from "@emdash-cms/registry-client";
-import { NSID } from "@emdash-cms/registry-lexicons";
+import type { PluginManifest } from "@emdash-cms/plugin-types";
 import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
-import { CAPABILITY_RENAMES, isDeprecatedCapability } from "../bundle/types.js";
-import type { PluginManifest } from "../bundle/types.js";
 import { sha256Multihash } from "../multihash.js";
 import { resumeSession } from "../oauth.js";
-
-interface PackageProfileRecord {
-	$type: string;
-	id: string;
-	type: string;
-	license: string;
-	authors: Array<{ name: string; url?: string; email?: string }>;
-	security: Array<{ url?: string; email?: string }>;
-	slug?: string;
-	name?: string;
-	description?: string;
-	keywords?: string[];
-	lastUpdated?: string;
-}
-
-interface PackageReleaseRecord {
-	$type: string;
-	package: string;
-	version: string;
-	artifacts: {
-		package: {
-			url: string;
-			checksum: string;
-			contentType?: string;
-		};
-	};
-}
+import {
+	PublishError,
+	publishRelease,
+	type ProfileBootstrap,
+	type PublishLogger,
+} from "../publish/api.js";
 
 export const publishCommand = defineCommand({
 	meta: {
@@ -83,15 +44,15 @@ export const publishCommand = defineCommand({
 			"Publish a sandboxed plugin release to the registry (atproto + FAIR-shaped records)",
 	},
 	args: {
-		tarball: {
-			type: "string",
-			description: "Path to the bundled plugin tarball (run `emdash-registry bundle` first)",
-			required: true,
-		},
 		url: {
 			type: "string",
 			description: "Public URL where the tarball is hosted (artifact source-of-truth)",
 			required: true,
+		},
+		local: {
+			type: "string",
+			description:
+				"Optional path to a local copy of the tarball at --url. Skips the download but still verifies the URL serves matching bytes.",
 		},
 		license: {
 			type: "string",
@@ -118,61 +79,58 @@ export const publishCommand = defineCommand({
 			type: "string",
 			description: "Security contact URL (first publish only)",
 		},
+		"allow-overwrite": {
+			type: "boolean",
+			description:
+				"Allow overwriting an existing release at <slug>:<version>. Default refuses, since FAIR treats version records as immutable and aggregators/labellers may flag any change as a takedown event.",
+			default: false,
+		},
 		json: {
 			type: "boolean",
 			description: "Output result as JSON",
 		},
 	},
 	async run({ args }) {
-		// ── 1. Read the tarball, compute checksum ──
-		const tarballPath = resolve(args.tarball);
-		const tarballBytes = await readFile(tarballPath);
+		// Fetch + checksum the tarball.
+		consola.start(`Fetching ${args.url}...`);
+		const tarballBytes = await fetchTarball(args.url);
 		const checksum = sha256Multihash(tarballBytes);
-		const sha256Hex = createHash("sha256").update(tarballBytes).digest("hex");
 
-		consola.info(`Tarball: ${pc.dim(tarballPath)} (${formatBytes(tarballBytes.length)})`);
-		consola.info(`SHA-256: ${pc.dim(sha256Hex)}`);
+		consola.info(`Tarball: ${formatBytes(tarballBytes.length)}`);
 		consola.info(`Multihash: ${pc.dim(checksum)}`);
 
-		// ── 2. Extract manifest.json from the tarball ──
+		// Optional local cross-check.
+		if (args.local) {
+			const localPath = resolve(args.local);
+			const localBytes = await readFile(localPath);
+			const localChecksum = sha256Multihash(localBytes);
+			if (localChecksum !== checksum) {
+				consola.error(
+					`Local file ${pc.dim(localPath)} does not match the bytes served at ${args.url}.`,
+				);
+				consola.error(
+					`Local multihash:  ${localChecksum}\n` +
+						`Remote multihash: ${checksum}\n\n` +
+						"Re-upload the correct tarball, or drop --local to publish whatever's at the URL.",
+				);
+				process.exit(1);
+			}
+			consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
+		}
+
+		// Extract manifest.json from the tarball.
 		consola.start("Reading manifest from tarball...");
 		const manifest = await extractManifestFromTarball(tarballBytes);
 
-		// Hard-fail on deprecated capabilities at publish time.
-		const deprecated = manifest.capabilities.filter(isDeprecatedCapability);
-		if (deprecated.length > 0) {
-			consola.error("Plugin uses deprecated capability names. Rename them before publishing:");
-			for (const cap of deprecated) {
-				consola.error(`  ${cap} -> ${CAPABILITY_RENAMES[cap]}`);
-			}
-			process.exit(1);
-		}
-
-		// ── 3. Resume the active publisher session ──
+		// Resume the active publisher session.
 		const credentials = new FileCredentialStore();
 		const session = await credentials.current();
 		if (!session) {
 			consola.error("Not logged in. Run: emdash-registry login <handle-or-did>");
 			process.exit(1);
 		}
-
 		consola.info(`Publishing as ${pc.bold(session.handle)} (${pc.dim(session.did)})`);
 
-		// ── 4. Verify the tarball at --url matches the local checksum ──
-		consola.start(`Verifying ${args.url}...`);
-		const remote = await fetchTarball(args.url);
-		const remoteHex = createHash("sha256").update(remote).digest("hex");
-		if (remoteHex !== sha256Hex) {
-			consola.error(
-				`Tarball at ${args.url} does not match the local file. ` +
-					`Local sha256=${sha256Hex.slice(0, 16)}..., remote=${remoteHex.slice(0, 16)}...`,
-			);
-			consola.error("Re-upload the tarball or pass the correct --url before publishing.");
-			process.exit(1);
-		}
-		consola.success("Remote tarball matches local checksum");
-
-		// ── 5. Open an authenticated publishing client ──
 		const oauthSession = await resumeSession(session.did);
 		const publisher = PublishingClient.fromHandler({
 			handler: oauthSession,
@@ -180,77 +138,79 @@ export const publishCommand = defineCommand({
 			pds: session.pds,
 		});
 
-		// ── 6. Bootstrap or reuse the package.profile record ──
-		const slug = sanitiseSlug(manifest.id);
-		const existingProfile = await getExistingProfile(publisher, slug);
-		const profileUri = atUri(session.did, NSID.packageProfile, slug);
-
-		if (existingProfile) {
-			consola.info(`Reusing existing profile: ${pc.dim(profileUri)}`);
-		} else {
-			consola.start(`Creating profile record for ${slug}...`);
-			const profile = buildProfileRecord({
-				slug,
-				profileUri,
-				manifest,
-				license: args.license,
-				authorName: args["author-name"],
-				authorUrl: args["author-url"],
-				authorEmail: args["author-email"],
-				securityEmail: args["security-email"],
-				securityUrl: args["security-url"],
-			});
-			const result = await publisher.putRecord({
-				collection: NSID.packageProfile,
-				rkey: slug,
-				record: profile as unknown as Record<string, unknown>,
-			});
-			consola.success(`Created profile: ${pc.dim(result.uri)}`);
-		}
-
-		// ── 7. Put the package.release record ──
-		const rkey = `${slug}:${manifest.version}`;
-		const release: PackageReleaseRecord = {
-			$type: NSID.packageRelease,
-			package: slug,
-			version: manifest.version,
-			artifacts: {
-				package: {
-					url: args.url,
-					checksum,
-					contentType: "application/gzip",
-				},
-			},
+		const profile: ProfileBootstrap = {
+			...(args.license !== undefined ? { license: args.license } : {}),
+			...(args["author-name"] !== undefined ? { authorName: args["author-name"] } : {}),
+			...(args["author-url"] !== undefined ? { authorUrl: args["author-url"] } : {}),
+			...(args["author-email"] !== undefined ? { authorEmail: args["author-email"] } : {}),
+			...(args["security-email"] !== undefined
+				? { securityEmail: args["security-email"] }
+				: {}),
+			...(args["security-url"] !== undefined ? { securityUrl: args["security-url"] } : {}),
 		};
 
-		consola.start(`Publishing release ${slug}@${manifest.version}...`);
-		const releaseResult = await publisher.putRecord({
-			collection: NSID.packageRelease,
-			rkey,
-			record: release as unknown as Record<string, unknown>,
-		});
+		const logger: PublishLogger = {
+			info: (m) => consola.info(m),
+			success: (m) => consola.success(m),
+			warn: (m) => consola.warn(m),
+		};
 
-		if (args.json) {
-			console.log(
-				JSON.stringify({
-					profile: profileUri,
-					release: releaseResult.uri,
-					cid: releaseResult.cid,
-					checksum,
-					url: args.url,
-				}),
+		try {
+			const result = await publishRelease({
+				publisher,
+				did: session.did,
+				manifest,
+				checksum,
+				url: args.url,
+				profile,
+				allowOverwrite: args["allow-overwrite"],
+				logger,
+			});
+
+			// Subsequent-publish: warn about ignored first-publish-only flags.
+			if (!result.profileCreated && result.ignoredProfileFields.length > 0) {
+				const flags = result.ignoredProfileFields.map(profileFieldToFlag).join(", ");
+				consola.warn(
+					`Ignored on subsequent publish (existing profile wins): ${flags}. ` +
+						"Profile updates aren't supported yet; edit the record directly via your PDS for now.",
+				);
+			}
+
+			if (args.json) {
+				console.log(
+					JSON.stringify({
+						profile: result.profileUri,
+						release: result.releaseUri,
+						cid: result.releaseCid,
+						checksum: result.checksum,
+						url: args.url,
+						profileCreated: result.profileCreated,
+						releaseOverwritten: result.releaseOverwritten,
+					}),
+				);
+				return;
+			}
+
+			consola.success(`Published ${pc.bold(`${result.slug}@${manifest.version}`)}`);
+			consola.info(`Release URI: ${pc.dim(result.releaseUri)}`);
+			consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
+			console.log();
+			consola.info(
+				`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
 			);
-			return;
+			console.log(`  ${pc.cyan(`emdash-registry info ${session.handle} ${result.slug}`)}`);
+		} catch (error) {
+			if (error instanceof PublishError) {
+				consola.error(error.message);
+				if (error.code === "RELEASE_ALREADY_PUBLISHED") {
+					consola.error(
+						"To overwrite anyway, pass --allow-overwrite (use only when you're sure no consumers have installed this version yet).",
+					);
+				}
+				process.exit(1);
+			}
+			throw error;
 		}
-
-		consola.success(`Published ${pc.bold(`${slug}@${manifest.version}`)}`);
-		consola.info(`Release URI: ${pc.dim(releaseResult.uri)}`);
-		consola.info(`Profile URI: ${pc.dim(profileUri)}`);
-		console.log();
-		consola.info(
-			`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
-		);
-		console.log(`  ${pc.cyan(`emdash-registry info ${session.handle} ${slug}`)}`);
 	},
 });
 
@@ -262,35 +222,15 @@ function formatBytes(n: number): string {
 	return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-const SLASH_RE = /\//g;
-const LEADING_AT_RE = /^@/;
-
 /**
- * Convert a plugin id (which may be a scoped npm name like
- * `@emdash-cms/sandboxed-test`) into a slug suitable for an atproto rkey.
- * Strips the leading `@` and replaces `/` with `-`.
- *
- * The lexicon validates `^[a-z][a-z0-9_-]*$` and a 64-char limit; we don't
- * enforce all of that here -- atproto rejects the putRecord with a clear
- * error if it doesn't match -- but we do the mechanical translation.
- */
-function sanitiseSlug(id: string): string {
-	return id.replace(LEADING_AT_RE, "").replace(SLASH_RE, "-");
-}
-
-function atUri(did: PublisherSession["did"], collection: string, rkey: string): string {
-	return `at://${did}/${collection}/${rkey}`;
-}
-
-/**
- * Best-effort fetch of the tarball at `url`. We need the bytes to verify the
- * checksum; range requests aren't worth the complexity since publish is
- * one-shot per release.
+ * Fetch the tarball bytes at `url`. We need the full body to compute the
+ * checksum and to read `manifest.json` from inside it.
  */
 async function fetchTarball(url: string): Promise<Uint8Array> {
 	const res = await fetch(url, {
-		// GitHub release assets serve with this content-type when accessed
-		// via the API URL; ordinary URLs ignore the header.
+		// GitHub release assets need this header to actually serve the file
+		// (without it the API URL returns JSON metadata). Direct CDN URLs
+		// ignore the header.
 		headers: { Accept: "application/octet-stream" },
 	});
 	if (!res.ok) {
@@ -312,8 +252,6 @@ async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginMani
 			controller.close();
 		},
 	});
-	// modern-tar's createGzipDecoder is a `ReadableWritablePair<Uint8Array, Uint8Array>`;
-	// piping a Uint8Array source through it yields a ReadableStream<Uint8Array>.
 	const decoded = source.pipeThrough(createGzipDecoder()) as ReadableStream<Uint8Array>;
 	const entries = await unpackTar(decoded);
 	const manifestEntry = entries.find((e) => e.header.name === "manifest.json");
@@ -324,78 +262,18 @@ async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginMani
 }
 
 /**
- * Returns the existing profile record value if one is already in the
- * publisher's repo, or `null` if not.
+ * Map a `ProfileBootstrap` field name back to the user-facing CLI flag for
+ * warnings. Keeps the API-side names internal-friendly while the CLI surface
+ * stays kebab-case.
  */
-async function getExistingProfile(publisher: PublishingClient, slug: string): Promise<unknown> {
-	try {
-		const record = await publisher.getRecord({
-			collection: NSID.packageProfile,
-			rkey: slug,
-		});
-		return record.value;
-	} catch (error) {
-		// `getRecord` throws ClientResponseError with `RecordNotFound` for
-		// missing records; treat that as "no profile yet". Anything else we
-		// re-throw because it indicates a real failure (auth, network).
-		if (error instanceof ClientResponseError && error.error === "RecordNotFound") {
-			return null;
-		}
-		throw error;
-	}
-}
-
-interface BuildProfileInput {
-	slug: string;
-	profileUri: string;
-	manifest: PluginManifest;
-	license: string | undefined;
-	authorName: string | undefined;
-	authorUrl: string | undefined;
-	authorEmail: string | undefined;
-	securityEmail: string | undefined;
-	securityUrl: string | undefined;
-}
-
-function buildProfileRecord(input: BuildProfileInput): PackageProfileRecord {
-	if (!input.license) {
-		throw new ProfileBootstrapError(
-			"--license is required on first publish (e.g. --license MIT). " +
-				"The lexicon requires a SPDX license expression for every package.",
-		);
-	}
-	if (!input.securityEmail && !input.securityUrl) {
-		throw new ProfileBootstrapError(
-			"--security-email or --security-url is required on first publish. " +
-				"Clients refuse to install packages without a security contact.",
-		);
-	}
-
-	const author: { name: string; url?: string; email?: string } = {
-		name: input.authorName ?? "unknown",
+function profileFieldToFlag(field: string): string {
+	const map: Record<string, string> = {
+		license: "--license",
+		authorName: "--author-name",
+		authorUrl: "--author-url",
+		authorEmail: "--author-email",
+		securityEmail: "--security-email",
+		securityUrl: "--security-url",
 	};
-	if (input.authorUrl) author.url = input.authorUrl;
-	if (input.authorEmail) author.email = input.authorEmail;
-
-	const securityContact: { url?: string; email?: string } = {};
-	if (input.securityEmail) securityContact.email = input.securityEmail;
-	if (input.securityUrl) securityContact.url = input.securityUrl;
-
-	return {
-		$type: NSID.packageProfile,
-		id: input.profileUri,
-		type: "emdash-plugin",
-		license: input.license,
-		authors: [author],
-		security: [securityContact],
-		slug: input.slug,
-		lastUpdated: new Date().toISOString(),
-	};
-}
-
-class ProfileBootstrapError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = "ProfileBootstrapError";
-	}
+	return map[field] ?? `--${field}`;
 }
