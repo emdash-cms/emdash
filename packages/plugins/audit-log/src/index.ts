@@ -20,6 +20,8 @@
 
 import type { PluginDescriptor } from "emdash";
 
+import { version } from "../package.json";
+
 export interface AuditEntry {
 	timestamp: string;
 	action: "create" | "update" | "delete" | "media:upload" | "media:delete";
@@ -40,10 +42,10 @@ export interface AuditEntry {
 export function auditLogPlugin(): PluginDescriptor {
 	return {
 		id: "audit-log",
-		version: "0.1.0",
+		version,
 		format: "standard",
 		entrypoint: "@emdash-cms/plugin-audit-log/sandbox",
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 		storage: {
 			entries: { indexes: ["timestamp", "action", "resourceType", "collection"] },
 		},
