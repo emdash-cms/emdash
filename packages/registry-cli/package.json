@@ -3,6 +3,13 @@
 	"version": "0.0.0",
 	"description": "CLI for publishing plugins to the EmDash plugin registry, and searching it from the terminal. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.",
 	"type": "module",
+	"main": "dist/api.mjs",
+	"exports": {
+		".": {
+			"types": "./dist/api.d.mts",
+			"default": "./dist/api.mjs"
+		}
+	},
 	"bin": {
 		"emdash-registry": "./dist/index.mjs"
 	},
@@ -18,16 +25,24 @@
 		"check": "publint"
 	},
 	"dependencies": {
+		"@atcute/client": "catalog:",
 		"@atcute/identity-resolver": "catalog:",
 		"@atcute/lexicons": "catalog:",
+		"@atcute/multibase": "catalog:",
 		"@atcute/oauth-node-client": "catalog:",
+		"@oslojs/crypto": "catalog:",
+		"@emdash-cms/plugin-types": "workspace:*",
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"citty": "^0.1.6",
 		"consola": "^3.4.2",
-		"picocolors": "^1.1.1"
+		"image-size": "^2.0.2",
+		"modern-tar": "^0.7.5",
+		"picocolors": "^1.1.1",
+		"tsdown": "catalog:"
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
 		"@types/node": "catalog:",
 		"publint": "catalog:",
 		"tsdown": "catalog:",

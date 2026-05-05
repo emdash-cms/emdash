@@ -10,6 +10,7 @@
  *   - whoami   — show stored sessions
  *   - search   — free-text search the aggregator
  *   - info     — show details about a package
+ *   - bundle   — bundle a plugin source directory into a tarball
  *   - publish  — publish a release (stub; lands in a follow-up PR)
  *
  * EXPERIMENTAL: this CLI targets `com.emdashcms.experimental.*` and the
@@ -18,6 +19,7 @@
 
 import { defineCommand, runMain } from "citty";
 
+import { bundleCommand } from "./bundle/command.js";
 import { infoCommand } from "./commands/info.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
@@ -36,6 +38,7 @@ const main = defineCommand({
 		whoami: whoamiCommand,
 		search: searchCommand,
 		info: infoCommand,
+		bundle: bundleCommand,
 		publish: publishCommand,
 	},
 });

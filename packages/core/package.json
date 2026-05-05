@@ -171,6 +171,7 @@
     "@emdash-cms/admin": "workspace:*",
     "@emdash-cms/auth": "workspace:*",
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",
+    "@emdash-cms/plugin-types": "workspace:*",
     "@floating-ui/react": "^0.27.16",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@oslojs/crypto": "catalog:",

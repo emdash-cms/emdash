@@ -1,0 +1,46 @@
+{
+	"name": "@emdash-cms/plugin-types",
+	"version": "0.0.0",
+	"description": "Shared TypeScript types for the EmDash plugin manifest contract: capability vocabulary, manifest shape, hook/route entry types. Consumed by core (manifest reader at install/runtime) and registry-cli (manifest writer at bundle/publish time).",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"manifest",
+		"types"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugin-types"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

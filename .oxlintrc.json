@@ -68,6 +68,7 @@
 				"**/client/transport.ts",
 				"**/client/portable-text.ts",
 				"**/cli/**/*.ts",
+				"packages/registry-cli/src/**/*.ts",
 				"**/api/handlers/api-tokens.ts",
 				"**/api/handlers/device-flow.ts",
 				"**/api/handlers/oauth-authorization.ts",
