@@ -252,6 +252,19 @@ authorRoutes.put("/plugins/*", authMiddleware);
 // Must stay in sync with PluginCapability in emdash core
 /** Must stay in sync with PLUGIN_CAPABILITIES in packages/core/src/plugins/manifest-schema.ts */
 const VALID_CAPABILITIES = [
+	// Current names
+	"network:request",
+	"network:request:unrestricted",
+	"content:read",
+	"content:write",
+	"media:read",
+	"media:write",
+	"users:read",
+	"email:send",
+	"hooks.email-transport:register",
+	"hooks.email-events:register",
+	"hooks.page-fragments:register",
+	// Deprecated aliases — accepted during the transition window.
 	"network:fetch",
 	"network:fetch:any",
 	"read:content",
@@ -259,9 +272,9 @@ const VALID_CAPABILITIES = [
 	"read:media",
 	"write:media",
 	"read:users",
-	"email:send",
 	"email:provide",
 	"email:intercept",
+	"page:inject",
 ] as const;
 
 const createPluginSchema = z.object({
