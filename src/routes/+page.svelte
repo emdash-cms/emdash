@@ -20,7 +20,7 @@
   <div class="absolute inset-0 bg-gradient-to-b from-[rgba(7,10,15,0.2)] to-[rgba(6,8,12,0.82)]"></div>
   <div class="absolute inset-0 bg-[radial-gradient(circle_at_10%_40%,rgba(204,94,54,0.24),transparent_35%)]"></div>
 
-  <div class="relative z-10 grid min-h-[86vh] grid-rows-[auto_1fr_auto] px-5 py-8 sm:px-10">
+  <div class="relative z-10 grid min-h-[86vh] grid-rows-[auto_1fr_auto] 48 sm:px-10">
     <header class="flex flex-wrap items-start justify-center gap-4 sm:justify-between">
       <a class="site-button-ghost" href="#experience">Menu</a>
       <div class="text-center">

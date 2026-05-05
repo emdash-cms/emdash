@@ -1,14 +1,14 @@
-<section class="admin-panel grid gap-4">
+<section class="admin-panel grid gap-0">
   <div class="flex items-start justify-between gap-3">
 
     <p class="m-0 mt-1 text-sm font-medium text-emerald-600">Saved</p>
   </div>
 
   <div class="flex items-end gap-5 border-b-transparent pb-0.5" style={`border-color: var(--admin-panel-border);`}>
-    <button class="border-b-2 border-[var(--admin-text-strong)] bg-transparent px-0 py-2 text-sm font-semibold text-[var(--admin-text-strong)]">
+    <button class="border-b-2 border-[var(--admin-text-strong)] bg-transparent px-0 py-3 text-base font-semibold text-[var(--admin-text-strong)]">
       Business Identity
     </button>
-    <button class="border-b-2 border-transparent bg-transparent px-0 py-2 text-sm font-semibold text-[var(--admin-text-soft)]">
+    <button class="border-b-2 border-transparent bg-transparent px-0 py-3 text-base font-semibold text-[var(--admin-text-soft)]">
       Hours
     </button>
   </div>
