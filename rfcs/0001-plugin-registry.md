@@ -223,23 +223,23 @@ EmDash supports both _sandboxed_ and _native_ plugins. **This registry covers sa
 
 ### Sandboxed plugins
 
-Sandboxed plugins run in isolated sandboxes. The default sandbox is implemented via Cloudflare Dynamic Workers. Their bundle manifest declares exactly what resources they can access, including capabilities such as `read:content` and `email:send`. They can be installed at runtime from the admin UI — no CLI, no build step, no restart required.
+Sandboxed plugins run in isolated sandboxes. The default sandbox is implemented via Cloudflare Dynamic Workers. Their bundle's `manifest.json` declares exactly what resources they can access via a `declaredAccess` block (see [EmDash extension](#emdash-extension) for the full shape). They can be installed at runtime from the admin UI — no CLI, no build step, no restart required.
 
-```js
-export default () =>
-	definePlugin({
-		id: "notify-on-publish",
-		declaredAccess: {
-			content: { read: true },
-			email: { send: true },
-		},
-		hooks: {
-			"content:afterSave": async (event, ctx) => {
-				/* ... */
-			},
-		},
-	});
+A minimal `manifest.json` for a plugin that subscribes to content saves and sends notification email:
+
+```jsonc
+{
+	"id": "notify-on-publish",
+	"version": "0.1.0",
+	"declaredAccess": {
+		"content": { "read": true },
+		"email": { "send": true },
+	},
+	"hooks": [{ "name": "content:afterSave", "priority": 100 }],
+}
 ```
+
+The `declaredAccess` block is the trust contract: what the plugin commits to needing access to. The `hooks` block (and other implementation-contract fields like `routes`, `storage`, `admin`) are how the runtime wires the plugin up at load time. Both contracts live in the manifest; only the trust contract is replicated to the registry. See [The Publish Flow](#the-publish-flow) for how that split plays out at publish time.
 
 For sandboxed plugins, the registry is the **complete distribution channel**: discovery → download → verify → install, all automated.
 
@@ -780,14 +780,18 @@ A follow-on trust/moderation RFC will expand this vocabulary; This RFC establish
 
 ## The Publish Flow
 
-A single file, **`manifest.json`**, is the source of truth for both publishing and runtime loading. It lives in the bundle root and is consumed by:
+A single file, **`manifest.json`**, lives at the root of the bundle archive and serves as the source of truth for everything about the plugin. It carries two distinct contracts in one file:
 
-- **The runtime**, which reads the runtime-relevant fields (`id`, `version`, `capabilities`, `allowedHosts`, `hooks`, `routes`, etc.) when loading the plugin into the sandbox.
-- **The CLI publish flow**, which reads the package-level fields (`name`, `slug`, `description`, `authors`, `license`, `security`, etc.) to construct the registry's `pm.fair.package.profile` and `pm.fair.package.release` records.
+- **The trust contract** — the `declaredAccess` block plus package-level metadata (`id`, `version`, `name`, `description`, `authors`, `license`, `security`, etc.). The CLI publish flow lifts these into the registry's `pm.fair.package.profile` and `pm.fair.package.release` records.
+- **The implementation contract** — `hooks`, `routes`, `storage`, `admin`, etc. The runtime reads these when loading the plugin into the sandbox to wire up event subscriptions, API routes, storage buckets, and admin UI extension points. These fields stay bundle-internal and are not replicated to the registry.
+
+The split matters because the registry only needs to know what a plugin _claims_ access to, not how it implements that. An admin auditing a plugin's permissions reads the trust contract; the runtime loading the plugin reads the implementation contract; the file is the same.
 
 On first publish, the CLI reads the manifest from the built bundle and creates the `pm.fair.package.profile` record in the author's atproto repo. Subsequent publishes create `pm.fair.package.release` records against the existing package. There is no separate "register" step — publishing is the only way a package appears in the registry.
 
-The runtime validates `manifest.json` against its existing schema and ignores the package-level fields it doesn't need; the publish flow reads the same file and uses both the runtime-relevant and package-level fields.
+The deep-equal consistency check between bundle and release record (see [Extension validation rules](#emdash-extension)) compares the trust-contract subset only — specifically `manifest.json`'s `declaredAccess` against the release record's `release.emdash.declaredAccess`. The implementation contract has no equivalent in the release record so there's nothing to compare it against; that's intentional.
+
+How `manifest.json` is authored — as hand-written JSON, generated from a TypeScript source like `manifest.ts`, or any other build flow — is an EmDash CLI / build-tool concern and out of scope for this RFC. The registry only sees the resulting JSON in the bundle.
 
 ### Publish flow
 
@@ -798,7 +802,7 @@ $ emdash plugin publish --url https://github.com/example/gallery/releases/downlo
 ```
 
 1. Fetches the bundle archive from the URL, validates it is under the 50 MB cap, and computes its multibase checksum.
-2. Reads `manifest.json` from the bundle. Extracts the runtime-relevant fields (`capabilities`, `allowedHosts`) for the release's `emdash` extension, and the package-level fields (`name`, `slug`, `description`, `authors`, `license`, `security`, etc.) for the package profile.
+2. Reads `manifest.json` from the bundle. Extracts the trust-contract fields: `declaredAccess` (for the release's `emdash` extension) and the package-level metadata `name`, `slug`, `description`, `authors`, `license`, `security`, etc. (for the package profile). The implementation-contract fields (`hooks`, `routes`, `storage`, `admin`) are not used at this step; they stay bundle-internal for the runtime to consume at install time.
 3. On first publish for a `slug`, creates the `pm.fair.package.profile` record. Always creates the `pm.fair.package.release` record with a `package` artifact carrying the URL and checksum, and the `emdash` extension carrying the `declaredAccess` block lifted from the manifest.
 
 This requires the author to host the bundle somewhere (commonly a GitHub release) before running `publish`. A `--file <path>` flag that publishes a local tarball — uploading it to a default hosted artifact location and recording the resulting URL — is intended follow-on work that pairs with the hosted-artifact RFC. This RFC does not include it; first-publish DX is "build → upload → publish", roughly three commands rather than `npm publish`'s one.
