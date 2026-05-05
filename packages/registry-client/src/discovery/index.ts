@@ -90,15 +90,17 @@ export class DiscoveryClient {
 			fetch: options.fetch ?? globalThis.fetch,
 		});
 
-		// Wrap the handler so every outgoing request gets the
-		// atproto-accept-labelers header when configured.
+		// Wrap the handler so every outgoing request carries the
+		// `atproto-accept-labelers` header when configured. We always
+		// *overwrite* any value the caller might have supplied: this is the
+		// aggregator's policy, not a per-request setting, and letting
+		// downstream code substitute its own labellers would defeat the
+		// point of the wrapper.
 		const acceptLabelers = this.acceptLabelers;
 		const handler: typeof baseHandler = acceptLabelers
 			? async (pathname, init) => {
 					const headers = new Headers(init.headers);
-					if (!headers.has("atproto-accept-labelers")) {
-						headers.set("atproto-accept-labelers", acceptLabelers);
-					}
+					headers.set("atproto-accept-labelers", acceptLabelers);
 					return baseHandler(pathname, { ...init, headers });
 				}
 			: baseHandler;

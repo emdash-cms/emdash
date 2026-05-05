@@ -138,7 +138,11 @@ class FileStore<V> implements Store<string, V> {
 		const body = `${JSON.stringify(envelope, null, 2)}\n`;
 		const tmp = `${this.#path}.tmp`;
 		try {
-			await writeFile(tmp, body, { mode: 0o600 });
+			// `flush: true` (Node 21.1+) fsyncs the file content before close, so
+			// a power loss between the rename and a crash can't surface an empty
+			// inode pointing at unwritten data. Atomic rename alone is torn-write
+			// safe but not durable.
+			await writeFile(tmp, body, { mode: 0o600, flush: true });
 			await rename(tmp, this.#path);
 		} catch (error) {
 			// Best-effort cleanup of the temp file if rename failed mid-write.
@@ -149,7 +153,11 @@ class FileStore<V> implements Store<string, V> {
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-	return error instanceof Error && "code" in error;
+	return (
+		error instanceof Error &&
+		"code" in error &&
+		typeof (error as { code?: unknown }).code === "string"
+	);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -230,10 +238,10 @@ export function createCliOAuthClient(options: OAuthClientFactoryOptions): OAuthC
 // Loopback callback server
 // ──────────────────────────────────────────────────────────────────────────
 
-function renderCallbackPage(message: string): string {
-	return `<!doctype html><meta charset="utf-8"><title>EmDash plugin login</title>
+function renderCallbackPage(title: string, message: string): string {
+	return `<!doctype html><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;color:#222}h1{font-size:1.25rem}p{color:#666}</style>
-<h1>EmDash plugin login</h1><p>${escapeHtml(message)}</p><p><small>You can close this tab.</small></p>`;
+<h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><p><small>You can close this tab.</small></p>`;
 }
 
 function escapeHtml(input: string): string {
@@ -241,12 +249,40 @@ function escapeHtml(input: string): string {
 		.replaceAll("&", "&amp;")
 		.replaceAll("<", "&lt;")
 		.replaceAll(">", "&gt;")
-		.replaceAll('"', "&quot;");
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;")
+		.replaceAll("/", "&#x2F;");
 }
+
+/**
+ * Outcome the caller passes back into the loopback server to decide what to
+ * render in the user's browser. Only after the caller (atcute) has accepted
+ * the callback do we render success; if the callback didn't validate, we
+ * render an error so the user knows the login failed.
+ */
+export type CallbackOutcome =
+	| { ok: true; title?: string; message?: string }
+	| { ok: false; title?: string; message?: string };
 
 export interface BindLoopbackServerResult {
 	redirectUri: `http://127.0.0.1:${number}/callback`;
+	/**
+	 * Resolves with the OAuth callback URL search params once the AS redirects
+	 * the user's browser to `/callback`. Rejects on timeout.
+	 *
+	 * The HTTP response to the browser is held open until the caller invokes
+	 * `respond(...)` -- this lets the caller render success only after the
+	 * params have been validated by atcute, and an error message if they
+	 * haven't.
+	 */
 	awaitCallback(): Promise<URLSearchParams>;
+	/**
+	 * Send the rendered success / error page to the user's browser. Idempotent;
+	 * subsequent calls are no-ops. The CLI is expected to call this exactly
+	 * once per flow.
+	 */
+	respond(outcome: CallbackOutcome): void;
+	/** Stop the server. Idempotent. */
 	close(): Promise<void>;
 }
 
@@ -254,7 +290,12 @@ export interface BindLoopbackServerResult {
  * Bind a small HTTP server on `127.0.0.1` at an OS-chosen ephemeral port and
  * return a callback path the OAuth flow can redirect to.
  *
- * The server only responds to GET `/callback`. Any other request gets a 404.
+ * The server only responds to GET `/callback`. Any other request gets a 405
+ * or 400.
+ *
+ * Importantly, the server holds the response open until the caller invokes
+ * `respond(...)` -- so the user's browser shows "Login complete" only AFTER
+ * atcute has validated the callback params, not before.
  *
  * @param timeoutMs How long to wait for the callback before rejecting.
  *   Defaults to 5 minutes, matching the typical AS code TTL.
@@ -264,22 +305,74 @@ export async function bindLoopbackServer(
 ): Promise<BindLoopbackServerResult> {
 	let resolveCallback: ((params: URLSearchParams) => void) | undefined;
 	let rejectCallback: ((error: Error) => void) | undefined;
+	let settled = false;
 
 	const callbackPromise = new Promise<URLSearchParams>((resolve, reject) => {
-		resolveCallback = resolve;
-		rejectCallback = reject;
+		resolveCallback = (params) => {
+			if (settled) return;
+			settled = true;
+			resolve(params);
+		};
+		rejectCallback = (error) => {
+			if (settled) return;
+			settled = true;
+			reject(error);
+		};
 	});
+
+	// Held open until `respond()` is called. The first /callback request
+	// captures `pendingResponse`; subsequent ones get a "you've already
+	// completed login" message so a refresh / stray tab can't silently re-fire.
+	let pendingResponse: ServerResponse | undefined;
+	let responded = false;
 
 	const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
-		if (req.method !== "GET" || url.pathname !== "/callback") {
+		if (req.method !== "GET") {
+			res.statusCode = 405;
+			res.setHeader("allow", "GET");
+			res.end();
+			return;
+		}
+		if (url.pathname !== "/callback") {
 			res.statusCode = 404;
 			res.end();
 			return;
 		}
-		res.statusCode = 200;
-		res.setHeader("content-type", "text/html; charset=utf-8");
-		res.end(renderCallbackPage("Login complete. Returning you to the CLI."));
+
+		// Reject /callback hits with no `state` param. atcute will reject these
+		// too, but a stray tab firing at the loopback shouldn't claim the
+		// pending promise -- so handle it in-band.
+		if (!url.searchParams.has("state")) {
+			res.statusCode = 400;
+			res.setHeader("content-type", "text/html; charset=utf-8");
+			res.end(
+				renderCallbackPage(
+					"EmDash plugin login",
+					"Waiting for the actual login callback. (This request had no state parameter.)",
+				),
+			);
+			return;
+		}
+
+		// Already-completed: a second /callback hit (browser refresh, stray
+		// tab) gets a generic "you're done" message and doesn't re-trigger.
+		if (settled) {
+			res.statusCode = 200;
+			res.setHeader("content-type", "text/html; charset=utf-8");
+			res.end(
+				renderCallbackPage(
+					"EmDash plugin login",
+					"Login already completed. You can close this tab.",
+				),
+			);
+			return;
+		}
+
+		// First valid callback: hold the response open until the CLI tells us
+		// what to render. The CLI does this once atcute has consumed the params
+		// and either accepted them (render success) or rejected (render error).
+		pendingResponse = res;
 		resolveCallback?.(url.searchParams);
 	});
 
@@ -301,14 +394,43 @@ export async function bindLoopbackServer(
 	}, timeoutMs);
 	timeout.unref();
 
+	const respond = (outcome: CallbackOutcome): void => {
+		if (responded) return;
+		responded = true;
+		const res = pendingResponse;
+		if (!res) return;
+		res.statusCode = outcome.ok ? 200 : 400;
+		res.setHeader("content-type", "text/html; charset=utf-8");
+		res.end(
+			renderCallbackPage(
+				outcome.title ?? (outcome.ok ? "EmDash plugin login" : "Login failed"),
+				outcome.message ??
+					(outcome.ok
+						? "Login complete. Returning you to the CLI."
+						: "The login callback could not be validated. Check the CLI for details."),
+			),
+		);
+	};
+
 	const close = async (): Promise<void> => {
 		clearTimeout(timeout);
+		// If we never responded (timeout, error before respond), close the
+		// dangling response so the browser doesn't hang.
+		if (!responded && pendingResponse) {
+			responded = true;
+			try {
+				pendingResponse.end();
+			} catch {
+				// the socket may already be gone; safe to ignore
+			}
+		}
 		await new Promise<void>((resolve) => server.close(() => resolve()));
 	};
 
 	return {
 		redirectUri,
 		awaitCallback: () => callbackPromise,
+		respond,
 		close,
 	};
 }
@@ -402,9 +524,21 @@ export async function runInteractiveLogin(
 		tryOpenBrowser(url.toString());
 
 		const params = await server.awaitCallback();
-		const result = await client.callback(params);
-
-		return { session: result.session, did: result.session.sub };
+		try {
+			const result = await client.callback(params);
+			// Atcute has accepted the callback. Only NOW render the success
+			// page in the user's browser -- so a stray /callback hit with
+			// invalid state can't trick the user into thinking they're logged
+			// in when they aren't.
+			server.respond({ ok: true });
+			return { session: result.session, did: result.session.sub };
+		} catch (error) {
+			// atcute rejected the callback (state mismatch, expired code, etc).
+			// Render an error page in the browser before surfacing the failure.
+			const message = error instanceof Error ? error.message : "Login could not be validated.";
+			server.respond({ ok: false, message });
+			throw error;
+		}
 	} finally {
 		await server.close();
 	}

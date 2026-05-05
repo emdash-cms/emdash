@@ -28,8 +28,20 @@ export {
 	type PublishResult,
 	PublishError,
 	publishRelease,
-	sanitiseSlug,
 } from "./publish/api.js";
+
+// `sanitiseSlug` was previously exported from `./publish/api.js`. The
+// canonical helper now lives in `@emdash-cms/plugin-types` as
+// `deriveSlugFromId` (alongside the validation regex constants and
+// `isPluginSlug`); we re-export it here for one release cycle to ease
+// migration. New code should import from `@emdash-cms/plugin-types` directly.
+export {
+	deriveSlugFromId,
+	isPluginSlug,
+	isPluginVersion,
+	PLUGIN_SLUG_RE,
+	PLUGIN_VERSION_RE,
+} from "@emdash-cms/plugin-types";
 
 // Re-export the manifest contract types so consumers don't need a separate
 // `@emdash-cms/plugin-types` dep just to type their input/output. They're

@@ -71,11 +71,13 @@ describe("PublishingClient", () => {
 			repo: did,
 			collection: "com.emdashcms.experimental.package.profile",
 			rkey: "gallery",
-			validate: false,
+			// validate: true is the default. The PDS lexicon-validates every
+			// record we write; opting out (skipValidation: true) is a footgun.
+			validate: true,
 		});
 	});
 
-	it("putRecord forwards the validate flag when set", async () => {
+	it("putRecord opts out of lexicon validation when skipValidation is set", async () => {
 		const { handler, calls } = buildHandler({
 			"/xrpc/com.atproto.repo.putRecord": {
 				status: 200,
@@ -84,15 +86,15 @@ describe("PublishingClient", () => {
 		});
 
 		const client = PublishingClient.fromHandler({ handler, did, pds });
-		await client.putRecord({
+		await client.unsafePutRecord({
 			collection: "com.emdashcms.experimental.package.profile",
 			rkey: "x",
 			record: {},
-			validate: true,
+			skipValidation: true,
 		});
 
 		const body = JSON.parse(calls[0]!.init.body as string);
-		expect(body.validate).toBe(true);
+		expect(body.validate).toBe(false);
 	});
 
 	it("putRecord throws ClientResponseError on a non-2xx", async () => {
@@ -105,7 +107,10 @@ describe("PublishingClient", () => {
 
 		const client = PublishingClient.fromHandler({ handler, did, pds });
 		try {
-			await client.putRecord({
+			// Use unsafePutRecord so we can pass an opaque record without
+			// satisfying the registry-lexicons typed shape -- this test is
+			// about the error-mapping path, not the body.
+			await client.unsafePutRecord({
 				collection: "com.emdashcms.experimental.package.profile",
 				rkey: "x",
 				record: {},
@@ -160,5 +165,57 @@ describe("PublishingClient", () => {
 		expect(result.cursor).toBe("next");
 		expect(calls[0]!.pathname).toContain("limit=50");
 		expect(calls[0]!.pathname).toContain("cursor=abc");
+	});
+
+	it("applyWrites batches create/update/delete in a single XRPC call", async () => {
+		const { handler, calls } = buildHandler({
+			"/xrpc/com.atproto.repo.applyWrites": {
+				status: 200,
+				body: {
+					results: [
+						{
+							$type: "com.atproto.repo.applyWrites#createResult",
+							uri: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/x",
+							cid: "bafy...",
+						},
+						{
+							$type: "com.atproto.repo.applyWrites#updateResult",
+							uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/x:1.0.0",
+							cid: "bafy...",
+						},
+					],
+				},
+			},
+		});
+
+		const client = PublishingClient.fromHandler({ handler, did, pds });
+		const result = await client.applyWrites({
+			writes: [
+				{
+					op: "create",
+					collection: "com.emdashcms.experimental.package.profile",
+					rkey: "x",
+					// Cast: real callers build records via the lexicon types; the
+					// test asserts shape, not record contents.
+					record: { foo: 1 } as never,
+				},
+				{
+					op: "update",
+					collection: "com.emdashcms.experimental.package.release",
+					rkey: "x:1.0.0",
+					record: { bar: 2 } as never,
+				},
+			],
+		});
+
+		expect(result.results).toHaveLength(2);
+		expect(result.results[0]).toMatchObject({ op: "create" });
+		expect(result.results[1]).toMatchObject({ op: "update" });
+
+		// One XRPC call, lexicon-validate enabled by default.
+		expect(calls).toHaveLength(1);
+		const body = JSON.parse(calls[0]!.init.body as string);
+		expect(body.validate).toBe(true);
+		expect(body.writes).toHaveLength(2);
 	});
 });

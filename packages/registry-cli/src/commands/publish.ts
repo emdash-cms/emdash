@@ -5,8 +5,10 @@
  *
  * Responsibilities here are limited to:
  *   - parsing args and reading filesystem credentials,
- *   - fetching the tarball at `--url` so the API has bytes to work with,
- *   - extracting the manifest from those bytes,
+ *   - fetching the tarball at `--url` (with URL/size guards) so the API has
+ *     bytes to work with,
+ *   - extracting the manifest from those bytes BEFORE printing any tarball
+ *     metadata so users don't see "looks good" output for a malformed file,
  *   - opening an authenticated `PublishingClient` from the OAuth session,
  *   - rendering the API's structured output through consola,
  *   - exiting non-zero on `PublishError`.
@@ -19,11 +21,8 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import {
-	FileCredentialStore,
-	PublishingClient,
-} from "@emdash-cms/registry-client";
 import type { PluginManifest } from "@emdash-cms/plugin-types";
+import { FileCredentialStore, PublishingClient } from "@emdash-cms/registry-client";
 import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
@@ -36,6 +35,9 @@ import {
 	type ProfileBootstrap,
 	type PublishLogger,
 } from "../publish/api.js";
+
+/** Hard cap on tarball size we'll buffer into memory. Mirrors MAX_BUNDLE_SIZE. */
+const MAX_TARBALL_BYTES = 5 * 1024 * 1024;
 
 export const publishCommand = defineCommand({
 	meta: {
@@ -52,7 +54,7 @@ export const publishCommand = defineCommand({
 		local: {
 			type: "string",
 			description:
-				"Optional path to a local copy of the tarball at --url. Skips the download but still verifies the URL serves matching bytes.",
+				"Optional path to a local copy of the tarball at --url. Skips a re-download but still verifies the URL serves matching bytes.",
 		},
 		license: {
 			type: "string",
@@ -91,13 +93,42 @@ export const publishCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
-		// Fetch + checksum the tarball.
+		// Validate URL before any network access. Empty or non-https URLs are
+		// rejected so we never publish a record pointing at file:// or a private
+		// IP that consumers won't be able to fetch from.
+		const urlError = validatePublishUrl(args.url);
+		if (urlError) {
+			consola.error(urlError);
+			process.exit(2);
+		}
+
+		// Reject empty-string flags up front. citty leaves them as "" rather
+		// than undefined, and the publish API treats "" as missing -- bad UX.
+		const stringFlagError = validateStringFlags({
+			license: args.license,
+			"author-name": args["author-name"],
+			"author-url": args["author-url"],
+			"author-email": args["author-email"],
+			"security-email": args["security-email"],
+			"security-url": args["security-url"],
+		});
+		if (stringFlagError) {
+			consola.error(stringFlagError);
+			process.exit(2);
+		}
+
+		// Fetch + checksum the tarball, then extract the manifest BEFORE we
+		// print any reassuring "tarball looks fine" lines. A 200 from a CDN
+		// can serve an HTML 404 page; we want the failure to land before the
+		// user sees apparent success.
 		consola.start(`Fetching ${args.url}...`);
 		const tarballBytes = await fetchTarball(args.url);
 		const checksum = sha256Multihash(tarballBytes);
+		const manifest = await extractManifestFromTarball(tarballBytes);
 
 		consola.info(`Tarball: ${formatBytes(tarballBytes.length)}`);
 		consola.info(`Multihash: ${pc.dim(checksum)}`);
+		consola.info(`Manifest: ${pc.bold(manifest.id)}@${manifest.version}`);
 
 		// Optional local cross-check.
 		if (args.local) {
@@ -117,10 +148,6 @@ export const publishCommand = defineCommand({
 			}
 			consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
 		}
-
-		// Extract manifest.json from the tarball.
-		consola.start("Reading manifest from tarball...");
-		const manifest = await extractManifestFromTarball(tarballBytes);
 
 		// Resume the active publisher session.
 		const credentials = new FileCredentialStore();
@@ -143,9 +170,7 @@ export const publishCommand = defineCommand({
 			...(args["author-name"] !== undefined ? { authorName: args["author-name"] } : {}),
 			...(args["author-url"] !== undefined ? { authorUrl: args["author-url"] } : {}),
 			...(args["author-email"] !== undefined ? { authorEmail: args["author-email"] } : {}),
-			...(args["security-email"] !== undefined
-				? { securityEmail: args["security-email"] }
-				: {}),
+			...(args["security-email"] !== undefined ? { securityEmail: args["security-email"] } : {}),
 			...(args["security-url"] !== undefined ? { securityUrl: args["security-url"] } : {}),
 		};
 
@@ -223,8 +248,87 @@ function formatBytes(n: number): string {
 }
 
 /**
+ * Validate the publish URL before any network access. Returns an error message
+ * to print, or `null` if the URL is acceptable.
+ *
+ * The CLI runs locally so the SSRF surface is the publisher's own machine,
+ * not a server. The real harm is publishing a record pointing at a
+ * non-public URL: consumers can't install from `file:///` or `http://192.x`
+ * and end up with a broken record in the registry. We reject those up front.
+ */
+function validatePublishUrl(url: string): string | null {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return `--url is not a valid URL: ${url}`;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+		return `--url must use http(s); got ${parsed.protocol}`;
+	}
+	const host = parsed.hostname;
+	if (
+		host === "localhost" ||
+		host === "127.0.0.1" ||
+		host === "::1" ||
+		host.endsWith(".local") ||
+		isPrivateIp(host)
+	) {
+		return `--url ${url} resolves to a non-public host (${host}); consumers won't be able to install from it. Host the tarball publicly first.`;
+	}
+	return null;
+}
+
+// Module-scope regexes so we don't re-compile on every call. RFC 1918 /
+// link-local detection is best-effort: a hostname pointing at a private IP
+// slips through (we don't resolve DNS), but the consumer-side install will
+// then fail to fetch -- that's the publisher's problem, not ours.
+const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+const IPV6_ULA_FC_RE = /^fc[0-9a-f]{2}:/i;
+const IPV6_ULA_FD_RE = /^fd[0-9a-f]{2}:/i;
+const IPV6_LINK_LOCAL_RE = /^fe[89ab][0-9a-f]:/i;
+
+/**
+ * Best-effort detection of RFC 1918 / link-local IP literals in a URL host.
+ */
+function isPrivateIp(host: string): boolean {
+	const v4 = IPV4_RE.exec(host);
+	if (v4) {
+		const [, aStr, bStr] = v4;
+		const a = Number(aStr);
+		const b = Number(bStr);
+		if (a === 10) return true;
+		if (a === 127) return true;
+		if (a === 169 && b === 254) return true; // link-local + cloud metadata
+		if (a === 172 && b >= 16 && b <= 31) return true;
+		if (a === 192 && b === 168) return true;
+	}
+	// IPv6 literal in URL form is wrapped in []; URL strips the brackets in
+	// `hostname`. ULA fc00::/7 and link-local fe80::/10.
+	if (IPV6_ULA_FC_RE.test(host) || IPV6_ULA_FD_RE.test(host)) return true;
+	if (IPV6_LINK_LOCAL_RE.test(host)) return true;
+	return false;
+}
+
+/**
+ * Catch the user passing an empty-string flag value (`--license=`). citty
+ * gives us "" which the publish API treats as missing -- the user gets a
+ * confusing PROFILE_BOOTSTRAP_MISSING_FIELD even though they explicitly
+ * passed the flag.
+ */
+function validateStringFlags(flags: Record<string, string | undefined>): string | null {
+	for (const [name, value] of Object.entries(flags)) {
+		if (value !== undefined && value === "") {
+			return `--${name} cannot be empty`;
+		}
+	}
+	return null;
+}
+
+/**
  * Fetch the tarball bytes at `url`. We need the full body to compute the
- * checksum and to read `manifest.json` from inside it.
+ * checksum and to read `manifest.json` from inside it. Streams the response
+ * with a hard cap so a malicious URL can't OOM the CLI.
  */
 async function fetchTarball(url: string): Promise<Uint8Array> {
 	const res = await fetch(url, {
@@ -236,13 +340,61 @@ async function fetchTarball(url: string): Promise<Uint8Array> {
 	if (!res.ok) {
 		throw new Error(`failed to fetch ${url}: ${res.status} ${res.statusText}`);
 	}
-	const buf = await res.arrayBuffer();
-	return new Uint8Array(buf);
+
+	// If the server told us the size up front, reject oversized responses
+	// before reading the body.
+	const contentLength = res.headers.get("content-length");
+	if (contentLength) {
+		const len = Number(contentLength);
+		if (Number.isFinite(len) && len > MAX_TARBALL_BYTES) {
+			throw new Error(
+				`tarball at ${url} is ${formatBytes(len)} which exceeds the ${formatBytes(MAX_TARBALL_BYTES)} limit`,
+			);
+		}
+	}
+
+	if (!res.body) {
+		const buf = await res.arrayBuffer();
+		if (buf.byteLength > MAX_TARBALL_BYTES) {
+			throw new Error(
+				`tarball at ${url} is ${formatBytes(buf.byteLength)} which exceeds the ${formatBytes(MAX_TARBALL_BYTES)} limit`,
+			);
+		}
+		return new Uint8Array(buf);
+	}
+
+	// Stream the body so we can abort once we exceed the cap, instead of
+	// buffering an unbounded response into memory.
+	const reader = res.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (value) {
+			total += value.length;
+			if (total > MAX_TARBALL_BYTES) {
+				await reader.cancel();
+				throw new Error(`tarball at ${url} exceeds the ${formatBytes(MAX_TARBALL_BYTES)} limit`);
+			}
+			chunks.push(value);
+		}
+	}
+	const combined = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		combined.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return combined;
 }
 
 /**
  * Extract `manifest.json` from a gzipped tarball, using `modern-tar`'s
  * stream-then-collect API. Returns the parsed manifest.
+ *
+ * Accepts both `manifest.json` and `./manifest.json` since modern-tar's
+ * exact naming behaviour isn't pinned in our contract.
  */
 async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginManifest> {
 	const { unpackTar, createGzipDecoder } = await import("modern-tar");
@@ -252,13 +404,31 @@ async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginMani
 			controller.close();
 		},
 	});
-	const decoded = source.pipeThrough(createGzipDecoder()) as ReadableStream<Uint8Array>;
-	const entries = await unpackTar(decoded);
-	const manifestEntry = entries.find((e) => e.header.name === "manifest.json");
+	let entries;
+	try {
+		const decoded = source.pipeThrough(createGzipDecoder()) as ReadableStream<Uint8Array>;
+		entries = await unpackTar(decoded);
+	} catch (error) {
+		throw new Error(
+			`tarball at the URL is not a valid gzipped tar archive: ${error instanceof Error ? error.message : String(error)}`,
+			{ cause: error },
+		);
+	}
+	const manifestEntry = entries.find((e) => {
+		const name = e.header.name;
+		return name === "manifest.json" || name === "./manifest.json";
+	});
 	if (!manifestEntry?.data) {
 		throw new Error("manifest.json not found in tarball");
 	}
-	return JSON.parse(new TextDecoder().decode(manifestEntry.data)) as PluginManifest;
+	try {
+		return JSON.parse(new TextDecoder().decode(manifestEntry.data)) as PluginManifest;
+	} catch (error) {
+		throw new Error(
+			`manifest.json in the tarball is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+			{ cause: error },
+		);
+	}
 }
 
 /**

@@ -263,3 +263,49 @@ export interface PluginManifest {
 	routes: Array<ManifestRouteEntry | string>;
 	admin: PluginAdminConfig;
 }
+
+// ── Slug / version helpers ───────────────────────────────────────────────────
+
+const SLASH_RE = /\//g;
+const LEADING_AT_RE = /^@/;
+
+/**
+ * Slug constraint per the registry lexicon: ASCII lowercase letter, then
+ * lowercase letters / digits / hyphen / underscore, max 64 chars. The lexicon
+ * description spells it out; the JSON itself only enforces minLength/maxLength
+ * so we add the regex check here.
+ */
+export const PLUGIN_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
+export const PLUGIN_SLUG_MAX_LENGTH = 64;
+
+/**
+ * Version constraint per the registry lexicon: a subset of semver 2.0 with no
+ * build-metadata suffix (`+...`), composed only of characters allowed in
+ * atproto record keys: ASCII letters, digits, `.` and `-`.
+ *
+ * Note that semver disallows `_` and `~`, so even though atproto rkeys would
+ * accept them they MUST NOT appear in versions.
+ */
+export const PLUGIN_VERSION_RE = /^[a-zA-Z0-9.-]+$/;
+export const PLUGIN_VERSION_MAX_LENGTH = 64;
+
+/**
+ * Convert a plugin id (which may be a scoped npm name like
+ * `@emdash-cms/sandboxed-test`) into a candidate slug suitable for use as an
+ * atproto rkey. Strips a leading `@` and replaces `/` with `-`. The result
+ * still needs `isPluginSlug()` validation -- callers should fail fast if
+ * the manifest's id is malformed rather than relying on the PDS to reject.
+ */
+export function deriveSlugFromId(id: string): string {
+	return id.replace(LEADING_AT_RE, "").replace(SLASH_RE, "-");
+}
+
+export function isPluginSlug(value: string): boolean {
+	return value.length > 0 && value.length <= PLUGIN_SLUG_MAX_LENGTH && PLUGIN_SLUG_RE.test(value);
+}
+
+export function isPluginVersion(value: string): boolean {
+	return (
+		value.length > 0 && value.length <= PLUGIN_VERSION_MAX_LENGTH && PLUGIN_VERSION_RE.test(value)
+	);
+}

@@ -55,3 +55,27 @@ export const NSID = {
 } as const;
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
+
+import type * as PackageProfileNs from "./generated/types/com/emdashcms/experimental/package/profile.js";
+import type * as PackageReleaseNs from "./generated/types/com/emdashcms/experimental/package/release.js";
+import type * as PackageReleaseExtensionNs from "./generated/types/com/emdashcms/experimental/package/releaseExtension.js";
+import type * as PublisherProfileNs from "./generated/types/com/emdashcms/experimental/publisher/profile.js";
+import type * as PublisherVerificationNs from "./generated/types/com/emdashcms/experimental/publisher/verification.js";
+
+/**
+ * Map from `record`-shaped NSIDs to the typed record body the publisher writes
+ * to its PDS. Used by `PublishingClient.putRecord` (and any other typed-write
+ * helper) to ensure callers pass a record matching the collection's lexicon.
+ *
+ * Query / procedure NSIDs (the `aggregator.*` ones) are deliberately absent --
+ * they aren't records.
+ */
+export interface RegistryRecords {
+	"com.emdashcms.experimental.package.profile": PackageProfileNs.Main;
+	"com.emdashcms.experimental.package.release": PackageReleaseNs.Main;
+	"com.emdashcms.experimental.package.releaseExtension": PackageReleaseExtensionNs.Main;
+	"com.emdashcms.experimental.publisher.profile": PublisherProfileNs.Main;
+	"com.emdashcms.experimental.publisher.verification": PublisherVerificationNs.Main;
+}
+
+export type RegistryRecordCollection = keyof RegistryRecords;

@@ -46,6 +46,13 @@ const ENV_PDS = "EMDASH_PUBLISHER_PDS";
 
 export class EnvCredentialStore implements CredentialStore {
 	readonly #env: Record<string, string | undefined>;
+	/**
+	 * Stamped once at construction time so successive reads return the same
+	 * `updatedAt` -- otherwise `current()` and `get(did)` would disagree about
+	 * timestamps that were "snapshotted at the same moment", and any caller
+	 * caching by reference equality would see a fresh object on every read.
+	 */
+	readonly #createdAt = Date.now();
 
 	constructor(options: EnvCredentialStoreOptions = {}) {
 		this.#env = options.env ?? (process.env as Record<string, string | undefined>);
@@ -96,6 +103,6 @@ export class EnvCredentialStore implements CredentialStore {
 				`${ENV_HANDLE} is not a valid handle; expected a domain-like form, e.g. "alice.example.com"`,
 			);
 		}
-		return { did, handle, pds, updatedAt: Date.now() };
+		return { did, handle, pds, updatedAt: this.#createdAt };
 	}
 }

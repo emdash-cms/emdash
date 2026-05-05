@@ -10,18 +10,14 @@
  */
 
 import { isDid, isHandle } from "@atcute/lexicons/syntax";
+import { safeParse } from "@atcute/lexicons/validations";
 import { DiscoveryClient } from "@emdash-cms/registry-client";
+import { PackageProfile } from "@emdash-cms/registry-lexicons";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import pc from "picocolors";
 
 import { resolveAggregatorUrl } from "../config.js";
-
-interface ProfileFields {
-	name?: string;
-	description?: string;
-	license?: string;
-}
 
 export const infoCommand = defineCommand({
 	meta: {
@@ -72,17 +68,38 @@ export const infoCommand = defineCommand({
 			return;
 		}
 
-		const profile = result.profile as ProfileFields;
+		// `result.profile` is the publisher-supplied record; `unknown` per the
+		// lexicon. Validate against the package profile schema so we don't
+		// blindly print whatever an aggregator (or a malicious publisher)
+		// stuffed into it.
+		const parsed = safeParse(PackageProfile.mainSchema, result.profile);
+		const profile: PackageProfile.Main | null = parsed.ok ? parsed.value : null;
+		if (!profile) {
+			consola.warn(
+				`Profile record at ${result.uri} doesn't match the lexicon; printing what we have anyway.`,
+			);
+		}
+
+		const fallback = result.profile as { name?: unknown; description?: unknown; license?: unknown };
+		const name =
+			profile?.name ??
+			(typeof fallback.name === "string" ? fallback.name : undefined) ??
+			result.slug;
+		const description =
+			profile?.description ??
+			(typeof fallback.description === "string" ? fallback.description : undefined);
+		const license =
+			profile?.license ?? (typeof fallback.license === "string" ? fallback.license : undefined);
 
 		console.log();
-		console.log(pc.bold(profile.name ?? result.slug));
-		if (profile.description) {
-			console.log(profile.description);
+		console.log(pc.bold(name));
+		if (description) {
+			console.log(description);
 		}
 		console.log();
 		console.log(`  Slug:      ${result.slug}`);
 		console.log(`  Publisher: ${result.handle ?? result.did}`);
-		console.log(`  License:   ${profile.license ?? "unknown"}`);
+		console.log(`  License:   ${license ?? "unknown"}`);
 		if (result.latestVersion) {
 			console.log(`  Latest:    ${result.latestVersion}`);
 		}

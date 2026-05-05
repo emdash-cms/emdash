@@ -53,9 +53,7 @@ export const whoamiCommand = defineCommand({
 				console.log(`  ${pc.dim(s.handle)} (${pc.dim(s.did)})`);
 			}
 			console.log();
-			consola.info(
-				`Switch with: ${pc.cyan("emdash-registry switch <did>")} (TODO: not yet implemented)`,
-			);
+			consola.info(`Switch with: ${pc.cyan("emdash-registry switch <did>")}`);
 		}
 	},
 });

@@ -24,7 +24,18 @@
  */
 
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+	copyFile,
+	mkdir,
+	mkdtemp,
+	readdir,
+	readFile,
+	rm,
+	stat,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 
 import {
@@ -154,13 +165,14 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	// ── 2. Extract manifest by importing the plugin ──
 	log.start?.("Extracting plugin manifest...");
 
-	const tmpDir = join(pluginDir, ".emdash-bundle-tmp");
+	// Each invocation gets its own tmpdir under the OS tmp root so concurrent
+	// `bundlePlugin` runs (CI + local dev, watch-mode + manual) don't trample
+	// each other's intermediate artefacts. Cleaned up unconditionally in the
+	// `finally` below.
+	const tmpDir = await mkdtemp(join(tmpdir(), "emdash-bundle-"));
 	const { build } = await import("tsdown");
 
 	try {
-		await rm(tmpDir, { recursive: true, force: true });
-		await mkdir(tmpDir, { recursive: true });
-
 		const resolvedPlugin = await extractResolvedPlugin({
 			pluginDir,
 			tmpDir,
@@ -204,9 +216,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 
 		if (entries.backendEntry) {
 			log.start?.("Bundling backend...");
-			const shimDir = join(tmpDir, "shims");
-			await mkdir(shimDir, { recursive: true });
-			await writeFile(join(shimDir, "emdash.mjs"), "export const definePlugin = (d) => d;\n");
+			const shimPath = await writeEmdashShim(join(tmpDir, "shims"));
 
 			await build({
 				config: false,
@@ -216,7 +226,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 				dts: false,
 				platform: "neutral",
 				external: [],
-				alias: { emdash: join(shimDir, "emdash.mjs") },
+				alias: { emdash: shimPath },
 				minify: true,
 				treeshake: true,
 			});
@@ -406,9 +416,9 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 			warnings,
 		};
 	} finally {
-		if (tmpDir.endsWith(".emdash-bundle-tmp")) {
-			await rm(tmpDir, { recursive: true, force: true });
-		}
+		// Always clean up. mkdtemp produced this dir for us, so there's no
+		// chance of nuking something the user expected to keep.
+		await rm(tmpDir, { recursive: true, force: true });
 	}
 }
 
@@ -541,49 +551,52 @@ async function extractResolvedPlugin(ctx: ExtractContext): Promise<ResolvedPlugi
 	let resolvedPlugin: ResolvedPlugin | undefined;
 	let descriptor: Record<string, unknown> | undefined;
 
+	// Strict format detection. We only call exports we can identify by name --
+	// `createPlugin()` (native) or the default export (standard descriptor or
+	// pre-resolved object). Speculatively calling every named export is a
+	// foot-gun: a `validateInput()` helper that returns `{id, version}` would
+	// be mis-resolved.
 	if (typeof pluginModule.createPlugin === "function") {
-		// Native format: createPlugin() returns a fully-populated ResolvedPlugin
-		// with hooks/routes/admin already filled in.
-		resolvedPlugin = pluginModule.createPlugin() as ResolvedPlugin;
+		const native = (pluginModule.createPlugin as () => unknown)();
+		if (!isResolvedPluginShape(native)) {
+			throw new BundleError(
+				"INVALID_PLUGIN_FORMAT",
+				"createPlugin() returned something that's not a ResolvedPlugin (missing id, version, or wrong types).",
+			);
+		}
+		resolvedPlugin = native;
 	} else if (typeof pluginModule.default === "function") {
 		// Standard format default export. The factory returns a descriptor
 		// (id + version + serialisable fields, no hook handlers); we build
 		// the ResolvedPlugin shape around it and probe the sandbox entry for
 		// hook/route names below.
-		const result = (pluginModule.default as () => unknown)() as Record<string, unknown> | null;
-		if (result && typeof result === "object" && "id" in result && "version" in result) {
-			descriptor = result;
-			resolvedPlugin = buildResolvedFromDescriptor(result);
+		const result = (pluginModule.default as () => unknown)();
+		if (!isPluginDescriptorShape(result)) {
+			throw new BundleError(
+				"INVALID_PLUGIN_FORMAT",
+				"Default export factory returned something that's not a plugin descriptor (missing id or version, or wrong types).",
+			);
 		}
+		descriptor = result;
+		resolvedPlugin = buildResolvedFromDescriptor(result);
 	} else if (typeof pluginModule.default === "object" && pluginModule.default !== null) {
-		const defaultExport = pluginModule.default as Record<string, unknown>;
-		if ("id" in defaultExport && "version" in defaultExport) {
-			// A pre-resolved native plugin object exported as default.
-			resolvedPlugin = defaultExport as unknown as ResolvedPlugin;
+		const defaultExport = pluginModule.default;
+		if (!isResolvedPluginShape(defaultExport)) {
+			throw new BundleError(
+				"INVALID_PLUGIN_FORMAT",
+				"Default export object is not a ResolvedPlugin (missing id, version, or wrong types).",
+			);
 		}
+		resolvedPlugin = defaultExport;
 	}
 
-	// Standard format with a named-export descriptor factory (no `default`).
 	if (!resolvedPlugin) {
-		for (const [key, value] of Object.entries(pluginModule)) {
-			if (key === "default" || typeof value !== "function") continue;
-			try {
-				const result = (value as () => unknown)() as Record<string, unknown> | null;
-				if (result && typeof result === "object" && "id" in result && "version" in result) {
-					descriptor = result;
-					resolvedPlugin = buildResolvedFromDescriptor(result);
-					break;
-				}
-			} catch {
-				// Not a descriptor factory, skip.
-			}
-		}
-	}
-
-	if (!resolvedPlugin?.id || !resolvedPlugin?.version) {
 		throw new BundleError(
 			"INVALID_PLUGIN_FORMAT",
-			"Could not extract plugin definition. Expected one of:\n  - createPlugin() export (native format)\n  - Descriptor factory function returning { id, version, ... } (standard format)",
+			"Could not extract plugin definition. Expected one of:\n" +
+				"  - `export function createPlugin() { ... }` (native format)\n" +
+				"  - `export default function() { return { id, version, ... } }` (standard format)\n" +
+				"  - `export default { id, version, ... }` (pre-resolved native)",
 		);
 	}
 
@@ -598,6 +611,24 @@ async function extractResolvedPlugin(ctx: ExtractContext): Promise<ResolvedPlugi
 			tmpDir,
 			build,
 		});
+	}
+
+	// If a standard-format descriptor declares hooks/routes we couldn't probe
+	// (because there's no sandbox entry), the published manifest will be a
+	// lie -- the host will refuse to dispatch hooks the plugin promised to
+	// implement. Catch it here.
+	if (
+		descriptor &&
+		!entries.backendEntry &&
+		(hasNonEmptyArrayField(descriptor, "hooks") || hasNonEmptyArrayField(descriptor, "routes"))
+	) {
+		throw new BundleError(
+			"INVALID_PLUGIN_FORMAT",
+			"Plugin descriptor declares hooks or routes but no sandbox entry exists to back them. " +
+				'Add `src/sandbox-entry.ts` (or a "./sandbox" export in package.json) that ' +
+				"exports `default { hooks, routes }`. Without it, the published manifest " +
+				"will promise functionality the bundle can't deliver.",
+		);
 	}
 
 	return resolvedPlugin;
@@ -619,6 +650,94 @@ function buildResolvedFromDescriptor(descriptor: Record<string, unknown>): Resol
 	};
 }
 
+/**
+ * Type guard: does this value look like a `ResolvedPlugin` enough to use?
+ *
+ * Validates the fields we read in the bundling pipeline. Doesn't try to
+ * exhaustively validate hook/route handler shapes -- those are functions and
+ * the manifest only records their names.
+ */
+function isResolvedPluginShape(value: unknown): value is ResolvedPlugin {
+	if (!value || typeof value !== "object") return false;
+	const v = value as Record<string, unknown>;
+	if (typeof v.id !== "string" || v.id.length === 0) return false;
+	if (typeof v.version !== "string" || v.version.length === 0) return false;
+	if (v.capabilities !== undefined && !Array.isArray(v.capabilities)) return false;
+	if (v.allowedHosts !== undefined && !Array.isArray(v.allowedHosts)) return false;
+	if (v.storage !== undefined && (typeof v.storage !== "object" || v.storage === null)) {
+		return false;
+	}
+	if (v.hooks !== undefined && (typeof v.hooks !== "object" || v.hooks === null)) {
+		return false;
+	}
+	if (v.routes !== undefined && (typeof v.routes !== "object" || v.routes === null)) {
+		return false;
+	}
+	if (v.admin !== undefined && (typeof v.admin !== "object" || v.admin === null)) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Type guard: does this value look like a plugin descriptor (the standard
+ * format's factory return value)?
+ *
+ * Looser than `isResolvedPluginShape` -- descriptors don't carry hooks or
+ * routes (those live in the sandbox entry, probed separately).
+ */
+function isPluginDescriptorShape(value: unknown): value is Record<string, unknown> {
+	if (!value || typeof value !== "object") return false;
+	const v = value as Record<string, unknown>;
+	if (typeof v.id !== "string" || v.id.length === 0) return false;
+	if (typeof v.version !== "string" || v.version.length === 0) return false;
+	if (v.capabilities !== undefined && !Array.isArray(v.capabilities)) return false;
+	if (v.allowedHosts !== undefined && !Array.isArray(v.allowedHosts)) return false;
+	return true;
+}
+
+/**
+ * `descriptor[field]` is a non-empty array (or non-empty object). Used to
+ * detect when a standard-format descriptor declares hooks/routes that the
+ * bundler can't populate (because there's no sandbox entry to probe).
+ */
+function hasNonEmptyArrayField(descriptor: Record<string, unknown>, field: string): boolean {
+	const v = descriptor[field];
+	if (Array.isArray(v)) return v.length > 0;
+	if (v && typeof v === "object") return Object.keys(v).length > 0;
+	return false;
+}
+
+/**
+ * Write a stub `emdash.mjs` into `dir` that the user's plugin code resolves
+ * its `import "emdash"` against during build/probe. The shim is a Proxy:
+ * `definePlugin` is the identity function (the standard format's only legal
+ * use of the `emdash` import), and any other access throws with a clear
+ * message. Without the Proxy, plugins that import other things from `emdash`
+ * silently get `undefined`, which can be tree-shaken away and mask real bugs.
+ */
+async function writeEmdashShim(dir: string): Promise<string> {
+	await mkdir(dir, { recursive: true });
+	const path = join(dir, "emdash.mjs");
+	const source = `export const definePlugin = (d) => d;
+const NOT_AVAILABLE = (name) => () => {
+  throw new Error(
+    \`Sandboxed plugins must not import "\${name}" from "emdash". Only \\\`definePlugin\\\` is available in standard format.\`
+  );
+};
+const handler = {
+  get(target, prop, receiver) {
+    if (prop === "definePlugin") return target.definePlugin;
+    if (typeof prop !== "string") return Reflect.get(target, prop, receiver);
+    return NOT_AVAILABLE(prop);
+  },
+};
+export default new Proxy({ definePlugin }, handler);
+`;
+	await writeFile(path, source);
+	return path;
+}
+
 interface ProbeContext {
 	resolvedPlugin: ResolvedPlugin;
 	descriptor: Record<string, unknown>;
@@ -630,9 +749,7 @@ interface ProbeContext {
 async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 	const { resolvedPlugin, descriptor, backendEntry, tmpDir, build } = ctx;
 	const backendProbeDir = join(tmpDir, "backend-probe");
-	const probeShimDir = join(tmpDir, "probe-shims");
-	await mkdir(probeShimDir, { recursive: true });
-	await writeFile(join(probeShimDir, "emdash.mjs"), "export const definePlugin = (d) => d;\n");
+	const probeShimPath = await writeEmdashShim(join(tmpDir, "probe-shims"));
 	await build({
 		config: false,
 		entry: [backendEntry],
@@ -641,7 +758,7 @@ async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 		dts: false,
 		platform: "neutral",
 		external: [],
-		alias: { emdash: join(probeShimDir, "emdash.mjs") },
+		alias: { emdash: probeShimPath },
 		treeshake: true,
 	});
 	const backendBaseName = basename(backendEntry).replace(TS_EXT_RE, "");

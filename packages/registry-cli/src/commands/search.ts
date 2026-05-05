@@ -1,5 +1,5 @@
 /**
- * `emdash-registry search <query> [--capability <name>] [--limit <n>]`
+ * `emdash-registry search <query> [--capability <name>] [--limit <n>] [--cursor <c>]`
  *
  * Free-text search the aggregator. Read-only; no auth required.
  */
@@ -28,8 +28,13 @@ export const searchCommand = defineCommand({
 		},
 		limit: {
 			type: "string",
-			description: "Max results to return (1-100, default 25)",
+			description: "Max results per page (1-100, default 25)",
 			default: "25",
+		},
+		cursor: {
+			type: "string",
+			description:
+				"Continuation cursor from a previous search result (printed at the end when more results exist)",
 		},
 		aggregator: {
 			type: "string",
@@ -48,6 +53,7 @@ export const searchCommand = defineCommand({
 		const result = await client.searchPackages({
 			q: args.query,
 			...(args.capability ? { capability: args.capability } : {}),
+			...(args.cursor ? { cursor: args.cursor } : {}),
 			limit,
 		});
 
@@ -71,7 +77,14 @@ export const searchCommand = defineCommand({
 		}
 
 		if (result.cursor) {
-			consola.info(`More results available. Pass --limit ${limit + 25} to fetch more.`);
+			// Cursor-based pagination: callers paginate by passing the cursor
+			// back in, not by bumping --limit. The aggregator caps `limit` at
+			// 100, so suggesting "increase the limit" was misleading advice.
+			consola.info(
+				`More results available. Continue with: ${pc.cyan(
+					`emdash-registry search "${args.query}" --cursor ${result.cursor}`,
+				)}`,
+			);
 		}
 	},
 });

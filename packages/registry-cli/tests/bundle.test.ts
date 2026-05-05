@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BundleError, bundlePlugin, type PluginManifest } from "../src/api.js";
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/minimal-plugin", import.meta.url));
+const BAD_FIXTURE = fileURLToPath(new URL("./fixtures/bad-plugin", import.meta.url));
 
 /**
  * End-to-end bundling: invoke `bundlePlugin` against a real plugin source
@@ -151,5 +152,27 @@ describe("bundlePlugin", () => {
 		const fs = await import("node:fs/promises");
 		const contents = await fs.readdir(outDir);
 		expect(contents).toEqual([]);
+	});
+
+	it("hard-fails when descriptor declares hooks but no sandbox entry exists", async () => {
+		// The bad-plugin fixture declares hooks in its descriptor but has no
+		// `src/sandbox-entry.ts` and no `./sandbox` export. Without the guard,
+		// the bundler would silently emit a manifest claiming hooks the
+		// bundle can't deliver.
+		await expect(bundlePlugin({ dir: BAD_FIXTURE, outDir })).rejects.toMatchObject({
+			name: "BundleError",
+			code: "INVALID_PLUGIN_FORMAT",
+		});
+	});
+
+	it("does not collide between concurrent bundle runs", async () => {
+		// Each bundle invocation gets its own mkdtemp dir; running two in
+		// parallel must not corrupt each other.
+		const [a, b] = await Promise.all([
+			bundlePlugin({ dir: FIXTURE, outDir, validateOnly: true }),
+			bundlePlugin({ dir: FIXTURE, outDir, validateOnly: true }),
+		]);
+		expect(a.manifest.id).toBe("fixture-minimal");
+		expect(b.manifest.id).toBe("fixture-minimal");
 	});
 });

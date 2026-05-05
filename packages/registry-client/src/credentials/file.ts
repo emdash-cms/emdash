@@ -18,7 +18,7 @@
  * `EnvCredentialStore` instead.
  */
 
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -131,15 +131,27 @@ export class FileCredentialStore implements CredentialStore {
 		const tmp = `${this.path}.tmp`;
 		const body = `${JSON.stringify(envelope, null, 2)}\n`;
 
-		// Use writeFile with mode 0600 so the temp file is created with the
-		// correct permissions; on POSIX this is atomic with the open() call.
-		await writeFile(tmp, body, { mode: 0o600 });
-		await rename(tmp, this.path);
+		try {
+			// `flush: true` (Node 21.1+) fsyncs the file content before close,
+			// so a power loss between the rename and a crash can't surface an
+			// empty inode pointing at unwritten data. Atomic rename alone is
+			// torn-write safe but not durable.
+			await writeFile(tmp, body, { mode: 0o600, flush: true });
+			await rename(tmp, this.path);
+		} catch (error) {
+			// Best-effort cleanup of the temp file if rename failed mid-write.
+			await unlink(tmp).catch(() => {});
+			throw error;
+		}
 	}
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-	return error instanceof Error && "code" in error;
+	return (
+		error instanceof Error &&
+		"code" in error &&
+		typeof (error as { code?: unknown }).code === "string"
+	);
 }
 
 function isFileEnvelope(input: unknown): input is FileEnvelope {

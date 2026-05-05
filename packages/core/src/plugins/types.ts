@@ -1424,9 +1424,13 @@ export interface PluginManifest {
 }
 
 // Type-level guard: if core's `PluginManifest` ever drifts from the shared
-// shape, this stops compiling. The check is one-directional — the shared
+// shape, this stops compiling. The check is one-directional -- the shared
 // type is the supertype, so any core manifest must be assignable to it.
+//
+// `type X = never` is itself legal, so the assertion has to use a value
+// position (`const _check: T = true`) for the compiler to error when T
+// resolves to `never`. Don't replace this with a bare type alias.
 type _AssertManifestCompat =
 	PluginManifest extends import("@emdash-cms/plugin-types").PluginManifest ? true : never;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _CompatCheck = _AssertManifestCompat;
+const _MANIFEST_COMPAT: _AssertManifestCompat = true;

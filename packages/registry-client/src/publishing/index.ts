@@ -2,33 +2,40 @@
  * Publishing client.
  *
  * Wraps `@atcute/client` with an authenticated session against the publisher's
- * own PDS. Used by the CLI to put profile and release records, upload bundle
- * artifacts as blobs, and read back what was just written.
+ * own PDS. Used by the CLI to put profile and release records and to read back
+ * what was just written.
  *
  * This module deliberately does NOT implement the interactive OAuth flow
- * itself. The CLI (in a separate PR / package) is responsible for:
+ * itself. Callers (the CLI in `@emdash-cms/registry-cli`) are responsible for:
  *   1. Driving the OAuth dance (browser-redirect with device-flow fallback,
  *      DPoP-bound tokens) via `@atcute/oauth-node-client`.
- *   2. Persisting the resulting session (the OAuth library's `StoredSession`
- *      blob) somewhere durable.
+ *   2. Persisting the resulting session somewhere durable.
  *   3. Calling `PublishingClient.fromHandler(...)` here with a ready-built
  *      atproto fetch handler.
  *
- * The reason for the split: testing OAuth in a unit test requires either a
- * mocked PDS or a real one. Both make the tests fragile. By separating the
- * "how do I get a handler" concern from the "how do I make XRPC calls with
- * one" concern, we can unit-test the latter against `simpleFetchHandler` and
- * defer the former to a CLI-level integration test that hits a real Atmosphere
- * account.
+ * Lexicon validation
+ * ------------------
  *
- * In practice this means a CLI flow looks like:
+ * Every write defaults to `validate: true`. The PDS will reject records that
+ * don't match the lexicon for their collection. Callers can opt out via
+ * `validate: false` for the rare case where they're writing records the PDS
+ * doesn't know about, but the default is to use the lexicons we've spent
+ * effort defining.
  *
- *   const oauth = await getOAuthClient(...);
- *   const session = await oauth.signIn(handle);   // interactive
- *   credentials.put({ did: session.did, ... });
- *   const handler = await session.handler();
- *   const publisher = PublishingClient.fromHandler(handler, session.did, session.pdsUri);
- *   await publisher.putRecord({ ... });
+ * Typed writes
+ * ------------
+ *
+ * `putRecord` is generic over the registry's `RegistryRecords` map: the
+ * `record` argument's TypeScript shape is derived from the collection NSID,
+ * so writing a `package.profile` with the wrong fields fails at compile time.
+ * Use `unsafePutRecord` if you really need to put an opaque payload.
+ *
+ * Atomic batches
+ * --------------
+ *
+ * `applyWrites` performs multiple operations in a single atproto commit. We
+ * use it for the publish flow's profile-bootstrap + release-create pair so
+ * a network blip between the two writes can't leave a half-published state.
  */
 
 // Type-only import: pulls in the `declare module "@atcute/lexicons/ambient"`
@@ -41,6 +48,7 @@
 import type {} from "@atcute/atproto";
 import { Client, type FetchHandler, type FetchHandlerObject, ok } from "@atcute/client";
 import type { Nsid } from "@atcute/lexicons";
+import type { RegistryRecordCollection, RegistryRecords } from "@emdash-cms/registry-lexicons";
 
 import type { Did } from "../credentials/types.js";
 
@@ -65,11 +73,51 @@ export interface PublishingClientFromHandlerOptions {
 }
 
 /**
+ * Single create operation in an `applyWrites` batch.
+ */
+export interface PublishCreate<C extends RegistryRecordCollection = RegistryRecordCollection> {
+	op: "create";
+	collection: C;
+	rkey: string;
+	record: RegistryRecords[C];
+}
+
+/**
+ * Single update operation in an `applyWrites` batch.
+ */
+export interface PublishUpdate<C extends RegistryRecordCollection = RegistryRecordCollection> {
+	op: "update";
+	collection: C;
+	rkey: string;
+	record: RegistryRecords[C];
+}
+
+/**
+ * Single delete operation in an `applyWrites` batch.
+ */
+export interface PublishDelete {
+	op: "delete";
+	collection: Nsid;
+	rkey: string;
+}
+
+export type PublishOperation = PublishCreate | PublishUpdate | PublishDelete;
+
+export interface ApplyWritesResult {
+	/** Per-operation results, in input order. */
+	results: Array<
+		| { op: "create"; uri: string; cid: string }
+		| { op: "update"; uri: string; cid: string }
+		| { op: "delete" }
+	>;
+}
+
+/**
  * High-level operations against a publisher's atproto repo, scoped to the
  * registry's NSIDs.
  *
- * All methods are stateless: they do not cache, retry, or batch. Callers wanting
- * those behaviours should layer them on top.
+ * All methods are stateless: they do not cache, retry, or batch. Callers
+ * wanting those behaviours should layer them on top.
  */
 export class PublishingClient {
 	readonly did: Did;
@@ -93,27 +141,54 @@ export class PublishingClient {
 	}
 
 	/**
-	 * Put a record into the publisher's repo. Returns the AT URI and CID of
-	 * the resulting record.
+	 * Put a typed registry record into the publisher's repo. The record's TS
+	 * shape is derived from the collection NSID so callers can't put a
+	 * profile-shaped record into a release collection (or vice versa).
 	 *
-	 * Use this for both `package.profile` (rkey = slug) and `package.release`
-	 * (rkey = slug:version) records. Validation against the registry lexicons
-	 * happens via `@atcute/client`'s typed call path when callers use
-	 * NSID-keyed methods on the underlying client; this generic wrapper accepts
-	 * any record shape so consumers can stage records before validating them.
+	 * Defaults to `validate: true` -- the PDS will reject records that don't
+	 * match the lexicon for the collection. The `unsafePutRecord` escape hatch
+	 * exists for when you really need to bypass.
 	 */
-	async putRecord(input: {
+	async putRecord<C extends RegistryRecordCollection>(input: {
+		collection: C;
+		rkey: string;
+		record: RegistryRecords[C];
+		/**
+		 * Skip lexicon validation server-side. Defaults to `false` (validation
+		 * is on). Setting `true` is almost always wrong; only do it when you
+		 * deliberately want to publish a record the PDS doesn't yet know how to
+		 * validate (e.g. during a lexicon migration window).
+		 */
+		skipValidation?: boolean;
+	}): Promise<{ uri: string; cid: string }> {
+		return this.#putRecord({
+			collection: input.collection,
+			rkey: input.rkey,
+			record: input.record as Record<string, unknown>,
+			skipValidation: input.skipValidation ?? false,
+		});
+	}
+
+	/**
+	 * Untyped escape hatch for putting any record into any collection. Bypasses
+	 * the `RegistryRecords` map type-check; lexicon validation server-side is
+	 * still on by default. Use this only when you really must (e.g. tools that
+	 * deal in opaque records like `com.atproto.*`).
+	 */
+	async unsafePutRecord(input: {
 		collection: Nsid;
 		rkey: string;
 		record: Record<string, unknown>;
-		/**
-		 * Set to `true` to error if a record at this AT URI already exists.
-		 * Defaults to `false` (idempotent overwrite). FAIR's release immutability
-		 * rule is enforced at the aggregator and labeller layer, not here -- the
-		 * PDS will happily let you overwrite a release record, but consumers
-		 * will treat any change as a takedown event.
-		 */
-		validate?: boolean;
+		skipValidation?: boolean;
+	}): Promise<{ uri: string; cid: string }> {
+		return this.#putRecord({ ...input, skipValidation: input.skipValidation ?? false });
+	}
+
+	async #putRecord(input: {
+		collection: Nsid;
+		rkey: string;
+		record: Record<string, unknown>;
+		skipValidation: boolean;
 	}): Promise<{ uri: string; cid: string }> {
 		const data = await ok(
 			this.#client.post("com.atproto.repo.putRecord", {
@@ -122,11 +197,83 @@ export class PublishingClient {
 					collection: input.collection,
 					rkey: input.rkey,
 					record: input.record,
-					validate: input.validate ?? false,
+					validate: !input.skipValidation,
 				},
 			}),
 		);
 		return { uri: data.uri, cid: data.cid };
+	}
+
+	/**
+	 * Apply a batch of create/update/delete operations atomically against the
+	 * publisher's repo. Either every operation succeeds (single commit, single
+	 * firehose event) or none do.
+	 *
+	 * Used by the publish flow to bootstrap a profile and put a release in a
+	 * single round-trip, so a network blip between the two writes can't leave
+	 * a half-published state.
+	 *
+	 * Defaults to `validate: true`. Pass `skipValidation: true` to opt out;
+	 * see `putRecord` for the rationale.
+	 */
+	async applyWrites(input: {
+		writes: PublishOperation[];
+		skipValidation?: boolean;
+		/**
+		 * If supplied, the operation aborts unless the publisher repo's current
+		 * commit matches this CID. Use to detect concurrent writers.
+		 */
+		swapCommit?: string;
+	}): Promise<ApplyWritesResult> {
+		const writes = input.writes.map((op) => {
+			switch (op.op) {
+				case "create":
+					return {
+						$type: "com.atproto.repo.applyWrites#create" as const,
+						collection: op.collection as Nsid,
+						rkey: op.rkey,
+						value: op.record as Record<string, unknown>,
+					};
+				case "update":
+					return {
+						$type: "com.atproto.repo.applyWrites#update" as const,
+						collection: op.collection as Nsid,
+						rkey: op.rkey,
+						value: op.record as Record<string, unknown>,
+					};
+				case "delete":
+					return {
+						$type: "com.atproto.repo.applyWrites#delete" as const,
+						collection: op.collection,
+						rkey: op.rkey,
+					};
+			}
+		});
+
+		const data = await ok(
+			this.#client.post("com.atproto.repo.applyWrites", {
+				input: {
+					repo: this.did,
+					validate: !(input.skipValidation ?? false),
+					writes,
+					...(input.swapCommit !== undefined ? { swapCommit: input.swapCommit } : {}),
+				},
+			}),
+		);
+
+		const results: ApplyWritesResult["results"] = (data.results ?? []).map((r) => {
+			const $type = (r as { $type?: string }).$type;
+			if ($type === "com.atproto.repo.applyWrites#createResult") {
+				const cr = r as { uri: string; cid: string };
+				return { op: "create", uri: cr.uri, cid: cr.cid };
+			}
+			if ($type === "com.atproto.repo.applyWrites#updateResult") {
+				const ur = r as { uri: string; cid: string };
+				return { op: "update", uri: ur.uri, cid: ur.cid };
+			}
+			return { op: "delete" };
+		});
+		return { results };
 	}
 
 	/**

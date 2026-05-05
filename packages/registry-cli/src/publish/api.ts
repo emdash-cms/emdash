@@ -1,36 +1,56 @@
 /**
  * Programmatic publish API.
  *
- * Pure-ish core of the publish pipeline: given an already-fetched tarball,
- * an extracted manifest, an authenticated `PublishingClient`, and the URL
- * the bytes are hosted at, this writes the profile (if missing) and release
- * records to the publisher's atproto repo.
+ * Pure-ish core of the publish pipeline: given an already-fetched tarball
+ * checksum, an extracted manifest, an authenticated `PublishingClient`, and
+ * the URL the bytes are hosted at, this writes the profile (if missing) and
+ * release records to the publisher's atproto repo.
  *
  * Splits cleanly from the CLI command so tests can run it against a mock
  * `PublishingClient` without going through OAuth, the filesystem credentials
  * store, or an HTTP fetch for the tarball.
  *
+ * Atomicity
+ * ---------
+ *
+ * Profile bootstrap + release create happen in a single atproto
+ * `applyWrites` commit, so a network blip mid-publish can't leave a profile
+ * with no releases (or vice versa). FAIR specifies version-record
+ * immutability; we refuse to overwrite an existing release at
+ * `<slug>:<version>` unless `allowOverwrite: true` is set.
+ *
+ * Validation
+ * ----------
+ *
+ * Slug (derived from `manifest.id`) and version are validated against the
+ * registry-lexicon constraints before any network round-trip, so the user
+ * gets a clear `PublishError` with the offending value rather than a generic
+ * `InvalidRequest` from the PDS. Profile-bootstrap fields (license, security
+ * contact) are also validated up-front for the same reason.
+ *
  * Failure modes:
  *
  *   - `DEPRECATED_CAPABILITY`: the manifest declares one of the deprecated
- *     capability names. Bundle warns; publish refuses, per the deprecation
- *     policy. The caller should rename and rebuild before retrying.
+ *     capability names. Bundle warns; publish refuses.
+ *   - `INVALID_SLUG` / `INVALID_VERSION`: the derived slug or the manifest
+ *     version doesn't match the lexicon constraints.
  *   - `PROFILE_BOOTSTRAP_MISSING_FIELD`: first publish without the required
- *     `license` and `securityEmail`/`securityUrl`. The lexicon enforces
- *     these; we surface the error here so the user gets actionable feedback
- *     before the network round-trip.
+ *     `license` and `securityEmail`/`securityUrl`.
  *   - `RELEASE_ALREADY_PUBLISHED`: the release record at `<slug>:<version>`
- *     already exists in the repo. FAIR specifies version-record immutability,
- *     so publish refuses by default; callers can opt in to overwriting via
- *     `allowOverwrite: true` at their own risk (aggregators may flag the
- *     change as a takedown).
+ *     already exists in the repo. Pass `allowOverwrite: true` to opt in to
+ *     overwriting (aggregators may flag the change as a takedown).
  */
 
 import { ClientResponseError } from "@atcute/client";
 import type { Nsid } from "@atcute/lexicons";
+import {
+	deriveSlugFromId,
+	isDeprecatedCapability,
+	isPluginSlug,
+	isPluginVersion,
+	type PluginManifest,
+} from "@emdash-cms/plugin-types";
 import type { Did, PublishingClient } from "@emdash-cms/registry-client";
-import type { PluginManifest } from "@emdash-cms/plugin-types";
-import { isDeprecatedCapability } from "@emdash-cms/plugin-types";
 import { NSID } from "@emdash-cms/registry-lexicons";
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -39,6 +59,8 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 
 export type PublishErrorCode =
 	| "DEPRECATED_CAPABILITY"
+	| "INVALID_SLUG"
+	| "INVALID_VERSION"
 	| "PROFILE_BOOTSTRAP_MISSING_FIELD"
 	| "RELEASE_ALREADY_PUBLISHED";
 
@@ -125,19 +147,40 @@ export interface PublishResult {
 // Implementation
 // ──────────────────────────────────────────────────────────────────────────
 
-interface PackageProfileRecord {
-	$type: string;
+/**
+ * Lexicon types use atcute's branded template-literal types (`ResourceUri`,
+ * `${string}:${string}`, etc.) for fields with format constraints. Those
+ * make on-the-wire records hard to construct from raw runtime strings
+ * without a `safeParse` round-trip.
+ *
+ * We build records here against looser local shapes that mirror the lexicon
+ * JSON exactly; the PDS validates server-side via `validate: true` (set in
+ * the publishing client). The static assertions on `RegistryRecords` would
+ * be one obvious thing to add here, but the lexicon-derived `Main` types
+ * are *strict subtypes* of these shapes (because of the branded URLs) --
+ * not supertypes -- so they aren't useful as guard rails. The validation we
+ * rely on is:
+ *
+ *   - publish-time: `isPluginSlug` + `isPluginVersion` against the lexicon
+ *     constraints, before any record construction.
+ *   - put-time: PDS lexicon validation via `validate: true`.
+ *
+ * For untrusted inputs (records read back from a PDS) callers should run
+ * the lexicon's `mainSchema.safeParse` themselves.
+ */
+interface PackageProfileRecordShape {
+	$type: typeof NSID.packageProfile;
 	id: string;
-	type: string;
+	type: "emdash-plugin" | (string & {});
 	license: string;
 	authors: Array<{ name: string; url?: string; email?: string }>;
 	security: Array<{ url?: string; email?: string }>;
-	slug?: string;
-	lastUpdated?: string;
+	slug: string;
+	lastUpdated: string;
 }
 
-interface PackageReleaseRecord {
-	$type: string;
+interface PackageReleaseRecordShape {
+	$type: typeof NSID.packageRelease;
 	package: string;
 	version: string;
 	artifacts: {
@@ -149,13 +192,16 @@ interface PackageReleaseRecord {
 	};
 }
 
-const SLASH_RE = /\//g;
-const LEADING_AT_RE = /^@/;
+interface FetchedRecord {
+	uri: string;
+	cid: string;
+	value: unknown;
+}
 
 export async function publishRelease(options: PublishOptions): Promise<PublishResult> {
 	const log = options.logger ?? {};
 
-	// 1. Hard-fail on deprecated capabilities.
+	// 1. Synchronous, network-free validation runs first so we fail fast.
 	const deprecated = options.manifest.capabilities.filter(isDeprecatedCapability);
 	if (deprecated.length > 0) {
 		throw new PublishError(
@@ -165,44 +211,40 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		);
 	}
 
-	const slug = sanitiseSlug(options.manifest.id);
-	const profileUri = atUri(options.did, NSID.packageProfile, slug);
-	const releaseRkey = `${slug}:${options.manifest.version}`;
-	const ignoredProfileFields: string[] = [];
-
-	// 2. Bootstrap or reuse the profile.
-	const existingProfile = await getRecordOrNull(
-		options.publisher,
-		NSID.packageProfile,
-		slug,
-	);
-	let profileCreated = false;
-
-	if (existingProfile) {
-		ignoredProfileFields.push(...listProvidedProfileFields(options.profile));
-		log.info?.(`Reusing existing profile: ${profileUri}`);
-	} else {
-		const profileRecord = buildProfileRecord({
-			slug,
-			profileUri,
-			profile: options.profile,
-		});
-		await options.publisher.putRecord({
-			collection: NSID.packageProfile,
-			rkey: slug,
-			record: profileRecord as unknown as Record<string, unknown>,
-		});
-		profileCreated = true;
-		log.success?.(`Created profile: ${profileUri}`);
+	const slug = deriveSlugFromId(options.manifest.id);
+	if (!isPluginSlug(slug)) {
+		throw new PublishError(
+			"INVALID_SLUG",
+			`Plugin id "${options.manifest.id}" produces slug "${slug}" which doesn't match the lexicon constraint /^[a-z][a-z0-9_-]*$/ (max 64 chars). Rename the plugin id.`,
+			{ id: options.manifest.id, slug },
+		);
 	}
 
+	if (!isPluginVersion(options.manifest.version)) {
+		throw new PublishError(
+			"INVALID_VERSION",
+			`Plugin version "${options.manifest.version}" doesn't match the lexicon constraint /^[a-zA-Z0-9.-]+$/ (max 64 chars; semver build-metadata "+..." disallowed).`,
+			{ version: options.manifest.version },
+		);
+	}
+
+	// Validate profile-bootstrap fields up-front. We don't yet know whether the
+	// profile already exists (one round-trip away), but if the user supplied
+	// no fields at all and they're needed, we can fail before the network.
+	// (We can't fail early when fields are missing-but-required-only-on-first-
+	// publish, since that needs the existence check.)
+
+	const profileUri = atUri(options.did, NSID.packageProfile, slug);
+	const releaseRkey = `${slug}:${options.manifest.version}`;
+
+	// 2. Read existing profile + release in parallel. Either may be absent.
+	const [existingProfile, existingRelease] = await Promise.all([
+		getRecordOrNull(options.publisher, NSID.packageProfile, slug),
+		getRecordOrNull(options.publisher, NSID.packageRelease, releaseRkey),
+	]);
+
 	// 3. Refuse to overwrite an existing release unless asked.
-	const existingRelease = await getRecordOrNull(
-		options.publisher,
-		NSID.packageRelease,
-		releaseRkey,
-	);
-	if (existingRelease && !options.allowOverwrite) {
+	if (existingRelease !== null && !options.allowOverwrite) {
 		throw new PublishError(
 			"RELEASE_ALREADY_PUBLISHED",
 			`Release ${slug}@${options.manifest.version} is already published. ` +
@@ -212,7 +254,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			{ slug, version: options.manifest.version },
 		);
 	}
-	const releaseOverwritten = Boolean(existingRelease);
+	const releaseOverwritten = existingRelease !== null;
 	if (releaseOverwritten) {
 		log.warn?.(
 			`Overwriting existing release ${slug}@${options.manifest.version}. ` +
@@ -221,8 +263,12 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		);
 	}
 
-	// 4. Put the release record.
-	const releaseRecord: PackageReleaseRecord = {
+	// 4. Build the operations list. We always write the release; the profile
+	// is created on first publish or `lastUpdated`-bumped on subsequent.
+	const profileCreated = existingProfile === null;
+	const ignoredProfileFields: string[] = [];
+
+	const releaseRecord: PackageReleaseRecordShape = {
 		$type: NSID.packageRelease,
 		package: slug,
 		version: options.manifest.version,
@@ -234,16 +280,106 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			},
 		},
 	};
-	const releaseResult = await options.publisher.putRecord({
+
+	type WriteOp =
+		| {
+				op: "create";
+				collection: typeof NSID.packageProfile;
+				rkey: string;
+				record: PackageProfileRecordShape;
+		  }
+		| {
+				op: "update";
+				collection: typeof NSID.packageProfile;
+				rkey: string;
+				record: PackageProfileRecordShape;
+		  }
+		| {
+				op: "create";
+				collection: typeof NSID.packageRelease;
+				rkey: string;
+				record: PackageReleaseRecordShape;
+		  }
+		| {
+				op: "update";
+				collection: typeof NSID.packageRelease;
+				rkey: string;
+				record: PackageReleaseRecordShape;
+		  };
+
+	const writes: WriteOp[] = [];
+
+	if (profileCreated) {
+		const profileRecord = buildProfileRecord({
+			slug,
+			profileUri,
+			profile: options.profile,
+		});
+		writes.push({
+			op: "create",
+			collection: NSID.packageProfile,
+			rkey: slug,
+			record: profileRecord,
+		});
+		log.info?.(`Bootstrapping profile: ${profileUri}`);
+	} else {
+		ignoredProfileFields.push(...listProvidedProfileFields(options.profile));
+		// Bump `lastUpdated` on the existing profile so aggregators ordering
+		// by it see this publish. The user's first-publish-only flags are
+		// still ignored (the existing profile owns identity/license/security),
+		// but the timestamp follows the latest release. We round-trip the
+		// existing record to preserve every other field byte-for-byte.
+		const stamped = stampLastUpdated(existingProfile.value);
+		if (stamped !== null) {
+			writes.push({
+				op: "update",
+				collection: NSID.packageProfile,
+				rkey: slug,
+				record: stamped,
+			});
+			log.info?.(`Reusing profile (bumping lastUpdated): ${profileUri}`);
+		} else {
+			// Existing profile didn't validate enough to construct a typed
+			// shape; leave it alone and emit a warning.
+			log.warn?.(
+				`Existing profile at ${profileUri} doesn't match the lexicon shape; lastUpdated not bumped.`,
+			);
+		}
+	}
+
+	writes.push({
+		op: releaseOverwritten ? "update" : "create",
 		collection: NSID.packageRelease,
 		rkey: releaseRkey,
-		record: releaseRecord as unknown as Record<string, unknown>,
+		record: releaseRecord,
 	});
+
+	// 5. Apply atomically. `applyWrites` is typed against the lexicon's strict
+	// `Main` types; we hand it our looser local shapes (validated up front +
+	// PDS-validated server-side via validate: true) and cast at the boundary.
+	const batch = await options.publisher.applyWrites({
+		writes: writes as unknown as Parameters<typeof options.publisher.applyWrites>[0]["writes"],
+	});
+
+	// The release result is always the last in the input order.
+	const releaseOpResult = batch.results.at(-1);
+	if (!releaseOpResult || (releaseOpResult.op !== "create" && releaseOpResult.op !== "update")) {
+		// Defensive: applyWrites should always echo a create/update result for a
+		// create/update operation. If we get back a delete or nothing, something
+		// is very wrong.
+		throw new Error(
+			"applyWrites returned no result for the release operation (expected create/update).",
+		);
+	}
+
+	if (profileCreated) {
+		log.success?.(`Created profile: ${profileUri}`);
+	}
 
 	return {
 		profileUri,
-		releaseUri: releaseResult.uri,
-		releaseCid: releaseResult.cid,
+		releaseUri: releaseOpResult.uri,
+		releaseCid: releaseOpResult.cid,
 		checksum: options.checksum,
 		profileCreated,
 		releaseOverwritten,
@@ -256,29 +392,27 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────
 
-/**
- * Convert a plugin id (which may be a scoped npm name like
- * `@emdash-cms/sandboxed-test`) into a slug suitable for an atproto rkey.
- * Strips the leading `@` and replaces `/` with `-`. The lexicon validates
- * `^[a-z][a-z0-9_-]*$` and 64-char limit; we don't enforce that here -- the
- * PDS will reject if it doesn't match.
- */
-export function sanitiseSlug(id: string): string {
-	return id.replace(LEADING_AT_RE, "").replace(SLASH_RE, "-");
-}
-
 function atUri(did: Did, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
 }
 
+/**
+ * Fetch a record, returning `null` if the PDS reports it as missing.
+ *
+ * Returns the full `{ uri, cid, value }` shape (rather than the value alone)
+ * so callers that need the existing CID for `swapRecord` semantics can get
+ * it. The publish flow distinguishes "no record" from "record with falsy
+ * value" via the `null` sentinel; checking truthiness of the value would
+ * misfire on a legitimate-but-falsy stored value.
+ */
 async function getRecordOrNull(
 	publisher: PublishingClient,
 	collection: Nsid,
 	rkey: string,
-): Promise<unknown> {
+): Promise<FetchedRecord | null> {
 	try {
 		const record = await publisher.getRecord({ collection, rkey });
-		return record.value;
+		return { uri: record.uri, cid: record.cid, value: record.value };
 	} catch (error) {
 		if (error instanceof ClientResponseError && error.error === "RecordNotFound") {
 			return null;
@@ -287,11 +421,33 @@ async function getRecordOrNull(
 	}
 }
 
+/**
+ * Return a copy of the existing profile record value with `lastUpdated`
+ * bumped to now. Returns `null` if the existing record doesn't have the
+ * fields we need to round-trip safely (in which case the caller skips the
+ * update rather than overwriting an invalid record with a slightly-different
+ * invalid record).
+ */
+function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | null {
+	if (!existingValue || typeof existingValue !== "object") return null;
+	const v = existingValue as Record<string, unknown>;
+	if (typeof v.id !== "string") return null;
+	if (typeof v.type !== "string") return null;
+	if (typeof v.license !== "string") return null;
+	if (!Array.isArray(v.authors)) return null;
+	if (!Array.isArray(v.security)) return null;
+	if (typeof v.slug !== "string") return null;
+	return {
+		...(v as unknown as PackageProfileRecordShape),
+		lastUpdated: new Date().toISOString(),
+	};
+}
+
 function buildProfileRecord(input: {
 	slug: string;
 	profileUri: string;
 	profile: ProfileBootstrap | undefined;
-}): PackageProfileRecord {
+}): PackageProfileRecordShape {
 	const profile = input.profile ?? {};
 	if (!profile.license) {
 		throw new PublishError(
@@ -333,14 +489,19 @@ function buildProfileRecord(input: {
 /**
  * Returns the names of any profile-bootstrap fields the caller supplied. Used
  * to report fields that were ignored because the profile already existed.
+ *
+ * Iterates the keys of `ProfileBootstrap` explicitly so that future numeric /
+ * boolean / non-string fields don't silently disappear from the warning.
  */
 function listProvidedProfileFields(profile: ProfileBootstrap | undefined): string[] {
 	if (!profile) return [];
-	const provided: string[] = [];
-	for (const [key, value] of Object.entries(profile)) {
-		if (typeof value === "string" && value.length > 0) {
-			provided.push(key);
-		}
-	}
-	return provided;
+	const fields: Array<keyof ProfileBootstrap> = [
+		"license",
+		"authorName",
+		"authorUrl",
+		"authorEmail",
+		"securityEmail",
+		"securityUrl",
+	];
+	return fields.filter((name) => profile[name] !== undefined);
 }
