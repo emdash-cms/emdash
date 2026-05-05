@@ -26,7 +26,7 @@
 					"artifacts": {
 						"type": "ref",
 						"ref": "#artifacts",
-						"description": "Map of artifact type to artifact object (or list of artifact objects). MUST have at least one entry."
+						"description": "Map of artifact type to artifact object. MUST have at least one entry. The 'package' entry (installable bundle) is required."
 					},
 					"provides": {
 						"type": "unknown",
@@ -64,7 +64,8 @@
 		},
 		"artifacts": {
 			"type": "object",
-			"description": "Map of artifact-type-name to artifact. Field names follow atproto's lowerCamelCase style; FAIR's HTTP transport's kebab-case names ('content-type', 'requires-auth', 'release-asset') translate to these by mechanical mapping at the aggregator boundary. Common artifact-type keys: 'package' (the installable bundle), 'icon', 'screenshot', 'banner'. Custom types use 'x-' prefix and pass through as unrecognised fields.",
+			"description": "Map of artifact-type-name to artifact. Field names follow atproto's lowerCamelCase style; FAIR's HTTP transport's kebab-case names ('content-type', 'requires-auth', 'release-asset') translate to these by mechanical mapping at the aggregator boundary. Common artifact-type keys: 'package' (the installable bundle, REQUIRED), 'icon', 'screenshot', 'banner'. Custom types use 'x-' prefix and pass through as unrecognised fields.",
+			"required": ["package"],
 			"properties": {
 				"package": {
 					"type": "ref",
@@ -87,7 +88,8 @@
 		},
 		"artifact": {
 			"type": "object",
-			"description": "A single artifact entry. Either this object directly, or wrapped in an array (for artifact types that allow multiple variants).",
+			"description": "A single artifact entry.",
+			"required": ["url", "checksum"],
 			"properties": {
 				"id": {
 					"type": "string",

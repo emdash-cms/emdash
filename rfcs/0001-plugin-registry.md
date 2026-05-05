@@ -1121,9 +1121,19 @@ Constraints listed as advisory today are exactly the constraints follow-on RFCs 
 
 Some operations are fine as binary grants — `content.read` either applies or it doesn't, and there isn't an obvious quantitative constraint to put on it. Others benefit from finer control: outbound HTTP requests can be scoped to specific hosts, and operations like email sending may want rate limits or recipient allow-lists when those become well-defined. Modelling every operation as `operation: <constraints object>` (with `true` as sugar when there are no constraints) gives both shapes a single home. The vocabulary of constraint keys is open, so publishers can declare structured limits even before the runtime enforces them — and once a follow-on RFC normatively defines a constraint and the runtime starts enforcing it, records that pre-declared the limit become enforced without re-publication.
 
+### Publisher Profile
+
+Identity-level metadata for a publisher lives in a `com.emdashcms.publisher.profile` record at rkey `self`, one per publisher DID. This is distinct from the per-package `pm.fair.package.profile` record: a single publisher may publish many packages, and the publisher profile is the canonical landing surface for "who is publishing these packages?" — a `displayName`, a short bio, a homepage URL, and identity-level contact channels.
+
+Per-package fields like `authors[]` and `security[]` on package profile records remain authoritative for their respective packages. The publisher profile does not override them; clients render package-level fields when present and fall back to the publisher profile only when a package omits them.
+
+Publishing a `publisher.profile` is optional: a DID may ship plugins without one, and clients fall back to the handle and per-package metadata for display. However, **a verified publisher MUST publish a `publisher.profile`** — the verification record (below) binds against its `displayName` field, and a verification claim whose subject has no resolvable publisher profile is invalid.
+
 ### Publisher Verification
 
 To establish trust and prevent name squatting, the registry defines a `com.emdashcms.publisher.verification` lexicon, modeled on Bluesky's `app.bsky.graph.verification` shape but in EmDash's own namespace so the semantics are scoped to plugin publishing. The official EmDash identity (`did:web:emdashcms.com`) publishes these records to its own repository, pointing to the DIDs of vetted publishers. The EmDash aggregator reads these records and includes this status in the package envelope, allowing the CMS Admin UI to render a "Verified Publisher" badge. The mechanics inherit directly from Bluesky's "Trusted Verifier" pattern (a publisher record signed by a trusted issuer), providing cryptographically verifiable curation, but the namespace separation ensures EmDash's verification semantics can evolve independently and aren't tied to changes Bluesky makes to its social-graph verification.
+
+A verification record binds to two snapshot values captured at issuance time: the subject's `handle` (resolved from their DID document) and the subject's `displayName` (read from their `publisher.profile`). The verification is in force only while both current values match the snapshots byte-for-byte. A handle change or a displayName change invalidates the verification until the issuer re-attests. This matches Bluesky's verification semantics — the goal is the same: defend against handle reuse (an attacker acquiring a previously trusted handle) and identity drift (a publisher changing what they call themselves without re-attestation). It is also the structural reason the publisher profile is required for verified publishers: without a `displayName` the verification has nothing to bind against.
 
 The "Verified Publisher" badge is scoped to **sandboxed plugins published in the EmDash registry**. Verification is not a statement about a publisher's npm packages, native plugins, or any other distribution channel. The admin UI surfaces this scope in the verification badge's tooltip / details so users understand what is and isn't being verified. Native plugins are not surfaced in the registry-facing admin UI, so there is no path for the badge to be misread as covering them.
 
@@ -1294,6 +1304,7 @@ The plan is to ship the registry under an explicitly-experimental namespace, lea
 - `com.emdashcms.experimental.package.profile` — the FAIR-shaped package metadata record
 - `com.emdashcms.experimental.package.release` — the FAIR-shaped release record
 - `com.emdashcms.experimental.package.releaseExtension` — the EmDash-specific extension data
+- `com.emdashcms.experimental.publisher.profile` — publisher identity-level profile
 - `com.emdashcms.experimental.publisher.verification` — publisher verification claims
 - `com.emdashcms.experimental.aggregator.*` — aggregator XRPC endpoints
 
