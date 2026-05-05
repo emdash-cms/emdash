@@ -98,6 +98,7 @@
 		"**/dist/**",
 		"**/node_modules/**",
 		"**/*.d.ts",
+		"**/src/generated/**",
 		"skills/**/scaffold/**",
 		".agents/skills/**/scaffold/**",
 		".claude/skills/**/scaffold/**",

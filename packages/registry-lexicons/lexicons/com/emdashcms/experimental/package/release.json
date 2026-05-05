@@ -1,0 +1,171 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.package.release",
+	"description": "Plugin package release record. The atproto-record form of FAIR's Release Document. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The shape is expected to migrate to either pm.fair.package.release (if FAIR adopts it) or com.emdashcms.package.release once stable.",
+	"defs": {
+		"main": {
+			"type": "record",
+			"description": "A specific versioned release of a plugin package. The record key encodes both the parent package's slug and the version, separated by ':'. So a release's AT URI looks like at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery-plugin:1.2.0. FAIR specifies version immutability: a release at a given version cannot be modified or replaced once published.",
+			"key": "any",
+			"record": {
+				"type": "object",
+				"required": ["package", "version", "artifacts"],
+				"properties": {
+					"package": {
+						"type": "string",
+						"description": "Slug of the parent package profile in the same repository. MUST match the rkey of an existing package profile record. Combined with the publisher DID, the parent profile's AT URI is at://<publisher-did>/com.emdashcms.experimental.package.profile/<package>. Aggregators MUST reject release records whose package field does not resolve to a profile in the same repository.",
+						"minLength": 1,
+						"maxLength": 64
+					},
+					"version": {
+						"type": "string",
+						"description": "Version, conforming to a subset of semver 2.0 (build metadata '+...' is disallowed because atproto record keys cannot represent it). MUST equal the post-':' portion of the rkey byte-for-byte. Composed only of characters allowed in atproto record keys: ASCII letters, digits, '.', and '-'. Note that while atproto rkeys also permit '_' and '~', semver disallows them in version strings, so they MUST NOT appear here.",
+						"minLength": 1,
+						"maxLength": 64
+					},
+					"artifacts": {
+						"type": "ref",
+						"ref": "#artifacts",
+						"description": "Map of artifact type to artifact object. MUST have at least one entry. The 'package' entry (installable bundle) is required."
+					},
+					"provides": {
+						"type": "unknown",
+						"description": "Capabilities the package provides. Map of capability type to string or list of strings. Open shape per FAIR's extension model."
+					},
+					"requires": {
+						"type": "unknown",
+						"description": "Dependencies. Map of 'env:*' keys (extension-defined environment requirements) or package DIDs to version constraint strings. EmDash uses 'env:emdash' and 'env:astro'."
+					},
+					"suggests": {
+						"type": "unknown",
+						"description": "Optional packages that may be installed alongside. Same shape as requires."
+					},
+					"auth": {
+						"type": "unknown",
+						"description": "Authentication requirements (FAIR's commercial / private packages). Out of scope for EmDash use today, but the field is reserved."
+					},
+					"sbom": {
+						"type": "ref",
+						"ref": "#sbom",
+						"description": "Software bill of materials reference."
+					},
+					"repo": {
+						"type": "string",
+						"format": "uri",
+						"description": "AT URI or HTTPS URL of the source repository for this release. Equivalent to FAIR's 'https://fair.pm/rel/repo' HAL relation.",
+						"maxLength": 1024
+					},
+					"extensions": {
+						"type": "unknown",
+						"description": "Open-union container for extension data, keyed by NSID. Each value is an embedded record carrying its own $type discriminator. Releases of type emdash-plugin MUST include a com.emdashcms.experimental.package.releaseExtension entry here."
+					}
+				}
+			}
+		},
+		"artifacts": {
+			"type": "object",
+			"description": "Map of artifact-type-name to artifact. Field names follow atproto's lowerCamelCase style; FAIR's HTTP transport's kebab-case names ('content-type', 'requires-auth', 'release-asset') translate to these by mechanical mapping at the aggregator boundary. Common artifact-type keys: 'package' (the installable bundle, REQUIRED), 'icon', 'screenshot', 'banner'. Custom types use 'x-' prefix and pass through as unrecognised fields.",
+			"required": ["package"],
+			"properties": {
+				"package": {
+					"type": "ref",
+					"ref": "#artifact",
+					"description": "The installable plugin bundle."
+				},
+				"icon": {
+					"type": "ref",
+					"ref": "#artifact"
+				},
+				"screenshot": {
+					"type": "ref",
+					"ref": "#artifact"
+				},
+				"banner": {
+					"type": "ref",
+					"ref": "#artifact"
+				}
+			}
+		},
+		"artifact": {
+			"type": "object",
+			"description": "A single artifact entry.",
+			"required": ["url", "checksum"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "Unique ID within the artifact type.",
+					"maxLength": 128
+				},
+				"contentType": {
+					"type": "string",
+					"description": "MIME type of the artifact, per RFC6838. FAIR HTTP equivalent: 'content-type'.",
+					"maxLength": 256
+				},
+				"requiresAuth": {
+					"type": "boolean",
+					"description": "Whether the artifact requires authentication to access. FAIR HTTP equivalent: 'requires-auth'."
+				},
+				"releaseAsset": {
+					"type": "boolean",
+					"description": "Whether the URL points to a platform release asset rather than a directly-served file. When true, clients MUST send 'Accept: application/octet-stream' when downloading. FAIR HTTP equivalent: 'release-asset'."
+				},
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"description": "URL where the artifact can be downloaded.",
+					"maxLength": 2048
+				},
+				"signature": {
+					"type": "string",
+					"description": "Optional cryptographic signature of the artifact. Retained for FAIR compatibility, but EmDash clients do not require it as integrity is proven via the atproto MST signature over the record's checksum.",
+					"maxLength": 1024
+				},
+				"checksum": {
+					"type": "string",
+					"description": "Multibase-encoded multihash of the artifact bytes. EmDash clients MUST support sha2-256 (multihash code 0x12) and SHOULD support sha2-512 (0x13) and blake3 (0x1e). Recommended base prefix: base32 ('b'). Clients reject artifacts whose checksum uses an unsupported hash function rather than skipping verification.",
+					"maxLength": 256
+				},
+				"width": {
+					"type": "integer",
+					"description": "Pixel width, for image artifacts (icon, screenshot, banner).",
+					"minimum": 1,
+					"maximum": 8192
+				},
+				"height": {
+					"type": "integer",
+					"description": "Pixel height, for image artifacts.",
+					"minimum": 1,
+					"maximum": 8192
+				},
+				"lang": {
+					"type": "string",
+					"format": "language",
+					"description": "BCP 47 language tag for localised artifacts (icon, screenshot)."
+				}
+			}
+		},
+		"sbom": {
+			"type": "object",
+			"description": "Software bill of materials reference. EmDash plugins SHOULD include sbom for CRA-readiness; clients MUST NOT refuse install solely because sbom is absent.",
+			"properties": {
+				"format": {
+					"type": "string",
+					"description": "SBOM format identifier.",
+					"knownValues": ["cyclonedx", "spdx"],
+					"maxLength": 32
+				},
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"description": "URL where the SBOM document can be fetched.",
+					"maxLength": 2048
+				},
+				"checksum": {
+					"type": "string",
+					"description": "Multibase-encoded multihash of the SBOM document, in the same format as artifact checksums.",
+					"maxLength": 256
+				}
+			}
+		}
+	}
+}
