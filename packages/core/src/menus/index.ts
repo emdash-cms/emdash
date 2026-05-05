@@ -175,7 +175,7 @@ async function buildMenuTree(
 
 /**
  * Resolve a single menu item's URL. `reference_id` is a translation_group
- * (migration 035 remapped all existing references); we join it against
+ * (migration 036 remapped all existing references); we join it against
  * the per-locale ec_* row or per-locale taxonomy row.
  */
 async function resolveMenuItem(
@@ -290,7 +290,7 @@ async function resolveContentUrl(
 		}
 		if (!row) {
 			// Legacy rows whose reference_id still points at an id directly
-			// (defensive — migration 035 normalised these, but a row inserted
+			// (defensive — migration 036 normalised these, but a row inserted
 			// between migrations could predate the remap).
 			const legacy = await sql<{ id: string; slug: string }>`
 				SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
