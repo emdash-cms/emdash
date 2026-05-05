@@ -15,6 +15,9 @@ import { createTermBody, localeFilterQuery } from "#api/schemas.js";
 
 export const prerender = false;
 
+/**
+ * List all terms for a taxonomy
+ */
 export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { name } = params;
@@ -37,6 +40,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
+/**
+ * Create a new term
+ */
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { name } = params;

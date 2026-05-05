@@ -99,6 +99,12 @@ export async function getMenus(
 	return getMenusWithDb(db, options);
 }
 
+/**
+ * Get all menus (with explicit db)
+ *
+ * @internal Use `getMenus()` in templates. This variant is for admin routes
+ * that already have a database handle.
+ */
 export async function getMenusWithDb(
 	db: Kysely<Database>,
 	options: MenuQueryOptions = {},
@@ -240,6 +246,11 @@ async function resolveMenuItem(
 const SLUG_PLACEHOLDER = /\{slug\}/g;
 const ID_PLACEHOLDER = /\{id\}/g;
 
+/**
+ * Interpolate a URL pattern with entry data
+ *
+ * Replaces `{slug}` and `{id}` placeholders.
+ */
 function interpolateUrlPattern(pattern: string, slug: string, id: string): string {
 	return pattern.replace(SLUG_PLACEHOLDER, slug).replace(ID_PLACEHOLDER, id);
 }

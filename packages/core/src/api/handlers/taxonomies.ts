@@ -91,6 +91,9 @@ export interface TaxonomyDefTranslationsResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Build tree structure from flat terms
+ */
 function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
 	const map = new Map<string, TermWithCount>();
 	const roots: TermWithCount[] = [];
@@ -146,6 +149,9 @@ function rowToDef(row: Selectable<TaxonomyDefTable>): TaxonomyDef {
 // Taxonomy definition handlers
 // ---------------------------------------------------------------------------
 
+/**
+ * List all taxonomy definitions
+ */
 export async function handleTaxonomyList(
 	db: Kysely<Database>,
 	options: { locale?: string } = {},
@@ -177,6 +183,9 @@ export async function handleTaxonomyList(
 	}
 }
 
+/**
+ * Create a new taxonomy definition
+ */
 export async function handleTaxonomyCreate(
 	db: Kysely<Database>,
 	input: {
@@ -345,6 +354,9 @@ export async function handleTaxonomyDefTranslations(
 // Term handlers
 // ---------------------------------------------------------------------------
 
+/**
+ * List all terms for a taxonomy (returns tree for hierarchical taxonomies)
+ */
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
@@ -570,6 +582,9 @@ export async function handleTermCreate(
 	}
 }
 
+/**
+ * Get a single term by slug
+ */
 export async function handleTermGet(
 	db: Kysely<Database>,
 	taxonomyName: string,
@@ -663,6 +678,9 @@ export async function handleTermTranslations(
 	}
 }
 
+/**
+ * Update a term
+ */
 export async function handleTermUpdate(
 	db: Kysely<Database>,
 	taxonomyName: string,
@@ -750,6 +768,9 @@ export async function handleTermUpdate(
 	}
 }
 
+/**
+ * Delete a term
+ */
 export async function handleTermDelete(
 	db: Kysely<Database>,
 	taxonomyName: string,

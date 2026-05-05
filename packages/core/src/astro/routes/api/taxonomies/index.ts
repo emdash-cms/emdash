@@ -15,6 +15,9 @@ import { createTaxonomyDefBody, localeFilterQuery } from "#api/schemas.js";
 
 export const prerender = false;
 
+/**
+ * List taxonomy definitions
+ */
 export const GET: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
 
@@ -35,6 +38,9 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	}
 };
 
+/**
+ * Create a custom taxonomy definition
+ */
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
 

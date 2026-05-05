@@ -93,6 +93,9 @@ function withLocale(path: string, locale?: string): string {
 		: path;
 }
 
+/**
+ * Fetch all taxonomy definitions
+ */
 export async function fetchTaxonomyDefs(options: LocaleOptions = {}): Promise<TaxonomyDef[]> {
 	const response = await apiFetch(withLocale(`${API_BASE}/taxonomies`, options.locale));
 	const data = await parseApiResponse<{ taxonomies: TaxonomyDef[] }>(
@@ -102,6 +105,9 @@ export async function fetchTaxonomyDefs(options: LocaleOptions = {}): Promise<Ta
 	return data.taxonomies;
 }
 
+/**
+ * Fetch taxonomy definition by name
+ */
 export async function fetchTaxonomyDef(
 	name: string,
 	options: LocaleOptions = {},
@@ -110,6 +116,9 @@ export async function fetchTaxonomyDef(
 	return defs.find((t) => t.name === name) || null;
 }
 
+/**
+ * Create a custom taxonomy definition
+ */
 export async function createTaxonomy(input: CreateTaxonomyInput): Promise<TaxonomyDef> {
 	const response = await apiFetch(`${API_BASE}/taxonomies`, {
 		method: "POST",
@@ -123,6 +132,9 @@ export async function createTaxonomy(input: CreateTaxonomyInput): Promise<Taxono
 	return data.taxonomy;
 }
 
+/**
+ * Fetch terms for a taxonomy
+ */
 export async function fetchTerms(
 	taxonomyName: string,
 	options: LocaleOptions = {},
@@ -134,6 +146,9 @@ export async function fetchTerms(
 	return data.terms;
 }
 
+/**
+ * Create a term
+ */
 export async function createTerm(
 	taxonomyName: string,
 	input: CreateTermInput,
@@ -147,6 +162,9 @@ export async function createTerm(
 	return data.term;
 }
 
+/**
+ * Update a term
+ */
 export async function updateTerm(
 	taxonomyName: string,
 	slug: string,
@@ -165,6 +183,9 @@ export async function updateTerm(
 	return data.term;
 }
 
+/**
+ * Delete a term
+ */
 export async function deleteTerm(
 	taxonomyName: string,
 	slug: string,

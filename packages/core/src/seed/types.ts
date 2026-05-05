@@ -103,7 +103,9 @@ export interface SeedTaxonomy {
 	terms?: SeedTaxonomyTerm[];
 }
 
-/** Taxonomy term in seed. */
+/**
+ * Taxonomy term in seed
+ */
 export interface SeedTaxonomyTerm {
 	/** Optional seed-local id, e.g. "term:category:news:en". */
 	id?: string;
@@ -115,7 +117,9 @@ export interface SeedTaxonomyTerm {
 	translationOf?: string;
 }
 
-/** Menu definition in seed. */
+/**
+ * Menu definition in seed
+ */
 export interface SeedMenu {
 	/** Optional seed-local id, e.g. "menu:primary:en". */
 	id?: string;

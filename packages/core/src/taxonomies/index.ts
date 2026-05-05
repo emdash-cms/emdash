@@ -59,7 +59,8 @@ export async function getTaxonomyDef(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyDef | null> {
 	const chain = resolveLocaleChain(options.locale);
-	const allDefs = peekRequestCache<TaxonomyDef[]>("taxonomy-defs:all");
+	const peekKey = `taxonomy-defs:${resolveLocale(options.locale) ?? "*"}`;
+	const allDefs = peekRequestCache<TaxonomyDef[]>(peekKey);
 	if (allDefs) {
 		const defs = await allDefs;
 		if (chain.length === 0) return defs.find((d) => d.name === name) ?? null;
@@ -407,6 +408,12 @@ export async function getAllTermsForEntries(
 	return result;
 }
 
+/**
+ * Return the list of taxonomy names applicable to a collection, request-
+ * cached so a page render only pays for it once.
+ *
+ * Returns an empty list when taxonomies haven't been defined yet.
+ */
 async function getCollectionTaxonomyNames(
 	collection: string,
 	options: TaxonomyQueryOptions,
@@ -420,6 +427,18 @@ async function getCollectionTaxonomyNames(
 	}
 }
 
+/**
+ * Pre-populate the request-cache for every getEntryTerms call-shape that
+ * could hit this entry:
+ *
+ *   getEntryTerms(collection, entryId)                 -> key `terms:C:E:*`
+ *   getEntryTerms(collection, entryId, "tag")          -> key `terms:C:E:tag`
+ *   getEntryTerms(collection, entryId, "category")     -> key `terms:C:E:category`
+ *   ...one per taxonomy that applies to this collection
+ *
+ * Taxonomies with no rows on this entry are seeded with `[]` so legacy
+ * callers short-circuit to the cached empty array instead of re-querying.
+ */
 function primeEntryTermsCache(
 	collection: string,
 	entryId: string,
@@ -483,6 +502,9 @@ function rowToTaxonomyDef(row: {
 	};
 }
 
+/**
+ * Build tree structure from flat terms
+ */
 function buildTree(flatTerms: TaxonomyTermRow[], counts: Map<string, number>): TaxonomyTerm[] {
 	const map = new Map<string, TaxonomyTerm>();
 	const roots: TaxonomyTerm[] = [];

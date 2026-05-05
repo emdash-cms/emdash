@@ -16,6 +16,9 @@ import { localeFilterQuery, updateTermBody } from "#api/schemas.js";
 
 export const prerender = false;
 
+/**
+ * Get a single term
+ */
 export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { name, slug } = params;
@@ -38,6 +41,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
+/**
+ * Update a term
+ */
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { name, slug } = params;
@@ -63,6 +69,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
+/**
+ * Delete a term
+ */
 export const DELETE: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { name, slug } = params;

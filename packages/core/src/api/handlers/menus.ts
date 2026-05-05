@@ -521,6 +521,9 @@ export interface UpdateMenuItemInput {
 	sortOrder?: number;
 }
 
+/**
+ * Update a menu item.
+ */
 export async function handleMenuItemUpdate(
 	db: Kysely<Database>,
 	menuName: string,
@@ -581,6 +584,9 @@ export async function handleMenuItemUpdate(
 	}
 }
 
+/**
+ * Delete a menu item.
+ */
 export async function handleMenuItemDelete(
 	db: Kysely<Database>,
 	menuName: string,

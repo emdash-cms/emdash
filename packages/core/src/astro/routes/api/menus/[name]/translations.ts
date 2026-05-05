@@ -9,7 +9,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, unwrapResult } from "#api/error.js";
+import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleMenuCreate, handleMenuGet, handleMenuTranslations } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
@@ -26,6 +26,9 @@ const createTranslationBody = z
 export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
+
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 
 	const denied = requirePerm(user, "menus:read");
 	if (denied) return denied;
@@ -47,6 +50,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
+
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;

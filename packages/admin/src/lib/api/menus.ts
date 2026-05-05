@@ -106,16 +106,25 @@ function withLocale(path: string, locale?: string): string {
 		: path;
 }
 
+/**
+ * Fetch all menus
+ */
 export async function fetchMenus(options: LocaleOptions = {}): Promise<Menu[]> {
 	const response = await apiFetch(withLocale(`${API_BASE}/menus`, options.locale));
 	return parseApiResponse<Menu[]>(response, "Failed to fetch menus");
 }
 
+/**
+ * Fetch a single menu with items
+ */
 export async function fetchMenu(name: string, options: LocaleOptions = {}): Promise<MenuWithItems> {
 	const response = await apiFetch(withLocale(`${API_BASE}/menus/${name}`, options.locale));
 	return parseApiResponse<MenuWithItems>(response, "Failed to fetch menu");
 }
 
+/**
+ * Create a menu
+ */
 export async function createMenu(input: CreateMenuInput): Promise<Menu> {
 	const response = await apiFetch(`${API_BASE}/menus`, {
 		method: "POST",
@@ -125,6 +134,9 @@ export async function createMenu(input: CreateMenuInput): Promise<Menu> {
 	return parseApiResponse<Menu>(response, "Failed to create menu");
 }
 
+/**
+ * Update a menu
+ */
 export async function updateMenu(
 	name: string,
 	input: UpdateMenuInput,
@@ -138,6 +150,9 @@ export async function updateMenu(
 	return parseApiResponse<Menu>(response, "Failed to update menu");
 }
 
+/**
+ * Delete a menu
+ */
 export async function deleteMenu(name: string, options: LocaleOptions = {}): Promise<void> {
 	const response = await apiFetch(withLocale(`${API_BASE}/menus/${name}`, options.locale), {
 		method: "DELETE",
@@ -145,6 +160,9 @@ export async function deleteMenu(name: string, options: LocaleOptions = {}): Pro
 	if (!response.ok) await throwResponseError(response, "Failed to delete menu");
 }
 
+/**
+ * Create a menu item
+ */
 export async function createMenuItem(
 	menuName: string,
 	input: CreateMenuItemInput,
@@ -161,6 +179,9 @@ export async function createMenuItem(
 	return parseApiResponse<MenuItem>(response, "Failed to create menu item");
 }
 
+/**
+ * Update a menu item
+ */
 export async function updateMenuItem(
 	menuName: string,
 	itemId: string,
@@ -178,6 +199,9 @@ export async function updateMenuItem(
 	return parseApiResponse<MenuItem>(response, "Failed to update menu item");
 }
 
+/**
+ * Delete a menu item
+ */
 export async function deleteMenuItem(
 	menuName: string,
 	itemId: string,
@@ -190,6 +214,9 @@ export async function deleteMenuItem(
 	if (!response.ok) await throwResponseError(response, "Failed to delete menu item");
 }
 
+/**
+ * Reorder menu items
+ */
 export async function reorderMenuItems(
 	menuName: string,
 	input: ReorderMenuItemsInput,
