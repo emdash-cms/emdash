@@ -1274,6 +1274,45 @@ If a third-party marketplace ecosystem develops in the future before this RFC sh
 
 # Implementation Plan
 
+## Experimentation strategy
+
+The lexicon namespace question (`pm.fair.*` vs `com.emdashcms.package.*`) is one of the few items in this RFC that depends on a decision outside our control: whether the FAIR TSC accepts our lexicons as the formal atproto transport. We don't want to block real implementation work on a coordination round-trip, and we don't want to commit to either stable namespace before we've stress-tested the design with running code.
+
+The plan is to ship the registry under an explicitly-experimental namespace, learn from real implementations, and migrate to the stable namespace once the FAIR question is decided.
+
+**Experimental NSIDs.** All EmDash-defined records and APIs ship under `com.emdashcms.experimental.*` until the stable namespace is determined. Concretely:
+
+- `com.emdashcms.experimental.package.profile` — the FAIR-shaped package metadata record
+- `com.emdashcms.experimental.package.release` — the FAIR-shaped release record
+- `com.emdashcms.experimental.package.releaseExtension` — the EmDash-specific extension data
+- `com.emdashcms.experimental.publisher.verification` — publisher verification claims
+- `com.emdashcms.experimental.aggregator.*` — aggregator XRPC endpoints
+
+This puts us firmly inside our own namespace (no FAIR squatting), signals to consumers that the shape is not a stable contract, and gives us room to iterate without having to issue V2 lexicons later. The pattern is sanctioned by atproto's [Lexicon Style Guide](https://atproto.com/guides/lexicon-style-guide#naming-conventions), which calls out experimental markers in NSIDs as the right way to ship things that aren't yet committed to interoperability.
+
+**Migration.** Once the stable namespace is decided — `pm.fair.*` if FAIR adopts the lexicons, `com.emdashcms.package.*` otherwise — a one-time migration runs:
+
+1. Publishers republish their records under the stable NSIDs (the CLI provides a `migrate` command).
+2. The aggregator re-indexes records under the new collections.
+3. The admin install state in each EmDash site rewrites stored AT URIs from experimental to stable form (similar pattern to the marketplace migration described in [For existing marketplace installs](#for-existing-marketplace-installs)).
+4. Experimental NSIDs are deprecated and aggregator clients stop accepting writes to them.
+
+The migration is mechanical — same shape, different NSIDs — and the shape stability period before migration gives us time to find issues that would otherwise have to be lived with under the strict atproto lexicon evolution rules.
+
+**What we expect to learn from experimentation.** Things the spec can't predict:
+
+- DX of the actual publish flow (is three commands too many? does `--file` need to land sooner?).
+- Whether long-text fields hit Jetstream's per-record cap in practice.
+- Aggregator query patterns and whether the cache strategy holds up.
+- Which constraint vocabulary publishers actually want under `declaredAccess`.
+- Whether the install-consent UI works for non-technical admins.
+
+These are answerable only by shipping; experimental NSIDs give us a principled way to ship without overcommitting.
+
+**Experimental signalling.** The web directory shows an "Experimental Registry" banner during the experimental phase. The CLI `init` command prints a note about the experimental status. The CLI's `publish` command warns once per session that records are being written to experimental NSIDs and will need migration when the stable namespace is decided.
+
+**Why not skip the experimental phase and pick a stable namespace now?** Two reasons. First, the FAIR-namespace question is genuinely undecided; picking `com.emdashcms.package.*` now means doing the migration work later if FAIR adopts. Second, atproto's lexicon evolution rules are strict — fields can be added but not removed or restructured. We're going to find shape issues by running the system, and the experimental phase is where we can fix them without leaving cruft behind. Even if FAIR's decision were instant, we'd still want a shape-iteration window.
+
 ## Phase 1: Foundation
 
 The work has a clear dependency chain — lexicons block both the CLI and the aggregator; the CLI blocks dogfooding (we need to publish first-party plugins to have anything to index); the aggregator blocks the admin UI install flow. The admin UI is the last critical-path item.
