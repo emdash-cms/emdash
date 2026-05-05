@@ -30,5 +30,14 @@ translations and is resolved against the active locale at runtime.
   all API calls. `TaxonomyManager` exposes a "Translate" action per term
   that creates the translation and switches to the new locale.
 
-No breaking changes — defaults are additive (locale defaults to `'en'` when
-omitted, reproducing pre-i18n behaviour).
+No breaking changes for new installs or single-locale upgrades — defaults
+are additive (locale defaults to `'en'` when omitted, reproducing pre-i18n
+behaviour).
+
+> ⚠️ **Rolling back migration `036_i18n_menus_and_taxonomies` is blocked
+> on multi-locale installs.** Dropping the `locale` column would collapse
+> translated rows onto an ambiguous `(name, slug)` unique key, silently
+> deleting content. The migration's `down()` now refuses to run when any
+> row uses a non-default locale and prints the affected table in the
+> error. If you need to revert, export translations first (or delete
+> them), then re-run the rollback. Single-locale installs revert cleanly.

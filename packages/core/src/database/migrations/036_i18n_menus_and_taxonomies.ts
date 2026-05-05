@@ -286,10 +286,33 @@ function validateSystemIdent(name: string): void {
 }
 
 /**
- * down() is lossy on multi-locale installs (rows beyond the default locale
- * are dropped). Single-locale installs revert cleanly because translation_group == id.
+ * down() is destructive on multi-locale installs (dropping `locale` collapses
+ * translated rows onto an ambiguous unique key). Refuse to run when any row
+ * is at a non-default locale; single-locale installs revert cleanly.
  */
+async function assertSingleLocale(db: Kysely<unknown>): Promise<void> {
+	const tables = ["_emdash_menus", "_emdash_menu_items", "taxonomies", "_emdash_taxonomy_defs"];
+	for (const table of tables) {
+		validateSystemIdent(table);
+		const result = await sql<{ count: number | string }>`
+			SELECT COUNT(*) AS count FROM ${sql.ref(table)} WHERE locale != 'en'
+		`.execute(db);
+		const count = Number(result.rows[0]?.count ?? 0);
+		if (count > 0) {
+			throw new Error(
+				`Cannot revert migration 036_i18n_menus_and_taxonomies: ` +
+					`${count} row(s) in "${table}" use a non-default locale. ` +
+					`Reverting would drop them silently. Export translations first ` +
+					`(or delete them) and re-run the rollback. ` +
+					`See packages/core/src/database/migrations/036_i18n_menus_and_taxonomies.ts.`,
+			);
+		}
+	}
+}
+
 export async function down(db: Kysely<unknown>): Promise<void> {
+	await assertSingleLocale(db);
+
 	if (isSqlite(db)) {
 		await sql.raw(`DROP TABLE IF EXISTS "content_taxonomies_new"`).execute(db);
 		await db.schema
