@@ -1,0 +1,125 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.defs",
+	"description": "Shared definitions for the EmDash plugin registry aggregator XRPC endpoints. EXPERIMENTAL: shape may change before stabilisation.",
+	"defs": {
+		"packageView": {
+			"type": "object",
+			"description": "An aggregator's view of a package, hydrating a profile record with denormalised metadata, mirror URLs for the latest release's primary artifact, and any labels applied by trusted labellers the aggregator hydrates.",
+			"required": ["uri", "cid", "did", "slug", "profile", "indexedAt"],
+			"properties": {
+				"uri": {
+					"type": "string",
+					"format": "at-uri",
+					"description": "AT URI of the profile record the aggregator indexed. Pins exactly which record version this view describes."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "CID of the profile record content the aggregator indexed. Lets clients confirm they're working with the same bytes the aggregator did."
+				},
+				"did": {
+					"type": "string",
+					"format": "did",
+					"description": "Publisher DID. Denormalised convenience; equivalent to the DID portion of `uri`."
+				},
+				"slug": {
+					"type": "string",
+					"description": "Package slug (the rkey of the profile record). Denormalised convenience.",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"handle": {
+					"type": "string",
+					"format": "handle",
+					"description": "Publisher's current handle, if known. Best-effort: handles are mutable and may be stale at the moment of read."
+				},
+				"profile": {
+					"type": "unknown",
+					"description": "The signed profile record verbatim, passed through from the publisher's repo (carrying its $type, all required fields, etc.)."
+				},
+				"latestVersion": {
+					"type": "string",
+					"description": "Convenience: the highest semver version among non-tombstoned, non-yanked releases the aggregator has indexed for this package. Clients SHOULD verify this against their own selection from listReleases when the difference matters.",
+					"maxLength": 64
+				},
+				"indexedAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the aggregator first indexed this package."
+				},
+				"labels": {
+					"type": "array",
+					"description": "Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "com.atproto.label.defs#label"
+					}
+				}
+			}
+		},
+		"releaseView": {
+			"type": "object",
+			"description": "An aggregator's view of a release: the signed record verbatim, the mirror URLs the aggregator is currently serving the primary artifact from, and any hydrated labels.",
+			"required": ["uri", "cid", "did", "package", "version", "release", "indexedAt"],
+			"properties": {
+				"uri": {
+					"type": "string",
+					"format": "at-uri",
+					"description": "AT URI of the release record the aggregator indexed. Pins exactly which record version this view describes."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "CID of the release record content the aggregator indexed."
+				},
+				"did": {
+					"type": "string",
+					"format": "did",
+					"description": "Publisher DID. Denormalised convenience; equivalent to the DID portion of `uri`."
+				},
+				"package": {
+					"type": "string",
+					"description": "Parent package slug. Denormalised convenience.",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"version": {
+					"type": "string",
+					"description": "Release version, matching the post-':' portion of the rkey.",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"release": {
+					"type": "unknown",
+					"description": "The signed release record verbatim from the publisher's repo (carrying its $type and all fields)."
+				},
+				"mirrors": {
+					"type": "array",
+					"description": "URLs the aggregator currently serves the primary `package` artifact from. Empty if the aggregator did not mirror this release (e.g. license is non-redistributable). The URL shape is opaque per the aggregator; clients treat them as-is and verify checksums on download.",
+					"items": {
+						"type": "string",
+						"format": "uri",
+						"maxLength": 2048
+					},
+					"maxLength": 16
+				},
+				"indexedAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the aggregator first indexed this release."
+				},
+				"labels": {
+					"type": "array",
+					"description": "Hydrated labels applying to this release, per the labellers the request asked for.",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "com.atproto.label.defs#label"
+					}
+				}
+			}
+		}
+	}
+}

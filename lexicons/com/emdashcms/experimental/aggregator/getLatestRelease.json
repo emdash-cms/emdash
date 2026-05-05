@@ -1,0 +1,41 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.getLatestRelease",
+	"description": "Get the latest release for a package: the highest semver version among non-tombstoned, non-yanked releases. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns the aggregator's view of the latest release for a package, including the signed release record, mirror URLs, and hydrated labels. The latest release is the highest semver version (full precedence rules, not lexicographic) excluding any release tombstoned by the publisher or labelled with a hard-enforcement label by a trusted labeller the request accepts. Returns NotFound if there are no eligible releases.",
+			"parameters": {
+				"type": "params",
+				"required": ["did", "package"],
+				"properties": {
+					"did": {
+						"type": "string",
+						"format": "did",
+						"description": "Publisher DID."
+					},
+					"package": {
+						"type": "string",
+						"description": "Parent package slug.",
+						"minLength": 1,
+						"maxLength": 64
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.aggregator.defs#releaseView"
+				}
+			},
+			"errors": [
+				{
+					"name": "NotFound",
+					"description": "No eligible release for the given (did, package)."
+				}
+			]
+		}
+	}
+}

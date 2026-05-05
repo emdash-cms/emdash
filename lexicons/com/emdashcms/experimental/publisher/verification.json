@@ -1,0 +1,44 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.publisher.verification",
+	"description": "Verification claim by one DID about another's status as a trusted EmDash plugin publisher. Modeled on Bluesky's app.bsky.graph.verification shape but in EmDash's own namespace so the semantics are scoped to plugin publishing. EXPERIMENTAL: shape may change before stabilisation.",
+	"defs": {
+		"main": {
+			"type": "record",
+			"description": "A signed claim that the issuing repo's DID vouches for `subject` as a trusted publisher of EmDash plugins. The official EmDash identity publishes these as the trust root; trusted issuers may delegate by issuing further verification claims of their own. Clients consume the resulting graph via the standard atproto-accept-labelers mechanism. The record key is the subject's DID (or a TID, depending on operator preference).",
+			"key": "any",
+			"record": {
+				"type": "object",
+				"required": ["subject", "createdAt"],
+				"properties": {
+					"subject": {
+						"type": "string",
+						"format": "did",
+						"description": "The DID being verified."
+					},
+					"handle": {
+						"type": "string",
+						"format": "handle",
+						"description": "Subject's handle at the time of issuance, captured as a snapshot for display. Handles are mutable; clients should re-resolve the subject's current handle from their DID document for live display rather than trusting this snapshot."
+					},
+					"displayName": {
+						"type": "string",
+						"description": "Optional human-readable name to display alongside the verification badge. Snapshot at issuance time.",
+						"maxLength": 1024,
+						"maxGraphemes": 100
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "datetime",
+						"description": "When the verification was issued."
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "datetime",
+						"description": "Optional expiration timestamp. If absent, the verification has no automatic expiry. Clients SHOULD treat the verification as not in force after this time, regardless of whether the issuer has revoked it."
+					}
+				}
+			}
+		}
+	}
+}
