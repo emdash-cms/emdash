@@ -23,7 +23,7 @@ const profile: PackageProfile.Main = {
 	id: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/gallery",
 	type: "emdash-plugin",
 	license: "MIT",
-  authors: [{ name: "Alice Example", url: "https://alice.example.com" }],
+	authors: [{ name: "Alice Example", url: "https://alice.example.com" }],
 	security: [{ email: "security@example.com" }],
 };
 
@@ -39,20 +39,19 @@ if (!result.ok) {
 }
 ```
 
-## Regenerating
+## Building
 
-The TypeScript output in `src/generated/` is checked into git. Regenerate it after editing the source lexicons:
+The package ships compiled JavaScript and `.d.ts` declarations from `dist/`. The build pipeline has three stages:
 
 ```sh
 pnpm build
 ```
 
-This runs:
-
 1. `build:lexicons` — copies the JSON files from the repo root's `lexicons/` directory into the package (so they ship with the published artifact).
-2. `build:types` — invokes `@atcute/lex-cli generate` against the copied lexicons.
+2. `codegen` — invokes `@atcute/lex-cli generate` to emit TypeScript types and validation schemas under `src/generated/`.
+3. `build:types` — bundles `src/` (including the generated modules) into ESM + `.d.ts` under `dist/`.
 
-CI verifies the generated output is up to date; PRs that change the source lexicons but don't regenerate will fail.
+The generated TypeScript in `src/generated/` is checked into git so consumers can `pnpm install` without the codegen toolchain. CI verifies the generated output is up to date; PRs that change the source lexicons but don't regenerate will fail.
 
 ## Stability
 

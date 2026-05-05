@@ -3,39 +3,49 @@
 	"version": "0.0.0",
 	"description": "Generated TypeScript types for EmDash plugin registry lexicons (com.emdashcms.experimental.*). EXPERIMENTAL: NSIDs and shapes will change.",
 	"type": "module",
-	"main": "src/index.ts",
+	"main": "dist/index.js",
 	"exports": {
-		".": "./src/index.ts",
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
 		"./lexicons/*": "./lexicons/*.json",
-		"./types/*": "./src/generated/types/*.ts"
+		"./types/*": {
+			"types": "./dist/generated/types/*.d.ts",
+			"default": "./dist/generated/types/*.js"
+		}
 	},
 	"files": [
-		"src",
+		"dist",
 		"lexicons"
 	],
 	"atcute:lexicons": {
 		"mappings": {
 			"com.emdashcms.experimental.*": {
 				"type": "namespace",
-				"path": "./src/generated/types/{{nsid_remainder}}"
+				"path": "./dist/generated/types/{{nsid_remainder}}"
 			}
 		}
 	},
 	"scripts": {
-		"build:types": "lex-cli generate",
+		"codegen": "lex-cli generate",
 		"build:lexicons": "node scripts/copy-lexicons.mjs",
-		"build": "pnpm run build:lexicons && pnpm run build:types",
+		"build:types": "tsdown",
+		"build": "pnpm run build:lexicons && pnpm run codegen && pnpm run build:types",
+		"prepublishOnly": "node --run build",
 		"typecheck": "tsgo --noEmit",
 		"test": "vitest run",
-		"check": "publint"
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
 	},
 	"dependencies": {
 		"@atcute/atproto": "catalog:",
 		"@atcute/lexicons": "catalog:"
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
 		"@atcute/lex-cli": "catalog:",
 		"publint": "catalog:",
+		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},

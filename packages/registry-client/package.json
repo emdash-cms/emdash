@@ -3,20 +3,35 @@
 	"version": "0.0.0",
 	"description": "Atproto-aware client for the EmDash plugin registry: credential storage, publisher repo operations, and discovery against an aggregator.",
 	"type": "module",
-	"main": "src/index.ts",
+	"main": "dist/index.js",
 	"exports": {
-		".": "./src/index.ts",
-		"./credentials": "./src/credentials/index.ts",
-		"./publishing": "./src/publishing/index.ts",
-		"./discovery": "./src/discovery/index.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./credentials": {
+			"types": "./dist/credentials/index.d.ts",
+			"default": "./dist/credentials/index.js"
+		},
+		"./publishing": {
+			"types": "./dist/publishing/index.d.ts",
+			"default": "./dist/publishing/index.js"
+		},
+		"./discovery": {
+			"types": "./dist/discovery/index.d.ts",
+			"default": "./dist/discovery/index.js"
+		}
 	},
 	"files": [
-		"src"
+		"dist"
 	],
 	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
 		"typecheck": "tsgo --noEmit",
 		"test": "vitest run",
-		"check": "publint"
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
 	},
 	"dependencies": {
 		"@atcute/atproto": "catalog:",
@@ -25,8 +40,10 @@
 		"@emdash-cms/registry-lexicons": "workspace:*"
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
 		"@types/node": "catalog:",
 		"publint": "catalog:",
+		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},

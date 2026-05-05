@@ -96,9 +96,7 @@ describe("DiscoveryClient", () => {
 
 		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
 		try {
-			await client.getPackage({
-				uri: "at://did:plc:xyz/com.emdashcms.experimental.package.profile/missing",
-			});
+			await client.getPackage({ did: "did:plc:xyz", slug: "missing" });
 			expect.fail("expected ClientResponseError");
 		} catch (err) {
 			expect(err).toBeInstanceOf(ClientResponseError);
@@ -149,16 +147,10 @@ describe("DiscoveryClient", () => {
 
 		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
 
-		await client.getPackage({
-			uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-		});
-		await client.resolvePackage({ did: "did:plc:abc", slug: "gallery" });
-		await client.listReleases({
-			uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-		});
-		await client.getLatestRelease({
-			uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-		});
+		await client.getPackage({ did: "did:plc:abc", slug: "gallery" });
+		await client.resolvePackage({ handle: "alice.example.com", slug: "gallery" });
+		await client.listReleases({ did: "did:plc:abc", package: "gallery" });
+		await client.getLatestRelease({ did: "did:plc:abc", package: "gallery" });
 
 		const paths = calls.map((c) => new URL(c.url).pathname);
 		expect(paths).toEqual([

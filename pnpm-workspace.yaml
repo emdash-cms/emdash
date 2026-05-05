@@ -20,6 +20,7 @@ catalog:
   "@astrojs/react": ^5.0.0
   "@atcute/atproto": ^3.1.11
   "@atcute/client": ^4.2.1
+  "@atcute/identity-resolver": ^1.2.2
   "@atcute/lex-cli": ^2.8.1
   "@atcute/lexicons": ^1.3.0
   "@atcute/oauth-node-client": ^1.1.0
