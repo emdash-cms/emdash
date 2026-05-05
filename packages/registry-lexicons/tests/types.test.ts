@@ -25,7 +25,7 @@ describe("PackageProfile", () => {
 			id: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/gallery",
 			type: "emdash-plugin",
 			license: "MIT",
-			authors: [{ name: "Matt Kane", url: "https://mk.gg" }],
+			authors: [{ name: "Alice Example", url: "https://alice.example.com" }],
 			security: [{ email: "security@example.com" }],
 		};
 
@@ -65,7 +65,7 @@ describe("PackageProfile", () => {
 			id: "https://example.com/not-an-at-uri",
 			type: "emdash-plugin",
 			license: "MIT",
-			authors: [{ name: "Matt" }],
+			authors: [{ name: "Alice" }],
 			security: [{ email: "security@example.com" }],
 		};
 
@@ -79,7 +79,7 @@ describe("PackageProfile", () => {
 			type: "emdash-plugin",
 			license: "MIT",
 			authors: [{ name: "A" }],
-			security: [{ email: "s@x.com" }],
+			security: [{ email: "security@example.com" }],
 		};
 
 		const custom: PackageProfile.Main = {

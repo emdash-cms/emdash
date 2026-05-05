@@ -30,11 +30,11 @@
 		"check": "publint"
 	},
 	"dependencies": {
-		"@atcute/atproto": "^3.1.11",
-		"@atcute/lexicons": "^1.3.0"
+		"@atcute/atproto": "catalog:",
+		"@atcute/lexicons": "catalog:"
 	},
 	"devDependencies": {
-		"@atcute/lex-cli": "^2.8.1",
+		"@atcute/lex-cli": "catalog:",
 		"publint": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"

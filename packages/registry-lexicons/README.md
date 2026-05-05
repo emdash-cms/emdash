@@ -23,7 +23,7 @@ const profile: PackageProfile.Main = {
 	id: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/gallery",
 	type: "emdash-plugin",
 	license: "MIT",
-	authors: [{ name: "Matt Kane", url: "https://mk.gg" }],
+  authors: [{ name: "Alice Example", url: "https://alice.example.com" }],
 	security: [{ email: "security@example.com" }],
 };
 
