@@ -1,9 +1,9 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { getI18nConfig } from "../../i18n/config.js";
 import { currentTimestamp, isSqlite } from "../dialect-helpers.js";
 import { validateIdentifier } from "../validate.js";
-import { getI18nConfig } from "../../i18n/config.js";
 
 /**
  * i18n for menus + taxonomies. Adds `locale` + `translation_group` to system
