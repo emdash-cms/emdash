@@ -211,7 +211,10 @@ Sandboxed plugins run in isolated sandboxes. The default sandbox is implemented 
 export default () =>
 	definePlugin({
 		id: "notify-on-publish",
-		capabilities: ["read:content", "email:send"],
+		declaredAccess: {
+			content: { read: true },
+			email: { send: true },
+		},
 		hooks: {
 			"content:afterSave": async (event, ctx) => {
 				/* ... */
@@ -492,35 +495,101 @@ EmDash defines a secondary Lexicon, `com.emdashcms.package.releaseExtension`, wh
 	"extensions": {
 		"com.emdashcms.package.releaseExtension": {
 			"$type": "com.emdashcms.package.releaseExtension",
-			"capabilities": ["read:content", "email:send"],
-			"allowedHosts": ["images.example.com"]
+			"declaredAccess": {
+				"content": { "read": true },
+				"media": { "read": true },
+				"network": {
+					"request": { "allowedHosts": ["images.example.com"] }
+				}
+			}
 		}
 	}
 }
 ```
 
-| Property       | Type     | Required | Description                                                                                                                                               |
-| -------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `capabilities` | string[] | yes      | Declared capabilities (e.g. `"read:content"`, `"email:send"`). At least one. MUST exactly match the `capabilities` field in the bundle's `manifest.json`. |
-| `allowedHosts` | string[] | no       | Allowed outbound host patterns. Omission means no outbound host access. MUST exactly match the `allowedHosts` field in the bundle manifest.               |
+The release-level extension carries a single object, `declaredAccess`, describing every kind of access the plugin needs. Inside, each access category (`content`, `media`, `storage`, `network`, `email`, …) carries a map of named operations (`read`, `write`, `request`, `send`, …). Each operation's value is a constraint object describing the limits placed on the access. Two shorthand rules apply:
 
-Capability vocabulary is owned by the EmDash runtime spec and may evolve independently of this RFC. The registry treats capability strings as opaque and only enforces the manifest-consistency rule.
+- An operation value of `true` is sugar for `{}`. Both mean "grant the operation with no constraints applied."
+- An operation that is omitted means "no access for this operation."
 
-**Path shorthand.** For brevity in the rules below and elsewhere in this document, `release.emdash.<field>` is shorthand for `release.extensions["com.emdashcms.package.releaseExtension"].<field>`.
+So `content: { read: true }` is the same as `content: { read: {} }`, both granting unrestricted content reads. `network: { request: { allowedHosts: [...] } }` grants outbound HTTP requests scoped to the listed hosts.
+
+This shape serves two purposes:
+
+1. **Forward-compatibility is additive.** New access categories — filesystem, subprocesses, environment variables, and the like — slot in as new optional fields under `declaredAccess` once they have well-defined runtime semantics. Existing records remain valid because the new fields are absent. Likewise, new operations can be added inside an existing category, and new constraint keys can be added inside an existing operation's constraint object.
+2. **The constraint object is open.** Known constraint keys (defined in this RFC or by a future RFC) are enforced by clients that recognise them; unknown constraint keys are surfaced verbatim in install-consent UI but not enforced. See [Constraints](#constraints) below.
+
+For the v1 package type `emdash-plugin`, every operation declared in `declaredAccess` is enforced by the sandbox runtime: a plugin that tries to do something outside what it declared is denied at runtime, and any constraints whose keys are recognised by the runtime are applied. Future package types (e.g. a native plugin type added by a follow-on RFC) may reuse the same `declaredAccess` shape with a different enforcement contract; that's a problem for the RFC that introduces the new type, not for this one.
+
+The v1 sandbox recognises the access categories and operations listed below. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields under `declaredAccess`. Within a known category, an unrecognised _operation_ key is also a hard reject. Constraint keys, in contrast, are part of an open vocabulary — see [Constraints](#constraints).
+
+**`content`** — access to site content (posts, pages, custom collections).
+
+| Operation | Description                                                                         |
+| --------- | ----------------------------------------------------------------------------------- |
+| `read`    | Plugin may read content records. Constraint vocabulary reserved for follow-on RFCs. |
+| `write`   | Plugin may create, update, or delete content records. Implies `read` at runtime.    |
+
+**`media`** — access to uploaded media assets.
+
+| Operation | Description                                                 |
+| --------- | ----------------------------------------------------------- |
+| `read`    | Plugin may read media metadata and fetch media bytes.       |
+| `write`   | Plugin may upload, modify, or delete media. Implies `read`. |
+
+**`storage`** — access to plugin-private key/value storage (scoped to the plugin's installation; never shared across plugins).
+
+| Operation | Description                                          |
+| --------- | ---------------------------------------------------- |
+| `read`    | Plugin may read its own storage.                     |
+| `write`   | Plugin may write to its own storage. Implies `read`. |
+
+**`network`** — outbound HTTP requests.
+
+| Operation | Description                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| `request` | Plugin may make outbound HTTP requests. Constraints below scope the access; `true` means unscoped. |
+
+`network.request` constraints (v1):
+
+| Constraint     | Type     | Description                                                                                                                                                                                                                                                                                                                                  |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allowedHosts` | string[] | Allow-list of outbound host patterns. Each entry is a hostname pattern with no scheme, path, or port; a leading `*.` wildcard is permitted for subdomains. Absence means no host restriction (the plugin can call anywhere). Strongly recommended in practice; a plugin that doesn't constrain its outbound hosts is harder to reason about. |
+
+**`email`** — sending mail through the host's mail service.
+
+| Operation | Description                                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `send`    | Plugin may send mail. Constraint vocabulary reserved for follow-on RFCs (rate limits, recipient allow-lists, etc., per [Constraints](#constraints)). |
+
+#### Constraints
+
+Each operation's value is a constraint object (with `true` as sugar for the empty object). The keys of that object form an open vocabulary — clients that recognise a key enforce it; clients that don't surface it to the user but do not enforce it.
+
+This is the forward-compatibility mechanism. We expect to need rate limits on `network.request` and `email.send`, recipient allow-lists on `email.send`, write-quota limits on `storage.write`, and other quantitative constraints in due course. Defining them now would commit the lexicon to a specific shape before we've written the runtime code that enforces them. Leaving the constraint object open lets publishers declare such constraints whenever they're ready, and lets future runtime versions enforce them, without requiring a new release-extension lexicon.
+
+The contract for constraint keys:
+
+- A publisher MAY include any constraint keys they want under any operation. The registry stores them verbatim.
+- A v1 client encountering an unrecognised constraint key MUST surface it to the admin in the install-consent UI as "additional constraint declared by the plugin: `<key>: <value>`" and MUST NOT silently ignore it.
+- A v1 client MUST NOT enforce constraints whose semantics it does not understand. A constraint declared in the lexicon but not yet implemented by the runtime is advisory only at that runtime version.
+- A future runtime version that defines semantics for a particular constraint key gains an obligation to enforce it; older runtimes continue to treat it as advisory. This is the standard atproto evolution model — newer schemas mean newer behaviour, older clients fall back gracefully.
+- Follow-on RFCs MAY normatively define specific constraint key/value shapes (e.g. `{ "rateLimit": { "perHour": 100 } }` under `email.send`). Once normatively defined, all clients implementing that RFC version MUST enforce them.
+
+The only normative constraint key in v1 is `allowedHosts` under `network.request`, defined above. Everything else is advisory until a follow-on RFC normatively specifies it.
+
+**Path shorthand.** For brevity in the rules below and elsewhere in this document, `release.emdash.<field>` is shorthand for `release.extensions["com.emdashcms.package.releaseExtension"].<field>`. So `release.emdash.declaredAccess.network.request.allowedHosts` is the path to a plugin's outbound host allow-list.
+
+**Manifest canonicalisation.** A plugin's bundled `manifest.json` and its release record's `declaredAccess` MUST describe the same access. Because `true` and `{}` are equivalent shorthand, the deep-equal check used at publish time and install time first canonicalises both sides — every operation value of `true` is replaced with `{}` before comparison. This way a manifest using the sugar form matches a release record using the explicit form (or vice versa) and the consistency check still passes.
 
 **Extension validation rules:**
 
 - A release whose package type is `emdash-plugin` MUST include a `package` artifact with `url` and `checksum`.
-- A release whose package type is `emdash-plugin` MUST include `release.emdash` extension data with at least one declared capability.
+- A release whose package type is `emdash-plugin` MUST include `release.emdash.declaredAccess` with at least one operation populated across any category. A plugin that declares no access at all is not considered well-formed (it would have nothing to do).
 - The `package` artifact's bytes MUST hash to the artifact's `checksum`.
-- The bundle manifest's `capabilities` and `allowedHosts` MUST exactly match `release.emdash.capabilities` and `release.emdash.allowedHosts`. Checked at publish time by the CLI and at install time by the client.
-
-**`allowedHosts` syntax:**
-
-- Each entry is a hostname pattern, without scheme, path, or port.
-- Exact hostnames like `images.example.com` are allowed.
-- A leading `*.` wildcard is allowed for subdomains, e.g. `*.example.com`.
-- Omission means no outbound host access.
+- The bundle manifest's `declaredAccess` MUST be deep-equal to `release.emdash.declaredAccess` after canonicalisation (per the rule above). Checked at publish time by the CLI and at install time by the client.
+- Clients MUST reject any release whose `declaredAccess` contains a top-level field not enumerated in the v1 vocabulary above (unrecognised access category) or an unrecognised operation inside a known category. Lexicon evolution adds new fields over time; the client's own runtime version determines which are recognised.
+- Unrecognised constraint _keys_ inside a known operation's constraint object MUST NOT cause rejection — they're surfaced to the user per the [Constraints](#constraints) contract.
 
 **Latest release selection:**
 
@@ -583,7 +652,7 @@ The PDS-direct fetch is the trust anchor for installation — the aggregator is 
 4. Fetch the package record from the author's PDS.
 5. Determine the latest release for this package. The aggregator's `listReleases` endpoint returns releases scoped to `(did, package)` and is the recommended path. If the aggregator is unavailable, the client falls back to the publisher's PDS: it pages through the `pm.fair.package.release` collection via `com.atproto.repo.listRecords` and filters locally to records whose rkey starts with `<package>:`. (atproto's `listRecords` does not support a server-side rkey prefix filter, so the PDS-direct path is a full collection scan; this is acceptable for occasional use but is the reason the aggregator path is preferred.) Pick the highest semver version (excluding any tombstoned via deletion or labelled `security:yanked`).
 6. Fetch the selected release record from the author's PDS by its full AT URI (`at://<did>/pm.fair.package.release/<package>:<version>`) to obtain the verified, signed copy. Verify the release record matches what the aggregator returned in step 5.
-7. Fetch the `package` artifact (see [Artifact retrieval](#artifact-retrieval)) using its `url`. Verify the artifact's `checksum` against the downloaded bytes. Verify the bundle manifest matches `release.emdash.capabilities` and `release.emdash.allowedHosts`. Install to the sandbox.
+7. Fetch the `package` artifact (see [Artifact retrieval](#artifact-retrieval)) using its `url`. Verify the artifact's `checksum` against the downloaded bytes. Verify the bundle manifest's `declaredAccess` matches `release.emdash.declaredAccess`. Install to the sandbox.
 
 ### Metadata resolution
 
@@ -712,7 +781,7 @@ $ emdash plugin publish --url https://github.com/example/gallery/releases/downlo
 
 1. Fetches the bundle archive from the URL, validates it is under the 50 MB cap, and computes its multibase checksum.
 2. Reads `manifest.json` from the bundle. Extracts the runtime-relevant fields (`capabilities`, `allowedHosts`) for the release's `emdash` extension, and the package-level fields (`name`, `slug`, `description`, `authors`, `license`, `security`, etc.) for the package profile.
-3. On first publish for a `slug`, creates the `pm.fair.package.profile` record. Always creates the `pm.fair.package.release` record with a `package` artifact carrying the URL and checksum, and the `emdash` extension carrying `capabilities` and `allowedHosts` from the manifest.
+3. On first publish for a `slug`, creates the `pm.fair.package.profile` record. Always creates the `pm.fair.package.release` record with a `package` artifact carrying the URL and checksum, and the `emdash` extension carrying the `declaredAccess` block lifted from the manifest.
 
 This requires the author to host the bundle somewhere (commonly a GitHub release) before running `publish`. A `--file <path>` flag that publishes a local tarball — uploading it to a default hosted artifact location and recording the resulting URL — is intended follow-on work that pairs with the hosted-artifact RFC. v1 does not include it; first-publish DX in v1 is "build → upload → publish", roughly three commands rather than `npm publish`'s one.
 
@@ -897,8 +966,13 @@ await client.createRelease(agent, {
 	extensions: {
 		"com.emdashcms.package.releaseExtension": {
 			$type: "com.emdashcms.package.releaseExtension",
-			capabilities: ["read:content", "read:media"],
-			allowedHosts: ["images.example.com"],
+			declaredAccess: {
+				content: { read: true },
+				media: { read: true },
+				network: {
+					request: { allowedHosts: ["images.example.com"] },
+				},
+			},
 		},
 	},
 });
@@ -974,7 +1048,7 @@ A client verifies:
 
 1. The release record belongs to the expected DID (via repo signature).
 2. The artifact served at the artifact's `url` hashes to the artifact's `checksum`.
-3. The bundle manifest's `capabilities` and `allowedHosts` exactly match `release.emdash.capabilities` and `release.emdash.allowedHosts`.
+3. The bundle manifest's `declaredAccess` block is deep-equal to `release.emdash.declaredAccess`.
 
 The bundle is downloaded, hashed, and compared against the record before any install side effects occur. A failure at any step aborts the install with a specific error message.
 
@@ -1036,7 +1110,10 @@ The "Verified Publisher" badge is scoped to **sandboxed plugins published in the
 - **Duplicate-version override:** Publish a second release record with the same `(package, version)` pair as an existing release; verify the aggregator ignores the later record, install clients refuse it, and the earlier record remains canonical.
 - **Cross-package release confusion:** Publish a release whose `package` field references a profile that doesn't exist in the same repository; verify the aggregator rejects it at ingest. Publish a release whose rkey doesn't match `<package>:<version>`; verify the aggregator rejects it at ingest.
 - **Ingestion spam:** Publish records faster than the aggregator's per-DID rate limit; verify excess records are dropped at ingest and the aggregator stays responsive.
-- **Capability inflation:** Publish a release whose `release.emdash.capabilities` list claims fewer permissions than the bundle's `manifest.json` actually requests. Verify the EmDash client rejects the install at manifest-consistency check time.
+- **Access inflation:** Publish a release whose `release.emdash.declaredAccess` claims fewer permissions than the bundle's `manifest.json` actually requests at runtime. Verify the EmDash client rejects the install at manifest-consistency check time.
+- **Unknown-constraint smuggling:** Publish a release whose declared operation includes an unrecognised constraint key (e.g. `network: { request: { rateLimit: { perHour: 10 } } }` against a v1 client that doesn't yet enforce rate limits). Verify the client surfaces the constraint in the install-consent UI rather than silently accepting or silently rejecting it; verify the v1 sandbox does not enforce the constraint.
+- **Unknown access category or operation:** Publish a release whose `declaredAccess` includes a top-level category, or an operation inside a known category, not in the v1 vocabulary. Verify the client rejects the install (in contrast to unknown constraints, which are advisory).
+- **Sugar / canonicalisation skew:** Publish a release with `content: { read: true }` and a manifest with `content: { read: {} }` (or vice versa). Verify the deep-equal check passes after canonicalisation.
 - **Forged records:** Attempt to create records claiming to be from a different DID; verify the aggregator and client reject them (via MST signature failure).
 
 # Drawbacks
